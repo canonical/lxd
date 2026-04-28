@@ -4021,6 +4021,10 @@ func (b *lxdBackend) RestoreInstanceSnapshot(ctx context.Context, inst instance.
 	snapshotStorageName := project.StorageVolume(src.Project().Name, dbSnapVol.Name)
 	snapVol := b.GetVolume(volType, contentType, snapshotStorageName, dbSnapVol.Config)
 
+	if b.driver.Info().PopulateParentVolumeUUID {
+		snapVol.SetParentUUID(dbVol.Config["volatile.uuid"])
+	}
+
 	err = b.driver.RestoreVolume(vol, snapVol, progressReporter)
 	if err != nil {
 		snapErr, ok := err.(drivers.ErrDeleteSnapshots)
@@ -6645,6 +6649,10 @@ func (b *lxdBackend) RestoreCustomVolume(ctx context.Context, projectName string
 
 	snapshotStorageName := project.StorageVolume(projectName, dbSnapVol.Name)
 	snapVol := b.GetVolume(drivers.VolumeTypeCustom, contentType, snapshotStorageName, dbSnapVol.Config)
+
+	if b.driver.Info().PopulateParentVolumeUUID {
+		snapVol.SetParentUUID(curVol.Config["volatile.uuid"])
+	}
 
 	err = b.driver.RestoreVolume(vol, snapVol, progressReporter)
 	if err != nil {

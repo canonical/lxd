@@ -3081,3 +3081,16 @@ This includes the following new endpoints (see {ref}`rest-api` for details):
 * [`POST /1.0/replicators/<name>`](swagger:/replicators/replicator_post)
 * [`DELETE /1.0/replicators/<name>`](swagger:/replicators/replicator_delete)
 * [`GET /1.0/replicators/<name>/state`](swagger:/replicators/replicator_state_get)
+
+## `storage_driver_powerstore`
+
+Adds a new `powerstore` storage driver which allows the consumption of storage volumes from a PowerStore storage array using iSCSI.
+
+The following pool level configuration keys have been added:
+
+1. {config:option}`storage-powerstore-pool-conf:powerstore.gateway`
+1. {config:option}`storage-powerstore-pool-conf:powerstore.gateway.verify`
+1. {config:option}`storage-powerstore-pool-conf:powerstore.user.name`
+1. {config:option}`storage-powerstore-pool-conf:powerstore.user.password`
+1. {config:option}`storage-powerstore-pool-conf:powerstore.mode`
+1. {config:option}`storage-powerstore-pool-conf:powerstore.target`

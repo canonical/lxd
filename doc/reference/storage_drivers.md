@@ -49,23 +49,23 @@ Feature                                     | Directory | Btrfs | LVM   | ZFS
 (storage-drivers-features-nonlocal)=
 ### Non-local storage features
 
-Feature                                     | Ceph RBD | CephFS | Ceph Object | Dell PowerFlex | Pure Storage | HPE Alletra
-:---                                        | :---     | :---   | :---        | :---           | :---         | :---
-{ref}`storage-optimized-image-storage`      | ✅       | ➖     | ➖          | ❌              | ✅          | ✅
-{ref}`storage-optimized-instance-creation`  | ✅       | ➖     | ➖          | ❌              | ✅          | ✅
-{ref}`storage-optimized-snapshot-creation`  | ✅       | ✅     | ➖          | ✅              | ✅          | ✅
-{ref}`storage-optimized-backup`             | ❌       | ➖     | ➖          | ❌              | ❌          | ❌
-{ref}`storage-optimized-volume-transfer`    | ✅[^4]   | ➖     | ➖          | ❌              | ❌          | ❌
-{ref}`storage-optimized-volume-refresh`     | ✅[^5]   | ➖     | ➖          | ❌              | ✅[^6]      | ✅[^6]
-{ref}`storage-copy-on-write`                | ✅       | ✅     | ➖          | ✅              | ✅          | ✅
-{ref}`storage-block-based`                  | ✅       | ❌     | ➖          | ✅              | ✅          | ✅
-{ref}`storage-instant-cloning`              | ✅       | ✅     | ➖          | ❌              | ✅          | ❌
-{ref}`storage-driver-usable-in-container`   | ❌       | ➖     | ➖          | ❌              | ❌          | ❌
-{ref}`storage-restore-older-snapshots`      | ✅       | ✅     | ➖          | ✅              | ✅          | ✅
-{ref}`storage-quotas`                       | ✅       | ✅     | ✅          | ✅              | ✅          | ✅
-{ref}`storage-available-init`               | ✅       | ❌     | ❌          | ❌              | ❌          | ❌
-{ref}`storage-object-storage`               | ❌       | ❌     | ✅          | ❌              | ❌          | ❌
-{ref}`storage-volume-recovery`              | ✅       | ✅     | ✅          | ✅[^7]          | ✅[^7]      | ❌
+Feature                                     | Ceph RBD | CephFS | Ceph Object | Dell PowerFlex | Dell PowerStore | Pure Storage | HPE Alletra
+:---                                        | :---     | :---   | :---        | :---           | :---            | :---         | :---
+{ref}`storage-optimized-image-storage`      | ✅       | ➖     | ➖          | ❌              | ✅             | ✅          | ✅
+{ref}`storage-optimized-instance-creation`  | ✅       | ➖     | ➖          | ❌              | ✅             | ✅          | ✅
+{ref}`storage-optimized-snapshot-creation`  | ✅       | ✅     | ➖          | ✅              | ✅             | ✅          | ✅
+{ref}`storage-optimized-backup`             | ❌       | ➖     | ➖          | ❌              | ❌             | ❌          | ❌
+{ref}`storage-optimized-volume-transfer`    | ✅[^4]   | ➖     | ➖          | ❌              | ❌             | ❌          | ❌
+{ref}`storage-optimized-volume-refresh`     | ✅[^5]   | ➖     | ➖          | ❌              | ✅[^6]         | ✅[^6]      | ✅[^6]
+{ref}`storage-copy-on-write`                | ✅       | ✅     | ➖          | ✅              | ✅             | ✅          | ✅
+{ref}`storage-block-based`                  | ✅       | ❌     | ➖          | ✅              | ✅             | ✅          | ✅
+{ref}`storage-instant-cloning`              | ✅       | ✅     | ➖          | ❌              | ✅             | ✅          | ❌
+{ref}`storage-driver-usable-in-container`   | ❌       | ➖     | ➖          | ❌              | ❌             | ❌          | ❌
+{ref}`storage-restore-older-snapshots`      | ✅       | ✅     | ➖          | ✅              | ✅             | ✅          | ✅
+{ref}`storage-quotas`                       | ✅       | ✅     | ✅          | ✅              | ✅             | ✅          | ✅
+{ref}`storage-available-init`               | ✅       | ❌     | ❌          | ❌              | ❌             | ❌          | ❌
+{ref}`storage-object-storage`               | ❌       | ❌     | ✅          | ❌              | ❌             | ❌          | ❌
+{ref}`storage-volume-recovery`              | ✅       | ✅     | ✅          | ✅[^7]          | ❌             | ✅[^7]      | ❌
 
 [^4]: Volumes of type `block` will fall back to non-optimized transfer when migrating to an older LXD server that doesn't yet support the `RBD_AND_RSYNC` migration type.
 [^5]: Only for volumes of type `block`.
@@ -105,6 +105,7 @@ LXD provides drivers for the following types of remote storage:
 
 storage_ceph
 storage_powerflex
+storage_powerstore
 storage_pure
 storage_alletra
 ```
