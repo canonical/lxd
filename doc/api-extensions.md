@@ -3081,3 +3081,8 @@ This includes the following new endpoints (see {ref}`rest-api` for details):
 * [`POST /1.0/replicators/<name>`](swagger:/replicators/replicator_post)
 * [`DELETE /1.0/replicators/<name>`](swagger:/replicators/replicator_delete)
 * [`GET /1.0/replicators/<name>/state`](swagger:/replicators/replicator_state_get)
+
+## `event_security`
+
+Adds a new `security` event type conforming to OWASP security event logging guidelines.
+Security events are accessible via `GET /1.0/events?type=security` and can be routed to Grafana Loki by adding `security` to the `loki.types` server configuration.
