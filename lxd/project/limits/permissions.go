@@ -911,6 +911,7 @@ var allRestrictions = map[string]string{
 	"restricted.idmap.gid":                 "",
 	"restricted.networks.access":           "",
 	"restricted.snapshots":                 "block",
+	"restricted.registries":                "block",
 }
 
 // allowableIntercept lists all syscall interception keys which may be allowed.

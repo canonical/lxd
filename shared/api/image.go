@@ -99,6 +99,11 @@ type ImagesPostSource struct {
 	//
 	// API extension: image_source_project
 	Project string `json:"project" yaml:"project"`
+
+	// Whether to copy aliases from the source image
+	//
+	// API extension: image_registries_operations
+	CopyAliases bool `json:"copy_aliases" yaml:"copy_aliases"`
 }
 
 // ImagePut represents the modifiable fields of a LXD image
@@ -286,6 +291,12 @@ type ImageSource struct {
 	//
 	// API extension: image_types
 	ImageType string `json:"image_type" yaml:"image_type"`
+
+	// Image registry name
+	// Example: ubuntu
+	//
+	// API extension: image_registries_operations
+	ImageRegistry string `json:"image_registry" yaml:"image_registry"`
 }
 
 // ImageAliasesPost represents a new LXD image alias
