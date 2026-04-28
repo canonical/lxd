@@ -199,3 +199,96 @@ test_security_protection() {
 
   respawn_lxd "${LXD_DIR}" true
 }
+
+test_security_events() {
+  sub_test "Verify event_security API extension is present"
+  lxc query /1.0 | jq -e '.api_extensions | contains(["event_security"])'
+
+  sub_test "Verify lxc monitor --type=security connects without error"
+  # No security events are emitted yet (emission sites are a later subtask),
+  # so only the connection establishment is verified here.
+  local monfile="${TEST_DIR}/security-events.jsonl"
+  lxc monitor --type=security --format=json > "${monfile}" &
+  local mon_pid=$!
+
+  # The monitor process exits immediately on connection error. Retry kill -0
+  # for up to 10 seconds; once it succeeds we know the connection is live.
+  for _ in $(seq 10); do
+    kill -0 "${mon_pid}" && break
+    sleep 1
+  done
+
+  kill -0 "${mon_pid}"
+
+  kill_go_proc "${mon_pid}" || true
+  rm -f "${monfile}"
+
+  sub_test "Verify existing lifecycle events are unaffected by the security event type"
+  ensure_import_testimage
+  local monfile_lifecycle="${TEST_DIR}/lifecycle-events.jsonl"
+  lxc monitor --type=lifecycle --format=json > "${monfile_lifecycle}" &
+  local mon_lifecycle_pid=$!
+  sleep 0.1
+
+  lxc init --empty c-security-event-test
+  lxc delete c-security-event-test --force
+
+  # Retry for up to 5 seconds for the lifecycle event to appear in the monitor file
+  # before killing the monitor, so the file contents are reliably complete.
+  for _ in $(seq 5); do
+    jq --exit-status --slurp 'map(select(.type == "lifecycle" and .metadata.action == "instance-created")) | length == 1' "${monfile_lifecycle}" && break
+    sleep 1
+  done
+
+  kill_go_proc "${mon_lifecycle_pid}" || true
+
+  jq --exit-status --slurp 'map(select(.type == "lifecycle" and .metadata.action == "instance-created")) | length == 1' "${monfile_lifecycle}"
+
+  rm -f "${monfile_lifecycle}"
+}
+
+test_security_events_bearer_authn() {
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  # Create a bearer identity and capture the issued token. No group is needed:
+  # an authenticated identity can hit /1.0 without any entitlement on server,
+  # which is enough to drive the trusted-then-revoked flow under test.
+  lxc auth identity create bearer/security-events-bearer
+  local bearer_token
+  bearer_token="$(lxc auth identity token issue bearer/security-events-bearer --quiet)"
+
+  # Subscribe to the security stream before any auth attempt so the revocation
+  # path's authn_token_reuse event lands in the file.
+  local monfile="${TEST_DIR}/security-events-bearer.jsonl"
+  lxc monitor --type=security --format=json > "${monfile}" &
+  local mon_pid=$!
+  for _ in $(seq 10); do
+    kill -0 "${mon_pid}" && break
+    sleep 1
+  done
+  kill -0 "${mon_pid}"
+
+  sub_test "Verify a fresh bearer token authenticates successfully"
+  curl --silent --insecure --header "Authorization: Bearer ${bearer_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
+
+  sub_test "Verify reuse of a revoked bearer token is denied and audited"
+  lxc auth identity token revoke bearer/security-events-bearer
+  # A revoked token causes bearer.Authenticate to return an error, which the
+  # daemon translates to a 403 Forbidden response.
+  curl --silent --insecure --header "Authorization: Bearer ${bearer_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.error_code == 403'
+
+  # Poll the monitor file (up to 10 s) for the authn_token_reuse event raised
+  # by bearer.Authenticate when verifyToken fails against the rotated secret.
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("authn_token_reuse")))) | length >= 1' "${monfile}" && break
+    sleep 1
+  done
+
+  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("authn_token_reuse")))) | length >= 1' "${monfile}"
+  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("authn_token_reuse")))) | .[0] | (.metadata.level == "warning") and (.metadata.requestor.protocol != "") and (.metadata.requestor.username != "") and (.metadata.request_path == "/1.0") and (.metadata.requestor.address != "")' "${monfile}"
+
+  kill_go_proc "${mon_pid}" || true
+  rm -f "${monfile}"
+
+  lxc auth identity delete bearer/security-events-bearer
+}
