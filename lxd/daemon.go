@@ -1094,12 +1094,12 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, i
 
 	// Handle standalone systems.
 	var location string
-	if !d.serverClustered {
-		hostname, err := os.Hostname()
-		if err != nil {
-			return err
-		}
+	hostname, err := os.Hostname()
+	if err != nil {
+		return err
+	}
 
+	if !d.serverClustered {
 		location = hostname
 		if instanceName == "" {
 			instanceName = hostname
@@ -1108,8 +1108,25 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, i
 		instanceName = d.serverName
 	}
 
+	// Server-static OWASP fields for security event lines: derived from the
+	// configured HTTPS listener so the Loki entry has a consistent host/port
+	// regardless of which listener the request hit.
+	var hostIP, port string
+	d.globalConfigMu.Lock()
+	clusterIdentifier := d.globalConfig.ClusterUUID()
+	d.globalConfigMu.Unlock()
+
+	httpsAddress := d.localConfig.HTTPSAddress()
+	if httpsAddress != "" {
+		host, p, splitErr := net.SplitHostPort(httpsAddress)
+		if splitErr == nil {
+			hostIP = host
+			port = p
+		}
+	}
+
 	// Start a new client.
-	d.lokiClient, err = loki.NewClient(d.shutdownCtx, u, cert, key, caCert, instanceName, location, logLevel, labels, types)
+	d.lokiClient, err = loki.NewClient(d.shutdownCtx, u, cert, key, caCert, instanceName, location, hostname, hostIP, port, clusterIdentifier, logLevel, labels, types)
 	if err != nil {
 		return err
 	}
