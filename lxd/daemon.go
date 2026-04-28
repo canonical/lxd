@@ -59,6 +59,7 @@ import (
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/request/security"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/seccomp"
@@ -813,6 +814,11 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	}
 
 	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
+		// Initialise the security audit context once per request so any
+		// downstream auth path can emit security events without each call
+		// site having to remember to populate the OWASP base fields.
+		security.InitRequestAuditInfo(r)
+
 		// Only endpoints from the main API (version 1.0) should be counted for the metrics.
 		// This prevents internal endpoints from being included as well.
 		if version == "1.0" {

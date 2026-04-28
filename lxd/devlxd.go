@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/request/security"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -548,6 +549,12 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *mux.Router, apiVersion string,
 
 	// Function that handles the request by calling the appropriate handler.
 	handleFunc := func(w http.ResponseWriter, r *http.Request) {
+		// Initialise the security audit context once per devLXD request so any
+		// downstream auth path (bearer today, vsock and unix-peercred later)
+		// can emit security events without each call site having to remember
+		// to populate the OWASP base fields.
+		security.InitRequestAuditInfo(r)
+
 		// Track request metrics
 		metrics.TrackStartedRequest(r, ep.MetricsType)
 
