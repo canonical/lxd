@@ -892,6 +892,48 @@ test_network_ovn() {
   unset_ovn_configuration
 }
 
+probe_pool_targets() {
+  load_balancer_ip="${1}"
+  shift
+  valid_responses=("$@")
+
+  # Declare an array to track all responses.
+  declare -A seen
+  for valid in "${valid_responses[@]}"; do
+    seen["${valid}"]=false
+  done
+
+  # Try 100 times to be sure we got a response from all instances, as the load balancer may choose the same instance for multiple consecutive requests.
+  for i in $(seq 1 100); do
+    response="$(curl --silent --connect-timeout 5 -H "Connection: close" "http://${load_balancer_ip}:80")"
+    match=false
+    for valid in "${valid_responses[@]}"; do
+      if [ "${response}" = "${valid}" ]; then
+        # Indicate we got a valid response.
+        match=true
+
+        # Record the response.
+        seen["${response}"]=true
+        break
+      fi
+    done
+
+    # Exit in case the response wasn't expected.
+    if [ "${match}" = "false" ]; then
+      echo "Unexpected response from load balancer: ${response}"
+      exit 1
+    fi
+  done
+
+  # Check that every expected response was observed at least once.
+  for valid in "${valid_responses[@]}"; do
+    if [ "${seen[${valid}]}" = "false" ]; then
+      echo "Load balancer never responded with: ${valid}"
+      exit 1
+    fi
+  done
+}
+
 instance_ip4_address() {
   local uuid internal_switch_port_name address
 
@@ -994,4 +1036,13 @@ auto_allocate_load_balancers_ip6() {
   for i in $(seq 2 7); do
     lxc network load-balancer delete "${ovn_network}" "${1}::${i}"
   done
+}
+
+wrap_ipv6() {
+    local ip="$1"
+    if [[ "${ip}" == *:* && "${ip}" != \[*\] ]]; then
+        printf '[%s]\n' "${ip}"
+    else
+        printf '%s\n' "${ip}"
+    fi
 }
