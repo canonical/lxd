@@ -874,6 +874,7 @@ parts:
     after:
       - libatomic
       - spice-server
+      - python-runtime
     source: https://git.launchpad.net/ubuntu/+source/qemu
     source-commit: 96cda2bbb2f530d08f6bda1f0dc186a0e0ce9674 # import/1%10.2.1+ds-1ubuntu3
     source-depth: 1
