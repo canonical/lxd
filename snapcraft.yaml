@@ -1338,6 +1338,8 @@ parts:
       ln -s /var/snap/lxd/common/lxc/local.conf "${CRAFT_PART_INSTALL}/lxc/config/common.conf.d/01-local.conf"
 
   lxcfs:
+    after:
+      - python-runtime
     source: https://github.com/lxc/lxcfs
     source-depth: 1
     source-type: git
