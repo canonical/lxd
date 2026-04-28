@@ -1272,10 +1272,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Type = api.InstanceType(urlType.String())
 	}
 
-	if req.Type == "" {
-		req.Type = api.InstanceTypeContainer // Default to container if not specified.
-	}
-
 	if req.Devices == nil {
 		req.Devices = map[string]map[string]string{}
 	}
@@ -1364,6 +1360,31 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		remoteServer, err = registry.ConnectImageRegistry(r.Context(), s, *imageRegistry)
 		if err != nil {
 			return response.SmartError(err)
+		}
+	}
+
+	// If the instance type wasn't specified and we have a LXD protocol registry, pre-fetch the image
+	// type from the remote so we can infer it inside the main transaction without making a
+	// network call while holding the DB lock.
+	var remoteImageType string
+	if req.Type == "" && imageRegistry != nil && imageRegistry.Protocol == api.ImageRegistryProtocolLXD && remoteServer != nil {
+		imgRef := req.Source.Fingerprint
+		if imgRef == "" {
+			imgRef = req.Source.Alias
+		}
+
+		if imgRef != "" {
+			// Try resolving as an alias first, as the fingerprint field may contain an alias name.
+			alias, _, err := remoteServer.GetImageAlias(imgRef)
+			if err == nil {
+				remoteImageType = alias.Type
+			} else {
+				// Fall back to fetching by fingerprint.
+				info, _, err := remoteServer.GetImage(imgRef)
+				if err == nil {
+					remoteImageType = info.Type
+				}
+			}
 		}
 	}
 
@@ -1521,6 +1542,32 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
+			// If type wasn't specified, match the image type where appropriate.
+			if req.Type == "" {
+				// We infer the type from the image if:
+				// 1) It's a local image/alias (imageRegistry is nil).
+				// 2) It's from a LXD protocol registry.
+				// This replicates the legacy client-side behavior where only local images
+				// and images from LXD remotes were subject to automatic type detection.
+				// We explicitly skip inference for simplestreams registries to maintain the
+				// default of creating a container.
+				if imageRegistry == nil || imageRegistry.Protocol == "lxd" {
+					var imgType string
+					if sourceImage != nil {
+						imgType = sourceImage.Type
+					} else if remoteImageType != "" {
+						imgType = remoteImageType
+					}
+
+					if imgType != "" {
+						dbType, err := instancetype.New(imgType)
+						if err == nil {
+							req.Type = api.InstanceType(dbType.String())
+						}
+					}
+				}
+			}
+
 			// If image has an entry in the database then use its profiles if no override provided.
 			if sourceImage != nil && req.Profiles == nil {
 				req.Architecture = sourceImage.Architecture
@@ -1629,6 +1676,11 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !clusterNotification {
+			// If type wasn't specified and couldn't be inferred, default to container.
+			if req.Type == "" {
+				req.Type = api.InstanceTypeContainer
+			}
+
 			// Check that the project's limits are not violated. Note this check is performed after
 			// automatically generated config values (such as ones from an InstanceType) have been set.
 			err = limits.AllowInstanceCreation(ctx, s.GlobalConfig, tx, targetProjectName, req)
