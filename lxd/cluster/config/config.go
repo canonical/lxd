@@ -674,14 +674,14 @@ var ConfigSchema = config.Schema{
 
 		// lxdmeta:generate(entities=server; group=loki; key=loki.types)
 		// Specify a comma-separated list of events to send to the Loki server.
-		// The events can be any combination of `lifecycle`, `logging`, and `ovn`.
+		// The events can be any combination of `lifecycle`, `logging`, `ovn`, and `security`.
 		// ---
 		//  type: string
 		//  scope: global
 		//  defaultdesc: `lifecycle,logging`
 		//  shortdesc: Events to send to the Loki server
 		"loki.types": {Validator: validate.Optional(validate.IsListOf(validate.IsOneOf(
-			api.EventTypeLifecycle, api.EventTypeLogging, api.EventTypeOVN,
+			api.EventTypeLifecycle, api.EventTypeLogging, api.EventTypeOVN, api.EventTypeSecurity,
 		))), Default: "lifecycle,logging"},
 
 		// lxdmeta:generate(entities=server; group=oidc; key=oidc.client.id)
