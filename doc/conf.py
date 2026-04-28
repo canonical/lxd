@@ -72,7 +72,10 @@ html_last_updated_fmt = ""
 html_favicon = ".sphinx/_static/favicon.ico"
 html_static_path = ['.sphinx/_static']
 html_css_files = ['custom.css']
-html_js_files = ['header-nav.js']
+html_js_files = [
+    'header-nav.js',
+    'rtd-versions-flyout.js',
+]
 html_extra_path = ['.sphinx/_extra']
 
 html_theme_options = {
@@ -143,6 +146,10 @@ html_context = {
         "lxc": "https://discuss.linuxcontainers.org/t/",
         "ubuntu": "https://discourse.ubuntu.com/t/"}
 }
+
+# Version label shown in the RTD flyout next to "default", in parentheses.
+# Set the FLYOUT_DEFAULT_VERSION_LABEL environment variable in the RTD project dashboard.
+html_context['flyout_default_version_label'] = os.environ.get('FLYOUT_DEFAULT_VERSION_LABEL', '')
 
 source_suffix = ".md"
 
