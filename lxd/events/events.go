@@ -36,9 +36,10 @@ type NotifyFunc func(event api.Event)
 type Server struct {
 	serverCommon
 
-	listeners map[string]*Listener
-	notify    NotifyFunc
-	location  string
+	listeners         map[string]*Listener
+	notify            NotifyFunc
+	location          string
+	clusterIdentifier string
 
 	// logger is a [logger.Logger] that can be used while an event is being processed.
 	// This is necessary because the global [logger.Logger] is configured with a hook that will send logging events to the server.
@@ -73,6 +74,16 @@ func (s *Server) SetLocalLocation(location string) {
 	defer s.lock.Unlock()
 
 	s.location = location
+}
+
+// SetClusterIdentifier records the cluster UUID so that audit events emitted
+// via SendSecurity can default the cluster_identifier field without each call
+// site having to know it.
+func (s *Server) SetClusterIdentifier(clusterIdentifier string) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	s.clusterIdentifier = clusterIdentifier
 }
 
 // AddListener creates and returns a new event listener. The filter argument must return true to include the event and
