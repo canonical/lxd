@@ -367,40 +367,17 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 		// to the server so it can handle the resolution directly (which works for both public and private images,
 		// and supports features like automatic local caching and alias resolution).
 		if d.HasExtension("image_registries") {
-			// Resolve the image remote, it can only be used for local images.
-			sourceRemote := iremote
-			if sourceRemote == "" {
-				sourceRemote = remote
-			}
+			var registryName string
+			imgInfo, registryName = resolveRegistryImageSource(conf, iremote, image, remote, c.global.flagProject)
 
-			if sourceRemote == remote {
-				// Local image copy from the same server.
-				// Determine the source image project. We try to infer the target project for the source remote,
-				// falling back to the default project. This allows local cross-project image resolution.
-				imageProject := c.global.flagProject
-				if imageProject == "" {
-					imageProject = conf.Remotes[sourceRemote].Project
-				}
-
-				if imageProject == "" {
-					imageProject = api.ProjectDefaultName
-				}
-
-				// For local copies, we don't set ImageRegistry to indicate we are resolving locally
-				// across projects within the same server.
-				// source.Project will be set from imgInfo.Project at the call site.
-				imgInfo = &api.Image{
-					Fingerprint: image,
-					Project:     imageProject,
-				}
-			} else {
+			if registryName != "" {
 				// Remote image registry.
 				// Check if the server has an image registry with this name.
-				_, _, err := d.GetImageRegistry(iremote)
+				_, _, err := d.GetImageRegistry(registryName)
 				if err != nil {
 					// Only fall back for 404 (registry not found).
 					if !api.StatusErrorCheck(err, http.StatusNotFound) {
-						return nil, "", fmt.Errorf("Failed checking image registry %q: %w", iremote, err)
+						return nil, "", fmt.Errorf("Failed checking image registry %q: %w", registryName, err)
 					}
 
 					// Registry not found. If the local remote is a SimpleStreams remote with a
@@ -408,17 +385,15 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 					// fields so the server can auto-create the registry.
 					remoteConfig := conf.Remotes[iremote]
 					if remoteConfig.Protocol != api.ImageRegistryProtocolSimpleStreams || !api.IsTransitionalSimpleStreamsURL(remoteConfig.Addr) {
-						return nil, "", fmt.Errorf("Image registry %q not found", iremote)
+						return nil, "", fmt.Errorf("Image registry %q not found", registryName)
 					}
 
 					req.Source.Server = remoteConfig.Addr                        //nolint:staticcheck
 					req.Source.Protocol = api.ImageRegistryProtocolSimpleStreams //nolint:staticcheck
 				} else {
 					// Registry exists on the server — use it directly.
-					req.Source.ImageRegistry = iremote
+					req.Source.ImageRegistry = registryName
 				}
-
-				imgInfo = &api.Image{Fingerprint: image}
 			}
 		} else {
 			// Fetch image info from the given remote (legacy client-side resolution path).
