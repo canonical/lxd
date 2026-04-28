@@ -892,15 +892,17 @@ test_network_ovn() {
   unset_ovn_configuration
 }
 
-setup_instance_ip4_interface() {
-  local uuid internal_switch_port_name ipv4_address
+instance_ip4_address() {
+  local uuid internal_switch_port_name
 
   uuid="$(lxc query /1.0/instances/"${1}" | jq -er '.config."volatile.uuid"')"
   internal_switch_port_name="${chassis_group_name}-instance-${uuid}-eth0"
 
-  ipv4_address="$(ovn-nbctl get logical_switch_port "${internal_switch_port_name}" dynamic_addresses | tr -d '"' | cut -d' ' -f 2)"
+  ovn-nbctl get logical_switch_port "${internal_switch_port_name}" dynamic_addresses | tr -d '"' | cut -d' ' -f 2
+}
 
-  lxc exec "${1}" -- ip -4 addr add "${ipv4_address}/24" dev eth0
+setup_instance_ip4_interface() {
+  lxc exec "${1}" -- ip -4 addr add "$(instance_ip4_address "${1}")/24" dev eth0
   lxc exec "${1}" -- ip -4 route add default via 10.24.140.1 dev eth0
 }
 
