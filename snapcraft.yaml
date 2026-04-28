@@ -1402,6 +1402,7 @@ parts:
       - spice-server
       - edk2
       - nftables
+      - python-runtime
     plugin: nil
     stage-packages:
       - to amd64:
