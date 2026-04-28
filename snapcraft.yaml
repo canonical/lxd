@@ -255,6 +255,7 @@ parts:
   ceph:
     after:
       - libatomic
+      - python-runtime
     plugin: nil
     stage-packages:
       # XXX: explicitly depend on libsnappy1v5 due to https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2072656
