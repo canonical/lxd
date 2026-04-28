@@ -632,6 +632,11 @@ type ImageCopyArgs struct {
 
 	// List of profiles to apply on the target.
 	Profiles []string
+
+	// Source image registry to use.
+	//
+	// API extension: image_registries
+	ImageRegistry string
 }
 
 // The StoragePoolVolumeCopyArgs struct is used to pass additional options

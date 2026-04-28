@@ -37,7 +37,7 @@ type cmdInit struct {
 
 func (c *cmdInit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("init", "[<remote>:]<image> [<remote>:][<name>]")
+	cmd.Use = usage("init", "[<registry|remote>:]<image> [<remote>:][<name>]")
 	cmd.Short = "Create instances from images"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Example = cli.FormatSection("", `lxc init ubuntu:24.04 u1
@@ -56,7 +56,9 @@ Note: The --project flag sets the project for both the image remote and the inst
 If the image remote is a public remote (e.g. simplestreams) then this project is ignored by the image remote.
 If the image remote is another LXD server, specify the source project for the image remote 
 with --project and the instance remote with --target-project (if different from --project).
-`)
+
+If the destination LXD server supports image registries, the source image
+must be from an image registry or a local store.`)
 
 	cmd.RunE = c.run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, cli.FormatStringFlagLabel("Config key/value to apply to the new instance"))
@@ -132,10 +134,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 	}
 
 	if len(args) > 0 {
-		iremote, image, err = conf.ParseRemote(args[0])
-		if err != nil {
-			return nil, "", err
-		}
+		iremote, image = conf.ParseRemoteUnchecked(args[0])
 
 		if len(args) == 1 {
 			remote, name, err = conf.ParseRemote("")
@@ -161,9 +160,11 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 				return nil, "", err
 			}
 		} else if len(args) == 1 {
-			// Switch image / instance names.
-			name = image
-			remote = iremote
+			remote, name, err = conf.ParseRemote(args[0])
+			if err != nil {
+				return nil, "", err
+			}
+
 			image = ""
 			iremote = ""
 		}
@@ -268,9 +269,13 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 	}
 
 	// Decide whether we are creating a container or a virtual machine.
-	instanceDBType := api.InstanceTypeContainer
+	var instanceDBType api.InstanceType
 	if c.flagVM {
 		instanceDBType = api.InstanceTypeVM
+	} else if !d.HasExtension("image_registries") {
+		// If the server doesn't support the image_registries extension, we must provide a default
+		// type as the server won't be able to infer it from the image source itself.
+		instanceDBType = api.InstanceTypeContainer
 	}
 
 	// Set the target if provided.
@@ -351,13 +356,70 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 			image = "default"
 		}
 
-		// Fetch image info from the given remote.
-		imgRemote, imgInfo, err := getImgInfo(conf, iremote, image, c.global.flagProject, &req.Source)
-		if err != nil {
-			return nil, "", err
+		var imgRemoteServer lxd.ImageServer
+		var imgInfo *api.Image
+		var legacyRemote string
+		var err error
+
+		// If the server supports image registries, we can use server-side image resolution and download.
+		// This avoids resolving the image on the client side, and passes the registry name or source project
+		// to the server so it can handle the resolution directly (which works for both public and private images,
+		// and supports features like automatic local caching and alias resolution).
+		if d.HasExtension("image_registries") {
+			// Resolve the image remote, it can only be used for local images.
+			sourceRemote := iremote
+			if sourceRemote == "" {
+				sourceRemote = remote
+			}
+
+			if sourceRemote == remote {
+				// Local image copy from the same server.
+				// Determine the source image project. We try to infer the target project for the source remote,
+				// falling back to the default project. This allows local cross-project image resolution.
+				imageProject := c.global.flagProject
+				if imageProject == "" {
+					imageProject = conf.Remotes[sourceRemote].Project
+				}
+
+				if imageProject == "" {
+					imageProject = api.ProjectDefaultName
+				}
+
+				// For local copies, we don't set ImageRegistry to indicate we are resolving locally
+				// across projects within the same server.
+				// source.Project will be set from imgInfo.Project at the call site.
+				imgInfo = &api.Image{
+					Fingerprint: image,
+					Project:     imageProject,
+				}
+			} else {
+				// Remote image registry.
+				// We set the image registry name on the instance source, so the LXD server handles the download.
+				req.Source.ImageRegistry = iremote
+				imgInfo = &api.Image{Fingerprint: image}
+			}
+		} else {
+			// Fetch image info from the given remote (legacy client-side resolution path).
+			// Normalize empty remote to the default remote, since ParseRemoteUnchecked
+			// does not fill in the default.
+			legacyRemote = iremote
+			if legacyRemote == "" {
+				legacyRemote = conf.DefaultRemote
+			}
+
+			imgRemoteServer, imgInfo, err = getImgInfo(conf, legacyRemote, image, c.global.flagProject, &req.Source)
+			if err != nil {
+				return nil, "", err
+			}
 		}
 
-		if conf.Remotes[iremote].Protocol != "simplestreams" {
+		// Update the source project if it was determined by getImgInfo.
+		if imgRemoteServer == nil && imgInfo.Project != "" {
+			req.Source.Project = imgInfo.Project
+		}
+
+		// Only perform legacy type and protocol checks if we are NOT using an image registry.
+		if imgRemoteServer != nil && conf.Remotes[legacyRemote].Protocol != "simplestreams" {
 			if imgInfo.Type != "virtual-machine" && c.flagVM {
 				return nil, "", errors.New("Asked for a VM but image is of type container")
 			}
@@ -366,7 +428,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 		}
 
 		// Create the instance.
-		op, err := d.CreateInstanceFromImage(imgRemote, *imgInfo, req)
+		op, err := d.CreateInstanceFromImage(imgRemoteServer, *imgInfo, req)
 		if err != nil {
 			return nil, "", err
 		}

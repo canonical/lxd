@@ -349,7 +349,12 @@ func getServerSupportedFilters(filters []string, i any) (supportedFilters []stri
 
 // guessImage checks that the image name (provided by the user) is correct given an instance remote and image remote.
 func guessImage(conf *config.Config, d lxd.InstanceServer, instRemote string, imgRemote string, imageRef string) (imageRemote string, image string) {
-	if instRemote != imgRemote {
+	impliedImgRemote := imgRemote
+	if impliedImgRemote == "" {
+		impliedImgRemote = conf.DefaultRemote
+	}
+
+	if instRemote != impliedImgRemote {
 		return imgRemote, imageRef
 	}
 
