@@ -1330,6 +1330,55 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var imageRegistry *api.ImageRegistry
 	var remoteServer lxd.ImageServer
 
+	// Transitional backward-compatibility: if the client sent the deprecated Server and Protocol
+	// fields (but no ImageRegistry), and the URL is on the SimpleStreams allowlist, automatically
+	// look up or create a public SimpleStreams image registry so the request can proceed through
+	// the standard image registry path.
+	if req.Source.ImageRegistry == "" && req.Source.Server != "" && req.Source.Protocol == api.ImageRegistryProtocolSimpleStreams { //nolint:staticcheck
+		if api.IsTransitionalSimpleStreamsURL(req.Source.Server) { //nolint:staticcheck
+			registryName := api.TransitionalRegistryName(req.Source.Server) //nolint:staticcheck
+
+			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+				_, err := dbCluster.GetImageRegistry(ctx, tx.Tx(), registryName)
+				if err == nil {
+					// Image registry already exists, no need to create it.
+					return nil
+				}
+
+				if !response.IsNotFoundError(err) {
+					return fmt.Errorf("Failed checking for existing image registry %q: %w", registryName, err)
+				}
+
+				// Registry does not exist yet, so create it.
+				registryID, err := dbCluster.CreateImageRegistry(ctx, tx.Tx(), dbCluster.ImageRegistryRow{
+					Name:     registryName,
+					Protocol: dbCluster.ImageRegistryProtocol(api.ImageRegistryProtocolSimpleStreams),
+					Builtin:  false,
+				})
+				if err != nil {
+					return fmt.Errorf("Failed creating transitional image registry %q: %w", registryName, err)
+				}
+
+				err = dbCluster.CreateImageRegistryConfig(ctx, tx.Tx(), registryID, map[string]string{
+					"url":    req.Source.Server, //nolint:staticcheck
+					"public": "true",
+				})
+				if err != nil {
+					return fmt.Errorf("Failed creating transitional image registry config for %q: %w", registryName, err)
+				}
+
+				logger.Info("Created transitional image registry from deprecated Server field", logger.Ctx{"registry": registryName, "url": req.Source.Server}) //nolint:staticcheck
+
+				return nil
+			})
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			req.Source.ImageRegistry = registryName
+		}
+	}
+
 	// If an image registry is specified, we connect to it here before starting the main transaction.
 	// This is to avoid a nested transaction when calling ConnectImageRegistry.
 	// A connected image registry is needed to determined suitable architectures for instance creation.
