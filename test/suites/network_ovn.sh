@@ -892,6 +892,51 @@ test_network_ovn() {
   unset_ovn_configuration
 }
 
+wait_for_pool_status() {
+  network="${1}"
+  load_balancer_ip="${2}"
+  pool="${3}"
+  status="${4}"
+  targets="${5}"
+
+  for i in $(seq 1 3); do
+    if [ "$(lxc network load-balancer pool info "${network}" "${pool}" | yq '."load-balancers"."'"${load_balancer_ip}"':80" | map(select(.status == "'"${status}"'")) | length')" = "${targets}" ]; then
+      break
+    fi
+
+    # As the pool has a check interval of 1 second, the targets have to be present after 3 iterations.
+    if [ "$i" -eq 3 ]; then
+      echo "${targets} targets failed to become ${status} within the expected time"
+      exit 1
+    fi
+
+    sleep 1
+  done
+}
+
+probe_pool_targets() {
+  load_balancer_ip="${1}"
+  shift
+  valid_responses=("$@")
+
+  # Try 100 times to be sure we got a response from both instances, as the load balancer may choose the same instance for multiple consecutive requests.
+  for i in $(seq 1 100); do
+    response="$(curl --silent -H "Connection: close" "http://${load_balancer_ip}:80")"
+    match=false
+    for valid in "${valid_responses[@]}"; do
+      if [ "${response}" = "${valid}" ]; then
+        match=true
+        break
+      fi
+    done
+
+    if [ "${match}" = "false" ]; then
+      echo "Unexpected response from load balancer: ${response}"
+      exit 1
+    fi
+  done
+}
+
 instance_ip4_address() {
   local uuid internal_switch_port_name
 
@@ -980,4 +1025,13 @@ auto_allocate_load_balancers_ip6() {
   for i in $(seq 2 7); do
     lxc network load-balancer delete "${ovn_network}" "${1}::${i}"
   done
+}
+
+wrap_ipv6() {
+    local ip="$1"
+    if [[ "${ip}" == *:* && "${ip}" != \[*\] ]]; then
+        printf '[%s]\n' "${ip}"
+    else
+        printf '%s\n' "${ip}"
+    fi
 }
