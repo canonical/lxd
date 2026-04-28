@@ -1,5 +1,10 @@
 package api
 
+import (
+	"net/url"
+	"strings"
+)
+
 // Supported image registry protocols.
 const (
 	// Image registry protocol "SimpleStreams".
@@ -101,4 +106,67 @@ func (registry *ImageRegistry) SetWritable(put ImageRegistryPut) {
 // Etag returns the values used for etag generation.
 func (registry *ImageRegistry) Etag() []any {
 	return []any{registry.Name, registry.Description, registry.Protocol, registry.Config}
+}
+
+// transitionalSimpleStreamsHosts contains hostnames whose SimpleStreams URLs
+// are allowed through the deprecated Server/Protocol backward-compatibility
+// path. Only HTTPS URLs on these hosts are accepted.
+var transitionalSimpleStreamsHosts = []string{
+	"cloud-images.ubuntu.com",
+	"images.lxd.canonical.com",
+}
+
+// IsTransitionalSimpleStreamsURL reports whether raw URL is a SimpleStreams
+// endpoint eligible for the transitional backward-compatibility path. The URL
+// must use the HTTPS scheme and its hostname must appear in the allowlist.
+func IsTransitionalSimpleStreamsURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+
+	if u.Scheme != "https" {
+		return false
+	}
+
+	host := strings.ToLower(u.Hostname())
+	for _, allowed := range transitionalSimpleStreamsHosts {
+		if host == allowed {
+			return true
+		}
+	}
+
+	return false
+}
+
+// TransitionalRegistryName derives a deterministic image registry name from a
+// SimpleStreams URL. The scheme is stripped, the hostname is lower-cased, and
+// non-empty path segments are joined with "-". The result is suitable for use
+// as an image registry name (ASCII, no "/" or ":").
+//
+// Returns an empty string if rawURL cannot be parsed.
+func TransitionalRegistryName(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+
+	host := strings.ToLower(u.Hostname())
+	if host == "" {
+		return ""
+	}
+
+	// Collect non-empty path segments.
+	var segments []string
+	for _, seg := range strings.Split(u.Path, "/") {
+		if seg != "" {
+			segments = append(segments, seg)
+		}
+	}
+
+	if len(segments) == 0 {
+		return host
+	}
+
+	return host + "-" + strings.Join(segments, "-")
 }
