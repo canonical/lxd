@@ -1107,6 +1107,28 @@ test_network_ovn() {
   unset_ovn_configuration
 }
 
+wait_for_pool_status() {
+  network="${1}"
+  load_balancer_ip="${2}"
+  pool="${3}"
+  status="${4}"
+  targets="${5}"
+
+  for i in $(seq 1 5); do
+    if lxc network load-balancer pool info "${network}" "${pool}" | yq --exit-status '."load-balancers"."'"${load_balancer_ip}"':80" | map(select(.status == "'"${status}"'")) | length == '"${targets}"''; then
+      break
+    fi
+
+    # As the pool has a check interval of 1 second, the targets should be present after 5 iterations/seconds.
+    if [ "$i" -eq 5 ]; then
+      echo "${targets} targets failed to become ${status} within the expected time"
+      exit 1
+    fi
+
+    sleep 1
+  done
+}
+
 probe_pool_targets() {
   load_balancer_ip="${1}"
   shift
