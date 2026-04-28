@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 
@@ -394,8 +395,29 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 				}
 			} else {
 				// Remote image registry.
-				// We set the image registry name on the instance source, so the LXD server handles the download.
-				req.Source.ImageRegistry = iremote
+				// Check if the server has an image registry with this name.
+				_, _, err := d.GetImageRegistry(iremote)
+				if err != nil {
+					// Only fall back for 404 (registry not found).
+					if !api.StatusErrorCheck(err, http.StatusNotFound) {
+						return nil, "", fmt.Errorf("Failed checking image registry %q: %w", iremote, err)
+					}
+
+					// Registry not found. If the local remote is a SimpleStreams remote with a
+					// transitional URL, fall back to sending the deprecated Server and Protocol
+					// fields so the server can auto-create the registry.
+					remoteConfig := conf.Remotes[iremote]
+					if remoteConfig.Protocol != api.ImageRegistryProtocolSimpleStreams || !api.IsTransitionalSimpleStreamsURL(remoteConfig.Addr) {
+						return nil, "", fmt.Errorf("Image registry %q not found", iremote)
+					}
+
+					req.Source.Server = remoteConfig.Addr                        //nolint:staticcheck
+					req.Source.Protocol = api.ImageRegistryProtocolSimpleStreams //nolint:staticcheck
+				} else {
+					// Registry exists on the server — use it directly.
+					req.Source.ImageRegistry = iremote
+				}
+
 				imgInfo = &api.Image{Fingerprint: image}
 			}
 		} else {
