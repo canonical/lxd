@@ -153,37 +153,11 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 		// to the server so it can handle the resolution directly (which works for both public and private images,
 		// and supports features like automatic local caching and alias resolution).
 		if d.HasExtension("image_registries") {
-			// Resolve the image remote, it can only be used for local images.
-			sourceRemote := iremote
-			if sourceRemote == "" {
-				sourceRemote = remote
-			}
+			var registryName string
+			imgInfo, registryName = resolveRegistryImageSource(conf, iremote, image, remote, c.global.flagProject)
 
-			if sourceRemote == remote {
-				// Local image copy from the same server.
-				// Determine the source image project. We try to infer the target project for the source remote,
-				// falling back to the default project. This allows local cross-project image resolution.
-				imageProject := c.global.flagProject
-				if imageProject == "" {
-					imageProject = conf.Remotes[sourceRemote].Project
-				}
-
-				if imageProject == "" {
-					imageProject = api.ProjectDefaultName
-				}
-
-				// For local copies, we don't set ImageRegistry to indicate we are resolving locally
-				// across projects within the same server.
-				// source.Project will be set from imgInfo.Project at the call site.
-				imgInfo = &api.Image{
-					Fingerprint: image,
-					Project:     imageProject,
-				}
-			} else {
-				// Remote image registry.
-				// We set the image registry name on the instance source, so the LXD server handles the download.
-				req.Source.ImageRegistry = iremote
-				imgInfo = &api.Image{Fingerprint: image}
+			if registryName != "" {
+				req.Source.ImageRegistry = registryName
 			}
 		} else {
 			// Fetch image info from the given remote (legacy client-side resolution path).
