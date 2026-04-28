@@ -1805,7 +1805,7 @@ func instanceFindStoragePool(s *state.State, projectName string, req *api.Instan
 }
 
 func clusterCopyContainerInternal(r *http.Request, s *state.State, source instance.Instance, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
-	// Locate the source of the container
+	// Locate the source of the container.
 	var nodeAddress string
 	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
@@ -1826,66 +1826,94 @@ func clusterCopyContainerInternal(r *http.Request, s *state.State, source instan
 		return response.BadRequest(errors.New("The source instance is currently offline"))
 	}
 
-	// Connect to the container source
+	// Set up a push-mode migration sink locally. In push mode the source member
+	// connects outward to the destination (this member), so the destination does
+	// not need to reach back into the source.
+	req.Source.Type = api.SourceTypeMigration
+	req.Source.Mode = "push"
+	req.Source.Source = ""
+	req.Source.Project = ""
+
+	result, err := prepareInstanceMigrationSink(r.Context(), s, projectName, profiles, req, "")
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	defer result.revert.Fail()
+
+	// Schedule the local push-mode sink operation.
+	sinkOpArgs := operations.OperationArgs{
+		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
+		Type:        operationtype.InstanceCreate,
+		Class:       operations.OperationClassWebsocket,
+		Metadata:    result.sink.Metadata(),
+		RunHook:     result.run,
+		ConnectHook: result.sink.Connect,
+	}
+
+	sinkOp, err := operations.ScheduleUserOperationFromRequest(s, r, sinkOpArgs)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	result.revert.Success()
+
+	// Get the sink operation secrets for the push target.
+	_, sinkOpAPI := sinkOp.Render()
+	sinkSecrets, err := sinkOpAPI.WebsocketSecrets()
+	if err != nil {
+		sinkOp.Cancel()
+		return response.SmartError(fmt.Errorf("Failed getting websocket secrets from local sink operation: %w", err))
+	}
+
+	// Build push target pointing to our local sink operation so the source
+	// member can connect back to push the data.
+	localClusterAddress := s.LocalConfig.ClusterAddress()
+	pushTarget := &api.InstancePostTarget{
+		Operation:   "https://" + localClusterAddress + api.NewURL().Path(version.APIVersion, "operations", sinkOp.ID()).String(),
+		Websockets:  sinkSecrets,
+		Certificate: string(s.Endpoints.NetworkCert().PublicKey()),
+	}
+
+	// Connect to the source member.
 	client, err := cluster.Connect(r.Context(), nodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
 	if err != nil {
+		sinkOp.Cancel()
 		return response.SmartError(err)
 	}
 
 	client = client.UseProject(source.Project().Name)
 
-	// Setup websockets
-	var opAPI api.Operation
+	// Tell the source member to push the instance to our local sink.
 	if shared.IsSnapshot(req.Source.Source) {
 		cName, sName, _ := api.GetParentAndSnapshotName(req.Source.Source)
 
-		pullReq := api.InstanceSnapshotPost{
+		_, err = client.MigrateInstanceSnapshot(cName, sName, api.InstanceSnapshotPost{
 			Migration: true,
 			Live:      req.Source.Live,
-			Name:      req.Name,
-		}
-
-		op, err := client.MigrateInstanceSnapshot(cName, sName, pullReq)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		opAPI = op.Get()
+			Target:    pushTarget,
+		})
 	} else {
 		// We keep the ContainerOnly for backward compatibility.
 		instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
-		pullReq := api.InstancePost{
+
+		_, err = client.MigrateInstance(req.Source.Source, api.InstancePost{
 			Migration:     true,
 			Live:          req.Source.Live,
 			ContainerOnly: instanceOnly,
 			InstanceOnly:  instanceOnly,
 			Name:          req.Name,
-		}
-
-		op, err := client.MigrateInstance(req.Source.Source, pullReq)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		opAPI = op.Get()
+			Target:        pushTarget,
+		})
 	}
 
-	websockets, err := opAPI.WebsocketSecrets()
 	if err != nil {
+		sinkOp.Cancel()
 		return response.SmartError(err)
 	}
 
-	// Reset the source for a migration
-	req.Source.Type = api.SourceTypeMigration
-	req.Source.Certificate = string(s.Endpoints.NetworkCert().PublicKey())
-	req.Source.Mode = "pull"
-	req.Source.Operation = "https://" + nodeAddress + api.NewURL().Path(version.APIVersion, "operations", opAPI.ID).String()
-	req.Source.Websockets = websockets
-	req.Source.Source = ""
-	req.Source.Project = ""
-
-	// Run the migration
-	return createFromMigration(r, s, projectName, profiles, req, false)
+	return operations.OperationResponse(sinkOp)
 }
 
 // instanceCreateFinish finalizes the creation process of an instance by starting it based on
