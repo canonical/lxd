@@ -1695,6 +1695,11 @@ definitions:
                 example: X509 PEM certificate
                 type: string
                 x-go-name: Certificate
+            image_registry:
+                description: Image registry name
+                example: ubuntu
+                type: string
+                x-go-name: ImageRegistry
             image_type:
                 description: Type of image (container or virtual-machine)
                 example: container
@@ -1785,11 +1790,23 @@ definitions:
                 example: X509 PEM certificate
                 type: string
                 x-go-name: Certificate
+            copy_aliases:
+                description: |-
+                    Whether to copy aliases from the source image
+
+                    API extension: image_registries_operations
+                type: boolean
+                x-go-name: CopyAliases
             fingerprint:
                 description: Source image fingerprint (for type "image")
                 example: 8ae945c52bb2f2df51c923b04022312f99bbb72c356251f54fa89ea7cf1df1d0
                 type: string
                 x-go-name: Fingerprint
+            image_registry:
+                description: Image registry name
+                example: ubuntu
+                type: string
+                x-go-name: ImageRegistry
             image_type:
                 description: Type of image (container or virtual-machine)
                 example: container
@@ -2825,6 +2842,11 @@ definitions:
                 example: ed56997f7c5b48e8d78986d2467a26109be6fb9f2d92e8c7b08eb8b6cec7629a
                 type: string
                 x-go-name: Fingerprint
+            image_registry:
+                description: Image registry name
+                example: ubuntu
+                type: string
+                x-go-name: ImageRegistry
             instance_only:
                 description: Whether the copy should skip the snapshots (for copy)
                 example: false
