@@ -892,16 +892,32 @@ test_network_ovn() {
   unset_ovn_configuration
 }
 
-setup_instance_ip4_interface() {
-  local uuid internal_switch_port_name ipv4_address
+instance_ip4_address() {
+  local uuid internal_switch_port_name address
 
   uuid="$(lxc query /1.0/instances/"${1}" | jq -er '.config."volatile.uuid"')"
   internal_switch_port_name="${chassis_group_name}-instance-${uuid}-eth0"
 
-  ipv4_address="$(ovn-nbctl get logical_switch_port "${internal_switch_port_name}" dynamic_addresses | tr -d '"' | cut -d' ' -f 2)"
+  # If no explicit ipv4.address is set on the instance, check the dynamic_addresses field.
+  address="$(ovn-nbctl get logical_switch_port "${internal_switch_port_name}" dynamic_addresses | tr -d '"' | cut -d' ' -f 2)"
+  if [ "${address}" = "[]" ]; then
+    # There are no dynamic addresses, get the one which was specifically set in the addresses field.
+    ovn-nbctl get logical_switch_port "${internal_switch_port_name}" addresses | tr -d '"' | cut -d' ' -f 2
+  else
+    echo "${address}"
+  fi
+}
 
-  lxc exec "${1}" -- ip -4 addr add "${ipv4_address}/24" dev eth0
-  lxc exec "${1}" -- ip -4 route add default via 10.24.140.1 dev eth0
+setup_instance_ip4_interface() {
+  local address gateway
+
+  # First flush all addresses currently set on the device.
+  lxc exec "${1}" -- ip -4 addr flush dev eth0
+  address="$(instance_ip4_address "${1}")"
+  lxc exec "${1}" -- ip -4 addr add "${address}/24" dev eth0
+  # Replace the default route if it already exists.
+  gateway="${address%.*}.1"
+  lxc exec "${1}" -- ip -4 route replace default via "${gateway}" dev eth0
 }
 
 auto_allocate_forwards_ip4() {
