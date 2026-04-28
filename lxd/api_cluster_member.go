@@ -1215,12 +1215,12 @@ func clusterMemberDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed removing member from database: %w", err))
 	}
 
-	memberRoles, err := getClusterMemberRoles(r.Context(), s)
+	memberRoles, evacuatedMembers, err := getClusterMemberRolesAndEvacuatedMembers(r.Context(), s)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, memberRoles)
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, memberRoles, evacuatedMembers)
 	if err != nil {
 		logger.Warnf("Failed rebalancing dqlite nodes: %v", err)
 	}
@@ -1385,6 +1385,13 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
+		if !req.Force {
+			err = validateClusterMemberEvacuation(r.Context(), s, name)
+			if err != nil {
+				return response.BadRequest(err)
+			}
+		}
+
 		stopFunc := func(ctx context.Context, inst instance.Instance) error {
 			l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
@@ -1455,7 +1462,7 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		run := func(ctx context.Context, op *operations.Operation) error {
-			return evacuateClusterMember(ctx, s, d.gateway, op, name, req.Mode, stopFunc, migrateFunc)
+			return evacuateClusterMember(ctx, s, d.gateway, op, name, req.Mode, req.Force, stopFunc, migrateFunc)
 		}
 
 		args := operations.OperationArgs{
@@ -1537,7 +1544,133 @@ func evacuateClusterSetState(s *state.State, name string, state int) error {
 // evacuateHostShutdownDefaultTimeout default timeout (in seconds) for waiting for clean shutdown to complete.
 const evacuateHostShutdownDefaultTimeout = 30
 
-func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster.Gateway, op *operations.Operation, name string, mode string, stopInstance evacuateStopFunc, migrateInstance evacuateMigrateFunc) error {
+// validateClusterMemberEvacuation rejects evacuating an online raft voter when
+// doing so would leave too few online voters to preserve raft quorum, even
+// after accounting for the narrow case where rebalance can first promote an
+// online standby/spare to replace the evacuated voter.
+func validateClusterMemberEvacuation(ctx context.Context, s *state.State, name string) error {
+	var targetMember db.NodeInfo
+	var members []db.NodeInfo
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		targetMember, err = tx.GetNodeByName(ctx, name)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster member %q: %w", name, err)
+		}
+
+		members, err = tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	memberRoles := make(map[string][]db.ClusterRole, len(members))
+	connectivity := make(map[string]bool, len(members))
+	evacuatedMembers := make(map[string]bool, len(members))
+	offlineThreshold := s.GlobalConfig.OfflineThreshold()
+	for _, member := range members {
+		memberRoles[member.Address] = member.Roles
+		connectivity[member.Address] = !member.IsOffline(offlineThreshold)
+		evacuatedMembers[member.Address] = member.State == db.ClusterMemberStateEvacuated
+	}
+
+	var raftNodes []db.RaftNode
+	err = s.DB.Node.Transaction(ctx, func(ctx context.Context, tx *db.NodeTx) error {
+		var err error
+		raftNodes, err = tx.GetRaftNodes(ctx)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed getting raft nodes: %w", err)
+	}
+
+	totalVoters := 0
+	onlineVoters := 0
+	onlineReplacementCandidates := 0
+	targetRole := db.RaftSpare
+	controlPlaneActive := cluster.IsControlPlaneActive(memberRoles)
+
+	for _, raftNode := range raftNodes {
+		switch raftNode.Role {
+		case db.RaftVoter:
+			totalVoters++
+			if connectivity[raftNode.Address] && !evacuatedMembers[raftNode.Address] {
+				onlineVoters++
+			}
+
+			if raftNode.Address == targetMember.Address {
+				targetRole = raftNode.Role
+			}
+
+		case db.RaftStandBy, db.RaftSpare:
+			if !connectivity[raftNode.Address] || evacuatedMembers[raftNode.Address] {
+				continue
+			}
+
+			if controlPlaneActive && !slices.Contains(memberRoles[raftNode.Address], db.ClusterRoleControlPlane) {
+				continue
+			}
+
+			onlineReplacementCandidates++
+		}
+	}
+
+	if targetRole != db.RaftVoter || targetMember.IsOffline(offlineThreshold) {
+		return nil
+	}
+
+	requiredMajority := (totalVoters-1)/2 + 1
+	remainingOnlineVoters := onlineVoters - 1
+	if remainingOnlineVoters >= requiredMajority {
+		return nil
+	}
+
+	currentMajority := totalVoters/2 + 1
+	canPromoteReplacement := onlineVoters >= currentMajority &&
+		remainingOnlineVoters+1 >= requiredMajority &&
+		onlineReplacementCandidates > 0 &&
+		onlineVoters > 1
+	if !canPromoteReplacement {
+		return errors.New("Evacuation aborted: insufficient online voters to maintain quorum")
+	}
+
+	return nil
+}
+
+// ensureEvacuationLeadershipHandover transfers leadership away from the local
+// member before evacuation if this member is the current raft leader.
+func ensureEvacuationLeadershipHandover(ctx context.Context, s *state.State, gateway *cluster.Gateway) error {
+	leaderInfo, err := s.LeaderInfo()
+	if err != nil {
+		return err
+	}
+
+	if !leaderInfo.Clustered || !leaderInfo.Leader {
+		return nil
+	}
+
+	memberRoles, evacuatedMembers, err := getClusterMemberRolesAndEvacuatedMembers(ctx, s)
+	if err != nil {
+		return err
+	}
+
+	logger.Info("Transferring leadership before cluster member evacuation", logger.Ctx{"member": s.ServerName})
+	err = gateway.TransferLeadership(memberRoles, evacuatedMembers)
+	if err != nil {
+		return fmt.Errorf("Failed transferring leadership before evacuation: %w", err)
+	}
+
+	return nil
+}
+
+// evacuateClusterMember marks the member evacuated, rebalances raft roles, and
+// then migrates or stops workloads before evacuating networks.
+func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster.Gateway, op *operations.Operation, name string, mode string, force bool, stopInstance evacuateStopFunc, migrateInstance evacuateMigrateFunc) error {
 	// The instances are retrieved in a separate transaction, after the node is in EVACUATED state.
 	var dbInstances []dbCluster.Instance
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1565,9 +1698,17 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 		instances = append(instances, inst)
 	}
 
-	// Setup a reverter.
-	revert := revert.New()
-	defer revert.Fail()
+	skipRoleRebalance := mode == api.ClusterEvacuateModeHeal
+	if !skipRoleRebalance {
+		err = ensureEvacuationLeadershipHandover(ctx, s, gateway)
+		if err != nil {
+			if !force {
+				return err
+			}
+
+			logger.Warn("Leadership handover failed during forced evacuation, rebalance will promote a replacement", logger.Ctx{"err": err, "member": name})
+		}
+	}
 
 	// Set node status to EVACUATED.
 	err = evacuateClusterSetState(s, name, db.ClusterMemberStateEvacuated)
@@ -1575,10 +1716,22 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 		return err
 	}
 
-	// Ensure node is put into its previous state if anything fails.
-	revert.Add(func() {
-		_ = evacuateClusterSetState(s, name, db.ClusterMemberStateCreated)
-	})
+	// Once the member is marked EVACUATED we don't roll it back on later failure,
+	// because raft role changes and workload moves may already have committed.
+	evacuationCommittedError := func(err error) error {
+		return fmt.Errorf("%w (cluster member remains evacuated)", err)
+	}
+
+	if !skipRoleRebalance {
+		err = triggerClusterRebalance(ctx, s)
+		if err != nil {
+			if !force {
+				return evacuationCommittedError(err)
+			}
+
+			logger.Warn("Proceeding with forced evacuation after role rebalance failure", logger.Ctx{"err": err, "member": name})
+		}
+	}
 
 	opts := evacuateOpts{
 		s:               s,
@@ -1593,15 +1746,13 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 
 	err = evacuateInstances(context.Background(), opts)
 	if err != nil {
-		return err
+		return evacuationCommittedError(err)
 	}
 
 	// Evacuate networks too, but not during healing.
 	if mode != api.ClusterEvacuateModeHeal {
 		networkStop(s, true)
 	}
-
-	revert.Success()
 
 	if mode != api.ClusterEvacuateModeHeal {
 		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberEvacuated.Event(name, op.EventLifecycleRequestor(), nil))
@@ -2002,6 +2153,12 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 		}
 
 		revert.Success()
+
+		err = triggerClusterRebalance(ctx, s)
+		if err != nil {
+			logger.Warn("Could not rebalance cluster member roles after restore", logger.Ctx{"err": err, "member": originName})
+		}
+
 		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberRestored.Event(originName, op.EventLifecycleRequestor(), nil))
 		return nil
 	}

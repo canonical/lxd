@@ -1270,6 +1270,7 @@ type cmdClusterEvacuateAction struct {
 
 	flagAction string
 	flagForce  bool
+	flagYes    bool
 }
 
 // Cluster member evacuation.
@@ -1299,7 +1300,8 @@ If no target member is available, an instance is skipped.
 If a live migration attempt fails, the evacuation operation fails.
 `)
 
-	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, "Force evacuation without user confirmation")
+	cmd.Flags().BoolVar(&c.action.flagForce, "force", false, "Allow evacuation even if it would cause loss of Raft quorum")
+	cmd.Flags().BoolVar(&c.action.flagYes, "yes", false, "Do not require user confirmation")
 	cmd.Flags().StringVar(&c.action.flagAction, "action", "", cli.FormatStringFlagLabel("Force a particular instance evacuation action. One of stop, migrate or live-migrate"))
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -1368,7 +1370,18 @@ func (c *cmdClusterEvacuateAction) run(cmd *cobra.Command, args []string) error 
 		return errors.New("Missing cluster member name")
 	}
 
-	if !c.flagForce {
+	if cmd.Name() == "evacuate" {
+		if !c.flagYes {
+			evacuate, err := c.global.asker.AskBool(fmt.Sprintf("Are you sure you want to %s cluster member %q? (yes/no) [default=no]: ", cmd.Name(), resource.name), "no")
+			if err != nil {
+				return err
+			}
+
+			if !evacuate {
+				return nil
+			}
+		}
+	} else if !c.flagForce {
 		evacuate, err := c.global.asker.AskBool(fmt.Sprintf("Are you sure you want to %s cluster member %q? (yes/no) [default=no]: ", cmd.Name(), resource.name), "no")
 		if err != nil {
 			return err
@@ -1382,6 +1395,10 @@ func (c *cmdClusterEvacuateAction) run(cmd *cobra.Command, args []string) error 
 	state := api.ClusterMemberStatePost{
 		Action: cmd.Name(),
 		Mode:   c.flagAction,
+	}
+
+	if cmd.Name() == "evacuate" {
+		state.Force = c.flagForce
 	}
 
 	op, err := resource.server.UpdateClusterMemberState(resource.name, state)

@@ -133,6 +133,9 @@ To begin this process, use the [`lxc cluster evacuate`](lxc_cluster_evacuate.md)
 
     lxc cluster evacuate <member_name>
 
+Use `--yes` to skip the confirmation prompt.
+Use `--force` only if you intentionally want to permit evacuation even when it would leave too few online Raft voters to maintain quorum.
+
 (cluster-restore)=
 ### Restore an evacuated cluster member
 
