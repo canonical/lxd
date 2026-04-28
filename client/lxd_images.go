@@ -586,7 +586,19 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 // tryCopyImage iterates through the source server URLs until one lets it download the image.
 func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, errors.New("The source server is not listening on the network")
+		// On legacy copy paths the source protocol is always set from the source server's connection
+		// info. If the protocol is present but no network addresses were found, the source
+		// server cannot be reached over the network, so we must abort early.
+		if req.Source.Protocol != "" { //nolint:staticcheck
+			return nil, errors.New("The source server is not listening on the network")
+		}
+
+		// When no legacy protocol is set we expect a server-side resolution path (either a remote
+		// image registry or a local image in another project). If neither is specified, there is
+		// nothing for the target server to resolve.
+		if req.Source.ImageRegistry == "" && req.Source.Project == "" {
+			return nil, errors.New("Missing image registry or source project for server-side image resolution")
+		}
 	}
 
 	rop := remoteOperation{
@@ -643,36 +655,61 @@ func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOpe
 	go func() {
 		success := false
 		var errors []remoteOperationResult
-		for _, serverURL := range urls {
-			req.Source.Server = serverURL
 
+		if len(urls) == 0 {
+			// When no source URLs are provided, we rely on the target server to resolve and fetch
+			// the image (either from a remote image registry or from its own local image store).
 			op, err := r.CreateImage(req, nil)
 			if err != nil {
-				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-				continue
+				errors = append(errors, remoteOperationResult{Error: err})
+			} else {
+				rop.handlerLock.Lock()
+				rop.targetOp = op
+				rop.handlerLock.Unlock()
+
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
+
+				err = rop.targetOp.Wait()
+				if err != nil {
+					errors = append(errors, remoteOperationResult{Error: err})
+				} else {
+					success = true
+				}
 			}
+		} else {
+			for _, serverURL := range urls {
+				req.Source.Server = serverURL //nolint:staticcheck
 
-			rop.handlerLock.Lock()
-			rop.targetOp = op
-			rop.handlerLock.Unlock()
-
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
-			}
-
-			err = rop.targetOp.Wait()
-			if err != nil {
-				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-
-				if shared.IsConnectionError(err) {
+				op, err := r.CreateImage(req, nil)
+				if err != nil {
+					errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
 					continue
 				}
 
+				rop.handlerLock.Lock()
+				rop.targetOp = op
+				rop.handlerLock.Unlock()
+
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
+
+				err = rop.targetOp.Wait()
+				if err != nil {
+					errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
+
+					if shared.IsConnectionError(err) {
+						continue
+					}
+
+					break
+				}
+
+				success = true
 				break
 			}
-
-			success = true
-			break
 		}
 
 		if !success {
@@ -716,182 +753,185 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 		image.Profiles = nil
 	}
 
-	// Get source server connection information
-	info, err := source.GetConnectionInfo()
-	if err != nil {
-		return nil, err
-	}
+	var info *ConnectionInfo
 
-	// Push mode
-	if args != nil && args.Mode == "push" {
-		// Get certificate and URL
-		info, err := r.GetConnectionInfo()
+	// If a source server is provided, fetch its connection info and do push/relay modes
+	if source != nil {
+		// Get source server connection information
+		var err error
+		info, err = source.GetConnectionInfo()
 		if err != nil {
 			return nil, err
 		}
 
-		imagesPost := api.ImagesPost{
-			Source: &api.ImagesPostSource{
-				Fingerprint: image.Fingerprint,
-				Mode:        args.Mode,
-			},
-		}
-
-		if args.CopyAliases {
-			imagesPost.Aliases = image.Aliases
-		}
-
-		imagesPost.ExpiresAt = image.ExpiresAt
-		imagesPost.Properties = image.Properties
-		imagesPost.Public = args.Public
-
-		// Receive token from target server. This token is later passed to the source which will use
-		// it, together with the URL and certificate, to connect to the target.
-		tokenOp, err := r.CreateImage(imagesPost, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		opAPI := tokenOp.Get()
-
-		secret, ok := opAPI.Metadata["secret"]
-		if !ok {
-			return nil, errors.New("No token provided")
-		}
-
-		req := api.ImageExportPost{
-			Target:      info.URL,
-			Certificate: info.Certificate,
-			Secret:      secret.(string),
-			Aliases:     image.Aliases,
-			Project:     info.Project,
-			Profiles:    image.Profiles,
-		}
-
-		exportOp, err := source.ExportImage(image.Fingerprint, req)
-		if err != nil {
-			_ = tokenOp.Cancel()
-			return nil, err
-		}
-
-		rop := remoteOperation{
-			targetOp: exportOp,
-			chDone:   make(chan bool),
-		}
-
-		// Forward targetOp to remote op
-		go func() {
-			rop.err = rop.targetOp.Wait()
-			_ = tokenOp.Cancel()
-			close(rop.chDone)
-		}()
-
-		return &rop, nil
-	}
-
-	// Relay mode
-	if args != nil && args.Mode == "relay" {
-		metaFile, err := os.CreateTemp("", "lxc_image_")
-		if err != nil {
-			return nil, err
-		}
-
-		defer func() { _ = os.Remove(metaFile.Name()) }()
-
-		rootfsFile, err := os.CreateTemp("", "lxc_image_")
-		if err != nil {
-			return nil, err
-		}
-
-		defer func() { _ = os.Remove(rootfsFile.Name()) }()
-
-		// Import image
-		req := ImageFileRequest{
-			MetaFile:   metaFile,
-			RootfsFile: rootfsFile,
-		}
-
-		resp, err := source.GetImageFile(image.Fingerprint, req)
-		if err != nil {
-			return nil, err
-		}
-
-		// Export image
-		_, err = metaFile.Seek(0, io.SeekStart)
-		if err != nil {
-			return nil, err
-		}
-
-		_, err = rootfsFile.Seek(0, io.SeekStart)
-		if err != nil {
-			return nil, err
-		}
-
-		imagePost := api.ImagesPost{}
-		imagePost.Public = args.Public
-		imagePost.Profiles = image.Profiles
-
-		if args.CopyAliases {
-			imagePost.Aliases = image.Aliases
-			if args.Aliases != nil {
-				imagePost.Aliases = append(imagePost.Aliases, args.Aliases...)
-			}
-		}
-
-		createArgs := &ImageCreateArgs{
-			MetaFile: metaFile,
-			MetaName: image.Filename,
-			Type:     image.Type,
-		}
-
-		if resp.RootfsName != "" {
-			// Deal with split images
-			createArgs.RootfsFile = rootfsFile
-			createArgs.RootfsName = image.Filename
-		}
-
-		rop := remoteOperation{
-			chDone: make(chan bool),
-		}
-
-		go func() {
-			defer close(rop.chDone)
-
-			op, err := r.CreateImage(imagePost, createArgs)
+		// Push mode
+		if args != nil && args.Mode == "push" {
+			// Get certificate and URL
+			targetInfo, err := r.GetConnectionInfo()
 			if err != nil {
-				rop.err = remoteOperationError("Failed copying image", nil)
-				return
+				return nil, err
 			}
 
-			rop.handlerLock.Lock()
-			rop.targetOp = op
-			rop.handlerLock.Unlock()
-
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
+			imagesPost := api.ImagesPost{
+				Source: &api.ImagesPostSource{
+					Fingerprint: image.Fingerprint,
+					Mode:        args.Mode,
+				},
 			}
 
-			err = rop.targetOp.Wait()
+			if args.CopyAliases {
+				imagesPost.Aliases = image.Aliases
+			}
+
+			imagesPost.ExpiresAt = image.ExpiresAt
+			imagesPost.Properties = image.Properties
+			imagesPost.Public = args.Public
+
+			// Receive token from target server. This token is later passed to the source which will use
+			// it, together with the URL and certificate, to connect to the target.
+			tokenOp, err := r.CreateImage(imagesPost, nil)
 			if err != nil {
-				rop.err = remoteOperationError("Failed copying image", nil)
-				return
+				return nil, err
 			}
-		}()
 
-		return &rop, nil
+			opAPI := tokenOp.Get()
+
+			secret, ok := opAPI.Metadata["secret"]
+			if !ok {
+				return nil, errors.New("No token provided")
+			}
+
+			req := api.ImageExportPost{
+				Target:      targetInfo.URL,
+				Certificate: targetInfo.Certificate,
+				Secret:      secret.(string),
+				Aliases:     image.Aliases,
+				Project:     targetInfo.Project,
+				Profiles:    image.Profiles,
+			}
+
+			exportOp, err := source.ExportImage(image.Fingerprint, req)
+			if err != nil {
+				_ = tokenOp.Cancel()
+				return nil, err
+			}
+
+			rop := remoteOperation{
+				targetOp: exportOp,
+				chDone:   make(chan bool),
+			}
+
+			// Forward targetOp to remote op
+			go func() {
+				rop.err = rop.targetOp.Wait()
+				_ = tokenOp.Cancel()
+				close(rop.chDone)
+			}()
+
+			return &rop, nil
+		}
+
+		// Relay mode
+		if args != nil && args.Mode == "relay" {
+			metaFile, err := os.CreateTemp("", "lxc_image_")
+			if err != nil {
+				return nil, err
+			}
+
+			defer func() { _ = os.Remove(metaFile.Name()) }()
+
+			rootfsFile, err := os.CreateTemp("", "lxc_image_")
+			if err != nil {
+				return nil, err
+			}
+
+			defer func() { _ = os.Remove(rootfsFile.Name()) }()
+
+			// Import image
+			req := ImageFileRequest{
+				MetaFile:   metaFile,
+				RootfsFile: rootfsFile,
+			}
+
+			resp, err := source.GetImageFile(image.Fingerprint, req)
+			if err != nil {
+				return nil, err
+			}
+
+			// Export image
+			_, err = metaFile.Seek(0, io.SeekStart)
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = rootfsFile.Seek(0, io.SeekStart)
+			if err != nil {
+				return nil, err
+			}
+
+			imagePost := api.ImagesPost{}
+			imagePost.Public = args.Public
+			imagePost.Profiles = image.Profiles
+
+			if args.CopyAliases {
+				imagePost.Aliases = image.Aliases
+				if args.Aliases != nil {
+					imagePost.Aliases = append(imagePost.Aliases, args.Aliases...)
+				}
+			}
+
+			createArgs := &ImageCreateArgs{
+				MetaFile: metaFile,
+				MetaName: image.Filename,
+				Type:     image.Type,
+			}
+
+			if resp.RootfsName != "" {
+				// Deal with split images
+				createArgs.RootfsFile = rootfsFile
+				createArgs.RootfsName = image.Filename
+			}
+
+			rop := remoteOperation{
+				chDone: make(chan bool),
+			}
+
+			go func() {
+				defer close(rop.chDone)
+
+				op, err := r.CreateImage(imagePost, createArgs)
+				if err != nil {
+					rop.err = remoteOperationError("Failed copying image", nil)
+					return
+				}
+
+				rop.handlerLock.Lock()
+				rop.targetOp = op
+				rop.handlerLock.Unlock()
+
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
+
+				err = rop.targetOp.Wait()
+				if err != nil {
+					rop.err = remoteOperationError("Failed copying image", nil)
+					return
+				}
+			}()
+
+			return &rop, nil
+		}
+	} else if args == nil {
+		return nil, errors.New("Missing copy arguments")
 	}
 
 	// Prepare the copy request
 	req := api.ImagesPost{
 		Source: &api.ImagesPostSource{
-			ImageSource: api.ImageSource{
-				Certificate: info.Certificate,
-				Protocol:    info.Protocol,
-			},
 			Fingerprint: image.Fingerprint,
 			Mode:        "pull",
 			Type:        api.SourceTypeImage,
-			Project:     info.Project,
 		},
 		ImagePut: api.ImagePut{
 			Profiles:   image.Profiles,
@@ -900,12 +940,27 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 		Filename: image.Filename,
 	}
 
+	if source != nil {
+		req.Source.Certificate = info.Certificate //nolint:staticcheck
+		req.Source.Protocol = info.Protocol       //nolint:staticcheck
+		req.Source.Project = info.Project
+	} else if args != nil {
+		// If no source server is provided, we use server-side resolution.
+		// This can either be through a remote image registry or from the target
+		// server's own local image store (e.g., when copying between projects).
+		req.Source.ImageRegistry = args.ImageRegistry
+		req.Source.Project = image.Project
+		req.Source.CopyAliases = args.CopyAliases
+	} else {
+		return nil, errors.New("Missing copy arguments")
+	}
+
 	if args != nil {
 		req.Source.ImageType = args.Type
 	}
 
 	// Generate secret token if needed
-	if !image.Public {
+	if !image.Public && source != nil {
 		secret, err := source.GetImageSecret(image.Fingerprint)
 		if err != nil {
 			return nil, err
@@ -928,7 +983,12 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 		}
 	}
 
-	return r.tryCopyImage(req, info.Addresses)
+	var urls []string
+	if source != nil {
+		urls = info.Addresses
+	}
+
+	return r.tryCopyImage(req, urls)
 }
 
 // UpdateImage updates the image definition.

@@ -151,13 +151,16 @@ type cmdImageCopy struct {
 
 func (c *cmdImageCopy) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("copy", "[<remote>:]<image> <remote>:")
+	cmd.Use = usage("copy", "[<registry|remote>:]<image> <remote>:")
 	cmd.Aliases = []string{"cp"}
 	cmd.Short = "Copy image between servers"
 	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 The auto-update flag instructs the server to keep this image up to date.
-It requires the source to be an alias and for it to be public.`)
+It requires the source to be an alias and for it to be public.
+
+If the destination LXD server supports image registries, the source image
+must be from an image registry or a local store.`)
 
 	cmd.Flags().BoolVar(&c.flagPublic, "public", false, "Make image public")
 	cmd.Flags().BoolVar(&c.flagCopyAliases, "copy-aliases", false, "Copy aliases from source")
@@ -195,16 +198,8 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 		return errors.New("Auto update is only available in pull mode")
 	}
 
-	// Parse source remote
-	remoteName, name, err := c.global.conf.ParseRemote(args[0])
-	if err != nil {
-		return err
-	}
-
-	sourceServer, err := c.global.conf.GetImageServer(remoteName)
-	if err != nil {
-		return err
-	}
+	// Parse source remote without validating its existence in the local config.
+	remoteName, name := c.global.conf.ParseRemoteUnchecked(args[0])
 
 	// Parse destination remote
 	resources, err := c.global.ParseServers(args[1])
@@ -213,6 +208,67 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	}
 
 	destinationServer := resources[0].server
+	destRemote := resources[0].remote
+
+	var sourceServer lxd.ImageServer
+	var imgInfo *api.Image
+
+	if destinationServer.HasExtension("image_registries") {
+		// If the destination server supports image registries, we can use server-side image
+		// resolution and download (pull mode).
+		if c.flagMode != "pull" {
+			return errors.New("Only pull mode is supported for image registries")
+		}
+
+		sourceRemote := remoteName
+		if sourceRemote == "" {
+			sourceRemote = destRemote
+		}
+
+		// Check if we are performing a local copy (from the same server).
+		if sourceRemote == destRemote {
+			// When copying from the local server, we treat it as a local-to-local transfer.
+			// The server will resolve the image from its own image store across projects.
+			sourceServer = nil
+
+			// Determine the source project. Fallback order:
+			// 1. Project override (from --project flag)
+			// 2. Project configured for the source remote
+			// 3. Default project ("default")
+			sourceProject := c.global.conf.ProjectOverride
+			if sourceProject == "" {
+				sourceProject = c.global.conf.Remotes[sourceRemote].Project
+			}
+
+			if sourceProject == "" {
+				sourceProject = api.ProjectDefaultName
+			}
+
+			imgInfo = &api.Image{
+				Fingerprint: name,
+				Project:     sourceProject,
+			}
+		} else {
+			// Treat the source remote as a remote image registry.
+			sourceServer = nil
+			imgInfo = &api.Image{
+				Fingerprint: name,
+			}
+		}
+	} else {
+		// Fallback to legacy remote lookup.
+		// Normalize empty remote to the default remote, since ParseRemoteUnchecked
+		// does not fill in the default.
+		legacyRemote := remoteName
+		if legacyRemote == "" {
+			legacyRemote = c.global.conf.DefaultRemote
+		}
+
+		sourceServer, err = c.global.conf.GetImageServer(legacyRemote)
+		if err != nil {
+			return err
+		}
+	}
 
 	if resources[0].name != "" {
 		return errors.New("Cannot provide a name for the target image")
@@ -224,18 +280,23 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 		imageType = "virtual-machine"
 	}
 
+	if imgInfo != nil {
+		imgInfo.Type = imageType
+	}
+
 	if c.flagTargetProject != "" {
 		destinationServer = destinationServer.UseProject(c.flagTargetProject)
 	}
 
 	// Copy the image
-	var imgInfo *api.Image
 	var fp string
 
-	// Resolve any alias and then grab the image information from the source
-	imgInfo, _, err = c.image.dereferenceAlias(sourceServer, imageType, name)
-	if err != nil {
-		return err
+	if sourceServer != nil {
+		// Resolve any alias and then grab the image information from the source
+		imgInfo, _, err = c.image.dereferenceAlias(sourceServer, imageType, name)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Store the fingerprint for use when creating aliases later (as imgInfo.Fingerprint may be overridden)
@@ -247,11 +308,28 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	}
 
 	copyArgs := lxd.ImageCopyArgs{
-		AutoUpdate: c.flagAutoUpdate,
-		Public:     c.flagPublic,
-		Type:       imageType,
-		Mode:       c.flagMode,
-		Profiles:   c.flagProfile,
+		AutoUpdate:  c.flagAutoUpdate,
+		CopyAliases: c.flagCopyAliases,
+		Public:      c.flagPublic,
+		Type:        imageType,
+		Mode:        c.flagMode,
+		Profiles:    c.flagProfile,
+	}
+
+	for _, entry := range c.flagAliases {
+		copyArgs.Aliases = append(copyArgs.Aliases, api.ImageAlias{Name: entry})
+	}
+
+	if sourceServer == nil {
+		sourceRemote := remoteName
+		if sourceRemote == "" {
+			sourceRemote = destRemote
+		}
+
+		// Set the registry only if the source is not the local server.
+		if sourceRemote != destRemote {
+			copyArgs.ImageRegistry = sourceRemote
+		}
 	}
 
 	// Do the copy
@@ -280,6 +358,11 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	}
 
 	progress.Done("Image copied successfully!")
+
+	// If using an image registry, the aliases are handled server-side.
+	if sourceServer == nil {
+		return nil
+	}
 
 	// Ensure aliases
 	aliases := make([]api.ImageAlias, len(c.flagAliases))
@@ -803,8 +886,8 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 		image.Source = &api.ImagesPostSource{}
 		image.Source.Type = "url"
 		image.Source.Mode = "pull"
-		image.Source.Protocol = "direct"
-		image.Source.URL = imageFile
+		image.Source.Protocol = "direct" //nolint:staticcheck
+		image.Source.URL = imageFile     //nolint:staticcheck
 		createArgs = nil
 	} else {
 		var meta io.ReadCloser
@@ -1025,8 +1108,8 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 
 	if info.UpdateSource != nil {
 		fmt.Println("Source:")
-		fmt.Printf("    Server: %s\n", info.UpdateSource.Server)
-		fmt.Printf("    Protocol: %s\n", info.UpdateSource.Protocol)
+		fmt.Printf("    Server: %s\n", info.UpdateSource.Server)     //nolint:staticcheck
+		fmt.Printf("    Protocol: %s\n", info.UpdateSource.Protocol) //nolint:staticcheck
 		fmt.Printf("    Alias: %s\n", info.UpdateSource.Alias)
 	}
 
