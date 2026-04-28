@@ -1450,6 +1450,7 @@ parts:
     source-depth: 0
     source-type: git
     after:
+      - python-runtime
       - lxc
       - dqlite
     build-packages:
