@@ -856,7 +856,6 @@ parts:
       craftctl default
     organize:
       usr/lib: lib/
-      usr/local/lib/: lib/
     prime:
       - lib/*/libjpeg*so*
       - lib/*/libspice-server*so*
