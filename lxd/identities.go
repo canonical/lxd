@@ -192,7 +192,10 @@ var bearerIdentityTokenCmd = APIEndpoint{
 
 // identityNotificationFunc is used when an identity is created, updated, or deleted.
 // The signature is defined here as a convenience so that the function signature doesn't need to be written in full when used as an argument.
-type identityNotificationFunc func(action lifecycle.IdentityAction, authenticationMethod string, identifier string, updateCache bool) (*api.EventLifecycle, error)
+// Set emitUserEvent to true to emit a `user_{created,updated,deleted}` security event.
+// This should be false when issuing/revoking tokens because `authn_token_{created,revoked}` events are emitted separately.
+// `authz_admin` events are always emitted.
+type identityNotificationFunc func(action lifecycle.IdentityAction, authenticationMethod string, identifier string, updateCache bool, emitUserEvent bool) (*api.EventLifecycle, error)
 
 const (
 	// ctxClusterDBIdentity is used in the identityAccessHandler to set a [cluster.IdentitiesRow] into the request context.
@@ -455,7 +458,7 @@ func identitiesBearerPost(d *Daemon, r *http.Request) response.Response {
 
 	// Send lifecycle event for identity creation.
 	// No need to update cache because no token has been issued for the identity yet, so they can't authenticate.
-	lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodBearer, newIdentityID.String(), false)
+	lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodBearer, newIdentityID.String(), false, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -571,7 +574,10 @@ func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
 	networkCert := s.Endpoints.NetworkCert()
 	serverCert := s.ServerCert()
 	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
-	_, err = notify(lifecycle.IdentityUpdated, api.AuthenticationMethodBearer, id.Identifier, true)
+	// Token issuance has its own dedicated authn_token_created security event,
+	// so suppress the generic user_updated to avoid duplicate audit records
+	// for what is conceptually a token operation rather than an identity edit.
+	_, err = notify(lifecycle.IdentityUpdated, api.AuthenticationMethodBearer, id.Identifier, true, false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -626,7 +632,11 @@ func identityBearerTokenDelete(d *Daemon, r *http.Request) response.Response {
 	networkCert := s.Endpoints.NetworkCert()
 	serverCert := s.ServerCert()
 	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
-	_, err = notify(lifecycle.IdentityUpdated, api.AuthenticationMethodBearer, id.Identifier, true)
+	// Token revocation has its own dedicated authn_token_revoked security
+	// event, so suppress the generic user_updated to avoid duplicate audit
+	// records for what is conceptually a token operation rather than an
+	// identity edit.
+	_, err = notify(lifecycle.IdentityUpdated, api.AuthenticationMethodBearer, id.Identifier, true, false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -685,8 +695,12 @@ func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertifi
 		return response.SmartError(err)
 	}
 
-	// Notify other members, update the cache, and send a lifecycle event.
-	lc, err := notify(lifecycle.IdentityUpdated, api.AuthenticationMethodTLS, identifier.String(), true)
+	fingerprint := shared.CertFingerprint(cert)
+
+	// Activation replaces the pending UUID identifier with the cert
+	// fingerprint in the database, so the event must reference the
+	// fingerprint to stay resolvable.
+	lc, err := notify(lifecycle.IdentityUpdated, api.AuthenticationMethodTLS, fingerprint, true, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -757,7 +771,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, peerCertifica
 	}
 
 	// Notify other members, update the cache, and send a lifecycle event.
-	lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodTLS, fingerprint, true)
+	lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodTLS, fingerprint, true, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -869,7 +883,7 @@ func createIdentityTLSPending(ctx context.Context, s *state.State, req api.Ident
 	}
 
 	// Notify other members, update the cache, and send a lifecycle event.
-	lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodTLS, identifier.String(), false)
+	lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodTLS, identifier.String(), false, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1833,7 +1847,7 @@ func updateSelfIdentityUnprivileged(s *state.State, r *http.Request, id dbCluste
 
 	// Notify other cluster members to update their identity cache.
 	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
-	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
+	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1912,7 +1926,7 @@ func updateIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Iden
 
 	// Notify other cluster members to update their identity cache.
 	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
-	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
+	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2139,7 +2153,7 @@ func patchIdentityPrivileged(s *state.State, r *http.Request, id dbCluster.Ident
 
 	// Notify other cluster members to update their identity cache.
 	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
-	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
+	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2203,7 +2217,7 @@ func patchSelfIdentityUnprivileged(s *state.State, r *http.Request, id dbCluster
 
 	// Notify other cluster members to update their identity cache.
 	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
-	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true)
+	_, err = notify(lifecycle.IdentityUpdated, string(id.AuthMethod), id.Identifier, true, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2298,7 +2312,7 @@ func identityDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Notify other cluster members to update their identity cache.
 	notify := newIdentityNotificationFunc(s, r, s.Endpoints.NetworkCert(), s.ServerCert())
-	_, err = notify(lifecycle.IdentityDeleted, string(id.AuthMethod), id.Identifier, true)
+	_, err = notify(lifecycle.IdentityDeleted, string(id.AuthMethod), id.Identifier, true, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2309,7 +2323,7 @@ func identityDelete(d *Daemon, r *http.Request) response.Response {
 // newIdentityNotificationFunc returns a function that creates and sends a lifecycle event for the identity.
 // If updateCache is true, the local identity cache is updated and a notification is sent to other members to do the same.
 func newIdentityNotificationFunc(s *state.State, r *http.Request, networkCert *shared.CertInfo, serverCert *shared.CertInfo) identityNotificationFunc {
-	return func(action lifecycle.IdentityAction, authenticationMethod string, identifier string, updateCache bool) (*api.EventLifecycle, error) {
+	return func(action lifecycle.IdentityAction, authenticationMethod string, identifier string, updateCache bool, emitUserEvent bool) (*api.EventLifecycle, error) {
 		if updateCache {
 			// Send a notification to other cluster members to refresh their identity cache.
 			notifier, err := cluster.NewNotifier(s, networkCert, serverCert, cluster.NotifyAlive)
@@ -2340,6 +2354,23 @@ func newIdentityNotificationFunc(s *state.State, r *http.Request, networkCert *s
 		if suffix != "" {
 			secEvt := security.AuthzAdmin.WithSuffix(suffix, authenticationMethod+"/"+identifier).UserEvent(r.Context(), security.LevelInfo, "Identity "+string(action))
 			s.Events.SendSecurity(secEvt)
+		}
+
+		var secAction security.SecurityAction
+		var description string
+		switch action {
+		case lifecycle.IdentityCreated:
+			secAction, description = security.UserCreated, "Identity created"
+		case lifecycle.IdentityUpdated:
+			secAction, description = security.UserUpdated, "Identity updated"
+		case lifecycle.IdentityDeleted:
+			secAction, description = security.UserDeleted, "Identity deleted"
+		}
+
+		// Embed the affected identity in the security event name so consumers
+		// can identify which user record was created/updated/deleted.
+		if secAction != "" && emitUserEvent {
+			s.Events.SendSecurity(secAction.WithSuffix(authenticationMethod, identifier).UserEvent(r.Context(), security.LevelInfo, description))
 		}
 
 		return &lc, nil
