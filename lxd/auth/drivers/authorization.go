@@ -8,6 +8,7 @@ import (
 	"github.com/openfga/openfga/pkg/storage"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -19,7 +20,7 @@ var ErrUnknownDriver = errors.New("Unknown driver")
 type authorizer interface {
 	auth.Authorizer
 
-	init(driverName string, logger logger.Logger) error
+	init(driverName string, logger logger.Logger, sendSecurity func(*api.EventSecurity)) error
 	load(ctx context.Context, opts Opts) error
 }
 
@@ -27,12 +28,21 @@ type authorizer interface {
 // particular driver.
 type Opts struct {
 	openfgaDatastore storage.OpenFGADatastore
+	sendSecurity     func(*api.EventSecurity)
 }
 
 // WithOpenFGADatastore should be passed into LoadAuthorizer when using the embedded openfga driver.
 func WithOpenFGADatastore(store storage.OpenFGADatastore) func(*Opts) {
 	return func(o *Opts) {
 		o.openfgaDatastore = store
+	}
+}
+
+// WithSendSecurity wires a callback into the authorizer so denial paths can
+// emit authz_fail security events without depending on the events package.
+func WithSendSecurity(send func(*api.EventSecurity)) func(*Opts) {
+	return func(o *Opts) {
+		o.sendSecurity = send
 	}
 }
 
@@ -49,7 +59,7 @@ func LoadAuthorizer(ctx context.Context, driver string, logger logger.Logger, op
 	}
 
 	d := driverFunc()
-	err := d.init(driver, logger)
+	err := d.init(driver, logger, opts.sendSecurity)
 	if err != nil {
 		return nil, fmt.Errorf("Failed initializing authorizer: %w", err)
 	}
