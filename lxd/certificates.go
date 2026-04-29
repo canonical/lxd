@@ -29,6 +29,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/request/security"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
@@ -963,6 +964,8 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, cert dbCluster.Certific
 	}
 
 	networkCert := d.endpoints.NetworkCert()
+	oldFingerprint := cert.Fingerprint
+	certChanged := false
 	if req.Certificate != "" && cert.Certificate != req.Certificate {
 		// Add supplied certificate.
 		block, _ := pem.Decode([]byte(req.Certificate))
@@ -977,6 +980,7 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, cert dbCluster.Certific
 
 		cert.Certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: x509Cert.Raw}))
 		cert.Fingerprint = shared.CertFingerprint(x509Cert)
+		certChanged = true
 
 		// Check validity.
 		err = certificateValidate(networkCert, x509Cert)
@@ -1025,6 +1029,16 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, cert dbCluster.Certific
 
 	s.Events.SendLifecycle("", lifecycle.CertificateUpdated.Event(cert.Fingerprint, request.CreateRequestor(r.Context()), nil))
 
+	// Only emit when the certificate material actually changed; name,
+	// restricted, or projects edits are not a credential change. The old
+	// fingerprint is the event suffix so audit consumers can correlate the
+	// event with the previous credential.
+	if certChanged {
+		ev := security.AuthnCertificateChange.WithSuffix(oldFingerprint).
+			UserEvent(r.Context(), security.LevelInfo, "TLS client certificate changed")
+		s.Events.SendSecurity(ev)
+	}
+
 	return response.EmptySyncResponse
 }
 
@@ -1069,6 +1083,7 @@ func doCertificateUpdateUnprivileged(ctx context.Context, s *state.State, cert d
 		return response.BadRequest(err)
 	}
 
+	oldFingerprint := cert.Fingerprint
 	cert.Certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: x509Cert.Raw}))
 	cert.Fingerprint = shared.CertFingerprint(x509Cert)
 
@@ -1097,6 +1112,17 @@ func doCertificateUpdateUnprivileged(ctx context.Context, s *state.State, cert d
 	s.UpdateIdentityCache()
 
 	s.Events.SendLifecycle("", lifecycle.CertificateUpdated.Event(cert.Fingerprint, request.CreateRequestor(ctx), nil))
+
+	// Emit the same event as the privileged path so certificate replacements
+	// are auditable regardless of who triggered them. The fingerprint changes
+	// whenever the certificate material does, and the helpers above already
+	// require Certificate to be supplied in the request, so the gate exists
+	// purely as a safety net against accidental no-op updates.
+	if cert.Fingerprint != oldFingerprint {
+		ev := security.AuthnCertificateChange.WithSuffix(oldFingerprint).
+			UserEvent(ctx, security.LevelInfo, "TLS client certificate changed (self-update)")
+		s.Events.SendSecurity(ev)
+	}
 
 	return response.EmptySyncResponse
 }
