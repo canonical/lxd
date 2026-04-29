@@ -15,6 +15,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/request/security"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
@@ -352,6 +353,9 @@ func createIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	lc := lifecycle.IdentityProviderGroupCreated.Event(idpGroup.Name, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle("", lc)
 
+	secEvt := security.AuthzAdmin.WithSuffix("idp_group_create", idpGroup.Name).UserEvent(r.Context(), security.LevelInfo, "Identity provider group created")
+	s.Events.SendSecurity(secEvt)
+
 	return response.SyncResponseLocation(true, nil, entity.IdentityProviderGroupURL(idpGroup.Name).String())
 }
 
@@ -404,6 +408,10 @@ func renameIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 
 		return response.SmartError(err)
 	}
+
+	// Rename is treated as an edit per spec, no separate idp_group_rename action.
+	secEvt := security.AuthzAdmin.WithSuffix("idp_group_edit", idpGroupPost.Name).UserEvent(r.Context(), security.LevelInfo, "Identity provider group renamed from "+idpGroupName)
+	s.Events.SendSecurity(secEvt)
 
 	return response.SyncResponseLocation(true, nil, entity.IdentityProviderGroupURL(idpGroupPost.Name).String())
 }
@@ -473,6 +481,9 @@ func updateIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	secEvt := security.AuthzAdmin.WithSuffix("idp_group_edit", idpGroupName).UserEvent(r.Context(), security.LevelInfo, "Identity provider group updated")
+	s.Events.SendSecurity(secEvt)
 
 	return response.EmptySyncResponse
 }
@@ -550,6 +561,9 @@ func patchIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	secEvt := security.AuthzAdmin.WithSuffix("idp_group_edit", idpGroupName).UserEvent(r.Context(), security.LevelInfo, "Identity provider group updated")
+	s.Events.SendSecurity(secEvt)
+
 	return response.EmptySyncResponse
 }
 
@@ -584,6 +598,9 @@ func deleteIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	secEvt := security.AuthzAdmin.WithSuffix("idp_group_delete", idpGroupName).UserEvent(r.Context(), security.LevelInfo, "Identity provider group deleted")
+	s.Events.SendSecurity(secEvt)
 
 	return response.EmptySyncResponse
 }
