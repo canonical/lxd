@@ -804,7 +804,7 @@ parts:
 
   spice-server:
     source: https://git.launchpad.net/ubuntu/+source/spice
-    source-commit: 085ca6b2bf58014ad8be571f3b601465c85ae931 # import/0.15.1-1build2
+    source-commit: 8c6cce7e0f8543063f2418051635efa52302fd47 # import/0.16.0-1
     source-depth: 1
     source-type: git
     plugin: meson
