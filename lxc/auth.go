@@ -752,6 +752,8 @@ func resolveIdentityTypeShorthand(identityArg string) (method string, identityTy
 		return api.AuthenticationMethodBearer, api.IdentityTypeBearerTokenDevLXD, idName, nil
 	case "bearer":
 		return api.AuthenticationMethodBearer, "", idName, nil
+	case "cluster-link":
+		return api.AuthenticationMethodTLS, api.IdentityTypeCertificateClusterLink, idName, nil
 	}
 
 	return "", "", "", fmt.Errorf("Unrecognized identity type shorthand %q", shorthandType)
@@ -843,6 +845,10 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 
 	switch method {
 	case api.AuthenticationMethodTLS:
+		if idType == api.IdentityTypeCertificateClusterLink {
+			return c.createClusterLinkIdentity(remoteName, name)
+		}
+
 		var certFilePath string
 		if len(args) == 2 {
 			certFilePath = args[1]
@@ -962,6 +968,58 @@ func (c *cmdIdentityCreate) createTLSIdentity(remote string, name string, certFi
 		fmt.Printf("TLS identity %q created with fingerprint %q\n", name, fingerprint)
 	}
 
+	return nil
+}
+
+// createClusterLinkIdentity is called via `lxc auth identity create cluster-link/<name>`.
+// It creates a pending unidirectional cluster link identity on B (the image host).
+// Returns a token that A (the image client) can use with `lxc cluster link create --token --unidirectional`.
+func (c *cmdIdentityCreate) createClusterLinkIdentity(remote string, name string) error {
+	transporter, wrapper := newLocationHeaderTransportWrapper()
+	client, err := c.global.conf.GetInstanceServerWithConnectionArgs(remote, &lxd.ConnectionArgs{TransportWrapper: wrapper})
+	if err != nil {
+		return err
+	}
+
+	clusterLink := api.ClusterLinksPost{
+		Name: name,
+		Type: api.ClusterLinkTypeUnidirectional,
+	}
+
+	clusterLink.AuthGroups = append(clusterLink.AuthGroups, c.flagGroups...)
+
+	token, err := client.CreateIdentityClusterLinkToken(clusterLink)
+	if err != nil {
+		return err
+	}
+
+	tokenJSON, err := json.Marshal(token)
+	if err != nil {
+		return fmt.Errorf("Failed encoding identity token: %w", err)
+	}
+
+	if !c.identity.global.flagQuiet {
+		pendingIdentityURL, err := url.Parse(transporter.location)
+		if err != nil {
+			return fmt.Errorf("Received invalid location header %q: %w", transporter.location, err)
+		}
+
+		var pendingIdentityUUIDStr string
+		identityURLPrefix := api.NewURL().Path(version.APIVersion, "auth", "identities", api.AuthenticationMethodTLS).String()
+		_, err = fmt.Sscanf(pendingIdentityURL.Path, identityURLPrefix+"/%s", &pendingIdentityUUIDStr)
+		if err != nil {
+			return fmt.Errorf("Received unexpected location header %q: %w", transporter.location, err)
+		}
+
+		pendingIdentityUUID, err := uuid.Parse(pendingIdentityUUIDStr)
+		if err != nil {
+			return fmt.Errorf("Received invalid pending identity UUID %q: %w", pendingIdentityUUIDStr, err)
+		}
+
+		fmt.Printf("Cluster link %q (%s) pending identity token:\n", name, pendingIdentityUUID.String())
+	}
+
+	fmt.Println(base64.StdEncoding.EncodeToString(tokenJSON))
 	return nil
 }
 

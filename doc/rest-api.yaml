@@ -429,6 +429,21 @@ definitions:
         title: ClusterLink represents high-level information about a cluster link.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    ClusterLinkCertificate:
+        properties:
+            certificate:
+                description: PEM-encoded X.509 certificate.
+                example: '-----BEGIN CERTIFICATE-----\n...'
+                type: string
+                x-go-name: Certificate
+            fingerprint:
+                description: SHA-256 fingerprint of the certificate.
+                example: a1b2c3d4...
+                type: string
+                x-go-name: Fingerprint
+        title: ClusterLinkCertificate represents a remote cluster certificate fetched for user verification.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterLinkMemberState:
         properties:
             address:
@@ -529,6 +544,11 @@ definitions:
                 example: lxd02
                 type: string
                 x-go-name: Name
+            remote_address:
+                description: RemoteAddress is the address of the remote cluster, used for unauthenticated links.
+                example: 10.0.0.1:8443
+                type: string
+                x-go-name: RemoteAddress
             trust_token:
                 description: |-
                     TrustToken for creating a cluster link. This is included in requests to create an active cluster link on the local cluster and activate a pending cluster link on the linked cluster.
@@ -10135,6 +10155,50 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Get the cluster link state
+            tags:
+                - cluster-links
+    /1.0/cluster/links/certificate:
+        get:
+            description: |-
+                Fetches the TLS certificate from the given remote address for user verification.
+                This is used as the first step of the unauthenticated cluster link creation flow.
+            operationId: cluster_links_certificate_get
+            parameters:
+                - description: Address of the remote cluster
+                  example: 10.0.0.1:8443
+                  in: query
+                  name: address
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Remote cluster certificate
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ClusterLinkCertificate'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the remote cluster certificate
             tags:
                 - cluster-links
     /1.0/cluster/links?recursion=1:
