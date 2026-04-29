@@ -360,6 +360,38 @@ func TestAdjustRoles_EvacuatedVoterDemotedWithoutReplacement(t *testing.T) {
 	assert.Equal(t, []uint64{2}, testNodeIDs(candidates))
 }
 
+// TestAdjustRoles_EvacuatedVoterDemotedWithStandbyTarget verifies that an
+// evacuated voter is demoted even when the standby target is unsatisfied.
+// This covers the case where all nodes are voters (no spares to promote to
+// standby) and the standby promotion check must not prevent the evacuated
+// voter from being demoted.
+func TestAdjustRoles_EvacuatedVoterDemotedWithStandbyTarget(t *testing.T) {
+	nodes := []db.RaftNode{
+		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
+		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
+		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
+	}
+
+	connectivity := map[string]bool{
+		"10.0.0.1:8443": true,
+		"10.0.0.2:8443": true,
+		"10.0.0.3:8443": true,
+	}
+
+	evacuatedMembers := map[string]bool{
+		"10.0.0.2:8443": true,
+	}
+
+	// 3 voters with max_voters=3 and max_standby=2 (the default).
+	// The standby target is unmet (0 standbys vs 2 target) but there are
+	// no spares to promote. The evacuated voter must still be demoted.
+	roles := testRolesChanges(nodes, connectivity, 3, 2)
+	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, nil, evacuatedMembers)
+
+	assert.Equal(t, db.RaftSpare, role)
+	assert.Equal(t, []uint64{2}, testNodeIDs(candidates))
+}
+
 // TestAdjustRoles_EvacuatedStandbyDemotedWithoutReplacement verifies that an
 // evacuated standby is still demoted when no replacement candidate exists.
 func TestAdjustRoles_EvacuatedStandbyDemotedWithoutReplacement(t *testing.T) {
@@ -385,7 +417,6 @@ func TestAdjustRoles_EvacuatedStandbyDemotedWithoutReplacement(t *testing.T) {
 	assert.Equal(t, db.RaftSpare, role)
 	assert.Equal(t, []uint64{3}, testNodeIDs(candidates))
 }
-
 
 // TestAdjustRoles_EvacuatedStandbyReplacedWhenSpareAvailable verifies that
 // when an evacuated standby can be replaced by a spare, the spare is promoted
@@ -604,7 +635,7 @@ func TestAdjustRoles_EvacuatedLeaderSignalsTransfer(t *testing.T) {
 	}
 
 	// Leader ID is 1. Node 1 is evacuated but is the leader and cannot be
-	// demoted directly — rolesAdjust must signal a leadership transfer.
+	// demoted directly; rolesAdjust must signal a leadership transfer.
 	roles := testRolesChanges(nodes, connectivity, 3, 0)
 	role, candidates, leaderNeedsTransfer := rolesAdjust(roles, 1, nodes, connectivity, nil, evacuatedMembers)
 
