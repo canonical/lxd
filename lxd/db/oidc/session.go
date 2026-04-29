@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/request/security"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -186,6 +187,19 @@ func (s *sessionHandler) StartSession(r *http.Request, res oidc.AuthenticationRe
 	if action != "" {
 		lc := action.Event(api.AuthenticationMethodOIDC, res.Email, request.CreateRequestor(r.Context()), nil)
 		s.events.SendLifecycle("", lc)
+
+		var secAction security.SecurityAction
+		var description string
+		switch action {
+		case lifecycle.IdentityCreated:
+			secAction, description = security.UserCreated, "Identity created"
+		case lifecycle.IdentityUpdated:
+			secAction, description = security.UserUpdated, "Identity updated"
+		}
+
+		if secAction != "" {
+			s.events.SendSecurity(secAction.UserEvent(r.Context(), security.LevelInfo, description))
+		}
 	}
 
 	return &sessionID, &expiry, nil
