@@ -4430,9 +4430,14 @@ func (d *lxc) Update(ctx context.Context, args db.InstanceArgs, actionType insta
 		return fmt.Errorf("Failed updating database: %w", err)
 	}
 
-	err = d.UpdateBackupFile()
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Failed writing backup file: %w", err)
+	// Skip writing the backup file for refresh updates because the storage volume may not be
+	// mounted or accessible at this point. The migration that follows will update the volume
+	// contents (including backup.yaml) as part of the data transfer.
+	if actionType != instance.UpdateActionUserRefresh {
+		err = d.UpdateBackupFile()
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed writing backup file: %w", err)
+		}
 	}
 
 	// Send devlxd notifications
@@ -5326,6 +5331,12 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 		err = pool.CreateInstanceFromMigration(ctx, d, filesystemConn, volTargetArgs, progressReporter)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
+		}
+
+		// Update the backup file to reflect the destination pool info after migration.
+		err = d.UpdateBackupFile()
+		if err != nil {
+			return fmt.Errorf("Failed writing backup file: %w", err)
 		}
 
 		isRemoteClusterMove := args.ClusterMoveSourceName != "" && pool.Driver().Info().Remote
