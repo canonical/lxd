@@ -2019,6 +2019,8 @@ func (d *Daemon) init() error {
 	// Unblock incoming requests
 	d.waitReady.Cancel()
 
+	d.events.SendSecurity(security.SysStartup.ServerEvent(security.LevelInfo, "LXD daemon started"))
+
 	logger.Info("Daemon started")
 
 	return nil
@@ -2160,6 +2162,12 @@ func cancelCancelableOps(ctx context.Context) error {
 
 // Stop stops the shared daemon.
 func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
+	// Emit sys_shutdown before cancelling shutdownCtx so internal sinks (e.g. the Loki client)
+	// are still alive to forward the event.
+	if d.events != nil {
+		d.events.SendSecurity(security.SysShutdown.ServerEvent(security.LevelInfo, "LXD daemon stopping"))
+	}
+
 	// Cancelling the context will make everyone aware that we're shutting down.
 	d.shutdownCtx.Cancel()
 
