@@ -999,7 +999,6 @@ parts:
       - lib/*/libusbredir*so*
       - lib/*/libusb*so*
       - lib/*/libfdt*.so*
-      - share/qemu/keymaps/*
       - share/qemu/bios-256k.bin
       - share/qemu/efi-virtio.rom
       - share/qemu/kvmvapic.bin
