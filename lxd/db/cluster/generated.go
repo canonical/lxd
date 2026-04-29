@@ -264,6 +264,63 @@ func (i *IdentityCertificate) ScanArgs() []any {
 	return []any{&i.Row.ID, &i.Row.Fingerprint, &i.Row.Certificate, &i.Row.CreationDate, &i.IdentityID}
 }
 
+// TableName returns the table name for [ImageRegistryRow] entities.
+func (i ImageRegistryRow) TableName() string {
+	return "image_registries"
+}
+
+// SelectColumns returns a slice of column names for [ImageRegistryRow] entities.
+func (i ImageRegistryRow) SelectColumns() []string {
+	return []string{
+		"image_registries.id",
+		"image_registries.name",
+		"image_registries.description",
+		"image_registries.protocol",
+		"image_registries.builtin",
+	}
+}
+
+// Joins returns a slice of join expressions for [ImageRegistryRow].
+func (i ImageRegistryRow) Joins() []string {
+	return []string{}
+}
+
+// ScanArgs implements [query.ScanArger] for [ImageRegistryRow].
+// This returns references to struct fields in definition order.
+func (i *ImageRegistryRow) ScanArgs() []any {
+	return []any{&i.ID, &i.Name, &i.Description, &i.Protocol, &i.Builtin}
+}
+
+// CreateValues returns a list of values from [ImageRegistryRow] entities matching the bind arguments in [CreateStmt].
+func (i ImageRegistryRow) CreateValues() []any {
+	return []any{i.Name, i.Description, i.Protocol, i.Builtin}
+}
+
+// UpdateValues returns a list of values from [ImageRegistryRow] entities matching the columns in [UpdateStmt].
+func (i ImageRegistryRow) UpdateValues() []any {
+	return []any{i.Name, i.Description, i.Protocol, i.Builtin}
+}
+
+// PKColumn returns the column name for the primary key of a [ImageRegistryRow] entity used during an update.
+func (i ImageRegistryRow) PKColumn() string {
+	return "id"
+}
+
+// PKValue returns the value for the primary key of a [ImageRegistryRow] entity used during an update.
+func (i ImageRegistryRow) PKValue() any {
+	return i.ID
+}
+
+// CreateStmt returns a query that creates a [ImageRegistryRow] entity.
+func (i ImageRegistryRow) CreateStmt() string {
+	return "INSERT INTO image_registries (name, description, protocol, builtin) VALUES (?, ?, ?, ?)"
+}
+
+// UpdateStmt returns a query that updates a [ImageRegistryRow] by primary key.
+func (i ImageRegistryRow) UpdateStmt() string {
+	return "UPDATE image_registries SET name = ?, description = ?, protocol = ?, builtin = ? "
+}
+
 // TableName returns the table name for [PlacementGroup] entities.
 func (p PlacementGroup) TableName() string {
 	return "placement_groups"

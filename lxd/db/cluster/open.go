@@ -184,7 +184,7 @@ func EnsureSchema(db *sql.DB, address string, dir string, serverUUID string) err
 			return err
 		}
 
-		err = query.Transaction(context.TODO(), db, func(_ context.Context, tx *sql.Tx) error {
+		err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 			stmt := `
 INSERT INTO nodes(id, name, address, schema, api_extensions, arch, description) VALUES(1, 'none', '0.0.0.0', ?, ?, ?, '')
 `
@@ -241,6 +241,12 @@ INSERT INTO cluster_groups (name, description) VALUES ('default', 'Default clust
 INSERT INTO nodes_cluster_groups (node_id, group_id) VALUES(1, 1);
 `
 			_, err = tx.Exec(stmt)
+			if err != nil {
+				return err
+			}
+
+			// Built-in image registries
+			err = createBuiltinImageRegistries(ctx, tx)
 			if err != nil {
 				return err
 			}
@@ -332,5 +338,91 @@ func checkClusterIsUpgradable(ctx context.Context, tx *sql.Tx, target [2]int) er
 			panic("Unexpected return value from compareVersions")
 		}
 	}
+	return nil
+}
+
+// createBuiltinImageRegistries prepopulates the database with built-in image registries.
+// This is used to initilize LXD database and for the database migration.
+func createBuiltinImageRegistries(ctx context.Context, tx *sql.Tx) error {
+	builtins := []struct {
+		name        string
+		description string
+		config      map[string]string
+	}{
+		{
+			name:        "images",
+			description: "",
+			config: map[string]string{
+				"url":    "https://images.lxd.canonical.com",
+				"public": "true",
+			},
+		},
+		{
+			name:        "ubuntu",
+			description: "",
+			config: map[string]string{
+				"url":    "https://cloud-images.ubuntu.com/releases/",
+				"public": "true",
+			},
+		},
+		{
+			name:        "ubuntu-daily",
+			description: "",
+			config: map[string]string{
+				"url":    "https://cloud-images.ubuntu.com/daily/",
+				"public": "true",
+			},
+		},
+		{
+			name:        "ubuntu-minimal",
+			description: "",
+			config: map[string]string{
+				"url":    "https://cloud-images.ubuntu.com/minimal/releases/",
+				"public": "true",
+			},
+		},
+		{
+			name:        "ubuntu-minimal-daily",
+			description: "",
+			config: map[string]string{
+				"url":    "https://cloud-images.ubuntu.com/minimal/daily/",
+				"public": "true",
+			},
+		},
+	}
+
+	stmtRegistry, err := tx.PrepareContext(ctx, `INSERT INTO image_registries (name, description, protocol, builtin) VALUES (?, ?, 0, 1)`)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = stmtRegistry.Close() }()
+
+	stmtConfig, err := tx.PrepareContext(ctx, `INSERT INTO image_registries_config (image_registry_id, key, value) VALUES (?, ?, ?)`)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = stmtConfig.Close() }()
+
+	for _, registry := range builtins {
+		res, err := stmtRegistry.ExecContext(ctx, registry.name, registry.description)
+		if err != nil {
+			return err
+		}
+
+		registryID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+
+		for k, v := range registry.config {
+			_, err := stmtConfig.ExecContext(ctx, registryID, k, v)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }

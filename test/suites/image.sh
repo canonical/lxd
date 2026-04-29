@@ -7,102 +7,105 @@ test_image_expiry() {
 
   ensure_import_testimage
 
-  local token
-  token="$(lxc config trust add --name foo -q)"
-  # shellcheck disable=2153
-  lxc_remote remote add l1 "${LXD_ADDR}" --token "${token}"
+  # Mark the image as public.
+  lxc image show testimage | sed -e "s/^public: false/public: true/" | lxc image edit testimage
 
+  local token
   token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
-  lxc_remote remote add l2 "${LXD2_ADDR}" --token "${token}"
+  # shellcheck disable=2153
+  lxc_remote remote add l1 "${LXD2_ADDR}" --token "${token}"
+
+  # shellcheck disable=2153
+  lxc_remote image registry create l1:img --protocol=lxd url="https://${LXD_ADDR}" public=true source_project=default
 
   echo "Create containers from a remote image in three projects."
-  lxc_remote project create l2:p1 -c features.images=true -c features.profiles=false
-  lxc_remote init l1:testimage l2:c1 --project default
-  lxc_remote project switch l2:p1
-  lxc_remote init l1:testimage l2:c2
-  lxc_remote project create l2:p2 -c features.images=true -c features.profiles=false
-  lxc_remote project switch l2:p2
+  lxc_remote project create l1:p1 -c features.images=true -c features.profiles=false
+  lxc_remote init img:testimage l1:c1 --project default
+  lxc_remote project switch l1:p1
+  lxc_remote init img:testimage l1:c2
+  lxc_remote project create l1:p2 -c features.images=true -c features.profiles=false
+  lxc_remote project switch l1:p2
 
   local fp
   fp="$(lxc_remote image info testimage | awk '/^Fingerprint/ {print $2}')"
 
   echo "Create instance from cached image."
-  lxc_remote init l1:testimage l2:c3
-  lxc_remote delete -f l2:c3
+  lxc_remote init img:testimage l1:c3
+  lxc_remote delete -f l1:c3
 
   echo "Confirm the image is cached."
   [ -n "${fp}" ]
   local fpbrief
   fpbrief=$(echo "${fp}" | cut -c 1-12)
-  lxc_remote image list -f csv -c f l2: | grep -xF "${fpbrief}"
+  lxc_remote image list -f csv -c f l1: | grep -xF "${fpbrief}"
 
   echo "Project can still be deleted since cached images are pruned."
-  lxc_remote project delete l2:p2
+  lxc_remote project delete l1:p2
 
   echo "Switch back to default project and confirm image is still cached."
-  lxc_remote project switch l2:default
-  lxc_remote image list -f csv -c f l2: | grep -xF "${fpbrief}"
+  lxc_remote project switch l1:default
+  lxc_remote image list -f csv -c f l1: | grep -xF "${fpbrief}"
 
   echo "Test modification of image expiry date."
-  lxc_remote image info "l2:${fp}" | grep "Expires.*never"
-  lxc_remote image show "l2:${fp}" | sed "s/expires_at.*/expires_at: 3000-01-01T00:00:00-00:00/" | lxc_remote image edit "l2:${fp}"
-  lxc_remote image info "l2:${fp}" | grep "Expires.*3000"
+  lxc_remote image info "l1:${fp}" | grep "Expires.*never"
+  lxc_remote image show "l1:${fp}" | sed "s/expires_at.*/expires_at: 3000-01-01T00:00:00-00:00/" | lxc_remote image edit "l1:${fp}"
+  lxc_remote image info "l1:${fp}" | grep "Expires.*3000"
 
   echo "Override the upload date for the image record in the default project."
   LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date='$(date --rfc-3339=seconds -u -d "2 days ago")' WHERE fingerprint='${fp}' AND project_id = 1" | grep -xF "Rows affected: 1"
 
   echo "Trigger the expiry."
-  lxc_remote config set l2: images.remote_cache_expiry 1
+  lxc_remote config set l1: images.remote_cache_expiry 1
 
   for _ in $(seq 40); do
-    if ! lxc_remote image info l2:"${fpbrief}" 2>/dev/null; then
+    if ! lxc_remote image info l1:"${fpbrief}" 2>/dev/null; then
       break
     fi
     sleep 0.5
   done
 
-  ! lxc_remote image info l2:"${fpbrief}" || false
+  ! lxc_remote image info l1:"${fpbrief}" || false
 
   echo "Check image is still in p1 project and has not been expired."
-  lxc_remote image list -f csv -c f l2: --project p1 | grep -xF "${fpbrief}"
+  lxc_remote image list -f csv -c f l1: --project p1 | grep -xF "${fpbrief}"
 
   echo "Test instance can still be created in p1 project."
-  lxc_remote project switch l2:p1
-  lxc_remote init l1:testimage l2:c3
-  lxc_remote project switch l2:default
+  lxc_remote project switch l1:p1
+  lxc_remote init img:testimage l1:c3
+  lxc_remote project switch l1:default
 
   echo "Override the upload date for the image record in the p1 project."
   LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date='$(date --rfc-3339=seconds -u -d "2 days ago")' WHERE fingerprint='${fp}' AND project_id > 1" | grep -xF "Rows affected: 1"
-  lxc_remote project set l2:p1 images.remote_cache_expiry=1
+  lxc_remote project set l1:p1 images.remote_cache_expiry=1
 
   echo "Trigger the expiry in p1 project by changing global images.remote_cache_expiry."
-  lxc_remote config unset l2: images.remote_cache_expiry
+  lxc_remote config unset l1: images.remote_cache_expiry
 
   for _ in $(seq 40); do
-    if ! lxc_remote image info l2:"${fpbrief}" --project p1 2>/dev/null; then
+    if ! lxc_remote image info l1:"${fpbrief}" --project p1 2>/dev/null; then
       break
     fi
     sleep 0.5
   done
 
-  ! lxc_remote image info l2:"${fpbrief}" --project p1 || false
+  ! lxc_remote image info l1:"${fpbrief}" --project p1 || false
 
   echo "==> Clean up instances."
-  lxc_remote delete -f l2:c1
-  lxc_remote delete -f l2:c2 --project p1
-  lxc_remote delete -f l2:c3 --project p1
+  lxc_remote delete -f l1:c1
+  lxc_remote delete -f l1:c2 --project p1
+  lxc_remote delete -f l1:c3 --project p1
 
   echo "==> Copy remote image to a local store in project p1. It should be marked non-cached."
-  lxc_remote image copy l1:testimage l2: --target-project p1
+  lxc_remote image copy img:testimage l1: --target-project p1
 
   echo "==> Check that the locally saved image in project p1 is marked as non-cached."
-  lxc_remote image info l2:"${fp}" --project p1 | grep -xF "Cached: no"
+  lxc_remote image info l1:"${fp}" --project p1 | grep -xF "Cached: no"
 
   echo "==> Create a new instance in the default project with a remote image. It should be cached."
-  lxc_remote init l1:testimage l2:c1
+  lxc_remote init img:testimage l1:c1
 
   echo "==> Check that the locally saved image in default project is marked as cached."
-  lxc_remote image info l2:"${fp}" | grep -xF "Cached: yes"
+  lxc_remote image info l1:"${fp}" | grep -xF "Cached: yes"
 
   echo "==> Check that the image file exists locally."
   ls -l "${LXD2_DIR}/images/${fp}"
@@ -111,34 +114,34 @@ test_image_expiry() {
   LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date = '2000-01-01T00:00:00Z'" | grep -xF "Rows affected: 2"
 
   echo "==> Trigger the expiry. Image in the default project should get pruned, but image in project p1 should remain."
-  lxc_remote config set l2: images.remote_cache_expiry 1
+  lxc_remote config set l1: images.remote_cache_expiry 1
 
   for _ in $(seq 40); do
-    if ! lxc_remote image info l2:"${fpbrief}" 2>/dev/null; then
+    if ! lxc_remote image info l1:"${fpbrief}" 2>/dev/null; then
       break
     fi
     sleep 0.5
   done
 
   echo "==> Check that image in the default project was deleted."
-  ! lxc_remote image info l2:"${fpbrief}" || false
+  ! lxc_remote image info l1:"${fpbrief}" || false
 
   echo "==> Check that image in project p1 still exists."
-  lxc_remote image info l2:"${fpbrief}" --project p1
+  lxc_remote image info l1:"${fpbrief}" --project p1
 
   echo "==> Check that the image file still exists locally because it is used by image in project p1."
   ls -l "${LXD2_DIR}/images/${fp}"
 
   echo "==> Create an instance in project p1 using locally saved image."
-  lxc_remote init l2:"${fpbrief}" l2:c2 --project p1
+  lxc_remote init l1:"${fpbrief}" l1:c2 --project p1
 
   echo "==> Cleanup and reset."
-  lxc_remote delete -f l2:c1
-  lxc_remote delete -f l2:c2 --project p1
-  lxc_remote image delete l2:"${fpbrief}" --project p1
-  lxc_remote project delete l2:p1
+  lxc_remote delete -f l1:c1
+  lxc_remote delete -f l1:c2 --project p1
+  lxc_remote image delete l1:"${fpbrief}" --project p1
+  lxc_remote project delete l1:p1
+  lxc_remote image registry delete l1:img
   lxc_remote remote remove l1
-  lxc_remote remote remove l2
   kill_lxd "$LXD2_DIR"
 }
 
@@ -226,20 +229,19 @@ test_image_refresh() {
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(< "${LXD2_DIR}/lxd.addr")
 
-  ensure_import_testimage
-
   token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
   lxc_remote remote add l2 "${LXD2_ADDR}" --token "${token}"
+
+  lxc_remote image registry create img --protocol=lxd url="https://${LXD2_ADDR}" public=true source_project=default
 
   poolDriver="$(storage_backend "${LXD2_DIR}")"
 
   # Publish image
-  lxc image copy testimage l2: --alias testimage --public
+  LXD_DIR=${LXD2_DIR} deps/import-busybox --alias testimage --public
   fp="$(lxc image info l2:testimage | awk '/Fingerprint: / {print $2}')"
-  lxc image rm testimage
 
   # Create container from published image
-  lxc init l2:testimage c1
+  lxc init img:testimage c1
 
   # Create an alias for the received image
   lxc image alias create testimage "${fp}"
@@ -277,6 +279,7 @@ test_image_refresh() {
   # Cleanup
   lxc rm l2:c1
   lxc rm c1
+  lxc image registry rm img
   lxc remote rm l2
   kill_lxd "${LXD2_DIR}"
 }
@@ -508,7 +511,7 @@ test_image_cached() {
     lxc image delete testimage
   fi
 
-  # Set up a local LXD server as an image remote.
+  # Set up a local LXD server as an image registry.
   local LXD2_DIR LXD2_ADDR
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
@@ -516,8 +519,7 @@ test_image_cached() {
 
   LXD_DIR="${LXD2_DIR}" deps/import-busybox --alias testimage --public
 
-  token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
-  lxc remote add l2 "${LXD2_ADDR}" --token "${token}"
+  lxc image registry create l2 --protocol=lxd url="https://${LXD2_ADDR}" public=true source_project=default
 
   echo "==> Verify that image caching works correctly for the default project."
 
@@ -606,6 +608,6 @@ test_image_cached() {
   lxc image delete "${fingerprint}" --project p1
   lxc image delete "${fingerprint}"
   lxc project delete p1
-  lxc remote remove l2
+  lxc image registry delete l2
   kill_lxd "${LXD2_DIR}"
 }

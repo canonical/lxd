@@ -8,13 +8,20 @@
 LXD uses an image-based workflow.
 Each instance is based on an image, which contains a basic operating system (for example, a Linux distribution) and some LXD-related information.
 
-Images are available from remote image stores (see {ref}`remote-image-servers` for an overview), but you can also create your own images, either based on an existing instances or a rootfs image.
+Images are available from image registries (see {ref}`ref-image-registries` for an overview), but you can also create your own images, either based on an existing instances or a rootfs image.
 
-You can copy images from remote servers to your local image store, or copy local images to remote servers.
-You can also use a local image to create a remote instance.
+You can copy images from image registries to your local image store.
 
 Each image is identified by a fingerprint (SHA256).
 To make it easier to manage images, LXD allows defining one or more aliases for each image.
+
+## Image registries
+
+LXD supports defining image registries.
+These registries are stored in the LXD database and are available to all members of a cluster.
+They provide a read-only source for images that can be downloaded and used to create instances.
+
+When you use an image from a registry, the LXD server resolves and downloads the image, rather than the client.
 
 ## Caching
 
@@ -29,7 +36,7 @@ LXD keeps track of the image usage by updating the `last_used_at` image property
 
 ## Auto-update
 
-LXD can automatically keep images that come from a remote server up to date.
+LXD can automatically keep images that come from an image registry up to date.
 
 ```{note}
 Only images that are requested through an alias can be updated.
@@ -39,7 +46,7 @@ If you request an image through a fingerprint, you request an exact image versio
 Whether auto-update is enabled for an image depends on how the image was downloaded:
 
 - If the image was downloaded and cached when creating an instance, it is automatically updated if {config:option}`server-images:images.auto_update_cached` was set to `true` (the default) at download time.
-- If the image was copied from a remote server using the [`lxc image copy`](lxc_image_copy.md) command, it is automatically updated only if the `--auto-update` flag was specified.
+- If the image was copied from an image registry using the [`lxc image copy`](lxc_image_copy.md) command, it is automatically updated only if the `--auto-update` flag was specified.
 
 You can change this behavior for an image by [editing the `auto_update` property](images-manage-edit).
 

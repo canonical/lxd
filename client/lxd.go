@@ -514,8 +514,8 @@ func (r *ProtocolLXD) getSourceImageConnectionInfo(source ImageServer, image api
 	// Optimization for the local image case.
 	// The source image can be on the same server but in a different project compared to instance.
 	// Hence, we only compare the server identity here and allow different projects.
-	if sameServer {
-		// Always use fingerprints for local case
+	if sameServer || source == nil || instSrc.ImageRegistry != "" {
+		// Set the fingerprint from the image info.
 		instSrc.Fingerprint = image.Fingerprint
 		instSrc.Alias = ""
 		return nil, nil
@@ -538,8 +538,8 @@ func (r *ProtocolLXD) getSourceImageConnectionInfo(source ImageServer, image api
 		return nil, err
 	}
 
-	instSrc.Protocol = info.Protocol
-	instSrc.Certificate = info.Certificate
+	instSrc.Protocol = info.Protocol       //nolint:staticcheck
+	instSrc.Certificate = info.Certificate //nolint:staticcheck
 	instSrc.Project = info.Project
 
 	// Generate secret token if needed

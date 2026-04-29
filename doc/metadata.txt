@@ -1678,6 +1678,43 @@ The default is `false`, which means that all devices can be hotplugged.
 ```
 
 <!-- config group device-unix-usb-device-conf end -->
+<!-- config group image-registry-image-registry-conf start -->
+```{config:option} cluster image-registry-image-registry-conf
+:required: "no"
+:shortdesc: Cluster link name for image registry using \"LXD\" protocol
+:type: "string"
+
+```
+
+```{config:option} public image-registry-image-registry-conf
+:defaultdesc: "`true`"
+:required: "no"
+:shortdesc: "Whether the image registry can be accessed without authentication"
+:type: "bool"
+
+```
+
+```{config:option} source_project image-registry-image-registry-conf
+:required: "no"
+:shortdesc: Source project for image registry using \"LXD\" protocol
+:type: "string"
+
+```
+
+```{config:option} url image-registry-image-registry-conf
+:required: "yes"
+:shortdesc: "Source URL for the image registry"
+:type: "string"
+
+```
+
+```{config:option} user.* image-registry-image-registry-conf
+:shortdesc: "User-provided free-form user key/value pairs"
+:type: "string"
+
+```
+
+<!-- config group image-registry-image-registry-conf end -->
 <!-- config group instance-boot start -->
 ```{config:option} boot.autostart instance-boot
 :liveupdate: "no"
@@ -4460,6 +4497,14 @@ Specify a comma-delimited list of network names that can be used as uplink for n
 Specify a comma-delimited list of network zones that can be used (or something under them) in this project.
 ```
 
+```{config:option} restricted.registries project-restricted
+:defaultdesc: "`block`"
+:shortdesc: "Which image registries can be used in this project"
+:type: "string"
+Specify a comma-delimited list of image registry names that are allowed for use in this project.
+If this option is not set, no image registries are accessible.
+```
+
 ```{config:option} restricted.snapshots project-restricted
 :defaultdesc: "`block`"
 :shortdesc: "When set to `block`, creating instance or volume snapshots is prevented"
@@ -7029,6 +7074,18 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 
 
 <!-- entity group image_alias end -->
+<!-- entity group image_registry start -->
+`can_view`
+: Grants permission to view the image registry.
+
+`can_edit`
+: Grants permission to edit the image registry.
+
+`can_delete`
+: Grants permission to delete the image registry.
+
+
+<!-- entity group image_registry end -->
 <!-- entity group instance start -->
 `user`
 : Grants permission to view the instance, to access files, and to start a terminal or console session.
@@ -7343,7 +7400,7 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants access to view all resources in the LXD server.
 
 `can_edit`
-: Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to create, edit, and delete cluster links, to update cluster member certificates, and to edit or delete warnings.
+: Grants permission to edit server configuration, to edit cluster member configuration, to update the state of a cluster member, to create, edit, and delete cluster groups, to create, edit, and delete cluster links, to create, edit, and delete image registries, to update cluster member certificates, and to edit or delete warnings.
 
 `permission_manager`
 : Grants permission to view permissions, to create, edit, and delete identities, to view, create, edit, and delete authorization groups, and to view, create, edit, and delete identity provider groups. Note that clients with this permission are able to elevate their own privileges.
@@ -7446,6 +7503,18 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 
 `can_delete_cluster_links`
 : Grants permission to delete cluster links.
+
+`can_create_image_registries`
+: Grants permission to create image registries.
+
+`can_view_image_registries`
+: Grants permission to view image registries.
+
+`can_edit_image_registries`
+: Grants permission to edit image registries.
+
+`can_delete_image_registries`
+: Grants permission to delete image registries.
 
 
 <!-- entity group server end -->

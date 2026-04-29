@@ -32,6 +32,7 @@ import (
 	"github.com/canonical/lxd/lxd/placement"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
+	"github.com/canonical/lxd/lxd/registry"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -72,9 +73,7 @@ func ensureDownloadedImageFitWithinBudget(ctx context.Context, s *state.State, o
 	}
 
 	imgDownloaded, err := ImageDownload(ctx, s, op, &ImageDownloadArgs{
-		Server:            source.Server,
-		Protocol:          source.Protocol,
-		Certificate:       source.Certificate,
+		ImageRegistry:     source.ImageRegistry,
 		Secret:            source.Secret,
 		Alias:             imgAlias,
 		SetCached:         true,
@@ -117,7 +116,7 @@ func createFromImage(r *http.Request, s *state.State, p api.Project, profiles []
 			Profiles:    profiles,
 		}
 
-		if req.Source.Server != "" {
+		if req.Source.ImageRegistry != "" {
 			img, err = ensureDownloadedImageFitWithinBudget(ctx, s, op, p, imgAlias, req.Source, string(req.Type))
 			if err != nil {
 				return err
@@ -1273,10 +1272,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Type = api.InstanceType(urlType.String())
 	}
 
-	if req.Type == "" {
-		req.Type = api.InstanceTypeContainer // Default to container if not specified.
-	}
-
 	if req.Devices == nil {
 		req.Devices = map[string]map[string]string{}
 	}
@@ -1332,6 +1327,115 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var targetMemberInfo *db.NodeInfo
 	var targetGroupName string
 	var placementGroupName string
+	var imageRegistry *api.ImageRegistry
+	var remoteServer lxd.ImageServer
+
+	// Transitional backward-compatibility: if the client sent the deprecated Server and Protocol
+	// fields (but no ImageRegistry), and the URL is on the SimpleStreams allowlist, automatically
+	// look up or create a public SimpleStreams image registry so the request can proceed through
+	// the standard image registry path.
+	if req.Source.ImageRegistry == "" && req.Source.Server != "" && req.Source.Protocol == api.ImageRegistryProtocolSimpleStreams { //nolint:staticcheck
+		if api.IsTransitionalSimpleStreamsURL(req.Source.Server) { //nolint:staticcheck
+			registryName := api.TransitionalRegistryName(req.Source.Server) //nolint:staticcheck
+
+			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+				_, err := dbCluster.GetImageRegistry(ctx, tx.Tx(), registryName)
+				if err == nil {
+					// Image registry already exists, no need to create it.
+					return nil
+				}
+
+				if !response.IsNotFoundError(err) {
+					return fmt.Errorf("Failed checking for existing image registry %q: %w", registryName, err)
+				}
+
+				// Registry does not exist yet, so create it.
+				registryID, err := dbCluster.CreateImageRegistry(ctx, tx.Tx(), dbCluster.ImageRegistryRow{
+					Name:     registryName,
+					Protocol: dbCluster.ImageRegistryProtocol(api.ImageRegistryProtocolSimpleStreams),
+					Builtin:  false,
+				})
+				if err != nil {
+					return fmt.Errorf("Failed creating transitional image registry %q: %w", registryName, err)
+				}
+
+				err = dbCluster.CreateImageRegistryConfig(ctx, tx.Tx(), registryID, map[string]string{
+					"url":    req.Source.Server, //nolint:staticcheck
+					"public": "true",
+				})
+				if err != nil {
+					return fmt.Errorf("Failed creating transitional image registry config for %q: %w", registryName, err)
+				}
+
+				logger.Info("Created transitional image registry from deprecated Server field", logger.Ctx{"registry": registryName, "url": req.Source.Server}) //nolint:staticcheck
+
+				return nil
+			})
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			req.Source.ImageRegistry = registryName
+		}
+	}
+
+	// If an image registry is specified, we connect to it here before starting the main transaction.
+	// This is to avoid a nested transaction when calling ConnectImageRegistry.
+	// A connected image registry is needed to determined suitable architectures for instance creation.
+	if req.Source.ImageRegistry != "" {
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			projectConfig, err := dbCluster.GetProjectConfig(ctx, tx.Tx(), targetProjectName)
+			if err != nil {
+				return fmt.Errorf("Failed loading config for project %q: %w", targetProjectName, err)
+			}
+
+			if !project.RegistryAllowed(projectConfig, req.Source.ImageRegistry) {
+				return api.StatusErrorf(http.StatusNotFound, "Image registry not found")
+			}
+
+			dbImageRegistry, err := dbCluster.GetImageRegistry(ctx, tx.Tx(), req.Source.ImageRegistry)
+			if err != nil {
+				return fmt.Errorf("Failed fetching image registry %q: %w", req.Source.ImageRegistry, err)
+			}
+
+			imageRegistry, err = dbImageRegistry.ToAPI(ctx, tx.Tx())
+			return err
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Connect to the image registry.
+		remoteServer, err = registry.ConnectImageRegistry(r.Context(), s, *imageRegistry)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
+	// If the instance type wasn't specified and we have a LXD protocol registry, pre-fetch the image
+	// type from the remote so we can infer it inside the main transaction without making a
+	// network call while holding the DB lock.
+	var remoteImageType string
+	if req.Type == "" && imageRegistry != nil && imageRegistry.Protocol == api.ImageRegistryProtocolLXD && remoteServer != nil {
+		imgRef := req.Source.Fingerprint
+		if imgRef == "" {
+			imgRef = req.Source.Alias
+		}
+
+		if imgRef != "" {
+			// Try resolving as an alias first, as the fingerprint field may contain an alias name.
+			alias, _, err := remoteServer.GetImageAlias(imgRef)
+			if err == nil {
+				remoteImageType = alias.Type
+			} else {
+				// Fall back to fetching by fingerprint.
+				info, _, err := remoteServer.GetImage(imgRef)
+				if err == nil {
+					remoteImageType = info.Type
+				}
+			}
+		}
+	}
 
 	// Set to true once we find that the request is currently handled on a member which isn't hosting the source instance.
 	sourceInstOnDifferentMember := false
@@ -1487,6 +1591,32 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
+			// If type wasn't specified, match the image type where appropriate.
+			if req.Type == "" {
+				// We infer the type from the image if:
+				// 1) It's a local image/alias (imageRegistry is nil).
+				// 2) It's from a LXD protocol registry.
+				// This replicates the legacy client-side behavior where only local images
+				// and images from LXD remotes were subject to automatic type detection.
+				// We explicitly skip inference for simplestreams registries to maintain the
+				// default of creating a container.
+				if imageRegistry == nil || imageRegistry.Protocol == "lxd" {
+					var imgType string
+					if sourceImage != nil {
+						imgType = sourceImage.Type
+					} else if remoteImageType != "" {
+						imgType = remoteImageType
+					}
+
+					if imgType != "" {
+						dbType, err := instancetype.New(imgType)
+						if err == nil {
+							req.Type = api.InstanceType(dbType.String())
+						}
+					}
+				}
+			}
+
 			// If image has an entry in the database then use its profiles if no override provided.
 			if sourceImage != nil && req.Profiles == nil {
 				req.Architecture = sourceImage.Architecture
@@ -1552,7 +1682,9 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if s.ServerClustered && !clusterNotification && targetMemberInfo == nil {
-			architectures, err := instance.SuitableArchitectures(ctx, s, tx, targetProjectName, sourceInst, sourceImageRef, req)
+			// Determine which cluster members are suitable for this instance based on its image architecture.
+			// We pass the pre-connected remoteServer (if any) to resolve architectures for registry-based images.
+			architectures, err := instance.SuitableArchitectures(ctx, s, tx, targetProjectName, sourceInst, sourceImageRef, req, remoteServer)
 			if err != nil {
 				return err
 			}
@@ -1593,6 +1725,11 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !clusterNotification {
+			// If type wasn't specified and couldn't be inferred, default to container.
+			if req.Type == "" {
+				req.Type = api.InstanceTypeContainer
+			}
+
 			// Check that the project's limits are not violated. Note this check is performed after
 			// automatically generated config values (such as ones from an InstanceType) have been set.
 			err = limits.AllowInstanceCreation(ctx, s.GlobalConfig, tx, targetProjectName, req)

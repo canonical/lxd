@@ -31,9 +31,10 @@ type Remote struct {
 
 // ParseRemote splits remote and object.
 func (c *Config) ParseRemote(raw string) (remoteName string, resourceName string, err error) {
-	remote, object, found := strings.Cut(raw, ":")
-	if !found {
-		return c.DefaultRemote, raw, nil
+	remote, object := c.ParseRemoteUnchecked(raw)
+
+	if remote == "" {
+		remote = c.DefaultRemote
 	}
 
 	_, ok := c.Remotes[remote]
@@ -47,6 +48,16 @@ func (c *Config) ParseRemote(raw string) (remoteName string, resourceName string
 	}
 
 	return remote, object, nil
+}
+
+// ParseRemoteUnchecked splits remote and object but does not verify if the remote exists.
+func (c *Config) ParseRemoteUnchecked(raw string) (remoteName string, resourceName string) {
+	remote, object, found := strings.Cut(raw, ":")
+	if !found {
+		return "", raw
+	}
+
+	return remote, object
 }
 
 // GetInstanceServer returns a lxd.InstanceServer for the remote with the given name.

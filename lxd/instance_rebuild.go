@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
@@ -108,6 +109,12 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		if req.Source.Type == "image" && req.Source.ImageRegistry != "" {
+			if !project.RegistryAllowed(targetProject.Config, req.Source.ImageRegistry) {
+				return api.StatusErrorf(http.StatusNotFound, "Image registry not found")
+			}
+		}
+
 		dbInst, err := dbCluster.GetInstance(ctx, tx.Tx(), targetProject.Name, name)
 		if err != nil {
 			return fmt.Errorf("Failed loading instance: %w", err)
@@ -143,7 +150,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 			return instanceRebuildFromEmpty(ctx, inst, op)
 		}
 
-		if req.Source.Server != "" {
+		if req.Source.ImageRegistry != "" || req.Source.Project != "" {
 			sourceImage, err = ensureDownloadedImageFitWithinBudget(ctx, s, op, *targetProject, sourceImageRef, req.Source, inst.Type().String())
 			if err != nil {
 				return err

@@ -605,9 +605,7 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 	}
 
 	info, err := ImageDownload(ctx, s, op, &ImageDownloadArgs{
-		Server:            req.Source.Server,
-		Protocol:          req.Source.Protocol,
-		Certificate:       req.Source.Certificate,
+		ImageRegistry:     req.Source.ImageRegistry,
 		Secret:            req.Source.Secret,
 		Alias:             hash,
 		Type:              req.Source.ImageType,
@@ -621,6 +619,9 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 	if err != nil {
 		return nil, err
 	}
+
+	// Copy aliases from source so that they can be applied later if needed.
+	remoteAliases := info.Aliases
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var id int
@@ -670,92 +671,55 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 			}
 		}
 
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
+		// Create any requested aliases.
+		for _, alias := range req.Aliases {
+			_, _, err := tx.GetImageAlias(ctx, imageProject, alias.Name, true)
+			if !response.IsNotFoundError(err) {
+				if err != nil {
+					return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
+				}
 
-	return info, nil
-}
+				return fmt.Errorf("Alias already exists: %s", alias.Name)
+			}
 
-func imgPostURLInfo(ctx context.Context, s *state.State, req api.ImagesPost, op *operations.Operation, imageProject string, budget int64) (*api.Image, error) {
-	var err error
-
-	if req.Source.URL == "" {
-		return nil, errors.New("Missing URL")
-	}
-
-	myhttp, err := util.HTTPClient("", s.Proxy)
-	if err != nil {
-		return nil, err
-	}
-
-	// Resolve the image URL
-	head, err := http.NewRequest("HEAD", req.Source.URL, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	architectures := []string{}
-	for _, architecture := range s.OS.Architectures {
-		architectureName, err := osarch.ArchitectureName(architecture)
-		if err != nil {
-			return nil, err
-		}
-
-		architectures = append(architectures, architectureName)
-	}
-
-	head.Header.Set("User-Agent", version.UserAgent)
-	head.Header.Set("LXD-Server-Architectures", strings.Join(architectures, ", "))
-	head.Header.Set("LXD-Server-Version", version.Version)
-
-	raw, err := myhttp.Do(head)
-	if err != nil {
-		return nil, err
-	}
-
-	hash := raw.Header.Get("LXD-Image-Hash")
-	if hash == "" {
-		return nil, errors.New("Missing LXD-Image-Hash header")
-	}
-
-	url := raw.Header.Get("LXD-Image-URL")
-	if url == "" {
-		return nil, errors.New("Missing LXD-Image-URL header")
-	}
-
-	// Import the image
-	info, err := ImageDownload(ctx, s, op, &ImageDownloadArgs{
-		Server:        url,
-		Protocol:      "direct",
-		Alias:         hash,
-		AutoUpdate:    req.AutoUpdate,
-		Public:        req.Public,
-		ProjectName:   imageProject,
-		Budget:        budget,
-		UserRequested: true,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var id int
-
-		id, info, err = tx.GetImage(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &imageProject})
-		if err != nil {
-			return err
-		}
-
-		// Allow overriding or adding properties
-		maps.Copy(info.Properties, req.Properties)
-
-		if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
-			err := tx.UpdateImage(ctx, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, nil)
+			err = tx.CreateImageAlias(ctx, imageProject, alias.Name, id, alias.Description)
 			if err != nil {
-				return err
+				return fmt.Errorf("Add new image alias to the database: %w", err)
+			}
+		}
+
+		// Copy aliases from the source image if requested and if the source is either a remote registry
+		// or a different local project.
+		if req.Source.CopyAliases && (req.Source.ImageRegistry != "" || (req.Source.Project != "" && req.Source.Project != imageProject)) {
+			for _, alias := range remoteAliases {
+				// Skip the source alias if the same alias name was explicitly requested in req.Aliases.
+				found := false
+				for _, a := range req.Aliases {
+					if a.Name == alias.Name {
+						found = true
+						break
+					}
+				}
+
+				if found {
+					continue
+				}
+
+				// Check if the alias already exists in the target project.
+				_, _, err := tx.GetImageAlias(ctx, imageProject, alias.Name, true)
+				if !response.IsNotFoundError(err) {
+					if err != nil {
+						return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
+					}
+
+					return fmt.Errorf("Alias already exists: %s", alias.Name)
+				}
+
+				// Create the alias in the target project.
+				err = tx.CreateImageAlias(ctx, imageProject, alias.Name, id, alias.Description)
+				if err != nil {
+					return fmt.Errorf("Add new image alias to the database: %w", err)
+				}
 			}
 		}
 
@@ -1350,6 +1314,12 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(errors.New("Invalid images JSON"))
 	}
 
+	if !imageUpload && req.Source.Type == "image" && req.Source.ImageRegistry != "" {
+		if !projectutils.RegistryAllowed(projectConfig, req.Source.ImageRegistry) {
+			return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Image registry not found"))
+		}
+	}
+
 	if req.CompressionAlgorithm != "" {
 		err = validate.IsCompressionAlgorithm(req.CompressionAlgorithm)
 		if err != nil {
@@ -1413,7 +1383,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 				info, err = imgPostRemoteInfo(ctx, s, req, op, profileProject, imageProject, budget)
 			case "url":
 				/* Processing image copy from URL */
-				info, err = imgPostURLInfo(ctx, s, req, op, imageProject, budget)
+				return errors.New("Image download from client specified URL is not supported")
 			default:
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
@@ -1449,46 +1419,49 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
-		// Apply any provided alias
-		aliases, ok := imageMetadata["aliases"]
-		if ok {
-			b, err := json.Marshal(aliases)
-			if err != nil {
-				return fmt.Errorf("Invalid image alias metadata: %w", err)
+		// Aliases for images with source type "image" are handled in imgPostRemoteInfo.
+		if imageUpload || req.Source == nil || req.Source.Type != "image" {
+			// Apply any provided alias
+			aliases, ok := imageMetadata["aliases"]
+			if ok {
+				b, err := json.Marshal(aliases)
+				if err != nil {
+					return fmt.Errorf("Invalid image alias metadata: %w", err)
+				}
+
+				err = json.Unmarshal(b, &req.Aliases)
+				if err != nil {
+					return fmt.Errorf("Invalid image alias metadata: %w", err)
+				}
 			}
 
-			err = json.Unmarshal(b, &req.Aliases)
-			if err != nil {
-				return fmt.Errorf("Invalid image alias metadata: %w", err)
-			}
-		}
+			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				imgID, _, err := tx.GetImageByFingerprintPrefix(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &dbProject.Name})
+				if err != nil {
+					return fmt.Errorf("Fetch image %q: %w", info.Fingerprint, err)
+				}
 
-		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			imgID, _, err := tx.GetImageByFingerprintPrefix(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &dbProject.Name})
-			if err != nil {
-				return fmt.Errorf("Fetch image %q: %w", info.Fingerprint, err)
-			}
+				for _, alias := range req.Aliases {
+					_, _, err := tx.GetImageAlias(ctx, dbProject.Name, alias.Name, true)
+					if !response.IsNotFoundError(err) {
+						if err != nil {
+							return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
+						}
 
-			for _, alias := range req.Aliases {
-				_, _, err := tx.GetImageAlias(ctx, dbProject.Name, alias.Name, true)
-				if !response.IsNotFoundError(err) {
-					if err != nil {
-						return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
+						return fmt.Errorf("Alias already exists: %s", alias.Name)
 					}
 
-					return fmt.Errorf("Alias already exists: %s", alias.Name)
+					err = tx.CreateImageAlias(ctx, dbProject.Name, alias.Name, imgID, alias.Description)
+					if err != nil {
+						return fmt.Errorf("Add new image alias to the database: %w", err)
+					}
 				}
 
-				err = tx.CreateImageAlias(ctx, dbProject.Name, alias.Name, imgID, alias.Description)
-				if err != nil {
-					return fmt.Errorf("Add new image alias to the database: %w", err)
-				}
+				return nil
+			})
+			if err != nil {
+				return err
 			}
-
-			return nil
-		})
-		if err != nil {
-			return err
 		}
 
 		// Sync the images between each node in the cluster on demand
@@ -2508,7 +2481,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 		poolNames = append(poolNames, "")
 	}
 
-	logger.Info("Checking image update", logger.Ctx{"member": s.ServerName, "poolNames": poolNames, "project": projectName, "fingerprint": fingerprint, "source": source.Server, "protocol": source.Protocol, "alias": source.Alias})
+	logger.Info("Checking image update", logger.Ctx{"member": s.ServerName, "poolNames": poolNames, "project": projectName, "fingerprint": fingerprint, "imageRegistry": source.ImageRegistry, "alias": source.Alias})
 
 	// Set operation metadata to indicate whether a refresh happened
 	setRefreshResult := func(result bool) {
@@ -2537,16 +2510,14 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 		}
 
 		newInfo, err = ImageDownload(context.Background(), s, op, &ImageDownloadArgs{
-			Server:      source.Server,
-			Protocol:    source.Protocol,
-			Certificate: source.Certificate,
-			Alias:       source.Alias,
-			Type:        info.Type,
-			AutoUpdate:  true,
-			Public:      info.Public,
-			StoragePool: poolName,
-			ProjectName: projectName,
-			Budget:      -1,
+			ImageRegistry: source.ImageRegistry,
+			Alias:         source.Alias,
+			Type:          info.Type,
+			AutoUpdate:    true,
+			Public:        info.Public,
+			StoragePool:   poolName,
+			ProjectName:   projectName,
+			Budget:        -1,
 		})
 		if err != nil {
 			logger.Error("Failed updating the image", logger.Ctx{"err": err, "fingerprint": fingerprint})

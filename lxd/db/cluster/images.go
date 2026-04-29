@@ -5,7 +5,6 @@ package cluster
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -162,29 +161,28 @@ type ImageFilter struct {
 	AutoUpdate  *bool
 }
 
-// ImageSourceProtocol maps image source protocol codes to human-readable names.
-var ImageSourceProtocol = map[int]string{
-	0: "lxd",
-	1: "direct",
-	2: "simplestreams",
-}
-
 // GetImageSource returns the image source with the given ID.
 func GetImageSource(ctx context.Context, tx *sql.Tx, imageID int) (int, *api.ImageSource, error) {
-	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
+	q := `
+SELECT
+	images_source.id,
+	image_registries.name,
+	images_source.alias
+FROM images_source
+JOIN image_registries ON images_source.image_registry_id = image_registries.id
+WHERE images_source.image_id=?
+`
 	type imagesSource struct {
-		ID          int
-		Server      string
-		Protocol    int
-		Certificate string
-		Alias       string
+		ID            int
+		ImageRegistry string
+		Alias         string
 	}
 
 	sources := []imagesSource{}
 	err := query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
 		s := imagesSource{}
 
-		err := scan(&s.ID, &s.Server, &s.Protocol, &s.Certificate, &s.Alias)
+		err := scan(&s.ID, &s.ImageRegistry, &s.Alias)
 		if err != nil {
 			return err
 		}
@@ -198,21 +196,14 @@ func GetImageSource(ctx context.Context, tx *sql.Tx, imageID int) (int, *api.Ima
 	}
 
 	if len(sources) == 0 {
-		return -1, nil, api.StatusErrorf(http.StatusNotFound, "Image source not found")
+		return -1, nil, api.NewStatusError(http.StatusNotFound, "Image source not found")
 	}
 
 	source := sources[0]
 
-	protocol, found := ImageSourceProtocol[source.Protocol]
-	if !found {
-		return -1, nil, fmt.Errorf("Invalid protocol: %d", source.Protocol)
-	}
-
 	result := &api.ImageSource{
-		Server:      source.Server,
-		Protocol:    protocol,
-		Certificate: source.Certificate,
-		Alias:       source.Alias,
+		ImageRegistry: source.ImageRegistry,
+		Alias:         source.Alias,
 	}
 
 	return source.ID, result, nil

@@ -128,6 +128,224 @@ var updates = map[int]schema.Update{
 	82: updateFromV81,
 	83: updateFromV82,
 	84: updateFromV83,
+	85: updateFromV84,
+	86: updateFromV85,
+}
+
+func updateFromV85(ctx context.Context, tx *sql.Tx) error {
+	// Create the new "images_source" table that uses "image_registry_id".
+	// The original "images_source" table stored the server URL, protocol, and certificate directly.
+	// With the introduction of the image registries feature, we now need to link an image source
+	// to an existing image registry record instead. We do this by creating a new table with an
+	// "image_registry_id" foreign key, and then we migrate the data before swapping the tables.
+	_, err := tx.ExecContext(ctx, `
+CREATE TABLE images_source_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	image_id INTEGER NOT NULL,
+	image_registry_id INTEGER NOT NULL,
+	alias TEXT NOT NULL,
+	FOREIGN KEY (image_id) REFERENCES "images" (id) ON DELETE CASCADE,
+	FOREIGN KEY (image_registry_id) REFERENCES "image_registries" (id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		return fmt.Errorf("Failed creating images_source_new table: %w", err)
+	}
+
+	// Fetch existing registries to match against.
+	// We want to avoid creating duplicate registries if an image source is pointing to one of our
+	// built-in registries (e.g., ubuntu, ubuntu-daily).
+	// We'll use this list to find a match based on the server URL and protocol.
+	type registryInfo struct {
+		id       int64
+		protocol int64
+		url      string
+	}
+
+	registries := []registryInfo{}
+
+	rows, err := tx.QueryContext(ctx, `
+		SELECT r.id, r.protocol, c.value
+		FROM image_registries r
+		JOIN image_registries_config c ON r.id = c.image_registry_id AND c.key = 'url'
+	`)
+	if err != nil {
+		return fmt.Errorf("Failed loading existing image registries: %w", err)
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var registry registryInfo
+
+		err := rows.Scan(&registry.id, &registry.protocol, &registry.url)
+		if err != nil {
+			return fmt.Errorf("Failed scanning image_registries rows: %w", err)
+		}
+
+		registries = append(registries, registry)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return fmt.Errorf("Got an image_registries row error: %w", err)
+	}
+
+	// Fetch existing image sources to migrate.
+	// We retrieve all the legacy image sources so that we can either map them to an existing
+	// registry or generate a new image registry for them if they point to an unknown server.
+	type imageSource struct {
+		id          int64
+		imageID     int64
+		server      string
+		protocol    int64
+		certificate string
+		alias       string
+	}
+
+	sources := []imageSource{}
+
+	rows, err = tx.QueryContext(ctx, "SELECT id, image_id, server, protocol, certificate, alias FROM images_source")
+	if err != nil {
+		return fmt.Errorf("Failed loading existing image sources: %w", err)
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var src imageSource
+
+		err := rows.Scan(&src.id, &src.imageID, &src.server, &src.protocol, &src.certificate, &src.alias)
+		if err != nil {
+			return fmt.Errorf("Failed scanning images_source rows: %w", err)
+		}
+
+		sources = append(sources, src)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return fmt.Errorf("Got an images_source row error: %w", err)
+	}
+
+	type registryKey struct {
+		server   string
+		protocol int64
+	}
+
+	migratedRegistries := make(map[registryKey]int64)
+	migratedCount := 1
+
+	for _, s := range sources {
+		var matchingRegistryID int64
+
+		// Try to match an existing registry (like built-ins).
+		// We strip the trailing slash from the server URL to ensure we match cleanly against the
+		// registry configurations, as URLs might have been stored with or without a trailing slash.
+		serverURL := strings.TrimSuffix(s.server, "/")
+		for _, r := range registries {
+			if r.protocol == s.protocol && strings.TrimSuffix(r.url, "/") == serverURL {
+				matchingRegistryID = r.id
+				break
+			}
+		}
+
+		if matchingRegistryID == 0 {
+			key := registryKey{server: serverURL, protocol: s.protocol}
+
+			id, ok := migratedRegistries[key]
+			if ok {
+				matchingRegistryID = id
+			} else {
+				// No existing registry matches this image source's URL and protocol.
+				// We need to create a new, dedicated image registry for it so that the
+				// migrated image source has a valid registry to link to.
+				registryName := fmt.Sprintf("auto-migrated-%03d", migratedCount)
+				migratedCount++
+
+				// Create a new registry.
+				res, err := tx.ExecContext(ctx, "INSERT INTO image_registries (name, description, protocol, builtin) VALUES (?, ?, ?, 0)", registryName, "Auto-migrated legacy image source", s.protocol)
+				if err != nil {
+					return fmt.Errorf("Failed creating an image_registries record: %w", err)
+				}
+
+				// Get the ID of newly created registry.
+				id, err := res.LastInsertId()
+				if err != nil {
+					return fmt.Errorf("Failed loading image registry ID: %w", err)
+				}
+
+				matchingRegistryID = id
+
+				// Set the URL for image registry.
+				_, err = tx.ExecContext(ctx, "INSERT INTO image_registries_config (image_registry_id, key, value) VALUES (?, 'url', ?)", matchingRegistryID, s.server)
+				if err != nil {
+					return fmt.Errorf(`Failed adding "url" key to image_registries_config: %w`, err)
+				}
+
+				// Mark the image registry as public.
+				_, err = tx.ExecContext(ctx, "INSERT INTO image_registries_config (image_registry_id, key, value) VALUES (?, 'public', ?)", matchingRegistryID, "true")
+				if err != nil {
+					return fmt.Errorf(`Failed adding "public" key to image_registries_config: %w`, err)
+				}
+
+				// Set the "source_project" field to "default" for LXD image registries.
+				if s.protocol == protocolLXD {
+					_, err = tx.ExecContext(ctx, "INSERT INTO image_registries_config (image_registry_id, key, value) VALUES (?, 'source_project', ?)", matchingRegistryID, "default")
+					if err != nil {
+						return fmt.Errorf(`Failed adding "source_project" to image_registries_config: %w`, err)
+					}
+				}
+
+				migratedRegistries[key] = matchingRegistryID
+			}
+		}
+
+		_, err = tx.ExecContext(ctx, "INSERT INTO images_source_new (id, image_id, image_registry_id, alias) VALUES (?, ?, ?, ?)", s.id, s.imageID, matchingRegistryID, s.alias)
+		if err != nil {
+			return fmt.Errorf("Failed creating an images_source_new record: %w", err)
+		}
+	}
+
+	_, err = tx.ExecContext(ctx, "DROP TABLE images_source")
+	if err != nil {
+		return fmt.Errorf("Failed deleting old images_source table: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, "ALTER TABLE images_source_new RENAME TO images_source")
+	if err != nil {
+		return fmt.Errorf("Failed renaming images_source_new table: %w", err)
+	}
+
+	return nil
+}
+
+func updateFromV84(ctx context.Context, tx *sql.Tx) error {
+	// Create the new tables.
+	_, err := tx.ExecContext(ctx, `
+CREATE TABLE image_registries (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	protocol INTEGER NOT NULL,
+	builtin INTEGER NOT NULL DEFAULT 0,
+	UNIQUE (name)
+);
+
+CREATE TABLE image_registries_config (
+	image_registry_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	FOREIGN KEY (image_registry_id) REFERENCES image_registries (id) ON DELETE CASCADE,
+	PRIMARY KEY (image_registry_id, key)
+) WITHOUT ROWID;
+`)
+	if err != nil {
+		return err
+	}
+
+	// Populate the tables with the built-in image registries.
+	return createBuiltinImageRegistries(ctx, tx)
 }
 
 func updateFromV83(ctx context.Context, tx *sql.Tx) error {
