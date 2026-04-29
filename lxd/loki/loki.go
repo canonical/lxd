@@ -46,6 +46,12 @@ type config struct {
 	types    []string
 	location string
 
+	// Server-static OWASP fields populated for security event lines.
+	hostname          string
+	hostIP            string
+	port              string
+	clusterIdentifier string
+
 	timeout time.Duration
 	url     *url.URL
 }
@@ -65,21 +71,25 @@ type Client struct {
 }
 
 // NewClient returns a Client.
-func NewClient(ctx context.Context, u *url.URL, username string, password string, caCert string, instance string, location string, logLevel string, labels []string, types []string) (*Client, error) {
+func NewClient(ctx context.Context, u *url.URL, username string, password string, caCert string, instance string, location string, hostname string, hostIP string, port string, clusterIdentifier string, logLevel string, labels []string, types []string) (*Client, error) {
 	client := Client{
 		cfg: config{
-			batchSize: 10 * 1024,
-			batchWait: 1 * time.Second,
-			caCert:    caCert,
-			username:  username,
-			password:  password,
-			instance:  instance,
-			location:  location,
-			labels:    labels,
-			logLevel:  logLevel,
-			timeout:   10 * time.Second,
-			types:     types,
-			url:       u,
+			batchSize:         10 * 1024,
+			batchWait:         1 * time.Second,
+			caCert:            caCert,
+			username:          username,
+			password:          password,
+			instance:          instance,
+			location:          location,
+			hostname:          hostname,
+			hostIP:            hostIP,
+			port:              port,
+			clusterIdentifier: clusterIdentifier,
+			labels:            labels,
+			logLevel:          logLevel,
+			timeout:           10 * time.Second,
+			types:             types,
+			url:               u,
 		},
 		client:  &http.Client{},
 		entries: make(chan entry),
@@ -401,9 +411,79 @@ func (c *Client) HandleEvent(event api.Event) {
 		message.WriteString(logEvent.Message)
 
 		entry.Line = message.String()
+	case api.EventTypeSecurity:
+		secEvent := api.EventSecurity{}
+
+		err := json.Unmarshal(event.Metadata, &secEvent)
+		if err != nil {
+			return
+		}
+
+		entry.Timestamp = event.Timestamp
+
+		// Loki receives the OWASP-shaped audit payload. The events API
+		// metadata uses Go-style names; the OWASP transformation lives
+		// here so consumers of /1.0/events do not see OWASP fields.
+		owasp := c.securityEventToOWASP(event, secEvent)
+
+		for k, v := range owasp {
+			if !slices.Contains(c.cfg.labels, k) {
+				continue
+			}
+
+			_, ok := entry.labels[k]
+			if ok {
+				continue
+			}
+
+			entry.labels[k] = v
+		}
+
+		lineBytes, err := json.Marshal(owasp)
+		if err != nil {
+			return
+		}
+
+		entry.Line = string(lineBytes)
 	}
 
 	c.entries <- entry
+}
+
+// securityEventToOWASP renders an api.EventSecurity into the OWASP-named
+// audit log entry used as the Loki line. The Go-shaped payload from the
+// events API is combined with the envelope timestamp/location and the
+// server-static fields plumbed through the Loki client config so that the
+// resulting line conforms to the OWASP audit log schema.
+func (c *Client) securityEventToOWASP(event api.Event, sec api.EventSecurity) map[string]string {
+	owasp := map[string]string{
+		"appid":               "lxd",
+		"type":                api.EventTypeSecurity,
+		"datetime":            event.Timestamp.Format(time.RFC3339Nano),
+		"event":               sec.Name,
+		"level":               sec.Level,
+		"description":         sec.Description,
+		"hostname":            c.cfg.hostname,
+		"host_ip":             c.cfg.hostIP,
+		"port":                c.cfg.port,
+		"protocol":            "https",
+		"request_uri":         sec.RequestPath,
+		"request_method":      sec.RequestMethod,
+		"project":             sec.Project,
+		"event_source":        event.Location,
+		"cluster_member_name": event.Location,
+		"cluster_identifier":  c.cfg.clusterIdentifier,
+	}
+
+	if sec.Requestor != nil {
+		owasp["useragent"] = sec.Requestor.UserAgent
+		owasp["source_ip"] = sec.Requestor.Address
+		if sec.Requestor.Protocol != "" && sec.Requestor.Username != "" {
+			owasp["user_id"] = sec.Requestor.Protocol + "/" + sec.Requestor.Username
+		}
+	}
+
+	return owasp
 }
 
 func buildNestedContext(prefix string, m map[string]any) map[string]string {

@@ -1,6 +1,7 @@
 package bearer
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/request/security"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -169,7 +171,12 @@ func isLXDToken(token string, clusterUUID string, expectedAudience string) (stri
 // Authenticate gets a bearer identity from the cache using the given subject, and verifies that it is of the expected
 // type. It then verifies that the token was signed by the secret associated with that identity, and that the token has
 // not expired.
-func Authenticate(subject string, token string, tokenLocation auth.TokenLocation, identityCache *identity.Cache) (*request.RequestorArgs, error) {
+//
+// emit is invoked at the moment of the auth decision for failure paths that
+// look like a real LXD JWT being misused (the spec's authn_token_reuse case),
+// so security event emission stays adjacent to the auth decision and bearer
+// does not have to depend on the events package.
+func Authenticate(ctx context.Context, subject string, token string, tokenLocation auth.TokenLocation, identityCache *identity.Cache, emit func(*api.EventSecurity)) (*request.RequestorArgs, error) {
 	var secret []byte
 	var getSecretErr error
 	switch tokenLocation {
@@ -181,6 +188,7 @@ func Authenticate(subject string, token string, tokenLocation auth.TokenLocation
 			// (the initial UI token should not be set in the authorization header).
 			initialUISecret, err := identityCache.GetInitialUISecret()
 			if err != nil {
+				emit(tokenReuseEvent(ctx, subject, "Unrecognised bearer token subject"))
 				return nil, api.StatusErrorf(http.StatusForbidden, "Unrecognized token subject: %w", getSecretErr)
 			}
 
@@ -188,9 +196,11 @@ func Authenticate(subject string, token string, tokenLocation auth.TokenLocation
 				return initialUISecret, nil
 			})
 			if err == nil {
+				emit(tokenReuseEvent(ctx, subject, "Initial UI access token presented in Authorization header"))
 				return nil, api.NewStatusError(http.StatusForbidden, "The initial UI access token may not be set in the Authorization header")
 			}
 
+			emit(tokenReuseEvent(ctx, subject, "Unrecognised bearer token subject"))
 			return nil, api.StatusErrorf(http.StatusForbidden, "Unrecognized token subject: %w", getSecretErr)
 		}
 
@@ -207,6 +217,7 @@ func Authenticate(subject string, token string, tokenLocation auth.TokenLocation
 				return bearerSecret, nil
 			})
 			if err == nil {
+				emit(tokenReuseEvent(ctx, subject, "Bearer token presented as query parameter or cookie"))
 				return nil, api.NewStatusError(http.StatusForbidden, "Bearer tokens may not be set as a query parameter or as a cookie")
 			}
 
@@ -221,6 +232,7 @@ func Authenticate(subject string, token string, tokenLocation auth.TokenLocation
 		return secret, nil
 	})
 	if getSecretErr != nil {
+		emit(tokenReuseEvent(ctx, subject, "Bearer token verification failed"))
 		return nil, fmt.Errorf("Failed authenticating bearer token: %w", getSecretErr)
 	}
 
@@ -230,6 +242,23 @@ func Authenticate(subject string, token string, tokenLocation auth.TokenLocation
 		Username:  subject,
 		ExpiresAt: expiresAt,
 	}, nil
+}
+
+// tokenReuseEvent builds an authn_token_reuse audit event for a bearer-auth
+// failure. The subject is recorded via WithRequestorOverride because the
+// requestor has not yet been built (the identity could not be authenticated);
+// the override merges over the address/user-agent populated by UserEvent
+// from the per-request audit info.
+func tokenReuseEvent(ctx context.Context, subject string, description string) *api.EventSecurity {
+	return security.AuthnTokenReuse.UserEvent(
+		ctx,
+		security.LevelWarning,
+		description,
+		security.WithRequestorOverride(&api.EventSecurityRequestor{
+			Username: subject,
+			Protocol: api.AuthenticationMethodBearer,
+		}),
+	)
 }
 
 // VerifySessionToken verifies that a given OIDC session token was signed by a key derived from the given cluster secret

@@ -875,7 +875,7 @@ definitions:
                 type: string
                 x-go-name: Location
             metadata:
-                description: JSON encoded metadata (see EventLogging, EventLifecycle or Operation)
+                description: JSON encoded metadata (see EventLogging, EventLifecycle, Operation or EventSecurity)
                 example:
                     action: instance-started
                     context: {}
@@ -894,7 +894,7 @@ definitions:
                 type: string
                 x-go-name: Timestamp
             type:
-                description: Event type (one of operation, logging or lifecycle)
+                description: Event type (one of operation, logging, lifecycle, ovn or security)
                 example: lifecycle
                 type: string
                 x-go-name: Type
@@ -10484,7 +10484,7 @@ paths:
                   in: query
                   name: project
                   type: string
-                - description: Event type(s), comma separated (valid types are logging, operation or lifecycle)
+                - description: Event type(s), comma separated (valid types are logging, operation, lifecycle, ovn or security)
                   example: logging,lifecycle
                   in: query
                   name: type

@@ -12,13 +12,14 @@ const (
 	EventTypeLogging   = "logging"
 	EventTypeOperation = "operation"
 	EventTypeOVN       = "ovn"
+	EventTypeSecurity  = "security"
 )
 
 // Event represents an event entry (over websocket)
 //
 // swagger:model
 type Event struct {
-	// Event type (one of operation, logging or lifecycle)
+	// Event type (one of operation, logging, lifecycle, ovn or security)
 	// Example: lifecycle
 	Type string `yaml:"type" json:"type"`
 
@@ -26,7 +27,7 @@ type Event struct {
 	// Example: 2021-02-24T19:00:45.452649098-05:00
 	Timestamp time.Time `yaml:"timestamp" json:"timestamp"`
 
-	// JSON encoded metadata (see EventLogging, EventLifecycle or Operation)
+	// JSON encoded metadata (see EventLogging, EventLifecycle, Operation or EventSecurity)
 	// Example: {"action": "instance-started", "source": "/1.0/instances/c1", "context": {}}
 	Metadata json.RawMessage `yaml:"metadata" json:"metadata"`
 
@@ -41,6 +42,20 @@ type Event struct {
 	//
 	// API extension: event_project
 	Project string `yaml:"project,omitempty" json:"project,omitempty"`
+}
+
+// owaspLevelToLogrusLevel maps OWASP security event levels to logrus-compatible level strings.
+// OWASP uses "warning" while logrus uses "warn".
+func owaspLevelToLogrusLevel(owaspLevel string) string {
+	switch owaspLevel {
+	case "warning":
+		return "warn"
+	case "info":
+		return owaspLevel
+	default:
+		// Unrecognised levels default to "info".
+		return "info"
+	}
 }
 
 // ToLogging creates log record for the event.
@@ -94,6 +109,36 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 		}
 
 		return record, nil
+	case EventTypeSecurity:
+		e := &EventSecurity{}
+		err := json.Unmarshal(event.Metadata, &e)
+		if err != nil {
+			return EventLogRecord{}, err
+		}
+
+		ctx := []any{"name", e.Name}
+		if e.RequestMethod != "" {
+			ctx = append(ctx, "request_method", e.RequestMethod)
+		}
+
+		if e.RequestPath != "" {
+			ctx = append(ctx, "request_path", e.RequestPath)
+		}
+
+		if e.Project != "" {
+			ctx = append(ctx, "project", e.Project)
+		}
+
+		if e.Requestor != nil {
+			ctx = append(ctx, "requestor", e.Requestor.Protocol+"/"+e.Requestor.Username+" ("+e.Requestor.Address+")")
+		}
+
+		return EventLogRecord{
+			Time: event.Timestamp,
+			Lvl:  owaspLevelToLogrusLevel(e.Level),
+			Msg:  e.Description,
+			Ctx:  ctx,
+		}, nil
 	case EventTypeOperation:
 		e := &Operation{}
 		err := json.Unmarshal(event.Metadata, &e)

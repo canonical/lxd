@@ -488,6 +488,7 @@ var APIExtensions = []string{
 	"image_extended_metadata",
 	"cluster_links",
 	"replicators",
+	"event_security",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

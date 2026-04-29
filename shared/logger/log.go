@@ -11,6 +11,11 @@ import (
 	"github.com/canonical/lxd/shared/termios"
 )
 
+// globalSyslogName stores the syslog identity used when the global logger was
+// initialized. It is consulted by subsystem loggers (e.g. the event server)
+// that need the same syslog output but must not carry the events hook.
+var globalSyslogName string
+
 // Setup a basic empty logger on init.
 func init() {
 	logger := logrus.New()
@@ -26,8 +31,15 @@ func InitLogger(filepath string, syslogName string, verbose bool, debug bool, ho
 		return fmt.Errorf("Failed initializing global logger: %w", err)
 	}
 
+	globalSyslogName = syslogName
 	Log = logger
 	return nil
+}
+
+// GetSyslogName returns the syslog identity configured for the global logger,
+// or an empty string if syslog was not enabled.
+func GetSyslogName() string {
+	return globalSyslogName
 }
 
 // New returns a new logging instance with the given settings and hooks.

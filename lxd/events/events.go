@@ -36,9 +36,10 @@ type NotifyFunc func(event api.Event)
 type Server struct {
 	serverCommon
 
-	listeners map[string]*Listener
-	notify    NotifyFunc
-	location  string
+	listeners         map[string]*Listener
+	notify            NotifyFunc
+	location          string
+	clusterIdentifier string
 
 	// logger is a [logger.Logger] that can be used while an event is being processed.
 	// This is necessary because the global [logger.Logger] is configured with a hook that will send logging events to the server.
@@ -47,8 +48,10 @@ type Server struct {
 }
 
 // NewServer returns a new event server.
+// The event server logger mirrors the global logger's syslog configuration but
+// omits the events hook to prevent recursive event emission during broadcast.
 func NewServer(debug bool, verbose bool, notify NotifyFunc) (*Server, error) {
-	eventServerLogger, err := logger.New("", "", verbose, debug, nil)
+	eventServerLogger, err := logger.New("", logger.GetSyslogName(), verbose, debug, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed instantiating event server logger: %w", err)
 	}
@@ -73,6 +76,16 @@ func (s *Server) SetLocalLocation(location string) {
 	defer s.lock.Unlock()
 
 	s.location = location
+}
+
+// SetClusterIdentifier records the cluster UUID so that audit events emitted
+// via SendSecurity can default the cluster_identifier field without each call
+// site having to know it.
+func (s *Server) SetClusterIdentifier(clusterIdentifier string) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	s.clusterIdentifier = clusterIdentifier
 }
 
 // AddListener creates and returns a new event listener. The filter argument must return true to include the event and
@@ -121,9 +134,97 @@ func (s *Server) AddListener(projectName string, allProjects bool, filter func(l
 	return listener, nil
 }
 
-// SendLifecycle broadcasts a lifecycle event.
+// SendLifecycle broadcasts a lifecycle event and logs it to syslog.
 func (s *Server) SendLifecycle(projectName string, event api.EventLifecycle) {
+	// Log before Send so the server logger is called outside the broadcast lock.
+	// Use s.logger (no events hook) rather than the global logger to avoid emitting
+	// a spurious logging event for every lifecycle event.
+	ctx := logger.Ctx{"source": event.Source, "project": projectName}
+	if event.Name != "" {
+		ctx["name"] = event.Name
+	}
+
+	// Flatten event.Context so each field is individually queryable
+	// in the syslog output.
+	for k, v := range event.Context {
+		ctx[k] = v
+	}
+
+	if event.Requestor != nil {
+		// Spell this "requestor" (matching api.EventLifecycle.Requestor); the legacy
+		// "requester" spelling is retained only in the Loki label for back-compat.
+		ctx["requestor"] = event.Requestor.Protocol + "/" + event.Requestor.Username
+	}
+
+	s.logger.Info(event.Action, ctx)
+
 	_ = s.Send(projectName, api.EventTypeLifecycle, event)
+}
+
+// SendSecurity broadcasts a security event and logs it to syslog.
+//
+// The caller must ensure the event server is ready before invoking this:
+// sys_startup must be emitted after NewServer returns, and sys_shutdown
+// must be emitted before the server is torn down.
+func (s *Server) SendSecurity(event *api.EventSecurity) {
+	s.lock.Lock()
+	clusterMember := s.location
+	clusterIdentifier := s.clusterIdentifier
+	s.lock.Unlock()
+
+	// Flatten the event fields into the logger context so each non-zero
+	// field appears as a discrete key=value on the syslog line. The
+	// cluster identity values are added here for human-readable audit
+	// context; they are not duplicated onto the wire.
+	ctx := logger.Ctx{"name": event.Name}
+	if event.RequestMethod != "" {
+		ctx["request_method"] = event.RequestMethod
+	}
+
+	if event.RequestPath != "" {
+		ctx["request_path"] = event.RequestPath
+	}
+
+	if event.Project != "" {
+		ctx["project"] = event.Project
+	}
+
+	if event.Requestor != nil {
+		if event.Requestor.Username != "" {
+			ctx["requestor_username"] = event.Requestor.Username
+		}
+
+		if event.Requestor.Protocol != "" {
+			ctx["requestor_protocol"] = event.Requestor.Protocol
+		}
+
+		if event.Requestor.Address != "" {
+			ctx["requestor_address"] = event.Requestor.Address
+		}
+
+		if event.Requestor.UserAgent != "" {
+			ctx["requestor_user_agent"] = event.Requestor.UserAgent
+		}
+	}
+
+	if clusterMember != "" {
+		ctx["cluster_member"] = clusterMember
+	}
+
+	if clusterIdentifier != "" {
+		ctx["cluster_identifier"] = clusterIdentifier
+	}
+
+	switch event.Level {
+	case "info":
+		s.logger.Info(event.Description, ctx)
+	default:
+		// "warning" and any unrecognised level default to Warn so unknown
+		// severities surface visibly rather than being silently downgraded.
+		s.logger.Warn(event.Description, ctx)
+	}
+
+	_ = s.Send(event.Project, api.EventTypeSecurity, event)
 }
 
 // Send broadcasts a custom event.

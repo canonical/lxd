@@ -59,6 +59,7 @@ import (
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/request/security"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/seccomp"
@@ -633,7 +634,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 			return nil, api.StatusErrorf(http.StatusForbidden, "Token query parameter usage is not allowed for the /1.0 API")
 		}
 
-		bearerRequestor, err := bearer.Authenticate(subject, token, tokenLocation, d.identityCache)
+		bearerRequestor, err := bearer.Authenticate(r.Context(), subject, token, tokenLocation, d.identityCache, d.events.SendSecurity)
 		if err != nil {
 			// Deny access if the provided token is not verifiable.
 			return nil, fmt.Errorf("Failed verifying bearer token: %w", err)
@@ -813,6 +814,11 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	}
 
 	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
+		// Initialise the security audit context once per request so any
+		// downstream auth path can emit security events without each call
+		// site having to remember to populate the OWASP base fields.
+		security.InitRequestAuditInfo(r)
+
 		// Only endpoints from the main API (version 1.0) should be counted for the metrics.
 		// This prevents internal endpoints from being included as well.
 		if version == "1.0" {
@@ -1088,12 +1094,12 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, i
 
 	// Handle standalone systems.
 	var location string
-	if !d.serverClustered {
-		hostname, err := os.Hostname()
-		if err != nil {
-			return err
-		}
+	hostname, err := os.Hostname()
+	if err != nil {
+		return err
+	}
 
+	if !d.serverClustered {
 		location = hostname
 		if instanceName == "" {
 			instanceName = hostname
@@ -1102,8 +1108,25 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, i
 		instanceName = d.serverName
 	}
 
+	// Server-static OWASP fields for security event lines: derived from the
+	// configured HTTPS listener so the Loki entry has a consistent host/port
+	// regardless of which listener the request hit.
+	var hostIP, port string
+	d.globalConfigMu.Lock()
+	clusterIdentifier := d.globalConfig.ClusterUUID()
+	d.globalConfigMu.Unlock()
+
+	httpsAddress := d.localConfig.HTTPSAddress()
+	if httpsAddress != "" {
+		host, p, splitErr := net.SplitHostPort(httpsAddress)
+		if splitErr == nil {
+			hostIP = host
+			port = p
+		}
+	}
+
 	// Start a new client.
-	d.lokiClient, err = loki.NewClient(d.shutdownCtx, u, cert, key, caCert, instanceName, location, logLevel, labels, types)
+	d.lokiClient, err = loki.NewClient(d.shutdownCtx, u, cert, key, caCert, instanceName, location, hostname, hostIP, port, clusterIdentifier, logLevel, labels, types)
 	if err != nil {
 		return err
 	}
@@ -1656,6 +1679,7 @@ func (d *Daemon) init() error {
 	}
 
 	d.events.SetLocalLocation(d.serverName)
+	d.events.SetClusterIdentifier(d.globalConfig.ClusterUUID())
 
 	// Mount the storage pools.
 	logger.Info("Initializing storage pools")
@@ -1714,6 +1738,7 @@ func (d *Daemon) init() error {
 	}
 
 	d.events.SetLocalLocation(d.serverName)
+	d.events.SetClusterIdentifier(d.globalConfig.ClusterUUID())
 
 	// Get daemon configuration.
 	bgpAddress := d.localConfig.BGPAddress()

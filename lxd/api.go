@@ -11,6 +11,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/bearer"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
+	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
@@ -162,7 +163,7 @@ func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *clusterCo
 }
 
 // handleUIAccessLink sets the session cookie if the request represents an initial UI  access link.
-func handleUIAccessLink(w http.ResponseWriter, r *http.Request, clusterUUID string, identityCache *identity.Cache) error {
+func handleUIAccessLink(w http.ResponseWriter, r *http.Request, clusterUUID string, identityCache *identity.Cache, eventsServer *events.Server) error {
 	isTokenRequest, location, token, subject := bearer.IsAPIRequest(r, clusterUUID)
 	if !isTokenRequest || location != auth.TokenLocationQuery {
 		// Do nothing if no token was sent, or if a token was set as a bearer token or cookie.
@@ -170,8 +171,9 @@ func handleUIAccessLink(w http.ResponseWriter, r *http.Request, clusterUUID stri
 	}
 
 	// Authenticate the token. By specifying the location as "query", only the initial UI token secret
-	// will be used to verify the token.
-	requestorArgs, err := bearer.Authenticate(subject, token, auth.TokenLocationQuery, identityCache)
+	// will be used to verify the token. The audit context has already been
+	// initialised by the root REST handler.
+	requestorArgs, err := bearer.Authenticate(r.Context(), subject, token, auth.TokenLocationQuery, identityCache, eventsServer.SendSecurity)
 	if err != nil || requestorArgs == nil || requestorArgs.ExpiresAt == nil {
 		// Just return a generic error because errors are shown via the UI instead.
 		return api.NewGenericStatusError(http.StatusForbidden)

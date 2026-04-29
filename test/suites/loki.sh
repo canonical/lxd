@@ -37,3 +37,30 @@ test_loki() {
   kill_loki
   rm "${log_file}"
 }
+
+test_loki_security_types() {
+  local log_file="${TEST_DIR}/loki.logs"
+  spawn_loki
+
+  sub_test "Verify security is accepted as a valid loki.types value"
+  lxc config set loki.api.url="http://127.0.0.1:3100" loki.auth.username="loki" loki.auth.password="pass"
+  lxc config set loki.types="lifecycle,logging,security"
+  [ "$(lxc config get loki.types)" = "lifecycle,logging,security" ]
+
+  # An unknown event type must be rejected by the validator.
+  ! lxc config set loki.types="lifecycle,logging,invalid_type" || false
+
+  sub_test "Verify lifecycle events still route to Loki when security is included in loki.types"
+  ensure_import_testimage
+  lxc launch testimage c-loki-security
+  lxc delete -f c-loki-security
+
+  # Changing the loki configuration sends any accumulated logs to the test server.
+  lxc config set loki.api.url="" loki.auth.username="" loki.auth.password="" loki.types=""
+
+  jq --exit-status '.streams[].stream | select(.type == "lifecycle")' "${log_file}"
+
+  # Cleanup.
+  kill_loki
+  rm "${log_file}"
+}
