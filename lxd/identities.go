@@ -26,6 +26,7 @@ import (
 	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/request/security"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
@@ -575,6 +576,12 @@ func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// The identity identifier is appended to the event name so operators can
+	// correlate token issuance events with a specific identity.
+	ev := security.AuthnTokenCreated.WithSuffix(id.Identifier).
+		UserEvent(r.Context(), security.LevelInfo, "Bearer token created")
+	s.Events.SendSecurity(ev)
+
 	return response.SyncResponse(true, api.IdentityBearerToken{Token: token})
 }
 
@@ -623,6 +630,12 @@ func identityBearerTokenDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	// The identity identifier is appended to the event name so operators can
+	// correlate revocation events with a specific identity.
+	ev := security.AuthnTokenRevoked.WithSuffix(id.Identifier).
+		UserEvent(r.Context(), security.LevelInfo, "Bearer token revoked")
+	s.Events.SendSecurity(ev)
 
 	return response.EmptySyncResponse
 }
