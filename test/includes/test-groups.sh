@@ -180,6 +180,7 @@ readonly test_group_standalone=(
     "security"
     "security_events"
     "security_events_bearer_authn"
+    "security_authz_events"
     "security_protection"
     "server_config"
     "server_info"

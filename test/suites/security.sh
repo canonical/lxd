@@ -434,3 +434,212 @@ test_authn_events() {
   self_new_fp="$(cert_fingerprint "${LXD_CONF}/authn-self-new-cert.crt")"
   lxc config trust remove "${self_new_fp}"
 }
+
+# wait_for_security_event slurps the given JSON-Lines monitor file and waits
+# up to 10 seconds for at least one event matching the provided jq condition.
+# Usage: wait_for_security_event <monfile> <jq_select_body>
+wait_for_security_event() {
+  local monfile="${1}"
+  local jq_select="${2}"
+
+  for _ in $(seq 10); do
+    if jq --exit-status --slurp \
+      'map(select(.type == "security")) | map(select('"${jq_select}"')) | length >= 1' \
+      "${monfile}"; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo "Expected security event not found in ${monfile}: ${jq_select}"
+  cat "${monfile}"
+  return 1
+}
+
+# count_events_tolerant counts JSON-Lines events in monfile matching the given
+# jq select expression, tolerating partial or garbled lines that can appear
+# around a monitor restart. Echoes the count.
+# Usage: count_events_tolerant <monfile> <jq_select_body>
+count_events_tolerant() {
+  local monfile="${1}"
+  local jq_select="${2}"
+
+  jq --slurp --raw-input '
+    split("\n")
+    | map(fromjson? | select(. != null))
+    | map(select('"${jq_select}"'))
+    | length' "${monfile}"
+}
+
+# assert_request_fields validates that a single security event (selected via
+# the provided jq filter) carries the request-scoped fields the emitter is
+# expected to populate. The OWASP-named fields (host_ip, hostname, port, …)
+# are produced only at the Loki forwarder; the monitor stream exposes the
+# leaner Go-style EventSecurity struct.
+# Usage: assert_request_fields <monfile> <jq_select_body>
+assert_request_fields() {
+  local monfile="${1}"
+  local jq_select="${2}"
+
+  jq --exit-status --slurp \
+    'map(select(.type == "security")) | map(select('"${jq_select}"'))
+     | .[0] as $e
+     | ($e.metadata.requestor.address // "") != ""
+       and ($e.metadata.requestor.username // "") != ""
+       and ($e.metadata.requestor.protocol // "") != ""
+       and ($e.metadata.request_method // "") != ""
+       and ($e.metadata.request_path // "") != ""' \
+    "${monfile}"
+}
+
+test_security_authz_events() {
+  local monfile="${TEST_DIR}/authz-events.jsonl"
+  rm -f "${monfile}"
+
+  lxc monitor --type=security --format=json > "${monfile}" &
+  local mon_pid=$!
+
+  # Wait until the monitor connection is live.
+  for _ in $(seq 10); do
+    kill -0 "${mon_pid}" && break
+    sleep 1
+  done
+  kill -0 "${mon_pid}"
+
+  sub_test "authz_admin: group_create fires on auth group create"
+  lxc auth group create authz-evt-g1
+  wait_for_security_event "${monfile}" '.metadata.name == "authz_admin:group_create:authz-evt-g1"'
+  assert_request_fields "${monfile}" '.metadata.name == "authz_admin:group_create:authz-evt-g1"'
+
+  sub_test "authz_admin: group_edit fires on auth group edit"
+  printf 'description: updated\npermissions: []\n' | lxc auth group edit authz-evt-g1
+  wait_for_security_event "${monfile}" '.metadata.name == "authz_admin:group_edit:authz-evt-g1"'
+
+  sub_test "authz_admin: group_edit fires on auth group rename"
+  lxc auth group rename authz-evt-g1 authz-evt-g2
+  wait_for_security_event "${monfile}" '.metadata.name == "authz_admin:group_edit:authz-evt-g2"'
+
+  sub_test "authz_admin: group_delete fires on auth group delete"
+  lxc auth group delete authz-evt-g2
+  wait_for_security_event "${monfile}" '.metadata.name == "authz_admin:group_delete:authz-evt-g2"'
+
+  sub_test "authz_admin: idp_group_create fires on identity-provider-group create"
+  lxc auth identity-provider-group create authz-evt-idp1
+  wait_for_security_event "${monfile}" '.metadata.name == "authz_admin:idp_group_create:authz-evt-idp1"'
+  assert_request_fields "${monfile}" '.metadata.name == "authz_admin:idp_group_create:authz-evt-idp1"'
+
+  sub_test "authz_admin: idp_group_edit fires on identity-provider-group rename"
+  lxc auth identity-provider-group rename authz-evt-idp1 authz-evt-idp2
+  wait_for_security_event "${monfile}" '.metadata.name == "authz_admin:idp_group_edit:authz-evt-idp2"'
+
+  sub_test "authz_admin: idp_group_delete fires on identity-provider-group delete"
+  lxc auth identity-provider-group delete authz-evt-idp2
+  wait_for_security_event "${monfile}" '.metadata.name == "authz_admin:idp_group_delete:authz-evt-idp2"'
+
+  sub_test "authz_admin: identity_create fires on TLS identity create"
+  lxc auth identity create tls/authz-evt-user1 --quiet
+  wait_for_security_event "${monfile}" '.metadata.name | startswith("authz_admin:identity_create:tls/")'
+
+  local tls_pending_id
+  tls_pending_id="$(lxc auth identity list --format csv | awk -F, '/^tls,.*authz-evt-user1/ {print $4}')"
+
+  sub_test "authz_admin: identity_delete fires on TLS identity delete"
+  lxc auth identity delete "tls/${tls_pending_id}"
+  wait_for_security_event "${monfile}" '.metadata.name == ("authz_admin:identity_delete:tls/'"${tls_pending_id}"'")'
+
+  sub_test "authz_admin: identity_edit fires on bearer identity group membership change"
+  lxc auth group create authz-evt-g3
+  lxc auth identity create bearer/authz-evt-bearer1
+  local bearer_id
+  bearer_id="$(lxc auth identity show bearer/authz-evt-bearer1 | awk '/^id:/ {print $2}')"
+  lxc auth identity group add "bearer/${bearer_id}" authz-evt-g3
+  wait_for_security_event "${monfile}" '.metadata.name == ("authz_admin:identity_edit:bearer/'"${bearer_id}"'")'
+  lxc auth identity delete "bearer/${bearer_id}"
+  lxc auth group delete authz-evt-g3
+
+  sub_test "authz_fail fires when fine-grained identity attempts denied edit"
+  # Create a TLS user with only can_view_projects on the server. They should be denied
+  # when trying to edit a project.
+  lxc auth group create authz-evt-viewer
+  lxc auth group permission add authz-evt-viewer server can_view_projects
+  local authz_conf token
+  authz_conf="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  LXD_CONF="${authz_conf}" gen_cert_and_key "client"
+  token="$(lxc auth identity create tls/authz-evt-viewer-user --quiet --group authz-evt-viewer)"
+  LXD_CONF="${authz_conf}" lxc remote add authz-evt "${token}"
+  # Attempt an edit that requires can_edit on the default project. Denied.
+  ! LXD_CONF="${authz_conf}" lxc_remote project set authz-evt:default user.foo=bar || false
+  wait_for_security_event "${monfile}" '.metadata.name == "authz_fail:can_edit:/1.0/projects/default"'
+  assert_request_fields "${monfile}" '.metadata.name == "authz_fail:can_edit:/1.0/projects/default"'
+
+  sub_test "authz_fail does NOT fire on list filtering (GetPermissionChecker)"
+  # GetPermissionChecker is only used to filter project entities in the list
+  # handler; any emission from it would carry a /1.0/projects/<name> URL.
+  # Direct CheckPermission denials on other entities are expected and
+  # must be ignored here.
+  local list_filter_authz_fail_jq='map(select(.type == "security" and (.metadata.name | test("^authz_fail:[^:]+:/1\\.0/projects/")))) | length'
+  local list_filter_authz_fail_before list_filter_authz_fail_after
+  list_filter_authz_fail_before="$(jq --slurp "${list_filter_authz_fail_jq}" "${monfile}")"
+  local _project_list
+  _project_list="$(LXD_CONF="${authz_conf}" lxc_remote project list authz-evt: --format csv)"
+  _project_list="$(LXD_CONF="${authz_conf}" lxc_remote project list authz-evt: --format csv)"
+  sleep 1
+  list_filter_authz_fail_after="$(jq --slurp "${list_filter_authz_fail_jq}" "${monfile}")"
+  [ "$((list_filter_authz_fail_after - list_filter_authz_fail_before))" = "0" ]
+
+  sub_test "authz_fail does NOT fire on can_edit display probes (server/storage_pool)"
+  # GET /1.0 and GET /1.0/storage-pools/<name> probe can_edit on server and
+  # storage_pool to decide whether to render sensitive config. Those probes
+  # are expected denials, not real authorization failures, and must not
+  # produce authz_fail events.
+  local probe_jq='map(select(.type == "security" and (.metadata.name == "authz_fail:can_edit:/1.0" or (.metadata.name | test("^authz_fail:can_edit:/1\\.0/storage-pools/"))))) | length'
+  local probe_before probe_after _probe_info _probe_pool _probe_show
+  probe_before="$(jq --slurp "${probe_jq}" "${monfile}")"
+  _probe_info="$(LXD_CONF="${authz_conf}" lxc_remote info authz-evt:)"
+  _probe_pool="$(lxc storage list --format csv | awk --field-separator=, 'NR==1 {print $1}')"
+  if [ -n "${_probe_pool}" ]; then
+    _probe_show="$(LXD_CONF="${authz_conf}" lxc_remote storage show "authz-evt:${_probe_pool}")"
+  fi
+  sleep 1
+  probe_after="$(jq --slurp "${probe_jq}" "${monfile}")"
+  [ "$((probe_after - probe_before))" = "0" ]
+
+  sub_test "Lifecycle and authz_admin coexist without duplication"
+  # Restart monitor capturing both types. Wait for the old process to fully die
+  # before redirecting, to avoid a partial buffered write corrupting the file.
+  local old_mon_pid="${mon_pid}"
+  kill_go_proc "${old_mon_pid}" || true
+  wait "${old_mon_pid}" || true
+  lxc monitor --type=security --type=lifecycle --format=json > "${monfile}" &
+  mon_pid=$!
+  for _ in $(seq 10); do
+    kill -0 "${mon_pid}" && break
+    sleep 1
+  done
+
+  local coexist_lifecycle_jq='.type == "lifecycle" and .metadata.action == "auth-group-created" and .metadata.source == "/1.0/auth/groups/authz-evt-coexist"'
+  local coexist_security_jq='.type == "security" and .metadata.name == "authz_admin:group_create:authz-evt-coexist"'
+
+  lxc auth group create authz-evt-coexist
+  # Exactly one lifecycle and one authz_admin event for the create.
+  for _ in $(seq 10); do
+    if [ "$(count_events_tolerant "${monfile}" "${coexist_lifecycle_jq}")" = "1" ] \
+      && [ "$(count_events_tolerant "${monfile}" "${coexist_security_jq}")" = "1" ]; then
+      break
+    fi
+    sleep 1
+  done
+  [ "$(count_events_tolerant "${monfile}" "${coexist_lifecycle_jq}")" = "1" ]
+  [ "$(count_events_tolerant "${monfile}" "${coexist_security_jq}")" = "1" ]
+
+  # Cleanup.
+  lxc auth group delete authz-evt-coexist
+  LXD_CONF="${authz_conf}" lxc remote remove authz-evt
+  local viewer_fp
+  viewer_fp="$(lxc auth identity list --format csv | awk -F, '/^tls,.*,authz-evt-viewer/ {print $4}')"
+  lxc auth identity delete "tls/${viewer_fp}"
+  lxc auth group delete authz-evt-viewer
+
+  kill_go_proc "${mon_pid}" || true
+  rm -f "${monfile}"
+}
