@@ -491,7 +491,14 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 // This does not perform authorization, only validates authentication.
 // Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
 // client that has been authenticated (cluster, unix, oidc or tls).
-func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.RequestorArgs, error) {
+//
+// allowUntrusted is the AllowUntrusted flag of the endpoint action being
+// dispatched. It gates emission of authn_login_fail: the event is raised
+// only when no auth method recognised the caller and the endpoint required
+// authentication. Errors returned from this function never trigger the
+// event because they may originate from a server-side fault (e.g. an
+// unreachable IdP).
+func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, allowUntrusted bool) (*request.RequestorArgs, error) {
 	if r.TLS == nil {
 		// For a socket, the server is listening on a file, but the client does not have an address.
 		// Since there is no address, the kernel uses an unnamed unix socket address.
@@ -636,7 +643,6 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 
 		bearerRequestor, err := bearer.Authenticate(r.Context(), subject, token, tokenLocation, d.identityCache, d.events.SendSecurity)
 		if err != nil {
-			// Deny access if the provided token is not verifiable.
 			return nil, fmt.Errorf("Failed verifying bearer token: %w", err)
 		}
 
@@ -659,7 +665,16 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (*request.
 		}, nil
 	}
 
-	// Reject unauthorized.
+	// Peer presented a client certificate but no auth method recognised the
+	// caller. Emit only when the endpoint requires authentication; anonymous
+	// requests (no peer cert, no bearer, no OIDC header) also reach this
+	// point and intentionally do not emit.
+	if !allowUntrusted && len(r.TLS.PeerCertificates) > 0 {
+		loginFail := security.AuthnLoginFail.WithSuffix(string(api.AuthenticationMethodTLS)).
+			UserEvent(r.Context(), security.LevelWarning, "TLS authentication failure")
+		d.events.SendSecurity(loginFail)
+	}
+
 	return &request.RequestorArgs{Trusted: false}, nil
 }
 
@@ -839,8 +854,36 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 		}
 
+		// Resolve the endpoint action up front so authentication knows
+		// whether the endpoint requires authentication. This drives whether
+		// authn_login_fail is emitted on a fallthrough (no auth method
+		// recognised the caller).
+		var endpointAction APIEndpointAction
+		switch r.Method {
+		case http.MethodGet:
+			endpointAction = c.Get
+		case http.MethodHead:
+			endpointAction = c.Head
+		case http.MethodPut:
+			endpointAction = c.Put
+		case http.MethodPost:
+			endpointAction = c.Post
+		case http.MethodDelete:
+			endpointAction = c.Delete
+		case http.MethodPatch:
+			endpointAction = c.Patch
+		default:
+			_ = response.NotFound(fmt.Errorf("Method %q not found", r.Method)).Render(w, r)
+			return
+		}
+
+		if endpointAction.Handler == nil {
+			_ = response.NotImplemented(nil).Render(w, r)
+			return
+		}
+
 		// Authentication
-		requestor, err := d.Authenticate(w, r)
+		requestor, err := d.Authenticate(w, r, endpointAction.AllowUntrusted)
 		if err != nil {
 			var authError oidc.AuthError
 			if errors.As(err, &authError) {
@@ -948,10 +991,6 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		handleRequest := func(action APIEndpointAction) response.Response {
-			if action.Handler == nil {
-				return response.NotImplemented(nil)
-			}
-
 			// Protect against CSRF when using LXD-UI with browser that supports Fetch metadata.
 			// Deny Sec-Fetch-Site when set to cross-site or same-site.
 			if http.NewCrossOriginProtection().Check(r) != nil {
@@ -994,22 +1033,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			return action.Handler(d, r)
 		}
 
-		switch r.Method {
-		case "GET":
-			resp = handleRequest(c.Get)
-		case "HEAD":
-			resp = handleRequest(c.Head)
-		case "PUT":
-			resp = handleRequest(c.Put)
-		case "POST":
-			resp = handleRequest(c.Post)
-		case "DELETE":
-			resp = handleRequest(c.Delete)
-		case "PATCH":
-			resp = handleRequest(c.Patch)
-		default:
-			resp = response.NotFound(fmt.Errorf("Method %q not found", r.Method))
-		}
+		resp = handleRequest(endpointAction)
 
 		// Handle errors
 		err = resp.Render(w, r)
