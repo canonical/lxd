@@ -6076,3 +6076,120 @@ test_clustering_replicator_snapshot() {
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_ONE_DIR}"
 }
+
+test_clustering_replicator_multi_member() {
+  local poolDriver
+  poolDriver=$(storage_backend "${LXD_INITIAL_DIR}")
+
+  # Source cluster: multi-member cluster (node1 + node2) to verify replication
+  # of instances on remote cluster members.
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}"
+
+  local cert
+  # shellcheck disable=SC2153
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
+
+  # Target cluster: separate single-node cluster (node3).
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}" "" 3
+
+  # Create projects on both clusters.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create replicator-project
+  LXD_DIR="${LXD_THREE_DIR}" lxc project create replicator-project
+
+  # Setup auth groups.
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+
+  LXD_B_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_b --quiet --auth-group replicator-group)"
+
+  LXD_DIR="${LXD_THREE_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_THREE_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_THREE_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster link create lxd_a --token "${LXD_B_TRUST_TOKEN}" --auth-group replicator-group
+
+  # Configure replica project settings.
+  LXD_DIR="${LXD_THREE_DIR}" lxc project set replicator-project replica.cluster=lxd_a replica.mode=standby
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_b replica.mode=leader
+
+  # Setup storage: the bootstrapped clusters already have a "data" pool;
+  # add a root device to the default profile in the replicator project.
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool=data --project replicator-project
+  LXD_DIR="${LXD_THREE_DIR}" lxc profile device add default root disk path="/" pool=data --project replicator-project
+
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage replicator-project
+
+  sub_test "Verify instances on different source members are replicated"
+
+  # Create instances on different source cluster members.
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 testimage c1 --project replicator-project -d "${SMALL_ROOT_DISK}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage c2 --project replicator-project -d "${SMALL_ROOT_DISK}"
+
+  # Verify instances are on the expected members.
+  LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nL | grep -xF 'c1,node1'
+  LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nL | grep -xF 'c2,node2'
+
+  # Create replicator and run.
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_b --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+
+  # Both instances must appear on the target cluster.
+  LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
+  LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
+
+  # The replicator operation must report success with two child operations.
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+
+  sub_test "Verify snapshot=true works for instances on remote members"
+
+  LXD_DIR="${LXD_THREE_DIR}" lxc delete c1 c2 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator set my-replicator snapshot=true --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+
+  # Snapshots must have been created on both source instances.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 1'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c2/snapshots?project=replicator-project" | jq --exit-status 'length == 1'
+
+  # Both instances and their snapshots must be on the target.
+  LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c1,STOPPED,1'
+  LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c2,STOPPED,1'
+
+  sub_test "Verify idempotent run with instances on remote members"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+
+  sub_test "Verify --restore from target back to multi-member source"
+
+  # Simulate failover: source becomes standby, target becomes leader.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=standby
+  LXD_DIR="${LXD_THREE_DIR}" lxc project set replicator-project replica.cluster=lxd_a replica.mode=leader
+
+  # Stop all instances on the source cluster before restore.
+  LXD_DIR="${LXD_ONE_DIR}" lxc stop c1 --force --project replicator-project 2>/dev/null || true
+
+  # Run restore: pulls instances from the target (LXD_THREE) back to source (LXD_ONE).
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project
+
+  # Restore operation must succeed with both instances.
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  jq --exit-status '.status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+
+  # Both instances must be present on the source cluster with their snapshots.
+  LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c1,STOPPED,1'
+  LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c2,STOPPED,1'
+
+  # Cleanup: instances exist on both clusters after replication + restore.
+  LXD_DIR="${LXD_THREE_DIR}" lxc delete c1 c2 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 --project replicator-project
+  LXD_DIR="${LXD_THREE_DIR}" lxc profile device remove default root --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device remove default root --project replicator-project
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+  teardown_clustering_netns
+  teardown_clustering_bridge
+}
