@@ -855,7 +855,6 @@ parts:
 
       craftctl default
     organize:
-      sbin/: bin/
       usr/lib: lib/
       usr/local/lib/: lib/
     prime:
