@@ -133,6 +133,7 @@ readonly test_group_standalone=(
     "acme"
     "alias"
     "apparmor"
+    "authn_events"
     "authorization"
     "ui_initial_access_link"
     "basic_usage"
