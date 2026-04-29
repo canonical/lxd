@@ -2927,6 +2927,8 @@ func (c *cmdStorageVolumeImport) run(cmd *cobra.Command, args []string) error {
 		Quiet:  c.global.flagQuiet,
 	}
 
+	defer progress.Done("")
+
 	createArgs := lxd.StoragePoolVolumeBackupArgs{
 		BackupFile: ioprogress.NewProgressReader(file, ioprogress.WithLength(fstat.Size()), ioprogress.WithProgressUpdater(&progress)),
 		Name:       volName,
@@ -2950,11 +2952,8 @@ func (c *cmdStorageVolumeImport) run(cmd *cobra.Command, args []string) error {
 	// Wait for operation to finish.
 	err = cli.CancelableWait(op, &progress)
 	if err != nil {
-		progress.Done("")
 		return err
 	}
-
-	progress.Done("")
 
 	return nil
 }
