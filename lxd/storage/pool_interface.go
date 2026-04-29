@@ -103,7 +103,7 @@ type Pool interface {
 	UpdateInstanceSnapshot(ctx context.Context, inst instance.Instance, newDesc string, newConfig map[string]string, progressReporter ioprogress.ProgressReporter) error
 
 	// Images.
-	EnsureImage(ctx context.Context, fingerprint string, projectName string, progressReporter ioprogress.ProgressReporter) error
+	EnsureImage(ctx context.Context, fingerprint string, projectName string, inst instance.Instance, progressReporter ioprogress.ProgressReporter) error
 	DeleteImage(ctx context.Context, fingerprint string, progressReporter ioprogress.ProgressReporter) error
 	UpdateImage(ctx context.Context, fingerprint string, newDesc string, newConfig map[string]string, progressReporter ioprogress.ProgressReporter) error
 
