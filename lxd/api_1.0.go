@@ -29,6 +29,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/request/security"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
@@ -1237,6 +1238,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			if d.lokiClient != nil {
 				d.lokiClient.Stop()
 				d.lokiClient = nil
+				d.events.SendSecurity(security.SysMonitorDisabled.ServerEvent(security.LevelWarning, "Loki monitoring disabled"))
 			}
 		} else {
 			err := d.setupLoki(lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes)
