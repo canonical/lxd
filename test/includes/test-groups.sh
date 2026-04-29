@@ -59,10 +59,14 @@ readonly test_group_cluster_storage=(
     "clustering_recovery"
     "clustering_storage"
     "clustering_storage_single_node"
+)
+
+readonly test_group_replicator_storage=(
     "clustering_replicator_basic"
     "clustering_replicator_scheduled"
     "clustering_replicator_dr"
     "clustering_replicator_snapshot"
+    "clustering_replicator_multi_member"
 )
 
 readonly test_group_instance=(
@@ -271,6 +275,7 @@ readonly test_group_standalone_storage=(
 readonly test_group_all=(
     "${test_group_cluster[@]}"
     "${test_group_cluster_storage[@]}"
+    "${test_group_replicator_storage[@]}"
     "${test_group_instance[@]}"
     "${test_group_image[@]}"
     "${test_group_network[@]}"
