@@ -17,7 +17,11 @@ A load balancer is made up of:
 
 - A single listen IP address (external or internal).
 - One or more named backends consisting of an internal IP and optional port ranges.
-- One or more listen port ranges that are configured to forward to one or more named backends.
+- One or more listen ports or port ranges that are configured to forward to one or more named backends.
+- One or more listen ports that are configured to forward to one ore more pools of instances.
+
+A pool of instances allows a more simplified definition of backends as it doesn't require additional configuration of the internal IP.
+Furthermore a pool is using health checks to identify offline backends to which the load balancer should not forward any traffic.
 
 ## Create a network load balancer
 
@@ -107,25 +111,87 @@ Network load balancer backends have the following properties:
     :end-before: <!-- config group network-load-balancer-load-balancer-backend-properties end -->
 ```
 
-(network-load-balancers-port-specifications)=
-## Configure ports
+(network-load-balancers-pool-specifications)=
+## Configure pools
 
-You can add port specifications to the network load balancer to forward traffic from specific ports on the listen address to specific ports on one or more target backends.
+Pools are not directly attached to a load balancer. Instead they are configured on the network and can therefore be referenced by one or many load balancers inside this network.
 
-Use the following command to add a port specification:
+Use the following command to add a pool:
 
 ```bash
-lxc network load-balancer port add <network_name> <listen_address> <protocol> <listen_ports> <backend_name>[,<backend_name>...]
+lxc network load-balancer pool create <network_name> <pool_name> <key>=<value>...
 ```
 
 Example:
 
 ```bash
-lxc network load-balancer port add my-ovn-network 192.0.2.178 tcp 80 test-backend
+lxc network load-balancer pool create my-ovn-network https target_port=443
+```
+
+This creates a new pool setting `443` as the target port for all instances inside the pool.
+If necessary the port can be overwritten for each instance.
+
+### Pool properties
+
+Network load balancer pools have the following properties:
+
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
+    :start-after: <!-- config group network-load-balancer-pool-properties start -->
+    :end-before: <!-- config group network-load-balancer-pool-properties end -->
+```
+
+(network-load-balancers-pool-instances-specifications)=
+### Configure pool instances
+
+When a load balancer port references a pool, traffic can only be forwarded to the pool if it contains one ore more instances.
+Use the following command to add instances to the pool:
+
+```bash
+lxc network load-balancer pool instance add <network> <pool_name> <instance_name> [<target_port>]
+```
+
+Example:
+
+```bash
+lxc network load-balancer pool instance add my-ovn-network http i1
+```
+
+The target port is optional in case the instance is using a custom port. If not provided the pool's target port takes precedence.
+
+(network-load-balancers-port-specifications)=
+## Configure ports
+
+You can add port specifications to the network load balancer to forward traffic from specific ports on the listen address:
+- To specific ports on one or more target backends.
+- To specific ports on all the target instances inside a pool.
+
+Use the following command to add a port specification for explicit target backends:
+
+```bash
+lxc network load-balancer port add <network_name> <listen_address> <protocol> <listen_ports> target_backend=<backend_name>[,<backend_name>...]
+```
+
+Example:
+
+```bash
+lxc network load-balancer port add my-ovn-network 192.0.2.178 tcp 80 target_backend=test-backend
 ```
 
 You can specify a single listen port or a set of ports.
 The backend(s) specified must have target port(s) settings compatible with the port's listen port(s) setting.
+
+Use the following command to add a port specification for all target instances inside a pool:
+
+```bash
+lxc network load-balancer port add <network_name> <listen_address> <protocol> <listen_port> target_pool=<pool_name>
+```
+
+Example:
+
+```bash
+lxc network load-balancer port add my-ovn-network 192.0.2.178 tcp 443 target_pool=https
+```
 
 ### Port properties
 
@@ -166,7 +232,51 @@ ports:
   listen_port: 70,80-90
   target_backend:
   - test-backend
+- description: ""
+  protocol: tcp
+  listen_port: 443
+  target_pool: https
 ```
+
+## Edit a network load balancer pool
+
+Use the following command to edit a network load balancer pool:
+
+```bash
+lxc network load-balancer pool edit <network_name> <pool_name>
+```
+
+This command opens the network load balancer pool in YAML format for editing.
+You can edit the general configuration, as well as the instances and their target port.
+
+Example load balancer pool configuration YAML file:
+
+```yaml
+name: https
+description: ""
+config:
+  protocol: tcp
+  target_port: "443"
+instances:
+- name: i1
+- name: i2
+- name: i3
+  target_port: 8443
+used_by:
+- /1.0/networks/default/load-balancers/192.0.2.178
+```
+
+## Get the state of a network load balancer pool
+
+When a pool is referenced by a network load balancer pool and contains instances, the current state of the health check can be observed for all instances in the pool.
+
+Use the following command to get the state of a network load balancer pool:
+
+```bash
+lxc network load-balancer pool info <network_name> <pool_name>
+```
+
+The status for each of the pool's instances is reported for each load balancer port referencing the pool.
 
 ## Delete a network load balancer
 
@@ -174,4 +284,28 @@ Use the following command to delete a network load balancer:
 
 ```bash
 lxc network load-balancer delete <network_name> <listen_address>
+```
+
+## Delete a network load balancer pool
+
+Use the following command to delete a network load balancer pool:
+
+```bash
+lxc network load-balancer pool delete <network_name> <pool_name>
+```
+
+## Remove a network load balancer pool instance
+
+Use the following command to remove a network load balancer pool instance:
+
+```bash
+lxc network load-balancer pool instance remove <network_name> <pool_name> <instance_name>
+```
+
+## Remove a network load balancer port
+
+Use the following command to remove a network load balancer port:
+
+```bash
+lxc network load-balancer port remove <network_name> <listen_address> <protocol> <listen_ports>
 ```
