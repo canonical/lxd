@@ -292,3 +292,145 @@ test_security_events_bearer_authn() {
 
   lxc auth identity delete bearer/security-events-bearer
 }
+
+test_authn_events() {
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  # Helper: poll the JSONL monitor file (up to 10 s) for jq_filter, then kill
+  # the monitor, assert one final time, and remove the file.
+  _wait_authn_event() {
+    local monfile="${1}" mon_pid="${2}" jq_filter="${3}"
+    for _ in $(seq 10); do
+      jq --exit-status --slurp "${jq_filter}" "${monfile}" && break
+      sleep 1
+    done
+    kill_go_proc "${mon_pid}" || true
+    jq --exit-status --slurp "${jq_filter}" "${monfile}"
+    rm -f "${monfile}"
+  }
+
+  sub_test "Verify authn_login_fail does not fire on public unauthenticated endpoints"
+  local monfile="${TEST_DIR}/authn-no-event.jsonl"
+  lxc monitor --type=security --format=json > "${monfile}" &
+  local mon_pid=$!
+  sleep 0.2
+
+  # GET /1.0 has AllowUntrusted=true so daemon.Authenticate is not reached
+  # with a failing auth method.
+  curl --insecure --silent "https://${LXD_ADDR}/1.0" \
+    | jq --exit-status '.metadata.auth == "untrusted"'
+
+  sleep 3
+  kill_go_proc "${mon_pid}" || true
+  jq --exit-status --slurp \
+    'map(select(.type == "security" and (.metadata.name // "" | startswith("authn_login_fail")))) | length == 0' \
+    "${monfile}"
+  rm -f "${monfile}"
+
+  sub_test "Verify authn_login_fail:tls fires when an untrusted client cert is presented"
+  gen_cert_and_key "authn-untrusted-cert"
+
+  monfile="${TEST_DIR}/authn-login-fail-tls.jsonl"
+  lxc monitor --type=security --format=json > "${monfile}" &
+  mon_pid=$!
+  sleep 0.2
+
+  curl --insecure --silent \
+    --cert "${LXD_CONF}/authn-untrusted-cert.crt" \
+    --key "${LXD_CONF}/authn-untrusted-cert.key" \
+    "https://${LXD_ADDR}/1.0/instances" \
+    | jq --exit-status '.error_code == 403'
+
+  _wait_authn_event "${monfile}" "${mon_pid}" \
+    'map(select(.type == "security" and .metadata.name == "authn_login_fail:tls" and .metadata.level == "warning" and (.metadata.requestor.address // "") != "")) | length >= 1'
+
+  sub_test "Verify authn_token_created fires when a bearer token is issued"
+  lxc auth identity create bearer/authn-bearer-test
+  local bearer_id
+  bearer_id="$(lxc auth identity list bearer --format json | jq --raw-output '.[] | select(.name == "authn-bearer-test") | .id')"
+
+  monfile="${TEST_DIR}/authn-token-created.jsonl"
+  lxc monitor --type=security --format=json > "${monfile}" &
+  mon_pid=$!
+  sleep 0.2
+
+  local issued_token
+  issued_token="$(lxc auth identity token issue bearer/authn-bearer-test --quiet)"
+  [ -n "${issued_token}" ]
+
+  _wait_authn_event "${monfile}" "${mon_pid}" \
+    "map(select(.type == \"security\" and .metadata.name == \"authn_token_created:${bearer_id}\" and .metadata.level == \"info\")) | length >= 1"
+
+  sub_test "Verify authn_token_revoked fires when a bearer token is revoked"
+  monfile="${TEST_DIR}/authn-token-revoked.jsonl"
+  lxc monitor --type=security --format=json > "${monfile}" &
+  mon_pid=$!
+  sleep 0.2
+
+  lxc auth identity token revoke bearer/authn-bearer-test
+
+  _wait_authn_event "${monfile}" "${mon_pid}" \
+    "map(select(.type == \"security\" and .metadata.name == \"authn_token_revoked:${bearer_id}\" and .metadata.level == \"info\")) | length >= 1"
+
+  lxc auth identity delete bearer/authn-bearer-test
+
+  sub_test "Verify authn_certificate_change fires when TLS certificate material is replaced (admin)"
+  gen_cert_and_key "authn-orig-cert"
+  lxc config trust add "${LXD_CONF}/authn-orig-cert.crt" --name authn-test-cert
+  local old_fp
+  old_fp="$(cert_fingerprint "${LXD_CONF}/authn-orig-cert.crt")"
+  gen_cert_and_key "authn-new-cert"
+
+  monfile="${TEST_DIR}/authn-cert-change.jsonl"
+  lxc monitor --type=security --format=json > "${monfile}" &
+  mon_pid=$!
+  sleep 0.2
+
+  lxc query --request PUT \
+    --data "$(jq --null-input \
+      --argjson cert "$(cert_to_json "${LXD_CONF}/authn-new-cert.crt")" \
+      --arg name "authn-test-cert" \
+      '{certificate: $cert, name: $name, restricted: false, projects: [], type: "client"}')" \
+    "/1.0/certificates/${old_fp}"
+
+  _wait_authn_event "${monfile}" "${mon_pid}" \
+    "map(select(.type == \"security\" and .metadata.name == \"authn_certificate_change:${old_fp}\" and .metadata.level == \"info\")) | length >= 1"
+
+  local new_fp
+  new_fp="$(cert_fingerprint "${LXD_CONF}/authn-new-cert.crt")"
+  lxc config trust remove "${new_fp}"
+
+  sub_test "Verify authn_certificate_change fires on self-update (old fingerprint in event name)"
+  gen_cert_and_key "authn-self-cert"
+  lxc config trust add "${LXD_CONF}/authn-self-cert.crt" --name authn-self-cert
+  local self_old_fp
+  self_old_fp="$(cert_fingerprint "${LXD_CONF}/authn-self-cert.crt")"
+
+  # Mark as restricted so the PUT goes through doCertificateUpdateUnprivileged.
+  lxc config trust show "${self_old_fp}" \
+    | sed "s/restricted: false/restricted: true/" \
+    | lxc config trust edit "${self_old_fp}"
+
+  gen_cert_and_key "authn-self-new-cert"
+
+  monfile="${TEST_DIR}/authn-cert-selfchange.jsonl"
+  lxc monitor --type=security --format=json > "${monfile}" &
+  mon_pid=$!
+  sleep 0.2
+
+  CERTNAME="authn-self-cert" my_curl --request PUT \
+    --data "$(jq --null-input \
+      --argjson cert "$(cert_to_json "${LXD_CONF}/authn-self-new-cert.crt")" \
+      --arg name "authn-self-cert" \
+      '{certificate: $cert, name: $name, restricted: true, projects: [], type: "client"}')" \
+    "https://${LXD_ADDR}/1.0/certificates/${self_old_fp}"
+
+  # Caller authenticated with the old cert, so the requestor username equals
+  # the old fingerprint.
+  _wait_authn_event "${monfile}" "${mon_pid}" \
+    "map(select(.type == \"security\" and .metadata.name == \"authn_certificate_change:${self_old_fp}\" and .metadata.requestor.username == \"${self_old_fp}\")) | length >= 1"
+
+  local self_new_fp
+  self_new_fp="$(cert_fingerprint "${LXD_CONF}/authn-self-new-cert.crt")"
+  lxc config trust remove "${self_new_fp}"
+}
