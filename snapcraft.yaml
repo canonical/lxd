@@ -803,6 +803,8 @@ parts:
       - lib/*/libunbound*so*
 
   spice-server:
+    after:
+      - python-runtime
     source: https://git.launchpad.net/ubuntu/+source/spice
     source-commit: 8c6cce7e0f8543063f2418051635efa52302fd47 # import/0.16.0-1
     source-depth: 1
