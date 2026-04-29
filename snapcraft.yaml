@@ -330,7 +330,7 @@ parts:
       usr/bin/: bin/
       usr/lib/: lib/
     prime:
-      - bin/sqlite3
+      - bin/sqlite3  # not used by LXD but small and useful for emergency situations
       - lib/libdqlite*so*
       - lib/*/libsqlite3*so*
       - lib/*/libuv*
