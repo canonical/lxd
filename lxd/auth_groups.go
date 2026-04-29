@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/request/security"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
@@ -367,6 +368,9 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 	lc := lifecycle.AuthGroupCreated.Event(group.Name, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle("", lc)
 
+	secEvt := security.AuthzAdmin.WithSuffix("group_create", group.Name).UserEvent(r.Context(), security.LevelInfo, "Authorization group created")
+	s.Events.SendSecurity(secEvt)
+
 	return response.SyncResponseLocation(true, nil, entity.AuthGroupURL(group.Name).String())
 }
 
@@ -549,6 +553,9 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 	lc := lifecycle.AuthGroupUpdated.Event(groupName, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle("", lc)
 
+	secEvt := security.AuthzAdmin.WithSuffix("group_edit", groupName).UserEvent(r.Context(), security.LevelInfo, "Authorization group updated")
+	s.Events.SendSecurity(secEvt)
+
 	return response.EmptySyncResponse
 }
 
@@ -659,6 +666,9 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 	lc := lifecycle.AuthGroupUpdated.Event(groupName, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle("", lc)
 
+	secEvt := security.AuthzAdmin.WithSuffix("group_edit", groupName).UserEvent(r.Context(), security.LevelInfo, "Authorization group updated")
+	s.Events.SendSecurity(secEvt)
+
 	return response.EmptySyncResponse
 }
 
@@ -727,6 +737,10 @@ func renameAuthGroup(d *Daemon, r *http.Request) response.Response {
 	lc := lifecycle.AuthGroupRenamed.Event(groupPost.Name, request.CreateRequestor(r.Context()), map[string]any{"old_name": groupName})
 	s.Events.SendLifecycle("", lc)
 
+	// Rename is treated as an edit per spec; no separate group_rename action.
+	secEvt := security.AuthzAdmin.WithSuffix("group_edit", groupPost.Name).UserEvent(r.Context(), security.LevelInfo, "Authorization group renamed from "+groupName)
+	s.Events.SendSecurity(secEvt)
+
 	return response.SyncResponseLocation(true, nil, entity.AuthGroupURL(groupPost.Name).String())
 }
 
@@ -769,6 +783,9 @@ func deleteAuthGroup(d *Daemon, r *http.Request) response.Response {
 	// Send a lifecycle event for the group deletion
 	lc := lifecycle.AuthGroupDeleted.Event(groupName, request.CreateRequestor(r.Context()), nil)
 	s.Events.SendLifecycle("", lc)
+
+	secEvt := security.AuthzAdmin.WithSuffix("group_delete", groupName).UserEvent(r.Context(), security.LevelInfo, "Authorization group deleted")
+	s.Events.SendSecurity(secEvt)
 
 	return response.EmptySyncResponse
 }
