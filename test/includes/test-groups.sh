@@ -183,6 +183,8 @@ readonly test_group_standalone=(
     "security_events_bearer_authn"
     "security_authz_events"
     "security_protection"
+    "security_sys_events"
+    "security_user_events"
     "server_config"
     "server_info"
     "shutdown"
