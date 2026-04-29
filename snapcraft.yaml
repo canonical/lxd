@@ -809,6 +809,9 @@ parts:
     source-commit: 8c6cce7e0f8543063f2418051635efa52302fd47 # import/0.16.0-1
     source-depth: 1
     source-type: git
+    # XXX: needed for snapcraft 8.x only
+    build-environment:
+      - PATH: "/usr/bin:${PATH}" # ensure python3 is found in PATH
     plugin: meson
     meson-parameters:
       - --prefix=/
