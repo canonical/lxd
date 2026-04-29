@@ -106,6 +106,8 @@ func (c *cmdImport) run(cmd *cobra.Command, args []string) error {
 		Quiet:  c.global.flagQuiet,
 	}
 
+	defer progress.Done("")
+
 	deviceMap, err := parseDeviceOverrides(c.flagDevice)
 	if err != nil {
 		return err
@@ -126,11 +128,8 @@ func (c *cmdImport) run(cmd *cobra.Command, args []string) error {
 	// Wait for operation to finish.
 	err = cli.CancelableWait(op, &progress)
 	if err != nil {
-		progress.Done("")
 		return err
 	}
-
-	progress.Done("")
 
 	return nil
 }
