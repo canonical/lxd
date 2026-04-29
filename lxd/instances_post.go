@@ -1492,6 +1492,29 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				req.Architecture = sourceImage.Architecture
 				req.Profiles = sourceImage.Profiles
 			}
+
+		case api.SourceTypeMigration:
+			// When performing a migration with refresh, route the request to the cluster member
+			// that owns the existing instance rather than triggering new placement logic.
+			if s.ServerClustered && !clusterNotification && req.Source.Refresh && targetMemberInfo == nil {
+				targetInst, err := instance.LoadInstanceDatabaseObject(ctx, tx, targetProjectName, req.Name)
+				if err != nil {
+					if !response.IsNotFoundError(err) {
+						return fmt.Errorf("Failed loading target instance %q: %w", req.Name, err)
+					}
+				} else {
+					for _, member := range allMembers {
+						if member.Name == targetInst.Node {
+							targetMemberInfo = &member
+							break
+						}
+					}
+
+					if targetMemberInfo == nil {
+						return fmt.Errorf("Failed finding target cluster member %q", targetInst.Node)
+					}
+				}
+			}
 		}
 
 		// Use default profile if no profile list specified (not even an empty list).
