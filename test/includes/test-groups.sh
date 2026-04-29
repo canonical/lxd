@@ -67,6 +67,7 @@ readonly test_group_replicator_storage=(
     "clustering_replicator_dr"
     "clustering_replicator_snapshot"
     "clustering_replicator_multi_member"
+    "clustering_replicator_vm"
 )
 
 readonly test_group_instance=(

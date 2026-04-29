@@ -6193,3 +6193,90 @@ test_clustering_replicator_multi_member() {
   teardown_clustering_netns
   teardown_clustering_bridge
 }
+
+test_clustering_replicator_vm() {
+  # Two standalone clustered LXD daemons simulating separate clusters.
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_ONE_DIR}" true
+
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_TWO_DIR}" true
+
+  # Enable clustering on both.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster enable node2
+
+  # Create projects on both clusters.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project create replicator-project
+
+  # Setup auth groups and cluster links.
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  LXD_ONE_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --quiet --auth-group replicator-group)"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}" --auth-group replicator-group
+
+  # Configure replica project settings.
+  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one replica.mode=standby
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_two replica.mode=leader
+
+  # Setup storage on both clusters.
+  local pool_one pool_two
+  pool_one="lxdtest-$(basename "${LXD_ONE_DIR}")"
+  pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
+
+  sub_test "Verify VM replication works"
+
+  # Create an empty VM (no image needed).
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" --project replicator-project
+
+  # Create replicator and run.
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create vm-replicator cluster=lxd_two --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run vm-replicator --project replicator-project
+
+  # VM must appear on the target cluster.
+  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ntS | grep -xF 'v1,VIRTUAL-MACHINE,0'
+
+  sub_test "Verify VM replication with snapshot=true"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete v1 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator set vm-replicator snapshot=true --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run vm-replicator --project replicator-project
+
+  # A snapshot must have been created on the source VM.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/v1/snapshots?project=replicator-project" | jq --exit-status 'length == 1'
+
+  # VM and snapshot must be on the target.
+  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ntS | grep -xF 'v1,VIRTUAL-MACHINE,1'
+
+  sub_test "Verify idempotent second run for VM replication"
+
+  # Run again without deleting anything; exercises the refresh (Refresh: true)
+  # path which previously failed with backup file write errors (#18205).
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run vm-replicator --project replicator-project
+
+  # Operation must succeed.
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  jq --exit-status '.status == "Success" and ((.children // []) | length) == 1 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+
+  # snapshot=true creates a second snapshot, so source now has 2.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/v1/snapshots?project=replicator-project" | jq --exit-status 'length == 2'
+
+  # VM must still exist with both snapshots on the target.
+  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ntS | grep -xF 'v1,VIRTUAL-MACHINE,2'
+
+  # Cleanup
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete v1 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete v1 --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device remove default root --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device remove default root --project replicator-project
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+}
