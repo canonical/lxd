@@ -1162,7 +1162,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 						Operation:   remoteOpURL,
 						Websockets:  remoteSecrets,
 						Certificate: targetCertPEM,
-						Refresh:     inst != nil,
+						Refresh:     true,
 					},
 				}
 
