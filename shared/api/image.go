@@ -74,7 +74,7 @@ type ImagesPostSource struct {
 	// Example: pull
 	Mode string `json:"mode" yaml:"mode"`
 
-	// Type of image source (instance, snapshot, image or url)
+	// Type of image source (instance, snapshot, or image)
 	// Example: instance
 	Type SourceType `json:"type" yaml:"type"`
 
