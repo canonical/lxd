@@ -2332,8 +2332,39 @@ func newIdentityNotificationFunc(s *state.State, r *http.Request, networkCert *s
 		lc := action.Event(authenticationMethod, identifier, request.CreateRequestor(r.Context()), nil)
 		s.Events.SendLifecycle("", lc)
 
+		// Emit an authz_admin security event alongside the lifecycle event.
+		// Per spec, identity_create fires only for TLS and bearer identities:
+		// OIDC identities are auto-provisioned on first login and are not
+		// created via an administrative action.
+		suffix := authzAdminSuffixForIdentityAction(action, authenticationMethod)
+		if suffix != "" {
+			secEvt := security.AuthzAdmin.WithSuffix(suffix, authenticationMethod+"/"+identifier).UserEvent(r.Context(), security.LevelInfo, "Identity "+string(action))
+			s.Events.SendSecurity(secEvt)
+		}
+
 		return &lc, nil
 	}
+}
+
+// authzAdminSuffixForIdentityAction maps a lifecycle identity action to the
+// corresponding authz_admin event suffix. Returns an empty string when no
+// security event should be emitted for the given action (e.g. OIDC first-login
+// creations, which are not administrative actions).
+func authzAdminSuffixForIdentityAction(action lifecycle.IdentityAction, authenticationMethod string) string {
+	switch action {
+	case lifecycle.IdentityCreated:
+		if authenticationMethod == api.AuthenticationMethodOIDC {
+			return ""
+		}
+
+		return "identity_create"
+	case lifecycle.IdentityUpdated:
+		return "identity_edit"
+	case lifecycle.IdentityDeleted:
+		return "identity_delete"
+	}
+
+	return ""
 }
 
 // validateIdentityCert validates the certificate and returns its fingerprint.

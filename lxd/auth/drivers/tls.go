@@ -84,11 +84,13 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 			return nil
 		}
 
+		t.emitAuthzFail(ctx, entityURL, entitlement, entityType)
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
 	}
 
 	// Check project level permissions against the certificates project list.
 	if !slices.Contains(requestor.CallerAllowedProjectNames(), projectName) {
+		t.emitAuthzFail(ctx, entityURL, entitlement, entityType)
 		return api.StatusErrorf(http.StatusForbidden, "User does not have permission for project %q", projectName)
 	}
 

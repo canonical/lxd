@@ -396,6 +396,7 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 			l.Info("Access denied", logger.Ctx{"http_code": responseCode})
 		}
 
+		e.emitAuthzFail(ctx, entityURL, entitlement, entityType)
 		return api.NewGenericStatusError(responseCode)
 	}
 
