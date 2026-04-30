@@ -6076,3 +6076,82 @@ test_clustering_replicator_snapshot() {
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_ONE_DIR}"
 }
+
+test_clustering_link_unidirectional() {
+  # Create two standalone clustered LXD daemons (single member each) to simulate two separate clusters.
+  LXD_A_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_A_DIR}" false
+
+  LXD_B_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_B_DIR}" false
+
+  LXD_DIR="${LXD_A_DIR}" lxc cluster enable nodeA
+  LXD_DIR="${LXD_B_DIR}" lxc cluster enable nodeB
+
+  sub_test "Check CLI validation for unidirectional flags"
+
+  # --unidirectional without --token must fail.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_A_DIR}" lxc cluster link create foo --unidirectional 2>&1)" = 'Error: --unidirectional requires --token' ]
+
+  # --auth-group cannot be used with unidirectional links.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_A_DIR}" lxc cluster link create foo --unidirectional --token fake --auth-group mygroup 2>&1)" = 'Error: --auth-group cannot be used with unidirectional cluster links' ]
+
+  sub_test "Check unidirectional link creation"
+
+  # B issues a pending identity token via auth identity create.
+  UNIDIRECTIONAL_TOKEN="$(LXD_DIR="${LXD_B_DIR}" lxc auth identity create cluster-link/lxd_a --quiet)"
+
+  # A consumes the token and creates a unidirectional link to B.
+  LXD_DIR="${LXD_A_DIR}" lxc cluster link create lxd_b --token "${UNIDIRECTIONAL_TOKEN}" --unidirectional
+
+  # A should have the cluster link with no associated identity (unidirectional; A never authenticates to B).
+  LXD_DIR="${LXD_A_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'
+  LXD_DIR="${LXD_A_DIR}" lxc cluster link show lxd_b | grep -xF 'type: unidirectional'
+  if LXD_DIR="${LXD_A_DIR}" lxc auth identity list --format csv | grep -wF 'lxd_b'; then
+    echo "ERROR: identity 'lxd_b' unexpectedly found on A" >&2
+    exit 1
+  fi
+
+  # B should have an active identity for A plus a matching cluster link row.
+  LXD_DIR="${LXD_B_DIR}" lxc auth identity list --format csv | grep -vF '(pending)' | grep -wF 'Cluster link certificate'
+  LXD_DIR="${LXD_B_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_a'
+  LXD_DIR="${LXD_B_DIR}" lxc cluster link show lxd_a | grep -xF 'type: unidirectional'
+
+  sub_test "Check unidirectional link: volatile.addresses populated on A"
+
+  # A stores B's address in volatile.addresses so it can reach B.
+  [ "$(LXD_DIR="${LXD_A_DIR}" lxc cluster link get lxd_b volatile.addresses)" != "" ]
+
+  sub_test "Check unidirectional link: volatile.addresses not stored on B"
+
+  # B must not store A's listen addresses for unidirectional links; this preserves the one-way property.
+  [ "$(LXD_DIR="${LXD_B_DIR}" lxc cluster link get lxd_a volatile.addresses || echo fail)" = "" ]
+
+  sub_test "Check unidirectional link deletion"
+
+  # Delete from A; only A's link row is removed; B retains its identity and link row.
+  LXD_DIR="${LXD_A_DIR}" lxc cluster link delete lxd_b
+  if LXD_DIR="${LXD_A_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'; then
+    echo "ERROR: cluster link 'lxd_b' unexpectedly found on A after deletion" >&2
+    exit 1
+  fi
+
+  # B retains its identity after A's side is deleted.
+  LXD_DIR="${LXD_B_DIR}" lxc auth identity list --format csv | grep -vF '(pending)' | grep -wF 'Cluster link certificate'
+
+  # Delete from B; removes B's identity and link row.
+  LXD_DIR="${LXD_B_DIR}" lxc cluster link delete lxd_a
+  if LXD_DIR="${LXD_B_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_a'; then
+    echo "ERROR: cluster link 'lxd_a' unexpectedly found on B after deletion" >&2
+    exit 1
+  fi
+
+  if LXD_DIR="${LXD_B_DIR}" lxc auth identity list --format csv | grep -wF 'Cluster link certificate'; then
+    echo "ERROR: cluster link certificate unexpectedly found on B after deletion" >&2
+    exit 1
+  fi
+
+  # Cleanup.
+  kill_lxd "${LXD_B_DIR}"
+  kill_lxd "${LXD_A_DIR}"
+}

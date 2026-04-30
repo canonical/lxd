@@ -49,6 +49,7 @@ readonly test_group_cluster=(
     "clustering_project_limits"
     "clustering_link_auth"
     "clustering_link_info"
+    "clustering_link_unidirectional"
 )
 
 readonly test_group_cluster_storage=(

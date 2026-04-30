@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -22,14 +23,15 @@ import (
 type ClusterLinkType string
 
 const (
-	clusterLinkTypeBidirectional int64 = 0
+	clusterLinkTypeBidirectional  int64 = 0
+	clusterLinkTypeUnidirectional int64 = 1
 )
 
 // ClusterLinkRow represents a single row of the cluster_links table.
 // db:model cluster_links
 type ClusterLinkRow struct {
 	ID          int64           `db:"id"`
-	IdentityID  int64           `db:"identity_id"`
+	IdentityID  *int64          `db:"identity_id"`
 	Name        string          `db:"name"`
 	Description string          `db:"description"`
 	Type        ClusterLinkType `db:"type"`
@@ -45,6 +47,8 @@ func (c *ClusterLinkType) ScanInteger(clusterLinkTypeCode int64) error {
 	switch clusterLinkTypeCode {
 	case clusterLinkTypeBidirectional:
 		*c = api.ClusterLinkTypeBidirectional
+	case clusterLinkTypeUnidirectional:
+		*c = api.ClusterLinkTypeUnidirectional
 	default:
 		return fmt.Errorf("Unknown cluster link type %d", clusterLinkTypeCode)
 	}
@@ -62,6 +66,8 @@ func (c ClusterLinkType) Value() (driver.Value, error) {
 	switch c {
 	case api.ClusterLinkTypeBidirectional:
 		return clusterLinkTypeBidirectional, nil
+	case api.ClusterLinkTypeUnidirectional:
+		return clusterLinkTypeUnidirectional, nil
 	}
 
 	return nil, fmt.Errorf("Invalid cluster link type %q", c)
@@ -239,6 +245,60 @@ WHERE ` + ref.configTable + `.key = 'cluster' AND ` + ref.configTable + `.value 
 	}
 
 	return urls, nil
+}
+
+// SetClusterLinkCertificate stores the certificate for a cluster link.
+// Any existing certificate for the link is replaced.
+func SetClusterLinkCertificate(ctx context.Context, tx *sql.Tx, clusterLinkID int64, fingerprint string, pemCert string) error {
+	// Delete any existing certificate for this link. The trigger deletes the corresponding certificates row.
+	_, err := tx.ExecContext(ctx, "DELETE FROM cluster_links_certificates WHERE cluster_link_id = ?", clusterLinkID)
+	if err != nil {
+		return fmt.Errorf("Failed deleting existing cluster link certificate: %w", err)
+	}
+
+	cert := CertificatesRow{
+		Fingerprint: fingerprint,
+		Certificate: pemCert,
+	}
+
+	certificateID, err := query.Create(ctx, tx, cert)
+	if err != nil {
+		if query.IsConflictErr(err) {
+			return fmt.Errorf("A cluster link certificate with fingerprint %q already exists; the remote cluster may already be linked", fingerprint)
+		}
+
+		return fmt.Errorf("Failed creating certificate: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, "INSERT INTO cluster_links_certificates (cluster_link_id, certificate_id) VALUES (?, ?)", clusterLinkID, certificateID)
+	if err != nil {
+		return fmt.Errorf("Failed associating cluster link with certificate: %w", err)
+	}
+
+	return nil
+}
+
+// GetClusterLinkPEMCertificate returns the PEM-encoded certificate stored for a cluster link.
+func GetClusterLinkPEMCertificate(ctx context.Context, tx *sql.Tx, clusterLinkID int64) (string, error) {
+	var pemCert string
+	err := query.Scan(ctx, tx,
+		`SELECT certificates.certificate FROM certificates
+		 JOIN cluster_links_certificates ON certificates.id = cluster_links_certificates.certificate_id
+		 WHERE cluster_links_certificates.cluster_link_id = ?`,
+		func(scan func(dest ...any) error) error {
+			return scan(&pemCert)
+		},
+		clusterLinkID,
+	)
+	if err != nil {
+		return "", fmt.Errorf("Failed loading cluster link certificate: %w", err)
+	}
+
+	if pemCert == "" {
+		return "", api.StatusErrorf(http.StatusNotFound, "No certificate found for cluster link")
+	}
+
+	return pemCert, nil
 }
 
 // GetClusterLinksAndURLs returns all cluster links that pass the given filter, along with their entity URLs.

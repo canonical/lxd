@@ -9,6 +9,11 @@ import (
 const (
 	// ClusterLinkTypeBidirectional indicates that the cluster link can be used by both clusters.
 	ClusterLinkTypeBidirectional = "bidirectional"
+
+	// ClusterLinkTypeUnidirectional indicates that only the local cluster can use the link.
+	//
+	// API extension: cluster_links_unidirectional.
+	ClusterLinkTypeUnidirectional = "unidirectional"
 )
 
 // Cluster represents high-level information about a LXD cluster.
