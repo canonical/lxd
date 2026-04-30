@@ -38,7 +38,7 @@ runs:
 
         GOBIN="$(mktemp -d)"
         export GOBIN
-        go install github.com/canonical/lxd-ci/lxd-snapcraft@latest
+        go install github.com/canonical/lxd-pkg-snap/lxd-snapcraft@latest
 
         # Move the binary into its final location in PATH
         sudo mv "${GOBIN}/lxd-snapcraft" /usr/local/bin/
