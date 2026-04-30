@@ -1725,7 +1725,7 @@ definitions:
             type:
                 $ref: '#/definitions/SourceType'
             url:
-                description: Source URL (for type "url")
+                description: Source URL (deprecated, image download from URL is no longer supported)
                 example: https://some-server.com/some-directory/
                 type: string
                 x-go-name: URL
