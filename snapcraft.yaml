@@ -486,7 +486,9 @@ parts:
               sed --in-place=.bak "${SED_EXPR}" "${DSC}"
           fi
 
-          /usr/bin/make -f debian/rules "${BUILD_TARGET}" BUILD_TYPE="${TYPE}"
+          # Enable parallel builds to avoid lengthy build times due to LTO. amd64 build on LP goes from ~1h45m -> ~60m
+          # lto-wrapper: note: see the ‘-flto’ option documentation for more information
+          /usr/bin/make -j$(nproc) -f debian/rules "${BUILD_TARGET}" BUILD_TYPE="${TYPE}"
 
           if [ "${TYPE}" = "DEBUG" ] && [ -f "${DSC}.bak" ]; then
               mv "${DSC}.bak" "${DSC}"
