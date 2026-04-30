@@ -298,16 +298,6 @@ if [ -L /etc/resolv.conf ] && [ ! -e /etc/resolv.conf ]; then
     nsenter -t 1 -m cat /etc/resolv.conf > /etc/resolv.conf || true
 fi
 
-# Setup a functional /usr/share/misc
-echo "==> Preparing a clean copy of /usr/share/misc"
-if [ -e "/usr/share/misc/.lxd_generated" ]; then
-    umount -l /usr/share/misc
-fi
-mount -t tmpfs tmpfs /usr/share/misc -o mode=0755,nosuid,nodev,size=4M
-touch /usr/share/misc/.lxd_generated
-ln -s "${SNAP_CURRENT}/share/misc/pci.ids" /usr/share/misc/
-ln -s "${SNAP_CURRENT}/share/misc/usb.ids" /usr/share/misc/
-
 # Setup host access
 ## Make /var/lib/snapd/hostfs more useful to us
 for entry in dev proc sys; do
