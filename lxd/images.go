@@ -2437,6 +2437,13 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 		}
 	}
 
+	// The "direct" protocol was used for URL-based image imports, which is no longer supported.
+	// Skip auto-update for these images to avoid persistent error logs.
+	if source.Protocol == "direct" {
+		logger.Warn("Skipping auto-update for image with unsupported direct protocol", logger.Ctx{"fingerprint": fingerprint, "project": projectName})
+		return nil, nil
+	}
+
 	// Update the image on each pool where it currently exists.
 	hash := fingerprint
 	var newInfo *api.Image
