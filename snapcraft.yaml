@@ -300,6 +300,7 @@ parts:
       - lib/*/libboost_context.so*
       - lib/*/libboost_filesystem.so*
       - lib/*/libboost_iostreams.so*
+      - lib/*/libboost_process.so*
       - lib/*/libboost_program_options.so*
       - lib/*/libboost_thread.so*
       - lib/*/libboost_url.so*
@@ -330,7 +331,7 @@ parts:
       - lib/*/librtmp.so*
       - lib/*/libsasl2.so*
       - lib/*/libsnappy.so*
-      - lib/*/libssh.so*
+      - lib/*/libssh2.so*
       - lib/*/libtcmalloc.so*
       - lib/*/libunwind.so*
 
