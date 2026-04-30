@@ -3916,10 +3916,18 @@
 					},
 					{
 						"target_backend": {
-							"longdesc": "",
-							"required": "yes",
+							"longdesc": "Either a list of backends or a instance pool is required.",
+							"required": "no",
 							"shortdesc": "Backend name or names to forward to",
 							"type": "backend list"
+						}
+					},
+					{
+						"target_pool": {
+							"longdesc": "Either a list of backends or a instance pool is required.",
+							"required": "no",
+							"shortdesc": "Pool of instances to forward to",
+							"type": "string"
 						}
 					}
 				]
@@ -3964,6 +3972,74 @@
 							"required": "no",
 							"shortdesc": "List of port specifications",
 							"type": "port list"
+						}
+					}
+				]
+			}
+		},
+		"network-load-balancer-pool": {
+			"properties": {
+				"keys": [
+					{
+						"healthcheck": {
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Whether to enable or disable health checks",
+							"type": "bool"
+						}
+					},
+					{
+						"healthcheck.failure_count": {
+							"defaultdesc": "`1`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Failed probe attempts after which an instance is considered unhealthy.",
+							"type": "integer"
+						}
+					},
+					{
+						"healthcheck.interval": {
+							"defaultdesc": "`5`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Interval in which to probe the pool's instances.",
+							"type": "integer"
+						}
+					},
+					{
+						"healthcheck.success_count": {
+							"defaultdesc": "`1`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Successful probe attempts after which an instance is considered healthy.",
+							"type": "integer"
+						}
+					},
+					{
+						"healthcheck.timeout": {
+							"defaultdesc": "`3`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Timeout after a probe appears to be faulty.",
+							"type": "integer"
+						}
+					},
+					{
+						"protocol": {
+							"defaultdesc": "`tcp`",
+							"longdesc": "Can be either tcp or udp.",
+							"required": "no",
+							"shortdesc": "Protocol used for ingress pool traffic.",
+							"type": "string"
+						}
+					},
+					{
+						"target_port": {
+							"longdesc": "",
+							"required": "yes",
+							"shortdesc": "Port used on instances for ingress pool traffic",
+							"type": "string"
 						}
 					}
 				]

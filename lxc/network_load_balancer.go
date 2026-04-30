@@ -74,6 +74,10 @@ func (c *cmdNetworkLoadBalancer) command() *cobra.Command {
 	networkLoadBalancerPortCmd := cmdNetworkLoadBalancerPort{global: c.global, networkLoadBalancer: c}
 	cmd.AddCommand(networkLoadBalancerPortCmd.command())
 
+	// Pool.
+	networkLoadBalancerPoolCmd := cmdNetworkLoadBalancerPool{global: c.global, networkLoadBalancer: c}
+	cmd.AddCommand(networkLoadBalancerPoolCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -1103,7 +1107,7 @@ func (c *cmdNetworkLoadBalancerPort) command() *cobra.Command {
 
 func (c *cmdNetworkLoadBalancerPort) commandAdd() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", "[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> <backend_name>[,<backend_name>...]")
+	cmd.Use = usage("add", "[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> <key>=<value>")
 	cmd.Short = "Add ports to a load balancer"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.RunE = c.runAdd
@@ -1155,16 +1159,31 @@ func (c *cmdNetworkLoadBalancerPort) runAdd(cmd *cobra.Command, args []string) e
 		client = client.UseTarget(c.networkLoadBalancer.flagTarget)
 	}
 
-	// Get the network load balancer.
-	loadBalancer, etag, err := client.GetNetworkLoadBalancer(resource.name, args[1])
+	port := api.NetworkLoadBalancerPort{
+		Protocol:   args[2],
+		ListenPort: args[3],
+	}
+
+	targetConfig, err := getConfig(args[4])
 	if err != nil {
 		return err
 	}
 
-	port := api.NetworkLoadBalancerPort{
-		Protocol:      args[2],
-		ListenPort:    args[3],
-		TargetBackend: shared.SplitNTrimSpace(args[4], ",", -1, false),
+	// Check if the port is used with backends or a pool.
+	targetBackends, ok := targetConfig["target_backend"]
+	if ok {
+		port.TargetBackend = shared.SplitNTrimSpace(targetBackends, ",", -1, false)
+	}
+
+	targetPool, ok := targetConfig["target_pool"]
+	if ok {
+		port.TargetPool = targetPool
+	}
+
+	// Get the network load balancer.
+	loadBalancer, etag, err := client.GetNetworkLoadBalancer(resource.name, args[1])
+	if err != nil {
+		return err
 	}
 
 	loadBalancer.Ports = append(loadBalancer.Ports, port)
@@ -1298,4 +1317,943 @@ func (c *cmdNetworkLoadBalancerPort) runRemove(cmd *cobra.Command, args []string
 	}
 
 	return err
+}
+
+// Add/List/Remove Pool.
+type cmdNetworkLoadBalancerPool struct {
+	global              *cmdGlobal
+	networkLoadBalancer *cmdNetworkLoadBalancer
+
+	flagFormat     string
+	flagIsProperty bool
+}
+
+func (c *cmdNetworkLoadBalancerPool) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("pool")
+	cmd.Short = "Manage network load balancer pools"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	// Pool Create.
+	cmd.AddCommand(c.commandCreate())
+
+	// Pool Edit.
+	cmd.AddCommand(c.commandEdit())
+
+	// Pool Get.
+	cmd.AddCommand(c.commandGet())
+
+	// Pool Info.
+	cmd.AddCommand(c.commandInfo())
+
+	// Pool Instance.
+	networkLoadBalancerPoolInstanceCmd := cmdNetworkLoadBalancerPoolInstance{global: c.global, networkLoadBalancerPool: c}
+	cmd.AddCommand(networkLoadBalancerPoolInstanceCmd.command())
+
+	// Pool List.
+	cmd.AddCommand(c.commandList())
+
+	// Pool Delete.
+	cmd.AddCommand(c.commandDelete())
+
+	// Pool Set.
+	cmd.AddCommand(c.commandSet())
+
+	// Pool Show.
+	cmd.AddCommand(c.commandShow())
+
+	// Pool Unset.
+	cmd.AddCommand(c.commandUnset())
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPool) commandCreate() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("create", "[<remote>:]<network> <pool_name> <key>=<value>...")
+	cmd.Short = "Add load balancer pool to a network"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.RunE = c.runCreate
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("network", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPool) runCreate(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing network name")
+	}
+
+	if args[1] == "" {
+		return errors.New("Missing pool name")
+	}
+
+	client := resource.server
+
+	loadBalancerPool := api.NetworkLoadBalancerPoolsPost{
+		Name: args[1],
+		NetworkLoadBalancerPoolPut: api.NetworkLoadBalancerPoolPut{
+			Config: make(map[string]string, 1),
+		},
+	}
+
+	keys, err := getConfig(args[2:]...)
+	if err != nil {
+		return err
+	}
+
+	maps.Copy(loadBalancerPool.Config, keys)
+
+	return client.CreateNetworkLoadBalancerPool(resource.name, loadBalancerPool)
+}
+
+func (c *cmdNetworkLoadBalancerPool) commandEdit() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("edit", "[<remote>:]<network> <pool_name>")
+	cmd.Short = "Edit load balancer pool configurations as YAML"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.RunE = c.runEdit
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("network", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpNetworkLoadBalancerPools(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPool) helpTemplate() string {
+	return `### This is a YAML representation of the network load balancer pool.
+### Any line starting with a '#' will be ignored.
+###
+### A network load balancer pool consists of a set of instances (each with an optional port) and healthcheck configuration.
+###
+### An example would look like:
+### name: pool1
+### description: ""
+### config:
+###  healthcheck.interval: "10"
+###  healthcheck.timeout: "10"
+###  protocol: tcp
+###  target_port: "443"
+### instances:
+### - name: c1
+### - name: c2
+### - name: c3
+###   target_port: "8443"
+###
+### Note that the name cannot be changed.`
+}
+
+func (c *cmdNetworkLoadBalancerPool) runEdit(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	if resource.name == "" {
+		return errors.New("Missing network name")
+	}
+
+	if args[1] == "" {
+		return errors.New("Missing pool name")
+	}
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		// Allow output of `lxc network load-balancer pool show` command to be passed in here, but only take the
+		// contents of the NetworkLoadBalancerPoolPut fields when updating.
+		// The other fields are silently discarded.
+		newData := api.NetworkLoadBalancerPool{}
+		err = yaml.UnmarshalStrict(contents, &newData)
+		if err != nil {
+			return err
+		}
+
+		newData.Normalise()
+
+		op, err := client.UpdateNetworkLoadBalancerPool(resource.name, args[1], newData.Writable(), "")
+		if err == nil {
+			err = op.Wait()
+		}
+
+		return err
+	}
+
+	// Get the current config.
+	loadBalancerPool, etag, err := client.GetNetworkLoadBalancerPool(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&loadBalancerPool)
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor.
+	content, err := shared.TextEditor("", []byte(c.helpTemplate()+"\n\n"+string(data)))
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Parse the text received from the editor.
+		newData := api.NetworkLoadBalancerPool{} // We show the full info, but only send the writable fields.
+		err = yaml.UnmarshalStrict(content, &newData)
+		if err == nil {
+			newData.Normalise()
+			op, err := client.UpdateNetworkLoadBalancerPool(resource.name, args[1], newData.Writable(), etag)
+			if err != nil {
+				return err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return err
+			}
+		}
+
+		// Respawn the editor.
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Config parsing error: %s\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
+
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		break
+	}
+
+	return nil
+}
+
+type cmdNetworkLoadBalancerPoolInstance struct {
+	global                  *cmdGlobal
+	networkLoadBalancerPool *cmdNetworkLoadBalancerPool
+}
+
+func (c *cmdNetworkLoadBalancerPoolInstance) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("instance")
+	cmd.Short = "Manage instances of network load balancer pool"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	// Instance Add.
+	cmd.AddCommand(c.commandAdd())
+
+	// Instance Remove.
+	cmd.AddCommand(c.commandRemove())
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPoolInstance) commandAdd() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("add", "[<remote>:]<network> <pool_name> <instance_name> [<target_port>]")
+	cmd.Short = "Add an instance to a network load balancer pool"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.RunE = c.runAdd
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("network", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpNetworkLoadBalancerPools(args[0])
+		}
+
+		if len(args) == 2 {
+			return c.global.cmpNetworkInstances(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPoolInstance) runAdd(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 3, 4)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing network name")
+	}
+
+	if args[1] == "" {
+		return errors.New("Missing pool name")
+	}
+
+	var targetPort string
+	if len(args) == 4 && args[3] != "" {
+		targetPort = args[3]
+	}
+
+	client := resource.server
+
+	loadBalancerPool, etag, err := client.GetNetworkLoadBalancerPool(resource.name, args[1])
+	if err != nil {
+		return fmt.Errorf("Failed loading network load balancer pool %q: %w", args[1], err)
+	}
+
+	for _, instance := range loadBalancerPool.Instances {
+		if instance.Name == args[2] {
+			return fmt.Errorf("Instance %q already exists in pool %q", args[2], args[1])
+		}
+	}
+
+	loadBalancerPoolPut := loadBalancerPool.Writable()
+	loadBalancerPoolPut.Instances = append(loadBalancerPoolPut.Instances, api.NetworkLoadBalancerPoolInstance{
+		Name:       args[2],
+		TargetPort: targetPort,
+	})
+
+	op, err := client.UpdateNetworkLoadBalancerPool(resource.name, args[1], loadBalancerPoolPut, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
+}
+
+func (c *cmdNetworkLoadBalancerPoolInstance) commandRemove() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("remove", "[<remote>:]<network> <pool_name> <instance_name>")
+	cmd.Short = "Remove an instance from a network load balancer pool"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.RunE = c.runRemove
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("network", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpNetworkLoadBalancerPools(args[0])
+		}
+
+		if len(args) == 2 {
+			return c.global.cmpNetworkLoadBalancerPoolInstances(args[0], args[1])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPoolInstance) runRemove(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing network name")
+	}
+
+	if args[1] == "" {
+		return errors.New("Missing pool name")
+	}
+
+	client := resource.server
+
+	loadBalancerPool, etag, err := client.GetNetworkLoadBalancerPool(resource.name, args[1])
+	if err != nil {
+		return fmt.Errorf("Failed loading network load balancer pool %q: %w", args[1], err)
+	}
+
+	var updatedInstances []api.NetworkLoadBalancerPoolInstance
+	for _, instance := range loadBalancerPool.Instances {
+		if instance.Name != args[2] {
+			updatedInstances = append(updatedInstances, instance)
+		}
+	}
+
+	if len(updatedInstances) == len(loadBalancerPool.Instances) {
+		return fmt.Errorf("Instance %q does not exist in pool %q", args[2], args[1])
+	}
+
+	loadBalancerPoolPut := loadBalancerPool.Writable()
+	loadBalancerPoolPut.Instances = updatedInstances
+
+	op, err := client.UpdateNetworkLoadBalancerPool(resource.name, args[1], loadBalancerPoolPut, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
+}
+
+func (c *cmdNetworkLoadBalancerPool) commandList() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("list", "[<remote>:]<network>")
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = "List available network load balancers pools"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.RunE = c.runList
+
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact"))
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("network", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPool) runList(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	remote := ""
+	if len(args) > 0 {
+		remote = args[0]
+	}
+
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing network name")
+	}
+
+	loadBalancerPools, err := resource.server.GetNetworkLoadBalancerPools(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data := make([][]string, 0, len(loadBalancerPools))
+	for _, loadBalancerPool := range loadBalancerPools {
+		details := []string{
+			loadBalancerPool.Name,
+			loadBalancerPool.Description,
+			loadBalancerPool.Config["target_port"],
+			strconv.Itoa(len(loadBalancerPool.Instances)),
+		}
+
+		data = append(data, details)
+	}
+
+	sort.Sort(cli.SortColumnsNaturally(data))
+
+	header := []string{
+		"NAME",
+		"DESCRIPTION",
+		"TARGET PORT",
+		"INSTANCES",
+	}
+
+	return cli.RenderTable(c.flagFormat, header, data, loadBalancerPools)
+}
+
+func (c *cmdNetworkLoadBalancerPool) commandDelete() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("delete", "[<remote>:]<network> <pool_name>")
+	cmd.Short = "Delete load balancer pool"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.RunE = c.runDelete
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("network", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpNetworkLoadBalancerPools(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPool) runDelete(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing network name")
+	}
+
+	if args[1] == "" {
+		return errors.New("Missing pool name")
+	}
+
+	client := resource.server
+	return client.DeleteNetworkLoadBalancerPool(resource.name, args[1])
+}
+
+// Set.
+func (c *cmdNetworkLoadBalancerPool) commandSet() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("set", "[<remote>:]<network> <pool_name> <key>=<value>...")
+	cmd.Short = "Set network load balancer pool keys"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.RunE = c.runSet
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Get the key as a network load balancer pool property")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("network", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpNetworkLoadBalancerPools(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPool) runSet(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing network name")
+	}
+
+	if args[1] == "" {
+		return errors.New("Missing pool name")
+	}
+
+	client := resource.server
+
+	// Get the current config.
+	loadBalancer, etag, err := client.GetNetworkLoadBalancerPool(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	if loadBalancer.Config == nil {
+		loadBalancer.Config = map[string]string{}
+	}
+
+	// Set the keys.
+	keys, err := getConfig(args[2:]...)
+	if err != nil {
+		return err
+	}
+
+	writable := loadBalancer.Writable()
+
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJSONTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf("Error unsetting property: %v", err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf("Error setting properties: %v", err)
+			}
+		}
+	} else {
+		maps.Copy(writable.Config, keys)
+	}
+
+	writable.Normalise()
+
+	op, err := client.UpdateNetworkLoadBalancerPool(resource.name, args[1], writable, etag)
+	if err == nil {
+		err = op.Wait()
+	}
+
+	return err
+}
+
+func (c *cmdNetworkLoadBalancerPool) commandUnset() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("unset", "[<remote>:]<network> <pool_name> <key>")
+	cmd.Short = "Unset network load balancer pool configuration key"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.RunE = c.runUnset
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Get the key as a network load balancer pool property")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("network", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpNetworkLoadBalancerPools(args[0])
+		}
+
+		if len(args) == 2 {
+			return c.global.cmpNetworkLoadBalancerPoolConfigs(args[0], args[1])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPool) runUnset(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
+	if exit {
+		return err
+	}
+
+	args = append(args, "")
+	return c.runSet(cmd, args)
+}
+
+func (c *cmdNetworkLoadBalancerPool) commandGet() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("get", "[<remote>:]<network> <pool_name> <key>")
+	cmd.Short = "Get value for network load balancer pool configuration key"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.RunE = c.runGet
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Get the key as a network load balancer pool property")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("network", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpNetworkLoadBalancerPools(args[0])
+		}
+
+		if len(args) == 2 {
+			return c.global.cmpNetworkLoadBalancerPoolConfigs(args[0], args[1])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPool) runGet(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	if resource.name == "" {
+		return errors.New("Missing network name")
+	}
+
+	if args[1] == "" {
+		return errors.New("Missing pool name")
+	}
+
+	// Get the current config.
+	loadBalancerPool, _, err := client.GetNetworkLoadBalancerPool(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	if c.flagIsProperty {
+		w := loadBalancerPool.Writable()
+		res, err := getFieldByJSONTag(&w, args[2])
+		if err != nil {
+			return fmt.Errorf("The property %q does not exist on the load balancer %q: %v", args[2], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		for k, v := range loadBalancerPool.Config {
+			if k == args[2] {
+				fmt.Printf("%s\n", v)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *cmdNetworkLoadBalancerPool) commandInfo() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("info", "[<remote>:]<network> <pool_name>")
+	cmd.Short = "Show load balancer pool state information"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.RunE = c.runInfo
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("network", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpNetworkLoadBalancerPools(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPool) runInfo(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	if resource.name == "" {
+		return errors.New("Missing network name")
+	}
+
+	if args[1] == "" {
+		return errors.New("Missing pool name")
+	}
+
+	// Get the current config.
+	loadBalancer, _, err := client.GetNetworkLoadBalancerPool(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	// Get the current state.
+	loadBalancerState, err := client.GetNetworkLoadBalancerPoolState(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	loadBalancerStateTargets := map[string][]map[string]string{}
+
+	// Build up the map of load balancer targets.
+	for _, target := range loadBalancerState.Targets {
+		vip := net.JoinHostPort(target.ListenAddress, target.ListenPort)
+
+		if loadBalancerStateTargets[vip] == nil {
+			// Initialize the slice with size 1 as we don't know if there are additional targets.
+			loadBalancerStateTargets[vip] = []map[string]string{}
+		}
+
+		targetConfig := map[string]string{
+			"instance": target.Name,
+			"device":   target.Device,
+			"status":   target.Status,
+		}
+
+		if target.Address != "" && target.Port != "" {
+			targetConfig["address"] = net.JoinHostPort(target.Address, target.Port)
+		}
+
+		loadBalancerStateTargets[vip] = append(loadBalancerStateTargets[vip], targetConfig)
+	}
+
+	// Declare the poolinfo map of maps in order to build up the yaml.
+	poolInfo := make(map[string]any)
+	poolInfo["info"] = map[string]string{
+		"description": loadBalancer.Description,
+		"name":        loadBalancer.Name,
+		"protocol":    loadBalancer.Config["protocol"],
+	}
+
+	poolInfo["load-balancers"] = loadBalancerStateTargets
+
+	// Convert pool info to YAML and print.
+	data, err := yaml.Marshal(poolInfo)
+	if err != nil {
+		return err
+	}
+
+	fmt.Print(string(data))
+	return nil
+}
+
+func (c *cmdNetworkLoadBalancerPool) commandShow() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("show", "[<remote>:]<network> <pool_name>")
+	cmd.Short = "Show load balancer pool"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.RunE = c.runShow
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("network", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpNetworkLoadBalancerPools(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdNetworkLoadBalancerPool) runShow(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing network name")
+	}
+
+	if args[1] == "" {
+		return errors.New("Missing pool name")
+	}
+
+	client := resource.server
+	pool, _, err := client.GetNetworkLoadBalancerPool(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	// Convert pool to YAML and print
+	data, err := yaml.Marshal(pool)
+	if err != nil {
+		return err
+	}
+
+	fmt.Print(string(data))
+	return nil
 }

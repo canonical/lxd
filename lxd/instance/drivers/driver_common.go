@@ -1895,6 +1895,11 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 
 		// If a device was returned from deviceLoad even if validation fails, then try to stop and remove.
 		if dev != nil {
+			err = dev.PreRemoveCheck()
+			if err != nil {
+				return nil, fmt.Errorf("Failed pre-remove check for device %q: %w", dev.Name(), err)
+			}
+
 			if instanceRunning {
 				err = dm.deviceStop(dev, instanceRunning, "")
 				if err != nil {

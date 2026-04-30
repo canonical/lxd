@@ -163,3 +163,103 @@ func (r *ProtocolLXD) DeleteNetworkLoadBalancer(networkName string, listenAddres
 
 	return op, nil
 }
+
+// CreateNetworkLoadBalancerPool defines a new network load balancer pool using the provided struct.
+func (r *ProtocolLXD) CreateNetworkLoadBalancerPool(networkName string, pool api.NetworkLoadBalancerPoolsPost) error {
+	err := r.CheckExtension("network_load_balancer_pool")
+	if err != nil {
+		return err
+	}
+
+	// Send the request.
+	u := api.NewURL().Path("networks", networkName, "load-balancer-pools")
+	_, _, err = r.query(http.MethodPost, u.String(), pool, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetNetworkLoadBalancerPools returns all network load balancer pool for provided network name.
+func (r *ProtocolLXD) GetNetworkLoadBalancerPools(networkName string) ([]api.NetworkLoadBalancerPool, error) {
+	err := r.CheckExtension("network_load_balancer_pool")
+	if err != nil {
+		return nil, err
+	}
+
+	var loadBalancerPools []api.NetworkLoadBalancerPool
+
+	// Send the request.
+	u := api.NewURL().Path("networks", networkName, "load-balancer-pools")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &loadBalancerPools)
+	if err != nil {
+		return nil, err
+	}
+
+	return loadBalancerPools, nil
+}
+
+// GetNetworkLoadBalancerPool returns a network load balancer pool by name in the provided network.
+func (r *ProtocolLXD) GetNetworkLoadBalancerPool(networkName string, poolName string) (*api.NetworkLoadBalancerPool, string, error) {
+	err := r.CheckExtension("network_load_balancer_pool")
+	if err != nil {
+		return nil, "", err
+	}
+
+	var loadBalancerPool api.NetworkLoadBalancerPool
+
+	// Send the request.
+	u := api.NewURL().Path("networks", networkName, "load-balancer-pools", poolName)
+	etag, err := r.queryStruct(http.MethodGet, u.String(), nil, "", &loadBalancerPool)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &loadBalancerPool, etag, nil
+}
+
+// GetNetworkLoadBalancerPoolState returns the state of a network load balancer pool by name in the provided network.
+func (r *ProtocolLXD) GetNetworkLoadBalancerPoolState(networkName string, poolName string) (*api.NetworkLoadBalancerPoolState, error) {
+	err := r.CheckExtension("network_load_balancer_pool")
+	if err != nil {
+		return nil, err
+	}
+
+	var loadBalancerPoolState api.NetworkLoadBalancerPoolState
+
+	// Send the request.
+	u := api.NewURL().Path("networks", networkName, "load-balancer-pools", poolName, "state")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &loadBalancerPoolState)
+	if err != nil {
+		return nil, err
+	}
+
+	return &loadBalancerPoolState, nil
+}
+
+// DeleteNetworkLoadBalancerPool deletes an existing network load balancer pool.
+func (r *ProtocolLXD) DeleteNetworkLoadBalancerPool(networkName string, poolName string) error {
+	err := r.CheckExtension("network_load_balancer_pool")
+	if err != nil {
+		return err
+	}
+
+	// Send the request.
+	u := api.NewURL().Path("networks", networkName, "load-balancer-pools", poolName)
+	_, _, err = r.query(http.MethodDelete, u.String(), nil, "")
+	return err
+}
+
+// UpdateNetworkLoadBalancerPool updates the network load balancer pool to match the provided struct.
+func (r *ProtocolLXD) UpdateNetworkLoadBalancerPool(networkName string, poolName string, pool api.NetworkLoadBalancerPoolPut, ETag string) (Operation, error) {
+	err := r.CheckExtension("network_load_balancer_pool")
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the request.
+	u := api.NewURL().Path("networks", networkName, "load-balancer-pools", poolName)
+	op, _, err := r.queryOperation(http.MethodPut, u.String(), pool, ETag, true)
+	return op, err
+}

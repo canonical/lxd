@@ -40,10 +40,17 @@ type Info struct {
 	Peering            bool // Indicates if the driver supports network peering.
 }
 
+type forwardTargetInstance struct {
+	name       string
+	uuid       string
+	deviceName string
+}
+
 // forwardTarget represents a single port forward target.
 type forwardTarget struct {
-	address net.IP
-	ports   []uint64
+	address  net.IP
+	instance *forwardTargetInstance
+	ports    []uint64
 }
 
 // forwardPortMap represents a mapping of listen port(s) to target port(s) for a protocol/target address pair.
@@ -53,10 +60,18 @@ type forwardPortMap struct {
 	target      forwardTarget
 }
 
+type loadBalancerHealthCheck struct {
+	interval     uint64
+	timeout      uint64
+	successCount uint64
+	failureCount uint64
+}
+
 type loadBalancerPortMap struct {
 	listenPorts []uint64
 	protocol    string
 	targets     []forwardTarget
+	healthCheck *loadBalancerHealthCheck
 }
 
 // subnetUsageType indicates the type of use for a subnet.
@@ -1418,10 +1433,44 @@ func (n *common) loadBalancerValidate(listenAddress net.IP, forward api.NetworkL
 			return nil, fmt.Errorf("Invalid port protocol in port specification %d, protocol must be one of: %s", portSpecID, strings.Join(validPortProcols, ", "))
 		}
 
+		if len(portSpec.TargetBackend) == 0 && portSpec.TargetPool == "" {
+			return nil, fmt.Errorf("Missing target_backend or target_pool in port specification %d", portSpecID)
+		}
+
+		if portSpec.TargetPool != "" {
+			if len(portSpec.TargetBackend) > 0 {
+				return nil, fmt.Errorf("Cannot specify both target_backend and target_pool in port specification %d", portSpecID)
+			}
+
+			listenPort, rangeSize, err := ParsePortRange(portSpec.ListenPort)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid listen port in port specification %d: %w", portSpecID, err)
+			}
+
+			_, found := listenPorts[portSpec.Protocol][listenPort]
+			if found {
+				return nil, fmt.Errorf("Duplicate listen port %d for protocol %q in port specification %d", listenPort, portSpec.Protocol, portSpecID)
+			}
+
+			if rangeSize > 1 {
+				return nil, fmt.Errorf("Port ranges cannot be used with pool in port specification %d", portSpecID)
+			}
+
+			// Record listen port as used.
+			listenPorts[portSpec.Protocol][listenPort] = struct{}{}
+
+			// Done validating the port when in pool mode.
+			continue
+		}
+
 		// Check valid listen port(s) supplied.
 		listenPortRanges := shared.SplitNTrimSpace(portSpec.ListenPort, ",", -1, true)
 		if len(listenPortRanges) <= 0 {
 			return nil, fmt.Errorf("Missing listen port in port specification %d", portSpecID)
+		}
+
+		if len(listenPortRanges) > 1 && portSpec.TargetPool != "" {
+			return nil, fmt.Errorf("Cannot use port ranges with pool in port specification %d", portSpecID)
 		}
 
 		portMap := loadBalancerPortMap{
@@ -1479,7 +1528,7 @@ func (n *common) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, c
 }
 
 // LoadBalancerUpdate returns ErrNotImplemented for drivers that do not support load balancers..
-func (n *common) LoadBalancerUpdate(listenAddress string, newLoadBalancer api.NetworkLoadBalancerPut, clientType request.ClientType) error {
+func (n *common) LoadBalancerUpdate(listenAddress string, newLoadBalancer api.NetworkLoadBalancerPut, clientType request.ClientType, force bool) error {
 	return ErrNotImplemented
 }
 
@@ -1724,4 +1773,24 @@ func (n *common) setAvailable() {
 	unavailableNetworksMu.Lock()
 	delete(unavailableNetworks, pn)
 	unavailableNetworksMu.Unlock()
+}
+
+// LoadBalancerPoolCreate returns ErrNotImplemented for drivers that do not support load balancer pools.
+func (n *common) LoadBalancerPoolCreate(loadBalancer api.NetworkLoadBalancerPoolsPost) error {
+	return ErrNotImplemented
+}
+
+// LoadBalancerPoolUpdate returns ErrNotImplemented for drivers that do not support load balancer pools.
+func (n *common) LoadBalancerPoolUpdate(poolName string, loadBalancerPool api.NetworkLoadBalancerPoolPut) error {
+	return ErrNotImplemented
+}
+
+// LoadBalancerPoolDelete returns ErrNotImplemented for drivers that do not support load balancer pools.
+func (n *common) LoadBalancerPoolDelete(poolName string) error {
+	return ErrNotImplemented
+}
+
+// LoadBalancerPoolState returns ErrNotImplemented for drivers that do not support load balancer pool state.
+func (n *common) LoadBalancerPoolState(poolName string) (*api.NetworkLoadBalancerPoolState, error) {
+	return nil, ErrNotImplemented
 }

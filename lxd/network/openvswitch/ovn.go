@@ -2,9 +2,11 @@ package openvswitch
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,8 +18,10 @@ import (
 
 	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/dnsutil"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // OVNRouter OVN router name.
@@ -142,8 +146,18 @@ type OVNACLRule struct {
 
 // OVNLoadBalancerTarget represents an OVN load balancer Virtual IP target.
 type OVNLoadBalancerTarget struct {
-	Address net.IP
-	Port    uint64
+	Address    net.IP
+	SwitchPort OVNSwitchPort
+	Port       uint64
+}
+
+// OVNLoadBalancerHealthCheck represents a OVN load balancer health check.
+type OVNLoadBalancerHealthCheck struct {
+	Interval      uint64
+	Timeout       uint64
+	SuccessCount  uint64
+	FailureCount  uint64
+	SourceAddress net.IP
 }
 
 // OVNLoadBalancerVIP represents a OVN load balancer Virtual IP entry.
@@ -152,6 +166,13 @@ type OVNLoadBalancerVIP struct {
 	ListenAddress net.IP
 	ListenPort    uint64
 	Targets       []OVNLoadBalancerTarget
+	HealthCheck   *OVNLoadBalancerHealthCheck
+}
+
+// OVNServiceMonitorStatus represents the status of an OVN load balancer target as reported by OVN's service monitor.
+type OVNServiceMonitorStatus struct {
+	Address net.IP
+	Status  string
 }
 
 // OVNRouterRoute represents a static route added to a logical router.
@@ -1174,6 +1195,18 @@ func (o *OVN) LogicalSwitchPortUUID(portName OVNSwitchPort) (OVNSwitchPortUUID, 
 	return "", nil
 }
 
+// LogicalSwitchPortIsUp returns whether the logical switch port is bound to a chassis and up.
+func (o *OVN) LogicalSwitchPortIsUp(portName OVNSwitchPort) (bool, error) {
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=up",
+		"find", "logical_switch_port",
+		"name="+string(portName))
+	if err != nil {
+		return false, fmt.Errorf("Failed getting switch port up status for %q: %w", portName, err)
+	}
+
+	return strings.TrimSpace(output) == "true", nil
+}
+
 // LogicalSwitchPortAdd adds a named logical switch port to a logical switch, and sets options if provided.
 // If mayExist is true, then an existing resource of the same name is not treated as an error.
 func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort, opts *OVNSwitchPortOpts, mayExist bool) error {
@@ -1904,46 +1937,250 @@ func (o *OVN) loadBalancerUUIDs(loadBalancerName OVNLoadBalancer) (map[string][]
 	return lbUUIDs, nil
 }
 
-// loadBalancerVIPs returns a slice of VIPs currently configured on the given load balancer.
-func (o *OVN) loadBalancerVIPs(loadBalancerName OVNLoadBalancer, protocol string) ([]string, error) {
+// loadBalancerConfig returns slices of the load balancer's current VIPs and ip_port_mappings targets.
+func (o *OVN) loadBalancerConfig(loadBalancerName OVNLoadBalancer, protocol string) (vips []string, targets []string, err error) {
 	lbName := string(loadBalancerName) + "-" + protocol
-	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=vips", "list", "load_balancer", lbName)
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=vips,ip_port_mappings", "list", "load_balancer", lbName)
 	if err != nil {
-		return nil, fmt.Errorf("Failed listing the VIPs of load balancer %q: %w", lbName, err)
+		return nil, nil, fmt.Errorf("Failed listing the config of load balancer %q: %w", lbName, err)
 	}
 
-	output, err = unquote(strings.TrimSpace(output))
+	// Use a CSV reader to properly handle any potential quoting.
+	// Simply splitting the output by command does not work as the "vips" value itself also use a comma as a separator.
+	r := csv.NewReader(strings.NewReader(output))
+	record, err := r.Read()
 	if err != nil {
-		return nil, fmt.Errorf("Failed unquoting VIPs output %q of load balancer %q: %w", output, lbName, err)
+		return nil, nil, fmt.Errorf("Failed parsing config of load balancer %q: %w", lbName, err)
 	}
 
-	vipTargets := strings.Fields(output)
-	vips := make([]string, 0, len(vipTargets))
+	if len(record) != 2 {
+		return nil, nil, fmt.Errorf("Unexpected column count %d in output of load balancer %q", len(record), lbName)
+	}
 
+	vipTargets := strings.Fields(record[0])
+	vips = make([]string, 0, len(vipTargets))
+
+	// Record all VIPs.
 	for _, vipTarget := range vipTargets {
 		before, _, found := strings.Cut(vipTarget, "=")
 		if !found {
-			return nil, fmt.Errorf("Invalid line %q in VIPs output of load balancer %q", vipTarget, lbName)
+			return nil, nil, fmt.Errorf("Invalid line %q in VIPs output of load balancer %q", vipTarget, lbName)
 		}
 
 		vips = append(vips, before)
 	}
 
-	return vips, nil
+	ipPortMappings := strings.Fields(record[1])
+	targets = make([]string, 0, len(ipPortMappings))
+
+	// Record all targets.
+	for _, ipPortMapping := range ipPortMappings {
+		kv := strings.SplitN(ipPortMapping, "=", 2)
+		if len(kv) != 2 {
+			return nil, nil, fmt.Errorf("Invalid line %q in ip_port_mappings output of load balancer %q", ipPortMapping, lbName)
+		}
+
+		targets = append(targets, kv[0])
+	}
+
+	return vips, targets, nil
+}
+
+// ipToString wraps IPv6 addresses in square brackets.
+func (o *OVN) ipToString(ip net.IP) string {
+	if ip.To4() == nil {
+		return "[" + ip.String() + "]"
+	}
+
+	return ip.String()
+}
+
+// LoadBalancerHealthCheckGet returns the UUID of the health check for the given VIP.
+func (o *OVN) LoadBalancerHealthCheckGet(vip string) (string, error) {
+	// Check if a health check already exists for this VIP.
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid",
+		"find", "load_balancer_health_check", `vip="`+vip+`"`)
+	if err != nil {
+		return "", err
+	}
+
+	hcUUID := strings.TrimSpace(output)
+	if hcUUID != "" {
+		// Health check for this VIP already exists.
+		return hcUUID, nil
+	}
+
+	return "", api.StatusErrorf(http.StatusNotFound, "Failed finding health check for vip %q", vip)
+}
+
+// LoadBalancerHealthCheckAdd adds a health check for the given VIP and the necessary port mappings for all targets.
+// If it already exists it ensures the health check options are update to date.
+func (o *OVN) LoadBalancerHealthCheckAdd(loadBalancerName OVNLoadBalancer, loadBalancerVIP OVNLoadBalancerVIP) error {
+	if loadBalancerVIP.HealthCheck == nil {
+		return errors.New("Health check configuration is missing")
+	}
+
+	for _, target := range loadBalancerVIP.Targets {
+		err := o.LoadBalancerHealthCheckMappingAdd(loadBalancerName, loadBalancerVIP.Protocol, loadBalancerVIP.HealthCheck.SourceAddress, target)
+		if err != nil {
+			return fmt.Errorf("Failed adding health check mapping between vip %q and target %q: %w", loadBalancerVIP.HealthCheck.SourceAddress.String(), target.Address.String(), err)
+		}
+	}
+
+	vipStr := o.ipToString(loadBalancerVIP.ListenAddress) + ":" + strconv.FormatUint(loadBalancerVIP.ListenPort, 10)
+	hcUUID, err := o.LoadBalancerHealthCheckGet(vipStr)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed checking if health check exists for vip %q: %w", vipStr, err)
+	}
+
+	args := []string{}
+
+	interval := strconv.FormatUint(loadBalancerVIP.HealthCheck.Interval, 10)
+	timeout := strconv.FormatUint(loadBalancerVIP.HealthCheck.Timeout, 10)
+	successCount := strconv.FormatUint(loadBalancerVIP.HealthCheck.SuccessCount, 10)
+	failureCount := strconv.FormatUint(loadBalancerVIP.HealthCheck.FailureCount, 10)
+
+	if hcUUID == "" {
+		// Create a new health check.
+		args = append(args,
+			"--id=@id",
+			"create",
+			"load_balancer_health_check",
+			`vip="`+vipStr+`"`,
+			"options:interval="+interval,
+			"options:timeout="+timeout,
+			"options:success_count="+successCount,
+			"options:failure_count="+failureCount,
+		)
+
+		loadBalancerProtocolName := string(loadBalancerName) + "-" + loadBalancerVIP.Protocol
+		args = append(args,
+			"--",
+			"add",
+			"load_balancer",
+			loadBalancerProtocolName,
+			"health_check",
+			"@id",
+		)
+	} else {
+		// Update existing health check.
+		args = append(args,
+			"set",
+			"load_balancer_health_check",
+			hcUUID,
+			"options:interval="+interval,
+			"options:timeout="+timeout,
+			"options:success_count="+successCount,
+			"options:failure_count="+failureCount,
+		)
+	}
+
+	// Add the load balancer health check.
+	_, err = o.nbctl(args...)
+	if err != nil {
+		return fmt.Errorf("Failed adding health check for vip %q: %w", vipStr, err)
+	}
+
+	return nil
+}
+
+// LoadBalancerHealthCheckDelete removes the health check for the given VIP from the load balancer.
+// If it doesn't exist its a noop.
+func (o *OVN) LoadBalancerHealthCheckDelete(loadBalancerProtocolName string, vip string) error {
+	output, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--columns=_uuid",
+		"find", "load_balancer_health_check", `vip="`+vip+`"`)
+	if err != nil {
+		return fmt.Errorf("Failed finding health check for vip %q: %w", vip, err)
+	}
+
+	hcUUID := strings.TrimSpace(output)
+	if hcUUID != "" {
+		// Remove the health check from the load balancer. This also
+		// destroys the now-unreferenced health check row.
+		_, err = o.nbctl("remove", "load_balancer", loadBalancerProtocolName, "health_check", hcUUID)
+		if err != nil {
+			return fmt.Errorf("Failed deleting health check for vip %q on load balancer %q: %w", vip, loadBalancerProtocolName, err)
+		}
+	}
+
+	return nil
+}
+
+// LoadBalancerHealthCheckMappingAdd adds a port mapping for the given target.
+// If it alreay exist its a noop.
+func (o *OVN) LoadBalancerHealthCheckMappingAdd(loadBalancerName OVNLoadBalancer, loadBalancerProtocol string, sourceAddress net.IP, target OVNLoadBalancerTarget) error {
+	args := make([]string, 0, 5)
+
+	loadBalancerProtocolName := string(loadBalancerName) + "-" + loadBalancerProtocol
+
+	args = append(args,
+		"add",
+		"load_balancer",
+		loadBalancerProtocolName,
+		"ip_port_mappings",
+		`"`+o.ipToString(target.Address)+`"="`+string(target.SwitchPort)+":"+o.ipToString(sourceAddress)+`"`,
+	)
+
+	// Add the load balancer health check mappings.
+	_, err := o.nbctl(args...)
+	return err
+}
+
+// LoadBalancerHealthCheckMappingDelete removes the port mapping for the given target.
+// If it doesn't exist its a noop.
+func (o *OVN) LoadBalancerHealthCheckMappingDelete(loadBalancerProtocolName string, targetAddress string) error {
+	args := make([]string, 0, 5)
+
+	args = append(args,
+		"remove",
+		"load_balancer",
+		loadBalancerProtocolName,
+		"ip_port_mappings",
+		`"`+targetAddress+`"`,
+	)
+	_, err := o.nbctl(args...)
+	return err
+}
+
+// ServiceMonitorStatusGet returns the service monitor's status for the given switch port.
+// The targetPort is used to filter the results in case the switchPort is used by multiple VIPs with different target ports.
+// A status is returned for each address configured on the port.
+func (o *OVN) ServiceMonitorStatusGet(switchPort OVNSwitchPort, targetPort string) ([]OVNServiceMonitorStatus, error) {
+	output, err := o.sbctl("--format=csv", "--no-headings", "--data=bare", "--columns=ip,status", "find", "Service_Monitor",
+		"logical_port="+string(switchPort), "port="+targetPort,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting service monitor status for switch port %q: %w", switchPort, err)
+	}
+
+	lines := shared.SplitNTrimSpace(output, "\n", -1, true)
+	addressToStatus := make([]OVNServiceMonitorStatus, 0, len(lines))
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		// 10.135.198.3,online
+		// fd42:b0f:7376:f557:216:3eff:fe32:2d63,offline
+		rowParts := strings.SplitN(line, ",", 2)
+
+		if len(rowParts) != 2 {
+			return nil, fmt.Errorf("Invalid service monitor status response line: %q", line)
+		}
+
+		addressToStatus = append(addressToStatus, OVNServiceMonitorStatus{
+			Address: net.ParseIP(rowParts[0]),
+			Status:  rowParts[1],
+		})
+	}
+
+	return addressToStatus, nil
 }
 
 // LoadBalancerApply creates a new load balancer (if doesn't exist) on the specified routers and switches.
 // Providing an empty set of vips will delete the load balancer.
 func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNRouter, switches []OVNSwitch, vips ...OVNLoadBalancerVIP) error {
-	// ipToString wraps IPv6 addresses in square brackets.
-	ipToString := func(ip net.IP) string {
-		if ip.To4() == nil {
-			return "[" + ip.String() + "]"
-		}
-
-		return ip.String()
-	}
-
 	// deleteLBArgs returns the args for load balancer deletion.
 	deleteLBArgs := func(args []string, lbUUID string) []string {
 		if len(args) > 0 {
@@ -1954,6 +2191,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 	}
 
 	allVIPsForProtocol := map[string][]string{}
+	allMappingsForLB := map[string][]string{}
 
 	// Get a view of all load balancers matching the given name.
 	lbUUIDs, err := o.loadBalancerUUIDs(loadBalancerName)
@@ -2000,6 +2238,13 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 			return errors.New("Missing VIP target(s)")
 		}
 
+		// In case no protocol is set, default to TCP as OVN does.
+		if vip.Protocol == "" {
+			vip.Protocol = "tcp"
+		}
+
+		lbName := string(loadBalancerName) + "-" + vip.Protocol
+
 		targetArgs := make([]string, 0, len(vip.Targets))
 
 		// Generate a list of load balancer targets.
@@ -2008,10 +2253,27 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 				return errors.New("The listen and target ports must be specified together")
 			}
 
+			ipStr := o.ipToString(target.Address)
+
 			if vip.ListenPort > 0 {
-				targetArgs = append(targetArgs, ipToString(target.Address)+":"+strconv.FormatUint(target.Port, 10))
+				targetArgs = append(targetArgs, ipStr+":"+strconv.FormatUint(target.Port, 10))
 			} else {
-				targetArgs = append(targetArgs, ipToString(target.Address))
+				targetArgs = append(targetArgs, ipStr)
+			}
+
+			// Record the VIP for this protocol.
+			if allVIPsForProtocol[vip.Protocol] == nil {
+				allVIPsForProtocol[vip.Protocol] = []string{}
+			}
+
+			// Record the targets for this load balancer.
+			if allMappingsForLB[lbName] == nil {
+				allMappingsForLB[lbName] = []string{}
+			}
+
+			// Record the mapping only if health check is configured.
+			if vip.HealthCheck != nil {
+				allMappingsForLB[lbName] = append(allMappingsForLB[lbName], ipStr)
 			}
 		}
 
@@ -2019,20 +2281,14 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 			args = append(args, "--")
 		}
 
-		// In case no protocol is set, default to TCP as OVN does.
-		if vip.Protocol == "" {
-			vip.Protocol = "tcp"
-		}
-
 		// Append all requested targets to the load balancer VIP.
-		lbName := string(loadBalancerName) + "-" + vip.Protocol
 		args = append(args, "--may-exist", "lb-add", lbName)
 
-		vipStr := ipToString(vip.ListenAddress)
+		vipStr := o.ipToString(vip.ListenAddress)
 		joinedTargets := strings.Join(targetArgs, ",")
 
 		if vip.ListenPort > 0 {
-			vipStr = ipToString(vip.ListenAddress) + ":" + strconv.FormatUint(vip.ListenPort, 10)
+			vipStr = o.ipToString(vip.ListenAddress) + ":" + strconv.FormatUint(vip.ListenPort, 10)
 			args = append(args, vipStr, joinedTargets, vip.Protocol)
 		} else {
 			args = append(args, vipStr, joinedTargets)
@@ -2057,7 +2313,7 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 
 		lbName := string(loadBalancerName) + "-" + protocol
 
-		currentVIPs, err := o.loadBalancerVIPs(loadBalancerName, protocol)
+		currentVIPs, currentMappings, err := o.loadBalancerConfig(loadBalancerName, protocol)
 		if err == nil {
 			for _, currentVIP := range currentVIPs {
 				if !slices.Contains(allVIPsForProtocol[protocol], currentVIP) {
@@ -2066,6 +2322,22 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 					}
 
 					args = append(args, "--if-exists", "lb-del", lbName, currentVIP)
+
+					// Remove the obsolete health check if exists.
+					err = o.LoadBalancerHealthCheckDelete(lbName, currentVIP)
+					if err != nil {
+						return err
+					}
+				}
+			}
+
+			for _, currentMapping := range currentMappings {
+				if !slices.Contains(allMappingsForLB[lbName], currentMapping) {
+					// Remove the obsolete mapping if exists.
+					err = o.LoadBalancerHealthCheckMappingDelete(lbName, currentMapping)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -2092,6 +2364,24 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 		_, err := o.nbctl(args...)
 		if err != nil {
 			return err
+		}
+	}
+
+	// Apply the load balancer health check changes.
+	// Unset health checks for VIPs that don't require it anymore.
+	for _, vip := range vips {
+		vipStr := o.ipToString(vip.ListenAddress) + ":" + strconv.FormatUint(vip.ListenPort, 10)
+
+		if vip.HealthCheck != nil {
+			err = o.LoadBalancerHealthCheckAdd(loadBalancerName, vip)
+			if err != nil {
+				return fmt.Errorf("Failed setting up health check for vip %q on port %d using protocol %q: %w", vipStr, vip.ListenPort, vip.Protocol, err)
+			}
+		} else {
+			err = o.LoadBalancerHealthCheckDelete(string(loadBalancerName)+"-"+vip.Protocol, vipStr)
+			if err != nil {
+				return fmt.Errorf("Failed removing health check for vip %q on port %d using protocol %q: %w", vipStr, vip.ListenPort, vip.Protocol, err)
+			}
 		}
 	}
 
@@ -2543,4 +2833,26 @@ func (o *OVN) GetLogicalRouterPortActiveChassisHostname(ovnRouterPort OVNRouterP
 	}
 
 	return strings.TrimSpace(hostname), err
+}
+
+// GetNorthdVersion gets the northd internal version from the NB_Global table.
+func (o *OVN) GetNorthdVersion() (*version.DottedVersion, error) {
+	output, err := o.nbctl("get", "NB_Global", ".", "options:northd_internal_version")
+	if err != nil {
+		return nil, err
+	}
+
+	output, err = unquote(strings.TrimSpace(output))
+	if err != nil {
+		return nil, fmt.Errorf("Failed unquoting northd_internal_version %q: %w", output, err)
+	}
+
+	// MicroOVN uses the format "25.09.90-21.7.0-82.12".
+	// Upstream OVN just uses the format "25.09.90".
+	rowParts := strings.SplitN(output, "-", 2)
+	if len(rowParts) < 1 {
+		return nil, fmt.Errorf("Failed splitting northd_internal_version %q", output)
+	}
+
+	return version.NewDottedVersion(rowParts[0])
 }

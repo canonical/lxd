@@ -3499,10 +3499,17 @@ Possible values are `tcp` and `udp`.
 ```
 
 ```{config:option} target_backend network-load-balancer-load-balancer-port-properties
-:required: "yes"
+:required: "no"
 :shortdesc: "Backend name or names to forward to"
 :type: "backend list"
+Either a list of backends or a instance pool is required.
+```
 
+```{config:option} target_pool network-load-balancer-load-balancer-port-properties
+:required: "no"
+:shortdesc: "Pool of instances to forward to"
+:type: "string"
+Either a list of backends or a instance pool is required.
 ```
 
 <!-- config group network-load-balancer-load-balancer-port-properties end -->
@@ -3543,6 +3550,63 @@ See {ref}`network-load-balancers-port-specifications`.
 ```
 
 <!-- config group network-load-balancer-load-balancer-properties end -->
+<!-- config group network-load-balancer-pool-properties start -->
+```{config:option} healthcheck network-load-balancer-pool-properties
+:defaultdesc: "`true`"
+:required: "no"
+:shortdesc: "Whether to enable or disable health checks"
+:type: "bool"
+
+```
+
+```{config:option} healthcheck.failure_count network-load-balancer-pool-properties
+:defaultdesc: "`1`"
+:required: "no"
+:shortdesc: "Failed probe attempts after which an instance is considered unhealthy."
+:type: "integer"
+
+```
+
+```{config:option} healthcheck.interval network-load-balancer-pool-properties
+:defaultdesc: "`5`"
+:required: "no"
+:shortdesc: "Interval in which to probe the pool's instances."
+:type: "integer"
+
+```
+
+```{config:option} healthcheck.success_count network-load-balancer-pool-properties
+:defaultdesc: "`1`"
+:required: "no"
+:shortdesc: "Successful probe attempts after which an instance is considered healthy."
+:type: "integer"
+
+```
+
+```{config:option} healthcheck.timeout network-load-balancer-pool-properties
+:defaultdesc: "`3`"
+:required: "no"
+:shortdesc: "Timeout after a probe appears to be faulty."
+:type: "integer"
+
+```
+
+```{config:option} protocol network-load-balancer-pool-properties
+:defaultdesc: "`tcp`"
+:required: "no"
+:shortdesc: "Protocol used for ingress pool traffic."
+:type: "string"
+Can be either tcp or udp.
+```
+
+```{config:option} target_port network-load-balancer-pool-properties
+:required: "yes"
+:shortdesc: "Port used on instances for ingress pool traffic"
+:type: "string"
+
+```
+
+<!-- config group network-load-balancer-pool-properties end -->
 <!-- config group network-macvlan-network-conf start -->
 ```{config:option} gvrp network-macvlan-network-conf
 :defaultdesc: "`false`"
