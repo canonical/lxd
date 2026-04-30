@@ -1051,6 +1051,36 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 		localInstsByName[inst.Name()] = inst
 	}
 
+	// Load all instances in the project across all cluster members so that
+	// forward replication covers instances on remote members too.
+	var allProjectInsts []db.InstanceArgs
+	var nodeAddressByName map[string]string
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		err := tx.InstanceList(ctx, func(inst db.InstanceArgs, _ api.Project) error {
+			allProjectInsts = append(allProjectInsts, inst)
+			return nil
+		}, dbCluster.InstanceFilter{Project: &projectName})
+		if err != nil {
+			return fmt.Errorf("Failed listing all project instances: %w", err)
+		}
+
+		// Pre-load node addresses for remote instance handling.
+		nodes, err := tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed listing cluster members: %w", err)
+		}
+
+		nodeAddressByName = make(map[string]string, len(nodes))
+		for _, node := range nodes {
+			nodeAddressByName[node.Name] = node.Address
+		}
+
+		return nil
+	})
+	if err != nil {
+		return operations.OperationArgs{}, fmt.Errorf("Failed loading cluster instance state: %w", err)
+	}
+
 	// In restore mode, all local instances must be stopped before proceeding.
 	// The restore operation refreshes each existing local instance from the remote leader
 	// and creates any that only exist on the leader; a running instance cannot be refreshed.
@@ -1079,9 +1109,20 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 			iterNames = append(iterNames, ri.Name)
 		}
 	} else {
-		iterNames = make([]string, 0, len(localInsts))
-		for _, inst := range localInsts {
-			iterNames = append(iterNames, inst.Name())
+		// Forward replication: iterate over all instances in the project,
+		// including those on remote cluster members.
+		iterNames = make([]string, 0, len(allProjectInsts))
+		for _, dbInst := range allProjectInsts {
+			iterNames = append(iterNames, dbInst.Name)
+		}
+	}
+
+	// Build a lookup of instance name to hosting node address for remote instances.
+	remoteInstAddresses := make(map[string]string)
+	for _, dbInst := range allProjectInsts {
+		_, isLocal := localInstsByName[dbInst.Name]
+		if !isLocal {
+			remoteInstAddresses[dbInst.Name] = nodeAddressByName[dbInst.Node]
 		}
 	}
 
@@ -1113,20 +1154,6 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 					}
 
 					return fmt.Errorf("Failed getting instance %q from remote: %w", instName, err)
-				}
-
-				// Only create a snapshot if the instance has no existing snapshot schedule.
-				// When a schedule is set, the most recent existing snapshot is reused.
-				if snapshot && freshInst.ExpandedConfig["snapshots.schedule"] == "" {
-					snapOp, err := dstClient.CreateInstanceSnapshot(instName, api.InstanceSnapshotsPost{})
-					if err != nil {
-						return fmt.Errorf("Failed creating snapshot of instance %q: %w", instName, err)
-					}
-
-					err = snapOp.Wait()
-					if err != nil {
-						return fmt.Errorf("Failed waiting for snapshot of instance %q: %w", instName, err)
-					}
 				}
 
 				remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{Migration: true})
@@ -1176,7 +1203,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 						Operation:   remoteOpURL,
 						Websockets:  remoteSecrets,
 						Certificate: targetCertPEM,
-						Refresh:     inst != nil,
+						Refresh:     true,
 					},
 				}
 
@@ -1194,6 +1221,14 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 
 				result.revert.Success()
 				return remoteMigrateOp.Wait()
+			}
+
+			// Remote instance: the instance lives on a different cluster member.
+			// Connect to the hosting member and drive the snapshot + push migration
+			// through its API so the migration source has direct access to the
+			// instance's storage.
+			if inst == nil {
+				return replicateRemoteInstance(ctx, s, instName, projectName, remoteInstAddresses[instName], snapshot, dstClient, targetCertPEM)
 			}
 
 			if snapshot && inst.ExpandedConfig()["snapshots.schedule"] == "" {
@@ -1345,6 +1380,104 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 			})
 		},
 	}, nil
+}
+
+// replicateRemoteInstance handles forward replication for an instance that lives
+// on a different cluster member. It connects to the hosting member, optionally
+// creates a snapshot, then sets up a push-mode migration from the hosting member
+// to the destination cluster.
+func replicateRemoteInstance(ctx context.Context, s *state.State, instName string, projectName string, hostAddress string, snapshot bool, dstClient lxd.InstanceServer, targetCertPEM string) error {
+	if hostAddress == "" {
+		return fmt.Errorf("Failed resolving cluster member address for instance %q", instName)
+	}
+
+	// Connect to the hosting cluster member.
+	hostClient, err := lxdCluster.Connect(ctx, hostAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+	if err != nil {
+		return fmt.Errorf("Failed connecting to cluster member hosting instance %q: %w", instName, err)
+	}
+
+	hostClient = hostClient.UseProject(projectName)
+
+	// Get instance metadata from the hosting member.
+	srcInstInfo, _, err := hostClient.GetInstance(instName)
+	if err != nil {
+		return fmt.Errorf("Failed getting instance %q from hosting member: %w", instName, err)
+	}
+
+	// Create a snapshot on the hosting member if needed.
+	if snapshot && srcInstInfo.ExpandedConfig["snapshots.schedule"] == "" {
+		snapOp, err := hostClient.CreateInstanceSnapshot(instName, api.InstanceSnapshotsPost{})
+		if err != nil {
+			return fmt.Errorf("Failed creating snapshot of instance %q on hosting member: %w", instName, err)
+		}
+
+		err = snapOp.Wait()
+		if err != nil {
+			return fmt.Errorf("Failed waiting for snapshot of instance %q on hosting member: %w", instName, err)
+		}
+	}
+
+	// Re-fetch after snapshot so the writable metadata includes the new snapshot.
+	srcInstInfo, _, err = hostClient.GetInstance(instName)
+	if err != nil {
+		return fmt.Errorf("Failed getting instance %q after snapshot: %w", instName, err)
+	}
+
+	// Set up a push-mode migration sink on the destination.
+	destOp, err := dstClient.CreateInstance(api.InstancesPost{
+		Name:        instName,
+		InstancePut: srcInstInfo.Writable(),
+		Type:        api.InstanceType(srcInstInfo.Type),
+		Source: api.InstanceSource{
+			Type:    api.SourceTypeMigration,
+			Mode:    "push",
+			Refresh: true,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("Failed requesting instance create on destination for %q: %w", instName, err)
+	}
+
+	destOpCancelled := false
+	defer func() {
+		if !destOpCancelled {
+			_ = destOp.Cancel()
+		}
+	}()
+
+	destOpAPI := destOp.Get()
+	destSecrets, err := destOpAPI.WebsocketSecrets()
+	if err != nil {
+		return fmt.Errorf("Failed getting websocket secrets from destination for instance %q: %w", instName, err)
+	}
+
+	dstConnInfo, err := dstClient.GetConnectionInfo()
+	if err != nil {
+		return fmt.Errorf("Failed getting connection info for destination: %w", err)
+	}
+
+	// Tell the hosting member to push-migrate the instance to the destination.
+	srcMigrateOp, err := hostClient.MigrateInstance(instName, api.InstancePost{
+		Migration: true,
+		Target: &api.InstancePostTarget{
+			Operation:   dstConnInfo.URL + "/1.0/operations/" + destOpAPI.ID,
+			Websockets:  destSecrets,
+			Certificate: targetCertPEM,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("Failed starting push migration for instance %q: %w", instName, err)
+	}
+
+	destOpCancelled = true
+
+	err = srcMigrateOp.Wait()
+	if err != nil {
+		return fmt.Errorf("Replication of instance %q failed on hosting member: %w", instName, err)
+	}
+
+	return destOp.Wait()
 }
 
 // runScheduledReplicators loads all replicators, checks their schedule config key against the current

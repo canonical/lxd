@@ -301,6 +301,8 @@ jobs:
             backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: cluster_storage
             backends: all
+          - group: replicator_storage
+            backends: all
           - group: image
             backends: fasts
           - group: instance
