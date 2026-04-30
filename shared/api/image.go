@@ -78,8 +78,10 @@ type ImagesPostSource struct {
 	// Example: instance
 	Type SourceType `json:"type" yaml:"type"`
 
-	// Source URL (for type "url")
+	// Source URL (deprecated, image download from URL is no longer supported)
 	// Example: https://some-server.com/some-directory/
+	//
+	// Deprecated: Image download from URL is no longer supported.
 	URL string `json:"url" yaml:"url"`
 
 	// Instance name (for type "instance" or "snapshot")
