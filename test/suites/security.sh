@@ -247,6 +247,195 @@ test_security_events() {
   rm -f "${monfile_lifecycle}"
 }
 
+test_security_sys_events() {
+  # Spawn a dedicated LXD daemon so the startup and shutdown cycle is
+  # isolated from the shared per-suite daemon.
+  local LXD_SYS_DIR
+  LXD_SYS_DIR="$(mktemp --directory --tmpdir="${TEST_DIR}" XXX)"
+  spawn_lxd "${LXD_SYS_DIR}" false
+
+  local loki_log="${TEST_DIR}/loki.logs"
+  kill_loki
+  rm -f "${loki_log}"
+  spawn_loki
+
+  # sys_startup is broadcast at the end of Daemon.Start before any
+  # /1.0/events client can subscribe, so Loki, whose client is
+  # initialised from persisted config at startup, is the only sink that
+  # can witness it.
+  LXD_DIR="${LXD_SYS_DIR}" lxc config set \
+    loki.api.url=http://127.0.0.1:3100 \
+    loki.auth.username=loki \
+    loki.auth.password=pass \
+    loki.types=security
+
+  sub_test "Verify sys_startup is forwarded to Loki on daemon start"
+  shutdown_lxd "${LXD_SYS_DIR}"
+  respawn_lxd "${LXD_SYS_DIR}" true
+
+  for _ in $(seq 10); do
+    jq --exit-status '.streams[].values[][1] | fromjson | select(.event == "sys_startup")' "${loki_log}" && break
+    sleep 1
+  done
+
+  jq --exit-status '.streams[].values[][1] | fromjson | select(.event == "sys_startup") | (.level == "info") and (.description == "LXD daemon started") and (.useragent == null)' "${loki_log}"
+
+  sub_test "Verify sys_shutdown fires when the daemon stops"
+  # sys_shutdown is broadcast inside Daemon.Stop before the event server
+  # is torn down. A pre-subscribed lxc monitor reliably captures it
+  # because the WebSocket flushes pending frames before close.
+  local monfile="${TEST_DIR}/security-sys-shutdown.jsonl"
+  LXD_DIR="${LXD_SYS_DIR}" lxc monitor --type=security --format=json > "${monfile}" &
+  local mon_pid=$!
+  for _ in $(seq 10); do
+    kill -0 "${mon_pid}" && break
+    sleep 1
+  done
+  kill -0 "${mon_pid}"
+
+  shutdown_lxd "${LXD_SYS_DIR}"
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "sys_shutdown")) | length >= 1' "${monfile}" && break
+    sleep 1
+  done
+
+  jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "sys_shutdown")) | .[0] | (.metadata.level == "info") and (.metadata.description == "LXD daemon stopping") and (.metadata | has("requestor") | not)' "${monfile}"
+
+  kill_go_proc "${mon_pid}" || true
+  kill_lxd "${LXD_SYS_DIR}"
+  kill_loki
+  rm -f "${loki_log}" "${monfile}"
+}
+
+test_security_user_events() {
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  local monfile="${TEST_DIR}/security-user-events.jsonl"
+  lxc monitor --type=security --format=json > "${monfile}" &
+  local mon_pid=$!
+  for _ in $(seq 10); do
+    kill -0 "${mon_pid}" && break
+    sleep 1
+  done
+  kill -0 "${mon_pid}"
+
+  local lifecycle_monfile="${TEST_DIR}/security-user-events-lifecycle.jsonl"
+  lxc monitor --type=lifecycle --format=json > "${lifecycle_monfile}" &
+  local lifecycle_mon_pid=$!
+  for _ in $(seq 10); do
+    kill -0 "${lifecycle_mon_pid}" && break
+    sleep 1
+  done
+  kill -0 "${lifecycle_mon_pid}"
+
+  sub_test "Verify user_created fires when a bearer identity is created"
+  lxc auth identity create bearer/security-user-events-bearer
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "user_created")) | length >= 1' "${monfile}" && break
+    sleep 1
+  done
+
+  jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "user_created")) | length == 1' "${monfile}"
+  # OWASP-required fields populated by the request middleware: caller protocol
+  # and address (lxc client uses TLS over the local socket), the request URI,
+  # and the HTTP method.
+  jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "user_created")) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity created") and (.metadata.request_method == "POST") and (.metadata.request_path == "/1.0/auth/identities/bearer") and (.metadata.requestor.protocol != "") and (.metadata.requestor.address != "")' "${monfile}"
+
+  sub_test "Verify user_updated fires when a bearer identity is modified"
+  lxc auth group create security-user-events-group
+  lxc auth identity group add bearer/security-user-events-bearer security-user-events-group
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "user_updated")) | length >= 1' "${monfile}" && break
+    sleep 1
+  done
+
+  jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "user_updated")) | length == 1' "${monfile}"
+  jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "user_updated")) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity updated") and (.metadata.requestor.protocol != "")' "${monfile}"
+
+  sub_test "Verify user_deleted fires when a bearer identity is removed"
+  lxc auth identity delete bearer/security-user-events-bearer
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "user_deleted")) | length >= 1' "${monfile}" && break
+    sleep 1
+  done
+
+  jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "user_deleted")) | length == 1' "${monfile}"
+  jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "user_deleted")) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity deleted") and (.metadata.request_method == "DELETE")' "${monfile}"
+
+  sub_test "Verify lifecycle and security events coexist 1:1 with no duplication"
+  # Each of the three actions raised exactly one lifecycle event and one
+  # security event; cross-stream counts must match. Bearer identities
+  # are addressed in lifecycle URLs by their generated UUID, not their
+  # friendly name, so match the source by prefix.
+  jq --exit-status --slurp 'map(select(.type == "lifecycle" and .metadata.action == "identity-created" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length == 1' "${lifecycle_monfile}"
+  jq --exit-status --slurp 'map(select(.type == "lifecycle" and .metadata.action == "identity-updated" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length == 1' "${lifecycle_monfile}"
+  jq --exit-status --slurp 'map(select(.type == "lifecycle" and .metadata.action == "identity-deleted" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length == 1' "${lifecycle_monfile}"
+
+  kill_go_proc "${mon_pid}" || true
+  kill_go_proc "${lifecycle_mon_pid}" || true
+
+  lxc auth group delete security-user-events-group
+
+  rm -f "${monfile}" "${lifecycle_monfile}"
+}
+
+test_security_user_events_oidc() {
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  spawn_oidc
+  set_oidc test-user-security test-user-security@example.com
+  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/" "oidc.client.id=device"
+
+  local monfile="${TEST_DIR}/security-oidc-user-events.jsonl"
+  lxc monitor --type=security --format=json > "${monfile}" &
+  local mon_pid=$!
+  for _ in $(seq 10); do
+    kill -0 "${mon_pid}" && break
+    sleep 1
+  done
+  kill -0 "${mon_pid}"
+
+  sub_test "Verify user_created fires on OIDC first login"
+  BROWSER=curl lxc remote add --accept-certificate oidc-security "${LXD_ADDR}" --auth-type oidc
+
+  lxc query oidc-security:/1.0 | jq --exit-status '.auth == "trusted"'
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "user_created" and .metadata.request_path == "/1.0")) | length >= 1' "${monfile}" && break
+    sleep 1
+  done
+
+  jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "user_created" and .metadata.request_path == "/1.0")) | length == 1' "${monfile}"
+
+  sub_test "Verify user_created does not fire on subsequent OIDC logins"
+  # Drop the cached cookie so the next request triggers a fresh auth flow.
+  rm -f "${LXD_CONF}/jars/oidc-security"
+
+  local before_count
+  before_count="$(jq --slurp 'map(select(.type == "security" and .metadata.name == "user_created" and .metadata.request_path == "/1.0")) | length' "${monfile}")"
+
+  BROWSER=curl lxc query oidc-security:/1.0 | jq --exit-status '.auth == "trusted"'
+
+  # Allow a short window for any (unwanted) duplicate event to land.
+  sleep 2
+
+  local after_count
+  after_count="$(jq --slurp 'map(select(.type == "security" and .metadata.name == "user_created" and .metadata.request_path == "/1.0")) | length' "${monfile}")"
+  [ "${before_count}" = "${after_count}" ]
+
+  kill_go_proc "${mon_pid}" || true
+  rm -f "${monfile}"
+
+  lxc auth identity delete oidc/test-user-security@example.com
+  lxc remote remove oidc-security
+  lxc config set oidc.issuer="" oidc.client.id=""
+  kill_oidc
+}
+
 test_security_events_bearer_authn() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 

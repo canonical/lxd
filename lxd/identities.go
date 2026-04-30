@@ -2332,6 +2332,21 @@ func newIdentityNotificationFunc(s *state.State, r *http.Request, networkCert *s
 		lc := action.Event(authenticationMethod, identifier, request.CreateRequestor(r.Context()), nil)
 		s.Events.SendLifecycle("", lc)
 
+		var secAction security.SecurityAction
+		var description string
+		switch action {
+		case lifecycle.IdentityCreated:
+			secAction, description = security.UserCreated, "Identity created"
+		case lifecycle.IdentityUpdated:
+			secAction, description = security.UserUpdated, "Identity updated"
+		case lifecycle.IdentityDeleted:
+			secAction, description = security.UserDeleted, "Identity deleted"
+		}
+
+		if secAction != "" {
+			s.Events.SendSecurity(secAction.UserEvent(r.Context(), security.LevelInfo, description))
+		}
+
 		return &lc, nil
 	}
 }

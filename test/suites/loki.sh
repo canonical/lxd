@@ -55,8 +55,43 @@ test_loki_security_types() {
   lxc launch testimage c-loki-security
   lxc delete -f c-loki-security
 
-  # Changing the loki configuration sends any accumulated logs to the test server.
+  sub_test "Verify sys_monitor_disabled fires when Loki is disabled after being enabled"
+  local monfile="${TEST_DIR}/loki-monitor-disabled.jsonl"
+  lxc monitor --type=security --format=json > "${monfile}" &
+  local mon_pid=$!
+  for _ in $(seq 10); do
+    kill -0 "${mon_pid}" && break
+    sleep 1
+  done
+  kill -0 "${mon_pid}"
+
+  # Disabling loki.api.url tears down the loki client; this is the
+  # enabled -> disabled transition that emits sys_monitor_disabled.
   lxc config set loki.api.url="" loki.auth.username="" loki.auth.password="" loki.types=""
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "sys_monitor_disabled")) | length >= 1' "${monfile}" && break
+    sleep 1
+  done
+
+  jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "sys_monitor_disabled")) | length == 1' "${monfile}"
+  # Loss of monitoring is a warning-level daemon-level event with no requestor.
+  jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "sys_monitor_disabled")) | .[0] | (.metadata.level == "warning") and (.metadata.description == "Loki monitoring disabled") and (.metadata | has("requestor") | not) and (.metadata | has("request_method") | not)' "${monfile}"
+
+  sub_test "Verify sys_monitor_disabled does not fire when Loki was never configured"
+  # Loki is already off; toggling an unrelated server config must not raise
+  # a fresh sys_monitor_disabled event.
+  local sys_monitor_disabled_count_before
+  sys_monitor_disabled_count_before=$(jq --raw-output --slurp 'map(select(.type == "security" and .metadata.name == "sys_monitor_disabled")) | length' "${monfile}")
+  lxc config set core.proxy_ignore_hosts="example.invalid"
+  lxc config unset core.proxy_ignore_hosts
+  sleep 1
+  local sys_monitor_disabled_count_after
+  sys_monitor_disabled_count_after=$(jq --raw-output --slurp 'map(select(.type == "security" and .metadata.name == "sys_monitor_disabled")) | length' "${monfile}")
+  [ "${sys_monitor_disabled_count_after}" = "${sys_monitor_disabled_count_before}" ]
+
+  kill_go_proc "${mon_pid}" || true
+  rm "${monfile}"
 
   jq --exit-status '.streams[].stream | select(.type == "lifecycle")' "${log_file}"
 
