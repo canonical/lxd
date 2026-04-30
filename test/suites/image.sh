@@ -200,6 +200,22 @@ test_image_import_dir() {
     rm "${fingerprint}.tar"*
 }
 
+test_image_import_url() {
+    sub_test "Verify image import from URL is rejected by the client"
+
+    output="$(! lxc image import https://example.com/image.tar.gz 2>&1 || false)"
+    echo "${output}" | grep -F "Image download from client-specified URL is not supported"
+
+    sub_test "Verify image import from URL is rejected by the server"
+
+    # Sending a request with source type "url" directly to the server should return a 400 error.
+    # shellcheck disable=2153
+    curl --silent --unix-socket "${LXD_DIR}/unix.socket" -X POST "lxd/1.0/images" \
+        -H "Content-Type: application/json" \
+        --data '{"source": {"type": "url", "url": "https://example.com/image.tar.gz"}}' \
+        | jq -e '.error_code == 400 and .error == "Image download from client-specified URL is not supported"'
+}
+
 test_image_import_existing_alias() {
     ensure_import_testimage
     lxc init testimage c
