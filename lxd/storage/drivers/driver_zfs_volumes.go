@@ -1726,9 +1726,56 @@ func (d *zfs) deleteVolume(vol Volume, progressReporter ioprogress.ProgressRepor
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
+// For image volumes, it returns true if any variant dataset exists on disk,
+// not only the one matching the DB-recorded config. This ensures that image
+// deletion always cleans up all variants even when the DB-config variant has
+// not been created yet.
 func (d *zfs) HasVolume(vol Volume) (bool, error) {
-	// Check if the dataset exists.
+	if vol.volType == VolumeTypeImage {
+		return d.hasAnyImageVariant(vol)
+	}
+
 	return d.datasetExists(d.dataset(vol, false))
+}
+
+// hasAnyImageVariant returns true if any image variant dataset (base or any
+// block-backed filesystem) exists on disk for the given image volume.
+func (d *zfs) hasAnyImageVariant(vol Volume) (bool, error) {
+	tmpVol := vol.Clone()
+	// Empty suffix means the dataset variant (not a block zvol variant).
+	for _, suffix := range append([]string{""}, blockBackedAllowedFilesystems...) {
+		if suffix == "" {
+			delete(tmpVol.config, "zfs.block_mode")
+			delete(tmpVol.config, "block.filesystem")
+		} else {
+			tmpVol.config["zfs.block_mode"] = "true"
+			tmpVol.config["block.filesystem"] = suffix
+		}
+
+		exists, err := d.datasetExists(d.dataset(tmpVol, false))
+		if err != nil {
+			return false, err
+		}
+
+		if exists {
+			return true, nil
+		}
+	}
+
+	// For VM block images, also check the companion filesystem dataset which sits
+	// under a different content type and is not covered by the variant loop above.
+	if vol.IsVMBlock() {
+		exists, err := d.datasetExists(d.dataset(vol.NewVMBlockFilesystemVolume(), false))
+		if err != nil {
+			return false, err
+		}
+
+		if exists {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // commonVolumeRules returns validation rules which are common for pool and volume.
