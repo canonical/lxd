@@ -165,7 +165,7 @@ type ImageFilter struct {
 // ImageSourceProtocol maps image source protocol codes to human-readable names.
 var ImageSourceProtocol = map[int]string{
 	0: "lxd",
-	1: "direct",
+	1: "direct", // Deprecated: kept for backward compatibility with existing data.
 	2: "simplestreams",
 }
 
