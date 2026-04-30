@@ -1115,20 +1115,6 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 					return fmt.Errorf("Failed getting instance %q from remote: %w", instName, err)
 				}
 
-				// Only create a snapshot if the instance has no existing snapshot schedule.
-				// When a schedule is set, the most recent existing snapshot is reused.
-				if snapshot && freshInst.ExpandedConfig["snapshots.schedule"] == "" {
-					snapOp, err := dstClient.CreateInstanceSnapshot(instName, api.InstanceSnapshotsPost{})
-					if err != nil {
-						return fmt.Errorf("Failed creating snapshot of instance %q: %w", instName, err)
-					}
-
-					err = snapOp.Wait()
-					if err != nil {
-						return fmt.Errorf("Failed waiting for snapshot of instance %q: %w", instName, err)
-					}
-				}
-
 				remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{Migration: true})
 				if err != nil {
 					return fmt.Errorf("Failed starting migration source on remote for instance %q: %w", instName, err)
