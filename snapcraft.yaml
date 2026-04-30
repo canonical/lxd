@@ -872,6 +872,7 @@ parts:
       - bin/swtpm
       - lib/*/swtpm/libswtpm*so*
       - lib/*/libtpms*so*
+      - lib/*/libjson-glib-1.0*so*
 
   qemu:
     after:
