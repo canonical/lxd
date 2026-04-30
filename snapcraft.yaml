@@ -771,6 +771,7 @@ parts:
     prime:
       - bin/ovn-nbctl
       - bin/ovn-sbctl
+      - lib/*/libevent-2.1*so*
       - lib/*/libunbound*so*
 
   spice-server:
