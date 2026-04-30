@@ -46,8 +46,8 @@ jobs:
           rsync -a --exclude .git --delete . ~/"${PACKAGE}-pkg-snap-lp"/
           cd ~/"${PACKAGE}-pkg-snap-lp"
           lxd-snapcraft -package "${PACKAGE}" -set-version "${ver[0]}" -set-source-commit "${ver[1]}"
-          git add --all
-          git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
+          git add snapcraft.yaml
+          git commit --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
           git show
           git push --quiet
 
