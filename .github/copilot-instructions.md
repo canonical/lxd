@@ -325,3 +325,26 @@ OK (counting genuinely matters):
 - **Database code**: `lxd/db/`
 - **Tests**: `*_test.go` alongside source files
 - **Integration tests**: `test/suites/*.sh`
+
+## Skills
+
+The `.github/skills/` directory contains [agent skills](https://docs.github.com/en/copilot/concepts/agents/about-agent-skills) — folders of instructions, scripts, and resources that Copilot can load when relevant to improve its performance in specialized tasks. Each skill lives in its own subdirectory with a `SKILL.md` file.
+
+### Available skills
+
+| Skill | Directory | Purpose | Example trigger phrases |
+|-------|-----------|---------|------------------------|
+| **pre-commit-checks** | `.github/skills/pre-commit-checks/` | Runs linting, unit tests, and build validation before committing. | `run pre-commit checks`, `validate my changes`, `lint and test` |
+| **backport-changes** | `.github/skills/backport-changes/` | Cherry-picks commits from a newer branch to an older stable release branch. | `backport this fix to stable-5.0`, `cherry-pick to stable-X.X`, `backport this PR` |
+
+### Using a skill
+
+Skills are invoked automatically when Copilot detects a matching context in your prompt. You can also invoke a skill directly on the GitHub Copilot CLI with the slash command:
+
+```
+/backport-changes
+```
+
+### Adding a new skill
+
+Create a subdirectory under `.github/skills/` and add a `SKILL.md` file with a YAML front-matter block (`name`, `description`) followed by the procedure in Markdown. The `description` field controls when Copilot auto-invokes the skill.
