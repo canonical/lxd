@@ -94,6 +94,7 @@ readonly test_group_image=(
     "image_auto_update"
     "image_expiry"
     "image_import_dir"
+    "image_import_url"
     "image_import_existing_alias"
     "image_list_all_aliases"
     "image_list_remotes"
