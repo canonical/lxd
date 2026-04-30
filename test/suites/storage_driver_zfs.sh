@@ -16,6 +16,7 @@ test_storage_driver_zfs() {
   do_zfs_rebase
   do_recursive_copy_snapshot_cleanup
   do_zfs_bucket_dataset_cleanup
+  do_zfs_image_variants
 }
 
 do_zfs_delegate() {
@@ -500,4 +501,103 @@ do_zfs_bucket_dataset_cleanup() {
   fi
 
   lxc storage delete "${storage_pool}-buckets-patch-test"
+}
+
+do_zfs_image_variants() {
+  sub_test "ZFS image variants: test different block modes and filesystems."
+  local storage_pool fingerprint
+
+  storage_pool="lxdtest-$(basename "${LXD_DIR}")-variant"
+
+  # Import image and get fingerprint.
+  ensure_import_testimage
+  fingerprint=$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')
+
+  # Create test storage pool (dataset mode).
+  lxc storage create "${storage_pool}" zfs volume.zfs.block_mode=false
+
+  # Create c1 with pool defaults (dataset mode).
+  lxc init testimage c1 -s "${storage_pool}"
+
+  # Change pool to block mode with ext4 and create c2.
+  lxc storage set "${storage_pool}" volume.zfs.block_mode=true volume.block.filesystem=ext4
+  lxc init testimage c2 -s "${storage_pool}"
+
+  # Verify both base and ext4 variant exist.
+  [ "$(zfs get -H -o value type "${storage_pool}/images/${fingerprint}")" = "filesystem" ]
+  [ "$(zfs get -H -o value type "${storage_pool}/images/${fingerprint}_ext4")" = "volume" ]
+
+  # Create c3 with initial.* override for btrfs."
+  lxc init testimage c3 -s "${storage_pool}" -d root,initial.zfs.block_mode=true -d root,initial.block.filesystem=btrfs
+
+  # Verify all three variants exist (base, ext4, btrfs).
+  [ "$(zfs get -H -o value type "${storage_pool}/images/${fingerprint}")" = "filesystem" ]
+  [ "$(zfs get -H -o value type "${storage_pool}/images/${fingerprint}_ext4")" = "volume" ]
+  [ "$(zfs get -H -o value type "${storage_pool}/images/${fingerprint}_btrfs")" = "volume" ]
+
+  # Change pool back to dataset mode and create c4.
+  lxc storage set "${storage_pool}" volume.zfs.block_mode=false
+  lxc init testimage c4 -s "${storage_pool}"
+
+  # Verify all variants still exist.
+  zfs list "${storage_pool}/images/${fingerprint}"
+  zfs list "${storage_pool}/images/${fingerprint}_ext4"
+  zfs list "${storage_pool}/images/${fingerprint}_btrfs"
+
+  # Delete c4, base image should remain (c1 still using it).
+  lxc delete c4
+
+  # Verify all variants remain since c1, c2, c3 are depending on them.
+  zfs list "${storage_pool}/images/${fingerprint}"
+  zfs list "${storage_pool}/images/${fingerprint}_ext4"
+  zfs list "${storage_pool}/images/${fingerprint}_btrfs"
+
+  # Delete c2, ext4 variant should be removed (no clones, doesn't match pool config).
+  lxc delete c2
+
+  # Verify ext4 variant is deleted but base and btrfs remain.
+  zfs list "${storage_pool}/images/${fingerprint}"
+  zfs list "${storage_pool}/images/${fingerprint}_btrfs"
+  ! zfs list "${storage_pool}/images/${fingerprint}_ext4" || false
+
+  # Change pool to btrfs block mode and delete c3.
+  lxc storage set "${storage_pool}" volume.zfs.block_mode=true volume.block.filesystem=btrfs
+  lxc delete c3
+
+  # Verify btrfs variant is kept (matches pool config) and base remains.
+  zfs list "${storage_pool}/images/${fingerprint}"
+  zfs list "${storage_pool}/images/${fingerprint}_btrfs"
+
+  # Delete c1, dataset variant should be removed (no clones, doesn't match pool config).
+  lxc delete c1
+
+  # Verify dataset variant is deleted and btrfs variant remains (matches pool config).
+  ! zfs list "${storage_pool}/images/${fingerprint}" || false
+  zfs list "${storage_pool}/images/${fingerprint}_btrfs"
+
+  # Change pool config to dataset mode (no longer matches btrfs variant).
+  lxc storage set "${storage_pool}" volume.zfs.block_mode=false
+
+  # Verify btrfs variant is deleted (doesn't match pool config, has no clones).
+  ! zfs list "${storage_pool}/images/${fingerprint}_btrfs" || false
+
+  # Create c5 with current pool config (dataset mode).
+  lxc init testimage c5 -s "${storage_pool}"
+
+  # Delete the image while c5 is using it.
+  ! zfs list "${storage_pool}/deleted/images/${fingerprint}" || false
+  lxc image delete "${fingerprint}"
+
+  # Verify base moved to deleted path since c5 is using it.
+  ! zfs list "${storage_pool}/images/${fingerprint}" || false
+  zfs list "${storage_pool}/deleted/images/${fingerprint}"
+
+  # Delete c5 to cleanup deleted image.
+  lxc delete c5
+
+  # Verify deleted image is removed.
+  ! zfs list "${storage_pool}/deleted/images/${fingerprint}" || false
+
+  # Cleanup test storage pool.
+  lxc storage delete "${storage_pool}"
 }

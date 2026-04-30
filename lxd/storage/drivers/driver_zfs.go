@@ -142,6 +142,7 @@ func (d *zfs) Info() Info {
 		DefaultBlockSize:             d.defaultBlockVolumeSize(),
 		DefaultVMBlockFilesystemSize: d.defaultVMBlockFilesystemSize(),
 		OptimizedImages:              true,
+		HasImageVariants:             true,
 		OptimizedBackups:             true,
 		PreservesInodes:              true,
 		Remote:                       d.isRemote(),
@@ -526,6 +527,26 @@ func (d *zfs) Update(changedConfig map[string]string) error {
 	_, ok := changedConfig["zfs.pool_name"]
 	if ok {
 		return errors.New("zfs.pool_name cannot be modified")
+	}
+
+	// Check if block_mode or block.filesystem pool defaults changed.
+	// If so, clean up image variants that no longer match the new pool defaults
+	// and have no clones.
+	_, blockModeChanged := changedConfig["volume.zfs.block_mode"]
+	_, blockFSChanged := changedConfig["volume.block.filesystem"]
+
+	if blockModeChanged || blockFSChanged {
+		// Build a merged config representing the new pool state.
+		// At this point d.config still holds the old values, and changedConfig
+		// holds the new values for changed keys only.
+		newPoolConfig := make(map[string]string, len(d.config))
+		maps.Copy(newPoolConfig, d.config)
+		maps.Copy(newPoolConfig, changedConfig)
+
+		err := d.cleanupStaleImageVariants(newPoolConfig)
+		if err != nil {
+			return err
+		}
 	}
 
 	size, ok := changedConfig["size"]
