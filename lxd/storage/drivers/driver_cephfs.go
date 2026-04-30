@@ -324,7 +324,7 @@ func (d *cephfs) Create() error {
 		return err
 	}
 
-	srcPath, options := CephBuildMount(userName, key, fsid, monitors, fsName, "/", msMode)
+	srcPath, options := CephBuildMount(userName, key, fsid, monitors, fsName, "/", msMode, d.state.OS.CephModernMountSyntax)
 	options = append(options, "mount_timeout=10")
 
 	// Mount the pool.
@@ -407,7 +407,7 @@ func (d *cephfs) Delete(progressReporter ioprogress.ProgressReporter) error {
 		return err
 	}
 
-	srcPath, options := CephBuildMount(userName, key, fsid, monitors, fsName, "/", msMode)
+	srcPath, options := CephBuildMount(userName, key, fsid, monitors, fsName, "/", msMode, d.state.OS.CephModernMountSyntax)
 	options = append(options, "mount_timeout=10")
 
 	// Mount the pool.
@@ -603,7 +603,7 @@ func (d *cephfs) Mount() (bool, error) {
 		return false, err
 	}
 
-	srcPath, options := CephBuildMount(userName, key, fsid, monitors, fsName, fsPath, msMode)
+	srcPath, options := CephBuildMount(userName, key, fsid, monitors, fsName, fsPath, msMode, d.state.OS.CephModernMountSyntax)
 	options = append(options, "mount_timeout=10")
 
 	if shared.IsTrue(d.config["cephfs.fscache"]) {

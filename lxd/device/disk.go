@@ -1749,7 +1749,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 			clusterName, userName := d.cephCreds()
 
 			// Get the mount options.
-			mntSrcPath, fsOptions, fsErr := diskCephfsOptions(clusterName, userName, mdsName, mdsPath)
+			mntSrcPath, fsOptions, fsErr := diskCephfsOptions(clusterName, userName, mdsName, mdsPath, d.state.OS.CephModernMountSyntax)
 			if fsErr != nil {
 				return nil, "", false, fsErr
 			}
