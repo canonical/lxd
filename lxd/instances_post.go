@@ -42,6 +42,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
+	"github.com/canonical/lxd/shared/util"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -796,7 +797,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	revert.Add(func() { _ = backupFile.Close() })
 
 	// Stream uploaded backup data into temporary file.
-	_, err = io.Copy(backupFile, data)
+	_, err = util.SafeCopy(backupFile, data)
 	if err != nil {
 		return response.InternalError(err)
 	}
