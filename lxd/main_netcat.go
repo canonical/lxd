@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/eagain"
+	"github.com/canonical/lxd/shared/util"
 )
 
 type cmdNetcat struct {
@@ -82,7 +82,7 @@ func (c *cmdNetcat) run(cmd *cobra.Command, args []string) error {
 	wg := sync.WaitGroup{}
 
 	wg.Go(func() {
-		_, err := io.Copy(eagain.Writer{Writer: os.Stdout}, eagain.Reader{Reader: conn})
+		_, err := util.SafeCopy(eagain.Writer{Writer: os.Stdout}, eagain.Reader{Reader: conn})
 		if err != nil && logErr == nil {
 			_, _ = fmt.Fprintf(logFile, "Error while copying from stdout to unix domain socket \"%s\": %s\n", args[0], err)
 		}
@@ -91,7 +91,7 @@ func (c *cmdNetcat) run(cmd *cobra.Command, args []string) error {
 	})
 
 	go func() {
-		_, err := io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: os.Stdin})
+		_, err := util.SafeCopy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: os.Stdin})
 		if err != nil && logErr == nil {
 			_, _ = fmt.Fprintf(logFile, "Error while copying from unix domain socket \"%s\" to stdin: %s\n", args[0], err)
 		}
