@@ -22,6 +22,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/linux"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
@@ -590,7 +591,7 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*B
 		}
 
 		if hdr.Name == "backup/optimized_header.yaml" {
-			err = yaml.NewDecoder(tr).Decode(&header)
+			err = yaml.NewDecoder(util.MaxBytesReader(tr, util.MaxYAMLFileBytes)).Decode(&header)
 			if err != nil {
 				return nil, fmt.Errorf("Error parsing optimized backup header file: %w", err)
 			}
