@@ -3,7 +3,6 @@ package lxd
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/util"
 )
 
 // Storage volumes handling function
@@ -1046,7 +1046,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeBackupFile(pool string, volName string
 
 	// Handle the data
 	body := ioprogress.NewProgressReader(response.Body, ioprogress.WithLength(response.ContentLength), ioprogress.WithProgressHandler(req.ProgressHandler))
-	size, err := io.Copy(req.BackupFile, body)
+	size, err := util.SafeCopy(req.BackupFile, body)
 	if err != nil {
 		return nil, err
 	}

@@ -18,6 +18,7 @@ import (
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/util"
 )
 
 // combinedHash is the interface that the combined hash must implement.
@@ -273,7 +274,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 
 				// Verify the patched rootfs matches the expected per-file hash.
 				patchedHash := sha256.New()
-				_, err = io.Copy(patchedHash, patchedFile)
+				_, err = util.SafeCopy(patchedHash, patchedFile)
 				if err != nil {
 					return nil, err
 				}
@@ -295,7 +296,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 					return nil, err
 				}
 
-				size, err := io.Copy(io.MultiWriter(req.RootfsFile, combinedHash), patchedFile)
+				size, err := util.SafeCopy(io.MultiWriter(req.RootfsFile, combinedHash), patchedFile)
 				if err != nil {
 					return nil, err
 				}

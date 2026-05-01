@@ -23,6 +23,7 @@ import (
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/tcp"
+	"github.com/canonical/lxd/shared/util"
 	"github.com/canonical/lxd/shared/ws"
 )
 
@@ -1211,7 +1212,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 		if outputFiles["1"] != "" {
 			reader, _ := r.getInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
 			if args.Stdout != nil {
-				_, errCopy := io.Copy(args.Stdout, reader)
+				_, errCopy := util.SafeCopy(args.Stdout, reader)
 				// Regardless of errCopy value, we want to delete the file after a copy operation
 				errDelete := r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
 				if errDelete != nil {
@@ -1232,7 +1233,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 		if outputFiles["2"] != "" {
 			reader, _ := r.getInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["2"]))
 			if args.Stderr != nil {
-				_, errCopy := io.Copy(args.Stderr, reader)
+				_, errCopy := util.SafeCopy(args.Stderr, reader)
 				errDelete := r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
 				if errDelete != nil {
 					return nil, errDelete
@@ -2960,7 +2961,7 @@ func (r *ProtocolLXD) GetInstanceBackupFile(instanceName string, name string, re
 
 	// Handle the data
 	body := ioprogress.NewProgressReader(response.Body, ioprogress.WithLength(response.ContentLength), ioprogress.WithProgressHandler(req.ProgressHandler))
-	size, err := io.Copy(req.BackupFile, body)
+	size, err := util.SafeCopy(req.BackupFile, body)
 	if err != nil {
 		return nil, err
 	}
