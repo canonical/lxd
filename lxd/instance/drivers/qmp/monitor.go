@@ -149,7 +149,7 @@ func (m *Monitor) start() error {
 // ping is used to validate if the QMP socket is still active.
 func (m *Monitor) ping() error {
 	// Check if disconnected
-	if m.disconnected {
+	if m.disconnected || m.qmp == nil {
 		return ErrMonitorDisconnect
 	}
 
@@ -169,7 +169,7 @@ func (m *Monitor) ping() error {
 // runJSON executes a JSON-formatted command.
 func (m *Monitor) runJSON(request []byte, resp any, id uint32) error {
 	// Check if disconnected
-	if m.disconnected {
+	if m.disconnected || m.qmp == nil {
 		return ErrMonitorDisconnect
 	}
 
@@ -314,7 +314,7 @@ func (m *Monitor) Disconnect() {
 // Wait returns a channel that will be closed on disconnection.
 func (m *Monitor) Wait() (chan struct{}, error) {
 	// Check if disconnected
-	if m.disconnected {
+	if m.disconnected || m.qmp == nil {
 		return nil, ErrMonitorDisconnect
 	}
 
