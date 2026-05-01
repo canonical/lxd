@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -21,6 +20,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/tcp"
+	"github.com/canonical/lxd/shared/util"
 )
 
 // swagger:operation GET /1.0/instances/{name}/sftp instances instance_sftp
@@ -149,17 +149,17 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter, req *http.Request) err
 
 	wg := sync.WaitGroup{}
 	wg.Go(func() {
-		_, err := io.Copy(remoteConn, r.instConn)
+		_, err := util.SafeCopy(remoteConn, r.instConn)
 		if err != nil {
 			if ctx.Err() == nil {
 				l.Warn("Failed copying SFTP instance connection to remote connection", logger.Ctx{"err": err})
 			}
 		}
 		cancel()               // Cancel context first so when remoteConn is closed it doesn't cause a warning.
-		_ = remoteConn.Close() // Trigger the cancellation of the io.Copy reading from remoteConn.
+		_ = remoteConn.Close() // Trigger the cancellation of the util.SafeCopy reading from remoteConn.
 	})
 
-	_, err = io.Copy(r.instConn, remoteConn)
+	_, err = util.SafeCopy(r.instConn, remoteConn)
 	if err != nil {
 		if ctx.Err() == nil {
 			l.Warn("Failed copying SFTP remote connection to instance connection", logger.Ctx{"err": err})
@@ -167,7 +167,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter, req *http.Request) err
 	}
 	cancel() // Cancel context first so when instConn is closed it doesn't cause a warning.
 
-	err = r.instConn.Close() // Trigger the cancellation of the io.Copy reading from instConn.
+	err = r.instConn.Close() // Trigger the cancellation of the util.SafeCopy reading from instConn.
 	if err != nil {
 		return fmt.Errorf("Failed closing connection to remote server: %w", err)
 	}
