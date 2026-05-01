@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/util"
 	"github.com/canonical/lxd/shared/ws"
 )
 
@@ -138,7 +139,7 @@ func sendBlockVol(ctx context.Context, conn io.WriteCloser, path string) error {
 		_ = f.Close()
 	}()
 
-	_, err = io.Copy(conn, f)
+	_, err = util.SafeCopy(conn, f)
 	if err != nil {
 		return err
 	}
