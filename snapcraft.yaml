@@ -1412,6 +1412,11 @@ parts:
       - bin/uefivars.py  # LXD expects the .py extension
       - lib/python3/dist-packages/crc32c*
       - lib/python3/dist-packages/pyuefivars*
+      # Remove crc32c bloat
+      - -lib/python3/dist-packages/crc32c/ext
+      - -lib/python3/dist-packages/crc32c/benchmark.py
+      - -lib/python3/dist-packages/crc32c/*.pyi
+      - -lib/python3/dist-packages/crc32c/py.typed
       # Exclude compiled bytecode, `uefivars.py` is rarely invoked.
       - -lib/python3/dist-packages/**/__pycache__
 
