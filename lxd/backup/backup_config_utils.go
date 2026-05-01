@@ -14,6 +14,7 @@ import (
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/osarch"
@@ -202,10 +203,12 @@ func ConvertFormat(backupConf *config.Config, version uint32) (*config.Config, e
 
 // ParseConfigYamlFile decodes the YAML file at path specified into a Config.
 func ParseConfigYamlFile(path string) (*config.Config, error) {
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
+
+	defer func() { _ = f.Close() }()
 
 	backupConfInfo, err := os.Stat(path)
 	if err != nil {
@@ -213,7 +216,7 @@ func ParseConfigYamlFile(path string) (*config.Config, error) {
 	}
 
 	backupConf := config.NewConfig(backupConfInfo.ModTime())
-	err = yaml.Unmarshal(data, backupConf)
+	err = yaml.NewDecoder(util.MaxBytesReader(f, util.MaxYAMLFileBytes)).Decode(backupConf)
 	if err != nil {
 		return nil, err
 	}
