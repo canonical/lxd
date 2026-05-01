@@ -23,6 +23,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/tcp"
+	sharedUtil "github.com/canonical/lxd/shared/util"
 )
 
 var debug bool
@@ -613,7 +614,7 @@ func (r *fileResponse) Render(w http.ResponseWriter, req *http.Request) error {
 			return err
 		}
 
-		_, err := io.Copy(fw, rd)
+		_, err := sharedUtil.SafeCopy(fw, rd)
 		if err != nil {
 			return err
 		}
@@ -679,7 +680,7 @@ func (r *forwardedResponse) Render(w http.ResponseWriter, req *http.Request) err
 		w.WriteHeader(response.StatusCode)
 	}
 
-	_, err = io.Copy(w, response.Body)
+	_, err = sharedUtil.SafeCopy(w, response.Body)
 	return err
 }
 
