@@ -61,7 +61,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: canonical/lxd-pkg-snap/.github/actions/lp-snap-build@main
+      # XXX: from this point onwards in this **specific job**, the private SSH key is
+      #      available through the SSH_AUTH_SOCK environment variable.
+      - uses: canonical/lxd-pkg-snap/.github/actions/lp-snap-build@latest-edge # zizmor: ignore[unpinned-uses]
         with:
           ssh-key: ${{ secrets.LAUNCHPAD_LXD_BOT_KEY }} # zizmor: ignore[secrets-outside-env]
 
@@ -73,7 +75,12 @@ jobs:
           rsync -a --exclude .git --delete . ~/"${PACKAGE}-pkg-snap-lp"/
           cd ~/"${PACKAGE}-pkg-snap-lp"
           lxd-snapcraft -package "${PACKAGE}" -set-version "${ver[0]}" -set-source-commit "${ver[1]}"
-          git add --all
-          git commit --all -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
-          git push
+          git add snapcraft.yaml
+          git commit --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
+          git show
+          git push --quiet
+
+          # Unload the SSH key from the agent now that the push is done, to
+          # prevent accidental usage in any subsequent steps within this job.
+          ssh-add -D
 ```

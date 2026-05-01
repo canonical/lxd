@@ -43,6 +43,9 @@ runs:
           go install "github.com/canonical/lxd-pkg-snap/lxd-snapcraft@${GITHUB_ACTION_REF}"
         fi
 
+        # Move the binary into its final location in PATH
+        sudo mv ~/go/bin/lxd-snapcraft /usr/local/bin/
+
     - name: Seed Launchpad SSH host key
       shell: bash
       run: |
