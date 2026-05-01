@@ -956,6 +956,11 @@ parts:
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
       set -ex
+      # If configure finds a `.git` dir, it enables -Werror (`--enable-werror` and Git submodules are validated).
+      # When building the deb on LP, this `.git` dir is not present because a tarball is used.
+      # The `-Werror` causes compilation failures on ppc64el so let's remove the `.git` dir to align with the deb behavior.
+      [ -d .git ] && rm -rf .git
+
       # Mangle the configure a bit
       QEMUARCH="$(uname -m)"
       [ "${QEMUARCH}" = "ppc64le" ] && QEMUARCH="ppc64"
