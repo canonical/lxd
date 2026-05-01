@@ -719,6 +719,14 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 // created in the database to run any storage layer finalisations, and a revert hook that can be
 // run if the instance database load process fails that will remove anything created thus far.
 func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, revert.Hook, error) {
+	if srcBackup.Config == nil {
+		return nil, nil, errors.New("Backup config is missing")
+	}
+
+	if srcBackup.Config.Instance == nil {
+		return nil, nil, errors.New("Instance definition in backup config is missing")
+	}
+
 	l := b.logger.AddContext(logger.Ctx{"project": srcBackup.Project, "instance": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
 	l.Debug("CreateInstanceFromBackup started")
 	defer l.Debug("CreateInstanceFromBackup finished")
@@ -778,9 +786,6 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 	// Check if the backup config contains a root volume and populate it for later use.
 	var rootVol *backupConfig.Volume
-	if srcBackup.Config == nil {
-		return nil, nil, errors.New("Backup config is missing")
-	}
 
 	// Returns an error if the backup doesn't contain a root volume.
 	rootVol, err = srcBackup.Config.RootVolume()
@@ -7290,6 +7295,14 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 // CheckInstanceBackupFileSnapshots compares the snapshots on the storage device to those defined in the backup
 // config supplied and returns an error if they do not match.
 func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.Config, projectName string, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
+	if backupConf == nil {
+		return nil, errors.New("Backup config is missing")
+	}
+
+	if backupConf.Instance == nil {
+		return nil, errors.New("Instance definition in backup config is missing")
+	}
+
 	l := b.logger.AddContext(logger.Ctx{"project": projectName, "instance": backupConf.Instance.Name})
 	l.Debug("CheckInstanceBackupFileSnapshots started")
 	defer l.Debug("CheckInstanceBackupFileSnapshots finished")

@@ -615,8 +615,12 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 
 			// Recover unknown instance volumes.
 			for _, poolVol := range poolVols {
-				if poolVol.Instance == nil && (len(poolVol.Volumes) != 0 || poolVol.Bucket != nil) {
-					continue // Skip custom volumes, invalid volumes and buckets.
+				if poolVol.Instance == nil {
+					if len(poolVol.Volumes) != 0 || poolVol.Bucket != nil {
+						continue // Skip custom volumes and buckets.
+					}
+
+					return response.SmartError(errors.New("Volume is neither instance nor custom volume"))
 				}
 
 				// Recover instance volumes and any snapshots.

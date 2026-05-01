@@ -266,6 +266,10 @@ func UpdateInstanceConfigInPlace(c *db.Cluster, b *Info) error {
 
 	rootDiskDeviceFound := false
 
+	if b.Config.Instance == nil {
+		return errors.New("Instance definition in backup config is missing")
+	}
+
 	// Change the pool in case it doesn't match the one of the original instance.
 	err = b.Config.UpdateRootVolumePool(pool)
 	if err != nil {
