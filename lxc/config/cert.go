@@ -2,10 +2,10 @@ package config
 
 import (
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/util"
 )
 
 // GenerateClientCertificate will generate the needed client.crt and client.key if needed.
@@ -41,7 +41,7 @@ func (c *Config) CopyGlobalCert(src string, dst string) error {
 
 	defer func() { _ = newFile.Close() }()
 
-	_, err = io.Copy(newFile, sourceFile)
+	_, err = util.SafeCopy(newFile, sourceFile)
 	if err != nil {
 		return err
 	}

@@ -27,6 +27,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/termios"
+	"github.com/canonical/lxd/shared/util"
 )
 
 const (
@@ -640,7 +641,7 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 			writer = ioprogress.NewProgressWriter(writer, ioprogress.WithProgressUpdater(&progress))
 		}
 
-		_, err = io.Copy(writer, buf)
+		_, err = util.SafeCopy(writer, buf)
 		if err != nil {
 			progress.Done("")
 			return err
@@ -988,7 +989,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 		}
 
 		writer := ioprogress.NewProgressWriter(f, ioprogress.WithProgressUpdater(&progress))
-		_, err = io.Copy(writer, buf)
+		_, err = util.SafeCopy(writer, buf)
 		if err != nil {
 			progress.Done("")
 			return err
@@ -1348,13 +1349,13 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, resource remoteResource, 
 		case <-ctx.Done():
 		}
 
-		cancel()                                  // Prevents error output when the io.Copy functions finish.
+		cancel()                                  // Prevents error output when the util.SafeCopy functions finish.
 		_ = sshfsCmd.Process.Signal(os.Interrupt) // This will cause sshfs to unmount.
 		_ = stdin.Close()
 	}()
 
 	go func() {
-		_, err := io.Copy(stdin, sftpConn)
+		_, err := util.SafeCopy(stdin, sftpConn)
 		if ctx.Err() == nil {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "I/O copy from instance to sshfs failed: %v\n", err)
@@ -1365,7 +1366,7 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, resource remoteResource, 
 		cancel() // Ask sshfs to end.
 	}()
 
-	_, err = io.Copy(sftpConn, stdout)
+	_, err = util.SafeCopy(sftpConn, stdout)
 	if err != nil && ctx.Err() == nil {
 		fmt.Fprintf(os.Stderr, "I/O copy from sshfs to instance failed: %v\n", err)
 	}
@@ -1552,7 +1553,7 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 					// Copy SFTP data between client and remote instance.
 					ctx, cancel := context.WithCancel(ctx)
 					go func() {
-						_, err := io.Copy(channel, sftpConn)
+						_, err := util.SafeCopy(channel, sftpConn)
 						if ctx.Err() == nil {
 							if err != nil {
 								fmt.Fprintf(os.Stderr, "I/O copy from instance to SSH failed: %v\n", err)
@@ -1560,16 +1561,16 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 								fmt.Printf("Instance disconnected for client %q\n", nConn.RemoteAddr())
 							}
 						}
-						cancel() // Prevents error output when other io.Copy finishes.
+						cancel() // Prevents error output when other util.SafeCopy finishes.
 						_ = channel.Close()
 					}()
 
-					_, err = io.Copy(sftpConn, channel)
+					_, err = util.SafeCopy(sftpConn, channel)
 					if err != nil && ctx.Err() == nil {
 						fmt.Fprintf(os.Stderr, "I/O copy from SSH to instance failed: %v\n", err)
 					}
 
-					cancel() // Prevents error output when other io.Copy finishes.
+					cancel() // Prevents error output when other util.SafeCopy finishes.
 					_ = sftpConn.Close()
 				}()
 			}

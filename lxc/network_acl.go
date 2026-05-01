@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/termios"
+	"github.com/canonical/lxd/shared/util"
 )
 
 type cmdNetworkACL struct {
@@ -312,7 +313,7 @@ func (c *cmdNetworkACLShowLog) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	_, err = io.Copy(os.Stdout, log)
+	_, err = util.SafeCopy(os.Stdout, log)
 	_ = log.Close()
 
 	return err
