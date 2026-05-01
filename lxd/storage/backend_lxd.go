@@ -893,12 +893,12 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 			// Check if snapshot volume config is available for restore and matches snapshot name.
 			if srcBackup.Config != nil {
-				if len(srcBackup.Config.Snapshots) >= i-1 && srcBackup.Config.Snapshots[i] != nil && srcBackup.Config.Snapshots[i].Name == backupFileSnap {
+				if len(srcBackup.Config.Snapshots) > i && srcBackup.Config.Snapshots[i] != nil && srcBackup.Config.Snapshots[i].Name == backupFileSnap {
 					// Use instance snapshot's creation date if snap info available.
 					volumeSnapCreationDate = srcBackup.Config.Snapshots[i].CreatedAt
 				}
 
-				if rootVol != nil && len(rootVol.Snapshots) >= i-1 && rootVol.Snapshots[i] != nil && rootVol.Snapshots[i].Name == backupFileSnap {
+				if rootVol != nil && len(rootVol.Snapshots) > i && rootVol.Snapshots[i] != nil && rootVol.Snapshots[i].Name == backupFileSnap {
 					// If the backup restore interface provides volume snapshot config use it,
 					// otherwise use default volume config for the storage pool.
 					volumeSnapDescription = rootVol.Snapshots[i].Description
@@ -2340,12 +2340,12 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 			// If the source snapshot config is available, use that.
 			if srcInfo != nil && srcInfo.Config != nil {
-				if len(srcInfo.Config.Snapshots) >= i-1 && srcInfo.Config.Snapshots[i] != nil && srcInfo.Config.Snapshots[i].Name == snapName {
+				if len(srcInfo.Config.Snapshots) > i && srcInfo.Config.Snapshots[i] != nil && srcInfo.Config.Snapshots[i].Name == snapName {
 					// Use instance snapshot's creation date if snap info available.
 					snapCreationDate = srcInfo.Config.Snapshots[i].CreatedAt
 				}
 
-				if rootVol != nil && len(rootVol.Snapshots) >= i-1 && rootVol.Snapshots[i] != nil && rootVol.Snapshots[i].Name == snapName {
+				if rootVol != nil && len(rootVol.Snapshots) > i && rootVol.Snapshots[i] != nil && rootVol.Snapshots[i].Name == snapName {
 					// Check if snapshot volume config is available then use it.
 					snapDescription = rootVol.Snapshots[i].Description
 					snapConfig = rootVol.Snapshots[i].Config
