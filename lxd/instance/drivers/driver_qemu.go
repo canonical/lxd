@@ -1973,7 +1973,10 @@ func (d *qemu) advertiseVsockAddress() error {
 		return fmt.Errorf("Failed getting agent client handle: %w", err)
 	}
 
-	agent, err := lxd.ConnectLXDHTTP(nil, client)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	agent, err := lxd.ConnectLXDHTTPWithContext(ctx, nil, client)
 	if err != nil {
 		return fmt.Errorf("Failed connecting to lxd-agent: %w", err)
 	}
@@ -8375,7 +8378,10 @@ func (d *qemu) agentGetState() (*api.InstanceState, error) {
 		return nil, err
 	}
 
-	agent, err := lxd.ConnectLXDHTTP(nil, client)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	agent, err := lxd.ConnectLXDHTTPWithContext(ctx, nil, client)
 	if err != nil {
 		return nil, fmt.Errorf("Failed connecting to agent: %w", err)
 	}
@@ -8941,7 +8947,10 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 		return err
 	}
 
-	agent, err := lxd.ConnectLXDHTTP(nil, client)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	agent, err := lxd.ConnectLXDHTTPWithContext(ctx, nil, client)
 	if err != nil {
 		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"err": err})
 		return errors.New("Failed to connect to lxd-agent")
