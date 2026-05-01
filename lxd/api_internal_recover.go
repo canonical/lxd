@@ -78,9 +78,17 @@ type internalRecoverImportPost struct {
 // In case a backup config was created by discovering a volume just from its name,
 // its last modification time is zero and therefore always older than any backup config loaded from file.
 // This allows to determine if an enriched backup config can be used to override an existing one created by discovering a custom volume just from its name.
-func volumeConfigIsLatest(volumeConfig *backupConfig.Config, existingVolumeConfig *backupConfig.Config) (exists bool, newer bool) {
+func volumeConfigIsLatest(volumeConfig *backupConfig.Config, existingVolumeConfig *backupConfig.Config) (exists bool, newer bool, err error) {
 	for _, volume := range volumeConfig.Volumes {
+		if volume == nil {
+			return false, false, errors.New("Backup config contains nil volume")
+		}
+
 		for _, existingVol := range existingVolumeConfig.Volumes {
+			if existingVol == nil {
+				return false, false, errors.New("Existing backup config contains nil volume")
+			}
+
 			if existingVol.Pool == volume.Pool && existingVol.Project == volume.Project && existingVol.Name == volume.Name {
 				// In case a custom storage volume got discovered through an instance's backup config,
 				// its using the modification time of the instance's backup config.
@@ -88,15 +96,15 @@ func volumeConfigIsLatest(volumeConfig *backupConfig.Config, existingVolumeConfi
 				// In case this was failing for one or more instances, this check also ensures we are always
 				// picking the most recent config.
 				if existingVolumeConfig.LastModified().Before(volumeConfig.LastModified()) {
-					return true, true
+					return true, true, nil
 				}
 
-				return true, false
+				return true, false, nil
 			}
 		}
 	}
 
-	return false, false
+	return false, false, nil
 }
 
 // appendUnknownVolumeConfig tries to add the given volume in the global map of discovered volumes.
@@ -118,6 +126,9 @@ func appendUnknownVolumeConfig(originalPoolName string, projectName string, volu
 	// This does not work for a bucket's config as it doesn't track neither pool nor volume.
 	if len(volumeConfig.Volumes) == 1 {
 		unknownVol = volumeConfig.Volumes[0]
+		if unknownVol == nil {
+			return errors.New("Backup config contains nil volume")
+		}
 
 		// Change the original pool the volume was discovered on as the given volume config describes a volumes on another pool.
 		// When running ListUnknownVolumes on any pool, it might return volumes from this pool but also from other pools.
@@ -134,8 +145,13 @@ func appendUnknownVolumeConfig(originalPoolName string, projectName string, volu
 	if unknownVol != nil && poolsProjectVols[unknownVol.Pool] != nil {
 		for i, existingVolConfig := range poolsProjectVols[unknownVol.Pool][unknownVol.Project] {
 			volumeLatest := false
+			var err error
 
-			volumeExists, volumeLatest = volumeConfigIsLatest(volumeConfig, existingVolConfig)
+			volumeExists, volumeLatest, err = volumeConfigIsLatest(volumeConfig, existingVolConfig)
+			if err != nil {
+				return err
+			}
+
 			if volumeLatest {
 				poolsProjectVols[unknownVol.Pool][unknownVol.Project][i] = volumeConfig
 				break

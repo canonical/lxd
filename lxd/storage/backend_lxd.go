@@ -1429,9 +1429,9 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 
 		// Only refresh the snapshots that the target needs.
 		srcSnapVols := make([]string, 0, len(customVol.Snapshots))
-		for _, srcSnap := range customVol.Snapshots {
+		for i, srcSnap := range customVol.Snapshots {
 			if srcSnap == nil {
-				return errors.New("Backup config contains nil custom volume snapshot")
+				return fmt.Errorf("Backup config contains nil custom volume snapshot at index %d", i)
 			}
 
 			newSnapshotName := drivers.GetSnapshotVolumeName(dbVol.Name, srcSnap.Name)
@@ -5477,9 +5477,9 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	var snapshotNames []string
 	if snapshots {
 		snapshotNames = make([]string, 0, len(customVol.Snapshots))
-		for _, snapshot := range customVol.Snapshots {
+		for i, snapshot := range customVol.Snapshots {
 			if snapshot == nil {
-				return errors.New("Backup config contains nil custom volume snapshot")
+				return fmt.Errorf("Backup config contains nil custom volume snapshot at index %d", i)
 			}
 
 			snapshotNames = append(snapshotNames, snapshot.Name)
@@ -5961,9 +5961,9 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 					return fmt.Errorf("Failed getting the custom volume: %w", err)
 				}
 
-				for _, srcSnap := range customVol.Snapshots {
+				for i, srcSnap := range customVol.Snapshots {
 					if srcSnap == nil {
-						return errors.New("Backup config contains nil custom volume snapshot")
+						return fmt.Errorf("Backup config contains nil custom volume snapshot at index %d", i)
 					}
 
 					if srcSnap.Name != snapName {
@@ -6644,9 +6644,9 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 	revert.Add(func() { _ = VolumeDBDelete(b, projectName, customVol.Name, drivers.VolumeTypeCustom) })
 
 	// Create the storage volume snapshot DB records.
-	for _, poolVolSnap := range customVol.Snapshots {
+	for i, poolVolSnap := range customVol.Snapshots {
 		if poolVolSnap == nil {
-			return nil, errors.New("Backup config contains nil custom volume snapshot")
+			return nil, fmt.Errorf("Backup config contains nil custom volume snapshot at index %d", i)
 		}
 
 		fullSnapName := drivers.GetSnapshotVolumeName(customVol.Name, poolVolSnap.Name)
@@ -6679,9 +6679,9 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 	}
 
 	// Create snapshot mount paths and snapshot parent directory if needed.
-	for _, poolVolSnap := range customVol.Snapshots {
+	for i, poolVolSnap := range customVol.Snapshots {
 		if poolVolSnap == nil {
-			return nil, errors.New("Backup config contains nil custom volume snapshot")
+			return nil, fmt.Errorf("Backup config contains nil custom volume snapshot at index %d", i)
 		}
 
 		l.Debug("Ensuring instance snapshot mount path", logger.Ctx{"snapshot": poolVolSnap.Name})
@@ -7673,6 +7673,10 @@ func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, 
 
 	// Iterate over the custom volumes attached to the instance.
 	for _, customVol := range backupConf.Volumes {
+		if customVol == nil {
+			return fmt.Errorf("Instance %q in project %q has nil custom volume in backup file", instName, projectName)
+		}
+
 		// Skip the instances root volume.
 		if customVol == rootVol {
 			continue
