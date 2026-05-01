@@ -19,6 +19,7 @@ import (
 
 	"go.yaml.in/yaml/v2"
 
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -132,13 +133,15 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 	var substitutionRules map[string]string
 	if substitutionDBPath != "" {
 		// Load the substitution rules
-		data, err := os.ReadFile(substitutionDBPath)
+		substitutionDBFile, err := os.Open(substitutionDBPath)
 		if err != nil {
 			return nil, fmt.Errorf("Error reading substitution database: %v", err)
 		}
 
+		defer func() { _ = substitutionDBFile.Close() }()
+
 		substitutionRules = make(map[string]string)
-		err = yaml.Unmarshal(data, &substitutionRules)
+		err = yaml.NewDecoder(util.MaxBytesReader(substitutionDBFile, util.MaxYAMLFileBytes)).Decode(&substitutionRules)
 		if err != nil {
 			return nil, fmt.Errorf("Error unmarshaling substitution database: %v", err)
 		}
