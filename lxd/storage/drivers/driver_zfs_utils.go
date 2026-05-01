@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/units"
+	"github.com/canonical/lxd/shared/util"
 )
 
 const (
@@ -468,7 +469,7 @@ func (d *zfs) receiveDataset(vol Volume, conn io.ReadWriteCloser, writeWrapper f
 	// Forward input through stdin.
 	chCopyConn := make(chan error, 1)
 	go func() {
-		_, err = io.Copy(stdin, conn)
+		_, err = util.SafeCopy(stdin, conn)
 		_ = stdin.Close()
 		chCopyConn <- err
 	}()

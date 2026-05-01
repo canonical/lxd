@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/units"
+	"github.com/canonical/lxd/shared/util"
 )
 
 // cephBlockVolSuffix suffix used for block content type volumes.
@@ -1265,7 +1266,7 @@ func (d *ceph) receiveVolume(volumeName string, conn io.ReadWriteCloser, writeWr
 	// Forward input through stdin.
 	chCopyConn := make(chan error, 1)
 	go func() {
-		_, err = io.Copy(stdin, conn)
+		_, err = util.SafeCopy(stdin, conn)
 		_ = stdin.Close()
 		chCopyConn <- err
 	}()

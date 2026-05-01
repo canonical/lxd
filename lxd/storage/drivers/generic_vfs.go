@@ -27,6 +27,7 @@ import (
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
+	"github.com/canonical/lxd/shared/util"
 )
 
 // genericVolumeBlockExtension extension used for generic block volume disk files.
@@ -216,7 +217,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol VolumeCopy, conn io.R
 		}
 
 		d.Logger().Debug("Sending block volume", logger.Ctx{"volName": vol.name, "path": path})
-		_, err = io.Copy(conn, fromPipe)
+		_, err = util.SafeCopy(conn, fromPipe)
 		if err != nil {
 			return fmt.Errorf("Error copying %q to migration connection: %w", path, err)
 		}
@@ -343,7 +344,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		d.Logger().Debug("Receiving block volume started", logger.Ctx{"volName": volName, "path": path})
 		defer d.Logger().Debug("Receiving block volume stopped", logger.Ctx{"volName": volName, "path": path})
 
-		_, err = io.Copy(to, fromPipe)
+		_, err = util.SafeCopy(to, fromPipe)
 		if err != nil {
 			return fmt.Errorf("Error copying from migration connection to %q: %w", path, err)
 		}
@@ -812,7 +813,7 @@ func genericVFSBackupUnpack(d Driver, s *state.State, vol VolumeCopy, snapshots 
 				}
 
 				d.Logger().Debug(logMsg, logger.Ctx{"source": srcFile, "target": targetPath})
-				_, err = io.Copy(to, tr)
+				_, err = util.SafeCopy(to, tr)
 				if err != nil {
 					return err
 				}

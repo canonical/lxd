@@ -57,6 +57,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
+	sharedUtil "github.com/canonical/lxd/shared/util"
 )
 
 var unavailablePools = make(map[string]struct{})
@@ -1969,7 +1970,7 @@ func (b *lxdBackend) isoFiller(data io.Reader) func(vol drivers.Volume, rootBloc
 
 		defer func() { _ = f.Close() }()
 
-		return io.Copy(f, data)
+		return sharedUtil.SafeCopy(f, data)
 	}
 }
 
@@ -2084,7 +2085,7 @@ func (b *lxdBackend) recvBlockVol(toFile *os.File, volName string, conn io.ReadW
 		fromPipe = ioprogress.NewProgressReader(conn, ioprogress.WithDescriptiveProgressReporter("block", "Transferring instance", progressReporter))
 	}
 
-	_, err := io.Copy(toFile, fromPipe)
+	_, err := sharedUtil.SafeCopy(toFile, fromPipe)
 	if err != nil {
 		return fmt.Errorf("Error copying from migration connection to %q: %w", toFile.Name(), err)
 	}
