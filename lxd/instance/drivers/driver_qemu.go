@@ -81,6 +81,7 @@ import (
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
+	sharedUtil "github.com/canonical/lxd/shared/util"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -885,9 +886,9 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 			go func() {
 				d.logger.Debug("Migration storage NBD export starting")
 
-				go func() { _, _ = io.Copy(filesystemConn, nbdConn) }()
+				go func() { _, _ = sharedUtil.SafeCopy(filesystemConn, nbdConn) }()
 
-				_, _ = io.Copy(nbdConn, filesystemConn)
+				_, _ = sharedUtil.SafeCopy(nbdConn, filesystemConn)
 				_ = nbdConn.Close()
 
 				d.logger.Debug("Migration storage NBD export finished")
@@ -904,7 +905,7 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 		}
 
 		go func() {
-			_, err := io.Copy(pipeWrite, stateConn)
+			_, err := sharedUtil.SafeCopy(pipeWrite, stateConn)
 			if err != nil {
 				d.logger.Warn("Failed reading from state connection", logger.Ctx{"err": err})
 			}
@@ -944,7 +945,7 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 		}
 
 		go func() {
-			_, err := io.Copy(pipeWrite, uncompressedState)
+			_, err := sharedUtil.SafeCopy(pipeWrite, uncompressedState)
 			if err != nil {
 				d.logger.Warn("Failed reading from state file", logger.Ctx{"path": statePath, "err": err})
 			}
@@ -1016,7 +1017,7 @@ func (d *qemu) saveState(monitor *qmp.Monitor) error {
 		_ = pipeWrite.Close()
 	}()
 
-	go func() { _, _ = io.Copy(compressedState, pipeRead) }()
+	go func() { _, _ = sharedUtil.SafeCopy(compressedState, pipeRead) }()
 
 	err = d.saveStateHandle(monitor, pipeWrite)
 	if err != nil {
@@ -7247,9 +7248,9 @@ func (d *qemu) migrateSendLive(ctx context.Context, pool storagePools.Pool, clus
 			defer func() { _ = nbdConn.Close() }()
 
 			d.logger.Debug("NBD connection on source started")
-			go func() { _, _ = io.Copy(filesystemConn, nbdConn) }()
+			go func() { _, _ = sharedUtil.SafeCopy(filesystemConn, nbdConn) }()
 
-			_, _ = io.Copy(nbdConn, filesystemConn)
+			_, _ = sharedUtil.SafeCopy(nbdConn, filesystemConn)
 			d.logger.Debug("NBD connection on source finished")
 		}()
 
@@ -7314,7 +7315,7 @@ func (d *qemu) migrateSendLive(ctx context.Context, pool storagePools.Pool, clus
 		_ = pipeWrite.Close()
 	}()
 
-	go func() { _, _ = io.Copy(stateConn, pipeRead) }()
+	go func() { _, _ = sharedUtil.SafeCopy(stateConn, pipeRead) }()
 
 	err = d.saveStateHandle(monitor, pipeWrite)
 	if err != nil {
