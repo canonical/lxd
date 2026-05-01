@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 
+	"github.com/canonical/lxd/shared/util"
 	"github.com/canonical/lxd/test/mini-loki/serve"
 )
 
@@ -67,7 +67,7 @@ func (l *loki) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (l *loki) onPush(w http.ResponseWriter, r *http.Request) {
-	_, _ = io.Copy(l.logfile, r.Body)
+	_, _ = util.SafeCopy(l.logfile, r.Body)
 	_, _ = l.logfile.WriteString("\n")
 	w.WriteHeader(http.StatusOK)
 }
