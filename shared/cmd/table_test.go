@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/util"
 )
 
 type tableSuite struct {
@@ -179,14 +179,14 @@ foo,1,/1.0/instances/foo
 		// Call method but fix stdout before making any assertions.
 		actualErr := RenderSlice(test.args.data, test.args.format, test.args.displayColumns, test.args.sortColumns, test.args.columnMap)
 
-		// Restore stdout and close the writer now so that io.Copy gets an io.EOF and doesn't block indefinitely.
+		// Restore stdout and close the writer now so that util.SafeCopy gets an io.EOF and doesn't block indefinitely.
 		os.Stdout = stdout
 		err = w.Close()
 		s.Require().NoError(err)
 
 		// Read what was printed to stdout.
 		buffer := bytes.NewBuffer(nil)
-		_, err = io.Copy(buffer, r)
+		_, err = util.SafeCopy(buffer, r)
 		s.Require().NoError(err)
 		output := buffer.String()
 

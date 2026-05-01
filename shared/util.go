@@ -35,6 +35,7 @@ import (
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/revert"
+	"github.com/canonical/lxd/shared/util"
 )
 
 // SnapshotDelimiter is the character used to delimit instance and snapshot names.
@@ -451,7 +452,7 @@ func WriteAll(w io.Writer, data []byte) error {
 
 	toWrite := int64(buf.Len())
 	for {
-		n, err := io.Copy(w, buf)
+		n, err := util.SafeCopy(w, buf)
 		if err != nil {
 			return err
 		}
@@ -562,7 +563,7 @@ func FileCopy(source string, dest string) error {
 		}
 	}
 
-	_, err = io.Copy(d, s)
+	_, err = util.SafeCopy(d, s)
 	if err != nil {
 		return err
 	}
@@ -1236,7 +1237,7 @@ func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent st
 	var size int64
 
 	if hashFunc != nil {
-		size, err = io.Copy(io.MultiWriter(target, hashFunc), body)
+		size, err = util.SafeCopy(io.MultiWriter(target, hashFunc), body)
 		if err != nil {
 			return -1, err
 		}
@@ -1246,7 +1247,7 @@ func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent st
 			return -1, fmt.Errorf("Hash mismatch for %s: %s != %s", url, result, hash)
 		}
 	} else {
-		size, err = io.Copy(target, body)
+		size, err = util.SafeCopy(target, body)
 		if err != nil {
 			return -1, err
 		}
