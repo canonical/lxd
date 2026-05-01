@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/ucred"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/util"
 )
 
 func tlsConfig(uid uint32) (*tls.Config, error) {
@@ -138,6 +138,6 @@ func proxyConnection(conn *net.UnixConn) {
 	}
 
 	// Start proxying.
-	go func() { _, _ = io.Copy(conn, tlsClient) }()
-	_, _ = io.Copy(tlsClient, conn)
+	go func() { _, _ = util.SafeCopy(conn, tlsClient) }()
+	_, _ = util.SafeCopy(tlsClient, conn)
 }
