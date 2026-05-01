@@ -91,6 +91,13 @@ layout:
   # For PCI and USB ID files
   /usr/share/misc:
     bind: $SNAP/share/misc
+  # With `core26` no longer shipping a Python interpreter, the LXD snap
+  # needs to vendor its own Python runtime.
+  /usr/bin/python3:
+    # XXX: Apparmor follows symlinks so pointing to `$SNAP/bin/python3`
+    # causes denials when the snap tries to execute Python scripts.
+    # Instead, point directly to the actual interpreter.
+    bind-file: $SNAP/bin/python3.14
 
 apps:
   # Main commands
