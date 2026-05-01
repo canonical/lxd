@@ -32,6 +32,7 @@ github.com/canonical/lxd/shared/simplestreams
 github.com/canonical/lxd/shared/tcp
 github.com/canonical/lxd/shared/termios
 github.com/canonical/lxd/shared/units
+github.com/canonical/lxd/shared/util
 github.com/canonical/lxd/shared/validate
 github.com/canonical/lxd/shared/version
 github.com/canonical/lxd/shared/ws
