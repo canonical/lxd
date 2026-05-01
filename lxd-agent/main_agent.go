@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -23,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
+	sharedUtil "github.com/canonical/lxd/shared/util"
 )
 
 var servers = make(map[string]*http.Server, 2)
@@ -81,7 +81,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		// Copy the data.
-		_, err = io.Copy(dst, src)
+		_, err = sharedUtil.SafeCopy(dst, src)
 		if err != nil {
 			return err
 		}

@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 
 	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/util"
 )
 
 func templatesApply(path string) ([]string, error) {
@@ -80,7 +80,7 @@ func templatesApply(path string) ([]string, error) {
 			defer func() { _ = w.Close() }()
 
 			// Do the copy.
-			_, err = io.Copy(w, src)
+			_, err = util.SafeCopy(w, src)
 			if err != nil {
 				return err
 			}

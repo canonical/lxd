@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -17,6 +16,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/util"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -309,7 +309,7 @@ func devLXDImageExportHandler(d *Daemon, r *http.Request) *devLXDResponse {
 
 		// Copy headers and response body.
 		w.WriteHeader(resp.StatusCode)
-		_, err = io.Copy(w, resp.Body)
+		_, err = util.SafeCopy(w, resp.Body)
 		if err != nil {
 			return err
 		}

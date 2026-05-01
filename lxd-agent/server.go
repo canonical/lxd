@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
+	sharedUtil "github.com/canonical/lxd/shared/util"
 )
 
 func restServer(tlsConfig *tls.Config, cert *x509.Certificate, d *Daemon) *http.Server {
@@ -58,7 +59,7 @@ func createCmd(restAPI *http.ServeMux, version string, c APIEndpoint, cert *x509
 			newBody := &bytes.Buffer{}
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)
-			_, err := io.Copy(multiW, r.Body)
+			_, err := sharedUtil.SafeCopy(multiW, r.Body)
 			if err != nil {
 				_ = response.InternalError(err).Render(w, r)
 				return
