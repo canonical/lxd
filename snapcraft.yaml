@@ -1412,6 +1412,8 @@ parts:
       - bin/uefivars.py  # LXD expects the .py extension
       - lib/python3/dist-packages/crc32c*
       - lib/python3/dist-packages/pyuefivars*
+      # Exclude compiled bytecode, `uefivars.py` is rarely invoked.
+      - -lib/python3/dist-packages/**/__pycache__
 
   lxd:
     source: https://github.com/canonical/lxd
