@@ -280,7 +280,11 @@ func UpdateInstanceConfigInPlace(c *db.Cluster, b *Info) error {
 		rootDiskDeviceFound = true
 	}
 
-	for _, snapshot := range b.Config.Snapshots {
+	for i, snapshot := range b.Config.Snapshots {
+		if snapshot == nil {
+			return fmt.Errorf("Backup config contains nil snapshot at index %d", i)
+		}
+
 		updateRootDevicePool(snapshot.Devices, pool.Name)
 		updateRootDevicePool(snapshot.ExpandedDevices, pool.Name)
 	}

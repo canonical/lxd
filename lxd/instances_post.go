@@ -789,7 +789,11 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	rootVol.Config["volatile.uuid"] = uuid.New().String()
 
 	// Override the volume snapshot's UUID.
-	for _, snapshot := range rootVol.Snapshots {
+	for i, snapshot := range rootVol.Snapshots {
+		if snapshot == nil {
+			return response.SmartError(fmt.Errorf("Nil root volume snapshot definition found at index %d", i))
+		}
+
 		snapshot.Config["volatile.uuid"] = uuid.New().String()
 	}
 

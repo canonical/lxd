@@ -621,7 +621,11 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 				revert.Add(cleanup)
 
 				// Recover instance volume snapshots.
-				for _, poolInstSnap := range poolVol.Snapshots {
+				for i, poolInstSnap := range poolVol.Snapshots {
+					if poolInstSnap == nil {
+						return response.SmartError(fmt.Errorf("Nil instance volume snapshot definition found at index %d for instance %q record in project %q", i, poolVol.Instance.Name, projectName))
+					}
+
 					profiles := make([]api.Profile, 0, len(poolInstSnap.Profiles))
 					for _, profileName := range poolInstSnap.Profiles {
 						for i := range projectProfiles[profileProjectName] {
