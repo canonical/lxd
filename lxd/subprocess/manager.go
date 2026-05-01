@@ -8,6 +8,8 @@ import (
 	"os"
 
 	"go.yaml.in/yaml/v2"
+
+	"github.com/canonical/lxd/lxd/util"
 )
 
 // NewProcess is a constructor for a process object. Represents a process with argument config.
@@ -52,13 +54,15 @@ func NewProcessWithFds(name string, args []string, stdin io.ReadCloser, stdout i
 
 // ImportProcess imports a saved process into a subprocess object.
 func ImportProcess(path string) (*Process, error) {
-	dat, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to read PID file %q: %w", path, err)
 	}
 
+	defer func() { _ = file.Close() }()
+
 	proc := Process{}
-	err = yaml.Unmarshal(dat, &proc)
+	err = yaml.NewDecoder(util.MaxBytesReader(file, util.MaxYAMLFileBytes)).Decode(&proc)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to parse YAML in PID file %q: %w", path, err)
 	}
