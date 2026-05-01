@@ -27,6 +27,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
+	"github.com/canonical/lxd/shared/util"
 )
 
 func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
@@ -527,7 +528,7 @@ func instanceFilePost(ctx context.Context, s *state.State, inst instance.Instanc
 		}
 
 		// Transfer the file into the instance.
-		_, err = io.Copy(file, r.Body)
+		_, err = util.SafeCopy(file, r.Body)
 		if err != nil {
 			return response.InternalError(err)
 		}

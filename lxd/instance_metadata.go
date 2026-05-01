@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,6 +22,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	sharedUtil "github.com/canonical/lxd/shared/util"
 )
 
 // swagger:operation GET /1.0/instances/{name}/metadata instances instance_metadata_get
@@ -502,7 +502,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 		return response.SmartError(err)
 	}
 
-	_, err = io.Copy(tempfile, template)
+	_, err = sharedUtil.SafeCopy(tempfile, template)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -630,7 +630,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 		return response.SmartError(err)
 	}
 
-	_, err = io.Copy(template, r.Body)
+	_, err = sharedUtil.SafeCopy(template, r.Body)
 	if err != nil {
 		return response.InternalError(err)
 	}

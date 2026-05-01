@@ -33,6 +33,7 @@ import (
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
+	"github.com/canonical/lxd/shared/util"
 )
 
 // Create a new backup.
@@ -167,7 +168,7 @@ func backupCreate(ctx context.Context, s *state.State, args db.InstanceBackup, s
 				_ = tarPipeWriter.Close()
 			}
 		} else {
-			_, err = io.Copy(writerWrapper(tarFileWriter), tarPipeReader)
+			_, err = util.SafeCopy(writerWrapper(tarFileWriter), tarPipeReader)
 		}
 
 		resCh <- err
@@ -492,7 +493,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 				_ = tarPipeWriter.Close()
 			}
 		} else {
-			_, err = io.Copy(tarFileWriter, tarPipeReader)
+			_, err = util.SafeCopy(tarFileWriter, tarPipeReader)
 		}
 
 		resCh <- err

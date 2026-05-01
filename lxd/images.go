@@ -59,6 +59,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
+	sharedUtil "github.com/canonical/lxd/shared/util"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -370,7 +371,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 			return err
 		}
 
-		_, err = io.Copy(outfile, tempfile)
+		_, err = sharedUtil.SafeCopy(outfile, tempfile)
 		if err != nil {
 			return err
 		}
@@ -731,7 +732,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 			return nil, errors.New("Invalid multipart image")
 		}
 
-		size, err = io.Copy(io.MultiWriter(imageTarf, sha256), part)
+		size, err = sharedUtil.SafeCopy(io.MultiWriter(imageTarf, sha256), part)
 		info.Size += size
 
 		_ = imageTarf.Close()
@@ -766,7 +767,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 
 		rootfsTmpFilename = rootfsTarf.Name()
 
-		size, err = io.Copy(io.MultiWriter(rootfsTarf, sha256), part)
+		size, err = sharedUtil.SafeCopy(io.MultiWriter(rootfsTarf, sha256), part)
 		info.Size += size
 
 		_ = rootfsTarf.Close()
@@ -782,7 +783,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 			return nil, err
 		}
 
-		size, err = io.Copy(sha256, post)
+		size, err = sharedUtil.SafeCopy(sha256, post)
 		if err != nil {
 			l.Error("Failed copying the tarfile", logger.Ctx{"err": err})
 			return nil, err
@@ -1202,7 +1203,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	revert.Add(func() { cleanup(builddir, post) })
 
-	_, err = io.Copy(shared.NewQuotaWriter(post, budget), r.Body)
+	_, err = sharedUtil.SafeCopy(shared.NewQuotaWriter(post, budget), r.Body)
 	if err != nil {
 		logger.Errorf("Store image POST data to disk: %v", err)
 		return response.InternalError(err)

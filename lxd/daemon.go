@@ -77,6 +77,7 @@ import (
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
+	sharedUtil "github.com/canonical/lxd/shared/util"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -949,7 +950,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			newBody := &bytes.Buffer{}
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)
-			_, err := io.Copy(multiW, r.Body)
+			_, err := sharedUtil.SafeCopy(multiW, r.Body)
 			if err != nil {
 				_ = response.InternalError(err).Render(w, r)
 				return
