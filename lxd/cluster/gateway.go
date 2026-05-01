@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -30,6 +29,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/tcp"
+	sharedUtil "github.com/canonical/lxd/shared/util"
 )
 
 // NewGateway creates a new Gateway for managing access to the dqlite cluster.
@@ -1202,12 +1202,12 @@ func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.C
 	// Start copying data back and forth until either the client or the
 	// server get closed or hit an error.
 	go func() {
-		_, err := io.Copy(local, remote)
+		_, err := sharedUtil.SafeCopy(local, remote)
 		remoteToLocal <- err
 	}()
 
 	go func() {
-		_, err := io.Copy(remote, local)
+		_, err := sharedUtil.SafeCopy(remote, local)
 		localToRemote <- err
 	}()
 

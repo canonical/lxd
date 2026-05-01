@@ -23,6 +23,7 @@ import (
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
+	"github.com/canonical/lxd/shared/util"
 )
 
 // RecoveryTarballName is the filename used for recovery tarballs.
@@ -502,7 +503,7 @@ func unpackTarball(tarballPath string, destRoot string) error {
 				return err
 			}
 
-			countWritten, err := io.Copy(file, tarReader)
+			countWritten, err := util.SafeCopy(file, tarReader)
 			if countWritten != header.Size {
 				return fmt.Errorf("Mismatched written (%d) and size (%d) for entry %q in %q", countWritten, header.Size, header.Name, tarballPath)
 			} else if err != nil {
@@ -599,7 +600,7 @@ func createTarball(tarballPath string, rootDir string, walkDir string, excludeFi
 				return err
 			}
 
-			_, err = io.Copy(tarWriter, file)
+			_, err = util.SafeCopy(tarWriter, file)
 			if err != nil {
 				return err
 			}
