@@ -45,6 +45,7 @@ import (
 	"github.com/canonical/lxd/shared/filter"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
+	sharedUtil "github.com/canonical/lxd/shared/util"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -2630,7 +2631,7 @@ func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProj
 	revert.Add(func() { _ = isoFile.Close() })
 
 	// Stream uploaded ISO data into temporary file.
-	size, err := io.Copy(isoFile, data)
+	size, err := sharedUtil.SafeCopy(isoFile, data)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2694,7 +2695,7 @@ func createStoragePoolVolumeFromTarball(s *state.State, r *http.Request, request
 	revert.Add(func() { _ = os.Remove(tarFile.Name()) })
 
 	// Stream uploaded backup data into temporary file.
-	_, err = io.Copy(tarFile, data)
+	_, err = sharedUtil.SafeCopy(tarFile, data)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2751,7 +2752,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	revert.Add(func() { _ = backupFile.Close() })
 
 	// Stream uploaded backup data into temporary file.
-	_, err = io.Copy(backupFile, data)
+	_, err = sharedUtil.SafeCopy(backupFile, data)
 	if err != nil {
 		return response.InternalError(err)
 	}
