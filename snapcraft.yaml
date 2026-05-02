@@ -1715,3 +1715,18 @@ parts:
       wrappers/remote-viewer: bin/
       wrappers/sshfs: bin/
       wrappers/virt-v2v-in-place: bin/
+
+lint:
+  ignore:
+    - library:
+      # Ignore libs that are `dlopen`ed
+      - lib/libnvidia-container-go.so*
+      - zfs-2.2/lib/libnvpair.so*
+      - zfs-2.2/lib/libuutil.so*
+      - zfs-2.2/lib/libzfs_core.so*
+      - zfs-2.3/lib/libnvpair.so*
+      - zfs-2.3/lib/libuutil.so*
+      - zfs-2.3/lib/libzfs_core.so*
+      - zfs-2.4/lib/libnvpair.so*
+      - zfs-2.4/lib/libuutil.so*
+      - zfs-2.4/lib/libzfs_core.so*
