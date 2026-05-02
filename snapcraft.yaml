@@ -1104,9 +1104,6 @@ parts:
     source-depth: 1
     source-type: git
     plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=/
-      - --with-config=user
     build-packages:
       - to armhf: []
       - else:
@@ -1130,22 +1127,21 @@ parts:
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
-      craftctl default
       set -ex
+      RAW_VER="${CRAFT_PART_NAME#zfs-}"
+      ZFS_VER="${RAW_VER/-/.}"
 
-      ZFS_VER="2.2"
+      # Bypass `craftctl default` to only build 'zfs' and 'zpool' targets and not `make all`
+      cd "${CRAFT_PART_SRC}"
+      ./autogen.sh
+      ./configure --prefix=/ --with-config=user
+      make -j$(nproc) zfs zpool
 
-      mv "${CRAFT_PART_INSTALL}" "${CRAFT_PART_INSTALL}.tmp"
       mkdir -p "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib"
-      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zfs" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zpool" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/lib/udev/zvol_id" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
-      rm -Rf "${CRAFT_PART_INSTALL}.tmp"
 
-      # unused .so
-      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*
-      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
+      find . -type f -name "zfs" -path "*/.libs/*" -exec cp {} "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/" \;
+      find . -type f -name "zpool" -path "*/.libs/*" -exec cp {} "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/" \;
+      find . -name "*.so*" -path "*/.libs/*" -exec cp -P {} "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/" \;
 
   zfs-2-3:
     source: https://github.com/openzfs/zfs
