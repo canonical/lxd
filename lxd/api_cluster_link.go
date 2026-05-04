@@ -940,7 +940,7 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 	defer reverter.Fail()
 
 	reverter.Add(func() {
-		err := s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return dbCluster.DeleteIdentityByAuthenticationMethodAndIdentifier(ctx, tx.Tx(), api.AuthenticationMethodTLS, fingerprint)
 		})
 		if err != nil {
