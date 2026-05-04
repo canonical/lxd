@@ -812,6 +812,13 @@ func clusterLinkCreatePending(s *state.State, r *http.Request, req api.ClusterLi
 			return err
 		}
 
+		// For unidirectional links, B only creates an identity for A. There is no cluster link
+		// row on B's side; A stores the link and B's certificate. B manages A's access solely
+		// through the identity.
+		if clusterLinkType == dbCluster.ClusterLinkType(api.ClusterLinkTypeUnidirectional) {
+			return nil
+		}
+
 		clusterLinkID, err := dbCluster.CreateClusterLink(ctx, tx.Tx(), dbCluster.ClusterLinkRow{
 			IdentityID:  &id,
 			Name:        req.Name,
@@ -833,8 +840,10 @@ func clusterLinkCreatePending(s *state.State, r *http.Request, req api.ClusterLi
 		return response.InternalError(fmt.Errorf("Failed creating pending TLS identity: %w", err))
 	}
 
-	// Send cluster link lifecycle event.
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(req.Name, requestor, nil))
+	// Send cluster link lifecycle event (bidirectional only; B has no cluster link row for unidirectional links).
+	if clusterLinkType != dbCluster.ClusterLinkType(api.ClusterLinkTypeUnidirectional) {
+		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(req.Name, requestor, nil))
+	}
 
 	// Notify other members, update the cache, and send a lifecycle event.
 	lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodTLS, identifier.String(), false)
