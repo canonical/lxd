@@ -1409,23 +1409,35 @@ func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
 
 		clusterLink = dbClusterLink.ToAPI(config)
 
-		identity, err := dbCluster.GetIdentityByID(ctx, tx.Tx(), dbClusterLink.IdentityID)
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link identity: %w", err)
+		var pemCert string
+		if dbClusterLink.IdentityID != nil {
+			// Bidirectional: cert is stored via the identity.
+			identity, err := dbCluster.GetIdentityByID(ctx, tx.Tx(), *dbClusterLink.IdentityID)
+			if err != nil {
+				return fmt.Errorf("Failed loading cluster link identity: %w", err)
+			}
+
+			certs, err := dbCluster.GetIdentitiesPEMCertificates(ctx, tx.Tx(), &identity.ID)
+			if err != nil {
+				return fmt.Errorf("Failed loading cluster link certificate: %w", err)
+			}
+
+			if len(certs[identity.ID]) == 0 {
+				return fmt.Errorf("No certificate found for cluster link identity %q", identity.Name)
+			}
+
+			pemCert = certs[identity.ID][0]
+		} else {
+			// Unidirectional: cert is stored directly in cluster_links_certificates.
+			pemCert, err = dbCluster.GetClusterLinkPEMCertificate(ctx, tx.Tx(), dbClusterLink.ID)
+			if err != nil {
+				return fmt.Errorf("Failed loading cluster link certificate: %w", err)
+			}
 		}
 
-		certs, err := dbCluster.GetIdentitiesPEMCertificates(ctx, tx.Tx(), &identity.ID)
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link certificate: %w", err)
-		}
-
-		if len(certs[identity.ID]) == 0 {
-			return fmt.Errorf("No certificate found for cluster link identity %q", identity.Name)
-		}
-
-		certBlock, _ := pem.Decode([]byte(certs[identity.ID][0]))
+		certBlock, _ := pem.Decode([]byte(pemCert))
 		if certBlock == nil {
-			return fmt.Errorf("Failed decoding certificate for cluster link identity %q", identity.Name)
+			return fmt.Errorf("Failed decoding certificate for cluster link %q", dbClusterLink.Name)
 		}
 
 		targetCert, err = x509.ParseCertificate(certBlock.Bytes)
