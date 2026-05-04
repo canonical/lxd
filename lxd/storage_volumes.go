@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -2213,6 +2214,10 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	bInfo, err := backup.GetInfo(backupFile, s.OS, backupFile.Name())
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	if bInfo.Config == nil {
+		return response.BadRequest(errors.New("Backup config is missing"))
 	}
 
 	// Only check volume snapshots.
