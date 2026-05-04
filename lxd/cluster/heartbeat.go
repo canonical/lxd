@@ -48,6 +48,7 @@ type APIHeartbeatMember struct {
 	LastHeartbeat time.Time        `json:"LastHeartbeat"` // Last time we received a successful response from node.
 	Online        bool             `json:"Online"`        // Calculated from offline threshold and LastHeatbeat time.
 	Roles         []db.ClusterRole `json:"Roles"`         // Supplementary non-database roles the member has.
+	State         int              `json:"State"`         // Cluster member state from the nodes table.
 	updated       bool             // Has node been updated during this heartbeat run. Not sent to nodes.
 }
 
@@ -105,6 +106,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 			LastHeartbeat: node.Heartbeat,
 			Online:        !node.IsOffline(offlineThreshold),
 			Roles:         node.Roles,
+			State:         node.State,
 		}
 
 		raftNode, exists := raftNodeMap[member.Address]
