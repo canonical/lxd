@@ -778,8 +778,13 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 			return err
 		}
 
-		// Clear the target for the subvol to use.
-		_ = os.Remove(op.dest)
+		// Clear the target for the subvol to use. During refresh the destination may already
+		// be a btrfs subvolume which os.Remove cannot delete.
+		if d.isSubvolume(op.dest) {
+			_ = d.deleteSubvolume(op.dest, true)
+		} else {
+			_ = os.Remove(op.dest)
+		}
 
 		err = os.Rename(op.src, op.dest)
 		if err != nil {
@@ -1273,6 +1278,18 @@ func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArg
 }
 
 func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, subvolumes []BTRFSSubVolume, progressReporter ioprogress.ProgressReporter) error {
+	// readonlyRestore tracks subvolume paths that were set readonly for sending and need to be
+	// restored afterward. Restoration is deferred to the end of the function rather than per-send
+	// to avoid toggling readonly state between sends. Toggling clears the received_uuid on
+	// subvolumes that were previously received, causing "cannot find parent subvolume" errors
+	// during btrfs receive on the target.
+	var readonlyRestore []string
+	defer func() {
+		for _, path := range readonlyRestore {
+			_ = d.setSubvolumeReadonlyProperty(path, false)
+		}
+	}()
+
 	// sendVolume sends a volume and its subvolumes (if negotiated subvolumes feature) to recipient.
 	sendVolume := func(v Volume, sourcePrefix string, parentPrefix string) error {
 		snapName := "" // Default to empty (sending main volume) from migrationHeader.Subvolumes.
@@ -1292,7 +1309,6 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 		sentVols := 0
 
 		// Send volume (and any subvolumes if supported) to target.
-		//revive:disable:defer Allow defer inside a loop.
 		for _, subVolume := range subvolumes {
 			if subVolume.Snapshot != snapName {
 				continue // Only sending subvolumes related to snapshot name (empty for main vol).
@@ -1314,7 +1330,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 						return err
 					}
 
-					defer func() { _ = d.setSubvolumeReadonlyProperty(parentPath, false) }()
+					readonlyRestore = append(readonlyRestore, parentPath)
 				}
 			}
 
@@ -1326,7 +1342,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 					return err
 				}
 
-				defer func() { _ = d.setSubvolumeReadonlyProperty(sourcePath, false) }()
+				readonlyRestore = append(readonlyRestore, sourcePath)
 			}
 
 			d.logger.Debug("Sending subvolume", logger.Ctx{"name": v.name, "source": sourcePath, "parent": parentPath, "path": subVolume.Path})
