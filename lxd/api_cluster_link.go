@@ -1011,6 +1011,9 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 	for _, err := range activationErrs {
 		errStrings = append(errStrings, err.Error())
 
+		// Capture the first error that carries an HTTP status code so it can be
+		// preserved in the response via SmartError rather than falling back to a
+		// generic 502 Bad Gateway.
 		if statusErr == nil {
 			_, found := api.StatusErrorMatch(err)
 			if found {
