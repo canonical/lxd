@@ -316,6 +316,12 @@ type ClusterMemberStatePost struct {
 	//
 	// API extension: clustering_evacuation_mode
 	Mode string `json:"mode" yaml:"mode"`
+
+	// Permit evacuation even if it would drop the cluster below the required voter majority.
+	// Example: false
+	//
+	// API extension: clustering_evacuation_force
+	Force bool `json:"force" yaml:"force"`
 }
 
 // ClusterGroupsPost represents the fields available for a new cluster group.
