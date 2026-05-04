@@ -612,7 +612,7 @@ func clusterLinkDelete(d *Daemon, r *http.Request) response.Response {
 	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
 
 	// Update DB entry.
-	var identity *dbCluster.IdentitiesRow
+	var identityIdentifier string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Prevent deletion if the cluster link is referenced by any entity.
 		usedBy, err := dbCluster.GetClusterLinkUsedBy(ctx, tx.Tx(), name, true)
@@ -630,16 +630,24 @@ func clusterLinkDelete(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		// Get identity for notification and lifecycle event.
-		identity, err = dbCluster.GetIdentityByID(ctx, tx.Tx(), clusterLink.IdentityID)
-		if err != nil {
-			return fmt.Errorf("Failed getting identity with ID %d: %w", clusterLink.IdentityID, err)
-		}
+		if clusterLink.IdentityID != nil {
+			// For bidirectional links, deleting the identity cascades to delete the cluster link.
+			identity, err := dbCluster.GetIdentityByID(ctx, tx.Tx(), *clusterLink.IdentityID)
+			if err != nil {
+				return fmt.Errorf("Failed getting identity with ID %d: %w", *clusterLink.IdentityID, err)
+			}
 
-		// Deleting the identity also deletes the cluster link.
-		err = dbCluster.DeleteIdentityByAuthenticationMethodAndIdentifier(ctx, tx.Tx(), api.AuthenticationMethodTLS, identity.Identifier)
-		if err != nil {
-			return err
+			identityIdentifier = identity.Identifier
+			err = dbCluster.DeleteIdentityByAuthenticationMethodAndIdentifier(ctx, tx.Tx(), api.AuthenticationMethodTLS, identity.Identifier)
+			if err != nil {
+				return err
+			}
+		} else {
+			// For unidirectional links, delete the cluster link directly.
+			err = dbCluster.DeleteClusterLink(ctx, tx.Tx(), name)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -652,10 +660,12 @@ func clusterLinkDelete(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkDeleted.Event(name, requestor, nil))
 
-	// Notify other members, update the cache, and send an identity lifecycle event.
-	_, err = notify(lifecycle.IdentityDeleted, api.AuthenticationMethodTLS, identity.Identifier, true)
-	if err != nil {
-		return response.SmartError(err)
+	// Notify other members, update the cache, and send an identity lifecycle event (bidirectional links only).
+	if identityIdentifier != "" {
+		_, err = notify(lifecycle.IdentityDeleted, api.AuthenticationMethodTLS, identityIdentifier, true)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.EmptySyncResponse
