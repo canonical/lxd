@@ -537,19 +537,21 @@ func clusterLinkPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed loading cluster link: %w", err)
 		}
 
-		// Get identity for notification and lifecycle event.
-		identity, err := dbCluster.GetIdentityByID(ctx, tx.Tx(), clusterLink.IdentityID)
-		if err != nil {
-			return fmt.Errorf("Failed getting identity with ID %d: %w", clusterLink.IdentityID, err)
-		}
+		// Get identity for notification and lifecycle event (bidirectional links only).
+		if clusterLink.IdentityID != nil {
+			identity, err := dbCluster.GetIdentityByID(ctx, tx.Tx(), *clusterLink.IdentityID)
+			if err != nil {
+				return fmt.Errorf("Failed getting identity with ID %d: %w", *clusterLink.IdentityID, err)
+			}
 
-		identityIdentifier = identity.Identifier
+			identityIdentifier = identity.Identifier
 
-		// Rename identity.
-		identity.Name = req.Name
-		err = query.UpdateByPrimaryKey(ctx, tx.Tx(), *identity)
-		if err != nil {
-			return err
+			// Rename identity.
+			identity.Name = req.Name
+			err = query.UpdateByPrimaryKey(ctx, tx.Tx(), *identity)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Rename cluster link.
@@ -568,10 +570,12 @@ func clusterLinkPost(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkRenamed.Event(req.Name, requestor, logger.Ctx{"old_name": name}))
 
-	// Notify other members, update the cache, and send an identity lifecycle event.
-	_, err = notify(lifecycle.IdentityUpdated, api.AuthenticationMethodTLS, identityIdentifier, true)
-	if err != nil {
-		return response.SmartError(err)
+	// Notify other members and update the identity cache (bidirectional links only).
+	if identityIdentifier != "" {
+		_, err = notify(lifecycle.IdentityUpdated, api.AuthenticationMethodTLS, identityIdentifier, true)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.EmptySyncResponse
