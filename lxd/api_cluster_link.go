@@ -954,11 +954,16 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 		return response.InternalError(err)
 	}
 
-	clusterLinkPut := api.ClusterLinkPut{
-		Config: map[string]string{"volatile.addresses": strings.Join(listenAddresses, ",")},
-	}
-
 	activationErrs := make([]error, 0, len(trustToken.Addresses))
+
+	clusterLinksPost := api.ClusterLinksPost{
+		TrustToken:         trustToken.String(),
+		Type:               req.Type,
+		ClusterCertificate: string(networkCert.PublicKey()),
+		ClusterLinkPut: api.ClusterLinkPut{
+			Config: map[string]string{"volatile.addresses": strings.Join(listenAddresses, ",")},
+		},
+	}
 
 	// Send POST to remote /1.0/cluster/links to activate pending cluster link using token.
 	for _, address := range trustToken.Addresses {
@@ -974,7 +979,7 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 			continue
 		}
 
-		_, _, err = client.RawQuery(http.MethodPost, "/1.0/cluster/links", api.ClusterLinksPost{TrustToken: trustToken.String(), Type: req.Type, ClusterLinkPut: clusterLinkPut, ClusterCertificate: string(networkCert.PublicKey())}, "")
+		_, _, err = client.RawQuery(http.MethodPost, "/1.0/cluster/links", clusterLinksPost, "")
 		if err != nil {
 			activationErrs = append(activationErrs, fmt.Errorf("Remote cluster address %q: %w", clusterAddress, err))
 			continue
