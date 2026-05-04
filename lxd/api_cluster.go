@@ -1221,7 +1221,7 @@ func rebalanceMemberRoles(ctx context.Context, s *state.State, gateway *cluster.
 	}
 
 	for {
-		address, nodes, connectivity, err := cluster.GetNextRoleChange(s, gateway, unavailableMembers, memberRoles)
+		address, nodes, connectivity, err := cluster.GetNextRoleChange(s, gateway, unavailableMembers, memberRoles, nil)
 		if err != nil {
 			return err
 		}
@@ -1346,7 +1346,7 @@ findLeader:
 
 	if leaderInfo.Leader {
 		logger.Info("Transferring leadership", logCtx)
-		err := gateway.TransferLeadership(memberRoles)
+		err := gateway.TransferLeadership(memberRoles, nil)
 		if err != nil {
 			return fmt.Errorf("Failed transferring leadership: %w", err)
 		}

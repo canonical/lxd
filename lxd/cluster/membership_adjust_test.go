@@ -34,7 +34,7 @@ func TestAdjustRoles_InactiveMatchesGeneric(t *testing.T) {
 	expectedRole, expectedCandidates := expectedRoles.Adjust(1)
 
 	roles := testRolesChanges(nodes, connectivity, 3, 0)
-	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles)
+	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles, nil)
 
 	assert.Equal(t, expectedRole, role)
 	assert.Equal(t, testNodeIDs(expectedCandidates), testNodeIDs(candidates))
@@ -62,7 +62,7 @@ func TestAdjustRoles_ActiveSkipsNonControlPlanePromotion(t *testing.T) {
 	}
 
 	roles := testRolesChanges(nodes, connectivity, 3, 0)
-	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles)
+	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles, nil)
 
 	assert.Equal(t, client.NodeRole(-1), role)
 	assert.Empty(t, candidates)
@@ -93,7 +93,7 @@ func TestAdjustRoles_ActiveDemotesNonControlPlaneVoterWhenReplacementExists(t *t
 	}
 
 	roles := testRolesChanges(nodes, connectivity, 3, 0)
-	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles)
+	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles, nil)
 
 	assert.Equal(t, db.RaftStandBy, role)
 	assert.Equal(t, []uint64{2}, testNodeIDs(candidates))
@@ -124,7 +124,7 @@ func TestAdjustRoles_ActiveSkipsVoterDemotionWithoutControlPlaneReplacement(t *t
 	}
 
 	roles := testRolesChanges(nodes, connectivity, 3, 0)
-	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles)
+	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles, nil)
 
 	assert.Equal(t, client.NodeRole(-1), role)
 	assert.Empty(t, candidates)
@@ -154,7 +154,7 @@ func TestAdjustRoles_ActiveDemotesNonControlPlaneStandby(t *testing.T) {
 	}
 
 	roles := testRolesChanges(nodes, connectivity, 3, 1)
-	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles)
+	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles, nil)
 
 	assert.Equal(t, db.RaftSpare, role)
 	assert.Equal(t, []uint64{4}, testNodeIDs(candidates))
@@ -194,7 +194,7 @@ func TestAdjustRoles_ActiveDemotesNonControlPlaneStandbyBelowTarget(t *testing.T
 	// Target is 2 standbys but only 1 exists (non-control-plane). Because no eligible
 	// control-plane spare can fill the gap, the non-control-plane standby must still be demoted.
 	roles := testRolesChanges(nodes, connectivity, 3, 2)
-	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles)
+	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles, nil)
 
 	assert.Equal(t, db.RaftSpare, role)
 	assert.Equal(t, []uint64{4}, testNodeIDs(candidates))
@@ -228,14 +228,14 @@ func TestAdjustRoles_ActiveInterleavesDemotionsAndPromotions(t *testing.T) {
 
 	// Step 1: demote non-control-plane voter.
 	roles := testRolesChanges(nodes, connectivity, 3, 0)
-	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles)
+	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles, nil)
 	assert.Equal(t, db.RaftStandBy, role)
 	assert.Equal(t, []uint64{2}, testNodeIDs(candidates))
 
 	// Apply change and evaluate next step.
 	nodes[1].Role = db.RaftStandBy
 	roles = testRolesChanges(nodes, connectivity, 3, 0)
-	role, candidates, _ = rolesAdjust(roles, 1, nodes, connectivity, memberRoles)
+	role, candidates, _ = rolesAdjust(roles, 1, nodes, connectivity, memberRoles, nil)
 
 	// Step 2: promote an eligible control-plane spare to refill voters.
 	assert.Equal(t, db.RaftVoter, role)
@@ -266,7 +266,7 @@ func TestAdjustRoles_InactiveAllowsNonControlPlanePromotion(t *testing.T) {
 	}
 
 	roles := testRolesChanges(nodes, connectivity, 3, 0)
-	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles)
+	role, candidates, _ := rolesAdjust(roles, 1, nodes, connectivity, memberRoles, nil)
 
 	assert.Equal(t, db.RaftVoter, role)
 	assert.Equal(t, []uint64{3}, testNodeIDs(candidates))
