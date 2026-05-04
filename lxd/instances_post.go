@@ -628,6 +628,24 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		return response.BadRequest(errors.New("Instance definition in backup config is missing"))
 	}
 
+	for i, snapshot := range bInfo.Config.Snapshots {
+		if snapshot == nil {
+			return response.BadRequest(fmt.Errorf("Instance snapshot %d is missing", i))
+		}
+	}
+
+	for i, snapshot := range bInfo.Config.VolumeSnapshots {
+		if snapshot == nil {
+			return response.BadRequest(fmt.Errorf("Volume snapshot %d is missing", i))
+		}
+	}
+
+	for i, profile := range bInfo.Config.Profiles {
+		if profile == nil {
+			return response.BadRequest(fmt.Errorf("Profile %d is missing", i))
+		}
+	}
+
 	// Check project permissions.
 	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		req := api.InstancesPost{

@@ -2215,6 +2215,14 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 		return response.BadRequest(err)
 	}
 
+	// Only check volume snapshots.
+	// As we are creating a custom volume from backup, we don't have to check for instance snapshots or profiles.
+	for i, snapshot := range bInfo.Config.VolumeSnapshots {
+		if snapshot == nil {
+			return response.BadRequest(fmt.Errorf("Volume snapshot %d is missing", i))
+		}
+	}
+
 	bInfo.Project = projectName
 
 	// Override pool.
