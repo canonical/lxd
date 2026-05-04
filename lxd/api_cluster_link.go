@@ -1060,7 +1060,16 @@ func clusterLinkActivate(s *state.State, r *http.Request, req api.ClusterLinksPo
 
 		// Get cluster link by name.
 		clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), identity.Name)
-		if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// For unidirectional links, B has no cluster link row, only an identity for A.
+			// Activation completes by activating the identity above; nothing more to do.
+			if req.Type != api.ClusterLinkTypeUnidirectional {
+				return fmt.Errorf("Failed loading cluster link: %w", err)
+			}
+
+			clusterLinkName = identity.Name
+			return nil
+		} else if err != nil {
 			return fmt.Errorf("Failed loading cluster link: %w", err)
 		}
 
@@ -1089,13 +1098,18 @@ func clusterLinkActivate(s *state.State, r *http.Request, req api.ClusterLinksPo
 		return response.SmartError(err)
 	}
 
-	err = cluster.RefreshClusterLinkVolatileAddresses(r.Context(), s, clusterLinkName)
-	if err != nil {
-		logger.Warn("Failed refreshing cluster link addresses after link activation", logger.Ctx{"err": err, "clusterLinkName": clusterLinkName})
+	// For unidirectional links B has no cluster link row, so there is nothing to refresh.
+	if req.Type != api.ClusterLinkTypeUnidirectional {
+		err = cluster.RefreshClusterLinkVolatileAddresses(r.Context(), s, clusterLinkName)
+		if err != nil {
+			logger.Warn("Failed refreshing cluster link addresses after link activation", logger.Ctx{"err": err, "clusterLinkName": clusterLinkName})
+		}
 	}
 
-	// Send cluster link lifecycle event.
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(clusterLinkName, requestor, nil))
+	// Send cluster link lifecycle event (bidirectional only; B has no cluster link row for unidirectional links).
+	if req.Type != api.ClusterLinkTypeUnidirectional {
+		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(clusterLinkName, requestor, nil))
+	}
 
 	// Notify other members, update the cache, and send an identity lifecycle event.
 	lc, err := notify(lifecycle.IdentityUpdated, api.AuthenticationMethodTLS, identifier.String(), true)
