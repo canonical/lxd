@@ -985,8 +985,6 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 			continue
 		}
 
-		reverter.Success()
-
 		// Send cluster link lifecycle event.
 		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(req.Name, requestor, nil))
 
@@ -1000,6 +998,8 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 		if err != nil {
 			logger.Warn("Failed refreshing cluster link addresses after link creation", logger.Ctx{"err": err, "clusterLinkName": req.Name})
 		}
+
+		reverter.Success()
 
 		return response.SyncResponseLocation(true, nil, lc.Source)
 	}
