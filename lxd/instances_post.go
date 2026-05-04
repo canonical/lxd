@@ -1423,7 +1423,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			// We can check this using the requestor identity ID, since cluster links always communicate using a named
 			// TLS identity. We need to ensure the identity is not nil - since it can be nil for admin protocols.
 			// (Admins are not allowed to create instances in this project while it is in standby either).
-			if requestor.IdentityID == nil || *requestor.IdentityID != clusterLink.IdentityID {
+			if requestor.IdentityID == nil || *requestor.IdentityID != *clusterLink.IdentityID {
 				return api.StatusErrorf(http.StatusForbidden, "Cannot create instances in a standby replica project")
 			}
 		}

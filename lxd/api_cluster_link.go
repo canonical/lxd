@@ -801,7 +801,7 @@ func clusterLinkCreatePending(s *state.State, r *http.Request, req api.ClusterLi
 		}
 
 		clusterLinkID, err := dbCluster.CreateClusterLink(ctx, tx.Tx(), dbCluster.ClusterLinkRow{
-			IdentityID:  id,
+			IdentityID:  &id,
 			Name:        req.Name,
 			Description: req.Description,
 			Type:        clusterLinkType,
@@ -881,7 +881,7 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 
 		// Create cluster link DB entry.
 		clusterLinkID, err := dbCluster.CreateClusterLink(ctx, tx.Tx(), dbCluster.ClusterLinkRow{
-			IdentityID:  id,
+			IdentityID:  &id,
 			Name:        req.Name,
 			Description: req.Description,
 			Type:        clusterLinkType,
