@@ -1357,6 +1357,7 @@ parts:
       set -ex
 
       patch -p1 "${CRAFT_PART_INSTALL}/snap/lxd/current/lxcfs/lxc.mount.hook" < "${CRAFT_PROJECT_DIR}/patches/lxcfs-0001-hook.patch"
+      rm -f "${CRAFT_PART_INSTALL}/snap/lxd/current/lxcfs/lxc.mount.hook.orig"
 
   uefivars:
     after:
