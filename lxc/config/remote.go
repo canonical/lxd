@@ -49,6 +49,16 @@ func (c *Config) ParseRemote(raw string) (remoteName string, resourceName string
 	return remote, object, nil
 }
 
+// ParseRemoteUnchecked splits remote and object but does not verify if the remote exists.
+func (c *Config) ParseRemoteUnchecked(raw string) (remoteName string, resourceName string) {
+	remote, object, found := strings.Cut(raw, ":")
+	if !found {
+		return "", raw
+	}
+
+	return remote, object
+}
+
 // GetInstanceServer returns a lxd.InstanceServer for the remote with the given name.
 func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
 	return c.GetInstanceServerWithConnectionArgs(name, nil)
