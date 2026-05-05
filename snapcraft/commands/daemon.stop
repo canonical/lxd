@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+# snap rootfs are readonly
+export PYTHONDONTWRITEBYTECODE=1
+
 # Re-exec outside of apparmor confinement
 if [ -d /sys/kernel/security/apparmor ]; then
   label="$(cat /proc/self/attr/current 2>/dev/null)"
