@@ -86,11 +86,52 @@ func ConfigToInstanceDBArgs(state *state.State, c *config.Config, projectName st
 // It returns the converted contents and doesn't modify the provided config.
 // In case the requested format is already present it's a noop.
 func ConvertFormat(backupConf *config.Config, version uint32) (*config.Config, error) {
+	if backupConf == nil {
+		return nil, errors.New("Backup config is nil")
+	}
+
 	// Create a copy of the original config.
 	copyBackupConf := config.NewConfig(backupConf.LastModified())
 	err := shared.DeepCopy(backupConf, copyBackupConf)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to deep copy backup config: %w", err)
+	}
+
+	// Perform generic validation of the backup config before attempting any conversion.
+	for i, snapshot := range copyBackupConf.Snapshots {
+		if snapshot == nil {
+			return nil, fmt.Errorf("Instance snapshot %d is nil", i)
+		}
+	}
+
+	for i, snapshot := range copyBackupConf.VolumeSnapshots { //nolint:staticcheck
+		if snapshot == nil {
+			return nil, fmt.Errorf("Volume snapshot %d is nil", i)
+		}
+	}
+
+	for i, pool := range copyBackupConf.Pools {
+		if pool == nil {
+			return nil, fmt.Errorf("Pool %d is nil", i)
+		}
+	}
+
+	for i, profile := range copyBackupConf.Profiles {
+		if profile == nil {
+			return nil, fmt.Errorf("Profile %d is nil", i)
+		}
+	}
+
+	for i, volume := range copyBackupConf.Volumes {
+		if volume == nil {
+			return nil, fmt.Errorf("Volume %d is nil", i)
+		}
+
+		for j, snapshot := range volume.Snapshots {
+			if snapshot == nil {
+				return nil, fmt.Errorf("Snapshot %d of volume %d is nil", j, i)
+			}
+		}
 	}
 
 	if version <= api.BackupMetadataVersion1 {
@@ -122,7 +163,12 @@ func ConvertFormat(backupConf *config.Config, version uint32) (*config.Config, e
 		// Rewrite the the instance and pools config keys only if observed in the old format.
 		// Currently pools are only listed in the config files of instances.
 		if copyBackupConf.Container != nil { //nolint:staticcheck
-			copyBackupConf.Instance = copyBackupConf.Container             //nolint:staticcheck
+			copyBackupConf.Instance = copyBackupConf.Container //nolint:staticcheck
+
+			if copyBackupConf.Pool == nil { //nolint:staticcheck
+				return nil, errors.New("Pool is missing")
+			}
+
 			copyBackupConf.Pools = []*api.StoragePool{copyBackupConf.Pool} //nolint:staticcheck
 		}
 

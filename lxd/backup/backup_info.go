@@ -115,6 +115,10 @@ func GetInfo(s *state.State, r io.ReadSeeker, outputPath string) (*Info, error) 
 		return nil, fmt.Errorf("Backup is missing at %q", backupIndexPath)
 	}
 
+	if result.Config == nil {
+		return nil, fmt.Errorf("Backup config is missing at %q", backupIndexPath)
+	}
+
 	// Upgrade the config file in any case to the new format.
 	result.Config, err = ConvertFormat(result.Config, api.BackupMetadataVersion2)
 	if err != nil {
