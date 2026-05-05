@@ -137,6 +137,7 @@ readonly test_group_standalone=(
     "authn_events"
     "authorization"
     "ui_initial_access_link"
+    "backup_nullable_fields"
     "basic_usage"
     "basic_version"
     "certificate_edit"
