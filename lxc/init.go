@@ -37,9 +37,12 @@ type cmdInit struct {
 
 func (c *cmdInit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("init", "[<remote>:]<image> [<remote>:][<name>]")
+	cmd.Use = usage("init", "[<registry|remote>:]<image> [<remote>:][<name>]")
 	cmd.Short = "Create instances from images"
-	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
+
+If the destination LXD remote supports image registries, the source image
+must be from an image registry or available locally on the destination remote.`)
 	cmd.Example = cli.FormatSection("", `lxc init ubuntu:24.04 u1
     Create a container (but do not start it)
 
@@ -132,10 +135,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 	}
 
 	if len(args) > 0 {
-		iremote, image, err = conf.ParseRemote(args[0])
-		if err != nil {
-			return nil, "", err
-		}
+		iremote, image = conf.ParseRemoteUnchecked(args[0])
 
 		if len(args) == 1 {
 			remote, name, err = conf.ParseRemote("")
@@ -161,9 +161,11 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 				return nil, "", err
 			}
 		} else if len(args) == 1 {
-			// Switch image / instance names.
-			name = image
-			remote = iremote
+			remote, name, err = conf.ParseRemote(args[0])
+			if err != nil {
+				return nil, "", err
+			}
+
 			image = ""
 			iremote = ""
 		}
@@ -268,9 +270,13 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 	}
 
 	// Decide whether we are creating a container or a virtual machine.
-	instanceDBType := api.InstanceTypeContainer
+	var instanceDBType api.InstanceType
 	if c.flagVM {
 		instanceDBType = api.InstanceTypeVM
+	} else if !d.HasExtension("image_registries") {
+		// If the server doesn't support the image_registries extension, we must provide a default
+		// type as the server won't be able to infer it from the image source itself.
+		instanceDBType = api.InstanceTypeContainer
 	}
 
 	// Set the target if provided.
@@ -351,13 +357,42 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 			image = "default"
 		}
 
-		// Fetch image info from the given remote.
-		imgRemoteServer, imgInfo, err := getImgInfo(conf, iremote, image, c.global.flagProject, &req.Source)
-		if err != nil {
-			return nil, "", err
+		var imgRemoteServer lxd.ImageServer
+		var imgInfo *api.Image
+		var legacyRemote string
+		var err error
+
+		// If the server supports image registries, we can use server-side image resolution and download.
+		// This avoids resolving the image on the client side, and passes the registry name or source project
+		// to the server so it can handle the resolution directly.
+		if d.HasExtension("image_registries") {
+			var registryName string
+			imgInfo, registryName = resolveRegistryImageSource(conf.Remotes, iremote, image, remote, c.global.flagProject)
+
+			// Set the image registry name on the instance source, so that LXD server handles the download.
+			req.Source.ImageRegistry = registryName
+		} else {
+			// Fetch image info from the given remote (legacy client-side resolution path).
+			// Normalize empty remote to the default remote, since ParseRemoteUnchecked
+			// does not fill in the default.
+			legacyRemote = iremote
+			if legacyRemote == "" {
+				legacyRemote = conf.DefaultRemote
+			}
+
+			imgRemoteServer, imgInfo, err = getImgInfo(conf, legacyRemote, image, c.global.flagProject, &req.Source)
+			if err != nil {
+				return nil, "", err
+			}
 		}
 
-		if conf.Remotes[iremote].Protocol != "simplestreams" {
+		// Update the source project if it was determined by getImgInfo.
+		if imgRemoteServer == nil && imgInfo.Project != "" {
+			req.Source.Project = imgInfo.Project
+		}
+
+		// Only perform legacy type and protocol checks if we are NOT using an image registry.
+		if imgRemoteServer != nil && conf.Remotes[legacyRemote].Protocol != api.ImageRegistryProtocolSimpleStreams {
 			if imgInfo.Type != "virtual-machine" && c.flagVM {
 				return nil, "", errors.New("Asked for a VM but image is of type container")
 			}
