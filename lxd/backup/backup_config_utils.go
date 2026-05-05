@@ -86,6 +86,10 @@ func ConfigToInstanceDBArgs(state *state.State, c *config.Config, projectName st
 // It returns the converted contents and doesn't modify the provided config.
 // In case the requested format is already present it's a noop.
 func ConvertFormat(backupConf *config.Config, version uint32) (*config.Config, error) {
+	if backupConf == nil {
+		return nil, errors.New("Backup config is nil")
+	}
+
 	// Create a copy of the original config.
 	copyBackupConf := config.NewConfig(backupConf.LastModified())
 	err := shared.DeepCopy(backupConf, copyBackupConf)
