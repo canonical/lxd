@@ -352,7 +352,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 		}
 
 		// Fetch image info from the given remote.
-		imgRemote, imgInfo, err := getImgInfo(conf, iremote, image, c.global.flagProject, &req.Source)
+		imgRemoteServer, imgInfo, err := getImgInfo(conf, iremote, image, c.global.flagProject, &req.Source)
 		if err != nil {
 			return nil, "", err
 		}
@@ -366,7 +366,7 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 		}
 
 		// Create the instance.
-		op, err := d.CreateInstanceFromImage(imgRemote, *imgInfo, req)
+		op, err := d.CreateInstanceFromImage(imgRemoteServer, *imgInfo, req)
 		if err != nil {
 			return nil, "", err
 		}
