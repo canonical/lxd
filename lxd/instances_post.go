@@ -1483,12 +1483,14 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				if req.Source.Refresh {
 					targetInst, err := instance.LoadInstanceDatabaseObject(ctx, tx, targetProjectName, req.Name)
 					if err != nil {
-						return fmt.Errorf("Failed loading target instance %q: %w", req.Name, err)
-					}
-
-					targetMemberInfo = clusterMemberByName(allMembers, targetInst.Node)
-					if targetMemberInfo == nil {
-						return fmt.Errorf("Failed finding target cluster member %q", targetInst.Node)
+						if !response.IsNotFoundError(err) {
+							return fmt.Errorf("Failed loading target instance %q: %w", req.Name, err)
+						}
+					} else {
+						targetMemberInfo = clusterMemberByName(allMembers, targetInst.Node)
+						if targetMemberInfo == nil {
+							return fmt.Errorf("Failed finding target cluster member %q", targetInst.Node)
+						}
 					}
 				}
 
