@@ -1078,14 +1078,9 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	// cannot be refreshed. Fail fast here to avoid a partial restore where some instances
 	// are updated and others are not.
 	if restore {
-		for _, inst := range allInsts {
-			if inst.Location() == s.ServerName {
-				if inst.IsRunning() {
-					return operations.OperationArgs{}, fmt.Errorf("Instance %q is running, stop all project instances before running --restore", inst.Name())
-				}
-			} else if inst.LocalConfig()["volatile.last_state.power"] == instance.PowerStateRunning {
-				return operations.OperationArgs{}, fmt.Errorf("Instance %q on cluster member %q is running, stop all project instances before running --restore", inst.Name(), inst.Location())
-			}
+		err = replicatorCheckInstancesStopped(allInsts)
+		if err != nil {
+			return operations.OperationArgs{}, err
 		}
 	}
 
@@ -1502,6 +1497,19 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 			})
 		},
 	}, nil
+}
+
+// replicatorCheckInstancesStopped verifies that all project instances across all
+// cluster members are stopped before a restore operation. It checks the
+// volatile.last_state.power config key from the database for all instances.
+func replicatorCheckInstancesStopped(allInsts []instance.Instance) error {
+	for _, inst := range allInsts {
+		if inst.LocalConfig()["volatile.last_state.power"] == instance.PowerStateRunning {
+			return fmt.Errorf("Instance %q is running, stop all project instances before running --restore", inst.Name())
+		}
+	}
+
+	return nil
 }
 
 // localInstByName finds an instance in the slice by name. Returns nil if not found.
