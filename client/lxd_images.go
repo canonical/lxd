@@ -586,7 +586,19 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 // tryCopyImage iterates through the source server URLs until one lets it download the image.
 func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
-		return nil, errors.New("The source server is not listening on the network")
+		// On legacy copy paths the source protocol is always set from the source server's connection
+		// info. If the protocol is present but no network addresses were found, the source
+		// server cannot be reached over the network, so we must abort early.
+		if req.Source.Protocol != "" { //nolint:staticcheck
+			return nil, errors.New("The source server is not listening on the network")
+		}
+
+		// When no legacy protocol is set we expect a server-side resolution path (either a remote
+		// image registry or a local image in another project). If neither is specified, there is
+		// nothing for the target server to resolve.
+		if req.Source.ImageRegistry == "" && req.Source.Project == "" {
+			return nil, errors.New("Missing image registry or source project for server-side image resolution")
+		}
 	}
 
 	rop := remoteOperation{
@@ -643,36 +655,61 @@ func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOpe
 	go func() {
 		success := false
 		var errors []remoteOperationResult
-		for _, serverURL := range urls {
-			req.Source.Server = serverURL
 
+		if len(urls) == 0 {
+			// When no source URLs are provided, we rely on the target server to resolve and fetch
+			// the image (either from a remote image registry or from its own local image store).
 			op, err := r.CreateImage(req, nil)
 			if err != nil {
-				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-				continue
+				errors = append(errors, remoteOperationResult{Error: err})
+			} else {
+				rop.handlerLock.Lock()
+				rop.targetOp = op
+				rop.handlerLock.Unlock()
+
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
+
+				err = rop.targetOp.Wait()
+				if err != nil {
+					errors = append(errors, remoteOperationResult{Error: err})
+				} else {
+					success = true
+				}
 			}
+		} else {
+			for _, serverURL := range urls {
+				req.Source.Server = serverURL //nolint:staticcheck
 
-			rop.handlerLock.Lock()
-			rop.targetOp = op
-			rop.handlerLock.Unlock()
-
-			for _, handler := range rop.handlers {
-				_, _ = rop.targetOp.AddHandler(handler)
-			}
-
-			err = rop.targetOp.Wait()
-			if err != nil {
-				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-
-				if shared.IsConnectionError(err) {
+				op, err := r.CreateImage(req, nil)
+				if err != nil {
+					errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
 					continue
 				}
 
+				rop.handlerLock.Lock()
+				rop.targetOp = op
+				rop.handlerLock.Unlock()
+
+				for _, handler := range rop.handlers {
+					_, _ = rop.targetOp.AddHandler(handler)
+				}
+
+				err = rop.targetOp.Wait()
+				if err != nil {
+					errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
+
+					if shared.IsConnectionError(err) {
+						continue
+					}
+
+					break
+				}
+
+				success = true
 				break
 			}
-
-			success = true
-			break
 		}
 
 		if !success {
