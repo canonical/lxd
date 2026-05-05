@@ -1,0 +1,17 @@
+{% extends "!base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  {% if seo_noindex %}
+  {# Prevent indexing for older RTD versions defined in conf.py (noindex_versions). #}
+  <meta name="robots" content="noindex">
+  {% endif %}
+{% endblock %}
+
+{% block theme_scripts %}
+{{ super() }}
+<script>
+  window.flyoutDefaultVersionLabel = "{{ flyout_default_version_label }}";
+  const github_url = "{{ github_url }}";
+</script>
+{% endblock theme_scripts %}

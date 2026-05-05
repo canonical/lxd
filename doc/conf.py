@@ -262,8 +262,11 @@ html_css_files = [
     'cookie-banner.css',
 ]
 
-# Adds custom JavaScript files, located under 'html_static_path'
-html_js_files = ['js/bundle.js']
+# Adds custom JavaScript files, located under 'html_static_path' or from external link
+html_js_files = [
+    'js/bundle.js',
+    'rtd-versions-flyout.js',
+]
 
 # Feedback button at the top; enabled by default
 # To disable the button, uncomment the line below:
@@ -309,6 +312,10 @@ if os.path.exists('./substitutions.yaml'):
 if os.path.exists('./related_topics.yaml'):
     with open('./related_topics.yaml', 'r') as fd:
         myst_substitutions.update(yaml.safe_load(fd.read()))
+
+# Version label shown in the RTD flyout next to "default", in parentheses.
+# Set the FLYOUT_DEFAULT_VERSION_LABEL environment variable in the RTD project dashboard.
+html_context['flyout_default_version_label'] = os.environ.get('FLYOUT_DEFAULT_VERSION_LABEL', '')
 
 # Add configuration for intersphinx mapping
 intersphinx_mapping = {
@@ -440,3 +447,14 @@ with open(".sphinx/latex_elements_template.txt", "rt") as file:
     latex_config = file.read()
 
 latex_elements = ast.literal_eval(latex_config.replace("$PROJECT", project))
+
+
+###########################################
+### Prevent indexing of older docs versions
+###########################################
+
+# Add RTD docs version slugs for versions that should not be indexed by search engines
+noindex_versions = {"stable-5.0", "stable-4.0"}
+
+rtd_version = os.environ.get("READTHEDOCS_VERSION", "")
+html_context["seo_noindex"] = rtd_version in noindex_versions
