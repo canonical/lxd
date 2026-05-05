@@ -257,7 +257,7 @@ build-mo: $(MOFILES)
 .PHONY: static-analysis
 static-analysis:
 ifeq ($(shell command -v golangci-lint),)
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin
+	curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(GOPATH)/bin latest
 endif
 ifeq ($(shell command -v shellcheck),)
 	echo "Please install shellcheck"
