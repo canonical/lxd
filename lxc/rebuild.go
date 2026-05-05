@@ -144,7 +144,7 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 		}
 
 		iremote, image := guessImage(conf, d, remote, iremote, image)
-		imgRemote, imgInfo, err := getImgInfo(conf, iremote, image, c.global.flagProject, &req.Source)
+		imgRemoteServer, imgInfo, err := getImgInfo(conf, iremote, image, c.global.flagProject, &req.Source)
 		if err != nil {
 			return err
 		}
@@ -155,7 +155,7 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 			}
 		}
 
-		op, err := d.RebuildInstanceFromImage(imgRemote, *imgInfo, name, req)
+		op, err := d.RebuildInstanceFromImage(imgRemoteServer, *imgInfo, name, req)
 		if err != nil {
 			return err
 		}
