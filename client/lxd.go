@@ -548,8 +548,8 @@ func (r *ProtocolLXD) getSourceImageConnectionInfo(source ImageServer, image api
 		return nil, err
 	}
 
-	instSrc.Protocol = info.Protocol
-	instSrc.Certificate = info.Certificate
+	instSrc.Protocol = info.Protocol       //nolint:staticcheck
+	instSrc.Certificate = info.Certificate //nolint:staticcheck
 	instSrc.Project = info.Project
 
 	// Generate secret token if needed
