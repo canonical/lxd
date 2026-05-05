@@ -2760,8 +2760,12 @@ func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHea
 
 	// Build member roles map from heartbeat data.
 	memberRoles := make(map[string][]db.ClusterRole, len(heartbeatData.Members))
+	var evacuatedMembers []string
 	for _, member := range heartbeatData.Members {
 		memberRoles[member.Address] = member.Roles
+		if member.State == db.ClusterMemberStateEvacuated {
+			evacuatedMembers = append(evacuatedMembers, member.Address)
+		}
 	}
 
 	controlPlaneActive := cluster.IsControlPlaneActive(memberRoles)
@@ -2807,7 +2811,7 @@ func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHea
 	// If there are offline members that have voter or stand-by database roles, let's see if we can replace them with spare ones.
 	if needsRebalance {
 		logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
-		err := rebalanceMemberRoles(context.Background(), s, d.gateway, unavailableMembers, memberRoles)
+		err := rebalanceMemberRoles(context.Background(), s, d.gateway, unavailableMembers, memberRoles, evacuatedMembers)
 		if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 			logger.Warn("Could not rebalance cluster member roles", logger.Ctx{"err": err, "local": localClusterAddress})
 		}

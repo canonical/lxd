@@ -1197,12 +1197,12 @@ func clusterMemberDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed removing member from database: %w", err))
 	}
 
-	memberRoles, err := getClusterMemberRoles(r.Context(), s)
+	memberRoles, evacuatedMembers, err := getClusterMemberRolesAndEvacuatedMembers(r.Context(), s)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, memberRoles)
+	err = rebalanceMemberRoles(r.Context(), s, d.gateway, nil, memberRoles, evacuatedMembers)
 	if err != nil {
 		logger.Warnf("Failed rebalancing dqlite nodes: %v", err)
 	}
