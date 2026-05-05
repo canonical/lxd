@@ -29,6 +29,8 @@ export PATH="${PATH}:${SNAP_CURRENT}/bin"
 export LXD_CLUSTER_UPDATE="${SNAP_CURRENT}/commands/refresh"
 export LXD_QEMU_FW_PATH="${SNAP_CURRENT}/share/qemu"
 export PYTHONPATH=/snap/lxd/current/lib/python3/dist-packages/
+# snap rootfs are readonly
+export PYTHONDONTWRITEBYTECODE=1
 
 # Detect LXD appliance
 LXD_APPLIANCE="false"
