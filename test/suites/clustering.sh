@@ -478,6 +478,11 @@ test_clustering_containers() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list -f csv -c L bar)" = "node1" ]
   LXD_DIR="${LXD_THREE_DIR}" lxc delete bar
 
+  echo "Refresh copy when target does not exist yet should create the target."
+  LXD_DIR="${LXD_ONE_DIR}" lxc copy foo refresh-new --refresh --target node3
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L refresh-new)" = "node3" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f refresh-new
+
   # Copy the container on node2 to node3, using a client connected to
   # node1.
   LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar --target node3
