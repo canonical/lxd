@@ -1816,7 +1816,7 @@ func healClusterMember(s *state.State, gateway *cluster.Gateway, op *operations.
 		return nil
 	}
 
-	err := evacuateClusterMember(context.Background(), s, gateway, op, name, api.ClusterEvacuateModeHeal, nil, migrateFunc)
+	err := evacuateClusterMember(context.Background(), s, gateway, op, name, api.ClusterEvacuateModeHeal, false, nil, migrateFunc)
 	if err != nil {
 		logger.Error("Failed healing cluster member", logger.Ctx{"member": name, "err": err})
 		return err
