@@ -39,11 +39,12 @@ runs:
           # Install from the checked-out repository when running in lxd-pkg-snap
           go -C "${GITHUB_WORKSPACE}/lxd-snapcraft" install .
         else
-          # GITHUB_ACTION_REF is not available for composite actions called from an external repository.
-          # Fortunately, it can be extracted from GITHUB_ACTION_PATH which has the form:
+          # Neither GITHUB_ACTION_REF nor GITHUB_ACTION_REPOSITORY is available for
+          # composite actions called from an external repository.
+          # Fortunately, the ref can be extracted from GITHUB_ACTION_PATH which has the form:
           #   .../_actions/<owner>/<repo>/<ref>/.github/actions/...
           # Strip up to the known prefix:
-          ACTION_REF="${GITHUB_ACTION_PATH#*/_actions/${GITHUB_ACTION_REPOSITORY}/}"
+          ACTION_REF="${GITHUB_ACTION_PATH#*/_actions/canonical/lxd-pkg-snap/}"
           # Strip the known suffix leaving just the ref:
           ACTION_REF="${ACTION_REF%/.github/actions/lp-snap-build}"
           # Install from the same ref the action was pinned to by the caller
