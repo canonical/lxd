@@ -185,6 +185,7 @@ readonly test_group_standalone=(
     "security_protection"
     "security_sys_events"
     "security_user_events"
+    "security_user_events_cluster_link"
     "server_config"
     "server_info"
     "shutdown"

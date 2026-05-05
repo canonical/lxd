@@ -467,6 +467,101 @@ test_security_user_events() {
   rm -f "${monfile}" "${lifecycle_monfile}"
 }
 
+test_security_user_events_cluster_link() {
+  # The cluster-link POST/DELETE handlers share newIdentityNotificationFunc
+  # with the bearer/TLS identity paths, but they sit behind /1.0/cluster/links
+  # and a separate trust-token activation flow, so a regression in the
+  # cluster-link request context would not be caught by the bearer/TLS tests.
+  # A dedicated cluster-enabled daemon is spawned because cluster-link APIs
+  # require the daemon to be in cluster mode, which the shared per-suite
+  # daemon is not.
+  local LXD_LINK_DIR
+  LXD_LINK_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_LINK_DIR}" false
+
+  LXD_DIR="${LXD_LINK_DIR}" lxc cluster enable security-user-events-node
+
+  local monfile="${TEST_DIR}/security-cluster-link-user-events.jsonl"
+  LXD_DIR="${LXD_LINK_DIR}" lxc monitor --type=security --format=json > "${monfile}" &
+  local mon_pid=$!
+  for _ in $(seq 10); do
+    kill -0 "${mon_pid}" && break
+    sleep 1
+  done
+  kill -0 "${mon_pid}"
+
+  sub_test "Verify user_created fires when a pending cluster link is created"
+  LXD_DIR="${LXD_LINK_DIR}" lxc cluster link create security-user-events-link --quiet
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:")) and .metadata.request_path == "/1.0/cluster/links")) | length >= 1' "${monfile}" && break
+    sleep 1
+  done
+
+  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:")) and .metadata.request_path == "/1.0/cluster/links")) | length == 1' "${monfile}"
+  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:")) and .metadata.request_path == "/1.0/cluster/links")) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity created") and (.metadata.request_method == "POST") and (.metadata.requestor.protocol != "")' "${monfile}"
+
+  sub_test "Verify user_updated fires when a cluster link is renamed"
+  LXD_DIR="${LXD_LINK_DIR}" lxc cluster link rename security-user-events-link security-user-events-link-renamed
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and (.metadata.request_path | startswith("/1.0/cluster/links/security-user-events-link")))) | length >= 1' "${monfile}" && break
+    sleep 1
+  done
+
+  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and (.metadata.request_path | startswith("/1.0/cluster/links/security-user-events-link")))) | length == 1' "${monfile}"
+  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and (.metadata.request_path | startswith("/1.0/cluster/links/security-user-events-link")))) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity updated") and (.metadata.request_method == "POST")' "${monfile}"
+
+  sub_test "Verify user_deleted fires when a pending cluster link is removed"
+  LXD_DIR="${LXD_LINK_DIR}" lxc cluster link delete security-user-events-link-renamed
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")) and (.metadata.request_path | startswith("/1.0/cluster/links")))) | length >= 1' "${monfile}" && break
+    sleep 1
+  done
+
+  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")) and (.metadata.request_path | startswith("/1.0/cluster/links")))) | length == 1' "${monfile}"
+  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")) and (.metadata.request_path | startswith("/1.0/cluster/links")))) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity deleted") and (.metadata.request_method == "DELETE")' "${monfile}"
+
+  sub_test "Verify user_updated fires when a pending cluster link is activated"
+  local LXD_LINK_DIR_REMOTE
+  LXD_LINK_DIR_REMOTE=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_LINK_DIR_REMOTE}" false
+
+  LXD_DIR="${LXD_LINK_DIR_REMOTE}" lxc cluster enable security-user-events-node-remote
+
+  local activation_monfile="${TEST_DIR}/security-cluster-link-user-events-activation.jsonl"
+  # Activation updates the pending identity on the token-issuing daemon.
+  LXD_DIR="${LXD_LINK_DIR}" lxc monitor --type=security --format=json > "${activation_monfile}" &
+  local activation_mon_pid=$!
+  for _ in $(seq 10); do
+    kill -0 "${activation_mon_pid}" && break
+    sleep 1
+  done
+  kill -0 "${activation_mon_pid}"
+
+  local cluster_link_trust_token
+  cluster_link_trust_token="$(LXD_DIR="${LXD_LINK_DIR}" lxc cluster link create security-user-events-link-remote --quiet)"
+  LXD_DIR="${LXD_LINK_DIR_REMOTE}" lxc cluster link create security-user-events-link-local --token "${cluster_link_trust_token}"
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and .metadata.request_path == "/1.0/cluster/links")) | length >= 1' "${activation_monfile}" && break
+    sleep 1
+  done
+
+  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and .metadata.request_path == "/1.0/cluster/links")) | length == 1' "${activation_monfile}"
+  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and .metadata.request_path == "/1.0/cluster/links")) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity updated") and (.metadata.request_method == "POST") and (.metadata.requestor.address != "")' "${activation_monfile}"
+
+  kill_go_proc "${activation_mon_pid}" || true
+  rm -f "${activation_monfile}"
+  kill_lxd "${LXD_LINK_DIR_REMOTE}"
+
+  kill_go_proc "${mon_pid}" || true
+  rm -f "${monfile}"
+
+  kill_lxd "${LXD_LINK_DIR}"
+}
+
 test_security_events_bearer_authn() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
