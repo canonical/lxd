@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -23,7 +24,7 @@ type cmdRebuild struct {
 
 func (c *cmdRebuild) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("rebuild", "[<remote>:]<image> [<remote>:]<instance>")
+	cmd.Use = usage("rebuild", "[<registry|remote>:]<image> [<remote>:]<instance>")
 	cmd.Short = "Rebuild instance"
 	cmd.Long = cli.FormatSection("Description", `Wipe the instance root disk and re-initialize.
 The original image is used to re-initialize the instance if a different image or --empty is not specified.
@@ -31,7 +32,10 @@ The original image is used to re-initialize the instance if a different image or
 Note: The --project flag sets the project for both the image remote and the instance remote.
 If the image remote is a public remote (e.g. simplestreams) then this project is ignored by the image remote.
 If the image remote is another LXD server, specify the source project for the image remote 
-with --project and the instance remote with --target-project (if different from --project).`)
+with --project and the instance remote with --target-project (if different from --project).
+
+If the destination LXD remote supports image registries, the source image
+must be from an image registry or available locally on the destination remote.`)
 
 	cmd.RunE = c.run
 	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, "Rebuild as an empty instance")
@@ -65,10 +69,7 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 		}
 
 	case 2:
-		iremote, image, err = conf.ParseRemote(args[0])
-		if err != nil {
-			return err
-		}
+		iremote, image = conf.ParseRemoteUnchecked(args[0])
 
 		remote, name, err = conf.ParseRemote(args[1])
 		if err != nil {
@@ -144,12 +145,44 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 		}
 
 		iremote, image := guessImage(conf, d, remote, iremote, image)
-		imgRemoteServer, imgInfo, err := getImgInfo(conf, iremote, image, c.global.flagProject, &req.Source)
-		if err != nil {
-			return err
+
+		var imgRemoteServer lxd.ImageServer
+		var imgInfo *api.Image
+		var legacyRemote string
+		var err error
+
+		// If the server supports image registries, we can use server-side image resolution and download.
+		// This avoids resolving the image on the client side, and passes the registry name or source project
+		// to the server so it can handle the resolution directly.
+		if d.HasExtension("image_registries") {
+			var registryName string
+			imgInfo, registryName = resolveRegistryImageSource(conf.Remotes, iremote, image, remote, c.global.flagProject)
+
+			if registryName != "" {
+				req.Source.ImageRegistry = registryName
+			}
+		} else {
+			// Fetch image info from the given remote (legacy client-side resolution path).
+			// Normalize empty remote to the default remote, since ParseRemoteUnchecked
+			// does not fill in the default.
+			legacyRemote = iremote
+			if legacyRemote == "" {
+				legacyRemote = conf.DefaultRemote
+			}
+
+			imgRemoteServer, imgInfo, err = getImgInfo(conf, legacyRemote, image, c.global.flagProject, &req.Source)
+			if err != nil {
+				return err
+			}
 		}
 
-		if conf.Remotes[iremote].Protocol != "simplestreams" {
+		// Update the source project if it was determined by getImgInfo.
+		if imgRemoteServer == nil && imgInfo.Project != "" {
+			req.Source.Project = imgInfo.Project
+		}
+
+		// Only perform legacy type and protocol checks if we are NOT using an image registry.
+		if imgRemoteServer != nil && conf.Remotes[legacyRemote].Protocol != api.ImageRegistryProtocolSimpleStreams {
 			if imgInfo.Type != "virtual-machine" && current.Type == "virtual-machine" {
 				return errors.New("Asked for a VM but image is of type container")
 			}
