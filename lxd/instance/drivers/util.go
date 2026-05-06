@@ -1,10 +1,18 @@
 package drivers
 
 import (
+	"errors"
+	"fmt"
+	"io"
+	"os"
 	"strconv"
 	"strings"
 
+	"go.yaml.in/yaml/v2"
+
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/units"
 )
 
@@ -29,4 +37,23 @@ func parseMemoryStr(memory string) (valueInt int64, err error) {
 	}
 
 	return valueInt, err
+}
+
+// ParseImageMetadataFile parses the specified YAML file into api.ImageMetadata.
+// If the file exists, but is empty, then a zero value api.ImageMetadata is returned.
+func ParseImageMetadataFile(path string) (*api.ImageMetadata, error) {
+	metadataFile, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("Failed reading metadata file %q: %w", path, err)
+	}
+
+	defer func() { _ = metadataFile.Close() }()
+
+	metadata := new(api.ImageMetadata)
+	err = yaml.NewDecoder(util.MaxBytesReader(metadataFile, util.MaxYAMLFileBytes)).Decode(metadata)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("Failed parsing metadata file %q: %w", path, err)
+	}
+
+	return metadata, nil
 }
