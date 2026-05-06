@@ -113,10 +113,12 @@ func (p *PlacementGroup) ToAPI(configs map[int64]map[string]string) *api.Placeme
 	}
 }
 
-// GetPlacementGroupUsedBy returns a list of URLs of all instances and profiles that reference placement groups matching the provider [PlacementGroupFilter].
-func GetPlacementGroupUsedBy(ctx context.Context, tx *sql.Tx, filter PlacementGroupFilter, firstOnly bool) ([]string, error) {
+// GetPlacementGroupsUsedBy returns a map of project name to map of placement group name (matching the given filter)
+// to list of URLs of instances and profiles that reference the placement group.
+func GetPlacementGroupsUsedBy(ctx context.Context, tx *sql.Tx, filter PlacementGroupFilter, firstOnly bool) (map[string]map[string][]string, error) {
 	var b strings.Builder
 	var args []any
+	urls := make(map[string]map[string][]string)
 
 	b.WriteString(`SELECT ` + strconv.FormatInt(entityTypeCodeInstance, 10) + `, instances.name, projects.name, instances_config.value FROM instances
 JOIN instances_config ON instances.id = instances_config.instance_id
@@ -131,6 +133,10 @@ WHERE instances_config.key = 'placement.group'`)
 	if filter.Project != nil {
 		b.WriteString(" AND projects.name = ?")
 		args = append(args, *filter.Project)
+
+		// Ensure returned map is populated for filter keys even if empty
+		// so that the caller can lookup results without worrying if the map is nil.
+		urls[*filter.Project] = make(map[string][]string)
 	}
 
 	b.WriteString(`
@@ -153,22 +159,24 @@ WHERE profiles_config.key = 'placement.group'`)
 		b.WriteString("LIMIT 1")
 	}
 
-	var urls []string
 	err := query.Scan(ctx, tx, b.String(), func(scan func(dest ...any) error) error {
 		var eType EntityType
-		var eName string
-		var pName string
-		var placementGroupName string
-		err := scan(&eType, &eName, &pName, &placementGroupName)
+		var entityName, projectName, placementGroupName string
+		err := scan(&eType, &entityName, &projectName, &placementGroupName)
 		if err != nil {
 			return err
 		}
 
+		_, ok := urls[projectName]
+		if !ok {
+			urls[projectName] = make(map[string][]string)
+		}
+
 		switch entity.Type(eType) {
 		case entity.TypeInstance:
-			urls = append(urls, api.NewURL().Project(pName).Path("1.0", "instances", eName).String())
+			urls[projectName][placementGroupName] = append(urls[projectName][placementGroupName], api.NewURL().Project(projectName).Path("1.0", "instances", entityName).String())
 		case entity.TypeProfile:
-			urls = append(urls, api.NewURL().Project(pName).Path("1.0", "profiles", eName).String())
+			urls[projectName][placementGroupName] = append(urls[projectName][placementGroupName], api.NewURL().Project(projectName).Path("1.0", "profiles", entityName).String())
 		default:
 			return errors.New("Unexpected entity type in placement group usage query")
 		}
