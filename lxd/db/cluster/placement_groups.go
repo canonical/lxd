@@ -42,6 +42,15 @@ type PlacementGroupFilter struct {
 	Name    *string
 }
 
+// PlacementGroupsConfigStore returns a [query.EntityConfigStore] for placement groups.
+func PlacementGroupsConfigStore() *query.EntityConfigStore {
+	return &query.EntityConfigStore{
+		EntityTable:               "placement_groups",
+		ConfigTable:               "placement_groups_config",
+		ConfigTableEntityIDColumn: "placement_group_id",
+	}
+}
+
 // GetPlacementGroup gets a [PlacementGroup] by name and project.
 func GetPlacementGroup(ctx context.Context, tx *sql.Tx, name string, projectName string) (*PlacementGroup, error) {
 	group, err := query.SelectOne[PlacementGroup](ctx, tx, "WHERE placement_groups.name = ? AND projects.name = ?", name, projectName)
@@ -87,46 +96,6 @@ func GetPlacementGroupsAndURLs(ctx context.Context, tx *sql.Tx, projectName *str
 	}
 
 	return placementGroups, placementGroupURLs, nil
-}
-
-// CreatePlacementGroupConfig creates config for a new placement group with the given ID.
-func CreatePlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int64, config map[string]string) error {
-	return createEntityConfig(ctx, tx, "placement_groups_config", "placement_group_id", placementGroupID, config)
-}
-
-// UpdatePlacementGroupConfig updates the placement group config with the given ID.
-func UpdatePlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int64, config map[string]string) error {
-	// Delete current entries.
-	_, err := tx.Exec("DELETE FROM placement_groups_config WHERE placement_group_id=?", placementGroupID)
-	if err != nil {
-		return err
-	}
-
-	// Insert new entries.
-	return CreatePlacementGroupConfig(ctx, tx, placementGroupID, config)
-}
-
-// GetPlacementGroupConfig returns the config for the placement group with the given ID.
-func GetPlacementGroupConfig(ctx context.Context, tx *sql.Tx, placementGroupID int64) (map[string]string, error) {
-	q := `SELECT key, value FROM placement_groups_config WHERE placement_group_id=?`
-
-	config := map[string]string{}
-	return config, query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
-		var key, value string
-
-		err := scan(&key, &value)
-		if err != nil {
-			return err
-		}
-
-		_, found := config[key]
-		if found {
-			return fmt.Errorf("Duplicate config row found for key %q for placement group ID %d", key, placementGroupID)
-		}
-
-		config[key] = value
-		return nil
-	}, placementGroupID)
 }
 
 // ToAPI converts the [PlacementGroup] to an [api.PlacementGroup], querying for extra data as necessary.
