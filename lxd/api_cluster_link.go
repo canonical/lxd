@@ -177,7 +177,7 @@ func clusterLinksGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if recursion != 0 && len(clusterLinks) > 0 {
-			allConfigs, err = dbCluster.GetClusterLinkConfig(ctx, tx.Tx(), nil)
+			allConfigs, err = dbCluster.ClusterLinksConfigStore().GetAll(ctx, tx.Tx())
 			if err != nil {
 				return fmt.Errorf("Failed loading cluster link configs: %w", err)
 			}
@@ -270,7 +270,7 @@ func clusterLinkGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed loading cluster link: %w", err)
 		}
 
-		config, err := dbCluster.GetClusterLinkConfig(ctx, tx.Tx(), &dbClusterLink.ID)
+		config, err := dbCluster.ClusterLinksConfigStore().GetByEntityIDs(ctx, tx.Tx(), dbClusterLink.ID)
 		if err != nil {
 			return fmt.Errorf("Failed loading cluster link config: %w", err)
 		}
@@ -308,7 +308,7 @@ func updateClusterLink(s *state.State, r *http.Request, isPatch bool) response.R
 			return fmt.Errorf("Failed loading cluster link: %w", err)
 		}
 
-		config, err := dbCluster.GetClusterLinkConfig(ctx, tx.Tx(), &dbClusterLink.ID)
+		config, err := dbCluster.ClusterLinksConfigStore().GetByEntityIDs(ctx, tx.Tx(), dbClusterLink.ID)
 		if err != nil {
 			return fmt.Errorf("Failed loading cluster link config: %w", err)
 		}
@@ -384,7 +384,7 @@ func updateClusterLink(s *state.State, r *http.Request, isPatch bool) response.R
 			return err
 		}
 
-		err = dbCluster.UpdateClusterLinkConfig(ctx, tx.Tx(), dbClusterLink.ID, req.Config)
+		err = dbCluster.ClusterLinksConfigStore().Set(ctx, tx.Tx(), dbClusterLink.ID, req.Config)
 		if err != nil {
 			return err
 		}
@@ -808,7 +808,7 @@ func clusterLinkCreatePending(s *state.State, r *http.Request, req api.ClusterLi
 			return fmt.Errorf("Error inserting %q into database: %w", req.Name, err)
 		}
 
-		err = dbCluster.CreateClusterLinkConfig(ctx, tx.Tx(), clusterLinkID, req.Config)
+		err = dbCluster.ClusterLinksConfigStore().Set(ctx, tx.Tx(), clusterLinkID, req.Config)
 		if err != nil {
 			return err
 		}
@@ -898,7 +898,7 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 		}
 
 		req.Config["volatile.addresses"] = strings.Join(trustToken.Addresses, ",")
-		err = dbCluster.CreateClusterLinkConfig(ctx, tx.Tx(), clusterLinkID, req.Config)
+		err = dbCluster.ClusterLinksConfigStore().Set(ctx, tx.Tx(), clusterLinkID, req.Config)
 		if err != nil {
 			return err
 		}
@@ -1046,20 +1046,15 @@ func clusterLinkActivate(s *state.State, r *http.Request, req api.ClusterLinksPo
 		}
 
 		clusterLinkName = clusterLink.Name
-
-		config, err := dbCluster.GetClusterLinkConfig(ctx, tx.Tx(), &clusterLink.ID)
+		configurator := dbCluster.ClusterLinksConfigStore()
+		config, err := configurator.GetByEntityID(ctx, tx.Tx(), clusterLink.ID)
 		if err != nil {
 			return fmt.Errorf("Failed loading cluster link config: %w", err)
 		}
 
-		currentConfig := config[clusterLink.ID]
-		if currentConfig == nil {
-			currentConfig = map[string]string{}
-		}
-
 		// Activate the pending cluster link by updating only volatile keys from the request.
 		// This preserves any user.* configuration set while the link was pending.
-		err = dbCluster.UpdateClusterLinkConfig(ctx, tx.Tx(), clusterLink.ID, mergeClusterLinkActivationConfig(currentConfig, req.Config))
+		err = configurator.Set(ctx, tx.Tx(), clusterLink.ID, mergeClusterLinkActivationConfig(config, req.Config))
 		if err != nil {
 			return fmt.Errorf("Failed activating cluster link %q: %w", clusterLink.Name, err)
 		}
@@ -1383,7 +1378,7 @@ func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		config, err := dbCluster.GetClusterLinkConfig(ctx, tx.Tx(), &dbClusterLink.ID)
+		config, err := dbCluster.ClusterLinksConfigStore().GetByEntityIDs(ctx, tx.Tx(), dbClusterLink.ID)
 		if err != nil {
 			return fmt.Errorf("Failed loading cluster link config: %w", err)
 		}
