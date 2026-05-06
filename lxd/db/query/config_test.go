@@ -13,14 +13,14 @@ import (
 
 func TestSelectConfig(t *testing.T) {
 	tx := newTxForConfig(t)
-	values, err := query.SelectConfig(context.Background(), tx, "test", "")
+	values, err := query.SelectConfig(context.Background(), tx, "config", "")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"foo": "x", "bar": "zz"}, values)
 }
 
 func TestSelectConfig_WithFilters(t *testing.T) {
 	tx := newTxForConfig(t)
-	values, err := query.SelectConfig(context.Background(), tx, "test", "key=?", "bar")
+	values, err := query.SelectConfig(context.Background(), tx, "config", "key=?", "bar")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"bar": "zz"}, values)
 }
@@ -30,10 +30,10 @@ func TestUpdateConfig_NewKeys(t *testing.T) {
 	tx := newTxForConfig(t)
 
 	values := map[string]string{"foo": "y"}
-	err := query.UpdateConfig(tx, "test", values)
+	err := query.UpdateServerConfig(tx, values)
 	require.NoError(t, err)
 
-	values, err = query.SelectConfig(context.Background(), tx, "test", "")
+	values, err = query.SelectConfig(context.Background(), tx, "config", "")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"foo": "y", "bar": "zz"}, values)
 }
@@ -43,10 +43,10 @@ func TestDeleteConfig_Delete(t *testing.T) {
 	tx := newTxForConfig(t)
 	values := map[string]string{"foo": ""}
 
-	err := query.UpdateConfig(tx, "test", values)
+	err := query.UpdateServerConfig(tx, values)
 
 	require.NoError(t, err)
-	values, err = query.SelectConfig(context.Background(), tx, "test", "")
+	values, err = query.SelectConfig(context.Background(), tx, "config", "")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"bar": "zz"}, values)
 }
@@ -57,10 +57,10 @@ func newTxForConfig(t *testing.T) *sql.Tx {
 	db, err := sql.Open("sqlite3", ":memory:")
 	assert.NoError(t, err)
 
-	_, err = db.Exec("CREATE TABLE test (key TEXT NOT NULL, value TEXT)")
+	_, err = db.Exec("CREATE TABLE config (key TEXT NOT NULL, value TEXT)")
 	assert.NoError(t, err)
 
-	_, err = db.Exec("INSERT INTO test VALUES ('foo', 'x'), ('bar', 'zz')")
+	_, err = db.Exec("INSERT INTO config VALUES ('foo', 'x'), ('bar', 'zz')")
 	assert.NoError(t, err)
 
 	tx, err := db.Begin()

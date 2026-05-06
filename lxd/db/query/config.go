@@ -46,9 +46,8 @@ func SelectConfig(ctx context.Context, tx *sql.Tx, table string, where string, a
 	return values, nil
 }
 
-// UpdateConfig updates the given keys in the given table. Config keys set to
-// empty values will be deleted.
-func UpdateConfig(tx *sql.Tx, table string, values map[string]string) error {
+// UpdateServerConfig updates the given keys in the "config" table. Config keys set to empty values will be deleted.
+func UpdateServerConfig(tx *sql.Tx, values map[string]string) error {
 	changes := map[string]string{}
 	deletes := []string{}
 
@@ -61,12 +60,12 @@ func UpdateConfig(tx *sql.Tx, table string, values map[string]string) error {
 		changes[key] = value
 	}
 
-	err := upsertConfig(tx, table, changes)
+	err := upsertConfig(tx, changes)
 	if err != nil {
 		return fmt.Errorf("updating values failed: %w", err)
 	}
 
-	err = deleteConfig(tx, table, deletes)
+	err = deleteConfig(tx, deletes)
 	if err != nil {
 		return fmt.Errorf("deleting values failed: %w", err)
 	}
@@ -75,12 +74,12 @@ func UpdateConfig(tx *sql.Tx, table string, values map[string]string) error {
 }
 
 // Insert or updates the key/value rows of the given config table.
-func upsertConfig(tx *sql.Tx, table string, values map[string]string) error {
+func upsertConfig(tx *sql.Tx, values map[string]string) error {
 	if len(values) == 0 {
 		return nil // Nothing to update
 	}
 
-	query := "INSERT OR REPLACE INTO " + table + " (key, value) VALUES"
+	query := "INSERT OR REPLACE INTO config (key, value) VALUES"
 	exprs := []string{}
 	params := []any{}
 	for key, value := range values {
@@ -94,14 +93,14 @@ func upsertConfig(tx *sql.Tx, table string, values map[string]string) error {
 }
 
 // Delete the given key rows from the given config table.
-func deleteConfig(tx *sql.Tx, table string, keys []string) error {
+func deleteConfig(tx *sql.Tx, keys []string) error {
 	n := len(keys)
 
 	if n == 0 {
 		return nil // Nothing to delete.
 	}
 
-	query := "DELETE FROM " + table + " WHERE key IN " + Params(n)
+	query := "DELETE FROM config WHERE key IN " + Params(n)
 	values := make([]any, n)
 	for i, key := range keys {
 		values[i] = key
