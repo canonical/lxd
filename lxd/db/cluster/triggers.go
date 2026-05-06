@@ -70,6 +70,7 @@ func applyTriggers(ctx context.Context, tx *sql.Tx) error {
 
 var globalTriggers = []triggerFunc{
 	triggerIdentitiesCertificatesAfterDelete,
+	triggerClusterLinksCertificatesAfterDelete,
 }
 
 func triggerIdentitiesCertificatesAfterDelete() (name string, stmt string) {
@@ -77,6 +78,19 @@ func triggerIdentitiesCertificatesAfterDelete() (name string, stmt string) {
 	stmt = fmt.Sprintf(`
 CREATE TRIGGER %s
     AFTER DELETE ON identities_certificates
+	BEGIN
+	DELETE FROM certificates
+		WHERE certificates.id = OLD.certificate_id;
+	END;
+`, name)
+	return name, stmt
+}
+
+func triggerClusterLinksCertificatesAfterDelete() (name string, stmt string) {
+	name = "cluster_links_certificates_after_delete"
+	stmt = fmt.Sprintf(`
+CREATE TRIGGER %s
+	AFTER DELETE ON cluster_links_certificates
 	BEGIN
 	DELETE FROM certificates
 		WHERE certificates.id = OLD.certificate_id;
