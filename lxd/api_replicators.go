@@ -206,7 +206,7 @@ func replicatorsGet(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 
-		allConfigs, err := dbCluster.GetReplicatorConfig(ctx, tx.Tx(), nil)
+		allConfigs, err := dbCluster.ReplicatorsConfigStore().GetAll(ctx, tx.Tx())
 		if err != nil {
 			return fmt.Errorf("Failed loading replicator configs: %w", err)
 		}
@@ -311,7 +311,7 @@ func replicatorGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed loading replicator: %w", err)
 		}
 
-		config, err := dbCluster.GetReplicatorConfig(ctx, tx.Tx(), &dbReplicator.Row.ID)
+		config, err := dbCluster.ReplicatorsConfigStore().GetByEntityIDs(ctx, tx.Tx(), dbReplicator.Row.ID)
 		if err != nil {
 			return fmt.Errorf("Failed loading replicator config: %w", err)
 		}
@@ -483,7 +483,7 @@ func replicatorsPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed creating replicator %q: %w", req.Name, err)
 		}
 
-		return dbCluster.CreateReplicatorConfig(ctx, tx.Tx(), id, req.Config)
+		return dbCluster.ReplicatorsConfigStore().Set(ctx, tx.Tx(), id, req.Config)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -634,7 +634,7 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		config, err := dbCluster.GetReplicatorConfig(ctx, tx.Tx(), &dbReplicator.Row.ID)
+		config, err := dbCluster.ReplicatorsConfigStore().GetByEntityIDs(ctx, tx.Tx(), dbReplicator.Row.ID)
 		if err != nil {
 			return fmt.Errorf("Failed loading replicator config: %w", err)
 		}
@@ -705,7 +705,7 @@ func updateReplicator(d *Daemon, r *http.Request, isPatch bool) response.Respons
 			return fmt.Errorf("Failed loading replicator: %w", err)
 		}
 
-		config, err := dbCluster.GetReplicatorConfig(ctx, tx.Tx(), &dbReplicator.Row.ID)
+		config, err := dbCluster.ReplicatorsConfigStore().GetByEntityIDs(ctx, tx.Tx(), dbReplicator.Row.ID)
 		if err != nil {
 			return fmt.Errorf("Failed loading replicator config: %w", err)
 		}
@@ -756,7 +756,7 @@ func updateReplicator(d *Daemon, r *http.Request, isPatch bool) response.Respons
 			return err
 		}
 
-		return dbCluster.UpdateReplicatorConfig(ctx, tx.Tx(), dbReplicator.Row.ID, req.Config)
+		return dbCluster.ReplicatorsConfigStore().Set(ctx, tx.Tx(), dbReplicator.Row.ID, req.Config)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1623,7 +1623,7 @@ func runScheduledReplicators(ctx context.Context, s *state.State) error {
 			return fmt.Errorf("Failed loading replicators: %w", err)
 		}
 
-		allConfigs, err := dbCluster.GetReplicatorConfig(ctx, tx.Tx(), nil)
+		allConfigs, err := dbCluster.ReplicatorsConfigStore().GetAll(ctx, tx.Tx())
 		if err != nil {
 			return fmt.Errorf("Failed loading replicator configs: %w", err)
 		}
