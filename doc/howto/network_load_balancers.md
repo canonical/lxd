@@ -115,13 +115,13 @@ You can add port specifications to the network load balancer to forward traffic 
 Use the following command to add a port specification:
 
 ```bash
-lxc network load-balancer port add <network_name> <listen_address> <protocol> <listen_ports> <backend_name>[,<backend_name>...]
+lxc network load-balancer port add <network_name> <listen_address> <protocol> <listen_ports> target_backend=<backend_name>[,<backend_name>...]
 ```
 
 Example:
 
 ```bash
-lxc network load-balancer port add my-ovn-network 192.0.2.178 tcp 80 test-backend
+lxc network load-balancer port add my-ovn-network 192.0.2.178 tcp 80 target_backend=test-backend
 ```
 
 You can specify a single listen port or a set of ports.
