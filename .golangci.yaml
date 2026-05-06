@@ -5,7 +5,6 @@ linters:
     - misspell
     - musttag
     - perfsprint
-    - prealloc
     - revive
     - testifylint
     - whitespace
