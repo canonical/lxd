@@ -37,6 +37,15 @@ type Replicator struct {
 	ProjectName string `db:"projects.name"`
 }
 
+// ReplicatorsConfigStore returns a [query.EntityConfigStore] for replicators.
+func ReplicatorsConfigStore() *query.EntityConfigStore {
+	return &query.EntityConfigStore{
+		EntityTable:               "replicators",
+		ConfigTable:               "replicators_config",
+		ConfigTableEntityIDColumn: "replicator_id",
+	}
+}
+
 // ToAPI converts the [Replicator] to an [api.Replicator].
 func (r *Replicator) ToAPI(allConfigs map[int64]map[string]string) *api.Replicator {
 	config := allConfigs[r.Row.ID]
@@ -130,57 +139,6 @@ func GetReplicatorsAndURLs(ctx context.Context, tx *sql.Tx, projectName *string,
 	}
 
 	return replicators, replicatorURLs, nil
-}
-
-// CreateReplicatorConfig creates config for a new replicator with the given ID.
-func CreateReplicatorConfig(ctx context.Context, tx *sql.Tx, replicatorID int64, config map[string]string) error {
-	return createEntityConfig(ctx, tx, "replicators_config", "replicator_id", replicatorID, config)
-}
-
-// UpdateReplicatorConfig updates the replicator with the given ID, setting its config.
-func UpdateReplicatorConfig(ctx context.Context, tx *sql.Tx, replicatorID int64, config map[string]string) error {
-	_, err := tx.ExecContext(ctx, "DELETE FROM replicators_config WHERE replicator_id=?", replicatorID)
-	if err != nil {
-		return err
-	}
-
-	return CreateReplicatorConfig(ctx, tx, replicatorID, config)
-}
-
-// GetReplicatorConfig returns the config for all replicators, or only the config for the replicator with the given ID if provided.
-func GetReplicatorConfig(ctx context.Context, tx *sql.Tx, replicatorID *int64) (map[int64]map[string]string, error) {
-	var q string
-	var args []any
-	if replicatorID != nil {
-		q = `SELECT replicator_id, key, value FROM replicators_config WHERE replicator_id=?`
-		args = []any{*replicatorID}
-	} else {
-		q = `SELECT replicator_id, key, value FROM replicators_config`
-	}
-
-	allConfigs := map[int64]map[string]string{}
-	return allConfigs, query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
-		var id int64
-		var key, value string
-
-		err := scan(&id, &key, &value)
-		if err != nil {
-			return err
-		}
-
-		if allConfigs[id] == nil {
-			allConfigs[id] = map[string]string{}
-		}
-
-		_, found := allConfigs[id][key]
-		if found {
-			return fmt.Errorf("Duplicate config row found for key %q for replicator ID %d", key, id)
-		}
-
-		allConfigs[id][key] = value
-
-		return nil
-	}, args...)
 }
 
 // UpdateReplicatorLastRun updates the last_run_date and last_run_status fields of the replicator with the given ID.
