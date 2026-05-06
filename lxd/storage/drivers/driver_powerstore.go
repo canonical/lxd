@@ -293,33 +293,34 @@ func (d *powerstore) targets() (map[string][]string, error) {
 		return nil, err
 	}
 
-	// Fetch discovery addresses from PowerStore for the selected connector type.
-	discoveryAddresses, err := d.client().DiscoveryAddresses(connector.Type())
-	if err != nil {
-		return nil, err
-	}
-
 	// Fetch discovery log records for each discovery address.
 	// The records contain the information about available targets.
 	var discoveryLogRecords []any
-	for _, addr := range discoveryAddresses {
-		discovered, err := connector.Discover(d.state.ShutdownCtx, addr)
+	var filterAddresses []string
+
+	if connector.Transport() == connectors.TransportFC {
+		// Fiber channel targets are visible through the HBA.
+		discoveryLogRecords, err = connector.Discover(d.state.ShutdownCtx)
 		if err != nil {
-			// Underlying connector already logs a warning.
-			continue
+			return nil, err
+		}
+	} else {
+		// Fetch discovery addresses from PowerStore for the selected connector type.
+		discoveryAddresses, err := d.client().DiscoveryAddresses(connector.Type())
+		if err != nil {
+			return nil, err
 		}
 
-		discoveryLogRecords = append(discoveryLogRecords, discovered...)
-	}
+		for _, addr := range discoveryAddresses {
+			discovered, err := connector.Discover(d.state.ShutdownCtx, addr)
+			if err != nil {
+				// Underlying connector already logs a warning.
+				continue
+			}
 
-	if len(discoveryLogRecords) == 0 {
-		return nil, errors.New("Failed fetching discovery log records for all PowerStore target addresses")
-	}
+			discoveryLogRecords = append(discoveryLogRecords, discovered...)
+		}
 
-	// Parse user-specified list of addresses to connect to.
-	// If not specified, all discovered addresses will be used.
-	filterAddresses := shared.SplitNTrimSpace(d.config["powerstore.target"], ",", -1, true)
-	if len(filterAddresses) > 0 {
 		// Make sure target addresses have port configured.
 		var defaultPort string
 
@@ -333,9 +334,16 @@ func (d *powerstore) targets() (map[string][]string, error) {
 			return nil, fmt.Errorf("Unsupported PowerStore mode %q", mode)
 		}
 
+		// Parse user-specified list of addresses to connect to.
+		// If not specified, all discovered addresses will be used.
+		filterAddresses = shared.SplitNTrimSpace(d.config["powerstore.target"], ",", -1, true)
 		for i := range filterAddresses {
 			filterAddresses[i] = shared.EnsurePort(filterAddresses[i], defaultPort)
 		}
+	}
+
+	if len(discoveryLogRecords) == 0 {
+		return nil, errors.New("Failed fetching discovery log records for PowerStore targets")
 	}
 
 	// Helper function to extract address and qualified name from a discovery log record,
@@ -348,6 +356,10 @@ func (d *powerstore) targets() (map[string][]string, error) {
 		case connectors.NVMeDiscoveryLogRecord:
 			address = net.JoinHostPort(r.TransportAddress, r.TransportServiceIdentifier)
 			qn = r.SubNQN
+		case connectors.FCDiscoveryRecord:
+			// FC targets are identified only by WWPN, so use it for both fields.
+			address = r.PortName
+			qn = r.PortName
 		default:
 			return "", "", fmt.Errorf("Unknown discovery log record entry type %T", record)
 		}
