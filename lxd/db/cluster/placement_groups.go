@@ -113,6 +113,19 @@ func (p *PlacementGroup) ToAPI(configs map[int64]map[string]string) *api.Placeme
 	}
 }
 
+// GetPlacementGroupUsedBy returns a list of URLs of entities that reference the placement group with the given name and project.
+func GetPlacementGroupUsedBy(ctx context.Context, tx *sql.Tx, projectName string, placementGroupName string, firstOnly bool) ([]string, error) {
+	usedByMap, err := GetPlacementGroupsUsedBy(ctx, tx, PlacementGroupFilter{
+		Project: &projectName,
+		Name:    &placementGroupName,
+	}, firstOnly)
+	if err != nil {
+		return nil, err
+	}
+
+	return usedByMap[projectName][placementGroupName], nil
+}
+
 // GetPlacementGroupsUsedBy returns a map of project name to map of placement group name (matching the given filter)
 // to list of URLs of instances and profiles that reference the placement group.
 func GetPlacementGroupsUsedBy(ctx context.Context, tx *sql.Tx, filter PlacementGroupFilter, firstOnly bool) (map[string]map[string][]string, error) {
