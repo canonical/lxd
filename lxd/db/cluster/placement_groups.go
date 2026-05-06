@@ -99,11 +99,10 @@ func GetPlacementGroupsAndURLs(ctx context.Context, tx *sql.Tx, projectName *str
 }
 
 // ToAPI converts the [PlacementGroup] to an [api.PlacementGroup], querying for extra data as necessary.
-func (p *PlacementGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.PlacementGroup, error) {
-	// Get config
-	config, err := GetPlacementGroupConfig(ctx, tx, p.Row.ID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed getting placement group config: %w", err)
+func (p *PlacementGroup) ToAPI(configs map[int64]map[string]string) *api.PlacementGroup {
+	config := configs[p.Row.ID]
+	if config == nil {
+		config = map[string]string{}
 	}
 
 	return &api.PlacementGroup{
@@ -111,7 +110,7 @@ func (p *PlacementGroup) ToAPI(ctx context.Context, tx *sql.Tx) (*api.PlacementG
 		Description: p.Row.Description,
 		Project:     p.ProjectName,
 		Config:      config,
-	}, nil
+	}
 }
 
 // GetPlacementGroupUsedBy returns a list of URLs of all instances and profiles that reference placement groups matching the provider [PlacementGroupFilter].
