@@ -45,6 +45,10 @@ var placementGroupCmd = APIEndpoint{
 	Post:   APIEndpointAction{Handler: placementGroupPost, AccessHandler: allowPermission(entity.TypePlacementGroup, auth.EntitlementCanEdit, "name")},
 }
 
+func placementGroupEtag(group api.PlacementGroup) any {
+	return []any{group.Name, group.Project, group.Description, group.Config}
+}
+
 // API endpoints.
 
 // swagger:operation GET /1.0/placement-groups placement-groups placement_groups_get
@@ -315,7 +319,7 @@ func placementGroupsPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = cluster.CreatePlacementGroupConfig(ctx, tx.Tx(), id, req.Config)
+		err = cluster.PlacementGroupsConfigStore().Set(ctx, tx.Tx(), id, req.Config)
 		if err != nil {
 			return err
 		}
@@ -380,12 +384,7 @@ func doPlacementGroupDelete(ctx context.Context, s *state.State, name string, pr
 			return err
 		}
 
-		filter := cluster.PlacementGroupFilter{
-			Project: &dbGroup.ProjectName,
-			Name:    &dbGroup.Row.Name,
-		}
-
-		usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), filter, true)
+		usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), dbGroup.ProjectName, dbGroup.Row.Name, true)
 		if err != nil {
 			return err
 		}
@@ -459,29 +458,29 @@ func placementGroupGet(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 
-	var placementGroup *api.PlacementGroup
+	var placementGroup *cluster.PlacementGroup
+	var configs map[int64]map[string]string
+	var usedBy map[string]map[string][]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbGroup, err := cluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, projectName)
+		placementGroup, err = cluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, projectName)
 		if err != nil {
 			return err
 		}
 
-		placementGroup, err = dbGroup.ToAPI(ctx, tx.Tx())
+		configs, err = cluster.PlacementGroupsConfigStore().GetByEntityIDs(ctx, tx.Tx(), placementGroup.Row.ID)
 		if err != nil {
 			return err
 		}
 
 		filter := cluster.PlacementGroupFilter{
-			Project: &dbGroup.ProjectName,
-			Name:    &dbGroup.Row.Name,
+			Project: &placementGroup.ProjectName,
+			Name:    &placementGroup.Row.Name,
 		}
 
-		usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), filter, false)
+		usedBy, err = cluster.GetPlacementGroupsUsedBy(ctx, tx.Tx(), filter, false)
 		if err != nil {
 			return err
 		}
-
-		placementGroup.UsedBy = usedBy
 
 		return nil
 	})
@@ -489,16 +488,17 @@ func placementGroupGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	etag := *placementGroup
-	placementGroup.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, placementGroup.UsedBy)
+	apiGroup := placementGroup.ToAPI(configs)
+	apiGroup.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, usedBy[projectName][placementGroupName])
+
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypePlacementGroup, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.PlacementGroupURL(projectName, placementGroupName): placementGroup})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypePlacementGroup, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.PlacementGroupURL(projectName, placementGroupName): apiGroup})
 		if err != nil {
 			return response.SmartError(err)
 		}
 	}
 
-	return response.SyncResponseETag(true, placementGroup, etag)
+	return response.SyncResponseETag(true, apiGroup, placementGroupEtag(*apiGroup))
 }
 
 // swagger:operation PATCH /1.0/placement-groups/{name} placement-groups placement_group_patch
@@ -586,14 +586,14 @@ func placementGroupPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	var placementGroup *cluster.PlacementGroup
-	var config map[string]string
+	var configs map[int64]map[string]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		placementGroup, err = cluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, projectName)
 		if err != nil {
 			return err
 		}
 
-		config, err = cluster.GetPlacementGroupConfig(ctx, tx.Tx(), placementGroup.Row.ID)
+		configs, err = cluster.PlacementGroupsConfigStore().GetByEntityIDs(ctx, tx.Tx(), placementGroup.Row.ID)
 		if err != nil {
 			return fmt.Errorf("Failed getting placement group config: %w", err)
 		}
@@ -604,13 +604,14 @@ func placementGroupPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = util.EtagCheck(r, placementGroup)
+	apiGroup := placementGroup.ToAPI(configs)
+	err = util.EtagCheck(r, placementGroupEtag(*apiGroup))
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	updatedPlacementGroup := *placementGroup
-	updatedConfig := config
+	updatedConfig := configs[placementGroup.Row.ID]
 	var descriptionChanged bool
 	switch r.Method {
 	case http.MethodPut:
@@ -651,7 +652,7 @@ func placementGroupPut(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		err = cluster.UpdatePlacementGroupConfig(ctx, tx.Tx(), updatedPlacementGroup.Row.ID, updatedConfig)
+		err = cluster.PlacementGroupsConfigStore().Set(ctx, tx.Tx(), updatedPlacementGroup.Row.ID, updatedConfig)
 		if err != nil {
 			return err
 		}
@@ -717,12 +718,7 @@ func placementGroupPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		filter := cluster.PlacementGroupFilter{
-			Project: &dbGroup.ProjectName,
-			Name:    &dbGroup.Row.Name,
-		}
-
-		usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), filter, true)
+		usedBy, err := cluster.GetPlacementGroupUsedBy(ctx, tx.Tx(), dbGroup.ProjectName, dbGroup.Row.Name, true)
 		if err != nil {
 			return err
 		}
