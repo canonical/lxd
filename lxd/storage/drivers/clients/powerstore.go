@@ -1025,6 +1025,8 @@ func powerStoreConnectorToPortType(connectorType string) (string, error) {
 		return "iSCSI", nil
 	case connectors.TypeNVMeTCP:
 		return "NVMe", nil
+	case connectors.TypeSCSIFC:
+		return "FC", nil
 	default:
 		return "", fmt.Errorf("Unsupported connector type: %q", connectorType)
 	}
