@@ -352,7 +352,11 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 		// Some of the volumes might be actually located on another pool if they have been discovered from an instance on the current pool.
 		// Therefore we have to check each unknown volume separately.
 		for projectName, volConfigs := range poolProjectVols {
-			for _, volConfig := range volConfigs {
+			for i, volConfig := range volConfigs {
+				if volConfig == nil {
+					return response.SmartError(fmt.Errorf("Invalid nil backup volume config in volumes list at index %d for project %q", i, projectName))
+				}
+
 				err = appendUnknownVolumeConfig(p.Name, projectName, volConfig, poolsProjectVols)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed to add unknown volume to the list: %w", err))
