@@ -135,7 +135,7 @@ dqlite:
 
 	cd "$(DQLITE_PATH)" && \
 		autoreconf -i && \
-		./configure --enable-build-raft && \
+		./configure --enable-build-raft CFLAGS="-g -O2 -Wno-error=discarded-qualifiers" && \
 		make -j
 
 ifneq ($(shell command -v ldd),)
