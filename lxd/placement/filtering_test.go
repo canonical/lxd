@@ -96,7 +96,7 @@ func (s *filteringSuite) TestFilter() {
 					})
 					s.Require().NoError(err)
 
-					err = cluster.CreatePlacementGroupConfig(ctx, tx.Tx(), pgID, map[string]string{
+					err = cluster.PlacementGroupsConfigStore().Set(ctx, tx.Tx(), pgID, map[string]string{
 						"policy": api.PlacementPolicySpread,
 						"rigor":  api.PlacementRigorStrict,
 					})
@@ -215,7 +215,7 @@ func (s *filteringSuite) TestFilter() {
 					})
 					s.Require().NoError(err)
 
-					err = cluster.CreatePlacementGroupConfig(ctx, tx.Tx(), pgID, map[string]string{
+					err = cluster.PlacementGroupsConfigStore().Set(ctx, tx.Tx(), pgID, map[string]string{
 						"policy": api.PlacementPolicySpread,
 						"rigor":  api.PlacementRigorPermissive,
 					})
@@ -309,7 +309,7 @@ func (s *filteringSuite) TestFilter() {
 					})
 					s.Require().NoError(err)
 
-					err = cluster.CreatePlacementGroupConfig(ctx, tx.Tx(), pgID, map[string]string{
+					err = cluster.PlacementGroupsConfigStore().Set(ctx, tx.Tx(), pgID, map[string]string{
 						"policy": api.PlacementPolicyCompact,
 						"rigor":  api.PlacementRigorStrict,
 					})
@@ -463,7 +463,7 @@ func (s *filteringSuite) TestFilter() {
 					})
 					s.Require().NoError(err)
 
-					err = cluster.CreatePlacementGroupConfig(ctx, tx.Tx(), pgID, map[string]string{
+					err = cluster.PlacementGroupsConfigStore().Set(ctx, tx.Tx(), pgID, map[string]string{
 						"policy": api.PlacementPolicyCompact,
 						"rigor":  api.PlacementRigorPermissive,
 					})
@@ -609,13 +609,8 @@ func (s *filteringSuite) TestFilter() {
 		}
 
 		_ = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Fetch the placement group to get the full object with ID.
-			placementGroup, err := pgCache.Get(ctx, tx, tt.args.placementGroup.Row.Name, tt.args.placementGroup.ProjectName)
-			if err != nil {
-				return err
-			}
-
-			apiPlacementGroup, err := placementGroup.ToAPI(ctx, tx.Tx())
+			// Fetch the cached API placement group object needed for filtering, including its policy-related settings.
+			apiPlacementGroup, err := pgCache.Get(ctx, tx, tt.args.placementGroup.Row.Name, tt.args.placementGroup.ProjectName)
 			if err != nil {
 				return err
 			}
