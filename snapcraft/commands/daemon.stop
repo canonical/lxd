@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
 
+export PYTHONPATH=/snap/lxd/current/lib/python3/dist-packages/
 # snap rootfs are readonly
 export PYTHONDONTWRITEBYTECODE=1
 
