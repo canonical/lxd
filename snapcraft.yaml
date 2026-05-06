@@ -1069,7 +1069,6 @@ parts:
   xtables:
     plugin: nil
     stage-packages:
-      - arptables
       - ebtables
       - netbase
     organize:
@@ -1078,7 +1077,6 @@ parts:
     prime:
       #- etc/ethertypes  # use ethertypes from the base snap
       #- etc/protocols   # use protocols from the base snap
-      - bin/arptables-legacy
       - bin/ebtables-legacy
       - lib/libebtc.so.*
 
