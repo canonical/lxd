@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -2213,6 +2214,18 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	bInfo, err := backup.GetInfo(backupFile, s.OS, backupFile.Name())
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	if bInfo.Config == nil {
+		return response.BadRequest(errors.New("Backup config is missing"))
+	}
+
+	// Only check volume snapshots.
+	// As we are creating a custom volume from backup, we don't have to check for instance snapshots or profiles.
+	for i, snapshot := range bInfo.Config.VolumeSnapshots {
+		if snapshot == nil {
+			return response.BadRequest(fmt.Errorf("Volume snapshot %d is missing", i))
+		}
 	}
 
 	bInfo.Project = projectName
