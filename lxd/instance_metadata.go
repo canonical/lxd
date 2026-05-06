@@ -96,26 +96,26 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Load the container
-	c, err := instance.LoadByProjectAndName(s, projectName, name)
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.LoadByInstance(s, c)
+	pool, err := storagePools.LoadByInstance(s, inst)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	_, err = storagePools.InstanceMount(pool, c, nil)
+	_, err = storagePools.InstanceMount(pool, inst, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
+	defer func() { _ = storagePools.InstanceUnmount(pool, inst, nil) }()
 
 	// Read the metadata, return empty result if missing.
-	metadata, err := instanceDrivers.ParseImageMetadataFile(filepath.Join(c.Path(), "metadata.yaml"))
+	metadata, err := instanceDrivers.ParseImageMetadataFile(filepath.Join(inst.Path(), "metadata.yaml"))
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return response.SyncResponse(true, api.ImageMetadata{})
@@ -124,7 +124,7 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.InstanceMetadataRetrieved.Event(c, request.CreateRequestor(r.Context()), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceMetadataRetrieved.Event(inst, request.CreateRequestor(r.Context()), nil))
 
 	return response.SyncResponseETag(true, *metadata, *metadata)
 }
