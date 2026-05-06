@@ -3850,7 +3850,7 @@ definitions:
                 type: string
                 x-go-name: Protocol
             target_backend:
-                description: TargetBackend backend names to load balance ListenPorts to
+                description: TargetBackend specifies backend names to load balance ListenPorts to
                 example:
                     - c1-http
                     - c2-http
