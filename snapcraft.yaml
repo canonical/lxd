@@ -1585,6 +1585,9 @@ parts:
       yarn install
       yarn build
 
+      # Drop unused localisation files from Monaco Editor (the UI does not allow localization)
+      rm -f build/ui/monaco-editor/min/vs/nls.messages.*.js
+
       mkdir -p "${CRAFT_PART_INSTALL}/share"
       cp -R build/ui "${CRAFT_PART_INSTALL}/share/lxd-ui/"
     prime:
