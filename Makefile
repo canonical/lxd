@@ -135,7 +135,7 @@ dqlite:
 
 	cd "$(DQLITE_PATH)" && \
 		autoreconf -i && \
-		./configure --enable-build-raft && \
+		./configure --enable-build-raft CFLAGS="-g -O2 -Wno-error=discarded-qualifiers" && \
 		make -j
 
 ifneq ($(shell command -v ldd),)
@@ -465,7 +465,7 @@ ifeq "$(LXD_OFFLINE)" ""
 	go install fillmore-labs.com/zerolint@latest
 endif
 ifeq ($(shell command -v golangci-lint),)
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin
+	curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(GOPATH)/bin latest
 endif
 ifneq ($(shell command -v yamllint),)
 	yamllint .github/workflows/*.yml

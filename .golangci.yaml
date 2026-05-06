@@ -5,7 +5,6 @@ linters:
     - misspell
     - musttag
     - perfsprint
-    - prealloc
     - revive
     - testifylint
     - whitespace
@@ -97,8 +96,8 @@ linters:
           - staticcheck
         text: "ST1005:" # ST1005: error strings should not be capitalized (5585 occurences as of 2023-10-20)
       - linters:
-          - revive
-        text: "var-naming: avoid meaningless package names"
+          - staticcheck
+        text: "QF1012:" # QF1012: Use fmt.Fprintf(...) instead of WriteString(fmt.Sprintf(...))
 formatters:
   enable:
     - gci
