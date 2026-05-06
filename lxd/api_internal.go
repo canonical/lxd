@@ -573,6 +573,18 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		return fmt.Errorf("Instance definition in backup config is missing")
 	}
 
+	for i, snapshot := range backupConf.Snapshots {
+		if snapshot == nil {
+			return fmt.Errorf("Instance snapshot definition %d in backup config is missing", i)
+		}
+	}
+
+	for i, snapshot := range backupConf.VolumeSnapshots {
+		if snapshot == nil {
+			return fmt.Errorf("Volume snapshot definition %d in backup config is missing", i)
+		}
+	}
+
 	if allowNameOverride && instName != "" {
 		backupConf.Container.Name = instName
 	}

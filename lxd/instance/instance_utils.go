@@ -558,6 +558,10 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string, app
 		return nil, fmt.Errorf("Failed parsing instance backup file from %q: %w", backupYamlPath, err)
 	}
 
+	if backupConf.Container == nil {
+		return nil, fmt.Errorf("Instance definition in backup config is missing")
+	}
+
 	instDBArgs := backupConf.ToInstanceDBArgs(projectName)
 
 	if !applyProfiles {
