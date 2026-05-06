@@ -26,6 +26,7 @@ var powerStoreVersion string
 // powerStoreSupportedConnectors represents a list of storage connectors that can be used with PowerStore.
 var powerStoreSupportedConnectors = []string{
 	connectors.TypeISCSI,
+	connectors.TypeSCSIFC,
 }
 
 // powerStoreDefaultUser represents the default PowerStore user name.
@@ -161,7 +162,7 @@ func (d *powerstore) Validate(config map[string]string) error {
 		"powerstore.gateway.verify": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.mode)
 		// The mode to use to map PowerStore volumes to the local server.
-		// Supported value is `iscsi`.
+		// Supported values are `iscsi` and `scsi/fc`.
 		// ---
 		//  type: string
 		//  defaultdesc: the discovered mode
