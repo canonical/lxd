@@ -106,6 +106,12 @@ func CompressedTarReader(s *state.State, ctx context.Context, r io.ReadSeeker, u
 			return nil, cancelFunc, fmt.Errorf("Failed starting unpack: Failed running: %s: %w", unpacker[0], err)
 		}
 
+		// Close the pipe upon completion.
+		go func() {
+			_, err := p.Wait(context.Background())
+			_ = pipeWriter.CloseWithError(err)
+		}()
+
 		ctxCancelFunc := cancelFunc
 
 		// Now that unpacker process has started, wrap context cancel function with one that waits for
