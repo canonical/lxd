@@ -1710,6 +1710,7 @@ parts:
       # Strip libraries (excluding python3 scripts and liblxcfs)
       find "${CRAFT_PRIME}"/lib -type f \
         -not -path "${CRAFT_PRIME}/lib/python3/*" \
+        -not -path "${CRAFT_PRIME}/lib/python3.14/*" \
         -not -path "${CRAFT_PRIME}/lib/liblxcfs.so" \
         -exec strip -s {} +
 
