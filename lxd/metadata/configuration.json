@@ -3918,7 +3918,7 @@
 						"target_backend": {
 							"longdesc": "",
 							"required": "yes",
-							"shortdesc": "Backend name or names to forward to",
+							"shortdesc": "Backend name(s) to forward to",
 							"type": "backend list"
 						}
 					}

@@ -3500,7 +3500,7 @@ Possible values are `tcp` and `udp`.
 
 ```{config:option} target_backend network-load-balancer-load-balancer-port-properties
 :required: "yes"
-:shortdesc: "Backend name or names to forward to"
+:shortdesc: "Backend name(s) to forward to"
 :type: "backend list"
 
 ```
