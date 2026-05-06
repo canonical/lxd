@@ -210,7 +210,7 @@ func ParseConfigYamlFile(path string) (*config.Config, error) {
 
 	defer func() { _ = f.Close() }()
 
-	backupConfInfo, err := os.Stat(path)
+	backupConfInfo, err := f.Stat()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to stat %q: %w", path, err)
 	}
