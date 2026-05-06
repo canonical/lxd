@@ -82,6 +82,15 @@ func (r *ClusterLinkRow) ToAPI(allConfigs map[int64]map[string]string) *api.Clus
 	}
 }
 
+// ClusterLinksConfigStore returns a [query.EntityConfigStore] for cluster links.
+func ClusterLinksConfigStore() *query.EntityConfigStore {
+	return &query.EntityConfigStore{
+		EntityTable:               "cluster_links",
+		ConfigTable:               "cluster_links_config",
+		ConfigTableEntityIDColumn: "cluster_link_id",
+	}
+}
+
 // GetClusterLinks returns all cluster links.
 func GetClusterLinks(ctx context.Context, tx *sql.Tx) ([]ClusterLinkRow, error) {
 	return query.Select[ClusterLinkRow](ctx, tx, "ORDER BY name")
@@ -121,57 +130,6 @@ func RenameClusterLink(ctx context.Context, tx *sql.Tx, name string, to string) 
 
 	link.Name = to
 	return query.UpdateByPrimaryKey(ctx, tx, *link)
-}
-
-// GetClusterLinkConfig returns the config for all cluster links, or only the config for the cluster link with the given ID if provided.
-func GetClusterLinkConfig(ctx context.Context, tx *sql.Tx, clusterLinkID *int64) (map[int64]map[string]string, error) {
-	var q string
-	var args []any
-	if clusterLinkID != nil {
-		q = `SELECT cluster_link_id, key, value FROM cluster_links_config WHERE cluster_link_id=?`
-		args = []any{*clusterLinkID}
-	} else {
-		q = `SELECT cluster_link_id, key, value FROM cluster_links_config`
-	}
-
-	allConfigs := map[int64]map[string]string{}
-	return allConfigs, query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
-		var id int64
-		var key, value string
-
-		err := scan(&id, &key, &value)
-		if err != nil {
-			return err
-		}
-
-		if allConfigs[id] == nil {
-			allConfigs[id] = map[string]string{}
-		}
-
-		_, found := allConfigs[id][key]
-		if found {
-			return fmt.Errorf("Duplicate config row found for key %q for cluster link ID %d", key, id)
-		}
-
-		allConfigs[id][key] = value
-
-		return nil
-	}, args...)
-}
-
-// CreateClusterLinkConfig creates config for a new cluster link with the given ID.
-func CreateClusterLinkConfig(ctx context.Context, tx *sql.Tx, clusterLinkID int64, config map[string]string) error {
-	return createEntityConfig(ctx, tx, "cluster_links_config", "cluster_link_id", clusterLinkID, config)
-}
-
-// UpdateClusterLinkConfig updates the cluster link with the given ID, setting its config.
-func UpdateClusterLinkConfig(ctx context.Context, tx *sql.Tx, clusterLinkID int64, config map[string]string) error {
-	_, err := tx.ExecContext(ctx, "DELETE FROM cluster_links_config WHERE cluster_link_id=?", clusterLinkID)
-	if err != nil {
-		return err
-	}
-
-	return CreateClusterLinkConfig(ctx, tx, clusterLinkID, config)
 }
 
 // clusterConfigRef describes an entity type whose config table may reference a cluster link via the 'cluster' key.
