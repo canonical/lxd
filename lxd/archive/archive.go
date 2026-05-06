@@ -18,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/subprocess"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -106,10 +107,14 @@ func CompressedTarReader(s *state.State, ctx context.Context, r io.ReadSeeker, u
 			return nil, cancelFunc, fmt.Errorf("Failed starting unpack: Failed running: %s: %w", unpacker[0], err)
 		}
 
-		// Close the pipe upon completion.
+		// Close the pipe and unload apparmor profile upon completion.
+		unPackerDone := cancel.New()
 		go func() {
 			_, err := p.Wait(context.Background())
 			_ = pipeWriter.CloseWithError(err)
+			_ = apparmor.ArchiveUnload(s.OS, outputPath)
+			_ = apparmor.ArchiveDelete(s.OS, outputPath)
+			unPackerDone.Cancel()
 		}()
 
 		ctxCancelFunc := cancelFunc
@@ -118,10 +123,7 @@ func CompressedTarReader(s *state.State, ctx context.Context, r io.ReadSeeker, u
 		// the unpacker process to complete.
 		cancelFunc = func() {
 			ctxCancelFunc()
-			_ = pipeWriter.Close()
-			_, _ = p.Wait(ctx)
-			_ = apparmor.ArchiveUnload(s.OS, outputPath)
-			_ = apparmor.ArchiveDelete(s.OS, outputPath)
+			<-unPackerDone.Done() // Wait for unpacker process to complete before returning.
 		}
 
 		tr = tar.NewReader(pipeReader)
