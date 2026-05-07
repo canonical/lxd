@@ -34,6 +34,7 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
+	"github.com/canonical/lxd/shared/version"
 )
 
 var replicatorsCmd = APIEndpoint{
@@ -1158,14 +1159,12 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 		}, nil
 	}
 
-	// Restore mode: iterate over the current leader cluster's instance list. Build a lookup
-	// from instance name to host address for routing to the correct cluster member.
-	instMemberAddress := make(map[string]string, len(allInsts))
-	for _, inst := range allInsts {
-		instMemberAddress[inst.Name()] = nodeAddressByName[inst.Location()]
-	}
-
+	// Restore mode: iterate over the current leader cluster's instance list.
 	childArgs := make([]*operations.OperationArgs, 0, len(iterNames))
+
+	// Use our cluster certificate so the leader can verify TLS when
+	// pushing data back to us.
+	localCertPEM := string(clusterCert.PublicKey())
 
 	for _, instName := range iterNames {
 		copyFunc := func(ctx context.Context, op *operations.Operation) error {
@@ -1190,27 +1189,16 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				return fmt.Errorf("Failed getting instance %q from current leader cluster: %w", instName, err)
 			}
 
-			remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{Migration: true})
-			if err != nil {
-				return fmt.Errorf("Failed starting migration source on current leader cluster for instance %q: %w", instName, err)
-			}
-
-			remoteOpInfo := remoteMigrateOp.Get()
-			remoteSecrets, err := remoteOpInfo.WebsocketSecrets()
-			if err != nil {
-				return fmt.Errorf("Failed getting websocket secrets for instance %q migration: %w", instName, err)
-			}
-
-			connInfo, err := dstClient.GetConnectionInfo()
-			if err != nil {
-				return fmt.Errorf("Failed getting connection info for current leader cluster: %w", err)
-			}
-
-			remoteOpURL := connInfo.URL + "/1.0/operations/" + remoteOpInfo.ID
-
 			// If the instance lives on another cluster member, forward the restore
 			// migration to that member so the refresh runs where the storage volume is.
-			memberAddress := instMemberAddress[instName]
+			var memberAddress string
+			for _, inst := range allInsts {
+				if inst.Name() == instName {
+					memberAddress = nodeAddressByName[inst.Location()]
+					break
+				}
+			}
+
 			if memberAddress != "" {
 				memberClient, err := lxdCluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 				if err != nil {
@@ -1219,29 +1207,55 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 
 				memberClient = memberClient.UseProject(projectName)
 
+				// Set up a push-mode migration sink on the hosting cluster member.
 				restoreOp, err := memberClient.CreateInstance(api.InstancesPost{
 					Name:        instName,
 					InstancePut: freshInst.Writable(),
 					Type:        api.InstanceType(freshInst.Type),
 					Source: api.InstanceSource{
-						Type:        api.SourceTypeMigration,
-						Mode:        "pull",
-						Operation:   remoteOpURL,
-						Websockets:  remoteSecrets,
-						Certificate: targetCertPEM,
-						Refresh:     true,
+						Type:    api.SourceTypeMigration,
+						Mode:    "push",
+						Refresh: true,
 					},
 				})
 				if err != nil {
 					return fmt.Errorf("Failed requesting restore on hosting cluster member for instance %q: %w", instName, err)
 				}
 
-				err = restoreOp.Wait()
+				restoreOpCancelled := false
+				defer func() {
+					if !restoreOpCancelled {
+						_ = restoreOp.Cancel()
+					}
+				}()
+
+				restoreOpAPI := restoreOp.Get()
+				restoreSecrets, err := restoreOpAPI.WebsocketSecrets()
 				if err != nil {
-					return fmt.Errorf("Restore of instance %q failed on hosting cluster member: %w", instName, err)
+					return fmt.Errorf("Failed getting websocket secrets from hosting cluster member for instance %q: %w", instName, err)
 				}
 
-				return remoteMigrateOp.Wait()
+				// Tell the current leader cluster to push-migrate the instance to the hosting cluster member's sink.
+				remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{
+					Migration: true,
+					Target: &api.InstancePostTarget{
+						Operation:   restoreOp.URL().String(),
+						Websockets:  restoreSecrets,
+						Certificate: localCertPEM,
+					},
+				})
+				if err != nil {
+					return fmt.Errorf("Failed starting push migration on current leader cluster for instance %q: %w", instName, err)
+				}
+
+				restoreOpCancelled = true
+
+				err = remoteMigrateOp.Wait()
+				if err != nil {
+					return fmt.Errorf("Restore of instance %q failed on current leader cluster: %w", instName, err)
+				}
+
+				return restoreOp.Wait()
 			}
 
 			// Load profiles for the instance to pass to the migration sink.
@@ -1254,7 +1268,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				return fmt.Errorf("Failed loading profiles for instance %q: %w", instName, err)
 			}
 
-			// Build a migration request that the shared migration-sink core understands.
+			// Set up a push-mode migration sink locally so the leader pushes data to us.
 			migrateReq := &api.InstancesPost{
 				InstancePut: api.InstancePut{
 					Architecture: freshInst.Architecture,
@@ -1268,12 +1282,9 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				Name: instName,
 				Type: api.InstanceType(freshInst.Type),
 				Source: api.InstanceSource{
-					Type:        api.SourceTypeMigration,
-					Mode:        "pull",
-					Operation:   remoteOpURL,
-					Websockets:  remoteSecrets,
-					Certificate: targetCertPEM,
-					Refresh:     true,
+					Type:    api.SourceTypeMigration,
+					Mode:    "push",
+					Refresh: true,
 				},
 			}
 
@@ -1284,13 +1295,65 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 
 			defer result.revert.Fail()
 
-			err = result.run(ctx, op)
+			// Schedule the sink operation so it gets an ID and can accept websocket connections.
+			sinkOpArgs := operations.OperationArgs{
+				ProjectName: projectName,
+				EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
+				Type:        operationtype.InstanceCreate,
+				Class:       operations.OperationClassWebsocket,
+				Metadata:    result.sink.Metadata(),
+				ConnectHook: result.sink.Connect,
+				RunHook:     result.run,
+			}
+
+			var sinkOp *operations.Operation
+			if op.Requestor() != nil {
+				sinkOp, err = operations.ScheduleUserOperationFromOperation(s, op, sinkOpArgs)
+			} else {
+				sinkOp, err = operations.ScheduleServerOperation(s, sinkOpArgs)
+			}
+
 			if err != nil {
-				return fmt.Errorf("Restore of instance %q failed: %w", instName, err)
+				return fmt.Errorf("Failed scheduling migration sink operation for instance %q: %w", instName, err)
+			}
+
+			_, sinkOpAPI := sinkOp.Render()
+			sinkSecrets, err := sinkOpAPI.WebsocketSecrets()
+			if err != nil {
+				return fmt.Errorf("Failed getting websocket secrets from local sink for instance %q: %w", instName, err)
+			}
+
+			// Build the operation URL using this node's cluster address.
+			localAddress := nodeAddressByName[s.ServerName]
+			sinkOpURL := "https://" + localAddress + sinkOp.URL()
+
+			// Tell the current leader cluster to push-migrate the instance to our local sink.
+			remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{
+				Migration: true,
+				Target: &api.InstancePostTarget{
+					Operation:   sinkOpURL,
+					Websockets:  sinkSecrets,
+					Certificate: localCertPEM,
+				},
+			})
+			if err != nil {
+				sinkOp.Cancel()
+				return fmt.Errorf("Failed starting push migration on current leader cluster for instance %q: %w", instName, err)
+			}
+
+			remoteErr := remoteMigrateOp.Wait()
+			if remoteErr != nil {
+				sinkOp.Cancel()
+				return fmt.Errorf("Restore of instance %q failed on current leader cluster: %w", instName, remoteErr)
+			}
+
+			sinkErr := sinkOp.Wait(context.Background())
+			if sinkErr != nil {
+				return fmt.Errorf("Restore of instance %q failed: %w", instName, sinkErr)
 			}
 
 			result.revert.Success()
-			return remoteMigrateOp.Wait()
+			return nil
 		}
 
 		childArgs = append(childArgs, &operations.OperationArgs{
@@ -1427,12 +1490,12 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 			return fmt.Errorf("Failed starting push migration for instance %q: %w", instName, err)
 		}
 
-		destOpCancelled = true
-
 		err = srcMigrateOp.Wait()
 		if err != nil {
 			return fmt.Errorf("Replication of instance %q failed on hosting cluster member: %w", instName, err)
 		}
+
+		destOpCancelled = true
 
 		return destOp.Wait()
 	}
