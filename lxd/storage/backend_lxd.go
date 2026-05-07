@@ -2229,18 +2229,10 @@ func (b *lxdBackend) CreateInstanceFromImage(ctx context.Context, inst instance.
 	}
 
 	if canOptimizedImage {
-		err = b.EnsureImage(ctx, fingerprint, inst.Project().Name, progressReporter)
+		imgVol, err = b.EnsureImage(ctx, fingerprint, inst.Project().Name, progressReporter)
 		if err != nil {
 			return err
 		}
-
-		imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, fingerprint, drivers.VolumeTypeImage)
-		if err != nil {
-			return err
-		}
-
-		v := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
-		imgVol = &v
 	}
 
 	// Clone from the cached image volume when one was prepared; otherwise
@@ -2546,7 +2538,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 				// Ensure if the image doesn't yet exist on a driver which supports
 				// optimized storage, then it gets created first.
-				err = b.EnsureImage(ctx, preFiller.Fingerprint, inst.Project().Name, progressReporter)
+				_, err = b.EnsureImage(ctx, preFiller.Fingerprint, inst.Project().Name, progressReporter)
 				if err != nil {
 					return err
 				}
@@ -4249,18 +4241,18 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, progressRep
 // doesn't already exist. If the volume already exists then it is checked to ensure it matches the pools current
 // volume settings ("volume.size" and "block.filesystem" if applicable). If not the optimized volume is removed
 // and regenerated to apply the pool's current volume settings.
-func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projectName string, progressReporter ioprogress.ProgressReporter) error {
+func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projectName string, progressReporter ioprogress.ProgressReporter) (*drivers.Volume, error) {
 	l := b.logger.AddContext(logger.Ctx{"fingerprint": fingerprint})
 	l.Debug("EnsureImage started")
 	defer l.Debug("EnsureImage finished")
 
 	err := b.isStatusReady()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !b.driver.Info().OptimizedImages {
-		return nil // Nothing to do for drivers that do not support optimized images volumes.
+		return nil, nil // Nothing to do for drivers that do not support optimized images volumes.
 	}
 
 	// We need to lock this operation to ensure that the image is not being created multiple times.
@@ -4268,7 +4260,7 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 	// establishes a lock on the volume type & name if it needs to mount the volume before filling.
 	unlock, err := locking.Lock(context.TODO(), drivers.OperationLockName("EnsureImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	defer unlock()
@@ -4282,7 +4274,7 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 		return err
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Derive content type from image type. Image types are not the same as instance types, so don't use
@@ -4296,7 +4288,7 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 	// Try and load any existing volume config on this storage pool so we can compare filesystems if needed.
 	imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage)
 	if err != nil && !response.IsNotFoundError(err) {
-		return err
+		return nil, err
 	}
 
 	// Create the new image volume. No config for an image volume so set to nil.
@@ -4312,7 +4304,7 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 		tmpImgVol := imgVol.Clone()
 		err := b.Driver().FillVolumeConfig(tmpImgVol)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Add existing image volume's config to imgVol.
@@ -4325,7 +4317,7 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 			l.Debug("Image volume configuration differs from storage pool configuration, regenerating image volume")
 			err = b.DeleteImage(ctx, image.Fingerprint, progressReporter)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			// Reset img volume as we just deleted the old one.
@@ -4341,7 +4333,7 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 	// Check if we already have a suitable volume on storage device.
 	volExists, err := b.driver.HasVolume(imgVol)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if volExists {
@@ -4353,7 +4345,7 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 			l.Debug("Checking image volume size")
 			newVolSize, err := imgVol.ConfigSizeFromSource(imgVol)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			imgVol.SetConfigSize(newVolSize)
@@ -4364,11 +4356,11 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 			err = b.driver.SetVolumeQuota(imgVol, imgVol.ConfigSize(), false, progressReporter)
 			if err == nil {
 				// We already have a valid volume at the correct size, just return.
-				return nil
+				return &imgVol, nil
 			}
 
 			if !errors.Is(err, drivers.ErrCannotBeShrunk) && !errors.Is(err, drivers.ErrNotSupported) {
-				return err
+				return nil, err
 			}
 
 			// If the driver cannot resize the existing image volume to the new policy size
@@ -4376,7 +4368,7 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 			l.Debug("Volume size of pool has changed since cached image volume created and cached volume cannot be resized, regenerating image volume")
 			err = b.DeleteImage(ctx, image.Fingerprint, progressReporter)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			// Reset img volume variables as we just deleted the old one.
@@ -4391,7 +4383,7 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 			l.Warn("Deleting leftover/partially unpacked image volume")
 			err = b.driver.DeleteVolume(imgVol, progressReporter)
 			if err != nil {
-				return fmt.Errorf("Failed deleting leftover/partially unpacked image volume: %w", err)
+				return nil, fmt.Errorf("Failed deleting leftover/partially unpacked image volume: %w", err)
 			}
 		}
 	}
@@ -4407,14 +4399,14 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 	// Validate config and create database entry for new storage volume.
 	err = VolumeDBCreate(b, api.ProjectDefaultName, image.Fingerprint, "", drivers.VolumeTypeImage, false, imgVol.Config(), time.Now().UTC(), time.Time{}, contentType, false, false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	revert.Add(func() { _ = VolumeDBDelete(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage) })
 
 	err = b.driver.CreateVolume(imgVol, &volFiller, progressReporter)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	revert.Add(func() { _ = b.driver.DeleteVolume(imgVol, progressReporter) })
@@ -4427,12 +4419,12 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 			return tx.UpdateStoragePoolVolume(ctx, api.ProjectDefaultName, image.Fingerprint, cluster.StoragePoolVolumeTypeImage, b.id, "", imgVol.Config())
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	revert.Success()
-	return nil
+	return &imgVol, nil
 }
 
 // DeleteImage removes an image from the database and underlying storage device if needed.

@@ -975,7 +975,7 @@ func imageCreateInPool(ctx context.Context, s *state.State, info *api.Image, sto
 		return err
 	}
 
-	err = pool.EnsureImage(ctx, info.Fingerprint, projectName, nil)
+	_, err = pool.EnsureImage(ctx, info.Fingerprint, projectName, nil)
 	if err != nil {
 		return err
 	}
