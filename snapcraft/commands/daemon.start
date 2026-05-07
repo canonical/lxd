@@ -13,6 +13,10 @@ get_fuse_soname_version() {
   ldd "${1}" | sed -n "/libfuse3\?\.so/ s/.*libfuse3\?\.so\.\([^ ]\+\) .*/\1/p"
 }
 
+get_base_snap_name() {
+  sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' "${1}"
+}
+
 echo "=> Preparing the system (${SNAP_REVISION})"
 
 # shellcheck disable=SC2155
@@ -43,7 +47,7 @@ if nsenter -t 1 -m snap model --assertion | grep -q "^model: lxd-core"; then
 fi
 
 # Detect base name
-SNAP_BASE="$(sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' /meta/snap.yaml)"
+SNAP_BASE="$(get_base_snap_name /meta/snap.yaml)"
 
 # Wait for appliance configuration
 if [ "${LXD_APPLIANCE}" = "true" ]; then
@@ -597,7 +601,7 @@ if [ -e "${SNAP_COMMON}/var/lib/lxcfs/cgroup" ]; then
         read -r CURRENT_PID < "${SNAP_COMMON}/lxcfs.pid"
         if [ -e "/proc/${CURRENT_PID}" ]; then
             CURRENT_FUSE="$(get_fuse_soname_version "/proc/${CURRENT_PID}/exe")"
-            CURRENT_BASE="$(sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' "/proc/${CURRENT_PID}/root/meta/snap.yaml")"
+            CURRENT_BASE="$(get_base_snap_name "/proc/${CURRENT_PID}/root/meta/snap.yaml")"
         fi
     fi
 
