@@ -260,6 +260,9 @@ parts:
       - lib/python3
 
       # Unneeded Python modules:
+      - -lib/python3/dist-packages/ceph/deployment
+      - -lib/python3/dist-packages/ceph/rgw
+      - -lib/python3/dist-packages/ceph/tests
       - -lib/python3/dist-packages/cephfs*
 
       - lib/*/libboost_context.so*
