@@ -87,6 +87,9 @@ layout:
     bind: $SNAP/gpu-2404/libdrm
   /usr/share/drirc.d:
     symlink: $SNAP/gpu-2404/drirc.d
+  # For PCI and USB ID files
+  /usr/share/misc:
+    bind: $SNAP/share/misc
 
 apps:
   # Main commands
