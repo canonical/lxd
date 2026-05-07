@@ -786,10 +786,22 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	// a `volatile.uuid` field during creation of the volume's record in the DB.
 	// When importing a backup we have to ensure to not pass the backup volume's UUID when
 	// calling the actual backend functions for the target volume that perform some preliminary validation checks.
+	if rootVol.Config == nil {
+		rootVol.Config = make(map[string]string)
+	}
+
 	rootVol.Config["volatile.uuid"] = uuid.New().String()
 
 	// Override the volume snapshot's UUID.
-	for _, snapshot := range rootVol.Snapshots {
+	for i, snapshot := range rootVol.Snapshots {
+		if snapshot == nil {
+			return response.SmartError(fmt.Errorf("Nil root volume snapshot definition found at index %d", i))
+		}
+
+		if snapshot.Config == nil {
+			snapshot.Config = make(map[string]string)
+		}
+
 		snapshot.Config["volatile.uuid"] = uuid.New().String()
 	}
 

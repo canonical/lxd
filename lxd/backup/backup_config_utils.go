@@ -266,6 +266,10 @@ func UpdateInstanceConfigInPlace(c *db.Cluster, b *Info) error {
 
 	rootDiskDeviceFound := false
 
+	if b.Config.Instance == nil {
+		return errors.New("Instance definition in backup config is missing")
+	}
+
 	// Change the pool in case it doesn't match the one of the original instance.
 	err = b.Config.UpdateRootVolumePool(pool)
 	if err != nil {
@@ -280,7 +284,11 @@ func UpdateInstanceConfigInPlace(c *db.Cluster, b *Info) error {
 		rootDiskDeviceFound = true
 	}
 
-	for _, snapshot := range b.Config.Snapshots {
+	for i, snapshot := range b.Config.Snapshots {
+		if snapshot == nil {
+			return fmt.Errorf("Backup config contains nil snapshot at index %d", i)
+		}
+
 		updateRootDevicePool(snapshot.Devices, pool.Name)
 		updateRootDevicePool(snapshot.ExpandedDevices, pool.Name)
 	}

@@ -271,7 +271,11 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 
 	if snapshots {
 		indexInfo.Snapshots = make([]string, 0, len(config.Snapshots))
-		for _, s := range config.Snapshots {
+		for i, s := range config.Snapshots {
+			if s == nil {
+				return fmt.Errorf("Backup config contains nil snapshot at index %d", i)
+			}
+
 			indexInfo.Snapshots = append(indexInfo.Snapshots, s.Name)
 		}
 	}
@@ -572,7 +576,11 @@ func volumeBackupWriteIndex(projectName string, volumeName string, pool storageP
 
 	if snapshots {
 		indexInfo.Snapshots = make([]string, 0, len(customVol.Snapshots))
-		for _, s := range customVol.Snapshots {
+		for i, s := range customVol.Snapshots {
+			if s == nil {
+				return fmt.Errorf("Backup config contains nil snapshot at index %d", i)
+			}
+
 			indexInfo.Snapshots = append(indexInfo.Snapshots, s.Name)
 		}
 	}

@@ -176,7 +176,11 @@ func (c *Config) UpdateRootVolumePool(pool *api.StoragePool) error {
 func (c *Config) RootVolume() (*Volume, error) {
 	// First try obtaining the root volume for non-snapshot instances.
 	// In this case the Instance field is populated.
-	for _, volume := range c.Volumes {
+	for i, volume := range c.Volumes {
+		if volume == nil {
+			return nil, fmt.Errorf("Volume config contains nil volume at index %d", i)
+		}
+
 		if c.Instance == nil {
 			continue
 		}
