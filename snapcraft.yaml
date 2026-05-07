@@ -264,6 +264,12 @@ parts:
       - -lib/python3/dist-packages/ceph/rgw
       - -lib/python3/dist-packages/ceph/tests
       - -lib/python3/dist-packages/cephfs*
+      # and often flagged as outdated by Trivy:
+      - -lib/python3/dist-packages/certifi*
+      - -lib/python3/dist-packages/chardet*
+      - -lib/python3/dist-packages/idna*
+      - -lib/python3/dist-packages/requests*
+      - -lib/python3/dist-packages/urllib3*
 
       - lib/*/libboost_context.so*
       - lib/*/libboost_filesystem.so*
