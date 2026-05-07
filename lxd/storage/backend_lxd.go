@@ -4237,14 +4237,13 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, progressRep
 	return err
 }
 
-// EnsureImage creates an optimized volume of the image if supported by the storage pool driver and the volume
-// doesn't already exist. If the volume already exists then it is checked to ensure it matches the pools current
-// volume settings ("volume.size" and "block.filesystem" if applicable). If not the optimized volume is removed
-// and regenerated to apply the pool's current volume settings.
+// EnsureImage materialises the cached image variant the caller needs and returns
+// a handle for use as a clone source. When inst is supplied the variant is derived
+// from its root-disk config; otherwise pool defaults are used.
+//
+// Only the pool-default variant has a storage_volumes DB record; per-instance variants
+// live on disk only. Returns nil when the driver cannot serve the requested variant.
 func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projectName string, inst instance.Instance, progressReporter ioprogress.ProgressReporter) (*drivers.Volume, error) {
-	_ = inst // Used by the variant-derivation rework in the next commit.
-
-
 	l := b.logger.AddContext(logger.Ctx{"fingerprint": fingerprint})
 	l.Debug("EnsureImage started")
 	defer l.Debug("EnsureImage finished")
@@ -4283,65 +4282,55 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 	// Derive content type from image type. Image types are not the same as instance types, so don't use
 	// instance type constants for comparison.
 	contentType := drivers.ContentTypeFS
-
 	if image.Type == "virtual-machine" {
 		contentType = drivers.ContentTypeBlock
 	}
 
-	// Create the new image volume. No config for an image volume so set to nil.
-	// Pool config values will be read by the underlying driver if needed.
-	imgVol := b.GetNewVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, nil)
+	imgVolConfig := make(map[string]string)
+	if inst != nil {
+		err = b.applyInstanceRootDiskInitialValues(inst, imgVolConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	imgVol := b.GetNewVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, imgVolConfig)
 	err = b.driver.FillVolumeConfig(imgVol)
 	if err != nil {
 		return nil, err
 	}
 
-	// Try and load any existing volume config on this storage pool so we can compare filesystems if needed.
-	imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage)
-	if err != nil && !response.IsNotFoundError(err) {
+	poolDefaultVol := b.GetNewVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, nil)
+	err = b.driver.FillVolumeConfig(poolDefaultVol)
+	if err != nil {
 		return nil, err
 	}
 
-	// If an existing DB row was found, check if filesystem is the same as the current pool's filesystem.
-	// If not we need to delete the existing cached image volume and re-create using new filesystem.
-	// We need to do this for VM block images too, as they create a filesystem based config volume too.
-	if imgDBVol != nil {
-		existingVol := b.GetVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, imgDBVol.Config)
+	isPoolDefault := b.driver.ImageVolumeConfigMatch(imgVol, poolDefaultVol)
 
-		// Check if the volume's config differs from the pool's current configuration for new volumes.
-		// If the existing image volume no longer matches the pool's settings for new volumes then we need
-		// to delete and re-create it.
-		if !b.driver.ImageVolumeConfigMatch(existingVol, imgVol) {
-			l.Debug("Image volume configuration differs from storage pool configuration, regenerating image volume")
-			err = b.DeleteImage(ctx, image.Fingerprint, progressReporter)
+	// Detect leftover/partial-unpack: an on-disk pool-default variant with
+	// no DB record. This can occur when LXD exits during unpack, or when the
+	// storage pool has been recovered without recreating volume DB records.
+	// The driver's EnsureImage would otherwise treat the leftover as a valid
+	// cached image and we'd record a DB entry pointing at corrupt data.
+	if isPoolDefault {
+		existingDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage)
+		if err != nil && !response.IsNotFoundError(err) {
+			return nil, err
+		}
+
+		if existingDBVol == nil {
+			hasLeftover, err := b.driver.HasVolume(imgVol)
 			if err != nil {
 				return nil, err
 			}
 
-			// Reset img volume as we just deleted the old one.
-			imgDBVol = nil
-		} else {
-			// Adopt the persisted DB config so the driver looks up the on-disk image by its
-			// recorded volatile.uuid (UUIDVolumeNames drivers derive the backend name from it)
-			// and the returned volume carries volatile.rootfs.size for the caller's size check.
-			imgVol = existingVol
-		}
-	}
-
-	// We have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
-	// This can occur if LXD process exits unexpectedly during an image unpack or if the
-	// storage pool has been recovered (which would not recreate the image volume DB records).
-	if imgDBVol == nil {
-		hasLeftover, err := b.driver.HasVolume(imgVol)
-		if err != nil {
-			return nil, err
-		}
-
-		if hasLeftover {
-			l.Warn("Deleting leftover/partially unpacked image volume")
-			err = b.driver.DeleteVolume(imgVol, progressReporter)
-			if err != nil {
-				return nil, fmt.Errorf("Failed deleting leftover/partially unpacked image volume: %w", err)
+			if hasLeftover {
+				l.Warn("Deleting leftover/partially unpacked image volume")
+				err = b.driver.DeleteVolume(imgVol, progressReporter)
+				if err != nil {
+					return nil, fmt.Errorf("Failed deleting leftover/partially unpacked image volume: %w", err)
+				}
 			}
 		}
 	}
@@ -4352,24 +4341,55 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 	}
 
 	err = b.driver.EnsureImage(imgVol, &volFiller, progressReporter)
+	if errors.Is(err, drivers.ErrImageVariantNotSupported) {
+		if !isPoolDefault {
+			// Per-instance variant exists but doesn't match the requested
+			// config. Mutating it could disturb other instances cloning
+			// from it, so signal the caller to slow-unpack a one-off.
+			return nil, nil
+		}
+
+		// Pool-default variant is stale relative to current pool config
+		// (e.g. zfs.blocksize changed). It's safe to drop and recreate
+		// because subsequent clones expect the new defaults anyway.
+		err = b.driver.DeleteVolume(imgVol, progressReporter)
+		if err != nil {
+			return nil, err
+		}
+
+		err = b.driver.EnsureImage(imgVol, &volFiller, progressReporter)
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	// If the DB reconcile below fails, drop the on-disk volume so the next
-	// call can re-run the whole flow cleanly instead of finding an orphan.
+	if !isPoolDefault {
+		// Per-instance variants live on disk only; no DB row to reconcile.
+		return &imgVol, nil
+	}
+
+	// Pool-default variant: the on-disk volume was just (re)materialised
+	// by the driver. If the DB reconcile below fails, drop the on-disk
+	// volume so the next call can re-run the whole flow cleanly instead
+	// of finding an orphan.
 	revert := revert.New()
 	defer revert.Fail()
 
 	revert.Add(func() { _ = b.driver.DeleteVolume(imgVol, progressReporter) })
 
-	// volFiller.Size is non-zero only when the driver actually unpacked the
-	// image: persist it in the image DB row. Otherwise the on-disk volume
-	// was already present and the DB record matches it, so there is nothing
-	// to reconcile.
+	imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage)
+	if err != nil && !response.IsNotFoundError(err) {
+		return nil, err
+	}
+
 	if volFiller.Size != 0 {
 		imgVol.Config()["volatile.rootfs.size"] = strconv.FormatInt(volFiller.Size, 10)
-	} else if imgDBVol != nil {
+	}
+
+	if imgDBVol != nil && volFiller.Size == 0 {
+		// Pool-default variant already existed and wasn't repacked; the DB
+		// record already reflects current state.
 		revert.Success()
 		return &imgVol, nil
 	}
