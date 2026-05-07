@@ -257,8 +257,10 @@ parts:
       - bin/radosgw-admin
       - bin/rbd
       - lib/*/ceph
-      - lib/*/libcephfs*
       - lib/python3
+
+      # Unneeded Python modules:
+      - -lib/python3/dist-packages/cephfs*
 
       - lib/*/libboost_context.so*
       - lib/*/libboost_filesystem.so*
