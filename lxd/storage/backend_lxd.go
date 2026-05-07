@@ -2243,13 +2243,37 @@ func (b *lxdBackend) CreateInstanceFromImage(ctx context.Context, inst instance.
 		imgVol = &v
 	}
 
-	// Adopt the renamed driver entry point. The clone optimisation is
-	// restored in the next commit; for now always unpack the instance
-	// volume so the driver-rename commit stands on its own.
-	_ = imgVol
-	err = b.driver.CreateVolume(vol, &volFiller, progressReporter)
-	if err != nil {
-		return err
+	// Clone from the cached image volume when one was prepared; otherwise
+	// fall back to unpacking the image directly into the instance volume.
+	if imgVol != nil {
+		// Work out what size the image volume should be as if we were creating from scratch.
+		// This takes into account the existing volume's "volatile.rootfs.size" setting if set so
+		// as to avoid trying to shrink a larger image volume back to the default size when it is
+		// allowed to be larger than the default as the pool doesn't specify a volume.size.
+		newVolSize, err := vol.ConfigSizeFromSource(*imgVol)
+		if err != nil {
+			return err
+		}
+
+		vol.SetConfigSize(newVolSize)
+
+		err = b.driver.CreateVolumeFromCopy(drivers.NewVolumeCopy(vol), drivers.NewVolumeCopy(*imgVol), false, progressReporter)
+		if errors.Is(err, drivers.ErrCannotBeShrunk) {
+			// Cached image is larger than the requested instance size and
+			// cannot be shrunk; slow-unpack a correctly sized volume without
+			// disturbing the shared image.
+			b.logger.Info("Image volume cannot be shrunk to requested size, falling back to unpack", logger.Ctx{"err": err, "fingerprint": fingerprint})
+			err = b.driver.CreateVolume(vol, &volFiller, progressReporter)
+		}
+
+		if err != nil {
+			return err
+		}
+	} else {
+		err = b.driver.CreateVolume(vol, &volFiller, progressReporter)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project().Name, inst.Name(), vol.MountPath())
