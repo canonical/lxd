@@ -9,6 +9,10 @@ if [ -d /sys/kernel/security/apparmor ]; then
   fi
 fi
 
+get_fuse_soname_version() {
+  ldd "${1}" | sed -n "/libfuse3\?\.so/ s/.*libfuse3\?\.so\.\([^ ]\+\) .*/\1/p"
+}
+
 echo "=> Preparing the system (${SNAP_REVISION})"
 
 # shellcheck disable=SC2155
@@ -581,7 +585,7 @@ if [ -e "${SNAP_COMMON}/var/lib/lxcfs/cgroup" ]; then
     echo "=> Re-using existing LXCFS"
 
     ## Get the libfuse soname the new lxcfs wants to use
-    NEW_FUSE="$(ldd "${SNAP_CURRENT}/bin/lxcfs" | sed -n "/libfuse3\?\.so/ s/.*libfuse3\?\.so\.\([^ ]\+\) .*/\1/p")"
+    NEW_FUSE="$(get_fuse_soname_version "${SNAP_CURRENT}/bin/lxcfs")"
     CURRENT_FUSE="${NEW_FUSE}"
 
     ## Get the name of the base (core2X) used by the new snap
@@ -592,7 +596,7 @@ if [ -e "${SNAP_COMMON}/var/lib/lxcfs/cgroup" ]; then
     if [ -e "${SNAP_COMMON}/lxcfs.pid" ]; then
         read -r CURRENT_PID < "${SNAP_COMMON}/lxcfs.pid"
         if [ -e "/proc/${CURRENT_PID}" ]; then
-            CURRENT_FUSE="$(ldd "/proc/${CURRENT_PID}/exe" | sed -n "/libfuse3\?\.so/ s/.*libfuse3\?\.so\.\([^ ]\+\) .*/\1/p")"
+            CURRENT_FUSE="$(get_fuse_soname_version "/proc/${CURRENT_PID}/exe")"
             CURRENT_BASE="$(sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' "/proc/${CURRENT_PID}/root/meta/snap.yaml")"
         fi
     fi
