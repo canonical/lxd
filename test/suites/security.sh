@@ -562,6 +562,86 @@ test_security_user_events_cluster_link() {
   kill_lxd "${LXD_LINK_DIR}"
 }
 
+test_security_user_events_oidc() {
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  spawn_oidc
+  set_oidc test-user-security test-user-security@example.com
+  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/" "oidc.client.id=device"
+
+  local monfile="${TEST_DIR}/security-oidc-user-events.jsonl"
+  lxc monitor --type=security --format=json > "${monfile}" &
+  local mon_pid=$!
+  for _ in $(seq 10); do
+    kill -0 "${mon_pid}" && break
+    sleep 1
+  done
+  kill -0 "${mon_pid}"
+
+  sub_test "Verify user_created fires on OIDC first login"
+  BROWSER=curl lxc remote add --accept-certificate oidc-security "${LXD_ADDR}" --auth-type oidc
+
+  lxc query oidc-security:/1.0 | jq --exit-status '.auth == "trusted"'
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:oidc:")))) | length >= 1' "${monfile}" && break
+    sleep 1
+  done
+
+  # Emitted as a ServerEvent because LXD is mirroring identity state from
+  # the IdP, not creating it on behalf of the logging-in user. Hence no
+  # requestor, request_path, or request_method on the event.
+  jq --exit-status --slurp '
+    map(select(.type == "security" and (.metadata.name | startswith("user_created:oidc:")))) as $events |
+    ($events | length) == 1
+    and ($events[0].metadata.level == "info")
+    and ($events[0].metadata.description == "Identity created")
+    and ($events[0].metadata | has("requestor") | not)
+    and ($events[0].metadata | has("request_path") | not)
+    and ($events[0].metadata | has("request_method") | not)
+    ' "${monfile}"
+
+  sub_test "Verify user_updated fires when an admin updates the OIDC identity"
+  # Adding the identity to a group goes through updateIdentityPrivileged which
+  # calls newIdentityNotificationFunc(lifecycle.IdentityUpdated), emitting
+  # user_updated as a UserEvent (the admin is the actor here).
+  lxc auth group create security-oidc-test-group
+  lxc auth identity group add "oidc/test-user-security@example.com" security-oidc-test-group
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:oidc:")))) | length >= 1' "${monfile}" && break
+    sleep 1
+  done
+
+  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:oidc:")))) | length == 1' "${monfile}"
+  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:oidc:")))) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity updated") and (.metadata.requestor.username | strings | length > 0) and (.metadata.requestor.protocol | strings | length > 0)' "${monfile}"
+
+  sub_test "Verify user_created does not fire on subsequent OIDC logins"
+  # Drop the cached cookie so the next request triggers a fresh auth flow.
+  rm -f "${LXD_CONF}/jars/oidc-security"
+
+  local before_count
+  before_count="$(jq --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:oidc:")))) | length' "${monfile}")"
+
+  BROWSER=curl lxc query oidc-security:/1.0 | jq --exit-status '.auth == "trusted"'
+
+  # Allow a short window for any (unwanted) duplicate event to land.
+  sleep 2
+
+  local after_count
+  after_count="$(jq --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:oidc:")))) | length' "${monfile}")"
+  [ "${before_count}" = "${after_count}" ]
+
+  kill_go_proc "${mon_pid}" || true
+  rm -f "${monfile}"
+
+  lxc auth group delete security-oidc-test-group
+  lxc auth identity delete oidc/test-user-security@example.com
+  lxc remote remove oidc-security
+  lxc config set oidc.issuer="" oidc.client.id=""
+  kill_oidc
+}
+
 test_security_events_bearer_authn() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
