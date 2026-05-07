@@ -2243,9 +2243,11 @@ func (b *lxdBackend) CreateInstanceFromImage(ctx context.Context, inst instance.
 		imgVol = &v
 	}
 
-	// The driver decides whether to clone from the cached image volume or unpack
-	// directly, based on whether imgVol is set and config/size constraints.
-	err = b.driver.CreateVolumeFromImage(vol, imgVol, &volFiller, progressReporter)
+	// Adopt the renamed driver entry point. The clone optimisation is
+	// restored in the next commit; for now always unpack the instance
+	// volume so the driver-rename commit stands on its own.
+	_ = imgVol
+	err = b.driver.CreateVolume(vol, &volFiller, progressReporter)
 	if err != nil {
 		return err
 	}

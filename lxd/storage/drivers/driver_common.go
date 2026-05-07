@@ -376,8 +376,12 @@ func (d *common) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIn
 	return ErrNotSupported
 }
 
-// CreateVolumeFromImage creates volume from images.
-func (d *common) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
+// EnsureImage materialises the cached image volume on disk. The default
+// implementation is a no-op for drivers that do not optimise image storage;
+// the backend short-circuits before reaching this method when
+// OptimizedImages is false. Drivers with OptimizedImages = true must
+// override.
+func (d *common) EnsureImage(imgVol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
 }
 

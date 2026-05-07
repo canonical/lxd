@@ -70,7 +70,7 @@ type Driver interface {
 	ValidateVolume(vol Volume, removeUnknownKeys bool) error
 	CreateVolume(vol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error
 	CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error
-	CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error
+	EnsureImage(imgVol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error
 	RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots []string, allowInconsistent bool, progressReporter ioprogress.ProgressReporter) error
 	DeleteVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error
 	RenameVolume(vol Volume, newName string, progressReporter ioprogress.ProgressReporter) error

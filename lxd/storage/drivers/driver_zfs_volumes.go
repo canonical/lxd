@@ -1257,9 +1257,9 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 	return nil
 }
 
-// CreateVolumeFromImage creates volume from image by using createVolumeFromImage utility function.
-func (d *zfs) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
-	return createVolumeFromImage(vol, imgVol, filler, progressReporter)
+// EnsureImage materialises the cached image volume on disk if it is not already present.
+func (d *zfs) EnsureImage(imgVol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
+	return ensureImageVolume(imgVol, filler, progressReporter)
 }
 
 // RefreshVolume updates an existing volume to match the state of another.

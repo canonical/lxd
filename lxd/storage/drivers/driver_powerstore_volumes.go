@@ -383,9 +383,9 @@ func (d *powerstore) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Inf
 	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, progressReporter)
 }
 
-// CreateVolumeFromImage creates a new volume from an image, unpacking it directly.
-func (d *powerstore) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
-	return createVolumeFromImage(vol, imgVol, filler, progressReporter)
+// EnsureImage materialises the cached image volume on disk if it is not already present.
+func (d *powerstore) EnsureImage(imgVol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
+	return ensureImageVolume(imgVol, filler, progressReporter)
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.

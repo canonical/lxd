@@ -137,9 +137,9 @@ func (d *dir) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcD
 	return nil, revertHook, nil
 }
 
-// CreateVolumeFromImage creates a new volume from an image, unpacking it directly.
-func (d *dir) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
-	return d.CreateVolume(vol, filler, progressReporter)
+// EnsureImage materialises the cached image volume on disk if it is not already present.
+func (d *dir) EnsureImage(imgVol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
+	return d.CreateVolume(imgVol, filler, progressReporter)
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.

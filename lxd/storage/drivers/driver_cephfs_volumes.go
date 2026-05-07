@@ -67,9 +67,9 @@ func (d *cephfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, s
 	return genericVFSBackupUnpack(d, d.state, vol, srcBackup.Snapshots, srcData, progressReporter)
 }
 
-// CreateVolumeFromImage creates a new volume from an image, unpacking it directly.
-func (d *cephfs) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
-	return d.CreateVolume(vol, filler, progressReporter)
+// EnsureImage materialises the cached image volume on disk if it is not already present.
+func (d *cephfs) EnsureImage(imgVol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
+	return d.CreateVolume(imgVol, filler, progressReporter)
 }
 
 // CreateVolumeFromCopy copies an existing storage volume (with or without snapshots) into a new volume.
