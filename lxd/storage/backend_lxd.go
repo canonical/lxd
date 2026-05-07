@@ -2219,20 +2219,10 @@ func (b *lxdBackend) CreateInstanceFromImage(ctx context.Context, inst instance.
 		Fill:        b.imageFiller(fingerprint, progressReporter, inst.Project().Name),
 	}
 
-	// If the driver supports optimized images and the instance's config is compatible
-	// with pool defaults, ensure the cached image volume exists and pass it to the
-	// driver. Otherwise imgVol is nil and the driver falls back to a direct unpack.
-	var imgVol *drivers.Volume
-	canOptimizedImage, err := drivers.CanUseOptimizedImage(vol)
+	// Ensure the required image variant exists; nil means fall back to slow-unpack.
+	imgVol, err := b.EnsureImage(ctx, fingerprint, inst.Project().Name, inst, progressReporter)
 	if err != nil {
 		return err
-	}
-
-	if canOptimizedImage {
-		imgVol, err = b.EnsureImage(ctx, fingerprint, inst.Project().Name, inst, progressReporter)
-		if err != nil {
-			return err
-		}
 	}
 
 	// Clone from the cached image volume when one was prepared; otherwise
