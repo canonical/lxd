@@ -243,7 +243,7 @@ func (c *cmdClusterLinkCreate) run(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("Received invalid pending identity UUID %q: %w", pendingIdentityUUIDStr, err)
 			}
 
-			fmt.Printf("Cluster link %q (%s) pending identity token:"+"\n", clusterLinkName, pendingIdentityUUID.String())
+			fmt.Printf("Cluster link %q (%s) pending identity token:\n", clusterLinkName, pendingIdentityUUID.String())
 		}
 
 		// Print the base64 encoded token.
