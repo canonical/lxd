@@ -53,7 +53,7 @@ if [ -e "/etc/.lxd_generated" ]; then
               # Close socket activation fd
               exec 3<&- || true
 
-             "${SNAP}/share/openvswitch/scripts/ovs-ctl" start --system-id=random
+              "${SNAP}/share/openvswitch/scripts/ovs-ctl" start --system-id=random
           )
       )
   else
