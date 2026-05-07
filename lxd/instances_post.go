@@ -1484,24 +1484,13 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 						return fmt.Errorf("Failed loading target instance %q: %w", req.Name, err)
 					}
 
-					for _, member := range allMembers {
-						if member.Name == targetInst.Node {
-							targetMemberInfo = &member
-							break
-						}
-					}
-
+					targetMemberInfo = clusterMemberByName(allMembers, targetInst.Node)
 					if targetMemberInfo == nil {
 						return fmt.Errorf("Failed finding target cluster member %q", targetInst.Node)
 					}
 				}
 
-				for _, member := range allMembers {
-					if member.Name == sourceInst.Node {
-						sourceMemberInfo = &member
-					}
-				}
-
+				sourceMemberInfo = clusterMemberByName(allMembers, sourceInst.Node)
 				if sourceMemberInfo == nil {
 					return fmt.Errorf("Failed finding source cluster member %q", sourceInst.Node)
 				}
@@ -1533,6 +1522,23 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			if sourceImage != nil && req.Profiles == nil {
 				req.Architecture = sourceImage.Architecture
 				req.Profiles = sourceImage.Profiles
+			}
+
+		case api.SourceTypeMigration:
+			// When performing a migration with refresh, route the request to the cluster member
+			// that owns the existing instance rather than triggering new placement logic.
+			if s.ServerClustered && !clusterNotification && req.Source.Refresh && targetMemberInfo == nil {
+				targetInst, err := instance.LoadInstanceDatabaseObject(ctx, tx, targetProjectName, req.Name)
+				if err != nil {
+					if !response.IsNotFoundError(err) {
+						return fmt.Errorf("Failed loading target instance %q: %w", req.Name, err)
+					}
+				} else {
+					targetMemberInfo = clusterMemberByName(allMembers, targetInst.Node)
+					if targetMemberInfo == nil {
+						return fmt.Errorf("Failed finding target cluster member %q", targetInst.Node)
+					}
+				}
 			}
 		}
 
@@ -1964,4 +1970,16 @@ func instanceCreateFinish(ctx context.Context, s *state.State, req *api.Instance
 	}
 
 	return inst.Start(ctx, false, op)
+}
+
+// clusterMemberByName returns a pointer to the db.NodeInfo entry in members
+// whose Name matches the given name, or nil if no match is found.
+func clusterMemberByName(members []db.NodeInfo, name string) *db.NodeInfo {
+	for i := range members {
+		if members[i].Name == name {
+			return &members[i]
+		}
+	}
+
+	return nil
 }
