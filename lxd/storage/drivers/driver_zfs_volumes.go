@@ -1562,8 +1562,31 @@ func (d *zfs) deleteVolume(vol Volume, progressReporter ioprogress.ProgressRepor
 		}
 
 		if len(clones) > 0 {
-			// Move to the deleted path.
-			_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", dataset, d.dataset(vol, true))
+			target := d.dataset(vol, true)
+
+			// Image variants share a deterministic deleted slot per (fingerprint, dimensions).
+			// If a previous soft-deleted snapshot still occupies that slot (e.g. pool
+			// blocksize changed twice and the older variant is still backing live clones),
+			// rename it out of the way to a UUID-suffixed tombstone so the current active
+			// variant can take the deterministic slot.
+			if vol.volType == VolumeTypeImage {
+				existing, err := d.datasetExists(target)
+				if err != nil {
+					return err
+				}
+
+				if existing {
+					tombstone := target + "-" + uuid.New().String()
+					d.logger.Debug("Rotating occupied deleted image slot to tombstone", logger.Ctx{"fingerprint": vol.Name(), "tombstone": tombstone})
+					_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", target, tombstone)
+					if err != nil {
+						return err
+					}
+				}
+			}
+
+			// Move to the deterministic deleted slot.
+			_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", dataset, target)
 			if err != nil {
 				return err
 			}
