@@ -21,6 +21,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 )
@@ -327,15 +328,17 @@ func DatabaseReplaceFromTarball(tarballPath string, database *db.Node) error {
 	}
 
 	raftNodesYamlPath := path.Join(unpackDir, raftNodesFilename)
-	raftNodesYaml, err := os.ReadFile(raftNodesYamlPath)
+	raftNodesFile, err := os.Open(raftNodesYamlPath)
 	if err != nil {
 		return err
 	}
 
+	defer func() { _ = raftNodesFile.Close() }()
+
 	var incomingRaftNodes []db.RaftNode
-	err = yaml.Unmarshal(raftNodesYaml, &incomingRaftNodes)
+	err = yaml.NewDecoder(util.MaxBytesReader(raftNodesFile, util.MaxYAMLFileBytes)).Decode(&incomingRaftNodes)
 	if err != nil {
-		return fmt.Errorf("Invalid %q", raftNodesYamlPath)
+		return fmt.Errorf("Invalid %q: %w", raftNodesYamlPath, err)
 	}
 
 	var localRaftNodes []db.RaftNode

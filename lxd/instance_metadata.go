@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/lxd/instance"
+	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -94,53 +96,37 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Load the container
-	c, err := instance.LoadByProjectAndName(s, projectName, name)
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.LoadByInstance(s, c)
+	pool, err := storagePools.LoadByInstance(s, inst)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	_, err = storagePools.InstanceMount(pool, c, nil)
+	_, err = storagePools.InstanceMount(pool, inst, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
+	defer func() { _ = storagePools.InstanceUnmount(pool, inst, nil) }()
 
-	// If missing, just return empty result
-	metadataPath := filepath.Join(c.Path(), "metadata.yaml")
-	if !shared.PathExists(metadataPath) {
-		return response.SyncResponse(true, api.ImageMetadata{})
-	}
-
-	// Read the metadata
-	metadataFile, err := os.Open(metadataPath)
+	// Read the metadata, return empty result if missing.
+	metadata, err := instanceDrivers.ParseImageMetadataFile(filepath.Join(inst.Path(), "metadata.yaml"))
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return response.SyncResponse(true, api.ImageMetadata{})
+		}
+
 		return response.InternalError(err)
 	}
 
-	defer func() { _ = metadataFile.Close() }()
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceMetadataRetrieved.Event(inst, request.CreateRequestor(r.Context()), nil))
 
-	data, err := io.ReadAll(metadataFile)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	// Parse into the API struct
-	metadata := api.ImageMetadata{}
-	err = yaml.Unmarshal(data, &metadata)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	s.Events.SendLifecycle(projectName, lifecycle.InstanceMetadataRetrieved.Event(c, request.CreateRequestor(r.Context()), nil))
-
-	return response.SyncResponseETag(true, metadata, metadata)
+	return response.SyncResponseETag(true, *metadata, *metadata)
 }
 
 // swagger:operation PATCH /1.0/instances/{name}/metadata instances instance_metadata_patch
@@ -224,27 +210,16 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 
 	defer func() { _ = storagePools.InstanceUnmount(pool, inst, nil) }()
 
-	// Read the existing data.
-	metadataPath := filepath.Join(inst.Path(), "metadata.yaml")
 	metadata := api.ImageMetadata{}
-	if shared.PathExists(metadataPath) {
-		metadataFile, err := os.Open(metadataPath)
-		if err != nil {
-			return response.InternalError(err)
-		}
 
-		defer func() { _ = metadataFile.Close() }()
+	// Read the existing data.
+	existingMetadata, err := instanceDrivers.ParseImageMetadataFile(filepath.Join(inst.Path(), "metadata.yaml"))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return response.InternalError(err)
+	}
 
-		data, err := io.ReadAll(metadataFile)
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		// Parse into the API struct
-		err = yaml.Unmarshal(data, &metadata)
-		if err != nil {
-			return response.SmartError(err)
-		}
+	if existingMetadata != nil {
+		metadata = *existingMetadata
 	}
 
 	// Validate ETag

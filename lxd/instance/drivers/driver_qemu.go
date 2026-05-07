@@ -119,7 +119,10 @@ const qemuSparseUSBPorts = 8
 // qemuBusModePersistent is the volatile.bus.mode for persistent bus allocation mode.
 const qemuBusModePersistent = "persistent"
 
-var errQemuAgentOffline = errors.New("LXD VM agent isn't currently running")
+// agentConnectTimeout is the amount of time to wait when connecting to the QEMU agent before timing out.
+const agentConnectTimeout = 3 * time.Second
+
+var errQemuAgentOffline = errors.New("LXD VM agent is not currently running")
 
 type monitorHook func(m *qmp.Monitor) error
 
@@ -1973,7 +1976,10 @@ func (d *qemu) advertiseVsockAddress() error {
 		return fmt.Errorf("Failed getting agent client handle: %w", err)
 	}
 
-	agent, err := lxd.ConnectLXDHTTP(nil, client)
+	ctx, cancel := context.WithTimeout(context.Background(), agentConnectTimeout)
+	defer cancel()
+
+	agent, err := lxd.ConnectLXDHTTPWithContext(ctx, nil, client)
 	if err != nil {
 		return fmt.Errorf("Failed connecting to lxd-agent: %w", err)
 	}
@@ -3218,21 +3224,13 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 
 func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) error {
 	// If there's no metadata, just return.
-	fname := filepath.Join(d.Path(), "metadata.yaml")
-	if !shared.PathExists(fname) {
-		return nil
-	}
-
-	// Parse the metadata.
-	content, err := os.ReadFile(fname)
+	metadata, err := ParseImageMetadataFile(filepath.Join(d.Path(), "metadata.yaml"))
 	if err != nil {
-		return fmt.Errorf("Failed to read metadata: %w", err)
-	}
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
 
-	metadata := new(api.ImageMetadata)
-	err = yaml.Unmarshal(content, &metadata)
-	if err != nil {
-		return fmt.Errorf("Could not parse %s: %w", fname, err)
+		return fmt.Errorf("Failed reading metadata: %w", err)
 	}
 
 	// Figure out the instance architecture.
@@ -6543,9 +6541,16 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		return nil
 	}
 
-	// Look for metadata.yaml.
+	// Parse the metadata file.
 	fnam := filepath.Join(cDir, "metadata.yaml")
-	if !shared.PathExists(fnam) {
+	existingMetadata, err := ParseImageMetadataFile(fnam)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		_ = tarWriter.Close()
+		d.logger.Error("Failed exporting instance", ctxMap)
+		return meta, err
+	}
+
+	if existingMetadata == nil {
 		// Generate a new metadata.yaml.
 		tempDir, err := os.MkdirTemp("", "lxd_lxd_metadata_")
 		if err != nil {
@@ -6619,20 +6624,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 			return meta, err
 		}
 	} else {
-		// Parse the metadata.
-		content, err := os.ReadFile(fnam)
-		if err != nil {
-			_ = tarWriter.Close()
-			d.logger.Error("Failed exporting instance", ctxMap)
-			return meta, err
-		}
-
-		err = yaml.Unmarshal(content, &meta)
-		if err != nil {
-			_ = tarWriter.Close()
-			d.logger.Error("Failed exporting instance", ctxMap)
-			return meta, err
-		}
+		meta = *existingMetadata
 
 		if !expiration.IsZero() {
 			meta.ExpiryDate = expiration.UTC().Unix()
@@ -8389,7 +8381,10 @@ func (d *qemu) agentGetState() (*api.InstanceState, error) {
 		return nil, err
 	}
 
-	agent, err := lxd.ConnectLXDHTTP(nil, client)
+	ctx, cancel := context.WithTimeout(context.Background(), agentConnectTimeout)
+	defer cancel()
+
+	agent, err := lxd.ConnectLXDHTTPWithContext(ctx, nil, client)
 	if err != nil {
 		return nil, fmt.Errorf("Failed connecting to agent: %w", err)
 	}
@@ -8955,7 +8950,10 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 		return err
 	}
 
-	agent, err := lxd.ConnectLXDHTTP(nil, client)
+	ctx, cancel := context.WithTimeout(context.Background(), agentConnectTimeout)
+	defer cancel()
+
+	agent, err := lxd.ConnectLXDHTTPWithContext(ctx, nil, client)
 	if err != nil {
 		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"err": err})
 		return errors.New("Failed to connect to lxd-agent")

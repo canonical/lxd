@@ -8,6 +8,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -66,7 +67,7 @@ func GetInfo(s *state.State, r io.ReadSeeker, outputPath string) (*Info, error) 
 		}
 
 		if hdr.Name == backupIndexPath {
-			err = yaml.NewDecoder(tr).Decode(&result)
+			err = yaml.NewDecoder(util.MaxBytesReader(tr, util.MaxYAMLFileBytes)).Decode(&result)
 			if err != nil {
 				return nil, err
 			}

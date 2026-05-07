@@ -113,7 +113,7 @@ func (m *Monitor) Status() (string, error) {
 // SendFile adds a new file descriptor to the QMP fd table associated to name.
 func (m *Monitor) SendFile(name string, file *os.File) error {
 	// Check if disconnected.
-	if m.disconnected {
+	if m.disconnected || m.qmp == nil {
 		return ErrMonitorDisconnect
 	}
 
@@ -163,7 +163,7 @@ func (m *Monitor) CloseFile(name string) error {
 // SendFileWithFDSet adds a new file descriptor to an FD set.
 func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (*AddFdInfo, error) {
 	// Check if disconnected.
-	if m.disconnected {
+	if m.disconnected || m.qmp == nil {
 		return nil, ErrMonitorDisconnect
 	}
 

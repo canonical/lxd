@@ -50,17 +50,15 @@ func instanceSaveCache() error {
 }
 
 func instanceLoadCache() error {
-	if !shared.PathExists(shared.CachePath("instance_types.yaml")) {
-		return nil
-	}
-
-	content, err := os.ReadFile(shared.CachePath("instance_types.yaml"))
+	cacheFile, err := os.Open(shared.CachePath("instance_types.yaml"))
 	if err != nil {
 		return err
 	}
 
-	err = yaml.Unmarshal(content, &instanceTypes)
-	if err != nil {
+	defer func() { _ = cacheFile.Close() }()
+
+	err = yaml.NewDecoder(util.MaxBytesReader(cacheFile, util.MaxYAMLFileBytes)).Decode(&instanceTypes)
+	if err != nil && err != io.EOF {
 		return err
 	}
 
