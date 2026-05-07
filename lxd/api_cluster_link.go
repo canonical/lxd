@@ -981,7 +981,7 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 			continue
 		}
 
-		_, _, err = client.RawQuery(http.MethodPost, "/1.0/cluster/links", clusterLinksPost, "")
+		err = client.CreateClusterLink(clusterLinksPost)
 		if err != nil {
 			activationErrs = append(activationErrs, fmt.Errorf("Remote cluster address %q: %w", clusterAddress, err))
 			continue
