@@ -565,7 +565,7 @@ if [ "${openvswitch_builtin:-"false"}" = "true" ]; then
             # Close socket activation fd
             exec 3<&- || true
 
-           "${SNAP}/share/openvswitch/scripts/ovs-ctl" start --system-id=random
+            "${SNAP}/share/openvswitch/scripts/ovs-ctl" start --system-id=random
         )
     )
 elif [ -d "${SNAP_DATA}/microovn/chassis/switch" ]; then
