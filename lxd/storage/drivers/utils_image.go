@@ -46,6 +46,39 @@ func CanUseOptimizedImage(vol Volume) (bool, error) {
 	return imageVolumeConfigMatchesPoolDefault(vol)
 }
 
+// ensureImageVolume materialises the given image volume on disk for drivers
+// that keep one cached image dataset per fingerprint. If the dataset already
+// exists, the helper enforces the single-variant invariant: the on-disk
+// config must match pool defaults, otherwise ErrImageVariantNotSupported is
+// returned so the caller can slow-unpack a per-instance volume instead of
+// replacing a shared image.
+func ensureImageVolume(imgVol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
+	if imgVol.driver == nil {
+		return errors.New("Volume has no associated driver")
+	}
+
+	exists, err := imgVol.driver.HasVolume(imgVol)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		poolDefault := NewVolume(imgVol.driver, imgVol.pool, imgVol.volType, imgVol.contentType, imgVol.name, map[string]string{}, imgVol.poolConfig)
+		err = imgVol.driver.FillVolumeConfig(poolDefault)
+		if err != nil {
+			return err
+		}
+
+		if !imgVol.driver.ImageVolumeConfigMatch(poolDefault, imgVol) {
+			return ErrImageVariantNotSupported
+		}
+
+		return nil
+	}
+
+	return imgVol.driver.CreateVolume(imgVol, filler, progressReporter)
+}
+
 // createVolumeFromImage creates a new volume from an image. If imgVol is nil (no cached
 // image volume is available), it falls back to unpacking the image directly into a new
 // volume via the filler. Otherwise it verifies that the cached image volume's config still
