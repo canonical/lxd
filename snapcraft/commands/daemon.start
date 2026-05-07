@@ -275,7 +275,7 @@ for entry in hostid hostname hosts nsswitch.conf os-release passwd group localti
 done
 
 ## And the bits we need from the base/core snap
-for entry in alternatives apparmor apparmor.d ethertypes protocols; do
+for entry in apparmor apparmor.d ethertypes protocols; do
     ln -s "/snap/${SNAP_BASE}/current/etc/${entry}" "/etc/${entry}"
 done
 
