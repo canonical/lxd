@@ -490,6 +490,8 @@ var APIExtensions = []string{
 	"replicators",
 	"event_security",
 	"storage_driver_powerstore",
+	"cluster_links_unidirectional",
+	"cluster_links_unauthenticated",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

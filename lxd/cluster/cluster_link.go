@@ -114,7 +114,8 @@ func GetClusterLinkConnectionArgs(clusterCert *shared.CertInfo, targetCert *x509
 	}
 }
 
-// LoadClusterLinkAndCert loads a cluster link by name and returns its database ID, API representation, and the parsed TLS certificate associated with its identity.
+// LoadClusterLinkAndCert loads a cluster link by name and returns its database ID, API representation, and the parsed TLS certificate.
+// For bidirectional links the certificate is loaded via the associated identity; for unidirectional links it is loaded from cluster_links_certificates.
 func LoadClusterLinkAndCert(ctx context.Context, tx *sql.Tx, name string) (id int64, clusterLink *api.ClusterLink, cert *x509.Certificate, err error) {
 	dbLink, err := dbCluster.GetClusterLink(ctx, tx, name)
 	if err != nil {
@@ -128,31 +129,54 @@ func LoadClusterLinkAndCert(ctx context.Context, tx *sql.Tx, name string) (id in
 
 	clusterLink = dbLink.ToAPI(config)
 
-	identity, err := dbCluster.GetIdentityByID(ctx, tx, dbLink.IdentityID)
-	if err != nil {
-		return 0, nil, nil, fmt.Errorf("Failed loading cluster link identity: %w", err)
+	var pemCert string
+	if dbLink.IdentityID != nil {
+		// Bidirectional: cert is stored via the identity.
+		identity, err := dbCluster.GetIdentityByID(ctx, tx, *dbLink.IdentityID)
+		if err != nil {
+			return 0, nil, nil, fmt.Errorf("Failed loading cluster link identity: %w", err)
+		}
+
+		certs, err := dbCluster.GetIdentitiesPEMCertificates(ctx, tx, &identity.ID)
+		if err != nil {
+			return 0, nil, nil, fmt.Errorf("Failed loading cluster link certificate: %w", err)
+		}
+
+		if len(certs[identity.ID]) == 0 {
+			return 0, nil, nil, fmt.Errorf("No certificate found for cluster link identity %q", identity.Name)
+		}
+
+		pemCert = certs[identity.ID][0]
+	} else {
+		// Unidirectional: cert is stored directly in cluster_links_certificates.
+		pemCert, err = dbCluster.GetClusterLinkPEMCertificate(ctx, tx, dbLink.ID)
+		if err != nil {
+			return 0, nil, nil, fmt.Errorf("Failed loading cluster link certificate: %w", err)
+		}
 	}
 
-	certs, err := dbCluster.GetIdentitiesPEMCertificates(ctx, tx, &identity.ID)
-	if err != nil {
-		return 0, nil, nil, fmt.Errorf("Failed loading cluster link certificate: %w", err)
-	}
-
-	if len(certs[identity.ID]) == 0 {
-		return 0, nil, nil, fmt.Errorf("No certificate found for cluster link identity %q", identity.Name)
-	}
-
-	certBlock, _ := pem.Decode([]byte(certs[identity.ID][0]))
+	certBlock, _ := pem.Decode([]byte(pemCert))
 	if certBlock == nil {
-		return 0, nil, nil, fmt.Errorf("Failed decoding certificate for cluster link identity %q", identity.Name)
+		return 0, nil, nil, fmt.Errorf("Failed decoding certificate for cluster link %q", dbLink.Name)
 	}
 
 	cert, err = x509.ParseCertificate(certBlock.Bytes)
 	if err != nil {
-		return 0, nil, nil, fmt.Errorf("Failed extracting certificate from cluster link identity: %w", err)
+		return 0, nil, nil, fmt.Errorf("Failed extracting certificate from cluster link: %w", err)
 	}
 
 	return dbLink.ID, clusterLink, cert, nil
+}
+
+// GetUnauthenticatedClusterLinkConnectionArgs builds connection args for unauthenticated cluster links.
+// No client certificate is presented; only the server certificate is pinned.
+func GetUnauthenticatedClusterLinkConnectionArgs(targetCert *x509.Certificate) *lxd.ConnectionArgs {
+	targetCertStr := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
+
+	return &lxd.ConnectionArgs{
+		TLSServerCert: targetCertStr,
+		UserAgent:     version.UserAgent,
+	}
 }
 
 // ConnectCluster connects to a linked cluster using the provided connection args, trying each address until one succeeds.
@@ -176,7 +200,7 @@ func ConnectCluster(ctx context.Context, clusterLink api.ClusterLink, args *lxd.
 // It connects to the linked cluster and retrieves its current cluster members. If the addresses
 // have changed, [CheckClusterLinkCertificate] is called to ensure the cluster certificate remains valid.
 func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, name string) error {
-	// Fetch the cluster link and identity cert in a single transaction so we have everything needed
+	// Fetch the cluster link and cert in a single transaction so we have everything needed
 	// for connecting and cert validation without any further DB queries.
 	var clusterLink *api.ClusterLink
 	var clusterLinkID int64
@@ -197,9 +221,15 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 		return nil
 	}
 
-	clusterCert := s.Endpoints.NetworkCert()
+	var args *lxd.ConnectionArgs
+	if clusterLink.Type == api.ClusterLinkTypeUnauthenticated {
+		args = GetUnauthenticatedClusterLinkConnectionArgs(targetCert)
+	} else {
+		clusterCert := s.Endpoints.NetworkCert()
+		args = GetClusterLinkConnectionArgs(clusterCert, targetCert)
+	}
 
-	targetClient, err := ConnectCluster(ctx, *clusterLink, GetClusterLinkConnectionArgs(clusterCert, targetCert))
+	targetClient, err := ConnectCluster(ctx, *clusterLink, args)
 	if err != nil {
 		return fmt.Errorf("Failed connecting to target cluster link: %w", err)
 	}
