@@ -2229,7 +2229,7 @@ func (b *lxdBackend) CreateInstanceFromImage(ctx context.Context, inst instance.
 	}
 
 	if canOptimizedImage {
-		imgVol, err = b.EnsureImage(ctx, fingerprint, inst.Project().Name, progressReporter)
+		imgVol, err = b.EnsureImage(ctx, fingerprint, inst.Project().Name, inst, progressReporter)
 		if err != nil {
 			return err
 		}
@@ -2538,7 +2538,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 				// Ensure if the image doesn't yet exist on a driver which supports
 				// optimized storage, then it gets created first.
-				_, err = b.EnsureImage(ctx, preFiller.Fingerprint, inst.Project().Name, progressReporter)
+				_, err = b.EnsureImage(ctx, preFiller.Fingerprint, inst.Project().Name, inst, progressReporter)
 				if err != nil {
 					return err
 				}
@@ -4241,7 +4241,10 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, progressRep
 // doesn't already exist. If the volume already exists then it is checked to ensure it matches the pools current
 // volume settings ("volume.size" and "block.filesystem" if applicable). If not the optimized volume is removed
 // and regenerated to apply the pool's current volume settings.
-func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projectName string, progressReporter ioprogress.ProgressReporter) (*drivers.Volume, error) {
+func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projectName string, inst instance.Instance, progressReporter ioprogress.ProgressReporter) (*drivers.Volume, error) {
+	_ = inst // Used by the variant-derivation rework in the next commit.
+
+
 	l := b.logger.AddContext(logger.Ctx{"fingerprint": fingerprint})
 	l.Debug("EnsureImage started")
 	defer l.Debug("EnsureImage finished")
