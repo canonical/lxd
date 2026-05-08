@@ -222,7 +222,13 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 
 	// Checker for safe volatile keys.
 	isSafeKey := func(key string) bool {
-		if slices.Contains([]string{"volatile.apply_template", "volatile.base_image", "volatile.last_state.power"}, key) {
+		if slices.Contains([]string{
+			"volatile.apply_template",
+			"volatile.base_image",
+			"volatile.last_state.power",
+			"volatile.cloud-init.instance-id",
+			"volatile.uuid.generation",
+		}, key) {
 			return true
 		}
 
