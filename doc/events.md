@@ -1,17 +1,26 @@
+---
+myst:
+  html_meta:
+    description: LXD events API reference covering logging, operation, lifecycle, ovn, and security events. Learn event types, structures, and how to access events via monitor or WebSocket.
+---
+
+(events)=
 # Events
 
 ## Introduction
 
 Events are messages about actions that have occurred over LXD. Using the API endpoint `/1.0/events` directly or via
-[`lxc monitor`](lxc_monitor.md) will connect to a WebSocket through which logs and life-cycle messages will be streamed.
+[`lxc monitor`](lxc_monitor.md) will connect to a WebSocket through which events of the selected types will be streamed.
 
 ## Event types
 
-LXD Currently supports three event types.
+LXD currently supports five event types.
 
 - `logging`: Shows all logging messages regardless of the server logging level.
 - `operation`: Shows all ongoing operations from creation to completion (including updates to their state and progress metadata).
 - `lifecycle`: Shows an audit trail for specific actions occurring over LXD.
+- `ovn`: Shows network-related events from OVN (Open Virtual Network).
+- `security`: Shows security-related events including authentication attempts, authorisation decisions, and administrative changes. Requires appropriate permissions to view.
 
 ## Event structure
 
@@ -31,7 +40,7 @@ type: lifecycle
 
 - `location`: The cluster member name (if clustered).
 - `timestamp`: Time that the event occurred in RFC3339 format.
-- `type`: The type of event this is (one of `logging`, `operation`, or `lifecycle`).
+- `type`: Type of event (one of `logging`, `operation`, `lifecycle`, `ovn`, or `security`).
 - `metadata`: Information about the specific event type.
 
 ### Logging event structure
@@ -175,3 +184,85 @@ type: lifecycle
 | `warning-acknowledged`                 | The warning's status has been set to "acknowledged".                  |                                                                                                      |
 | `warning-deleted`                      | The warning has been deleted.                                         |                                                                                                      |
 | `warning-reset`                        | The warning's status has been set to "new".                           |                                                                                                      |
+
+(events-security)=
+## Security events
+
+### Security event structure
+
+- `name`: The security event identifier (e.g., `authn_login_fail:tls`, `authz_fail:can_edit:/1.0/projects/foo`).
+- `level`: The severity level (`info`, `warning`).
+- `description`: A human-readable description of the event.
+- `requestor`: Who triggered the event (username, protocol, address, user agent). Omitted for daemon-level events.
+- `project`: The project the request targeted. Omitted for daemon-level events.
+- `request_path`: The REST API endpoint path. Omitted for daemon-level events.
+- `request_method`: The HTTP method used. Omitted for daemon-level events.
+
+### Security event types
+
+LXD emits events across four categories.
+
+**Authentication events**
+
+| Event | Description |
+|-------|-------------|
+| `authn_login_fail:tls` | Failed authentication attempt when an untrusted TLS client certificate is presented to a protected endpoint. |
+| `authn_token_created:<identity>` | A new bearer token was issued for an identity. The identity UUID is included in the event identifier. |
+| `authn_token_revoked:<identity>` | A bearer token was revoked for an identity. The identity UUID is included in the event identifier. |
+| `authn_token_reuse` | A bearer token was presented in an invalid, expired, or otherwise disallowed way, indicating possible token reuse, tampering, or other misuse. |
+| `authn_certificate_change:<fingerprint>` | A TLS client certificate was replaced. The old certificate fingerprint is included in the event identifier. |
+
+**Authorization events**
+
+| Event | Description |
+|-------|-------------|
+| `authz_fail:<entitlement>:<entity>` | An action was denied due to insufficient permissions. Includes the required entitlement and the entity path that was accessed. |
+| `authz_admin:group_create:<name>` | A new authentication group was created. |
+| `authz_admin:group_edit:<name>` | An authentication group was modified. |
+| `authz_admin:group_delete:<name>` | An authentication group was deleted. |
+| `authz_admin:idp_group_create:<name>` | A new identity provider group was created. |
+| `authz_admin:idp_group_edit:<name>` | An identity provider group was modified. |
+| `authz_admin:idp_group_delete:<name>` | An identity provider group was deleted. |
+| `authz_admin:identity_create:<method>/<identifier>` | A new identity was created (TLS certificates or bearer tokens only). OIDC identities are not created via API actions. |
+| `authz_admin:identity_edit:<method>/<identifier>` | An identity was modified. |
+| `authz_admin:identity_delete:<method>/<identifier>` | An identity was deleted. |
+
+**Daemon lifecycle events**
+
+| Event | Description |
+|-------|-------------|
+| `sys_startup` | The LXD daemon has started. Emitted once the event system is fully available. |
+| `sys_shutdown` | The LXD daemon is shutting down. |
+| `sys_monitor_disabled` | Security event monitoring (Loki) was disabled via a configuration change. This is a `warning`-level event. |
+
+**User lifecycle events**
+
+| Event | Description |
+|-------|-------------|
+| `user_created` | A new identity has been created (TLS, bearer, OIDC, or cluster-link methods). For OIDC, this fires on first login. |
+| `user_updated` | An identity has been modified. For OIDC, this fires when user metadata changes on subsequent logins. |
+| `user_deleted` | An identity has been deleted. |
+
+(events-security-loki-fields)=
+### Security event fields in Loki
+
+When security events are forwarded to Loki, they are stored in
+[OWASP (Open Worldwide Application Security Project)](https://owasp.org/)
+audit log format with the following key fields:
+
+| Field | Description |
+|-------|-------------|
+| `name` | The security event type identifier. |
+| `event_source` | The cluster member name where the event occurred. |
+| `cluster_identifier` | Unique identifier for the LXD cluster. |
+| `cluster_member_name` | Name of the cluster member. |
+| `project` | The project targeted by the request. Empty or omitted for daemon-level events. |
+| `request_method` | The HTTP method used. |
+| `request_uri` | The API endpoint path. |
+| `user_id` | The requestor identity in format `<auth_method>/<identifier>`. |
+| `source_ip` | The source IP address of the request. |
+| `useragent` | The HTTP user agent string. |
+| `level` | The event severity (`info`, `warning`). |
+| `description` | Human-readable event description. |
+
+For how to monitor and query security events, see {ref}`howto-security-events`.
