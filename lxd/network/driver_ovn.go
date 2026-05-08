@@ -4426,8 +4426,8 @@ func (n *ovn) InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]n
 // InstanceDevicePortRemove unregisters the NIC device in the OVN database by removing the DNS entry that should
 // have been created during InstanceDevicePortAdd(). If the DNS record exists at remove time then this indicates
 // the NIC device was successfully added and this function also clears any DHCP reservations for the NIC's IPs.
-func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error {
-	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
+func (n *ovn) InstanceDevicePortRemove(opts *OVNInstanceNICSetupOpts) error {
+	instancePortName := n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceName)
 
 	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
@@ -4444,9 +4444,15 @@ func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, d
 		return nil
 	}
 
+	// Update any load balancer referencing this instance.
+	err = n.loadBalancerUpdateForInstance(opts.DNSName)
+	if err != nil {
+		return fmt.Errorf("Failed updating load balancer for instance: %w", err)
+	}
+
 	n.logger.Debug("Deleting instance port", logger.Ctx{"port": instancePortName})
 
-	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(deviceConfig)
+	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(opts.DeviceConfig)
 	if err != nil {
 		return fmt.Errorf("Failed parsing NIC device routes: %w", err)
 	}
