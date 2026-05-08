@@ -46,3 +46,4 @@ Dqlite database for cluster state </reference/dqlite-internals>
 How-to guides:
 
 - {ref}`troubleshoot`
+- {ref}`snap-track-bugfix`
