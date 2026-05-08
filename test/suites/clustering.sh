@@ -6252,6 +6252,163 @@ test_clustering_replicator_multi_member() {
   teardown_clustering_bridge
 }
 
+test_clustering_replicator_evacuated_member() {
+  local poolDriver
+  poolDriver=$(storage_backend "${LXD_INITIAL_DIR}")
+
+  # Ceph pools are global, so running two separate clusters (source + target) on the
+  # same host would create the same pool name twice, causing
+  # "Pool seems to be in use by another LXD instance" errors.
+  if [ "${poolDriver}" = "ceph" ]; then
+    return
+  fi
+
+  # Source cluster: 3-member cluster (node1 + node2 + node3).
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}"
+
+  local cert
+  # shellcheck disable=SC2153
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}"
+
+  # Target cluster: separate single-node cluster (node4).
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}" "" 4
+
+  # Create projects on both clusters.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create replicator-project
+  LXD_DIR="${LXD_FOUR_DIR}" lxc project create replicator-project
+
+  # Setup auth groups.
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+
+  LXD_B_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_b --quiet --auth-group replicator-group)"
+
+  LXD_DIR="${LXD_FOUR_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_FOUR_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_FOUR_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster link create lxd_a --token "${LXD_B_TRUST_TOKEN}" --auth-group replicator-group
+
+  # Configure replica project settings.
+  LXD_DIR="${LXD_FOUR_DIR}" lxc project set replicator-project replica.cluster=lxd_a replica.mode=standby
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_b replica.mode=leader
+
+  # Setup storage profiles.
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool=data --project replicator-project
+  LXD_DIR="${LXD_FOUR_DIR}" lxc profile device add default root disk path="/" pool=data --project replicator-project
+
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage replicator-project
+
+  sub_test "Forward replication with evacuated member"
+
+  # Create stopped instances on node2 and node3.
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage c1 --project replicator-project -d "${SMALL_ROOT_DISK}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node3 testimage c2 --project replicator-project -d "${SMALL_ROOT_DISK}"
+
+  # Ensure instances move during evacuation.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 cluster.evacuate=migrate --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c2 cluster.evacuate=migrate --project replicator-project
+
+  # Evacuate node2; c1 should migrate to node1 or node3.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node2 --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -F "status: Evacuated"
+
+  # c1 must no longer be on node2.
+  c1_location="$(LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c L c1)"
+  [ "${c1_location}" != "node2" ]
+
+  # Create replicator and run.
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_b --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+
+  # Both instances must appear on the target cluster.
+  LXD_DIR="${LXD_FOUR_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
+  LXD_DIR="${LXD_FOUR_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
+
+  sub_test "Idempotent replication with evacuated member"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+
+  # Replicator operation must succeed with two child operations.
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  jq --exit-status '.status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+
+  sub_test "Restore with evacuated member"
+
+  # Simulate failover: source becomes standby, target becomes leader.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=standby
+  LXD_DIR="${LXD_FOUR_DIR}" lxc project set replicator-project replica.cluster=lxd_a replica.mode=leader
+
+  # Run restore with node2 still evacuated.
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project
+
+  # Both instances must be present on the source cluster.
+  LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
+  LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
+
+  # c1 should have been restored to its post-evacuation location (not node2).
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c L c1)" = "${c1_location}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c L c2)" = "node3" ]
+
+  sub_test "Forward replication with down member"
+
+  # Flip back to leader mode.
+  LXD_DIR="${LXD_FOUR_DIR}" lxc project set replicator-project replica.mode=standby
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=leader
+
+  # Bring node2 back online. Use --action=skip because instances were already
+  # restored to their post-evacuation locations by the replicator restore.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore node2 --action=skip --force
+
+  # Move c1 to node2 and create c3 on node2.
+  LXD_DIR="${LXD_ONE_DIR}" lxc move c1 --target node2 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage c3 --project replicator-project -d "${SMALL_ROOT_DISK}"
+
+  # Shut down node2 to simulate a down member.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  sleep 11
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Offline"
+
+  # Delete target instances so the replicator creates fresh copies.
+  LXD_DIR="${LXD_FOUR_DIR}" lxc delete c1 c2 --project replicator-project
+
+  # Run the replicator; instances on node2 (c1, c3) should fail, c2 on node3 should succeed.
+  if LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project 2>&1; then
+    echo "ERROR: replicator unexpectedly succeeded with a down member" >&2
+    exit 1
+  fi
+
+  # c2 (on node3) must have been replicated despite the partial failure.
+  LXD_DIR="${LXD_FOUR_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
+
+  # Cleanup.
+  # Respawn node2 so the source cluster has quorum for cleanup commands.
+  respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc delete c2 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c3 --project replicator-project
+  LXD_DIR="${LXD_FOUR_DIR}" lxc profile device remove default root --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device remove default root --project replicator-project
+  # Gracefully shut down the 3-node source cluster while quorum still
+  # exists, then call kill_lxd for leftover checks and filesystem cleanup.
+  # Shut down node3 first (node1+node2 maintain quorum), then node2
+  # (node1+node2 = 2/3 quorum). Node1 is the last voter so it cannot
+  # achieve quorum; remove its socket and force-kill its process.
+  LXD_DIR="${LXD_THREE_DIR}" timeout -k 30 30 lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" timeout -k 30 30 lxd shutdown
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  kill -9 "$(cat "${LXD_ONE_DIR}/lxd.pid")" 2>/dev/null || true
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
+  teardown_clustering_netns
+  teardown_clustering_bridge
+}
+
 test_clustering_replicator_vm() {
   # Two standalone clustered LXD daemons simulating separate clusters.
   LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
