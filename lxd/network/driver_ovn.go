@@ -5571,7 +5571,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 // LoadBalancerUpdate updates a network load balancer.
 // The update can be forced in case any of the referenced entities (like pools) got updated
 // which require also an update of the parent load balancer.
-func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalancerPut, clientType request.ClientType, force bool) error {
+func (n *ovn) loadBalancerUpdate(listenAddress string, req api.NetworkLoadBalancerPut, clientType request.ClientType, force bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -5690,6 +5690,11 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 
 	revert.Success()
 	return nil
+}
+
+// LoadBalancerUpdate updates a network load balancer.
+func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalancerPut, clientType request.ClientType) error {
+	return n.loadBalancerUpdate(listenAddress, req, clientType, false)
 }
 
 // LoadBalancerDelete deletes a network load balancer.
