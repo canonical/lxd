@@ -4362,6 +4362,12 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts, securityACLsR
 // InstanceDevicePortStart is called after the host side of the device has been configured and the logical switch port is up.
 // The passed deviceInstance can be used to trigger any post-start configuration.
 func (n *ovn) InstanceDevicePortStart(deviceInstance instance.Instance) error {
+	// Update any load balancer referencing this instance.
+	err := n.loadBalancerUpdateForInstance(deviceInstance.Name())
+	if err != nil {
+		return fmt.Errorf("Failed updating load balancer for instance: %w", err)
+	}
+
 	return nil
 }
 
