@@ -5633,6 +5633,78 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 	return listenIPAddress, nil
 }
 
+// loadBalancerUpdateForInstance updates load balancers that reference this instance.
+func (n *ovn) loadBalancerUpdateForInstance(instanceName string) error {
+	// If any of the device's IP addresses have changed, update any load balancers
+	// whose ports reference pools containing this instance.
+	var pools []*api.NetworkLoadBalancerPool
+	var loadBalancers map[int64]*api.NetworkLoadBalancer
+
+	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		poolsDB, err := dbCluster.GetNetworksLoadBalancerPools(ctx, tx.Tx(), n.ID(), nil)
+		if err != nil {
+			return err
+		}
+
+		allConfigs, err := dbCluster.GetNetworksLoadBalancerPoolConfig(ctx, tx.Tx(), n.ID(), nil)
+		if err != nil {
+			return err
+		}
+
+		allInstances, err := dbCluster.GetNetworksLoadBalancerPoolInstances(ctx, tx.Tx(), nil)
+		if err != nil {
+			return err
+		}
+
+		pools = make([]*api.NetworkLoadBalancerPool, 0, len(poolsDB))
+
+		for _, poolDB := range poolsDB {
+			pool, err := poolDB.ToAPI(allConfigs, allInstances)
+			if err != nil {
+				return err
+			}
+
+			pools = append(pools, pool)
+		}
+
+		loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), false)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed loading load balancer pools: %w", err)
+	}
+
+	// Find pools that reference this instance.
+	poolNames := []string{}
+	for _, pool := range pools {
+		for _, poolInstance := range pool.Instances {
+			if poolInstance.Name == instanceName {
+				poolNames = append(poolNames, pool.Name)
+				break
+			}
+		}
+	}
+
+	// Update load balancers whose ports reference affected pools.
+	for _, loadBalancer := range loadBalancers {
+		for _, port := range loadBalancer.Ports {
+			if slices.Contains(poolNames, port.TargetPool) {
+				n.logger.Debug("Updating load balancer using instance", logger.Ctx{"load_balancer": loadBalancer.ListenAddress, "instance": instanceName})
+
+				err = n.loadBalancerUpdate(loadBalancer.ListenAddress, loadBalancer.Writable(), request.ClientTypeNormal, true)
+				if err != nil {
+					return fmt.Errorf("Failed updating load balancer %q: %w", loadBalancer.ListenAddress, err)
+				}
+
+				// Only need to update each load balancer once even if multiple ports match.
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // LoadBalancerUpdate updates a network load balancer.
 // The update can be forced in case any of the referenced entities (like pools) got updated
 // which require also an update of the parent load balancer.
