@@ -19,7 +19,7 @@ CONFIRM_SUDO    ?= N
 VALE_CONFIG     = $(SPHINXDIR)/vale.ini
 VALEDIR         = $(VENVDIR)/lib/python*/site-packages/vale
 VOCAB_CANONICAL = $(SPHINXDIR)/styles/config/vocabularies/Canonical
-VALE_GLOB       := --glob='!{.sphinx/**,reference/manpages/**}'
+VALE_GLOB       := --glob='!{.sphinx/**,reference/manpages/**,_build/**}'
 SPHINX_HOST     ?= 127.0.0.1
 SPHINX_PORT     ?= 8000
 
