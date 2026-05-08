@@ -41,7 +41,7 @@ type ovnNet interface {
 	InstanceDevicePortValidateUseByLoadBalancer(deviceInstance instance.Instance) error
 	InstanceDevicePortAdd(opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error)
 	InstanceDevicePortStart(deviceInstance instance.Instance) error
-	InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
+	InstanceDevicePortRemove(opts *network.OVNInstanceNICSetupOpts) error
 	InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]net.IP, error)
 }
 
