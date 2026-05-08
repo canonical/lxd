@@ -1017,7 +1017,7 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 	return response.SmartError(api.StatusErrorf(http.StatusBadGateway, "Failed activating cluster link %q: %s", req.Name, strings.Join(errStrings, "; ")))
 }
 
-// clusterLinkActivate handles a server-side request to activate a pending cluster link using a trust token provided by another cluster. The caller is the remote cluster, not a human operator.
+// clusterLinkActivate handles a server-side request to activate a pending bidirectional cluster link using a trust token provided by another cluster. The caller is the remote cluster, not a human operator.
 func clusterLinkActivate(s *state.State, r *http.Request, req api.ClusterLinksPost, notify identityNotificationFunc, requestor *api.EventLifecycleRequestor, trustToken *api.CertificateAddToken, addresses []string) response.Response {
 	if trustToken.Type != api.IdentityTypeCertificateClusterLink {
 		return response.Forbidden(fmt.Errorf("Invalid trust token type %q", trustToken.Type))
