@@ -185,10 +185,7 @@ Keys can be defined at the top of a file, or in a `myst_substitutions` option in
 
 ### File inclusion
 
-```{include} index.md
-   :start-after: Project and community
-   :end-before: Get involved
-```
+Use the `{include}` directive. Search within the LXD documentation for examples, or refer to the [MyST-Parser documentation](https://myst-parser.readthedocs.io/en/latest/syntax/organising_content.html#inserting-other-documents-directly-into-the-current-document).
 
 ## Tabs
 
