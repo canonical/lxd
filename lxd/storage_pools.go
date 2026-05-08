@@ -534,7 +534,7 @@ func storagePoolsPostCluster(ctx context.Context, s *state.State, pool *api.Stor
 	// Merge node specific config items into global config.
 	maps.Copy(nodeReq.Config, configs[s.ServerName])
 
-	updatedConfig, err := storagePoolCreateLocal(ctx, s, poolID, req, clientType)
+	updatedConfig, err := storagePoolCreateLocal(ctx, s, poolID, nodeReq, clientType)
 	if err != nil {
 		return err
 	}
@@ -904,7 +904,7 @@ func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.Storage
 	// for the node specific config keys and not replace them when the request doesn't specify a specific node.
 	if targetNode == "" && httpMethod != http.MethodPatch && clustered {
 		// If non-node specific config being updated via "put" method in cluster, then merge the current
-		// node-specific network config with the submitted config to allow validation.
+		// node-specific storage pool config with the submitted config to allow validation.
 		// This allows removal of non-node specific keys when they are absent from request config.
 		for k, v := range pool.Driver().Config() {
 			if slices.Contains(db.NodeSpecificStorageConfig, k) {
