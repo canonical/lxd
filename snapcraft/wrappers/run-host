@@ -5,6 +5,7 @@ CMD="${0##*/}"
 
 unset LD_LIBRARY_PATH
 unset PYTHONPATH
+unset PYTHONDONTWRITEBYTECODE
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 if [ "$(id -u)" = "0" ]; then

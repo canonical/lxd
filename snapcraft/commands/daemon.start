@@ -9,6 +9,14 @@ if [ -d /sys/kernel/security/apparmor ]; then
   fi
 fi
 
+get_fuse_soname_version() {
+  ldd "${1}" | sed -n "/libfuse3\?\.so/ s/.*libfuse3\?\.so\.\([^ ]\+\) .*/\1/p"
+}
+
+get_base_snap_name() {
+  sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' "${1}"
+}
+
 echo "=> Preparing the system (${SNAP_REVISION})"
 
 # shellcheck disable=SC2155
@@ -29,6 +37,8 @@ export PATH="${PATH}:${SNAP_CURRENT}/bin"
 export LXD_CLUSTER_UPDATE="${SNAP_CURRENT}/commands/refresh"
 export LXD_QEMU_FW_PATH="${SNAP_CURRENT}/share/qemu"
 export PYTHONPATH=/snap/lxd/current/lib/python3/dist-packages/
+# snap rootfs are readonly
+export PYTHONDONTWRITEBYTECODE=1
 
 # Detect LXD appliance
 LXD_APPLIANCE="false"
@@ -37,7 +47,7 @@ if nsenter -t 1 -m snap model --assertion | grep -q "^model: lxd-core"; then
 fi
 
 # Detect base name
-SNAP_BASE="$(sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' /meta/snap.yaml)"
+SNAP_BASE="$(get_base_snap_name /meta/snap.yaml)"
 
 # Wait for appliance configuration
 if [ "${LXD_APPLIANCE}" = "true" ]; then
@@ -251,7 +261,6 @@ ln -s "${SNAP}/wrappers/run-host" "/run/bin/iscsiadm"
 ln -s "${SNAP}/wrappers/run-host" "/run/bin/multipath"
 
 # Avoid xtables talking to nft
-ln -s "${SNAP}/bin/arptables-legacy" "/run/bin/arptables"
 ln -s "${SNAP}/bin/ebtables-legacy" "/run/bin/ebtables"
 ln -s /usr/sbin/xtables-legacy-multi "/run/bin/ip6tables"
 ln -s /usr/sbin/xtables-legacy-multi "/run/bin/iptables"
@@ -276,7 +285,7 @@ for entry in hostid hostname hosts nsswitch.conf os-release passwd group localti
 done
 
 ## And the bits we need from the base/core snap
-for entry in alternatives apparmor apparmor.d ethertypes protocols; do
+for entry in apparmor apparmor.d ethertypes protocols; do
     ln -s "/snap/${SNAP_BASE}/current/etc/${entry}" "/etc/${entry}"
 done
 
@@ -298,16 +307,6 @@ if [ -L /etc/resolv.conf ] && [ ! -e /etc/resolv.conf ]; then
     # shellcheck disable=SC2094
     nsenter -t 1 -m cat /etc/resolv.conf > /etc/resolv.conf || true
 fi
-
-# Setup a functional /usr/share/misc
-echo "==> Preparing a clean copy of /usr/share/misc"
-if [ -e "/usr/share/misc/.lxd_generated" ]; then
-    umount -l /usr/share/misc
-fi
-mount -t tmpfs tmpfs /usr/share/misc -o mode=0755,nosuid,nodev,size=4M
-touch /usr/share/misc/.lxd_generated
-ln -s "${SNAP_CURRENT}/share/misc/pci.ids" /usr/share/misc/
-ln -s "${SNAP_CURRENT}/share/misc/usb.ids" /usr/share/misc/
 
 # Setup host access
 ## Make /var/lib/snapd/hostfs more useful to us
@@ -574,7 +573,7 @@ if [ "${openvswitch_builtin:-"false"}" = "true" ]; then
             # Close socket activation fd
             exec 3<&- || true
 
-           "${SNAP}/share/openvswitch/scripts/ovs-ctl" start --system-id=random
+            "${SNAP}/share/openvswitch/scripts/ovs-ctl" start --system-id=random
         )
     )
 elif [ -d "${SNAP_DATA}/microovn/chassis/switch" ]; then
@@ -590,7 +589,7 @@ if [ -e "${SNAP_COMMON}/var/lib/lxcfs/cgroup" ]; then
     echo "=> Re-using existing LXCFS"
 
     ## Get the libfuse soname the new lxcfs wants to use
-    NEW_FUSE="$(ldd "${SNAP_CURRENT}/bin/lxcfs" | sed -n "/libfuse3\?\.so/ s/.*libfuse3\?\.so\.\([^ ]\+\) .*/\1/p")"
+    NEW_FUSE="$(get_fuse_soname_version "${SNAP_CURRENT}/bin/lxcfs")"
     CURRENT_FUSE="${NEW_FUSE}"
 
     ## Get the name of the base (core2X) used by the new snap
@@ -601,8 +600,8 @@ if [ -e "${SNAP_COMMON}/var/lib/lxcfs/cgroup" ]; then
     if [ -e "${SNAP_COMMON}/lxcfs.pid" ]; then
         read -r CURRENT_PID < "${SNAP_COMMON}/lxcfs.pid"
         if [ -e "/proc/${CURRENT_PID}" ]; then
-            CURRENT_FUSE="$(ldd "/proc/${CURRENT_PID}/exe" | sed -n "/libfuse3\?\.so/ s/.*libfuse3\?\.so\.\([^ ]\+\) .*/\1/p")"
-            CURRENT_BASE="$(sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' "/proc/${CURRENT_PID}/root/meta/snap.yaml")"
+            CURRENT_FUSE="$(get_fuse_soname_version "/proc/${CURRENT_PID}/exe")"
+            CURRENT_BASE="$(get_base_snap_name "/proc/${CURRENT_PID}/root/meta/snap.yaml")"
         fi
     fi
 

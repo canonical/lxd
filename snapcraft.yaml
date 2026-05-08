@@ -87,6 +87,9 @@ layout:
     bind: $SNAP/gpu-2404/libdrm
   /usr/share/drirc.d:
     symlink: $SNAP/gpu-2404/drirc.d
+  # For PCI and USB ID files
+  /usr/share/misc:
+    bind: $SNAP/share/misc
 
 apps:
   # Main commands
@@ -257,8 +260,19 @@ parts:
       - bin/radosgw-admin
       - bin/rbd
       - lib/*/ceph
-      - lib/*/libcephfs*
       - lib/python3
+
+      # Unneeded Python modules:
+      - -lib/python3/dist-packages/ceph/deployment
+      - -lib/python3/dist-packages/ceph/rgw
+      - -lib/python3/dist-packages/ceph/tests
+      - -lib/python3/dist-packages/cephfs*
+      # and often flagged as outdated by Trivy:
+      - -lib/python3/dist-packages/certifi*
+      - -lib/python3/dist-packages/chardet*
+      - -lib/python3/dist-packages/idna*
+      - -lib/python3/dist-packages/requests*
+      - -lib/python3/dist-packages/urllib3*
 
       - lib/*/libboost_context.so*
       - lib/*/libboost_filesystem.so*
@@ -319,7 +333,7 @@ parts:
       usr/bin/: bin/
       usr/lib/: lib/
     prime:
-      - bin/sqlite3
+      - bin/sqlite3  # not used by LXD but small and useful for emergency situations
       - lib/libdqlite*so*
       - lib/*/libsqlite3*so*
       - lib/*/libuv*
@@ -945,6 +959,11 @@ parts:
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
       set -ex
+      # If configure finds a `.git` dir, it enables -Werror (`--enable-werror` and Git submodules are validated).
+      # When building the deb on LP, this `.git` dir is not present because a tarball is used.
+      # The `-Werror` causes compilation failures on ppc64el so let's remove the `.git` dir to align with the deb behavior.
+      [ -d .git ] && rm -rf .git
+
       # Mangle the configure a bit
       QEMUARCH="$(uname -m)"
       [ "${QEMUARCH}" = "ppc64le" ] && QEMUARCH="ppc64"
@@ -988,7 +1007,6 @@ parts:
       - lib/*/libusbredir*so*
       - lib/*/libusb*so*
       - lib/*/libfdt*.so*
-      - share/qemu/keymaps/*
       - share/qemu/bios-256k.bin
       - share/qemu/efi-virtio.rom
       - share/qemu/kvmvapic.bin
@@ -1054,7 +1072,6 @@ parts:
   xtables:
     plugin: nil
     stage-packages:
-      - arptables
       - ebtables
       - netbase
     organize:
@@ -1063,7 +1080,6 @@ parts:
     prime:
       #- etc/ethertypes  # use ethertypes from the base snap
       #- etc/protocols   # use protocols from the base snap
-      - bin/arptables-legacy
       - bin/ebtables-legacy
       - lib/libebtc.so.*
 
@@ -1091,9 +1107,6 @@ parts:
     source-depth: 1
     source-type: git
     plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=/
-      - --with-config=user
     build-packages:
       - to armhf: []
       - else:
@@ -1117,22 +1130,21 @@ parts:
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
-      craftctl default
       set -ex
+      RAW_VER="${CRAFT_PART_NAME#zfs-}"
+      ZFS_VER="${RAW_VER/-/.}"
 
-      ZFS_VER="2.2"
+      # Bypass `craftctl default` to only build 'zfs' and 'zpool' targets and not `make all`
+      cd "${CRAFT_PART_SRC}"
+      ./autogen.sh
+      ./configure --prefix=/ --with-config=user
+      make -j$(nproc) zfs zpool
 
-      mv "${CRAFT_PART_INSTALL}" "${CRAFT_PART_INSTALL}.tmp"
       mkdir -p "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib"
-      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zfs" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zpool" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/lib/udev/zvol_id" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
-      rm -Rf "${CRAFT_PART_INSTALL}.tmp"
 
-      # unused .so
-      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*
-      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
+      find . -type f -name "zfs" -path "*/.libs/*" -exec cp {} "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/" \;
+      find . -type f -name "zpool" -path "*/.libs/*" -exec cp {} "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/" \;
+      find . -name "*.so*" -path "*/.libs/*" -exec cp -P {} "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/" \;
 
   zfs-2-3:
     source: https://github.com/openzfs/zfs
@@ -1140,9 +1152,6 @@ parts:
     source-depth: 1
     source-type: git
     plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=/
-      - --with-config=user
     build-packages:
       - to armhf: []
       - else:
@@ -1166,22 +1175,21 @@ parts:
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
-      craftctl default
       set -ex
+      RAW_VER="${CRAFT_PART_NAME#zfs-}"
+      ZFS_VER="${RAW_VER/-/.}"
 
-      ZFS_VER="2.3"
+      # Bypass `craftctl default` to only build 'zfs' and 'zpool' targets and not `make all`
+      cd "${CRAFT_PART_SRC}"
+      ./autogen.sh
+      ./configure --prefix=/ --with-config=user
+      make -j$(nproc) zfs zpool
 
-      mv "${CRAFT_PART_INSTALL}" "${CRAFT_PART_INSTALL}.tmp"
       mkdir -p "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib"
-      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zfs" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zpool" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/lib/udev/zvol_id" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
-      rm -Rf "${CRAFT_PART_INSTALL}.tmp"
 
-      # unused .so
-      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*
-      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
+      find . -type f -name "zfs" -path "*/.libs/*" -exec cp {} "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/" \;
+      find . -type f -name "zpool" -path "*/.libs/*" -exec cp {} "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/" \;
+      find . -name "*.so*" -path "*/.libs/*" -exec cp -P {} "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/" \;
 
   zfs-2-4:
     source: https://github.com/openzfs/zfs
@@ -1189,9 +1197,6 @@ parts:
     source-depth: 1
     source-type: git
     plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=/
-      - --with-config=user
     build-packages:
       - to armhf: []
       - else:
@@ -1215,22 +1220,21 @@ parts:
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
-      craftctl default
       set -ex
+      RAW_VER="${CRAFT_PART_NAME#zfs-}"
+      ZFS_VER="${RAW_VER/-/.}"
 
-      ZFS_VER="2.4"
+      # Bypass `craftctl default` to only build 'zfs' and 'zpool' targets and not `make all`
+      cd "${CRAFT_PART_SRC}"
+      ./autogen.sh
+      ./configure --prefix=/ --with-config=user
+      make -j$(nproc) zfs zpool
 
-      mv "${CRAFT_PART_INSTALL}" "${CRAFT_PART_INSTALL}.tmp"
       mkdir -p "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib"
-      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zfs" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zpool" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/lib/udev/zvol_id" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
-      mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
-      rm -Rf "${CRAFT_PART_INSTALL}.tmp"
 
-      # unused .so
-      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*
-      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
+      find . -type f -name "zfs" -path "*/.libs/*" -exec cp {} "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/" \;
+      find . -type f -name "zpool" -path "*/.libs/*" -exec cp {} "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/" \;
+      find . -name "*.so*" -path "*/.libs/*" -exec cp -P {} "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/" \;
 
   zstd:
     plugin: nil
@@ -1397,6 +1401,13 @@ parts:
       - bin/uefivars.py  # LXD expects the .py extension
       - lib/python3/dist-packages/crc32c*
       - lib/python3/dist-packages/pyuefivars*
+      # Remove crc32c bloat
+      - -lib/python3/dist-packages/crc32c/ext
+      - -lib/python3/dist-packages/crc32c/benchmark.py
+      - -lib/python3/dist-packages/crc32c/*.pyi
+      - -lib/python3/dist-packages/crc32c/py.typed
+      # Exclude compiled bytecode, `uefivars.py` is rarely invoked.
+      - -lib/python3/dist-packages/**/__pycache__
 
   lxd:
     source: https://github.com/canonical/lxd
@@ -1574,6 +1585,9 @@ parts:
       yarn install
       yarn build
 
+      # Drop unused localisation files from Monaco Editor (the UI does not allow localization)
+      rm -f build/ui/monaco-editor/min/vs/nls.messages.*.js
+
       mkdir -p "${CRAFT_PART_INSTALL}/share"
       cp -R build/ui "${CRAFT_PART_INSTALL}/share/lxd-ui/"
     prime:
@@ -1686,7 +1700,9 @@ parts:
       # store from Python `certifi`. This file is not even used as the
       # `python3-certifi` package providing it is patched to always use:
       # `/etc/ssl/certs/ca-certificates.crt`
-      truncate --no-create --size=0 "${CRAFT_PRIME}/lib/python3/dist-packages/certifi/cacert.pem"
+      if [ -e "${CRAFT_PRIME}/lib/python3/dist-packages/certifi/cacert.pem" ]; then
+        truncate --no-create --size=0 "${CRAFT_PRIME}/lib/python3/dist-packages/certifi/cacert.pem"
+      fi
 
       exit 0
 
@@ -1702,3 +1718,18 @@ parts:
       wrappers/remote-viewer: bin/
       wrappers/sshfs: bin/
       wrappers/virt-v2v-in-place: bin/
+
+lint:
+  ignore:
+    - library:
+      # Ignore libs that are `dlopen`ed
+      - lib/libnvidia-container-go.so*
+      - zfs-2.2/lib/libnvpair.so*
+      - zfs-2.2/lib/libuutil.so*
+      - zfs-2.2/lib/libzfs_core.so*
+      - zfs-2.3/lib/libnvpair.so*
+      - zfs-2.3/lib/libuutil.so*
+      - zfs-2.3/lib/libzfs_core.so*
+      - zfs-2.4/lib/libnvpair.so*
+      - zfs-2.4/lib/libuutil.so*
+      - zfs-2.4/lib/libzfs_core.so*

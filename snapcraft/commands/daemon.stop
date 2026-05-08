@@ -1,6 +1,10 @@
 #!/bin/sh
 set -eu
 
+export PYTHONPATH=/snap/lxd/current/lib/python3/dist-packages/
+# snap rootfs are readonly
+export PYTHONDONTWRITEBYTECODE=1
+
 # Re-exec outside of apparmor confinement
 if [ -d /sys/kernel/security/apparmor ]; then
   label="$(cat /proc/self/attr/current 2>/dev/null)"
