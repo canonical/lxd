@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // The Operation type represents an ongoing LXD operation (asynchronous processing).
@@ -83,6 +85,12 @@ func (op *operation) Cancel() error {
 // Get returns the API operation struct.
 func (op *operation) Get() api.Operation {
 	return op.Operation
+}
+
+// URL returns the full URL to this operation on the server.
+func (op *operation) URL() *url.URL {
+	u := api.NewURL().Scheme(op.r.httpBaseURL.Scheme).Host(op.r.httpBaseURL.Host).Path(version.APIVersion, "operations", op.ID)
+	return &u.URL
 }
 
 // GetWebsocket returns a raw websocket connection from the operation.
@@ -429,4 +437,9 @@ func (op noopOperation) AddHandler(function func(api.Operation)) (*EventTarget, 
 // RemoveHandler removes a function to be called whenever an event is received.
 func (op noopOperation) RemoveHandler(target *EventTarget) error {
 	return errors.New("Cannot remove handler, client operation does not support event listeners")
+}
+
+// URL returns nil because noopOperation has no server association.
+func (op noopOperation) URL() *url.URL {
+	return nil
 }
