@@ -142,6 +142,12 @@ type NetworkLoadBalancerPort struct {
 func (p *NetworkLoadBalancerPort) Normalise() {
 	p.Description = strings.TrimSpace(p.Description)
 	p.Protocol = strings.TrimSpace(p.Protocol)
+	p.TargetPool = strings.TrimSpace(p.TargetPool)
+
+	// Set TargetBackend to nil if it's an empty list.
+	if len(p.TargetBackend) == 0 {
+		p.TargetBackend = nil
+	}
 
 	// Remove space from ListenPort list.
 	subjects := strings.Split(p.ListenPort, ",")
