@@ -933,6 +933,7 @@ parts:
         - libusb-1.0-0
         - libusbredirparser1t64
         - liburing2
+        - opensbi # This is needed due to --disable-install-blobs.
         - seabios # This is needed due to --disable-install-blobs.
         - qemu-system-data # This is needed due to --disable-install-blobs.
     override-stage: |-
@@ -994,6 +995,7 @@ parts:
       usr/local/libexec/: bin/
       usr/local/share/: share/
       usr/share/qemu/kvmvapic.bin: share/qemu/
+      usr/share/qemu/opensbi*: share/qemu/
       usr/share/qemu/s390-ccw.img: share/qemu/
       usr/share/qemu/slof.bin: share/qemu/
       usr/share/seabios/bios-256k.bin: share/qemu/
@@ -1014,6 +1016,7 @@ parts:
       - share/qemu/bios-256k.bin
       - share/qemu/efi-virtio.rom
       - share/qemu/kvmvapic.bin
+      - share/qemu/opensbi-riscv64-generic-fw_dynamic.bin
       - share/qemu/s390-ccw.img
       - share/qemu/slof.bin
       - share/qemu/vgabios-bochs-display.bin
