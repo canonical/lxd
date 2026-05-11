@@ -752,6 +752,7 @@ parts:
       - else:
         - openvswitch-common
         - openvswitch-switch
+        - libunbound8        # workaround for https://github.com/canonical/core-base/issues/443
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       craftctl default
