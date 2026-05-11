@@ -326,7 +326,7 @@ update-schema:
 
 .PHONY: check-schema
 check-schema: update-schema
-	@FILES="$$(git diff --name-only | grep -E '(/generated|\.mapper)\.go$$' || true)"; \
+	@FILES="$$(git diff --name-only | grep -E '(/generated|/schema|\.mapper)\.go$$' || true)"; \
 	if [ -n "$$FILES" ]; then \
 		./scripts/check-and-commit.sh "$$FILES" "lxd: Update generated code"; \
 	fi
