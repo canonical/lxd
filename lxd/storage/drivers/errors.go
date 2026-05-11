@@ -20,6 +20,12 @@ var ErrInUse = errors.New("In use")
 // ErrSnapshotDoesNotMatchIncrementalSource in the "Snapshot does not match incremental source" error.
 var ErrSnapshotDoesNotMatchIncrementalSource = errors.New("Snapshot does not match incremental source")
 
+// ErrImageVariantNotSupported indicates a driver cannot represent the
+// requested cached image variant alongside the existing on-disk shape.
+// Callers are expected to fall back to slow-unpacking a per-instance
+// volume rather than mutating a shared image dataset.
+var ErrImageVariantNotSupported = errors.New("Image variant not supported by driver")
+
 // ErrDeleteSnapshots is a special error used to tell the backend to delete more recent snapshots.
 type ErrDeleteSnapshots struct {
 	Snapshots []string

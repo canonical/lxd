@@ -173,9 +173,9 @@ func (d *lvm) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser,
 	return err
 }
 
-// CreateVolumeFromImage creates volume from image by using createVolumeFromImage utility function.
-func (d *lvm) CreateVolumeFromImage(vol Volume, imgVol *Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
-	return createVolumeFromImage(vol, imgVol, filler, progressReporter)
+// EnsureImage materialises the cached image volume on disk if it is not already present.
+func (d *lvm) EnsureImage(imgVol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
+	return ensureImageVolume(imgVol, filler, progressReporter)
 }
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.

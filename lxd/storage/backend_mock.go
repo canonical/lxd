@@ -296,8 +296,8 @@ func (b *mockBackend) UpdateInstanceSnapshot(ctx context.Context, inst instance.
 }
 
 // EnsureImage ...
-func (b *mockBackend) EnsureImage(ctx context.Context, fingerprint string, projectName string, progressReporter ioprogress.ProgressReporter) error {
-	return nil
+func (b *mockBackend) EnsureImage(ctx context.Context, fingerprint string, projectName string, progressReporter ioprogress.ProgressReporter) (*drivers.Volume, error) {
+	return nil, nil
 }
 
 // DeleteImage ...
