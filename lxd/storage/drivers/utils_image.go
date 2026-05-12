@@ -47,7 +47,7 @@ func CanUseOptimizedImage(vol Volume) (bool, error) {
 }
 
 // ensureImageVolume materialises the given image volume on disk for drivers
-// that keep one cached image dataset per fingerprint. If the dataset already
+// that keep one cached image volume per fingerprint. If the volume already
 // exists, the helper enforces the single-variant invariant: the on-disk
 // config must match pool defaults, otherwise ErrImageVariantNotSupported is
 // returned so the caller can slow-unpack a per-instance volume instead of
