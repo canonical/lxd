@@ -1148,7 +1148,7 @@ parts:
 
   zfs-2-3:
     source: https://github.com/openzfs/zfs
-    source-commit: c840612ee1af993b835d3b3e59baee631970a781 # zfs-2.3.6
+    source-commit: c030cc1f9ccc80dfbac16de2adee956a4447ec17 # zfs-2.3.7
     source-depth: 1
     source-type: git
     plugin: autotools
