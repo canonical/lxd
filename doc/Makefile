@@ -9,6 +9,7 @@ SPHINXBUILD     ?= $(VENVDIR)/bin/sphinx-build
 SOURCEDIR       = .
 BUILDDIR        = _build
 MANPAGEDIR      = reference/manpages
+SPHINX_AUTOBUILD_OPTS ?= -D=llms_txt_enabled=0
 VENVDIR         = $(SPHINXDIR)/venv
 PA11Y           = $(SPHINXDIR)/node_modules/pa11y/bin/pa11y.js --config $(SPHINXDIR)/pa11y.json
 VENV            = $(VENVDIR)/bin/activate
@@ -18,7 +19,7 @@ CONFIRM_SUDO    ?= N
 VALE_CONFIG     = $(SPHINXDIR)/vale.ini
 VALEDIR         = $(VENVDIR)/lib/python*/site-packages/vale
 VOCAB_CANONICAL = $(SPHINXDIR)/styles/config/vocabularies/Canonical
-VALE_GLOB       := --glob='!{.sphinx/**,reference/manpages/**}'
+VALE_GLOB       := --glob='!{.sphinx/**,reference/manpages/**,_build/**}'
 SPHINX_HOST     ?= 127.0.0.1
 SPHINX_PORT     ?= 8000
 
@@ -84,7 +85,7 @@ client:
 install: $(VENVDIR) client
 
 run: install
-	export LOCAL_SPHINX_BUILD=True && . $(VENV) && sphinx-autobuild -b dirhtml --host $(SPHINX_HOST) --port $(SPHINX_PORT) "$(SOURCEDIR)" "$(BUILDDIR)" --ignore '$(SPHINXDIR)/deps/manpages/*' $(SPHINXOPTS)
+	export LOCAL_SPHINX_BUILD=True && . $(VENV) && sphinx-autobuild -b dirhtml --host $(SPHINX_HOST) --port $(SPHINX_PORT) "$(SOURCEDIR)" "$(BUILDDIR)" --ignore '$(SPHINXDIR)/deps/manpages/*' $(SPHINXOPTS) $(SPHINX_AUTOBUILD_OPTS)
 
 # Doesn't depend on $(BUILDDIR) to rebuild properly at every run.
 # If the target is html-rtd, uses LOCAL_SPHINX_BUILD=False; True otherwise (for target html)

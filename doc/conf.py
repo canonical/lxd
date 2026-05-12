@@ -1,6 +1,7 @@
 import datetime
 import os
 import yaml
+import textwrap
 
 ############################
 # LXD custom initializations #
@@ -162,6 +163,21 @@ templates_path = ['_templates']
 # NOTE: The above line is commented out because LXD imports redirects from redirects.py
 # instead of setting it here
 
+############################
+# sphinx-llm configuration #
+############################
+
+# This description is included in llms.txt to provide some initial context for your
+# product docs.
+llms_txt_description = textwrap.dedent(
+    """\
+    This is the documentation for LXD, a system container and virtual machine manager.
+    """
+)
+
+# The base URL for references built by sphinx-markdown-builder.
+if os.environ.get("READTHEDOCS"):
+    markdown_http_base = html_baseurl
 
 ###########################
 # Link checker exceptions #
@@ -228,6 +244,7 @@ extensions = [
     'sphinxcontrib.jquery',
     'sphinxext.opengraph',
     'sphinx_config_options',
+    'sphinx_llm.txt',
     'sphinx_related_links',
     'sphinx_roles',
     'sphinx_terminal',
