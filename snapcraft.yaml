@@ -1193,7 +1193,7 @@ parts:
 
   zfs-2-4:
     source: https://github.com/openzfs/zfs
-    source-commit: 1c702dda346a59e05cfd3029569bbb1d5d91c54b # zfs-2.4.1
+    source-commit: 6330a45b06d20125de679aae5f63ba14082671ef # zfs-2.4.2
     source-depth: 1
     source-type: git
     plugin: autotools
