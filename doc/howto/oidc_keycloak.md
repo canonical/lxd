@@ -18,7 +18,7 @@ Keycloak is a self-hosted open source tool for authentication. Keycloak supports
 
 1. From the main navigation, select {guilabel}`Clients`, then click {guilabel}`Create client`. Enter a {guilabel}`Client ID`, such as `lxd-ui-client`, then click {guilabel}`Next`.
 
-1. Under {guilabel}`Capability config`, enable the {guilabel}`OAuth 2.0 Device Authorization Grant` authentication flow to allow both LXD UI and CLI logins. 
+1. Under {guilabel}`Capability config`, enable the {guilabel}`OAuth 2.0 Device Authorization Grant` authentication flow to allow both LXD UI and CLI logins.
 
    Optionally, to enforce additional authentication via a secret, turn on {guilabel}`Client authentication`. The secret will be available from the client's {guilabel}`Credentials` tab after you finish creating the client, and instructions for sharing it with your LXD server are provided later in this guide. Note: Turning this option on permits UI login only.
 
@@ -41,11 +41,11 @@ Keycloak is a self-hosted open source tool for authentication. Keycloak supports
 
 1. Configure the client in LXD with the command below. Use the client id from step 4.
 
-       lxc config set oidc.client.id=<keycloak-client-id>.
+       lxc config set oidc.client.id=<keycloak-client-id>
 
 1. If you have {guilabel}`Client authentication` on, you need to share the generated secret with your server.
 
-       lxc config set oidc.client.secret=<keycloak-client-secret>.
+       lxc config set oidc.client.secret=<keycloak-client-secret>
 
 Now you can access the LXD UI with any browser and use {abbr}`SSO (single sign-on)` login. To use OIDC on the LXD CLI, run `lxc remote add <remote-name> <LXD address> --auth-type oidc` and point a browser to the displayed URL (with user_code) to authenticate.
 
