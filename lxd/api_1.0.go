@@ -250,8 +250,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		api.AuthenticationMethodBearer,
 	}
 
-	oidcIssuer, oidcClientID, _, _, _, _, _ := s.GlobalConfig.OIDCServer()
-	if oidcIssuer != "" && oidcClientID != "" {
+	if d.oidcVerifier.Load() != nil {
 		authMethods = append(authMethods, api.AuthenticationMethodOIDC)
 	}
 
