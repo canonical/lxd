@@ -713,6 +713,28 @@ test_clustering_storage() {
     LXD_DIR="${LXD_TWO_DIR}" lxc storage delete pool1
     ! stat "${LXD_ONE_SOURCE}/containers" || false
     ! stat "${LXD_TWO_SOURCE}/containers" || false
+
+    sub_test "Verify node-specific storage pool config is applied on local pool creation"
+
+    # Create temporary directories to use as node-specific sources for a new pool.
+    pool2_node1_source="$(mktemp -d "${TEST_DIR}/pool2-node1-XXXXXX")"
+    pool2_node2_source="$(mktemp -d "${TEST_DIR}/pool2-node2-XXXXXX")"
+
+    # Register a distinct source directory per node in the pending pool record.
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool2 dir "source=${pool2_node1_source}" --target node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool2 dir "source=${pool2_node2_source}" --target node2
+
+    # Finalize the pool: this triggers storagePoolsPostCluster on the leader (node1).
+    # Without the fix (passing req instead of nodeReq), the leader ignores its own
+    # node-specific source and uses the default data-directory path instead.
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool2 dir
+
+    # Confirm each node reflects its own node-specific source directory.
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage get pool2 source --target node1)" = "${pool2_node1_source}" ]
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage get pool2 source --target node2)" = "${pool2_node2_source}" ]
+
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool2
+    rm -rf "${pool2_node1_source}" "${pool2_node2_source}"
   fi
 
   # Set up node-specific storage pool keys for the selected backend.
