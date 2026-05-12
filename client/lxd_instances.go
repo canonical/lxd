@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -1356,10 +1357,20 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 					dones[0] = nil
 					_ = conns[0].Close()
 				case <-dones[1]:
+					f, ok := args.Stdout.(*os.File)
+					if ok {
+						_ = f.Sync()
+					}
+
 					dones[1] = nil
 					_ = conns[1].Close()
 					waitConns--
 				case <-dones[2]:
+					f, ok := args.Stderr.(*os.File)
+					if ok {
+						_ = f.Sync()
+					}
+
 					dones[2] = nil
 					_ = conns[2].Close()
 					waitConns--
