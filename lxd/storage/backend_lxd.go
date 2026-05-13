@@ -4317,14 +4317,12 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 
 			// Reset img volume as we just deleted the old one.
 			imgDBVol = nil
+		} else {
+			// Adopt the persisted DB config so the driver looks up the on-disk image by its
+			// recorded volatile.uuid (UUIDVolumeNames drivers derive the backend name from it)
+			// and the returned volume carries volatile.rootfs.size for the caller's size check.
+			imgVol = existingVol
 		}
-	}
-
-	// Adopt the persisted DB config so the driver looks up the on-disk image by its
-	// recorded volatile.uuid (UUIDVolumeNames drivers derive the backend name from it)
-	// and the returned volume carries volatile.rootfs.size for the caller's size check.
-	if imgDBVol != nil {
-		imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, imgDBVol.Config)
 	}
 
 	// We have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
@@ -4362,15 +4360,13 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 
 	revert.Add(func() { _ = b.driver.DeleteVolume(imgVol, progressReporter) })
 
-	// If the volume filler has recorded the size of the unpacked volume, then store this in the image DB row.
+	// volFiller.Size is non-zero only when the driver actually unpacked the
+	// image: persist it in the image DB row. Otherwise the on-disk volume
+	// was already present and the DB record matches it, so there is nothing
+	// to reconcile.
 	if volFiller.Size != 0 {
 		imgVol.Config()["volatile.rootfs.size"] = strconv.FormatInt(volFiller.Size, 10)
-	}
-
-	// volFiller.Size is non-zero only when the driver actually unpacked the
-	// image. If the on-disk volume was already present and the DB record
-	// matches it, there is nothing to reconcile.
-	if imgDBVol != nil && volFiller.Size == 0 {
+	} else if imgDBVol != nil {
 		revert.Success()
 		return &imgVol, nil
 	}
