@@ -58,6 +58,7 @@ type MemoryMetrics struct {
 	MemTotalBytes       uint64 `json:"memory_mem_total_bytes" yaml:"memory_mem_total_bytes"`
 	RSSBytes            uint64 `json:"memory_rss_bytes" yaml:"memory_rss_bytes"`
 	ShmemBytes          uint64 `json:"memory_shmem_bytes" yaml:"memory_shmem_bytes"`
+	SReclaimableBytes   uint64 `json:"memory_sreclaimable_bytes" yaml:"memory_sreclaimable_bytes"`
 	SwapBytes           uint64 `json:"memory_swap_bytes" yaml:"memory_swap_bytes"`
 	UnevictableBytes    uint64 `json:"memory_unevictable_bytes" yaml:"memory_unevictable_bytes"`
 	WritebackBytes      uint64 `json:"memory_writeback_bytes" yaml:"memory_writeback_bytes"`

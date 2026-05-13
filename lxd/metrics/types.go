@@ -120,6 +120,8 @@ const (
 	MemoryRSSBytes
 	// MemoryShmemBytes represents the amount of cached filesystem data that is swap-backed.
 	MemoryShmemBytes
+	// MemorySReclaimableBytes represents the amount of reclaimable slab memory.
+	MemorySReclaimableBytes
 	// MemorySwapBytes represents the amount of swap memory.
 	MemorySwapBytes
 	// MemoryUnevictableBytes represents the amount of unevictable memory.
@@ -204,6 +206,7 @@ var MetricNames = map[MetricType]string{
 	MemoryMemTotalBytes:         "lxd_memory_MemTotal_bytes",
 	MemoryRSSBytes:              "lxd_memory_RSS_bytes",
 	MemoryShmemBytes:            "lxd_memory_Shmem_bytes",
+	MemorySReclaimableBytes:     "lxd_memory_SReclaimable_bytes",
 	MemorySwapBytes:             "lxd_memory_Swap_bytes",
 	MemoryUnevictableBytes:      "lxd_memory_Unevictable_bytes",
 	MemoryWritebackBytes:        "lxd_memory_Writeback_bytes",
@@ -275,6 +278,7 @@ var MetricHeaders = map[MetricType]string{
 	MemoryMemTotalBytes:         "# HELP lxd_memory_MemTotal_bytes The amount of used memory.",
 	MemoryRSSBytes:              "# HELP lxd_memory_RSS_bytes The amount of anonymous and swap cache memory.",
 	MemoryShmemBytes:            "# HELP lxd_memory_Shmem_bytes The amount of cached filesystem data that is swap-backed.",
+	MemorySReclaimableBytes:     "# HELP lxd_memory_SReclaimable_bytes The amount of reclaimable slab memory.",
 	MemorySwapBytes:             "# HELP lxd_memory_Swap_bytes The amount of used swap memory.",
 	MemoryUnevictableBytes:      "# HELP lxd_memory_Unevictable_bytes The amount of unevictable memory.",
 	MemoryWritebackBytes:        "# HELP lxd_memory_Writeback_bytes The amount of memory queued for syncing to disk.",
