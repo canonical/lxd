@@ -849,6 +849,8 @@ func (cg *CGroup) GetMemoryStats() (map[string]uint64, error) {
 			out["shmem"], _ = strconv.ParseUint(value, 10, 64)
 		case "total_cache", "file":
 			out["cache"], _ = strconv.ParseUint(value, 10, 64)
+		case "total_slab_reclaimable", "slab_reclaimable":
+			out["slab_reclaimable"], _ = strconv.ParseUint(value, 10, 64)
 		}
 	}
 
