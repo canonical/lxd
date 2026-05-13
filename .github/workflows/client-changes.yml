@@ -1,0 +1,44 @@
+name: Dispatch on client package changes
+
+on:
+  push:
+    branches:
+      - main
+      - stable-*
+    paths:
+      - client/**
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    name: Notify downstream repo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Dispatch repository_dispatch event to terraform-provider-lxd
+        env:
+          TARGET_REPO: lxd-clientbot/terraform-provider-lxd
+          PAT: ${{ secrets.LXD_DEVBOT }}
+        run: |
+          curl --fail-with-body \
+            --request POST \
+            --url "https://api.github.com/repos/${TARGET_REPO}/dispatches" \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${PAT}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --header "Content-Type: application/json" \
+            --data '{
+              "event_type": "lxd-client-updated",
+              "client_payload": {
+                "sha": "${{ github.sha }}",
+                "ref": "${{ github.ref }}",
+                "repository": "${{ github.repository }}"
+              }
+            }'
