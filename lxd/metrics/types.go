@@ -275,7 +275,7 @@ var MetricHeaders = map[MetricType]string{
 	MemoryMappedBytes:           "# HELP lxd_memory_Mapped_bytes The amount of mapped memory.",
 	MemoryMemAvailableBytes:     "# HELP lxd_memory_MemAvailable_bytes The amount of available memory.",
 	MemoryMemFreeBytes:          "# HELP lxd_memory_MemFree_bytes The amount of free memory.",
-	MemoryMemTotalBytes:         "# HELP lxd_memory_MemTotal_bytes The amount of used memory.",
+	MemoryMemTotalBytes:         "# HELP lxd_memory_MemTotal_bytes The total amount of memory or configured memory limit.",
 	MemoryRSSBytes:              "# HELP lxd_memory_RSS_bytes The amount of anonymous and swap cache memory.",
 	MemoryShmemBytes:            "# HELP lxd_memory_Shmem_bytes The amount of cached filesystem data that is swap-backed.",
 	MemorySReclaimableBytes:     "# HELP lxd_memory_SReclaimable_bytes The amount of reclaimable slab memory.",
