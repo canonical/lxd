@@ -144,12 +144,79 @@ func SetupTrust(serverCert *shared.CertInfo, clusterPut api.ClusterPut) error {
 		TrustToken:  clusterPut.ClusterToken,
 	}
 
-	err = target.CreateCertificate(post)
-	if err != nil && !api.StatusErrorCheck(err, http.StatusConflict) {
-		return fmt.Errorf("Failed adding server cert to cluster: %w", err)
+	createCertificateError := target.CreateCertificate(post)
+	if createCertificateError != nil {
+		// If there was a conflict, it could be because either a) there is already a certificate with the same fingerprint,
+		// or b) there is a certificate with the same name.
+		if api.StatusErrorCheck(createCertificateError, http.StatusConflict) {
+			// If there is already a certificate with the same fingerprint then we are already trusted, but the certificate type may not be correct.
+			// Get the server info to check if we're trusted.
+			server, _, err := target.GetServer()
+			if err != nil {
+				return fmt.Errorf("Failed getting server information: %w", err)
+			}
+
+			// If trusted, check that the certificate is identical to the one we are trying to create.
+			// This could be from a previous failed cluster join.
+			if server.Auth == api.AuthTrusted {
+				// Regardless of privilege, we can always view our own certificate.
+				existingCert, _, err := target.GetCertificate(cert.Fingerprint)
+				if err != nil {
+					return fmt.Errorf("Failed validating existing certificate: %w", err)
+				}
+
+				// If the existing certificate is identical, then we're done.
+				if certificatesAreEqual(*existingCert, *cert) {
+					return nil
+				}
+			}
+		}
+
+		// If there was a conflict error on identity name, or the certificate was not identical, return original error.
+		return fmt.Errorf("Failed adding server cert to cluster: %w", createCertificateError)
 	}
 
 	return nil
+}
+
+// certificatesAreEqual returns true if the given certificates are identical and false otherwise.
+func certificatesAreEqual(certA api.Certificate, certB api.Certificate) bool {
+	// Fingerprint must be equal.
+	if certA.Fingerprint != certB.Fingerprint {
+		return false
+	}
+
+	// Type must be equal.
+	if certA.Type != certB.Type {
+		return false
+	}
+
+	// Both must have the same restricted value.
+	if certA.Restricted != certB.Restricted {
+		return false
+	}
+
+	// Name must be equal.
+	if certA.Name != certB.Name {
+		return false
+	}
+
+	// Project slices must have the same length.
+	if len(certA.Projects) != len(certB.Projects) {
+		return false
+	}
+
+	// If there are projects, then the slices must contain the same elements.
+	if len(certA.Projects) > 0 && len(shared.RemoveElementsFromSlice(certA.Projects, certB.Projects...)) != 0 {
+		return false
+	}
+
+	// We've already checked the fingerprint, but check the certificate anyway in case it was modified.
+	if certA.Certificate != certB.Certificate {
+		return false
+	}
+
+	return true
 }
 
 // UpdateTrust ensures that the supplied certificate is stored in the target trust store with the correct name
