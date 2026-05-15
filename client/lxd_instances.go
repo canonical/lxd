@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/sftp"
@@ -1292,58 +1293,92 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 		}
 	} else {
 		// Handle non-interactive sessions
-		dones := make(map[int]chan error)
-		conns := []*websocket.Conn{}
+		dones := make(map[int]chan error, 3)
+		connects := make(map[int]<-chan error, 3)
+		conns := make(map[int]*websocket.Conn, 3)
+		var mu sync.Mutex
 
-		// Handle stdin
-		if fds["0"] != "" {
-			conn, err := r.GetOperationWebsocket(opAPI.ID, fds["0"])
-			if err != nil {
-				return nil, err
+		connect := func(fd int, connCallback func(conn *websocket.Conn) chan error) {
+			secret := fds[strconv.Itoa(fd)]
+			if secret == "" {
+				return
 			}
 
+			errch := make(chan error)
+			connects[fd] = errch
+			go func() {
+				conn, err := r.GetOperationWebsocket(opAPI.ID, secret)
+				if err != nil {
+					errch <- err
+					return
+				}
+
+				callbackErrCh := connCallback(conn)
+
+				mu.Lock()
+				conns[fd] = conn
+				dones[fd] = callbackErrCh
+				mu.Unlock()
+				errch <- nil
+			}()
+		}
+
+		// Handle stdin
+		connect(0, func(conn *websocket.Conn) chan error {
 			go func() {
 				_, _, _ = conn.ReadMessage() // Consume pings from server.
 			}()
 
-			conns = append(conns, conn)
-			dones[0] = ws.MirrorRead(conn, args.Stdin)
-		}
+			return ws.MirrorRead(conn, args.Stdin)
+		})
 
 		waitConns := 0 // Used for keeping track of when stdout and stderr have finished.
 
 		// Handle stdout
-		if fds["1"] != "" {
-			conn, err := r.GetOperationWebsocket(opAPI.ID, fds["1"])
-			if err != nil {
-				return nil, err
-			}
-
-			// Discard Stdout from remote command if output writer not supplied.
+		connect(1, func(conn *websocket.Conn) chan error {
 			if args.Stdout == nil {
 				args.Stdout = io.Discard
 			}
 
-			conns = append(conns, conn)
-			dones[1] = ws.MirrorWrite(conn, args.Stdout)
+			errch := ws.MirrorWrite(conn, args.Stdout)
+
+			mu.Lock()
 			waitConns++
-		}
+			mu.Unlock()
+
+			return errch
+		})
 
 		// Handle stderr
-		if fds["2"] != "" {
-			conn, err := r.GetOperationWebsocket(opAPI.ID, fds["2"])
-			if err != nil {
-				return nil, err
-			}
-
-			// Discard Stderr from remote command if output writer not supplied.
+		connect(2, func(conn *websocket.Conn) chan error {
 			if args.Stderr == nil {
 				args.Stderr = io.Discard
 			}
 
-			conns = append(conns, conn)
-			dones[2] = ws.MirrorWrite(conn, args.Stderr)
+			errch := ws.MirrorWrite(conn, args.Stderr)
+
+			mu.Lock()
 			waitConns++
+			mu.Unlock()
+
+			return errch
+		})
+
+		closeConns := func() {
+			mu.Lock()
+			for _, conn := range conns {
+				if conn != nil {
+					_ = conn.Close()
+				}
+			}
+		}
+
+		for _, errch := range connects {
+			err := <-errch
+			if err != nil {
+				closeConns()
+				return nil, err
+			}
 		}
 
 		// Wait for everything to be done
