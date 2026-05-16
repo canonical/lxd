@@ -2691,6 +2691,7 @@ Adds a `skip` mode to the restore request. This mode restores a cluster member's
 
 Adds the {config:option}`device-disk-device-conf:io.threads` option on `disk` devices which is used to control the `virtiofsd` thread pool size when sharing file systems into VMs. This can help improve I/O performance.
 
+(extension-oidc-client-secret)=
 ## `oidc_client_secret`
 
 This adds support for the {config:option}`server-oidc:oidc.client.secret` configuration key.
@@ -3099,3 +3100,16 @@ The following pool level configuration keys have been added:
 1. {config:option}`storage-powerstore-pool-conf:powerstore.user.password`
 1. {config:option}`storage-powerstore-pool-conf:powerstore.mode`
 1. {config:option}`storage-powerstore-pool-conf:powerstore.target`
+
+## `oidc_device_client_id`
+
+The {ref}`OIDC client secret configuration extension <extension-oidc-client-secret>` is used to configure LXD to send a
+secret to the identity provider for authentication. It is not secure to make this secret public for consumption by the
+LXD CLI (`lxc`). For this reason, if the client configured for LXD in the identity provider requires a secret, that
+client cannot be used by CLI users.
+
+This extension adds a new {config:option}`server-oidc:oidc.device.client.id` configuration key for the CLI to use. An
+administrator can create two clients in the identity provider, one for LXD UI requiring a secret (and {abbr}`PKCE <Proof Key for Code Exchange>`),
+and one for the CLI that enables the device authorization grant and does not require a secret. The device client ID will
+be public to the CLI, falling back to {config:option}`server-oidc:oidc.client.id`. This configuration option cannot be
+set unless {config:option}`server-oidc:oidc.client.id` is set.
