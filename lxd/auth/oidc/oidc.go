@@ -60,6 +60,7 @@ type Verifier struct {
 	scopes         []string
 	audience       string
 	groupsClaim    string
+	deviceClientID string
 	secretsFunc    func(ctx context.Context) (cluster.AuthSecrets, error)
 	httpClientFunc func() (*http.Client, error)
 	clusterUUID    string
@@ -558,7 +559,7 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 // WriteHeaders writes the OIDC configuration as HTTP headers so the client can initatiate the device code flow.
 func (o *Verifier) WriteHeaders(w http.ResponseWriter) error {
 	w.Header().Set("X-LXD-OIDC-issuer", o.issuer)
-	w.Header().Set("X-LXD-OIDC-clientid", o.clientID)
+	w.Header().Set("X-LXD-OIDC-clientid", o.deviceClientID)
 	w.Header().Set("X-LXD-OIDC-audience", o.audience)
 
 	// Continue to sent groups claim header for compatibility with older clients
@@ -775,7 +776,7 @@ func (o *Verifier) secureCookieFromV7UUID(ctx context.Context, sessionID uuid.UU
 }
 
 // NewVerifier returns a Verifier.
-func NewVerifier(ctx context.Context, issuer string, clientID string, clientSecret string, scopes []string, audience string, groupsClaim string, clusterUUID string, networkAddress string, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error), httpClientFunc func() (*http.Client, error), sessionHandler SessionHandler) (*Verifier, error) {
+func NewVerifier(ctx context.Context, issuer string, clientID string, clientSecret string, scopes []string, audience string, groupsClaim string, deviceClientID string, clusterUUID string, networkAddress string, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error), httpClientFunc func() (*http.Client, error), sessionHandler SessionHandler) (*Verifier, error) {
 	verifier := &Verifier{
 		issuer:         issuer,
 		clientID:       clientID,
@@ -783,6 +784,7 @@ func NewVerifier(ctx context.Context, issuer string, clientID string, clientSecr
 		scopes:         scopes,
 		audience:       audience,
 		groupsClaim:    groupsClaim,
+		deviceClientID: deviceClientID,
 		clusterUUID:    clusterUUID,
 		secretsFunc:    secretsFunc,
 		httpClientFunc: httpClientFunc,
