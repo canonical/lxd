@@ -254,7 +254,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		api.AuthenticationMethodBearer,
 	}
 
-	oidcIssuer, oidcClientID, _, _, _, _ := s.GlobalConfig.OIDCServer()
+	oidcIssuer, oidcClientID, _, _, _, _, _ := s.GlobalConfig.OIDCServer()
 	if oidcIssuer != "" && oidcClientID != "" {
 		authMethods = append(authMethods, api.AuthenticationMethodOIDC)
 	}
@@ -1261,7 +1261,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if oidcChanged {
-		oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim := newClusterConfig.OIDCServer()
+		oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, oidcDeviceClientID := newClusterConfig.OIDCServer()
 
 		if oidcIssuer == "" || oidcClientID == "" {
 			d.oidcVerifier = nil
