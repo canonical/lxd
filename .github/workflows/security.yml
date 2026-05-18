@@ -75,7 +75,7 @@ jobs:
             mv trivy-modified.sarif "$GITHUB_WORKSPACE/trivy-lxd-repo-scan-results.sarif"
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # v3.29.5
+        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v3.29.5
         with:
           sarif_file: "trivy-lxd-repo-scan-results.sarif"
           sha: ${{ github.sha }}
@@ -153,7 +153,7 @@ jobs:
           persist-credentials: false
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # v3.29.5
+        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v3.29.5
         with:
           sarif_file: /home/runner/${{ matrix.version }}-stable.sarif
           sha: ${{ github.sha }}
