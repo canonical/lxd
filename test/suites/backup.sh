@@ -1324,6 +1324,7 @@ test_backup_inconsistent_config() {
 
   # Create a new empty instance with a clean index and inconsistent backup config.
   mkdir -p "${tmpDir}/backup/container"
+  mkdir -p "${tmpDir}/backup/snapshots/snap0"
   cat > "${tmpDir}/backup/index.yaml" <<EOF
 version: 2
 name: inconsistent-instance
@@ -1331,6 +1332,8 @@ backend: dir
 pool: ${poolName}
 type: container
 optimized: false
+snapshots:
+  - snap0
 config:
   instance:
     name: inconsistent-instance
@@ -1360,6 +1363,14 @@ config:
       content_type: filesystem
       config:
         volatile.uuid: "96c0c029-e0f4-4d36-8a2a-49eaa4b1572f"
+      snapshots:
+        - name: snap0
+          content_type: filesystem
+          config: {}
+  snapshots:
+    - name: snap0
+      architecture: x86_64
+
 EOF
   cat > "${tmpDir}/backup/container/backup.yaml" <<EOF
 instance:
@@ -1392,6 +1403,15 @@ volumes:
     content_type: filesystem
     config:
       volatile.uuid: "96c0c029-e0f4-4d36-8a2a-49eaa4b1572f"
+    snapshots:
+      - name: snap0
+        content_type: filesystem
+        config: {}
+snapshots:
+  - name: snap0
+    architecture: x86_64
+    config:
+      security.privileged: "true"
 EOF
 
   # Re-package the inconsistent archive.
@@ -1402,6 +1422,7 @@ EOF
 
   # Check the inconsistent backup config got overwritten by the index during import
   [ "$(lxc config get inconsistent-instance security.privileged || echo fail)" = "" ]
+  [ "$(lxc config get inconsistent-instance/snap0 security.privileged || echo fail)" = "" ]
 
   lxc delete -f inconsistent-instance
 
@@ -1433,6 +1454,29 @@ EOF
   # Fix the index.
   yq '.config.instance.config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
   yq '.config.instance.expanded_config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+
+  # Re-package the fixed archive.
+  tar -cf "${tmpDir}/fixed-backup.tar" -C "${tmpDir}" "backup/"
+
+  # Importing the instance from tarball succeeds.
+  lxc import "${tmpDir}/fixed-backup.tar"
+
+  lxc delete -f inconsistent-instance
+
+  # Now make the index snapshot inconsistent.
+  yq '.config.snapshots[0].config = {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+  yq '.config.snapshots[0].expanded_config = {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+
+  # Re-package the inconsistent archive.
+  tar -cf "${tmpDir}/inconsistent-backup.tar" -C "${tmpDir}" "backup/"
+
+  # Importing the instance from tarball fails.
+  ! lxc import "${tmpDir}/inconsistent-backup.tar" >/dev/null 2>error || false
+  [ "$(tail -1 error)" = 'Error: Failed checking if instance creation allowed: Invalid value "true" for config "security.privileged" on container "inconsistent-instance/snap0" of project "restricted": Privileged containers are forbidden' ]
+
+  # Fix the index snapshot.
+  yq '.config.snapshots[0].config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+  yq '.config.snapshots[0].expanded_config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
 
   # Re-package the fixed archive.
   tar -cf "${tmpDir}/fixed-backup.tar" -C "${tmpDir}" "backup/"
