@@ -21,13 +21,19 @@ test_oidc() {
   ! lxc config set oidc.issuer="http://127.0.0.1:22/" oidc.client.id="device" || false # Wrong port
   ! lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/wrong-path" "oidc.client.id=device" || false # Invalid path
   ! lxc config set "oidc.issuer=https://idp.example.com/" "oidc.client.id=device" || false # Invalid host
+  ! lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/" "oidc.device.client.id=device" || false # Cannot set device client ID without client ID.
 
 
   # Should remain empty as above tests failed.
   [ -z "$(lxc config get oidc.client.id || echo fail)" ]
   [ -z "$(lxc config get oidc.issuer || echo fail)" ]
 
-  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/" "oidc.client.id=device" # Valid Configuration
+  lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/" "oidc.client.id=$(uuidgen)" "oidc.device.client.id=device" # Valid Configuration
+
+  ! lxc config unset oidc.client.id || false # Can't remove client ID without removing device client ID first.
+  ! lxc config set oidc.issuer="" oidc.client.id="" || false # Can't remove client ID without removing device client ID first.
+  curl -s -X PATCH --unix-socket "${LXD_DIR}/unix.socket" --data '{"config": {"oidc.client.id":""}}' lxd/1.0 | \
+    jq --exit-status '.error_code == 400 and .error == "\"oidc.device.client.id\" cannot be set if \"oidc.client.id\" is unset"' # Can't remove client ID without removing device client ID first.
 
   # Expect this to fail. No user set.
   ! BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc || false
@@ -76,6 +82,6 @@ test_oidc() {
   # Cleanup OIDC
   lxc auth identity delete oidc/test-user@example.com
   lxc remote remove oidc
-  lxc config set oidc.issuer="" oidc.client.id=""
+  lxc config set oidc.issuer="" oidc.client.id="" oidc.device.client.id=""
   kill_oidc
 }
