@@ -1503,3 +1503,282 @@ EOF
   lxc delete -f c1
   rm -r "${tmpDir}"
 }
+
+# _backup_nullable_assert_keys fails if any key under ${path} in ${file}
+# is missing from the space-separated allowlist ${expected}. Catches new
+# Info / Config fields that have not yet been wired into the per-kind
+# matrix below.
+_backup_nullable_assert_keys() {
+  local file path expected actualKey
+  file="${1}"
+  path="${2}"
+  expected=" ${3} "
+
+  # yq from the LXD test snap quotes scalar string output, strip them
+  # before comparing.
+  while read -r actualKey; do
+    actualKey="${actualKey%\"}"
+    actualKey="${actualKey#\"}"
+    case "${expected}" in
+      *" ${actualKey} "*) ;;
+      *)
+        echo "FAIL: unexpected key '${actualKey}' at ${path} in ${file}" >&2
+        echo "Update the per-kind nullableScalar / nullableList / required path lists in test/suites/backup.sh." >&2
+        return 1
+        ;;
+    esac
+  done < <(yq "${path} | keys | .[]" "${file}")
+}
+
+# _backup_nullable_filter_keys prints the leaf keys directly under the
+# given prefix from a space-separated path list. The prefix is the
+# leading portion of the path (e.g. empty for top-level, ".config" for
+# the config object); paths nested deeper than one level past the prefix
+# are skipped. Output is the matching keys joined by spaces.
+_backup_nullable_filter_keys() {
+  local prefix path key result
+  prefix="${1}"
+  shift
+  result=""
+  for path in "$@"; do
+    case "${path}" in
+      "${prefix}".*)
+        key="${path#"${prefix}".}"
+        case "${key}" in
+          *.*) ;;
+          *) result="${result} ${key}" ;;
+        esac
+        ;;
+      *) ;;
+    esac
+  done
+  echo "${result# }"
+}
+
+# _backup_nullable_gen_mutations prints one yq mutation per (field,
+# pattern) pair for each path in the three category lists. Each line is
+# TAB-separated: outcome<TAB>mutation. Outcome is one of pass (import
+# must succeed), fail (import must reject), or any (no assertion on rc,
+# only panic-safety + cleanup). Categories assign outcomes per the four
+# standard patterns (delete, null, empty array, array of one null):
+#   nullable_scalar: pass pass fail fail
+#   nullable_list:   pass pass pass fail
+#   required:        fail fail fail fail
+# These categories were derived empirically from a full-matrix run;
+_backup_nullable_gen_mutations() {
+  local nullableScalar nullableList required path
+  nullableScalar="${1}"
+  nullableList="${2}"
+  required="${3}"
+
+  for path in ${nullableScalar}; do
+    printf '%s\t%s\n' \
+      "pass" "del(${path})" \
+      "pass" "${path} = null" \
+      "fail" "${path} = []" \
+      "fail" "${path} = [null]"
+  done
+  for path in ${nullableList}; do
+    printf '%s\t%s\n' \
+      "pass" "del(${path})" \
+      "pass" "${path} = null" \
+      "pass" "${path} = []" \
+      "fail" "${path} = [null]"
+  done
+  for path in ${required}; do
+    printf '%s\t%s\n' \
+      "fail" "del(${path})" \
+      "fail" "${path} = null" \
+      "fail" "${path} = []" \
+      "fail" "${path} = [null]"
+  done
+}
+
+test_backup_nullable_fields() {
+  local tmpDir respawned
+  tmpDir=$(mktemp --directory --tmpdir="${TEST_DIR}" backups-nullable-XXX)
+  respawned=0
+
+  # net/http recovers panics in HTTP handlers and logs them at INFO
+  # level, which only get written when SERVER_DEBUG is set. Avoid the
+  # ~30s respawn cost when the suite was already started in verbose
+  # mode (LXD_VERBOSE=1 or LXD_DEBUG=1).
+  if [ -z "${SERVER_DEBUG:-}" ]; then
+    shutdown_lxd "${LXD_DIR}"
+    SERVER_DEBUG=--verbose respawn_lxd "${LXD_DIR}" true
+    respawned=1
+  fi
+
+  sub_test "Instance backup index.yaml mutations are panic-safe"
+  _backup_nullable_fields_run instance "${tmpDir}/instance"
+
+  sub_test "VM backup index.yaml mutations are panic-safe"
+  _backup_nullable_fields_run vm "${tmpDir}/vm"
+
+  sub_test "Custom volume backup index.yaml mutations are panic-safe"
+  _backup_nullable_fields_run volume "${tmpDir}/volume"
+
+  rm --recursive "${tmpDir}"
+  if [ "${respawned}" = "1" ]; then
+    shutdown_lxd "${LXD_DIR}"
+    respawn_lxd "${LXD_DIR}" true
+  fi
+}
+
+# _backup_nullable_fields_run drives panic-safety fuzzing of the backup
+# index.yaml import path for one resource kind. For every (field, pattern)
+# pair drawn from the per-kind nullableScalar / nullableList / required
+# path lists it rewrites index.yaml in a real exported tarball, attempts
+# an import, runs panic_checker, and asserts no leftover resource. The
+# import return code is asserted against the per-mutation outcome tag
+# (pass / fail / any).
+_backup_nullable_fields_run() {
+  local kind workDir name pool nullableScalar nullableList required crossPath mutation outcome rc
+  local -a initCmd snapshotCmd exportCmd cleanupCmd importCmd deleteCmd listCmd
+  kind="${1}"
+  workDir="${2}"
+  mkdir --parents "${workDir}/extract"
+
+  case "${kind}" in
+    instance)
+      name=nullable-test
+      initCmd=(lxc init --empty "${name}" --device "${SMALL_ROOT_DISK}")
+      snapshotCmd=(lxc snapshot "${name}" snap0)
+      exportCmd=(lxc export "${name}" "${workDir}/baseline.tar" --compression none)
+      cleanupCmd=(lxc delete --force "${name}")
+      importCmd=(lxc import "${workDir}/case.tar")
+      deleteCmd=(lxc delete --force "${name}")
+      listCmd=(lxc list --format csv --columns n)
+      # .type is nullable on instance because the import path defaults
+      # to "container" when missing, and the tarball really is a
+      # container; on vm the same default would unpack with the wrong
+      # layout, so .type is required there.
+      nullableScalar=".backend .optimized .optimized_header .pool .type .config.version"
+      nullableList=".config.pools .config.profiles"
+      required=".config .name .snapshots .config.instance .config.snapshots .config.volumes"
+      crossPath=1
+      ;;
+    vm)
+      name=nullable-test-vm
+      initCmd=(lxc init --empty --vm "${name}" --device "${SMALL_ROOT_DISK}")
+      snapshotCmd=(lxc snapshot "${name}" snap0)
+      exportCmd=(lxc export "${name}" "${workDir}/baseline.tar" --compression none)
+      cleanupCmd=(lxc delete --force "${name}")
+      importCmd=(lxc import "${workDir}/case.tar")
+      deleteCmd=(lxc delete --force "${name}")
+      listCmd=(lxc list --format csv --columns n)
+      nullableScalar=".backend .optimized .optimized_header .pool .config.version"
+      nullableList=".config.pools .config.profiles"
+      required=".config .name .snapshots .type .config.instance .config.snapshots .config.volumes"
+      crossPath=1
+      ;;
+    volume)
+      name=nullable-vol-test
+      pool=$(lxc profile device get default root pool)
+      initCmd=(lxc storage volume create "${pool}" "${name}")
+      snapshotCmd=(lxc storage volume snapshot "${pool}" "${name}" snap0)
+      exportCmd=(lxc storage volume export "${pool}" "${name}" "${workDir}/baseline.tar" --compression none)
+      cleanupCmd=(lxc storage volume delete "${pool}" "${name}")
+      importCmd=(lxc storage volume import "${pool}" "${workDir}/case.tar" "${name}")
+      deleteCmd=(lxc storage volume delete "${pool}" "${name}")
+      listCmd=(lxc storage volume list "${pool}" --format csv --columns n)
+      # .name is nullable for a volume because the import command takes
+      # the name as a CLI argument. .config.instance / .config.profiles
+      # / .config.snapshots do not apply to volumes; volume snapshots
+      # live under .config.volumes[0].snapshots instead.
+      nullableScalar=".backend .name .optimized .optimized_header .pool .type .config.version"
+      nullableList=".config.pools"
+      required=".config .snapshots .config.volumes"
+      crossPath=0
+      ;;
+    *)
+      echo "Unknown kind: ${kind}" >&2
+      return 1
+      ;;
+  esac
+
+  # Use a real exported tarball as the baseline rather than hand-rolled
+  # YAML so any code path that depends on a well-formed export is
+  # exercised at least once before tampering.
+  "${initCmd[@]}"
+  "${snapshotCmd[@]}"
+  "${exportCmd[@]}"
+  "${cleanupCmd[@]}"
+
+  tar --extract --file "${workDir}/baseline.tar" --directory "${workDir}/extract"
+  cp "${workDir}/extract/backup/index.yaml" "${workDir}/baseline-index.yaml"
+
+  # Refuse to run if the real export carries an unknown key. The
+  # mutation matrix only covers the fields we have decided how to
+  # handle, so a new key has to come with an explicit test update.
+  # Expected sets are derived from the union of the three categorised
+  # path lists so adding a field in one place updates both the matrix
+  # and this guard.
+  local allPaths topKeys configKeys
+  allPaths="${nullableScalar} ${nullableList} ${required}"
+  # shellcheck disable=SC2086 # path lists are deliberate word splits.
+  topKeys=$(_backup_nullable_filter_keys "" ${allPaths})
+  # shellcheck disable=SC2086
+  configKeys=$(_backup_nullable_filter_keys ".config" ${allPaths})
+  _backup_nullable_assert_keys "${workDir}/baseline-index.yaml" "." "${topKeys}"
+  _backup_nullable_assert_keys "${workDir}/baseline-index.yaml" ".config" "${configKeys}"
+
+  # Sanity-check that the unmutated tarball still imports.
+  tar --create --file "${workDir}/case.tar" --directory "${workDir}/extract" backup/
+  "${importCmd[@]}"
+  "${deleteCmd[@]}"
+
+  # panic_checker scans the full daemon log and lxc list is a daemon
+  # round-trip. Both run once per kind after the loop, not per mutation
+  # (the previous per-mutation calls cost ~3s across the suite).
+  # Panics remain attributable via lxd.log timestamps and request paths;
+  # a leak from any mutation still appears in the post-loop list call,
+  # and an inter-mutation name collision surfaces as an unexpected rc on
+  # the next iteration's import.
+  while IFS=$'\t' read -r outcome mutation; do
+    yq "${mutation}" < "${workDir}/baseline-index.yaml" > "${workDir}/extract/backup/index.yaml"
+    tar --create --file "${workDir}/case.tar" --directory "${workDir}/extract" backup/
+
+    rc=0
+    "${importCmd[@]}" || rc=$?
+    if [ "${rc}" = "0" ]; then
+      "${deleteCmd[@]}"
+    fi
+    echo "NULLABLE_RC kind=${kind} outcome=${outcome} rc=${rc} mutation=${mutation}"
+
+    case "${outcome}" in
+      pass)
+        if [ "${rc}" != "0" ]; then
+          echo "FAIL: expected import success but rc=${rc} for mutation: ${mutation}" >&2
+          return 1
+        fi
+        ;;
+      fail)
+        if [ "${rc}" = "0" ]; then
+          echo "FAIL: expected import rejection but rc=0 for mutation: ${mutation}" >&2
+          return 1
+        fi
+        ;;
+      any) ;;
+      *)
+        echo "FAIL: unknown outcome tag '${outcome}' for mutation: ${mutation}" >&2
+        return 1
+        ;;
+    esac
+  done < <(
+    _backup_nullable_gen_mutations "${nullableScalar}" "${nullableList}" "${required}"
+    if [ "${crossPath}" = "1" ]; then
+      # Cross-path: the top-level snapshot list must agree with the inner
+      # config, so flip them out of agreement. Both must be rejected.
+      printf 'fail\t%s\n' \
+        '.snapshots = ["snap0"] | .config.snapshots = []' \
+        '.snapshots = ["snap0"] | .config.volumes[0].snapshots = []'
+    fi
+  )
+
+  panic_checker "${TEST_DIR}"
+  if "${listCmd[@]}" | grep --fixed-strings --line-regexp "${name}"; then
+    echo "FAIL: leftover ${kind} after mutation loop" >&2
+    return 1
+  fi
+}
