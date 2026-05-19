@@ -655,7 +655,20 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			Type:        api.InstanceType(bInfo.Config.Container.Type),
 		}
 
-		return project.AllowInstanceCreation(tx, projectName, req)
+		restrictions, err := project.FetchProject(tx, projectName, true)
+		if err != nil {
+			return err
+		}
+
+		// Check restrictions/limits if defined on project.
+		if restrictions != nil {
+			err = project.AllowInstanceCreation(tx, *restrictions, req)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1078,9 +1091,17 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		if !clusterNotification {
 			// Check that the project's limits are not violated. Note this check is performed after
 			// automatically generated config values (such as ones from an InstanceType) have been set.
-			err = project.AllowInstanceCreation(tx, targetProjectName, req)
+			restrictions, err := project.FetchProject(tx, targetProjectName, true)
 			if err != nil {
 				return err
+			}
+
+			// Check restrictions/limits if defined on project.
+			if restrictions != nil {
+				err = project.AllowInstanceCreation(tx, *restrictions, req)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

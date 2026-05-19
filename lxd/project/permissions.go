@@ -23,16 +23,7 @@ import (
 
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
-func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
-	info, err := FetchProject(tx, projectName, true)
-	if err != nil {
-		return err
-	}
-
-	if info == nil {
-		return nil
-	}
-
+func AllowInstanceCreation(tx *db.ClusterTx, info ProjectInfo, req api.InstancesPost) error {
 	var instanceType instancetype.Type
 	switch req.Type {
 	case api.InstanceTypeContainer:
@@ -47,12 +38,12 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 		req.Profiles = []string{"default"}
 	}
 
-	err = checkInstanceCountLimit(info, instanceType)
+	err := checkInstanceCountLimit(&info, instanceType)
 	if err != nil {
 		return err
 	}
 
-	err = checkTotalInstanceCountLimit(info)
+	err = checkTotalInstanceCountLimit(&info)
 	if err != nil {
 		return err
 	}
@@ -60,7 +51,7 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 	// Add the instance being created.
 	info.Instances = append(info.Instances, api.Instance{
 		Name:        req.Name,
-		Project:     projectName,
+		Project:     info.Project.Name,
 		Type:        string(req.Type),
 		InstancePut: req.InstancePut,
 	})
@@ -79,7 +70,7 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 		return err
 	}
 
-	err = checkRestrictionsAndAggregateLimits(tx, info)
+	err = checkRestrictionsAndAggregateLimits(tx, &info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance creation allowed: %w", err)
 	}
