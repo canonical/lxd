@@ -23,7 +23,7 @@ import (
 
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
-func AllowInstanceCreation(tx *db.ClusterTx, info ProjectInfo, req api.InstancesPost) error {
+func AllowInstanceCreation(info ProjectInfo, req api.InstancesPost) error {
 	var instanceType instancetype.Type
 	switch req.Type {
 	case api.InstanceTypeContainer:
@@ -70,7 +70,7 @@ func AllowInstanceCreation(tx *db.ClusterTx, info ProjectInfo, req api.Instances
 		return err
 	}
 
-	err = checkRestrictionsAndAggregateLimits(tx, &info)
+	err = checkRestrictionsAndAggregateLimits(&info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance creation allowed: %w", err)
 	}
@@ -238,7 +238,7 @@ func AllowVolumeCreation(tx *db.ClusterTx, projectName string, req api.StorageVo
 		Config: req.Config,
 	})
 
-	err = checkRestrictionsAndAggregateLimits(tx, info)
+	err = checkRestrictionsAndAggregateLimits(info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if volume creation allowed: %w", err)
 	}
@@ -297,7 +297,7 @@ func GetImageSpaceBudget(tx *db.ClusterTx, projectName string) (int64, error) {
 
 // Check that we would not violate the project limits or restrictions if we
 // were to commit the given instances and profiles.
-func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, info *ProjectInfo) error {
+func checkRestrictionsAndAggregateLimits(info *ProjectInfo) error {
 	// List of config keys for which we need to check aggregate values
 	// across all project instances.
 	aggregateKeys := []string{}
@@ -884,7 +884,7 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 		return err
 	}
 
-	err = checkRestrictionsAndAggregateLimits(tx, info)
+	err = checkRestrictionsAndAggregateLimits(info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance update allowed: %w", err)
 	}
@@ -918,7 +918,7 @@ func AllowVolumeUpdate(tx *db.ClusterTx, projectName, volumeName string, req api
 		info.Volumes[i].Config = req.Config
 	}
 
-	err = checkRestrictionsAndAggregateLimits(tx, info)
+	err = checkRestrictionsAndAggregateLimits(info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if volume update allowed: %w", err)
 	}
@@ -948,7 +948,7 @@ func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req a
 		info.Profiles[i].Devices = req.Devices
 	}
 
-	err = checkRestrictionsAndAggregateLimits(tx, info)
+	err = checkRestrictionsAndAggregateLimits(info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if profile update allowed: %w", err)
 	}
