@@ -63,16 +63,7 @@ func HiddenStoragePools(ctx context.Context, tx *db.ClusterTx, projectName strin
 
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
-func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
-	info, err := FetchProject(ctx, tx, projectName, true)
-	if err != nil {
-		return err
-	}
-
-	if info == nil {
-		return nil
-	}
-
+func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, info ProjectInfo, req api.InstancesPost) error {
 	var instanceType instancetype.Type
 	switch req.Type {
 	case api.InstanceTypeContainer:
@@ -87,17 +78,17 @@ func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Conf
 		req.Profiles = []string{"default"}
 	}
 
-	err = checkSourceAllowed(info.Project.Config, req.Source.Type, req.Source.Mode)
+	err := checkSourceAllowed(info.Project.Config, req.Source.Type, req.Source.Mode)
 	if err != nil {
 		return err
 	}
 
-	err = checkInstanceCountLimit(info, instanceType)
+	err = checkInstanceCountLimit(&info, instanceType)
 	if err != nil {
 		return err
 	}
 
-	err = checkTotalInstanceCountLimit(info)
+	err = checkTotalInstanceCountLimit(&info)
 	if err != nil {
 		return err
 	}
@@ -105,7 +96,7 @@ func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Conf
 	// Add the instance being created.
 	instance := api.Instance{
 		Name:    req.Name,
-		Project: projectName,
+		Project: info.Project.Name,
 		Type:    string(req.Type),
 	}
 
@@ -122,7 +113,7 @@ func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Conf
 		return err
 	}
 
-	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, &info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance creation allowed: %w", err)
 	}
