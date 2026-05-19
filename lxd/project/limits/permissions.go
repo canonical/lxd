@@ -1280,7 +1280,7 @@ type projectInfo struct {
 // networks, and possibly custom volumes.
 //
 // If the skipIfNoLimits flag is true, then profiles, instances and volumes
-// won't be loaded if the profile has no limits set on it, and nil will be
+// won't be loaded if the project has no limits set on it, and nil will be
 // returned.
 func fetchProject(ctx context.Context, tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
 	dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
