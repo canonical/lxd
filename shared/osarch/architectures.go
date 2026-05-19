@@ -130,7 +130,7 @@ func ArchitectureId(arch string) (int, error) { //nolint:revive
 		}
 	}
 
-	return ARCH_UNKNOWN, fmt.Errorf("Architecture is not supported: %s", arch)
+	return ARCH_UNKNOWN, fmt.Errorf("Architecture is not supported: %q", arch)
 }
 
 // ArchitecturePersonality returns the personality for a given architecture ID.
