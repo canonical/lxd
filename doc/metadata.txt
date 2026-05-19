@@ -5053,6 +5053,15 @@ This value is required by some providers.
 
 ```
 
+```{config:option} oidc.device.client.id server-oidc
+:defaultdesc: "The value of `oidc.client.id` if set."
+:scope: "global"
+:shortdesc: "OpenID Connect client ID (CLI)"
+:type: "string"
+The OIDC client ID used by the LXD CLI. This configuration value overrides the client ID that is made public
+to the LXD CLI.
+```
+
 ```{config:option} oidc.groups.claim server-oidc
 :scope: "global"
 :shortdesc: "A claim used for mapping identity provider groups to LXD groups."
