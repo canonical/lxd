@@ -891,7 +891,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 		// Check restrictions/limits if defined on project.
 		if restrictions != nil {
-			err = limits.AllowInstanceCreation(ctx, s.GlobalConfig, tx, *restrictions, req)
+			err = limits.AllowInstanceCreation(ctx, s.GlobalConfig, *restrictions, req)
 			if err != nil {
 				return err
 			}
@@ -1624,7 +1624,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 			// Check restrictions/limits if defined on project.
 			if restrictions != nil {
-				err = limits.AllowInstanceCreation(ctx, s.GlobalConfig, tx, *restrictions, req)
+				err = limits.AllowInstanceCreation(ctx, s.GlobalConfig, *restrictions, req)
 				if err != nil {
 					return err
 				}
