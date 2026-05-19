@@ -26,12 +26,19 @@ func TestAllowInstanceCreation_NotConfigured(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
+	info, err := limits.FetchProject(context.Background(), tx, "default", true)
+	require.NoError(t, err)
+	require.Nil(t, info)
+
+	info, err = limits.FetchProject(context.Background(), tx, "default", false)
+	require.NoError(t, err)
+
 	req := api.InstancesPost{
 		Name: "c1",
 		Type: api.InstanceTypeContainer,
 	}
 
-	err := limits.AllowInstanceCreation(context.Background(), nil, tx, "default", req)
+	err = limits.AllowInstanceCreation(nil, *info, req)
 	assert.NoError(t, err)
 }
 
@@ -61,7 +68,11 @@ func TestAllowInstanceCreation_Below(t *testing.T) {
 		Type: api.InstanceTypeContainer,
 	}
 
-	err = limits.AllowInstanceCreation(context.Background(), nil, tx, "p1", req)
+	info, err := limits.FetchProject(context.Background(), tx, "p1", true)
+	require.NoError(t, err)
+	require.NotNil(t, info)
+
+	err = limits.AllowInstanceCreation(nil, *info, req)
 	assert.NoError(t, err)
 }
 
@@ -92,7 +103,11 @@ func TestAllowInstanceCreation_Above(t *testing.T) {
 		Type: api.InstanceTypeContainer,
 	}
 
-	err = limits.AllowInstanceCreation(context.Background(), nil, tx, "p1", req)
+	info, err := limits.FetchProject(context.Background(), tx, "p1", true)
+	require.NoError(t, err)
+	require.NotNil(t, info)
+
+	err = limits.AllowInstanceCreation(nil, *info, req)
 	assert.EqualError(t, err, `Reached maximum number of instances of type "container" in project "p1"`)
 }
 
@@ -123,7 +138,11 @@ func TestAllowInstanceCreation_DifferentType(t *testing.T) {
 		Type: api.InstanceTypeContainer,
 	}
 
-	err = limits.AllowInstanceCreation(context.Background(), nil, tx, "p1", req)
+	info, err := limits.FetchProject(context.Background(), tx, "p1", true)
+	require.NoError(t, err)
+	require.NotNil(t, info)
+
+	err = limits.AllowInstanceCreation(nil, *info, req)
 	assert.NoError(t, err)
 }
 
@@ -154,7 +173,11 @@ func TestAllowInstanceCreation_AboveInstances(t *testing.T) {
 		Type: api.InstanceTypeContainer,
 	}
 
-	err = limits.AllowInstanceCreation(context.Background(), nil, tx, "p1", req)
+	info, err := limits.FetchProject(context.Background(), tx, "p1", true)
+	require.NoError(t, err)
+	require.NotNil(t, info)
+
+	err = limits.AllowInstanceCreation(nil, *info, req)
 	assert.EqualError(t, err, `Reached maximum number of instances in project "p1"`)
 }
 
