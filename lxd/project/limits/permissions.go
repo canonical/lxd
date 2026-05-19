@@ -63,7 +63,7 @@ func HiddenStoragePools(ctx context.Context, tx *db.ClusterTx, projectName strin
 
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
-func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, info ProjectInfo, req api.InstancesPost) error {
+func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Config, info ProjectInfo, req api.InstancesPost) error {
 	var instanceType instancetype.Type
 	switch req.Type {
 	case api.InstanceTypeContainer:
@@ -108,7 +108,7 @@ func AllowInstanceCreation(ctx context.Context, globalConfig *clusterConfig.Conf
 		return err
 	}
 
-	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, &info)
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, &info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance creation allowed: %w", err)
 	}
@@ -277,7 +277,7 @@ func AllowVolumeCreation(ctx context.Context, globalConfig *clusterConfig.Config
 		PoolName: poolName,
 	})
 
-	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if volume creation allowed: %w", err)
 	}
@@ -343,7 +343,7 @@ func GetImageSpaceBudget(ctx context.Context, globalConfig *clusterConfig.Config
 // were to commit the given instances and profiles.
 // This function does not check the number of created instances. Limits associated
 // to the project-wide instance count should be checked separately where needed.
-func checkInstanceRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, tx *db.ClusterTx, info *ProjectInfo) error {
+func checkInstanceRestrictionsAndAggregateLimits(globalConfig *clusterConfig.Config, info *ProjectInfo) error {
 	// List of config keys for which we need to check aggregate values
 	// across all project instances.
 	aggregateKeys := []string{}
@@ -963,7 +963,7 @@ func AllowInstanceUpdate(ctx context.Context, globalConfig *clusterConfig.Config
 		return err
 	}
 
-	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if instance update allowed: %w", err)
 	}
@@ -997,7 +997,7 @@ func AllowVolumeUpdate(ctx context.Context, globalConfig *clusterConfig.Config, 
 		info.Volumes[i].Config = req.Config
 	}
 
-	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if volume update allowed: %w", err)
 	}
@@ -1027,7 +1027,7 @@ func AllowProfileUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 		info.Profiles[i].Devices = req.Devices
 	}
 
-	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Failed checking if profile update allowed: %w", err)
 	}
@@ -1126,7 +1126,7 @@ func AllowProjectUpdate(ctx context.Context, globalConfig *clusterConfig.Config,
 
 	// Check instance restrictions and aggregate limits affected by instance-level values.
 	// This function will also set the "Instances" field for the fetched project.
-	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, tx, info)
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, info)
 	if err != nil {
 		return fmt.Errorf("Conflict detected when updating project %q: %w", projectName, err)
 	}
