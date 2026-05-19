@@ -666,6 +666,31 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			if err != nil {
 				return err
 			}
+
+			for i, snapshot := range bInfo.Config.Snapshots {
+				if snapshot == nil {
+					return fmt.Errorf("Nil instance snapshot definition found at index %d", i)
+				}
+
+				snapshotReq := api.InstancesPost{
+					InstancePut: api.InstancePut{
+						Architecture: snapshot.Architecture,
+						Config:       snapshot.Config,
+						Devices:      snapshot.Devices,
+						Ephemeral:    snapshot.Ephemeral,
+						Profiles:     snapshot.Profiles,
+						Stateful:     snapshot.Stateful,
+					},
+					Name:   bInfo.Name + "/" + snapshot.Name,
+					Source: api.InstanceSource{}, // Only relevant for "copy" or "migration", but may not be nil.
+					Type:   api.InstanceType(bInfo.Config.Container.Type),
+				}
+
+				err = project.AllowInstanceCreation(*restrictions, snapshotReq)
+				if err != nil {
+					return err
+				}
+			}
 		}
 
 		return nil
