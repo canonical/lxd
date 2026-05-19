@@ -95,7 +95,7 @@ jobs:
         uses: ./.github/actions/tune-disk-performance
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         if: github.event_name == 'pull_request'
 
       # XXX: `make static-analysis` also run shellcheck but this one provides
@@ -918,7 +918,7 @@ jobs:
           gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
-        uses: tiobe/tics-github-action@3300ccc8de3c938cb83dc940ec4d07096c1bf185 # v3.9.1
+        uses: tiobe/tics-github-action@016a4d79f3027fe7b4a2901619a58c745ab7cadf # v3.10.0
         with:
           mode: qserver
           project: LXD
