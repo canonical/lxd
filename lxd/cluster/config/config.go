@@ -229,8 +229,21 @@ func (c *Config) AuthSecretExpiry() string {
 }
 
 // OIDCServer returns all the OpenID Connect settings needed to connect to a server.
-func (c *Config) OIDCServer() (issuer string, clientID string, clientSecret string, scopes []string, audience string, groupsClaim string) {
-	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), c.m.GetString("oidc.client.secret"), strings.Fields(c.m.GetString("oidc.scopes")), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim")
+func (c *Config) OIDCServer() (issuer string, clientID string, clientSecret string, scopes []string, audience string, groupsClaim string, deviceClientID string) {
+	// The default value of oidc.device.client.id is oidc.client.id.
+	clientID = c.m.GetString("oidc.client.id")
+	deviceClientID = c.m.GetString("oidc.device.client.id")
+	if deviceClientID == "" {
+		deviceClientID = clientID
+	}
+
+	return c.m.GetString("oidc.issuer"), clientID, c.m.GetString("oidc.client.secret"), strings.Fields(c.m.GetString("oidc.scopes")), c.m.GetString("oidc.audience"), c.m.GetString("oidc.groups.claim"), deviceClientID
+}
+
+// OIDCDeviceClientID returns the raw value of "oidc.device.client.id".
+// It is used to validate that unsetting "oidc.client.id" set will not leave the device client ID set.
+func (c *Config) OIDCDeviceClientID() string {
+	return c.m.GetString("oidc.device.client.id")
 }
 
 // OIDCSessionExpiry returns the expiry of an OIDC session. This is separate from OIDCServer as it is passed into the
@@ -777,6 +790,16 @@ var ConfigSchema = config.Schema{
 
 			return nil
 		}},
+
+		// lxdmeta:generate(entities=server; group=oidc; key=oidc.device.client.id)
+		// The OIDC client ID used by the LXD CLI. This configuration value overrides the client ID that is made public
+		// to the LXD CLI.
+		// ---
+		//  type: string
+		//  scope: global
+		//  shortdesc: OpenID Connect client ID (CLI)
+		//  defaultdesc: The value of `oidc.client.id` if set.
+		"oidc.device.client.id": {},
 
 		// OVN networking global keys.
 
