@@ -15,7 +15,7 @@ func GetCurrentAllocations(ctx context.Context, tx *db.ClusterTx, projectName st
 	result := map[string]api.ProjectStateResource{}
 
 	// Get the project.
-	info, err := fetchProject(tx, projectName, false)
+	info, err := FetchProject(tx, projectName, false)
 	if err != nil {
 		return nil, err
 	}
