@@ -1134,7 +1134,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			acmeCAURLChanged = true
 		case "acme.domain":
 			acmeDomainChanged = true
-		case "oidc.issuer", "oidc.client.id", "oidc.client.secret", "oidc.scopes", "oidc.audience", "oidc.groups.claim":
+		case "oidc.issuer", "oidc.client.id", "oidc.client.secret", "oidc.scopes", "oidc.audience", "oidc.groups.claim", "oidc.device.client.id":
 			oidcChanged = true
 		}
 	}
