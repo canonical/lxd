@@ -27,6 +27,7 @@ LXD collects metrics and logs that can be viewed as raw data or used with observ
 :titlesonly:
 
 Monitor metrics </metrics>
+Monitor security events </howto/security_events>
 Send logs to Loki </howto/logs_loki>
 Set up Grafana </howto/grafana>
 ```

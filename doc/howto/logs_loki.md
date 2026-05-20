@@ -1,10 +1,16 @@
+---
+myst:
+  html_meta:
+    description: Forward LXD logging, lifecycle, ovn, and security events to Loki for centralized log aggregation, analysis, and long-term retention.
+---
+
 (logs_loki)=
 # How to send logs to Loki
 
 <!-- Include start logs_loki intro -->
-LXD publishes information about its activity in the form of events. The `lxc monitor` command allows you to view this information in your shell. There are two categories of LXD events: logs and life cycle. The `lxc monitor --type=logging --pretty` command will filter and display log type events like activity of the raft cluster, for instance, while `lxc monitor --type=lifecycle --pretty` will only display life cycle events like instances starting or stopping.
+LXD publishes information about its activity in the form of events. The `lxc monitor` command allows you to view this information in your shell. There are several categories of LXD events: `logging`, `operation`, `lifecycle`, `ovn`, and `security`. The `lxc monitor --type=logging --pretty` command will filter and display log type events like activity of the raft cluster, for instance, while `lxc monitor --type=lifecycle --pretty` will only display lifecycle events like instances starting or stopping. The `lxc monitor --type=security --pretty` command shows security-related events such as authentication attempts and authorization decisions.
 
-In a production environment, you might want to keep a log of these events in a dedicated system. [Loki](https://grafana.com/oss/loki/) is one such system, and LXD provides a configuration option to forward its event stream to Loki.
+In a production environment, you might want to keep a log of these events in a dedicated system. [Loki](https://grafana.com/oss/loki/) is one such system, and LXD provides a configuration option to forward selected event types to Loki (`logging`, `lifecycle`, `ovn`, and `security`). Note that operation events are not forwarded to Loki.
 <!-- Include end logs_loki intro -->
 
 ## Configure LXD to send logs
@@ -19,6 +25,8 @@ Once you have a Loki server up and running, you can instruct LXD to send logs to
 
 ```{note}
 If Loki logs are to be viewed in the Grafana dashboard, ensure the `loki.instance` configuration key matches the name of the Prometheus job. See {ref}`grafana`.
+
+To forward security events to Loki, use: `lxc config set loki.types=logging,lifecycle,security`
 ```
 
 ## Query Loki logs
@@ -68,6 +76,6 @@ This will transform the above log entry into:
 ...
 ```
 
-Note the replacement of `-` by `_`, as `-` cannot be used in keys. As `requested_username` is now a key, you can query Loki using it like this:
+Note the replacement of `-` by `_`, as `-` cannot be used in keys. As `requester_username` is now a key, you can query Loki using it like this:
 
     logcli query -t '{requester_username="ubuntu"}'

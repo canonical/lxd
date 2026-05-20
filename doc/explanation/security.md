@@ -1,5 +1,8 @@
 ---
 relatedlinks: "[Linux&#32;containers&#32;security](https://linuxcontainers.org/lxc/security/)"
+myst:
+  html_meta:
+    description: Understand LXD security architecture, access controls, daemon access, container security, and security event audit logging for compliance and incident investigation.
 ---
 
 (exp-security)=
@@ -165,6 +168,22 @@ In this networking mode, the LXD host functions as a router, and static routes a
 
 By default, the `veth` interface created on the host has its `accept_ra` setting disabled to prevent router advertisements from the container modifying the IPv6 routing table on the LXD host.
 In addition to that, the `rp_filter` on the host is set to `1` to prevent source address spoofing for IPs that the host does not know the container has.
+
+(security-audit-events)=
+## Security events and audit logging
+
+LXD emits security events that track important security-related actions in your system. These events provide a comprehensive audit trail of authentication attempts, authorization decisions, and administrative changes. This is essential for compliance, intrusion detection, and security incident investigation.
+
+Security events include:
+
+- **Authentication events**: Track login attempts, token lifecycle changes, and certificate modifications
+- **Authorization events**: Track permission denials and any changes to identities, groups, and their privileges.
+- **Daemon lifecycle events**: Track daemon startup/shutdown and changes to monitoring configuration
+- **User lifecycle events**: Track identity creation, modification, and deletion
+
+In a production environment, you can forward security events to a centralized logging system like Loki to maintain a persistent audit trail. Events are available through the `/1.0/events` API endpoint, the `lxc monitor` command, or integration with syslog.
+
+For detailed information on monitoring and configuring security events, see {ref}`howto-security-events`.
 
 ## Related topics
 
