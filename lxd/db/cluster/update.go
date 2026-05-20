@@ -129,6 +129,45 @@ var updates = map[int]schema.Update{
 	83: updateFromV82,
 	84: updateFromV83,
 	85: updateFromV84,
+	86: updateFromV85,
+}
+
+func updateFromV85(ctx context.Context, tx *sql.Tx) error {
+	// Add replica_mode column to projects table as an integer.
+	// 0 = none (default), 1 = leader, 2 = standby.
+	_, err := tx.ExecContext(ctx, `ALTER TABLE projects ADD COLUMN replica_mode INTEGER NOT NULL DEFAULT 0`)
+	if err != nil {
+		return err
+	}
+
+	// Migrate existing replica.mode config values into the new column.
+	// This preserves leader/standby configuration for projects that had
+	// replica.mode set via the legacy config key on previous versions.
+	_, err = tx.ExecContext(ctx, `
+UPDATE projects
+SET replica_mode = (
+	SELECT CASE projects_config.value
+		WHEN 'leader'  THEN 1
+		WHEN 'standby' THEN 2
+		ELSE 0
+	END
+	FROM projects_config
+	WHERE projects_config.project_id = projects.id
+		AND projects_config.key = 'replica.mode'
+)
+WHERE EXISTS (
+	SELECT 1
+	FROM projects_config
+	WHERE projects_config.project_id = projects.id
+		AND projects_config.key = 'replica.mode'
+)`)
+	if err != nil {
+		return err
+	}
+
+	// Remove the legacy replica.mode config key now that it is stored in the projects table.
+	_, err = tx.ExecContext(ctx, `DELETE FROM projects_config WHERE key = 'replica.mode'`)
+	return err
 }
 
 func updateFromV84(ctx context.Context, tx *sql.Tx) error {
