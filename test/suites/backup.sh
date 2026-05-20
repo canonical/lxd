@@ -1075,7 +1075,7 @@ EOF
   [ "$(lxc config get inconsistent-instance security.privileged || echo fail)" = "" ]
   [ "$(lxc config get inconsistent-instance/snap0 security.privileged || echo fail)" = "" ]
 
-  lxc delete -f inconsistent-instance
+  lxc delete inconsistent-instance
 
   # Fix the backup's config by taking the contents from the index.
   # As we are using yq from the snap, it doesn't have permission to read inside ${tmpDir}.
@@ -1089,7 +1089,7 @@ EOF
   # Importing the instance from tarball succeeds.
   lxc import "${tmpDir}/fixed-backup.tar"
 
-  lxc delete -f inconsistent-instance
+  lxc delete inconsistent-instance
 
   # Now make the index inconsistent.
   yq '.config.container.config += {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
@@ -1114,7 +1114,7 @@ EOF
   # Importing the instance from tarball succeeds.
   lxc import "${tmpDir}/fixed-backup.tar"
 
-  lxc delete -f inconsistent-instance
+  lxc delete inconsistent-instance
 
   # Now make the index snapshot inconsistent.
   yq '.config.snapshots[0].config = {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
@@ -1137,7 +1137,7 @@ EOF
   # Importing the instance from tarball succeeds.
   lxc import "${tmpDir}/fixed-backup.tar"
 
-  lxc delete -f inconsistent-instance
+  lxc delete inconsistent-instance
   lxc project delete restricted
   rm -rf "${tmpDir}/backup"
 
