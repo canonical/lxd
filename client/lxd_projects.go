@@ -82,6 +82,26 @@ func (r *ProtocolLXD) GetProjectState(name string) (*api.ProjectState, error) {
 	return &projectState, nil
 }
 
+// UpdateProjectState updates the project replica state (promote or demote).
+func (r *ProtocolLXD) UpdateProjectState(name string, state api.ProjectStatePut, force bool) (Operation, error) {
+	err := r.CheckExtension("project_replica_mode")
+	if err != nil {
+		return nil, err
+	}
+
+	u := api.NewURL().Path("projects", name, "state")
+	if force {
+		u = u.WithQuery("force", "true")
+	}
+
+	op, _, err := r.queryOperation(http.MethodPut, u.String(), state, "", true)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
 // CreateProject defines a new container project.
 func (r *ProtocolLXD) CreateProject(project api.ProjectsPost) error {
 	err := r.CheckExtension("projects")
