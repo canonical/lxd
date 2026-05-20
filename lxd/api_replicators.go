@@ -1040,7 +1040,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 		return operations.OperationArgs{}, fmt.Errorf("Failed getting target project: %w", err)
 	}
 
-	err = validateReplicatorModes(sourceProject.Config["replica.mode"], targetProject.Config["replica.mode"], restore)
+	err = validateReplicatorModes(sourceProject.ReplicaMode, targetProject.ReplicaMode, restore)
 	if err != nil {
 		return operations.OperationArgs{}, api.StatusErrorf(http.StatusBadRequest, "%s", err)
 	}
@@ -1618,7 +1618,7 @@ func runScheduledReplicators(ctx context.Context, s *state.State) error {
 		return err
 	}
 
-	// Build a per-project replica.mode map so the loop can skip standby projects
+	// Build a per-project replica mode map so the loop can skip standby projects
 	// without an extra DB round-trip per replicator.
 	projectModes := make(map[string]string, len(apiReplicators))
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1628,12 +1628,12 @@ func runScheduledReplicators(ctx context.Context, s *state.State) error {
 				continue
 			}
 
-			config, err := dbCluster.GetProjectConfig(ctx, tx.Tx(), replicator.Project)
+			dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), replicator.Project)
 			if err != nil {
-				return fmt.Errorf("Failed loading project config for %q: %w", replicator.Project, err)
+				return fmt.Errorf("Failed loading project %q: %w", replicator.Project, err)
 			}
 
-			projectModes[replicator.Project] = config["replica.mode"]
+			projectModes[replicator.Project] = string(dbProject.ReplicaMode)
 		}
 
 		return nil
@@ -1744,19 +1744,19 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 func validateReplicatorModes(sourceMode string, targetMode string, restore bool) error {
 	if restore {
 		if sourceMode != api.ReplicatorProjectModeStandby {
-			return errors.New(`Source project must have "replica.mode" set to standby to run replicator in restore mode`)
+			return errors.New("Source project must be in standby mode to run replicator in restore mode")
 		}
 
 		if targetMode != api.ReplicatorProjectModeLeader {
-			return errors.New(`Target project must have "replica.mode" set to leader to run replicator in restore mode`)
+			return errors.New("Target project must be in leader mode to run replicator in restore mode")
 		}
 	} else {
 		if sourceMode != api.ReplicatorProjectModeLeader {
-			return errors.New(`Source project must have "replica.mode" set to leader to run replicator`)
+			return errors.New("Source project must be in leader mode to run replicator")
 		}
 
 		if targetMode != api.ReplicatorProjectModeStandby {
-			return errors.New(`Target project must have "replica.mode" set to standby to run replicator`)
+			return errors.New("Target project must be in standby mode to run replicator")
 		}
 	}
 
