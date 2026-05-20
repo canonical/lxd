@@ -132,3 +132,14 @@ type ProjectStateResource struct {
 	// Example: 4
 	Usage int64
 }
+
+// ProjectStatePut represents the fields for updating project replica state
+//
+// swagger:model
+//
+// API extension: project_replica_mode.
+type ProjectStatePut struct {
+	// Replica mode to set: "leader" or "standby"
+	// Example: leader
+	ReplicaMode string `json:"replica_mode" yaml:"replica_mode"`
+}
