@@ -29,6 +29,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/request/security"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
@@ -1233,6 +1234,12 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := newClusterConfig.LokiServer()
 
 		if lokiURL == "" || lokiLoglevel == "" || len(lokiTypes) == 0 {
+			if d.lokiClient != nil {
+				// Emit "monitoring disabled" security event, since loki configuration is being unset.
+				// This should be the last log entry that is sent to loki.
+				d.events.SendSecurity(security.SysMonitorDisabled.ServerEvent(security.LevelWarning, "Loki monitoring disabled"))
+			}
+
 			d.internalListener.RemoveHandler("loki")
 			if d.lokiClient != nil {
 				d.lokiClient.Stop()

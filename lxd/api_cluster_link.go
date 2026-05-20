@@ -569,7 +569,7 @@ func clusterLinkPost(d *Daemon, r *http.Request) response.Response {
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkRenamed.Event(req.Name, requestor, logger.Ctx{"old_name": name}))
 
 	// Notify other members, update the cache, and send an identity lifecycle event.
-	_, err = notify(lifecycle.IdentityUpdated, api.AuthenticationMethodTLS, identityIdentifier, true)
+	_, err = notify(lifecycle.IdentityUpdated, api.AuthenticationMethodTLS, identityIdentifier, true, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -648,8 +648,8 @@ func clusterLinkDelete(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r.Context())
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkDeleted.Event(name, requestor, nil))
 
-	// Notify other members, update the cache, and send an identity lifecycle event.
-	_, err = notify(lifecycle.IdentityDeleted, api.AuthenticationMethodTLS, identity.Identifier, true)
+	// Notify other members, update the cache, send an identity lifecycle event, and send an identity deleted security event.
+	_, err = notify(lifecycle.IdentityDeleted, api.AuthenticationMethodTLS, identity.Identifier, true, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -822,8 +822,8 @@ func clusterLinkCreatePending(s *state.State, r *http.Request, req api.ClusterLi
 	// Send cluster link lifecycle event.
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(req.Name, requestor, nil))
 
-	// Notify other members, update the cache, and send a lifecycle event.
-	lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodTLS, identifier.String(), false)
+	// Notify other members, update the cache, send an identity lifecycle event, and send an identity created security event.
+	lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodTLS, identifier.String(), false, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -958,8 +958,8 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 		// Send cluster link lifecycle event.
 		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(req.Name, requestor, nil))
 
-		// Notify other members, update the cache, and send an identity lifecycle event.
-		lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodTLS, fingerprint, true)
+		// Notify other members, update the cache, send an identity lifecycle event, and send an identity created security event.
+		lc, err := notify(lifecycle.IdentityCreated, api.AuthenticationMethodTLS, fingerprint, true, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1078,8 +1078,8 @@ func clusterLinkActivate(s *state.State, r *http.Request, req api.ClusterLinksPo
 	// Send cluster link lifecycle event.
 	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(clusterLinkName, requestor, nil))
 
-	// Notify other members, update the cache, and send an identity lifecycle event.
-	lc, err := notify(lifecycle.IdentityUpdated, api.AuthenticationMethodTLS, identifier.String(), true)
+	// Notify other members, update the cache, send an identity lifecycle event, and send an identity updated security event.
+	lc, err := notify(lifecycle.IdentityUpdated, api.AuthenticationMethodTLS, fingerprint, true, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
