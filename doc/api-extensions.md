@@ -3117,3 +3117,7 @@ set unless {config:option}`server-oidc:oidc.client.id` is set.
 ## `storage_nvme_tcp`
 
 Renames storage pool NVMe/TCP mode from `nvme` to `nvme/tcp`.
+
+## `project_replica_mode`
+
+Adds a `replica_mode` field to projects and a new `PUT /1.0/projects/<name>/state` endpoint for promoting and demoting projects between leader and standby modes for replication.
