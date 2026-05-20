@@ -746,23 +746,6 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	}
 
 	bInfo.Config.Instance.Devices = resultingDevices
-
-	// Check project permissions.
-	var req api.InstancesPost
-	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		req = api.InstancesPost{
-			InstancePut: bInfo.Config.Instance.Writable(),
-			Name:        bInfo.Name,
-			Source:      api.InstanceSource{}, // Only relevant for "copy" or "migration", but may not be nil.
-			Type:        api.InstanceType(bInfo.Config.Instance.Type),
-		}
-
-		return limits.AllowInstanceCreation(ctx, s.GlobalConfig, tx, projectName, req)
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	bInfo.Project = projectName
 
 	// Override pool.
@@ -791,6 +774,56 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	}
 
 	rootVol.Config["volatile.uuid"] = uuid.New().String()
+
+	// Check project permissions.
+	var restrictions *limits.ProjectInfo
+	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		restrictions, err = limits.FetchProject(ctx, tx, projectName, true)
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	req := api.InstancesPost{
+		InstancePut: bInfo.Config.Instance.Writable(),
+		Name:        bInfo.Name,
+		Source:      api.InstanceSource{}, // Only relevant for "copy" or "migration", but may not be nil.
+		Type:        api.InstanceType(bInfo.Config.Instance.Type),
+	}
+
+	// Check restrictions/limits if defined on project.
+	if restrictions != nil {
+		err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, req)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		for i, snapshot := range bInfo.Config.Snapshots {
+			if snapshot == nil {
+				return response.SmartError(fmt.Errorf("Nil instance snapshot definition found at index %d", i))
+			}
+
+			snapshotReq := api.InstancesPost{
+				InstancePut: api.InstancePut{
+					Architecture: snapshot.Architecture,
+					Config:       snapshot.Config,
+					Devices:      snapshot.Devices,
+					Ephemeral:    snapshot.Ephemeral,
+					Profiles:     snapshot.Profiles,
+					Stateful:     snapshot.Stateful,
+				},
+				Name:   bInfo.Name + "/" + snapshot.Name,
+				Source: api.InstanceSource{}, // Only relevant for "copy" or "migration", but may not be nil.
+				Type:   api.InstanceType(bInfo.Config.Instance.Type),
+			}
+
+			err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, snapshotReq)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+	}
 
 	// Override the volume snapshot's UUID.
 	for i, snapshot := range rootVol.Snapshots {
@@ -1336,9 +1369,17 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		if !clusterNotification {
 			// Check that the project's limits are not violated. Note this check is performed after
 			// automatically generated config values (such as ones from an InstanceType) have been set.
-			err = limits.AllowInstanceCreation(ctx, s.GlobalConfig, tx, targetProjectName, req)
+			restrictions, err := limits.FetchProject(ctx, tx, targetProjectName, true)
 			if err != nil {
 				return err
+			}
+
+			// Check restrictions/limits if defined on project.
+			if restrictions != nil {
+				err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, req)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
