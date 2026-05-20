@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -17,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/fvbommel/sortorder"
-	"golang.org/x/exp/maps"
 )
 
 const (
