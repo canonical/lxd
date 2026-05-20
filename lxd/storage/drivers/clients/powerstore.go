@@ -18,6 +18,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 const (
@@ -56,6 +57,7 @@ func (PowerStoreHostInitiator) selector() string {
 type PowerStoreHostVolumeMapping struct {
 	HostID   string `json:"host_id,omitempty"`
 	VolumeID string `json:"volume_id,omitempty"`
+	LUN      int    `json:"logical_unit_number,omitempty"`
 }
 
 // PowerStoreHost represents a PowerStore host.
@@ -68,7 +70,7 @@ type PowerStoreHost struct {
 }
 
 func (PowerStoreHost) selector() string {
-	return "id,name,os_type,initiators(id,port_name,port_type),mapped_hosts(id,host_id,volume_id)"
+	return "id,name,os_type,initiators(id,port_name,port_type),mapped_hosts(id,host_id,volume_id,logical_unit_number)"
 }
 
 // PowerStoreVolume represents a PowerStore volume.
@@ -939,19 +941,19 @@ func (c *PowerStoreClient) RestoreVolume(volumeID string, snapshotID string) err
 	return nil
 }
 
-// AttachVolumeToHost attaches (maps) volume to host, returning true if the volume was freshly
-// attached to the host, and false if the volume was already attached to the host.
-func (c *PowerStoreClient) AttachVolumeToHost(volumeID string, hostID string) (bool, error) {
+// AttachVolumeToHost attaches (maps) volume to host. It returns the assigned volume LUN and
+// whether a new host to volume mapping was created.
+func (c *PowerStoreClient) AttachVolumeToHost(volumeID string, hostID string) (lun int, attached bool, err error) {
 	// Check if the volume is already attached to the host.
 	host, err := c.GetHost(hostID)
 	if err != nil {
-		return false, err
+		return 0, false, err
 	}
 
 	for _, mapping := range host.MappedVolumes {
 		if mapping.VolumeID == volumeID {
 			// The volume is already attached to the host.
-			return false, nil
+			return mapping.LUN, false, nil
 		}
 	}
 
@@ -963,10 +965,28 @@ func (c *PowerStoreClient) AttachVolumeToHost(volumeID string, hostID string) (b
 	url := api.NewURL().Path("api", "rest", "volume", volumeID, "attach")
 	err = c.requestAuthenticated(http.MethodPost, url.URL, req, nil, nil)
 	if err != nil {
-		return false, fmt.Errorf("Failed attaching PowerStore volume to the host: %w", err)
+		return 0, false, fmt.Errorf("Failed attaching PowerStore volume to the host: %w", err)
 	}
 
-	return true, nil
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	reverter.Add(func() { _ = c.DetachVolumeFromHost(volumeID, hostID) })
+
+	// Fetch host again to retrieve the LUN assigned to the newly created mapping.
+	host, err = c.GetHost(hostID)
+	if err != nil {
+		return 0, true, fmt.Errorf("Failed retrieving volume attachments after attach: %w", err)
+	}
+
+	for _, mapping := range host.MappedVolumes {
+		if mapping.VolumeID == volumeID {
+			reverter.Success()
+			return mapping.LUN, true, nil
+		}
+	}
+
+	return 0, true, errors.New("Failed retrieving LUN for attached volume")
 }
 
 // DetachVolumeFromHost detaches (unmaps) volume from host.
