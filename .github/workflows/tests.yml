@@ -208,7 +208,7 @@ jobs:
           # For `make update-metadata`
           sudo chmod o+w ./lxd/metadata/configuration.json ./doc/metadata.txt
           # For `make update-schema`
-          sudo chmod o+w ./lxd/db/cluster/generated.go ./lxd/db/cluster/schema.go
+          sudo chmod o+w ./lxd/db/cluster/generated.go ./lxd/db/cluster/schema.go ./lxd/db/cluster/*.mapper.go
 
           make static-analysis
           # If `git diff` does not come out clean, you likely forgot a `make update-*`
