@@ -5,6 +5,7 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"net/http"
 
@@ -35,6 +36,57 @@ import (
 //go:generate mapper method -i -e project DeleteOne-by-Name
 //go:generate goimports -w projects.mapper.go
 //go:generate goimports -w projects.interface.mapper.go
+
+// ProjectReplicaMode represents the replica mode of a project stored as an integer in the database.
+//
+// This type implements the [sql.Scanner] and [driver.Valuer] interfaces to automatically handle
+// conversion between API constants and their int64 representation in the database.
+// When reading from the database, int64 values are converted back to their API constant.
+// When writing to the database, API constants are converted to their int64 representation.
+type ProjectReplicaMode string
+
+const (
+	projectReplicaModeNone    int64 = 0
+	projectReplicaModeLeader  int64 = 1
+	projectReplicaModeStandby int64 = 2
+)
+
+// ScanInteger implements [query.IntegerScanner] for [ProjectReplicaMode].
+func (p *ProjectReplicaMode) ScanInteger(code int64) error {
+	switch code {
+	case projectReplicaModeNone:
+		*p = ""
+	case projectReplicaModeLeader:
+		*p = api.ReplicatorProjectModeLeader
+	case projectReplicaModeStandby:
+		*p = api.ReplicatorProjectModeStandby
+	default:
+		return fmt.Errorf("Unknown project replica mode %d", code)
+	}
+
+	return nil
+}
+
+// Scan implements [sql.Scanner] for [ProjectReplicaMode]. This converts the database integer value
+// back into the correct API constant or returns an error.
+func (p *ProjectReplicaMode) Scan(value any) error {
+	return query.ScanValue(value, p, false)
+}
+
+// Value implements [driver.Valuer] for [ProjectReplicaMode]. This converts the API constant into
+// its integer database representation or returns an error.
+func (p ProjectReplicaMode) Value() (driver.Value, error) {
+	switch p {
+	case "":
+		return projectReplicaModeNone, nil
+	case api.ReplicatorProjectModeLeader:
+		return projectReplicaModeLeader, nil
+	case api.ReplicatorProjectModeStandby:
+		return projectReplicaModeStandby, nil
+	}
+
+	return nil, fmt.Errorf("Invalid project replica mode %q", p)
+}
 
 // ProjectFeature indicates the behaviour of a project feature.
 type ProjectFeature struct {
@@ -71,7 +123,8 @@ var ProjectFeatures = map[string]ProjectFeature{
 type Project struct {
 	ID          int
 	Description string
-	Name        string `db:"omit=update"`
+	Name        string             `db:"omit=update"`
+	ReplicaMode ProjectReplicaMode `db:"omit=update"`
 }
 
 // ProjectFilter specifies potential query parameter fields.
