@@ -365,6 +365,8 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 			out.MemTotalBytes = value
 		case "Shmem":
 			out.ShmemBytes = value
+		case "SReclaimable":
+			out.SReclaimableBytes = value
 		case "SwapCached":
 			out.SwapBytes = value
 		case "Unevictable":

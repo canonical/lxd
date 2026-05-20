@@ -65,6 +65,8 @@ The following instance metrics are provided:
   - Amount of anonymous and swap cache memory
 * - `lxd_memory_Shmem_bytes`
   - Amount of cached file system data that is swap-backed
+* - `lxd_memory_SReclaimable_bytes`
+  - Amount of reclaimable slab memory
 * - `lxd_memory_Swap_bytes`
   - Amount of used swap memory
 * - `lxd_memory_Unevictable_bytes`

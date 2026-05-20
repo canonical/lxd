@@ -243,6 +243,7 @@ func MetricSetFromAPI(metrics *Metrics, labels map[string]string) (*MetricSet, e
 	set.AddSamples(MemoryMemTotalBytes, Sample{Value: float64(metrics.Memory.MemTotalBytes)})
 	set.AddSamples(MemoryRSSBytes, Sample{Value: float64(metrics.Memory.RSSBytes)})
 	set.AddSamples(MemoryShmemBytes, Sample{Value: float64(metrics.Memory.ShmemBytes)})
+	set.AddSamples(MemorySReclaimableBytes, Sample{Value: float64(metrics.Memory.SReclaimableBytes)})
 	set.AddSamples(MemorySwapBytes, Sample{Value: float64(metrics.Memory.SwapBytes)})
 	set.AddSamples(MemoryUnevictableBytes, Sample{Value: float64(metrics.Memory.UnevictableBytes)})
 	set.AddSamples(MemoryWritebackBytes, Sample{Value: float64(metrics.Memory.WritebackBytes)})

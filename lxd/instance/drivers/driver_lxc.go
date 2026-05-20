@@ -7249,6 +7249,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	}
 
 	memoryCached := int64(0)
+	memorySReclaimable := int64(0)
 
 	// Get memory stats.
 	memStats, err := cg.GetMemoryStats()
@@ -7292,6 +7293,16 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 				} else {
 					memoryCached = int64(v)
 				}
+
+			case "slab_reclaimable":
+				metricType = metrics.MemorySReclaimableBytes
+
+				// Bound checking before converting from uint64 to int64.
+				if v > math.MaxInt64 {
+					memorySReclaimable = math.MaxInt64
+				} else {
+					memorySReclaimable = int64(v)
+				}
 			}
 
 			out.AddSamples(metricType, metrics.Sample{Value: float64(v)})
@@ -7306,7 +7317,9 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 
 	if memoryLimit > 0 {
 		out.AddSamples(metrics.MemoryMemTotalBytes, metrics.Sample{Value: float64(memoryLimit)})
-		out.AddSamples(metrics.MemoryMemAvailableBytes, metrics.Sample{Value: float64(memoryLimit - memoryUsage + memoryCached)})
+		// MemAvailable mirrors the kernel's /proc/meminfo definition: free plus reclaimable
+		// pages (page cache and reclaimable slab) that the kernel can release without swapping.
+		out.AddSamples(metrics.MemoryMemAvailableBytes, metrics.Sample{Value: float64(memoryLimit - memoryUsage + memoryCached + memorySReclaimable)})
 		out.AddSamples(metrics.MemoryMemFreeBytes, metrics.Sample{Value: float64(memoryLimit - memoryUsage)})
 	}
 
