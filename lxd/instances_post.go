@@ -655,7 +655,45 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			Type:        api.InstanceType(bInfo.Config.Container.Type),
 		}
 
-		return project.AllowInstanceCreation(tx, projectName, req)
+		restrictions, err := project.FetchProject(tx, projectName, true)
+		if err != nil {
+			return err
+		}
+
+		// Check restrictions/limits if defined on project.
+		if restrictions != nil {
+			err = project.AllowInstanceCreation(*restrictions, req)
+			if err != nil {
+				return err
+			}
+
+			for i, snapshot := range bInfo.Config.Snapshots {
+				if snapshot == nil {
+					return fmt.Errorf("Nil instance snapshot definition found at index %d", i)
+				}
+
+				snapshotReq := api.InstancesPost{
+					InstancePut: api.InstancePut{
+						Architecture: snapshot.Architecture,
+						Config:       snapshot.Config,
+						Devices:      snapshot.Devices,
+						Ephemeral:    snapshot.Ephemeral,
+						Profiles:     snapshot.Profiles,
+						Stateful:     snapshot.Stateful,
+					},
+					Name:   bInfo.Name + "/" + snapshot.Name,
+					Source: api.InstanceSource{}, // Only relevant for "copy" or "migration", but may not be nil.
+					Type:   api.InstanceType(bInfo.Config.Container.Type),
+				}
+
+				err = project.AllowInstanceCreation(*restrictions, snapshotReq)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1078,9 +1116,17 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		if !clusterNotification {
 			// Check that the project's limits are not violated. Note this check is performed after
 			// automatically generated config values (such as ones from an InstanceType) have been set.
-			err = project.AllowInstanceCreation(tx, targetProjectName, req)
+			restrictions, err := project.FetchProject(tx, targetProjectName, true)
 			if err != nil {
 				return err
+			}
+
+			// Check restrictions/limits if defined on project.
+			if restrictions != nil {
+				err = project.AllowInstanceCreation(*restrictions, req)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

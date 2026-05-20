@@ -120,7 +120,7 @@ func ArchitectureId(arch string) (int, error) {
 		}
 	}
 
-	return ARCH_UNKNOWN, fmt.Errorf("Architecture isn't supported: %s", arch)
+	return ARCH_UNKNOWN, fmt.Errorf("Architecture isn't supported: %q", arch)
 }
 
 func ArchitecturePersonality(arch int) (string, error) {
