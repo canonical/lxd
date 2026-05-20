@@ -17,6 +17,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/sftp"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -1292,58 +1293,80 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 		}
 	} else {
 		// Handle non-interactive sessions
-		dones := make(map[int]chan error)
-		conns := []*websocket.Conn{}
-
-		// Handle stdin
-		if fds["0"] != "" {
-			conn, err := r.GetOperationWebsocket(opAPI.ID, fds["0"])
-			if err != nil {
-				return nil, err
-			}
-
-			go func() {
-				_, _, _ = conn.ReadMessage() // Consume pings from server.
-			}()
-
-			conns = append(conns, conn)
-			dones[0] = ws.MirrorRead(conn, args.Stdin)
+		type connResult struct {
+			id   int
+			conn *websocket.Conn
 		}
 
+		connsChan := make(chan connResult, 3) // Buffer for up to 3 connections (stdin, stdout, stderr)
+		var eg errgroup.Group
+
+		// Handle stdin, stdout, stderr connection concurrently.
+		for _, id := range []int{0, 1, 2} {
+			secret := fds[strconv.FormatInt(int64(id), 10)]
+			if secret == "" {
+				continue
+			}
+
+			eg.Go(func() error {
+				conn, err := r.GetOperationWebsocket(opAPI.ID, secret)
+				if err != nil {
+					return fmt.Errorf("Failed connecting channel %d: %w", id, err)
+				}
+
+				connsChan <- connResult{id: id, conn: conn}
+				return nil
+			})
+		}
+
+		// Wait for all websocket connections to be established, capturing first error (if any).
+		err = eg.Wait()
+		close(connsChan)
+		if err != nil {
+			// Close any connections that were successfully established before the error occurred.
+			for result := range connsChan {
+				if result.conn != nil {
+					_ = result.conn.Close()
+				}
+			}
+
+			return nil, err
+		}
+
+		dones := make(map[int]chan error)
+		conns := make(map[int]*websocket.Conn)
 		waitConns := 0 // Used for keeping track of when stdout and stderr have finished.
 
-		// Handle stdout
-		if fds["1"] != "" {
-			conn, err := r.GetOperationWebsocket(opAPI.ID, fds["1"])
-			if err != nil {
-				return nil, err
+		// Set up connection handlers.
+		for result := range connsChan {
+			id := result.id
+			conn := result.conn
+			conns[id] = conn
+
+			switch id {
+			case 0: // stdin
+				go func(c *websocket.Conn) {
+					_, _, _ = c.ReadMessage() // Consume pings from server.
+				}(conn)
+
+				dones[0] = ws.MirrorRead(conn, args.Stdin)
+			case 1: // stdout
+				// Discard Stdout from remote command if output writer not supplied.
+				if args.Stdout == nil {
+					args.Stdout = io.Discard
+				}
+
+				dones[1] = ws.MirrorWrite(conn, args.Stdout)
+				waitConns++
+			case 2: // stderr
+				// Discard Stderr from remote command if output writer not supplied.
+				if args.Stderr == nil {
+					args.Stderr = io.Discard
+				}
+
+				dones[2] = ws.MirrorWrite(conn, args.Stderr)
+				waitConns++
 			}
-
-			// Discard Stdout from remote command if output writer not supplied.
-			if args.Stdout == nil {
-				args.Stdout = io.Discard
-			}
-
-			conns = append(conns, conn)
-			dones[1] = ws.MirrorWrite(conn, args.Stdout)
-			waitConns++
-		}
-
-		// Handle stderr
-		if fds["2"] != "" {
-			conn, err := r.GetOperationWebsocket(opAPI.ID, fds["2"])
-			if err != nil {
-				return nil, err
-			}
-
-			// Discard Stderr from remote command if output writer not supplied.
-			if args.Stderr == nil {
-				args.Stderr = io.Discard
-			}
-
-			conns = append(conns, conn)
-			dones[2] = ws.MirrorWrite(conn, args.Stderr)
-			waitConns++
 		}
 
 		// Wait for everything to be done
