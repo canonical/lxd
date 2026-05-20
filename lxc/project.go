@@ -79,6 +79,14 @@ func (c *cmdProject) command() *cobra.Command {
 	projectGetCurrentCmd := cmdProjectGetCurrent{global: c.global, project: c}
 	cmd.AddCommand(projectGetCurrentCmd.command())
 
+	// Promote
+	projectPromoteCmd := cmdProjectPromote{global: c.global, project: c}
+	cmd.AddCommand(projectPromoteCmd.command())
+
+	// Demote
+	projectDemoteCmd := cmdProjectDemote{global: c.global, project: c}
+	cmd.AddCommand(projectDemoteCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -491,6 +499,7 @@ func (c *cmdProjectList) columns() []cli.ShorthandColumn[api.Project] {
 		{Shorthand: 'z', Name: "NETWORK ZONES", Data: c.networkZonesColumnData},
 		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
 		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
+		{Shorthand: 'r', Name: "REPLICA MODE", Data: c.replicaModeColumnData},
 	}
 }
 
@@ -629,6 +638,14 @@ func (c *cmdProjectList) descriptionColumnData(project api.Project) string {
 
 func (c *cmdProjectList) usedByColumnData(project api.Project) string {
 	return strconv.Itoa(len(project.UsedBy))
+}
+
+func (c *cmdProjectList) replicaModeColumnData(project api.Project) string {
+	if project.ReplicaMode == "" {
+		return "-"
+	}
+
+	return strings.ToUpper(project.ReplicaMode)
 }
 
 // Rename.
@@ -1099,4 +1116,142 @@ func (c *cmdProjectInfo) run(cmd *cobra.Command, args []string) error {
 	}
 
 	return cli.RenderTable(c.flagFormat, header, data, projectState)
+}
+
+// Promote.
+type cmdProjectPromote struct {
+	global  *cmdGlobal
+	project *cmdProject
+
+	flagForce bool
+}
+
+func (c *cmdProjectPromote) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("promote-replica", "[<remote>:]<project>")
+	cmd.Short = "Promote project to leader mode for replication"
+	cmd.Long = cli.FormatSection("Description",
+		`Promotes the project to leader mode for replication.
+
+This validates that all replicator targets are in standby mode unless --force is specified.`)
+
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Skip validation of remote project states")
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("project", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdProjectPromote) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing project name")
+	}
+
+	// Promote the project
+	op, err := resource.server.UpdateProjectState(resource.name, api.ProjectStatePut{ReplicaMode: api.ReplicatorProjectModeLeader}, c.flagForce)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Project %s promoted to leader mode\n", resource.name)
+	}
+
+	return nil
+}
+
+// Demote.
+type cmdProjectDemote struct {
+	global  *cmdGlobal
+	project *cmdProject
+
+	flagForce bool
+}
+
+func (c *cmdProjectDemote) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("demote-replica", "[<remote>:]<project>")
+	cmd.Short = "Demote project to standby mode for replication"
+	cmd.Long = cli.FormatSection("Description",
+		`Demotes the project to standby mode for replication.
+
+The project must have replica.cluster config set to identify which cluster can replicate to it, unless --force is specified.`)
+
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Skip validation of replica.cluster config")
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("project", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdProjectDemote) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing project name")
+	}
+
+	// Demote the project
+	op, err := resource.server.UpdateProjectState(resource.name, api.ProjectStatePut{ReplicaMode: api.ReplicatorProjectModeStandby}, c.flagForce)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Project %s demoted to standby mode\n", resource.name)
+	}
+
+	return nil
 }
