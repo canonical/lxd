@@ -5716,10 +5716,6 @@ test_clustering_replicator_basic() {
 
   LXD_ONE_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --quiet --auth-group replicator-group)"
 
-  sub_test "Verify replica.mode cannot be set without replica.cluster"
-
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=leader 2>&1)" = 'Error: Invalid project configuration key "replica.mode" value: "replica.mode" can only be set when "replica.cluster" is set' ]
-
   sub_test "Verify replica.cluster rejects invalid cluster link names"
 
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=invalid-link 2>&1)" = 'Error: Invalid project configuration key "replica.cluster" value: Cluster link "invalid-link" not found' ]
@@ -5733,16 +5729,20 @@ test_clustering_replicator_basic() {
 
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}" --auth-group replicator-group
 
-  sub_test "Verify replica.mode=leader cannot be set before target is standby"
+  sub_test "Verify promote fails before target is in standby mode"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_two
+  # Set replica.cluster on standby side only (leader doesn't need it since replicator defines targets).
   LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one
 
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=leader 2>&1)" = 'Error: Invalid project configuration key "replica.mode" value: Target project must have "replica.mode" set to standby when setting "replica.mode" to leader on the source project' ]
+  # Create replicator on LXD_ONE first (defines target cluster).
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_two --project replicator-project
 
-  # Set replica.mode on both clusters.
-  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.mode=standby
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=leader
+  # Attempt to promote should fail because target is not in standby mode.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project 2>&1)" = 'Error: Target project "replicator-project" on cluster "lxd_two" is not in standby mode' ]
+
+  # Demote standby side, then promote leader side.
+  LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
 
   # Setup storage on both clusters.
   local pool_one pool_two
@@ -5751,8 +5751,6 @@ test_clustering_replicator_basic() {
   LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
 
-  # Create replicator on LXD_ONE.
-  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_two --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator list --project replicator-project | grep -F 'my-replicator'
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator show my-replicator --project replicator-project
 
@@ -5885,7 +5883,7 @@ test_clustering_replicator_scheduled() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project create replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc project create replicator-project
 
-  # Setup auth groups and cluster links so replica.mode validation can read the
+  # Setup auth groups and cluster links so promote validation can read the
   # target project through the cluster-link identity, just like the basic test.
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group create replicator-group
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project operator
@@ -5897,9 +5895,11 @@ test_clustering_replicator_scheduled() {
   LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}" --auth-group replicator-group
 
-  # Configure replica project settings.
-  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one replica.mode=standby
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_two replica.mode=leader
+  # Configure replica project settings: standby sets replica.cluster, leader creates replicator.
+  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_two --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
 
   # Setup storage on both clusters.
   local pool_one pool_two
@@ -5907,9 +5907,6 @@ test_clustering_replicator_scheduled() {
   pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
   LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
-
-  # Create the replicator.
-  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_two --project replicator-project
 
   # Launch one instance on the source project and set a config key that should
   # be replicated to the target side.
@@ -5940,18 +5937,17 @@ test_clustering_replicator_scheduled() {
   local ops_before
   ops_before="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | length')"
 
-  # Unset replica.mode on the source; the scheduler must now skip this replicator.
-  LXD_DIR="${LXD_ONE_DIR}" lxc project unset replicator-project replica.mode
+  # Demote the source with --force (skips validation); the scheduler must now skip this replicator.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replicator-project --force
 
-  # Trigger the scheduler synchronously; because replica.mode is unset the scheduler
+  # Trigger the scheduler synchronously; because the project is not in leader mode the scheduler
   # skips the replicator without creating a new operation.
   LXD_DIR="${LXD_ONE_DIR}" lxc query -X POST --raw --wait /internal/testing/replicator/run-scheduler
   LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' \
     | jq --exit-status --argjson before "${ops_before}" '[.. | objects | select(.description == "Running replicator")] | length == $before'
 
   # Restore leader mode before cleanup.
-  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.mode=standby
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=leader
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
 
   # Cleanup
   LXD_DIR="${LXD_TWO_DIR}" lxc profile device remove default root --project replicator-project
@@ -5976,7 +5972,7 @@ test_clustering_replicator_dr() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project create replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc project create replicator-project
 
-  # Setup auth groups and cluster links so replica.mode validation can read the
+  # Setup auth groups and cluster links so promote validation can read the
   # target project through the cluster-link identity, just like the basic test.
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group create replicator-group
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project operator
@@ -5988,9 +5984,11 @@ test_clustering_replicator_dr() {
   LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}" --auth-group replicator-group
 
-  # Configure replica project settings.
-  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one replica.mode=standby
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_two replica.mode=leader
+  # Configure replica project settings: standby sets replica.cluster, leader creates replicator.
+  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_two --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
 
   # Setup storage on both clusters.
   local pool_one pool_two
@@ -5998,9 +5996,6 @@ test_clustering_replicator_dr() {
   pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
   LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
-
-  # Create the replicator.
-  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_two --project replicator-project
 
   sub_test "Initial replication: replicate c1 and c2 to LXD_TWO"
 
@@ -6030,9 +6025,9 @@ test_clustering_replicator_dr() {
 
   grep -F 'UNREACHABLE' <<< "${link_info}"
 
-  # LXD_ONE is unreachable; replica.mode=leader validation skips when the target is unreachable.
-  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.mode=leader
-  # Both clusters now have replica.mode=leader. Verify instance creation is allowed on LXD_TWO.
+  # LXD_ONE is unreachable; promote-replica --force skips standby validation when the target is unreachable.
+  LXD_DIR="${LXD_TWO_DIR}" lxc project promote-replica replicator-project --force
+  # Both clusters now have leader mode set. Verify instance creation is allowed on LXD_TWO.
   LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c3 --project replicator-project -d "${SMALL_ROOT_DISK}"
   # Verify LXD_TWO can start a replicated instance as the new leader.
   LXD_DIR="${LXD_TWO_DIR}" lxc start c1 --project replicator-project
@@ -6069,15 +6064,15 @@ test_clustering_replicator_dr() {
 
   grep -F 'ACTIVE' <<< "${link_info}"
 
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project 2>&1)" = 'Error: Target project must have "replica.mode" set to standby to run replicator' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project 2>&1)" = 'Error: Target project must be in standby mode to run replicator' ]
 
   sub_test "Verify --restore is rejected when local instances are running"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=standby
+  LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replicator-project --force
   # c1 is still running on LXD_ONE after respawn; --restore must be rejected with a clear error.
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project 2>&1)" = 'Error: Instance "c1" is running, stop all project instances before restoring' ]
 
-  sub_test "Restore: set LXD_ONE to standby and restore c1, c2, and c3 from LXD_TWO"
+  sub_test "Restore: LXD_ONE is standby and restore c1, c2, and c3 from LXD_TWO"
 
   # c1 is running and must be stopped: the server rejects --restore if any local instance
   # is running to prevent partial restores. c2 is empty and already stopped.
@@ -6092,15 +6087,15 @@ test_clustering_replicator_dr() {
 
   sub_test "Resume: demote LXD_TWO, promote LXD_ONE, verify replication resumes"
 
-  # Stop instances on LXD_TWO before setting standby.
+  # Stop instances on LXD_TWO before demoting.
   for i in c1 c2 c3; do
     if [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list "${i}" --project replicator-project --format csv -c s 2>/dev/null)" = "RUNNING" ]; then
       LXD_DIR="${LXD_TWO_DIR}" lxc stop "${i}" --force --project replicator-project
     fi
   done
 
-  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.mode=standby
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=leader
+  LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
@@ -6142,9 +6137,11 @@ test_clustering_replicator_snapshot() {
   LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}" --auth-group replicator-group
 
-  # Configure replica project settings.
-  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one replica.mode=standby
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_two replica.mode=leader
+  # Configure replica project settings: standby sets replica.cluster, leader creates replicator.
+  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create snap-replicator cluster=lxd_two snapshot=true --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
 
   # Setup storage on both clusters.
   local pool_one pool_two
@@ -6158,7 +6155,6 @@ test_clustering_replicator_snapshot() {
   sub_test "Verify snapshot=true creates a snapshot when instance has no snapshot schedule"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --project replicator-project -d "${SMALL_ROOT_DISK}"
-  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create snap-replicator cluster=lxd_two snapshot=true --project replicator-project
 
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run snap-replicator --project replicator-project
 
@@ -6224,9 +6220,11 @@ test_clustering_replicator_multi_member() {
   LXD_DIR="${LXD_THREE_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster link create lxd_a --token "${LXD_B_TRUST_TOKEN}" --auth-group replicator-group
 
-  # Configure replica project settings.
-  LXD_DIR="${LXD_THREE_DIR}" lxc project set replicator-project replica.cluster=lxd_a replica.mode=standby
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_b replica.mode=leader
+  # Configure replica project settings: standby sets replica.cluster, leader creates replicator.
+  LXD_DIR="${LXD_THREE_DIR}" lxc project set replicator-project replica.cluster=lxd_a
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_b --project replicator-project
+  LXD_DIR="${LXD_THREE_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
 
   # Setup storage: the bootstrapped clusters already have a "data" pool;
   # add a root device to the default profile in the replicator project.
@@ -6245,8 +6243,7 @@ test_clustering_replicator_multi_member() {
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nL | grep -xF 'c1,node1'
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nL | grep -xF 'c2,node2'
 
-  # Create replicator and run.
-  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_b --project replicator-project
+  # Run replicator.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
 
   # Both instances must appear on the target cluster.
@@ -6288,8 +6285,8 @@ test_clustering_replicator_multi_member() {
   sub_test "Verify --restore rejects running instances on other members"
 
   # Simulate failover: source becomes standby, target becomes leader.
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=standby
-  LXD_DIR="${LXD_THREE_DIR}" lxc project set replicator-project replica.cluster=lxd_a replica.mode=leader
+  LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replicator-project --force
+  LXD_DIR="${LXD_THREE_DIR}" lxc project promote-replica replicator-project --force
 
   # c1 is still running on node1 — restore must refuse to proceed.
   if LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project 2>&1; then
@@ -6368,9 +6365,11 @@ test_clustering_replicator_evacuated_member() {
   LXD_DIR="${LXD_FOUR_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
   LXD_DIR="${LXD_FOUR_DIR}" lxc cluster link create lxd_a --token "${LXD_B_TRUST_TOKEN}" --auth-group replicator-group
 
-  # Configure replica project settings.
-  LXD_DIR="${LXD_FOUR_DIR}" lxc project set replicator-project replica.cluster=lxd_a replica.mode=standby
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_b replica.mode=leader
+  # Configure replica project settings: standby sets replica.cluster, leader creates replicator.
+  LXD_DIR="${LXD_FOUR_DIR}" lxc project set replicator-project replica.cluster=lxd_a
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_b --project replicator-project
+  LXD_DIR="${LXD_FOUR_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
 
   # Setup storage profiles.
   LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool=data --project replicator-project
@@ -6396,8 +6395,7 @@ test_clustering_replicator_evacuated_member() {
   c1_location="$(LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c L c1)"
   [ "${c1_location}" != "node2" ]
 
-  # Create replicator and run.
-  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_b --project replicator-project
+  # Run replicator.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
 
   # Both instances must appear on the target cluster.
@@ -6415,8 +6413,8 @@ test_clustering_replicator_evacuated_member() {
   sub_test "Restore with evacuated member"
 
   # Simulate failover: source becomes standby, target becomes leader.
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=standby
-  LXD_DIR="${LXD_FOUR_DIR}" lxc project set replicator-project replica.cluster=lxd_a replica.mode=leader
+  LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replicator-project --force
+  LXD_DIR="${LXD_FOUR_DIR}" lxc project promote-replica replicator-project --force
 
   # Run restore with node2 still evacuated.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project
@@ -6432,8 +6430,8 @@ test_clustering_replicator_evacuated_member() {
   sub_test "Forward replication with down member"
 
   # Flip back to leader mode.
-  LXD_DIR="${LXD_FOUR_DIR}" lxc project set replicator-project replica.mode=standby
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=leader
+  LXD_DIR="${LXD_FOUR_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
 
   # Bring node2 back online. Use --action=skip because instances were already
   # restored to their post-evacuation locations by the replicator restore.
@@ -6513,9 +6511,11 @@ test_clustering_replicator_vm() {
   LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}" --auth-group replicator-group
 
-  # Configure replica project settings.
-  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one replica.mode=standby
-  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_two replica.mode=leader
+  # Configure replica project settings: standby sets replica.cluster, leader creates replicator.
+  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create vm-replicator cluster=lxd_two --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
 
   # Setup storage on both clusters.
   local pool_one pool_two
@@ -6529,8 +6529,7 @@ test_clustering_replicator_vm() {
   # Create an empty VM (no image needed).
   LXD_DIR="${LXD_ONE_DIR}" lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" --project replicator-project
 
-  # Create replicator and run.
-  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create vm-replicator cluster=lxd_two --project replicator-project
+  # Run replicator.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run vm-replicator --project replicator-project
 
   # VM must appear on the target cluster.
