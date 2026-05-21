@@ -96,12 +96,16 @@ func qemuBase(opts *qemuBaseOpts) []cfgSection {
 	machineType := qemuMachineType(opts.architecture)
 	gicVersion := ""
 	capLargeDecr := ""
+	acpi := ""
 
 	switch opts.architecture {
 	case osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN:
 		gicVersion = "max"
 	case osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN:
 		capLargeDecr = "off"
+	case osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN:
+		// Booting Linux 7.0 failed with acpi="on" (LP: #2153582)
+		acpi = "off"
 	}
 
 	sections := []cfgSection{{
@@ -113,6 +117,7 @@ func qemuBase(opts *qemuBaseOpts) []cfgSection {
 			{key: "gic-version", value: gicVersion},
 			{key: "cap-large-decr", value: capLargeDecr},
 			{key: "accel", value: "kvm"},
+			{key: "acpi", value: acpi},
 			{key: "usb", value: "off"},
 		},
 	}}
