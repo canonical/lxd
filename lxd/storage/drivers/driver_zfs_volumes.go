@@ -344,6 +344,112 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter io
 	return nil
 }
 
+// findDeletedImageVariant returns a soft-deleted dataset path for vol whose on-disk
+// config matches. The deterministic /deleted/images/<name> slot is preferred; if it is
+// missing or doesn't match, /deleted/images/<name>-* tombstones are enumerated. Returns
+// ("", false, nil) when no candidate matches.
+func (d *zfs) findDeletedImageVariant(vol Volume) (string, bool, error) {
+	parent := d.config["zfs.pool_name"] + "/deleted/" + string(vol.volType)
+
+	parentExists, err := d.datasetExists(parent)
+	if err != nil || !parentExists {
+		return "", false, err
+	}
+
+	deterministic := d.dataset(vol, true)
+	exists, err := d.datasetExists(deterministic)
+	if err != nil {
+		return "", false, err
+	}
+
+	if exists {
+		match, err := d.deletedImageVariantMatches(deterministic, vol)
+		if err != nil {
+			return "", false, err
+		}
+
+		if match {
+			return deterministic, true, nil
+		}
+	}
+
+	// Tombstone search prefix: same basename as the deterministic slot, plus a "-"
+	// before the UUID. The deterministic slot itself is excluded by the trailing "-".
+	prefix := deterministic + "-"
+
+	out, err := shared.RunCommand(d.state.ShutdownCtx, "zfs", "list", "-H", "-d", "1", "-o", "name", "-t", "filesystem,volume", parent)
+	if err != nil {
+		return "", false, err
+	}
+
+	for line := range strings.SplitSeq(out, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+
+		match, err := d.deletedImageVariantMatches(line, vol)
+		if err != nil {
+			return "", false, err
+		}
+
+		if match {
+			return line, true, nil
+		}
+	}
+
+	return "", false, nil
+}
+
+// deletedImageVariantMatches returns true if the soft-deleted dataset is a viable
+// restore candidate: volsize must match and, for block-backed variants, volblocksize
+// must match vol's effective zfs.blocksize. Other variants are matched by name prefix.
+func (d *zfs) deletedImageVariantMatches(dataset string, vol Volume) (bool, error) {
+	if vol.contentType != ContentTypeBlock && !d.isBlockBacked(vol) {
+		return true, nil
+	}
+
+	// For block volumes check if the cached image volume is larger than the current pool volume.size
+	// setting (if so we won't be able to resize the snapshot to that the smaller size later).
+	volSize, err := d.getDatasetProperty(dataset, "volsize")
+	if err != nil {
+		return false, err
+	}
+
+	volSizeBytes, err := strconv.ParseInt(volSize, 10, 64)
+	if err != nil {
+		return false, err
+	}
+
+	poolVolSize := d.Info().DefaultBlockSize
+	if vol.poolConfig["volume.size"] != "" {
+		poolVolSize = vol.poolConfig["volume.size"]
+	}
+
+	poolVolSizeBytes, err := units.ParseByteSizeString(poolVolSize)
+	if err != nil {
+		return false, err
+	}
+
+	// Round to block boundary.
+	poolVolSizeBytes = d.roundVolumeBlockSizeBytes(vol, poolVolSizeBytes)
+
+	// If the cached volume size is different than the pool volume size, then we can't use the
+	// deleted cached image volume as a restore candidate. Any tombstoning of the slot happens
+	// at delete time when a new variant tries to occupy it.
+	if volSizeBytes != poolVolSizeBytes {
+		return false, nil
+	}
+
+	needsRecreate, err := d.variantNeedsRecreateForBlocksize(dataset, vol)
+	if err != nil {
+		return false, err
+	}
+
+	return !needsRecreate, nil
+}
+
+
 // CreateVolumeFromBackup re-creates a volume from its exported state.
 func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) (VolumePostHook, revert.Hook, error) {
 	// Handle the non-optimized tarballs through the generic unpacker.
