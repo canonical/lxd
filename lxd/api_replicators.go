@@ -1505,7 +1505,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 func replicatorCheckInstancesStopped(allInsts []instance.Instance) error {
 	for _, inst := range allInsts {
 		if inst.LocalConfig()["volatile.last_state.power"] == instance.PowerStateRunning {
-			return fmt.Errorf("Instance %q is running, stop all project instances before running --restore", inst.Name())
+			return fmt.Errorf("Instance %q is running, stop all project instances before restoring", inst.Name())
 		}
 	}
 
