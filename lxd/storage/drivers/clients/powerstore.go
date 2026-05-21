@@ -979,13 +979,13 @@ func (c *PowerStoreClient) RestoreVolume(volumeID string, snapshotID string) err
 // attached to the host, and false if the volume was already attached to the host.
 func (c *PowerStoreClient) AttachVolumeToHost(volumeID string, hostID string) (bool, error) {
 	// Check if the volume is already attached to the host.
-	host, err := c.GetHost(hostID)
+	mappings, err := c.GetVolumeMappings(volumeID)
 	if err != nil {
 		return false, err
 	}
 
-	for _, mapping := range host.MappedVolumes {
-		if mapping.VolumeID == volumeID {
+	for _, mapping := range mappings {
+		if mapping.HostID == hostID {
 			// The volume is already attached to the host.
 			return false, nil
 		}
