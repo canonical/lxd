@@ -548,10 +548,6 @@ func (d *zfs) datasetHeader(vol Volume, snapshots []string) (*ZFSMetaDataHeader,
 	return &migrationHeader, nil
 }
 
-func (d *zfs) randomVolumeName(vol Volume) string {
-	return vol.name + "_" + uuid.New().String()
-}
-
 func (d *zfs) delegateDataset(vol Volume, pid int) error {
 	_, err := shared.RunCommand(context.TODO(), "zfs", "zone", fmt.Sprintf("/proc/%d/ns/user", pid), d.dataset(vol, false))
 	if err != nil {

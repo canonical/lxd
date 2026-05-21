@@ -62,89 +62,14 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter io
 
 	// Look for previously deleted images.
 	if vol.volType == VolumeTypeImage {
-		dataset := d.dataset(vol, true)
-		exists, err := d.datasetExists(dataset)
+		restored, err := d.tryRestoreDeletedImageVolume(vol)
 		if err != nil {
 			return err
 		}
 
-		if exists {
-			canRestore := true
-
-			if vol.IsBlockBacked() && (vol.contentType == ContentTypeBlock || d.isBlockBacked(vol)) {
-				// For block volumes check if the cached image volume is larger than the current pool volume.size
-				// setting (if so we won't be able to resize the snapshot to that the smaller size later).
-				volSize, err := d.getDatasetProperty(dataset, "volsize")
-				if err != nil {
-					return err
-				}
-
-				volSizeBytes, err := strconv.ParseInt(volSize, 10, 64)
-				if err != nil {
-					return err
-				}
-
-				poolVolSize := d.Info().DefaultBlockSize
-				if vol.poolConfig["volume.size"] != "" {
-					poolVolSize = vol.poolConfig["volume.size"]
-				}
-
-				poolVolSizeBytes, err := units.ParseByteSizeString(poolVolSize)
-				if err != nil {
-					return err
-				}
-
-				// Round to block boundary.
-				poolVolSizeBytes = d.roundVolumeBlockSizeBytes(vol, poolVolSizeBytes)
-
-				// If the cached volume size is different than the pool volume size, then we can't use the
-				// deleted cached image volume and instead we will rename it to a random UUID so it can't
-				// be restored in the future and a new cached image volume will be created instead.
-				if volSizeBytes != poolVolSizeBytes {
-					d.logger.Debug("Renaming deleted cached image volume so that regeneration is used", logger.Ctx{"fingerprint": vol.Name()})
-					randomVol := NewVolume(d, d.name, vol.volType, vol.contentType, d.randomVolumeName(vol), vol.config, vol.poolConfig)
-
-					_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", dataset, d.dataset(randomVol, true))
-					if err != nil {
-						return err
-					}
-
-					if vol.IsVMBlock() {
-						fsVol := vol.NewVMBlockFilesystemVolume()
-						randomFsVol := randomVol.NewVMBlockFilesystemVolume()
-
-						_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(fsVol, true), d.dataset(randomFsVol, true))
-						if err != nil {
-							return err
-						}
-					}
-
-					// We have renamed the deleted cached image volume, so we don't want to try and
-					// restore it.
-					canRestore = false
-				}
-			}
-
-			// Restore the image.
-			if canRestore {
-				d.logger.Debug("Restoring previously deleted cached image volume", logger.Ctx{"fingerprint": vol.Name()})
-				_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", dataset, d.dataset(vol, false))
-				if err != nil {
-					return err
-				}
-
-				if vol.IsVMBlock() {
-					fsVol := vol.NewVMBlockFilesystemVolume()
-
-					_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(fsVol, true), d.dataset(fsVol, false))
-					if err != nil {
-						return err
-					}
-				}
-
-				revert.Success()
-				return nil
-			}
+		if restored {
+			revert.Success()
+			return nil
 		}
 	}
 
@@ -344,6 +269,53 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter io
 	return nil
 }
 
+// tryRestoreDeletedImageVolume checks for a previously soft-deleted image volume in deleted/images/
+// and restores it if the size still matches pool defaults. This avoids a full image unpack when
+// the volume was recently deleted but is still on disk.
+func (d *zfs) tryRestoreDeletedImageVolume(vol Volume) (bool, error) {
+	candidate, found, err := d.findDeletedImageVariant(vol)
+	if err != nil || !found {
+		return false, err
+	}
+
+	d.logger.Debug("Restoring previously deleted cached image volume", logger.Ctx{"fingerprint": vol.Name()})
+
+	revertRestore := revert.New()
+	defer revertRestore.Fail()
+
+	// Restore the image.
+	_, err = shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", candidate, d.dataset(vol, false))
+	if err != nil {
+		return false, err
+	}
+
+	// Roll back the main rename if anything below fails.
+	revertRestore.Add(func() {
+		_, _ = shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, false), candidate)
+	})
+
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+
+		fsCandidate, fsFound, err := d.findDeletedImageVariant(fsVol)
+		if err != nil {
+			return false, err
+		}
+
+		if !fsFound {
+			return false, fmt.Errorf("Restored image variant %q but no matching FS companion found in /deleted", vol.Name())
+		}
+
+		_, err = shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", fsCandidate, d.dataset(fsVol, false))
+		if err != nil {
+			return false, err
+		}
+	}
+
+	revertRestore.Success()
+	return true, nil
+}
+
 // findDeletedImageVariant returns a soft-deleted dataset path for vol whose on-disk
 // config matches. The deterministic /deleted/images/<name> slot is preferred; if it is
 // missing or doesn't match, /deleted/images/<name>-* tombstones are enumerated. Returns
@@ -448,7 +420,6 @@ func (d *zfs) deletedImageVariantMatches(dataset string, vol Volume) (bool, erro
 
 	return !needsRecreate, nil
 }
-
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
 func (d *zfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) (VolumePostHook, revert.Hook, error) {
