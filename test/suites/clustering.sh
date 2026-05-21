@@ -5998,7 +5998,7 @@ test_clustering_replicator_dr() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.mode=standby
   # c1 is still running on LXD_ONE after respawn; --restore must be rejected with a clear error.
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project 2>&1)" = 'Error: Instance "c1" is running, stop all project instances before running --restore' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project 2>&1)" = 'Error: Instance "c1" is running, stop all project instances before restoring' ]
 
   sub_test "Restore: set LXD_ONE to standby and restore c1, c2, and c3 from LXD_TWO"
 
