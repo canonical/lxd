@@ -23,10 +23,7 @@ import (
 
 func restServer(d *Daemon) *http.Server {
 	/* Setup the web server */
-	mux := mux.NewRouter()
-	mux.StrictSlash(false) // Don't redirect to URL with trailing slash.
-	mux.SkipClean(true)
-	mux.UseEncodedPath() // Allow encoded values in path segments.
+	mux := http.NewServeMux()
 
 	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.identityCache) {
 		mux.HandleFunc(endpoint, f)
@@ -49,9 +46,11 @@ func restServer(d *Daemon) *http.Server {
 		d.createCmd(mux, "", c)
 	}
 
-	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		metrics.TrackStartedRequest(r, entity.TypeServer) // Use TypeServer for not found handler
-		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
+	// Catch-all handler for unmatched routes.
+	// Track the request in API metrics and return a JSON 404 response.
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		metrics.TrackStartedRequest(r, entity.TypeServer)
+		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL.String(), "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.NotFound(nil).Render(w, r)
 	})
@@ -75,11 +74,9 @@ func isBrowserClient(r *http.Request) bool {
 
 func metricsServer(d *Daemon) *http.Server {
 	/* Setup the web server */
-	mux := mux.NewRouter()
-	mux.StrictSlash(false)
-	mux.SkipClean(true)
+	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w, r)
 	})
@@ -91,9 +88,11 @@ func metricsServer(d *Daemon) *http.Server {
 	d.createCmd(mux, "1.0", api10Cmd)
 	d.createCmd(mux, "1.0", metricsCmd)
 
-	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		metrics.TrackStartedRequest(r, entity.TypeServer) // Use TypeServer for not found handler
-		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
+	// Catch-all handler for unmatched routes.
+	// Track the request in API metrics and return a JSON 404 response.
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		metrics.TrackStartedRequest(r, entity.TypeServer)
+		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL.String(), "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.NotFound(nil).Render(w, r)
 	})
@@ -108,7 +107,7 @@ func metricsServer(d *Daemon) *http.Server {
 }
 
 type lxdHTTPServer struct {
-	r *mux.Router
+	r *http.ServeMux
 	d *Daemon
 }
 

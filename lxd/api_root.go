@@ -65,6 +65,7 @@ var apiRoot = []APIEndpoint{
 //	            type: string
 //	          example: ["/1.0"]
 var rootCmd = APIEndpoint{
+	Path:        "{$}",
 	MetricsType: entity.TypeServer,
 
 	Get: APIEndpointAction{Handler: rootGet, AllowUntrusted: true},
