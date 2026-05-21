@@ -7,10 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"sync"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/instance"
@@ -48,11 +45,7 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := request.ProjectParam(r)
-	instName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	instName := r.PathValue("name")
 	if shared.IsSnapshot(instName) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}

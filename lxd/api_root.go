@@ -109,7 +109,7 @@ var bearerLogoutCmd = APIEndpoint{
 
 // uiCmd serves the LXD web UI. The path pattern captures any subpath under /ui/.
 var uiCmd = APIEndpoint{
-	Path: "ui/{filepath:.*}",
+	Path: "ui/{filepath...}",
 
 	Get: APIEndpointAction{Handler: uiGet, AllowUntrusted: true},
 }
@@ -123,7 +123,7 @@ var uiRedirectCmd = APIEndpoint{
 
 // documentationCmd serves the LXD documentation. The path pattern captures any subpath under /documentation/.
 var documentationCmd = APIEndpoint{
-	Path: "documentation/{filepath:.*}",
+	Path: "documentation/{filepath...}",
 
 	Get: APIEndpointAction{Handler: documentationGet, AllowUntrusted: true},
 }

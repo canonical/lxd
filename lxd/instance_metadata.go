@@ -7,11 +7,9 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 
-	"github.com/gorilla/mux"
 	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/lxd/instance"
@@ -76,11 +74,7 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
@@ -172,11 +166,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
@@ -281,11 +271,7 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
@@ -405,11 +391,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
@@ -558,11 +540,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}
@@ -676,11 +654,7 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 
 	projectName := request.ProjectParam(r)
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}

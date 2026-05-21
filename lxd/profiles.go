@@ -8,11 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"slices"
 	"strings"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -69,11 +66,7 @@ type profileDetails struct {
 // addProfileDetailsToRequestContext sets the effective project in the request.Info and sets ctxProfileDetails (profileDetails)
 // in the request context.
 func addProfileDetailsToRequestContext(s *state.State, r *http.Request) error {
-	profileName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return err
-	}
-
+	profileName := r.PathValue("name")
 	requestProjectName := request.ProjectParam(r)
 	effectiveProject, err := project.ProfileProject(s.DB.Cluster, requestProjectName)
 	if err != nil {

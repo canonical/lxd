@@ -7,14 +7,11 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
-	"net/url"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -453,11 +450,7 @@ func clusterMemberGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(cluster.ErrNodeIsNotClustered)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	var raftNodes []db.RaftNode
 	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		raftNodes, err = tx.GetRaftNodes(ctx)
@@ -591,11 +584,7 @@ func clusterMemberPut(d *Daemon, r *http.Request) response.Response {
 
 // updateClusterMember is shared between clusterMemberPut and clusterMemberPatch.
 func updateClusterMember(s *state.State, gateway *cluster.Gateway, r *http.Request, isPatch bool) response.Response {
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	resp := forwardedResponseToNode(r.Context(), s, name)
 	if resp != nil {
 		return resp
@@ -936,11 +925,8 @@ func clusterValidateConfig(config map[string]string) error {
 func clusterMemberPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	memberName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	memberName := r.PathValue("name")
+	var err error
 	// Forward request.
 	resp := forwardedResponseToNode(r.Context(), s, memberName)
 	if resp != nil {
@@ -1007,11 +993,7 @@ func clusterMemberDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(cluster.ErrNodeIsNotClustered)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	force := shared.IsTrue(r.FormValue("force"))
 
 	localClusterAddress := s.LocalConfig.ClusterAddress()
@@ -1295,11 +1277,7 @@ func clusterMemberDelete(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func clusterMemberStateGet(d *Daemon, r *http.Request) response.Response {
-	memberName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	memberName := r.PathValue("name")
 	s := d.State()
 
 	// Forward request.
@@ -1344,11 +1322,8 @@ func clusterMemberStateGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	s := d.State()
 
 	// Forward request
@@ -1767,11 +1742,8 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Response {
 	s := d.State()
 
-	originName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	originName := r.PathValue("name")
+	var err error
 	var instances []instance.Instance
 	var localInstances []instance.Instance
 

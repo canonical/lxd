@@ -5,9 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
@@ -393,11 +390,7 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support forwards", n.Type()))
 	}
 
-	listenAddress, err := url.PathUnescape(mux.Vars(r)["listenAddress"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	listenAddress := r.PathValue("listenAddress")
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
 		return response.SmartError(err)
@@ -518,11 +511,7 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support forwards", n.Type()))
 	}
 
-	listenAddress, err := url.PathUnescape(mux.Vars(r)["listenAddress"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	listenAddress := r.PathValue("listenAddress")
 	memberSpecific := target != ""
 
 	var forward *api.NetworkForward
@@ -641,11 +630,7 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support forwards", n.Type()))
 	}
 
-	listenAddress, err := url.PathUnescape(mux.Vars(r)["listenAddress"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	listenAddress := r.PathValue("listenAddress")
 	// Decode the request.
 	req := api.NetworkForwardPut{}
 	err = json.NewDecoder(r.Body).Decode(&req)

@@ -8,11 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/robfig/cron/v3"
 
 	"github.com/canonical/lxd/client"
@@ -299,11 +297,7 @@ func replicatorGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	var apiReplicator *api.Replicator
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbReplicator, err := dbCluster.GetReplicator(ctx, tx.Tx(), name, projectName)
@@ -534,11 +528,7 @@ func replicatorPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	req := api.ReplicatorPost{}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -606,11 +596,7 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	req := api.ReplicatorStatePut{}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -692,11 +678,7 @@ func updateReplicator(d *Daemon, r *http.Request, isPatch bool) response.Respons
 		return response.SmartError(err)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	var dbReplicator *dbCluster.Replicator
 	var apiReplicator *api.Replicator
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -875,11 +857,7 @@ func replicatorDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return dbCluster.DeleteReplicator(ctx, tx.Tx(), name, projectName)
 	})
@@ -942,11 +920,7 @@ func replicatorStateGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	var status string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbReplicator, err := dbCluster.GetReplicator(ctx, tx.Tx(), name, projectName)

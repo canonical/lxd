@@ -10,12 +10,10 @@ import (
 	"maps"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -258,11 +256,7 @@ func clusterLinkGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	var apiClusterLink *api.ClusterLink
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbClusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), name)
@@ -294,11 +288,8 @@ func clusterLinkGet(d *Daemon, r *http.Request) response.Response {
 
 // updateClusterLink is shared between [clusterLinkPut] and [clusterLinkPatch].
 func updateClusterLink(s *state.State, r *http.Request, isPatch bool) response.Response {
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	var dbClusterLink *dbCluster.ClusterLinkRow
 	var apiClusterLink *api.ClusterLink
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -504,11 +495,7 @@ func clusterLinkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	err = validateClusterLinkName(req.Name)
 	if err != nil {
 		return response.BadRequest(err)
@@ -598,11 +585,8 @@ func clusterLinkPost(d *Daemon, r *http.Request) response.Response {
 func clusterLinkDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	networkCert := s.Endpoints.NetworkCert()
 	serverCert := s.ServerCert()
 	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
@@ -1361,11 +1345,8 @@ func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
+	var err error
 	l := logger.AddContext(logger.Ctx{"clusterLinkName": name})
 
 	var clusterLink *api.ClusterLink

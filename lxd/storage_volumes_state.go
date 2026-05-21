@@ -3,10 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"slices"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -83,23 +80,11 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Get the name of the pool the storage volume is supposed to be attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	poolName := r.PathValue("poolName")
 	// Get the name of the volume type.
-	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	volumeTypeName := r.PathValue("type")
 	// Get the name of the volume type.
-	volumeName, err := url.PathUnescape(mux.Vars(r)["volumeName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	volumeName := r.PathValue("volumeName")
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := cluster.StoragePoolVolumeTypeFromName(volumeTypeName)
 	if err != nil {

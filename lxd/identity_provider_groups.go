@@ -5,10 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"slices"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
@@ -249,10 +246,7 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func getIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
-	idpGroupName, err := url.PathUnescape(mux.Vars(r)["idpGroupName"])
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed unescaping identity provider group name path parameter: %w", err))
-	}
+	idpGroupName := r.PathValue("idpGroupName")
 
 	s := d.State()
 	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
@@ -386,13 +380,10 @@ func createIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func renameIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
-	idpGroupName, err := url.PathUnescape(mux.Vars(r)["idpGroupName"])
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed unescaping path argument: %w", err))
-	}
+	idpGroupName := r.PathValue("idpGroupName")
 
 	var idpGroupPost api.IdentityProviderGroupPost
-	err = json.NewDecoder(r.Body).Decode(&idpGroupPost)
+	err := json.NewDecoder(r.Body).Decode(&idpGroupPost)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Failed unmarshaling request body: %w", err))
 	}
@@ -443,13 +434,10 @@ func renameIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func updateIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
-	idpGroupName, err := url.PathUnescape(mux.Vars(r)["idpGroupName"])
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed unescaping path argument: %w", err))
-	}
+	idpGroupName := r.PathValue("idpGroupName")
 
 	var idpGroupPut api.IdentityProviderGroupPut
-	err = json.NewDecoder(r.Body).Decode(&idpGroupPut)
+	err := json.NewDecoder(r.Body).Decode(&idpGroupPut)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Failed unmarshaling request body: %w", err))
 	}
@@ -515,13 +503,10 @@ func updateIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func patchIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
-	idpGroupName, err := url.PathUnescape(mux.Vars(r)["idpGroupName"])
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed unescaping path argument: %w", err))
-	}
+	idpGroupName := r.PathValue("idpGroupName")
 
 	var idpGroupPut api.IdentityProviderGroupPut
-	err = json.NewDecoder(r.Body).Decode(&idpGroupPut)
+	err := json.NewDecoder(r.Body).Decode(&idpGroupPut)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Failed unmarshaling request body: %w", err))
 	}
@@ -586,13 +571,10 @@ func patchIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func deleteIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
-	idpGroupName, err := url.PathUnescape(mux.Vars(r)["idpGroupName"])
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed unescaping path argument: %w", err))
-	}
+	idpGroupName := r.PathValue("idpGroupName")
 
 	s := d.State()
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return dbCluster.DeleteIdentityProviderGroup(ctx, tx.Tx(), idpGroupName)
 	})
 	if err != nil {
