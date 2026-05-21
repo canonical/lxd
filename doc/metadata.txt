@@ -2530,7 +2530,7 @@ This system call can be used to get cgroup-based resource usage information.
 <!-- config group instance-snapshots start -->
 ```{config:option} snapshots.expiry instance-snapshots
 :liveupdate: "no"
-:shortdesc: "When snapshots are to be deleted"
+:shortdesc: "Time until snapshots are deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```
@@ -5227,7 +5227,7 @@ Default storage volume size rounded to 256MiB. The minimum size is 256MiB.
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
 :scope: "global"
-:shortdesc: "When snapshots are to be deleted"
+:shortdesc: "Time until snapshots are deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```
@@ -5240,7 +5240,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 :type: "string"
 You can specify a naming template for scheduled snapshots and unnamed snapshots.
 
-The `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.
+The `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.
 
 To add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.
 Make sure to format the date in your template string to avoid forbidden characters in the snapshot name.
@@ -5379,7 +5379,7 @@ Enable this option to allow the volume to be attached to multiple isolated insta
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
 :scope: "global"
-:shortdesc: "When snapshots are to be deleted"
+:shortdesc: "Time until snapshots are deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```
@@ -5392,7 +5392,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 :type: "string"
 You can specify a naming template for scheduled snapshots and unnamed snapshots.
 
-The `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.
+The `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.
 
 To add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.
 Make sure to format the date in your template string to avoid forbidden characters in the snapshot name.
@@ -5594,7 +5594,7 @@ Enable this option to allow the volume to be attached to multiple isolated insta
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
 :scope: "global"
-:shortdesc: "When snapshots are to be deleted"
+:shortdesc: "Time until snapshots are deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```
@@ -5607,7 +5607,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 :type: "string"
 You can specify a naming template for scheduled snapshots and unnamed snapshots.
 
-The `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.
+The `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.
 
 To add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.
 Make sure to format the date in your template string to avoid forbidden characters in the snapshot name.
@@ -5774,7 +5774,7 @@ Enable this option to allow the volume to be attached to multiple isolated insta
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
 :scope: "global"
-:shortdesc: "When snapshots are to be deleted"
+:shortdesc: "Time until snapshots are deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```
@@ -5787,7 +5787,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 :type: "string"
 You can specify a naming template for scheduled snapshots and unnamed snapshots.
 
-The `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.
+The `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.
 
 To add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.
 Make sure to format the date in your template string to avoid forbidden characters in the snapshot name.
@@ -5969,7 +5969,7 @@ Enable this option to allow the volume to be attached to multiple isolated insta
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
 :scope: "global"
-:shortdesc: "When snapshots are to be deleted"
+:shortdesc: "Time until snapshots are deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```
@@ -5982,7 +5982,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 :type: "string"
 You can specify a naming template for scheduled snapshots and unnamed snapshots.
 
-The `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.
+The `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.
 
 To add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.
 Make sure to format the date in your template string to avoid forbidden characters in the snapshot name.
@@ -6205,7 +6205,7 @@ Enable this option to allow the volume to be attached to multiple isolated insta
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
 :scope: "global"
-:shortdesc: "When snapshots are to be deleted"
+:shortdesc: "Time until snapshots are deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```
@@ -6218,7 +6218,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 :type: "string"
 You can specify a naming template for scheduled snapshots and unnamed snapshots.
 
-The `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.
+The `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.
 
 To add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.
 Make sure to format the date in your template string to avoid forbidden characters in the snapshot name.
@@ -6435,7 +6435,7 @@ See {ref}`storage-powerflex-limitations` for more information.
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
 :scope: "global"
-:shortdesc: "When snapshots are to be deleted"
+:shortdesc: "Time until snapshots are deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```
@@ -6448,7 +6448,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 :type: "string"
 You can specify a naming template for scheduled snapshots and unnamed snapshots.
 
-The `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.
+The `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.
 
 To add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.
 Make sure to format the date in your template string to avoid forbidden characters in the snapshot name.
@@ -6632,7 +6632,7 @@ The size must be in multiples of 1 MiB. The minimum size is 1 MiB and maximum is
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
 :scope: "global"
-:shortdesc: "When snapshots are to be deleted"
+:shortdesc: "Time until snapshots are deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```
@@ -6645,7 +6645,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 :type: "string"
 You can specify a naming template for scheduled snapshots and unnamed snapshots.
 
-The `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.
+The `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.
 
 To add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.
 Make sure to format the date in your template string to avoid forbidden characters in the snapshot name.
@@ -6813,7 +6813,7 @@ Default Pure Storage volume size rounded to 512B. The minimum size is 1MiB.
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
 :scope: "global"
-:shortdesc: "When snapshots are to be deleted"
+:shortdesc: "Time until snapshots are deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```
@@ -6826,7 +6826,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 :type: "string"
 You can specify a naming template for scheduled snapshots and unnamed snapshots.
 
-The `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.
+The `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.
 
 To add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.
 Make sure to format the date in your template string to avoid forbidden characters in the snapshot name.
@@ -7002,7 +7002,7 @@ Enable this option to allow the volume to be attached to multiple isolated insta
 :condition: "custom volume"
 :defaultdesc: "same as `volume.snapshots.expiry`"
 :scope: "global"
-:shortdesc: "When snapshots are to be deleted"
+:shortdesc: "Time until snapshots are deleted"
 :type: "string"
 Specify an expression like `1M 2H 3d 4w 5m 6y`.
 ```
@@ -7015,7 +7015,7 @@ Specify an expression like `1M 2H 3d 4w 5m 6y`.
 :type: "string"
 You can specify a naming template for scheduled snapshots and unnamed snapshots.
 
-The `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.
+The `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.
 
 To add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.
 Make sure to format the date in your template string to avoid forbidden characters in the snapshot name.

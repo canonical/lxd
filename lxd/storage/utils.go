@@ -443,7 +443,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		//  type: string
 		//  condition: custom volume
 		//  defaultdesc: same as `volume.snapshots.expiry`
-		//  shortdesc: When snapshots are to be deleted
+		//  shortdesc: Time until snapshots are deleted
 		//  scope: global
 		"snapshots.expiry": func(value string) error {
 			// Validate expression

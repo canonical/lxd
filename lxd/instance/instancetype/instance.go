@@ -400,7 +400,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// ---
 	//  type: string
 	//  liveupdate: no
-	//  shortdesc: When snapshots are to be deleted
+	//  shortdesc: Time until snapshots are deleted
 	"snapshots.expiry": func(value string) error {
 		// Validate expression
 		_, err := shared.GetExpiry(time.Time{}, value)
