@@ -528,6 +528,30 @@ func (d *zfs) Update(changedConfig map[string]string) error {
 		return errors.New("zfs.pool_name cannot be modified")
 	}
 
+	// When volume.zfs.block_mode, volume.block.filesystem, or volume.zfs.blocksize pool
+	// defaults change (including being cleared back to the default), image variants that
+	// no longer match the new defaults and have no clones become stale and can be deleted.
+	// Cleared keys appear in changedConfig with an empty string value, so the existence
+	// check below fires for both updates and deletions.
+	// Note: this runs before the DB commit in backend.Update; if the DB write fails the
+	// variants are already gone and will be rebuilt via slow-unpack on next use.
+	_, blockModeChanged := changedConfig["volume.zfs.block_mode"]
+	_, blockFSChanged := changedConfig["volume.block.filesystem"]
+	_, blocksizeChanged := changedConfig["volume.zfs.blocksize"]
+
+	if blockModeChanged || blockFSChanged || blocksizeChanged {
+		// d.config still holds the old values; merge changedConfig on top to
+		// build the post-change state.
+		newPoolConfig := make(map[string]string, len(d.config))
+		maps.Copy(newPoolConfig, d.config)
+		maps.Copy(newPoolConfig, changedConfig)
+
+		err := d.cleanupStaleImageVariants(newPoolConfig)
+		if err != nil {
+			return err
+		}
+	}
+
 	size, ok := changedConfig["size"]
 	if ok {
 		// Figure out loop path
