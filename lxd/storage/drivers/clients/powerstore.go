@@ -56,6 +56,11 @@ func (PowerStoreHostInitiator) selector() string {
 type PowerStoreHostVolumeMapping struct {
 	HostID   string `json:"host_id,omitempty"`
 	VolumeID string `json:"volume_id,omitempty"`
+	LUN      int    `json:"logical_unit_number,omitempty"`
+}
+
+func (PowerStoreHostVolumeMapping) selector() string {
+	return "host_id,volume_id,logical_unit_number"
 }
 
 // PowerStoreHost represents a PowerStore host.
@@ -756,6 +761,41 @@ func (c *PowerStoreClient) GetVolume(volumeID string) (*PowerStoreVolume, error)
 	}
 
 	return &resp, nil
+}
+
+// GetVolumeMappings retrieves host to volume mapping for a volume with the given ID.
+func (c *PowerStoreClient) GetVolumeMappings(volumeID string) ([]PowerStoreHostVolumeMapping, error) {
+	url := api.NewURL().Path("api", "rest", "host_volume_mapping")
+	url = url.WithQuery("volume_id", "eq."+volumeID)
+	url = url.WithQuery("select", PowerStoreHostVolumeMapping{}.selector())
+
+	var offset uint64
+	var attachments []PowerStoreHostVolumeMapping
+
+	for {
+		respBody := []PowerStoreHostVolumeMapping{}
+		respHeaders := make(http.Header)
+
+		pageURL := withPaginationQuery(url.URL, offset, powerStoreQueryResponseLimit)
+		err := c.requestAuthenticated(http.MethodGet, pageURL, nil, &respBody, respHeaders)
+		if err != nil {
+			return nil, fmt.Errorf("Failed retrieving PowerStore volume attachments: %w", err)
+		}
+
+		nextOffset, hasMoreItems, err := parsePaginationOffset(respHeaders)
+		if err != nil {
+			return nil, err
+		}
+
+		attachments = append(attachments, respBody...)
+		offset = nextOffset
+
+		if !hasMoreItems {
+			break
+		}
+	}
+
+	return attachments, nil
 }
 
 // CreateVolume creates a new volume.
