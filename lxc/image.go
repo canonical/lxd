@@ -1234,6 +1234,16 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 			if ok && fmt.Sprint(val) == value {
 				found = true
 			}
+
+			// Also check against column shorthand display values so that
+			if !found {
+				for _, col := range c.columns() {
+					if string(col.Shorthand) == key && col.Data(*state) == value {
+						found = true
+						break
+					}
+				}
+			}
 		} else {
 			for _, alias := range state.Aliases {
 				if strings.Contains(alias.Name, filter) {
