@@ -48,7 +48,7 @@ on:
 env:
   LXD_SKIP_TESTS: "concurrent"  # concurrent is too unreliable/racy
   LXD_REQUIRED_TESTS: "network_ovn"
-  GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && github.event.inputs.coverage == 'true' ) || ( github.event_name == 'schedule' && github.repository_owner == 'canonical' )) && 'true' || 'false' }}
+  GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && inputs.coverage ) || ( github.event_name == 'schedule' && github.repository_owner == 'canonical' )) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
   IMAGE_CACHE_DIR: "/home/runner/image-cache"
   SNAP_CACHE_DIR: "/home/runner/snap-cache"
@@ -195,7 +195,7 @@ jobs:
           version: ${{ steps.golangci-lint-version.outputs.version }}
 
       - name: Run static analysis
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis }}
         run: |
           set -eux
           # For `make update-api`
@@ -212,7 +212,7 @@ jobs:
           git diff --exit-code
 
       - name: Unit tests
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.unit-tests == 'true' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.unit-tests }}
         run: |
           set -eux
           sudo apt-get install -y xdelta3 # Required for SimpleStreams client tests.
