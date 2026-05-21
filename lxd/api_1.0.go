@@ -273,15 +273,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	// If not authenticated, return now.
 	if !requestor.IsTrusted() {
-		daemonConfig, _ := daemonConfigRender(s)
-		_, flagExists := daemonConfig["user.microcloud"]
-		if flagExists {
-			// Unprivileged users may see the user.microcloud config key
-			srv.Config = map[string]any{
-				"user.microcloud": daemonConfig["user.microcloud"],
-			}
-		}
-
+		srv.Config = s.GlobalConfig.DumpPublic()
 		return response.SyncResponseETag(true, srv, nil)
 	}
 
