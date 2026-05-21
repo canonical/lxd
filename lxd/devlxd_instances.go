@@ -3,9 +3,6 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -39,10 +36,7 @@ func devLXDInstanceGetHandler(d *Daemon, r *http.Request) response.Response {
 	// This is also enforced by the access handler.
 	projectName := inst.Project().Name
 
-	targetInstName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
+	targetInstName := r.PathValue("name")
 
 	// Get identity from the request context.
 	requestor, err := request.GetRequestor(r.Context())
@@ -58,6 +52,8 @@ func devLXDInstanceGetHandler(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
+
+	req.SetPathValue("name", targetInstName)
 
 	resp := instanceGet(d, req)
 	etag, err := response.NewResponseCapture(req).RenderToStruct(resp, &targetInst)
@@ -99,10 +95,7 @@ func devLXDInstancePatchHandler(d *Daemon, r *http.Request) response.Response {
 	// This is also enforced by the access handler.
 	projectName := inst.Project().Name
 
-	targetInstName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.DevLXDErrorResponse(api.NewGenericStatusError(http.StatusBadRequest))
-	}
+	targetInstName := r.PathValue("name")
 
 	// Get identity from the request context.
 	requestor, err := request.GetRequestor(r.Context())
@@ -125,6 +118,8 @@ func devLXDInstancePatchHandler(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
+
+	req.SetPathValue("name", targetInstName)
 
 	resp := instanceGet(d, req)
 	etag, err := response.NewResponseCapture(req).RenderToStruct(resp, &targetInst)
@@ -157,6 +152,8 @@ func devLXDInstancePatchHandler(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
+
+	req.SetPathValue("name", targetInstName)
 
 	resp = instancePatch(d, req)
 	err = response.NewResponseCapture(req).Render(resp)
