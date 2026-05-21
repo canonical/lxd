@@ -31,7 +31,9 @@ On the other hand, using remote storage has significant advantages in a cluster 
 When a volume is first mapped to the LXD host, LXD discovers the available targets from the PowerStore array and connects to them.
 Alternatively, you can specify the targets with {config:option}`storage-powerstore-pool-conf:powerstore.target`.
 
-Volume snapshots are supported by PowerStore. When a volume with at least one snapshot is copied, LXD sequentially copies snapshots into the destination volume, from which a new snapshot is created. Finally, once all snapshots are copied, the source volume is copied into the destination volume.
+Volume snapshots are supported by PowerStore.
+When a volume with at least one snapshot is copied, LXD sequentially creates snapshots on the destination volume from snapshots on the source volume.
+Finally, once all snapshots are copied, the source volume is copied into the destination volume.
 
 (storage-powerstore-volume-names)=
 ### Volume names
