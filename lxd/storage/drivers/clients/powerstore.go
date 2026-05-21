@@ -608,25 +608,6 @@ func (c *PowerStoreClient) GetCurrentHost(connectorType string, qn string) (*Pow
 	return &host, nil
 }
 
-// GetHost retrieves host using its ID.
-func (c *PowerStoreClient) GetHost(hostID string) (*PowerStoreHost, error) {
-	var host PowerStoreHost
-
-	url := api.NewURL().Path("api", "rest", "host", hostID)
-	url = url.WithQuery("select", host.selector())
-
-	err := c.requestAuthenticated(http.MethodGet, url.URL, nil, &host, nil)
-	if err != nil {
-		if isPowerStoreError(err, http.StatusNotFound) {
-			return nil, api.StatusErrorf(http.StatusNotFound, "Host with ID %q not found", hostID)
-		}
-
-		return nil, fmt.Errorf("Failed retrieving PowerStore host: %w", err)
-	}
-
-	return &host, nil
-}
-
 // CreateHost creates new host and returns its ID.
 func (c *PowerStoreClient) CreateHost(hostName string, connectorType string, qn string) (string, error) {
 	portType, err := powerStoreConnectorToPortType(connectorType)
