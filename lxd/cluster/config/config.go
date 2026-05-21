@@ -279,6 +279,32 @@ func (c *Config) Dump() map[string]string {
 	return c.m.Dump()
 }
 
+// DumpPublic returns a map of publicly visible configuration keys and values ready to add to the public (or non-admin)
+// API response.
+func (c *Config) DumpPublic() map[string]any {
+	conf := make(map[string]any, 4)
+	issuer, _, _, _, audience, _, deviceClientID := c.OIDCServer()
+	if issuer != "" && deviceClientID != "" {
+		conf["oidc.issuer"] = issuer
+		conf["oidc.device.client.id"] = deviceClientID
+		if audience != "" {
+			conf["oidc.audience"] = audience
+		}
+	}
+
+	userMicrocloud := c.m.GetString("user.microcloud")
+	if userMicrocloud != "" {
+		conf["user.microcloud"] = userMicrocloud
+	}
+
+	// Return nil if no public configuration.
+	if len(conf) == 0 {
+		return nil
+	}
+
+	return conf
+}
+
 // Replace the current configuration with the given values.
 //
 // Return what has actually changed.
