@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -159,7 +160,29 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 			imgInfo, registryName = resolveRegistryImageSource(conf.Remotes, iremote, image, remote, c.global.flagProject)
 
 			if registryName != "" {
-				req.Source.ImageRegistry = registryName
+				// Remote image registry.
+				// Check if the server has an image registry with this name.
+				_, _, err := d.GetImageRegistry(registryName)
+				if err != nil {
+					// Only fall back for 404 (registry not found).
+					if !api.StatusErrorCheck(err, http.StatusNotFound) {
+						return fmt.Errorf("Failed checking image registry %q: %w", registryName, err)
+					}
+
+					// Registry not found. If the local remote is a SimpleStreams remote,
+					// fall back to sending the deprecated Server and Protocol fields
+					// so the server can validate the URL and auto-create the registry if supported.
+					remoteConfig := conf.Remotes[iremote]
+					if remoteConfig.Protocol != api.ImageRegistryProtocolSimpleStreams {
+						return fmt.Errorf("Image registry %q not found", registryName)
+					}
+
+					req.Source.Server = remoteConfig.Addr                        //nolint:staticcheck
+					req.Source.Protocol = api.ImageRegistryProtocolSimpleStreams //nolint:staticcheck
+				} else {
+					// Registry exists on the server, use it directly.
+					req.Source.ImageRegistry = registryName
+				}
 			}
 		} else {
 			// Fetch image info from the given remote (legacy client-side resolution path).
