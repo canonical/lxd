@@ -380,6 +380,129 @@ func TestGetCPU_NUMANode(t *testing.T) {
 	assert.EqualValues(t, 1, numaByCore[1])
 }
 
+func TestGetCPU_CPUInfoSamples(t *testing.T) {
+	tests := []struct {
+		name      string
+		fixture   string
+		sysfsCPUs int
+		// cpuSockets maps logical CPU index to socket (physical_package_id).
+		// When nil, all CPUs are placed on socket 0.
+		cpuSockets  []int
+		wantErr     bool
+		wantTotal   uint64
+		wantSockets int
+		wantVendor  string
+		wantName    string
+	}{
+		{
+			// GenuineIntel dual-socket Xeon; each processor belongs to a
+			// distinct physical socket.
+			name:        "amd64/intel-xeon-e5-2683-v4",
+			fixture:     "testdata/cpuinfo_amd64_intel_xeon_e5_2683_v4.txt",
+			sysfsCPUs:   2,
+			cpuSockets:  []int{0, 1},
+			wantTotal:   2,
+			wantSockets: 2,
+			wantVendor:  "GenuineIntel",
+			wantName:    "Intel(R) Xeon(R) CPU E5-2683 v4 @ 2.10GHz",
+		},
+		{
+			// GenuineIntel with vendor_id and model name fields.
+			name:       "amd64/intel-core-i7-1370p",
+			fixture:    "testdata/cpuinfo_amd64_intel_core_i7_1370p.txt",
+			sysfsCPUs:  2,
+			wantTotal:  2,
+			wantVendor: "GenuineIntel",
+			wantName:   "13th Gen Intel(R) Core(TM) i7-1370P",
+		},
+		{
+			// AuthenticAMD with vendor_id and model name fields.
+			name:       "amd64/ryzen-ai9-hx-pro-370",
+			fixture:    "testdata/cpuinfo_amd64_ryzen_ai9_hx_pro_370.txt",
+			sysfsCPUs:  2,
+			wantTotal:  2,
+			wantVendor: "AuthenticAMD",
+			wantName:   "AMD Ryzen AI 9 HX PRO 370 w/ Radeon 890M",
+		},
+		{
+			// arm64 has no vendor_id, model name or cpu field; vendor/name
+			// fall back to DMI which is unavailable in unit tests.
+			name:      "arm64/rpi5",
+			fixture:   "testdata/cpuinfo_arm64_rpi5.txt",
+			sysfsCPUs: 2,
+			wantTotal: 2,
+		},
+		{
+			// s390x uses "processor N: version = ..." format; the fixed parser
+			// extracts N from before the colon.
+			name:      "s390x/z16",
+			fixture:   "testdata/cpuinfo_s390x_z16.txt",
+			sysfsCPUs: 2,
+			wantTotal: 2,
+		},
+		{
+			// s390x z13 (machine = 2964); same "processor N: ..." format.
+			name:      "s390x/z13",
+			fixture:   "testdata/cpuinfo_s390x_z13.txt",
+			sysfsCPUs: 2,
+			wantTotal: 2,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture, err := os.ReadFile(tc.fixture)
+			require.NoError(t, err)
+
+			cpuInfoFile := filepath.Join(t.TempDir(), "cpuinfo")
+			require.NoError(t, os.WriteFile(cpuInfoFile, fixture, 0o644))
+
+			sysDir := t.TempDir()
+			for i := range tc.sysfsCPUs {
+				socket := 0
+				if i < len(tc.cpuSockets) {
+					socket = tc.cpuSockets[i]
+				}
+
+				addCPUEntry(t, sysDir, i, socket, i, 0)
+			}
+
+			orig := sysDevicesCPU
+			origCPUInfo := cpuInfoPath
+			t.Cleanup(func() {
+				sysDevicesCPU = orig
+				cpuInfoPath = origCPUInfo
+			})
+
+			sysDevicesCPU = sysDir
+			cpuInfoPath = cpuInfoFile
+
+			cpu, err := GetCPU()
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantTotal, cpu.Total)
+
+			if tc.wantSockets > 0 {
+				assert.Len(t, cpu.Sockets, tc.wantSockets)
+			}
+
+			if len(cpu.Sockets) > 0 {
+				if tc.wantVendor != "" {
+					assert.Equal(t, tc.wantVendor, cpu.Sockets[0].Vendor)
+				}
+
+				if tc.wantName != "" {
+					assert.Equal(t, tc.wantName, cpu.Sockets[0].Name)
+				}
+			}
+		})
+	}
+}
+
 func TestGetCPU_OfflineThread(t *testing.T) {
 	sysDir := t.TempDir()
 	cpuInfoFile := filepath.Join(t.TempDir(), "cpuinfo")
