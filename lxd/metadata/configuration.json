@@ -2822,7 +2822,7 @@
 						"snapshots.expiry": {
 							"liveupdate": "no",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
-							"shortdesc": "When snapshots are to be deleted",
+							"shortdesc": "Time until snapshots are deleted",
 							"type": "string"
 						}
 					},
@@ -5832,7 +5832,7 @@
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
 							"scope": "global",
-							"shortdesc": "When snapshots are to be deleted",
+							"shortdesc": "Time until snapshots are deleted",
 							"type": "string"
 						}
 					},
@@ -5840,7 +5840,7 @@
 						"snapshots.pattern": {
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
-							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
+							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
 							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
@@ -5990,7 +5990,7 @@
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
 							"scope": "global",
-							"shortdesc": "When snapshots are to be deleted",
+							"shortdesc": "Time until snapshots are deleted",
 							"type": "string"
 						}
 					},
@@ -5998,7 +5998,7 @@
 						"snapshots.pattern": {
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
-							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
+							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
 							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
@@ -6221,7 +6221,7 @@
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
 							"scope": "global",
-							"shortdesc": "When snapshots are to be deleted",
+							"shortdesc": "Time until snapshots are deleted",
 							"type": "string"
 						}
 					},
@@ -6229,7 +6229,7 @@
 						"snapshots.pattern": {
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
-							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
+							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
 							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
@@ -6411,7 +6411,7 @@
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
 							"scope": "global",
-							"shortdesc": "When snapshots are to be deleted",
+							"shortdesc": "Time until snapshots are deleted",
 							"type": "string"
 						}
 					},
@@ -6419,7 +6419,7 @@
 						"snapshots.pattern": {
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
-							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
+							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
 							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
@@ -6628,7 +6628,7 @@
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
 							"scope": "global",
-							"shortdesc": "When snapshots are to be deleted",
+							"shortdesc": "Time until snapshots are deleted",
 							"type": "string"
 						}
 					},
@@ -6636,7 +6636,7 @@
 						"snapshots.pattern": {
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
-							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
+							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
 							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
@@ -6878,7 +6878,7 @@
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
 							"scope": "global",
-							"shortdesc": "When snapshots are to be deleted",
+							"shortdesc": "Time until snapshots are deleted",
 							"type": "string"
 						}
 					},
@@ -6886,7 +6886,7 @@
 						"snapshots.pattern": {
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
-							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
+							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
 							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
@@ -7123,7 +7123,7 @@
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
 							"scope": "global",
-							"shortdesc": "When snapshots are to be deleted",
+							"shortdesc": "Time until snapshots are deleted",
 							"type": "string"
 						}
 					},
@@ -7131,7 +7131,7 @@
 						"snapshots.pattern": {
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
-							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
+							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
 							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
@@ -7334,7 +7334,7 @@
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
 							"scope": "global",
-							"shortdesc": "When snapshots are to be deleted",
+							"shortdesc": "Time until snapshots are deleted",
 							"type": "string"
 						}
 					},
@@ -7342,7 +7342,7 @@
 						"snapshots.pattern": {
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
-							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
+							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
 							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
@@ -7528,7 +7528,7 @@
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
 							"scope": "global",
-							"shortdesc": "When snapshots are to be deleted",
+							"shortdesc": "Time until snapshots are deleted",
 							"type": "string"
 						}
 					},
@@ -7536,7 +7536,7 @@
 						"snapshots.pattern": {
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
-							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
+							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
 							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
@@ -7724,7 +7724,7 @@
 							"defaultdesc": "same as `volume.snapshots.expiry`",
 							"longdesc": "Specify an expression like `1M 2H 3d 4w 5m 6y`.",
 							"scope": "global",
-							"shortdesc": "When snapshots are to be deleted",
+							"shortdesc": "Time until snapshots are deleted",
 							"type": "string"
 						}
 					},
@@ -7732,7 +7732,7 @@
 						"snapshots.pattern": {
 							"condition": "custom volume",
 							"defaultdesc": "same as `volume.snapshots.pattern` or `snap%d`",
-							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option uses a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
+							"longdesc": "You can specify a naming template for scheduled snapshots and unnamed snapshots.\n\nThe `snapshots.pattern` option takes a Pongo2 template string to format the snapshot name.\n\nTo add a time stamp to the snapshot name, use the Pongo2 context variable `creation_date`.\nMake sure to format the date in your template string to avoid forbidden characters in the snapshot name.\nFor example, set `snapshots.pattern` to `{{ creation_date|date:'2006-01-02_15-04-05' }}` to name the snapshots after their time of creation, down to the precision of a second.\n\nAnother way to avoid name collisions is to use the placeholder `%d` in the pattern.\nIf no matching snapshots exist, the placeholder is replaced with `0`.\nOtherwise, it is replaced with the next snapshot index, which is one higher than the highest existing matching snapshot index.",
 							"scope": "global",
 							"shortdesc": "Template for the snapshot name",
 							"type": "string"
