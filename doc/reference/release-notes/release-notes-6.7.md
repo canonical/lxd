@@ -252,7 +252,7 @@ The following bug fixes are included in this release.
 - [{spellexception}`Authenticated host RCE via unsanitized compression_algorithm in image and backup API endpoints (CVE-2026-28384)`](https://github.com/canonical/lxd/security/advisories/GHSA-4rmf-rcp8-2r9g)
 - [{spellexception}`Container environment configuration newline injection (CVE-2026-23953 from Incus)`](https://github.com/lxc/incus/security/advisories/GHSA-x6jc-phwx-hp32)
 - [{spellexception}`Container image templating arbitrary host file read and write (CVE-2026-23954 from Incus)`](https://github.com/lxc/incus/security/advisories/GHSA-7f67-crqm-jgh7)
-- [{spellexception}`Container hook project command injection (from Incus)`](https://github.com/lxc/incus/pull/2827/changes/0e0cf45ecdcc902a6f319f11971ed27df81bd29f)
+- [{spellexception}`Container hook project command injection (from Incus)`](https://github.com/lxc/incus/pull/2827/commits/0e0cf45ecdcc902a6f319f11971ed27df81bd29f)
 - [{spellexception}`security.syscalls.intercept.mknod no longer for docker`](https://github.com/canonical/lxd/issues/14849)
 - [{spellexception}`Instance POST changing target and project/pool cannot be mixed`](https://github.com/canonical/lxd/issues/15525)
 - [{spellexception}`zfs.clone_copy=rebase option does not work for copying volumes`](https://github.com/canonical/lxd/issues/16449)
