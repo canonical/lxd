@@ -77,6 +77,10 @@ func loadNvidiaProc() (map[string]*api.ResourcesGPUCardNvidia, error) {
 			}
 		}
 
+		if gpuInfo.Err() != nil {
+			return nil, fmt.Errorf("Failed scanning NVIDIA GPU info for %q: %w", entryName, gpuInfo.Err())
+		}
+
 		nvidiaCards[entryName] = nvidiaCard
 	}
 
