@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/util"
@@ -41,8 +43,30 @@ func (c *connectorSCSIFC) LoadModules() error {
 	return util.LoadModule("scsi_transport_fc")
 }
 
+// QualifiedName returns the World Wide Port Name (WWPN) of the first FC host initiator.
 func (c *connectorSCSIFC) QualifiedName() (string, error) {
-	return "", nil
+	fcHostPath := "/sys/class/fc_host"
+
+	hosts, err := os.ReadDir(fcHostPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("No FC hosts found: Directory %q does not exist", fcHostPath)
+		}
+
+		return "", fmt.Errorf("Failed reading FC hosts: %w", err)
+	}
+
+	for _, host := range hosts {
+		portNameBytes, err := os.ReadFile(filepath.Join(fcHostPath, host.Name(), "port_name"))
+		if err != nil {
+			continue
+		}
+
+		wwpn := normalizeWWPN(string(portNameBytes))
+		return wwpn, nil
+	}
+
+	return "", errors.New("No FC host initiators found")
 }
 
 func (c *connectorSCSIFC) Connect(ctx context.Context, WWPN string, luns ...string) (revert.Hook, error) {
@@ -78,4 +102,15 @@ func (c *connectorSCSIFC) RemoveDiskDevice(ctx context.Context, devicePath strin
 
 func (c *connectorSCSIFC) WaitDiskDeviceResize(ctx context.Context, devicePath string, newSizeBytes int64) error {
 	return block.WaitDiskDeviceResize(ctx, devicePath, newSizeBytes)
+}
+
+// normalizeWWPN normalizes the WWPN string to make it comparable regardless of the format
+// it's provided in. Linux sysfs reports WWPNs as "0x" with 16 hex chars ("0x210034800d7035b3"),
+// while storage array might report it using colon-separated byte format ("21:00:34:80:0d:70:35:b3").
+func normalizeWWPN(wwpn string) string {
+	wwpn = strings.TrimSpace(wwpn)
+	wwpn = strings.ToLower(wwpn)
+	wwpn = strings.TrimPrefix(wwpn, "0x")
+	wwpn = strings.ReplaceAll(wwpn, ":", "")
+	return wwpn
 }
