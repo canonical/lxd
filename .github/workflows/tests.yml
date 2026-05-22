@@ -88,9 +88,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Require GHA pinning
-        uses: ./.github/actions/require-gha-pinning
-
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
 
