@@ -132,6 +132,10 @@ func parseMeminfo(path string) (*meminfo, error) {
 		}
 	}
 
+	if memInfo.Err() != nil {
+		return nil, fmt.Errorf("Failed scanning %q: %w", path, memInfo.Err())
+	}
+
 	return &memory, nil
 }
 
