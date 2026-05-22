@@ -1,5 +1,5 @@
 ---
-relatedlinks: "[Data&#32;centre&#32;networking&#58;&#32;What&#32;is&#32;OVN&#63;](https://ubuntu.com/blog/data-centre-networking-what-is-ovn), [OVN&#32;architectural&#32;overview](https://manpages.ubuntu.com/manpages/noble/man7/ovn-architecture.7.html), [OVN&#32;northbound&#32;database&#32;schema&#32;documentation](https://manpages.ubuntu.com/manpages/noble/en/man5/ovn-nb.5.html), [OVN&#32;southbound&#32;database&#32;schema&#32;documentation](https://manpages.ubuntu.com/manpages/noble/en/man5/ovn-sb.5.html)"
+relatedlinks: "[Data&#32;centre&#32;networking&#58;&#32;What&#32;is&#32;OVN&#63;](https://ubuntu.com/blog/data-centre-networking-what-is-ovn), [OVN&#32;architectural&#32;overview](https://manpages.ubuntu.com/manpages/noble/man7/ovn-architecture.7.html), [OVN&#32;northbound&#32;database&#32;schema&#32;documentation](https://manpages.ubuntu.com/manpages/noble/man5/ovn-nb.5.html), [OVN&#32;southbound&#32;database&#32;schema&#32;documentation](https://manpages.ubuntu.com/manpages/noble/man5/ovn-sb.5.html)"
 ---
 
 (ref-ovn-internals)=
@@ -20,8 +20,8 @@ For more detailed documentation on OVN itself, please see:
 
 - [Overview of OVN and SDNs](https://ubuntu.com/blog/data-centre-networking-what-is-ovn).
 - [OVN architectural overview](https://manpages.ubuntu.com/manpages/noble/man7/ovn-architecture.7.html).
-- [OVN northbound database schema documentation](https://manpages.ubuntu.com/manpages/noble/en/man5/ovn-nb.5.html).
-- [OVN southbound database schema documentation](https://manpages.ubuntu.com/manpages/noble/en/man5/ovn-sb.5.html).
+- [OVN northbound database schema documentation](https://manpages.ubuntu.com/manpages/noble/man5/ovn-nb.5.html).
+- [OVN southbound database schema documentation](https://manpages.ubuntu.com/manpages/noble/man5/ovn-sb.5.html).
 
 ## OVN concepts
 This section outlines the OVN concepts that we use in LXD.
