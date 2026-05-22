@@ -75,8 +75,97 @@ func (c *connectorSCSIFC) QualifiedName() (string, error) {
 	return "", errors.New("No FC host initiators found")
 }
 
-func (c *connectorSCSIFC) Connect(ctx context.Context, WWPN string, luns ...string) (revert.Hook, error) {
-	return nil, nil
+// Connect triggers a SCSI bus rescan on local hosts that have a remote FC port
+// matching WWPN. The HBA driver handles fabric login automatically; the rescan
+// makes newly mapped LUNs visible to the host.
+func (c *connectorSCSIFC) Connect(ctx context.Context, wwpn string, luns ...string) (revert.Hook, error) {
+	rportBasePath := "/sys/class/fc_remote_ports"
+	rports, err := os.ReadDir(rportBasePath)
+	if err != nil {
+		return nil, fmt.Errorf("Failed reading FC remote ports: %w", err)
+	}
+
+	if len(luns) == 0 {
+		return nil, errors.New("At least one LUN must be provided to connect to an FC target")
+	}
+
+	wwpn = normalizeWWPN(wwpn)
+
+	type scanTarget struct {
+		host    string
+		channel string
+		target  string
+	}
+
+	var scanTargets []scanTarget
+	for _, rport := range rports {
+		portNameBytes, err := os.ReadFile(filepath.Join(rportBasePath, rport.Name(), "port_name"))
+		if err != nil {
+			continue
+		}
+
+		portName := normalizeWWPN(string(portNameBytes))
+		if portName != wwpn {
+			continue
+		}
+
+		// rport directory name has form "rport-H:C-R":
+		// H = local SCSI host index, C = channel, R = rport index.
+		name := strings.TrimPrefix(rport.Name(), "rport-")
+		hostIdx, rest, ok := strings.Cut(name, ":")
+		if !ok {
+			continue
+		}
+
+		channel, _, ok := strings.Cut(rest, "-")
+		if !ok {
+			// Unexpected format, skip
+			continue
+		}
+
+		targetBytes, err := os.ReadFile(filepath.Join(rportBasePath, rport.Name(), "scsi_target_id"))
+		if err != nil {
+			// Attribute missing, skip
+			continue
+		}
+
+		target := strings.TrimSpace(string(targetBytes))
+
+		// If target is -1 or empty, the FC transport class is not bound to a SCSI target yet.
+		if target == "-1" || target == "" {
+			continue
+		}
+
+		scanTarget := scanTarget{
+			host:    "host" + hostIdx,
+			channel: channel,
+			target:  target,
+		}
+
+		scanTargets = append(scanTargets, scanTarget)
+	}
+
+	if len(scanTargets) == 0 {
+		return nil, fmt.Errorf("No FC remote port with WWPN %q found", wwpn)
+	}
+
+	// Trigger SCSI bus rescan on each host, by writing the scan parameters to the host's
+	// scan file. This will make the newly mapped LUNs visible to the host.
+	for _, scanTarget := range scanTargets {
+		scanPath := filepath.Join("/sys/class/scsi_host", scanTarget.host, "scan")
+
+		for _, lun := range luns {
+			scan := scanTarget.channel + " " + scanTarget.target + " " + lun
+
+			err := os.WriteFile(scanPath, []byte(scan), 0200)
+			if err != nil {
+				return nil, fmt.Errorf("Failed scanning FC host %q target %q LUN %q: %w", scanTarget.host, scanTarget.target, lun, err)
+			}
+		}
+	}
+
+	cleanup := func() {}
+	return cleanup, nil
 }
 
 // Disconnect is a no-op for FC.
