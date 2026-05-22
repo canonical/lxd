@@ -1891,7 +1891,7 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 	}
 
 	var b strings.Builder
-	for _, p := range strings.Split(c.flagColumns, ",") {
+	for p := range strings.SplitSeq(c.flagColumns, ",") {
 		if p == "" {
 			return fmt.Errorf("Invalid column list %q: empty column entry", c.flagColumns)
 		}
