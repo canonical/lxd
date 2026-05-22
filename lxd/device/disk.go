@@ -2436,6 +2436,10 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 		dev = []string{rows[2], rows[len(rows)-2]}
 	}
 
+	if scanner.Err() != nil {
+		return nil, fmt.Errorf("Failed scanning /proc/self/mountinfo: %w", scanner.Err())
+	}
+
 	if dev == nil {
 		return nil, errors.New("Could not find a match /proc/self/mountinfo entry")
 	}
