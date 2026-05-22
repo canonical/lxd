@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -625,4 +626,31 @@ func findMultipathSCSIDevices(dmName string) ([]string, error) {
 	}
 
 	return devices, nil
+}
+
+// waitMultipathReady checks if the multipath device has at least one active path.
+func waitMultipathReady(ctx context.Context, devicePath string) error {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		out, err := exec.CommandContext(ctx, "multipath", "-ll", devicePath).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Failed checking multipath device %q status: %w", devicePath, err)
+		}
+
+		// The "multipath -ll" outputs the topology of a mapper. We look for a path that is:
+		// - running = Kernel SCSI device state is online.
+		// - ready   = Path checker confirms the device is usable.
+		// - active  = Path group is currently used by multipath.
+		if strings.Contains(string(out), "active ready running") {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("Timeout waiting for multipath device %q to have active paths: %w", devicePath, ctx.Err())
+		case <-ticker.C:
+		}
+	}
 }
