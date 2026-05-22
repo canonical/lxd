@@ -70,6 +70,10 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 			udevProperties[key] = value
 		}
 
+		if udevInfo.Err() != nil {
+			return fmt.Errorf("Failed scanning udev info for disk: %w", udevInfo.Err())
+		}
+
 		// Finer grained disk type
 		if udevProperties["E:ID_CDROM"] == "1" {
 			disk.Type = "cdrom"
