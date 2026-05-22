@@ -1626,24 +1626,96 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
 // this function will return an error.
-// For image volumes, both filesystem and block volumes will be removed.
+// For image volumes, every variant on disk (base + each block-backed filesystem) is removed.
+// An error is returned if any variant deletion fails; individual failures are also logged as warnings.
 func (d *zfs) DeleteVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	if vol.volType == VolumeTypeImage {
 		// We need to clone vol the otherwise changing `zfs.block_mode`
 		// in tmpVol will also change it in vol.
 		tmpVol := vol.Clone()
 
-		for _, filesystem := range blockBackedAllowedFilesystems {
-			tmpVol.config["block.filesystem"] = filesystem
+		var lastErr error
 
-			err := d.deleteVolume(tmpVol, progressReporter)
-			if err != nil {
-				return err
+		variantSuffixes := append([]string{""}, blockBackedAllowedFilesystems...)
+		for _, suffix := range variantSuffixes {
+			if suffix == "" {
+				tmpVol.config["zfs.block_mode"] = "false"
+				delete(tmpVol.config, "block.filesystem")
+			} else {
+				tmpVol.config["zfs.block_mode"] = "true"
+				tmpVol.config["block.filesystem"] = suffix
 			}
+
+			dataset := d.dataset(tmpVol, false)
+			exists, err := d.datasetExists(dataset)
+			if err != nil {
+				d.logger.Warn("Failed checking image variant existence", logger.Ctx{"dataset": dataset, "err": err})
+				lastErr = err
+				continue
+			}
+
+			if !exists {
+				continue
+			}
+
+			err = d.deleteVolume(tmpVol, progressReporter)
+			if err != nil {
+				d.logger.Warn("Failed deleting image variant", logger.Ctx{"dataset": dataset, "err": err})
+				lastErr = err
+				continue
+			}
+		}
+
+		// For VM images, also delete the companion filesystem dataset which is not
+		// covered by the block_mode/block.filesystem variant loop above.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+			exists, err := d.datasetExists(d.dataset(fsVol, false))
+			if err != nil {
+				d.logger.Warn("Failed checking VM image companion FS dataset", logger.Ctx{"dataset": d.dataset(fsVol, false), "err": err})
+				lastErr = err
+			} else if exists {
+				err = d.deleteVolume(fsVol, progressReporter)
+				if err != nil {
+					d.logger.Warn("Failed deleting VM image companion FS dataset", logger.Ctx{"dataset": d.dataset(fsVol, false), "err": err})
+					lastErr = err
+				}
+			}
+		}
+
+		return lastErr
+	}
+
+	// For container/VM volumes, capture the source variant's origin before
+	// destroying the clone so the live variant can be deleted if it is no
+	// longer needed.
+	var origin string
+	if vol.volType == VolumeTypeContainer || vol.volType == VolumeTypeVM {
+		origin, _ = d.getDatasetProperty(d.dataset(vol, false), "origin")
+	}
+
+	err := d.deleteVolume(vol, progressReporter)
+	if err != nil {
+		return err
+	}
+
+	if origin != "" && origin != "-" {
+		err = d.tryCleanupImageVariant(origin)
+		if err != nil {
+			return err
 		}
 	}
 
-	return d.deleteVolume(vol, progressReporter)
+	// For VMs, also delete the filesystem dataset.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		err := d.DeleteVolume(fsVol, progressReporter)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // tryCleanupImageVariant destroys an image variant identified by the given
