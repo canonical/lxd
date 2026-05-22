@@ -57,6 +57,10 @@ func checkAttachedRunningProcesses(devicePath string) ([]string, error) {
 				break
 			}
 		}
+
+		if scanner.Err() != nil {
+			continue // Process may have exited mid-scan.
+		}
 	}
 
 	return processes, nil
