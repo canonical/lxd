@@ -1646,6 +1646,139 @@ func (d *zfs) DeleteVolume(vol Volume, progressReporter ioprogress.ProgressRepor
 	return d.deleteVolume(vol, progressReporter)
 }
 
+// tryCleanupImageVariant destroys an image variant identified by the given
+// origin reference if it no longer matches pool defaults and has no remaining
+// clones. origin is the "origin" property of a clone, of the form
+// pool/images/<name>@readonly.
+func (d *zfs) tryCleanupImageVariant(origin string) error {
+	dataset, _, ok := strings.Cut(origin, "@")
+	if !ok {
+		return nil
+	}
+
+	poolName := d.config["zfs.pool_name"]
+	livePrefix := poolName + "/images/"
+
+	if strings.HasPrefix(dataset, livePrefix) {
+		poolIsBlockBacked, poolBlockFS := getPoolBlockConfig(d.config)
+		return d.cleanupVariantIfStale(dataset, livePrefix, poolIsBlockBacked, poolBlockFS, d.config["volume.zfs.blocksize"])
+	}
+
+	// Soft-deleted variants are reclaimed via the /deleted/ origin chain;
+	// no additional cleanup is needed here.
+	return nil
+}
+
+// cleanupStaleImageVariants removes image variants that no longer match the
+// pool's new default configuration and have no active clones. Called when
+// pool defaults change. Walks both live and soft-deleted variants.
+func (d *zfs) cleanupStaleImageVariants(newPoolConfig map[string]string) error {
+	poolName := d.config["zfs.pool_name"]
+	isBlockBacked, blockFS := getPoolBlockConfig(newPoolConfig)
+	newBlocksize := newPoolConfig["volume.zfs.blocksize"]
+
+	for _, basePath := range []string{poolName + "/images", poolName + "/deleted/images"} {
+		exists, err := d.datasetExists(basePath)
+		if err != nil {
+			return err
+		}
+
+		if !exists {
+			continue
+		}
+
+		out, err := shared.RunCommand(d.state.ShutdownCtx, "zfs", "list", "-H", "-d", "1", "-o", "name", "-t", "filesystem,volume", basePath)
+		if err != nil {
+			return err
+		}
+
+		prefix := basePath + "/"
+		for line := range strings.SplitSeq(out, "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || line == basePath {
+				continue
+			}
+
+			err := d.cleanupVariantIfStale(line, prefix, isBlockBacked, blockFS, newBlocksize)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// cleanupVariantIfStale destroys a single image variant dataset if it no
+// longer matches pool defaults and has no live clones.
+func (d *zfs) cleanupVariantIfStale(dataset string, prefix string, poolIsBlockBacked bool, poolBlockFS string, poolBlocksize string) error {
+	// .block siblings are managed alongside the parent VM image, not independently.
+	if strings.HasSuffix(dataset, zfsBlockVolSuffix) {
+		return nil
+	}
+
+	name, ok := strings.CutPrefix(dataset, prefix)
+	if !ok || name == "" {
+		return nil
+	}
+
+	_, suffix := parseImageVariantName(name)
+
+	// VM image filesystem volumes have no _<fs> suffix and live next to a
+	// .block disk; they're reclaimed with the disk, not on their own.
+	if suffix == "" {
+		hasBlockSibling, err := d.datasetExists(dataset + zfsBlockVolSuffix)
+		if err != nil {
+			return err
+		}
+
+		if hasBlockSibling {
+			return nil
+		}
+	}
+
+	stale := !variantMatchesConfig(suffix, poolIsBlockBacked, poolBlockFS)
+
+	// For block-backed variants that still match block_mode/filesystem, also check
+	// whether the on-disk volblocksize matches the new pool default. A mismatch means
+	// instances cloned from this variant would get the wrong blocksize.
+	if !stale && suffix != "" && poolBlocksize != "" {
+		onDiskBlocksize, err := d.getDatasetProperty(dataset, "volblocksize")
+		if err == nil && onDiskBlocksize != "" {
+			desiredBytes, err := units.ParseByteSizeString(poolBlocksize)
+			if err == nil {
+				if desiredBytes > zfsMaxVolBlocksize {
+					desiredBytes = zfsMaxVolBlocksize
+				}
+
+				currentBytes, err := units.ParseByteSizeString(onDiskBlocksize)
+				if err == nil && currentBytes != desiredBytes {
+					stale = true
+				}
+			}
+		}
+	}
+
+	if !stale {
+		return nil
+	}
+
+	// Recursive lookup covers any @readonly (or other) snapshot's clones.
+	clones, err := d.getClones(dataset)
+	if err != nil {
+		return err
+	}
+
+	if len(clones) > 0 {
+		return nil
+	}
+
+	d.logger.Debug("Deleting stale image variant", logger.Ctx{"dataset": dataset})
+
+	_, err = shared.RunCommand(context.TODO(), "zfs", "destroy", "-r", dataset)
+	return err
+}
+
 func (d *zfs) deleteVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	dataset := d.dataset(vol, false)
 
