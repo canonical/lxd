@@ -1334,9 +1334,33 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 	return nil
 }
 
-// EnsureImage materialises the cached image volume on disk if it is not already present.
+// EnsureImage materialises the cached image variant identified by imgVol's effective
+// config. Variant identity on ZFS is (block_mode, block.filesystem). Returns
+// ErrImageVariantNotSupported if the on-disk volblocksize diverges from config, leaving
+// the caller to decide between recreation (pool-default) or a per-instance slow-unpack.
 func (d *zfs) EnsureImage(imgVol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
-	return ensureImageVolume(imgVol, filler, progressReporter)
+	dataset := d.dataset(imgVol, false)
+	exists, err := d.datasetExists(dataset)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return d.CreateVolume(imgVol, filler, progressReporter)
+	}
+
+	if imgVol.contentType == ContentTypeBlock || d.isBlockBacked(imgVol) {
+		needsRecreate, err := d.variantNeedsRecreateForBlocksize(dataset, imgVol)
+		if err != nil {
+			return err
+		}
+
+		if needsRecreate {
+			return ErrImageVariantNotSupported
+		}
+	}
+
+	return nil
 }
 
 // RefreshVolume updates an existing volume to match the state of another.
