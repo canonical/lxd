@@ -106,6 +106,11 @@ func (c *connectorNVMe) Type() string {
 	return TypeNVMeTCP
 }
 
+// Transport returns the transport type of the connector.
+func (c *connectorNVMe) Transport() TransportType {
+	return TransportTCP
+}
+
 // Version returns the version of the NVMe CLI.
 func (c *connectorNVMe) Version() (string, error) {
 	// Detect and record the version of the NVMe CLI.

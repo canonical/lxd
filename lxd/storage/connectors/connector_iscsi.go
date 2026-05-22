@@ -60,6 +60,11 @@ func (c *connectorISCSI) Type() string {
 	return TypeISCSI
 }
 
+// Transport returns the transport type of the connector.
+func (c *connectorISCSI) Transport() TransportType {
+	return TransportTCP
+}
+
 // Version returns the version of the iSCSI CLI (iscsiadm).
 func (c *connectorISCSI) Version() (string, error) {
 	// Detect and record the version of the iSCSI CLI.
