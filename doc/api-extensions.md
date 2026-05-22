@@ -3090,7 +3090,7 @@ Security events are accessible via `GET /1.0/events?type=security` and can be ro
 
 ## `storage_driver_powerstore`
 
-Adds a new `powerstore` storage driver which allows the consumption of storage volumes from a PowerStore storage array using iSCSI.
+Adds a new `powerstore` storage driver which allows the consumption of storage volumes from a PowerStore storage array using iSCSI or Fibre Channel (FC).
 
 The following pool level configuration keys have been added:
 
