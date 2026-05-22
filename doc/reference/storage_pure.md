@@ -1,7 +1,7 @@
 (storage-pure)=
 # Pure Storage - `pure`
 
-[Pure Storage](https://www.purestorage.com/) is a software-defined storage solution. It offers the consumption of redundant block storage across the network.
+[Pure Storage](https://www.everpuredata.com/) is a software-defined storage solution. It offers the consumption of redundant block storage across the network.
 
 LXD supports connecting to Pure Storage storage clusters through two protocols: either {abbr}`iSCSI (Internet Small Computer Systems Interface)` or {abbr}`NVMe/TCP (Non-Volatile Memory Express over Transmission Control Protocol)`.
 In addition, Pure Storage offers copy-on-write snapshots, thin provisioning, and other features.
