@@ -48,7 +48,7 @@ on:
 env:
   LXD_SKIP_TESTS: "concurrent"  # concurrent is too unreliable/racy
   LXD_REQUIRED_TESTS: "network_ovn"
-  GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && github.event.inputs.coverage == 'true' ) || ( github.event_name == 'schedule' && github.repository_owner == 'canonical' )) && 'true' || 'false' }}
+  GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && inputs.coverage ) || ( github.event_name == 'schedule' && github.repository_owner == 'canonical' )) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
   IMAGE_CACHE_DIR: "/home/runner/image-cache"
   SNAP_CACHE_DIR: "/home/runner/snap-cache"
@@ -189,13 +189,13 @@ jobs:
         run: echo "version=$(go list -C tools -m -f '{{.Version}}' github.com/golangci/golangci-lint/v2)" >> "$GITHUB_OUTPUT"
 
       - name: Run golangci-lint
-        if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis }}
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
         with:
           version: ${{ steps.golangci-lint-version.outputs.version }}
 
       - name: Run static analysis
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis == 'true' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis }}
         run: |
           set -eux
           # For `make update-api`
@@ -212,13 +212,13 @@ jobs:
           git diff --exit-code
 
       - name: Unit tests
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.unit-tests == 'true' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.unit-tests }}
         run: |
           set -eux
           sudo apt-get install -y xdelta3 # Required for SimpleStreams client tests.
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
-          sudo --preserve-env="${SUDO_PRESERVE_ENV}" LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" make check-unit
+          make check-unit
           git diff --exit-code
 
       - name: Upload coverage data

@@ -1,14 +1,13 @@
 package device
 
 import (
-	"os"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
-	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/network"
 )
 
@@ -60,23 +59,15 @@ func TestNetworkCalculatePairMTUWithoutParent(t *testing.T) {
 }
 
 func TestNetworkCalculatePairMTUWithParent(t *testing.T) {
-	if os.Geteuid() != 0 {
-		t.Skip("Test requires root privileges to create network interfaces")
-	}
-
-	parentName := network.RandomDevName("dmy")
-	require.NotEmpty(t, parentName)
-
-	dummy := ip.Dummy{Link: ip.Link{Name: parentName}}
-	err := dummy.Add()
+	// "lo" is always present and its MTU is readable from /sys/class/net/lo/mtu
+	// without any elevated privileges, so no interface creation is needed.
+	loMTU, err := network.GetDevMTU("lo")
 	require.NoError(t, err)
+	require.Greater(t, loMTU, uint32(200))
+	require.LessOrEqual(t, loMTU, ^uint32(0)-uint32(200))
 
-	t.Cleanup(func() {
-		_ = network.InterfaceRemove(parentName)
-	})
-
-	err = (&ip.Link{Name: parentName}).SetMTU(1300)
-	require.NoError(t, err)
+	lowerMTU := loMTU - 200
+	higherMTU := loMTU + 200
 
 	tests := []struct {
 		name            string
@@ -87,28 +78,28 @@ func TestNetworkCalculatePairMTUWithParent(t *testing.T) {
 		{
 			name: "Inherit parent MTU when mtu not set",
 			deviceConfig: deviceConfig.Device{
-				"parent": parentName,
+				"parent": "lo",
 			},
-			expectedHostMTU: 1300,
-			expectedInstMTU: 1300,
+			expectedHostMTU: loMTU,
+			expectedInstMTU: loMTU,
 		},
 		{
 			name: "Keep larger parent MTU when mtu is lower",
 			deviceConfig: deviceConfig.Device{
-				"parent": parentName,
-				"mtu":    "1200",
+				"parent": "lo",
+				"mtu":    strconv.FormatUint(uint64(lowerMTU), 10),
 			},
-			expectedHostMTU: 1300,
-			expectedInstMTU: 1200,
+			expectedHostMTU: loMTU,
+			expectedInstMTU: lowerMTU,
 		},
 		{
 			name: "Raise host MTU when mtu is higher",
 			deviceConfig: deviceConfig.Device{
-				"parent": parentName,
-				"mtu":    "1400",
+				"parent": "lo",
+				"mtu":    strconv.FormatUint(uint64(higherMTU), 10),
 			},
-			expectedHostMTU: 1400,
-			expectedInstMTU: 1400,
+			expectedHostMTU: higherMTU,
+			expectedInstMTU: higherMTU,
 		},
 	}
 
