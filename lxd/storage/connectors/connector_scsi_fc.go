@@ -8,9 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/revert"
 )
 
@@ -240,8 +242,65 @@ func (c *connectorSCSIFC) Discover(ctx context.Context, wwpns ...string) ([]any,
 	return result, nil
 }
 
+// WaitDiskDevicePath waits for the mapped FC device to appear.
+// If the discovered device is not a multipath device, multipath is forced and the device path
+// is looked up again. An error is returned if no multipath device is found after that.
 func (c *connectorSCSIFC) WaitDiskDevicePath(ctx context.Context, diskPathFilter block.DevicePathFilterFunc) (string, error) {
-	return "", nil
+	_, ok := ctx.Deadline()
+	if !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
+
+	devicePath, err := block.WaitDiskDevicePath(ctx, scsiDiskDevicePrefix, diskPathFilter)
+	if err != nil {
+		return "", err
+	}
+
+	if isMultipathDevice(devicePath) {
+		err = waitMultipathReady(ctx, devicePath)
+		if err != nil {
+			return "", err
+		}
+
+		return devicePath, nil
+	}
+
+	// Device is not a multipath device.
+	// Create multipath device from a found device path.
+	_, err = shared.RunCommand(ctx, "multipath", devicePath)
+	if err != nil {
+		return "", fmt.Errorf("Failed configuring multipath for SCSI/FC device %q: %w", devicePath, err)
+	}
+
+	// Filter that makes sure the found device resolves to a multipath device.
+	multipathDeviceFilter := func(devicePath string) bool {
+		if !diskPathFilter(devicePath) {
+			return false
+		}
+
+		path, err := filepath.EvalSymlinks(devicePath)
+		if err != nil {
+			return false
+		}
+
+		return isMultipathDevice(path)
+	}
+
+	// The multipath command is synchronous, but udev updates the /dev/disk/by-id
+	// symlinks asynchronously. Wait for the multipath-backed device path to appear.
+	mpDevicePath, err := block.WaitDiskDevicePath(ctx, scsiDiskDevicePrefix, multipathDeviceFilter)
+	if err != nil {
+		return "", err
+	}
+
+	err = waitMultipathReady(ctx, mpDevicePath)
+	if err != nil {
+		return "", err
+	}
+
+	return mpDevicePath, nil
 }
 
 // GetDiskDevicePath returns the path of the mapped SCSI/FC device if it already exists.
