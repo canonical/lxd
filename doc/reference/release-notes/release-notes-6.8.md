@@ -12,7 +12,7 @@ This is a {ref}`feature release <ref-releases-feature>` and is not recommended f
 ```{admonition} Release notes content
 :class: note
 These release notes cover updates in the [core LXD repository](https://github.com/canonical/lxd) and the [LXD snap package](https://snapcraft.io/lxd).
-For a tour of [LXD UI](https://github.com/canonical/lxd-ui) updates, please see the release announcement in [our Discourse forum](https://discourse.ubuntu.com/t/lxd-6-8-released/80650).
+For a tour of [LXD UI](https://github.com/canonical/lxd-ui) updates, please see the release announcement in [our Discourse forum](https://discourse.ubuntu.com/t/lxd-6-8-has-been-released/80650).
 ```
 
 (ref-release-notes-6.8-highlights)=
