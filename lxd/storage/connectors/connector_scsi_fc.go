@@ -400,7 +400,23 @@ func (c *connectorSCSIFC) RemoveDiskDevice(ctx context.Context, devicePath strin
 	return nil
 }
 
+// WaitDiskDeviceResize waits until the SCSI/FC disk device reflects the new size.
+// For multipath devices the device-mapper map is refreshed before waiting.
 func (c *connectorSCSIFC) WaitDiskDeviceResize(ctx context.Context, devicePath string, newSizeBytes int64) error {
+	_, ok := ctx.Deadline()
+	if !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
+
+	if isMultipathDevice(devicePath) {
+		_, err := shared.RunCommand(ctx, "multipath", "-r", devicePath)
+		if err != nil {
+			return fmt.Errorf("Failed updating multipath SCSI/FC device %q size: %w", devicePath, err)
+		}
+	}
+
 	return block.WaitDiskDeviceResize(ctx, devicePath, newSizeBytes)
 }
 
