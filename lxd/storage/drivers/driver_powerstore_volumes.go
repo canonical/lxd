@@ -1,7 +1,6 @@
 package drivers
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,7 +10,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/sys/unix"
@@ -20,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/storage/block"
+	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -1736,11 +1735,14 @@ func (d *powerstore) unmapVolume(vol Volume) error {
 		return fmt.Errorf("Failed detaching volume %q from host %q: %w", vol.name, host.Name, err)
 	}
 
-	// Wait until the volume has disappeared.
-	ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
-	defer cancel()
-
-	if volumePath != "" && !block.WaitDiskDeviceGone(ctx, volumePath) {
+	// iSCSI's and SCSI/FC's [connectors.RemoveDiskDevice] implementation already waits for the
+	// device to disappear before returning. Re-checking the resolved /dev/dm-X path here is
+	// unsafe, as the kernel can reuse the dm device for a different mpath assembled concurrently,
+	// making the poll see an existing device that has nothing to do with the removed volume.
+	//
+	// For NVMe the host-side device is removed asynchronously after the array detaches the
+	// volume. NVMe's [connectors.RemoveDiskDevice] is a no-op, so this is the only sync point.
+	if volumePath != "" && connector.Type() == connectors.TypeNVME && !block.WaitDiskDeviceGone(d.state.ShutdownCtx, volumePath) {
 		return fmt.Errorf("Timeout exceeded waiting for PowerStore volume %q to disappear on path %q", vol.name, volumePath)
 	}
 
