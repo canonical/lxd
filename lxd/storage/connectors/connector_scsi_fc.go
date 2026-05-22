@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +18,11 @@ var _ Connector = &connectorSCSIFC{}
 
 type connectorSCSIFC struct {
 	common
+}
+
+// FCDiscoveryRecord represents an FC target port found on the fabric.
+type FCDiscoveryRecord struct {
+	PortName string // Target WWPN (for example "2100001b32abcdef").
 }
 
 // Type returns the type of the connector.
@@ -83,8 +89,66 @@ func (c *connectorSCSIFC) findSession(targetQN string) (*session, error) {
 	return nil, nil
 }
 
-func (c *connectorSCSIFC) Discover(ctx context.Context, targetAddresses ...string) ([]any, error) {
-	return nil, nil
+// Discover returns the FC target ports visible on the fabric.
+// If WWPNs are provided they act as an allowlist.
+func (c *connectorSCSIFC) Discover(ctx context.Context, wwpns ...string) ([]any, error) {
+	rportBasePath := "/sys/class/fc_remote_ports"
+
+	rports, err := os.ReadDir(rportBasePath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, errors.New("No FC remote ports found")
+		}
+
+		return nil, fmt.Errorf("Failed reading FC remote ports: %w", err)
+	}
+
+	result := make([]any, 0, len(rports))
+	for _, rport := range rports {
+		portNameBytes, err := os.ReadFile(filepath.Join(rportBasePath, rport.Name(), "port_name"))
+		if err != nil {
+			continue
+		}
+
+		portName := normalizeWWPN(string(portNameBytes))
+
+		if len(wwpns) > 0 {
+			found := false
+			for _, wwpn := range wwpns {
+				if strings.EqualFold(portName, normalizeWWPN(wwpn)) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				continue
+			}
+		}
+
+		stateBytes, err := os.ReadFile(filepath.Join(rportBasePath, rport.Name(), "port_state"))
+		if err != nil {
+			continue
+		}
+
+		state := strings.TrimSpace(string(stateBytes))
+		if state != "Online" {
+			// Skip offline or blocked ports, as they are not usable.
+			continue
+		}
+
+		record := FCDiscoveryRecord{
+			PortName: normalizeWWPN(portName),
+		}
+
+		result = append(result, record)
+	}
+
+	if len(result) == 0 {
+		return nil, errors.New("No SCSI/FC targets found on the fabric")
+	}
+
+	return result, nil
 }
 
 func (c *connectorSCSIFC) WaitDiskDevicePath(ctx context.Context, diskPathFilter block.DevicePathFilterFunc) (string, error) {
