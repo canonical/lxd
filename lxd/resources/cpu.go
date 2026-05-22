@@ -244,8 +244,12 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			continue
 		}
 
-		// Extract cpu index
-		_, value, found := strings.Cut(line, ":")
+		// Extract cpu index.
+		//
+		// Most architectures (x86, arm64) use "processor\t: N" where the index
+		// appears after the colon. s390x uses "processor N: version = ..." where
+		// the index appears before the colon as part of the prefix. Handle both.
+		before, value, found := strings.Cut(line, ":")
 		if !found {
 			return nil, fmt.Errorf("Failed parsing %q: Missing separator", cpuInfoPath)
 		}
@@ -253,7 +257,17 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		value = strings.TrimSpace(value)
 		cpuSocket, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Failed parsing cpu index %q in %q: %w", value, cpuInfoPath, err)
+			// Fall back to extracting the index from the last whitespace-separated
+			// token of the prefix (e.g. "processor 0" -> "0").
+			fields := strings.Fields(before)
+			if len(fields) < 2 {
+				return nil, fmt.Errorf("Failed parsing cpu index in %q: %w", cpuInfoPath, err)
+			}
+
+			cpuSocket, err = strconv.ParseInt(fields[len(fields)-1], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing cpu index in %q: %w", cpuInfoPath, err)
+			}
 		}
 
 		_, ok := cpuInfoMap[cpuSocket]
