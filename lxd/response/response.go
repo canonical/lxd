@@ -716,9 +716,9 @@ func (r *manualResponse) String() string {
 // It matches existing Vary entries case-insensitively, including comma-separated values.
 func addVaryHeader(header http.Header, value string) {
 	for _, vary := range header.Values("Vary") {
-		values := strings.Split(vary, ",")
+		values := strings.SplitSeq(vary, ",")
 
-		for _, varyValue := range values {
+		for varyValue := range values {
 			if strings.EqualFold(strings.TrimSpace(varyValue), value) {
 				return
 			}
