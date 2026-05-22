@@ -308,7 +308,95 @@ func (c *connectorSCSIFC) GetDiskDevicePath(diskPathFilter block.DevicePathFilte
 	return block.GetDiskDevicePath(scsiDiskDevicePrefix, diskPathFilter)
 }
 
+// RemoveDiskDevice removes the FC disk device from the system.
+//
+// The devices should be removed from the host before being unmapped on the storage array.
+// Removing a LUN mapping immediately can cause the device to be trapped in unresponsive (D state)
+// if there are still open references to it, for example by udev.
 func (c *connectorSCSIFC) RemoveDiskDevice(ctx context.Context, devicePath string) error {
+	if devicePath == "" {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	deviceName := filepath.Base(devicePath)
+
+	// removeDevice removes device from the system if the device is removable.
+	removeDevice := func(devName string) error {
+		path := filepath.Join("/sys/block", devName, "device", "delete")
+
+		err := os.WriteFile(path, []byte("1"), 0200)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+
+		return nil
+	}
+
+	// If the device is gone, we are done.
+	if !shared.PathExists(devicePath) {
+		return nil
+	}
+
+	if isMultipathDevice(devicePath) {
+		slaveDevices, err := findMultipathSCSIDevices(deviceName)
+		if err != nil {
+			return fmt.Errorf("Failed searching SCSI paths for multipath device %q: %w", devicePath, err)
+		}
+
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+
+		var flushErr error
+		for range 10 {
+			_, flushErr = shared.RunCommand(ctx, "multipath", "-f", devicePath)
+
+			// Break if successful or if the device vanished during the command.
+			if flushErr == nil || !shared.PathExists(devicePath) {
+				break
+			}
+
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("Timeout exceeded removing multipath device %q: %w", devicePath, ctx.Err())
+			case <-ticker.C:
+			}
+		}
+
+		// Only return a failure if the map still exists after our retries.
+		if flushErr != nil && shared.PathExists(devicePath) {
+			return fmt.Errorf("Failed removing multipath device %q: %w", devicePath, flushErr)
+		}
+
+		// Remove underlying SCSI devices.
+		for _, devName := range slaveDevices {
+			err := removeDevice(devName)
+			if err != nil {
+				return fmt.Errorf("Failed removing SCSI path %q for %q: %w", devName, devicePath, err)
+			}
+		}
+
+		// Wait for each SCSI devices to actually disappear.
+		for _, devName := range slaveDevices {
+			slavePath := filepath.Join("/sys/block", devName)
+			if !block.WaitDiskDeviceGone(ctx, slavePath) {
+				return fmt.Errorf("Timeout exceeded waiting for SCSI path %q of %q to disappear", devName, devicePath)
+			}
+		}
+	} else {
+		// For non-multipath device (/dev/sd*), remove the device itself.
+		err := removeDevice(deviceName)
+		if err != nil {
+			return fmt.Errorf("Failed removing device %q: %w", devicePath, err)
+		}
+
+		if !block.WaitDiskDeviceGone(ctx, devicePath) {
+			return fmt.Errorf("Timeout exceeded waiting for SCSI device %q to disappear", devicePath)
+		}
+	}
+
 	return nil
 }
 
