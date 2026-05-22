@@ -52,9 +52,9 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 		defer func() { _ = f.Close() }()
 
 		udevProperties := map[string]string{}
-		udevInfo := bufio.NewScanner(f)
-		for udevInfo.Scan() {
-			line := strings.TrimSpace(udevInfo.Text())
+		udevInfoScanner := bufio.NewScanner(f)
+		for udevInfoScanner.Scan() {
+			line := strings.TrimSpace(udevInfoScanner.Text())
 
 			if !strings.HasPrefix(line, "E:") {
 				continue
@@ -70,8 +70,8 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 			udevProperties[key] = value
 		}
 
-		if udevInfo.Err() != nil {
-			return fmt.Errorf("Failed scanning udev info for disk: %w", udevInfo.Err())
+		if udevInfoScanner.Err() != nil {
+			return fmt.Errorf("Failed scanning udev info for disk: %w", udevInfoScanner.Err())
 		}
 
 		// Finer grained disk type
