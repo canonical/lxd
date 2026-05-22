@@ -37,12 +37,13 @@ func checkAttachedRunningProcesses(devicePath string) ([]string, error) {
 
 	for _, file := range files {
 		// Check if the directory name is a number (i.e., a PID).
-		_, err := strconv.Atoi(file.Name())
+		fileName := file.Name()
+		_, err := strconv.Atoi(fileName)
 		if err != nil {
 			continue
 		}
 
-		mapsFile := filepath.Join(procDir, file.Name(), "maps")
+		mapsFile := filepath.Join(procDir, fileName, "maps")
 		f, err := os.Open(mapsFile)
 		if err != nil {
 			continue // If we can't read a process's maps file, skip it.
@@ -51,7 +52,7 @@ func checkAttachedRunningProcesses(devicePath string) ([]string, error) {
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
 			if strings.Contains(scanner.Text(), devicePath) {
-				processes = append(processes, file.Name())
+				processes = append(processes, fileName)
 				break
 			}
 		}
