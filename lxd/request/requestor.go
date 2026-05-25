@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"slices"
 	"time"
 
 	"github.com/canonical/lxd/lxd/identity"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -225,22 +223,19 @@ func (r *Requestor) IsForwarded() bool {
 	return r.forwardedOriginAddress != ""
 }
 
-// RequestorForwardProxy returns a proxy function that adds the requestor details as headers to be inspected by the receiving cluster member.
-func RequestorForwardProxy(r RequestorAuditor) func(req *http.Request) (*url.URL, error) {
-	return func(req *http.Request) (*url.URL, error) {
-		req.Header.Add(headerForwardedAddress, r.OriginAddress())
+// SetRequestorHeaders adds the requestor details as forwarded headers on the
+// given HTTP request so the receiving cluster member can identify the caller.
+func SetRequestorHeaders(r RequestorAuditor, req *http.Request) {
+	req.Header.Add(headerForwardedAddress, r.OriginAddress())
 
-		username := r.CallerUsername()
-		if username != "" {
-			req.Header.Add(headerForwardedUsername, username)
-		}
+	username := r.CallerUsername()
+	if username != "" {
+		req.Header.Add(headerForwardedUsername, username)
+	}
 
-		protocol := r.CallerProtocol()
-		if protocol != "" {
-			req.Header.Add(headerForwardedProtocol, protocol)
-		}
-
-		return shared.ProxyFromEnvironment(req)
+	protocol := r.CallerProtocol()
+	if protocol != "" {
+		req.Header.Add(headerForwardedProtocol, protocol)
 	}
 }
 
@@ -277,7 +272,7 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 	}
 
 	// If the forwarded address is set, the forwarded protocol and username must be both be set or both be unset
-	// (see RequestorForwardProxy).
+	// (see SetRequestorHeaders).
 	if (forwardedUsername == "" && forwardedProtocol != "") || (forwardedUsername != "" && forwardedProtocol == "") {
 		return errors.New("Received forwarded request with missing username or protocol")
 	}
