@@ -434,16 +434,17 @@ func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, devicePath string
 	deviceName := filepath.Base(devicePath)
 
 	if isMultipathDevice(devicePath) {
-		// Collect the slave devices before removing the multipath map,
+		// Collect the underlying multipath devices before removing the multipath map,
 		// as /sys/block/dm-X/slaves/ will be gone after removal.
-		slavesPath := filepath.Join("/sys/block", deviceName, "slaves")
-		slaves, _ := os.ReadDir(slavesPath)
+		slaveDevices, err := findMultipathSCSIDevices(deviceName)
+		if err != nil {
+			return fmt.Errorf("Failed searching SCSI paths for multipath device %q: %w", devicePath, err)
+		}
 
 		// Remove the multipath map.
 		//
 		// This may fail transiently with "map in use" if the device is still
 		// briefly open (for example by udev), so retry a few times before giving up.
-		var err error
 		for range 10 {
 			ctxErr := ctx.Err()
 			if ctxErr != nil {
@@ -471,10 +472,18 @@ func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, devicePath string
 		// Remove the underlying SCSI devices that were part of the multipath map.
 		// If not removed, they remain on the system and cause I/O errors when the
 		// volume is disconnected from the storage array.
-		for _, slave := range slaves {
-			err := removeDevice(slave.Name())
+		for _, devName := range slaveDevices {
+			err := removeDevice(devName)
 			if err != nil {
-				return fmt.Errorf("Failed removing multipath slave device %q: %w", slave.Name(), err)
+				return fmt.Errorf("Failed removing multipath slave device %q: %w", devName, err)
+			}
+		}
+
+		// Wait for the underlying SCSI devices to disappear.
+		for _, devName := range slaveDevices {
+			devPath := filepath.Join("/sys/block", devName)
+			if !block.WaitDiskDeviceGone(ctx, devPath) {
+				return fmt.Errorf("Timeout exceeded waiting for multipath slave device %q to disappear", devPath)
 			}
 		}
 	} else {
