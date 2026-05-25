@@ -63,8 +63,8 @@ func Connect(ctx context.Context, address string, networkCert *shared.CertInfo, 
 		return nil, nil
 	}
 
-	url := "https://" + address
-	return lxd.ConnectLXDWithContext(ctx, url, args)
+	clusterURL := "https://" + address
+	return lxd.ConnectLXDWithContext(ctx, clusterURL, args)
 }
 
 // ConnectIfInstanceIsRemote figures out the address of the cluster member which is running the instance with the
