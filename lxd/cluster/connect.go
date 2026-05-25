@@ -40,8 +40,8 @@ func connect(ctx context.Context, address string, networkCert *shared.CertInfo, 
 		return nil, nil
 	}
 
-	url := "https://" + address
-	return lxd.ConnectLXD(url, args)
+	clusterURL := "https://" + address
+	return lxd.ConnectLXD(clusterURL, args)
 }
 
 // Connect is a convenience around lxd.ConnectLXD that configures the client
