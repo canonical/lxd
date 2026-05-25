@@ -535,6 +535,12 @@ func (c *connectorISCSI) WaitDiskDeviceResize(ctx context.Context, diskPath stri
 		defer cancel()
 	}
 
+	// Trigger rescan on all SCSI devices so the kernel reports the new size.
+	err := rescanMultipathSCSIDevices(diskPath)
+	if err != nil {
+		return err
+	}
+
 	if isMultipathDevice(diskPath) {
 		// Ask multipathd to refresh multipath device size.
 		_, err := shared.RunCommand(ctx, "multipath", "-r", diskPath)
@@ -645,6 +651,35 @@ func findMultipathSCSIDevices(dmName string) ([]string, error) {
 	}
 
 	return devices, nil
+}
+
+// rescanMultipathSCSIDevices triggers a SCSI capacity rescan on the device(s) backing the given
+// multipath device.
+// For multipath devices, all underlying SCSI devices are rescanned.
+// For single-path SCSI devices (sd*), the device itself is rescanned.
+func rescanMultipathSCSIDevices(devicePath string) error {
+	deviceName := filepath.Base(devicePath)
+
+	var deviceNames []string
+	if isMultipathDevice(devicePath) {
+		var err error
+		deviceNames, err = findMultipathSCSIDevices(deviceName)
+		if err != nil {
+			return fmt.Errorf("Failed finding slave SCSI devices for %q: %w", devicePath, err)
+		}
+	} else {
+		deviceNames = []string{deviceName}
+	}
+
+	for _, name := range deviceNames {
+		rescanPath := filepath.Join("/sys/block", name, "device", "rescan")
+		err := os.WriteFile(rescanPath, []byte("1"), 0200)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("Failed rescanning SCSI device %q: %w", name, err)
+		}
+	}
+
+	return nil
 }
 
 // waitMultipathReady checks if the multipath device has at least one active path.
