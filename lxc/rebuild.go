@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -65,10 +66,7 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 		}
 
 	case 2:
-		iremote, image, err = conf.ParseRemote(args[0])
-		if err != nil {
-			return err
-		}
+		iremote, image = conf.ParseRemoteUnchecked(args[0])
 
 		remote, name, err = conf.ParseRemote(args[1])
 		if err != nil {
@@ -144,18 +142,51 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 		}
 
 		iremote, image := guessImage(conf, d, remote, iremote, image)
-		imgRemote, imgInfo, err := getImgInfo(conf, iremote, image, c.global.flagProject, &req.Source)
-		if err != nil {
-			return err
+
+		var imgRemoteServer lxd.ImageServer
+		var imgInfo *api.Image
+		var legacyRemote string
+		var err error
+
+		// If the server supports image registries, we can use server-side image resolution and download.
+		// This avoids resolving the image on the client side, and passes the registry name or source project
+		// to the server so it can handle the resolution directly (which works for both public and private images,
+		// and supports features like automatic local caching and alias resolution).
+		if d.HasExtension("image_registries") {
+			var registryName string
+			imgInfo, registryName = resolveRegistryImageSource(conf, iremote, image, remote, c.global.flagProject)
+
+			if registryName != "" {
+				req.Source.ImageRegistry = registryName
+			}
+		} else {
+			// Fetch image info from the given remote (legacy client-side resolution path).
+			// Normalize empty remote to the default remote, since ParseRemoteUnchecked
+			// does not fill in the default.
+			legacyRemote = iremote
+			if legacyRemote == "" {
+				legacyRemote = conf.DefaultRemote
+			}
+
+			imgRemoteServer, imgInfo, err = getImgInfo(conf, legacyRemote, image, c.global.flagProject, &req.Source)
+			if err != nil {
+				return err
+			}
 		}
 
-		if conf.Remotes[iremote].Protocol != "simplestreams" {
+		// Update the source project if it was determined by getImgInfo.
+		if imgRemoteServer == nil && imgInfo.Project != "" {
+			req.Source.Project = imgInfo.Project
+		}
+
+		// Only perform legacy type and protocol checks if we are NOT using an image registry.
+		if imgRemoteServer != nil && conf.Remotes[legacyRemote].Protocol != "simplestreams" {
 			if imgInfo.Type != "virtual-machine" && current.Type == "virtual-machine" {
 				return errors.New("Asked for a VM but image is of type container")
 			}
 		}
 
-		op, err := d.RebuildInstanceFromImage(imgRemote, *imgInfo, name, req)
+		op, err := d.RebuildInstanceFromImage(imgRemoteServer, *imgInfo, name, req)
 		if err != nil {
 			return err
 		}

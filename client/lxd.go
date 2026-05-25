@@ -502,9 +502,21 @@ func (r *ProtocolLXD) getUnderlyingHTTPTransport() (*http.Transport, error) {
 // getSourceImageConnectionInfo returns the connection information for the source image.
 // The returned `info` is nil if the source image is local. In this process, the `instSrc`
 // is also updated with the minimal source fields.
+//
+// If the source image server is not provided, this function simply sets the necessary fields
+// for the `instSrc` for server-side resolution.
 func (r *ProtocolLXD) getSourceImageConnectionInfo(source ImageServer, image api.Image, instSrc *api.InstanceSource) (info *ConnectionInfo, err error) {
 	// Set the minimal source fields
 	instSrc.Type = api.SourceTypeImage
+
+	// If source image server is not provided this means the target server supports image registries.
+	// In this case, we expect a server-side resolution for the image.
+	if source == nil {
+		// Set the fingerprint from the image info.
+		instSrc.Fingerprint = image.Fingerprint
+		instSrc.Alias = ""
+		return nil, nil
+	}
 
 	sameServer, err := r.isSameServer(source)
 	if err != nil {
@@ -538,8 +550,8 @@ func (r *ProtocolLXD) getSourceImageConnectionInfo(source ImageServer, image api
 		return nil, err
 	}
 
-	instSrc.Protocol = info.Protocol
-	instSrc.Certificate = info.Certificate
+	instSrc.Protocol = info.Protocol       //nolint:staticcheck
+	instSrc.Certificate = info.Certificate //nolint:staticcheck
 	instSrc.Project = info.Project
 
 	// Generate secret token if needed

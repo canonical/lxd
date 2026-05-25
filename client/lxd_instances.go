@@ -190,7 +190,7 @@ func (r *ProtocolLXD) tryRebuildInstance(instanceName string, req api.InstanceRe
 		var errors []remoteOperationResult
 		for _, serverURL := range urls {
 			if operation == "" {
-				req.Source.Server = serverURL
+				req.Source.Server = serverURL //nolint:staticcheck
 			} else {
 				req.Source.Operation = serverURL + "/1.0/operations/" + url.PathEscape(operation)
 			}
@@ -616,7 +616,7 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 		var errors []remoteOperationResult
 		for _, serverURL := range urls {
 			if operation == "" {
-				req.Source.Server = serverURL
+				req.Source.Server = serverURL //nolint:staticcheck
 			} else {
 				req.Source.Operation = serverURL + "/1.0/operations/" + url.PathEscape(operation)
 			}
@@ -922,7 +922,7 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 	req.Source.Mode = "pull"
 	req.Source.Operation = opAPI.ID
 	req.Source.Websockets = sourceSecrets
-	req.Source.Certificate = info.Certificate
+	req.Source.Certificate = info.Certificate //nolint:staticcheck
 
 	return r.tryCreateInstance(req, info.Addresses, op)
 }
@@ -2047,7 +2047,7 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 	req.Source.Mode = "pull"
 	req.Source.Operation = opAPI.ID
 	req.Source.Websockets = sourceSecrets
-	req.Source.Certificate = info.Certificate
+	req.Source.Certificate = info.Certificate //nolint:staticcheck
 
 	return r.tryCreateInstance(req, info.Addresses, op)
 }

@@ -349,7 +349,12 @@ func getServerSupportedFilters(filters []string, i any) (supportedFilters []stri
 
 // guessImage checks that the image name (provided by the user) is correct given an instance remote and image remote.
 func guessImage(conf *config.Config, d lxd.InstanceServer, instRemote string, imgRemote string, imageRef string) (imageRemote string, image string) {
-	if instRemote != imgRemote {
+	impliedImgRemote := imgRemote
+	if impliedImgRemote == "" {
+		impliedImgRemote = conf.DefaultRemote
+	}
+
+	if instRemote != impliedImgRemote {
 		return imgRemote, imageRef
 	}
 
@@ -376,6 +381,36 @@ func guessImage(conf *config.Config, d lxd.InstanceServer, instRemote string, im
 
 	fmt.Fprintf(os.Stderr, "The local image '%s' could not be found, trying '%s:%s' instead.\n", imageRef, fields[0], fields[1])
 	return fields[0], fields[1]
+}
+
+// resolveRegistryImageSource determines the image source when the target server supports image registries.
+// For local copies (same server), it resolves the source project and returns an empty registry name.
+// For remote copies, it returns the image remote as the registry name.
+func resolveRegistryImageSource(conf *config.Config, imgRemote string, imgRef string, instRemote string, projectOverride string) (imgInfo *api.Image, registryName string) {
+	sourceRemote := imgRemote
+	if sourceRemote == "" {
+		sourceRemote = instRemote
+	}
+
+	if sourceRemote == instRemote {
+		// Local image. Determine the source project.
+		imageProject := projectOverride
+		if imageProject == "" {
+			imageProject = conf.Remotes[sourceRemote].Project
+		}
+
+		if imageProject == "" {
+			imageProject = api.ProjectDefaultName
+		}
+
+		return &api.Image{
+			Fingerprint: imgRef,
+			Project:     imageProject,
+		}, ""
+	}
+
+	// Remote image registry.
+	return &api.Image{Fingerprint: imgRef}, imgRemote
 }
 
 // getImgInfo returns an image server and image info for the given image name, image remote, and image project.

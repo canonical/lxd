@@ -16,6 +16,7 @@ Images are used to create instances. Pre-configured images can be downloaded fro
 ```{toctree}
 :titlesonly:
 
+Manage image registries </howto/image_registries>
 Use remote images </howto/images_remote>
 Manage images </howto/images_manage>
 Associate profiles </howto/images_profiles>

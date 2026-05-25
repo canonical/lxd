@@ -121,6 +121,9 @@ const (
 
 	// TypeReplicator represents replicator resources.
 	TypeReplicator Type = "replicator"
+
+	// TypeImageRegistry represents image registry resources.
+	TypeImageRegistry Type = "image_registry"
 )
 
 const (
@@ -183,6 +186,7 @@ var entityTypes = map[Type]typeInfo{
 	TypePlacementGroup:        placementGroup{},
 	TypeClusterLink:           clusterLink{},
 	TypeReplicator:            replicator{},
+	TypeImageRegistry:         imageRegistry{},
 }
 
 // metricsEntityTypes is the source of truth for which entity types can be used to categorize endpoints
@@ -203,6 +207,7 @@ var metricsEntityTypes = []Type{
 	TypePlacementGroup,
 	TypeClusterLink,
 	TypeReplicator,
+	TypeImageRegistry,
 }
 
 // APIMetricsEntityTypes returns the list of entity types relevant for the API metrics.
@@ -629,5 +634,21 @@ func (replicator) path() []string {
 }
 
 func (replicator) pathArgNames() []string {
+	return []string{"name"}
+}
+
+type imageRegistry struct {
+	typeInfoCommon
+}
+
+func (imageRegistry) requiresProject() bool {
+	return false
+}
+
+func (imageRegistry) path() []string {
+	return []string{"image-registries", pathPlaceholder}
+}
+
+func (imageRegistry) pathArgNames() []string {
 	return []string{"name"}
 }

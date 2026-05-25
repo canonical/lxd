@@ -1,0 +1,766 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"maps"
+	"os"
+	"sort"
+	"strings"
+
+	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v2"
+
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/api"
+	cli "github.com/canonical/lxd/shared/cmd"
+	"github.com/canonical/lxd/shared/termios"
+)
+
+type cmdImageRegistry struct {
+	global *cmdGlobal
+}
+
+func (c *cmdImageRegistry) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("registry")
+	cmd.Short = "Manage image registries"
+	cmd.Long = cli.FormatSection("Description", `Manage image registries`)
+
+	// Create
+	imageRegistryCreateCmd := cmdImageRegistryCreate{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistryCreateCmd.command())
+
+	// List
+	imageRegistryListCmd := cmdImageRegistryList{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistryListCmd.command())
+
+	// Rename
+	imageRegistryRenameCmd := cmdImageRegistryRename{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistryRenameCmd.command())
+
+	// Delete
+	imageRegistryDeleteCmd := cmdImageRegistryDelete{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistryDeleteCmd.command())
+
+	// Edit
+	imageRegistryEditCmd := cmdImageRegistryEdit{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistryEditCmd.command())
+
+	// Show
+	imageRegistryShowCmd := cmdImageRegistryShow{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistryShowCmd.command())
+
+	// Get
+	imageRegistryGetCmd := cmdImageRegistryGet{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistryGetCmd.command())
+
+	// Set
+	imageRegistrySetCmd := cmdImageRegistrySet{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistrySetCmd.command())
+
+	// Unset
+	imageRegistryUnsetCmd := cmdImageRegistryUnset{global: c.global, imageRegistry: c}
+	cmd.AddCommand(imageRegistryUnsetCmd.command())
+
+	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
+	cmd.Args = cobra.NoArgs
+	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
+	return cmd
+}
+
+// Create.
+type cmdImageRegistryCreate struct {
+	global        *cmdGlobal
+	imageRegistry *cmdImageRegistry
+
+	flagDescription string
+	flagProtocol    string
+	flagProject     string
+}
+
+func (c *cmdImageRegistryCreate) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("create", "[<remote>:]<registry> [key=value...]")
+	cmd.Short = "Create image registry"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
+	
+URL must be HTTPS (https://). Basic authentication is not allowed.
+`)
+
+	cmd.RunE = c.run
+	cmd.Flags().StringVar(&c.flagDescription, "description", "", cli.FormatStringFlagLabel("Description for the image registry"))
+	cmd.Flags().StringVar(&c.flagProtocol, "protocol", "", cli.FormatStringFlagLabel("Registry server protocol (lxd or simplestreams)"))
+	cmd.Flags().StringVar(&c.flagProject, "project", "", cli.FormatStringFlagLabel("Source project for the LXD registry"))
+
+	return cmd
+}
+
+func (c *cmdImageRegistryCreate) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	registryName := resource.name
+	if registryName == "" {
+		return errors.New("Image registry name must not be empty")
+	}
+
+	// Create the image registry.
+	imageRegistry := api.ImageRegistriesPost{}
+	imageRegistry.Name = registryName
+	imageRegistry.Description = c.flagDescription
+	imageRegistry.Protocol = c.flagProtocol
+	imageRegistry.Config = map[string]string{}
+
+	// Populate config.
+	for i := 1; i < len(args); i++ {
+		key, value, found := strings.Cut(args[i], "=")
+		if !found {
+			return fmt.Errorf("Bad key/value pair: %s", args[i])
+		}
+
+		imageRegistry.Config[key] = value
+	}
+
+	if c.flagProject != "" {
+		imageRegistry.Config["source_project"] = c.flagProject
+	}
+
+	// Create the image registry.
+	err = client.CreateImageRegistry(imageRegistry)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Image registry %s created\n", registryName)
+	}
+
+	return nil
+}
+
+// List.
+type cmdImageRegistryList struct {
+	global        *cmdGlobal
+	imageRegistry *cmdImageRegistry
+
+	flagFormat string
+}
+
+func (c *cmdImageRegistryList) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("list", "[<remote>:]")
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = "List image registries"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = c.run
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 1 {
+			return c.global.cmpRemotes(toComplete, ":", true, instanceServerRemoteCompletionFilters(*c.global.conf)...)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistryList) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	remote := ""
+	if len(args) > 0 {
+		remote = args[0]
+	}
+
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	// Fetch the image registries.
+	imageRegistries, err := client.GetImageRegistries()
+	if err != nil {
+		return err
+	}
+
+	data := [][]string{}
+	for _, registry := range imageRegistries {
+		registryPublic := "NO"
+		if shared.IsTrue(registry.Config["public"]) {
+			registryPublic = "YES"
+		}
+
+		registryBuiltin := "NO"
+		if registry.Builtin {
+			registryBuiltin = "YES"
+		}
+
+		details := []string{
+			registry.Name,
+			registry.Config["url"],
+			registry.Protocol,
+			registryPublic,
+			registryBuiltin,
+		}
+
+		data = append(data, details)
+	}
+
+	sort.Sort(cli.SortColumnsNaturally(data))
+
+	header := []string{
+		"NAME",
+		"URL",
+		"PROTOCOL",
+		"PUBLIC",
+		"BUILT-IN",
+	}
+
+	return cli.RenderTable(c.flagFormat, header, data, imageRegistries)
+}
+
+// Rename.
+type cmdImageRegistryRename struct {
+	global        *cmdGlobal
+	imageRegistry *cmdImageRegistry
+}
+
+func (c *cmdImageRegistryRename) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("rename", "[<remote>:]<registry> <new_name>")
+	cmd.Aliases = []string{"mv"}
+	cmd.Short = "Rename image registry"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistryRename) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing image registry name")
+	}
+
+	// Rename the image registry.
+	err = resource.server.RenameImageRegistry(resource.name, api.ImageRegistryPost{Name: args[1]})
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Image registry %s renamed to %s\n", resource.name, args[1])
+	}
+
+	return nil
+}
+
+// Delete.
+type cmdImageRegistryDelete struct {
+	global        *cmdGlobal
+	imageRegistry *cmdImageRegistry
+}
+
+func (c *cmdImageRegistryDelete) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("delete", "[<remote>:]<registry>")
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = "Delete image registry"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistryDelete) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing image registry name")
+	}
+
+	// Delete the image registry.
+	err = resource.server.DeleteImageRegistry(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Image registry %s deleted\n", resource.name)
+	}
+
+	return nil
+}
+
+// Edit.
+type cmdImageRegistryEdit struct {
+	global        *cmdGlobal
+	imageRegistry *cmdImageRegistry
+}
+
+func (c *cmdImageRegistryEdit) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("edit", "[<remote>:]<registry>")
+	cmd.Short = "Edit image registry configuration as YAML"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc image registry edit [<remote>:]<name> < registry.yaml
+	Update an image registry using the content of registry.yaml`)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistryEdit) helpTemplate() string {
+	return `### This is a YAML representation of an image registry configuration.
+### Any line starting with a '#' will be ignored.
+###
+### A sample image registry configuration looks like:
+### name: lxd01
+### description: my image registry
+### protocol: lxd
+### config:
+###   cluster: lxd01
+###   public: true
+###   source_project: default
+###   url: https://10.0.0.1
+###   user.key: value
+###
+### Note that the name and protocol are shown but cannot be changed
+`
+}
+
+func (c *cmdImageRegistryEdit) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing image registry name")
+	}
+
+	// If stdin is not a terminal, read text from it.
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		newData := api.ImageRegistryPut{}
+		err = yaml.Unmarshal(contents, &newData)
+		if err != nil {
+			return err
+		}
+
+		return resource.server.UpdateImageRegistry(resource.name, newData, "")
+	}
+
+	// Extract the current value.
+	registry, etag, err := resource.server.GetImageRegistry(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&registry)
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor.
+	content, err := shared.TextEditor("", []byte(c.helpTemplate()+"\n\n"+string(data)))
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Parse the text received from the editor.
+		newData := api.ImageRegistryPut{}
+		err = yaml.Unmarshal(content, &newData)
+		if err == nil {
+			err = resource.server.UpdateImageRegistry(resource.name, newData, etag)
+		}
+
+		// Respawn the editor.
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Could not image registry: %v\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
+
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		break
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Image registry %s updated\n", resource.name)
+	}
+
+	return nil
+}
+
+// Show.
+type cmdImageRegistryShow struct {
+	global        *cmdGlobal
+	imageRegistry *cmdImageRegistry
+}
+
+func (c *cmdImageRegistryShow) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("show", "[<remote>:]<registry>")
+	cmd.Short = "Show image registry configuration"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc image registry show lxd01
+	Will show the properties of an image registry called "lxd01".`)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistryShow) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing image registry name")
+	}
+
+	// Show the image registry.
+	registry, _, err := resource.server.GetImageRegistry(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&registry)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+
+	return nil
+}
+
+// Get.
+type cmdImageRegistryGet struct {
+	global        *cmdGlobal
+	imageRegistry *cmdImageRegistry
+
+	flagIsProperty bool
+}
+
+func (c *cmdImageRegistryGet) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("get", "[<remote>:]<registry> <key>")
+	cmd.Short = "Get values for image registry configuration keys"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = c.run
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Get the key as an image registry property")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpImageRegistryConfig(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistryGet) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing image registry name")
+	}
+
+	// Get the image registry.
+	registry, _, err := resource.server.GetImageRegistry(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if c.flagIsProperty {
+		w := registry.Writable()
+		res, err := getFieldByJSONTag(&w, args[1])
+		if err != nil {
+			return fmt.Errorf("The property %q does not exist on the image registry %q: %v", args[1], resource.name, err)
+		}
+
+		fmt.Printf("%v\n", res)
+	} else {
+		fmt.Printf("%s\n", registry.Config[args[1]])
+	}
+
+	return nil
+}
+
+// Set.
+type cmdImageRegistrySet struct {
+	global        *cmdGlobal
+	imageRegistry *cmdImageRegistry
+
+	flagIsProperty bool
+}
+
+func (c *cmdImageRegistrySet) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("set", "[<remote>:]<registry> <key>=<value>...")
+	cmd.Short = "Set image registry configuration keys"
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
+
+For backward compatibility, a single configuration key may still be set with:
+    lxc image registry set [<remote>:]<registry> <key> <value>`)
+
+	cmd.RunE = c.run
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Set the key as an image registry property")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpImageRegistryConfig(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistrySet) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing image registry name")
+	}
+
+	// Get the current image registry configuration.
+	registry, etag, err := resource.server.GetImageRegistry(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Set the configuration key.
+	keys, err := getConfig(args[1:]...)
+	if err != nil {
+		return err
+	}
+
+	writable := registry.Writable()
+	if c.flagIsProperty {
+		if cmd.Name() == "unset" {
+			for k := range keys {
+				err := unsetFieldByJSONTag(&writable, k)
+				if err != nil {
+					return fmt.Errorf("Error unsetting property: %v", err)
+				}
+			}
+		} else {
+			err := unpackKVToWritable(&writable, keys)
+			if err != nil {
+				return fmt.Errorf("Error setting properties: %v", err)
+			}
+		}
+	} else {
+		maps.Copy(writable.Config, keys)
+	}
+
+	return resource.server.UpdateImageRegistry(resource.name, writable, etag)
+}
+
+// Unset.
+type cmdImageRegistryUnset struct {
+	global           *cmdGlobal
+	imageRegistry    *cmdImageRegistry
+	imageRegistrySet *cmdImageRegistrySet
+
+	flagIsProperty bool
+}
+
+func (c *cmdImageRegistryUnset) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("unset", "[<remote>:]<registry> <key>")
+	cmd.Short = "Unset image registry configuration keys"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = c.run
+
+	cmd.Flags().BoolVarP(&c.flagIsProperty, "property", "p", false, "Unset the key as an image registry property")
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("image_registry", toComplete)
+		}
+
+		if len(args) == 1 {
+			return c.global.cmpImageRegistryConfig(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdImageRegistryUnset) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	c.imageRegistrySet.flagIsProperty = c.flagIsProperty
+
+	args = append(args, "")
+	return c.imageRegistrySet.run(cmd, args)
+}

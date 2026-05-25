@@ -231,222 +231,45 @@ test_remote_usage() {
   token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
   lxc_remote remote add lxd2 "${LXD2_ADDR}" --token "${token}"
 
-  # we need a public image on localhost
-
-  lxc_remote image export localhost:testimage "${LXD_DIR}/foo"
-  lxc_remote image delete localhost:testimage
-  sum=$(sha256sum "${LXD_DIR}/foo.tar"* | cut -d' ' -f1)
-  lxc_remote image import "${LXD_DIR}/foo.tar"* localhost: --public
-  lxc_remote image alias create localhost:testimage "${sum}"
-
-  lxc_remote image delete "lxd2:${sum}" || true
-
-  lxc_remote image copy --quiet localhost:testimage lxd2: --copy-aliases --public
-  lxc_remote image delete "localhost:${sum}"
-  lxc_remote image copy --quiet "lxd2:${sum}" local: --copy-aliases --public
-  lxc_remote image info localhost:testimage
-  lxc_remote image delete "lxd2:${sum}"
-
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2:
-  lxc_remote image delete "lxd2:${sum}"
-
-  lxc_remote image copy --quiet "localhost:${sum:0:12}" lxd2:
-  lxc_remote image delete "lxd2:${sum}"
-
-  # test a private image
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2:
-  lxc_remote image delete "localhost:${sum}"
-  lxc_remote init --quiet "lxd2:${sum}" localhost:c1
-  lxc_remote delete localhost:c1
-
-  lxc_remote image alias create localhost:testimage "${sum}"
-
-  # test remote publish
+  # Publish a local container to the same server with custom properties.
+  sub_test "Verify local publish"
   lxc_remote init --quiet testimage pub
-  lxc_remote publish --quiet pub lxd2: --alias bar --public a=b
-  lxc_remote image show lxd2:bar | grep -F "a: b"
-  lxc_remote image show lxd2:bar | grep -xF "public: true"
-  fingerprint="$(lxc image list -f csv -c F lxd2:bar)"
-  ! lxc_remote image show bar || false
+  lxc_remote publish --quiet pub local: --alias bar --public a=b
+  lxc_remote image show local:bar | grep -F "a: b"
+  lxc_remote image show local:bar | grep -xF "public: true"
+  lxc_remote delete pub
+  lxc_remote image delete local:bar
+
+  # Cross-remote publish is not supported with image registries.
+  sub_test "Verify cross-remote publish is rejected"
+  lxc_remote init --quiet testimage pub
+  ! lxc_remote publish --quiet pub lxd2: --alias bar --public || false
   lxc_remote delete pub
 
-  # test spawn from public server
-  lxc_remote remote add lxd2-public "${LXD2_ADDR}" --public --accept-certificate
-  lxc_remote init --quiet lxd2-public:bar pub
-  lxc_remote image delete lxd2:bar
-  lxc_remote delete pub
-  lxc_remote image delete "${fingerprint}"
-
-  # Double launch to test if the image downloads only once.
-  lxc_remote init --quiet localhost:testimage lxd2:c1 &
-  C1PID=$!
-
-  lxc_remote init --quiet localhost:testimage lxd2:c2
-  lxc_remote delete lxd2:c2
-
-  wait "${C1PID}"
-  lxc_remote delete lxd2:c1
-
-  # launch testimage stored on localhost as container c1 on lxd2
-  lxc_remote launch localhost:testimage lxd2:c1
-
-  # make sure it is running
-  lxc_remote list lxd2: | grep c1 | grep RUNNING
-  lxc_remote info lxd2:c1
-  lxc_remote stop lxd2:c1 --force
-  lxc_remote delete lxd2:c1
-
-  # Test that local and public servers can be accessed without a client cert
+  # Verify that the local server can be accessed without a client certificate
+  # via the unix socket.
+  sub_test "Verify local image access without client certificate"
   mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
   mv "${LXD_CONF}/client.key" "${LXD_CONF}/client.key.bak"
-
-  # testimage should still exist on the local server.
   lxc_remote image list local: | grep -wF testimage
-
   mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
   mv "${LXD_CONF}/client.key.bak" "${LXD_CONF}/client.key"
 
-  lxc_remote image delete "lxd2:${sum}"
+  # Verify that push and relay modes are rejected when image registries are supported.
+  sub_test "Verify push and relay modes are rejected"
+  ! lxc_remote image copy --quiet testimage lxd2: --mode=push || false
+  ! lxc_remote image copy --quiet testimage lxd2: --mode=relay || false
 
-  lxc_remote image alias create localhost:foo "${sum}"
-
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --mode=push
-  lxc_remote image show lxd2:"${sum}"
-  lxc_remote image show lxd2:"${sum}" | grep -xF 'public: false'
-  ! lxc_remote image show lxd2:foo || false
-  lxc_remote image delete "lxd2:${sum}"
-
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --mode=push --copy-aliases --public
-  lxc_remote image show lxd2:"${sum}"
-  lxc_remote image show lxd2:"${sum}" | grep -xF 'public: true'
-  lxc_remote image show lxd2:foo
-  lxc_remote image delete "lxd2:${sum}"
-
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --mode=push --copy-aliases --alias=bar
-  lxc_remote image show lxd2:"${sum}"
-  lxc_remote image show lxd2:foo
-  lxc_remote image show lxd2:bar
-  lxc_remote image delete "lxd2:${sum}"
-
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --mode=relay
-  lxc_remote image show lxd2:"${sum}"
-  lxc_remote image show lxd2:"${sum}" | grep -xF 'public: false'
-  ! lxc_remote image show lxd2:foo || false
-  lxc_remote image delete "lxd2:${sum}"
-
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --mode=relay --copy-aliases --public
-  lxc_remote image show lxd2:"${sum}"
-  lxc_remote image show lxd2:"${sum}" | grep -xF 'public: true'
-  lxc_remote image show lxd2:foo
-  lxc_remote image delete "lxd2:${sum}"
-
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --mode=relay --copy-aliases --alias=bar
-  lxc_remote image show lxd2:"${sum}"
-  lxc_remote image show lxd2:foo
-  lxc_remote image show lxd2:bar
-  lxc_remote image delete "lxd2:${sum}"
-
-  # Test image copy between projects
-  lxc_remote project create lxd2:foo
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --target-project foo
-  lxc_remote image show lxd2:"${sum}" --project foo
-  lxc_remote image delete "lxd2:${sum}" --project foo
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --target-project foo --mode=push
-  lxc_remote image show lxd2:"${sum}" --project foo
-  lxc_remote image delete "lxd2:${sum}" --project foo
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --target-project foo --mode=relay
-  lxc_remote image show lxd2:"${sum}" --project foo
-  lxc_remote image delete "lxd2:${sum}" --project foo
-  lxc_remote project delete lxd2:foo
-
-  # Test image copy with --profile option
-  lxc_remote profile create lxd2:foo
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --profile foo
-  lxc_remote image show lxd2:"${sum}" | grep -xF -- '- foo'
-  lxc_remote image delete "lxd2:${sum}"
-
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --profile foo --mode=push
-  lxc_remote image show lxd2:"${sum}" | grep -xF -- '- foo'
-  lxc_remote image delete "lxd2:${sum}"
-
-  lxc_remote image copy --quiet "localhost:${sum}" lxd2: --profile foo --mode=relay
-  lxc_remote image show lxd2:"${sum}" | grep -xF -- '- foo'
-  lxc_remote image delete "lxd2:${sum}"
-  lxc_remote profile delete lxd2:foo
-
-  lxc_remote image copy --quiet localhost:testimage lxd2: --alias bar
-  # Get the `cached` and `aliases` fields for the image `bar` in lxd2
-  cached=$(lxc_remote image info lxd2:bar | awk '/^Cached/ { print $2 }')
-  alias=$(lxc_remote image info lxd2:bar | grep -xF -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
-
-  # Check that image is not cached
-  [ "${cached}" = "no" ]
-  # Check that the alias is correct
-  [ "${alias}" = "bar" ]
-
-  # Now, lets delete the image and observe that when its downloaded implicitly as part of an instance create,
-  # the image becomes `cached` and has no alias.
-  fingerprint=$(lxc_remote image info lxd2:bar | awk '/^Fingerprint/ { print $2 }')
-  lxc_remote image delete lxd2:bar
-  lxc_remote init --quiet localhost:testimage lxd2:c1
-  cached=$(lxc_remote image info "lxd2:${fingerprint}" | awk '/^Cached/ { print $2 }')
-  # The `cached` field should be set to `yes` since the image was implicitly downloaded by the instance create operation
-  [ "${cached}" = "yes" ]
-  # There should be no alias for the image
-  [ "$(lxc_remote image list "lxd2:${fingerprint}" -f csv -c l || echo fail)" = "" ]
-
-  # Finally, lets copy the remote image explicitly to the local server with an alias like we did before
-  lxc_remote image copy --quiet localhost:testimage lxd2: --alias bar
-  cached=$(lxc_remote image info lxd2:bar | awk '/^Cached/ { print $2 }')
-  alias=$(lxc_remote image info lxd2:bar | grep -xF -A 1 "Aliases:" | tail -n1 | awk '{print $2}')
-  # The `cached` field should be set to `no` since the image was explicitly copied.
-  [ "${cached}" = "no" ]
-  # The alias should be set to `bar`.
-  [ "${alias}" = "bar" ]
-
-  echo "==> Ensure that the copied image properties are set from source image."
-
-  # Check that the copied image has the same filename as the source image.
-  filename=$(lxc_remote query localhost:"/1.0/images/${fingerprint}" | jq --exit-status '.filename')
-  lxc_remote query lxd2:"/1.0/images/${fingerprint}" | jq --exit-status --raw-output ".filename == ${filename}"
-
-  # Now, change the description property for the downloaded image in the default project.
-  lxc_remote image set-property lxd2:bar description "TEST"
-
-  # Create another project to download the image into.
-  lxc_remote project create lxd2:foo
-
-  # Copy the same image from source into newly created project.
-  lxc_remote image copy --quiet localhost:testimage lxd2: --alias bar --target-project foo
-
-  # Check that the downloaded image in the new project has the description property from source.
-  [ "$(lxc_remote image get-property lxd2:bar description --project foo)" = "$(lxc_remote image get-property localhost:testimage description)" ]
-
-  # Check that the downloaded image in the default project still has custom description.
-  [ "$(lxc_remote image get-property lxd2:bar description --project default)" = "TEST" ]
+  # Copy an image between projects on the same server.
+  sub_test "Verify same-server cross-project image copy"
+  lxc_remote project create localhost:p1
+  lxc_remote image copy --quiet testimage localhost: --project default --target-project p1 --copy-aliases
+  lxc_remote image list localhost: --project p1 | grep -wF testimage
 
   # Clean up.
-  lxc_remote image alias delete localhost:foo
-  lxc_remote image delete lxd2:bar --project default
-  lxc_remote image delete lxd2:bar --project foo
-  lxc_remote project delete lxd2:foo
-
-  echo "==> Test copying image on the same remote into a different project."
-  lxc_remote project create localhost:p1
-  lxc_remote image copy --quiet localhost:testimage localhost: --project default --target-project p1 --copy-aliases
-  lxc_remote image delete localhost:testimage --project default
-
-  echo "==> Test copying image from one remote's non-default project into another remote's non-default project."
-  lxc_remote project create lxd2:foo
-  lxc_remote image copy --quiet localhost:testimage lxd2: --project p1 --target-project foo --copy-aliases
-
-  echo "==> Clean up."
   lxc_remote image delete localhost:testimage --project p1
-  lxc_remote image delete lxd2:testimage --project foo
   lxc_remote project delete localhost:p1
-  lxc_remote project delete lxd2:foo
   lxc_remote remote remove lxd2
-  lxc_remote remote remove lxd2-public
 
   kill_lxd "$LXD2_DIR"
 }
