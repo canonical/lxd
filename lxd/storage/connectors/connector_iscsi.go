@@ -405,7 +405,7 @@ func (c *connectorISCSI) WaitDiskDevicePath(ctx context.Context, diskPathFilter 
 		return "", err
 	}
 
-	err = waitMultipathReady(ctx, devicePath)
+	err = waitMultipathReady(ctx, mpDevicePath)
 	if err != nil {
 		return "", err
 	}
@@ -449,40 +449,43 @@ func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, devicePath string
 
 	deviceName := filepath.Base(devicePath)
 
+	// If the device is gone, we are done.
+	if !shared.PathExists(devicePath) {
+		return nil
+	}
+
 	if isMultipathDevice(devicePath) {
-		// Collect the underlying multipath devices before removing the multipath map,
-		// as /sys/block/dm-X/slaves/ will be gone after removal.
 		slaveDevices, err := findMultipathSCSIDevices(deviceName)
 		if err != nil {
 			return fmt.Errorf("Failed searching SCSI paths for multipath device %q: %w", devicePath, err)
 		}
 
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+
 		// Remove the multipath map.
 		//
 		// This may fail transiently with "map in use" if the device is still
 		// briefly open (for example by udev), so retry a few times before giving up.
+		var flushErr error
 		for range 10 {
-			ctxErr := ctx.Err()
-			if ctxErr != nil {
-				// Preserve the command error if we already have one.
-				// Otherwise return the generic context error.
-				if err == nil {
-					err = ctxErr
-				}
+			_, flushErr = shared.RunCommand(ctx, "multipath", "-f", devicePath)
 
+			// Break if the device disappeared.
+			if flushErr == nil || !shared.PathExists(devicePath) {
 				break
 			}
 
-			_, err = shared.RunCommand(ctx, "multipath", "-f", devicePath)
-			if err == nil {
-				break
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("Timeout exceeded removing multipath device %q: %w", devicePath, ctx.Err())
+			case <-ticker.C:
 			}
-
-			time.Sleep(500 * time.Millisecond)
 		}
 
-		if err != nil {
-			return fmt.Errorf("Failed removing multipath device %q: %w", devicePath, err)
+		// Only return a failure if the map still exists after our retries.
+		if flushErr != nil && shared.PathExists(devicePath) {
+			return fmt.Errorf("Failed removing multipath device %q: %w", devicePath, flushErr)
 		}
 
 		// Remove the underlying SCSI devices that were part of the multipath map.
@@ -508,14 +511,10 @@ func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, devicePath string
 		if err != nil {
 			return fmt.Errorf("Failed removing device %q: %w", devicePath, err)
 		}
-	}
 
-	// Wait until the device has disappeared.
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	if !block.WaitDiskDeviceGone(ctx, devicePath) {
-		return fmt.Errorf("Timeout exceeded waiting for device %q to disappear", devicePath)
+		if !block.WaitDiskDeviceGone(ctx, devicePath) {
+			return fmt.Errorf("Timeout exceeded waiting for device %q to disappear", devicePath)
+		}
 	}
 
 	return nil
