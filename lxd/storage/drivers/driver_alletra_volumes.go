@@ -1,7 +1,6 @@
 package drivers
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"math"
@@ -10,7 +9,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/sys/unix"
@@ -277,12 +275,15 @@ func (d *alletra) unmapVolume(vol Volume) error {
 		return err
 	}
 
-	// Wait until the volume has disappeared.
-	ctx, cancel := context.WithTimeout(d.state.ShutdownCtx, 30*time.Second)
-	defer cancel()
-
-	if volumePath != "" && !block.WaitDiskDeviceGone(ctx, volumePath) {
-		return fmt.Errorf("Timeout exceeded waiting for HPE Alletra storage volume %q to disappear on path %q", vol.name, volumePath)
+	// iSCSI's [connectors.RemoveDiskDevice] implementation already waits for the device to
+	// disappear before returning. Re-checking the resolved /dev/dm-X path here is unsafe, as
+	// the kernel can reuse the dm device for a different mpath assembled concurrently, making
+	// the poll see an existing device that has nothing to do with the removed volume.
+	//
+	// For NVMe the host-side device is removed asynchronously after the array detaches the
+	// volume. NVMe's [connectors.RemoveDiskDevice] is a no-op, so this is the only sync point.
+	if volumePath != "" && connector.Type() == connectors.TypeNVME && !block.WaitDiskDeviceGone(d.state.ShutdownCtx, volumePath) {
+		return fmt.Errorf("Timeout exceeded waiting for HPE Alletra volume %q to disappear on path %q", vol.name, volumePath)
 	}
 
 	mappings, err := d.client().GetVLUNsForHost(host.Name)
