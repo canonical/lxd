@@ -415,6 +415,12 @@ func (c *connectorSCSIFC) WaitDiskDeviceResize(ctx context.Context, devicePath s
 		defer cancel()
 	}
 
+	// Trigger a SCSI capacity rescan so the kernel reports the new size.
+	err := rescanMultipathSCSIDevices(devicePath)
+	if err != nil {
+		return err
+	}
+
 	if isMultipathDevice(devicePath) {
 		_, err := shared.RunCommand(ctx, "multipath", "-r", devicePath)
 		if err != nil {
