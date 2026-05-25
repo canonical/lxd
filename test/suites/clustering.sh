@@ -2362,6 +2362,54 @@ test_clustering_image_replication() {
   kill_lxd "${LXD_THREE_DIR}"
 }
 
+test_clustering_image_proxy_bypass() {
+  spawn_lxd_and_bootstrap_cluster
+
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+
+  # Spawn a second node
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+
+  sub_test "Image replication bypasses configured HTTP proxy"
+  # Set core.proxy_https to a non-existent proxy. Cluster traffic should bypass the proxy entirely.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set core.proxy_https "http://127.0.0.1:1"
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set core.proxy_http "http://127.0.0.1:1"
+
+  # Import the test image on node1
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
+
+  # The image should be visible through both nodes
+  LXD_DIR="${LXD_ONE_DIR}" lxc image list | grep -wF testimage
+  LXD_DIR="${LXD_TWO_DIR}" lxc image list | grep -wF testimage
+
+  # The image tarball should be available on both nodes
+  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
+  [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ]
+  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ]
+
+  # Clean up the image
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+  [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+
+  # Unset the proxy configuration
+  LXD_DIR="${LXD_ONE_DIR}" lxc config unset core.proxy_https
+  LXD_DIR="${LXD_ONE_DIR}" lxc config unset core.proxy_http
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
+
 test_clustering_dns() {
   # Because we do not want tests to only run on Ubuntu (due to cluster's fan network dependency)
   # instead we will just spawn forkdns directly and check DNS resolution.
