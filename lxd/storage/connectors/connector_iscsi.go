@@ -520,3 +520,100 @@ func (c *connectorISCSI) WaitDiskDeviceResize(ctx context.Context, diskPath stri
 func isMultipathDevice(devicePath string) bool {
 	return strings.HasPrefix(filepath.Base(devicePath), "dm-")
 }
+
+// findMultipathSCSIDevices returns every /sys/block/sd* basename that
+// belongs to the multipath device-mapper device named by dmName.
+//
+// The returned value contains direct multipath slaves and any other device whose
+// device/wwid matches the multipath device's WWID, which includes devices that were
+// previously failed and dropped from the map by multipathd but still exist as kernel
+// SCSI devices. This is necessary to fully clean up all SCSI paths to the device when
+// removing multipath device, and avoid leaving zombie devices that trigger
+// "Logical unit not supported" probe storms on the next reuse of the same WWID after
+// the array detaches the underlying LUN.
+//
+// If the multipath WWID cannot be parsed, only direct multipath slaves are returned.
+func findMultipathSCSIDevices(dmName string) ([]string, error) {
+	var devices []string
+
+	addDeviceIfNotExist := func(name string) {
+		// Only collect unique device names.
+		if !slices.Contains(devices, name) {
+			devices = append(devices, name)
+		}
+	}
+
+	normalizeWWID := func(wwid string) string {
+		wwid = strings.TrimSpace(wwid)
+		wwid = strings.ToLower(wwid)
+
+		for _, prefix := range []string{"0x", "scsi-", "naa.", "eui."} {
+			wwid = strings.TrimPrefix(wwid, prefix)
+		}
+
+		return wwid
+	}
+
+	// Collect direct multipath slaves from /sys/block/dmName/slaves/*.
+	slavesPath := filepath.Join("/sys/block", dmName, "slaves")
+	slaves, err := os.ReadDir(slavesPath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("Failed reading slaves of %q: %w", dmName, err)
+	}
+
+	for _, dev := range slaves {
+		addDeviceIfNotExist(dev.Name())
+	}
+
+	// Extract the WWID from the multipath UUID.
+	mpUUIDBytes, err := os.ReadFile(filepath.Join("/sys/block", dmName, "dm", "uuid"))
+	if err != nil {
+		// No WWID found for multipath device.
+		return devices, nil
+	}
+
+	// Trim "mpath-" prefix from UUID to get the WWID.
+	mpUUID := strings.ToLower(strings.TrimSpace(string(mpUUIDBytes)))
+	mpUUID, ok := strings.CutPrefix(mpUUID, "mpath-")
+	if !ok {
+		return devices, nil
+	}
+
+	mpWWID := normalizeWWID(mpUUID)
+	if mpWWID == "" {
+		return devices, nil
+	}
+
+	entries, err := os.ReadDir("/sys/block")
+	if err != nil {
+		return nil, fmt.Errorf("Failed reading /sys/block: %w", err)
+	}
+
+	// Look for any /sys/block/sd* whose device/wwid matches the multipath WWID.
+	for _, dev := range entries {
+		if !strings.HasPrefix(dev.Name(), "sd") {
+			continue
+		}
+
+		devWWIDBytes, err := os.ReadFile(filepath.Join("/sys/block", dev.Name(), "device", "wwid"))
+		if err != nil {
+			continue
+		}
+
+		devWWID := normalizeWWID(string(devWWIDBytes))
+		if devWWID == "" {
+			continue
+		}
+
+		// Compare the SCSI device WWID with the multipath WWID.
+		//
+		// Some multipath WWIDs include the SCSI VPD designator type (3) as a prefix.
+		// For example, multipath may report WWID as "368cc...", while the SCSI device
+		// reports WWID as "68cc...".
+		if devWWID == mpWWID || "3"+devWWID == mpWWID {
+			addDeviceIfNotExist(dev.Name())
+		}
+	}
+
+	return devices, nil
+}
