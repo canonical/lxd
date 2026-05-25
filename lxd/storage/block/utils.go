@@ -169,9 +169,9 @@ func WaitDiskDeviceResize(ctx context.Context, diskPath string, newSizeBytes int
 	}
 }
 
-// WaitDiskDeviceGone waits for the disk device to disappear from /dev/disk/by-id.
-// It periodically checks for the device to disappear and returns once the device
-// is gone. If the device does not disappear within the timeout, an error is returned.
+// WaitDiskDeviceGone waits for the given disk device path to disappear.
+// It periodically checks for the device to disappear and returns true once the
+// device is gone. It returns false if the context times out or is canceled first.
 func WaitDiskDeviceGone(ctx context.Context, diskPath string) bool {
 	_, ok := ctx.Deadline()
 	if !ok {
