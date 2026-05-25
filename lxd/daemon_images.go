@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -44,6 +46,9 @@ type ImageDownloadArgs struct {
 	Budget            int64
 	SourceProjectName string
 	UserRequested     bool
+	// Proxy overrides the daemon-level proxy function when set.
+	// Use a no-op proxy function for intra-cluster connections to bypass the configured HTTP proxy.
+	Proxy func(req *http.Request) (*url.URL, error)
 }
 
 // imageOperationLock acquires a lock for operating on an image and returns the unlock function.
@@ -77,10 +82,17 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 	// Attempt to resolve the alias
 	if slices.Contains([]string{"lxd", "simplestreams"}, protocol) {
+		// Use the proxy from args if provided (e.g., a no-op proxy for intra-cluster connections),
+		// otherwise fall back to the daemon-level proxy.
+		proxy := args.Proxy
+		if proxy == nil {
+			proxy = s.Proxy
+		}
+
 		clientArgs := &lxd.ConnectionArgs{
 			TLSServerCert: args.Certificate,
 			UserAgent:     version.UserAgent,
-			Proxy:         s.Proxy,
+			Proxy:         proxy,
 			CachePath:     s.OS.CacheDir,
 			CacheExpiry:   time.Hour,
 		}
