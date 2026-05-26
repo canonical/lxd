@@ -15,14 +15,14 @@ import (
 func TestKeyPairAndCA(t *testing.T) {
 	dir, err := os.MkdirTemp("", "lxd-shared-test-")
 	if err != nil {
-		t.Errorf("failed creating temporary dir: %v", err)
+		t.Fatalf("failed creating temporary dir: %v", err)
 	}
 
 	defer func() { _ = os.RemoveAll(dir) }()
 
 	info, err := shared.KeyPairAndCA(dir, "test", shared.CertServer, shared.CertOptions{AddHosts: true})
 	if err != nil {
-		t.Errorf("initial call to KeyPairAndCA failed: %v", err)
+		t.Fatalf("initial call to KeyPairAndCA failed: %v", err)
 	}
 
 	if info.CA() != nil {
