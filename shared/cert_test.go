@@ -96,6 +96,6 @@ func TestGenerateMemCert(t *testing.T) {
 	}
 
 	if block.Type != "EC PRIVATE KEY" {
-		t.Errorf("GenerateMemCert returned a cert with Type %q not \"EC PRIVATE KEY\"", block.Type)
+		t.Errorf("GenerateMemCert returned a key with Type %q not \"EC PRIVATE KEY\"", block.Type)
 	}
 }
