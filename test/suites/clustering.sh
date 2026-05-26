@@ -2690,6 +2690,57 @@ test_clustering_image_proxy_bypass() {
   kill_lxd "${LXD_TWO_DIR}"
 }
 
+test_clustering_join_proxy_bypass() {
+  local LXD_DIR
+
+  # Set HTTP_PROXY and HTTPS_PROXY to an unreachable proxy so that cluster bootstrap
+  # and join fail if they do not bypass the proxy.
+  with_bad_proxy() {
+    HTTP_PROXY="http://127.0.0.1:1" HTTPS_PROXY="http://127.0.0.1:1" \
+    http_proxy="http://127.0.0.1:1" https_proxy="http://127.0.0.1:1" \
+    "$@"
+  }
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  sub_test "Cluster join bypasses HTTP_PROXY and HTTPS_PROXY environment variables"
+
+  # Bootstrap the first node with proxy env vars pointing to an unreachable proxy.
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  with_bad_proxy spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Join a second node with proxy env vars still set.
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  with_bad_proxy spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  # Verify the cluster is functional by checking both nodes are present and online.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF "status: Online"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Online"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
+
 test_clustering_dns() {
   local lxdDir
 

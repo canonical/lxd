@@ -468,6 +468,7 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_address "clustering address"
     run_test test_clustering_image_replication "clustering image replication"
     run_test test_clustering_image_proxy_bypass "clustering image proxy bypass"
+    run_test test_clustering_join_proxy_bypass "clustering join proxy bypass"
     run_test test_clustering_dns "clustering DNS"
     run_test test_clustering_fan "clustering FAN"
     run_test test_clustering_recover "clustering recovery"
