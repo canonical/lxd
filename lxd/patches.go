@@ -2303,10 +2303,6 @@ func patchRemoveMAASConfigKeys(_ string, d *Daemon) error {
 	// Remove all MAAS keys from the cluster database.
 	err = d.State().DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Remove cluster-global MAAS config keys.
-		// maas.machine is also included here because importPreClusteringData
-		// may have migrated it from the node-level config table into the
-		// cluster config table on systems that had MAAS configured prior to
-		// enabling clustering.
 		err := tx.UpdateClusterConfig(map[string]string{
 			"maas.api.url": "",
 			"maas.api.key": "",
