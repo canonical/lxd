@@ -88,11 +88,13 @@ func Parse(s string, op OperatorSet) (*ClauseSet, error) {
 						break
 					}
 
-					value.WriteString(" " + parts[index])
+					value.WriteString(" ")
+					value.WriteString(parts[index])
 				}
 
 				end := parts[index]
-				value.WriteString(" " + end[0:len(end)-1])
+				value.WriteString(" ")
+				value.WriteString(end[0 : len(end)-1])
 			}
 		}
 
