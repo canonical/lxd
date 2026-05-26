@@ -1194,12 +1194,6 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	/* Set the LVM environment */
-	err = os.Setenv("LVM_SUPPRESS_FD_WARNINGS", "1")
-	if err != nil {
-		return err
-	}
-
 	/* Print welcome message */
 	mode := "normal"
 	if d.os.MockMode {
