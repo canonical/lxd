@@ -107,12 +107,12 @@ snapshots() {
   fi
 
   # Create a snapshot with an expiry date specified in a YAML
-  expiry_date_in_one_minute=$(date -u -d '+10 minute' '+%Y-%m-%dT%H:%M:%SZ')
+  expiry_date_in_few_minutes=$(date -u -d '+10 minute' '+%Y-%m-%dT%H:%M:%SZ')
   lxc snapshot foo tester_yaml <<EOF
-expires_at: ${expiry_date_in_one_minute}
+expires_at: ${expiry_date_in_few_minutes}
 EOF
   # Check that the expiry date is set correctly
-  lxc config show foo/tester_yaml | grep "expires_at: ${expiry_date_in_one_minute}"
+  lxc config show foo/tester_yaml | grep "expires_at: ${expiry_date_in_few_minutes}"
   # Delete the snapshot
   lxc delete foo/tester_yaml
 
