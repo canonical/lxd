@@ -1412,6 +1412,9 @@ func replicatorCheckInstancesStopped(allInsts []instance.Instance) error {
 func replicateInstance(ctx context.Context, s *state.State, op *operations.Operation, inst instance.Instance, memberAddress string, snapshot bool, dstClient lxd.InstanceServer, targetCertPEM string) error {
 	instName := inst.Name()
 	projectName := inst.Project().Name
+	// Only snapshot if requested and the instance has no snapshot schedule; if a schedule is
+	// defined, scheduled snapshots already provide point-in-time history so an extra one here
+	// would be redundant.
 	createSnapshot := snapshot && inst.ExpandedConfig()["snapshots.schedule"] == ""
 
 	// Instance on another cluster member: connect to the hosting cluster member and
