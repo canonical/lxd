@@ -1327,7 +1327,8 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 		var errMsg strings.Builder
 		errMsg.WriteString("Cannot restore source volumes for the following devices:\n")
 		for _, v := range shared {
-			errMsg.WriteString(v.Name + " (volume is shared)")
+			errMsg.WriteString(v.Name)
+			errMsg.WriteString(" (volume is shared)\n")
 		}
 
 		return nil, errors.New(errMsg.String())
