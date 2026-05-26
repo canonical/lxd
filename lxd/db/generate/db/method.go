@@ -270,9 +270,13 @@ func (m *Method) getMany(buf *file.Buffer) error {
 					if name == field.Name && shared.IsTrue(field.Config.Get("marshal")) {
 						buf.L("marshaledFilter%s, err := query.Marshal(filter.%s)", name, name)
 						m.ifErrNotNil(buf, true, "nil", "err")
-						args.WriteString("marshaledFilter" + name + ",")
+						args.WriteString("marshaledFilter")
+						args.WriteString(name)
+						args.WriteString(",")
 					} else if name == field.Name {
-						args.WriteString("filter." + name + ",")
+						args.WriteString("filter.")
+						args.WriteString(name)
+						args.WriteString(",")
 					}
 				}
 			}
@@ -720,7 +724,8 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		}
 
 		for i, field := range columnFields {
-			createParams.WriteString("object." + field.Name)
+			createParams.WriteString("object.")
+			createParams.WriteString(field.Name)
 			if i < len(columnFields) {
 				createParams.WriteString(", ")
 			}
