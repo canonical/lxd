@@ -429,7 +429,7 @@ test_snapshot_expiry() {
   created_at="$(lxc config get c1/snap1 --property created_at | awk -F' +' '{print $1}')"
   expires_at="$(lxc config get c1/snap1 --property expires_at | awk -F' +' '{print $1}')"
 
-  # Check if the expires_at propery is exactly 1d ahead.
+  # Check if the expires_at property is exactly 1d ahead.
   [ "$(date -d "${created_at} today + 1days")" = "$(date -d "${expires_at}")" ]
 
   lxc copy c1 c2
