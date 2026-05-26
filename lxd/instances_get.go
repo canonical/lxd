@@ -375,7 +375,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 				defer wg.Done()
 
 				if recursion == 1 {
-					apiInsts, err := doContainersGetFromNode(filteredProjects, memberAddress, allProjects, networkCert, s.ServerCert(), r, instanceType)
+					apiInsts, err := doInstancesGetFromNode(filteredProjects, memberAddress, allProjects, networkCert, s.ServerCert(), r, instanceType)
 					if err != nil {
 						for _, inst := range instances {
 							resultErrListAppend(inst, err)
@@ -533,7 +533,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 
 // Fetch information about the containers on the given remote node, using the
 // rest API and with a timeout of 30 seconds.
-func doContainersGetFromNode(projects []string, node string, allProjects bool, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) ([]api.Instance, error) {
+func doInstancesGetFromNode(projects []string, node string, allProjects bool, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) ([]api.Instance, error) {
 	f := func() ([]api.Instance, error) {
 		client, err := cluster.Connect(r.Context(), node, networkCert, serverCert, true)
 		if err != nil {
