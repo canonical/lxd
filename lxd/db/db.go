@@ -132,16 +132,17 @@ type Cluster struct {
 // database.
 //
 // - name: Basename of the database file holding the data. Typically "db.bin".
-// - dialer: Function used to connect to the dqlite backend via gRPC SQL.
+// - store: Node store used to connect to the dqlite backend.
 // - address: Network address of this node (or empty string).
 // - dir: Base LXD database directory (e.g. /var/lib/lxd/database)
 // - timeout: Give up trying to open the database after this amount of time.
-// - dump: If not nil, a copy of 2.0 db data, for migrating to 3.0.
+// - serverUUID: UUID of this server, used for schema validation.
+// - options: Additional driver options passed to the dqlite driver.
 //
-// The address and api parameters will be used to determine if the cluster
-// database matches our version, and possibly trigger a schema update. If the
-// schema update can't be performed right now, because some nodes are still
-// behind, an Upgrading error is returned.
+// The address parameter will be used to determine if the cluster database
+// matches our version, and possibly trigger a schema update. If the schema
+// update can't be performed right now, because some nodes are still behind,
+// an Upgrading error is returned.
 // Accepts a closingCtx context argument used to indicate when the daemon is shutting down.
 func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore, address, dir string, timeout time.Duration, serverUUID string, options ...driver.Option) (*Cluster, error) {
 	db, err := cluster.Open(name, store, options...)
