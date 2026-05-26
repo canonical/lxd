@@ -387,7 +387,7 @@ lxc image edit <image> < image.yaml
 
 func (c *cmdImageEdit) helpTemplate() string {
 	return `### This is a YAML representation of the image properties.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### Each property is represented by a single line:
 ### An example would be:
