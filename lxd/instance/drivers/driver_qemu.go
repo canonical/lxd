@@ -3457,7 +3457,7 @@ func (d *qemu) deviceBootPriorities(base int) (map[string]int, error) {
 	for _, dev := range d.expandedDevices.Filter(filters.Or(filters.IsDisk, filters.IsNIC)).Sorted() {
 		bootPrio := uint32(0) // Default to lowest priority.
 		if dev.Config["boot.priority"] != "" {
-			prio, err := strconv.ParseInt(dev.Config["boot.priority"], 10, 32)
+			prio, err := strconv.Atoi(dev.Config["boot.priority"])
 			if err != nil {
 				return nil, fmt.Errorf("Invalid boot.priority for device %q: %w", dev.Name, err)
 			}
