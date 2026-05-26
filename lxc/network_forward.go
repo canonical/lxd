@@ -713,7 +713,7 @@ func (c *cmdNetworkForwardEdit) command() *cobra.Command {
 
 func (c *cmdNetworkForwardEdit) helpTemplate() string {
 	return `### This is a YAML representation of the network forward.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A network forward consists of a default target address and optional set of port forwards for a listen address.
 ###
