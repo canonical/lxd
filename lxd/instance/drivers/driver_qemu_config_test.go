@@ -76,6 +76,18 @@ func TestQemuConfigTemplates(t *testing.T) {
 			[boot-opts]
 			strict = "on"`,
 		}, {
+			qemuBaseOpts{architecture: osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN},
+			`# Machine
+			[machine]
+			graphics = "off"
+			type = "virt"
+			accel = "kvm"
+			acpi = "off"
+			usb = "off"
+
+			[boot-opts]
+			strict = "on"`,
+		}, {
 			qemuBaseOpts{architecture: osarch.ARCH_64BIT_S390_BIG_ENDIAN},
 			`# Machine
 			[machine]
