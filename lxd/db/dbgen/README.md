@@ -36,7 +36,7 @@ In this example `dbgen` assumes that the `id` column is the primary key.
 
 Some tables don't have an auto-incrementing primary key. These are defined `WITHOUT ROWID`.
 For these tables we can define the primary key as some unique column combination.
-To specify the primary keys, add `,primary` to the field tags.
+To specify the primary keys, add a `// db:primary` comment above those fields.
 
 ```sqlite
 CREATE TABLE networks_load_balancer_pools_instances (
@@ -54,8 +54,10 @@ package main
 // NetworksLoadBalancerPoolsInstancesRow represents a row of the networks_load_balancer_pools_instances table.
 // db:model networks_load_balancer_pools_instances
 type NetworksLoadBalancerPoolsInstancesRow struct {
-	NetworkLoadBalancerPoolID int64 `db:"network_load_balancer_pool_id,primary"`
-	InstanceID int64 `db:"instance_id,primary"`
+	// db:primary
+	NetworkLoadBalancerPoolID int64 `db:"network_load_balancer_pool_id"`
+	// db:primary
+	InstanceID int64 `db:"instance_id"`
 	TargetPort int64 `db:"target_port"`
 }
 ```
