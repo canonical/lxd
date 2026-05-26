@@ -241,19 +241,15 @@ parts:
       usr/lib/: lib/
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-prime: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     prime:
       - bin/ceph
@@ -390,17 +386,25 @@ parts:
         - shim-signed
         - uuid-dev
         - xorriso
+      - to riscv64:
+        - acpica-tools
+        - g++
+        - lsb-release
+        - nasm
+        - quilt
+        - rsync
+        - uuid-dev
     override-stage: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "riscv64" ]  && exit 0
       craftctl default
     override-prime: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "riscv64" ]  && exit 0
       craftctl default
     override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "riscv64" ]  && exit 0
       craftctl default
     override-build: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "riscv64" ]  && exit 0
       set -eux
 
       # Ensure staged libraries are found (needed for qemu to generate secure boot vars)
@@ -456,6 +460,15 @@ parts:
           SRC_VARS_MS="AAVMF_VARS.ms.fd"
           # See note in `x86_64` section for DEBUG_VERBOSE explanation
           SED_EXPR="s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g"
+      elif [ "$(uname -m)" = "riscv64" ]; then
+          DSC="OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc"
+          BUILD_TARGET="install-qemu-efi-riscv64"
+          SRC_DIR="debian/tmp/usr/share/qemu-efi-riscv64"
+          SRC_CODE="RISCV_VIRT_CODE.fd"
+          SRC_VARS="RISCV_VIRT_VARS.fd"
+          SRC_VARS_MS="RISCV_VIRT_VARS.fd"
+          # See note in `x86_64` section for DEBUG_VERBOSE explanation
+          SED_EXPR="s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g"
       fi
 
       # Function to run build and install
@@ -501,18 +514,20 @@ parts:
   libatomic:
     plugin: nil
     override-stage: |-
-      [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" != "riscv64" ] && [ "$(uname -m)" != "s390x" ] && exit 0
       craftctl default
     override-prime: |-
-      [ "$(uname -m)" != "s390x" ] && exit 0
+      [ "$(uname -m)" != "riscv64" ] && [ "$(uname -m)" != "s390x" ] && exit 0
       craftctl default
     stage-packages:
+      - to riscv64:
+        - libatomic1
       - to s390x:
         - libatomic1
     organize:
       usr/lib/: lib/
     prime:
-      # XXX: libatomic.so is only needed by Ceph/QEMU on s390x and no other arch.
+      # XXX: libatomic.so is needed by Ceph/QEMU on s390x and riscv64.
       - lib/*/libatomic.so*
 
   logrotate:
@@ -710,19 +725,15 @@ parts:
         - openvswitch-switch
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-prime: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     organize:
       sbin/: bin/
@@ -744,19 +755,15 @@ parts:
         - ovn-common
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-prime: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     organize:
       usr/bin/: bin/
@@ -797,19 +804,15 @@ parts:
         - libpixman-1-0
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-prime: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
 
       # Apply patches from Ubuntu sources.
       cd ../src
@@ -932,19 +935,17 @@ parts:
         - libusb-1.0-0
         - libusbredirparser1t64
         - liburing2
+        - opensbi # This is needed due to --disable-install-blobs.
         - seabios # This is needed due to --disable-install-blobs.
         - qemu-system-data # This is needed due to --disable-install-blobs.
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-prime: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
 
       set -eux
@@ -957,7 +958,6 @@ parts:
 
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       set -ex
       # If configure finds a `.git` dir, it enables -Werror (`--enable-werror` and Git submodules are validated).
       # When building the deb on LP, this `.git` dir is not present because a tarball is used.
@@ -973,6 +973,13 @@ parts:
 
       sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
       sed -i 's#libseccomp_minver=".*#libseccomp_minver="0.0"#g' configure
+
+      # As of May 2026 QEMU for riscv64 does not support building with --disable-tcg
+      if [ "${QEMUARCH}" = "riscv64" ]; then
+          # `set -- "$@"`: preserve arguments passed to `configure` and append
+          # `--enable-tcg` at the end to override the previous `--disable-tcg`.
+          sed -i '1 a set -- "$@" --enable-tcg' configure
+      fi
 
       # Extract efi-virtio.rom from ipxe-qemu.
       # This doesn't work in the organize section below.
@@ -990,6 +997,7 @@ parts:
       usr/local/libexec/: bin/
       usr/local/share/: share/
       usr/share/qemu/kvmvapic.bin: share/qemu/
+      usr/share/qemu/opensbi*: share/qemu/
       usr/share/qemu/s390-ccw.img: share/qemu/
       usr/share/qemu/slof.bin: share/qemu/
       usr/share/seabios/bios-256k.bin: share/qemu/
@@ -1010,6 +1018,7 @@ parts:
       - share/qemu/bios-256k.bin
       - share/qemu/efi-virtio.rom
       - share/qemu/kvmvapic.bin
+      - share/qemu/opensbi-riscv64-generic-fw_dynamic.bin
       - share/qemu/s390-ccw.img
       - share/qemu/slof.bin
       - share/qemu/vgabios-bochs-display.bin
@@ -1117,19 +1126,15 @@ parts:
         - libtirpc-dev
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-prime: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       set -ex
       RAW_VER="${CRAFT_PART_NAME#zfs-}"
       ZFS_VER="${RAW_VER/-/.}"
@@ -1162,19 +1167,15 @@ parts:
         - libtirpc-dev
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-prime: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       set -ex
       RAW_VER="${CRAFT_PART_NAME#zfs-}"
       ZFS_VER="${RAW_VER/-/.}"
@@ -1207,19 +1208,15 @@ parts:
         - libtirpc-dev
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-prime: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       set -ex
       RAW_VER="${CRAFT_PART_NAME#zfs-}"
       ZFS_VER="${RAW_VER/-/.}"
