@@ -198,7 +198,8 @@ func (c *ClusterTx) GetInstancesByMemberAddress(ctx context.Context, offlineThre
 	`)
 
 	// Project filter.
-	q.WriteString("WHERE projects.name IN " + query.Params(len(projects)))
+	q.WriteString("WHERE projects.name IN ")
+	q.WriteString(query.Params(len(projects)))
 	for _, project := range projects {
 		args = append(args, project)
 	}
