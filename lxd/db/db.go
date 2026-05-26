@@ -143,7 +143,7 @@ type Cluster struct {
 // schema update can't be performed right now, because some nodes are still
 // behind, an Upgrading error is returned.
 // Accepts a closingCtx context argument used to indicate when the daemon is shutting down.
-func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore, address, dir string, timeout time.Duration, dump *Dump, serverUUID string, options ...driver.Option) (*Cluster, error) {
+func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore, address, dir string, timeout time.Duration, serverUUID string, options ...driver.Option) (*Cluster, error) {
 	db, err := cluster.Open(name, store, options...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed opening database: %w", err)
@@ -200,31 +200,6 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 	_, err = db.Exec("PRAGMA cache_size=-50000")
 	if err != nil {
 		return nil, fmt.Errorf("Failed setting page cache size: %w", err)
-	}
-
-	if dump != nil {
-		logger.Info("Migrating data from local to global database")
-		err := query.Transaction(closingCtx, db, func(ctx context.Context, tx *sql.Tx) error {
-			return importPreClusteringData(tx, dump)
-		})
-		if err != nil {
-			// Restore the local sqlite3 backup and wipe the raft
-			// directory, so users can fix problems and retry.
-			path := filepath.Join(dir, "local.db")
-			copyErr := shared.FileCopy(path+".bak", path)
-			if copyErr != nil {
-				// Ignore errors here, there's not much we can do
-				logger.Errorf("Failed restoring local database: %v", copyErr)
-			}
-
-			rmErr := os.RemoveAll(filepath.Join(dir, "global"))
-			if rmErr != nil {
-				// Ignore errors here, there's not much we can do
-				logger.Errorf("Failed cleaning up global database: %v", rmErr)
-			}
-
-			return nil, fmt.Errorf("Failed migrating data to global database: %w", err)
-		}
 	}
 
 	err = cluster.EnsureSchema(db, address, dir, serverUUID)
