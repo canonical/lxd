@@ -133,7 +133,9 @@ func GetPlacementGroupsUsedBy(ctx context.Context, tx *sql.Tx, filter PlacementG
 	var args []any
 	urls := make(map[string]map[string][]string)
 
-	b.WriteString(`SELECT ` + strconv.FormatInt(entityTypeCodeInstance, 10) + `, instances.name, projects.name, instances_config.value FROM instances
+	b.WriteString(`SELECT `)
+	b.WriteString(strconv.FormatInt(entityTypeCodeInstance, 10))
+	b.WriteString(`, instances.name, projects.name, instances_config.value FROM instances
 JOIN instances_config ON instances.id = instances_config.instance_id
 JOIN projects ON instances.project_id = projects.id
 WHERE instances_config.key = 'placement.group'`)
@@ -153,7 +155,9 @@ WHERE instances_config.key = 'placement.group'`)
 	}
 
 	b.WriteString(`
-UNION SELECT ` + strconv.FormatInt(entityTypeCodeProfile, 10) + `, profiles.name, projects.name, profiles_config.value FROM profiles
+UNION SELECT `)
+	b.WriteString(strconv.FormatInt(entityTypeCodeProfile, 10))
+	b.WriteString(`, profiles.name, projects.name, profiles_config.value FROM profiles
 JOIN profiles_config ON profiles.id = profiles_config.profile_id
 JOIN projects ON profiles.project_id = projects.id
 WHERE profiles_config.key = 'placement.group'`)
