@@ -66,7 +66,9 @@ func activeCriteria(filter []string, ignoredFilter []string) string {
 			expr.WriteString(" && ")
 		}
 
-		expr.WriteString("filter." + name + " != nil")
+		expr.WriteString("filter.")
+		expr.WriteString(name)
+		expr.WriteString(" != nil")
 	}
 
 	for _, name := range ignoredFilter {
@@ -74,7 +76,9 @@ func activeCriteria(filter []string, ignoredFilter []string) string {
 			expr.WriteString(" && ")
 		}
 
-		expr.WriteString("filter." + name + " == nil")
+		expr.WriteString("filter.")
+		expr.WriteString(name)
+		expr.WriteString(" == nil")
 	}
 
 	return expr.String()
@@ -84,7 +88,10 @@ func activeCriteria(filter []string, ignoredFilter []string) string {
 // query.SelectObjects in order to scan a single row.
 func destFunc(slice string, typ string, fields []*Field) string {
 	var builder strings.Builder
-	writeLine := func(line string) { builder.WriteString(line + "\n") }
+	writeLine := func(line string) {
+		builder.WriteString(line)
+		builder.WriteString("\n")
+	}
 
 	writeLine(`func(scan func(dest ...any) error) error {`)
 
