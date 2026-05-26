@@ -49,12 +49,12 @@ readonly test_group_cluster=(
     "clustering_project_limits"
     "clustering_link_auth"
     "clustering_link_info"
+    "clustering_image_proxy_bypass"
 )
 
 readonly test_group_cluster_storage=(
     "clustering_image_refresh"
     "clustering_image_replication"
-    "clustering_image_proxy_bypass"
     "clustering_live_migration"
     "clustering_publish"
     "clustering_recovery"
