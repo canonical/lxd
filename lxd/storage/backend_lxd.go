@@ -8280,7 +8280,7 @@ func (b *lxdBackend) getParentVolumeUUID(vol drivers.Volume, projectName string)
 	// Extract parent volume UUID.
 	parentUUID := parentDBVol.Config["volatile.uuid"]
 	if parentUUID == "" {
-		return "", fmt.Errorf("Parent volume %q of snapshot %q in project %q does not have UUID set)", parentName, projectName, vol.Name())
+		return "", fmt.Errorf("Parent volume %q of snapshot %q in project %q does not have UUID set", parentName, vol.Name(), projectName)
 	}
 
 	return parentUUID, nil
