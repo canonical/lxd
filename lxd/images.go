@@ -1414,7 +1414,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Sync the images between each node in the cluster on demand
-		err = imageSyncBetweenNodes(ctx, s, r, dbProject.Name, info.Fingerprint)
+		err = imageSyncBetweenNodes(ctx, s, dbProject.Name, info.Fingerprint)
 		if err != nil {
 			return fmt.Errorf("Failed syncing image between nodes: %w", err)
 		}
@@ -5073,27 +5073,20 @@ func autoSyncImages(ctx context.Context, s *state.State) error {
 	}
 
 	for fingerprint, projects := range imageProjectInfo {
-		ch := make(chan error)
-		go func(projectName string, fingerprint string) {
-			err := imageSyncBetweenNodes(ctx, s, nil, projectName, fingerprint)
-			if err != nil {
-				logger.Error("Failed synchronizing images", logger.Ctx{"err": err, "project": projectName, "fingerprint": fingerprint})
-			}
+		if ctx.Err() != nil {
+			break // Stop once the context is cancelled.
+		}
 
-			ch <- nil
-		}(projects[0], fingerprint)
-
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ch:
+		err := imageSyncBetweenNodes(ctx, s, projects[0], fingerprint)
+		if err != nil {
+			logger.Error("Failed synchronizing images", logger.Ctx{"err": err, "project": projects[0], "fingerprint": fingerprint})
 		}
 	}
 
 	return nil
 }
 
-func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request, project string, fingerprint string) error {
+func imageSyncBetweenNodes(ctx context.Context, s *state.State, project string, fingerprint string) error {
 	logger.Info("Syncing image to members started", logger.Ctx{"fingerprint": fingerprint, "project": project})
 	defer logger.Info("Syncing image to members finished", logger.Ctx{"fingerprint": fingerprint, "project": project})
 
@@ -5142,12 +5135,7 @@ func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request,
 	// Pick a random node from that slice as the source.
 	syncNodeAddress := syncNodeAddresses[rand.Intn(len(syncNodeAddresses))]
 
-	reqContext := context.Background()
-	if r != nil {
-		reqContext = r.Context()
-	}
-
-	source, err := cluster.Connect(reqContext, syncNodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+	source, err := cluster.Connect(ctx, syncNodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 	if err != nil {
 		return fmt.Errorf("Failed connecting to source node for image synchronization: %w", err)
 	}
@@ -5194,7 +5182,7 @@ func imageSyncBetweenNodes(ctx context.Context, s *state.State, r *http.Request,
 		// Pick a random node from that slice as the target.
 		targetNodeAddress := addresses[rand.Intn(len(addresses))]
 
-		client, err := cluster.Connect(reqContext, targetNodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+		client, err := cluster.Connect(ctx, targetNodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 		if err != nil {
 			return fmt.Errorf("Failed connecting node for image synchronization: %w", err)
 		}

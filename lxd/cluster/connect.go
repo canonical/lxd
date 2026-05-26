@@ -41,10 +41,10 @@ func connect(ctx context.Context, address string, networkCert *shared.CertInfo, 
 	}
 
 	clusterURL := "https://" + address
-	return lxd.ConnectLXD(clusterURL, args)
+	return lxd.ConnectLXDWithContext(ctx, clusterURL, args)
 }
 
-// Connect is a convenience around lxd.ConnectLXD that configures the client
+// Connect is a convenience around lxd.ConnectLXDWithContext that configures the client
 // with the correct parameters for node-to-node communication.
 //
 // If a request context is passed (as defined by request.IsRequestContext) then the
@@ -57,9 +57,9 @@ func connect(ctx context.Context, address string, networkCert *shared.CertInfo, 
 func Connect(ctx context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, notify bool) (lxd.InstanceServer, error) {
 	// Wait for a connection to the events API first for non-notify connections.
 	if !notify {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		waitCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
-		err := EventListenerWait(ctx, address)
+		err := EventListenerWait(waitCtx, address)
 		if err != nil {
 			return nil, api.StatusErrorf(http.StatusServiceUnavailable, "Missing event connection with target cluster member")
 		}
