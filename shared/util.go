@@ -287,13 +287,13 @@ type LXDFileHeaders struct {
 //   - `X-LXD-modify-perm`
 //     Comma separated list; 0 or more of `mode`, `uid`, `gid`
 func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
-	var uid, gid int64 = -1, -1
+	var uid, gid int = -1, -1
 	var mode = -1
 	var err error
 
 	rawUID := headers.Get("X-LXD-uid")
 	if rawUID != "" {
-		uid, err = strconv.ParseInt(rawUID, 10, 32)
+		uid, err = strconv.Atoi(rawUID)
 		if err != nil {
 			return nil, fmt.Errorf("Invalid UID: %w", err)
 		}
@@ -301,7 +301,7 @@ func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
 
 	rawGID := headers.Get("X-LXD-gid")
 	if rawGID != "" {
-		gid, err = strconv.ParseInt(rawGID, 10, 32)
+		gid, err = strconv.Atoi(rawGID)
 		if err != nil {
 			return nil, fmt.Errorf("Invalid GID: %w", err)
 		}
@@ -361,8 +361,8 @@ func ParseLXDFileHeaders(headers http.Header) (*LXDFileHeaders, error) {
 	}
 
 	return &LXDFileHeaders{
-		UID:  uid,
-		GID:  gid,
+		UID:  int64(uid),
+		GID:  int64(gid),
 		Mode: mode,
 
 		UIDModifyExisting:  UIDModifyExisting,
