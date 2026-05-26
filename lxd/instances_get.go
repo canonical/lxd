@@ -404,8 +404,8 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 					return
 				}
 
-				for _, c := range cs {
-					resultFullListAppend(&c)
+				for i := range cs {
+					resultFullListAppend(&cs[i])
 				}
 			}(memberAddress, instances)
 
