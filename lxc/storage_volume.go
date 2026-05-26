@@ -1048,7 +1048,7 @@ lxc storage volume edit [<remote>:]<pool> [<type>/]<volume> < volume.yaml
 
 func (c *cmdStorageVolumeEdit) helpTemplate() string {
 	return `### This is a YAML representation of a storage volume.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A storage volume consists of a set of configuration items.
 ###
