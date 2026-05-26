@@ -179,7 +179,6 @@ EOF
   # FIXME: make this backend agnostic
   if [ "$lxd_backend" = "dir" ]; then
     [ -d "${LXD_DIR}/snapshots/foople/namechange" ]
-    [ -d "${LXD_DIR}/snapshots/foople/namechange" ]
   fi
 
   lxc delete foople
