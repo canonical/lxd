@@ -686,7 +686,7 @@ func (c *cmdNetworkEdit) command() *cobra.Command {
 
 func (c *cmdNetworkEdit) helpTemplate() string {
 	return `### This is a YAML representation of the network.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A network consists of a set of configuration items.
 ###
