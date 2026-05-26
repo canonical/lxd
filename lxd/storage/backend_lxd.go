@@ -2739,7 +2739,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 			vol.SetConfigSize(strconv.FormatInt(imgBytes, 10))
 		}
 
-		// Convert received image into intance volume.
+		// Convert received image into instance volume.
 		volFiller.Fill = b.imageConversionFiller(imgPath, imgFormat, progressReporter)
 	} else {
 		// If volume size is provided, then use that as block volume size instead of pool default.
