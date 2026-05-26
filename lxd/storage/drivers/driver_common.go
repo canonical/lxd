@@ -284,6 +284,12 @@ func (d *common) ApplyPatch(name string) error {
 	return patch()
 }
 
+// HasPatch returns true if the driver has a non-nil implementation for the named patch.
+func (d *common) HasPatch(name string) bool {
+	patch, ok := d.patches[name]
+	return ok && patch != nil
+}
+
 // moveGPTAltHeader moves the GPT alternative header to the end of the disk device supplied.
 // If the device supplied is not detected as not being a GPT disk then no action is taken and nil is returned.
 // If the required sgdisk command is not available a warning is logged, but no error is returned, as really it is

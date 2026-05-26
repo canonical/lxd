@@ -240,23 +240,10 @@ func IsAvailable(poolName string) bool {
 	return !found
 }
 
-// Patch applies specified patch to all storage pools.
-// All storage pools must be available locally before any storage pools are patched.
+// Patch applies the specified patch to all storage pools.
+// Pools that are unavailable and have no implementation for the named patch are skipped with a
+// warning. Pools that are unavailable but do have an implementation are treated as an error.
 func Patch(s *state.State, patchName string) error {
-	unavailablePoolsMu.Lock()
-
-	if len(unavailablePools) > 0 {
-		unavailablePoolNames := make([]string, 0, len(unavailablePools))
-		for unavailablePoolName := range unavailablePools {
-			unavailablePoolNames = append(unavailablePoolNames, unavailablePoolName)
-		}
-
-		unavailablePoolsMu.Unlock()
-		return fmt.Errorf("Unvailable storage pools: %v", unavailablePoolNames)
-	}
-
-	unavailablePoolsMu.Unlock()
-
 	var pools []string
 
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -279,6 +266,21 @@ func Patch(s *state.State, patchName string) error {
 		pool, err := LoadByName(s, poolName)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
+		}
+
+		// For unavailable pools, skip those that have no implementation for this patch (no-op
+		// at both the backend and driver level). Only insist on availability for pools that
+		// actually need to do work.
+		if !IsAvailable(poolName) {
+			_, hasEarly := lxdEarlyPatches[patchName]
+			_, hasLate := lxdLatePatches[patchName]
+
+			if !hasEarly && !pool.Driver().HasPatch(patchName) && !hasLate {
+				logger.Warn("Skipping patch on unavailable pool with no implementation", logger.Ctx{"pool": poolName, "patch": patchName})
+				continue
+			}
+
+			return fmt.Errorf("Storage pool %q is unavailable and needs patch %q", poolName, patchName)
 		}
 
 		err = pool.ApplyPatch(patchName)

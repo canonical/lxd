@@ -53,6 +53,7 @@ type Driver interface {
 	ValidateSource() error
 	Update(changedConfig map[string]string) error
 	ApplyPatch(name string) error
+	HasPatch(name string) bool
 
 	// Buckets.
 	ValidateBucket(bucket Volume) error
