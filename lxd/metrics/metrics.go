@@ -126,7 +126,10 @@ func (m *MetricSet) String() string {
 					labels.WriteString(",")
 				}
 
-				labels.WriteString(labelName + `="` + sample.Labels[labelName] + `"`)
+				labels.WriteString(labelName)
+				labels.WriteString(`="`)
+				labels.WriteString(sample.Labels[labelName])
+				labels.WriteString(`"`)
 				firstLabel = false
 			}
 
