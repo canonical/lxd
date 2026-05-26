@@ -13,9 +13,9 @@ GitHub provides a basic rendering of the documentation as well, but important fe
 LXD's documentation is built with [Sphinx](https://www.sphinx-doc.org) and hosted on [Read the Docs](https://about.readthedocs.com/).
 
 It is written in [Markdown](https://commonmark.org/) with [MyST](https://myst-parser.readthedocs.io/) extensions.
-For syntax help and guidelines, see the [MyST style guide](https://canonical-documentation-with-sphinx-and-readthedocscom.readthedocs-hosted.com/style-guide-myst/) and the [documentation cheat sheet](https://documentation.ubuntu.com/lxd/latest/doc-cheat-sheet-myst/) ([source](https://raw.githubusercontent.com/canonical/lxd/main/doc/doc-cheat-sheet-myst.md)).
+For syntax help and guidelines, see the [MyST syntax guide](https://documentation.ubuntu.com/sphinx-stack/latest/reference/myst-syntax/) in the [Sphinx Stack documentation](https://documentation.ubuntu.com/sphinx-stack/latest/).
 
-For structuring, the documentation uses the [Diátaxis](https://diataxis.fr/) approach.
+The documentation structure follows the [Diátaxis](https://diataxis.fr/) framework.
 
 ### Build the documentation
 
