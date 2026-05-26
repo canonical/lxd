@@ -391,7 +391,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 					return
 				}
 
-				cs, err := doContainersFullGetFromNode(filteredProjects, memberAddress, allProjects, networkCert, s.ServerCert(), r, instanceType)
+				cs, err := doInstancesFullGetFromNode(filteredProjects, memberAddress, allProjects, networkCert, s.ServerCert(), r, instanceType)
 				if err != nil {
 					for _, inst := range instances {
 						resultErrListAppend(inst, err)
@@ -587,7 +587,7 @@ func doContainersGetFromNode(projects []string, node string, allProjects bool, n
 	return containers, err
 }
 
-func doContainersFullGetFromNode(projects []string, node string, allProjects bool, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) ([]api.InstanceFull, error) {
+func doInstancesFullGetFromNode(projects []string, node string, allProjects bool, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) ([]api.InstanceFull, error) {
 	f := func() ([]api.InstanceFull, error) {
 		client, err := cluster.Connect(r.Context(), node, networkCert, serverCert, true)
 		if err != nil {
