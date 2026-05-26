@@ -1,7 +1,7 @@
 ---
 myst:
   html_meta:
-    description: Monitor security events in LXD including authentication, authorisation, and administrative actions using the CLI, REST API, or Loki integration.
+    description: Monitor security events in LXD including authentication, authorization, and administrative actions using the CLI, REST API, or Loki integration.
 ---
 
 (howto-security-events)=
