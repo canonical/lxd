@@ -327,5 +327,10 @@ scan:
 		}
 	}
 
+	err := scanner.Err()
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed scanning OpenFGA model: %w", err)
+	}
+
 	return entityToEntitlements, allEntitlements, nil
 }
