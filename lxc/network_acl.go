@@ -654,7 +654,7 @@ func (c *cmdNetworkACLEdit) command() *cobra.Command {
 
 func (c *cmdNetworkACLEdit) helpTemplate() string {
 	return `### This is a YAML representation of the network ACL.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A network ACL consists of a set of rules and configuration items.
 ###

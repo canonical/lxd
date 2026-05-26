@@ -68,7 +68,7 @@ func (c *cmdConfigMetadataEdit) command() *cobra.Command {
 
 func (c *cmdConfigMetadataEdit) helpTemplate() string {
 	return `### This is a YAML representation of the instance metadata.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A sample configuration looks like:
 ###

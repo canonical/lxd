@@ -279,7 +279,7 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Error inserting volume %q for project %q in pool %q of type %q into database %q", volumeName, projectName, pool.Name(), volumeType, err)
+		return fmt.Errorf("Error inserting volume %q for project %q in pool %q of type %q into database: %w", volumeName, projectName, pool.Name(), volumeType, err)
 	}
 
 	return nil
@@ -978,7 +978,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 		for _, project := range projects {
 			projectMap[project.Name], err = project.ToAPI(ctx, tx.Tx())
 			if err != nil {
-				return fmt.Errorf("Failed loading config for projec %q: %w", project.Name, err)
+				return fmt.Errorf("Failed loading config for project %q: %w", project.Name, err)
 			}
 		}
 

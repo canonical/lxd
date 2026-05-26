@@ -387,7 +387,7 @@ lxc image edit <image> < image.yaml
 
 func (c *cmdImageEdit) helpTemplate() string {
 	return `### This is a YAML representation of the image properties.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### Each property is represented by a single line:
 ### An example would be:
@@ -1235,7 +1235,8 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 				found = true
 			}
 
-			// Also check against column shorthand display values so that
+			// Also check against column shorthand display values so that filters
+			// can match values shown by shorthand columns (for example, "l=...").
 			if !found {
 				for _, col := range c.columns() {
 					if string(col.Shorthand) == key && col.Data(*state) == value {

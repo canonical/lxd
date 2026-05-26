@@ -396,7 +396,7 @@ func (c *cmdPlacementGroupEdit) command() *cobra.Command {
 
 func (c *cmdPlacementGroupEdit) helpTemplate() string {
 	return `### This is a YAML representation of the placement group.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### An example placement group structure is shown below.
 ### The name, project, and used_by fields cannot be modified.

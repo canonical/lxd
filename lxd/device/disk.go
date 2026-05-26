@@ -2436,6 +2436,10 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 		dev = []string{rows[2], rows[len(rows)-2]}
 	}
 
+	if scanner.Err() != nil {
+		return nil, fmt.Errorf("Failed scanning /proc/self/mountinfo: %w", scanner.Err())
+	}
+
 	if dev == nil {
 		return nil, errors.New("Could not find a match /proc/self/mountinfo entry")
 	}
@@ -2598,8 +2602,12 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	var metaDataBuilder strings.Builder
 
 	// Append strings to the builder
-	metaDataBuilder.WriteString("instance-id: " + d.inst.CloudInitID() + "\n")
-	metaDataBuilder.WriteString("local-hostname: " + d.inst.Name() + "\n")
+	metaDataBuilder.WriteString("instance-id: ")
+	metaDataBuilder.WriteString(d.inst.CloudInitID())
+	metaDataBuilder.WriteString("\n")
+	metaDataBuilder.WriteString("local-hostname: ")
+	metaDataBuilder.WriteString(d.inst.Name())
+	metaDataBuilder.WriteString("\n")
 
 	// These keys shouldn't be appended to the meta as it would be redundant as their values are already available
 	// for cloud-init. Only the content of `user.meta-data` is appended to meta_data.
@@ -2610,7 +2618,10 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	// Single quotes included in the value itself are escaped by being replaced with `''`.
 	for key, value := range instanceConfig {
 		if strings.HasPrefix(key, "user.") && !slices.Contains(excludedKeys, key) {
-			metaDataBuilder.WriteString(key + ": '" + strings.ReplaceAll(value, "'", "''") + "'\n")
+			metaDataBuilder.WriteString(key)
+			metaDataBuilder.WriteString(": '")
+			metaDataBuilder.WriteString(strings.ReplaceAll(value, "'", "''"))
+			metaDataBuilder.WriteString("'\n")
 		}
 	}
 

@@ -634,7 +634,7 @@ func (c *cmdNetworkPeerEdit) command() *cobra.Command {
 
 func (c *cmdNetworkPeerEdit) helpTemplate() string {
 	return `### This is a YAML representation of the network peer.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### An example would look like:
 ### description: A peering to mynet

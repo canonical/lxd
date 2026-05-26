@@ -519,7 +519,7 @@ func (c *cmdProfileEdit) command() *cobra.Command {
 
 func (c *cmdProfileEdit) helpTemplate() string {
 	return `### This is a YAML representation of the profile.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A profile consists of a set of configuration items followed by a set of
 ### devices.

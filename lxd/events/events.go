@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 
@@ -146,9 +147,7 @@ func (s *Server) SendLifecycle(projectName string, event api.EventLifecycle) {
 
 	// Flatten event.Context so each field is individually queryable
 	// in the syslog output.
-	for k, v := range event.Context {
-		ctx[k] = v
-	}
+	maps.Copy(ctx, event.Context)
 
 	if event.Requestor != nil {
 		// Spell this "requestor" (matching api.EventLifecycle.Requestor); the legacy

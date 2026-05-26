@@ -767,7 +767,7 @@ func IsHostname(name string) error {
 
 // IsDomainName checks that value is a valid domain name by validating each label with [IsHostname].
 func IsDomainName(value string) error {
-	for _, label := range strings.Split(value, ".") {
+	for label := range strings.SplitSeq(value, ".") {
 		err := IsHostname(label)
 		if err != nil {
 			return fmt.Errorf("Invalid domain name %q: %w", value, err)

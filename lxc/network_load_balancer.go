@@ -673,7 +673,7 @@ func (c *cmdNetworkLoadBalancerEdit) command() *cobra.Command {
 
 func (c *cmdNetworkLoadBalancerEdit) helpTemplate() string {
 	return `### This is a YAML representation of the network load balancer.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A network load balancer consists of a set of target backends and port forwards for a listen address.
 ###

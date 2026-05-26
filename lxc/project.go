@@ -295,7 +295,7 @@ func (c *cmdProjectEdit) command() *cobra.Command {
 
 func (c *cmdProjectEdit) helpTemplate() string {
 	return `### This is a YAML representation of the project.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A project consists of a set of features and a description.
 ###

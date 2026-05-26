@@ -151,7 +151,7 @@ func (c *cmdConfigEdit) command() *cobra.Command {
 // helpTemplate returns a sample YAML configuration and guidelines for editing instance configurations.
 func (c *cmdConfigEdit) helpTemplate() string {
 	return `### This is a YAML representation of the configuration.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A sample configuration looks like:
 ### name: instance1
@@ -1269,7 +1269,7 @@ func (c *cmdConfigUefiEdit) command() *cobra.Command {
 // helpTemplate returns a sample YAML UEFI variables configuration.
 func (c *cmdConfigUefiEdit) helpTemplate() string {
 	return `### This is a YAML representation of the UEFI variables configuration.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A sample UEFI variables configuration looks like:
 ### variables:

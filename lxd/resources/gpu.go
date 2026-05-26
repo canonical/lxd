@@ -51,8 +51,6 @@ func loadNvidiaProc() (map[string]*api.ResourcesGPUCardNvidia, error) {
 			return nil, fmt.Errorf("Failed opening %q: %w", informationPath, err)
 		}
 
-		defer func() { _ = f.Close() }()
-
 		gpuInfo := bufio.NewScanner(f)
 		nvidiaCard := &api.ResourcesGPUCardNvidia{}
 		for gpuInfo.Scan() {
@@ -75,6 +73,12 @@ func loadNvidiaProc() (map[string]*api.ResourcesGPUCardNvidia, error) {
 				nvidiaCard.CardName = "nvidia" + value
 				nvidiaCard.CardDevice = "195:" + value
 			}
+		}
+
+		scanErr := gpuInfo.Err()
+		_ = f.Close()
+		if scanErr != nil {
+			return nil, fmt.Errorf("Failed scanning NVIDIA GPU info for %q: %w", entryName, scanErr)
 		}
 
 		nvidiaCards[entryName] = nvidiaCard

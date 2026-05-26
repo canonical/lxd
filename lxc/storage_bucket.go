@@ -281,7 +281,7 @@ func (c *cmdStorageBucketEdit) command() *cobra.Command {
 
 func (c *cmdStorageBucketEdit) helpTemplate() string {
 	return `### This is a YAML representation of a storage bucket.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A storage bucket consists of a set of configuration items.
 ###
@@ -1152,7 +1152,7 @@ func (c *cmdStorageBucketKeyEdit) command() *cobra.Command {
 
 func (c *cmdStorageBucketKeyEdit) helpTemplate() string {
 	return `### This is a YAML representation of a storage bucket.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A storage bucket consists of a set of configuration items.
 ###

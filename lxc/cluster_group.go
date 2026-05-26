@@ -419,7 +419,7 @@ func (c *cmdClusterGroupEdit) run(cmd *cobra.Command, args []string) error {
 // Returns a string explaining the expected YAML structure for a cluster group configuration.
 func (c *cmdClusterGroupEdit) helpTemplate() string {
 	return `### This is a YAML representation of the cluster group.
-### Any line starting with a '# will be ignored.`
+### Any line starting with a '#' will be ignored.`
 }
 
 // cmdClusterGroupList represents the "lxc cluster group list" command.

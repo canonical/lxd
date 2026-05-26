@@ -319,6 +319,10 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		cpuInfoMap[cpuSocket] = cpuInfo
 	}
 
+	if cpuInfoScanner.Err() != nil {
+		return nil, fmt.Errorf("Failed scanning /proc/cpuinfo: %w", cpuInfoScanner.Err())
+	}
+
 	// List all the CPUs
 	entries, err := os.ReadDir(sysDevicesCPU)
 	if err != nil {

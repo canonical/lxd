@@ -245,7 +245,7 @@ func (c *cmdConfigTrustEdit) command() *cobra.Command {
 
 func (c *cmdConfigTrustEdit) helpTemplate() string {
 	return `### This is a YAML representation of the certificate.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### Note that the fingerprint is shown but cannot be changed`
 }

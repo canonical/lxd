@@ -2739,7 +2739,7 @@ func (b *lxdBackend) CreateInstanceFromConversion(inst instance.Instance, conn i
 			vol.SetConfigSize(strconv.FormatInt(imgBytes, 10))
 		}
 
-		// Convert received image into intance volume.
+		// Convert received image into instance volume.
 		volFiller.Fill = b.imageConversionFiller(imgPath, imgFormat, progressReporter)
 	} else {
 		// If volume size is provided, then use that as block volume size instead of pool default.
@@ -3723,7 +3723,7 @@ func (b *lxdBackend) getInstanceDisk(inst instance.Instance) (string, error) {
 	return diskPath, nil
 }
 
-// CreateInstanceSnapshot creates a snaphot of an instance volume.
+// CreateInstanceSnapshot creates a snapshot of an instance volume.
 func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, progressReporter ioprogress.ProgressReporter) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "src": src.Name()})
 	l.Debug("CreateInstanceSnapshot started")
@@ -5263,8 +5263,9 @@ func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersio
 			return nil, fmt.Errorf("Failed decoding migration index header response: %w", err)
 		}
 
-		if infoResp.Err() != nil {
-			return nil, fmt.Errorf("Failed negotiating migration options: %w", err)
+		respErr := infoResp.Err()
+		if respErr != nil {
+			return nil, fmt.Errorf("Failed negotiating migration options: %w", respErr)
 		}
 
 		l.Info("Received migration index header response", logger.Ctx{"response": fmt.Sprintf("%+v", infoResp), "version": indexHeaderVersion})
@@ -7626,7 +7627,7 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 		},
 	}
 
-	// Populate snaphot volumes.
+	// Populate snapshot volumes.
 	for _, snapOnlyName := range snapshots {
 		snapFullName := drivers.GetSnapshotVolumeName(volName, snapOnlyName)
 
@@ -8279,7 +8280,7 @@ func (b *lxdBackend) getParentVolumeUUID(vol drivers.Volume, projectName string)
 	// Extract parent volume UUID.
 	parentUUID := parentDBVol.Config["volatile.uuid"]
 	if parentUUID == "" {
-		return "", fmt.Errorf("Parent volume %q of snapshot %q in project %q does not have UUID set)", parentName, projectName, vol.Name())
+		return "", fmt.Errorf("Parent volume %q of snapshot %q in project %q does not have UUID set", parentName, vol.Name(), projectName)
 	}
 
 	return parentUUID, nil

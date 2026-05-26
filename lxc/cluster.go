@@ -791,7 +791,7 @@ func (c *cmdClusterEdit) command() *cobra.Command {
 
 func (c *cmdClusterEdit) helpTemplate() string {
 	return `### This is a yaml representation of the cluster member.
-### Any line starting with a '# will be ignored.`
+### Any line starting with a '#' will be ignored.`
 }
 
 func (c *cmdClusterEdit) run(cmd *cobra.Command, args []string) error {
