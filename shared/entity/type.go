@@ -156,6 +156,13 @@ func (t Type) RequiresProject() (bool, error) {
 }
 
 // entityTypes is the source of truth for available entity types in LXD. This should never be modified at runtime.
+//
+// When adding a new entity type, the following must also be updated:
+//   - lxd/db/cluster/entities.go: add a corresponding entry to the local entityTypes map.
+//     [cluster.TestEntityTypesCoversAllEntityTypes] will fail if this is missed.
+//   - lxd/entity_deleter.go: add a case to [getEntityDeleter] if the type is project-scoped.
+//     Sub-entities deleted implicitly with their parent (e.g. [TypeInstanceBackup]) are exempt.
+//     [TestGetEntityDeleterCoversAllProjectEntityTypes] will fail if this is missed.
 var entityTypes = map[Type]typeInfo{
 	TypeContainer:             container{},
 	TypeImage:                 image{},
