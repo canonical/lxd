@@ -82,6 +82,10 @@ func (c *cmdForkZFS) run(cmd *cobra.Command, args []string) error {
 		line := scanner.Text()
 		rows := strings.Fields(line)
 
+		if len(rows) < 5 {
+			continue
+		}
+
 		if !strings.HasPrefix(rows[4], expPath) {
 			continue
 		}
