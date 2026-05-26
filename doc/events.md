@@ -20,7 +20,7 @@ LXD currently supports five event types.
 - `operation`: Shows all ongoing operations from creation to completion (including updates to their state and progress metadata).
 - `lifecycle`: Shows an audit trail for specific actions occurring over LXD.
 - `ovn`: Shows network-related events from OVN (Open Virtual Network).
-- `security`: Shows security-related events including authentication attempts, authorisation decisions, and administrative changes. Requires appropriate permissions to view.
+- `security`: Shows security-related events including authentication attempts, authorization decisions, and administrative changes. Requires appropriate permissions to view.
 
 ## Event structure
 
