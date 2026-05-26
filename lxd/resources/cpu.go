@@ -18,6 +18,7 @@ import (
 )
 
 var sysDevicesCPU = "/sys/devices/system/cpu"
+var cpuInfoPath = "/proc/cpuinfo"
 
 // GetCPUIsolated returns a slice of IDs corresponding to isolated threads.
 func GetCPUIsolated() []int64 {
@@ -226,13 +227,10 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	cpuSockets := map[int64]*api.ResourcesCPUSocket{}
 	cpuCores := map[int64]map[string]*api.ResourcesCPUCore{}
 
-	// Get the DMI data
-	dmiVendor, dmiModel, _ := getCPUdmi()
-
 	// Open cpuinfo
-	f, err := os.Open("/proc/cpuinfo")
+	f, err := os.Open(cpuInfoPath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed opening /proc/cpuinfo: %w", err)
+		return nil, fmt.Errorf("Failed opening %q: %w", cpuInfoPath, err)
 	}
 
 	defer func() { _ = f.Close() }()
@@ -246,21 +244,35 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			continue
 		}
 
-		// Extract cpu index
-		_, value, found := strings.Cut(line, ":")
+		// Extract cpu index.
+		//
+		// Most architectures (x86, arm64) use "processor\t: N" where the index
+		// appears after the colon. s390x uses "processor N: version = ..." where
+		// the index appears before the colon as part of the prefix. Handle both.
+		before, value, found := strings.Cut(line, ":")
 		if !found {
-			return nil, errors.New("Failed parsing /proc/cpuinfo: Missing separator")
+			return nil, fmt.Errorf("Failed parsing %q: Missing separator", cpuInfoPath)
 		}
 
 		value = strings.TrimSpace(value)
 		cpuSocket, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Failed parsing cpu index %q in /proc/cpuinfo: %w", value, err)
+			// Fall back to extracting the index from the last whitespace-separated
+			// token of the prefix (e.g. "processor 0" -> "0").
+			fields := strings.Fields(before)
+			if len(fields) < 2 {
+				return nil, fmt.Errorf("Failed parsing cpu index in %q: %w", cpuInfoPath, err)
+			}
+
+			cpuSocket, err = strconv.ParseInt(fields[len(fields)-1], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing cpu index in %q: %w", cpuInfoPath, err)
+			}
 		}
 
 		_, ok := cpuInfoMap[cpuSocket]
 		if ok {
-			return nil, errors.New("Failed parsing /proc/cpuinfo: duplicate CPU block in cpuinfo?")
+			return nil, fmt.Errorf("Failed parsing %q: duplicate CPU block in cpuinfo?", cpuInfoPath)
 		}
 
 		cpuInfo := &cpuInfo{}
@@ -282,7 +294,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			// Get key/value
 			key, value, found := strings.Cut(line, ":")
 			if !found {
-				return nil, errors.New("Failed parsing /proc/cpuinfo: Missing separator")
+				return nil, fmt.Errorf("Failed parsing %q: Missing separator", cpuInfoPath)
 			}
 
 			key = strings.TrimSpace(key)
@@ -312,6 +324,10 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed listing %q: %w", sysDevicesCPU, err)
 	}
+
+	// DMI data is fetched at most once and reused for all sockets that need it.
+	var dmiVendor, dmiModel string
+	dmiDone := false
 
 	// Process all entries
 	cpu.Total = 0
@@ -373,12 +389,19 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			}
 
 			// Fill in model/vendor from DMI if missing.
-			if resSocket.Vendor == "" {
-				resSocket.Vendor = dmiVendor
-			}
+			if resSocket.Vendor == "" || resSocket.Name == "" {
+				if !dmiDone {
+					dmiVendor, dmiModel, _ = getCPUdmi()
+					dmiDone = true
+				}
 
-			if resSocket.Name == "" {
-				resSocket.Name = dmiModel
+				if resSocket.Vendor == "" {
+					resSocket.Vendor = dmiVendor
+				}
+
+				if resSocket.Name == "" {
+					resSocket.Name = dmiModel
+				}
 			}
 
 			// Cache information
