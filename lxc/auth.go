@@ -214,7 +214,7 @@ func (c *cmdGroupEdit) command() *cobra.Command {
 
 func (c *cmdGroupEdit) helpTemplate() string {
 	return `### This is a YAML representation of the group.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### NOTE: All group information is shown but only the description and permissions can be modified.
 ###
@@ -1252,7 +1252,7 @@ func (c *cmdIdentityEdit) command() *cobra.Command {
 
 func (c *cmdIdentityEdit) helpTemplate() string {
 	return `### This is a YAML representation of the group.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### An identity has the following format:
 ### authentication_method: oidc
@@ -2060,7 +2060,7 @@ func (c *cmdIdentityProviderGroupEdit) command() *cobra.Command {
 
 func (c *cmdIdentityProviderGroupEdit) helpTemplate() string {
 	return `### This is a YAML representation of the identity provider group.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### An identity provider group has the following format:
 ### name: operations
