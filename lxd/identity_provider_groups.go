@@ -157,7 +157,7 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var apiIDPGroups []*api.IdentityProviderGroup
-	var idpGroups []dbCluster.IdentityProviderGroup
+	var idpGroups []dbCluster.IdentityProviderGroupsRow
 	urlToIDPGroup := make(map[*api.URL]auth.EntitlementReporter)
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		allIDPGroups, err := dbCluster.GetIdentityProviderGroups(ctx, tx.Tx())
@@ -165,7 +165,7 @@ func getIdentityProviderGroups(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		idpGroups = make([]dbCluster.IdentityProviderGroup, 0, len(allIDPGroups))
+		idpGroups = make([]dbCluster.IdentityProviderGroupsRow, 0, len(allIDPGroups))
 		for _, idpGroup := range allIDPGroups {
 			if canViewIDPGroup(entity.IdentityProviderGroupURL(idpGroup.Name)) {
 				idpGroups = append(idpGroups, idpGroup)
@@ -321,7 +321,7 @@ func createIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		id, err := dbCluster.CreateIdentityProviderGroup(ctx, tx.Tx(), dbCluster.IdentityProviderGroup{Name: idpGroup.Name})
+		id, err := dbCluster.CreateIdentityProviderGroup(ctx, tx.Tx(), dbCluster.IdentityProviderGroupsRow{Name: idpGroup.Name})
 		if err != nil {
 			if api.StatusErrorCheck(err, http.StatusConflict) {
 				return api.StatusErrorf(http.StatusConflict, "Identity provider group %q already exists", idpGroup.Name)
