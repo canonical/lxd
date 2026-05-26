@@ -975,6 +975,10 @@ func GetHostDevice(parent string, vlan string) string {
 		}
 	}
 
+	if scanner.Err() != nil {
+		return defaultVlan
+	}
+
 	// Return the default pattern
 	return defaultVlan
 }
