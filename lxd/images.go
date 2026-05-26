@@ -4891,12 +4891,12 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 
 		err := shared.FileMove(metaFile.Name(), metaPath)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		err = shared.FileMove(rootfsFile.Name(), rootfsPath)
 		if err != nil {
-			return nil
+			return err
 		}
 	}
 
