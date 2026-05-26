@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"slices"
@@ -194,8 +196,8 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 			for _, clusterAddress := range joinToken.Addresses {
 				config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
 
-				// Cluster certificate
-				cert, err := shared.GetRemoteCertificate(context.Background(), "https://"+config.Cluster.ClusterAddress, version.UserAgent)
+				// Get cluster certificate bypassing any configured HTTP proxy.
+				cert, err := shared.GetRemoteCertificateNoProxy(context.Background(), "https://"+config.Cluster.ClusterAddress, version.UserAgent)
 				if err != nil {
 					fmt.Printf("Error connecting to existing cluster member %q: %v\n", clusterAddress, err)
 					continue
@@ -249,6 +251,10 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, server *api.Server) err
 				TLSClientKey:  string(serverCert.PrivateKey()),
 				TLSServerCert: string(config.Cluster.ClusterCertificate),
 				UserAgent:     version.UserAgent,
+				// Always set a proxy function to have cluster traffic bypass any configured HTTP proxy.
+				Proxy: func(_ *http.Request) (*url.URL, error) {
+					return nil, nil
+				},
 			}
 
 			client, err := lxd.ConnectLXD("https://"+config.Cluster.ClusterAddress, args)
