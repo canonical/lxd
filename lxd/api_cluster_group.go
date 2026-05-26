@@ -679,31 +679,12 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		groupID, err := dbCluster.GetClusterGroupID(ctx, tx.Tx(), obj.Name)
-		if err != nil {
-			return err
-		}
-
-		err = dbCluster.DeleteNodesClusterGroupsByGroupID(ctx, tx.Tx(), groupID)
-		if err != nil {
-			return err
-		}
-
-		for _, node := range obj.Nodes {
-			err = tx.AddNodeToClusterGroup(ctx, obj.Name, node)
-			if err != nil {
-				return err
-			}
-		}
-
 		members, err := tx.GetClusterGroupNodes(ctx, name)
 		if err != nil {
 			return err
 		}
 
-		// skipMembers is a list of members which already belong to the group.
-		skipMembers := []string{}
-
+		// Every member must belong to at least one group.
 		for _, oldMember := range members {
 			if !slices.Contains(req.Members, oldMember) {
 				// Get all cluster groups this member belongs to.
@@ -716,24 +697,20 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 				if len(groups) == 1 {
 					return fmt.Errorf("Cannot remove %q from group as member needs to belong to at least one group", oldMember)
 				}
-
-				// Remove member from this group as it belongs to at least one other group.
-				err = tx.RemoveNodeFromClusterGroup(ctx, name, oldMember)
-				if err != nil {
-					return err
-				}
-			} else {
-				skipMembers = append(skipMembers, oldMember)
 			}
 		}
 
-		for _, member := range req.Members {
-			// Skip these members as they already belong to this group.
-			if slices.Contains(skipMembers, member) {
-				continue
-			}
+		groupID, err := dbCluster.GetClusterGroupID(ctx, tx.Tx(), obj.Name)
+		if err != nil {
+			return err
+		}
 
-			// Add new members to the group.
+		err = dbCluster.DeleteNodesClusterGroupsByGroupID(ctx, tx.Tx(), groupID)
+		if err != nil {
+			return err
+		}
+
+		for _, member := range req.Members {
 			err = tx.AddNodeToClusterGroup(ctx, name, member)
 			if err != nil {
 				return err
