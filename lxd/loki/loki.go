@@ -346,7 +346,10 @@ func (c *Client) HandleEvent(event api.Event) {
 
 		// Add the remaining context as the message prefix.
 		for k, v := range context {
-			line.WriteString(k + `="` + v + `" `)
+			line.WriteString(k)
+			line.WriteString(`="`)
+			line.WriteString(v)
+			line.WriteString(`" `)
 		}
 
 		line.WriteString(lifecycleEvent.Action)
@@ -405,7 +408,10 @@ func (c *Client) HandleEvent(event api.Event) {
 
 		// Add the remaining context as the message prefix. The keys are sorted alphabetically.
 		for _, k := range keys {
-			message.WriteString(k + `="` + context[k] + `" `)
+			message.WriteString(k)
+			message.WriteString(`="`)
+			message.WriteString(context[k])
+			message.WriteString(`" `)
 		}
 
 		message.WriteString(logEvent.Message)
