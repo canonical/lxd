@@ -51,7 +51,7 @@ For general event stream usage, see {ref}`events`.
 ## Monitor security events with Loki
 
 In a production environment, forward security events to
-[Loki](https://grafana.com/oss/loki/) for centralised audit log
+[Loki](https://grafana.com/oss/loki/) for centralized audit log
 aggregation and analysis.
 
 For general Loki setup, see {ref}`logs_loki`. The steps below cover
