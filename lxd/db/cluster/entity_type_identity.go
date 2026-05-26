@@ -92,7 +92,11 @@ func authMethodCaseClause() string {
 	b.WriteString(`CASE identities.auth_method `)
 	for code, text := range authMethodCodeToText {
 		codeStr := strconv.FormatInt(code, 10)
-		b.WriteString(`WHEN ` + codeStr + ` THEN '` + text + `' `)
+		b.WriteString(`WHEN `)
+		b.WriteString(codeStr)
+		b.WriteString(` THEN '`)
+		b.WriteString(text)
+		b.WriteString(`' `)
 	}
 
 	b.WriteString(`END`)
