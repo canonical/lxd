@@ -18,7 +18,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-// Connect is a convenience around lxd.ConnectLXD that configures the client
+// Connect is a convenience around lxd.ConnectLXDWithContext that configures the client
 // with the correct parameters for node-to-node communication.
 //
 // If a request context is passed (as defined by request.IsRequestContext) then the
