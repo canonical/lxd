@@ -89,6 +89,11 @@ func (c *cmdForkZFS) run(cmd *cobra.Command, args []string) error {
 		_ = unix.Unmount(rows[4], unix.MNT_DETACH)
 	}
 
+	err = scanner.Err()
+	if err != nil {
+		return err
+	}
+
 	// Run the ZFS command
 	command := exec.Command("zfs", args...)
 	command.Stdin = os.Stdin
