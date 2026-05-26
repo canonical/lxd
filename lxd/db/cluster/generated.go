@@ -272,6 +272,64 @@ func (i *IdentityCertificate) ScanArgs() []any {
 	return []any{&i.Row.ID, &i.Row.Fingerprint, &i.Row.Certificate, &i.Row.CreationDate, &i.IdentityID}
 }
 
+// TableName returns the table name for [InstancesProfilesRow] entities.
+func (i InstancesProfilesRow) TableName() string {
+	return "instances_profiles"
+}
+
+// SelectColumns returns a slice of column names for [InstancesProfilesRow] entities.
+func (i InstancesProfilesRow) SelectColumns() []string {
+	return []string{
+		"instances_profiles.id",
+		"instances_profiles.instance_id",
+		"instances_profiles.profile_id",
+		"instances_profiles.apply_order",
+	}
+}
+
+// Joins returns a slice of join expressions for [InstancesProfilesRow].
+func (i InstancesProfilesRow) Joins() []string {
+	return []string{}
+}
+
+// ScanArgs implements [query.ScanArger] for [InstancesProfilesRow].
+// This returns references to struct fields in definition order.
+func (i *InstancesProfilesRow) ScanArgs() []any {
+	return []any{&i.ID, &i.InstanceID, &i.ProfileID, &i.ApplyOrder}
+}
+
+// CreateValues returns a list of values from [InstancesProfilesRow] entities matching the bind arguments in [CreateStmt].
+func (i InstancesProfilesRow) CreateValues() []any {
+	return []any{i.InstanceID, i.ProfileID, i.ApplyOrder}
+}
+
+// UpdateValues returns a list of values from [InstancesProfilesRow] entities matching the columns in [UpdateStmt].
+func (i InstancesProfilesRow) UpdateValues() []any {
+	return []any{i.InstanceID, i.ProfileID, i.ApplyOrder}
+}
+
+// PKColumns returns the column names for the primary key of a [InstancesProfilesRow] entity used during an update.
+// The returned slice must have the same number of elements as PKValues.
+func (i InstancesProfilesRow) PKColumns() []string {
+	return []string{"id"}
+}
+
+// PKValues returns the values for the primary key of a [InstancesProfilesRow] entity used during an update.
+// The returned slice must have the same number of elements as PKColumns.
+func (i InstancesProfilesRow) PKValues() []any {
+	return []any{i.ID}
+}
+
+// CreateStmt returns a query that creates a [InstancesProfilesRow] entity.
+func (i InstancesProfilesRow) CreateStmt() string {
+	return "INSERT INTO instances_profiles (instance_id, profile_id, apply_order) VALUES (?, ?, ?)"
+}
+
+// UpdateStmt returns a query that updates a [InstancesProfilesRow] by primary key.
+func (i InstancesProfilesRow) UpdateStmt() string {
+	return "UPDATE instances_profiles SET instance_id = ?, profile_id = ?, apply_order = ? "
+}
+
 // TableName returns the table name for [NodesClusterGroups] entities.
 func (n NodesClusterGroups) TableName() string {
 	return "nodes_cluster_groups"
