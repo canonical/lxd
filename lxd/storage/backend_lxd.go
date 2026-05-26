@@ -5263,8 +5263,9 @@ func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersio
 			return nil, fmt.Errorf("Failed decoding migration index header response: %w", err)
 		}
 
-		if infoResp.Err() != nil {
-			return nil, fmt.Errorf("Failed negotiating migration options: %w", err)
+		respErr := infoResp.Err()
+		if respErr != nil {
+			return nil, fmt.Errorf("Failed negotiating migration options: %w", respErr)
 		}
 
 		l.Info("Received migration index header response", logger.Ctx{"response": fmt.Sprintf("%+v", infoResp), "version": indexHeaderVersion})
