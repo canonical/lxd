@@ -14,10 +14,10 @@ if command -v golangci-lint >/dev/null; then
     installed_version="v$(golangci-lint version --short)"
     if [ "${installed_version}" != "${expected_version}" ]; then
         echo "golangci-lint version mismatch: installed ${installed_version}, expected ${expected_version}. Reinstalling..."
-        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "${bin}" "${expected_version}"
+        curl -sSfL https://golangci-lint.run/install.sh| sh -s -- -b "${bin}" "${expected_version}"
     fi
 else
-    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "${bin}" "${expected_version}"
+    curl -sSfL https://golangci-lint.run/install.sh| sh -s -- -b "${bin}" "${expected_version}"
 fi
 
 echo "Checking for golangci-lint errors..."
