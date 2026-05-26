@@ -231,14 +231,14 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 
 			apiClusterGroups = make([]*api.ClusterGroup, 0, len(clusterGroups))
 			for _, clusterGroup := range clusterGroups {
-				nodeClusterGroups, err := dbCluster.GetNodeClusterGroups(ctx, tx.Tx(), dbCluster.NodeClusterGroupFilter{GroupID: &clusterGroup.ID})
+				nodeClusterGroups, err := dbCluster.GetNodesClusterGroupsByGroupID(ctx, tx.Tx(), int64(clusterGroup.ID))
 				if err != nil {
 					return err
 				}
 
 				clusterGroup.Nodes = make([]string, 0, len(nodeClusterGroups))
 				for _, node := range nodeClusterGroups {
-					clusterGroup.Nodes = append(clusterGroup.Nodes, node.Node)
+					clusterGroup.Nodes = append(clusterGroup.Nodes, node.NodeName)
 				}
 
 				apiClusterGroup, err := clusterGroup.ToAPI(ctx, tx.Tx())
@@ -330,14 +330,14 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		nodeClusterGroups, err := dbCluster.GetNodeClusterGroups(ctx, tx.Tx(), dbCluster.NodeClusterGroupFilter{GroupID: &group.ID})
+		nodeClusterGroups, err := dbCluster.GetNodesClusterGroupsByGroupID(ctx, tx.Tx(), int64(group.ID))
 		if err != nil {
 			return err
 		}
 
 		group.Nodes = make([]string, 0, len(nodeClusterGroups))
 		for _, node := range nodeClusterGroups {
-			group.Nodes = append(group.Nodes, node.Node)
+			group.Nodes = append(group.Nodes, node.NodeName)
 		}
 
 		apiGroup, err = group.ToAPI(ctx, tx.Tx())
@@ -628,14 +628,14 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		nodeClusterGroups, err := dbCluster.GetNodeClusterGroups(ctx, tx.Tx(), dbCluster.NodeClusterGroupFilter{GroupID: &dbClusterGroup.ID})
+		nodeClusterGroups, err := dbCluster.GetNodesClusterGroupsByGroupID(ctx, tx.Tx(), int64(dbClusterGroup.ID))
 		if err != nil {
 			return err
 		}
 
 		dbClusterGroup.Nodes = make([]string, 0, len(nodeClusterGroups))
 		for _, node := range nodeClusterGroups {
-			dbClusterGroup.Nodes = append(dbClusterGroup.Nodes, node.Node)
+			dbClusterGroup.Nodes = append(dbClusterGroup.Nodes, node.NodeName)
 		}
 
 		clusterGroup, err = dbClusterGroup.ToAPI(ctx, tx.Tx())
@@ -684,7 +684,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = dbCluster.DeleteNodeClusterGroup(ctx, tx.Tx(), int(groupID))
+		err = dbCluster.DeleteNodesClusterGroupsByGroupID(ctx, tx.Tx(), groupID)
 		if err != nil {
 			return err
 		}
