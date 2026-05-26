@@ -61,7 +61,7 @@ func (c *cmdForkconsole) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	escapeNum := strings.TrimPrefix(args[4], "escape=")
-	escape, err := strconv.ParseInt(escapeNum, 10, 32)
+	escape, err := strconv.Atoi(escapeNum)
 	if err != nil {
 		return fmt.Errorf("Failed retrieving escape character: %q", err)
 	}
