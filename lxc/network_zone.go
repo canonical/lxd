@@ -590,7 +590,7 @@ func (c *cmdNetworkZoneEdit) command() *cobra.Command {
 
 func (c *cmdNetworkZoneEdit) helpTemplate() string {
 	return `### This is a YAML representation of the network zone.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A network zone consists of a set of rules and configuration items.
 ###
@@ -1317,7 +1317,7 @@ func (c *cmdNetworkZoneRecordEdit) command() *cobra.Command {
 
 func (c *cmdNetworkZoneRecordEdit) helpTemplate() string {
 	return `### This is a YAML representation of the network zone record.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A network zone consists of a set of rules and configuration items.
 ###
