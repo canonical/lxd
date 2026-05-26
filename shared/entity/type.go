@@ -210,6 +210,16 @@ func APIMetricsEntityTypes() []Type {
 	return metricsEntityTypes
 }
 
+// AllTypes returns all registered entity types in no particular order.
+func AllTypes() []Type {
+	types := make([]Type, 0, len(entityTypes))
+	for t := range entityTypes {
+		types = append(types, t)
+	}
+
+	return types
+}
+
 type container struct {
 	typeInfoCommon
 }
