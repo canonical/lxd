@@ -40,9 +40,10 @@ When creating a new storage pool using the `pure` driver in either `iscsi` or `n
 Upon successful discovery, LXD attaches all volumes that are connected to the Pure Storage host that is associated with a specific LXD server.
 Pure Storage hosts and volume connections are fully managed by LXD.
 
-Volume snapshots are also supported by Pure Storage. However, each snapshot is associated with a parent volume and cannot be directly attached to the host.
-Therefore, when a snapshot is being exported, LXD creates a temporary volume behind the scenes. This volume is attached to the LXD host and removed once the operation is completed.
-Similarly, when a volume with at least one snapshot is being copied, LXD sequentially copies snapshots into destination volume, from which a new snapshot is created.
+Volume snapshots are also supported by Pure Storage.
+When a volume with at least one snapshot is copied, LXD sequentially creates snapshots on the destination volume from snapshots on the source volume.
+Each snapshot is associated with a parent volume and cannot be directly attached to the host; therefore, when a snapshot is exported, LXD creates a temporary volume behind the scenes.
+This volume is attached to the LXD host and removed once the operation is complete.
 Finally, once all snapshots are copied, the source volume is copied into the destination volume.
 
 (storage-pure-volume-names)=

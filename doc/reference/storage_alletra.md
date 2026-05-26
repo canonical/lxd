@@ -38,7 +38,9 @@ When creating a new storage pool using the `alletra` driver, LXD automatically d
 Upon successful discovery, LXD attaches all volumes that are connected to the HPE Alletra host that is associated with a specific LXD server.
 HPE Alletra hosts and volume connections ({abbr}`vLUNs (virtual Logical Unit Numbers)`) are fully managed by LXD.
 
-Volume snapshots are also supported by HPE Alletra. When a volume with at least one snapshot is copied, LXD sequentially copies snapshots into the destination volume, from which a new snapshot is created. Finally, once all snapshots are copied, the source volume is copied into the destination volume.
+Volume snapshots are also supported by HPE Alletra.
+When a volume with at least one snapshot is copied, LXD sequentially creates snapshots on the destination volume from snapshots on the source volume.
+Finally, once all snapshots are copied, the source volume is copied into the destination volume.
 
 (storage-alletra-volume-names)=
 ### Volume names
