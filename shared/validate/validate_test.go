@@ -618,6 +618,68 @@ func Test_IsNetworkV6(t *testing.T) {
 	}
 }
 
+func Test_IsNetworkRangeV4(t *testing.T) {
+	tests := []struct {
+		value    string
+		expected bool
+	}{
+		{
+			value:    "192.0.2.1-192.0.2.2",
+			expected: true,
+		},
+		{
+			value:    "192.0.2.2-192.0.2.1",
+			expected: false,
+		},
+		{
+			value:    "2001:db8::1-2001:db8::2",
+			expected: false,
+		},
+		{
+			value:    "192.0.2.1",
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNetworkRangeV4(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNetworkRangeV4(%q) = %v, want %v", test.value, err == nil, test.expected)
+		}
+	}
+}
+
+func Test_IsNetworkRangeV6(t *testing.T) {
+	tests := []struct {
+		value    string
+		expected bool
+	}{
+		{
+			value:    "2001:db8::1-2001:db8::2",
+			expected: true,
+		},
+		{
+			value:    "2001:db8::2-2001:db8::1",
+			expected: false,
+		},
+		{
+			value:    "192.0.2.1-192.0.2.2",
+			expected: false,
+		},
+		{
+			value:    "2001:db8::1",
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNetworkRangeV6(test.value)
+		if (err == nil) != test.expected {
+			t.Errorf("IsNetworkRangeV6(%q) = %v, want %v", test.value, err == nil, test.expected)
+		}
+	}
+}
+
 func Test_IsNetworkMAC(t *testing.T) {
 	tests := []struct {
 		value    string

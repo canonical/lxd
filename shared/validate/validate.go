@@ -381,7 +381,12 @@ func IsNetworkRangeV4(value string) error {
 		return err
 	}
 
-	return IsNetworkAddressV4(end)
+	err = IsNetworkAddressV4(end)
+	if err != nil {
+		return err
+	}
+
+	return IsNetworkRange(value)
 }
 
 // IsNetworkV6 validates an IPv6 CIDR string.
@@ -442,7 +447,12 @@ func IsNetworkRangeV6(value string) error {
 		return err
 	}
 
-	return IsNetworkAddressV6(end)
+	err = IsNetworkAddressV6(end)
+	if err != nil {
+		return err
+	}
+
+	return IsNetworkRange(value)
 }
 
 // IsNetworkVLAN validates a VLAN ID.
