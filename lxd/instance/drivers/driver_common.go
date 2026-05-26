@@ -990,8 +990,8 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		return err
 	}
 
-	if pool.Driver().Info().RunningCopyFreeze && inst.IsRunning() && !inst.IsFrozen() {
-		// Freeze the processes.
+	// Freeze the instance if the driver requires it or if there are attached volumes to ensure crash-consistent snapshots.
+	if (pool.Driver().Info().RunningCopyFreeze || len(attachedVolumes) > 0) && inst.IsRunning() && !inst.IsFrozen() {
 		err = inst.Freeze(ctx)
 		if err != nil {
 			return err
