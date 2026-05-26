@@ -272,6 +272,96 @@ func (i *IdentityCertificate) ScanArgs() []any {
 	return []any{&i.Row.ID, &i.Row.Fingerprint, &i.Row.Certificate, &i.Row.CreationDate, &i.IdentityID}
 }
 
+// TableName returns the table name for [NodesClusterGroups] entities.
+func (n NodesClusterGroups) TableName() string {
+	return "nodes_cluster_groups"
+}
+
+// APIName implements [query.APINamer] for API friendly error messages.
+func (n NodesClusterGroups) APIName() string {
+	return n.Row.APIName()
+}
+
+// SelectColumns returns a slice of column names for [NodesClusterGroups] entities.
+func (n NodesClusterGroups) SelectColumns() []string {
+	return []string{
+		"nodes_cluster_groups.id",
+		"nodes_cluster_groups.node_id",
+		"nodes_cluster_groups.group_id",
+		"nodes.name",
+	}
+}
+
+// Joins returns a slice of join expressions for [NodesClusterGroups].
+func (n NodesClusterGroups) Joins() []string {
+	return []string{
+		"JOIN nodes ON nodes_cluster_groups.node_id = nodes.id",
+	}
+}
+
+// ScanArgs implements [query.ScanArger] for [NodesClusterGroups].
+// This returns references to struct fields in definition order.
+func (n *NodesClusterGroups) ScanArgs() []any {
+	return []any{&n.Row.ID, &n.Row.NodeID, &n.Row.GroupID, &n.NodeName}
+}
+
+// TableName returns the table name for [NodesClusterGroupsRow] entities.
+func (n NodesClusterGroupsRow) TableName() string {
+	return "nodes_cluster_groups"
+}
+
+// SelectColumns returns a slice of column names for [NodesClusterGroupsRow] entities.
+func (n NodesClusterGroupsRow) SelectColumns() []string {
+	return []string{
+		"nodes_cluster_groups.id",
+		"nodes_cluster_groups.node_id",
+		"nodes_cluster_groups.group_id",
+	}
+}
+
+// Joins returns a slice of join expressions for [NodesClusterGroupsRow].
+func (n NodesClusterGroupsRow) Joins() []string {
+	return []string{}
+}
+
+// ScanArgs implements [query.ScanArger] for [NodesClusterGroupsRow].
+// This returns references to struct fields in definition order.
+func (n *NodesClusterGroupsRow) ScanArgs() []any {
+	return []any{&n.ID, &n.NodeID, &n.GroupID}
+}
+
+// CreateValues returns a list of values from [NodesClusterGroupsRow] entities matching the bind arguments in [CreateStmt].
+func (n NodesClusterGroupsRow) CreateValues() []any {
+	return []any{n.NodeID, n.GroupID}
+}
+
+// UpdateValues returns a list of values from [NodesClusterGroupsRow] entities matching the columns in [UpdateStmt].
+func (n NodesClusterGroupsRow) UpdateValues() []any {
+	return []any{n.NodeID, n.GroupID}
+}
+
+// PKColumns returns the column names for the primary key of a [NodesClusterGroupsRow] entity used during an update.
+// The returned slice must have the same number of elements as PKValues.
+func (n NodesClusterGroupsRow) PKColumns() []string {
+	return []string{"id"}
+}
+
+// PKValues returns the values for the primary key of a [NodesClusterGroupsRow] entity used during an update.
+// The returned slice must have the same number of elements as PKColumns.
+func (n NodesClusterGroupsRow) PKValues() []any {
+	return []any{n.ID}
+}
+
+// CreateStmt returns a query that creates a [NodesClusterGroupsRow] entity.
+func (n NodesClusterGroupsRow) CreateStmt() string {
+	return "INSERT INTO nodes_cluster_groups (node_id, group_id) VALUES (?, ?)"
+}
+
+// UpdateStmt returns a query that updates a [NodesClusterGroupsRow] by primary key.
+func (n NodesClusterGroupsRow) UpdateStmt() string {
+	return "UPDATE nodes_cluster_groups SET node_id = ?, group_id = ? "
+}
+
 // TableName returns the table name for [PlacementGroup] entities.
 func (p PlacementGroup) TableName() string {
 	return "placement_groups"
