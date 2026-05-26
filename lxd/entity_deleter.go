@@ -233,6 +233,22 @@ func (d placementGroupDeleter) Delete(ctx context.Context, clientType request.Cl
 	return nil
 }
 
+type replicatorDeleter struct{}
+
+// Delete deletes a replicator.
+func (d replicatorDeleter) Delete(ctx context.Context, clientType request.ClientType, op *operations.Operation, s *state.State, ref entity.Reference) error {
+	name := ref.Name()
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.DeleteReplicator(ctx, tx.Tx(), name, ref.ProjectName)
+	})
+	if err != nil {
+		return fmt.Errorf("Failed deleting replicator %q: %w", name, err)
+	}
+
+	return nil
+}
+
 // getEntityDeleter returns a deleter implementation for the given entity type.
 func getEntityDeleter(t entity.Type) (entityDeleter, error) {
 	switch t {
@@ -254,6 +270,8 @@ func getEntityDeleter(t entity.Type) (entityDeleter, error) {
 		return profileDeleter{}, nil
 	case entity.TypePlacementGroup:
 		return placementGroupDeleter{}, nil
+	case entity.TypeReplicator:
+		return replicatorDeleter{}, nil
 	default:
 		return nil, fmt.Errorf("Unsupported entity type %q", t)
 	}

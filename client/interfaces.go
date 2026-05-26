@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/sftp"
@@ -22,6 +23,7 @@ type Operation interface {
 	GetWebsocket(secret string) (conn *websocket.Conn, err error)
 	RemoveHandler(target *EventTarget) (err error)
 	Refresh() (err error)
+	URL() *url.URL
 	Wait() (err error)
 	WaitContext(ctx context.Context) error
 }

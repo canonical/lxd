@@ -240,6 +240,7 @@ func projectUsedByMap(ctx context.Context, tx *sql.Tx, projectName string) (map[
 		entity.TypeNetworkACL,
 		entity.TypeStorageBucket,
 		entity.TypePlacementGroup,
+		entity.TypeReplicator,
 	}
 
 	entityURLs, err := dbCluster.GetEntityURLs(ctx, tx, projectName, reportedEntityTypes...)
@@ -251,7 +252,7 @@ func projectUsedByMap(ctx context.Context, tx *sql.Tx, projectName string) (map[
 }
 
 // projectUsedBy returns a list of URLs for all instances, images, profiles,
-// storage volumes, storage buckets, networks, acls, and placement groups that use this project.
+// storage volumes, storage buckets, networks, acls, placement groups, and replicators that use this project.
 func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Project) ([]string, error) {
 	m, err := projectUsedByMap(ctx, tx.Tx(), project.Name)
 	if err != nil {
