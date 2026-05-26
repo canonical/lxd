@@ -2,9 +2,11 @@ name: Tests
 on:
   pull_request:
     paths:
+      - '.github/workflows/tests.yml'
       - 'snapcraft/**'
       - 'snapcraft.yaml'
       - 'lxd-snapcraft/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -52,3 +54,29 @@ jobs:
       - name: Verify snap source-commits
         working-directory: lxd-snapcraft
         run: go run . -file ../snapcraft.yaml -verify-source-commits
+
+  build:
+    name: Test snap build
+    needs: code-tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Build snap
+        id: snapcraft
+        uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79 # v1
+        with:
+          snapcraft-args: pack
+          snapcraft-channel: 9.x/candidate
+
+      - name: Upload snap artefact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lxd-snap
+          path: ${{ steps.snapcraft.outputs.snap }}
+          if-no-files-found: error
+          retention-days: 1
+          archive: false
