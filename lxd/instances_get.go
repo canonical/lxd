@@ -544,17 +544,16 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, resultFullList)
 }
 
-// Fetch information about the containers on the given remote node, using the
-// rest API and with a timeout of 30 seconds.
+// Fetch information about the instances on the given remote node.
 func doInstancesGetFromNode(ctx context.Context, projects []string, node string, allProjects bool, networkCert *shared.CertInfo, serverCert *shared.CertInfo, instanceType instancetype.Type) ([]api.Instance, error) {
 	client, err := cluster.Connect(ctx, node, networkCert, serverCert, true)
 	if err != nil {
 		return nil, fmt.Errorf("Failed connecting to member %s: %w", node, err)
 	}
 
-	var containers []api.Instance
+	var instances []api.Instance
 	if allProjects {
-		containers, err = client.GetInstancesAllProjects(api.InstanceType(instanceType.String()))
+		instances, err = client.GetInstancesAllProjects(api.InstanceType(instanceType.String()))
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting instances from member %s: %w", node, err)
 		}
@@ -562,16 +561,16 @@ func doInstancesGetFromNode(ctx context.Context, projects []string, node string,
 		for _, project := range projects {
 			client = client.UseProject(project)
 
-			tmpContainers, err := client.GetInstances(api.InstanceType(instanceType.String()))
+			tmpInstances, err := client.GetInstances(api.InstanceType(instanceType.String()))
 			if err != nil {
 				return nil, fmt.Errorf("Failed to get instances from member %s: %w", node, err)
 			}
 
-			containers = append(containers, tmpContainers...)
+			instances = append(instances, tmpInstances...)
 		}
 	}
 
-	return containers, nil
+	return instances, nil
 }
 
 func doInstancesFullGetFromNode(ctx context.Context, projects []string, node string, allProjects bool, networkCert *shared.CertInfo, serverCert *shared.CertInfo, instanceType instancetype.Type) ([]api.InstanceFull, error) {
