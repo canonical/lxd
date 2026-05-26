@@ -87,7 +87,7 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 		addrHost = "::"
 	}
 
-	addrPortInt, err := strconv.ParseInt(addrPort, 10, 32)
+	addrPortInt, err := strconv.Atoi(addrPort)
 	if err != nil {
 		return err
 	}
