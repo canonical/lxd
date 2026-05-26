@@ -2419,6 +2419,45 @@ test_clustering_image_proxy_bypass() {
   kill_lxd "${LXD_TWO_DIR}"
 }
 
+test_clustering_join_proxy_bypass() {
+  sub_test "Cluster join bypasses HTTP_PROXY and HTTPS_PROXY environment variables"
+
+  with_bad_proxy() {
+    HTTP_PROXY="http://127.0.0.1:1" HTTPS_PROXY="http://127.0.0.1:1" \
+    http_proxy="http://127.0.0.1:1" https_proxy="http://127.0.0.1:1" \
+    "$@"
+  }
+
+  # Bootstrap the first node with proxy env vars pointing to an unreachable proxy.
+  with_bad_proxy spawn_lxd_and_bootstrap_cluster
+
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+
+  # Join a second node with proxy env vars still set.
+  with_bad_proxy spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+
+  # Verify the cluster is functional by checking both nodes are present.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF node2
+
+  # Verify both nodes are online.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF "status: Online"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Online"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
+
 test_clustering_dns() {
   # Because we do not want tests to only run on Ubuntu (due to cluster's fan network dependency)
   # instead we will just spawn forkdns directly and check DNS resolution.
