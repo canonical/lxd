@@ -3723,7 +3723,7 @@ func (b *lxdBackend) getInstanceDisk(inst instance.Instance) (string, error) {
 	return diskPath, nil
 }
 
-// CreateInstanceSnapshot creates a snaphot of an instance volume.
+// CreateInstanceSnapshot creates a snapshot of an instance volume.
 func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, progressReporter ioprogress.ProgressReporter) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "src": src.Name()})
 	l.Debug("CreateInstanceSnapshot started")
@@ -7626,7 +7626,7 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 		},
 	}
 
-	// Populate snaphot volumes.
+	// Populate snapshot volumes.
 	for _, snapOnlyName := range snapshots {
 		snapFullName := drivers.GetSnapshotVolumeName(volName, snapOnlyName)
 
