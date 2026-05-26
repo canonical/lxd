@@ -446,7 +446,7 @@ INSERT INTO profiles_devices_config VALUES(4, 2, 'pool', 'default');
 
 	// Create a new project.
 	_, err = tx.Exec(`
-INSERT INTO projects VALUES (2, 'staging', 'Staging environment')`)
+INSERT INTO projects (id, name, description) VALUES (2, 'staging', 'Staging environment')`)
 	require.NoError(t, err)
 
 	// Check that it's possible to have two containers with the same name
