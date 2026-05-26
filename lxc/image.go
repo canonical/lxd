@@ -1235,7 +1235,8 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 				found = true
 			}
 
-			// Also check against column shorthand display values so that
+			// Also check against column shorthand display values so that filters
+			// can match values shown by shorthand columns (for example, "l=...").
 			if !found {
 				for _, col := range c.columns() {
 					if string(col.Shorthand) == key && col.Data(*state) == value {
