@@ -726,7 +726,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		for i, field := range columnFields {
 			createParams.WriteString("object.")
 			createParams.WriteString(field.Name)
-			if i < len(columnFields) {
+			if i < len(columnFields)-1 {
 				createParams.WriteString(", ")
 			}
 		}
