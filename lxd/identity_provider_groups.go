@@ -330,7 +330,7 @@ func createIdentityProviderGroup(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = dbCluster.SetIdentityProviderGroupMapping(ctx, tx.Tx(), int(id), idpGroup.Groups)
+		err = dbCluster.SetIdentityProviderGroupMapping(ctx, tx.Tx(), id, idpGroup.Groups)
 		if err != nil {
 			return err
 		}
