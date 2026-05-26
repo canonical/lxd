@@ -158,13 +158,13 @@ sudo snap refresh lxd --revision=33110
 ```{admonition} For Snap Store Proxy users
 :class: tip
 
-If you previously used the Snap Store Proxy, see the [migration guide](https://documentation.ubuntu.com/enterprise-store/main/how-to/migrate) in the Enterprise Store documentation for instructions on transitioning to the Enterprise Store.
+If you previously used the Snap Store Proxy, see the [migration guide](https://ubuntu.com/enterprise-store/docs/how-to/migrate/) in the Enterprise Store documentation for instructions on transitioning to the Enterprise Store.
 
 ```
 
-If you manage a large LXD cluster and require absolute control over when updates are applied, consider using the [Enterprise Store](https://documentation.ubuntu.com/enterprise-store/main/). This proxy application sits between your machines' snap clients and the Snap Store, giving you control over which snap revisions are available for installation.
+If you manage a large LXD cluster and require absolute control over when updates are applied, consider using the [Enterprise Store](https://ubuntu.com/enterprise-store/docs/). This proxy application sits between your machines' snap clients and the Snap Store, giving you control over which snap revisions are available for installation.
 
-To get started, follow the Enterprise Store documentation to [install](https://documentation.ubuntu.com/enterprise-store/main/how-to/install/) and [register](https://documentation.ubuntu.com/enterprise-store/main/how-to/register/) the service. Once it's running, configure all cluster members to use the proxy; see [Configure devices](https://documentation.ubuntu.com/enterprise-store/main/how-to/devices/) for instructions. You can then [override the revision](https://documentation.ubuntu.com/enterprise-store/main/how-to/overrides/) for the LXD snap to control which version is installed:
+To get started, follow the Enterprise Store documentation to [install](https://ubuntu.com/enterprise-store/docs/how-to/install/) and [register](https://ubuntu.com/enterprise-store/docs/how-to/register/) the service. Once it's running, configure all cluster members to use the proxy; see [Configure devices](https://ubuntu.com/enterprise-store/docs/how-to/devices/) for instructions. You can then [override the revision](https://ubuntu.com/enterprise-store/docs/how-to/overrides/) for the LXD snap to control which version is installed:
 
 ```bash
 sudo enterprise-store override lxd <channel>=<revision>
