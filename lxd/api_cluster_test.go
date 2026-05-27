@@ -113,7 +113,7 @@ func (f *clusterFixture) EnableNetworking(daemon *Daemon) {
 }
 
 // Enable networking in the given daemon, and set cluster.https_address to the
-// same value as core.https address.
+// same value as core.https_address.
 func (f *clusterFixture) EnableNetworkingWithClusterAddress(daemon *Daemon) {
 	port, err := allocatePort()
 	require.NoError(f.t, err)
