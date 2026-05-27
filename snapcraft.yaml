@@ -771,6 +771,7 @@ parts:
     prime:
       - bin/ovn-nbctl
       - bin/ovn-sbctl
+      - lib/*/libevent-2.1*so*
       - lib/*/libunbound*so*
 
   spice-server:
@@ -1357,6 +1358,7 @@ parts:
       set -ex
 
       patch -p1 "${CRAFT_PART_INSTALL}/snap/lxd/current/lxcfs/lxc.mount.hook" < "${CRAFT_PROJECT_DIR}/patches/lxcfs-0001-hook.patch"
+      rm -f "${CRAFT_PART_INSTALL}/snap/lxd/current/lxcfs/lxc.mount.hook.orig"
 
   uefivars:
     after:
@@ -1680,6 +1682,9 @@ parts:
 
       # Delete empty directories
       find "${CRAFT_PRIME}/" -type d -empty -print -delete
+
+      # Ensure the libdrm layout directory exists for the bind mount to work
+      mkdir -p "${CRAFT_PRIME}/gpu-2404/libdrm"
 
       # XXX: look for broken symlinks indicating missing/invalid prime
       broken_symlinks="$(find "${CRAFT_PRIME}/" -xtype l \
