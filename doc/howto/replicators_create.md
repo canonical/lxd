@@ -58,7 +58,7 @@ Both clusters need a project with the same name. Only the standby project requir
    lxc project create <project_name> -c replica.cluster=<leader_cluster_link_name>
    ```
 
-1. On the standby cluster, demote the project to standby mode. This prevents new instances from being created in the project directly; existing instances can still be managed until the project is promoted to `leader` during a failover.
+1. On the standby cluster, demote the project to standby mode. This prevents new instances from being created in the project and existing instances from being started. The project must be promoted to `leader` during a failover before instances can be started.
 
    ```bash
    lxc project demote-replica <project_name>
