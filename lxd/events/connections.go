@@ -97,15 +97,17 @@ func NewWebsocketListenerConnection(connection *websocket.Conn) EventListenerCon
 func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHandler) {
 	ctx, cancel := context.WithCancel(ctx)
 
+	// closer is used to clean up the connection and cancel the context when either
+	// the reader or ping/pong goroutine detects a problem and returns.
 	closer := func() {
 		e.lock.Lock()
 		defer e.lock.Unlock()
 
 		if ctx.Err() != nil {
-			return
+			return // Context already cancelled, no need to close again.
 		}
 
-		err := e.Close()
+		err := e.Close() // This may unblock the reader and ping/pong goroutines.
 		if err != nil {
 			logger.Warn("Failed closing connection", logger.Ctx{"err": err, "remote": e.RemoteAddr()})
 		}
@@ -135,7 +137,7 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 		e.lock.Lock()
 		defer e.lock.Unlock()
 
-		e.pongsPending = 0
+		e.pongsPending = 0 // Reset pending pongs on receiving a pong.
 
 		// Extend the read deadline each time we get a pong.
 		err := e.SetReadDeadline(getNextReadDeadline())
@@ -150,7 +152,7 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 
 	// Start reader from client.
 	wg.Go(func() {
-		defer closer()
+		defer closer() // Clean up connection and cancel context when reader exits.
 
 		if recvFunc != nil {
 			for {
@@ -172,35 +174,35 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 
 	// Start ping/pong handler.
 	wg.Go(func() {
-		defer closer()
+		defer closer() // Clean up connection and cancel context when ping/pong handler exits.
 
 		t := time.NewTicker(pingInterval)
 		defer t.Stop()
 
 		for {
 			if ctx.Err() != nil {
-				return
+				return // Context cancelled, exit goroutine.
 			}
 
 			e.lock.Lock()
 			if e.pongsPending > maxPongsPending {
 				e.lock.Unlock()
-				return
+				return // Too many pongs pending, assume the connection is dead.
 			}
 
 			err := e.WriteControl(websocket.PingMessage, nil, time.Now().Add(5*time.Second))
 			if err != nil {
 				e.lock.Unlock()
-				return
+				return // Failed to send ping, assume the connection is dead.
 			}
 
-			e.pongsPending++
+			e.pongsPending++ // Increment pending pongs after sending a ping.
 			e.lock.Unlock()
 
 			select {
 			case <-t.C:
 			case <-ctx.Done():
-				return
+				return // Context cancelled, exit goroutine.
 			}
 		}
 	})
