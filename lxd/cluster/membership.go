@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
@@ -417,9 +418,8 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			return err
 		}
 
-		nodeID := tx.GetNodeID()
-		filter := cluster.OperationFilter{NodeID: &nodeID}
-		operations, err = cluster.GetOperations(ctx, tx.Tx(), filter)
+		// There are no operation resources to migrate because this standalone LXD should be empty when joining the cluster.
+		operations, err = cluster.GetOperationsByNodeID(ctx, tx.Tx(), tx.GetNodeID())
 		if err != nil {
 			return err
 		}
@@ -627,29 +627,14 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 
 			// Migrate outstanding operations.
 			for _, operation := range operations {
-				op := cluster.Operation{
-					UUID:                operation.UUID,
-					ProjectID:           operation.ProjectID,
-					NodeID:              tx.GetNodeID(),
-					Type:                operation.Type,
-					RequestorProtocol:   operation.RequestorProtocol,
-					RequestorIdentityID: operation.RequestorIdentityID,
-					EntityID:            operation.EntityID,
-					Metadata:            operation.Metadata,
-					Class:               operation.Class,
-					CreatedAt:           operation.CreatedAt,
-					UpdatedAt:           operation.UpdatedAt,
-					Inputs:              operation.Inputs,
-					Status:              operation.Status,
-					Error:               operation.Error,
-					ConflictReference:   operation.ConflictReference,
-					Parent:              operation.Parent,
-					Stage:               operation.Stage,
-				}
+				op := operation.Row
 
-				_, err := cluster.CreateOrReplaceOperation(ctx, tx.Tx(), op)
+				// Set the new node ID, which should now be different.
+				op.NodeID = tx.GetNodeID()
+
+				_, err := query.CreateOrReplace(ctx, tx.Tx(), op)
 				if err != nil {
-					return fmt.Errorf("Failed migrating operation %s: %w", operation.UUID, err)
+					return fmt.Errorf("Failed migrating operation %s: %w", operation.Row.UUID, err)
 				}
 			}
 
