@@ -53,10 +53,10 @@ const (
 	// 	// db:model books_authors
 	// 	type BooksAuthorsRow struct {
 	//      // db:primary
-	//	    BookID int64 `db:"book_id"
+	//	    BookID int64 `db:"book_id"`
 	//
 	//	    // db:primary
-	//	    AuthorID int64 `db:"author_id"
+	//	    AuthorID int64 `db:"author_id"`
 	// 	}
 	// 	```
 	commentPrimary = "// db:primary"
@@ -307,7 +307,7 @@ func getFileSpecs(f *ast.File) ([]Spec, map[*ast.StructType]*Spec, error) {
 				FieldName: field.Names[0].Name,
 			}
 
-			// Tags contain column names and supplemental data.
+			// Tags contain the column name or expression only.
 			newFieldSpec.ColumnName = reflect.StructTag(strings.Trim(field.Tag.Value, "`")).Get(tagDB)
 			if newFieldSpec.ColumnName == "" {
 				continue
