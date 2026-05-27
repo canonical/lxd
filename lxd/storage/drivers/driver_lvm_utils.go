@@ -733,11 +733,11 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (totalSize uint64, usedSize
 
 	metaPerc := float64(0)
 
-	// For thin volumes there is no meta data percentage. This is only for the thin pool volume itself.
+	// For thin volumes there is no metadata percentage. This is only for the thin pool volume itself.
 	if parts[2] != "" {
 		metaPerc, err = strconv.ParseFloat(parts[2], 64)
 		if err != nil {
-			return 0, 0, fmt.Errorf("Failed parsing thin pool meta used percentage (%q): %w", parts[2], err)
+			return 0, 0, fmt.Errorf("Failed parsing thin pool metadata used percentage (%q): %w", parts[2], err)
 		}
 	}
 
