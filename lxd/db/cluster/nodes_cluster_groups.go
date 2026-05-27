@@ -1,27 +1,41 @@
 package cluster
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t nodes_cluster_groups.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -e node_cluster_group objects table=nodes_cluster_groups
-//go:generate mapper stmt -e node_cluster_group objects-by-GroupID table=nodes_cluster_groups
-//go:generate mapper stmt -e node_cluster_group delete-by-GroupID table=nodes_cluster_groups
-//
-//go:generate mapper method -e node_cluster_group GetMany
-//go:generate mapper method -e node_cluster_group DeleteOne-by-GroupID
-//go:generate goimports -w nodes_cluster_groups.mapper.go
-//go:generate goimports -w nodes_cluster_groups.interface.mapper.go
+import (
+	"context"
+	"database/sql"
 
-// NodeClusterGroup associates a node to a cluster group.
-type NodeClusterGroup struct {
-	GroupID int    `db:"primary=yes"`
-	Node    string `db:"join=nodes.name"`
-	NodeID  int    `db:"omit=create,objects,objects-by-GroupID"`
+	"github.com/canonical/lxd/lxd/db/query"
+)
+
+// NodesClusterGroupsRow represents a single row of the nodes_cluster_groups table.
+// db:model nodes_cluster_groups
+type NodesClusterGroupsRow struct {
+	ID      int64 `db:"id"`
+	NodeID  int64 `db:"node_id"`
+	GroupID int64 `db:"group_id"`
 }
 
-// NodeClusterGroupFilter specifies potential query parameter fields.
-type NodeClusterGroupFilter struct {
-	GroupID *int
+// APIName implements [query.APINamer] for API friendly error messages.
+func (NodesClusterGroupsRow) APIName() string {
+	return "Cluster group member"
+}
+
+// NodesClusterGroups contains [NodesClusterGroupsRow] with additional joins.
+// db:model nodes_cluster_groups
+type NodesClusterGroups struct {
+	Row NodesClusterGroupsRow
+
+	// db:join JOIN nodes ON nodes_cluster_groups.node_id = nodes.id
+	NodeName string `db:"nodes.name"`
+}
+
+// GetNodesClusterGroupsByGroupID returns node cluster group associations for a given group ID.
+func GetNodesClusterGroupsByGroupID(ctx context.Context, tx *sql.Tx, groupID int64) ([]NodesClusterGroups, error) {
+	return query.Select[NodesClusterGroups](ctx, tx, "WHERE nodes_cluster_groups.group_id = ? ORDER BY nodes_cluster_groups.group_id", groupID)
+}
+
+// DeleteNodesClusterGroupsByGroupID deletes all node cluster group associations for the given group ID.
+func DeleteNodesClusterGroupsByGroupID(ctx context.Context, tx *sql.Tx, groupID int64) error {
+	_, err := query.DeleteMany[NodesClusterGroupsRow, *NodesClusterGroupsRow](ctx, tx, "WHERE group_id = ?", groupID)
+	return err
 }

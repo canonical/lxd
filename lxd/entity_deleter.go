@@ -250,6 +250,9 @@ func (d replicatorDeleter) Delete(ctx context.Context, clientType request.Client
 }
 
 // getEntityDeleter returns a deleter implementation for the given entity type.
+// Every project-scoped entity type should have a case here, unless it is a sub-entity
+// that is deleted implicitly when its parent is deleted (e.g. [entity.TypeInstanceBackup], [entity.TypeInstanceSnapshot]).
+// [TestGetEntityDeleterCoversAllProjectEntityTypes] enforces this.
 func getEntityDeleter(t entity.Type) (entityDeleter, error) {
 	switch t {
 	case entity.TypeInstance:
