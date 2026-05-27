@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -78,6 +78,18 @@ func TestCluster_RenameNode(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// allocatePort asks the kernel for an ephemeral port number that was free at
+// the time of allocation. The listener is closed before returning, so reuse of
+// the returned port is subject to a race.
+func allocatePort() (int, error) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return -1, err
+	}
+
+	return l.Addr().(*net.TCPAddr).Port, l.Close()
+}
+
 // Test helper for cluster-related APIs.
 type clusterFixture struct {
 	t       *testing.T
@@ -87,7 +99,7 @@ type clusterFixture struct {
 // Enable networking in the given daemon. The password is optional and can be
 // an empty string.
 func (f *clusterFixture) EnableNetworking(daemon *Daemon, password string) {
-	port, err := shared.AllocatePort()
+	port, err := allocatePort()
 	require.NoError(f.t, err)
 
 	address := fmt.Sprintf("127.0.0.1:%d", port)
@@ -105,7 +117,7 @@ func (f *clusterFixture) EnableNetworking(daemon *Daemon, password string) {
 // same value as core.https address. The password is optional and can be an
 // empty string.
 func (f *clusterFixture) EnableNetworkingWithClusterAddress(daemon *Daemon, password string) {
-	port, err := shared.AllocatePort()
+	port, err := allocatePort()
 	require.NoError(f.t, err)
 
 	address := fmt.Sprintf("127.0.0.1:%d", port)
