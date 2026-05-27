@@ -117,11 +117,34 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 
 	pingInterval := time.Second * 10
 	e.pongsPending = 0
+	const maxPongsPending = 2
+
+	getNextReadDeadline := func() time.Time {
+		// This means that if we miss more than maxPongsPending pongs, the reading goroutine will end.
+		return time.Now().Add((maxPongsPending+1)*pingInterval + 5*time.Second)
+	}
+
+	// Set read deadline to prevent goroutine from blocking indefinitely.
+	// This ensures the goroutine will unblock even if e.Close() does not immediately
+	// interrupt the read operation due to buffering or network delays.
+	err := e.SetReadDeadline(getNextReadDeadline())
+	if err != nil {
+		logger.Warn("Failed setting read deadline on connection", logger.Ctx{"err": err, "remote": e.RemoteAddr()})
+		return
+	}
 
 	e.SetPongHandler(func(msg string) error {
 		e.lock.Lock()
+		defer e.lock.Unlock()
+
 		e.pongsPending = 0
-		e.lock.Unlock()
+
+		// Extend the read deadline each time we get a pong.
+		err := e.SetReadDeadline(getNextReadDeadline())
+		if err != nil {
+			return fmt.Errorf("Failed setting read deadline on connection: %w", err)
+		}
+
 		return nil
 	})
 
@@ -156,7 +179,7 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 		}
 
 		e.lock.Lock()
-		if e.pongsPending > 2 {
+		if e.pongsPending > maxPongsPending {
 			e.lock.Unlock()
 			return
 		}
