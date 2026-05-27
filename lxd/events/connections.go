@@ -113,8 +113,6 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 		cancel()
 	}
 
-	defer closer()
-
 	pingInterval := time.Second * 10
 	e.pongsPending = 0
 	const maxPongsPending = 2
@@ -148,8 +146,10 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 		return nil
 	})
 
+	var wg sync.WaitGroup
+
 	// Start reader from client.
-	go func() {
+	wg.Go(func() {
 		defer closer()
 
 		if recvFunc != nil {
@@ -168,37 +168,44 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 			// anything from the remote side, so this should remain blocked until disconnected.
 			_, _, _ = e.NextReader()
 		}
-	}()
+	})
 
-	t := time.NewTicker(pingInterval)
-	defer t.Stop()
+	// Start ping/pong handler.
+	wg.Go(func() {
+		defer closer()
 
-	for {
-		if ctx.Err() != nil {
-			return
-		}
+		t := time.NewTicker(pingInterval)
+		defer t.Stop()
 
-		e.lock.Lock()
-		if e.pongsPending > maxPongsPending {
+		for {
+			if ctx.Err() != nil {
+				return
+			}
+
+			e.lock.Lock()
+			if e.pongsPending > maxPongsPending {
+				e.lock.Unlock()
+				return
+			}
+
+			err := e.WriteControl(websocket.PingMessage, nil, time.Now().Add(5*time.Second))
+			if err != nil {
+				e.lock.Unlock()
+				return
+			}
+
+			e.pongsPending++
 			e.lock.Unlock()
-			return
-		}
 
-		err := e.WriteControl(websocket.PingMessage, nil, time.Now().Add(5*time.Second))
-		if err != nil {
-			e.lock.Unlock()
-			return
+			select {
+			case <-t.C:
+			case <-ctx.Done():
+				return
+			}
 		}
+	})
 
-		e.pongsPending++
-		e.lock.Unlock()
-
-		select {
-		case <-t.C:
-		case <-ctx.Done():
-			return
-		}
-	}
+	wg.Wait() // Wait for both goroutines to clean up before returning.
 }
 
 // WriteJSON sends a JSON event to the websocket connection.
