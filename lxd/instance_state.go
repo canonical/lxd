@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/canonical/lxd/lxd/db"
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -171,6 +173,28 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	// Check if the cluster member is evacuated.
 	if s.DB.Cluster.LocalNodeIsEvacuated() && req.Action != "stop" {
 		return response.Forbidden(errors.New("Cluster member is evacuated"))
+	}
+
+	// Block starting instances in a standby replica project.
+	// Instances must not be started until the project is promoted to leader mode.
+	if req.Action == "start" {
+		var replicaMode string
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
+			if err != nil {
+				return err
+			}
+
+			replicaMode = string(dbProject.ReplicaMode)
+			return nil
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if replicaMode == api.ReplicatorProjectModeStandby {
+			return response.Forbidden(errors.New("Cannot start instances in a standby replica project"))
+		}
 	}
 
 	// Don't mess with instances while in setup mode.
