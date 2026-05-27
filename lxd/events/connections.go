@@ -105,7 +105,11 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 			return
 		}
 
-		_ = e.Close()
+		err := e.Close()
+		if err != nil {
+			logger.Warn("Failed closing connection", logger.Ctx{"err": err, "remote": e.RemoteAddr()})
+		}
+
 		cancel()
 	}
 
