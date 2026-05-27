@@ -3152,6 +3152,27 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 		if err != nil {
 			return fmt.Errorf("Failed deleting network forwards and load balancers: %w", err)
 		}
+
+		// Delete any load balancer pools.
+		// The load balancers and their ports are already cleaned up at this stage.
+		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			pools, err := dbCluster.GetNetworksLoadBalancerPools(ctx, tx.Tx(), n.ID(), nil)
+			if err != nil {
+				return err
+			}
+
+			for _, pool := range pools {
+				err = dbCluster.DeleteNetworksLoadBalancerPool(ctx, tx.Tx(), n.ID(), pool.Row.Name)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return n.delete()
