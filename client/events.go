@@ -201,7 +201,7 @@ func (m *eventListenerManager) getEvents(ctxConnected context.Context, websocket
 			m.eventConnsLock.Lock()
 			if len(m.eventListeners[listener.projectName]) == 0 {
 				// We don't need the connection anymore, disconnect and clear.
-				if m.eventListeners[listener.projectName] != nil {
+				if m.eventConns[listener.projectName] != nil {
 					_ = m.eventConns[listener.projectName].Close()
 					delete(m.eventConns, listener.projectName)
 				}
