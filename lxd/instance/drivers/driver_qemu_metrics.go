@@ -138,6 +138,11 @@ func (d *qemu) getQemuMemoryMetrics() (metrics.MemoryMetrics, error) {
 		break
 	}
 
+	err = scan.Err()
+	if err != nil {
+		return out, err
+	}
+
 	if memRSS == -1 {
 		return out, errors.New("Could not find VM memory usage")
 	}

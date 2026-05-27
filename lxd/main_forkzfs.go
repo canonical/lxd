@@ -82,11 +82,20 @@ func (c *cmdForkZFS) run(cmd *cobra.Command, args []string) error {
 		line := scanner.Text()
 		rows := strings.Fields(line)
 
+		if len(rows) < 5 {
+			continue
+		}
+
 		if !strings.HasPrefix(rows[4], expPath) {
 			continue
 		}
 
 		_ = unix.Unmount(rows[4], unix.MNT_DETACH)
+	}
+
+	err = scanner.Err()
+	if err != nil {
+		return err
 	}
 
 	// Run the ZFS command
