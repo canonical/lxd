@@ -7,6 +7,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
@@ -216,7 +217,7 @@ func SysctlGet(path string) (string, error) {
 		return "", err
 	}
 
-	return string(content), nil
+	return strings.TrimRight(string(content), "\n"), nil
 }
 
 // SysctlSet writes a value to a sysctl file in /proc/sys.
