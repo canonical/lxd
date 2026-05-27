@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# see also https://github.com/canonical/gpu-snap/blob/main/bin/gpu-2604-wrapper
+
+if snapctl is-connected gpu-2604
+then
+    echo "INFO: the gpu-2604 interface is connected. Running with gpu-2604 wrapper."
+    exec "${SNAP}/gpu-2604/bin/gpu-2604-provider-wrapper" "$@"
+else
+    echo "INFO: the gpu-2604 interface isn't connected. Skipping gpu-2604 wrapper."
+    exec "$@"
+fi
