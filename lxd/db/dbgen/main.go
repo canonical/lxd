@@ -33,6 +33,34 @@ const (
 	// 	e.g. // db:join JOIN projects ON instances.project_id = projects.id
 	commentJoin = "// db:join "
 
+	// commentPrimary can be added to a field comment to indicate that it is the primary key for the table (or is one
+	// of a set forming a composite primary key).
+	//
+	// If no primary keys are manually specified, `dbgen` assumes that the `id` column is the primary key.
+	// E.g.
+	// 	```sql
+	// 	CREATE TABLE books_authors (
+	// 	    book_id INTEGER NOT NULL,
+	// 	    author_id INTEGER NOT NULL,
+	// 	    FOREIGN KEY book_id REFERENCES books (id) ON DELETE CASCADE,
+	// 	    FOREIGN KEY author_id REFERENCES authors (id) ON DELETE CASCADE,
+	// 	    PRIMARY KEY (author_id, book_id)
+	// 	) WITHOUT ROWID;
+	// 	```
+	// A struct can be created as:
+	// 	```go
+	// 	// BooksAuthorsRow represents a row of the books_authors table.
+	// 	// db:model books_authors
+	// 	type BooksAuthorsRow struct {
+	//      // db:primary
+	//	    BookID int64 `db:"book_id"
+	//
+	//	    // db:primary
+	//	    AuthorID int64 `db:"author_id"
+	// 	}
+	// 	```
+	commentPrimary = "// db:primary"
+
 	// commentOmit can be used to omit a field from INSERT or UPDATE statements. This is useful for fields that have
 	// default values set by the database or that do not change over time. (e.g. a creation date).
 	// The comment is followed by one or more space-separated values that must be one of omitCreate, or omitUpdate.
@@ -65,33 +93,9 @@ const (
 	// 	```
 	tagDB = "db"
 
-	// tagSupplementalPrimary can be added to the `db` tag to indicate that the row modelled by a particular field is
-	// the primary key for the table (or is one of a set forming a composite primary key).
-	// If no primary keys are manually specified, `dbgen` assumes that the `id` column is the primary key.
-	// E.g.
-	// 	```sql
-	// 	CREATE TABLE books_authors (
-	// 	    book_id INTEGER NOT NULL,
-	// 	    author_id INTEGER NOT NULL,
-	// 	    FOREIGN KEY book_id REFERENCES books (id) ON DELETE CASCADE,
-	// 	    FOREIGN KEY author_id REFERENCES authors (id) ON DELETE CASCADE,
-	// 	    PRIMARY KEY (author_id, book_id)
-	// 	) WITHOUT ROWID;
-	// 	```
-	// A struct can be created as:
-	// 	```go
-	// 	// BooksAuthorsRow represents a row of the books_authors table.
-	// 	// db:model books_authors
-	// 	type BooksAuthorsRow struct {
-	//	    BookID int64 `db:"book_id,primary"
-	//	    AuthorID int64 `db:"author_id,primary"
-	// 	}
-	// 	```
-	tagSupplementalPrimary = "primary"
-
 	// columnID denotes the "special" id column. It is special because by convention, the "id" column is typically an
 	// auto-incrementing integer primary key. If no columns are manually marked as the primary key via
-	// tagSupplementalPrimary, `dbgen` will assume that the "id" column is the primary key (or will error if no id
+	// commentPrimary, `dbgen` will assume that the "id" column is the primary key (or will error if no id
 	// column is present). `dbgen` will never include the "id" column in "INSERT" or "UPDATE" statements (e.g. it is not
 	// necessary to use commentOmit to exclude it).
 	columnID = "id"
@@ -304,20 +308,9 @@ func getFileSpecs(f *ast.File) ([]Spec, map[*ast.StructType]*Spec, error) {
 			}
 
 			// Tags contain column names and supplemental data.
-			tag := reflect.StructTag(strings.Trim(field.Tag.Value, "`")).Get(tagDB)
-			if tag == "" {
+			newFieldSpec.ColumnName = reflect.StructTag(strings.Trim(field.Tag.Value, "`")).Get(tagDB)
+			if newFieldSpec.ColumnName == "" {
 				continue
-			}
-
-			var supplemental string
-			newFieldSpec.ColumnName, supplemental, ok = strings.Cut(tag, ",")
-			if ok {
-				// Only "primary" is currently supported as supplemental tag data.
-				if supplemental != tagSupplementalPrimary {
-					return nil, nil, fmt.Errorf("Invalid supplemental tag info %q for field %q in struct %q", supplemental, newFieldSpec.FieldName, newSpec.StructName)
-				}
-
-				newFieldSpec.Primary = true
 			}
 
 			// Check if it is only the column name (without the table name as a qualifier)
@@ -326,9 +319,10 @@ func getFileSpecs(f *ast.File) ([]Spec, map[*ast.StructType]*Spec, error) {
 				newFieldSpec.ColumnName = tableName + "." + newFieldSpec.ColumnName
 			}
 
-			// Check the field comment. Use "db:join" to specify joins required to get the value.
+			// Check the field comment.
 			if field.Doc != nil {
 				for _, l := range field.Doc.List {
+					// Use "db:join" to specify joins required to get the value.
 					join, ok := strings.CutPrefix(l.Text, commentJoin)
 					if ok {
 						if strings.HasSuffix(newSpec.StructName, "Row") {
@@ -338,6 +332,7 @@ func getFileSpecs(f *ast.File) ([]Spec, map[*ast.StructType]*Spec, error) {
 						newSpec.Joins = append(newSpec.Joins, join)
 					}
 
+					// Use "db:omit" and "create" and/or "update" to skip this field on inserts and updates.
 					omit, ok := strings.CutPrefix(l.Text, commentOmit)
 					if ok {
 						omits := strings.Fields(omit)
@@ -348,6 +343,11 @@ func getFileSpecs(f *ast.File) ([]Spec, map[*ast.StructType]*Spec, error) {
 						if slices.Contains(omits, omitUpdate) {
 							newFieldSpec.SkipUpdate = true
 						}
+					}
+
+					// Use "db:primary" to indicate that this field is the/a primary key.
+					if strings.TrimSpace(l.Text) == commentPrimary {
+						newFieldSpec.Primary = true
 					}
 				}
 			}
