@@ -999,12 +999,11 @@ parts:
       usr/local/lib/: lib/
       usr/local/libexec/: bin/
       usr/local/share/: share/
-      usr/share/qemu/kvmvapic.bin: share/qemu/
       usr/share/qemu/opensbi*: share/qemu/
       usr/share/qemu/s390-ccw.img: share/qemu/
       usr/share/qemu/slof.bin: share/qemu/
       usr/share/seabios/bios-256k.bin: share/qemu/
-      usr/share/seabios/vgabios-*: share/qemu/
+      usr/share/seabios/vgabios-virtio.bin: share/qemu/
     prime:
       - bin/genisoimage*
       - bin/mkisofs*
@@ -1020,14 +1019,9 @@ parts:
       - lib/*/libfdt*.so*
       - share/qemu/bios-256k.bin
       - share/qemu/efi-virtio.rom
-      - share/qemu/kvmvapic.bin
       - share/qemu/opensbi-riscv64-generic-fw_dynamic.bin
       - share/qemu/s390-ccw.img
       - share/qemu/slof.bin
-      - share/qemu/vgabios-bochs-display.bin
-      - share/qemu/vgabios-qxl.bin
-      - share/qemu/vgabios-ramfb.bin
-      - share/qemu/vgabios-stdvga.bin
       - share/qemu/vgabios-virtio.bin
 
   squashfs-tools-ng:
