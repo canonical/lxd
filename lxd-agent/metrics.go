@@ -161,6 +161,10 @@ func getCPUMetrics() (map[string]metrics.CPUMetrics, error) {
 		out[fields[0]] = stats
 	}
 
+	if scanner.Err() != nil {
+		return nil, fmt.Errorf("Failed scanning /proc/stat: %w", scanner.Err())
+	}
+
 	return out, nil
 }
 
@@ -253,6 +257,10 @@ func getDiskMetrics() (map[string]metrics.DiskMetrics, error) {
 		out[fields[2]] = stats
 	}
 
+	if scanner.Err() != nil {
+		return nil, fmt.Errorf("Failed scanning /proc/diskstats: %w", scanner.Err())
+	}
+
 	return out, nil
 }
 
@@ -297,6 +305,10 @@ func getFilesystemMetrics() (map[string]metrics.FilesystemMetrics, error) {
 		stats.SizeBytes = statfs.Blocks * uint64(statfs.Bsize)
 
 		out[fields[0]] = stats
+	}
+
+	if scanner.Err() != nil {
+		return nil, fmt.Errorf("Failed scanning /proc/mounts: %w", scanner.Err())
 	}
 
 	return out, nil
@@ -381,6 +393,10 @@ func getMemoryMetrics() (metrics.MemoryMetrics, error) {
 		// Formula: RSS = MemTotal - MemAvailable
 		// This is how modern tools like 'free' calculate used memory
 		out.RSSBytes = out.MemTotalBytes - out.MemAvailableBytes
+	}
+
+	if scanner.Err() != nil {
+		return metrics.MemoryMetrics{}, fmt.Errorf("Failed scanning /proc/meminfo: %w", scanner.Err())
 	}
 
 	return out, nil
