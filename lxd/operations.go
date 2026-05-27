@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
@@ -171,56 +172,18 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 	// Load the operation from the database.
 	var op *operations.Operation
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		projectNames := make(map[int64]string)
-		constructOperation := func(dbOp *dbCluster.Operation) (*operations.Operation, error) {
-			// Get project name from the cache of project IDs to names, or load it from the DB if not present.
-			var projectName string
-			var ok bool
-			if dbOp.ProjectID != nil {
-				projectName, ok = projectNames[*dbOp.ProjectID]
-				if !ok {
-					project, err := dbCluster.GetProjectByID(ctx, tx.Tx(), int(*dbOp.ProjectID))
-					if err != nil {
-						return nil, err
-					}
-
-					projectNames[*dbOp.ProjectID] = project.Name
-					projectName = project.Name
-				}
-			}
-
-			op, err := operations.ConstructOperationFromDB(ctx, tx.Tx(), s, dbOp, projectName)
-			if err != nil {
-				return nil, err
-			}
-
-			return op, nil
-		}
-
-		filter := dbCluster.OperationFilter{UUID: &id}
-		dbOps, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
+		dbOp, err := dbCluster.GetOperation(ctx, tx.Tx(), id)
 		if err != nil {
 			return err
 		}
 
-		// Make sure we have loaded exactly one operation from the DB.
-		var dbOp *dbCluster.Operation
-		switch len(dbOps) {
-		case 0:
-			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
-		case 1:
-			dbOp = &dbOps[0]
-		default:
-			return errors.New("More than one operation matches")
-		}
-
 		// Don't return child operations directly.
 		// Child operations can be returned embedded in their parents with recursion=1.
-		if dbOp.Parent != nil {
+		if dbOp.Row.Parent != nil {
 			return api.StatusErrorf(http.StatusBadRequest, "Child operations cannot be retrieved individually")
 		}
 
-		op, err = constructOperation(dbOp)
+		op, err = operations.ConstructOperationFromDB(ctx, tx.Tx(), s, dbOp)
 		if err != nil {
 			return err
 		}
@@ -228,15 +191,14 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		// Load children if needed
 		if recursion > 0 {
 			// Load all child operations.
-			childFilter := dbCluster.OperationFilter{Parent: &dbOp.ID}
-			childDbOps, err := dbCluster.GetOperations(ctx, tx.Tx(), childFilter)
+			childDbOps, err := dbCluster.GetOperationsWithParent(ctx, tx.Tx(), dbOp.Row.ID)
 			if err != nil {
 				return err
 			}
 
 			children := make([]*operations.Operation, 0, len(childDbOps))
 			for _, childDbOp := range childDbOps {
-				childOp, err := constructOperation(&childDbOp)
+				childOp, err := operations.ConstructOperationFromDB(ctx, tx.Tx(), s, &childDbOp)
 				if err != nil {
 					return err
 				}
@@ -324,23 +286,13 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
-	var operation dbCluster.Operation
+	var operation *dbCluster.Operation
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := dbCluster.OperationFilter{UUID: &id}
-		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
+		operation, err = dbCluster.GetOperation(ctx, tx.Tx(), id)
 		if err != nil {
 			return err
 		}
 
-		if len(ops) < 1 {
-			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
-		}
-
-		if len(ops) > 1 {
-			return errors.New("More than one operation matches")
-		}
-
-		operation = ops[0]
 		return nil
 	})
 	if err != nil {
@@ -349,7 +301,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Don't forward the request if we don't have where to forward it to.
 	if operation.NodeAddress == "" || operation.NodeAddress == s.LocalConfig.ClusterAddress() {
-		if api.StatusCode(operation.Status).IsFinal() {
+		if api.StatusCode(operation.Row.StatusCode).IsFinal() {
 			return response.BadRequest(errors.New("Operation already finalized"))
 		}
 
@@ -384,21 +336,10 @@ func operationCancelToken(ctx context.Context, s *state.State, projectName strin
 	var memberAddress string
 	var err error
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := dbCluster.OperationFilter{UUID: &op.ID}
-		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
+		operation, err := dbCluster.GetOperation(ctx, tx.Tx(), op.ID)
 		if err != nil {
-			return fmt.Errorf("Failed loading operation %q: %w", op.ID, err)
+			return err
 		}
-
-		if len(ops) < 1 {
-			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
-		}
-
-		if len(ops) > 1 {
-			return errors.New("More than one operation matches")
-		}
-
-		operation := ops[0]
 
 		memberAddress = operation.NodeAddress
 		return nil
@@ -584,7 +525,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		if recursion < 2 {
 			dbOps, err = dbCluster.GetParentOperations(ctx, tx.Tx())
 		} else {
-			dbOps, err = dbCluster.GetOperations(ctx, tx.Tx())
+			dbOps, err = query.Select[dbCluster.Operation](ctx, tx.Tx(), "")
 		}
 
 		if err != nil {
@@ -595,17 +536,17 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		childOps := make(map[int64][]*operations.Operation)
 		for _, dbOp := range dbOps {
 			// Omit child operations if not requested.
-			if dbOp.Parent != nil && recursion < 2 {
+			if dbOp.Row.Parent != nil && recursion < 2 {
 				continue
 			}
 
 			// Get operation project name if it has one.
 			operationProject := ""
-			if dbOp.ProjectID != nil {
+			if dbOp.Row.ProjectID != nil {
 				var ok bool
-				operationProject, ok = projects[*dbOp.ProjectID]
+				operationProject, ok = projects[*dbOp.Row.ProjectID]
 				if !ok {
-					return fmt.Errorf("Failed finding project name for operation with non-existent project ID %d", *dbOp.ProjectID)
+					return fmt.Errorf("Failed finding project name for operation with non-existent project ID %d", *dbOp.Row.ProjectID)
 				}
 			}
 
@@ -619,9 +560,9 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Construct the operation object, which will also reconstruct its requestor.
-			op, err := operations.ConstructOperationFromDB(ctx, tx.Tx(), s, &dbOp, operationProject)
+			op, err := operations.ConstructOperationFromDB(ctx, tx.Tx(), s, &dbOp)
 			if err != nil {
-				return fmt.Errorf("Failed loading operation ID %q: %w", dbOp.UUID, err)
+				return fmt.Errorf("Failed loading operation ID %q: %w", dbOp.Row.UUID, err)
 			}
 
 			// Omit operations if the caller does not have `can_view_operations` on the operations' project and the caller is not the operation owner.
@@ -631,15 +572,15 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 
 			// If this is a child operations, add it to the list keyed by parent DB ID.
 			// We'll match these to actual parents later.
-			if dbOp.Parent != nil {
-				_, ok := childOps[*dbOp.Parent]
+			if dbOp.Row.Parent != nil {
+				_, ok := childOps[*dbOp.Row.Parent]
 				if !ok {
-					childOps[*dbOp.Parent] = make([]*operations.Operation, 0)
+					childOps[*dbOp.Row.Parent] = make([]*operations.Operation, 0)
 				}
 
-				childOps[*dbOp.Parent] = append(childOps[*dbOp.Parent], op)
+				childOps[*dbOp.Row.Parent] = append(childOps[*dbOp.Row.Parent], op)
 			} else {
-				parentOps[dbOp.ID] = op
+				parentOps[dbOp.Row.ID] = op
 			}
 		}
 
@@ -700,7 +641,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 // It does not populate operation resources.
 func operationsGetByType(ctx context.Context, s *state.State, projectName string, opType operationtype.Type) ([]*api.Operation, error) {
 	// Get all operations of the specified type in project.
-	var ops []dbCluster.OperationInfo
+	var ops []dbCluster.Operation
 	var members []db.NodeInfo
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
@@ -711,7 +652,7 @@ func operationsGetByType(ctx context.Context, s *state.State, projectName string
 			}
 		}
 
-		ops, err = dbCluster.GetOperationInfosByProjectAndType(ctx, tx.Tx(), projectName, opType)
+		ops, err = dbCluster.GetOperationsByProjectAndType(ctx, tx.Tx(), projectName, opType)
 		if err != nil {
 			return fmt.Errorf("Failed getting operations for project %q and type %d: %w", projectName, opType, err)
 		}
@@ -745,31 +686,31 @@ func operationsGetByType(ctx context.Context, s *state.State, projectName string
 		}
 
 		var metadata map[string]any
-		err := json.Unmarshal([]byte(op.Metadata), &metadata)
+		err := json.Unmarshal([]byte(op.Row.Metadata), &metadata)
 		if err != nil {
 			return nil, fmt.Errorf("Failed reading operation metadata: %w", err)
 		}
 
 		var requestor *api.OperationRequestor
-		if op.RequestorProtocol != nil {
+		if op.Row.RequestorProtocol != nil {
 			requestor = &api.OperationRequestor{
 				Username: op.IdentityIdentifier,
-				Protocol: string(*op.RequestorProtocol),
+				Protocol: string(*op.Row.RequestorProtocol),
 			}
 		}
 
 		apiOps = append(apiOps, &api.Operation{
-			ID:          op.UUID,
-			Class:       operations.OperationClass(op.Class).String(),
-			Description: op.Type.Description(),
-			CreatedAt:   op.CreatedAt,
-			UpdatedAt:   op.UpdatedAt,
-			Status:      api.StatusCode(op.Status).String(),
-			StatusCode:  api.StatusCode(op.Status),
+			ID:          op.Row.UUID,
+			Class:       operations.OperationClass(op.Row.Class).String(),
+			Description: op.Row.Type.Description(),
+			CreatedAt:   op.Row.CreatedAt,
+			UpdatedAt:   op.Row.UpdatedAt,
+			Status:      api.StatusCode(op.Row.StatusCode).String(),
+			StatusCode:  api.StatusCode(op.Row.StatusCode),
 			Metadata:    metadata,
 			MayCancel:   true,
-			Err:         op.Error,
-			Location:    op.Location,
+			Err:         op.Row.Error,
+			Location:    op.NodeName,
 			Requestor:   requestor,
 		})
 	}
@@ -940,21 +881,10 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := dbCluster.OperationFilter{UUID: &id}
-		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
+		operation, err := dbCluster.GetOperation(ctx, tx.Tx(), id)
 		if err != nil {
 			return err
 		}
-
-		if len(ops) < 1 {
-			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
-		}
-
-		if len(ops) > 1 {
-			return errors.New("More than one operation matches")
-		}
-
-		operation := ops[0]
 
 		address = operation.NodeAddress
 		return nil
@@ -1090,21 +1020,10 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 
 	var address string
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := dbCluster.OperationFilter{UUID: &id}
-		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
+		operation, err := dbCluster.GetOperation(ctx, tx.Tx(), id)
 		if err != nil {
 			return err
 		}
-
-		if len(ops) < 1 {
-			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
-		}
-
-		if len(ops) > 1 {
-			return errors.New("More than one operation matches")
-		}
-
-		operation := ops[0]
 
 		address = operation.NodeAddress
 		return nil
