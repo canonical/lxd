@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -178,22 +179,38 @@ func (r *RequestorProtocol) Value() (driver.Value, error) {
 
 // UpdateOperation updates operation status, metadata and error (if set) in the cluster db.
 // This is used to keep DB in sync with the current status of the operation when the operation changes
-// its status, or when calls to commit metadata explicitly.
-func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, updatedAt time.Time, newStatus api.StatusCode, metadata string, opErr string, opErrCode int64) error {
-	stmt := `UPDATE operations SET updated_at = ?, status_code = ?, metadata = ?, error = ?, error_code = ? WHERE uuid = ?`
-
-	result, err := tx.ExecContext(ctx, stmt, updatedAt, newStatus, metadata, opErr, opErrCode, opUUID)
+// its status, or when calls to commit metadata explicitly. The caller is expected to pass in the current node ID.
+// This guards against modification of the operation by other cluster members.
+func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, nodeID int64, updatedAt time.Time, newStatus api.StatusCode, metadata map[string]any, opErr string, opErrCode int64) error {
+	metadataJSON, err := json.Marshal(metadata)
 	if err != nil {
-		return fmt.Errorf("Failed updating operation status: %w", err)
+		return fmt.Errorf("Failed marshalling operation metadata: %w", err)
 	}
 
-	n, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("Fetch affected rows: %w", err)
+	// Set the updatable fields (see OperationsRow struct definition field comments).
+	row := OperationsRow{
+		UUID:       opUUID,
+		NodeID:     nodeID,
+		Metadata:   string(metadataJSON),
+		UpdatedAt:  updatedAt,
+		StatusCode: int64(newStatus),
+		Error:      opErr,
+		ErrorCode:  opErrCode,
 	}
 
-	if n != 1 {
-		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	// Only update if the operation is on the specified cluster member.
+	err = query.UpdateOne(ctx, tx, row, "WHERE operations.uuid = ? AND operations.node_id = ?", opUUID, nodeID)
+	if err != nil {
+		// For the unhappy path, check if an operation exists with the given UUID.
+		_, selectErr := query.SelectOne[OperationsRow](ctx, tx, "WHERE operations.uuid = ?", opUUID)
+		if selectErr != nil {
+			// If no operation exists with the UUID (or the SELECT fails), return the original error.
+			return err
+		}
+
+		// Otherwise, the operation exists but is not present on the specified node.
+		// Return a conflict error so that the caller can detect this.
+		return api.StatusErrorf(http.StatusConflict, `Operation %q is not present on cluster member "%d"`, opUUID, nodeID)
 	}
 
 	return nil
