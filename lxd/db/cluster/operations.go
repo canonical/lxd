@@ -19,53 +19,73 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t operations.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -e operation objects
-//go:generate mapper stmt -e operation objects-by-NodeID
-//go:generate mapper stmt -e operation objects-by-ID
-//go:generate mapper stmt -e operation objects-by-UUID
-//go:generate mapper stmt -e operation objects-by-Parent
-//go:generate mapper stmt -e operation create
-//go:generate mapper stmt -e operation create-or-replace
-//go:generate mapper stmt -e operation delete-by-UUID
-//go:generate mapper stmt -e operation delete-by-NodeID
-//
-//go:generate mapper method -i -e operation GetMany
-//go:generate mapper method -i -e operation Create
-//go:generate mapper method -i -e operation CreateOrReplace
-//go:generate mapper method -i -e operation DeleteOne-by-UUID
-//go:generate mapper method -i -e operation DeleteMany-by-NodeID
-//go:generate goimports -w operations.mapper.go
-//go:generate goimports -w operations.interface.mapper.go
+// OperationsRow is a row of the operations table.
+// db:model operations
+type OperationsRow struct {
+	ID int64 `db:"id"`
 
-// Operation holds information about a single LXD operation running on a node
-// in the cluster.
+	// db:omit update
+	UUID   string `db:"uuid"`
+	NodeID int64  `db:"node_id"`
+
+	// db:omit update
+	Type operationtype.Type `db:"type"`
+
+	// db:omit update
+	ProjectID *int64 `db:"project_id"`
+
+	// db:omit update
+	RequestorProtocol *RequestorProtocol `db:"requestor_protocol"`
+
+	// db:omit update
+	RequestorIdentityID *int64 `db:"requestor_identity_id"`
+
+	// db:omit update
+	EntityID int64  `db:"entity_id"`
+	Metadata string `db:"metadata"`
+
+	// db:omit update
+	Class int64 `db:"class"`
+
+	// db:omit update
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+
+	// db:omit update
+	Inputs     string `db:"inputs"`
+	StatusCode int64  `db:"status_code"`
+	Error      string `db:"error"`
+
+	// db:omit update
+	ConflictReference string `db:"conflict_reference"`
+
+	// db:omit update
+	Parent *int64 `db:"parent"`
+
+	// db:omit update
+	Stage     int64 `db:"stage"`
+	ErrorCode int64 `db:"error_code"`
+}
+
+// APIName implements [query.APINamer] for [OperationsRow] for API friendly error messages.
+func (OperationsRow) APIName() string {
+	return "Operation"
+}
+
+// Operation enriches an OperationsRow with project, node, and identity information.
+// db:model operations
 type Operation struct {
-	ID                  int64              `db:"primary=yes"`                                      // Stable database identifier
-	UUID                string             `db:"primary=yes"`                                      // User-visible identifier, such as uuid
-	NodeAddress         string             `db:"join=nodes.address&omit=create,create-or-replace"` // Address of the node the operation is running on
-	Location            string             `db:"sql=nodes.name&omit=create,create-or-replace"`     // Name of the node the operation is running on
-	ProjectID           *int64             // ID of the project for the operation.
-	NodeID              int64              // ID of the node the operation is running on
-	Type                operationtype.Type // Type of the operation
-	RequestorProtocol   *RequestorProtocol // Protocol from the operation requestor
-	RequestorIdentityID *int64             // Identity ID from the operation requestor
-	EntityID            int                // ID of the entity the operation acts upon
-	Metadata            string             // JSON encoded metadata for the operation
-	Class               int64              // Class of the operation
-	CreatedAt           time.Time          // Time the operation was created
-	UpdatedAt           time.Time          // Time when the state or the metadata of the operation were last updated
-	Inputs              string             // JSON encoded inputs for the operation
-	Status              int64              `db:"sql=operations.status_code"` // Status code of the operation
-	ConflictReference   string             // All operations which cannot run concurrently share the same conflict reference
-	Error               string             // Error message if the operation failed
-	ErrorCode           int64              `db:"sql=operations.error_code"` // Error code if the operation failed
-	Parent              *int64             // Parent operation ID. This is used for sub-operations of other operations.
-	Stage               int64              // Stage of the operation
+	Row OperationsRow
+
+	// db:join LEFT JOIN projects ON operations.project_id = projects.id
+	ProjectName string `db:"coalesce(projects.name, '')"`
+
+	// db:join JOIN nodes ON operations.node_id = nodes.id
+	NodeAddress string `db:"nodes.address"`
+	NodeName    string `db:"nodes.name"`
+
+	// db:join LEFT JOIN identities ON operations.requestor_identity_id = identities.id
+	IdentityIdentifier string `db:"coalesce(identities.identifier, '')"`
 }
 
 // OperationFilter specifies potential query parameter fields.
