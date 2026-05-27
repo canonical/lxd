@@ -1683,14 +1683,16 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 
 	// Ensure correct sysctls are set on uplink veth interfaces to avoid getting IPv6 link-local addresses.
 	if shared.PathExists("/proc/sys/net/ipv6") {
-		err := util.SysctlSet(
-			fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.uplinkEnd), "1",
-			fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.ovsEnd), "1",
-			fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.uplinkEnd), "0",
-			fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.ovsEnd), "0",
-		)
-		if err != nil {
-			return fmt.Errorf("Failed configuring uplink veth interfaces %q and %q: %w", vars.uplinkEnd, vars.ovsEnd, err)
+		for _, iface := range []string{vars.uplinkEnd, vars.ovsEnd} {
+			err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", iface), "1")
+			if err != nil {
+				return fmt.Errorf("Failed disabling IPv6 on uplink veth interface %q: %w", iface, err)
+			}
+
+			err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/forwarding", iface), "0")
+			if err != nil {
+				return fmt.Errorf("Failed disabling IPv6 forwarding on uplink veth interface %q: %w", iface, err)
+			}
 		}
 	}
 
@@ -1856,12 +1858,14 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 	}
 
 	// Ensure correct sysctls are set on uplink interface to avoid getting IPv6 link-local addresses.
-	err = util.SysctlSet(
-		fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", uplinkHostName), "1",
-		fmt.Sprintf("net/ipv6/conf/%s/forwarding", uplinkHostName), "0",
-	)
+	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", uplinkHostName), "1")
 	if err != nil {
-		return fmt.Errorf("Failed configuring uplink interface %q: %w", uplinkHostName, err)
+		return fmt.Errorf("Failed disabling IPv6 on uplink interface %q: %w", uplinkHostName, err)
+	}
+
+	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/forwarding", uplinkHostName), "0")
+	if err != nil {
+		return fmt.Errorf("Failed disabling IPv6 forwarding on uplink interface %q: %w", uplinkHostName, err)
 	}
 
 	// Create uplink OVS bridge if needed.
