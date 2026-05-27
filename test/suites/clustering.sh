@@ -5797,13 +5797,15 @@ test_clustering_replicator_basic() {
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c3,STOPPED'
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get c1 user.foo --project replicator-project)" = "bar" ]
 
-  sub_test "Verify instance start is allowed on standby project"
+  sub_test "Verify instance start is blocked on standby project"
 
-  # Standby mode only blocks instance *creation*; existing instances may still be managed
-  # (e.g. started/stopped) to support failover workflows.
-  LXD_DIR="${LXD_TWO_DIR}" lxc start c1 --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc list c1 --project replicator-project -f csv -c ns | grep -xF 'c1,RUNNING'
-  LXD_DIR="${LXD_TWO_DIR}" lxc stop c1 --force --project replicator-project
+  # Starting instances in a standby replica project is blocked to prevent split-brain
+  # scenarios where the same instance runs on both the leader and standby clusters.
+  # Instances must not be started until the project is promoted to leader mode.
+  if CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc start c1 --project replicator-project 2>/dev/null; then
+    echo "ERROR: Starting instance in standby project unexpectedly succeeded" >&2
+    exit 1
+  fi
 
   sub_test "Verify replicator is idempotent when instances already exist on target"
 
