@@ -518,7 +518,7 @@ func (p *AlletraClient) GetCurrentHost(connectorType string, qn string) (*hpeHos
 			}
 		}
 
-		if connectorType == connectors.TypeNVME {
+		if connectorType == connectors.TypeNVMeTCP {
 			for _, nvmePath := range host.NVMETCPPaths {
 				if nvmePath.NQN == qn {
 					return &host, nil
@@ -544,7 +544,7 @@ func (p *AlletraClient) CreateHost(connectorType string, hostName string, qns []
 	switch connectorType {
 	case connectors.TypeISCSI:
 		req["iSCSINames"] = qns
-	case connectors.TypeNVME:
+	case connectors.TypeNVMeTCP:
 		req["NQN"] = qns[0]
 		req["transportType"] = hpeTransportTypeTCP
 	default:
@@ -706,7 +706,7 @@ func (p *AlletraClient) GetTargetAddrs(connectorType string) (targetAddrs []stri
 				targetAddrs = append(targetAddrs, member.IPAddr)
 			}
 
-		case connectors.TypeNVME:
+		case connectors.TypeNVMeTCP:
 			if member.Protocol != hpePortProtocolNVME {
 				continue
 			}

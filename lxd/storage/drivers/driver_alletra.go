@@ -21,7 +21,7 @@ var alletraVersion = ""
 
 // alletraSupportedConnectors represents a list of storage connectors that can be used.
 var alletraSupportedConnectors = []string{
-	connectors.TypeNVME,
+	connectors.TypeNVMeTCP,
 	connectors.TypeISCSI,
 }
 
@@ -120,7 +120,7 @@ func (d *alletra) Info() Info {
 func (d *alletra) FillConfig() error {
 	// Use NVMe by default.
 	if d.config["alletra.mode"] == "" {
-		d.config["alletra.mode"] = connectors.TypeNVME
+		d.config["alletra.mode"] = connectors.TypeNVMeTCP
 	}
 
 	return nil
@@ -394,7 +394,7 @@ func (d *alletra) getTargetQN(targetAddresses ...string) (string, error) {
 			return "", err
 		}
 
-	case connectors.TypeNVME:
+	case connectors.TypeNVMeTCP:
 		targetQN, err = d.getNVMeTargetQN(targetAddresses...)
 		if err != nil {
 			return "", err

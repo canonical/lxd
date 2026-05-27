@@ -24,7 +24,7 @@ const powerFlexDefaultSize = "8GiB"
 const powerFlexMinVolumeSizeBytes = 8589934592
 
 var powerflexSupportedConnectors = []string{
-	connectors.TypeNVME,
+	connectors.TypeNVMeTCP,
 	connectors.TypeSDC,
 }
 
@@ -125,7 +125,7 @@ func (d *powerflex) FillConfig() error {
 	// Second try if the SDC kernel module is setup.
 	if d.config["powerflex.mode"] == "" {
 		// Create temporary connector to check if NVMe/TCP kernel modules can be loaded.
-		nvmeConnector, err := connectors.NewConnector(connectors.TypeNVME, "")
+		nvmeConnector, err := connectors.NewConnector(connectors.TypeNVMeTCP, "")
 		if err != nil {
 			return err
 		}
@@ -137,7 +137,7 @@ func (d *powerflex) FillConfig() error {
 		}
 
 		if nvmeConnector.LoadModules() == nil {
-			d.config["powerflex.mode"] = connectors.TypeNVME
+			d.config["powerflex.mode"] = connectors.TypeNVMeTCP
 		} else if sdcConnector.LoadModules() == nil {
 			d.config["powerflex.mode"] = connectors.TypeSDC
 		} else {
@@ -195,7 +195,7 @@ func (d *powerflex) ValidateSource() error {
 	if d.config["powerflex.mode"] == connectors.TypeSDC {
 		// In case the SDC mode is used the SDTs cannot be set.
 		if d.config["powerflex.sdt"] != "" {
-			return fmt.Errorf("The %q config key is specific to the %q mode", "powerflex.sdt", connectors.TypeNVME)
+			return fmt.Errorf("The %q config key is specific to the %q mode", "powerflex.sdt", connectors.TypeNVMeTCP)
 		}
 	}
 
@@ -269,7 +269,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  defaultdesc: the discovered mode
 		//  shortdesc: How volumes are mapped to the local server
 		//  scope: global
-		"powerflex.mode": validate.Optional(validate.IsOneOf("nvme", "sdc")),
+		"powerflex.mode": validate.Optional(validate.IsOneOf(connectors.TypeNVMeTCP, connectors.TypeSDC)),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.sdt)
 		//
 		// ---

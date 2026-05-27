@@ -1742,7 +1742,7 @@ func (d *powerstore) unmapVolume(vol Volume) error {
 	//
 	// For NVMe the host-side device is removed asynchronously after the array detaches the
 	// volume. NVMe's [connectors.RemoveDiskDevice] is a no-op, so this is the only sync point.
-	if volumePath != "" && connector.Type() == connectors.TypeNVME && !block.WaitDiskDeviceGone(d.state.ShutdownCtx, volumePath) {
+	if volumePath != "" && connector.Type() == connectors.TypeNVMeTCP && !block.WaitDiskDeviceGone(d.state.ShutdownCtx, volumePath) {
 		return fmt.Errorf("Timeout exceeded waiting for PowerStore volume %q to disappear on path %q", vol.name, volumePath)
 	}
 

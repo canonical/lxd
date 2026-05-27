@@ -12,8 +12,8 @@ const (
 	// TypeUnknown represents an unknown storage connector.
 	TypeUnknown string = "unknown"
 
-	// TypeNVME represents an NVMe/TCP storage connector.
-	TypeNVME string = "nvme"
+	// TypeNVMeTCP represents an NVMe/TCP storage connector.
+	TypeNVMeTCP string = "nvme"
 
 	// TypeSDC represents Dell SDC storage connector.
 	TypeSDC string = "sdc"
@@ -58,7 +58,7 @@ func NewConnector(connectorType string, serverUUID string) (Connector, error) {
 	}
 
 	switch connectorType {
-	case TypeNVME:
+	case TypeNVMeTCP:
 		return &connectorNVMe{
 			common: common,
 		}, nil
