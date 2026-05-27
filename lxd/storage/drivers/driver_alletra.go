@@ -169,7 +169,7 @@ func (d *alletra) Validate(config map[string]string) error {
 		"alletra.target": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
 		// lxdmeta:generate(entities=storage-alletra; group=pool-conf; key=alletra.mode)
 		// The mode to use to map storage volumes to the local server.
-		// Supported values are `iscsi` and `nvme`.
+		// Supported values are `iscsi` and `nvme/tcp`.
 		// ---
 		//  type: string
 		//  defaultdesc: the discovered mode

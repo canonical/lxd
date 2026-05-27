@@ -160,7 +160,7 @@ func (d *pure) Validate(config map[string]string) error {
 		"pure.target": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.mode)
 		// The mode to use to map Pure Storage volumes to the local server.
-		// Supported values are `iscsi` and `nvme`.
+		// Supported values are `iscsi` and `nvme/tcp`.
 		// ---
 		//  type: string
 		//  defaultdesc: the discovered mode

@@ -13,7 +13,7 @@ const (
 	TypeUnknown string = "unknown"
 
 	// TypeNVMeTCP represents an NVMe/TCP storage connector.
-	TypeNVMeTCP string = "nvme"
+	TypeNVMeTCP string = "nvme/tcp"
 
 	// TypeSDC represents Dell SDC storage connector.
 	TypeSDC string = "sdc"

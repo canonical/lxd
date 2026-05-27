@@ -1200,15 +1200,11 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 		}
 
 		// The Pure Storage host with a qualified name of the current LXD host does not exist.
-		// Therefore, create a new one and name it after the server name.
-		serverName, err := ResolveServerName(d.state.ServerName)
+		// Therefore, create a new one and name it after the resolved server name.
+		hostname, err = ResolveServerNameWithConnectorType(d.state.ServerName, connector.Type())
 		if err != nil {
 			return "", nil, err
 		}
-
-		// Append the mode to the server name because Pure Storage does not allow mixing
-		// NQNs, IQNs, and WWNs for a single host.
-		hostname = serverName + "-" + connector.Type()
 
 		err = d.client().createHost(hostname, []string{qn})
 		if err != nil {

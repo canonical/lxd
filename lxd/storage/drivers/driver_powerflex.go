@@ -263,7 +263,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		"powerflex.domain": validate.IsAny,
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.mode)
 		// The mode gets discovered automatically if the system provides the necessary kernel modules.
-		// This can be either `nvme` or `sdc`.
+		// This can be either `nvme/tcp` or `sdc`.
 		// ---
 		//  type: string
 		//  defaultdesc: the discovered mode
