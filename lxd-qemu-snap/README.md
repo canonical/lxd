@@ -13,7 +13,7 @@ reference example, as it is meant for documentation and educational purposes onl
 
 ## How to build and use (example)
 
-```
+```sh
 cd lxd-qemu-snap
 
 # clean up previous builds
@@ -37,7 +37,7 @@ library support. Of course, this is not required, and in your specific use
 case you may choose to omit it. The following instructions show how to verify
 that the external QEMU snap with virgl support is working correctly.
 
-```
+```sh
 lxc init images:ubuntu/noble/desktop desktop -c limits.memory=8GiB --vm
 
 # modify instance configuration:
@@ -78,8 +78,8 @@ glxinfo | grep -i vir
 # Device: virgl ...
 ```
 
-## References:
+## References
 
-https://github.com/snapcore/snapd/blob/5c8d8431baa425464b279ff26b8c44eecb9aab22/interfaces/builtin/opengl.go#L41
+<https://github.com/snapcore/snapd/blob/5c8d8431baa425464b279ff26b8c44eecb9aab22/interfaces/builtin/opengl.go#L41>
 
-https://gitlab.gnome.org/GNOME/gnome-boxes/-/issues/586
+<https://gitlab.gnome.org/GNOME/gnome-boxes/-/issues/586>
