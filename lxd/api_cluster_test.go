@@ -142,6 +142,7 @@ func (f *clusterFixture) ClientUnix(daemon *Daemon) lxd.InstanceServer {
 		var err error
 		client, err = lxd.ConnectLXDUnix(daemon.os.GetUnixSocket(), nil)
 		require.NoError(f.t, err)
+		f.clients[daemon] = client
 	}
 
 	return client
