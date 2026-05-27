@@ -19,28 +19,28 @@ import (
 var _ = api.ServerEnvironment{}
 
 var projectObjects = RegisterStmt(`
-SELECT projects.id, projects.description, projects.name
+SELECT projects.id, projects.description, projects.name, projects.replica_mode
   FROM projects
   ORDER BY projects.name
 `)
 
 var projectObjectsByName = RegisterStmt(`
-SELECT projects.id, projects.description, projects.name
+SELECT projects.id, projects.description, projects.name, projects.replica_mode
   FROM projects
   WHERE ( projects.name = ? )
   ORDER BY projects.name
 `)
 
 var projectObjectsByID = RegisterStmt(`
-SELECT projects.id, projects.description, projects.name
+SELECT projects.id, projects.description, projects.name, projects.replica_mode
   FROM projects
   WHERE ( projects.id = ? )
   ORDER BY projects.name
 `)
 
 var projectCreate = RegisterStmt(`
-INSERT INTO projects (description, name)
-  VALUES (?, ?)
+INSERT INTO projects (description, name, replica_mode)
+  VALUES (?, ?, ?)
 `)
 
 var projectID = RegisterStmt(`
@@ -68,7 +68,7 @@ func getProjects(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Project, e
 
 	dest := func(scan func(dest ...any) error) error {
 		p := Project{}
-		err := scan(&p.ID, &p.Description, &p.Name)
+		err := scan(&p.ID, &p.Description, &p.Name, &p.ReplicaMode)
 		if err != nil {
 			return err
 		}
@@ -92,7 +92,7 @@ func getProjectsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([
 
 	dest := func(scan func(dest ...any) error) error {
 		p := Project{}
-		err := scan(&p.ID, &p.Description, &p.Name)
+		err := scan(&p.ID, &p.Description, &p.Name, &p.ReplicaMode)
 		if err != nil {
 			return err
 		}
@@ -225,11 +225,12 @@ func GetProject(ctx context.Context, tx *sql.Tx, name string) (*Project, error) 
 // CreateProject adds a new project to the database.
 // generator: project Create
 func CreateProject(ctx context.Context, tx *sql.Tx, object Project) (int64, error) {
-	args := make([]any, 2)
+	args := make([]any, 3)
 
 	// Populate the statement arguments.
 	args[0] = object.Description
 	args[1] = object.Name
+	args[2] = object.ReplicaMode
 
 	// Prepared statement to use.
 	stmt, err := Stmt(tx, projectCreate)
