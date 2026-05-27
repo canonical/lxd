@@ -83,6 +83,8 @@ type entityTypeDBInfo interface {
 	onInsertTriggerSQL() (name string, sql string)
 }
 
+// entityTypes maps each entity type to its DB-specific info. It must stay in sync with the entityTypes map in
+// shared/entity/type.go. [TestEntityTypesCoversAllEntityTypes] enforces this.
 var entityTypes = map[entity.Type]entityTypeDBInfo{
 	entity.TypeContainer:             entityTypeContainer{},
 	entity.TypeImage:                 entityTypeImage{},
