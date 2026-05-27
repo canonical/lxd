@@ -138,6 +138,7 @@ func (p *Project) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Project, error) {
 	apiProject := &api.Project{
 		Name:        p.Name,
 		Description: p.Description,
+		ReplicaMode: string(p.ReplicaMode),
 	}
 
 	var err error
