@@ -260,35 +260,7 @@ func GetOperationResources(ctx context.Context, tx *sql.Tx, opID int64) (map[ent
 
 // GetParentOperations returns all parent operation, that is all operations that don't have a parent.
 func GetParentOperations(ctx context.Context, tx *sql.Tx) ([]Operation, error) {
-	stmt := `
-SELECT operations.id, operations.uuid, nodes.address AS node_address, nodes.name, operations.project_id, operations.node_id, operations.type, operations.requestor_protocol, operations.requestor_identity_id, operations.entity_id, operations.metadata, operations.class, operations.created_at, operations.updated_at, operations.inputs, operations.status_code, operations.conflict_reference, operations.error, operations.error_code, operations.parent, operations.stage
-  FROM operations
-  JOIN nodes ON operations.node_id = nodes.id
-  WHERE parent IS NULL
-  ORDER BY operations.id, operations.uuid
-`
-
-	// Result slice.
-	objects := make([]Operation, 0)
-
-	dest := func(scan func(dest ...any) error) error {
-		o := Operation{}
-		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.Location, &o.ProjectID, &o.NodeID, &o.Type, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.Status, &o.ConflictReference, &o.Error, &o.ErrorCode, &o.Parent, &o.Stage)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, o)
-
-		return nil
-	}
-
-	err := query.Scan(ctx, tx, stmt, dest)
-	if err != nil {
-		return nil, fmt.Errorf("Failed fetching from \"operations\" table: %w", err)
-	}
-
-	return objects, nil
+	return query.Select[Operation](ctx, tx, "WHERE operations.parent IS NULL")
 }
 
 // CreateOperationResources registers operation resources in the cluster db.
@@ -382,89 +354,27 @@ func ClearStaleOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...i
 	return nil
 }
 
-const operationInfo = `
-SELECT 
-    operations.id, 
-    operations.uuid,
-    operations.node_id,
-    nodes.address, 
-    nodes.name,
-    operations.project_id, 
-    coalesce(projects.name, '') AS project_name,
-    operations.type, 
-    operations.requestor_protocol, 
-    operations.requestor_identity_id,
-    coalesce(identities.identifier, ''),
-    operations.entity_id, 
-    operations.metadata, 
-    operations.class, 
-    operations.created_at, 
-    operations.updated_at, 
-    operations.inputs, 
-    operations.status_code, 
-    operations.conflict_reference, 
-    operations.error, 
-    operations.parent, 
-    operations.stage
-FROM operations
-JOIN nodes ON operations.node_id = nodes.id
-LEFT JOIN projects ON operations.project_id = projects.id
-LEFT JOIN identities ON operations.requestor_identity_id = identities.id
-`
-
-// OperationInfo embeds [Operation] to enrich the data via some left joins.
-// To be removed when we have replaced the database generator.
-type OperationInfo struct {
-	Operation
-	Location           string
-	ProjectName        string
-	IdentityIdentifier string
+// GetOperationsByProjectAndType returns a slice of [Operation] with the given project and type.
+func GetOperationsByProjectAndType(ctx context.Context, tx *sql.Tx, projectName string, opType operationtype.Type) ([]Operation, error) {
+	return query.Select[Operation](ctx, tx, "WHERE coalesce(projects.name, '') = ? AND operations.type = ?", projectName, opType)
 }
 
-// getOperationInfos returns a slice of [OperationInfo] whose elements conform to the given clause.
-func getOperationInfos(ctx context.Context, tx *sql.Tx, clause string, args ...any) ([]OperationInfo, error) {
-	var ops []OperationInfo
-	err := query.Scan(ctx, tx, operationInfo+clause, func(scan func(dest ...any) error) error {
-		var op OperationInfo
-		err := scan(
-			&op.ID,
-			&op.UUID,
-			&op.NodeID,
-			&op.NodeAddress,
-			&op.Location,
-			&op.ProjectID,
-			&op.ProjectName,
-			&op.Type,
-			&op.RequestorProtocol,
-			&op.RequestorIdentityID,
-			&op.IdentityIdentifier,
-			&op.EntityID,
-			&op.Metadata,
-			&op.Class,
-			&op.CreatedAt,
-			&op.UpdatedAt,
-			&op.Inputs,
-			&op.Status,
-			&op.ConflictReference,
-			&op.Error,
-			&op.Parent,
-			&op.Stage,
-		)
-		if err != nil {
-			return err
-		}
-
-		ops = append(ops, op)
-		return nil
-	}, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	return ops, nil
+// DeleteOperation deletes an operation by UUID.
+func DeleteOperation(ctx context.Context, tx *sql.Tx, operationUUID string) error {
+	return query.DeleteOne[OperationsRow](ctx, tx, "WHERE operations.uuid = ?", operationUUID)
 }
 
-// GetOperationInfosByProjectAndType returns a slice of [OperationInfo] with the given project and type.
-func GetOperationInfosByProjectAndType(ctx context.Context, tx *sql.Tx, projectName string, opType operationtype.Type) ([]OperationInfo, error) {
-	return getOperationInfos(ctx, tx, "WHERE coalesce(projects.name, '') = ? AND operations.type = ?", projectName, opType)
+// GetOperation gets an [Operation] by UUID.
+func GetOperation(ctx context.Context, tx *sql.Tx, operationUUID string) (*Operation, error) {
+	return query.SelectOne[Operation](ctx, tx, "WHERE operations.uuid = ?", operationUUID)
+}
+
+// GetOperationsWithParent gets all operations whose parent operation has the given ID.
+func GetOperationsWithParent(ctx context.Context, tx *sql.Tx, parentID int64) ([]Operation, error) {
+	return query.Select[Operation](ctx, tx, "WHERE operations.parent = ?", parentID)
+}
+
+// GetOperationsByNodeID gets all operations on the given node ID.
+func GetOperationsByNodeID(ctx context.Context, tx *sql.Tx, nodeID int64) ([]Operation, error) {
+	return query.Select[Operation](ctx, tx, "WHERE operations.node_id = ?", nodeID)
 }
