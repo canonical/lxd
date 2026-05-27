@@ -374,3 +374,22 @@ func GetAllProjectsConfig(ctx context.Context, tx *sql.Tx) (map[string]map[strin
 
 	return projectConfigs, nil
 }
+
+// UpdateProjectReplicaMode updates the replica_mode field for the project with the given name.
+func UpdateProjectReplicaMode(ctx context.Context, tx *sql.Tx, projectName string, replicaMode string) error {
+	result, err := tx.ExecContext(ctx, `UPDATE projects SET replica_mode = ? WHERE name = ?`, ProjectReplicaMode(replicaMode), projectName)
+	if err != nil {
+		return err
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	}
+
+	return nil
+}
