@@ -16,7 +16,7 @@ type typeInfo interface {
 	// specific, false if not.
 	requiresProject() bool
 
-	// requiresLocation() bool returns whether the Type requires a location to be uniquely specified, e.g. true if it is
+	// requiresLocation returns whether the Type requires a location to be uniquely specified, e.g. true if it is
 	// node specific, false if not.
 	requiresLocation() bool
 

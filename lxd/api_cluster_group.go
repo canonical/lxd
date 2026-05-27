@@ -11,6 +11,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
@@ -526,35 +527,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		// skipMembers is a list of members which already belong to the group.
-		skipMembers := []string{}
-
-		for _, oldMember := range members {
-			if !slices.Contains(req.Members, oldMember) {
-				// Remove member from this group. It belongs to at least one other group per the check above.
-				err = tx.RemoveNodeFromClusterGroup(ctx, name, oldMember)
-				if err != nil {
-					return err
-				}
-			} else {
-				skipMembers = append(skipMembers, oldMember)
-			}
-		}
-
-		for _, member := range req.Members {
-			// Skip these members as they already belong to this group.
-			if slices.Contains(skipMembers, member) {
-				continue
-			}
-
-			// Add new members to the group.
-			err = tx.AddNodeToClusterGroup(ctx, name, member)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
+		return updateClusterGroupNodes(ctx, tx, name, members, req.Members)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -685,24 +658,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		groupID, err := dbCluster.GetClusterGroupID(ctx, tx.Tx(), obj.Name)
-		if err != nil {
-			return err
-		}
-
-		err = dbCluster.DeleteNodesClusterGroupsByGroupID(ctx, tx.Tx(), groupID)
-		if err != nil {
-			return err
-		}
-
-		for _, member := range req.Members {
-			err = tx.AddNodeToClusterGroup(ctx, name, member)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
+		return updateClusterGroupNodes(ctx, tx, name, members, req.Members)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -712,6 +668,71 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 	s.Events.SendLifecycle("", lifecycle.ClusterGroupUpdated.Event(name, requestor, logger.Ctx{"description": req.Description, "members": req.Members}))
 
 	return response.EmptySyncResponse
+}
+
+// updateClusterGroupNodes updates the cluster group's member nodes using batch SQL operations.
+// It removes members not present in newMembers and adds members not present in existingMembers.
+func updateClusterGroupNodes(ctx context.Context, tx *db.ClusterTx, groupName string, existingMembers []string, newMembers []string) error {
+	membersToRemove := []string{}
+	for _, m := range existingMembers {
+		if !slices.Contains(newMembers, m) {
+			membersToRemove = append(membersToRemove, m)
+		}
+	}
+
+	membersToAdd := []string{}
+	for _, m := range newMembers {
+		if !slices.Contains(existingMembers, m) {
+			membersToAdd = append(membersToAdd, m)
+		}
+	}
+
+	if len(membersToRemove) > 0 {
+		// membersToRemove are derived from existingMembers which are already validated cluster nodes,
+		// so no further name validation is needed here.
+		args := make([]any, 0, 1+len(membersToRemove))
+		args = append(args, groupName)
+		for _, m := range membersToRemove {
+			args = append(args, m)
+		}
+
+		_, err := tx.Tx().ExecContext(ctx,
+			"DELETE FROM nodes_cluster_groups WHERE group_id = (SELECT id FROM cluster_groups WHERE name = ?) AND node_id IN (SELECT id FROM nodes WHERE name IN "+query.Params(len(membersToRemove))+")",
+			args...)
+		if err != nil {
+			return fmt.Errorf("Failed removing cluster group members: %w", err)
+		}
+	}
+
+	if len(membersToAdd) > 0 {
+		// newMembers comes directly from the request body without validating that each name
+		// corresponds to a real cluster node, so invalid names must be caught here.
+		args := make([]any, 0, 1+len(membersToAdd))
+		args = append(args, groupName)
+		for _, m := range membersToAdd {
+			args = append(args, m)
+		}
+
+		result, err := tx.Tx().ExecContext(ctx,
+			"INSERT INTO nodes_cluster_groups (group_id, node_id) SELECT (SELECT id FROM cluster_groups WHERE name = ?), id FROM nodes WHERE name IN "+query.Params(len(membersToAdd)),
+			args...)
+		if err != nil {
+			return fmt.Errorf("Failed adding cluster group members: %w", err)
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("Failed getting affected rows after adding cluster group members: %w", err)
+		}
+
+		// The INSERT uses a SELECT subquery that silently omits node names not found in the nodes table.
+		// Check that every requested member was actually inserted to detect invalid node names early.
+		if rowsAffected != int64(len(membersToAdd)) {
+			return fmt.Errorf("Failed adding cluster group members: %d of %d requested nodes not found", int64(len(membersToAdd))-rowsAffected, len(membersToAdd))
+		}
+	}
+
+	return nil
 }
 
 // swagger:operation DELETE /1.0/cluster/groups/{name} cluster-groups cluster_group_delete
