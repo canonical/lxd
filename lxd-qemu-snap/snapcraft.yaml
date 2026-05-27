@@ -25,13 +25,13 @@ parts:
   #
   # This step is extremely important, as it ensures that no mesa libs will
   # be provided with this snap to prevent any possible version mistmatches
-  # between this snap and mesa-2404 snap.
+  # between this snap and mesa-2604 snap.
   # If you the error like:
   # DRI driver not from this Mesa build ('24.0.5-1ubuntu1' vs '24.0.9-0ubuntu0.1')
   # this is a clear sign that you likely ship some mesa library along with your qemu-for-lxd
-  # snap and it has a version conflict with what you have in gpu-2404 interface snap.
+  # snap and it has a version conflict with what you have in gpu-2604 interface snap.
   #
-  gpu-2404:
+  gpu-2604:
     after:
       - virgl
       - qemu
@@ -48,7 +48,7 @@ parts:
       ln -s "${CRAFT_PRIME_OVERRIDE}/lib" "${CRAFT_PRIME_OVERRIDE}/usr/lib"
 
       # a bit hacky way to call a cleanup script forcing it to look in a right directory
-      CRAFT_PRIME="${CRAFT_PRIME_OVERRIDE}" ${CRAFT_PART_SRC}/bin/gpu-2404-cleanup mesa-2404 nvidia-2404
+      CRAFT_PRIME="${CRAFT_PRIME_OVERRIDE}" ${CRAFT_PART_SRC}/bin/gpu-2604-cleanup mesa-2604 nvidia-2604
 
       rm -rf "${CRAFT_PRIME_OVERRIDE}/usr"
 
