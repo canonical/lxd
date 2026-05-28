@@ -243,7 +243,7 @@ func (d *lvm) Create() error {
 
 		// Check if the physical volume already exists.
 		pvName = loopDevPath
-		pvExists, err = d.pysicalVolumeExists(pvName)
+		pvExists, err = d.physicalVolumeExists(pvName)
 		if err != nil {
 			return err
 		}
@@ -289,7 +289,7 @@ func (d *lvm) Create() error {
 
 		// Check if the physical volume already exists.
 		pvName = srcPath
-		pvExists, err = d.pysicalVolumeExists(pvName)
+		pvExists, err = d.physicalVolumeExists(pvName)
 		if err != nil {
 			return err
 		}
