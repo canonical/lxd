@@ -1,0 +1,14 @@
+name: lxd
+base: ubuntu@24.04
+sdks:
+  - name: go
+    channel: 1.26/stable
+  - name: project-dev-tools
+
+actions:
+  build: |
+    make "${@:-all}"
+  tests: |
+    make check-unit
+  checks: |
+    make static-analysis

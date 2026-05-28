@@ -27,3 +27,6 @@ doc/**/__pycache__
 # For Atom ctags
 .tags
 .tags1
+
+# Workshop
+.workshop.lock

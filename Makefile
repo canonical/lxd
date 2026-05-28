@@ -275,8 +275,11 @@ endif
 	find . -name 'AGENTS.md' -not -path './.git/*' -exec sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' {} +
 	sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' doc/requirements.md .github/copilot-instructions.md
 
+	@# Update Go SDK channel in .workshop/lxd.yaml
+	sed -i "s/^\( *channel: \)[0-9.]\+\/stable/\1$$(echo "$(NEW_GOMIN)" | sed 's/\.[0-9]*$$//')\/stable/" .workshop/lxd.yaml
+
 	@echo "Go minimum version updated to $(NEW_GOMIN)"
-	@./scripts/check-and-commit.sh "Makefile go.mod tools/go.mod doc/requirements.md $(shell find . -name 'AGENTS.md' -not -path './.git/*') .github/copilot-instructions.md" "go: Update Go minimum version to $(NEW_GOMIN)"
+	@./scripts/check-and-commit.sh "Makefile go.mod tools/go.mod doc/requirements.md $(shell find . -name 'AGENTS.md' -not -path './.git/*') .github/copilot-instructions.md .workshop/lxd.yaml" "go: Update Go minimum version to $(NEW_GOMIN)"
 
 .PHONY: update-gomod
 update-gomod:

@@ -1,0 +1,4 @@
+set -ex
+
+cd /project
+make deps
