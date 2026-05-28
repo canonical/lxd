@@ -237,19 +237,19 @@ func getDiskMetrics() (map[string]metrics.DiskMetrics, error) {
 
 		sectorsRead, err := strconv.ParseUint(fields[5], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Failed parsing %q: %w", fields[3], err)
+			return nil, fmt.Errorf("Failed parsing %q: %w", fields[5], err)
 		}
 
 		stats.ReadBytes = sectorsRead * 512
 
 		stats.WritesCompleted, err = strconv.ParseUint(fields[7], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Failed parsing %q: %w", fields[3], err)
+			return nil, fmt.Errorf("Failed parsing %q: %w", fields[7], err)
 		}
 
 		sectorsWritten, err := strconv.ParseUint(fields[9], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Failed parsing %q: %w", fields[3], err)
+			return nil, fmt.Errorf("Failed parsing %q: %w", fields[9], err)
 		}
 
 		stats.WrittenBytes = sectorsWritten * 512
