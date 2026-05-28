@@ -1017,12 +1017,19 @@ parts:
       - lib/*/libusbredir*so*
       - lib/*/libusb*so*
       - lib/*/libfdt*.so*
-      - share/qemu/bios-256k.bin
-      - share/qemu/efi-virtio.rom
-      - share/qemu/opensbi-riscv64-generic-fw_dynamic.bin
-      - share/qemu/s390-ccw.img
-      - share/qemu/slof.bin
-      - share/qemu/vgabios-virtio.bin
+      - to amd64:
+        - share/qemu/bios-256k.bin
+        - share/qemu/efi-virtio.rom
+        - share/qemu/vgabios-virtio.bin
+      - to arm64:
+        - share/qemu/efi-virtio.rom
+        - share/qemu/vgabios-virtio.bin
+      - to ppc64el:
+        - share/qemu/slof.bin
+      - to riscv64:
+        - share/qemu/opensbi-riscv64-generic-fw_dynamic.bin
+      - to s390x:
+        - share/qemu/s390-ccw.img
 
   squashfs-tools-ng:
     plugin: nil
