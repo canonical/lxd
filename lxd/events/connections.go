@@ -83,10 +83,6 @@ func readerCommon(ctx context.Context, lock *sync.Mutex, rc io.ReadCloser) {
 		}
 	}()
 
-	if ctx.Err() != nil {
-		return
-	}
-
 	<-ctx.Done()
 }
 
