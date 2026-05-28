@@ -74,7 +74,11 @@ func readerCommon(ctx context.Context, lock *sync.Mutex, rc io.ReadCloser) {
 
 		// This is used to determine whether the client has terminated.
 		_, err := rc.Read(buf)
-		if err != nil && errors.Is(err, io.EOF) {
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				logger.Warn("Failed reading from connection", logger.Ctx{"err": err})
+			}
+
 			return
 		}
 	}()
