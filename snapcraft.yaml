@@ -505,8 +505,8 @@ parts:
       # Build Release
       run_build RELEASE ""
 
-      # Build Debug
-      run_build DEBUG ".debug"
+      # Build Debug (silence the copious build output to avoid doubling it)
+      run_build DEBUG ".debug" > /dev/null
 
       # Cleanup debug vars
       rm "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.debug.fd"
