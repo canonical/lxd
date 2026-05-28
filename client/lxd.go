@@ -495,7 +495,7 @@ func (r *ProtocolLXD) getUnderlyingHTTPTransport() (*http.Transport, error) {
 	case HTTPTransporter:
 		return t.Transport(), nil
 	default:
-		return nil, fmt.Errorf("Unexpected http.Transport type, %T", r)
+		return nil, fmt.Errorf("Unexpected http.Transport type, %T", t)
 	}
 }
 
