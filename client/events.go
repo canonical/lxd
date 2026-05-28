@@ -149,7 +149,7 @@ func (m *eventListenerManager) getEvents(ctxConnected context.Context, websocket
 		listener.projectName = project
 	}
 
-	// Make sure we remove the listener from the list when it's context is done.
+	// Make sure we remove the listener from the list when its context is done.
 	go func() {
 		<-ctx.Done()
 		m.eventListenersLock.Lock()
