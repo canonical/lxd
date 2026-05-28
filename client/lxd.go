@@ -481,9 +481,9 @@ func (r *ProtocolLXD) websocket(path string) (*websocket.Conn, error) {
 
 // WithContext returns a client that will add context.Context.
 func (r *ProtocolLXD) WithContext(ctx context.Context) InstanceServer {
-	rr := r
+	rr := *r
 	rr.ctx = ctx
-	return rr
+	return &rr
 }
 
 // getUnderlyingHTTPTransport returns the *http.Transport used by the http client. If the http
