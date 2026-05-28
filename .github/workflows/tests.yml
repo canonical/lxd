@@ -87,7 +87,7 @@ jobs:
         uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79 # v1
         with:
           snapcraft-args: pack
-          snapcraft-channel: 9.x/candidate
+          snapcraft-channel: latest/candidate
 
       - name: Upload snap artefact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
