@@ -856,7 +856,7 @@ func (d *lvm) deactivateVolume(vol Volume) (bool, error) {
 	if d.usesThinpool() {
 		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 	} else {
-		// Use parent for non-thinpool vols as deactivating the parent volume also activates its snapshots.
+		// Use parent for non-thinpool vols as deactivating the parent volume also deactivates its snapshots.
 		parent, _, _ := api.GetParentAndSnapshotName(vol.Name())
 		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, parent)
 	}
