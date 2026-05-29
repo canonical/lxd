@@ -380,8 +380,8 @@ func GetRequestorAuditor(ctx context.Context) (RequestorAuditor, error) {
 	return r, nil
 }
 
-// WithRequestor is used to set the requestor in the given context.
+// WithRequestorAuditor is used to set the [RequestorAuditor] in the given context.
 // This is used by operations to set the requestor in the context of an async task.
-func WithRequestor(ctx context.Context, requestor RequestorAuditor) context.Context {
+func WithRequestorAuditor(ctx context.Context, requestor *RequestorAuditor) context.Context {
 	return context.WithValue(ctx, ctxRequestor, requestor)
 }
