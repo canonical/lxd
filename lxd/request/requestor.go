@@ -54,26 +54,21 @@ type RequestorArgs struct {
 	ExpiresAt *time.Time
 }
 
-// Requestor contains all fields from RequestorArgs, unexported. Plus additional fields gathered from request headers
-// set when a request is forwarded between cluster members. It also contains an [identity.CacheEntry] and an
-// [identity.Type], which are set during SetRequestor.
+// Requestor contains a [RequestorAuditor] and additional unexported fields used for authorization purposes.
+// It is set in the request context after authentication via [SetRequestor]. It always represents the original API
+// caller, regardless of whether the request is forwarded from another cluster member.
 type Requestor struct {
-	trusted                         bool
-	originAddress                   string
-	username                        string
-	protocol                        string
-	identityProviderGroups          []string
-	forwardedOriginAddress          string
-	forwardedUsername               string
-	forwardedProtocol               string
-	forwardedIdentityProviderGroups []string
-	clientType                      ClientType
-	identityID                      int64
-	authGroups                      []string
-	mappedAuthGroups                []string
-	projects                        []string
-	identityType                    identity.Type
-	expiresAt                       *time.Time
+	RequestorAuditor
+	identityProviderGroups   []string
+	clusterMemberFingerprint string
+	clientType               ClientType
+	authGroups               []string
+	mappedAuthGroups         []string
+	projects                 []string
+	identityType             identity.Type
+	expiresAt                *time.Time
+	isForwarded              bool
+	isTrusted                bool
 }
 
 // IsClusterNotification returns true if this an API request coming from a
