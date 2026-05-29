@@ -406,13 +406,13 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 func createFromMigration(r *http.Request, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, isClusterNotification bool) response.Response {
 	requestor, err := request.GetRequestor(r.Context())
 	if err == nil {
-		if requestor.CallerProtocol() == "" {
+		if requestor.Protocol == "" {
 			return response.SmartError(errors.New("Failed checking request origin: Protocol not set in request context"))
 		}
 
 		// If the protocol is not [request.ProtocolCluster] (e.g. not an internal request) and the node has been
 		// evacuated, reject the request.
-		if s.DB.Cluster.LocalNodeIsEvacuated() && requestor.CallerProtocol() != request.ProtocolCluster {
+		if s.DB.Cluster.LocalNodeIsEvacuated() && requestor.Protocol != request.ProtocolCluster {
 			return response.Forbidden(errors.New("Cluster member is evacuated"))
 		}
 	}
@@ -1419,11 +1419,11 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed loading cluster link %q: %w", expectedCluster, err)
 			}
 
-			// CallerIdentityID is zero for admin protocols (PKI, cluster, unix). Cluster link
-			// connections always authenticate via a named TLS identity in the DB, so they have a
-			// non-zero ID. A zero ID here means the caller is not a named identity (e.g. a PKI
-			// admin cert), which must not be allowed to write to a standby project.
-			if requestor.CallerIdentityID() == 0 || requestor.CallerIdentityID() != clusterLink.IdentityID {
+			// Only allow the expected cluster link identity to create instances in the standby replica project.
+			// We can check this using the requestor identity ID, since cluster links always communicate using a named
+			// TLS identity. We need to ensure the identity is not nil - since it can be nil for admin protocols.
+			// (Admins are not allowed to create instances in this project while it is in standby either).
+			if requestor.IdentityID == nil || *requestor.IdentityID != clusterLink.IdentityID {
 				return api.StatusErrorf(http.StatusForbidden, "Cannot create instances in a standby replica project")
 			}
 		}

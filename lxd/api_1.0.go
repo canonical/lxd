@@ -445,8 +445,8 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	fullSrv := &api.Server{ServerUntrusted: srv}
 	fullSrv.Environment = env
-	fullSrv.AuthUserName = requestor.CallerUsername()
-	fullSrv.AuthUserMethod = requestor.CallerProtocol()
+	fullSrv.AuthUserName = requestor.Username
+	fullSrv.AuthUserMethod = requestor.Protocol
 
 	// Only allow identities that can edit configuration to view it as sensitive information may be stored there.
 	err = s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanEdit)
