@@ -54,7 +54,7 @@ func (r *ProtocolDevLXD) CreateStoragePoolVolume(poolName string, vol api.DevLXD
 	url := api.NewURL().Path("storage-pools", poolName, "volumes", vol.Type).URL
 	r.setURLQueryAttributes(&url)
 
-	op, _, err := r.queryOperation(http.MethodPost, url.String(), vol, "")
+	op, err := r.queryOperation(http.MethodPost, url.String(), vol, "")
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (r *ProtocolDevLXD) UpdateStoragePoolVolume(poolName string, volType string
 	url := api.NewURL().Path("storage-pools", poolName, "volumes", volType, volName).URL
 	r.setURLQueryAttributes(&url)
 
-	op, _, err := r.queryOperation(http.MethodPatch, url.String(), vol, etag)
+	op, err := r.queryOperation(http.MethodPatch, url.String(), vol, etag)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (r *ProtocolDevLXD) DeleteStoragePoolVolume(poolName string, volType string
 	url := api.NewURL().Path("storage-pools", poolName, "volumes", volType, volName).URL
 	r.setURLQueryAttributes(&url)
 
-	op, _, err := r.queryOperation(http.MethodDelete, url.String(), nil, "")
+	op, err := r.queryOperation(http.MethodDelete, url.String(), nil, "")
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (r *ProtocolDevLXD) CreateStoragePoolVolumeSnapshot(poolName string, volTyp
 	url := api.NewURL().Path("storage-pools", poolName, "volumes", volType, volName, "snapshots").URL
 	r.setURLQueryAttributes(&url)
 
-	op, _, err := r.queryOperation(http.MethodPost, url.String(), snapshot, "")
+	op, err := r.queryOperation(http.MethodPost, url.String(), snapshot, "")
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (r *ProtocolDevLXD) DeleteStoragePoolVolumeSnapshot(poolName string, volTyp
 	url := api.NewURL().Path("storage-pools", poolName, "volumes", volType, volName, "snapshots", snapshotName).URL
 	r.setURLQueryAttributes(&url)
 
-	op, _, err := r.queryOperation(http.MethodDelete, url.String(), nil, "")
+	op, err := r.queryOperation(http.MethodDelete, url.String(), nil, "")
 	if err != nil {
 		return nil, err
 	}
