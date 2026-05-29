@@ -126,10 +126,6 @@ func (r *Requestor) CallerAllowedProjectNames() []string {
 
 // CallerIdentityProviderGroups returns the original caller identity provider groups.
 func (r *Requestor) CallerIdentityProviderGroups() []string {
-	if r.forwardedIdentityProviderGroups != nil {
-		return r.forwardedIdentityProviderGroups
-	}
-
 	return r.identityProviderGroups
 }
 
