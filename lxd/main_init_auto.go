@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/spf13/cobra"
-
 	"github.com/canonical/lxd/client"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/util"
@@ -15,7 +13,7 @@ import (
 )
 
 // RunAuto initializes LXD in automatic (non-interactive) mode.
-func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*api.InitPreseed, error) {
+func (c *cmdInit) RunAuto(args []string, d lxd.InstanceServer, server *api.Server) (*api.InitPreseed, error) {
 	// Quick checks.
 	if c.flagStorageBackend != "" && !slices.Contains(storageDrivers.AllDriverNames(), c.flagStorageBackend) {
 		return nil, fmt.Errorf("The requested backend %q is not supported by lxd init", c.flagStorageBackend)
