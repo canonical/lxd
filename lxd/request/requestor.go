@@ -75,7 +75,7 @@ type Requestor struct {
 // cluster node that is notifying us of some user-initiated API request that
 // needs some action to be taken on this node as well.
 func (r *Requestor) IsClusterNotification() bool {
-	return r.ClientType().IsClusterNotification()
+	return r.ClientType().IsClusterNotification() && r.isInternal()
 }
 
 // IsTrusted returns true if the caller is authenticated and false otherwise.
@@ -85,7 +85,7 @@ func (r *Requestor) IsTrusted() bool {
 
 // IsAdmin returns true if the caller is an administrator and false otherwise.
 func (r *Requestor) IsAdmin() bool {
-	if slices.Contains([]string{ProtocolUnix, ProtocolCluster, ProtocolPKI}, r.CallerProtocol()) {
+	if slices.Contains([]string{ProtocolUnix, ProtocolCluster, ProtocolPKI}, r.Protocol) {
 		return true
 	}
 
@@ -135,29 +135,29 @@ func (r *Requestor) ClientType() ClientType {
 }
 
 // EventLifecycleRequestor returns an api.EventLifecycleRequestor representing the original caller.
-func (r *Requestor) EventLifecycleRequestor() *api.EventLifecycleRequestor {
+func (r *RequestorAuditor) EventLifecycleRequestor() *api.EventLifecycleRequestor {
 	return &api.EventLifecycleRequestor{
-		Username: r.CallerUsername(),
-		Protocol: r.CallerProtocol(),
-		Address:  r.OriginAddress(),
+		Username: r.Username,
+		Protocol: r.Protocol,
+		Address:  r.OriginAddress,
 	}
 }
 
 // CallerIsEqual returns true if the given Requestor is the same caller as this Requestor.
-func (r *Requestor) CallerIsEqual(requestor RequestorAuditor) bool {
+func (r *Requestor) CallerIsEqual(requestor *RequestorAuditor) bool {
 	if requestor == nil {
 		return false
 	}
 
-	return requestor.CallerUsername() == r.CallerUsername() && requestor.CallerProtocol() == r.CallerProtocol()
+	return requestor.Username == r.Username && requestor.Protocol == r.Protocol
 }
 
 // OperationRequestor returns an [api.OperationRequestor] representing the original caller.
-func (r *Requestor) OperationRequestor() *api.OperationRequestor {
+func (r *RequestorAuditor) OperationRequestor() *api.OperationRequestor {
 	return &api.OperationRequestor{
-		Username: r.CallerUsername(),
-		Protocol: r.CallerProtocol(),
-		Address:  r.OriginAddress(),
+		Username: r.Username,
+		Protocol: r.Protocol,
+		Address:  r.OriginAddress,
 	}
 }
 
@@ -181,28 +181,26 @@ func (r *Requestor) isInternal() bool {
 
 // SetRequestorHeaders adds the requestor details as forwarded headers on the
 // given HTTP request so the receiving cluster member can identify the caller.
-func SetRequestorHeaders(r RequestorAuditor, req *http.Request) {
-	req.Header.Add(headerForwardedAddress, r.OriginAddress())
+func SetRequestorHeaders(r *RequestorAuditor, req *http.Request) {
+	req.Header.Add(headerForwardedAddress, r.OriginAddress)
 
-	username := r.CallerUsername()
-	if username != "" {
-		req.Header.Add(headerForwardedUsername, username)
+	if r.Username != "" {
+		req.Header.Add(headerForwardedUsername, r.Username)
 	}
 
-	protocol := r.CallerProtocol()
-	if protocol != "" {
-		req.Header.Add(headerForwardedProtocol, protocol)
+	if r.Protocol != "" {
+		req.Header.Add(headerForwardedProtocol, r.Protocol)
 	}
 }
 
 // ClusterMemberTLSCertificateFingerprint returns the TLS certificate fingerprint of the cluster member that
 // sent the request. It returns an error if the request was not sent by another cluster member.
 func (r *Requestor) ClusterMemberTLSCertificateFingerprint() (string, error) {
-	if r.protocol != ProtocolCluster {
+	if !r.isInternal() {
 		return "", ErrRequestNotInternal
 	}
 
-	return r.username, nil
+	return r.clusterMemberFingerprint, nil
 }
 
 // setForwardingDetails validates and sets forwarding details from the request headers.
