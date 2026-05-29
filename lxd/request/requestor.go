@@ -12,17 +12,13 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-// RequestorAuditor is a subset of methods implemented by [Requestor].
-// It is used for auditing, request forwarding within the cluster, and within operations.
-// Permission checks cannot be performed with the requestor auditor, save only for checking if two requestors are equal.
-type RequestorAuditor interface {
-	OriginAddress() string
-	CallerUsername() string
-	CallerProtocol() string
-	EventLifecycleRequestor() *api.EventLifecycleRequestor
-	OperationRequestor() *api.OperationRequestor
-	CallerIsEqual(requestor RequestorAuditor) bool
-	CallerIdentityID() int64
+// RequestorAuditor is used for auditing and request forwarding within the cluster, and within operations.
+// Permission checks cannot be performed with RequestorAuditor, save only for checking if two requestors are equal.
+type RequestorAuditor struct {
+	Username      string
+	Protocol      string
+	OriginAddress string
+	IdentityID    *int64
 }
 
 // RequestorHook is the signature of a hook that is passed into calls to [SetRequestor].
