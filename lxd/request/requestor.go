@@ -80,7 +80,7 @@ func (r *Requestor) IsClusterNotification() bool {
 
 // IsTrusted returns true if the caller is authenticated and false otherwise.
 func (r *Requestor) IsTrusted() bool {
-	return r.trusted
+	return r.isTrusted
 }
 
 // IsAdmin returns true if the caller is an administrator and false otherwise.
@@ -100,35 +100,6 @@ func (r *Requestor) IsAdmin() bool {
 // Returns nil if the caller is not authenticated using a bearer token or TLS.
 func (r *Requestor) ExpiresAt() *time.Time {
 	return r.expiresAt
-}
-
-// OriginAddress returns the original address of the caller.
-func (r *Requestor) OriginAddress() string {
-	if r.IsForwarded() {
-		return r.forwardedOriginAddress
-	}
-
-	return r.originAddress
-}
-
-// CallerUsername returns the original caller Username.
-func (r *Requestor) CallerUsername() string {
-	if r.IsForwarded() {
-		// Always return forwarded username if the request was forwarded.
-		return r.forwardedUsername
-	}
-
-	return r.username
-}
-
-// CallerProtocol returns the original caller protocol.
-func (r *Requestor) CallerProtocol() string {
-	if r.IsForwarded() {
-		// Always return forwarded protocol if the request was forwarded.
-		return r.forwardedProtocol
-	}
-
-	return r.protocol
 }
 
 // CallerAuthorizationGroupNames returns the LXD authorization groups that the requestor belongs to.
@@ -201,12 +172,6 @@ func (r *Requestor) CallerIdentityType() (identity.Type, error) {
 	}
 
 	return r.identityType, nil
-}
-
-// CallerIdentityID returns the database ID of the calling identity (it is always zero if the calling identity is using
-// an admin protocol - cluster, unix, pki).
-func (r *Requestor) CallerIdentityID() int64 {
-	return r.identityID
 }
 
 // IsForwarded returns true if the request was forwarded from another cluster member and false otherwise.
