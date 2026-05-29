@@ -43,22 +43,21 @@ copyright = '2014-%s AGPL-3.0, %s' % (datetime.date.today().year, author)
 
 # Documentation website URL
 
-# Use RTD canonical URL to ensure duplicate pages have a single canonical URL
-# that includes the version (such as /latest/); helps SEO.
-# See: https://docs.readthedocs.com/platform/stable/canonical-urls.html and
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-html_baseurl
-# Second argument is for local builds where READTHEDOCS_CANONICAL_URL is not available
-html_baseurl = os.environ.get('READTHEDOCS_CANONICAL_URL', '/')
+version_slug = f'{os.environ.get("READTHEDOCS_VERSION", "local")}'
+
+slug = 'lxd/docs'
+
+html_baseurl = f'https://canonical.com/lxd/docs/{version_slug}/'
 
 # NOTE: The Open Graph Protocol (OGP) enhances page display in a social graph
 #       and is used by social media platforms; see https://ogp.me/
-ogp_site_url = html_baseurl
+ogp_site_url = f'https://canonical.com/lxd/docs/{version_slug}/'
 
 # Preview name of the documentation website
 ogp_site_name = html_title
 
 # Preview image URL
-ogp_image = 'https://documentation.ubuntu.com/lxd/latest/_static/lxd_tag.png'
+ogp_image = f'https://canonical.com/lxd/docs/{version_slug}/_static/lxd_tag.png'
 
 # Product favicon; shown in bookmarks, browser tabs, etc.
 html_favicon = '_static/favicon.ico'
@@ -118,10 +117,6 @@ html_extra_path = ['_extra']
 html_theme_options = {
     'source_edit_link': html_context['github_url']
 }
-
-# Project slug
-# Required if your project is hosted on documentation.ubuntu.com
-slug = 'lxd'
 
 #######################
 # Sitemap configuration: https://sphinx-sitemap.readthedocs.io/
@@ -280,7 +275,8 @@ html_css_files = [
 # Adds custom JavaScript files, located under 'html_static_path' or from external link
 html_js_files = [
     'https://assets.ubuntu.com/v1/287a5e8f-bundle.js',
-    'rtd-versions-flyout.js',
+    'js/rtd-versions-flyout.js',
+    'js/overwrite_links.js',
 ]
 
 # Feedback button at the top; enabled by default
