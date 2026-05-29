@@ -59,14 +59,9 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			// If there's an untrusted requestor with empty protocol and no identity, we set the
 			// requestor_protocol to `requestorProtocolNone` and leave the requestor_identity_id `null`.
 			// The untrusted requestor is provided eg. in a local image upload operation run as part of an image copy operation.
-			value := cluster.RequestorProtocol(op.requestor.CallerProtocol())
+			value := cluster.RequestorProtocol(op.requestor.Protocol)
 			operationsRow.RequestorProtocol = &value
-
-			requestorCallerIdentityID := op.requestor.CallerIdentityID()
-			if requestorCallerIdentityID != 0 {
-				identityID := requestorCallerIdentityID
-				operationsRow.RequestorIdentityID = &identityID
-			}
+			operationsRow.RequestorIdentityID = op.requestor.IdentityID
 		}
 
 		if op.entityURL != nil {
