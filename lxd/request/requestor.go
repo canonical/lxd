@@ -263,7 +263,7 @@ func (r *Requestor) setIdentity(ctx context.Context, hook RequestorHook) error {
 		return nil
 	}
 
-	method := r.CallerProtocol()
+	method := r.Protocol
 	if method == ProtocolDevLXD {
 		// For a trusted devlxd request, the only authentication method that can have been used is a bearer token.
 		method = api.AuthenticationMethodBearer
@@ -272,7 +272,7 @@ func (r *Requestor) setIdentity(ctx context.Context, hook RequestorHook) error {
 	// Expect the method to a remote API method at this point.
 	err := identity.ValidateAuthenticationMethod(method)
 	if err != nil {
-		return fmt.Errorf("Received unexpected caller protocol %q: %w", r.CallerProtocol(), err)
+		return fmt.Errorf("Received unexpected caller protocol %q: %w", r.Protocol, err)
 	}
 
 	if hook == nil {
@@ -280,12 +280,12 @@ func (r *Requestor) setIdentity(ctx context.Context, hook RequestorHook) error {
 	}
 
 	// Get the identity details.
-	res, err := hook(ctx, method, r.CallerUsername())
+	res, err := hook(ctx, method, r.Username)
 	if err != nil {
 		return fmt.Errorf("Failed getting identity details: %w", err)
 	}
 
-	r.identityID = res.IdentityID
+	r.IdentityID = &res.IdentityID
 	r.identityType = res.IdentityType
 	r.authGroups = res.AuthGroups
 	r.mappedAuthGroups = res.EffectiveAuthGroups
