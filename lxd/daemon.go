@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	dqliteClient "github.com/canonical/go-dqlite/v3/client"
@@ -115,7 +116,7 @@ type Daemon struct {
 
 	proxy func(req *http.Request) (*url.URL, error)
 
-	oidcVerifier *oidc.Verifier
+	oidcVerifier atomic.Pointer[oidc.Verifier]
 
 	// Stores last heartbeat node information to detect node changes.
 	lastNodeList *cluster.APIHeartbeat
@@ -494,7 +495,7 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 // authentication. Errors returned from this function never trigger the
 // event because they may originate from a server-side fault (e.g. an
 // unreachable IdP).
-func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, allowUntrusted bool) (*request.RequestorArgs, error) {
+func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, oidcVerifier *oidc.Verifier, allowUntrusted bool) (*request.RequestorArgs, error) {
 	if r.TLS == nil {
 		// For a socket, the server is listening on a file, but the client does not have an address.
 		// Since there is no address, the kernel uses an unnamed unix socket address.
@@ -653,8 +654,8 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, allowUntru
 	}
 
 	// Lastly, check OIDC authentication using the verifier.
-	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
-		result, err := d.oidcVerifier.Auth(w, r)
+	if oidcVerifier != nil && oidcVerifier.IsRequest(r) {
+		result, err := oidcVerifier.Auth(w, r)
 		if err != nil {
 			return nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
 		}
@@ -909,13 +910,14 @@ func (d *Daemon) createCmd(restAPI *http.ServeMux, version string, c APIEndpoint
 		}
 
 		// Authentication
-		requestor, err := d.Authenticate(w, r, endpointAction.AllowUntrusted)
+		oidcVerifier := d.oidcVerifier.Load()
+		requestor, err := d.Authenticate(w, r, oidcVerifier, endpointAction.AllowUntrusted)
 		if err != nil {
 			_, ok := errors.AsType[oidc.AuthError](err)
 			if ok {
 				// Ensure the OIDC headers are set if needed.
-				if d.oidcVerifier != nil {
-					_ = d.oidcVerifier.WriteHeaders(w)
+				if oidcVerifier != nil {
+					_ = oidcVerifier.WriteHeaders(w)
 				}
 
 				// Return 401 Unauthorized error. This indicates to the client that it needs to use the
@@ -958,8 +960,8 @@ func (d *Daemon) createCmd(restAPI *http.ServeMux, version string, c APIEndpoint
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug("Allowing untrusted "+r.Method, logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else {
-			if d.oidcVerifier != nil {
-				_ = d.oidcVerifier.WriteHeaders(w)
+			if oidcVerifier != nil {
+				_ = oidcVerifier.WriteHeaders(w)
 			}
 
 			logger.Warn("Rejecting request from untrusted client", logger.Ctx{"ip": r.RemoteAddr})
@@ -1828,10 +1830,12 @@ func (d *Daemon) init() error {
 		}
 
 		sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, d.globalConfig.OIDCSessionExpiry)
-		d.oidcVerifier, err = oidc.NewVerifier(d.shutdownCtx, oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, oidcDeviceClientID, d.globalConfig.ClusterUUID(), d.endpoints.NetworkAddress(), d.getCoreAuthSecrets, httpClientFunc, sessionHandler)
+		oidcVerifier, err := oidc.NewVerifier(d.shutdownCtx, oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, oidcDeviceClientID, d.globalConfig.ClusterUUID(), d.endpoints.NetworkAddress(), d.getCoreAuthSecrets, httpClientFunc, sessionHandler)
 		if err != nil {
 			logger.Warn("Failed setting up OIDC verifier", logger.Ctx{"err": err})
 		}
+
+		d.oidcVerifier.Store(oidcVerifier)
 	}
 
 	// Setup BGP listener.

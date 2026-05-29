@@ -1290,7 +1290,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, oidcDeviceClientID := newClusterConfig.OIDCServer()
 
 		if oidcIssuer == "" || oidcClientID == "" {
-			d.oidcVerifier = nil
+			d.oidcVerifier.Store(nil)
 		} else {
 			var err error
 
@@ -1299,10 +1299,12 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			}
 
 			sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, newClusterConfig.OIDCSessionExpiry)
-			d.oidcVerifier, err = oidc.NewVerifier(s.ShutdownCtx, oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, oidcDeviceClientID, newClusterConfig.ClusterUUID(), d.endpoints.NetworkAddress(), s.CoreAuthSecrets, httpClientFunc, sessionHandler)
+			oidcVerifier, err := oidc.NewVerifier(s.ShutdownCtx, oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, oidcDeviceClientID, newClusterConfig.ClusterUUID(), d.endpoints.NetworkAddress(), s.CoreAuthSecrets, httpClientFunc, sessionHandler)
 			if err != nil {
 				return fmt.Errorf("Failed creating verifier: %w", err)
 			}
+
+			d.oidcVerifier.Store(oidcVerifier)
 		}
 	}
 
