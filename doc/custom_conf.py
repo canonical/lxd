@@ -134,22 +134,6 @@ html_context = {
 # slug (for example, "lxd") here.
 slug = "lxd"
 
-#######################
-# Sitemap configuration: https://sphinx-sitemap.readthedocs.io/
-#######################
-
-# Base URL of RTD hosted project
-
-html_baseurl = 'https://documentation.ubuntu.com/lxd/'
-
-# Configures URL scheme for sphinx-sitemap to generate correct URLs
-# based on the version if built in RTD
-if 'READTHEDOCS_VERSION' in os.environ:
-    rtd_version = os.environ["READTHEDOCS_VERSION"]
-    sitemap_url_scheme = f'{rtd_version}/{{link}}'
-else:
-    sitemap_url_scheme = '{link}'
-
 ############################################################
 ### Redirects
 ############################################################
@@ -213,7 +197,6 @@ custom_extensions = [
     'sphinx_remove_toctrees',
     'canonical.filtered-toc',
     'sphinxcontrib.cairosvgconverter',
-    'sphinx_sitemap',
 ]
 
 # Add custom required Python modules that must be added to the
@@ -228,7 +211,6 @@ custom_required_modules = [
     'pyyaml',
     'sphinx-remove-toctrees',
     'sphinxcontrib-svg2pdfconverter[CairoSVG]',
-    'sphinx-sitemap',
 ]
 
 # Add files or directories that should be excluded from processing.

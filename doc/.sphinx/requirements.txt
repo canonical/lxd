@@ -39,4 +39,3 @@ sphinx-copybutton
 gitpython
 wget
 sphinx-notfound-page
-sphinx-sitemap
