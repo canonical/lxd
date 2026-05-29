@@ -4718,6 +4718,12 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 
 			if slices.Contains([]string{"pcie", "pci"}, busName) {
 				qemuDev["driver"] = "virtio-net-pci"
+				// QEMU hard codes using efi-virtio.rom.
+				// But that file contains only x86 code.
+				if d.architecture != osarch.ARCH_32BIT_INTEL_X86 &&
+					d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
+					qemuDev["romfile"] = ""
+				}
 			} else if busName == "ccw" {
 				qemuDev["driver"] = "virtio-net-ccw"
 			}
@@ -4856,6 +4862,12 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 
 			if slices.Contains([]string{"pcie", "pci"}, busName) {
 				qemuDev["driver"] = "virtio-net-pci"
+				// QEMU hard codes using efi-virtio.rom.
+				// But that file contains only x86 code.
+				if d.architecture != osarch.ARCH_32BIT_INTEL_X86 &&
+					d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
+					qemuDev["romfile"] = ""
+				}
 			} else if busName == "ccw" {
 				qemuDev["driver"] = "virtio-net-ccw"
 			}
