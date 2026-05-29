@@ -1008,11 +1008,11 @@ func (c *cmdList) matchByNet(cState *api.InstanceState, query string, family str
 	return false
 }
 
-func (c *cmdList) matchByIPV6(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
+func (c *cmdList) matchByIPV6(_ *api.Instance, cState *api.InstanceState, query string) bool {
 	return c.matchByNet(cState, query, "ipv6")
 }
 
-func (c *cmdList) matchByIPV4(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
+func (c *cmdList) matchByIPV4(_ *api.Instance, cState *api.InstanceState, query string) bool {
 	return c.matchByNet(cState, query, "ipv4")
 }
 
