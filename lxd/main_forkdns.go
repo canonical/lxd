@@ -86,17 +86,9 @@ func (h *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if len(r.Question) != 1 {
 		msg.SetRcode(r, dns.RcodeNameError)
 	} else if r.Question[0].Qtype == dns.TypePTR {
-		msg, err = h.handlePTR(r)
-		if err != nil {
-			logger.Errorf("PTR record lookup failed for %s: %v", r.Question[0].Name, err)
-			msg.SetRcode(r, dns.RcodeNameError)
-		}
+		msg = h.handlePTR(r)
 	} else if r.Question[0].Qtype == dns.TypeA || r.Question[0].Qtype == dns.TypeAAAA {
-		msg, err = h.handleA(r)
-		if err != nil {
-			logger.Errorf("A record lookup failed for %s: %v", r.Question[0].Name, err)
-			msg.SetRcode(r, dns.RcodeNameError)
-		}
+		msg = h.handleA(r)
 
 		// Currently forkdns doesn't support IPv6, but to ensure compatbility and expected behavior with
 		// DNS clients, we return an empty AAAA response if the A record was found (meaning the domain
@@ -119,7 +111,7 @@ func (h *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 // It is used with cluster networking to provide cluster wide DNS PTR resolution by consulting the
 // local DHCP leases file and if not found, then relaying the question to the other cluster member's
 // forkdns instance. Returns DNS message to be sent as response.
-func (h *dnsHandler) handlePTR(r *dns.Msg) (dns.Msg, error) {
+func (h *dnsHandler) handlePTR(r *dns.Msg) dns.Msg {
 	msg := dns.Msg{}
 	msg.SetReply(r)
 
@@ -148,12 +140,12 @@ func (h *dnsHandler) handlePTR(r *dns.Msg) (dns.Msg, error) {
 				Ptr: fmt.Sprintf("%s.%s.", hostname, h.domain),
 			})
 
-			return msg, nil
+			return msg
 		}
 
 		// Record not found locally, return NXDOMAIN.
 		msg.SetRcode(r, dns.RcodeNameError)
-		return msg, nil
+		return msg
 	}
 
 	// If we get here, then the recursion desired flag was set, meaning we cannot answer the
@@ -178,12 +170,12 @@ func (h *dnsHandler) handlePTR(r *dns.Msg) (dns.Msg, error) {
 			continue
 		}
 
-		return *resp, nil
+		return *resp
 	}
 
 	// Record not found in any of the remove servers.
 	msg.SetRcode(r, dns.RcodeNameError)
-	return msg, nil
+	return msg
 }
 
 // getLeaseHostByReverseIPName finds the hostname used in the DHCP lease by supplying a reverse
@@ -224,7 +216,7 @@ func (h *dnsHandler) getLeaseHostByReverseIPName(reverseName string) (string, er
 // It is used with cluster networking to provide cluster wide DNS A resolution by consulting the
 // local DHCP leases file and if not found, then relaying the question to the other cluster member's
 // forkdns instance. Returns DNS message to be sent as response.
-func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
+func (h *dnsHandler) handleA(r *dns.Msg) dns.Msg {
 	msg := dns.Msg{}
 	msg.SetReply(r)
 
@@ -251,12 +243,12 @@ func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
 				A: net.ParseIP(ip),
 			})
 
-			return msg, nil
+			return msg
 		}
 
 		// Record not found locally, return NXDOMAIN.
 		msg.SetRcode(r, dns.RcodeNameError)
-		return msg, nil
+		return msg
 	}
 
 	// If we get here, then the recursion desired flag was set, meaning we cannot answer the
@@ -281,12 +273,12 @@ func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
 			continue
 		}
 
-		return *resp, nil
+		return *resp
 	}
 
 	// Record not found in any of the remote servers.
 	msg.SetRcode(r, dns.RcodeNameError)
-	return msg, nil
+	return msg
 }
 
 // getLeaseHostByDNSName finds the hostname used in the DHCP lease by supplying a DNS A name.
