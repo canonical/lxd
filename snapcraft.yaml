@@ -1022,7 +1022,6 @@ parts:
         - share/qemu/efi-virtio.rom
         - share/qemu/vgabios-virtio.bin
       - to arm64:
-        - share/qemu/efi-virtio.rom
         - share/qemu/vgabios-virtio.bin
       - to ppc64el:
         - share/qemu/slof.bin
