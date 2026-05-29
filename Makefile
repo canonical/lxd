@@ -199,16 +199,15 @@ endif
 
 .PHONY: env
 env:
-	@echo "export CGO_CFLAGS=\"$(CGO_CFLAGS)\""
-	@echo "export CGO_LDFLAGS=\"$(CGO_LDFLAGS)\""
-	@echo "export LD_LIBRARY_PATH=\"$(LD_LIBRARY_PATH)\""
-	@echo "export PKG_CONFIG_PATH=\"$(PKG_CONFIG_PATH)\""
-	@echo "export CGO_LDFLAGS_ALLOW=\"$(CGO_LDFLAGS_ALLOW)\""
+	@echo "export CGO_CFLAGS=\"$(CGO_CFLAGS)\""; \
+	 echo "export CGO_LDFLAGS=\"$(CGO_LDFLAGS)\""; \
+	 echo "export LD_LIBRARY_PATH=\"$(LD_LIBRARY_PATH)\""; \
+	 echo "export PKG_CONFIG_PATH=\"$(PKG_CONFIG_PATH)\""; \
+	 echo "export CGO_LDFLAGS_ALLOW=\"$(CGO_LDFLAGS_ALLOW)\""
 
 .PHONY: deps
 deps: dqlite liblxc
-	@echo ""
-	@echo "# Please set the following in your environment (possibly ~/.bashrc)"
+	@echo ""; echo "# Please set the following in your environment (possibly ~/.bashrc)"
 	@$(MAKE) -s env
 
 # Spawns an interactive test shell for quick interactions with LXD and the test
