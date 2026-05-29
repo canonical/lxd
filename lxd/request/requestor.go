@@ -307,12 +307,14 @@ func SetRequestor(req *http.Request, hook RequestorHook, args RequestorArgs) err
 	}
 
 	r := &Requestor{
-		trusted:       args.Trusted,
-		originAddress: req.RemoteAddr,
-		username:      args.Username,
-		protocol:      args.Protocol,
-		clientType:    clientType,
-		expiresAt:     args.ExpiresAt,
+		RequestorAuditor: RequestorAuditor{
+			Username:      args.Username,
+			Protocol:      args.Protocol,
+			OriginAddress: req.RemoteAddr,
+		},
+		isTrusted:  args.Trusted,
+		clientType: clientType,
+		expiresAt:  args.ExpiresAt,
 	}
 
 	err := r.setForwardingDetails(req)
@@ -320,19 +322,16 @@ func SetRequestor(req *http.Request, hook RequestorHook, args RequestorArgs) err
 		return err
 	}
 
-	callerUsername := r.CallerUsername()
-	callerProtocol := r.CallerProtocol()
-
 	// Handle untrusted case
-	if !r.trusted {
+	if !r.isTrusted {
 		// If the caller is not trusted, there should not be a username.
-		if callerUsername != "" {
+		if r.Username != "" {
 			return errors.New("Caller is not trusted but a username was set")
 		}
 
 		// The only allowed protocols for the untrusted case are ProtocolDevLXD, or empty.
 		// The protocol is empty when calls made to the main API are untrusted.
-		if !slices.Contains([]string{ProtocolDevLXD, ""}, callerProtocol) {
+		if !slices.Contains([]string{ProtocolDevLXD, ""}, r.Protocol) {
 			return errors.New("Unsupported protocol set for untrusted request")
 		}
 
@@ -343,12 +342,12 @@ func SetRequestor(req *http.Request, hook RequestorHook, args RequestorArgs) err
 	// Trusted
 
 	// There must be a protocol.
-	if callerProtocol == "" {
+	if r.Protocol == "" {
 		return errors.New("Caller is trusted but no protocol was set")
 	}
 
 	// There must be a username.
-	if callerUsername == "" {
+	if r.Username == "" {
 		return errors.New("Caller is trusted but no username was set")
 	}
 
