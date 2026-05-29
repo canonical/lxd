@@ -172,7 +172,11 @@ func (r *Requestor) CallerIdentityType() (identity.Type, error) {
 
 // IsForwarded returns true if the request was forwarded from another cluster member and false otherwise.
 func (r *Requestor) IsForwarded() bool {
-	return r.forwardedOriginAddress != ""
+	return r.isForwarded
+}
+
+func (r *Requestor) isInternal() bool {
+	return r.clusterMemberFingerprint != ""
 }
 
 // SetRequestorHeaders adds the requestor details as forwarded headers on the
