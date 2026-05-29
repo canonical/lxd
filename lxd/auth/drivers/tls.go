@@ -187,11 +187,11 @@ func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, ent
 	case entity.TypeIdentity:
 		// If the entity URL refers to the identity that made the request, then the second path argument of the URL is
 		// the identifier of the identity. This line allows the caller to view their own identity and no one else's.
-		return entitlement == auth.EntitlementCanView && len(pathArguments) > 1 && pathArguments[1] == requestor.CallerUsername()
+		return entitlement == auth.EntitlementCanView && len(pathArguments) > 1 && pathArguments[1] == requestor.Username
 	case entity.TypeCertificate:
 		// If the certificate URL refers to the identity that made the request, then the first path argument of the URL is
 		// the identifier of the identity (their fingerprint). This line allows the caller to view their own certificate and no one else's.
-		return entitlement == auth.EntitlementCanView && len(pathArguments) > 0 && pathArguments[0] == requestor.CallerUsername()
+		return entitlement == auth.EntitlementCanView && len(pathArguments) > 0 && pathArguments[0] == requestor.Username
 	case entity.TypeProject:
 		// If the project is in the list of projects that the identity is restricted to, then they have the following
 		// entitlements.
