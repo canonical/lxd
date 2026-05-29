@@ -533,11 +533,14 @@ parts:
       # Build Release
       run_build RELEASE ""
 
-      # Build Debug (silence the copious build output to avoid doubling it)
-      run_build DEBUG ".debug" > /dev/null
+      # RISC-V build is already very slow and adding a DEBUG build makes it even slower, so skip it.
+      if [ "$(uname -m)" != "riscv64" ]; then
+        # Build Debug (silence the copious build output to avoid doubling it)
+        run_build DEBUG ".debug" > /dev/null
+      fi
 
       # Cleanup debug vars
-      rm "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.debug.fd"
+      rm -f "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.debug.fd"
     prime:
       - share/qemu/*
 
