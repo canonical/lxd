@@ -210,7 +210,7 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 	forwardedProtocol := req.Header.Get(headerForwardedProtocol)
 
 	// Requests can only be forwarded from other cluster members.
-	if r.protocol != ProtocolCluster {
+	if r.Protocol != ProtocolCluster {
 		// No forwarding headers may be set if the protocol is not ProtocolCluster.
 		if forwardedAddress != "" || forwardedUsername != "" || forwardedProtocol != "" {
 			return errors.New("Received forwarded request information from non-cluster member")
@@ -219,11 +219,17 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 		return nil
 	}
 
+	// The protocol is ProtocolCluster, so set the fingerprint of the calling cluster member.
+	r.clusterMemberFingerprint = r.Username
+
 	// If the forwarded address is not set, then the request was not forwarded and no forwarding fields need to be
 	// set on the requestor.
 	if forwardedAddress == "" {
 		return nil
 	}
+
+	// The request was forwarded, so set isForwarded to true.
+	r.isForwarded = true
 
 	// If the forwarded address is set, the forwarded protocol and username must be both be set or both be unset
 	// (see SetRequestorHeaders).
@@ -238,12 +244,13 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 	// In this case, set trusted to false. This means that an untrusted request will remain untrusted throughout
 	// the cluster (provided the request context is used appropriately).
 	if forwardedUsername == "" && forwardedProtocol == "" {
-		r.trusted = false
+		r.isTrusted = false
 	}
 
-	r.forwardedOriginAddress = forwardedAddress
-	r.forwardedUsername = forwardedUsername
-	r.forwardedProtocol = forwardedProtocol
+	// Set the origin address, username, and protocol to the forwarded values.
+	r.OriginAddress = forwardedAddress
+	r.Username = forwardedUsername
+	r.Protocol = forwardedProtocol
 
 	return nil
 }
