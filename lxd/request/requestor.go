@@ -371,13 +371,23 @@ func GetRequestor(ctx context.Context) (*Requestor, error) {
 }
 
 // GetRequestorAuditor gets an RequestorAuditor from the context.
-func GetRequestorAuditor(ctx context.Context) (RequestorAuditor, error) {
-	r, ok := ctx.Value(ctxRequestor).(RequestorAuditor)
+func GetRequestorAuditor(ctx context.Context) (*RequestorAuditor, error) {
+	val := ctx.Value(ctxRequestor)
+	if val == nil {
+		return nil, ErrRequestorNotPresent
+	}
+
+	requestor, ok := val.(*Requestor)
+	if ok {
+		return &requestor.RequestorAuditor, nil
+	}
+
+	auditor, ok := val.(*RequestorAuditor)
 	if !ok {
 		return nil, ErrRequestorNotPresent
 	}
 
-	return r, nil
+	return auditor, nil
 }
 
 // WithRequestorAuditor is used to set the [RequestorAuditor] in the given context.
