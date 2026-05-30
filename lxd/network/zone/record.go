@@ -3,6 +3,7 @@ package zone
 import (
 	"context"
 	"fmt"
+	"math"
 	"slices"
 
 	"github.com/miekg/dns"
@@ -204,6 +205,14 @@ func (d *zone) validateEntries(info api.NetworkZoneRecordPut) error {
 	for _, entry := range info.Entries {
 		if entry.TTL == 0 {
 			entry.TTL = 300
+		}
+
+		// RFC 1035 defines TTL as a 32-bit unsigned integer.  The API field is
+		// uint64, so values above math.MaxUint32 must be rejected explicitly;
+		// miekg/dns parses the TTL with uint32 arithmetic and silently wraps
+		// without returning an error.
+		if entry.TTL > math.MaxUint32 {
+			return fmt.Errorf("TTL value %d exceeds the maximum allowed value of %d", entry.TTL, uint64(math.MaxUint32))
 		}
 
 		_, err := dns.NewRR(fmt.Sprintf("record %d IN %s %s", entry.TTL, entry.Type, entry.Value))
