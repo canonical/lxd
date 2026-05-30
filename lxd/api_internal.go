@@ -52,6 +52,7 @@ var apiInternal = []APIEndpoint{
 	internalClusterHandoverCmd,
 	internalClusterHealCmd,
 	internalClusterLinkRefreshVolatileAddressesCmd,
+	internalReplicatorRunSchedulerCmd,
 	internalClusterRaftNodeCmd,
 	internalClusterRebalanceCmd,
 	internalContainerOnStartCmd,
@@ -143,6 +144,12 @@ var internalClusterLinkRefreshVolatileAddressesCmd = APIEndpoint{
 	Path: "testing/cluster/link/refresh-volatile-addresses",
 
 	Post: APIEndpointAction{Handler: internalRefreshClusterLinkVolatileAddresses, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+}
+
+var internalReplicatorRunSchedulerCmd = APIEndpoint{
+	Path: "testing/replicator/run-scheduler",
+
+	Post: APIEndpointAction{Handler: internalRunReplicatorScheduler, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalImageOptimizeCmd = APIEndpoint{
@@ -271,6 +278,19 @@ func internalRefreshClusterLinkVolatileAddresses(d *Daemon, r *http.Request) res
 	s := d.State()
 
 	err := autoRefreshClusterLinkVolatileAddresses(r.Context(), s)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
+// internalRunReplicatorScheduler triggers the replicator scheduler task immediately.
+// It is used by tests to avoid waiting for the scheduler's one-minute tick.
+func internalRunReplicatorScheduler(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	err := runScheduledReplicators(r.Context(), s)
 	if err != nil {
 		return response.SmartError(err)
 	}
