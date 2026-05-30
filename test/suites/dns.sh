@@ -4,11 +4,24 @@ test_dns() {
   local DNS_ADDR="127.0.0.1"
   local DNS_PORT="8853"
 
-  # Create the zone and add explicit A and AAAA records so the zone has content.
+  # Create the zone and populate it with a variety of record types,
   lxc network zone create "${zoneName}"
   lxc network zone record create "${zoneName}" www
   lxc network zone record entry add "${zoneName}" www A 192.0.2.1 --ttl 300
   lxc network zone record entry add "${zoneName}" www AAAA 2001:db8::1 --ttl 600
+  lxc network zone record entry add "${zoneName}" www TXT '"v=spf1 -all"' --ttl 300
+  lxc network zone record entry add "${zoneName}" www CAA '0 issue "letsencrypt.org"' --ttl 300
+  # MX records are typically at the zone-apex but LXD does not support this.
+  lxc network zone record entry add "${zoneName}" www MX "10 www.${zoneName}." --ttl 300
+  lxc network zone record create "${zoneName}" alias
+  lxc network zone record entry add "${zoneName}" alias CNAME "www.${zoneName}." --ttl 300
+
+  sub_test "Verify invalid record types are rejected"
+  # Only known IANA type and RFC 3597 (# TYPE<NNN> generic identifier) are accepted.
+  if lxc network zone record entry add "${zoneName}" www FOOBARBAZ somevalue; then
+    echo "ERROR: Adding an entry with an unknown record type unexpectedly succeeded, aborting" >&2
+    exit 1
+  fi
 
   # Enable the DNS listener on localhost.
   lxc config set core.dns_address "${DNS_ADDR}:${DNS_PORT}"
@@ -44,9 +57,13 @@ test_dns() {
   local zoneXFR
   zoneXFR="$(dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr "${zoneName}")"
   grep -wF 'SOA' <<<"${zoneXFR}"
-  # Confirm that the explicit A and AAAA records are visible in the zone transfer with their respective TTLs.
+  # Confirm that all record types created during setup are visible in the zone transfer.
   grep -wF "www.${zoneName}." <<<"${zoneXFR}" | grep -E '[[:space:]]300[[:space:]]IN[[:space:]]A[[:space:]]192\.0\.2\.1$'
   grep -wF "www.${zoneName}." <<<"${zoneXFR}" | grep -E '[[:space:]]600[[:space:]]IN[[:space:]]AAAA[[:space:]]2001:db8::1$'
+  grep -wF "www.${zoneName}."    <<<"${zoneXFR}" | grep -wF 'TXT' | grep -F '"v=spf1 -all"'
+  grep -wF "www.${zoneName}."    <<<"${zoneXFR}" | grep -E '[[:space:]]IN[[:space:]]CAA[[:space:]]'
+  grep -wF "www.${zoneName}."    <<<"${zoneXFR}" | grep -E '[[:space:]]IN[[:space:]]MX[[:space:]]10[[:space:]]'
+  grep -wF "alias.${zoneName}."  <<<"${zoneXFR}" | grep -E '[[:space:]]IN[[:space:]]CNAME[[:space:]]'
 
   # IXFR falls back to a full zone transfer; serial 0 requests all records.
   dig +tcp "@${DNS_ADDR}" -p "${DNS_PORT}" ixfr=0 "${zoneName}" | grep -wF 'SOA'
@@ -106,6 +123,10 @@ test_dns() {
   grep -wF 'SOA' <<<"${zoneXFR}"
   grep -wF "www.${zoneName}." <<<"${zoneXFR}" | grep -E '[[:space:]]300[[:space:]]IN[[:space:]]A[[:space:]]192\.0\.2\.1$'
   grep -wF "www.${zoneName}." <<<"${zoneXFR}" | grep -E '[[:space:]]600[[:space:]]IN[[:space:]]AAAA[[:space:]]2001:db8::1$'
+  grep -wF "www.${zoneName}."    <<<"${zoneXFR}" | grep -wF 'TXT' | grep -F '"v=spf1 -all"'
+  grep -wF "www.${zoneName}."    <<<"${zoneXFR}" | grep -E '[[:space:]]IN[[:space:]]CAA[[:space:]]'
+  grep -wF "www.${zoneName}."    <<<"${zoneXFR}" | grep -E '[[:space:]]IN[[:space:]]MX[[:space:]]10[[:space:]]'
+  grep -wF "alias.${zoneName}."  <<<"${zoneXFR}" | grep -E '[[:space:]]IN[[:space:]]CNAME[[:space:]]'
   # Confirm that the response carries a verified TSIG record for the expected key.
   grep -wF "${tsigKeyName}" <<<"${zoneXFR}" | grep -wF 'TSIG' | grep -wF 'NOERROR'
   # IXFR (requires TCP) with a TSIG-signed request; serial 0 triggers a full zone transfer.
