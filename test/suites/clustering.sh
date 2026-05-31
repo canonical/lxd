@@ -5994,8 +5994,7 @@ test_clustering_replicator_dr() {
   # LXD_ONE is unreachable; replica.mode=leader validation skips when the target is unreachable.
   LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.mode=leader
   # Both clusters now have replica.mode=leader. Verify instance creation is allowed on LXD_TWO.
-  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc launch testimage c3 --project replicator-project -d "${SMALL_ROOT_DISK}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c3 --project replicator-project -d "${SMALL_ROOT_DISK}"
   # Verify LXD_TWO can start a replicated instance as the new leader.
   LXD_DIR="${LXD_TWO_DIR}" lxc start c1 --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,RUNNING'
