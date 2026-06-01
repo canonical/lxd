@@ -344,3 +344,8 @@ func ClusterLinkURL(clusterLinkName string) *api.URL {
 func ReplicatorURL(projectName string, replicatorName string) *api.URL {
 	return TypeReplicator.urlMust(projectName, "", replicatorName)
 }
+
+// ImageRegistryURL returns an [*api.URL] to an image registry.
+func ImageRegistryURL(imageRegistryName string) *api.URL {
+	return TypeImageRegistry.urlMust("", "", imageRegistryName)
+}
