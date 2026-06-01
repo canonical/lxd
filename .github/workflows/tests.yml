@@ -153,14 +153,15 @@ jobs:
           echo "GOCOVERDIR=$(pwd)" >> "${GITHUB_ENV}"
         if: env.GOCOVERAGE == 'true'
 
-      - name: Make LXD tarball and unpack it
+      - name: Prepare dist directory
         env:
           CUSTOM_VERSION: "test"
         run: |
           set -eux
-          make dist
-          tar -xzf lxd-test.tar.gz -C /home/runner/work/lxd/
-          rm lxd-test.tar.gz
+          make dist-dir
+
+          # Move the dist directory outside the workspace.
+          mv lxd-test ../
 
       # In code-tests, this action warms the cache for the system-tests job
       - name: Build or restore dqlite/liblxc dependencies
@@ -180,7 +181,7 @@ jobs:
         run: |
           set -eux
 
-          # Build from unpacked dist tarball.
+          # Build from unpacked dist directory.
           cd /home/runner/work/lxd/lxd-test
           make
 
