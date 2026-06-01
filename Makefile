@@ -388,8 +388,8 @@ check-unit:
 	$(shell [ -n "$(GOCOVERDIR)" ] && mkdir -p "$(GOCOVERDIR)" && chmod 0777 "$(GOCOVERDIR)")
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -mod=readonly -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... $(COVER) $(COVER_TEST)
 
-.PHONY: dist
-dist:
+.PHONY: dist-dir
+dist-dir:
 	# Cleanup
 	rm -rf lxd-$(VERSION)
 
@@ -416,6 +416,11 @@ dist:
 		$(MAKE) doc; \
 		cp -r --preserve=mode doc/_build lxd-$(VERSION)/doc/html/; \
 	fi
+
+.PHONY: dist
+dist: dist-dir
+	# Cleanup
+	rm -f $(ARCHIVE).gz
 
 	# Assemble a reproducible tarball
 	# The reproducibility comes from:
