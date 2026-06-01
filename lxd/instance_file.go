@@ -174,7 +174,10 @@ func instanceFileGet(ctx context.Context, s *state.State, inst instance.Instance
 		fileType = "symlink"
 	}
 
-	fs, _ := stat.Sys().(*sftp.FileStat)
+	fs, ok := stat.Sys().(*sftp.FileStat)
+	if !ok {
+		return response.InternalError(fmt.Errorf("Failed getting file stat for %q", path))
+	}
 
 	// Prepare the response.
 	headers := map[string]string{
@@ -338,7 +341,10 @@ func instanceFileHead(inst instance.Instance, path string) response.Response {
 		fileType = "symlink"
 	}
 
-	fs, _ := stat.Sys().(*sftp.FileStat)
+	fs, ok := stat.Sys().(*sftp.FileStat)
+	if !ok {
+		return response.InternalError(fmt.Errorf("Failed getting file stat for %q", path))
+	}
 
 	// Prepare the response.
 	headers := map[string]string{
