@@ -312,7 +312,13 @@ func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 	g.HeartbeatLock.Lock()
 	defer g.HeartbeatLock.Unlock()
 
-	if g.Cluster == nil || g.server == nil || g.memoryDial != nil {
+	g.lock.RLock()
+	cluster := g.Cluster
+	server := g.server
+	memoryDial := g.memoryDial
+	g.lock.RUnlock()
+
+	if cluster == nil || server == nil || memoryDial != nil {
 		// We're not a raft node or we're not clustered
 		return
 	}
