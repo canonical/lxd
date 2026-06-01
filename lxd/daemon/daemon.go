@@ -1,5 +1,9 @@
 package daemon
 
+import (
+	"sync/atomic"
+)
+
 // Debug indicates if daemon is started with debug mode.
 var Debug bool
 
@@ -7,4 +11,4 @@ var Debug bool
 var Verbose bool
 
 // SharedMountsSetup indicates if daemon has setup shared mounts.
-var SharedMountsSetup bool
+var SharedMountsSetup atomic.Bool

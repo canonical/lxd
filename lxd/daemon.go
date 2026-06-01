@@ -1078,7 +1078,7 @@ var sharedMountsLock sync.Mutex
 // setupSharedMounts will mount any shared mounts needed, and set daemon.SharedMountsSetup to true.
 func setupSharedMounts() error {
 	// Check if we already went through this
-	if daemon.SharedMountsSetup {
+	if daemon.SharedMountsSetup.Load() {
 		return nil
 	}
 
@@ -1089,7 +1089,7 @@ func setupSharedMounts() error {
 	// Check if already setup
 	path := shared.VarPath("shmounts")
 	if filesystem.IsMountPoint(path) {
-		daemon.SharedMountsSetup = true
+		daemon.SharedMountsSetup.Store(true)
 		return nil
 	}
 
@@ -1106,7 +1106,7 @@ func setupSharedMounts() error {
 		return err
 	}
 
-	daemon.SharedMountsSetup = true
+	daemon.SharedMountsSetup.Store(true)
 	return nil
 }
 
