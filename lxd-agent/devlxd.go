@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -220,6 +221,10 @@ func devLXDMetadataGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
 
 	if err != nil {
 		return smartResponse(fmt.Errorf("Failed connecting to devLXD over vsock: %w", err))
+	}
+
+	if client == nil {
+		return smartResponse(errors.New("Failed connecting to devLXD over vsock: nil client"))
 	}
 
 	defer client.Disconnect()
