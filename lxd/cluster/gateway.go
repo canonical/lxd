@@ -555,16 +555,20 @@ func (g *Gateway) DemoteOfflineNode(raftID uint64) error {
 func (g *Gateway) Shutdown() error {
 	logger.Info("Stop database gateway")
 
-	var err error
-	if g.server == nil {
+	g.lock.RLock()
+	server := g.server
+	info := g.info
+	g.lock.RUnlock()
+
+	if server == nil {
 		return nil
 	}
 
-	if g.info.Role == db.RaftVoter {
+	if info != nil && info.Role == db.RaftVoter {
 		g.Sync()
 	}
 
-	err = g.server.Close()
+	err := server.Close()
 	if err != nil {
 		logger.Error("Failed stopping dqlite", logger.Ctx{"err": err})
 	}
