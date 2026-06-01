@@ -312,6 +312,9 @@ func (e *Endpoints) up(config *Config) error {
 
 // UpMetrics brings up metrics listener on specified address.
 func (e *Endpoints) UpMetrics(listenAddress string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	var err error
 	e.listeners[metrics], err = metricsCreateListener(listenAddress, e.cert)
 	if err != nil {
