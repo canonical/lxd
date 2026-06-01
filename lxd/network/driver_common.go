@@ -1035,11 +1035,11 @@ func (n *common) forwardValidate(listenAddress net.IP, forward api.NetworkForwar
 			return nil, errors.New("Default target address is not within the network subnet")
 		}
 
-		if defaultTargetIsIP4 && IPIsBroadcast(netSubnet, defaultTargetAddress) {
+		if defaultTargetIsIP4 && netSubnet != nil && IPIsBroadcast(netSubnet, defaultTargetAddress) {
 			return nil, errors.New("Default target address cannot be a broadcast address")
 		}
 
-		if defaultTargetAddress.Equal(netSubnet.IP) {
+		if netSubnet != nil && defaultTargetAddress.Equal(netSubnet.IP) {
 			return nil, errors.New("Default target address cannot be a network address")
 		}
 	}
@@ -1383,11 +1383,11 @@ func (n *common) loadBalancerValidate(listenAddress net.IP, forward api.NetworkL
 			return nil, fmt.Errorf("Target address is not within the network subnet for backend %q", backendSpec.Name)
 		}
 
-		if targetIsIP4 && IPIsBroadcast(netSubnet, targetAddress) {
+		if targetIsIP4 && netSubnet != nil && IPIsBroadcast(netSubnet, targetAddress) {
 			return nil, errors.New("Target address cannot be a broadcast address")
 		}
 
-		if targetAddress.Equal(netSubnet.IP) {
+		if netSubnet != nil && targetAddress.Equal(netSubnet.IP) {
 			return nil, errors.New("Target address cannot be a network address")
 		}
 
