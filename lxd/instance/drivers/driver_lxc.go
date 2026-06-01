@@ -2279,7 +2279,7 @@ func (d *lxc) Start(ctx context.Context, stateful bool, progressReporter ioprogr
 
 	defer op.Done(nil)
 
-	if !daemon.SharedMountsSetup {
+	if !daemon.SharedMountsSetup.Load() {
 		err = errors.New("Daemon failed setting up shared mounts base. Does security.nesting need to be turned on?")
 		op.Done(err)
 		return err
