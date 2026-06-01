@@ -100,6 +100,10 @@ func (d *infinibandSRIOV) startContainer() (*deviceConfig.RunConfig, error) {
 		break
 	}
 
+	if vfDev == nil {
+		return nil, errors.New("All virtual functions on parent device are already in use")
+	}
+
 	saveData["host_name"] = vfDev.ID
 
 	// Record hwaddr and mtu before potentially modifying them.
