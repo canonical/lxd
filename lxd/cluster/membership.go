@@ -6,7 +6,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -303,14 +302,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	}
 
 	maxVoters := state.GlobalConfig.MaxVoters()
-	if maxVoters > math.MaxInt {
-		return nil, errors.New("Cannot convert maximum voter cluster members to int: Upper bound exceeded")
-	}
-
 	maxStandBy := state.GlobalConfig.MaxStandBy()
-	if maxStandBy > math.MaxInt {
-		return nil, errors.New("Cannot convert maximum standby cluster members to int: Upper bound exceeded")
-	}
 
 	var canPromote bool
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1469,14 +1461,7 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 	}
 
 	maxVoters := state.GlobalConfig.MaxVoters()
-	if maxVoters > math.MaxInt {
-		return nil, nil, errors.New("Cannot convert maximum voter nodes to int: Upper bound exceeded")
-	}
-
 	maxStandBy := state.GlobalConfig.MaxStandBy()
-	if maxStandBy > math.MaxInt {
-		return nil, nil, errors.New("Cannot convert maximum standby nodes to int: Upper bound exceeded")
-	}
 
 	roles := &app.RolesChanges{
 		Config: app.RolesConfig{
