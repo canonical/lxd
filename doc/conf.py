@@ -189,6 +189,7 @@ linkcheck_ignore = [
     r'https://ubuntu\.com/.*',
     r'https://bugs\.launchpad\.net/.*',
     r'https://microcloud\.is/.*',
+    r'https://criu.org/',
 ]
 
 # Ignore anchors for these URLs in linkcheck, but still check the URLs themselves
