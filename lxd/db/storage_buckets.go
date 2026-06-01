@@ -87,7 +87,7 @@ func (c *ClusterTx) GetStoragePoolBuckets(ctx context.Context, memberSpecific bo
 
 			if filter.PoolName != nil {
 				qFilters = append(qFilters, "storage_pools.name= ?")
-				args = append(args, *filter.PoolID)
+				args = append(args, *filter.PoolName)
 			}
 
 			if filter.Project != nil {
