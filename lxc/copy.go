@@ -420,7 +420,7 @@ func (c *cmdCopy) applyConfigOverrides(dest lxd.InstanceServer, poolName string,
 
 		// If there are device overrides that are expected to be applied to profile devices then perform
 		// profile expansion.
-		if needProfileExpansion {
+		if needProfileExpansion && profiles != nil {
 			profileDevices, err = getProfileDevices(dest, *profiles)
 			if err != nil {
 				return err
