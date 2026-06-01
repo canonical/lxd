@@ -34,6 +34,7 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
+	"github.com/canonical/lxd/lxd/storage/connectors"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -125,6 +126,7 @@ var patches = []patch{
 	{name: "storage_unset_ceph_source_setting", stage: patchPostDaemonStorage, run: patchUnsetCephSourceSetting},
 	{name: "clustering_event_hub_role_to_control_plane", stage: patchPreLoadClusterConfig, run: patchClusteringEventHubRoleToControlPlane},
 	{name: "storage_zfs_remove_local_bucket_datasets", stage: patchPostDaemonStorage, run: patchGenericStorage},
+	{name: "storage_rename_nvme_mode", stage: patchPreLoadClusterConfig, run: patchStoragePoolConnectorNVMeMode},
 }
 
 type patch struct {
@@ -2416,6 +2418,50 @@ DELETE FROM storage_pools_config
 	)
 	`)
 	return err
+}
+
+// patchStoragePoolConnectorNVMeMode renames the storage pool mode from value "nvme" to "nvme/tcp"
+// for all Pure Storage, PowerFlex, and Alletra storage pools.
+func patchStoragePoolConnectorNVMeMode(_ string, d *Daemon) error {
+	oldValue := "nvme"
+	newValue := connectors.TypeNVMeTCP
+
+	driverModeKeys := map[string]string{
+		"pure":      "pure.mode",
+		"powerflex": "powerflex.mode",
+		"alletra":   "alletra.mode",
+	}
+
+	return d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		pools, _, err := tx.GetStoragePools(ctx, nil)
+		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				return nil
+			}
+
+			return err
+		}
+
+		for _, pool := range pools {
+			modeKey, ok := driverModeKeys[pool.Driver]
+			if !ok {
+				continue
+			}
+
+			if pool.Config[modeKey] != oldValue {
+				continue
+			}
+
+			pool.Config[modeKey] = newValue
+
+			err = tx.UpdateStoragePool(ctx, pool.Name, pool.Description, pool.Config)
+			if err != nil {
+				return fmt.Errorf("Failed updating storage pool %q: %w", pool.Name, err)
+			}
+		}
+
+		return nil
+	})
 }
 
 // Patches end here
