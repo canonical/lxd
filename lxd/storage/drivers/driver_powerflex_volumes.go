@@ -191,62 +191,230 @@ func (d *powerflex) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allo
 		return nil
 	}
 
-	// Copy without snapshots.
-	// If the pools config doesn't enforce creating clone copies of the volume, snapshot the volume
-	// in PowerFlex to create a new standalone volume.
+	thinCloneSupport := d.hasThinCloneSupport()
 	client := d.client()
-	if len(vol.Snapshots) == 0 && shared.IsTrue(d.config["powerflex.snapshot_copy"]) {
-		pool, err := d.resolvePool()
-		if err != nil {
-			return err
-		}
 
-		domain, err := client.getProtectionDomain(pool.ProtectionDomainID)
-		if err != nil {
-			return err
-		}
-
-		srcVolName, err := d.getVolumeName(srcVol.Volume)
-		if err != nil {
-			return err
-		}
-
-		volumeID, err := client.getVolumeID(srcVolName)
-		if err != nil {
-			return err
-		}
-
-		volName, err := d.getVolumeName(vol.Volume)
-		if err != nil {
-			return err
-		}
-
-		_, err = client.createVolumeSnapshot(domain.SystemID, volumeID, volName, "ReadWrite")
-		if err != nil {
-			return err
-		}
-
-		revert.Add(func() { _ = d.DeleteVolume(vol.Volume, progressReporter) })
-
-		// For VMs, also copy the filesystem volume.
-		if vol.IsVMBlock() {
-			srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume())
-			fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
-			err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, progressReporter)
+	if shared.IsTrue(d.config["powerflex.snapshot_copy"]) {
+		if len(vol.Snapshots) == 0 && !thinCloneSupport {
+			// PowerFlex 4 only.
+			// Copy without snapshots.
+			// If the pools config doesn't enforce creating clone copies of the volume, snapshot the volume
+			// in PowerFlex to create a new standalone volume.
+			pool, err := d.resolvePool()
 			if err != nil {
 				return err
 			}
-		}
 
-		err = postCreateTasks(vol.Volume)
-		if err != nil {
-			return err
-		}
+			domain, err := client.getProtectionDomain(pool.ProtectionDomainID)
+			if err != nil {
+				return err
+			}
 
-		revert.Success()
-		return nil
+			srcVolName, err := d.getVolumeName(srcVol.Volume)
+			if err != nil {
+				return err
+			}
+
+			volumeID, err := client.getVolumeID(srcVolName)
+			if err != nil {
+				return err
+			}
+
+			volName, err := d.getVolumeName(vol.Volume)
+			if err != nil {
+				return err
+			}
+
+			_, err = client.createVolumeSnapshot(domain.SystemID, volumeID, volName, "ReadWrite")
+			if err != nil {
+				return err
+			}
+
+			revert.Add(func() { _ = d.DeleteVolume(vol.Volume, progressReporter) })
+
+			// For VMs, also copy the filesystem volume.
+			if vol.IsVMBlock() {
+				srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume())
+				fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume())
+				err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, progressReporter)
+				if err != nil {
+					return err
+				}
+			}
+
+			err = postCreateTasks(vol.Volume)
+			if err != nil {
+				return err
+			}
+
+			revert.Success()
+			return nil
+		} else if thinCloneSupport {
+			// PowerFlex 5 and later.
+			// Copy with snapshots.
+			// Volumes in the same vTree can now be refreshed from other volume snapshots in the same tree.
+			// This allows sequentially copying volumes and their snapshots directly on the array.
+
+			pool, err := d.resolvePool()
+			if err != nil {
+				return err
+			}
+
+			domain, err := client.getProtectionDomain(pool.ProtectionDomainID)
+			if err != nil {
+				return err
+			}
+
+			// For VMs, also copy the filesystem volume.
+			if vol.IsVMBlock() {
+				// Ensure that the volume's snapshots are also replaced with their filesystem counterpart.
+				fsVolSnapshots := make([]Volume, 0, len(vol.Snapshots))
+				for _, snapshot := range vol.Snapshots {
+					fsVolSnapshots = append(fsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
+				}
+
+				srcFsVolSnapshots := make([]Volume, 0, len(srcVol.Snapshots))
+				for _, snapshot := range srcVol.Snapshots {
+					srcFsVolSnapshots = append(srcFsVolSnapshots, snapshot.NewVMBlockFilesystemVolume())
+				}
+
+				fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), fsVolSnapshots...)
+				srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume(), srcFsVolSnapshots...)
+
+				// Ensure parent UUID is retained for the filesystem volumes.
+				fsVol.SetParentUUID(vol.parentUUID)
+				srcFSVol.SetParentUUID(srcVol.parentUUID)
+
+				err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, progressReporter)
+				if err != nil {
+					return err
+				}
+
+				revert.Add(func() { _ = d.DeleteVolume(fsVol.Volume, progressReporter) })
+			}
+
+			volID := ""
+
+			volName, err := d.getVolumeName(vol.Volume)
+			if err != nil {
+				return err
+			}
+
+			srcVolName, err := d.getVolumeName(srcVol.Volume)
+			if err != nil {
+				return err
+			}
+
+			srcVolID, err := client.getVolumeID(srcVolName)
+			if err != nil {
+				return err
+			}
+
+			// Since snapshots are first copied into destination volume from which a new snapshot is created,
+			// we need to also remove the destination volume if an error occurs during copying of snapshots.
+			deleteVolCopy := true
+
+			// Copy volume snapshots.
+			// PowerFlex does copy snapshots along with the volume. Therefore, we copy the snapshots
+			// sequentially once the volume was copied. Each snapshot is first copied into destination
+			// volume from which a new snapshot is created. The process is repeated until all snapshots
+			// are copied.
+			if !srcVol.IsSnapshot() {
+				for _, snapshot := range vol.Snapshots {
+					_, snapshotShortName, _ := api.GetParentAndSnapshotName(snapshot.name)
+
+					// Find the corresponding source snapshot.
+					var srcSnapshot *Volume
+					for _, srcSnap := range srcVol.Snapshots {
+						_, srcSnapshotShortName, _ := api.GetParentAndSnapshotName(srcSnap.name)
+						if snapshotShortName == srcSnapshotShortName {
+							srcSnapshot = &srcSnap
+							break
+						}
+					}
+
+					if srcSnapshot == nil {
+						return fmt.Errorf("Failed copying snapshot %q: Source snapshot does not exist", snapshotShortName)
+					}
+
+					srcSnapshotName, err := d.getVolumeName(*srcSnapshot)
+					if err != nil {
+						return err
+					}
+
+					srcSnapshotID, err := client.getVolumeID(srcSnapshotName)
+					if err != nil {
+						return err
+					}
+
+					// Copy the snapshot.
+					if volID == "" {
+						// If this is a first snapshot, we need to clone it as the
+						// destination volume does not exist yet.
+						volID, err = client.createVolumeThinClone(domain.SystemID, srcSnapshotID, volName)
+						if err != nil {
+							return err
+						}
+
+						// Volume is created, make sure to remove it in case the operation fails.
+						revert.Add(func() { _ = d.DeleteVolume(vol.Volume, progressReporter) })
+						deleteVolCopy = false
+					} else {
+						// Otherwise, overwrite the destination volume.
+						err = client.refreshVolume(volID, srcSnapshotID)
+					}
+
+					if err != nil {
+						return fmt.Errorf("Failed copying snapshot %q into volume %q: %w", snapshot.name, vol.name, err)
+					}
+
+					// Set snapshot's parent UUID and retain source snapshot UUID.
+					snapshot.SetParentUUID(vol.config["volatile.uuid"])
+
+					snapshotName, err := d.getVolumeName(snapshot)
+					if err != nil {
+						return err
+					}
+
+					// Create snapshot from a new volume (that was created from the source snapshot).
+					// However, do not create VM's filesystem volume snapshot, as filesystem volume is
+					// copied before block volume.
+					_, err = client.createVolumeSnapshot(domain.SystemID, volID, snapshotName, powerFlexSnapshotRW)
+					if err != nil {
+						return err
+					}
+				}
+			}
+
+			// Finally, copy the source volume (or snapshot) into destination volume snapshots.
+			if srcVol.IsSnapshot() || volID == "" {
+				// Copy the source volume/snapshot into destination volume.
+				_, err = client.createVolumeThinClone(domain.SystemID, srcVolID, volName)
+			} else {
+				// Destination volume already exists, so refresh it.
+				err = client.refreshVolume(volID, srcVolID)
+			}
+
+			if err != nil {
+				return err
+			}
+
+			// Add reverter to delete destination volume, if not already added.
+			if deleteVolCopy {
+				revert.Add(func() { _ = d.DeleteVolume(vol.Volume, progressReporter) })
+			}
+
+			err = postCreateTasks(vol.Volume)
+			if err != nil {
+				return err
+			}
+
+			revert.Success()
+			return nil
+		}
 	}
 
+	// Fallback if none of the optimized copy options can be used.
 	srcVolumeSnapshots := make([]string, 0, len(vol.Snapshots))
 	for _, snapshot := range vol.Snapshots {
 		_, snapshotName, _ := api.GetParentAndSnapshotName(snapshot.name)
