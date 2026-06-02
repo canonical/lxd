@@ -639,13 +639,13 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 
 // operationsGetByType gets all operations for a project and type.
 // It does not populate operation resources.
-func operationsGetByType(ctx context.Context, s *state.State, projectName string, opType operationtype.Type) ([]*api.Operation, error) {
+func operationsGetByType(ctx context.Context, s *state.State, projectName string, opType operationtype.Type, excludeOffline bool) ([]*api.Operation, error) {
 	// Get all operations of the specified type in project.
 	var ops []dbCluster.Operation
 	var members []db.NodeInfo
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		if s.ServerClustered {
+		if s.ServerClustered && excludeOffline {
 			members, err = tx.GetNodes(ctx)
 			if err != nil {
 				return err
@@ -663,25 +663,19 @@ func operationsGetByType(ctx context.Context, s *state.State, projectName string
 		return nil, err
 	}
 
-	offlineThreshold := s.GlobalConfig.OfflineThreshold()
-	memberOnline := func(memberAddress string) bool {
+	// Map of online members. online[op.NodeAddress] is only true if the address exists and is online
+	// (if the address doesn't exist, the zero value for bool is false).
+	online := make(map[string]bool, len(members))
+	if excludeOffline {
+		offlineThreshold := s.GlobalConfig.OfflineThreshold()
 		for _, member := range members {
-			if member.Address == memberAddress {
-				if member.IsOffline(offlineThreshold) {
-					logger.Warn("Excluding offline member from operations by type list", logger.Ctx{"member": member.Name, "address": member.Address, "ID": member.ID, "lastHeartbeat": member.Heartbeat, "opType": opType})
-					return false
-				}
-
-				return true
-			}
+			online[member.Address] = !member.IsOffline(offlineThreshold)
 		}
-
-		return false
 	}
 
 	apiOps := make([]*api.Operation, 0, len(ops))
 	for _, op := range ops {
-		if s.ServerClustered && !memberOnline(op.NodeAddress) {
+		if s.ServerClustered && excludeOffline && !online[op.NodeAddress] {
 			continue
 		}
 

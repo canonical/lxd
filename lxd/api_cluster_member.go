@@ -343,7 +343,7 @@ func clusterMembersPost(d *Daemon, r *http.Request) response.Response {
 	// Remove any existing join tokens for the requested cluster member, this way we only ever have one active
 	// join token for each potential new member, and it has the most recent active members list for joining.
 	// This also ensures any historically unused (but potentially published) join tokens are removed.
-	ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterJoinToken)
+	ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterJoinToken, false)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed getting cluster join token operations: %w", err))
 	}
@@ -1374,7 +1374,7 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Action {
 	case "evacuate":
-		ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterMemberRestore)
+		ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterMemberRestore, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1474,7 +1474,7 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 
 		return operations.OperationResponse(op)
 	case "restore":
-		ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterMemberEvacuate)
+		ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterMemberEvacuate, true)
 		if err != nil {
 			return response.SmartError(err)
 		}

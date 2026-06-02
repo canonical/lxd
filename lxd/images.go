@@ -3188,7 +3188,7 @@ func doImageGet(ctx context.Context, tx *db.ClusterTx, project, fingerprint stri
 // project that has a matching fingerprint and secret in its metadata.
 // If an operation is found it is returned and the operation is cancelled. Otherwise nil is returned if not found.
 func imageValidSecret(s *state.State, r *http.Request, projectName string, fingerprint string, secret string, tokenType operationtype.Type) (*api.Operation, error) {
-	ops, err := operationsGetByType(r.Context(), s, projectName, tokenType)
+	ops, err := operationsGetByType(r.Context(), s, projectName, tokenType, false)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting image token operations: %w", err)
 	}
