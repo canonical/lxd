@@ -1514,15 +1514,11 @@ func (d *powerstore) ensureHost() (hostID string, cleanup revert.Hook, err error
 		}
 
 		// The storage host entry with a qualified name of the current LXD host does not exist.
-		// Therefore, create a new one and name it after the server name.
-		serverName, err := ResolveServerName(d.state.ServerName)
+		// Therefore, create a new one and name it after the resolved server name.
+		hostname, err := ResolveServerNameWithConnectorType(d.state.ServerName, connector.Type())
 		if err != nil {
 			return "", nil, err
 		}
-
-		// Append the mode to the server name because storage array does not allow mixing
-		// NQNs, IQNs, and WWNs for a single host.
-		hostname := serverName + "-" + connector.Type()
 
 		hostID, err = client.CreateHost(hostname, connector.Type(), qn)
 		if err != nil {
