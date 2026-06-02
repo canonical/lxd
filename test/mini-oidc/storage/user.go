@@ -40,7 +40,7 @@ type userStore struct {
 
 // NewUserStore creates a new user store.
 func NewUserStore(issuer string) UserStore {
-	hostname := strings.Split(strings.Split(issuer, "://")[1], ":")[0]
+	hostname, _, _ := strings.Cut(strings.Split(issuer, "://")[1], ":")
 	return userStore{
 		users: map[string]*User{
 			"id1": {
