@@ -173,7 +173,7 @@ func (h *dnsHandler) handlePTR(r *dns.Msg) dns.Msg {
 		return *resp
 	}
 
-	// Record not found in any of the remove servers.
+	// Record not found in any of the remote servers.
 	msg.SetRcode(r, dns.RcodeNameError)
 	return msg
 }
