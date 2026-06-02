@@ -959,6 +959,18 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		}
 	}
 
+	// Attached volumes to snapshot alongside the root, excluding ISO volumes whose
+	// snapshots are unsupported. An ISO-only attachment therefore does not need a
+	// crash-consistent freeze.
+	snapshottableVolumes := make(map[string]db.StorageVolume, len(attachedVolumes))
+	for deviceName, volume := range attachedVolumes {
+		if volume.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
+			continue
+		}
+
+		snapshottableVolumes[deviceName] = volume
+	}
+
 	// Setup the arguments.
 	args := db.InstanceArgs{
 		Project:      inst.Project().Name,
@@ -990,8 +1002,8 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		return err
 	}
 
-	// Freeze the instance if the driver requires it or if there are attached volumes to ensure crash-consistent snapshots.
-	if (pool.Driver().Info().RunningCopyFreeze || len(attachedVolumes) > 0) && inst.IsRunning() && !inst.IsFrozen() {
+	// Freeze the instance if the driver requires it or if there are snapshottable attached volumes to ensure crash-consistent snapshots.
+	if (pool.Driver().Info().RunningCopyFreeze || len(snapshottableVolumes) > 0) && inst.IsRunning() && !inst.IsFrozen() {
 		err = inst.Freeze(ctx)
 		if err != nil {
 			return err
@@ -1029,12 +1041,7 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		volatileAttachedVolumes := make(map[string]string)
 		instanceProject := inst.Project()
 		instanceType := inst.Type()
-		for deviceName, volume := range attachedVolumes {
-			// Skip ISO volumes (snapshots not supported).
-			if volume.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
-				continue
-			}
-
+		for deviceName, volume := range snapshottableVolumes {
 			d.logger.Debug("Creating attached volume snapshot", logger.Ctx{"pool": volume.Pool, "volume": volume.Name, "project": volume.Project})
 
 			// Use shutdown context as we don't have access to the request context.
