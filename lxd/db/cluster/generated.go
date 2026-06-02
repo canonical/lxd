@@ -362,6 +362,133 @@ func (n NodesClusterGroupsRow) UpdateStmt() string {
 	return "UPDATE nodes_cluster_groups SET node_id = ?, group_id = ? "
 }
 
+// TableName returns the table name for [Operation] entities.
+func (o Operation) TableName() string {
+	return "operations"
+}
+
+// APIName implements [query.APINamer] for API friendly error messages.
+func (o Operation) APIName() string {
+	return o.Row.APIName()
+}
+
+// SelectColumns returns a slice of column names for [Operation] entities.
+func (o Operation) SelectColumns() []string {
+	return []string{
+		"operations.id",
+		"operations.uuid",
+		"operations.node_id",
+		"operations.type",
+		"operations.project_id",
+		"operations.requestor_protocol",
+		"operations.requestor_identity_id",
+		"operations.entity_id",
+		"operations.metadata",
+		"operations.class",
+		"operations.created_at",
+		"operations.updated_at",
+		"operations.inputs",
+		"operations.status_code",
+		"operations.error",
+		"operations.conflict_reference",
+		"operations.parent",
+		"operations.stage",
+		"operations.error_code",
+		"coalesce(projects.name, '')",
+		"nodes.address",
+		"nodes.name",
+		"coalesce(identities.identifier, '')",
+	}
+}
+
+// Joins returns a slice of join expressions for [Operation].
+func (o Operation) Joins() []string {
+	return []string{
+		"LEFT JOIN projects ON operations.project_id = projects.id",
+		"JOIN nodes ON operations.node_id = nodes.id",
+		"LEFT JOIN identities ON operations.requestor_identity_id = identities.id",
+	}
+}
+
+// ScanArgs implements [query.ScanArger] for [Operation].
+// This returns references to struct fields in definition order.
+func (o *Operation) ScanArgs() []any {
+	return []any{&o.Row.ID, &o.Row.UUID, &o.Row.NodeID, &o.Row.Type, &o.Row.ProjectID, &o.Row.RequestorProtocol, &o.Row.RequestorIdentityID, &o.Row.EntityID, &o.Row.Metadata, &o.Row.Class, &o.Row.CreatedAt, &o.Row.UpdatedAt, &o.Row.Inputs, &o.Row.StatusCode, &o.Row.Error, &o.Row.ConflictReference, &o.Row.Parent, &o.Row.Stage, &o.Row.ErrorCode, &o.ProjectName, &o.NodeAddress, &o.NodeName, &o.IdentityIdentifier}
+}
+
+// TableName returns the table name for [OperationsRow] entities.
+func (o OperationsRow) TableName() string {
+	return "operations"
+}
+
+// SelectColumns returns a slice of column names for [OperationsRow] entities.
+func (o OperationsRow) SelectColumns() []string {
+	return []string{
+		"operations.id",
+		"operations.uuid",
+		"operations.node_id",
+		"operations.type",
+		"operations.project_id",
+		"operations.requestor_protocol",
+		"operations.requestor_identity_id",
+		"operations.entity_id",
+		"operations.metadata",
+		"operations.class",
+		"operations.created_at",
+		"operations.updated_at",
+		"operations.inputs",
+		"operations.status_code",
+		"operations.error",
+		"operations.conflict_reference",
+		"operations.parent",
+		"operations.stage",
+		"operations.error_code",
+	}
+}
+
+// Joins returns a slice of join expressions for [OperationsRow].
+func (o OperationsRow) Joins() []string {
+	return []string{}
+}
+
+// ScanArgs implements [query.ScanArger] for [OperationsRow].
+// This returns references to struct fields in definition order.
+func (o *OperationsRow) ScanArgs() []any {
+	return []any{&o.ID, &o.UUID, &o.NodeID, &o.Type, &o.ProjectID, &o.RequestorProtocol, &o.RequestorIdentityID, &o.EntityID, &o.Metadata, &o.Class, &o.CreatedAt, &o.UpdatedAt, &o.Inputs, &o.StatusCode, &o.Error, &o.ConflictReference, &o.Parent, &o.Stage, &o.ErrorCode}
+}
+
+// CreateValues returns a list of values from [OperationsRow] entities matching the bind arguments in [CreateStmt].
+func (o OperationsRow) CreateValues() []any {
+	return []any{o.UUID, o.NodeID, o.Type, o.ProjectID, o.RequestorProtocol, o.RequestorIdentityID, o.EntityID, o.Metadata, o.Class, o.CreatedAt, o.UpdatedAt, o.Inputs, o.StatusCode, o.Error, o.ConflictReference, o.Parent, o.Stage, o.ErrorCode}
+}
+
+// UpdateValues returns a list of values from [OperationsRow] entities matching the columns in [UpdateStmt].
+func (o OperationsRow) UpdateValues() []any {
+	return []any{o.NodeID, o.Metadata, o.UpdatedAt, o.StatusCode, o.Error, o.ErrorCode}
+}
+
+// PKColumns returns the column names for the primary key of a [OperationsRow] entity used during an update.
+// The returned slice must have the same number of elements as PKValues.
+func (o OperationsRow) PKColumns() []string {
+	return []string{"id"}
+}
+
+// PKValues returns the values for the primary key of a [OperationsRow] entity used during an update.
+// The returned slice must have the same number of elements as PKColumns.
+func (o OperationsRow) PKValues() []any {
+	return []any{o.ID}
+}
+
+// CreateStmt returns a query that creates a [OperationsRow] entity.
+func (o OperationsRow) CreateStmt() string {
+	return "INSERT INTO operations (uuid, node_id, type, project_id, requestor_protocol, requestor_identity_id, entity_id, metadata, class, created_at, updated_at, inputs, status_code, error, conflict_reference, parent, stage, error_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+}
+
+// UpdateStmt returns a query that updates a [OperationsRow] by primary key.
+func (o OperationsRow) UpdateStmt() string {
+	return "UPDATE operations SET node_id = ?, metadata = ?, updated_at = ?, status_code = ?, error = ?, error_code = ? "
+}
+
 // TableName returns the table name for [PlacementGroup] entities.
 func (p PlacementGroup) TableName() string {
 	return "placement_groups"

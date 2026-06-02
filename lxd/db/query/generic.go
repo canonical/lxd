@@ -94,10 +94,13 @@ func plural(t APINamer) string {
 	return t.APIName() + "s"
 }
 
-// Create creates a [Creatable]. All columns are set except for the primary key.
-// This is because it is assumed that the primary key is auto-assigned at the database layer.
-func Create(ctx context.Context, tx *sql.Tx, c Creatable) (int64, error) {
-	res, err := tx.ExecContext(ctx, c.CreateStmt(), c.CreateValues()...)
+func create(ctx context.Context, tx *sql.Tx, c Creatable, replace bool) (int64, error) {
+	stmt := c.CreateStmt()
+	if replace {
+		stmt = strings.Replace(stmt, "INSERT", "INSERT OR REPLACE", 1)
+	}
+
+	res, err := tx.ExecContext(ctx, stmt, c.CreateValues()...)
 	if err != nil {
 		if IsConflictErr(err) {
 			return -1, conflictErr(c)
@@ -112,6 +115,18 @@ func Create(ctx context.Context, tx *sql.Tx, c Creatable) (int64, error) {
 	}
 
 	return id, nil
+}
+
+// Create creates a [Creatable]. All columns are set except for the primary key.
+// This is because it is assumed that the primary key is auto-assigned at the database layer.
+func Create(ctx context.Context, tx *sql.Tx, c Creatable) (int64, error) {
+	return create(ctx, tx, c, false)
+}
+
+// CreateOrReplace creates or replaces a [Creatable]. All columns are set except for the primary key.
+// This is because it is assumed that the primary key is auto-assigned at the database layer.
+func CreateOrReplace(ctx context.Context, tx *sql.Tx, c Creatable) (int64, error) {
+	return create(ctx, tx, c, true)
 }
 
 // UpdateByPrimaryKey updates an [Updatable] type by its primary key. It sets all fields except for the primary key.

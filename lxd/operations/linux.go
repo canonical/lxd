@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -31,14 +32,14 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			return 0, fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", op.conflictReference, op.dbOpType.Description())
 		}
 
-		opInfo := cluster.Operation{
+		operationsRow := cluster.OperationsRow{
 			UUID:              op.id,
 			Type:              op.dbOpType,
 			NodeID:            tx.GetNodeID(),
 			Class:             int64(op.class),
 			CreatedAt:         op.createdAt,
 			UpdatedAt:         op.updatedAt,
-			Status:            int64(op.Status()),
+			StatusCode:        int64(op.Status()),
 			Parent:            parentOpID,
 			ConflictReference: op.conflictReference,
 		}
@@ -49,7 +50,7 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 				return 0, fmt.Errorf("Failed fetching project ID: %w", err)
 			}
 
-			opInfo.ProjectID = &projectID
+			operationsRow.ProjectID = &projectID
 		}
 
 		if op.requestor != nil {
@@ -59,12 +60,12 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			// requestor_protocol to `requestorProtocolNone` and leave the requestor_identity_id `null`.
 			// The untrusted requestor is provided eg. in a local image upload operation run as part of an image copy operation.
 			value := cluster.RequestorProtocol(op.requestor.CallerProtocol())
-			opInfo.RequestorProtocol = &value
+			operationsRow.RequestorProtocol = &value
 
 			requestorCallerIdentityID := op.requestor.CallerIdentityID()
 			if requestorCallerIdentityID != 0 {
-				identityID := int64(requestorCallerIdentityID)
-				opInfo.RequestorIdentityID = &identityID
+				identityID := requestorCallerIdentityID
+				operationsRow.RequestorIdentityID = &identityID
 			}
 		}
 
@@ -78,7 +79,7 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 				return 0, fmt.Errorf("Entity type %q does not match operation type's entity type %q", entityReference.EntityType, op.dbOpType.EntityType())
 			}
 
-			opInfo.EntityID = entityReference.EntityID
+			operationsRow.EntityID = int64(entityReference.EntityID)
 		}
 
 		inputsJSON, err := json.Marshal(op.inputs)
@@ -86,16 +87,16 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			return 0, fmt.Errorf("Failed marshalling operation inputs: %w", err)
 		}
 
-		opInfo.Inputs = string(inputsJSON)
+		operationsRow.Inputs = string(inputsJSON)
 
 		metadataJSON, err := json.Marshal(op.metadata)
 		if err != nil {
 			return 0, fmt.Errorf("Failed marshalling operation metadata: %w", err)
 		}
 
-		opInfo.Metadata = string(metadataJSON)
+		operationsRow.Metadata = string(metadataJSON)
 
-		dbOpID, err := cluster.CreateOperation(ctx, tx.Tx(), opInfo)
+		dbOpID, err := query.Create(ctx, tx.Tx(), operationsRow)
 		if err != nil {
 			// The operations table has unique index on uuid, and conditional unique index on conflict_reference.
 			// Conflict on generated uuid is highly unlikely, so conflicts will most likely happen due to conflict on conflict_reference.
@@ -141,12 +142,7 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 
 func updateDBOperation(ctx context.Context, op *Operation) error {
 	err := op.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		metadataJSON, err := json.Marshal(op.metadata)
-		if err != nil {
-			return fmt.Errorf("Failed marshalling operation metadata: %w", err)
-		}
-
-		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, op.updatedAt, op.status, string(metadataJSON), op.err, op.errCode)
+		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, op.metadata, op.err, op.errCode)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed updating operation %q record: %w", op.id, err)
@@ -178,31 +174,31 @@ func (op *Operation) sendEvent(eventMessage any) {
 // ConstructOperationFromDB is a constructor of a single Operation object based on its database representation.
 // ConstructOperationFromDB doesn't populate the parent field, as that would require loading all other operations from the DB. Instead,
 // the caller is expected to set the parent field on the returned Operation object based on other loaded operations, if needed.
-func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *cluster.Operation, projectName string) (*Operation, error) {
+func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *cluster.Operation) (*Operation, error) {
 	op := Operation{
-		projectName:       projectName,
-		id:                dbOp.UUID,
-		class:             OperationClass(dbOp.Class),
-		createdAt:         dbOp.CreatedAt,
-		updatedAt:         dbOp.UpdatedAt,
-		status:            api.StatusCode(dbOp.Status),
-		url:               api.NewURL().Path(version.APIVersion, "operations", dbOp.UUID).String(),
-		description:       dbOp.Type.Description(),
-		dbOpType:          dbOp.Type,
+		projectName:       dbOp.ProjectName,
+		id:                dbOp.Row.UUID,
+		class:             OperationClass(dbOp.Row.Class),
+		createdAt:         dbOp.Row.CreatedAt,
+		updatedAt:         dbOp.Row.UpdatedAt,
+		status:            api.StatusCode(dbOp.Row.StatusCode),
+		url:               api.NewURL().Path(version.APIVersion, "operations", dbOp.Row.UUID).String(),
+		description:       dbOp.Row.Type.Description(),
+		dbOpType:          dbOp.Row.Type,
 		finished:          cancel.New(),
 		running:           cancel.New(),
 		state:             s,
-		location:          dbOp.Location,
-		err:               dbOp.Error,
-		errCode:           dbOp.ErrorCode,
-		conflictReference: dbOp.ConflictReference,
+		location:          dbOp.NodeName,
+		err:               dbOp.Row.Error,
+		errCode:           dbOp.Row.ErrorCode,
+		conflictReference: dbOp.Row.ConflictReference,
 	}
 
 	// If server is not clustered, the DB contains 'none' as the node name. In that case we use the server name as the location.
 	if !s.ServerClustered {
 		op.location = s.ServerName
 	} else {
-		op.location = dbOp.Location
+		op.location = dbOp.NodeName
 	}
 
 	// If operation is already in final state, cancel both contexts, there's no point in running any hook.
@@ -220,16 +216,16 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 	// Load operation inputs.
 	var inputs map[string]any
 	var err error
-	err = json.Unmarshal([]byte(dbOp.Inputs), &inputs)
+	err = json.Unmarshal([]byte(dbOp.Row.Inputs), &inputs)
 	if err != nil {
-		return nil, fmt.Errorf("Failed unmarshalling operation inputs for operation %d: %w", dbOp.ID, err)
+		return nil, fmt.Errorf("Failed unmarshalling operation inputs for operation %d: %w", dbOp.Row.ID, err)
 	}
 
 	op.inputs = inputs
 
 	// Load operation entity URL.
 	// Note that we rely on the entity_type of the operation and the entityURL being the same. This is enforced by a check in the initOperation().
-	entityURL, err := cluster.GetEntityURL(ctx, tx, dbOp.Type.EntityType(), dbOp.EntityID)
+	entityURL, err := cluster.GetEntityURL(ctx, tx, dbOp.Row.Type.EntityType(), int(dbOp.Row.EntityID))
 	if err == nil {
 		op.entityURL = entityURL
 	} else {
@@ -240,39 +236,39 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 
 		// For various delete operations, these operations actually delete the entity somewhere in the operation code, which means that we might not be able to load the entity URL after the entity was deleted.
 		// If this is the case, the entity URL will simply be empty.
-		logger.Debug("Failed loading entity URL for operation, leaving it empty on the operation struct", logger.Ctx{"operationID": dbOp.UUID, "entityType": dbOp.Type.EntityType(), "entityID": dbOp.EntityID})
+		logger.Debug("Failed loading entity URL for operation, leaving it empty on the operation struct", logger.Ctx{"operationID": dbOp.Row.UUID, "entityType": dbOp.Row.Type.EntityType(), "entityID": dbOp.Row.EntityID})
 	}
 
 	// Load operation resources.
-	op.resources, err = cluster.GetOperationResources(ctx, tx, dbOp.ID)
+	op.resources, err = cluster.GetOperationResources(ctx, tx, dbOp.Row.ID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed loading operation resources for operation %d: %w", dbOp.ID, err)
+		return nil, fmt.Errorf("Failed loading operation resources for operation %d: %w", dbOp.Row.ID, err)
 	}
 
 	// Load operation metadata.
 	var metadata map[string]any
-	err = json.Unmarshal([]byte(dbOp.Metadata), &metadata)
+	err = json.Unmarshal([]byte(dbOp.Row.Metadata), &metadata)
 	if err != nil {
-		return nil, fmt.Errorf("Failed unmarshalling operation metadata for operation %d: %w", dbOp.ID, err)
+		return nil, fmt.Errorf("Failed unmarshalling operation metadata for operation %d: %w", dbOp.Row.ID, err)
 	}
 
 	op.metadata = metadata
 
 	// Load the requestor identity if provided.
-	if dbOp.RequestorIdentityID != nil {
-		identity, err := cluster.GetIdentityByID(ctx, tx, *dbOp.RequestorIdentityID)
+	if dbOp.Row.RequestorIdentityID != nil {
+		identity, err := cluster.GetIdentityByID(ctx, tx, *dbOp.Row.RequestorIdentityID)
 		if err != nil {
-			return nil, fmt.Errorf("Failed loading identity for operation %d: %w", dbOp.ID, err)
+			return nil, fmt.Errorf("Failed loading identity for operation %d: %w", dbOp.Row.ID, err)
 		}
 
 		// Reconstruct the requestor.
 		protocol := ""
-		if dbOp.RequestorProtocol != nil {
-			protocol = string(*dbOp.RequestorProtocol)
+		if dbOp.Row.RequestorProtocol != nil {
+			protocol = string(*dbOp.Row.RequestorProtocol)
 		}
 
 		op.requestor = &opRequestor{
-			identityID: *dbOp.RequestorIdentityID,
+			identityID: *dbOp.Row.RequestorIdentityID,
 			r: &api.OperationRequestor{
 				Username: identity.Identifier,
 				Protocol: protocol,
@@ -288,14 +284,14 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 // are only cleared by this task, to allow more time to inspect their results.
 func PruneExpiredOperations(ctx context.Context, s *state.State) error {
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		dbOps, err := cluster.GetOperations(ctx, tx.Tx())
+		dbOps, err := query.Select[cluster.OperationsRow](ctx, tx.Tx(), "")
 		if err != nil {
 			return fmt.Errorf("Failed loading operations: %w", err)
 		}
 
 		for _, dbOp := range dbOps {
 			// Don't prune operations which are still running.
-			if !api.StatusCode(dbOp.Status).IsFinal() {
+			if !api.StatusCode(dbOp.StatusCode).IsFinal() {
 				continue
 			}
 
