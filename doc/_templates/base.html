@@ -6,6 +6,10 @@
   {# Prevent indexing for older RTD versions defined in conf.py (noindex_versions). #}
   <meta name="robots" content="noindex">
   {% endif %}
+  {% if pagename == "search" %}
+  {# Load the search scorer before searchtools.js to affect search results ranking. #}
+  <script src="{{ pathto('_static/search_scorer.js', 1) }}"></script>
+  {% endif %}
 {% endblock %}
 
 {% block theme_scripts %}
