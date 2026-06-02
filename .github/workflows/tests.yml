@@ -68,7 +68,7 @@ jobs:
       # An official snap from the store is needed to allow `--dangerous` afterward
       # and LXD is needed to build the snap
       - name: Setup LXD
-        uses: canonical/setup-lxd@a517a5346a08c624d81953578813a4fc0fe46e0b # main
+        uses: canonical/setup-lxd@da2ac84e727dc534215fd14cd088b9209d65893b # main
         with:
           channel: >-
             ${{ fromJson('{
