@@ -333,10 +333,11 @@ func (c *Client) HandleEvent(event api.Event) {
 		// Add key-value pairs as labels but don't override any labels.
 		for k, v := range context {
 			if slices.Contains(c.cfg.labels, k) {
-				_, ok := entry.labels[k]
+				// Label names may not contain any hyphens.
+				normalizedKey := strings.ReplaceAll(k, "-", "_")
+				_, ok := entry.labels[normalizedKey]
 				if !ok {
-					// Label names may not contain any hyphens.
-					entry.labels[strings.ReplaceAll(k, "-", "_")] = v
+					entry.labels[normalizedKey] = v
 					delete(context, k)
 				}
 			}
