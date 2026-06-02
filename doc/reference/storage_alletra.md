@@ -15,7 +15,7 @@ Each storage pool created in LXD using an HPE Alletra driver represents an HPE A
 
 LXD creates volumes within a volume set that is identified by the storage pool name.
 When the first volume needs to be mapped to a specific LXD host, a corresponding HPE Alletra host entity is created with the name of the LXD host and a suffix of the used protocol.
-For example, if the LXD host is `host01` and the mode is `nvme`, the resulting HPE Alletra host entity would be `host01-nvme`.
+For example, if the LXD host is `host01` and the mode is `nvme/tcp`, the resulting HPE Alletra host entity would be `host01-nvme-tcp`.
 
 The HPE Alletra host is then connected with the required volumes to allow attaching and accessing volumes from the LXD host.
 The HPE Alletra host is automatically removed once there are no volumes connected to it.

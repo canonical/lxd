@@ -18,7 +18,7 @@ One benefit of using Pure Storage pods is that they can be linked with multiple 
 
 LXD creates volumes within a pod that is identified by the storage pool name.
 When the first volume needs to be mapped to a specific LXD host, a corresponding Pure Storage host is created with the name of the LXD host and a suffix of the used protocol.
-For example, if the LXD host is `host01` and the mode is `nvme`, the resulting Pure Storage host would be `host01-nvme`.
+For example, if the LXD host is `host01` and the mode is `nvme/tcp`, the resulting Pure Storage host would be `host01-nvme-tcp`.
 
 The Pure Storage host is then connected with the required volumes, to allow attaching and accessing volumes from the LXD host.
 The created Pure Storage host is automatically removed once there are no volumes connected to it.
@@ -36,7 +36,7 @@ This driver behaves differently than some of the other drivers in that it provid
 As a result, and depending on the internal network, storage access might be a bit slower compared to local storage.
 On the other hand, using remote storage has significant advantages in a cluster setup: all cluster members have access to the same storage pools with the exact same contents, without the need to synchronize them.
 
-When creating a new storage pool using the `pure` driver in either `iscsi` or `nvme` mode, LXD automatically discovers the array's qualified name and target address (portal).
+When creating a new storage pool using the `pure` driver in either `iscsi` or `nvme/tcp` mode, LXD automatically discovers the array's qualified name and target address (portal).
 Upon successful discovery, LXD attaches all volumes that are connected to the Pure Storage host that is associated with a specific LXD server.
 Pure Storage hosts and volume connections are fully managed by LXD.
 
