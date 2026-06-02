@@ -2754,6 +2754,7 @@ func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHea
 	isDegraded := false
 	hasNodesNotPartOfRaft := false
 	hasNonControlPlaneMemberWithDatabaseRole := false
+	hasEvacuatedMemberWithDatabaseRole := false
 	onlineVoters := int64(0)
 	onlineStandbys := int64(0)
 	offlineMemberIDs = make([]int64, 0, len(heartbeatData.Members))
@@ -2789,6 +2790,11 @@ func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHea
 				hasNonControlPlaneMemberWithDatabaseRole = true
 				logger.Info("Detected non-control-plane member with database role", logger.Ctx{"address": node.Address, "role": role, "local": localClusterAddress})
 			}
+
+			if node.State == db.ClusterMemberStateEvacuated && role != db.RaftSpare {
+				hasEvacuatedMemberWithDatabaseRole = true
+				logger.Info("Detected evacuated member with database role", logger.Ctx{"address": node.Address, "role": role, "local": localClusterAddress})
+			}
 		} else {
 			offlineMemberIDs = append(offlineMemberIDs, id)
 			if role != db.RaftSpare {
@@ -2799,7 +2805,7 @@ func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHea
 
 	maxVoters := s.GlobalConfig.MaxVoters()
 	maxStandBy := s.GlobalConfig.MaxStandBy()
-	needsRebalance := isDegraded || onlineVoters != maxVoters || onlineStandbys != maxStandBy || hasNonControlPlaneMemberWithDatabaseRole
+	needsRebalance := isDegraded || onlineVoters != maxVoters || onlineStandbys != maxStandBy || hasNonControlPlaneMemberWithDatabaseRole || hasEvacuatedMemberWithDatabaseRole
 
 	if !needsRebalance && !hasNodesNotPartOfRaft {
 		return offlineMemberIDs
