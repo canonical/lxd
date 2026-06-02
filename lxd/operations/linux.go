@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -59,14 +60,9 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			// If there's an untrusted requestor with empty protocol and no identity, we set the
 			// requestor_protocol to `requestorProtocolNone` and leave the requestor_identity_id `null`.
 			// The untrusted requestor is provided eg. in a local image upload operation run as part of an image copy operation.
-			value := cluster.RequestorProtocol(op.requestor.CallerProtocol())
+			value := cluster.RequestorProtocol(op.requestor.Protocol)
 			operationsRow.RequestorProtocol = &value
-
-			requestorCallerIdentityID := op.requestor.CallerIdentityID()
-			if requestorCallerIdentityID != 0 {
-				identityID := requestorCallerIdentityID
-				operationsRow.RequestorIdentityID = &identityID
-			}
+			operationsRow.RequestorIdentityID = op.requestor.IdentityID
 		}
 
 		if op.entityURL != nil {
@@ -254,25 +250,21 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 
 	op.metadata = metadata
 
-	// Load the requestor identity if provided.
-	if dbOp.Row.RequestorIdentityID != nil {
-		identity, err := cluster.GetIdentityByID(ctx, tx, *dbOp.Row.RequestorIdentityID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed loading identity for operation %d: %w", dbOp.Row.ID, err)
+	// Load the requestor identity if a protocol was set.
+	// Note that the origin address is not saved, so cannot be set on the reconstructed operation.
+	if dbOp.Row.RequestorProtocol != nil && *dbOp.Row.RequestorProtocol != "" {
+		op.requestor = &request.RequestorAuditor{
+			Protocol: string(*dbOp.Row.RequestorProtocol),
 		}
 
-		// Reconstruct the requestor.
-		protocol := ""
-		if dbOp.Row.RequestorProtocol != nil {
-			protocol = string(*dbOp.Row.RequestorProtocol)
-		}
+		if dbOp.Row.RequestorIdentityID != nil {
+			identity, err := cluster.GetIdentityByID(ctx, tx, *dbOp.Row.RequestorIdentityID)
+			if err != nil {
+				return nil, fmt.Errorf("Failed loading identity for operation %d: %w", dbOp.Row.ID, err)
+			}
 
-		op.requestor = &opRequestor{
-			identityID: *dbOp.Row.RequestorIdentityID,
-			r: &api.OperationRequestor{
-				Username: identity.Identifier,
-				Protocol: protocol,
-			},
+			op.requestor.IdentityID = &identity.ID
+			op.requestor.Username = identity.Identifier
 		}
 	}
 

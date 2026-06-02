@@ -425,7 +425,7 @@ func identitiesBearerPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Identities of type %q cannot be created via the bearer API", req.Type))
 	}
 
-	if req.Type == api.IdentityTypeBearerTokenInitialUI && requestor.CallerProtocol() != request.ProtocolUnix {
+	if req.Type == api.IdentityTypeBearerTokenInitialUI && requestor.Protocol != request.ProtocolUnix {
 		return response.Forbidden(errors.New("Initial UI identities may only be created via unix socket"))
 	}
 
@@ -513,7 +513,7 @@ func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if id.Type == api.IdentityTypeBearerTokenInitialUI {
-		if requestor.CallerProtocol() != request.ProtocolUnix {
+		if requestor.Protocol != request.ProtocolUnix {
 			return response.Forbidden(errors.New("Initial UI identity tokens may only be issued via unix socket"))
 		}
 
@@ -1572,12 +1572,12 @@ func identityGetCurrent(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	username := requestor.CallerUsername()
+	username := requestor.Username
 	if username == "" {
 		return response.SmartError(errors.New("Failed getting identity identifier from request info"))
 	}
 
-	protocol := requestor.CallerProtocol()
+	protocol := requestor.Protocol
 	if protocol == "" {
 		return response.SmartError(errors.New("Failed getting authentication method from request info"))
 	}
@@ -1596,7 +1596,7 @@ func identityGetCurrent(d *Daemon, r *http.Request) response.Response {
 	var entityURLs map[entity.Type]map[int]*api.URL
 	var id *dbCluster.IdentitiesRow
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		id, err = dbCluster.GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx.Tx(), requestor.CallerProtocol(), requestor.CallerUsername())
+		id, err = dbCluster.GetIdentityByAuthenticationMethodAndIdentifier(ctx, tx.Tx(), requestor.Protocol, requestor.Username)
 		if err != nil {
 			return fmt.Errorf("Failed getting current identity from database: %w", err)
 		}
@@ -1785,7 +1785,7 @@ func identityPut(authenticationMethod string) func(d *Daemon, r *http.Request) r
 		}
 
 		// Identities may only update their own certificate
-		if requestor.CallerUsername() != id.Identifier {
+		if requestor.Username != id.Identifier {
 			return response.Forbidden(nil)
 		}
 
@@ -2071,7 +2071,7 @@ func identityPatch(authenticationMethod string) func(d *Daemon, r *http.Request)
 		}
 
 		// Identities may only update their own certificate
-		if requestor.CallerUsername() != id.Identifier {
+		if requestor.Username != id.Identifier {
 			return response.Forbidden(nil)
 		}
 

@@ -1044,7 +1044,7 @@ func doCertificateUpdateUnprivileged(ctx context.Context, s *state.State, cert d
 	}
 
 	// The caller may only update their own certificate.
-	if requestor.CallerUsername() != cert.Fingerprint {
+	if requestor.Username != cert.Fingerprint {
 		return response.Forbidden(nil)
 	}
 

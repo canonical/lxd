@@ -234,7 +234,7 @@ func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error 
 		}
 
 		// Allow the event if the same requestor is connected.
-		if m.Requestor.Username == requestor.CallerUsername() && m.Requestor.Protocol == requestor.CallerProtocol() {
+		if m.Requestor.Username == requestor.Username && m.Requestor.Protocol == requestor.Protocol {
 			return true
 		}
 

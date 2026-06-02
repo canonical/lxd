@@ -12,17 +12,13 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-// RequestorAuditor is a subset of methods implemented by [Requestor].
-// It is used for auditing, request forwarding within the cluster, and within operations.
-// Permission checks cannot be performed with the requestor auditor, save only for checking if two requestors are equal.
-type RequestorAuditor interface {
-	OriginAddress() string
-	CallerUsername() string
-	CallerProtocol() string
-	EventLifecycleRequestor() *api.EventLifecycleRequestor
-	OperationRequestor() *api.OperationRequestor
-	CallerIsEqual(requestor RequestorAuditor) bool
-	CallerIdentityID() int64
+// RequestorAuditor is used for auditing and request forwarding within the cluster, and within operations.
+// Permission checks cannot be performed with RequestorAuditor, save only for checking if two requestors are equal.
+type RequestorAuditor struct {
+	Username      string
+	Protocol      string
+	OriginAddress string
+	IdentityID    *int64
 }
 
 // RequestorHook is the signature of a hook that is passed into calls to [SetRequestor].
@@ -58,43 +54,38 @@ type RequestorArgs struct {
 	ExpiresAt *time.Time
 }
 
-// Requestor contains all fields from RequestorArgs, unexported. Plus additional fields gathered from request headers
-// set when a request is forwarded between cluster members. It also contains an [identity.CacheEntry] and an
-// [identity.Type], which are set during SetRequestor.
+// Requestor contains a [RequestorAuditor] and additional unexported fields used for authorization purposes.
+// It is set in the request context after authentication via [SetRequestor]. It always represents the original API
+// caller, regardless of whether the request is forwarded from another cluster member.
 type Requestor struct {
-	trusted                         bool
-	originAddress                   string
-	username                        string
-	protocol                        string
-	identityProviderGroups          []string
-	forwardedOriginAddress          string
-	forwardedUsername               string
-	forwardedProtocol               string
-	forwardedIdentityProviderGroups []string
-	clientType                      ClientType
-	identityID                      int64
-	authGroups                      []string
-	mappedAuthGroups                []string
-	projects                        []string
-	identityType                    identity.Type
-	expiresAt                       *time.Time
+	RequestorAuditor
+	identityProviderGroups   []string
+	clusterMemberFingerprint string
+	clientType               ClientType
+	authGroups               []string
+	mappedAuthGroups         []string
+	projects                 []string
+	identityType             identity.Type
+	expiresAt                *time.Time
+	isForwarded              bool
+	isTrusted                bool
 }
 
 // IsClusterNotification returns true if this an API request coming from a
 // cluster node that is notifying us of some user-initiated API request that
 // needs some action to be taken on this node as well.
 func (r *Requestor) IsClusterNotification() bool {
-	return r.ClientType().IsClusterNotification()
+	return r.ClientType().IsClusterNotification() && r.isInternal()
 }
 
 // IsTrusted returns true if the caller is authenticated and false otherwise.
 func (r *Requestor) IsTrusted() bool {
-	return r.trusted
+	return r.isTrusted
 }
 
 // IsAdmin returns true if the caller is an administrator and false otherwise.
 func (r *Requestor) IsAdmin() bool {
-	if slices.Contains([]string{ProtocolUnix, ProtocolCluster, ProtocolPKI}, r.CallerProtocol()) {
+	if slices.Contains([]string{ProtocolUnix, ProtocolCluster, ProtocolPKI}, r.Protocol) {
 		return true
 	}
 
@@ -109,35 +100,6 @@ func (r *Requestor) IsAdmin() bool {
 // Returns nil if the caller is not authenticated using a bearer token or TLS.
 func (r *Requestor) ExpiresAt() *time.Time {
 	return r.expiresAt
-}
-
-// OriginAddress returns the original address of the caller.
-func (r *Requestor) OriginAddress() string {
-	if r.IsForwarded() {
-		return r.forwardedOriginAddress
-	}
-
-	return r.originAddress
-}
-
-// CallerUsername returns the original caller Username.
-func (r *Requestor) CallerUsername() string {
-	if r.IsForwarded() {
-		// Always return forwarded username if the request was forwarded.
-		return r.forwardedUsername
-	}
-
-	return r.username
-}
-
-// CallerProtocol returns the original caller protocol.
-func (r *Requestor) CallerProtocol() string {
-	if r.IsForwarded() {
-		// Always return forwarded protocol if the request was forwarded.
-		return r.forwardedProtocol
-	}
-
-	return r.protocol
 }
 
 // CallerAuthorizationGroupNames returns the LXD authorization groups that the requestor belongs to.
@@ -164,10 +126,6 @@ func (r *Requestor) CallerAllowedProjectNames() []string {
 
 // CallerIdentityProviderGroups returns the original caller identity provider groups.
 func (r *Requestor) CallerIdentityProviderGroups() []string {
-	if r.forwardedIdentityProviderGroups != nil {
-		return r.forwardedIdentityProviderGroups
-	}
-
 	return r.identityProviderGroups
 }
 
@@ -177,29 +135,29 @@ func (r *Requestor) ClientType() ClientType {
 }
 
 // EventLifecycleRequestor returns an api.EventLifecycleRequestor representing the original caller.
-func (r *Requestor) EventLifecycleRequestor() *api.EventLifecycleRequestor {
+func (r *RequestorAuditor) EventLifecycleRequestor() *api.EventLifecycleRequestor {
 	return &api.EventLifecycleRequestor{
-		Username: r.CallerUsername(),
-		Protocol: r.CallerProtocol(),
-		Address:  r.OriginAddress(),
+		Username: r.Username,
+		Protocol: r.Protocol,
+		Address:  r.OriginAddress,
 	}
 }
 
 // CallerIsEqual returns true if the given Requestor is the same caller as this Requestor.
-func (r *Requestor) CallerIsEqual(requestor RequestorAuditor) bool {
+func (r *Requestor) CallerIsEqual(requestor *RequestorAuditor) bool {
 	if requestor == nil {
 		return false
 	}
 
-	return requestor.CallerUsername() == r.CallerUsername() && requestor.CallerProtocol() == r.CallerProtocol()
+	return requestor.Username == r.Username && requestor.Protocol == r.Protocol
 }
 
 // OperationRequestor returns an [api.OperationRequestor] representing the original caller.
-func (r *Requestor) OperationRequestor() *api.OperationRequestor {
+func (r *RequestorAuditor) OperationRequestor() *api.OperationRequestor {
 	return &api.OperationRequestor{
-		Username: r.CallerUsername(),
-		Protocol: r.CallerProtocol(),
-		Address:  r.OriginAddress(),
+		Username: r.Username,
+		Protocol: r.Protocol,
+		Address:  r.OriginAddress,
 	}
 }
 
@@ -212,41 +170,37 @@ func (r *Requestor) CallerIdentityType() (identity.Type, error) {
 	return r.identityType, nil
 }
 
-// CallerIdentityID returns the database ID of the calling identity (it is always zero if the calling identity is using
-// an admin protocol - cluster, unix, pki).
-func (r *Requestor) CallerIdentityID() int64 {
-	return r.identityID
-}
-
 // IsForwarded returns true if the request was forwarded from another cluster member and false otherwise.
 func (r *Requestor) IsForwarded() bool {
-	return r.forwardedOriginAddress != ""
+	return r.isForwarded
+}
+
+func (r *Requestor) isInternal() bool {
+	return r.clusterMemberFingerprint != ""
 }
 
 // SetRequestorHeaders adds the requestor details as forwarded headers on the
 // given HTTP request so the receiving cluster member can identify the caller.
-func SetRequestorHeaders(r RequestorAuditor, req *http.Request) {
-	req.Header.Add(headerForwardedAddress, r.OriginAddress())
+func SetRequestorHeaders(r *RequestorAuditor, req *http.Request) {
+	req.Header.Add(headerForwardedAddress, r.OriginAddress)
 
-	username := r.CallerUsername()
-	if username != "" {
-		req.Header.Add(headerForwardedUsername, username)
+	if r.Username != "" {
+		req.Header.Add(headerForwardedUsername, r.Username)
 	}
 
-	protocol := r.CallerProtocol()
-	if protocol != "" {
-		req.Header.Add(headerForwardedProtocol, protocol)
+	if r.Protocol != "" {
+		req.Header.Add(headerForwardedProtocol, r.Protocol)
 	}
 }
 
 // ClusterMemberTLSCertificateFingerprint returns the TLS certificate fingerprint of the cluster member that
 // sent the request. It returns an error if the request was not sent by another cluster member.
 func (r *Requestor) ClusterMemberTLSCertificateFingerprint() (string, error) {
-	if r.protocol != ProtocolCluster {
+	if !r.isInternal() {
 		return "", ErrRequestNotInternal
 	}
 
-	return r.username, nil
+	return r.clusterMemberFingerprint, nil
 }
 
 // setForwardingDetails validates and sets forwarding details from the request headers.
@@ -256,7 +210,7 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 	forwardedProtocol := req.Header.Get(headerForwardedProtocol)
 
 	// Requests can only be forwarded from other cluster members.
-	if r.protocol != ProtocolCluster {
+	if r.Protocol != ProtocolCluster {
 		// No forwarding headers may be set if the protocol is not ProtocolCluster.
 		if forwardedAddress != "" || forwardedUsername != "" || forwardedProtocol != "" {
 			return errors.New("Received forwarded request information from non-cluster member")
@@ -265,11 +219,17 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 		return nil
 	}
 
+	// The protocol is ProtocolCluster, so set the fingerprint of the calling cluster member.
+	r.clusterMemberFingerprint = r.Username
+
 	// If the forwarded address is not set, then the request was not forwarded and no forwarding fields need to be
 	// set on the requestor.
 	if forwardedAddress == "" {
 		return nil
 	}
+
+	// The request was forwarded, so set isForwarded to true.
+	r.isForwarded = true
 
 	// If the forwarded address is set, the forwarded protocol and username must be both be set or both be unset
 	// (see SetRequestorHeaders).
@@ -284,12 +244,13 @@ func (r *Requestor) setForwardingDetails(req *http.Request) error {
 	// In this case, set trusted to false. This means that an untrusted request will remain untrusted throughout
 	// the cluster (provided the request context is used appropriately).
 	if forwardedUsername == "" && forwardedProtocol == "" {
-		r.trusted = false
+		r.isTrusted = false
 	}
 
-	r.forwardedOriginAddress = forwardedAddress
-	r.forwardedUsername = forwardedUsername
-	r.forwardedProtocol = forwardedProtocol
+	// Set the origin address, username, and protocol to the forwarded values.
+	r.OriginAddress = forwardedAddress
+	r.Username = forwardedUsername
+	r.Protocol = forwardedProtocol
 
 	return nil
 }
@@ -302,7 +263,7 @@ func (r *Requestor) setIdentity(ctx context.Context, hook RequestorHook) error {
 		return nil
 	}
 
-	method := r.CallerProtocol()
+	method := r.Protocol
 	if method == ProtocolDevLXD {
 		// For a trusted devlxd request, the only authentication method that can have been used is a bearer token.
 		method = api.AuthenticationMethodBearer
@@ -311,7 +272,7 @@ func (r *Requestor) setIdentity(ctx context.Context, hook RequestorHook) error {
 	// Expect the method to a remote API method at this point.
 	err := identity.ValidateAuthenticationMethod(method)
 	if err != nil {
-		return fmt.Errorf("Received unexpected caller protocol %q: %w", r.CallerProtocol(), err)
+		return fmt.Errorf("Received unexpected caller protocol %q: %w", r.Protocol, err)
 	}
 
 	if hook == nil {
@@ -319,12 +280,12 @@ func (r *Requestor) setIdentity(ctx context.Context, hook RequestorHook) error {
 	}
 
 	// Get the identity details.
-	res, err := hook(ctx, method, r.CallerUsername())
+	res, err := hook(ctx, method, r.Username)
 	if err != nil {
 		return fmt.Errorf("Failed getting identity details: %w", err)
 	}
 
-	r.identityID = res.IdentityID
+	r.IdentityID = &res.IdentityID
 	r.identityType = res.IdentityType
 	r.authGroups = res.AuthGroups
 	r.mappedAuthGroups = res.EffectiveAuthGroups
@@ -346,12 +307,14 @@ func SetRequestor(req *http.Request, hook RequestorHook, args RequestorArgs) err
 	}
 
 	r := &Requestor{
-		trusted:       args.Trusted,
-		originAddress: req.RemoteAddr,
-		username:      args.Username,
-		protocol:      args.Protocol,
-		clientType:    clientType,
-		expiresAt:     args.ExpiresAt,
+		RequestorAuditor: RequestorAuditor{
+			Username:      args.Username,
+			Protocol:      args.Protocol,
+			OriginAddress: req.RemoteAddr,
+		},
+		isTrusted:  args.Trusted,
+		clientType: clientType,
+		expiresAt:  args.ExpiresAt,
 	}
 
 	err := r.setForwardingDetails(req)
@@ -359,19 +322,16 @@ func SetRequestor(req *http.Request, hook RequestorHook, args RequestorArgs) err
 		return err
 	}
 
-	callerUsername := r.CallerUsername()
-	callerProtocol := r.CallerProtocol()
-
 	// Handle untrusted case
-	if !r.trusted {
+	if !r.isTrusted {
 		// If the caller is not trusted, there should not be a username.
-		if callerUsername != "" {
+		if r.Username != "" {
 			return errors.New("Caller is not trusted but a username was set")
 		}
 
 		// The only allowed protocols for the untrusted case are ProtocolDevLXD, or empty.
 		// The protocol is empty when calls made to the main API are untrusted.
-		if !slices.Contains([]string{ProtocolDevLXD, ""}, callerProtocol) {
+		if !slices.Contains([]string{ProtocolDevLXD, ""}, r.Protocol) {
 			return errors.New("Unsupported protocol set for untrusted request")
 		}
 
@@ -382,12 +342,12 @@ func SetRequestor(req *http.Request, hook RequestorHook, args RequestorArgs) err
 	// Trusted
 
 	// There must be a protocol.
-	if callerProtocol == "" {
+	if r.Protocol == "" {
 		return errors.New("Caller is trusted but no protocol was set")
 	}
 
 	// There must be a username.
-	if callerUsername == "" {
+	if r.Username == "" {
 		return errors.New("Caller is trusted but no username was set")
 	}
 
@@ -411,17 +371,27 @@ func GetRequestor(ctx context.Context) (*Requestor, error) {
 }
 
 // GetRequestorAuditor gets an RequestorAuditor from the context.
-func GetRequestorAuditor(ctx context.Context) (RequestorAuditor, error) {
-	r, ok := ctx.Value(ctxRequestor).(RequestorAuditor)
+func GetRequestorAuditor(ctx context.Context) (*RequestorAuditor, error) {
+	val := ctx.Value(ctxRequestor)
+	if val == nil {
+		return nil, ErrRequestorNotPresent
+	}
+
+	requestor, ok := val.(*Requestor)
+	if ok {
+		return &requestor.RequestorAuditor, nil
+	}
+
+	auditor, ok := val.(*RequestorAuditor)
 	if !ok {
 		return nil, ErrRequestorNotPresent
 	}
 
-	return r, nil
+	return auditor, nil
 }
 
-// WithRequestor is used to set the requestor in the given context.
+// WithRequestorAuditor is used to set the [RequestorAuditor] in the given context.
 // This is used by operations to set the requestor in the context of an async task.
-func WithRequestor(ctx context.Context, requestor RequestorAuditor) context.Context {
+func WithRequestorAuditor(ctx context.Context, requestor *RequestorAuditor) context.Context {
 	return context.WithValue(ctx, ctxRequestor, requestor)
 }

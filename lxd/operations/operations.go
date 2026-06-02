@@ -100,7 +100,7 @@ type Operation struct {
 	readonly        bool
 	description     string
 	dbOpType        operationtype.Type
-	requestor       *opRequestor
+	requestor       *request.RequestorAuditor
 	metricsCallback func(metrics.RequestResult)
 	logger          logger.Logger
 	location        string
@@ -144,7 +144,7 @@ type OperationArgs struct {
 	Metadata        map[string]any
 	RunHook         func(ctx context.Context, op *Operation) error
 	ConnectHook     func(op *Operation, r *http.Request, w http.ResponseWriter) error
-	requestor       *opRequestor
+	requestor       *request.RequestorAuditor
 	metricsCallback func(result metrics.RequestResult)
 	Inputs          map[string]any
 	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
@@ -162,22 +162,17 @@ type OperationScheduler func(s *state.State, args OperationArgs) (*Operation, er
 // The operation will keep a reference to the parent HTTP request until it completes so that it can report success or
 // failure for API metrics.
 func ScheduleUserOperationFromRequest(s *state.State, r *http.Request, args OperationArgs) (*Operation, error) {
-	requestor, err := request.GetRequestor(r.Context())
+	var err error
+	args.requestor, err = request.GetRequestorAuditor(r.Context())
 	if err != nil {
 		return nil, fmt.Errorf("Cannot create user operation: %w", err)
 	}
 
-	metricsCallback, err := request.GetContextValue[func(metrics.RequestResult)](r.Context(), request.CtxMetricsCallbackFunc)
+	args.metricsCallback, err = request.GetContextValue[func(metrics.RequestResult)](r.Context(), request.CtxMetricsCallbackFunc)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot create user operation: %w", err)
 	}
 
-	args.requestor = &opRequestor{
-		identityID: requestor.CallerIdentityID(),
-		r:          requestor.OperationRequestor(),
-	}
-
-	args.metricsCallback = metricsCallback
 	return scheduleOperation(s, args)
 }
 
@@ -396,7 +391,7 @@ func (op *Operation) CheckRequestor(r *http.Request) error {
 		return fmt.Errorf("Failed verifying operation requestor: %w", err)
 	}
 
-	if !opRequestor.CallerIsEqual(requestor) {
+	if !requestor.CallerIsEqual(opRequestor) {
 		return api.StatusErrorf(http.StatusForbidden, "Operation requestor mismatch")
 	}
 
@@ -404,7 +399,7 @@ func (op *Operation) CheckRequestor(r *http.Request) error {
 }
 
 // Requestor returns the initial requestor for this operation.
-func (op *Operation) Requestor() *opRequestor {
+func (op *Operation) Requestor() *request.RequestorAuditor {
 	return op.requestor
 }
 
@@ -535,7 +530,7 @@ func (op *Operation) start() {
 		// in the request headers.
 		runCtx := context.Context(op.running)
 		if op.requestor != nil {
-			runCtx = request.WithRequestor(runCtx, op.requestor)
+			runCtx = request.WithRequestorAuditor(runCtx, op.requestor)
 		}
 
 		go func(ctx context.Context, op *Operation) {

@@ -170,13 +170,13 @@ func (a SecurityAction) UserEvent(ctx context.Context, level SecurityLevel, desc
 
 		// Prefer the requestor's origin address (which honours forwarded
 		// cluster-internal requests) over the raw RemoteAddr fallback.
-		originAddress := requestor.OriginAddress()
+		originAddress := requestor.OriginAddress
 		if originAddress != "" {
 			ev.Requestor.Address = originAddress
 		}
 
-		ev.Requestor.Protocol = requestor.CallerProtocol()
-		ev.Requestor.Username = requestor.CallerUsername()
+		ev.Requestor.Protocol = requestor.Protocol
+		ev.Requestor.Username = requestor.Username
 	}
 
 	for _, opt := range opts {
