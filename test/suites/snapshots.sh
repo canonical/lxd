@@ -562,8 +562,23 @@ test_snapshot_multi_volume() {
   lxc exec c1 -- touch /mnt/shared/snap2 /mnt/non-shared/snap2 snap2
 
   echo "Check multi-volume snapshot."
+  # Record the log position so the assertions below are scoped to this snapshot, not an earlier one.
+  local logLinesBefore=0
+  if [ -n "${SERVER_DEBUG:-}" ]; then
+    logLinesBefore=$(wc -l < "${LXD_DIR}/lxd.log")
+  fi
+
   lxc snapshot c1 c1-snap2 --disk-volumes=all-exclusive
   lxc info c1 # For debugging and coverage.
+
+  # The crash-consistency INFO logs only reach lxd.log when the daemon runs verbose.
+  if [ -n "${SERVER_DEBUG:-}" ]; then
+    local newLogs
+    newLogs="$(tail --lines="+$((logLinesBefore + 1))" "${LXD_DIR}/lxd.log")"
+    grep -qF "Freezing instance to ensure crash-consistent multi-volume snapshot" <<< "${newLogs}"
+    [ "$(grep -cF "Creating attached volume snapshot" <<< "${newLogs}")" = "2" ]
+    grep -qF "Unfreezing instance after crash-consistent multi-volume snapshot" <<< "${newLogs}"
+  fi
 
   # Remove created files.
   lxc exec c1 -- rm /mnt/shared/snap2 /mnt/non-shared/snap2 snap2
