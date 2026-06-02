@@ -25,7 +25,6 @@ import (
 )
 
 var authGroupsCmd = APIEndpoint{
-	Name:        "auth_groups",
 	Path:        "auth/groups",
 	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
@@ -39,7 +38,6 @@ var authGroupsCmd = APIEndpoint{
 }
 
 var authGroupCmd = APIEndpoint{
-	Name:        "auth_group",
 	Path:        "auth/groups/{groupName}",
 	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{

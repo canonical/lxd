@@ -24,7 +24,6 @@ import (
 )
 
 var instanceLogCmd = APIEndpoint{
-	Name:        "instanceLog",
 	Path:        "instances/{name}/logs/{file}",
 	MetricsType: entity.TypeInstance,
 
@@ -32,7 +31,6 @@ var instanceLogCmd = APIEndpoint{
 }
 
 var instanceLogsCmd = APIEndpoint{
-	Name:        "instanceLogs",
 	Path:        "instances/{name}/logs",
 	MetricsType: entity.TypeInstance,
 
@@ -40,7 +38,6 @@ var instanceLogsCmd = APIEndpoint{
 }
 
 var instanceExecOutputCmd = APIEndpoint{
-	Name:        "instanceExecOutput",
 	Path:        "instances/{name}/logs/exec-output/{file}",
 	MetricsType: entity.TypeInstance,
 
@@ -52,7 +49,6 @@ var instanceExecOutputCmd = APIEndpoint{
 var instanceProtectedLogFiles = []string{"edk2.log", "lxc.log", "qemu.log", "qemu.early.log"}
 
 var instanceExecOutputsCmd = APIEndpoint{
-	Name:        "instanceExecOutputs",
 	Path:        "instances/{name}/logs/exec-output",
 	MetricsType: entity.TypeInstance,
 

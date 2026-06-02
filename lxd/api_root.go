@@ -80,28 +80,24 @@ var acmeChallengeCmd = APIEndpoint{
 }
 
 var oidcLoginCmd = APIEndpoint{
-	Name: "oidcLogin",
 	Path: "oidc/login",
 
 	Get: APIEndpointAction{Handler: oidcLoginGet, AllowUntrusted: true},
 }
 
 var oidcCallbackCmd = APIEndpoint{
-	Name: "oidcCallback",
 	Path: "oidc/callback",
 
 	Get: APIEndpointAction{Handler: oidcCallbackGet, AllowUntrusted: true},
 }
 
 var oidcLogoutCmd = APIEndpoint{
-	Name: "oidcLogout",
 	Path: "oidc/logout",
 
 	Get: APIEndpointAction{Handler: oidcLogoutGet, AllowUntrusted: true},
 }
 
 var bearerLogoutCmd = APIEndpoint{
-	Name: "bearerLogout",
 	Path: "bearer/logout",
 
 	Get: APIEndpointAction{Handler: bearerLogoutGet, AllowUntrusted: true},

@@ -20,7 +20,6 @@ import (
 )
 
 var identityProviderGroupsCmd = APIEndpoint{
-	Name:        "identity_provider_groups",
 	Path:        "auth/identity-provider-groups",
 	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
@@ -34,7 +33,6 @@ var identityProviderGroupsCmd = APIEndpoint{
 }
 
 var identityProviderGroupCmd = APIEndpoint{
-	Name:        "identity_provider_group",
 	Path:        "auth/identity-provider-groups/{idpGroupName}",
 	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{

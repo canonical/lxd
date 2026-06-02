@@ -26,7 +26,6 @@ import (
 )
 
 var oidcSessionsCmd = APIEndpoint{
-	Name:        "oidc_sessions",
 	Path:        "auth/oidc-sessions",
 	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
@@ -36,7 +35,6 @@ var oidcSessionsCmd = APIEndpoint{
 }
 
 var oidcSessionCmd = APIEndpoint{
-	Name:        "oidc_session",
 	Path:        "auth/oidc-sessions/{id}",
 	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
