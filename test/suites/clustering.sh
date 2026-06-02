@@ -5879,45 +5879,36 @@ test_clustering_replicator_scheduled() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 user.foo=bar --project replicator-project
 
   # Schedule the run after the instance exists. The replicator scheduler skips
-  # its first post-start tick, so use an every-minute cron and wait for the
-  # first active scheduler pass after daemon startup.
-  # Slow replications cannot accumulate: the replicator uses a ConflictReference on the
-  # operation so a scheduler tick that fires while a run is already in progress fails
-  # immediately with a conflict error rather than queuing another job.
+  # its first post-start tick, so use an every-minute cron expression.
+  # The internal trigger endpoint fires runScheduledReplicators synchronously,
+  # avoiding any real-time wait for the scheduler's one-minute tick.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator set my-replicator schedule "* * * * *" --project replicator-project
 
   sub_test "Wait for the scheduled replicator run"
 
-  local i scheduled_op
-  for i in $(seq 70); do
-    if grep -qxF 'c1,STOPPED' <<< "$(LXD_DIR="${LXD_TWO_DIR}" lxc list c1 --project replicator-project -f csv -c ns)" && \
-       grep -qF 'Status: Completed' <<< "$(LXD_DIR="${LXD_ONE_DIR}" lxc replicator info my-replicator --project replicator-project)"; then
-      break
-    fi
-
-    sleep 1
-  done
+  LXD_DIR="${LXD_ONE_DIR}" lxc query -X POST --raw --wait /internal/testing/replicator/run-scheduler
+  grep -F 'Status: Completed' <<< "$(LXD_DIR="${LXD_ONE_DIR}" lxc replicator info my-replicator --project replicator-project)"
 
   LXD_DIR="${LXD_TWO_DIR}" lxc list c1 --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get c1 user.foo --project replicator-project)" = "bar" ]
 
+  local scheduled_op
   scheduled_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 2 and .status == "Success" and ((.children // []) | length) == 1 and (all(.children[]; .status == "Success"))' <<< "${scheduled_op}"
 
   sub_test "Verify scheduler skips replicator when source project is not in leader mode"
 
-  local i ops_before
+  local ops_before
   ops_before="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | length')"
 
   # Unset replica.mode on the source; the scheduler must now skip this replicator.
   LXD_DIR="${LXD_ONE_DIR}" lxc project unset replicator-project replica.mode
 
-  # Poll for longer than one scheduler tick (the task fires every minute), failing immediately if a new operation appears.
-  for i in $(seq 70); do
-    LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' \
-      | jq --exit-status --argjson before "${ops_before}" '[.. | objects | select(.description == "Running replicator")] | length == $before'
-    sleep 1
-  done
+  # Trigger the scheduler synchronously; because replica.mode is unset the scheduler
+  # skips the replicator without creating a new operation.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query -X POST --raw --wait /internal/testing/replicator/run-scheduler
+  LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' \
+    | jq --exit-status --argjson before "${ops_before}" '[.. | objects | select(.description == "Running replicator")] | length == $before'
 
   # Restore leader mode before cleanup.
   LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.mode=standby
@@ -6003,8 +5994,7 @@ test_clustering_replicator_dr() {
   # LXD_ONE is unreachable; replica.mode=leader validation skips when the target is unreachable.
   LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.mode=leader
   # Both clusters now have replica.mode=leader. Verify instance creation is allowed on LXD_TWO.
-  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc launch testimage c3 --project replicator-project -d "${SMALL_ROOT_DISK}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c3 --project replicator-project -d "${SMALL_ROOT_DISK}"
   # Verify LXD_TWO can start a replicated instance as the new leader.
   LXD_DIR="${LXD_TWO_DIR}" lxc start c1 --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,RUNNING'
