@@ -752,12 +752,22 @@ func (d *powerflex) ListVolumes() ([]Volume, error) {
 
 // DefaultVMBlockFilesystemSize returns the size of a VM root device block volume's associated filesystem volume.
 func (d *powerflex) defaultVMBlockFilesystemSize() string {
-	return powerFlexDefaultSize
+	if d.hasThinCloneSupport() {
+		return powerFlex5DefaultSize
+	}
+
+	return powerFlex4DefaultSize
 }
 
 // defaultBlockVolumeSize returns the default size for block volumes in this pool.
 func (d *powerflex) defaultBlockVolumeSize() string {
-	return powerFlexDefaultSize
+	if d.hasThinCloneSupport() {
+		// PowerFlex 5 allows multiples of 1GiB.
+		// Therefore return the same default block size (10GiB) as for the other drivers.
+		return defaultBlockSize
+	}
+
+	return powerFlex4DefaultSize
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.

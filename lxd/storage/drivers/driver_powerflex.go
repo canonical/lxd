@@ -17,8 +17,11 @@ import (
 // powerFlexDefaultUser represents the default PowerFlex user name.
 const powerFlexDefaultUser = "admin"
 
-// powerFlexDefaultSize represents the default PowerFlex volume size.
-const powerFlexDefaultSize = "8GiB"
+// powerFlex4DefaultSize represents the default PowerFlex volume size for PowerFlex 4.
+const powerFlex4DefaultSize = "8GiB"
+
+// powerFlex5DefaultSize represents the default PowerFlex volume size for PowerFlex 5.
+const powerFlex5DefaultSize = "1GiB"
 
 // powerFlexMinVolumeSizeBytes represents the minimal PowerFlex volume size in bytes.
 // This translates to 8 GiB.
@@ -165,11 +168,18 @@ func (d *powerflex) FillConfig() error {
 		}
 	}
 
-	// PowerFlex volumes have to be at least 8GiB in size.
-	if d.config["volume.size"] == "" {
-		d.config["volume.size"] = powerFlexDefaultSize
+	// Exit if there already is a PowerFlex version set as this field gets auto-populated.
+	if d.config["powerflex.version"] != "" {
+		return errors.New(`Cannot set "powerflex.version" manually`)
 	}
 
+	// Retrieve and store the PowerFlex system version.
+	version, err := d.client().getVersion()
+	if err != nil {
+		return err
+	}
+
+	d.config["powerflex.version"] = version
 	return nil
 }
 
