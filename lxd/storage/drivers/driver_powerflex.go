@@ -340,14 +340,20 @@ func (d *powerflex) Validate(config map[string]string) error {
 		return err
 	}
 
-	newMode := config["powerflex.mode"]
-	oldMode := d.config["powerflex.mode"]
-
 	// Ensure powerflex.mode cannot be changed to avoid leaving volume mappings
 	// and to prevent disturbing running instances.
-	if oldMode != "" && oldMode != newMode {
-		return errors.New("PowerFlex mode cannot be changed")
+	// Ensure powerflex.version cannot be changed.
+	immutableKeys := []string{"powerflex.mode", "powerflex.version"}
+	for _, key := range immutableKeys {
+		newVal := config[key]
+		oldVal := d.config[key]
+
+		if oldVal != "" && oldVal != newVal {
+			return fmt.Errorf("%q cannot be changed", key)
+		}
 	}
+
+	newMode := config["powerflex.mode"]
 
 	// Check if the selected PowerFlex mode is supported on this node.
 	// Also when forming the storage pool on a LXD cluster, the mode
