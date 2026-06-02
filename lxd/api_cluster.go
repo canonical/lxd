@@ -511,6 +511,10 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		TLSClientKey:  string(serverCert.PrivateKey()),
 		TLSServerCert: string(req.ClusterCertificate),
 		UserAgent:     version.UserAgent,
+		// Always set a proxy function to have cluster traffic bypass any configured HTTP proxy.
+		Proxy: func(_ *http.Request) (*url.URL, error) {
+			return nil, nil
+		},
 	}
 
 	// Asynchronously join the cluster.
