@@ -576,7 +576,7 @@ func (p *powerFlexClient) refreshVolume(volumeID string, sourceVolumeID string) 
 }
 
 // createVolumeSnapshot creates a new volume snapshot under the given systemID for the volume behind volumeID.
-// The accessMode can be either ReadWrite or ReadOnly.
+// The accessMode can be either ReadWrite or ReadOnly and is only relevant for PowerFlex 4.
 // The returned string represents the ID of the snapshot.
 func (p *powerFlexClient) createVolumeSnapshot(systemID string, volumeID string, snapshotName string, accessMode powerFlexSnapshotMode) (string, error) {
 	body := map[string]any{
@@ -586,14 +586,22 @@ func (p *powerFlexClient) createVolumeSnapshot(systemID string, volumeID string,
 				"snapshotName": snapshotName,
 			},
 		},
-		"accessModeLimit": accessMode,
 	}
 
 	var actualResponse struct {
 		VolumeIDs []string `json:"volumeIdList"`
 	}
 
-	err := p.requestAuthenticated(http.MethodPost, "/api/instances/System::"+systemID+"/action/snapshotVolumes", body, &actualResponse)
+	action := "createSnapshot"
+	if !p.driver.hasThinCloneSupport() {
+		// PowerFlex 4 uses a different endpoint to snapshot volumes.
+		action = "snapshotVolumes"
+		// PowerFlex 4 requires setting the access mode for the snapshot.
+		// This is an illegal parameter in PowerFlex 5.
+		body["accessModeLimit"] = accessMode
+	}
+
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/System::"+systemID+"/action/"+action, body, &actualResponse)
 	if err != nil {
 		powerFlexError, ok := err.(*powerFlexError)
 		if ok {
