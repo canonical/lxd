@@ -806,6 +806,59 @@ func filterPromotionCandidates(candidates []client.NodeInfo, memberRoles map[str
 	return eligible
 }
 
+// isLeaderEvacuated reports whether the current raft leader is in the evacuated set.
+func isLeaderEvacuated(roles *app.RolesChanges, leaderID uint64, evacuatedMembers []string) bool {
+	for node := range roles.State {
+		if node.ID == leaderID && slices.Contains(evacuatedMembers, node.Address) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// rolesAdjustSmallCluster determines the next role change when the cluster has
+// fewer members than [app.MinVoters]. In this scenario we keep exactly one
+// voter (the leader). If the leader itself is evacuated we first promote a
+// replacement so that leadership can be transferred before the evacuated leader
+// is demoted.
+func rolesAdjustBelowQuorum(roles *app.RolesChanges, leaderID uint64, memberRoles map[string][]db.ClusterRole, evacuatedMembers []string) (role client.NodeRole, candidates []client.NodeInfo, leaderNeedsTransfer bool) {
+	if !isLeaderEvacuated(roles, leaderID, evacuatedMembers) {
+		// Normal case: keep exactly one voter (the leader) by demoting any others.
+		for node := range roles.State {
+			if node.ID == leaderID || node.Role != client.Voter {
+				continue
+			}
+
+			return client.Spare, []client.NodeInfo{node}, false
+		}
+
+		return -1, nil, false
+	}
+
+	// Leader is evacuated. Promote a non-evacuated standby or spare to voter
+	// so that leadership can be transferred to it.
+	candidates = roles.List(client.StandBy, true, nil)
+	candidates = append(candidates, roles.List(client.Spare, true, nil)...)
+	candidates = filterPromotionCandidates(candidates, memberRoles, evacuatedMembers)
+	if len(candidates) > 0 {
+		return client.Voter, candidates, false
+	}
+
+	// A replacement was already promoted in a previous cycle. Signal a
+	// leadership transfer so that the new voter can take over and the
+	// evacuated leader can be demoted in the next rebalance cycle.
+	for node := range roles.State {
+		if node.ID == leaderID || node.Role != client.Voter || slices.Contains(evacuatedMembers, node.Address) {
+			continue
+		}
+
+		return -1, nil, true
+	}
+
+	return -1, nil, false
+}
+
 // rolesAdjust determines the next role change using the same generic roles algorithm as [app.RolesChanges.Adjust], while applying LXD-specific control-plane restrictions.
 // memberRoles reflects the current LXD cluster role assignments and defines the target raft topology:
 // when control-plane mode is active, only members with the control-plane role are eligible for
@@ -1040,6 +1093,37 @@ func prioritizeNonControlPlane(candidates []client.NodeInfo, memberRoles map[str
 	}
 
 	return append(nonControlPlane, controlPlane...)
+}
+
+// prioritizeEvacuated returns candidates with evacuated members ordered first.
+func prioritizeEvacuated(candidates []client.NodeInfo, evacuatedMembers []string) []client.NodeInfo {
+	evacuated := make([]client.NodeInfo, 0, len(candidates))
+	others := make([]client.NodeInfo, 0, len(candidates))
+
+	for _, candidate := range candidates {
+		if slices.Contains(evacuatedMembers, candidate.Address) {
+			evacuated = append(evacuated, candidate)
+		} else {
+			others = append(others, candidate)
+		}
+	}
+
+	return append(evacuated, others...)
+}
+
+// evacuatedMembersByState returns the subset of online nodes that are evacuated,
+// grouped by their raft role. Only roles passed in the onlineByRole map are included.
+func evacuatedMembersByState(onlineByRole map[client.NodeRole][]client.NodeInfo, evacuatedMembers []string) map[client.NodeRole][]client.NodeInfo {
+	result := make(map[client.NodeRole][]client.NodeInfo, len(onlineByRole))
+	for role, nodes := range onlineByRole {
+		for _, node := range nodes {
+			if slices.Contains(evacuatedMembers, node.Address) {
+				result[role] = append(result[role], node)
+			}
+		}
+	}
+
+	return result
 }
 
 // GetNextRoleChange determines the next raft cluster member role change needed for rebalancing.
