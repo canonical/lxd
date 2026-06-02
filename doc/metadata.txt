@@ -6340,6 +6340,15 @@ Must have at least SystemAdmin role to give LXD full control over managed storag
 
 ```
 
+```{config:option} powerflex.version storage-powerflex-pool-conf
+:defaultdesc: "Discovered version"
+:scope: "global"
+:shortdesc: "Software version of the PowerFlex array."
+:type: "string"
+This field is automatically populated after querying the PowerFlex version.
+It cannot be set by the user.
+```
+
 ```{config:option} rsync.bwlimit storage-powerflex-pool-conf
 :defaultdesc: "`0` (no limit)"
 :scope: "global"
@@ -6358,11 +6367,11 @@ to be placed on the socket I/O.
 ```
 
 ```{config:option} volume.size storage-powerflex-pool-conf
-:defaultdesc: "`8GiB`"
 :scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
-The size must be in multiples of 8 GiB.
+The size must be in multiples of 8 GiB for PowerFlex 4.
+Starting with PowerFlex 5, the size can be in multiples of 1 GiB.
 See {ref}`storage-powerflex-limitations` for more information.
 ```
 
@@ -6428,7 +6437,8 @@ Enable this option to allow the volume to be attached to multiple isolated insta
 :scope: "global"
 :shortdesc: "Size/quota of the storage volume"
 :type: "string"
-The size must be in multiples of 8 GiB.
+The size must be in multiples of 8 GiB for PowerFlex 4.
+Starting with PowerFlex 5, the size can be in multiples of 1 GiB.
 See {ref}`storage-powerflex-limitations` for more information.
 ```
 
