@@ -4690,7 +4690,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		response.SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Connect to the target and push the image
@@ -4894,12 +4894,12 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 
 		err := shared.FileMove(metaFile.Name(), metaPath)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		err = shared.FileMove(rootfsFile.Name(), rootfsPath)
 		if err != nil {
-			return nil
+			return err
 		}
 	}
 

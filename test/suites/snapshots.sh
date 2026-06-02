@@ -107,12 +107,12 @@ snapshots() {
   fi
 
   # Create a snapshot with an expiry date specified in a YAML
-  expiry_date_in_one_minute=$(date -u -d '+10 minute' '+%Y-%m-%dT%H:%M:%SZ')
+  expiry_date_in_few_minutes=$(date -u -d '+10 minute' '+%Y-%m-%dT%H:%M:%SZ')
   lxc snapshot foo tester_yaml <<EOF
-expires_at: ${expiry_date_in_one_minute}
+expires_at: ${expiry_date_in_few_minutes}
 EOF
   # Check that the expiry date is set correctly
-  lxc config show foo/tester_yaml | grep "expires_at: ${expiry_date_in_one_minute}"
+  lxc config show foo/tester_yaml | grep "expires_at: ${expiry_date_in_few_minutes}"
   # Delete the snapshot
   lxc delete foo/tester_yaml
 
@@ -178,7 +178,6 @@ EOF
   [ -d "${LXD_DIR}/containers/foople" ]
   # FIXME: make this backend agnostic
   if [ "$lxd_backend" = "dir" ]; then
-    [ -d "${LXD_DIR}/snapshots/foople/namechange" ]
     [ -d "${LXD_DIR}/snapshots/foople/namechange" ]
   fi
 
@@ -430,7 +429,7 @@ test_snapshot_expiry() {
   created_at="$(lxc config get c1/snap1 --property created_at | awk -F' +' '{print $1}')"
   expires_at="$(lxc config get c1/snap1 --property expires_at | awk -F' +' '{print $1}')"
 
-  # Check if the expires_at propery is exactly 1d ahead.
+  # Check if the expires_at property is exactly 1d ahead.
   [ "$(date -d "${created_at} today + 1days")" = "$(date -d "${expires_at}")" ]
 
   lxc copy c1 c2
@@ -508,7 +507,7 @@ test_snapshot_fail() {
   # Containers should fail to snapshot when root is full (can't write to backup.yaml)
   lxc launch testimage c1 --device root,size=1MiB
   if lxc exec c1 -- dd if=/dev/urandom of=/root/big.bin count=1 bs=2M; then
-    echo "Writting more data than the root size should have failed"
+    echo "Writing more data than the root size should have failed"
     false
   fi
 

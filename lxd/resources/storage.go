@@ -470,9 +470,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 
 	storage.Total = 0
 	for _, card := range storage.Disks {
-		if storage.Disks != nil {
-			storage.Total += uint64(len(card.Partitions))
-		}
+		storage.Total += uint64(len(card.Partitions))
 
 		storage.Total++
 	}
