@@ -779,11 +779,6 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			logger.Errorf("Failed starting networks: %v", err)
 		}
 
-		client, err = cluster.Connect(ctx, req.ClusterAddress, s.Endpoints.NetworkCert(), serverCert, true)
-		if err != nil {
-			return err
-		}
-
 		// Add the cluster flag from the agent
 		features := []string{"cluster"}
 		err = version.UserAgentFeatures(features)
@@ -793,9 +788,9 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Notify the leader of successful join, possibly triggering
 		// role changes.
-		_, _, err = client.RawQuery(http.MethodPost, "/internal/cluster/rebalance", nil, "")
+		err = triggerClusterRebalance(ctx, s)
 		if err != nil {
-			logger.Warnf("Failed triggering cluster rebalance: %v", err)
+			logger.Warn("Failed triggering cluster rebalance after join", logger.Ctx{"err": err})
 		}
 
 		// Ensure all images are available after this node has joined.
@@ -1640,6 +1635,30 @@ func getClusterMemberRolesAndEvacuatedMembers(ctx context.Context, s *state.Stat
 	}
 
 	return memberRoles, evacuatedMembers, nil
+}
+
+// triggerClusterRebalance asks the current leader to run the internal cluster rebalance flow immediately.
+func triggerClusterRebalance(ctx context.Context, s *state.State) error {
+	leaderInfo, err := s.LeaderInfo()
+	if err != nil {
+		return err
+	}
+
+	if !leaderInfo.Clustered {
+		return cluster.ErrNodeIsNotClustered
+	}
+
+	client, err := cluster.Connect(ctx, leaderInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+	if err != nil {
+		return fmt.Errorf("Failed connecting to leader for rebalance: %w", err)
+	}
+
+	_, _, err = client.RawQuery(http.MethodPost, "/internal/cluster/rebalance", nil, "")
+	if err != nil {
+		return fmt.Errorf("Failed triggering cluster rebalance: %w", err)
+	}
+
+	return nil
 }
 
 func autoHealClusterTask(stateFunc func() *state.State, gateway *cluster.Gateway) (task.Func, task.Schedule) {
