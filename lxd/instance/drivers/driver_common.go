@@ -1059,7 +1059,7 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 			// Use shutdown context as we don't have access to the request context.
 			snapshotName, err := storagePools.VolumeDetermineNextSnapshotName(d.state.ShutdownCtx, d.state, volume.Pool, volume.Name, volume.Config)
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed determining next snapshot name for attached volume %q in storage pool %q: %w", volume.Name, volume.Pool, err)
 			}
 
 			// Attached volume snapshot description.
