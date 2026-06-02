@@ -1185,10 +1185,12 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 
 	run := func(ctx context.Context, op *operations.Operation) error {
 		// Sleep for the duration, or until the run context is cancelled.
+		timer := time.NewTimer(duration)
+		defer timer.Stop()
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.Tick(duration):
+		case <-timer.C:
 		}
 
 		return nil
