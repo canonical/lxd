@@ -1118,16 +1118,158 @@ func (d *powerflex) DeleteVolumeSnapshot(snapVol Volume, progressReporter ioprog
 
 // MountVolumeSnapshot simulates mounting a volume snapshot.
 func (d *powerflex) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
-	// A snapshot in PowerFlex is just another volume.
-	// We can reuse the volume mounting procedures.
-	return d.MountVolume(snapVol, progressReporter)
+	if !d.hasThinCloneSupport() {
+		// A snapshot in PowerFlex 4 is just another volume.
+		// We can reuse the volume mounting procedures.
+		return d.MountVolume(snapVol, progressReporter)
+	}
+
+	// In PowerFlex 5 we have to create a temporary thin clone from the snapshot.
+	// This thin clone can then be mounted like a regular volume.
+	revert := revert.New()
+	defer revert.Fail()
+
+	pool, err := d.resolvePool()
+	if err != nil {
+		return err
+	}
+
+	client := d.client()
+
+	domain, err := client.getProtectionDomain(pool.ProtectionDomainID)
+	if err != nil {
+		return err
+	}
+
+	// Get the snapshot volume name.
+	snapVolName, err := d.getVolumeName(snapVol)
+	if err != nil {
+		return err
+	}
+
+	snapVolumeID, err := client.getVolumeID(snapVolName)
+	if err != nil {
+		return err
+	}
+
+	cachedSnapVolParentUUID := snapVol.parentUUID
+
+	// Unset parent vol UUID to indicate thin clone.
+	// Get the new thin clone volume name.
+	snapVol.SetParentUUID("")
+	thinCloneVolName, err := d.getVolumeName(snapVol)
+	if err != nil {
+		return err
+	}
+
+	thinCloneID, err := client.createVolumeThinClone(domain.SystemID, snapVolumeID, thinCloneVolName)
+	if err != nil {
+		return err
+	}
+
+	// Ensure temporary thin clone volume is removed in case of an error.
+	revert.Add(func() { _ = client.deleteVolume(thinCloneID, "ONLY_ME") })
+
+	// For VMs, also create the temporary filesystem volume snapshot.
+	if snapVol.IsVMBlock() {
+		snapFsVol := snapVol.NewVMBlockFilesystemVolume()
+		snapFsVol.SetParentUUID(cachedSnapVolParentUUID)
+
+		snapFsVolName, err := d.getVolumeName(snapFsVol)
+		if err != nil {
+			return err
+		}
+
+		snapFSVolumeID, err := client.getVolumeID(snapFsVolName)
+		if err != nil {
+			return err
+		}
+
+		// Unset parent vol UUID to indicate thin clone.
+		snapFsVol.SetParentUUID("")
+		thinCloneFsVolName, err := d.getVolumeName(snapFsVol)
+		if err != nil {
+			return err
+		}
+
+		thinCloneFsID, err := client.createVolumeThinClone(domain.SystemID, snapFSVolumeID, thinCloneFsVolName)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { _ = client.deleteVolume(thinCloneFsID, "ONLY_ME") })
+	}
+
+	err = d.MountVolume(snapVol, progressReporter)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+	return nil
 }
 
 // UnmountVolumeSnapshot simulates unmounting a volume snapshot.
 func (d *powerflex) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) (bool, error) {
-	// A snapshot in PowerFlex is just another volume.
-	// We can reuse the volume mounting procedures.
-	return d.UnmountVolume(snapVol, false, progressReporter)
+	if !d.hasThinCloneSupport() {
+		// A snapshot in PowerFlex 4 is just another volume.
+		// We can reuse the volume mounting procedures.
+		return d.UnmountVolume(snapVol, false, progressReporter)
+	}
+
+	// Unset parent vol UUID to indicate thin clone.
+	snapVol.SetParentUUID("")
+
+	ourUnmount, err := d.UnmountVolume(snapVol, false, progressReporter)
+	if err != nil {
+		return false, err
+	}
+
+	if !ourUnmount {
+		return false, nil
+	}
+
+	snapVolName, err := d.getVolumeName(snapVol)
+	if err != nil {
+		return true, err
+	}
+
+	client := d.client()
+	volumeID, err := client.getVolumeID(snapVolName)
+	if err != nil {
+		return true, err
+	}
+
+	// Cleanup temporary snapshot volume.
+	err = d.client().deleteVolume(volumeID, "ONLY_ME")
+	if err != nil {
+		return true, err
+	}
+
+	// For VMs, also cleanup the temporary volume for a filesystem snapshot.
+	if snapVol.IsVMBlock() {
+		snapFsVol := snapVol.NewVMBlockFilesystemVolume()
+
+		// Unset parent vol UUID to indicate thin clone.
+		snapFsVol.SetParentUUID("")
+
+		snapFsVolName, err := d.getVolumeName(snapFsVol)
+		if err != nil {
+			return true, err
+		}
+
+		snapFSVolumeID, err := client.getVolumeID(snapFsVolName)
+		if err != nil {
+			return true, err
+		}
+
+		err = d.client().deleteVolume(snapFSVolumeID, "ONLY_ME")
+		if err != nil {
+			return true, err
+		}
+	}
+
+	return ourUnmount, nil
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
