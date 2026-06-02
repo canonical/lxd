@@ -114,9 +114,16 @@ func (m *MetricSet) String() string {
 			var labels strings.Builder
 			labelNames := make([]string, 0, len(sample.Labels))
 
-			// Add and sort labels if there are any
-			for labelName := range sample.Labels {
+			// Add and sort labels if there are any, accumulating the total
+			// label string size to pre-size the builder.
+			labelSize := len(sample.Labels) - 1 // commas between labels
+			for labelName, labelValue := range sample.Labels {
 				labelNames = append(labelNames, labelName)
+				labelSize += len(labelName) + 3 + len(labelValue) // name="value"
+			}
+
+			if labelSize > 0 {
+				labels.Grow(labelSize)
 			}
 
 			sort.Strings(labelNames)
