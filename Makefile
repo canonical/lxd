@@ -388,36 +388,39 @@ check-unit:
 	$(shell [ -n "$(GOCOVERDIR)" ] && mkdir -p "$(GOCOVERDIR)" && chmod 0777 "$(GOCOVERDIR)")
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -mod=readonly -failfast -tags "$(TAG_SQLITE3)" $(DEBUG) ./... $(COVER) $(COVER_TEST)
 
-.PHONY: dist
-dist:
+.PHONY: dist-dir
+dist-dir:
 	# Cleanup
-	rm -f $(ARCHIVE).gz
+	rm -rf lxd-$(VERSION)
 
-	# Create build dir
-	$(eval TMP := $(shell mktemp -d))
 	$(eval COMMIT_HASH := $(shell git rev-parse HEAD))
 	# Export the source code at the current commit, excluding irrelevant files and directories
-	git archive --prefix=lxd-$(VERSION)/ $(COMMIT_HASH) | tar -x -C $(TMP) --exclude=.gitignore --exclude=.github --exclude=grafana --exclude=tools
-	echo $(COMMIT_HASH) > $(TMP)/lxd-$(VERSION)/.gitref
+	git archive --prefix=lxd-$(VERSION)/ $(COMMIT_HASH) | tar -x -C . --exclude=.gitignore --exclude=.github --exclude=grafana --exclude=tools
+	echo $(COMMIT_HASH) > lxd-$(VERSION)/.gitref
 
 	# Download dependencies
-	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
+	(cd lxd-$(VERSION) ; go mod vendor)
 
 	# Download the dqlite library
-	git clone --depth=1 --branch "$(DQLITE_BRANCH)" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
-	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git rev-parse HEAD | tee .gitref)
+	git clone --depth=1 --branch "$(DQLITE_BRANCH)" https://github.com/canonical/dqlite lxd-$(VERSION)/vendor/dqlite
+	(cd lxd-$(VERSION)/vendor/dqlite ; git rev-parse HEAD | tee .gitref)
 
 	# Download the liblxc library
-	git clone --depth=1 --branch "$(LIBLXC_BRANCH)" https://github.com/lxc/lxc $(TMP)/lxd-$(VERSION)/vendor/liblxc
-	(cd $(TMP)/lxd-$(VERSION)/vendor/liblxc ; git rev-parse HEAD | tee .gitref)
+	git clone --depth=1 --branch "$(LIBLXC_BRANCH)" https://github.com/lxc/lxc lxd-$(VERSION)/vendor/liblxc
+	(cd lxd-$(VERSION)/vendor/liblxc ; git rev-parse HEAD | tee .gitref)
 
-	# Do not build doc on `make dist` on GH PRs
+	# Do not build doc on `make dist-dir` on GH PRs
 	if [ "$(GITHUB_EVENT_NAME)" = "pull_request" ]; then \
-		echo "Skipping doc generation for 'make dist' on pull_request event"; \
+		echo "Skipping doc generation for 'make dist-dir' on pull_request event"; \
 	else \
 		$(MAKE) doc; \
-		cp -r --preserve=mode doc/_build $(TMP)/lxd-$(VERSION)/doc/html/; \
+		cp -r --preserve=mode doc/_build lxd-$(VERSION)/doc/html/; \
 	fi
+
+.PHONY: dist
+dist: dist-dir
+	# Cleanup
+	rm -f $(ARCHIVE).gz
 
 	# Assemble a reproducible tarball
 	# The reproducibility comes from:
@@ -436,10 +439,10 @@ dist:
 		--numeric-owner --owner=0 --group=0 \
 		--mode=go+u,go-w \
 		--use-compress-program="gzip --no-name" \
-		--exclude-vcs -C $(TMP) -cf $(ARCHIVE).gz lxd-$(VERSION)/
+		--exclude-vcs -cf $(ARCHIVE).gz lxd-$(VERSION)/
 
 	# Cleanup
-	rm -Rf $(TMP)
+	rm -rf lxd-$(VERSION)
 
 .PHONY: static-analysis
 static-analysis: check-api check-auth check-metadata check-schema
