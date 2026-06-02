@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/units"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // Required returns function that runs one or more validators, all must pass without error.
@@ -1011,4 +1012,10 @@ func IsEntityName(name string) error {
 	}
 
 	return nil
+}
+
+// IsDottedVersion validates that a string is a valid dotted version.
+func IsDottedVersion(dottedVersion string) error {
+	_, err := version.NewDottedVersion(dottedVersion)
+	return err
 }
