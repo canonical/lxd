@@ -1512,6 +1512,85 @@ func evacuateClusterSetState(s *state.State, name string, state int) error {
 // evacuateHostShutdownDefaultTimeout default timeout (in seconds) for waiting for clean shutdown to complete.
 const evacuateHostShutdownDefaultTimeout = 30
 
+// checkEvacuationQuorum determines whether evacuating targetMember would break
+// raft quorum. It returns an error if evacuation should be rejected.
+//
+// Evacuation is allowed when:
+//   - the target is not currently a raft voter, or
+//   - the target is offline (already not contributing to quorum), or
+//   - enough online voters remain after removal to meet the required majority, or
+//   - an online standby or spare exists that can be promoted first, and the
+//     cluster currently has enough voters to make that promotion decision.
+func checkEvacuationQuorum(targetMember db.NodeInfo, raftNodes []db.RaftNode, connectivity map[string]bool, evacuatedMembers []string, memberRoles map[string][]db.ClusterRole, offlineThreshold time.Duration) error {
+	totalVoters := 0
+	onlineVoters := 0
+	onlineReplacementCandidates := 0
+	targetRole := db.RaftSpare
+
+	// Evaluate control-plane mode as if the target were already removed so that
+	// the pre-flight replacement-candidate filter matches the post-evacuation
+	// reality. If the target is one of exactly 3 CP members, including it would
+	// incorrectly keep CP mode active and exclude non-CP standbys that would
+	// legitimately be eligible after evacuation.
+	memberRolesWithoutTarget := make(map[string][]db.ClusterRole, len(memberRoles))
+	for addr, roles := range memberRoles {
+		if addr != targetMember.Address {
+			memberRolesWithoutTarget[addr] = roles
+		}
+	}
+
+	controlPlaneActive := cluster.IsControlPlaneActive(memberRolesWithoutTarget)
+
+	for _, raftNode := range raftNodes {
+		switch raftNode.Role {
+		case db.RaftVoter:
+			totalVoters++
+			if connectivity[raftNode.Address] && !slices.Contains(evacuatedMembers, raftNode.Address) {
+				onlineVoters++
+			}
+
+			if raftNode.Address == targetMember.Address {
+				targetRole = raftNode.Role
+			}
+
+		case db.RaftStandBy, db.RaftSpare:
+			if !connectivity[raftNode.Address] || slices.Contains(evacuatedMembers, raftNode.Address) {
+				continue
+			}
+
+			if controlPlaneActive && !slices.Contains(memberRoles[raftNode.Address], db.ClusterRoleControlPlane) {
+				continue
+			}
+
+			onlineReplacementCandidates++
+		}
+	}
+
+	// If the target is already evacuated in the DB its voter raft role is a stale
+	// artifact (not yet demoted by rebalance). It is not contributing to quorum,
+	// so the check is not applicable.
+	if targetRole != db.RaftVoter || targetMember.IsOffline(offlineThreshold) || slices.Contains(evacuatedMembers, targetMember.Address) {
+		return nil
+	}
+
+	requiredMajority := (totalVoters-1)/2 + 1
+	remainingOnlineVoters := onlineVoters - 1
+	if remainingOnlineVoters >= requiredMajority {
+		return nil
+	}
+
+	currentMajority := totalVoters/2 + 1
+	canPromoteReplacement := onlineVoters >= currentMajority &&
+		remainingOnlineVoters+1 >= requiredMajority &&
+		onlineReplacementCandidates > 0 &&
+		onlineVoters > 1
+	if !canPromoteReplacement {
+		return errors.New("Insufficient online voters to maintain quorum")
+	}
+
+	return nil
+}
+
 func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster.Gateway, op *operations.Operation, name string, mode string, stopInstance evacuateStopFunc, migrateInstance evacuateMigrateFunc) error {
 	// The instances are retrieved in a separate transaction, after the node is in EVACUATED state.
 	var dbInstances []dbCluster.Instance
