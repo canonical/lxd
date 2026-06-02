@@ -342,7 +342,13 @@ func (c *Client) HandleEvent(event api.Event) {
 			}
 		}
 
+		lineSize := len(lifecycleEvent.Action)
+		for k, v := range context {
+			lineSize += len(k) + 3 + len(v) + 1 // k="v" + space
+		}
+
 		var line strings.Builder
+		line.Grow(lineSize)
 
 		// Add the remaining context as the message prefix.
 		for k, v := range context {
@@ -404,7 +410,13 @@ func (c *Client) HandleEvent(event api.Event) {
 
 		sort.Strings(keys)
 
+		messageSize := len(logEvent.Message)
+		for _, k := range keys {
+			messageSize += len(k) + 3 + len(context[k]) + 1 // k="v" + space
+		}
+
 		var message strings.Builder
+		message.Grow(messageSize)
 
 		// Add the remaining context as the message prefix. The keys are sorted alphabetically.
 		for _, k := range keys {
