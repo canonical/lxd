@@ -11,6 +11,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/validate"
+	"github.com/canonical/lxd/shared/version"
 )
 
 // powerFlexDefaultUser represents the default PowerFlex user name.
@@ -91,6 +92,22 @@ func (d *powerflex) connector() (connectors.Connector, error) {
 // isRemote returns true indicating this driver uses remote storage.
 func (d *powerflex) isRemote() bool {
 	return true
+}
+
+// hasThinCloneSupport returns true if the PowerFlex system version supports thin clones.
+// This is true for all PowerFlex version starting with 5.0.
+func (d *powerflex) hasThinCloneSupport() bool {
+	powerFlexVersion, err := version.NewDottedVersion(d.config["powerflex.version"])
+	if err != nil {
+		return false
+	}
+
+	thinCloneSupportVersion, err := version.NewDottedVersion("5.0")
+	if err != nil {
+		return false
+	}
+
+	return powerFlexVersion.Compare(thinCloneSupportVersion) >= 0
 }
 
 // Info returns info about the driver and its environment.
