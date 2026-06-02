@@ -109,8 +109,10 @@ func (d *powerflex) Info() Info {
 		DirectIO:                     true,
 		IOUring:                      true,
 		MountedRoot:                  false,
-		PopulateParentVolumeUUID:     false,
-		UUIDVolumeNames:              true,
+		// If parent volume UUID is present we know a snapshot [Volume] is an actual snapshot.
+		// In PowerFlex 5 when creating a thin clone of a snapshot, we unset the parent volume UUID to differentiate between snapshots and thin clones.
+		PopulateParentVolumeUUID: true,
+		UUIDVolumeNames:          true,
 	}
 }
 
