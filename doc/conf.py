@@ -26,6 +26,9 @@ copyright = "2014-%s %s" % (datetime.date.today().year, author)
 with open("../shared/version/flex.go") as fd:
     version = fd.read().split("\n")[-2].split()[-1].strip("\"")
 
+# Base URL of RTD hosted project
+html_baseurl = 'https://documentation.ubuntu.com/lxd/'
+
 # Extensions.
 extensions = [
     "myst_parser",
@@ -41,7 +44,6 @@ extensions = [
     "terminal-output",
     "config-options",
     "notfound.extension",
-    'sphinx_sitemap',
 ]
 
 myst_enable_extensions = [
@@ -187,6 +189,7 @@ linkcheck_ignore = [
     r'https://ubuntu\.com/.*',
     r'https://bugs\.launchpad\.net/.*',
     r'https://microcloud\.is/.*',
+    r'https://criu.org/',
 ]
 
 # Ignore anchors for these URLs in linkcheck, but still check the URLs themselves
@@ -198,23 +201,6 @@ linkcheck_anchors_ignore_for_url = [
 redirects = {
     "production-setup/index": "../explanation/performance_tuning/index.html",
 }
-
-#######################
-# Sitemap configuration: https://sphinx-sitemap.readthedocs.io/
-#######################
-
-# Base URL of RTD hosted project
-
-html_baseurl = 'https://documentation.ubuntu.com/lxd/'
-
-# Configures URL scheme for sphinx-sitemap to generate correct URLs
-# based on the version if built in RTD
-if 'READTHEDOCS_VERSION' in os.environ:
-    rtd_version = os.environ["READTHEDOCS_VERSION"]
-    sitemap_url_scheme = f'{rtd_version}/{{link}}'
-else:
-    sitemap_url_scheme = '{link}'
-
 
 ###########################################
 ### Prevent indexing of older docs versions

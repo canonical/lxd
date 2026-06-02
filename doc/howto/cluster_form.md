@@ -402,7 +402,7 @@ opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
 ```{youtube} https://www.youtube.com/watch?v=iWZYUU8lX5A
 ```
 
-Instead of setting up your LXD cluster manually, you can use [MicroCloud](https://microcloud.is/) to get a fully highly available LXD cluster with OVN and with Ceph storage up and running.
+Instead of setting up your LXD cluster manually, you can use [MicroCloud](https://canonical.com/microcloud) to get a fully highly available LXD cluster with OVN and with Ceph storage up and running.
 
 To install the required snaps, run the following command:
 
