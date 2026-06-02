@@ -454,14 +454,15 @@ func (d *powerflex) commonVolumeRules() map[string]func(value string) error {
 		//  scope: global
 		"block.type": validate.Optional(validate.IsOneOf("thin", "thick")),
 		// lxdmeta:generate(entities=storage-powerflex; group=volume-conf; key=size)
-		// The size must be in multiples of 8 GiB.
+		// The size must be in multiples of 8 GiB for PowerFlex 4.
+		// Starting with PowerFlex 5, the size can be in multiples of 1 GiB.
 		// See {ref}`storage-powerflex-limitations` for more information.
 		// ---
 		//  type: string
 		//  defaultdesc: same as `volume.size`
 		//  shortdesc: Size/quota of the storage volume
 		//  scope: global
-		"size": validate.Optional(validate.IsMultipleOfUnit("8GiB")),
+		"size": validate.Optional(validate.IsMultipleOfUnit("1GiB")),
 	}
 }
 

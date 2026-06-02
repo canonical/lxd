@@ -287,14 +287,14 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  scope: global
 		"powerflex.snapshot_copy": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=volume.size)
-		// The size must be in multiples of 8 GiB.
+		// The size must be in multiples of 8 GiB for PowerFlex 4.
+		// Starting with PowerFlex 5, the size can be in multiples of 1 GiB.
 		// See {ref}`storage-powerflex-limitations` for more information.
 		// ---
 		//  type: string
-		//  defaultdesc: `8GiB`
 		//  shortdesc: Size/quota of the storage volume
 		//  scope: global
-		"volume.size": validate.Optional(validate.IsMultipleOfUnit("8GiB")),
+		"volume.size": validate.Optional(validate.IsMultipleOfUnit("1GiB")),
 	}
 
 	err := d.validatePool(config, rules, d.commonVolumeRules())
