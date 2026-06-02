@@ -614,6 +614,43 @@ func (p *powerFlexClient) createVolumeSnapshot(systemID string, volumeID string,
 	return actualResponse.VolumeIDs[0], nil
 }
 
+// createVolumeThinClone creates a new thin clone for the volume behind volumeID under the given systemID.
+// The returned string represents the ID of the thin clone.
+func (p *powerFlexClient) createVolumeThinClone(systemID string, volumeID string, thinCloneName string) (string, error) {
+	body := map[string]any{
+		"snapshotDefs": []map[string]string{
+			{
+				"volumeId":     volumeID,
+				"snapshotName": thinCloneName,
+			},
+		},
+	}
+
+	var actualResponse struct {
+		VolumeIDs []string `json:"volumeIdList"`
+	}
+
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/System::"+systemID+"/action/createThinClone", body, &actualResponse)
+	if err != nil {
+		powerFlexError, ok := err.(*powerFlexError)
+		if ok {
+			// API returns 500 if the snapshot name is too long.
+			// To not confuse it with other 500 that might occur check the error code too.
+			if powerFlexError.HTTPStatusCode() == http.StatusInternalServerError && powerFlexError.ErrorCode() == powerFlexCodeNameTooLong {
+				return "", api.StatusErrorf(http.StatusNotFound, "Thin clone name exceeds the allowed length of 31 characters: %q", thinCloneName)
+			}
+		}
+
+		return "", fmt.Errorf("Failed creating thin clone: %q: %w", thinCloneName, err)
+	}
+
+	if len(actualResponse.VolumeIDs) == 0 {
+		return "", errors.New("Response does not contain a single thin clone ID")
+	}
+
+	return actualResponse.VolumeIDs[0], nil
+}
+
 // getVolumeSnapshots returns the snapshots of the volume behind volumeID.
 func (p *powerFlexClient) getVolumeSnapshots(volumeID string) ([]powerFlexVolume, error) {
 	volume, err := p.getVolume(volumeID)
