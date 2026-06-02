@@ -2077,6 +2077,10 @@ func (d *qemu) setupNvram() error {
 		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.CSM)
 	case instancetype.BootModeUEFISecureBoot:
 		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.SECUREBOOT)
+		if len(firmwares) == 0 {
+			return errors.New("Secure boot firmware not available. Set boot.mode=uefi-nosecureboot")
+		}
+
 	default:
 		firmwares = edk2.GetArchitectureFirmwarePairsForUsage(d.architecture, edk2.GENERIC)
 	}
