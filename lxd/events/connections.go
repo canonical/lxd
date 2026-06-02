@@ -74,14 +74,14 @@ func readerCommon(ctx context.Context, lock *sync.Mutex, rc io.ReadCloser) {
 
 		// This is used to determine whether the client has terminated.
 		_, err := rc.Read(buf)
-		if err != nil && errors.Is(err, io.EOF) {
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				logger.Warn("Failed reading from connection", logger.Ctx{"err": err})
+			}
+
 			return
 		}
 	}()
-
-	if ctx.Err() != nil {
-		return
-	}
 
 	<-ctx.Done()
 }
@@ -257,7 +257,7 @@ func (e *streamListenerConnection) WriteJSON(event any) error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
-	err := e.SetWriteDeadline(time.Now().Add(5 * (time.Second)))
+	err := e.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	if err != nil {
 		return fmt.Errorf("Failed setting write deadline: %w", err)
 	}

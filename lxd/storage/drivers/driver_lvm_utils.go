@@ -95,8 +95,8 @@ func (d *lvm) isLVMNotFoundExitError(err error) bool {
 	return false
 }
 
-// pysicalVolumeExists checks if an LVM Physical Volume exists.
-func (d *lvm) pysicalVolumeExists(pvName string) (bool, error) {
+// physicalVolumeExists checks if an LVM Physical Volume exists.
+func (d *lvm) physicalVolumeExists(pvName string) (bool, error) {
 	_, err := shared.RunCommand(context.TODO(), "pvs", "--noheadings", "-o", "pv_name", pvName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
@@ -515,10 +515,12 @@ func (d *lvm) resizeLogicalVolume(lvPath string, sizeBytes int64) error {
 		return fmt.Errorf("Error checking LVM version: %w", err)
 	}
 
-	args := []string{"-L", strconv.FormatInt(sizeBytes, 10) + "b", "-f", lvPath}
+	args := []string{"-L", strconv.FormatInt(sizeBytes, 10) + "b", "-f"}
 	if isRecent {
 		args = append(args, "--fs=ignore")
 	}
+
+	args = append(args, lvPath)
 
 	_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvresize", args...)
 	if err != nil {
@@ -856,7 +858,7 @@ func (d *lvm) deactivateVolume(vol Volume) (bool, error) {
 	if d.usesThinpool() {
 		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 	} else {
-		// Use parent for non-thinpool vols as deactivating the parent volume also activates its snapshots.
+		// Use parent for non-thinpool vols as deactivating the parent volume also deactivates its snapshots.
 		parent, _, _ := api.GetParentAndSnapshotName(vol.Name())
 		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, parent)
 	}
