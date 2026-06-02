@@ -90,7 +90,7 @@ func (h *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	} else if r.Question[0].Qtype == dns.TypeA || r.Question[0].Qtype == dns.TypeAAAA {
 		msg = h.handleA(r)
 
-		// Currently forkdns doesn't support IPv6, but to ensure compatbility and expected behavior with
+		// Currently forkdns doesn't support IPv6, but to ensure compatibility and expected behavior with
 		// DNS clients, we return an empty AAAA response if the A record was found (meaning the domain
 		// exists, but no AAAA records).
 		if r.Question[0].Qtype == dns.TypeAAAA && msg.Rcode == dns.RcodeSuccess {
