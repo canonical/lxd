@@ -1349,15 +1349,9 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Action {
 	case "evacuate":
-		ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterMemberRestore, true)
+		err = validateEvacuateRequest(r.Context(), s, name)
 		if err != nil {
-			return response.SmartError(err)
-		}
-
-		for _, op := range ops {
-			if op.Location == name && !op.StatusCode.IsFinal() {
-				return response.BadRequest(fmt.Errorf("Cannot evacuate %q while a restore operation is in progress", name))
-			}
+			return response.BadRequest(err)
 		}
 
 		stopFunc := func(ctx context.Context, inst instance.Instance) error {
@@ -1511,6 +1505,37 @@ func evacuateClusterSetState(s *state.State, name string, state int) error {
 
 // evacuateHostShutdownDefaultTimeout default timeout (in seconds) for waiting for clean shutdown to complete.
 const evacuateHostShutdownDefaultTimeout = 30
+
+// validateEvacuateRequest checks that no conflicting operation is already running before
+// allowing an evacuation to proceed. It rejects the request if a restore is in progress
+// for the target member, or if any cluster-wide evacuation is already running.
+// Note: the ConflictReference on the operation provides a race-safe fallback, but checking
+// here gives a clear error message before the quorum check runs.
+func validateEvacuateRequest(ctx context.Context, s *state.State, memberName string) error {
+	ops, err := operationsGetByType(ctx, s, "", operationtype.ClusterMemberRestore, true)
+	if err != nil {
+		return err
+	}
+
+	for _, op := range ops {
+		if op.Location == memberName && !op.StatusCode.IsFinal() {
+			return fmt.Errorf("Cannot evacuate %q while a restore operation is in progress", memberName)
+		}
+	}
+
+	evacOps, err := operationsGetByType(ctx, s, "", operationtype.ClusterMemberEvacuate, true)
+	if err != nil {
+		return err
+	}
+
+	for _, op := range evacOps {
+		if !op.StatusCode.IsFinal() {
+			return fmt.Errorf("Cannot evacuate %q while another cluster member evacuation is in progress", memberName)
+		}
+	}
+
+	return nil
+}
 
 // checkEvacuationQuorum determines whether evacuating targetMember would break
 // raft quorum. It returns an error if evacuation should be rejected.
