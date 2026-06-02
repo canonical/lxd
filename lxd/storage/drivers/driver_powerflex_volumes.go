@@ -665,6 +665,14 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 
 // GetVolumeDiskPath returns the location of a root disk block device.
 func (d *powerflex) GetVolumeDiskPath(vol Volume) (string, error) {
+	if vol.IsSnapshot() && d.hasThinCloneSupport() {
+		// In PowerFlex 5 snapshots cannot be attached directly. The [powerflex.MountVolumeSnapshot]
+		// maps a temporary thin clone.
+		// Therefore ensure the snapshot's parent volume UUID is unset to indicate we are referring to the thin clone
+		// when deriving the volume name.
+		vol.SetParentUUID("")
+	}
+
 	if vol.IsVMBlock() || (vol.volType == VolumeTypeCustom && IsContentBlock(vol.contentType)) {
 		devPath, _, err := d.getMappedDevPath(vol, false)
 		return devPath, err
