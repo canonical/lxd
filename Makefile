@@ -131,12 +131,9 @@ dqlite:
 		echo "Retrieving dqlite from ${DQLITE_BRANCH} branch"; \
 		git clone --depth=1 --branch "${DQLITE_BRANCH}" "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
 	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
-		if [ "$(shell git -C "$(DQLITE_PATH)" branch --show-current)" = "master" ]; then \
-			echo "Update your local checkout of dqlite to use the 'main' branch instead of the 'master'"; \
-			exit 1; \
-		fi; \
-		echo "Updating existing dqlite branch"; \
-		git -C "$(DQLITE_PATH)" pull; \
+		echo "Switching/updating dqlite to ${DQLITE_BRANCH} branch"; \
+		git -C "$(DQLITE_PATH)" fetch --depth=1 origin "${DQLITE_BRANCH}"; \
+		git -C "$(DQLITE_PATH)" checkout -B "${DQLITE_BRANCH}" FETCH_HEAD; \
 	fi
 
 	cd "$(DQLITE_PATH)" && \
@@ -158,8 +155,9 @@ liblxc:
 		echo "Retrieving lxc/liblxc from $(LIBLXC_BRANCH) branch"; \
 		git clone --depth=1 --branch "${LIBLXC_BRANCH}" "https://github.com/lxc/lxc" "$(LIBLXC_PATH)"; \
 	elif [ -e "$(LIBLXC_PATH)/.git" ]; then \
-		echo "Updating existing lxc/liblxc branch"; \
-		git -C "$(LIBLXC_PATH)" pull; \
+		echo "Switching/updating lxc/liblxc to $(LIBLXC_BRANCH) branch"; \
+		git -C "$(LIBLXC_PATH)" fetch --depth=1 origin "$(LIBLXC_BRANCH)"; \
+		git -C "$(LIBLXC_PATH)" checkout -B "$(LIBLXC_BRANCH)" FETCH_HEAD; \
 	fi
 
 	# XXX: the rootfs-mount-path must not depend on LIBLXC_PATH to allow
@@ -199,23 +197,21 @@ endif
 
 .PHONY: env
 env:
-	@echo "export CGO_CFLAGS=\"$(CGO_CFLAGS)\""
-	@echo "export CGO_LDFLAGS=\"$(CGO_LDFLAGS)\""
-	@echo "export LD_LIBRARY_PATH=\"$(LD_LIBRARY_PATH)\""
-	@echo "export PKG_CONFIG_PATH=\"$(PKG_CONFIG_PATH)\""
-	@echo "export CGO_LDFLAGS_ALLOW=\"$(CGO_LDFLAGS_ALLOW)\""
+	@echo "export CGO_CFLAGS=\"$(CGO_CFLAGS)\""; \
+	 echo "export CGO_LDFLAGS=\"$(CGO_LDFLAGS)\""; \
+	 echo "export LD_LIBRARY_PATH=\"$(LD_LIBRARY_PATH)\""; \
+	 echo "export PKG_CONFIG_PATH=\"$(PKG_CONFIG_PATH)\""; \
+	 echo "export CGO_LDFLAGS_ALLOW=\"$(CGO_LDFLAGS_ALLOW)\""
 
 .PHONY: deps
 deps: dqlite liblxc
-	@echo ""
-	@echo "# Please set the following in your environment (possibly ~/.bashrc)"
+	@echo ""; echo "# Please set the following in your environment (possibly ~/.bashrc)"
 	@$(MAKE) -s env
 
 # Spawns an interactive test shell for quick interactions with LXD and the test
 # suite.
 .PHONY: test-shell
 test-shell:
-	@eval "$(MAKE) -s env" >/dev/null
 	@cd test && exec ./main.sh test-shell
 
 .PHONY: tics
