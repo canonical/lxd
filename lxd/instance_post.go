@@ -9,6 +9,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/auth"
@@ -638,8 +639,8 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 		// the new root disk device. Iterate in reverse order to respect profile
 		// precedence.
 		var profileRootDev map[string]string
-		for i := len(apiProfiles) - 1; i >= 0; i-- {
-			_, profileRootDev, err = api.GetRootDiskDevice(apiProfiles[i].Devices)
+		for _, apiProfile := range slices.Backward(apiProfiles) {
+			_, profileRootDev, err = api.GetRootDiskDevice(apiProfile.Devices)
 			if err == nil {
 				break
 			}
