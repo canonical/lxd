@@ -26,7 +26,7 @@ snapcraft pack
 sudo snap install qemu-for-lxd_*.snap --devmode
 
 # connect snaps
-sudo snap connect lxd:gpu-2404 mesa-2404:gpu-2404
+sudo snap connect lxd:gpu-2604 mesa-2604:gpu-2604
 sudo snap connect lxd:qemu-external qemu-for-lxd:qemu-external
 ```
 
@@ -52,7 +52,7 @@ ls -la /dev/dri/by-path/*-render
 
 # add the following lines:
   raw.apparmor: |-
-    /snap/lxd/*/gpu-2404/** mr,
+    /snap/lxd/*/gpu-2604/** mr,
     /dev/dri/ r,
     /dev/dri/card[0-9]* rw,
     /dev/dri/renderD[0-9]* rw,

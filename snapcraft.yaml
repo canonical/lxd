@@ -1,7 +1,8 @@
 name: lxd
-base: core24
+base: core26
+build-base: devel  # XXX required until snapcraft 9.0 lands in latest/stable
 assumes:
-  - snapd2.64
+  - snapd2.75
 version: git
 grade: devel
 summary: LXD - container and VM manager
@@ -73,10 +74,10 @@ plugs:
  ovn-env:
    interface: content
    target: "$SNAP_DATA/microovn/ovn-env"
- gpu-2404:
+ gpu-2604:
    interface: content
-   target: $SNAP/gpu-2404
-#   default-provider: mesa-2404
+   target: $SNAP/gpu-2604
+   #default-provider: mesa-2604
  qemu-external:
    interface: content
    content: qemu-external-binaries
@@ -84,12 +85,19 @@ plugs:
 
 layout:
   /usr/share/libdrm:
-    bind: $SNAP/gpu-2404/libdrm
+    bind: $SNAP/gpu-2604/mesa-2604/usr/share/libdrm
   /usr/share/drirc.d:
-    symlink: $SNAP/gpu-2404/drirc.d
+    symlink: $SNAP/gpu-2604/mesa-2604/usr/share/drirc.d
   # For PCI and USB ID files
   /usr/share/misc:
     bind: $SNAP/share/misc
+  # With `core26` no longer shipping a Python interpreter, the LXD snap
+  # needs to vendor its own Python runtime.
+  /usr/bin/python3:
+    # XXX: Apparmor follows symlinks so pointing to `$SNAP/bin/python3`
+    # causes denials when the snap tries to execute Python scripts.
+    # Instead, point directly to the actual interpreter.
+    bind-file: $SNAP/bin/python3.14
 
 apps:
   # Main commands
@@ -102,7 +110,7 @@ apps:
 
   daemon:
     command-chain:
-      - bin/gpu-2404-custom-wrapper
+      - bin/gpu-2604-custom-wrapper
     command: commands/daemon.start
     reload-command: commands/daemon.reload
     stop-command: commands/daemon.stop
@@ -204,6 +212,23 @@ hooks:
 
 parts:
   # Dependencies
+  python-runtime:
+    plugin: nil
+    stage-packages:
+      - python3.14-minimal
+      - libpython3.14-stdlib
+    organize:
+      usr/bin/: bin/
+      usr/lib/: lib/
+    prime:
+      - bin/python3.14
+      - lib/python3.14
+      # Exclude unused bits
+      - -lib/python3.14/lib-dynload/_remote_debugging.*.so
+      - -lib/python3.14/lib-dynload/_test*.so
+      - -lib/python3.14/test/
+      - -lib/python3.14/unittest/
+
   amd-ctk:
     source: https://github.com/ROCm/container-toolkit
     source-commit: 3ab0394f71220e693ae016fa6581fbd04a51ed44 # v1.2.0
@@ -220,7 +245,8 @@ parts:
     stage-packages:
       - btrfs-progs
     organize:
-      sbin/: bin/
+      usr/bin/: bin/
+      usr/sbin/: bin/
     prime:
       - bin/btrfs
       - bin/btrfstune
@@ -229,6 +255,7 @@ parts:
   ceph:
     after:
       - libatomic
+      - python-runtime
     plugin: nil
     stage-packages:
       # XXX: explicitly depend on libsnappy1v5 due to https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2072656
@@ -273,6 +300,7 @@ parts:
       - lib/*/libboost_context.so*
       - lib/*/libboost_filesystem.so*
       - lib/*/libboost_iostreams.so*
+      - lib/*/libboost_process.so*
       - lib/*/libboost_program_options.so*
       - lib/*/libboost_thread.so*
       - lib/*/libboost_url.so*
@@ -303,7 +331,7 @@ parts:
       - lib/*/librtmp.so*
       - lib/*/libsasl2.so*
       - lib/*/libsnappy.so*
-      - lib/*/libssh.so*
+      - lib/*/libssh2.so*
       - lib/*/libtcmalloc.so*
       - lib/*/libunwind.so*
 
@@ -505,11 +533,14 @@ parts:
       # Build Release
       run_build RELEASE ""
 
-      # Build Debug (silence the copious build output to avoid doubling it)
-      run_build DEBUG ".debug" > /dev/null
+      # RISC-V build is already very slow and adding a DEBUG build makes it even slower, so skip it.
+      if [ "$(uname -m)" != "riscv64" ]; then
+        # Build Debug (silence the copious build output to avoid doubling it)
+        run_build DEBUG ".debug" > /dev/null
+      fi
 
       # Cleanup debug vars
-      rm "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.debug.fd"
+      rm -f "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.debug.fd"
     prime:
       - share/qemu/*
 
@@ -552,7 +583,6 @@ parts:
       - lvm2
       - thin-provisioning-tools
     organize:
-      sbin/: bin/
       usr/lib/: lib/
       usr/sbin/: bin/
     override-build: |-
@@ -725,6 +755,7 @@ parts:
       - else:
         - openvswitch-common
         - openvswitch-switch
+        - libunbound8        # workaround for https://github.com/canonical/core-base/issues/443
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       craftctl default
@@ -738,7 +769,6 @@ parts:
       [ "$(uname -m)" = "armv7l" ] && exit 0
       craftctl default
     organize:
-      sbin/: bin/
       usr/bin/: bin/
       usr/lib/: lib/
       usr/share/: share/
@@ -755,6 +785,8 @@ parts:
       - to armhf: []
       - else:
         - ovn-common
+        - libevent-2.1-7t64  # workaround for https://github.com/canonical/core-base/issues/443
+        - libunbound8        # workaround for https://github.com/canonical/core-base/issues/443
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       craftctl default
@@ -777,10 +809,15 @@ parts:
       - lib/*/libunbound*so*
 
   spice-server:
+    after:
+      - python-runtime
     source: https://git.launchpad.net/ubuntu/+source/spice
-    source-commit: 085ca6b2bf58014ad8be571f3b601465c85ae931 # import/0.15.1-1build2
+    source-commit: 8c6cce7e0f8543063f2418051635efa52302fd47 # import/0.16.0-1
     source-depth: 1
     source-type: git
+    # XXX: needed for snapcraft 8.x only
+    build-environment:
+      - PATH: "/usr/bin:${PATH}" # ensure python3 is found in PATH
     plugin: meson
     meson-parameters:
       - --prefix=/
@@ -824,9 +861,7 @@ parts:
 
       craftctl default
     organize:
-      sbin/: bin/
       usr/lib: lib/
-      usr/local/lib/: lib/
     prime:
       - lib/*/libjpeg*so*
       - lib/*/libspice-server*so*
@@ -843,17 +878,21 @@ parts:
       - bin/swtpm
       - lib/*/swtpm/libswtpm*so*
       - lib/*/libtpms*so*
+      - lib/*/libjson-glib-1.0*so*
 
   qemu:
     after:
       - libatomic
       - spice-server
+      - python-runtime
     source: https://git.launchpad.net/ubuntu/+source/qemu
     source-commit: 96cda2bbb2f530d08f6bda1f0dc186a0e0ce9674 # import/1%10.2.1+ds-1ubuntu3
     source-depth: 1
     source-type: git
     plugin: autotools
     autotools-configure-parameters:
+      # XXX: needed for snapcraft 8.x only
+      - --python=/usr/bin/python3  # Force the use of the build host's Python
       - --disable-auth-pam
       - --disable-bochs
       - --disable-brlapi
@@ -923,7 +962,7 @@ parts:
         - liburing-dev
         - libusb-1.0-0-dev
         - libusbredirparser-dev
-        - python3-pip
+        - meson
         - quilt
         - librbd-dev
     stage-packages:
@@ -951,14 +990,6 @@ parts:
       [ "$(uname -m)" = "armv7l" ] && exit 0
       craftctl default
 
-      set -eux
-
-      # Download meson Python wheel (normally shipped in upstream tarballs)
-      pip download --dest python/wheels meson==1.9.0
-
-      # Ensure the wheels were downloaded
-      [ "$(sha256sum python/wheels/meson-1.9.0-py3-none-any.whl | awk '{print $1}')" = "45e51ddc41e37d961582d06e78c48e0f9039011587f3495c4d6b0781dad92357" ] || { echo "Invalid sha256sum for meson"; exit 1; }
-
     override-build: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       set -ex
@@ -984,10 +1015,13 @@ parts:
           sed -i '1 a set -- "$@" --enable-tcg' configure
       fi
 
-      # Extract efi-virtio.rom from ipxe-qemu.
-      # This doesn't work in the organize section below.
-      mkdir -p "${CRAFT_PART_INSTALL}"/share/qemu
-      mv "${CRAFT_PART_INSTALL}"/usr/lib/ipxe/qemu/efi-virtio.rom "${CRAFT_PART_INSTALL}"/share/qemu/
+      # opensbi provides `fw_dynamic.bin` and `qemu-system-riscv` creates a
+      # symlink. Manually moving the binary into place avoids pulling the QEMU
+      # package just for the symlink.
+      if [ "${QEMUARCH}" = "riscv64" ]; then
+          mkdir -p "${CRAFT_PART_INSTALL}"/share/qemu/
+          mv "${CRAFT_PART_INSTALL}"/usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.bin "${CRAFT_PART_INSTALL}"/share/qemu/opensbi-riscv64-generic-fw_dynamic.bin
+      fi
 
       set +ex
       craftctl default
@@ -999,7 +1033,7 @@ parts:
       usr/local/lib/: lib/
       usr/local/libexec/: bin/
       usr/local/share/: share/
-      usr/share/qemu/opensbi*: share/qemu/
+      usr/share/qemu/efi-virtio.rom: share/qemu/
       usr/share/qemu/s390-ccw.img: share/qemu/
       usr/share/qemu/slof.bin: share/qemu/
       usr/share/seabios/bios-256k.bin: share/qemu/
@@ -1310,9 +1344,14 @@ parts:
       ln -s /var/snap/lxd/common/lxc/local.conf "${CRAFT_PART_INSTALL}/lxc/config/common.conf.d/01-local.conf"
 
   lxcfs:
+    after:
+      - python-runtime
     source: https://github.com/lxc/lxcfs
     source-depth: 1
     source-type: git
+    # XXX: needed for snapcraft 8.x only
+    build-environment:
+      - PATH: "/usr/bin:${PATH}" # ensure python3 is found in PATH
     build-packages:
       - libfuse3-dev
       - pkg-config
@@ -1334,6 +1373,7 @@ parts:
       lib/*/lxcfs/liblxcfs.so: lib/
       snap/lxd/current/lxc/config/common.conf.d/*: lxc/config/common.conf.d/
       snap/lxd/current/lxcfs/: lxcfs/
+      usr/bin/: bin/
       usr/lib/: lib/
     prime:
       - bin/fusermount
@@ -1367,18 +1407,13 @@ parts:
       - spice-server
       - edk2
       - nftables
-    source: https://git.launchpad.net/ubuntu/+source/python-uefivars
-    source-commit: f5390dfa5df2c99da84a471fe5b322020d78cb15 # import/1.2-0ubuntu1
-    source-depth: 1
-    source-type: git
-    plugin: python
-    build-packages:
-      - quilt
+      - python-runtime
+    plugin: nil
     stage-packages:
       - to amd64:
-        - python3-crc32c
+        - python3-uefivars
       - to arm64:
-        - python3-crc32c
+        - python3-uefivars
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
@@ -1390,18 +1425,17 @@ parts:
       craftctl default
     override-build: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-
-      # Apply patches from Ubuntu sources.
-      QUILT_PATCHES=debian/patches quilt push -a
-
       craftctl default
     organize:
-      lib/python3.12/site-packages/: lib/python3/dist-packages/
-      bin/uefivars: bin/uefivars.py
+      usr/bin/uefivars: bin/uefivars.py
+      usr/lib/: lib/
     prime:
+      # The deepdiff dependency is only used in tests, so we don't need to include it in the prime step.
+      # https://github.com/awslabs/python-uefivars/pull/18
       - bin/uefivars.py  # LXD expects the .py extension
       - lib/python3/dist-packages/crc32c*
       - lib/python3/dist-packages/pyuefivars*
+      - lib/python3/dist-packages/uefivars*
       # Remove crc32c bloat
       - -lib/python3/dist-packages/crc32c/ext
       - -lib/python3/dist-packages/crc32c/benchmark.py
@@ -1416,6 +1450,7 @@ parts:
     source-depth: 0
     source-type: git
     after:
+      - python-runtime
       - lxc
       - dqlite
     build-packages:
@@ -1504,7 +1539,8 @@ parts:
       # Not worth the effort for now.
       if [ "$(uname -m)" != "armv7l" ] && [ "$(uname -m)" != "riscv64" ]; then
         # Build the static website
-        make doc
+        # XXX: needed for snapcraft 8.x only
+        PATH="/usr/bin:${PATH}" make doc # ensure python3 is found in PATH
 
         # Remove unneeded bits
         rm doc/_build/objects.inv    # only objects.inv.txt is used
@@ -1600,14 +1636,14 @@ parts:
     prime:
       - bin/setup-shmounts
 
-  gpu-2404:
+  gpu-2604:
     after:
       - lxd
       - qemu
     source: https://github.com/canonical/gpu-snap.git
     plugin: dump
     override-prime: |
-      ${CRAFT_PART_SRC}/bin/gpu-2404-cleanup mesa-2404 nvidia-2404
+      ${CRAFT_PART_SRC}/bin/gpu-2604-cleanup mesa-2604 nvidia-2604
 
   strip:
     after:
@@ -1662,7 +1698,7 @@ parts:
         -not -path "${CRAFT_PRIME}/bin/xfs_admin" \
         -not -path "${CRAFT_PRIME}/bin/uefivars.py" \
         -not -path "${CRAFT_PRIME}/bin/lxcfs" \
-        -not -path "${CRAFT_PRIME}/bin/gpu-2404-custom-wrapper" \
+        -not -path "${CRAFT_PRIME}/bin/gpu-2604-custom-wrapper" \
         -exec strip --strip-all {} +
 
       # This is the actual LXD binary.
@@ -1679,6 +1715,7 @@ parts:
       # Strip libraries (excluding python3 scripts and liblxcfs)
       find "${CRAFT_PRIME}"/lib -type f \
         -not -path "${CRAFT_PRIME}/lib/python3/*" \
+        -not -path "${CRAFT_PRIME}/lib/python3.14/*" \
         -not -path "${CRAFT_PRIME}/lib/liblxcfs.so" \
         -exec strip -s {} +
 
@@ -1686,7 +1723,7 @@ parts:
       find "${CRAFT_PRIME}/" -type d -empty -print -delete
 
       # Ensure the libdrm layout directory exists for the bind mount to work
-      mkdir -p "${CRAFT_PRIME}/gpu-2404/libdrm"
+      mkdir -p "${CRAFT_PRIME}/gpu-2604/mesa-2604/usr/share/libdrm"
 
       # XXX: look for broken symlinks indicating missing/invalid prime
       broken_symlinks="$(find "${CRAFT_PRIME}/" -xtype l \
@@ -1717,7 +1754,7 @@ parts:
       commands/snap-query: bin/
       hooks/: snap/hooks/
       wrappers/lxd-stophook: bin/lxd
-      wrappers/gpu-2404-custom-wrapper: bin/
+      wrappers/gpu-2604-custom-wrapper: bin/
       wrappers/editor: bin/
       wrappers/remote-viewer: bin/
       wrappers/sshfs: bin/
