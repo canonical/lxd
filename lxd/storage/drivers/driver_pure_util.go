@@ -786,7 +786,7 @@ func (p *pureClient) createVolume(poolName string, volName string, sizeBytes int
 	return nil
 }
 
-// deleteVolume deletes an exisiting volume in the given storage pool.
+// deleteVolume deletes an existing volume in the given storage pool.
 func (p *pureClient) deleteVolume(poolName string, volName string) error {
 	req := map[string]any{
 		"destroyed": true,
