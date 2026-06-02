@@ -297,6 +297,15 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  shortdesc: Size/quota of the storage volume
 		//  scope: global
 		"volume.size": validate.Optional(validate.IsMultipleOfUnit("1GiB")),
+		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.version)
+		// This field is automatically populated after querying the PowerFlex version.
+		// It cannot be set by the user.
+		// ---
+		//  type: string
+		//  defaultdesc: Discovered version
+		//  shortdesc: Software version of the PowerFlex array.
+		//  scope: global
+		"powerflex.version": validate.Optional(validate.IsDottedVersion),
 	}
 
 	err := d.validatePool(config, rules, d.commonVolumeRules())
