@@ -255,7 +255,7 @@ Create a storage pool named `pool3` that uses iSCSI to connect to Pure Storage a
 
 Create a storage pool named `pool4` that uses NVMe/TCP to connect to Pure Storage array via specific target addresses:
 
-    lxc storage create pool4 pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=nvme pure.target=<target_address_1>,<target_address_2>
+    lxc storage create pool4 pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=nvme/tcp pure.target=<target_address_1>,<target_address_2>
 
 ````
 ````{group-tab} alletra
@@ -270,7 +270,7 @@ Create a storage pool named `pool2` that uses a HPE Alletra gateway with a certi
 
 Create a storage pool named `pool3` that uses NVMe/TCP to connect to HPE Alletra array via specific target addresses:
 
-    lxc storage create pool3 alletra alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password> alletra.mode=nvme alletra.target=<target_address_1>,<target_address_2>
+    lxc storage create pool3 alletra alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password> alletra.mode=nvme/tcp alletra.target=<target_address_1>,<target_address_2>
 
 ````
 `````
@@ -671,7 +671,7 @@ Recover a pool named `pool2` using the existing pod `pool2` and iSCSI to connect
 
 Recover a pool named `pool3` using the existing pod `pool3` and NVMe/TCP to connect to Pure Storage array via specific target address:
 
-    lxc storage create pool3 pure source.recover=true pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=nvme pure.target=<target_address_1>,<target_address_2>
+    lxc storage create pool3 pure source.recover=true pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=nvme/tcp pure.target=<target_address_1>,<target_address_2>
 
 ````
 ````{group-tab} alletra
@@ -686,7 +686,7 @@ Recover a pool named `pool2` using the existing volume set `pool2` and accept a 
 
 Recover a pool named `pool3` using the existing volume set `pool3` and NVMe/TCP to connect to HPE Alletra array via specific target address:
 
-    lxc storage create pool3 alletra source.recover=true alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password> alletra.mode=nvme alletra.target=<target_address_1>,<target_address_2>
+    lxc storage create pool3 alletra source.recover=true alletra.wsapi=https://<alletra-storage-address> alletra.user.name=<alletra-storage-username> alletra.user.password=<alletra-storage-password> alletra.mode=nvme/tcp alletra.target=<target_address_1>,<target_address_2>
 
 ````
 `````
