@@ -40,6 +40,9 @@ func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, progressRepor
 		return err
 	}
 
+	// Round up to accommodate at least the requested size.
+	sizeBytes = d.roundVolumeBlockSizeBytes(vol, sizeBytes)
+
 	sizeGiB := sizeBytes / factorGiB
 
 	client := d.client()
@@ -545,6 +548,9 @@ func (d *powerflex) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bo
 	if sizeBytes <= 0 {
 		return nil
 	}
+
+	// Round up to accommodate at least the requested size.
+	sizeBytes = d.roundVolumeBlockSizeBytes(vol, sizeBytes)
 
 	volName, err := d.getVolumeName(vol)
 	if err != nil {
