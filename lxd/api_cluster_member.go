@@ -1716,12 +1716,7 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 
 		if ok {
 			// Filter candidates by placement group.
-			placementGroup, err := pgCache.Get(ctx, tx, placementGroupName, inst.Project().Name)
-			if err != nil {
-				return err
-			}
-
-			apiPlacementGroup, err := placementGroup.ToAPI(ctx, tx.Tx())
+			apiPlacementGroup, err := pgCache.Get(ctx, tx, placementGroupName, inst.Project().Name)
 			if err != nil {
 				return err
 			}
@@ -1730,7 +1725,7 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 			if err != nil {
 				// If no candidates remain due to placement constraints, signal not found so caller can skip instance during evacuation.
 				if api.StatusErrorCheck(err, http.StatusConflict) {
-					return api.StatusErrorf(http.StatusNotFound, "No eligible target cluster members after applying placement group %q", placementGroup.Row.Name)
+					return api.StatusErrorf(http.StatusNotFound, "No eligible target cluster members after applying placement group %q", apiPlacementGroup.Name)
 				}
 
 				return err

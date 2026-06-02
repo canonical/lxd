@@ -121,7 +121,7 @@ func LoadClusterLinkAndCert(ctx context.Context, tx *sql.Tx, name string) (id in
 		return 0, nil, nil, fmt.Errorf("Failed loading cluster link %q: %w", name, err)
 	}
 
-	config, err := dbCluster.GetClusterLinkConfig(ctx, tx, &dbLink.ID)
+	config, err := dbCluster.ClusterLinksConfigStore().GetByEntityIDs(ctx, tx, dbLink.ID)
 	if err != nil {
 		return 0, nil, nil, fmt.Errorf("Failed loading cluster link config: %w", err)
 	}
@@ -228,7 +228,7 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 
 	// Update the cluster link config in the database.
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.UpdateClusterLinkConfig(ctx, tx.Tx(), clusterLinkID, clusterLink.Config)
+		return dbCluster.ClusterLinksConfigStore().Set(ctx, tx.Tx(), clusterLinkID, clusterLink.Config)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed updating cluster link config: %w", err)
