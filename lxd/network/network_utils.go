@@ -1424,7 +1424,6 @@ func BridgeNetfilterEnabled(ipVersion uint) error {
 		return errors.New("br_netfilter kernel module not loaded")
 	}
 
-	sysctlVal = strings.TrimSpace(sysctlVal)
 	if sysctlVal != "1" {
 		return fmt.Errorf("sysctl net.bridge.bridge-nf-call-%s not enabled", sysctlName)
 	}
