@@ -1647,6 +1647,7 @@ parts:
 
   strip:
     after:
+      - python-runtime
       - amd-ctk
       - btrfs
       - ceph
@@ -1671,8 +1672,10 @@ parts:
       - lxc
       - lxcfs
       - lxd
+      - gpu-2604
       - shmounts
       - nvidia-container-toolkit
+      - uefivars
     plugin: nil
     override-prime: |
       set -x
