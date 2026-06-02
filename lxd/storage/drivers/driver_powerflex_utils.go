@@ -110,6 +110,12 @@ func (p *powerFlexError) HTTPStatusCode() float64 {
 	return code
 }
 
+// powerFlexSystemInfo stores system information from PowerFlex.
+type powerFlexSystemInfo struct {
+	// Present starting with PowerFlex 5.
+	SystemNQN string `json:"systemNqn"`
+}
+
 // powerFlexStoragePool represents a storage pool in PowerFlex.
 type powerFlexStoragePool struct {
 	ID                 string `json:"id"`
@@ -370,6 +376,17 @@ func (p *powerFlexClient) getVersion() (string, error) {
 
 	// The API returns the version in quotes.
 	return strings.Trim(actualResponse, `"`), nil
+}
+
+// getSystemInfo returns system information from the PowerFlex system with the given systemID.
+func (p *powerFlexClient) getSystemInfo(systemID string) (*powerFlexSystemInfo, error) {
+	var actualResponse powerFlexSystemInfo
+	err := p.requestAuthenticated(http.MethodGet, "/api/instances/System::"+systemID, nil, &actualResponse)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting system instances: %w", err)
+	}
+
+	return &actualResponse, nil
 }
 
 // getProtectionDomainID returns the ID of the protection domain behind domainName.
@@ -843,34 +860,56 @@ func (d *powerflex) getHostGUID() (string, error) {
 }
 
 // getNVMeTargetQN discovers the targetQN used for the given addresses.
-// The targetQN is unqiue per PowerFlex storage pool.
+// The targetQN is unique per PowerFlex system.
+// Starting with PowerFlex 5 the targetQN can be retrieved directly from the API.
 // Cache the targetQN as it doesn't change throughout the lifetime of the storage pool.
 func (d *powerflex) getNVMeTargetQN(targetAddresses ...string) (string, error) {
 	if d.nvmeTargetQN == "" {
-		connector, err := d.connector()
-		if err != nil {
-			return "", err
-		}
-
-		// The discovery log from the first reachable target address is returned.
-		discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
-		if err != nil {
-			return "", fmt.Errorf("Failed discovering SDT NQN: %w", err)
-		}
-
-		for _, recordAny := range discoveryLogRecords {
-			record, ok := recordAny.(connectors.NVMeDiscoveryLogRecord)
-			if !ok {
-				return "", fmt.Errorf("Invalid discovery log record entry type %T is not connectors.NVMeDiscoveryLogRecord", recordAny)
+		if !d.hasThinCloneSupport() {
+			connector, err := d.connector()
+			if err != nil {
+				return "", err
 			}
 
-			if record.SubType != connectors.SubtypeNVMESubsys {
-				continue
+			// The discovery log from the first reachable target address is returned.
+			discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
+			if err != nil {
+				return "", fmt.Errorf("Failed discovering SDT NQN: %w", err)
 			}
 
-			// The targetQN is listed together with every log record of type SubtypeNVMESubsys.
-			d.nvmeTargetQN = record.SubNQN
-			break
+			for _, recordAny := range discoveryLogRecords {
+				record, ok := recordAny.(connectors.NVMeDiscoveryLogRecord)
+				if !ok {
+					return "", fmt.Errorf("Invalid discovery log record entry type %T is not connectors.NVMeDiscoveryLogRecord", recordAny)
+				}
+
+				if record.SubType != connectors.SubtypeNVMESubsys {
+					continue
+				}
+
+				// The targetQN is listed together with every log record of type SubtypeNVMESubsys.
+				d.nvmeTargetQN = record.SubNQN
+				break
+			}
+		} else {
+			client := d.client()
+
+			pool, err := d.resolvePool()
+			if err != nil {
+				return "", err
+			}
+
+			domain, err := client.getProtectionDomain(pool.ProtectionDomainID)
+			if err != nil {
+				return "", err
+			}
+
+			systemInfo, err := client.getSystemInfo(domain.SystemID)
+			if err != nil {
+				return "", err
+			}
+
+			d.nvmeTargetQN = systemInfo.SystemNQN
 		}
 	}
 
