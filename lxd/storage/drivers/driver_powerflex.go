@@ -23,9 +23,13 @@ const powerFlex4DefaultSize = "8GiB"
 // powerFlex5DefaultSize represents the default PowerFlex volume size for PowerFlex 5.
 const powerFlex5DefaultSize = "1GiB"
 
-// powerFlexMinVolumeSizeBytes represents the minimal PowerFlex volume size in bytes.
+// powerFlex4MinVolumeSizeBytes represents the minimal PowerFlex volume size in bytes for PowerFlex 4.
 // This translates to 8 GiB.
-const powerFlexMinVolumeSizeBytes = 8589934592
+const powerFlex4MinVolumeSizeBytes = 8589934592
+
+// powerFlex5MinVolumeSizeBytes represents the minimal PowerFlex volume size in bytes for PowerFlex 5.
+// This translates to 1 GiB.
+const powerFlex5MinVolumeSizeBytes = 1073741824
 
 var powerflexSupportedConnectors = []string{
 	connectors.TypeNVMeTCP,
@@ -463,7 +467,11 @@ func (d *powerflex) MigrationTypes(contentType ContentType, refresh bool, copySn
 }
 
 // roundVolumeBlockSizeBytes rounds the given size (in bytes) up to the next
-// multiple of 8 GiB, which is the minimum allocation unit on PowerFlex.
+// multiple of 1 or 8 GiB, which is the minimum allocation unit on PowerFlex.
 func (d *powerflex) roundVolumeBlockSizeBytes(_ Volume, sizeBytes int64) int64 {
-	return roundAbove(powerFlexMinVolumeSizeBytes, sizeBytes)
+	if d.hasThinCloneSupport() {
+		return roundAbove(powerFlex5MinVolumeSizeBytes, sizeBytes)
+	}
+
+	return roundAbove(powerFlex4MinVolumeSizeBytes, sizeBytes)
 }
