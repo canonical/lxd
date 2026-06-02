@@ -1042,7 +1042,7 @@ func (p *pureClient) updateHost(hostName string, qns []string) error {
 		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
 	}
 
-	// To destroy the volume, we need to patch it by setting the destroyed to true.
+	// Update the host by patching its qualified names (IQNs/NQNs).
 	url := api.NewURL().Path("hosts").WithQuery("names", hostName)
 	err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 	if err != nil {
