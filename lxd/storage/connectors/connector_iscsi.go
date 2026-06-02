@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -368,6 +369,11 @@ func (c *connectorISCSI) WaitDiskDevicePath(ctx context.Context, diskPathFilter 
 	}
 
 	if isMultipathDevice(devicePath) {
+		err := waitMultipathReady(ctx, devicePath)
+		if err != nil {
+			return "", err
+		}
+
 		return devicePath, nil
 	}
 
@@ -394,7 +400,17 @@ func (c *connectorISCSI) WaitDiskDevicePath(ctx context.Context, diskPathFilter 
 
 	// The multipath command is synchronous, but udev updates the /dev/disk/by-id
 	// symlinks asynchronously. Wait for the multipath-backed device path to appear.
-	return block.WaitDiskDevicePath(ctx, iscsiDiskDevicePrefix, multipathDeviceFilter)
+	mpDevicePath, err := block.WaitDiskDevicePath(ctx, iscsiDiskDevicePrefix, multipathDeviceFilter)
+	if err != nil {
+		return "", err
+	}
+
+	err = waitMultipathReady(ctx, mpDevicePath)
+	if err != nil {
+		return "", err
+	}
+
+	return mpDevicePath, nil
 }
 
 // GetDiskDevicePath returns the path of the mapped iSCSI device.
@@ -433,48 +449,60 @@ func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, devicePath string
 
 	deviceName := filepath.Base(devicePath)
 
+	// If the device is gone, we are done.
+	if !shared.PathExists(devicePath) {
+		return nil
+	}
+
 	if isMultipathDevice(devicePath) {
-		// Collect the slave devices before removing the multipath map,
-		// as /sys/block/dm-X/slaves/ will be gone after removal.
-		slavesPath := filepath.Join("/sys/block", deviceName, "slaves")
-		slaves, _ := os.ReadDir(slavesPath)
+		slaveDevices, err := findMultipathSCSIDevices(deviceName)
+		if err != nil {
+			return fmt.Errorf("Failed searching SCSI paths for multipath device %q: %w", devicePath, err)
+		}
+
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
 
 		// Remove the multipath map.
 		//
 		// This may fail transiently with "map in use" if the device is still
 		// briefly open (for example by udev), so retry a few times before giving up.
-		var err error
+		var flushErr error
 		for range 10 {
-			ctxErr := ctx.Err()
-			if ctxErr != nil {
-				// Preserve the command error if we already have one.
-				// Otherwise return the generic context error.
-				if err == nil {
-					err = ctxErr
-				}
+			_, flushErr = shared.RunCommand(ctx, "multipath", "-f", devicePath)
 
+			// Break if the device disappeared.
+			if flushErr == nil || !shared.PathExists(devicePath) {
 				break
 			}
 
-			_, err = shared.RunCommand(ctx, "multipath", "-f", devicePath)
-			if err == nil {
-				break
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("Timeout exceeded removing multipath device %q: %w", devicePath, ctx.Err())
+			case <-ticker.C:
 			}
-
-			time.Sleep(500 * time.Millisecond)
 		}
 
-		if err != nil {
-			return fmt.Errorf("Failed removing multipath device %q: %w", devicePath, err)
+		// Only return a failure if the map still exists after our retries.
+		if flushErr != nil && shared.PathExists(devicePath) {
+			return fmt.Errorf("Failed removing multipath device %q: %w", devicePath, flushErr)
 		}
 
 		// Remove the underlying SCSI devices that were part of the multipath map.
 		// If not removed, they remain on the system and cause I/O errors when the
 		// volume is disconnected from the storage array.
-		for _, slave := range slaves {
-			err := removeDevice(slave.Name())
+		for _, devName := range slaveDevices {
+			err := removeDevice(devName)
 			if err != nil {
-				return fmt.Errorf("Failed removing multipath slave device %q: %w", slave.Name(), err)
+				return fmt.Errorf("Failed removing multipath slave device %q: %w", devName, err)
+			}
+		}
+
+		// Wait for the underlying SCSI devices to disappear.
+		for _, devName := range slaveDevices {
+			devPath := filepath.Join("/sys/block", devName)
+			if !block.WaitDiskDeviceGone(ctx, devPath) {
+				return fmt.Errorf("Timeout exceeded waiting for multipath slave device %q to disappear", devPath)
 			}
 		}
 	} else {
@@ -483,14 +511,10 @@ func (c *connectorISCSI) RemoveDiskDevice(ctx context.Context, devicePath string
 		if err != nil {
 			return fmt.Errorf("Failed removing device %q: %w", devicePath, err)
 		}
-	}
 
-	// Wait until the device has disappeared.
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	if !block.WaitDiskDeviceGone(ctx, devicePath) {
-		return fmt.Errorf("Timeout exceeded waiting for device %q to disappear", devicePath)
+		if !block.WaitDiskDeviceGone(ctx, devicePath) {
+			return fmt.Errorf("Timeout exceeded waiting for device %q to disappear", devicePath)
+		}
 	}
 
 	return nil
@@ -519,4 +543,128 @@ func (c *connectorISCSI) WaitDiskDeviceResize(ctx context.Context, diskPath stri
 
 func isMultipathDevice(devicePath string) bool {
 	return strings.HasPrefix(filepath.Base(devicePath), "dm-")
+}
+
+// findMultipathSCSIDevices returns every /sys/block/sd* basename that
+// belongs to the multipath device-mapper device named by dmName.
+//
+// The returned value contains direct multipath slaves and any other device whose
+// device/wwid matches the multipath device's WWID, which includes devices that were
+// previously failed and dropped from the map by multipathd but still exist as kernel
+// SCSI devices. This is necessary to fully clean up all SCSI paths to the device when
+// removing multipath device, and avoid leaving zombie devices that trigger
+// "Logical unit not supported" probe storms on the next reuse of the same WWID after
+// the array detaches the underlying LUN.
+//
+// If the multipath WWID cannot be parsed, only direct multipath slaves are returned.
+func findMultipathSCSIDevices(dmName string) ([]string, error) {
+	var devices []string
+
+	addDeviceIfNotExist := func(name string) {
+		// Only collect unique device names.
+		if !slices.Contains(devices, name) {
+			devices = append(devices, name)
+		}
+	}
+
+	normalizeWWID := func(wwid string) string {
+		wwid = strings.TrimSpace(wwid)
+		wwid = strings.ToLower(wwid)
+
+		for _, prefix := range []string{"0x", "scsi-", "naa.", "eui."} {
+			wwid = strings.TrimPrefix(wwid, prefix)
+		}
+
+		return wwid
+	}
+
+	// Collect direct multipath slaves from /sys/block/dmName/slaves/*.
+	slavesPath := filepath.Join("/sys/block", dmName, "slaves")
+	slaves, err := os.ReadDir(slavesPath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("Failed reading slaves of %q: %w", dmName, err)
+	}
+
+	for _, dev := range slaves {
+		addDeviceIfNotExist(dev.Name())
+	}
+
+	// Extract the WWID from the multipath UUID.
+	mpUUIDBytes, err := os.ReadFile(filepath.Join("/sys/block", dmName, "dm", "uuid"))
+	if err != nil {
+		// No WWID found for multipath device.
+		return devices, nil
+	}
+
+	// Trim "mpath-" prefix from UUID to get the WWID.
+	mpUUID := strings.ToLower(strings.TrimSpace(string(mpUUIDBytes)))
+	mpUUID, ok := strings.CutPrefix(mpUUID, "mpath-")
+	if !ok {
+		return devices, nil
+	}
+
+	mpWWID := normalizeWWID(mpUUID)
+	if mpWWID == "" {
+		return devices, nil
+	}
+
+	entries, err := os.ReadDir("/sys/block")
+	if err != nil {
+		return nil, fmt.Errorf("Failed reading /sys/block: %w", err)
+	}
+
+	// Look for any /sys/block/sd* whose device/wwid matches the multipath WWID.
+	for _, dev := range entries {
+		if !strings.HasPrefix(dev.Name(), "sd") {
+			continue
+		}
+
+		devWWIDBytes, err := os.ReadFile(filepath.Join("/sys/block", dev.Name(), "device", "wwid"))
+		if err != nil {
+			continue
+		}
+
+		devWWID := normalizeWWID(string(devWWIDBytes))
+		if devWWID == "" {
+			continue
+		}
+
+		// Compare the SCSI device WWID with the multipath WWID.
+		//
+		// Some multipath WWIDs include the SCSI VPD designator type (3) as a prefix.
+		// For example, multipath may report WWID as "368cc...", while the SCSI device
+		// reports WWID as "68cc...".
+		if devWWID == mpWWID || "3"+devWWID == mpWWID {
+			addDeviceIfNotExist(dev.Name())
+		}
+	}
+
+	return devices, nil
+}
+
+// waitMultipathReady checks if the multipath device has at least one active path.
+func waitMultipathReady(ctx context.Context, devicePath string) error {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		out, err := exec.CommandContext(ctx, "multipath", "-ll", devicePath).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("Failed checking multipath device %q status: %w", devicePath, err)
+		}
+
+		// The "multipath -ll" outputs the topology of a mapper. We look for a path that is:
+		// - running = Kernel SCSI device state is online.
+		// - ready   = Path checker confirms the device is usable.
+		// - active  = Path group is currently used by multipath.
+		if strings.Contains(string(out), "active ready running") {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("Timeout waiting for multipath device %q to have active paths: %w", devicePath, ctx.Err())
+		case <-ticker.C:
+		}
+	}
 }
