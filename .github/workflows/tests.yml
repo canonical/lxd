@@ -65,12 +65,29 @@ jobs:
         with:
           persist-credentials: false
 
+      # An official snap from the store is needed to allow `--dangerous` afterward
+      # and LXD is needed to build the snap
+      - name: Setup LXD
+        uses: canonical/setup-lxd@a517a5346a08c624d81953578813a4fc0fe46e0b # main
+        with:
+          channel: >-
+            ${{ fromJson('{
+              "latest-edge": "latest/edge",
+              "latest-candidate": "latest/candidate",
+              "5.21-edge": "5.21/edge",
+              "5.21-candidate": "5.21/candidate",
+              "5.0-edge": "5.0/edge",
+              "5.0-candidate": "5.0/candidate",
+              "4.0-edge": "4.0/edge",
+              "4.0-candidate": "4.0/candidate"
+            }')[github.base_ref || github.ref_name] || 'latest/edge' }}
+
       - name: Build snap
         id: snapcraft
         uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79 # v1
         with:
           snapcraft-args: pack
-          snapcraft-channel: 9.x/candidate
+          snapcraft-channel: latest/candidate
 
       - name: Upload snap artefact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -80,3 +97,60 @@ jobs:
           if-no-files-found: error
           retention-days: 1
           archive: false
+
+      - name: Install freshly built snap
+        run: |
+          set -eux
+
+          sudo snap install --dangerous lxd_*.snap
+          sudo snap alias lxd.lxc lxc
+          snap list --all
+
+          lxc version
+
+          echo "::group::LXD info"
+          lxc info
+          echo "::endgroup::"
+
+      - name: Snap info
+        run: |
+          set -eux
+          ls -lh lxd_*.snap
+          cd /snap/lxd/current/
+          du -smc *
+
+          find | wc -l
+          echo "::group::full-content"
+          find
+          echo "::endgroup::"
+
+      - name: Smoke test
+        run: |
+          set -eux
+
+          uname -a
+
+          # Launch instances
+          lxc launch ubuntu-minimal-daily:24.04 v1 --vm
+          lxc launch ubuntu-minimal-daily:24.04 c1
+
+          # Allow for boot to complete (PID > 0)
+          { set +x; } 2>/dev/null
+          echo -n "Waiting for instances to be ready"
+          for _ in $(seq 120); do
+            if [ "$(lxc list -f csv -c N | grep -cxE '[0-9]+')" -eq 2 ]; then
+               echo "done"
+               break
+            fi
+            echo -n .
+            sleep 1
+          done
+          set -x
+
+          # Quick tests
+          lxc list
+          lxc exec v1 -- hostname
+          lxc exec c1 -- hostname
+
+          # Cleanup
+          lxc delete -f v1 c1
