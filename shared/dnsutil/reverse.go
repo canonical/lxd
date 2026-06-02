@@ -2,6 +2,7 @@ package dnsutil
 
 import (
 	"net"
+	"slices"
 )
 
 // Reverse takes an IPv4 or IPv6 address and returns the matching ARPA record.
@@ -19,8 +20,7 @@ func Reverse(ip net.IP) (arpa string) {
 	buf := make([]byte, 0, len(ip)*4+len(IP6arpa))
 
 	// Add it, in reverse, to the buffer.
-	for i := len(ip) - 1; i >= 0; i-- {
-		v := ip[i]
+	for _, v := range slices.Backward(ip) {
 		buf = append(buf, hexDigit[v&0xF],
 			'.',
 			hexDigit[v>>4],
