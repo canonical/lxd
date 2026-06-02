@@ -1777,10 +1777,48 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 		return err
 	}
 
+	// Once the member is marked EVACUATED we don't roll it back on later failure,
+	// because raft role changes may already have committed on the leader.
+	evacuationCommittedError := func(err error) error {
+		return fmt.Errorf("%w (cluster member remains evacuated)", err)
+	}
 	// Ensure node is put into its previous state if anything fails.
 	revert.Add(func() {
 		_ = evacuateClusterSetState(s, name, db.ClusterMemberStateCreated)
 	})
+
+	if !skipRoleRebalance {
+		// Trigger a raft rebalance now that the member is marked EVACUATED, before
+		// migrating workloads. The rebalance demotes the evacuated member's voter or
+		// standby role and promotes a replacement. It must run after the member is
+		// marked EVACUATED: rolesAdjust reads the member state and only excludes
+		// evacuated members from promotion candidacy (and prioritizes demoting them)
+		// once the state is committed. If we rebalanced first, the member could be
+		// re-selected as a voter/standby.
+		err = triggerClusterRebalance(ctx, s)
+		if err != nil {
+			if !force {
+				return err
+			}
+
+			logger.Warn("Proceeding with forced evacuation after role rebalance failure", logger.Ctx{"err": err, "member": name})
+		}
+
+		// If leadership was transferred during the rebalance (e.g. this node was
+		// the leader and got evacuated), trigger a second rebalance on the new
+		// leader so it can demote this node before the API returns.
+		leaderInfo, leaderInfoErr := s.LeaderInfo()
+		if leaderInfoErr == nil && leaderInfo.Clustered && !leaderInfo.Leader {
+			err = triggerClusterRebalance(ctx, s)
+			if err != nil {
+				if !force {
+					return evacuationCommittedError(err)
+				}
+
+				logger.Warn("Proceeding with forced evacuation after follow-up rebalance failure", logger.Ctx{"err": err, "member": name})
+			}
+		}
+	}
 
 	opts := evacuateOpts{
 		s:               s,
