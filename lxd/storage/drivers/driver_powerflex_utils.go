@@ -560,6 +560,21 @@ func (p *powerFlexClient) renameVolume(volumeID string, newName string) error {
 	return nil
 }
 
+// refreshVolume refreshes the volume behind volumeID with the given volume/snapshot behind sourceVolumeID.
+// Present starting with PowerFlex 5.
+func (p *powerFlexClient) refreshVolume(volumeID string, sourceVolumeID string) error {
+	body := map[string]any{
+		"srcVolumeId": sourceVolumeID,
+	}
+
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/refresh", body, nil)
+	if err != nil {
+		return fmt.Errorf("Failed refreshing volume %q with volume %q: %w", volumeID, sourceVolumeID, err)
+	}
+
+	return nil
+}
+
 // createVolumeSnapshot creates a new volume snapshot under the given systemID for the volume behind volumeID.
 // The accessMode can be either ReadWrite or ReadOnly.
 // The returned string represents the ID of the snapshot.
