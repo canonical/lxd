@@ -360,6 +360,18 @@ func (p *powerFlexClient) getStoragePoolVolumes(poolID string) ([]powerFlexVolum
 	return actualResponse, nil
 }
 
+// getVersion returns the version of the PowerFlex system.
+func (p *powerFlexClient) getVersion() (string, error) {
+	var actualResponse string
+	err := p.requestAuthenticated(http.MethodGet, "/api/version", nil, &actualResponse)
+	if err != nil {
+		return "", fmt.Errorf("Failed getting system version: %w", err)
+	}
+
+	// The API returns the version in quotes.
+	return strings.Trim(actualResponse, `"`), nil
+}
+
 // getProtectionDomainID returns the ID of the protection domain behind domainName.
 func (p *powerFlexClient) getProtectionDomainID(domainName string) (string, error) {
 	body := map[string]any{
