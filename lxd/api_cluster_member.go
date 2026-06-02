@@ -1354,6 +1354,13 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
+		if !req.Force {
+			err = validateClusterMemberEvacuation(r.Context(), s, name)
+			if err != nil {
+				return response.BadRequest(err)
+			}
+		}
+
 		stopFunc := func(ctx context.Context, inst instance.Instance) error {
 			l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
@@ -1535,6 +1542,58 @@ func validateEvacuateRequest(ctx context.Context, s *state.State, memberName str
 	}
 
 	return nil
+}
+
+// validateClusterMemberEvacuation rejects evacuating an online raft voter when
+// doing so would leave too few online voters to preserve raft quorum, even
+// after accounting for the narrow case where rebalance can first promote an
+// online standby/spare to replace the evacuated voter.
+func validateClusterMemberEvacuation(ctx context.Context, s *state.State, memberName string) error {
+	var member db.NodeInfo
+	var members []db.NodeInfo
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		members, err = tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		for _, m := range members {
+			if m.Name == memberName {
+				member = m
+				return nil
+			}
+		}
+
+		return api.StatusErrorf(http.StatusNotFound, "Cluster member %q not found", memberName)
+	})
+	if err != nil {
+		return err
+	}
+
+	memberRoles := make(map[string][]db.ClusterRole, len(members))
+	connectivity := make(map[string]bool, len(members))
+	var evacuatedMembers []string
+	offlineThreshold := s.GlobalConfig.OfflineThreshold()
+	for _, m := range members {
+		memberRoles[m.Address] = m.Roles
+		connectivity[m.Address] = !m.IsOffline(offlineThreshold)
+		if m.State == db.ClusterMemberStateEvacuated {
+			evacuatedMembers = append(evacuatedMembers, m.Address)
+		}
+	}
+
+	var raftNodes []db.RaftNode
+	err = s.DB.Node.Transaction(ctx, func(ctx context.Context, tx *db.NodeTx) error {
+		var err error
+		raftNodes, err = tx.GetRaftNodes(ctx)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed getting raft nodes: %w", err)
+	}
+
+	return checkEvacuationQuorum(member, raftNodes, connectivity, evacuatedMembers, memberRoles, offlineThreshold)
 }
 
 // checkEvacuationQuorum determines whether evacuating targetMember would break
