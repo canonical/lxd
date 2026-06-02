@@ -335,8 +335,8 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 
 		// Attempt to extract the internal OpenFGA error for logging only, so that errors from the OpenFGA datastore implementation are logged (if any).
 		// (Otherwise we just get "rpc error (4000): Internal Server Error" or similar which isn't useful).
-		var openFGAInternalError openFGAErrors.InternalError
-		if errors.As(err, &openFGAInternalError) {
+		openFGAInternalError, ok := errors.AsType[openFGAErrors.InternalError](err)
+		if ok {
 			errLogCtx["err"] = openFGAInternalError.Unwrap()
 		}
 
@@ -374,8 +374,8 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 
 				// Attempt to extract the internal error. This allows bubbling errors up from the OpenFGA datastore implementation.
 				// (Otherwise we just get "rpc error (4000): Internal Server Error" or similar which isn't useful).
-				var openFGAInternalError openFGAErrors.InternalError
-				if errors.As(err, &openFGAInternalError) {
+				openFGAInternalError, ok := errors.AsType[openFGAErrors.InternalError](err)
+				if ok {
 					err = openFGAInternalError.Unwrap()
 				}
 
@@ -506,8 +506,8 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 
 		// Attempt to extract the internal OpenFGA error for logging only, so that errors from the OpenFGA datastore implementation are logged (if any).
 		// (Otherwise we just get "rpc error (4000): Internal Server Error" or similar which isn't useful).
-		var openFGAInternalError openFGAErrors.InternalError
-		if errors.As(err, &openFGAInternalError) {
+		openFGAInternalError, ok := errors.AsType[openFGAErrors.InternalError](err)
+		if ok {
 			errLogCtx["err"] = openFGAInternalError.Unwrap()
 		}
 
