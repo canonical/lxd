@@ -113,7 +113,7 @@ func expandAlias(conf *config.Config, args []string) ([]string, bool, error) {
 	}
 
 	// Remove directly referenced arguments from @ARGS@
-	for i := len(atArgs) - 1; i >= 0; i-- {
+	for i := range slices.Backward(atArgs) {
 		_, ok := numberedArgsMap[i+1]
 		if ok {
 			atArgs = slices.Delete(atArgs, i, i+1)
