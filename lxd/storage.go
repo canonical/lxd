@@ -119,53 +119,43 @@ func storageStartup(s *state.State) error {
 	// For any remaining storage pools that were not successfully initialised, we now start a go routine to
 	// periodically try to initialize them again in the background.
 	if len(initPools) > 0 {
-		go func() {
-			for {
-				t := time.NewTimer(time.Minute)
-
-				select {
-				case <-s.ShutdownCtx.Done():
-					t.Stop()
-					return
-				case <-t.C:
-					t.Stop()
-
-					// Try initializing remaining storage pools in random order.
-					tryInstancesStart := false
-					for poolName := range initPools {
-						if initPool(poolName) {
-							// Storage pool initialized successfully or deleted so
-							// remove it from the list so its not retried.
-							delete(initPools, poolName)
-							tryInstancesStart = true
-						}
-					}
-
-					if len(initPools) <= 0 {
-						logger.Info("All storage pools initialized")
-					}
-
-					// At least one remaining storage pool was initialized, check if any
-					// instances can now start.
-					if tryInstancesStart {
-						instances, err := instance.LoadNodeAll(s, instancetype.Any)
-						if err != nil {
-							logger.Error("Failed loading instances to start", logger.Ctx{"err": err})
-						} else {
-							instancesStart(s.ShutdownCtx, s, instances)
-						}
-					}
-
-					if len(initPools) <= 0 {
-						// All storage pools are ready now after performing some retries.
-						// This unblocks any waitready caller using the --storage flag.
-						s.StorageReady.Cancel()
-
-						return // Our job here is done.
-					}
+		go runWithBackoff(s.ShutdownCtx, 5*time.Second, 5*time.Second, time.Minute, func() bool {
+			// Try initializing remaining storage pools in random order.
+			tryInstancesStart := false
+			for poolName := range initPools {
+				if initPool(poolName) {
+					// Storage pool initialized successfully or deleted so
+					// remove it from the list so its not retried.
+					delete(initPools, poolName)
+					tryInstancesStart = true
 				}
 			}
-		}()
+
+			if len(initPools) <= 0 {
+				logger.Info("All storage pools initialized")
+			}
+
+			// At least one remaining storage pool was initialized, check if any
+			// instances can now start.
+			if tryInstancesStart {
+				instances, err := instance.LoadNodeAll(s, instancetype.Any)
+				if err != nil {
+					logger.Error("Failed loading instances to start", logger.Ctx{"err": err})
+				} else {
+					instancesStart(s.ShutdownCtx, s, instances)
+				}
+			}
+
+			if len(initPools) <= 0 {
+				// All storage pools are ready now after performing some retries.
+				// This unblocks any waitready caller using the --storage flag.
+				s.StorageReady.Cancel()
+
+				return true // Our job here is done.
+			}
+
+			return false
+		})
 	} else {
 		// All storage pools are ready.
 		// This unblocks any waitready caller using the --storage flag.

@@ -2007,60 +2007,50 @@ func networkStartup(stateFunc func() *state.State, restoreOnly bool) error {
 	// For any remaining networks that were not successfully initialised, we now start a go routine to
 	// periodically try to initialize them again in the background.
 	if remainingNetworksCount() > 0 {
-		go func() {
-			for {
-				t := time.NewTimer(time.Minute)
-				s := stateFunc() // Get fresh state in case global config has been updated.
+		go runWithBackoff(stateFunc().ShutdownCtx, 5*time.Second, 5*time.Second, time.Minute, func() bool {
+			s := stateFunc() // Get fresh state in case global config has been updated.
+			tryInstancesStart := false
 
-				select {
-				case <-s.ShutdownCtx.Done():
-					t.Stop()
-					return
-				case <-t.C:
-					t.Stop()
+			// Try initializing networks in priority order.
+			for priority := range startNetworks {
+				for pn := range startNetworks[priority] {
+					err := loadAndStartupNetwork(s, pn, priority, false, restoreOnly)
+					if err != nil {
+						logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
-					tryInstancesStart := false
-
-					// Try initializing networks in priority order.
-					for priority := range startNetworks {
-						for pn := range startNetworks[priority] {
-							err := loadAndStartupNetwork(s, pn, priority, false, restoreOnly)
-							if err != nil {
-								logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
-
-								continue
-							}
-
-							tryInstancesStart = true // We initialized at least one network.
-						}
+						continue
 					}
 
-					remainingNetworks := remainingNetworksCount()
-					if remainingNetworks <= 0 {
-						logger.Info("All networks initialized")
-					}
-
-					// At least one remaining network was initialized, check if any instances
-					// can now start.
-					if tryInstancesStart {
-						instances, err := instance.LoadNodeAll(s, instancetype.Any)
-						if err != nil {
-							logger.Warn("Failed loading instances to start", logger.Ctx{"err": err})
-						} else {
-							instancesStart(s.ShutdownCtx, s, instances)
-						}
-					}
-
-					if remainingNetworks <= 0 {
-						// All networks are ready now after performing some retries.
-						// This unblocks any waitready caller using the --network flag.
-						s.NetworkReady.Cancel()
-
-						return // Our job here is done.
-					}
+					tryInstancesStart = true // We initialized at least one network.
 				}
 			}
-		}()
+
+			remainingNetworks := remainingNetworksCount()
+			if remainingNetworks <= 0 {
+				logger.Info("All networks initialized")
+			}
+
+			// At least one remaining network was initialized, check if any instances
+			// can now start.
+			if tryInstancesStart {
+				instances, err := instance.LoadNodeAll(s, instancetype.Any)
+				if err != nil {
+					logger.Warn("Failed loading instances to start", logger.Ctx{"err": err})
+				} else {
+					instancesStart(s.ShutdownCtx, s, instances)
+				}
+			}
+
+			if remainingNetworks <= 0 {
+				// All networks are ready now after performing some retries.
+				// This unblocks any waitready caller using the --network flag.
+				s.NetworkReady.Cancel()
+
+				return true // Our job here is done.
+			}
+
+			return false
+		})
 	} else {
 		// All networks are ready.
 		// This unblocks any waitready caller using the --network flag.
