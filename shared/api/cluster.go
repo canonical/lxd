@@ -297,6 +297,12 @@ const (
 
 	// ClusterRestoreModeSkip indicates that cluster member status should be restored without starting local instances or migrating back evacuated instances.
 	ClusterRestoreModeSkip = "skip"
+
+	// ClusterMemberActionEvacuate indicates the member should be evacuated.
+	ClusterMemberActionEvacuate = "evacuate"
+
+	// ClusterMemberActionRestore indicates the member should be restored.
+	ClusterMemberActionRestore = "restore"
 )
 
 // ClusterMemberStatePost represents the fields required to evacuate a cluster member.
