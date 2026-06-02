@@ -2224,6 +2224,12 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 		}
 
 		revert.Success()
+
+		err = triggerClusterRebalance(ctx, s)
+		if err != nil {
+			logger.Warn("Could not rebalance cluster member roles after restore", logger.Ctx{"err": err, "member": originName})
+		}
+
 		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberRestored.Event(originName, op.EventLifecycleRequestor(), nil))
 		return nil
 	}
