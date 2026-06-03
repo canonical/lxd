@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -162,11 +160,8 @@ func runningInstanceOperations() map[string]map[string][]*operations.Operation {
 func operationGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	id := r.PathValue("id")
+	var err error
 	recursion, _ := util.IsRecursionRequest(r)
 
 	// Load the operation from the database.
@@ -246,11 +241,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 func operationDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	id := r.PathValue("id")
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
@@ -803,11 +794,7 @@ func operationsGetByType(ctx context.Context, s *state.State, projectName string
 func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	id := r.PathValue("id")
 	secret := r.FormValue("secret")
 
 	requestor, err := request.GetRequestor(r.Context())
@@ -995,11 +982,7 @@ func checkOperationViewAccess(ctx context.Context, op *operations.Operation, aut
 func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	id, err := url.PathUnescape(mux.Vars(r)["id"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	id := r.PathValue("id")
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {

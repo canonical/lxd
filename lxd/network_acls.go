@@ -7,10 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
@@ -388,11 +385,7 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	aclName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	aclName := r.PathValue("name")
 	requestor, err := request.GetRequestor(r.Context())
 	if err != nil {
 		return response.SmartError(err)
@@ -492,11 +485,7 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	aclName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	aclName := r.PathValue("name")
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeNetworkACL, false)
 	if err != nil {
 		return response.SmartError(err)
@@ -603,11 +592,7 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	aclName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	aclName := r.PathValue("name")
 	// Get the existing Network ACL.
 	netACL, err := acl.LoadByName(r.Context(), s, projectName, aclName)
 	if err != nil {
@@ -721,11 +706,7 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 func networkACLPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	aclName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	aclName := r.PathValue("name")
 	requestProject := request.ProjectParam(r)
 	effectiveProjectName, _, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
 	if err != nil {
@@ -814,11 +795,7 @@ func networkACLLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	aclName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	aclName := r.PathValue("name")
 	netACL, err := acl.LoadByName(r.Context(), s, projectName, aclName)
 	if err != nil {
 		return response.SmartError(err)

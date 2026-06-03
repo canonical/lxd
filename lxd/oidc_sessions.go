@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/oidc"
@@ -28,7 +26,6 @@ import (
 )
 
 var oidcSessionsCmd = APIEndpoint{
-	Name:        "oidc_sessions",
 	Path:        "auth/oidc-sessions",
 	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
@@ -38,7 +35,6 @@ var oidcSessionsCmd = APIEndpoint{
 }
 
 var oidcSessionCmd = APIEndpoint{
-	Name:        "oidc_session",
 	Path:        "auth/oidc-sessions/{id}",
 	MetricsType: entity.TypeIdentity,
 	Get: APIEndpointAction{
@@ -60,11 +56,7 @@ const ctxOIDCSessionDetails request.CtxKey = "session-details"
 func oidcSessionAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
-		sessionIDStr, err := url.PathUnescape(mux.Vars(r)["id"])
-		if err != nil {
-			return response.SmartError(err)
-		}
-
+		sessionIDStr := r.PathValue("id")
 		sessionID, err := uuid.Parse(sessionIDStr)
 		if err != nil {
 			return response.BadRequest(fmt.Errorf("Bad session ID: %w", err))

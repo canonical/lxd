@@ -4,9 +4,6 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"net/url"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/instance"
@@ -122,11 +119,7 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	if shared.IsSnapshot(name) {
 		return response.BadRequest(errors.New("Invalid instance name"))
 	}

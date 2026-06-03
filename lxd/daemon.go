@@ -23,7 +23,6 @@ import (
 
 	dqliteClient "github.com/canonical/go-dqlite/v3/client"
 	"github.com/canonical/go-dqlite/v3/driver"
-	"github.com/gorilla/mux"
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/acme"
@@ -221,22 +220,20 @@ func defaultDaemon() *Daemon {
 
 // APIEndpoint represents a URL in our API.
 type APIEndpoint struct {
-	Name        string             // Name for this endpoint.
-	Path        string             // Path pattern for this endpoint.
-	MetricsType entity.Type        // Main entity type related to this endpoint. Used by the API metrics.
-	Aliases     []APIEndpointAlias // Any aliases for this endpoint.
+	Path        string      // Path pattern for this endpoint.
+	MetricsType entity.Type // Main entity type related to this endpoint. Used by the API metrics.
 	Get         APIEndpointAction
 	Head        APIEndpointAction
 	Put         APIEndpointAction
 	Post        APIEndpointAction
 	Delete      APIEndpointAction
 	Patch       APIEndpointAction
-}
 
-// APIEndpointAlias represents an alias URL of and APIEndpoint in our API.
-type APIEndpointAlias struct {
-	Name string // Name for this alias.
-	Path string // Path pattern for this alias.
+	// EndpointResolver optionally resolves this endpoint to a more specific sub-endpoint based on the
+	// request path. This is used when multiple logical endpoints share a single ServeMux pattern to avoid
+	// pattern conflicts (e.g. images/aliases/{name...} vs images/{fingerprint}/export). When set, createCmd
+	// dispatches to the resolved endpoint's action handlers instead of this endpoint's own actions.
+	EndpointResolver func(r *http.Request) *APIEndpoint
 }
 
 // APIEndpointAction represents an action on an API endpoint.
@@ -282,9 +279,8 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 			entityURL = entity.ProjectURL(request.ProjectParam(r))
 		} else {
 			muxValues := make([]string, 0, len(muxVars))
-			vars := mux.Vars(r)
 			for _, muxVar := range muxVars {
-				muxValue := vars[muxVar]
+				muxValue := r.PathValue(muxVar)
 				if muxValue == "" {
 					return response.InternalError(fmt.Errorf("Failed performing permission check: Path argument label %q not found in request URL %q", muxVar, r.URL))
 				}
@@ -818,7 +814,7 @@ func (d *Daemon) State() *state.State {
 //
 // The created handler also keeps track of handled requests for the API metrics
 // for the main API endpoints.
-func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
+func (d *Daemon) createCmd(restAPI *http.ServeMux, version string, c APIEndpoint) {
 	var uri string
 	if c.Path == "" {
 		uri = "/" + version
@@ -828,17 +824,40 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		uri = "/" + c.Path
 	}
 
-	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
+	// Define a function to track the request for the API metrics if this is a main API endpoint (version 1.0).
+	// This is used in the handler below.
+	metricsTrackRequestIfNeeded := func(version string, r *http.Request, entityType entity.Type) {
+		if version == "1.0" {
+			metrics.TrackStartedRequest(r, entityType)
+		}
+	}
+
+	restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
+		// Resolve endpoint first if there is an EndpointResolver.
+		// This ensures that any 404 responses can be generated early in the request handling process.
+		endpoint := c
+		if c.EndpointResolver != nil {
+			resolved := c.EndpointResolver(r)
+			if resolved == nil {
+				metricsTrackRequestIfNeeded(version, r, c.MetricsType)
+
+				// Resolver returned nil, meaning no matching sub-endpoint was found.
+				// Return 404 Not Found rather than falling through to a 501.
+				_ = response.NotFound(nil).Render(w, r)
+				return
+			}
+
+			endpoint = *resolved
+		}
+
+		// Only endpoints from the main API (version 1.0) should be counted for the metrics.
+		// This prevents internal endpoints from being included as well.
+		metricsTrackRequestIfNeeded(version, r, endpoint.MetricsType)
+
 		// Initialise the security audit context once per request so any
 		// downstream auth path can emit security events without each call
 		// site having to remember to populate the OWASP base fields.
 		security.InitRequestAuditInfo(r)
-
-		// Only endpoints from the main API (version 1.0) should be counted for the metrics.
-		// This prevents internal endpoints from being included as well.
-		if version == "1.0" {
-			metrics.TrackStartedRequest(r, c.MetricsType)
-		}
 
 		w.Header().Set("Content-Type", "application/json")
 
@@ -861,17 +880,17 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		var endpointAction APIEndpointAction
 		switch r.Method {
 		case http.MethodGet:
-			endpointAction = c.Get
+			endpointAction = endpoint.Get
 		case http.MethodHead:
-			endpointAction = c.Head
+			endpointAction = endpoint.Head
 		case http.MethodPut:
-			endpointAction = c.Put
+			endpointAction = endpoint.Put
 		case http.MethodPost:
-			endpointAction = c.Post
+			endpointAction = endpoint.Post
 		case http.MethodDelete:
-			endpointAction = c.Delete
+			endpointAction = endpoint.Delete
 		case http.MethodPatch:
-			endpointAction = c.Patch
+			endpointAction = endpoint.Patch
 		default:
 			_ = response.NotFound(fmt.Errorf("Method %q not found", r.Method)).Render(w, r)
 			return
@@ -926,7 +945,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			logCtx["username"] = requestor.Username
 		}
 
-		untrustedOk := (r.Method == "GET" && c.Get.AllowUntrusted) || (r.Method == "POST" && c.Post.AllowUntrusted)
+		untrustedOk := (r.Method == "GET" && endpoint.Get.AllowUntrusted) || (r.Method == "POST" && endpoint.Post.AllowUntrusted)
 		if requestor.Trusted {
 			logger.Debug("Handling API request", logCtx)
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
@@ -1044,12 +1063,6 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 		}
 	})
-
-	// If the endpoint has a canonical name then record it so it can be used to build URLS
-	// and accessed in the context of the request by the handler function.
-	if c.Name != "" {
-		route.Name(c.Name)
-	}
 }
 
 // have we setup shared mounts?

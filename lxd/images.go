@@ -27,7 +27,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/kballard/go-shellquote"
 	"go.yaml.in/yaml/v2"
 
@@ -112,7 +111,7 @@ var imageAliasesCmd = APIEndpoint{
 }
 
 var imageAliasCmd = APIEndpoint{
-	Path:        "images/aliases/{name:.*}",
+	Path:        "images/aliases/{name...}",
 	MetricsType: entity.TypeImage,
 
 	Delete: APIEndpointAction{Handler: imageAliasDelete, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanDelete)},
@@ -120,6 +119,88 @@ var imageAliasCmd = APIEndpoint{
 	Patch:  APIEndpointAction{Handler: imageAliasPatch, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
 	Post:   APIEndpointAction{Handler: imageAliasPost, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
 	Put:    APIEndpointAction{Handler: imageAliasPut, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
+}
+
+// imageEndpointResolver is a custom endpoint resolver for the "images/{path...}" pattern.
+// It inspects the request path to determine which image-related endpoint should handle the request,
+// allowing for sub-resources like aliases and export/secret/refresh actions on specific images.
+func imageEndpointResolver(r *http.Request) *APIEndpoint {
+	escapedSegments := strings.Split(strings.TrimPrefix(r.URL.EscapedPath(), "/"), "/")
+	if escapedSegments[len(escapedSegments)-1] == "" {
+		return nil // Respond with 404 for requests with trailing slashes.
+	}
+
+	var err error
+	var isAlias bool
+	var unescapedFingerprint, unescapedAliasName, action string
+	for i, escapedSegment := range escapedSegments {
+		switch i {
+		case 0:
+			if escapedSegment != version.APIVersion {
+				return nil
+			}
+
+		case 1:
+			if escapedSegment != "images" {
+				return nil
+			}
+
+		case 2:
+			switch escapedSegment {
+			case "aliases":
+				isAlias = true
+			default:
+				unescapedFingerprint, err = url.PathUnescape(escapedSegment)
+				if err != nil {
+					logger.Warn("Failed unescaping image fingerprint", logger.Ctx{"fingerprint": escapedSegment, "err": err})
+					return nil // Will result in 404.
+				}
+			}
+
+		case 3:
+			if isAlias {
+				unescapedAliasName, err = url.PathUnescape(escapedSegment)
+				if err != nil {
+					logger.Warn("Failed unescaping image alias name", logger.Ctx{"name": escapedSegment, "err": err})
+					return nil // Will result in 404.
+				}
+			} else {
+				action = escapedSegment
+			}
+
+		default:
+			return nil
+		}
+	}
+
+	if isAlias {
+		r.SetPathValue("name", unescapedAliasName)
+		return &imageAliasCmd
+	}
+
+	r.SetPathValue("fingerprint", unescapedFingerprint)
+	switch action {
+	case "":
+		return &imageCmd
+	case "export":
+		return &imageExportCmd
+	case "secret":
+		return &imageSecretCmd
+	case "refresh":
+		return &imageRefreshCmd
+	default:
+		return nil
+	}
+}
+
+// imageSubCmd is a dispatcher endpoint registered as images/{path...} to avoid ServeMux pattern
+// conflicts between images/aliases/{name...} (alias names can contain slashes) and
+// images/{fingerprint}/export, images/{fingerprint}/secret, images/{fingerprint}/refresh.
+// It resolves the request path to the appropriate sub-endpoint.
+var imageSubCmd = APIEndpoint{
+	Path:             "images/{path...}",
+	MetricsType:      entity.TypeImage,
+	EndpointResolver: imageEndpointResolver,
 }
 
 // validateImageFingerprintPrefix validates that the given string is at least 12 characters long contains only lowercase
@@ -185,12 +266,9 @@ type imageDetails struct {
 // addImageDetailsToRequestContext sets the effective project in the request.Info and sets ctxImageDetails (imageDetails)
 // in the request context.
 func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
-	imageFingerprintPrefix, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
-	if err != nil {
-		return err
-	}
+	imageFingerprintPrefix := r.PathValue("fingerprint")
 
-	err = validateImageFingerprintPrefix(imageFingerprintPrefix)
+	err := validateImageFingerprintPrefix(imageFingerprintPrefix)
 	if err != nil {
 		return err
 	}
@@ -281,15 +359,12 @@ func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Re
 
 func imageAliasAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
-		imageAliasName, err := url.PathUnescape(mux.Vars(r)["name"])
-		if err != nil {
-			return response.SmartError(err)
-		}
-
+		imageAliasName := r.PathValue("name")
 		requestProjectName := request.ProjectParam(r)
 		var effectiveProjectName string
 		s := d.State()
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
 			effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), requestProjectName)
 			return err
 		})
@@ -3318,12 +3393,8 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := request.ProjectParam(r)
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = validateImageFingerprintPrefix(fingerprint)
+	fingerprint := r.PathValue("fingerprint")
+	err := validateImageFingerprintPrefix(fingerprint)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -4025,11 +4096,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	s := d.State()
 
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImageAlias, false)
@@ -4116,13 +4183,9 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, _, err = tx.GetImageAlias(ctx, projectName, name, true)
+	name := r.PathValue("name")
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, _, err := tx.GetImageAlias(ctx, projectName, name, true)
 		if err != nil {
 			return err
 		}
@@ -4183,13 +4246,9 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 
 	// Get current value
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	req := api.ImageAliasesEntryPut{}
-	err = json.NewDecoder(r.Body).Decode(&req)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -4274,13 +4333,9 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 
 	// Get current value
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	req := shared.Jmap{}
-	err = json.NewDecoder(r.Body).Decode(&req)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -4377,13 +4432,9 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := request.ProjectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	name := r.PathValue("name")
 	req := api.ImageAliasesEntryPost{}
-	err = json.NewDecoder(r.Body).Decode(&req)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -4475,12 +4526,8 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := request.ProjectParam(r)
-	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = validateImageFingerprintPrefix(fingerprint)
+	fingerprint := r.PathValue("fingerprint")
+	err := validateImageFingerprintPrefix(fingerprint)
 	if err != nil {
 		return response.SmartError(err)
 	}

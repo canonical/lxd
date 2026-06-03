@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
 	"github.com/canonical/lxd/lxd/archive"
@@ -620,10 +619,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	targetMember := request.QueryParam(r, "target")
 	memberSpecific := targetMember != ""
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
+	poolName := r.PathValue("poolName")
 
 	// Detect if we want to also return entitlements for each volume.
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStorageVolume, true)
@@ -635,11 +631,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	allPools := poolName == ""
 
 	// Get the name of the volume type.
-	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	volumeTypeName := r.PathValue("type")
 	// Convert volume type name to internal integer representation if requested.
 	var volumeType cluster.StoragePoolVolumeType
 	if volumeTypeName != "" {
@@ -983,11 +975,7 @@ func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allPr
 func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	poolName := r.PathValue("poolName")
 	requestProjectName := request.ProjectParam(r)
 	projectName, err := project.StorageVolumeProject(s.DB.Cluster, requestProjectName, cluster.StoragePoolVolumeTypeCustom)
 	if err != nil {
@@ -1037,12 +1025,8 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle being called through the typed URL.
-	_, ok := mux.Vars(r)["type"]
-	if ok {
-		req.Type, err = url.PathUnescape(mux.Vars(r)["type"])
-		if err != nil {
-			return response.SmartError(err)
-		}
+	if r.PathValue("type") != "" {
+		req.Type = r.PathValue("type")
 	}
 
 	// We currently only allow to create storage volumes of type storagePoolVolumeTypeCustom.
@@ -2956,11 +2940,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 		request.SetContextValue(r, ctxStorageVolumeDetails, details)
 	}()
 
-	muxVars := mux.Vars(r)
-	volumeName, err := url.PathUnescape(muxVars["volumeName"])
-	if err != nil {
-		return err
-	}
+	volumeName := r.PathValue("volumeName")
 
 	details.volumeName = volumeName
 
@@ -2968,10 +2948,7 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 		return api.StatusErrorf(http.StatusBadRequest, "Invalid storage volume %q", volumeName)
 	}
 
-	volumeTypeName, err := url.PathUnescape(muxVars["type"])
-	if err != nil {
-		return err
-	}
+	volumeTypeName := r.PathValue("type")
 
 	details.volumeTypeName = volumeTypeName
 
@@ -2984,32 +2961,21 @@ func addStoragePoolVolumeDetailsToRequestContext(s *state.State, r *http.Request
 	details.volumeType = volumeType
 
 	// Get snapshot name if present
-	_, ok := muxVars["snapshotName"]
-	if ok {
-		details.snapshotName, err = url.PathUnescape(muxVars["snapshotName"])
-		if err != nil {
-			return err
-		}
-
+	snapshotName := r.PathValue("snapshotName")
+	if snapshotName != "" {
+		details.snapshotName = snapshotName
 		details.fullName = volumeName + shared.SnapshotDelimiter + details.snapshotName
 	}
 
 	// Get backup name if present
-	_, ok = muxVars["backupName"]
-	if ok {
-		details.backupName, err = url.PathUnescape(muxVars["backupName"])
-		if err != nil {
-			return err
-		}
-
+	backupName := r.PathValue("backupName")
+	if backupName != "" {
+		details.backupName = backupName
 		details.fullName = volumeName + shared.SnapshotDelimiter + details.backupName
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return err
-	}
+	poolName := r.PathValue("poolName")
 
 	// Load the storage pool containing the volume. This is required by the access handler as all remote volumes
 	// do not have a location (regardless of whether the caller used a target parameter to send the request to a

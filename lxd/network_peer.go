@@ -5,9 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
@@ -366,11 +363,7 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support peering", n.Type()))
 	}
 
-	peerName, err := url.PathUnescape(mux.Vars(r)["peerName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	peerName := r.PathValue("peerName")
 	run := func(ctx context.Context, op *operations.Operation) error {
 		err = n.PeerDelete(peerName)
 		if err != nil {
@@ -472,11 +465,7 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support peering", n.Type()))
 	}
 
-	peerName, err := url.PathUnescape(mux.Vars(r)["peerName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	peerName := r.PathValue("peerName")
 	var peer *api.NetworkPeer
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -596,11 +585,7 @@ func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support peering", n.Type()))
 	}
 
-	peerName, err := url.PathUnescape(mux.Vars(r)["peerName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	peerName := r.PathValue("peerName")
 	// Decode the request.
 	req := api.NetworkPeerPut{}
 	err = json.NewDecoder(r.Body).Decode(&req)

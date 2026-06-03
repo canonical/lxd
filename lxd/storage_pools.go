@@ -7,11 +7,8 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
-	"net/url"
 	"slices"
 	"strings"
-
-	"github.com/gorilla/mux"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -683,11 +680,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	poolName := r.PathValue("poolName")
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeStoragePool, false)
 	if err != nil {
 		return response.SmartError(err)
@@ -812,12 +805,8 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Get the existing storage pool.
+	poolName := r.PathValue("poolName")
 	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(err)
@@ -1076,11 +1065,7 @@ func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.Storage
 func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	poolName, err := url.PathUnescape(mux.Vars(r)["poolName"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	poolName := r.PathValue("poolName")
 	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(err)
