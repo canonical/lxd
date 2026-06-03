@@ -730,11 +730,10 @@ func StringPrefixInSlice(key string, list []string) bool {
 // The input slice is cloned to avoid modifying the original slice.
 func RemoveElementsFromSlice[T comparable](list []T, elements ...T) []T {
 	list = slices.Clone(list)
-	for i := len(elements) - 1; i >= 0; i-- {
-		element := elements[i]
+	for i, element := range slices.Backward(elements) {
 		match := false
-		for j := len(list) - 1; j >= 0; j-- {
-			if element == list[j] {
+		for j, l := range slices.Backward(list) {
+			if element == l {
 				match = true
 				list = slices.Delete(list, j, j+1)
 				break

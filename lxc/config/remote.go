@@ -182,9 +182,8 @@ func (c *Config) connectRemote(remote Remote, args *lxd.ConnectionArgs) (lxd.Ins
 	if ok {
 		d, err := lxd.ConnectLXDUnix(strings.TrimPrefix(after, "//"), args)
 		if err != nil {
-			var netErr *net.OpError
-
-			if errors.As(err, &netErr) {
+			netErr, ok := errors.AsType[*net.OpError](err)
+			if ok {
 				if errors.Is(err, os.ErrNotExist) {
 					return nil, fmt.Errorf("LXD unix socket %q not found: Please check LXD is running", netErr.Addr)
 				}

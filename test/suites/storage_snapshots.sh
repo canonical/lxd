@@ -8,7 +8,7 @@ test_storage_volume_snapshots() {
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
   spawn_lxd "${LXD_STORAGE_DIR}" false
 
-  local storage_pool storage_volume
+  local storage_pool storage_pool2 storage_volume
   storage_pool="lxdtest-$(basename "${LXD_STORAGE_DIR}")-pool"
   storage_pool2="${storage_pool}2"
   storage_volume="${storage_pool}-vol"

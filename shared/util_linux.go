@@ -406,10 +406,9 @@ func ExitStatus(err error) (int, error) {
 		return 0, err // No error exit status.
 	}
 
-	var exitErr *exec.ExitError
-
 	// Detect and extract ExitError to check the embedded exit status.
-	if errors.As(err, &exitErr) {
+	exitErr, ok := errors.AsType[*exec.ExitError](err)
+	if ok {
 		// If the process was signaled, extract the signal.
 		status, isWaitStatus := exitErr.Sys().(syscall.WaitStatus)
 		if isWaitStatus && status.Signaled() {

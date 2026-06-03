@@ -786,7 +786,7 @@ func (p *pureClient) createVolume(poolName string, volName string, sizeBytes int
 	return nil
 }
 
-// deleteVolume deletes an exisiting volume in the given storage pool.
+// deleteVolume deletes an existing volume in the given storage pool.
 func (p *pureClient) deleteVolume(poolName string, volName string) error {
 	req := map[string]any{
 		"destroyed": true,
@@ -1042,7 +1042,7 @@ func (p *pureClient) updateHost(hostName string, qns []string) error {
 		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
 	}
 
-	// To destroy the volume, we need to patch it by setting the destroyed to true.
+	// Update the host by patching its qualified names (IQNs/NQNs).
 	url := api.NewURL().Path("hosts").WithQuery("names", hostName)
 	err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 	if err != nil {
@@ -1289,7 +1289,7 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 	reverter.Add(connReverter)
 
 	// If connect succeeded it means we have at least one established connection.
-	// However, it's reverter does not cleanup the establised connections or a newly
+	// However, its reverter does not clean up the established connections or a newly
 	// created session. Therefore, if we created a mapping, add unmapVolume to the
 	// returned (outer) reverter. Unmap ensures the target is disconnected only when
 	// no other device is using it.

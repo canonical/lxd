@@ -1667,7 +1667,7 @@ func (d *powerstore) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		}
 
 		// If connect succeeded it means we have at least one established connection.
-		// However, it's reverter does not cleanup the established connections or a newly
+		// However, its reverter does not clean up the established connections or a newly
 		// created session. Therefore, if we created a mapping, add unmapVolume to the
 		// returned (outer) reverter. Unmap ensures the target is disconnected only when
 		// no other device is using it.
