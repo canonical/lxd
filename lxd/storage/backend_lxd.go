@@ -8499,7 +8499,12 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 
 		// Validate config and create database entry for new storage volume.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-		err = VolumeDBCreate(b, srcBackup.Project, fullSnapName, snapshot.Description, snapVol.Type(), true, snapVol.Config(), snapshot.CreatedAt, *snapshot.ExpiresAt, snapVol.ContentType(), true, true)
+		var snapExpiryDate time.Time
+		if snapshot.ExpiresAt != nil {
+			snapExpiryDate = *snapshot.ExpiresAt
+		}
+
+		err = VolumeDBCreate(b, srcBackup.Project, fullSnapName, snapshot.Description, snapVol.Type(), true, snapVol.Config(), snapshot.CreatedAt, snapExpiryDate, snapVol.ContentType(), true, true)
 		if err != nil {
 			return err
 		}
