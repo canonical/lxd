@@ -24,7 +24,7 @@ func TestImageEndpointResolver(t *testing.T) {
 			wantPathValueVal: "myalias",
 		},
 		{
-			name:         "alias with slash in name (decoded path)",
+			name:         "alias with unescaped slash in name (path is too long)",
 			path:         "/1.0/images/aliases/my/alias",
 			wantEndpoint: nil,
 		},
@@ -104,7 +104,7 @@ func TestImageEndpointResolver(t *testing.T) {
 			wantEndpoint: nil,
 		},
 
-		// Invalid URL escape sequences return nil
+		// Invalid URL escape sequences are treated as literals
 		{
 			name:             "invalid escape in alias",
 			path:             "/1.0/images/aliases/bad%2",

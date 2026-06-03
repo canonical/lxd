@@ -194,9 +194,10 @@ func imageEndpointResolver(r *http.Request) *APIEndpoint {
 }
 
 // imageSubCmd is a dispatcher endpoint registered as images/{path...} to avoid ServeMux pattern
-// conflicts between images/aliases/{name...} (alias names can contain slashes) and
+// conflicts between images/aliases/{name...} (alias names can contain escaped slashes) and
 // images/{fingerprint}/export, images/{fingerprint}/secret, images/{fingerprint}/refresh.
 // It resolves the request path to the appropriate sub-endpoint.
+// If alias names are not escaped then the resolver will return nil (meaning 404).
 var imageSubCmd = APIEndpoint{
 	Path:             "images/{path...}",
 	MetricsType:      entity.TypeImage,
