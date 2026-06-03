@@ -154,7 +154,7 @@ func Test_patchOIDCGroupsClaimScope(t *testing.T) {
 			conf, err := clusterConfig.Load(ctx, tx)
 			require.NoError(t, err)
 
-			_, _, _, scopes, _, groupsClaim := conf.OIDCServer()
+			_, _, _, scopes, _, groupsClaim, _ := conf.OIDCServer()
 			// Expect the groups claim to still be set.
 			assert.Equal(t, "groups", groupsClaim)
 
@@ -198,7 +198,7 @@ func Test_patchOIDCGroupsClaimScope(t *testing.T) {
 			conf, err := clusterConfig.Load(ctx, tx)
 			require.NoError(t, err)
 
-			_, _, _, scopes, _, groupsClaim := conf.OIDCServer()
+			_, _, _, scopes, _, groupsClaim, _ := conf.OIDCServer()
 			// Expect the groups claim to still be set.
 			assert.Equal(t, "groups", groupsClaim)
 

@@ -250,7 +250,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		api.AuthenticationMethodBearer,
 	}
 
-	oidcIssuer, oidcClientID, _, _, _, _ := s.GlobalConfig.OIDCServer()
+	oidcIssuer, oidcClientID, _, _, _, _, _ := s.GlobalConfig.OIDCServer()
 	if oidcIssuer != "" && oidcClientID != "" {
 		authMethods = append(authMethods, api.AuthenticationMethodOIDC)
 	}
@@ -744,11 +744,13 @@ func validateStorageVolumes(s *state.State, ctx context.Context, nodeValues map[
 	return nil
 }
 
-// validateOIDCSessionExpiry enforces that "oidc.session.expiry" is not greater than "core.auth_secret_expiry".
-//
-// We cannot allow this, otherwise we might encounter OIDC session tokens that ought to be valid, but that we can't verify
-// because they have been signed by a key derived from a core secret that is too old and has been rotated out and deleted.
-func validateOIDCSessionExpiry(config *clusterConfig.Config, requestConfig map[string]string, patch bool) error {
+// validateOIDCConfiguration inspects the OIDC related values in a configuration update to enforce certain constraints.
+// This can't be handled by the config map, as the validation functions don't have access to other configuration values,
+// so we need to validate separately.
+func validateOIDCConfiguration(config *clusterConfig.Config, requestConfig map[string]string, patch bool) error {
+	// Enforce that "oidc.session.expiry" is not greater than "core.auth_secret_expiry". We cannot allow this, otherwise
+	// we might encounter OIDC session tokens that ought to be valid, but that we can't verify because they have been
+	// signed by a key derived from a core secret that is too old and has been rotated out and deleted.
 	coreAuthSecretExpiry := requestConfig["core.auth_secret_expiry"]
 	if coreAuthSecretExpiry == "" {
 		// If value is unset in request. For PATCH it is unchanged, but for PUT it will reset to the default.
@@ -786,6 +788,33 @@ func validateOIDCSessionExpiry(config *clusterConfig.Config, requestConfig map[s
 		return api.StatusErrorf(http.StatusBadRequest, "OIDC session expiry %q must not be greater than the auth secret expiry %q", oidcSessionExpiry, coreAuthSecretExpiry)
 	}
 
+	// Check that the oidc.device.client.id will not be set without oidc.client.id being set.
+	newClientID, hasNewClientID := requestConfig["oidc.client.id"]
+	newDeviceClientID, hasNewDeviceClientID := requestConfig["oidc.device.client.id"]
+	var clientIDWillBeUnset, deviceClientIDWillBeSet bool
+	if patch {
+		// Get the current client ID.
+		_, currentClientID, _, _, _, _, _ := config.OIDCServer()
+
+		// Get the current device client ID. Note that we are not using the value returned from config.OIDCServer here
+		// because that value defaults to the client ID if not set.
+		currentDeviceClientID := config.OIDCDeviceClientID()
+
+		// Client ID will be unset if the current value is not set and no new value was sent or if a new empty value was sent.
+		clientIDWillBeUnset = (!hasNewClientID && currentClientID == "") || (hasNewClientID && newClientID == "")
+
+		// Device client ID will be set if the current value is set and no new value was sent or if a new non-empty value was sent.
+		deviceClientIDWillBeSet = (!hasNewDeviceClientID && currentDeviceClientID != "") || (hasNewDeviceClientID && newDeviceClientID != "")
+	} else {
+		// For PUT we can just check the sent values.
+		clientIDWillBeUnset = newClientID == ""
+		deviceClientIDWillBeSet = newDeviceClientID != ""
+	}
+
+	if clientIDWillBeUnset && deviceClientIDWillBeSet {
+		return api.NewStatusError(http.StatusBadRequest, `"oidc.device.client.id" cannot be set if "oidc.client.id" is unset`)
+	}
+
 	return nil
 }
 
@@ -816,10 +845,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		return response.BadRequest(errors.New("The cluster UUID cannot be changed"))
 	}
 
-	// Validate the OIDC session expiry is not greater than the core auth secret expiry.
-	// This can't be handled by the config map, as the validation functions don't have access
-	// to other configuration values, so we need to validate here.
-	err := validateOIDCSessionExpiry(d.globalConfig, stringReqConfig, patch)
+	err := validateOIDCConfiguration(d.globalConfig, stringReqConfig, patch)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1104,7 +1130,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			acmeCAURLChanged = true
 		case "acme.domain":
 			acmeDomainChanged = true
-		case "oidc.issuer", "oidc.client.id", "oidc.client.secret", "oidc.scopes", "oidc.audience", "oidc.groups.claim":
+		case "oidc.issuer", "oidc.client.id", "oidc.client.secret", "oidc.scopes", "oidc.audience", "oidc.groups.claim", "oidc.device.client.id":
 			oidcChanged = true
 		}
 	}
@@ -1257,7 +1283,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if oidcChanged {
-		oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim := newClusterConfig.OIDCServer()
+		oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, oidcDeviceClientID := newClusterConfig.OIDCServer()
 
 		if oidcIssuer == "" || oidcClientID == "" {
 			d.oidcVerifier = nil
@@ -1269,7 +1295,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			}
 
 			sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, d.globalConfig.OIDCSessionExpiry)
-			d.oidcVerifier, err = oidc.NewVerifier(s.ShutdownCtx, oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, d.globalConfig.ClusterUUID(), d.endpoints.NetworkAddress(), s.CoreAuthSecrets, httpClientFunc, sessionHandler)
+			d.oidcVerifier, err = oidc.NewVerifier(s.ShutdownCtx, oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, oidcDeviceClientID, d.globalConfig.ClusterUUID(), d.endpoints.NetworkAddress(), s.CoreAuthSecrets, httpClientFunc, sessionHandler)
 			if err != nil {
 				return fmt.Errorf("Failed creating verifier: %w", err)
 			}

@@ -131,18 +131,16 @@ A client with a CA-signed certificate that has been revoked, and is present in `
 LXD supports using [OpenID Connect](https://openid.net/developers/how-connect-works/) to authenticate users through an {abbr}`OIDC (OpenID Connect)` Identity Provider.
 
 To configure LXD to use OIDC authentication, set the [`oidc.*`](server-options-oidc) server configuration options.
-Your OIDC provider must be configured to enable the [Device Authorization Grant](https://oauth.net/2/device-flow/) type.
+See the {ref}`how-to guides <howto-oidc>` for more information.
 
-To add a remote pointing to a LXD server configured with OIDC authentication, run [`lxc remote add <remote_name> <remote_address>`](lxc_remote_add.md).
+Once configured, the LXD UI will display a {guilabel}`Log in with SSO` button which will redirect you to the Identity Provider to log in.
+
+To use OIDC authentication in the LXD CLI, run [`lxc remote add <remote_name> <remote_address>`](lxc_remote_add.md).
+This defaults to OIDC authentication if configured on the remote server.
 You are then prompted to authenticate through your web browser, where you must confirm that the device code displayed in the browser matches the device code that is displayed in the terminal window.
 The LXD client then retrieves and stores an access token, which it provides to LXD for all interactions.
 The identity provider might also provide a refresh token.
 In this case, the LXD client uses this refresh token to attempt to retrieve another access token when the current access token has expired.
-
-```{warning}
-Only set `oidc.client.secret` if required by the Identity Provider. Once set, this key allows the LXD UI client to authenticate.
-However, the secret is not shared with other LXD clients (such as the LXD CLI).
-```
 
 When an OIDC client initially authenticates with LXD, it does not have access to the majority of the LXD API.
 OIDC clients must be granted access by an administrator, see {ref}`fine-grained-authorization`.

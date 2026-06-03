@@ -5649,6 +5649,15 @@
 						}
 					},
 					{
+						"oidc.device.client.id": {
+							"defaultdesc": "The value of `oidc.client.id` if set.",
+							"longdesc": "The OIDC client ID used by the LXD CLI. This configuration value overrides the client ID that is made public\nto the LXD CLI.",
+							"scope": "global",
+							"shortdesc": "OpenID Connect client ID (CLI)",
+							"type": "string"
+						}
+					},
+					{
 						"oidc.groups.claim": {
 							"longdesc": "Specify a custom token claim to denote groups defined at the identity provider.\nThe contents of this claim can be mapped to LXD groups for managing access control.\nThe value of the claim is expected to be a JSON string array.",
 							"scope": "global",

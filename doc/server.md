@@ -55,8 +55,10 @@ The following server options configure external user authentication through {ref
 ```
 
 ```{important}
-Setting `oidc.client.secret` may prevent CLI clients from authenticating depending on the Identity Provider policies.
-Set this key only if required by the Identity Provider.
+Setting `oidc.client.secret` might prevent LXD CLI clients from authenticating via the Identity Provider.
+This is because the client secret is used only for communication between LXD and the Identity Provider.
+LXD CLI clients, who do not have access to the client secret, authenticate separately with the Identity Provider and send their credentials to LXD for verification.
+You can create a separate client in the identity provider for the LXD CLI and configure this using the `oidc.device.client.id`
 ```
 
 (server-options-cluster)=
