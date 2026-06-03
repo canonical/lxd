@@ -1643,10 +1643,11 @@ parts:
     source: https://github.com/canonical/gpu-snap.git
     plugin: dump
     override-prime: |
-      ${CRAFT_PART_SRC}/bin/gpu-2604-cleanup mesa-2604 nvidia-2604
+      ${CRAFT_PART_SRC}/bin/gpu-2604-cleanup mesa-2604
 
   strip:
     after:
+      - python-runtime
       - amd-ctk
       - btrfs
       - ceph
@@ -1671,8 +1672,10 @@ parts:
       - lxc
       - lxcfs
       - lxd
+      - gpu-2604
       - shmounts
       - nvidia-container-toolkit
+      - uefivars
     plugin: nil
     override-prime: |
       set -x
