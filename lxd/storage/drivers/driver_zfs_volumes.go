@@ -62,89 +62,14 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter io
 
 	// Look for previously deleted images.
 	if vol.volType == VolumeTypeImage {
-		dataset := d.dataset(vol, true)
-		exists, err := d.datasetExists(dataset)
+		restored, err := d.tryRestoreDeletedImageVolume(vol)
 		if err != nil {
 			return err
 		}
 
-		if exists {
-			canRestore := true
-
-			if vol.IsBlockBacked() && (vol.contentType == ContentTypeBlock || d.isBlockBacked(vol)) {
-				// For block volumes check if the cached image volume is larger than the current pool volume.size
-				// setting (if so we won't be able to resize the snapshot to that the smaller size later).
-				volSize, err := d.getDatasetProperty(dataset, "volsize")
-				if err != nil {
-					return err
-				}
-
-				volSizeBytes, err := strconv.ParseInt(volSize, 10, 64)
-				if err != nil {
-					return err
-				}
-
-				poolVolSize := d.Info().DefaultBlockSize
-				if vol.poolConfig["volume.size"] != "" {
-					poolVolSize = vol.poolConfig["volume.size"]
-				}
-
-				poolVolSizeBytes, err := units.ParseByteSizeString(poolVolSize)
-				if err != nil {
-					return err
-				}
-
-				// Round to block boundary.
-				poolVolSizeBytes = d.roundVolumeBlockSizeBytes(vol, poolVolSizeBytes)
-
-				// If the cached volume size is different than the pool volume size, then we can't use the
-				// deleted cached image volume and instead we will rename it to a random UUID so it can't
-				// be restored in the future and a new cached image volume will be created instead.
-				if volSizeBytes != poolVolSizeBytes {
-					d.logger.Debug("Renaming deleted cached image volume so that regeneration is used", logger.Ctx{"fingerprint": vol.Name()})
-					randomVol := NewVolume(d, d.name, vol.volType, vol.contentType, d.randomVolumeName(vol), vol.config, vol.poolConfig)
-
-					_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", dataset, d.dataset(randomVol, true))
-					if err != nil {
-						return err
-					}
-
-					if vol.IsVMBlock() {
-						fsVol := vol.NewVMBlockFilesystemVolume()
-						randomFsVol := randomVol.NewVMBlockFilesystemVolume()
-
-						_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(fsVol, true), d.dataset(randomFsVol, true))
-						if err != nil {
-							return err
-						}
-					}
-
-					// We have renamed the deleted cached image volume, so we don't want to try and
-					// restore it.
-					canRestore = false
-				}
-			}
-
-			// Restore the image.
-			if canRestore {
-				d.logger.Debug("Restoring previously deleted cached image volume", logger.Ctx{"fingerprint": vol.Name()})
-				_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", dataset, d.dataset(vol, false))
-				if err != nil {
-					return err
-				}
-
-				if vol.IsVMBlock() {
-					fsVol := vol.NewVMBlockFilesystemVolume()
-
-					_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(fsVol, true), d.dataset(fsVol, false))
-					if err != nil {
-						return err
-					}
-				}
-
-				revert.Success()
-				return nil
-			}
+		if restored {
+			revert.Success()
+			return nil
 		}
 	}
 
@@ -342,6 +267,158 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter io
 	revert.Success()
 
 	return nil
+}
+
+// tryRestoreDeletedImageVolume checks for a previously soft-deleted image volume in deleted/images/
+// and restores it if the size still matches pool defaults. This avoids a full image unpack when
+// the volume was recently deleted but is still on disk.
+func (d *zfs) tryRestoreDeletedImageVolume(vol Volume) (bool, error) {
+	candidate, found, err := d.findDeletedImageVariant(vol)
+	if err != nil || !found {
+		return false, err
+	}
+
+	d.logger.Debug("Restoring previously deleted cached image volume", logger.Ctx{"fingerprint": vol.Name()})
+
+	revertRestore := revert.New()
+	defer revertRestore.Fail()
+
+	// Restore the image.
+	_, err = shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", candidate, d.dataset(vol, false))
+	if err != nil {
+		return false, err
+	}
+
+	// Roll back the main rename if anything below fails.
+	revertRestore.Add(func() {
+		_, _ = shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, false), candidate)
+	})
+
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+
+		fsCandidate, fsFound, err := d.findDeletedImageVariant(fsVol)
+		if err != nil {
+			return false, err
+		}
+
+		if !fsFound {
+			return false, fmt.Errorf("Restored image variant %q but no matching FS companion found in /deleted", vol.Name())
+		}
+
+		_, err = shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", fsCandidate, d.dataset(fsVol, false))
+		if err != nil {
+			return false, err
+		}
+	}
+
+	revertRestore.Success()
+	return true, nil
+}
+
+// findDeletedImageVariant returns a soft-deleted dataset path for vol whose on-disk
+// config matches. The deterministic /deleted/images/<name> slot is preferred; if it is
+// missing or doesn't match, /deleted/images/<name>-* tombstones are enumerated. Returns
+// ("", false, nil) when no candidate matches.
+func (d *zfs) findDeletedImageVariant(vol Volume) (string, bool, error) {
+	parent := d.config["zfs.pool_name"] + "/deleted/" + string(vol.volType)
+
+	parentExists, err := d.datasetExists(parent)
+	if err != nil || !parentExists {
+		return "", false, err
+	}
+
+	deterministic := d.dataset(vol, true)
+	exists, err := d.datasetExists(deterministic)
+	if err != nil {
+		return "", false, err
+	}
+
+	if exists {
+		match, err := d.deletedImageVariantMatches(deterministic, vol)
+		if err != nil {
+			return "", false, err
+		}
+
+		if match {
+			return deterministic, true, nil
+		}
+	}
+
+	// Tombstone search prefix: same basename as the deterministic slot, plus a "-"
+	// before the UUID. The deterministic slot itself is excluded by the trailing "-".
+	prefix := deterministic + "-"
+
+	out, err := shared.RunCommand(d.state.ShutdownCtx, "zfs", "list", "-H", "-d", "1", "-o", "name", "-t", "filesystem,volume", parent)
+	if err != nil {
+		return "", false, err
+	}
+
+	for line := range strings.SplitSeq(out, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+
+		match, err := d.deletedImageVariantMatches(line, vol)
+		if err != nil {
+			return "", false, err
+		}
+
+		if match {
+			return line, true, nil
+		}
+	}
+
+	return "", false, nil
+}
+
+// deletedImageVariantMatches returns true if the soft-deleted dataset is a viable
+// restore candidate: volsize must match and, for block-backed variants, volblocksize
+// must match vol's effective zfs.blocksize. Other variants are matched by name prefix.
+func (d *zfs) deletedImageVariantMatches(dataset string, vol Volume) (bool, error) {
+	if vol.contentType != ContentTypeBlock && !d.isBlockBacked(vol) {
+		return true, nil
+	}
+
+	// For block volumes check if the cached image volume is larger than the current pool volume.size
+	// setting (if so we won't be able to resize the snapshot to that the smaller size later).
+	volSize, err := d.getDatasetProperty(dataset, "volsize")
+	if err != nil {
+		return false, err
+	}
+
+	volSizeBytes, err := strconv.ParseInt(volSize, 10, 64)
+	if err != nil {
+		return false, err
+	}
+
+	poolVolSize := d.Info().DefaultBlockSize
+	if vol.poolConfig["volume.size"] != "" {
+		poolVolSize = vol.poolConfig["volume.size"]
+	}
+
+	poolVolSizeBytes, err := units.ParseByteSizeString(poolVolSize)
+	if err != nil {
+		return false, err
+	}
+
+	// Round to block boundary.
+	poolVolSizeBytes = d.roundVolumeBlockSizeBytes(vol, poolVolSizeBytes)
+
+	// If the cached volume size is different than the pool volume size, then we can't use the
+	// deleted cached image volume as a restore candidate. Any tombstoning of the slot happens
+	// at delete time when a new variant tries to occupy it.
+	if volSizeBytes != poolVolSizeBytes {
+		return false, nil
+	}
+
+	needsRecreate, err := d.variantNeedsRecreateForBlocksize(dataset, vol)
+	if err != nil {
+		return false, err
+	}
+
+	return !needsRecreate, nil
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
@@ -1257,9 +1334,33 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 	return nil
 }
 
-// EnsureImage materialises the cached image volume on disk if it is not already present.
+// EnsureImage materialises the cached image variant identified by imgVol's effective
+// config. Variant identity on ZFS is (block_mode, block.filesystem). Returns
+// ErrImageVariantNotSupported if the on-disk volblocksize diverges from config, leaving
+// the caller to decide between recreation (pool-default) or a per-instance slow-unpack.
 func (d *zfs) EnsureImage(imgVol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
-	return ensureImageVolume(imgVol, filler, progressReporter)
+	dataset := d.dataset(imgVol, false)
+	exists, err := d.datasetExists(dataset)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return d.CreateVolume(imgVol, filler, progressReporter)
+	}
+
+	if imgVol.contentType == ContentTypeBlock || d.isBlockBacked(imgVol) {
+		needsRecreate, err := d.variantNeedsRecreateForBlocksize(dataset, imgVol)
+		if err != nil {
+			return err
+		}
+
+		if needsRecreate {
+			return ErrImageVariantNotSupported
+		}
+	}
+
+	return nil
 }
 
 // RefreshVolume updates an existing volume to match the state of another.
@@ -1525,24 +1626,229 @@ func (d *zfs) RefreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots 
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
 // this function will return an error.
-// For image volumes, both filesystem and block volumes will be removed.
+// For image volumes, every variant on disk (base + each block-backed filesystem) is removed.
+// An error is returned if any variant deletion fails; individual failures are also logged as warnings.
 func (d *zfs) DeleteVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	if vol.volType == VolumeTypeImage {
 		// We need to clone vol the otherwise changing `zfs.block_mode`
 		// in tmpVol will also change it in vol.
 		tmpVol := vol.Clone()
 
-		for _, filesystem := range blockBackedAllowedFilesystems {
-			tmpVol.config["block.filesystem"] = filesystem
+		var lastErr error
 
-			err := d.deleteVolume(tmpVol, progressReporter)
+		variantSuffixes := append([]string{""}, blockBackedAllowedFilesystems...)
+		for _, suffix := range variantSuffixes {
+			if suffix == "" {
+				tmpVol.config["zfs.block_mode"] = "false"
+				delete(tmpVol.config, "block.filesystem")
+			} else {
+				tmpVol.config["zfs.block_mode"] = "true"
+				tmpVol.config["block.filesystem"] = suffix
+			}
+
+			dataset := d.dataset(tmpVol, false)
+			exists, err := d.datasetExists(dataset)
+			if err != nil {
+				d.logger.Warn("Failed checking image variant existence", logger.Ctx{"dataset": dataset, "err": err})
+				lastErr = err
+				continue
+			}
+
+			if !exists {
+				continue
+			}
+
+			err = d.deleteVolume(tmpVol, progressReporter)
+			if err != nil {
+				d.logger.Warn("Failed deleting image variant", logger.Ctx{"dataset": dataset, "err": err})
+				lastErr = err
+				continue
+			}
+		}
+
+		// For VM images, also delete the companion filesystem dataset which is not
+		// covered by the block_mode/block.filesystem variant loop above.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+			exists, err := d.datasetExists(d.dataset(fsVol, false))
+			if err != nil {
+				d.logger.Warn("Failed checking VM image companion FS dataset", logger.Ctx{"dataset": d.dataset(fsVol, false), "err": err})
+				lastErr = err
+			} else if exists {
+				err = d.deleteVolume(fsVol, progressReporter)
+				if err != nil {
+					d.logger.Warn("Failed deleting VM image companion FS dataset", logger.Ctx{"dataset": d.dataset(fsVol, false), "err": err})
+					lastErr = err
+				}
+			}
+		}
+
+		return lastErr
+	}
+
+	// For container/VM volumes, capture the source variant's origin before
+	// destroying the clone so the live variant can be deleted if it is no
+	// longer needed.
+	var origin string
+	if vol.volType == VolumeTypeContainer || vol.volType == VolumeTypeVM {
+		origin, _ = d.getDatasetProperty(d.dataset(vol, false), "origin")
+	}
+
+	err := d.deleteVolume(vol, progressReporter)
+	if err != nil {
+		return err
+	}
+
+	if origin != "" && origin != "-" {
+		err = d.tryCleanupImageVariant(origin)
+		if err != nil {
+			return err
+		}
+	}
+
+	// For VMs, also delete the filesystem dataset.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		err := d.DeleteVolume(fsVol, progressReporter)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// tryCleanupImageVariant destroys an image variant identified by the given
+// origin reference if it no longer matches pool defaults and has no remaining
+// clones. origin is the "origin" property of a clone, of the form
+// pool/images/<name>@readonly.
+func (d *zfs) tryCleanupImageVariant(origin string) error {
+	dataset, _, ok := strings.Cut(origin, "@")
+	if !ok {
+		return nil
+	}
+
+	poolName := d.config["zfs.pool_name"]
+	livePrefix := poolName + "/images/"
+
+	if strings.HasPrefix(dataset, livePrefix) {
+		poolIsBlockBacked, poolBlockFS := getPoolBlockConfig(d.config)
+		return d.cleanupVariantIfStale(dataset, livePrefix, poolIsBlockBacked, poolBlockFS, d.config["volume.zfs.blocksize"])
+	}
+
+	// Soft-deleted variants are reclaimed via the /deleted/ origin chain;
+	// no additional cleanup is needed here.
+	return nil
+}
+
+// cleanupStaleImageVariants removes image variants that no longer match the
+// pool's new default configuration and have no active clones. Called when
+// pool defaults change. Walks both live and soft-deleted variants.
+func (d *zfs) cleanupStaleImageVariants(newPoolConfig map[string]string) error {
+	poolName := d.config["zfs.pool_name"]
+	isBlockBacked, blockFS := getPoolBlockConfig(newPoolConfig)
+	newBlocksize := newPoolConfig["volume.zfs.blocksize"]
+
+	for _, basePath := range []string{poolName + "/images", poolName + "/deleted/images"} {
+		exists, err := d.datasetExists(basePath)
+		if err != nil {
+			return err
+		}
+
+		if !exists {
+			continue
+		}
+
+		out, err := shared.RunCommand(d.state.ShutdownCtx, "zfs", "list", "-H", "-d", "1", "-o", "name", "-t", "filesystem,volume", basePath)
+		if err != nil {
+			return err
+		}
+
+		prefix := basePath + "/"
+		for line := range strings.SplitSeq(out, "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || line == basePath {
+				continue
+			}
+
+			err := d.cleanupVariantIfStale(line, prefix, isBlockBacked, blockFS, newBlocksize)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	return d.deleteVolume(vol, progressReporter)
+	return nil
+}
+
+// cleanupVariantIfStale destroys a single image variant dataset if it no
+// longer matches pool defaults and has no live clones.
+func (d *zfs) cleanupVariantIfStale(dataset string, prefix string, poolIsBlockBacked bool, poolBlockFS string, poolBlocksize string) error {
+	// .block siblings are managed alongside the parent VM image, not independently.
+	if strings.HasSuffix(dataset, zfsBlockVolSuffix) {
+		return nil
+	}
+
+	name, ok := strings.CutPrefix(dataset, prefix)
+	if !ok || name == "" {
+		return nil
+	}
+
+	_, suffix := parseImageVariantName(name)
+
+	// VM image filesystem volumes have no _<fs> suffix and live next to a
+	// .block disk; they're reclaimed with the disk, not on their own.
+	if suffix == "" {
+		hasBlockSibling, err := d.datasetExists(dataset + zfsBlockVolSuffix)
+		if err != nil {
+			return err
+		}
+
+		if hasBlockSibling {
+			return nil
+		}
+	}
+
+	stale := !variantMatchesConfig(suffix, poolIsBlockBacked, poolBlockFS)
+
+	// For block-backed variants that still match block_mode/filesystem, also check
+	// whether the on-disk volblocksize matches the new pool default. A mismatch means
+	// instances cloned from this variant would get the wrong blocksize.
+	if !stale && suffix != "" && poolBlocksize != "" {
+		onDiskBlocksize, err := d.getDatasetProperty(dataset, "volblocksize")
+		if err == nil && onDiskBlocksize != "" {
+			desiredBytes, err := units.ParseByteSizeString(poolBlocksize)
+			if err == nil {
+				if desiredBytes > zfsMaxVolBlocksize {
+					desiredBytes = zfsMaxVolBlocksize
+				}
+
+				currentBytes, err := units.ParseByteSizeString(onDiskBlocksize)
+				if err == nil && currentBytes != desiredBytes {
+					stale = true
+				}
+			}
+		}
+	}
+
+	if !stale {
+		return nil
+	}
+
+	// Recursive lookup covers any @readonly (or other) snapshot's clones.
+	clones, err := d.getClones(dataset)
+	if err != nil {
+		return err
+	}
+
+	if len(clones) > 0 {
+		return nil
+	}
+
+	d.logger.Debug("Deleting stale image variant", logger.Ctx{"dataset": dataset})
+
+	_, err = shared.RunCommand(context.TODO(), "zfs", "destroy", "-r", dataset)
+	return err
 }
 
 func (d *zfs) deleteVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
@@ -1562,8 +1868,31 @@ func (d *zfs) deleteVolume(vol Volume, progressReporter ioprogress.ProgressRepor
 		}
 
 		if len(clones) > 0 {
-			// Move to the deleted path.
-			_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", dataset, d.dataset(vol, true))
+			target := d.dataset(vol, true)
+
+			// Image variants share a deterministic deleted slot per (fingerprint, dimensions).
+			// If a previous soft-deleted snapshot still occupies that slot (e.g. pool
+			// blocksize changed twice and the older variant is still backing live clones),
+			// rename it out of the way to a UUID-suffixed tombstone so the current active
+			// variant can take the deterministic slot.
+			if vol.volType == VolumeTypeImage {
+				existing, err := d.datasetExists(target)
+				if err != nil {
+					return err
+				}
+
+				if existing {
+					tombstone := target + "-" + uuid.New().String()
+					d.logger.Debug("Rotating occupied deleted image slot to tombstone", logger.Ctx{"fingerprint": vol.Name(), "tombstone": tombstone})
+					_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", target, tombstone)
+					if err != nil {
+						return err
+					}
+				}
+			}
+
+			// Move to the deterministic deleted slot.
+			_, err := shared.RunCommand(context.TODO(), "/proc/self/exe", "forkzfs", "--", "rename", dataset, target)
 			if err != nil {
 				return err
 			}
@@ -1602,9 +1931,56 @@ func (d *zfs) deleteVolume(vol Volume, progressReporter ioprogress.ProgressRepor
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
+// For image volumes, it returns true if any variant dataset exists on disk,
+// not only the one matching the DB-recorded config. This ensures that image
+// deletion always cleans up all variants even when the DB-config variant has
+// not been created yet.
 func (d *zfs) HasVolume(vol Volume) (bool, error) {
-	// Check if the dataset exists.
+	if vol.volType == VolumeTypeImage {
+		return d.hasAnyImageVariant(vol)
+	}
+
 	return d.datasetExists(d.dataset(vol, false))
+}
+
+// hasAnyImageVariant returns true if any image variant dataset (base or any
+// block-backed filesystem) exists on disk for the given image volume.
+func (d *zfs) hasAnyImageVariant(vol Volume) (bool, error) {
+	tmpVol := vol.Clone()
+	// Empty suffix means the dataset variant (not a block zvol variant).
+	for _, suffix := range append([]string{""}, blockBackedAllowedFilesystems...) {
+		if suffix == "" {
+			delete(tmpVol.config, "zfs.block_mode")
+			delete(tmpVol.config, "block.filesystem")
+		} else {
+			tmpVol.config["zfs.block_mode"] = "true"
+			tmpVol.config["block.filesystem"] = suffix
+		}
+
+		exists, err := d.datasetExists(d.dataset(tmpVol, false))
+		if err != nil {
+			return false, err
+		}
+
+		if exists {
+			return true, nil
+		}
+	}
+
+	// For VM block images, also check the companion filesystem dataset which sits
+	// under a different content type and is not covered by the variant loop above.
+	if vol.IsVMBlock() {
+		exists, err := d.datasetExists(d.dataset(vol.NewVMBlockFilesystemVolume(), false))
+		if err != nil {
+			return false, err
+		}
+
+		if exists {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // commonVolumeRules returns validation rules which are common for pool and volume.
