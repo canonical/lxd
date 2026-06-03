@@ -1728,6 +1728,10 @@ parts:
       # Ensure the libdrm layout directory exists for the bind mount to work
       mkdir -p "${CRAFT_PRIME}/gpu-2604/mesa-2604/usr/share/libdrm"
 
+      # Ensure the qemu-external plug target directory always exists
+      # even on architectures where QEMU isn't built (like armhf).
+      mkdir -p "${CRAFT_PRIME}/external/qemu"
+
       # XXX: look for broken symlinks indicating missing/invalid prime
       broken_symlinks="$(find "${CRAFT_PRIME}/" -xtype l \
                            -not -path "${CRAFT_PRIME}/lxc/config/common.conf.d/*")"
