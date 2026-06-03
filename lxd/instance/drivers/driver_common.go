@@ -959,6 +959,18 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		}
 	}
 
+	// Attached volumes to snapshot alongside the root, excluding ISO volumes whose
+	// snapshots are unsupported. An ISO-only attachment therefore does not need a
+	// crash-consistent freeze.
+	snapshottableVolumes := make(map[string]db.StorageVolume, len(attachedVolumes))
+	for deviceName, volume := range attachedVolumes {
+		if volume.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
+			continue
+		}
+
+		snapshottableVolumes[deviceName] = volume
+	}
+
 	// Setup the arguments.
 	args := db.InstanceArgs{
 		Project:      inst.Project().Name,
@@ -990,14 +1002,26 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		return err
 	}
 
-	// Freeze the instance if the driver requires it or if there are attached volumes to ensure crash-consistent snapshots.
-	if (pool.Driver().Info().RunningCopyFreeze || len(attachedVolumes) > 0) && inst.IsRunning() && !inst.IsFrozen() {
+	// Freeze the instance if the driver requires it or if there are snapshottable attached volumes to ensure crash-consistent snapshots.
+	if (pool.Driver().Info().RunningCopyFreeze || len(snapshottableVolumes) > 0) && inst.IsRunning() && !inst.IsFrozen() {
+		if len(snapshottableVolumes) > 0 {
+			d.logger.Info("Freezing instance to ensure crash-consistent multi-volume snapshot", logger.Ctx{"snapshot": snap.Name()})
+		} else {
+			d.logger.Debug("Freezing instance as required by the storage driver", logger.Ctx{"snapshot": snap.Name()})
+		}
+
 		err = inst.Freeze(ctx)
 		if err != nil {
 			return err
 		}
 
 		defer func() {
+			if len(snapshottableVolumes) > 0 {
+				d.logger.Info("Unfreezing instance after crash-consistent multi-volume snapshot", logger.Ctx{"snapshot": snap.Name()})
+			} else {
+				d.logger.Debug("Unfreezing instance after storage driver freeze", logger.Ctx{"snapshot": snap.Name()})
+			}
+
 			err := inst.Unfreeze(ctx)
 			if err != nil {
 				d.logger.Warn("Failed unfreezing instance after snapshot", logger.Ctx{"err": err})
@@ -1029,18 +1053,13 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		volatileAttachedVolumes := make(map[string]string)
 		instanceProject := inst.Project()
 		instanceType := inst.Type()
-		for deviceName, volume := range attachedVolumes {
-			// Skip ISO volumes (snapshots not supported).
-			if volume.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
-				continue
-			}
-
-			d.logger.Debug("Creating attached volume snapshot", logger.Ctx{"pool": volume.Pool, "volume": volume.Name, "project": volume.Project})
+		for deviceName, volume := range snapshottableVolumes {
+			d.logger.Info("Creating attached volume snapshot", logger.Ctx{"pool": volume.Pool, "volume": volume.Name, "project": volume.Project})
 
 			// Use shutdown context as we don't have access to the request context.
 			snapshotName, err := storagePools.VolumeDetermineNextSnapshotName(d.state.ShutdownCtx, d.state, volume.Pool, volume.Name, volume.Config)
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed determining next snapshot name for attached volume %q in storage pool %q: %w", volume.Name, volume.Pool, err)
 			}
 
 			// Attached volume snapshot description.
