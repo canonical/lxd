@@ -845,7 +845,11 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		return response.BadRequest(errors.New("The cluster UUID cannot be changed"))
 	}
 
-	err := validateOIDCConfiguration(d.globalConfig, stringReqConfig, patch)
+	d.globalConfigMu.Lock()
+	currentGlobalConfig := d.globalConfig
+	d.globalConfigMu.Unlock()
+
+	err := validateOIDCConfiguration(currentGlobalConfig, stringReqConfig, patch)
 	if err != nil {
 		return response.SmartError(err)
 	}
