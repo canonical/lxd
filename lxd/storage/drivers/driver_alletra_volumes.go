@@ -118,15 +118,11 @@ func (d *alletra) ensureHost() (hostName string, cleanup revert.Hook, err error)
 		}
 
 		// The storage host entry with a qualified name of the current LXD host does not exist.
-		// Therefore, create a new one and name it after the server name.
-		serverName, err := ResolveServerName(d.state.ServerName)
+		// Therefore, create a new one and name it after the resolved server name.
+		hostname, err = ResolveServerNameWithConnectorType(d.state.ServerName, connector.Type())
 		if err != nil {
 			return "", nil, err
 		}
-
-		// Append the mode to the server name because storage array does not allow mixing
-		// NQNs, IQNs, and WWNs for a single host.
-		hostname = serverName + "-" + connector.Type()
 
 		err = d.client().CreateHost(connector.Type(), hostname, []string{qn})
 		if err != nil {
@@ -282,7 +278,7 @@ func (d *alletra) unmapVolume(vol Volume) error {
 	//
 	// For NVMe the host-side device is removed asynchronously after the array detaches the
 	// volume. NVMe's [connectors.RemoveDiskDevice] is a no-op, so this is the only sync point.
-	if volumePath != "" && connector.Type() == connectors.TypeNVME && !block.WaitDiskDeviceGone(d.state.ShutdownCtx, volumePath) {
+	if volumePath != "" && connector.Type() == connectors.TypeNVMeTCP && !block.WaitDiskDeviceGone(d.state.ShutdownCtx, volumePath) {
 		return fmt.Errorf("Timeout exceeded waiting for HPE Alletra volume %q to disappear on path %q", vol.name, volumePath)
 	}
 
@@ -365,7 +361,7 @@ func (d *alletra) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.H
 	switch connector.Type() {
 	case connectors.TypeISCSI:
 		diskSuffix = strings.ToLower(hpeVol.WWN)
-	case connectors.TypeNVME:
+	case connectors.TypeNVMeTCP:
 		diskSuffix = strings.ToLower(hpeVol.NGUID)
 	default:
 		return "", nil, fmt.Errorf("Unsupported Alletra Storage mode %q", connector.Type())

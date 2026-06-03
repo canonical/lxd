@@ -25,7 +25,7 @@ var pureVersion = ""
 // pureSupportedConnectors represents a list of storage connectors that can be used with Pure Storage.
 var pureSupportedConnectors = []string{
 	connectors.TypeISCSI,
-	connectors.TypeNVME,
+	connectors.TypeNVMeTCP,
 }
 
 // pureMinVolumeSizeBytes defines the minimum size of a Pure Storage volume, which is 1MiB.
@@ -122,7 +122,7 @@ func (d *pure) Info() Info {
 func (d *pure) FillConfig() error {
 	// Use NVMe by default.
 	if d.config["pure.mode"] == "" {
-		d.config["pure.mode"] = connectors.TypeNVME
+		d.config["pure.mode"] = connectors.TypeNVMeTCP
 	}
 
 	return nil
@@ -160,7 +160,7 @@ func (d *pure) Validate(config map[string]string) error {
 		"pure.target": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.mode)
 		// The mode to use to map Pure Storage volumes to the local server.
-		// Supported values are `iscsi` and `nvme`.
+		// Supported values are `iscsi` and `nvme/tcp`.
 		// ---
 		//  type: string
 		//  defaultdesc: the discovered mode

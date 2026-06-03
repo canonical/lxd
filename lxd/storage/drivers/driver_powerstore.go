@@ -327,7 +327,7 @@ func (d *powerstore) targets() (map[string][]string, error) {
 		switch mode {
 		case connectors.TypeISCSI:
 			defaultPort = connectors.ISCSIDefaultPort
-		case connectors.TypeNVME:
+		case connectors.TypeNVMeTCP:
 			defaultPort = connectors.NVMeDefaultDiscoveryPort
 		default:
 			return nil, fmt.Errorf("Unsupported PowerStore mode %q", mode)

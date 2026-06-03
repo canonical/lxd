@@ -41,7 +41,7 @@ This driver behaves differently than some of the other drivers in that it provid
 As a result and depending on the internal network, storage access might be a bit slower than for local storage.
 On the other hand, using remote storage has big advantages in a cluster setup, because all cluster members have access to the same storage pools with the exact same contents, without the need to synchronize storage pools.
 
-When creating a new storage pool using the `powerflex` driver in `nvme` mode, LXD tries to discover one of the SDT from the given storage pool.
+When creating a new storage pool using the `powerflex` driver in `nvme/tcp` mode, LXD tries to discover one of the SDT from the given storage pool.
 Alternatively, you can specify which SDT to use with {config:option}`storage-powerflex-pool-conf:powerflex.sdt`.
 LXD instructs the NVMe initiator to connect to all the other SDT when first connecting to the subsystem.
 

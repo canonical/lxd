@@ -529,7 +529,7 @@ func (c *PowerStoreClient) DiscoveryAddresses(connectorType string) ([]string, e
 	switch connectorType {
 	case connectors.TypeISCSI:
 		purpose = "Storage_Iscsi_Target"
-	case connectors.TypeNVME:
+	case connectors.TypeNVMeTCP:
 		purpose = "Storage_NVMe_TCP_Port"
 	default:
 		return nil, fmt.Errorf("Unsupported connector type: %q", connectorType)
@@ -1023,7 +1023,7 @@ func powerStoreConnectorToPortType(connectorType string) (string, error) {
 	switch connectorType {
 	case connectors.TypeISCSI:
 		return "iSCSI", nil
-	case connectors.TypeNVME:
+	case connectors.TypeNVMeTCP:
 		return "NVMe", nil
 	default:
 		return "", fmt.Errorf("Unsupported connector type: %q", connectorType)

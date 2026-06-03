@@ -491,6 +491,7 @@ var APIExtensions = []string{
 	"event_security",
 	"storage_driver_powerstore",
 	"oidc_device_client_id",
+	"storage_nvme_tcp",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

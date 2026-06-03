@@ -5707,7 +5707,7 @@
 					{
 						"alletra.mode": {
 							"defaultdesc": "the discovered mode",
-							"longdesc": "The mode to use to map storage volumes to the local server.\nSupported values are `iscsi` and `nvme`.",
+							"longdesc": "The mode to use to map storage volumes to the local server.\nSupported values are `iscsi` and `nvme/tcp`.",
 							"shortdesc": "How volumes are mapped to the local server",
 							"type": "string"
 						}
@@ -6979,7 +6979,7 @@
 					{
 						"powerflex.mode": {
 							"defaultdesc": "the discovered mode",
-							"longdesc": "The mode gets discovered automatically if the system provides the necessary kernel modules.\nThis can be either `nvme` or `sdc`.",
+							"longdesc": "The mode gets discovered automatically if the system provides the necessary kernel modules.\nThis can be either `nvme/tcp` or `sdc`.",
 							"scope": "global",
 							"shortdesc": "How volumes are mapped to the local server",
 							"type": "string"
@@ -7432,7 +7432,7 @@
 					{
 						"pure.mode": {
 							"defaultdesc": "the discovered mode",
-							"longdesc": "The mode to use to map Pure Storage volumes to the local server.\nSupported values are `iscsi` and `nvme`.",
+							"longdesc": "The mode to use to map Pure Storage volumes to the local server.\nSupported values are `iscsi` and `nvme/tcp`.",
 							"shortdesc": "How volumes are mapped to the local server",
 							"type": "string"
 						}

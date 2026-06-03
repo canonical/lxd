@@ -31,8 +31,8 @@ const pureAPIVersion = "2.21"
 // pureServiceNameMapping maps Pure Storage mode in LXD to the corresponding Pure Storage
 // service name.
 var pureServiceNameMapping = map[string]string{
-	connectors.TypeISCSI: "iscsi",
-	connectors.TypeNVME:  "nvme-tcp",
+	connectors.TypeISCSI:   "iscsi",
+	connectors.TypeNVMeTCP: "nvme-tcp",
 }
 
 // pureVolTypePrefixes maps volume type to storage volume name prefix.
@@ -984,7 +984,7 @@ func (p *pureClient) getCurrentHost() (*pureHost, error) {
 			return &host, nil
 		}
 
-		if mode == connectors.TypeNVME && slices.Contains(host.NQNs, qn) {
+		if mode == connectors.TypeNVMeTCP && slices.Contains(host.NQNs, qn) {
 			return &host, nil
 		}
 	}
@@ -1005,7 +1005,7 @@ func (p *pureClient) createHost(hostName string, qns []string) error {
 	switch connector.Type() {
 	case connectors.TypeISCSI:
 		req["iqns"] = qns
-	case connectors.TypeNVME:
+	case connectors.TypeNVMeTCP:
 		req["nqns"] = qns
 	default:
 		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
@@ -1036,7 +1036,7 @@ func (p *pureClient) updateHost(hostName string, qns []string) error {
 	switch connector.Type() {
 	case connectors.TypeISCSI:
 		req["iqns"] = qns
-	case connectors.TypeNVME:
+	case connectors.TypeNVMeTCP:
 		req["nqns"] = qns
 	default:
 		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
@@ -1155,7 +1155,7 @@ func (p *pureClient) getTarget() (targetQN string, targetAddrs []string, err err
 			nq = port.IQN
 		}
 
-		if mode == connectors.TypeNVME {
+		if mode == connectors.TypeNVMeTCP {
 			nq = port.NQN
 		}
 
@@ -1200,15 +1200,11 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 		}
 
 		// The Pure Storage host with a qualified name of the current LXD host does not exist.
-		// Therefore, create a new one and name it after the server name.
-		serverName, err := ResolveServerName(d.state.ServerName)
+		// Therefore, create a new one and name it after the resolved server name.
+		hostname, err = ResolveServerNameWithConnectorType(d.state.ServerName, connector.Type())
 		if err != nil {
 			return "", nil, err
 		}
-
-		// Append the mode to the server name because Pure Storage does not allow mixing
-		// NQNs, IQNs, and WWNs for a single host.
-		hostname = serverName + "-" + connector.Type()
 
 		err = d.client().createHost(hostname, []string{qn})
 		if err != nil {
@@ -1353,7 +1349,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 	//
 	// For NVMe the host-side device is removed asynchronously after the array detaches the
 	// volume. NVMe's [connectors.RemoveDiskDevice] is a no-op, so this is the only sync point.
-	if volumePath != "" && connector.Type() == connectors.TypeNVME && !block.WaitDiskDeviceGone(d.state.ShutdownCtx, volumePath) {
+	if volumePath != "" && connector.Type() == connectors.TypeNVMeTCP && !block.WaitDiskDeviceGone(d.state.ShutdownCtx, volumePath) {
 		return fmt.Errorf("Timeout exceeded waiting for Pure Storage volume %q to disappear on path %q", vol.name, volumePath)
 	}
 
@@ -1423,7 +1419,7 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 	switch connector.Type() {
 	case connectors.TypeISCSI:
 		diskSuffix = pureVol.Serial
-	case connectors.TypeNVME:
+	case connectors.TypeNVMeTCP:
 		// The disk device ID (e.g. "008726b5033af24324a9373d00014196") is constructed as:
 		// - "00"             - Padding
 		// - "8726b5033af243" - First 14 characters of serial number

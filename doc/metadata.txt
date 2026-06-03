@@ -5119,7 +5119,7 @@ The minimum value is `1d` (1 day).
 :shortdesc: "How volumes are mapped to the local server"
 :type: "string"
 The mode to use to map storage volumes to the local server.
-Supported values are `iscsi` and `nvme`.
+Supported values are `iscsi` and `nvme/tcp`.
 ```
 
 ```{config:option} alletra.target storage-alletra-pool-conf
@@ -6307,7 +6307,7 @@ This option is required only if {config:option}`storage-powerflex-pool-conf:powe
 :shortdesc: "How volumes are mapped to the local server"
 :type: "string"
 The mode gets discovered automatically if the system provides the necessary kernel modules.
-This can be either `nvme` or `sdc`.
+This can be either `nvme/tcp` or `sdc`.
 ```
 
 ```{config:option} powerflex.pool storage-powerflex-pool-conf
@@ -6730,7 +6730,7 @@ API authorization token for Pure Storage gateway. Must have array_admin role to 
 :shortdesc: "How volumes are mapped to the local server"
 :type: "string"
 The mode to use to map Pure Storage volumes to the local server.
-Supported values are `iscsi` and `nvme`.
+Supported values are `iscsi` and `nvme/tcp`.
 ```
 
 ```{config:option} pure.target storage-pure-pool-conf

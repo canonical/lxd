@@ -925,6 +925,21 @@ func ResolveServerName(serverName string) (string, error) {
 	return hostname, nil
 }
 
+// ResolveServerNameWithConnectorType returns the name used for storage array host entries.
+// It resolves the server name and appends the connector type as a suffix so the same server
+// has distinct host entries per connector type, as some storage arrays do not support
+// mixing NQNs, IQNs, and WWNs for the same host entry.
+//
+// Any "/" in connectorType is replaced with "-" because "/" is not valid in host names.
+func ResolveServerNameWithConnectorType(serverName string, connectorType string) (string, error) {
+	resolvedServerName, err := ResolveServerName(serverName)
+	if err != nil {
+		return "", err
+	}
+
+	return resolvedServerName + "-" + strings.ReplaceAll(connectorType, "/", "-"), nil
+}
+
 // remoteVolumeMapLock acquires a lock used when mapping or unmapping remote
 // storage volumes. This lock prevents conflicts between operations trying to
 // associate or disassociate volumes with the LXD host. If the lock is

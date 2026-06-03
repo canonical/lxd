@@ -103,7 +103,7 @@ func nvmeNormalizeDiscoveryLog(log *nvmeDiscoveryLog) {
 
 // Type returns the type of the connector.
 func (c *connectorNVMe) Type() string {
-	return TypeNVME
+	return TypeNVMeTCP
 }
 
 // Version returns the version of the NVMe CLI.
@@ -322,8 +322,8 @@ func (c *connectorNVMe) findSession(targetQN string) (*session, error) {
 
 // Discover returns the targets found on the first reachable targetAddr.
 func (c *connectorNVMe) Discover(ctx context.Context, targetAddresses ...string) ([]any, error) {
-	if c.Type() != TypeNVME {
-		return nil, errors.New("Discover() helper can only be used with NVMe connector type")
+	if c.Type() != TypeNVMeTCP {
+		return nil, errors.New("Discover() helper can only be used with NVMe/TCP connector type")
 	}
 
 	hostNQN, err := c.QualifiedName()

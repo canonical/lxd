@@ -999,7 +999,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 	}
 
 	switch d.config["powerflex.mode"] {
-	case connectors.TypeNVME:
+	case connectors.TypeNVMeTCP:
 		unlock, err := remoteVolumeMapLock(connector.Type(), d.Info().Name)
 		if err != nil {
 			return nil, err
@@ -1062,7 +1062,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 	}
 
 	var cleanup revert.Hook
-	if d.config["powerflex.mode"] == connectors.TypeNVME {
+	if d.config["powerflex.mode"] == connectors.TypeNVMeTCP {
 		// Discover all SDTs from PowerFlex for the respective storage pool.
 		targetAddresses, err := d.getNVMeTargetAddresses()
 		if err != nil {
@@ -1100,7 +1100,7 @@ func (d *powerflex) mapVolume(vol Volume) (revert.Hook, error) {
 	// This ensures that ongoing connection attempts that haven't yet finished are cancelled
 	// before potentially running unmap volume.
 	// As the revert hooks are called in reverse order add the connection cleanup after unmap.
-	if d.config["powerflex.mode"] == connectors.TypeNVME {
+	if d.config["powerflex.mode"] == connectors.TypeNVMeTCP {
 		outerReverter.Add(cleanup)
 	}
 
@@ -1180,7 +1180,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 
 	var host *powerFlexSDC
 	switch d.config["powerflex.mode"] {
-	case connectors.TypeNVME:
+	case connectors.TypeNVMeTCP:
 		hostNQN, err := connector.QualifiedName()
 		if err != nil {
 			return err
@@ -1226,7 +1226,7 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 	// In case of SDC the driver doesn't manage the underlying connection to PowerFlex.
 	// Therefore if this was the last volume being unmapped from this system
 	// LXD will not try to cleanup the connection.
-	if d.config["powerflex.mode"] == connectors.TypeNVME {
+	if d.config["powerflex.mode"] == connectors.TypeNVMeTCP {
 		mappings, err := client.getHostVolumeMappings(host.ID)
 		if err != nil {
 			return err
