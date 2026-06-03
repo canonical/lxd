@@ -150,7 +150,9 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 	rawApparmor, ok := inst.ExpandedConfig()["raw.apparmor"]
 	if ok {
 		for line := range strings.SplitSeq(strings.Trim(rawApparmor, "\n"), "\n") {
-			rawContent.WriteString("  " + line + "\n")
+			rawContent.WriteString("  ")
+			rawContent.WriteString(line)
+			rawContent.WriteString("\n")
 		}
 	}
 

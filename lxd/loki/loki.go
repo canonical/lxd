@@ -333,20 +333,30 @@ func (c *Client) HandleEvent(event api.Event) {
 		// Add key-value pairs as labels but don't override any labels.
 		for k, v := range context {
 			if slices.Contains(c.cfg.labels, k) {
-				_, ok := entry.labels[k]
+				// Label names may not contain any hyphens.
+				normalizedKey := strings.ReplaceAll(k, "-", "_")
+				_, ok := entry.labels[normalizedKey]
 				if !ok {
-					// Label names may not contain any hyphens.
-					entry.labels[strings.ReplaceAll(k, "-", "_")] = v
+					entry.labels[normalizedKey] = v
 					delete(context, k)
 				}
 			}
 		}
 
+		lineSize := len(lifecycleEvent.Action)
+		for k, v := range context {
+			lineSize += len(k) + 3 + len(v) + 1 // k="v" + space
+		}
+
 		var line strings.Builder
+		line.Grow(lineSize)
 
 		// Add the remaining context as the message prefix.
 		for k, v := range context {
-			line.WriteString(k + `="` + v + `" `)
+			line.WriteString(k)
+			line.WriteString(`="`)
+			line.WriteString(v)
+			line.WriteString(`" `)
 		}
 
 		line.WriteString(lifecycleEvent.Action)
@@ -401,11 +411,20 @@ func (c *Client) HandleEvent(event api.Event) {
 
 		sort.Strings(keys)
 
+		messageSize := len(logEvent.Message)
+		for _, k := range keys {
+			messageSize += len(k) + 3 + len(context[k]) + 1 // k="v" + space
+		}
+
 		var message strings.Builder
+		message.Grow(messageSize)
 
 		// Add the remaining context as the message prefix. The keys are sorted alphabetically.
 		for _, k := range keys {
-			message.WriteString(k + `="` + context[k] + `" `)
+			message.WriteString(k)
+			message.WriteString(`="`)
+			message.WriteString(context[k])
+			message.WriteString(`" `)
 		}
 
 		message.WriteString(logEvent.Message)

@@ -9,6 +9,24 @@ import (
 	"github.com/canonical/lxd/shared/osarch"
 )
 
+// BenchmarkQemuStringifyCfg benchmarks the hot path of qemuStringifyCfg, which is called on every VM start.
+// The fixture approximates the size of a real VM config (base + memory + serial + PCIe + SCSI + balloon + disk).
+func BenchmarkQemuStringifyCfg(b *testing.B) {
+	sections := make([]cfgSection, 0, 7)
+	sections = append(sections, qemuBase(&qemuBaseOpts{architecture: osarch.ARCH_64BIT_INTEL_X86})...)
+	sections = append(sections, qemuMemory(&qemuMemoryOpts{memSizeMB: 2048})...)
+	sections = append(sections, qemuSerial(&qemuSerialOpts{dev: qemuDevOpts{"pcie", "pcie.0", "00.5", false}, charDevName: "qemu_serial0", ringbufSizeBytes: 4096})...)
+	sections = append(sections, qemuPCIe(&qemuPCIeOpts{portName: "qemu_pcie0", index: 0, devAddr: "00.1", multifunction: true})...)
+	sections = append(sections, qemuSCSI(&qemuDevOpts{"pcie", "pcie.0", "00.2", false})...)
+	sections = append(sections, qemuBalloon(&qemuDevOpts{"pcie", "pcie.0", "00.3", false})...)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		_ = qemuStringifyCfg(sections...).String()
+	}
+}
+
 func TestQemuConfigTemplates(t *testing.T) {
 	indent := regexp.MustCompile(`(?m)^[ \t]+`)
 

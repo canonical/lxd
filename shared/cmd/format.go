@@ -10,7 +10,8 @@ func FormatSection(header string, content string) string {
 
 	// Add section header
 	if header != "" {
-		out.WriteString(header + ":\n")
+		out.WriteString(header)
+		out.WriteString(":\n")
 	}
 
 	// Indent the content
@@ -24,7 +25,8 @@ func FormatSection(header string, content string) string {
 			// Don't add newline when rendering partial section
 			out.WriteString(line)
 		} else {
-			out.WriteString(line + "\n")
+			out.WriteString(line)
+			out.WriteString("\n")
 		}
 	}
 

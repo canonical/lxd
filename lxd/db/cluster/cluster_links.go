@@ -162,10 +162,30 @@ func GetClusterLinkUsedBy(ctx context.Context, tx *sql.Tx, clusterLinkName strin
 			b.WriteString("\nUNION ")
 		}
 
-		b.WriteString(`SELECT ` + strconv.FormatInt(ref.typeCode, 10) + `, ` + ref.entityTable + `.name, projects.name FROM ` + ref.entityTable + `
-JOIN ` + ref.configTable + ` ON ` + ref.entityTable + `.id = ` + ref.configTable + `.` + ref.idColumn + `
-JOIN projects ON ` + ref.entityTable + `.project_id = projects.id
-WHERE ` + ref.configTable + `.key = 'cluster' AND ` + ref.configTable + `.value = ?`)
+		b.WriteString(`SELECT `)
+		b.WriteString(strconv.FormatInt(ref.typeCode, 10))
+		b.WriteString(`, `)
+		b.WriteString(ref.entityTable)
+		b.WriteString(`.name, projects.name FROM `)
+		b.WriteString(ref.entityTable)
+		b.WriteString(`
+JOIN `)
+		b.WriteString(ref.configTable)
+		b.WriteString(` ON `)
+		b.WriteString(ref.entityTable)
+		b.WriteString(`.id = `)
+		b.WriteString(ref.configTable)
+		b.WriteString(`.`)
+		b.WriteString(ref.idColumn)
+		b.WriteString(`
+JOIN projects ON `)
+		b.WriteString(ref.entityTable)
+		b.WriteString(`.project_id = projects.id
+WHERE `)
+		b.WriteString(ref.configTable)
+		b.WriteString(`.key = 'cluster' AND `)
+		b.WriteString(ref.configTable)
+		b.WriteString(`.value = ?`)
 		args = append(args, clusterLinkName)
 	}
 

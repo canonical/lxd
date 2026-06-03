@@ -24,7 +24,8 @@ func Dump(ctx context.Context, tx *sql.Tx, schemaOnly bool) (string, error) {
 
 	// For each table, write the schema and optionally write the data.
 	for _, tableName := range entityNames {
-		builder.WriteString(entitiesSchemas[tableName][1] + "\n")
+		builder.WriteString(entitiesSchemas[tableName][1])
+		builder.WriteString("\n")
 
 		if !schemaOnly && entitiesSchemas[tableName][0] == "table" {
 			tableData, err := getTableData(ctx, tx, tableName)
@@ -33,7 +34,8 @@ func Dump(ctx context.Context, tx *sql.Tx, schemaOnly bool) (string, error) {
 			}
 
 			for _, stmt := range tableData {
-				builder.WriteString(stmt + "\n")
+				builder.WriteString(stmt)
+				builder.WriteString("\n")
 			}
 		}
 	}
@@ -48,7 +50,8 @@ func Dump(ctx context.Context, tx *sql.Tx, schemaOnly bool) (string, error) {
 		}
 
 		for _, stmt := range tableData {
-			builder.WriteString(stmt + "\n")
+			builder.WriteString(stmt)
+			builder.WriteString("\n")
 		}
 	}
 

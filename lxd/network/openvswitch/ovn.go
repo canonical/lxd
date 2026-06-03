@@ -1338,7 +1338,9 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 		var dnsRecords strings.Builder
 
 		// Generate A and AAAA records.
-		dnsRecords.WriteString(`records={"` + dnsNameLower + `"="`)
+		dnsRecords.WriteString(`records={"`)
+		dnsRecords.WriteString(dnsNameLower)
+		dnsRecords.WriteString(`"="`)
 		for i, dnsIP := range dnsIPs {
 			if i > 0 {
 				dnsRecords.WriteString(" ")
@@ -1352,7 +1354,11 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 		// Generate PTR records.
 		for _, dnsIP := range dnsIPs {
 			// Trim the "." from the end of the PTR record as OVN doesn't like it.
-			dnsRecords.WriteString(` "` + strings.TrimSuffix(dnsutil.Reverse(dnsIP), ".") + `"="` + dnsNameLower + `"`)
+			dnsRecords.WriteString(` "`)
+			dnsRecords.WriteString(strings.TrimSuffix(dnsutil.Reverse(dnsIP), "."))
+			dnsRecords.WriteString(`"="`)
+			dnsRecords.WriteString(dnsNameLower)
+			dnsRecords.WriteString(`"`)
 		}
 
 		dnsRecords.WriteString("}")

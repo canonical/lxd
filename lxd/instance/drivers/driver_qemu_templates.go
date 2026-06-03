@@ -47,19 +47,45 @@ type cfgSection struct {
 }
 
 func qemuStringifyCfg(cfg ...cfgSection) *strings.Builder {
+	// Pre-calculate the total output size to avoid buffer growth reallocations.
+	size := 0
+	for _, section := range cfg {
+		if section.comment != "" {
+			size += 2 + len(section.comment) + 1 // "# " + comment + "\n"
+		}
+
+		size += 1 + len(section.name) + 2 // "[" + name + "]\n"
+
+		for _, entry := range section.entries {
+			if entry.value != "" {
+				size += len(entry.key) + 5 + len(entry.value) + 2 // key + ` = "` + value + `"` + "\n"
+			}
+		}
+
+		size++ // trailing "\n"
+	}
+
 	sb := &strings.Builder{}
+	sb.Grow(size)
 
 	for _, section := range cfg {
 		if section.comment != "" {
-			sb.WriteString("# " + section.comment + "\n")
+			sb.WriteString("# ")
+			sb.WriteString(section.comment)
+			sb.WriteString("\n")
 		}
 
-		sb.WriteString("[" + section.name + "]\n")
+		sb.WriteString("[")
+		sb.WriteString(section.name)
+		sb.WriteString("]\n")
 
 		for _, entry := range section.entries {
 			value := entry.value
 			if value != "" {
-				sb.WriteString(entry.key + ` = "` + value + `"` + "\n")
+				sb.WriteString(entry.key)
+				sb.WriteString(` = "`)
+				sb.WriteString(value)
+				sb.WriteString("\"\n")
 			}
 		}
 

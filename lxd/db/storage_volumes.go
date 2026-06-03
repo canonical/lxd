@@ -270,7 +270,9 @@ func (c *ClusterTx) GetStorageVolumes(ctx context.Context, memberSpecific bool, 
 				q.WriteString(" OR ")
 			}
 
-			q.WriteString("(" + strings.Join(qFilters, " AND ") + ")")
+			q.WriteString("(")
+			q.WriteString(strings.Join(qFilters, " AND "))
+			q.WriteString(")")
 		}
 
 		q.WriteString(")")
