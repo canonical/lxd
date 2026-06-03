@@ -2352,7 +2352,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		}
 	}
 
-	if d.db != nil && d.db.Node != nil {
+	if d.db.Node != nil {
 		trackError(d.db.Node.Close(), "Close local database")
 	}
 
