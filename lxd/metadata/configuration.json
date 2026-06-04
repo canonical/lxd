@@ -4771,15 +4771,8 @@
 				"keys": [
 					{
 						"replica.cluster": {
-							"longdesc": "",
-							"shortdesc": "Cluster link used for replication (source or target).",
-							"type": "string"
-						}
-					},
-					{
-						"replica.mode": {
-							"longdesc": "The replica project mode. When set, the project acts as a replica project. Possible values are `standby` and `leader`.\nIn `standby` mode, instances cannot be created in the project; existing instances may still be managed until the project is promoted to `leader` during a failover.\nIn `leader` mode, the project is writable and is the source of replication.",
-							"shortdesc": "Replica project mode.",
+							"longdesc": "This setting is used on standby projects to identify which cluster link is allowed to replicate instances to this project.",
+							"shortdesc": "Cluster link allowed to replicate to this standby project.",
 							"type": "string"
 						}
 					}
