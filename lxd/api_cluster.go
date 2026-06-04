@@ -3485,7 +3485,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 
 				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project().Name, inst.Location())})
 
-				err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 					sourceNode, err = tx.GetNodeByName(ctx, inst.Location())
 					if err != nil {
 						return fmt.Errorf("Failed getting node %q: %w", inst.Location(), err)
