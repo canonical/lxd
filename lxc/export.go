@@ -167,7 +167,7 @@ func (c *cmdExport) run(cmd *cobra.Command, args []string) error {
 	}()
 
 	// Prepare the download request.
-	// Assign the renderer to a new variable to not interfer with the old one.
+	// Assign the renderer to a new variable to not interfere with the old one.
 	exportProgress := cli.ProgressRenderer{
 		Format: "Exporting the backup: %s",
 		Quiet:  c.global.flagQuiet,
