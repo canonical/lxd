@@ -129,6 +129,45 @@ func CreateOrReplace(ctx context.Context, tx *sql.Tx, c Creatable) (int64, error
 	return create(ctx, tx, c, true)
 }
 
+// CreateMany creates multiple [Creatable] entities in a single multi-row INSERT statement.
+// If the slice is empty, it returns nil. If there is only one element, it delegates to [Create].
+func CreateMany[T Creatable, _ interface {
+	Creatable
+	*T
+}](ctx context.Context, tx *sql.Tx, creatables []T) error {
+	var first T
+	switch len(creatables) {
+	case 0:
+		return nil
+	case 1:
+		_, err := Create(ctx, tx, creatables[0])
+		return err
+	default:
+		first = creatables[0]
+	}
+
+	var b strings.Builder
+	b.WriteString(first.CreateStmt())
+	args := first.CreateValues()
+	paramsStr := Params(len(args))
+	for _, c := range creatables[1:] {
+		b.WriteString(", ")
+		b.WriteString(paramsStr)
+		args = append(args, c.CreateValues()...)
+	}
+
+	_, err := tx.ExecContext(ctx, b.String(), args...)
+	if err != nil {
+		if IsConflictErr(err) {
+			return conflictErr(first)
+		}
+
+		return fmt.Errorf("Failed creating %s: %w", strings.ToLower(plural(first)), err)
+	}
+
+	return nil
+}
+
 // UpdateByPrimaryKey updates an [Updatable] type by its primary key. It sets all fields except for the primary key.
 // The expected usage is to get an [Updatable] entry from the database (e.g. via [SelectOne]), change fields on it
 // directly, and then call Update. This pattern is encouraged so that we get an entity, perform an authorization check,
