@@ -171,7 +171,7 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 				continue
 			}
 
-			client, err = cluster.Connect(r.Context(), member.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+			client, err = cluster.Connect(ctx, member.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 			if err != nil {
 				return err
 			}
@@ -184,7 +184,7 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 			// When reverting the certificate, we need to connect to the cluster members using the
 			// new certificate otherwise we'll get a bad certificate error.
 			revert.Add(func() {
-				client, err := cluster.Connect(r.Context(), member.Address, newCertInfo, s.ServerCert(), true)
+				client, err := cluster.Connect(s.ShutdownCtx, member.Address, newCertInfo, s.ServerCert(), true)
 				if err != nil {
 					logger.Error("Failed connecting to cluster member", logger.Ctx{"address": member.Address, "err": err})
 					return
