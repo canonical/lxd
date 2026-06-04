@@ -1163,12 +1163,17 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				return fmt.Errorf("Failed getting instance %q from current leader cluster: %w", instName, err)
 			}
 
-			// If the instance lives on another cluster member, forward the restore
+			// If the instance lives on a remote cluster member, forward the restore
 			// migration to that member so the refresh runs where the storage volume is.
+			// Instances on the local member (including unclustered servers) are handled
+			// directly below. This mirrors the logic in replicateInstance.
 			var memberAddress string
 			for _, inst := range allInsts {
 				if inst.Name() == instName {
-					memberAddress = nodeAddressByName[inst.Location()]
+					if inst.Location() != s.ServerName {
+						memberAddress = nodeAddressByName[inst.Location()]
+					}
+
 					break
 				}
 			}
@@ -1297,8 +1302,25 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				return fmt.Errorf("Failed getting websocket secrets from local sink for instance %q: %w", instName, err)
 			}
 
-			// Build the operation URL using this node's cluster address.
+			// Build the operation URL using a reachable address for this server.
+			// For clustered members the address from the nodes table is already a
+			// concrete, registered address. For unclustered servers the nodes table
+			// stores the sentinel "0.0.0.0", so fall back to the configured HTTPS
+			// address. Return an error if we still cannot determine a concrete address,
+			// because the leader would not be able to reach us.
 			localAddress := nodeAddressByName[s.ServerName]
+			if util.IsWildCardAddress(localAddress) {
+				localAddress = s.LocalConfig.ClusterAddress()
+				if localAddress == "" {
+					localAddress = s.LocalConfig.HTTPSAddress()
+				}
+
+				if util.IsWildCardAddress(localAddress) || localAddress == "" {
+					sinkOp.Cancel()
+					return errors.New("Cannot restore to this server: configure a concrete address using cluster.https_address or core.https_address")
+				}
+			}
+
 			sinkOpURL := "https://" + localAddress + sinkOp.URL()
 
 			// Tell the current leader cluster to push-migrate the instance to our local sink.
