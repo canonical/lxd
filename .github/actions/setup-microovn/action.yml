@@ -41,7 +41,6 @@ runs:
             "
           else
             sudo snap refresh snapd --channel latest/beta || sudo snap install snapd --channel latest/beta
-            sudo snap refresh core26 --channel latest/edge || sudo snap install core26 --channel latest/edge
             sudo snap install microovn --channel "${SNAP_CHANNEL}"
           fi
 
