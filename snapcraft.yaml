@@ -683,6 +683,7 @@ parts:
 
       # Setup build environment
       export GOTOOLCHAIN="local"
+      export GOFLAGS="-trimpath"
 
       # Git cherry-picks
       git config user.email "noreply@lists.canonical.com"
