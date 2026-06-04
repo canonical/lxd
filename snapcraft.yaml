@@ -732,6 +732,7 @@ parts:
 
       # Setup build environment
       export GOTOOLCHAIN="local"
+      export GOFLAGS="-trimpath"
 
       make binaries
       mkdir -p "${CRAFT_PART_INSTALL}/bin/"
