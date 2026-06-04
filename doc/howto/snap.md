@@ -281,6 +281,7 @@ For more information about managing snap services, visit {ref}`snap:how-to-guide
 How-to guide:
 
 - {ref}`installing-snap-package`
+- {ref}`snap-track-bugfix`
 
 Reference:
 

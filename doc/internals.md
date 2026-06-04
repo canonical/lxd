@@ -47,3 +47,4 @@ ZFS storage driver </reference/storage_zfs_internals>
 How-to guides:
 
 - {ref}`troubleshoot`
+- {ref}`snap-track-bugfix`

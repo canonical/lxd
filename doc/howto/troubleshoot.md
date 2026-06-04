@@ -29,6 +29,7 @@ LXD provides multiple debugging methods, including CLI tools and core dump files
 :titlesonly:
 
 Debug LXD </debugging>
+Track a bugfix in the LXD snap </howto/snap_track_fix>
 ```
 
 If the issue cannot be resolved, see {ref}`support` for information about where to get help.
