@@ -854,7 +854,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			logger.Errorf("Failed starting networks: %v", err)
 		}
 
-		client, err = cluster.Connect(r.Context(), req.ClusterAddress, s.Endpoints.NetworkCert(), serverCert, true)
+		client, err = cluster.Connect(s.ShutdownCtx, req.ClusterAddress, s.Endpoints.NetworkCert(), serverCert, true)
 		if err != nil {
 			return err
 		}
@@ -2381,7 +2381,7 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 				continue
 			}
 
-			client, err = cluster.Connect(r.Context(), member.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+			client, err = cluster.Connect(ctx, member.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 			if err != nil {
 				return err
 			}
@@ -2394,7 +2394,7 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 			// When reverting the certificate, we need to connect to the cluster members using the
 			// new certificate otherwise we'll get a bad certificate error.
 			revert.Add(func() {
-				client, err := cluster.Connect(r.Context(), member.Address, newCertInfo, s.ServerCert(), true)
+				client, err := cluster.Connect(s.ShutdownCtx, member.Address, newCertInfo, s.ServerCert(), true)
 				if err != nil {
 					logger.Error("Failed connecting to cluster member", logger.Ctx{"address": member.Address, "err": err})
 					return
@@ -3485,7 +3485,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 
 				_ = op.ExtendMetadata(map[string]any{"evacuation_progress": fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project().Name, inst.Location())})
 
-				err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
 					sourceNode, err = tx.GetNodeByName(ctx, inst.Location())
 					if err != nil {
 						return fmt.Errorf("Failed getting node %q: %w", inst.Location(), err)
@@ -3497,7 +3497,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 					return fmt.Errorf("Failed getting node: %w", err)
 				}
 
-				source, err = cluster.Connect(r.Context(), sourceNode.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+				source, err = cluster.Connect(s.ShutdownCtx, sourceNode.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
 				if err != nil {
 					return fmt.Errorf("Failed connecting to source: %w", err)
 				}

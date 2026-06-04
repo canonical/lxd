@@ -97,33 +97,63 @@ func NewWebsocketListenerConnection(connection *websocket.Conn) EventListenerCon
 func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHandler) {
 	ctx, cancel := context.WithCancel(ctx)
 
+	// closer is used to clean up the connection and cancel the context when either
+	// the reader or ping/pong goroutine detects a problem and returns.
 	closer := func() {
 		e.lock.Lock()
 		defer e.lock.Unlock()
 
 		if ctx.Err() != nil {
-			return
+			return // Context already cancelled, no need to close again.
 		}
 
-		_ = e.Close()
+		err := e.Close() // This may unblock the reader and ping/pong goroutines.
+		if err != nil {
+			logger.Warn("Failed closing connection", logger.Ctx{"err": err, "remote": e.RemoteAddr()})
+		}
+
 		cancel()
 	}
 
-	defer closer()
-
 	pingInterval := time.Second * 10
 	e.pongsPending = 0
+	const maxPongsPending = 2
+
+	getNextReadDeadline := func() time.Time {
+		// This means that if we miss more than maxPongsPending pongs, the reading goroutine will end.
+		return time.Now().Add((maxPongsPending+1)*pingInterval + 5*time.Second)
+	}
+
+	// Set read deadline to prevent goroutine from blocking indefinitely.
+	// This ensures the goroutine will unblock even if e.Close() does not immediately
+	// interrupt the read operation due to buffering or network delays.
+	err := e.SetReadDeadline(getNextReadDeadline())
+	if err != nil {
+		logger.Warn("Failed setting read deadline on connection", logger.Ctx{"err": err, "remote": e.RemoteAddr()})
+		closer()
+		return
+	}
 
 	e.SetPongHandler(func(msg string) error {
 		e.lock.Lock()
-		e.pongsPending = 0
-		e.lock.Unlock()
+		defer e.lock.Unlock()
+
+		e.pongsPending = 0 // Reset pending pongs on receiving a pong.
+
+		// Extend the read deadline each time we get a pong.
+		err := e.SetReadDeadline(getNextReadDeadline())
+		if err != nil {
+			return fmt.Errorf("Failed setting read deadline on connection: %w", err)
+		}
+
 		return nil
 	})
 
+	var wg sync.WaitGroup
+
 	// Start reader from client.
-	go func() {
-		defer closer()
+	wg.Go(func() {
+		defer closer() // Clean up connection and cancel context when reader exits.
 
 		if recvFunc != nil {
 			for {
@@ -141,37 +171,44 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 			// anything from the remote side, so this should remain blocked until disconnected.
 			_, _, _ = e.NextReader()
 		}
-	}()
+	})
 
-	t := time.NewTicker(pingInterval)
-	defer t.Stop()
+	// Start ping/pong handler.
+	wg.Go(func() {
+		defer closer() // Clean up connection and cancel context when ping/pong handler exits.
 
-	for {
-		if ctx.Err() != nil {
-			return
-		}
+		t := time.NewTicker(pingInterval)
+		defer t.Stop()
 
-		e.lock.Lock()
-		if e.pongsPending > 2 {
+		for {
+			if ctx.Err() != nil {
+				return // Context cancelled, exit goroutine.
+			}
+
+			e.lock.Lock()
+			if e.pongsPending > maxPongsPending {
+				e.lock.Unlock()
+				return // Too many pongs pending, assume the connection is dead.
+			}
+
+			err := e.WriteControl(websocket.PingMessage, nil, time.Now().Add(5*time.Second))
+			if err != nil {
+				e.lock.Unlock()
+				return // Failed to send ping, assume the connection is dead.
+			}
+
+			e.pongsPending++ // Increment pending pongs after sending a ping.
 			e.lock.Unlock()
-			return
-		}
 
-		err := e.WriteControl(websocket.PingMessage, nil, time.Now().Add(5*time.Second))
-		if err != nil {
-			e.lock.Unlock()
-			return
+			select {
+			case <-t.C:
+			case <-ctx.Done():
+				return // Context cancelled, exit goroutine.
+			}
 		}
+	})
 
-		e.pongsPending++
-		e.lock.Unlock()
-
-		select {
-		case <-t.C:
-		case <-ctx.Done():
-			return
-		}
-	}
+	wg.Wait() // Wait for both goroutines to clean up before returning.
 }
 
 // WriteJSON sends a JSON event to the websocket connection.
