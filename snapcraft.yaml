@@ -237,6 +237,9 @@ parts:
     plugin: go
     build-snaps:
       - go/1.26/stable
+    build-environment:
+      - GOTOOLCHAIN: "local"
+      - GOFLAGS: "-trimpath"
     prime:
       - bin/amd-ctk
 
@@ -680,6 +683,7 @@ parts:
 
       # Setup build environment
       export GOTOOLCHAIN="local"
+      export GOFLAGS="-trimpath"
 
       # Git cherry-picks
       git config user.email "noreply@lists.canonical.com"
@@ -728,6 +732,7 @@ parts:
 
       # Setup build environment
       export GOTOOLCHAIN="local"
+      export GOFLAGS="-trimpath"
 
       make binaries
       mkdir -p "${CRAFT_PART_INSTALL}/bin/"
