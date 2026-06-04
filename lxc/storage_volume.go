@@ -2059,7 +2059,7 @@ func (c *cmdStorageVolumeRename) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		fmt.Printf(`Renamed storage volume from "%s" to "%s"\n`, volName, vol.Name)
+		fmt.Printf("Renamed storage volume from %q to %q\n", volName, vol.Name)
 		return nil
 	}
 
@@ -2084,7 +2084,7 @@ func (c *cmdStorageVolumeRename) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(`Renamed storage volume from "%s" to "%s"\n`, volName, vol.Name)
+		fmt.Printf("Renamed storage volume from %q to %q\n", volName, vol.Name)
 	}
 
 	return nil
