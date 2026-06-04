@@ -98,10 +98,6 @@ var updates = map[int]schema.Update{
 	43: updateFromV42,
 }
 
-// UpdateFromPreClustering is the last schema version where clustering support
-// was not available, and hence no cluster dqlite database is used.
-const UpdateFromPreClustering = 36
-
 // Schema updates begin here
 
 // updateFromV42 ensures key and value fields in config table are TEXT NOT NULL.

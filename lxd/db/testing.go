@@ -70,7 +70,7 @@ func NewTestCluster(t *testing.T) (*Cluster, func()) {
 	serverUUID, err := uuid.NewV7()
 	require.NoError(t, err)
 
-	cluster, err := OpenCluster(context.Background(), "test.db", store, "1", dir, 5*time.Second, nil, serverUUID.String(), driver.WithLogFunc(log), driver.WithDialFunc(dial))
+	cluster, err := OpenCluster(context.Background(), "test.db", store, "1", dir, 5*time.Second, serverUUID.String(), driver.WithLogFunc(log), driver.WithDialFunc(dial))
 	require.NoError(t, err)
 
 	cleanup := func() {

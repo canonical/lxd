@@ -304,7 +304,7 @@ func TestJoin(t *testing.T) {
 
 	server1UUID, err := uuid.NewV7()
 	require.NoError(t, err)
-	targetState.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", targetStore, targetAddress, "/unused/db/dir", 10*time.Second, nil, server1UUID.String(), driver.WithDialFunc(targetDialFunc))
+	targetState.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", targetStore, targetAddress, "/unused/db/dir", 10*time.Second, server1UUID.String(), driver.WithDialFunc(targetDialFunc))
 	targetState.ServerCert = func() *shared.CertInfo { return targetCert }
 	require.NoError(t, err)
 
@@ -368,7 +368,7 @@ func TestJoin(t *testing.T) {
 	server2UUID, err := uuid.NewV7()
 	require.NoError(t, err)
 
-	state.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, server2UUID.String(), driver.WithDialFunc(dialFunc))
+	state.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, server2UUID.String(), driver.WithDialFunc(dialFunc))
 	require.NoError(t, err)
 
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
