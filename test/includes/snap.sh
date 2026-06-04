@@ -111,7 +111,7 @@ install_snap() {
 sideload_lxd_snap() {
     local channel="${1:-"latest/edge"}"
     local bin
-    install_snap core26 "latest/edge"
+    install_snap core26 "latest/candidate"
     install_snap lxd "${channel}"
 
     # For LVM thin use external LVM tools to avoid errors like:
