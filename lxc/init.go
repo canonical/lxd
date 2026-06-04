@@ -416,11 +416,11 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 
 	if name == "" {
 		if d.HasExtension("operation_metadata_entity_url") {
-			name, _, err = getEntityFromOperationMetadata(opInfo.Metadata)
+			name, err = getEntityFromOperationMetadata(opInfo.Metadata)
 		} else {
 			// Use "instances"/"containers" here and not "entity.TypeInstance"/"entity.TypeContainer" because the change
 			// to use entity type names happened after the operation_metadata_entity_url extension.
-			name, _, err = getEntityFromOperationResources(opInfo.Resources, "instances", "containers")
+			name, err = getEntityFromOperationResources(opInfo.Resources, "instances", "containers")
 		}
 
 		if err != nil {

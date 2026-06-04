@@ -17,7 +17,7 @@ type devLXDResponse struct {
 }
 
 // Render renders a devLXD response.
-func (r *devLXDResponse) Render(w http.ResponseWriter, req *http.Request) error {
+func (r *devLXDResponse) Render(w http.ResponseWriter, _ *http.Request) error {
 	var err error
 
 	// Handle hooks first, if defined.

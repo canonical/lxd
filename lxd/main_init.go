@@ -149,7 +149,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 
 	// Auto mode
 	if c.flagAuto || c.flagMinimal {
-		config, err = c.RunAuto(cmd, args, d, server)
+		config, err = c.RunAuto(args, d, server)
 		if err != nil {
 			return err
 		}

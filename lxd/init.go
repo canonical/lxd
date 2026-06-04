@@ -211,7 +211,7 @@ func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(
 	// Apply networks in the default project before other projects config applied (so that if the projects
 	// depend on a network in the default project they can have their config applied successfully).
 	for i := range config.Networks {
-		// Populate default project if not specified for backwards compatbility with earlier
+		// Populate default project if not specified for backwards compatibility with earlier
 		// preseed dump files.
 		if config.Networks[i].Project == "" {
 			config.Networks[i].Project = api.ProjectDefaultName

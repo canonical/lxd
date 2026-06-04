@@ -2763,11 +2763,11 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 	// Get name of backup
 	var backupName string
 	if d.HasExtension("operation_metadata_entity_url") {
-		backupName, _, err = getEntityFromOperationMetadata(op.Get().Metadata)
+		backupName, err = getEntityFromOperationMetadata(op.Get().Metadata)
 	} else {
 		// Use "backups" here and not "entity.TypeStorageVolumeBackup" because the change to use entity type names
 		// happened after the operation_metadata_entity_url extension.
-		backupName, _, err = getEntityFromOperationResources(op.Get().Resources, "backups")
+		backupName, err = getEntityFromOperationResources(op.Get().Resources, "backups")
 	}
 
 	if err != nil {

@@ -951,19 +951,19 @@ func (c *cmdList) locationColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Location
 }
 
-func (c *cmdList) matchByType(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
+func (c *cmdList) matchByType(cInfo *api.Instance, _ *api.InstanceState, query string) bool {
 	return strings.EqualFold(cInfo.Type, query)
 }
 
-func (c *cmdList) matchByStatus(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
+func (c *cmdList) matchByStatus(cInfo *api.Instance, _ *api.InstanceState, query string) bool {
 	return strings.EqualFold(cInfo.Status, query)
 }
 
-func (c *cmdList) matchByArchitecture(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
+func (c *cmdList) matchByArchitecture(cInfo *api.Instance, _ *api.InstanceState, query string) bool {
 	return strings.EqualFold(cInfo.Architecture, query)
 }
 
-func (c *cmdList) matchByLocation(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
+func (c *cmdList) matchByLocation(cInfo *api.Instance, _ *api.InstanceState, query string) bool {
 	return strings.EqualFold(cInfo.Location, query)
 }
 
@@ -1008,11 +1008,11 @@ func (c *cmdList) matchByNet(cState *api.InstanceState, query string, family str
 	return false
 }
 
-func (c *cmdList) matchByIPV6(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
+func (c *cmdList) matchByIPV6(_ *api.Instance, cState *api.InstanceState, query string) bool {
 	return c.matchByNet(cState, query, "ipv6")
 }
 
-func (c *cmdList) matchByIPV4(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
+func (c *cmdList) matchByIPV4(_ *api.Instance, cState *api.InstanceState, query string) bool {
 	return c.matchByNet(cState, query, "ipv4")
 }
 

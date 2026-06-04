@@ -22,7 +22,7 @@ func TestCluster_Bootstrap(t *testing.T) {
 	// request is issued to set both core.https_address and
 	// cluster.https_address to the same value.
 	f := clusterFixture{t: t}
-	f.EnableNetworkingWithClusterAddress(daemon, "")
+	f.EnableNetworkingWithClusterAddress(daemon)
 
 	client := f.ClientUnix(daemon)
 
@@ -59,7 +59,7 @@ func TestCluster_RenameNode(t *testing.T) {
 	defer cleanup()
 
 	f := clusterFixture{t: t}
-	f.EnableNetworking(daemon, "")
+	f.EnableNetworking(daemon)
 
 	client := f.ClientUnix(daemon)
 
@@ -96,9 +96,8 @@ type clusterFixture struct {
 	clients map[*Daemon]lxd.InstanceServer
 }
 
-// Enable networking in the given daemon. The password is optional and can be
-// an empty string.
-func (f *clusterFixture) EnableNetworking(daemon *Daemon, password string) {
+// Enable networking in the given daemon.
+func (f *clusterFixture) EnableNetworking(daemon *Daemon) {
 	port, err := allocatePort()
 	require.NoError(f.t, err)
 
@@ -114,9 +113,8 @@ func (f *clusterFixture) EnableNetworking(daemon *Daemon, password string) {
 }
 
 // Enable networking in the given daemon, and set cluster.https_address to the
-// same value as core.https address. The password is optional and can be an
-// empty string.
-func (f *clusterFixture) EnableNetworkingWithClusterAddress(daemon *Daemon, password string) {
+// same value as core.https address.
+func (f *clusterFixture) EnableNetworkingWithClusterAddress(daemon *Daemon) {
 	port, err := allocatePort()
 	require.NoError(f.t, err)
 
