@@ -130,6 +130,7 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 	err := e.SetReadDeadline(getNextReadDeadline())
 	if err != nil {
 		logger.Warn("Failed setting read deadline on connection", logger.Ctx{"err": err, "remote": e.RemoteAddr()})
+		closer()
 		return
 	}
 
