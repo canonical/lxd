@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # download_snap: downloads a snap to the cache dir.
 download_snap() {
     local name="${1}"
