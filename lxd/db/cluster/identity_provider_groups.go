@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/query"
@@ -11,42 +12,63 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 )
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t identity_provider_groups.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -e identity_provider_group objects table=identity_provider_groups
-//go:generate mapper stmt -e identity_provider_group objects-by-ID table=identity_provider_groups
-//go:generate mapper stmt -e identity_provider_group objects-by-Name table=identity_provider_groups
-//go:generate mapper stmt -e identity_provider_group id table=identity_provider_groups
-//go:generate mapper stmt -e identity_provider_group create table=identity_provider_groups
-//go:generate mapper stmt -e identity_provider_group delete-by-Name table=identity_provider_groups
-//go:generate mapper stmt -e identity_provider_group update table=identity_provider_groups
-//go:generate mapper stmt -e identity_provider_group rename table=identity_provider_groups
-//
-//go:generate mapper method -i -e identity_provider_group GetMany
-//go:generate mapper method -i -e identity_provider_group GetOne
-//go:generate mapper method -i -e identity_provider_group Create
-//go:generate mapper method -i -e identity_provider_group DeleteOne-by-Name
-//go:generate mapper method -i -e identity_provider_group Rename
-//go:generate goimports -w identity_provider_groups.mapper.go
-//go:generate goimports -w identity_provider_groups.interface.mapper.go
-
-// IdentityProviderGroup is the database representation of an api.IdentityProviderGroup.
-type IdentityProviderGroup struct {
-	ID   int
-	Name string `db:"primary=true"`
+// IdentityProviderGroupsRow is the database representation of an identity provider group.
+// db:model identity_provider_groups
+type IdentityProviderGroupsRow struct {
+	ID   int64  `db:"id"`
+	Name string `db:"name"`
 }
 
-// IdentityProviderGroupFilter contains the columns that a queries for identity provider groups can be filtered upon.
-type IdentityProviderGroupFilter struct {
-	ID   *int
-	Name *string
+// APIName returns a human-readable name for the entity.
+func (i IdentityProviderGroupsRow) APIName() string {
+	return "Identity provider group"
 }
 
-// ToAPI converts the IdentityProviderGroup to an api.IdentityProviderGroup, making more database calls as necessary.
-func (i *IdentityProviderGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.IdentityProviderGroup, error) {
+// GetIdentityProviderGroups returns all identity provider groups.
+func GetIdentityProviderGroups(ctx context.Context, tx *sql.Tx) ([]IdentityProviderGroupsRow, error) {
+	return query.Select[IdentityProviderGroupsRow](ctx, tx, "")
+}
+
+// GetIdentityProviderGroup returns the identity provider group with the given name.
+func GetIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string) (*IdentityProviderGroupsRow, error) {
+	return query.SelectOne[IdentityProviderGroupsRow](ctx, tx, "WHERE name = ?", name)
+}
+
+// CreateIdentityProviderGroup adds a new identity provider group to the database.
+func CreateIdentityProviderGroup(ctx context.Context, tx *sql.Tx, object IdentityProviderGroupsRow) (int64, error) {
+	return query.Create(ctx, tx, object)
+}
+
+// DeleteIdentityProviderGroup deletes the identity provider group matching the given name.
+func DeleteIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string) error {
+	return query.DeleteOne[IdentityProviderGroupsRow](ctx, tx, "WHERE name = ?", name)
+}
+
+// RenameIdentityProviderGroup renames the identity provider group matching the given name.
+func RenameIdentityProviderGroup(ctx context.Context, tx *sql.Tx, name string, to string) error {
+	result, err := tx.ExecContext(ctx, "UPDATE identity_provider_groups SET name = ? WHERE name = ?", to, name)
+	if err != nil {
+		if query.IsConflictErr(err) {
+			return api.NewStatusError(http.StatusConflict, "An identity provider group already exists with this name")
+		}
+
+		return fmt.Errorf("Failed renaming identity provider group: %w", err)
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed getting affected rows: %w", err)
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Query affected %d rows instead of 1", n)
+	}
+
+	return nil
+}
+
+// ToAPI converts the IdentityProviderGroupsRow to an api.IdentityProviderGroup, making more database calls as necessary.
+func (i *IdentityProviderGroupsRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewGroup auth.PermissionChecker) (*api.IdentityProviderGroup, error) {
 	idpGroup := &api.IdentityProviderGroup{
 		Name: i.Name,
 	}
@@ -67,8 +89,8 @@ func (i *IdentityProviderGroup) ToAPI(ctx context.Context, tx *sql.Tx, canViewGr
 	return idpGroup, nil
 }
 
-// GetAuthGroupsByIdentityProviderGroupID returns a list of a groups that the identity provider group with the given ID.
-func GetAuthGroupsByIdentityProviderGroupID(ctx context.Context, tx *sql.Tx, idpGroupID int) ([]AuthGroupsRow, error) {
+// GetAuthGroupsByIdentityProviderGroupID returns a list of groups that the identity provider group with the given ID.
+func GetAuthGroupsByIdentityProviderGroupID(ctx context.Context, tx *sql.Tx, idpGroupID int64) ([]AuthGroupsRow, error) {
 	clause := `
 JOIN auth_groups_identity_provider_groups ON auth_groups.id = auth_groups_identity_provider_groups.auth_group_id
 WHERE auth_groups_identity_provider_groups.identity_provider_group_id = ?`
@@ -76,10 +98,10 @@ WHERE auth_groups_identity_provider_groups.identity_provider_group_id = ?`
 	return query.Select[AuthGroupsRow](ctx, tx, clause, idpGroupID)
 }
 
-// SetIdentityProviderGroupMapping deletes all auth_group -> identity_provider_group mappings from the `ath_groups_identity_provider_groups` table
-// where the identity provider group ID is equal to the given value. Then it inserts new assocations into the table where the
+// SetIdentityProviderGroupMapping deletes all auth_group -> identity_provider_group mappings from the `auth_groups_identity_provider_groups` table
+// where the identity provider group ID is equal to the given value. Then it inserts new associations into the table where the
 // group IDs correspond to the given group names.
-func SetIdentityProviderGroupMapping(ctx context.Context, tx *sql.Tx, identityProviderGroupID int, groupNames []string) error {
+func SetIdentityProviderGroupMapping(ctx context.Context, tx *sql.Tx, identityProviderGroupID int64, groupNames []string) error {
 	_, err := tx.ExecContext(ctx, `DELETE FROM auth_groups_identity_provider_groups WHERE identity_provider_group_id = ?`, identityProviderGroupID)
 	if err != nil {
 		return fmt.Errorf("Failed deleting existing identity provider group mappings: %w", err)

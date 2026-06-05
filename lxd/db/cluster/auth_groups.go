@@ -196,45 +196,25 @@ JOIN identities_auth_groups ON identities.id = identities_auth_groups.identity_i
 }
 
 // GetIdentityProviderGroupsByGroupID returns the identity provider groups that map to the group with the given ID.
-func GetIdentityProviderGroupsByGroupID(ctx context.Context, tx *sql.Tx, groupID int64) ([]IdentityProviderGroup, error) {
-	stmt := `
-SELECT identity_provider_groups.id, identity_provider_groups.name
-FROM identity_provider_groups
+func GetIdentityProviderGroupsByGroupID(ctx context.Context, tx *sql.Tx, groupID int64) ([]IdentityProviderGroupsRow, error) {
+	clause := `
 JOIN auth_groups_identity_provider_groups ON identity_provider_groups.id = auth_groups_identity_provider_groups.identity_provider_group_id
 WHERE auth_groups_identity_provider_groups.auth_group_id = ?`
 
-	var result []IdentityProviderGroup
-	dest := func(scan func(dest ...any) error) error {
-		i := IdentityProviderGroup{}
-		err := scan(&i.ID, &i.Name)
-		if err != nil {
-			return err
-		}
-
-		result = append(result, i)
-
-		return nil
-	}
-
-	err := query.Scan(ctx, tx, stmt, dest, groupID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed getting identity provider groups for the group with ID %d: %w", groupID, err)
-	}
-
-	return result, nil
+	return query.Select[IdentityProviderGroupsRow](ctx, tx, clause, groupID)
 }
 
 // GetAllIdentityProviderGroupsByGroupIDs returns a map of group IDs to the IdentityProviderGroups that map to the group with that ID.
-func GetAllIdentityProviderGroupsByGroupIDs(ctx context.Context, tx *sql.Tx) (map[int64][]IdentityProviderGroup, error) {
+func GetAllIdentityProviderGroupsByGroupIDs(ctx context.Context, tx *sql.Tx) (map[int64][]IdentityProviderGroupsRow, error) {
 	stmt := `
 SELECT auth_groups_identity_provider_groups.auth_group_id, identity_provider_groups.id, identity_provider_groups.name
 FROM identity_provider_groups
 JOIN auth_groups_identity_provider_groups ON identity_provider_groups.id = auth_groups_identity_provider_groups.identity_provider_group_id`
 
-	result := make(map[int64][]IdentityProviderGroup)
+	result := make(map[int64][]IdentityProviderGroupsRow)
 	dest := func(scan func(dest ...any) error) error {
 		var groupID int64
-		i := IdentityProviderGroup{}
+		i := IdentityProviderGroupsRow{}
 		err := scan(&groupID, &i.ID, &i.Name)
 		if err != nil {
 			return err
