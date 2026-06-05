@@ -42,6 +42,51 @@ func defaultNvidiaTegraCSVFiles(rootPath string) []string {
 	return paths
 }
 
+// gpuInterfaceInfo holds details about the discovered GPU interface snap.
+type gpuInterfaceInfo struct {
+	snapName            string // snap name, e.g. "mesa-2604" or "mesa-2404".
+	providerWrapperPath string // absolute path to the GPU provider wrapper binary.
+	configSharePath     string // GPU-specific config search base path.
+}
+
+// gpuInterfaceCandidates lists the connected GPU interface runtime configurations
+// in strict preference order (newest first).
+var gpuInterfaceCandidates = []struct {
+	snapName       string
+	wrapperRelPath string
+	configRelPath  string
+}{
+	// mesa-2604 stacks its assets inside 'mesa-2604/usr/share'.
+	{
+		snapName:       "mesa-2604",
+		wrapperRelPath: "/gpu-2604/bin/gpu-2604-provider-wrapper",
+		configRelPath:  "/gpu-2604/mesa-2604/usr/share",
+	},
+	// mesa-2404 exposes its assets directly at its layout mount slice root.
+	{
+		snapName:       "mesa-2404",
+		wrapperRelPath: "/gpu-2404/bin/gpu-2404-provider-wrapper",
+		configRelPath:  "/gpu-2404",
+	},
+}
+
+// discoverGPUInterface discovers which GPU interface snap (mesa-2604 or mesa-2404) is
+// connected to the LXD snap, preferring the newer version.
+func discoverGPUInterface(snapRoot string) (*gpuInterfaceInfo, error) {
+	for _, c := range gpuInterfaceCandidates {
+		wrapperPath := snapRoot + c.wrapperRelPath
+		if shared.PathExists(wrapperPath) {
+			return &gpuInterfaceInfo{
+				snapName:            c.snapName,
+				providerWrapperPath: wrapperPath,
+				configSharePath:     snapRoot + c.configRelPath,
+			}, nil
+		}
+	}
+
+	return nil, errors.New("Failed finding a GPU provider wrapper. Please ensure the mesa-2604 or mesa-2404 snap is connected to LXD")
+}
+
 // generateNvidiaSpec generates a CDI spec for an Nvidia vendor.
 func generateNvidiaSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
 	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "cdiID": cdiID.String()})
@@ -71,27 +116,24 @@ func generateNvidiaSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.S
 	if isCore {
 		devRootPath = "/"
 
-		gpuCore24Root := os.Getenv("SNAP") + "/gpu-2404"
-		gpuInterfaceProviderWrapper := gpuCore24Root + "/bin/gpu-2404-provider-wrapper"
-
-		// Let's ensure that user has mesa-2404 snap connected.
-		if !shared.PathExists(gpuInterfaceProviderWrapper) {
-			return nil, errors.New("Failed finding gpu-2404-provider-wrapper. Please ensure that mesa-2404 snap is connected to lxd.")
+		gpuInfo, err := discoverGPUInterface(os.Getenv("SNAP"))
+		if err != nil {
+			return nil, err
 		}
 
 		//
 		// NVIDIA_DRIVER_ROOT environment variable name comes from:
 		// https://git.launchpad.net/~canonical-kernel-snaps/canonical-kernel-snaps/+git/kernel-snaps-u24.04/commit/?id=928d273d881abc8599f9cb754eeb753aa7113852
 		//
-		// You may wonder why we need this gpu-2404-provider-wrapper printenv
+		// You may wonder why we need this provider-wrapper printenv
 		// NVIDIA_DRIVER_ROOT machinery instead of simple
-		// os.Getenv("NVIDIA_DRIVER_ROOT"). Reason is that mesa-2404 or
+		// os.Getenv("NVIDIA_DRIVER_ROOT"). Reason is that the mesa snap or
 		// pc-kernel may be upgraded (refreshed) while LXD snap version remains
 		// the same and there is no guarantee that NVIDIA_DRIVER_ROOT value
 		// won't change between those refreshes...
 		//
 		cmd := []string{
-			gpuInterfaceProviderWrapper,
+			gpuInfo.providerWrapperPath,
 			"printenv",
 			"NVIDIA_DRIVER_ROOT",
 		}
@@ -102,12 +144,11 @@ func generateNvidiaSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.S
 		}
 
 		rootPath = strings.TrimSuffix(rootPath, "\n")
-		configSearchPaths = []string{rootPath + "/usr/share", gpuCore24Root + "/usr/share"}
+		configSearchPaths = []string{rootPath + "/usr/share", gpuInfo.configSharePath}
 
-		// Let's ensure that user did:
-		// snap connect mesa-2404:kernel-gpu-2404 pc-kernel
+		// Let's ensure that pc-kernel snap is connected to the mesa snap.
 		if !shared.PathExists(rootPath + "/usr/bin/nvidia-smi") {
-			return nil, fmt.Errorf("Failed finding nvidia-smi tool in %q. Please ensure that pc-kernel snap is connected to mesa-2404.", rootPath)
+			return nil, fmt.Errorf("Failed finding nvidia-smi tool in %q. Please ensure that pc-kernel snap is connected to %s.", rootPath, gpuInfo.snapName)
 		}
 	} else if shared.InSnap() {
 		rootPath = "/var/lib/snapd/hostfs"
