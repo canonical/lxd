@@ -3,11 +3,11 @@ package util
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"net"
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
@@ -217,32 +217,21 @@ func SysctlGet(path string) (string, error) {
 		return "", err
 	}
 
-	return string(content), nil
+	return strings.TrimRight(string(content), "\n"), nil
 }
 
 // SysctlSet writes a value to a sysctl file in /proc/sys.
-// Requires an even number of arguments as key/value pairs. E.g. SysctlSet("path1", "value1", "path2", "value2").
-func SysctlSet(parts ...string) error {
-	partsLen := len(parts)
-	if partsLen%2 != 0 {
-		return errors.New("Requires even number of arguments")
+func SysctlSet(path string, value string) error {
+	// Get current value.
+	currentValue, err := SysctlGet(path)
+	if err == nil && currentValue == value {
+		// Nothing to update.
+		return nil
 	}
 
-	for i := 0; i < partsLen; i = i + 2 {
-		path := parts[i]
-		newValue := parts[i+1]
-
-		// Get current value.
-		currentValue, err := SysctlGet(path)
-		if err == nil && currentValue == newValue {
-			// Nothing to update.
-			return nil
-		}
-
-		err = os.WriteFile("/proc/sys/"+path, []byte(newValue), 0)
-		if err != nil {
-			return err
-		}
+	err = os.WriteFile("/proc/sys/"+path, []byte(value), 0)
+	if err != nil {
+		return err
 	}
 
 	return nil
