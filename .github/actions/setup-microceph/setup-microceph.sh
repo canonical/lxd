@@ -9,7 +9,7 @@ install_microceph() {
       # shellcheck disable=SC1091
       . test/includes/snap.sh
       install_snap snapd latest/beta
-      install_snap core24 latest/stable
+      install_snap core24 latest/candidate
       install_snap microceph "${channel}"
   else
     snap install microceph --channel="${channel}"
