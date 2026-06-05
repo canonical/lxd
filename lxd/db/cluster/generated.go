@@ -272,6 +272,62 @@ func (i *IdentityCertificate) ScanArgs() []any {
 	return []any{&i.Row.ID, &i.Row.Fingerprint, &i.Row.Certificate, &i.Row.CreationDate, &i.IdentityID}
 }
 
+// TableName returns the table name for [IdentityProviderGroupsRow] entities.
+func (i IdentityProviderGroupsRow) TableName() string {
+	return "identity_provider_groups"
+}
+
+// SelectColumns returns a slice of column names for [IdentityProviderGroupsRow] entities.
+func (i IdentityProviderGroupsRow) SelectColumns() []string {
+	return []string{
+		"identity_provider_groups.id",
+		"identity_provider_groups.name",
+	}
+}
+
+// Joins returns a slice of join expressions for [IdentityProviderGroupsRow].
+func (i IdentityProviderGroupsRow) Joins() []string {
+	return []string{}
+}
+
+// ScanArgs implements [query.ScanArger] for [IdentityProviderGroupsRow].
+// This returns references to struct fields in definition order.
+func (i *IdentityProviderGroupsRow) ScanArgs() []any {
+	return []any{&i.ID, &i.Name}
+}
+
+// CreateValues returns a list of values from [IdentityProviderGroupsRow] entities matching the bind arguments in [CreateStmt].
+func (i IdentityProviderGroupsRow) CreateValues() []any {
+	return []any{i.Name}
+}
+
+// UpdateValues returns a list of values from [IdentityProviderGroupsRow] entities matching the columns in [UpdateStmt].
+func (i IdentityProviderGroupsRow) UpdateValues() []any {
+	return []any{i.Name}
+}
+
+// PKColumns returns the column names for the primary key of a [IdentityProviderGroupsRow] entity used during an update.
+// The returned slice must have the same number of elements as PKValues.
+func (i IdentityProviderGroupsRow) PKColumns() []string {
+	return []string{"id"}
+}
+
+// PKValues returns the values for the primary key of a [IdentityProviderGroupsRow] entity used during an update.
+// The returned slice must have the same number of elements as PKColumns.
+func (i IdentityProviderGroupsRow) PKValues() []any {
+	return []any{i.ID}
+}
+
+// CreateStmt returns a query that creates a [IdentityProviderGroupsRow] entity.
+func (i IdentityProviderGroupsRow) CreateStmt() string {
+	return "INSERT INTO identity_provider_groups (name) VALUES (?)"
+}
+
+// UpdateStmt returns a query that updates a [IdentityProviderGroupsRow] by primary key.
+func (i IdentityProviderGroupsRow) UpdateStmt() string {
+	return "UPDATE identity_provider_groups SET name = ? "
+}
+
 // TableName returns the table name for [InstancesProfilesRow] entities.
 func (i InstancesProfilesRow) TableName() string {
 	return "instances_profiles"
