@@ -3,10 +3,8 @@ package cmd
 import (
 	"encoding/csv"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
-	"reflect"
 	"slices"
 
 	"github.com/olekukonko/tablewriter"
@@ -86,79 +84,4 @@ func getBaseTable(header []string, data [][]string) *tablewriter.Table {
 	table.SetHeader(header)
 	table.AppendBulk(data)
 	return table
-}
-
-// Column represents a single column in a table.
-type Column struct {
-	Header string
-
-	// DataFunc is a method to retrieve data for this column. The argument to this function will be an element of the
-	// "data" slice that is passed into RenderSlice.
-	DataFunc func(any) (string, error)
-}
-
-// RenderSlice renders the "data" argument, which must be a slice, into a table or as json/yaml as defined by the
-// "format" argument. The "columns" argument defines which columns will be rendered. It will error if the data argument
-// is not a slice, if the format is unrecognized, if any characters in the columns argument is not present in the
-// columnMap argument.
-func RenderSlice(data any, format string, displayColumns string, sortColumns string, columnMap map[rune]Column) error {
-	var headers []string
-	var tableData [][]string
-	if isTableFormat(format) {
-		rows, err := anyToSlice(data)
-		if err != nil {
-			return fmt.Errorf("Cannot render table: %w", err)
-		}
-
-		headers = make([]string, 0, len(displayColumns))
-		for _, r := range displayColumns {
-			column, ok := columnMap[r]
-			if !ok {
-				return fmt.Errorf("Invalid column %q", string(r))
-			}
-
-			headers = append(headers, column.Header)
-		}
-
-		tableData = make([][]string, len(rows))
-		for i, row := range rows {
-			rowData := make([]string, len(displayColumns))
-			for j, r := range displayColumns {
-				rowData[j], err = columnMap[r].DataFunc(row)
-				if err != nil {
-					return err
-				}
-			}
-
-			tableData[i] = rowData
-		}
-
-		err = SortByPrecedence(tableData, displayColumns, sortColumns)
-		if err != nil {
-			return nil
-		}
-	}
-
-	return RenderTable(format, headers, tableData, data)
-}
-
-// anyToSlice converts the given any to a []any. It will error if the underlying type is not a slice.
-func anyToSlice(slice any) ([]any, error) {
-	s := reflect.ValueOf(slice)
-	if s.Kind() != reflect.Slice {
-		return nil, errors.New("Provided argument is not a slice")
-	}
-
-	// Keep the distinction between nil and empty slice input
-	if s.IsNil() {
-		return nil, nil
-	}
-
-	ret := make([]any, s.Len())
-
-	for i := range s.Len() {
-		ret[i] = s.Index(i).Interface()
-	}
-
-	return ret, nil
 }
