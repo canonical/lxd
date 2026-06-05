@@ -985,7 +985,7 @@ func patchStorageZfsUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 
 // patchStorageZfsUnsetInvalidBlockSettingsV2 removes invalid block settings from volumes.
 // This patch fixes the previous one.
-// - Handle non-clusted environments correctly.
+// - Handle non-clustered environments correctly.
 // - Always remove block.* settings from VMs.
 func patchStorageZfsUnsetInvalidBlockSettingsV2(_ string, d *Daemon) error {
 	s := d.State()
