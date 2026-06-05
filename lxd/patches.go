@@ -719,7 +719,6 @@ func patchNetworkOVNRemoveRoutes(name string, d *Daemon) error {
 // patchNetworkOVNEnableNAT adds "ipv4.nat" and "ipv6.nat" keys set to "true" to OVN networks if not present.
 // This is to ensure existing networks retain the old behaviour of always having NAT enabled as we introduce
 // the new NAT settings which default to disabled if not specified.
-// patchNetworkCearBridgeVolatileHwaddr removes the unsupported `volatile.bridge.hwaddr` config key from networks.
 func patchNetworkOVNEnableNAT(name string, d *Daemon) error {
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projectNetworks, err := tx.GetCreatedNetworks(ctx)
