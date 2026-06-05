@@ -98,10 +98,10 @@ func MaybeUpdate(state *state.State) error {
 		return nil
 	}
 
-	return triggerUpdate()
+	return runUpdate()
 }
 
-func triggerUpdate() error {
+func runUpdate() error {
 	logger.Warn("Member is out-of-date with respect to other cluster members")
 
 	updateExecutable := os.Getenv("LXD_CLUSTER_UPDATE")
