@@ -174,6 +174,14 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
+			Name:     "Operation",
+			URL:      "/1.0/operations/6916c8a6-9b7d-4abd-90b3-aedfec7ec7da",
+			WantType: TypeOperation,
+			WantArgs: map[string]string{
+				"id": "6916c8a6-9b7d-4abd-90b3-aedfec7ec7da",
+			},
+		},
+		{
 			Name:        "Placement group",
 			URL:         "/1.0/placement-groups/default",
 			WantType:    TypePlacementGroup,
@@ -279,6 +287,14 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 			WantProject:  "foo",
 			WantLocation: "bar",
+		},
+		{
+			Name:     "Warning",
+			URL:      "/1.0/warnings/e9e9da0d-2538-4351-8047-46d4a8ae4dbb",
+			WantType: TypeWarning,
+			WantArgs: map[string]string{
+				"uuid": "e9e9da0d-2538-4351-8047-46d4a8ae4dbb",
+			},
 		},
 	}
 
