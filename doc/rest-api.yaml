@@ -4975,6 +4975,12 @@ definitions:
                 readOnly: true
                 type: string
                 x-go-name: Name
+            replica_mode:
+                description: Replica mode for the project (leader, standby, or empty)
+                example: leader
+                readOnly: true
+                type: string
+                x-go-name: ReplicaMode
             used_by:
                 description: List of URLs of objects using this project
                 example:
@@ -5036,6 +5042,16 @@ definitions:
                 readOnly: true
                 type: object
                 x-go-name: Resources
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    ProjectStatePut:
+        description: ProjectStatePut represents the fields for updating project replica state
+        properties:
+            replica_mode:
+                description: 'Replica mode to set: "leader" or "standby"'
+                example: leader
+                type: string
+                x-go-name: ReplicaMode
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
     ProjectStateResource:
@@ -16579,6 +16595,39 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Get the project state
+            tags:
+                - projects
+        put:
+            consumes:
+                - application/json
+            description: Promotes or demotes the project for replication.
+            operationId: project_state_put
+            parameters:
+                - description: Skip validation of remote project states
+                  example: false
+                  in: query
+                  name: force
+                  type: boolean
+                - description: Project state
+                  in: body
+                  name: state
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ProjectStatePut'
+            produces:
+                - application/json
+            responses:
+                "202":
+                    $ref: '#/responses/Operation'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Update the project replica state
             tags:
                 - projects
     /1.0/projects?recursion=1:

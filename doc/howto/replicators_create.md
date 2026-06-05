@@ -44,37 +44,38 @@ Then create the cluster links with that authentication group, as described in {r
 (howto-replicators-project-setup)=
 ## Configure projects for replication
 
-Both clusters need a project configured with the {config:option}`project-replica:replica.cluster` and {config:option}`project-replica:replica.mode` settings.
+Both clusters need a project with the same name. Only the standby project requires the {config:option}`project-replica:replica.cluster` configuration key; the leader project does not need it because the replicator defines the target cluster.
 
-1. On the leader cluster, create a project and configure it to link to the standby cluster:
+1. On the leader cluster, create a project:
 
    ```bash
-   lxc project create <project_name> -c replica.cluster=<standby_cluster_link_name>
+   lxc project create <project_name>
    ```
 
-1. On the standby cluster, create a project with the same name and configure it to link to the leader cluster:
+1. On the standby cluster, create a project with the same name and configure it to accept replication from the leader cluster:
 
    ```bash
    lxc project create <project_name> -c replica.cluster=<leader_cluster_link_name>
    ```
 
-1. On the standby cluster, set the project's replica mode to `standby`. This prevents new instances from being created in the project directly; existing instances can still be managed until the project is promoted to `leader` during a failover.
+1. On the standby cluster, demote the project to standby mode. This prevents new instances from being created in the project and existing instances from being started. The project must be promoted to `leader` during a failover before instances can be started.
 
    ```bash
-   lxc project set <project_name> replica.mode=standby
+   lxc project demote-replica <project_name>
    ```
 
-1. On the leader cluster, set the project's replica mode to `leader`.
+1. On the leader cluster, promote the project to leader mode:
 
    ```bash
-   lxc project set <project_name> replica.mode=leader
+   lxc project promote-replica <project_name>
    ```
 
-```{admonition} Setting the leader
+```{admonition} Promote validation
 :class: note
 
-Setting `replica.mode=leader` on the leader cluster requires the target project on the standby cluster to already have `replica.mode=standby` set.
+The `lxc project promote-replica` command validates that all target projects (on clusters referenced by the project's replicators) are in standby mode before allowing the promotion.
 This ensures that new instances are not created on a standby cluster between replicator runs.
+If a target cluster is unreachable, promotion still proceeds to allow disaster recovery scenarios where the target may be offline.
 ```
 
 (howto-replicators-create)=
@@ -120,20 +121,27 @@ lxc replicator set <replicator_name> schedule="0 0 * * *"
 (howto-replicators-snapshot)=
 ## Snapshot before replication
 
-When you set `snapshot=true` on a replicator, LXD creates a point-in-time snapshot of each source
-instance before performing the incremental refresh to the standby cluster. This gives you a
-consistent rollback point on the source in case anything goes wrong during replication.
+Each replicator run performs an incremental instance sync to the standby cluster using
+the equivalent of `lxc copy --refresh`. This transfers only the data that has changed since the last sync,
+using any existing snapshots as a reference point to minimize the amount of data transferred.
 
-Snapshot naming and expiry are controlled entirely by the instance's own configuration (for example
-{config:option}`instance-snapshots:snapshots.pattern` and {config:option}`instance-snapshots:snapshots.expiry`), or by the profile applied to the instance. The
-replicator does not impose its own naming scheme.
+When you set `snapshot=true` on a replicator, LXD creates a point-in-time snapshot of each
+source instance before performing the incremental copy. This gives the copy operation a
+consistent reference point, which reduces the amount of data transferred on each sync and
+provides a rollback point on the source in case anything goes wrong during replication.
 
-If an instance already has a {config:option}`instance-snapshots:snapshots.schedule` set at the instance or profile level, the
-replicator skips creating a new snapshot and reuses the most recent existing snapshot for the
-incremental refresh instead.
+Snapshot naming and expiry are controlled entirely by the instance's own configuration (for
+example {config:option}`instance-snapshots:snapshots.pattern` and
+{config:option}`instance-snapshots:snapshots.expiry`), or by the profile applied to the
+instance. The replicator does not impose its own naming scheme.
 
-When `snapshot` is not set (or set to `false`), no new snapshot is created. If a previous snapshot
-already exists on the instance, it is reused naturally by the incremental refresh.
+If an instance already has a {config:option}`instance-snapshots:snapshots.schedule` set at
+the instance or profile level, the replicator skips creating a new snapshot and reuses the
+most recent existing snapshot as the reference point for the incremental copy instead.
+
+When `snapshot` is not set (or set to `false`), no new snapshot is created before the
+incremental copy runs. If existing snapshots are present on the instance, the copy operation
+uses them to transfer only the delta; if no snapshots exist, the full instance is transferred.
 
 ```{note}
 Snapshots created by replication accumulate over time. Use `snapshots.expiry` on the instance or

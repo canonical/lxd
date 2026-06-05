@@ -1040,7 +1040,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 		return operations.OperationArgs{}, fmt.Errorf("Failed getting target project: %w", err)
 	}
 
-	err = validateReplicatorModes(sourceProject.Config["replica.mode"], targetProject.Config["replica.mode"], restore)
+	err = validateReplicatorModes(sourceProject.ReplicaMode, targetProject.ReplicaMode, restore)
 	if err != nil {
 		return operations.OperationArgs{}, api.StatusErrorf(http.StatusBadRequest, "%s", err)
 	}
@@ -1163,12 +1163,17 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				return fmt.Errorf("Failed getting instance %q from current leader cluster: %w", instName, err)
 			}
 
-			// If the instance lives on another cluster member, forward the restore
+			// If the instance lives on a remote cluster member, forward the restore
 			// migration to that member so the refresh runs where the storage volume is.
+			// Instances on the local member (including unclustered servers) are handled
+			// directly below. This mirrors the logic in replicateInstance.
 			var memberAddress string
 			for _, inst := range allInsts {
 				if inst.Name() == instName {
-					memberAddress = nodeAddressByName[inst.Location()]
+					if inst.Location() != s.ServerName {
+						memberAddress = nodeAddressByName[inst.Location()]
+					}
+
 					break
 				}
 			}
@@ -1297,8 +1302,25 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				return fmt.Errorf("Failed getting websocket secrets from local sink for instance %q: %w", instName, err)
 			}
 
-			// Build the operation URL using this node's cluster address.
+			// Build the operation URL using a reachable address for this server.
+			// For clustered members the address from the nodes table is already a
+			// concrete, registered address. For unclustered servers the nodes table
+			// stores the sentinel "0.0.0.0", so fall back to the configured HTTPS
+			// address. Return an error if we still cannot determine a concrete address,
+			// because the leader would not be able to reach us.
 			localAddress := nodeAddressByName[s.ServerName]
+			if util.IsWildCardAddress(localAddress) {
+				localAddress = s.LocalConfig.ClusterAddress()
+				if localAddress == "" {
+					localAddress = s.LocalConfig.HTTPSAddress()
+				}
+
+				if util.IsWildCardAddress(localAddress) || localAddress == "" {
+					sinkOp.Cancel()
+					return errors.New("Cannot restore to this server: configure a concrete address using cluster.https_address or core.https_address")
+				}
+			}
+
 			sinkOpURL := "https://" + localAddress + sinkOp.URL()
 
 			// Tell the current leader cluster to push-migrate the instance to our local sink.
@@ -1618,7 +1640,7 @@ func runScheduledReplicators(ctx context.Context, s *state.State) error {
 		return err
 	}
 
-	// Build a per-project replica.mode map so the loop can skip standby projects
+	// Build a per-project replica mode map so the loop can skip standby projects
 	// without an extra DB round-trip per replicator.
 	projectModes := make(map[string]string, len(apiReplicators))
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1628,12 +1650,12 @@ func runScheduledReplicators(ctx context.Context, s *state.State) error {
 				continue
 			}
 
-			config, err := dbCluster.GetProjectConfig(ctx, tx.Tx(), replicator.Project)
+			dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), replicator.Project)
 			if err != nil {
-				return fmt.Errorf("Failed loading project config for %q: %w", replicator.Project, err)
+				return fmt.Errorf("Failed loading project %q: %w", replicator.Project, err)
 			}
 
-			projectModes[replicator.Project] = config["replica.mode"]
+			projectModes[replicator.Project] = string(dbProject.ReplicaMode)
 		}
 
 		return nil
@@ -1744,19 +1766,19 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 func validateReplicatorModes(sourceMode string, targetMode string, restore bool) error {
 	if restore {
 		if sourceMode != api.ReplicatorProjectModeStandby {
-			return errors.New(`Source project must have "replica.mode" set to standby to run replicator in restore mode`)
+			return errors.New("Source project must be in standby mode to run replicator in restore mode")
 		}
 
 		if targetMode != api.ReplicatorProjectModeLeader {
-			return errors.New(`Target project must have "replica.mode" set to leader to run replicator in restore mode`)
+			return errors.New("Target project must be in leader mode to run replicator in restore mode")
 		}
 	} else {
 		if sourceMode != api.ReplicatorProjectModeLeader {
-			return errors.New(`Source project must have "replica.mode" set to leader to run replicator`)
+			return errors.New("Source project must be in leader mode to run replicator")
 		}
 
 		if targetMode != api.ReplicatorProjectModeStandby {
-			return errors.New(`Target project must have "replica.mode" set to standby to run replicator`)
+			return errors.New("Target project must be in standby mode to run replicator")
 		}
 	}
 

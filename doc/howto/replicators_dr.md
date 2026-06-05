@@ -16,7 +16,13 @@ If the leader cluster becomes unavailable, you can manually fail over to the sta
 On the standby cluster, promote the replica project to become the leader:
 
 ```bash
-lxc project set <project_name> replica.mode=leader
+lxc project promote-replica <project_name>
+```
+
+If the leader cluster is unreachable, promotion proceeds automatically without requiring validation. Use `--force` to skip validation when the leader cluster is still reachable but you want to promote anyway (for example, during a planned takeover before demoting the leader):
+
+```bash
+lxc project promote-replica <project_name> --force
 ```
 
 After this command, the project on the standby cluster becomes writable. Start the instances to resume your workloads:
@@ -27,9 +33,9 @@ lxc start --all --project <project_name>
 
 ## Recovering the original leader cluster
 
-When the original leader cluster comes back online, it will be out of sync with the new leader (the former standby). Scheduled replicator runs on the original leader cluster will fail because both projects have `replica.mode=leader`.
+When the original leader cluster comes back online, it will be out of sync with the new leader (the former standby). Scheduled replicator runs on the original leader cluster will fail because both projects are in leader mode.
 
-A replicator run requires the source project to have `replica.mode=leader` and the target project to have `replica.mode=standby`.
+A replicator run requires the source project to be in leader mode and the target project to be in standby mode.
 
 To restore the original leader cluster and resume the original replication direction:
 
@@ -42,10 +48,16 @@ The `--restore` action is rejected if any local instance is running, to prevent 
 lxc stop <instance_name> [<instance_name>...] --force
 ```
 
-Set the project on the original leader cluster to standby mode:
+Demote the project on the original leader cluster to standby mode:
 
 ```bash
-lxc project set <project_name> replica.mode=standby
+lxc project demote-replica <project_name>
+```
+
+If the new leader cluster is unreachable, use `--force` to skip the validation:
+
+```bash
+lxc project demote-replica <project_name> --force
 ```
 
 On the original leader cluster, run the replicator in restore mode to pull data from the new leader:
@@ -60,16 +72,16 @@ The original leader cluster is now a standby replica of the new leader cluster.
 
 ### 2. Resume original replication direction
 
-To return to the original setup where the original leader cluster replicates to the standby, stop any running instances in the project for the new leader cluster (former standby). Next, set the project on the new leader cluster back to standby mode:
+To return to the original setup where the original leader cluster replicates to the standby, stop any running instances in the project on the new leader cluster (former standby). Next, demote the project on the new leader cluster back to standby mode:
 
 ```bash
-lxc project set <project_name> replica.mode=standby
+lxc project demote-replica <project_name>
 ```
 
-Finally, set the project on the original leader cluster back to leader mode:
+Finally, promote the project on the original leader cluster back to leader mode:
 
 ```bash
-lxc project set <project_name> replica.mode=leader
+lxc project promote-replica <project_name>
 ```
 
 Your original active-passive disaster recovery setup is now restored. You can restart your instances on the leader cluster and resume your scheduled replicator runs.

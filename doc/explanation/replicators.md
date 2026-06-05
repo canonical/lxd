@@ -12,10 +12,14 @@ Replicators are LXD entities that periodically copy instances from one cluster t
 (exp-replicators-concepts)=
 ## Leader and standby projects
 
-Replication is configured at the project level. Both clusters have a project with the same name, and each project is assigned a {config:option}`project-replica:replica.mode`:
+Replication is configured at the project level. Both clusters have a project with the same name, and each project has a replica mode:
 
 - `leader`: The project is writable. Instances in this project are the source of replication. The replicator runs from this cluster.
-- `standby`: Instances in this project are replicas, kept in sync by the replicator. New instances cannot be created directly in this project; existing instances can still be managed. The project must be promoted to `leader` during a failover before instances can be started.
+- `standby`: Instances in this project are replicas, kept in sync by the replicator. New instances cannot be created directly in this project, and existing instances cannot be started. The project must be promoted to `leader` during a failover before instances can be started.
+
+Replica mode is managed via `lxc project promote-replica` and `lxc project demote-replica`. It is not a configuration key and cannot be set with `lxc project set`.
+
+Only the standby project needs the {config:option}`project-replica:replica.cluster` configuration key, which identifies the cluster link that is allowed to push replication data into it. The leader project does not need this key because the replicator defines the target cluster.
 
 The leader project pushes its instances to the standby project over the cluster link. The standby project mirrors the leader at the time of the last replicator run.
 
@@ -31,9 +35,9 @@ Replication can be triggered manually with `lxc replicator run`, or scheduled au
 (exp-replicators-failover)=
 ## Failover and recovery
 
-If the leader cluster fails, the standby project can be promoted by setting `replica.mode=leader` on the standby cluster. This makes the project writable and allows instances to be started.
+If the leader cluster fails, the standby project can be promoted with `lxc project promote-replica`. This makes the project writable and allows instances to be started. If the leader cluster is unreachable, validation against it is skipped automatically. Use `--force` to skip all validation without attempting to connect, which is useful when the leader is known to be down or during a planned takeover.
 
-When the original leader comes back online, it can be re-synced from the new leader by running the replicator in restore mode (`lxc replicator run --restore`), then returning both projects to their original roles. In restore mode, the remote leader's instance list is used as the authoritative source: instances that were created on the new leader after failover are also created on the recovering cluster, not just the instances that existed before the failure.
+When the original leader comes back online, it can be re-synced from the new leader by running the replicator in restore mode (`lxc replicator run --restore`), then returning both projects to their original roles with `lxc project demote-replica` and `lxc project promote-replica`. In restore mode, the remote leader's instance list is used as the authoritative source: instances that were created on the new leader after failover are also created on the recovering cluster, not just the instances that existed before the failure.
 
 See {ref}`howto-replicators-dr` for step-by-step instructions.
 
@@ -48,7 +52,7 @@ LXD supports two distinct approaches to cross-site disaster recovery:
 | **Mechanism** | Incremental instance refresh over cluster links | Vendor storage replication (Ceph RBD mirroring, PowerFlex RCG, etc.) |
 | **Scheduling** | Controlled by LXD ({config:option}`replicator-conf:schedule` config key) | Controlled by the storage vendor |
 | **Requires cluster link** | Yes | No |
-| **Recovery method** | Promote standby project with `replica.mode=leader` | Promote storage array, then run `lxd recover` |
+| **Recovery method** | Promote standby project with `lxc project promote-replica` | Promote storage array, then run `lxd recover` |
 | **Snapshot support** | Optional pre-replication snapshots | Depends on storage vendor |
 
 Use replicators when you want LXD to manage replication end-to-end across two clusters without dependency on a specific storage backend. Use {ref}`storage replication <disaster-recovery-replication>` when you need replication at the storage array level, or when you are not using cluster links.

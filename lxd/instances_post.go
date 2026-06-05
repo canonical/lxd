@@ -1406,7 +1406,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		// Only replicator runs from the configured cluster link (or internal cluster
 		// notifications forwarded by the coordinator) can create instances in a standby
 		// replica project.
-		if targetProject.Config["replica.mode"] == "standby" && !clusterNotification {
+		if targetProject.ReplicaMode == api.ReplicatorProjectModeStandby && !clusterNotification {
 			expectedCluster := targetProject.Config["replica.cluster"]
 
 			// Verify the request comes from the configured cluster link identity.
