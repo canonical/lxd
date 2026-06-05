@@ -242,7 +242,7 @@ func (r *ProtocolDevLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 		HandshakeTimeout: time.Second * 5,
 	}
 
-	// Create client headersfor the websocket request.
+	// Create client headers for the websocket request.
 	headers := http.Header{}
 	headers.Set("User-Agent", r.httpUserAgent)
 
@@ -297,7 +297,7 @@ func devLXDParseResponse(resp *http.Response) (*api.DevLXDResponse, string, erro
 		return nil, "", fmt.Errorf("Failed reading response body from %q: %v", resp.Request.URL.String(), err)
 	}
 
-	// Handel error response.
+	// Handle error response.
 	if resp.StatusCode != http.StatusOK {
 		if len(content) == 0 {
 			return nil, "", api.NewGenericStatusError(resp.StatusCode)

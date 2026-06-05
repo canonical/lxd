@@ -1792,7 +1792,7 @@ func (c *cmdStorageVolumeList) parseColumns(clustered bool, allVolumes bool) ([]
 	columns := []volumeColumn{}
 	for _, columnEntry := range columnList {
 		if columnEntry == "" {
-			return nil, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in '%s'", c.flagColumns)
+			return nil, fmt.Errorf("Empty column entry (redundant, leading or trailing comma) in '%s'", c.flagColumns)
 		}
 
 		for _, columnRune := range columnEntry {
@@ -2059,7 +2059,7 @@ func (c *cmdStorageVolumeRename) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		fmt.Printf(`Renamed storage volume from "%s" to "%s"\n`, volName, vol.Name)
+		fmt.Printf("Renamed storage volume from %q to %q\n", volName, vol.Name)
 		return nil
 	}
 
@@ -2084,7 +2084,7 @@ func (c *cmdStorageVolumeRename) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf(`Renamed storage volume from "%s" to "%s"\n`, volName, vol.Name)
+		fmt.Printf("Renamed storage volume from %q to %q\n", volName, vol.Name)
 	}
 
 	return nil
@@ -2797,7 +2797,7 @@ func (c *cmdStorageVolumeExport) run(cmd *cobra.Command, args []string) error {
 	defer func() { _ = target.Close() }()
 
 	// Prepare the download request.
-	// Assign the renderer to a new variable to not interfer with the old one.
+	// Assign the renderer to a new variable to not interfere with the old one.
 	exportProgress := cli.ProgressRenderer{
 		Format: "Exporting the backup: %s",
 		Quiet:  c.global.flagQuiet,

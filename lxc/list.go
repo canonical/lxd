@@ -626,7 +626,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 	needsData := false
 	for _, columnEntry := range columnList {
 		if columnEntry == "" {
-			return nil, false, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in %q", c.flagColumns)
+			return nil, false, fmt.Errorf("Empty column entry (redundant, leading or trailing comma) in %q", c.flagColumns)
 		}
 
 		// Config keys always contain a period, parse anything without a
