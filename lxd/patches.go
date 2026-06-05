@@ -151,13 +151,13 @@ func (p *patch) apply(d *Daemon) error {
 
 // Return the names of all available patches.
 func patchesGetNames() []string {
-	names := make([]string, len(patches))
-	for i, patch := range patches {
+	names := make([]string, 0, len(patches))
+	for _, patch := range patches {
 		if patch.stage == patchNoStageSet {
 			continue // Ignore any patch without explicitly set stage (it is defined incorrectly).
 		}
 
-		names[i] = patch.name
+		names = append(names, patch.name)
 	}
 
 	return names
