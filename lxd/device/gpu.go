@@ -47,11 +47,21 @@ func gpuValidationRules(requiredFields []string, optionalFields []string) map[st
 		//  type: string
 		//  shortdesc: ID of the GPU device
 
-		// lxdmeta:generate(entities=device-gpu-{mdev+mig}; group=device-conf; key=id)
+		// lxdmeta:generate(entities=device-gpu-mdev; group=device-conf; key=id)
 		//
 		// ---
 		//  type: string
 		//  shortdesc: DRM card ID of the GPU device
+
+		// lxdmeta:generate(entities=device-gpu-mig; group=device-conf; key=id)
+		// The ID can either be the DRM card ID of the parent GPU device, or a fully-qualified Container Device Interface (CDI) name for the MIG device.
+		// Here are some examples of fully-qualified CDI names:
+		//
+		// - `nvidia.com/mig=0:2`: Instructs LXD to pass through the MIG device at index 2 on GPU 0. You can find the index using `nvidia-smi -L` on your host.
+		// - `nvidia.com/mig=MIG-74c6a31a-fde5-5c61-973b-70e12346c202`: Instructs LXD to pass through a MIG device with a given unique identifier. This identifier should also appear with `nvidia-smi -L`.
+		// ---
+		//  type: string
+		//  shortdesc: DRM card ID of the parent GPU, or CDI identifier of the MIG GPU device
 
 		// lxdmeta:generate(entities=device-gpu-sriov; group=device-conf; key=id)
 		//
@@ -96,19 +106,26 @@ func gpuValidationRules(requiredFields []string, optionalFields []string) map[st
 		//  shortdesc: Mode of the device in the container
 		"mode": unixValidOctalFileMode,
 		// lxdmeta:generate(entities=device-gpu-mig; group=device-conf; key=mig.gi)
-		//
+		// Use this together with {config:option}`device-gpu-mig-device-conf:mig.ci` to
+		// identify a MIG device by its GPU instance ID and compute instance ID.
+		// LXD resolves the pair to a MIG device UUID using NVML and then uses CDI
+		// to pass the device through to the container.
 		// ---
 		//  type: integer
 		//  shortdesc: Existing MIG GPU instance ID
 		"mig.gi": validate.IsUint8,
 		// lxdmeta:generate(entities=device-gpu-mig; group=device-conf; key=mig.ci)
-		//
+		// Use this together with {config:option}`device-gpu-mig-device-conf:mig.gi` to
+		// identify a MIG device by its GPU instance ID and compute instance ID.
+		// LXD resolves the pair to a MIG device UUID using NVML and then uses CDI
+		// to pass the device through to the container.
 		// ---
 		//  type: integer
 		//  shortdesc: Existing MIG compute instance ID
 		"mig.ci": validate.IsUint8,
 		// lxdmeta:generate(entities=device-gpu-mig; group=device-conf; key=mig.uuid)
 		// You can omit the `MIG-` prefix when specifying this option.
+		// LXD uses CDI to pass the MIG device through to the container.
 		// ---
 		//  type: string
 		//  shortdesc: Existing MIG device UUID
