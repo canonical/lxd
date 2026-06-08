@@ -3608,14 +3608,14 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, progressReporter iopr
 
 	revert.Add(func() { _, _ = b.driver.UnmountVolume(vol, false, progressReporter) })
 
-	diskPath, err := b.getInstanceDisk(inst)
-	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
-		return nil, fmt.Errorf("Failed getting disk path: %w", err)
-	}
-
 	var mountInfo MountInfo
 
-	if diskPath != "" {
+	if inst.Type() == instancetype.VM {
+		diskPath, err := b.driver.GetVolumeDiskPath(vol)
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting disk path: %w", err)
+		}
+
 		mountInfo.DevSource = config.DevSourcePath{
 			Path: diskPath,
 		}
@@ -4163,14 +4163,14 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, progressRepor
 		return nil, err
 	}
 
-	diskPath, err := b.getInstanceDisk(inst)
-	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
-		return nil, fmt.Errorf("Failed getting disk path: %w", err)
-	}
-
 	var mountInfo MountInfo
 
-	if diskPath != "" {
+	if inst.Type() == instancetype.VM {
+		diskPath, err := b.driver.GetVolumeDiskPath(vol)
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting disk path: %w", err)
+		}
+
 		mountInfo.DevSource = config.DevSourcePath{
 			Path: diskPath,
 		}
