@@ -434,10 +434,6 @@ func (d *powerstore) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, all
 		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), fsVolSnapshots...)
 		srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume(), srcFsVolSnapshots...)
 
-		// Ensure parent UUID is retained for the filesystem volumes.
-		fsVol.SetParentUUID(vol.parentUUID)
-		srcFSVol.SetParentUUID(srcVol.parentUUID)
-
 		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, progressReporter)
 		if err != nil {
 			return err
@@ -708,9 +704,7 @@ func (d *powerstore) RestoreVolume(vol Volume, snapVol Volume, progressReporter 
 	// For VMs, also restore the filesystem volume.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-
 		snapFSVol := snapVol.NewVMBlockFilesystemVolume()
-		snapFSVol.SetParentUUID(snapVol.parentUUID)
 
 		err := d.RestoreVolume(fsVol, snapFSVol, progressReporter)
 		if err != nil {
@@ -1110,9 +1104,8 @@ func (d *powerstore) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem b
 	// For VMs, create a snapshot of the filesystem volume too.
 	// Skip if snapshotVMfilesystem is false to prevent overwriting separately copied volumes.
 	if snapVol.IsVMBlock() && snapshotVMfilesystem {
-		// Get FS volume and set parent volume UUID.
+		// Get FS volume.
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
-		fsVol.SetParentUUID(snapVol.parentUUID)
 
 		err := d.CreateVolumeSnapshot(fsVol, progressReporter)
 		if err != nil {
@@ -1166,7 +1159,6 @@ func (d *powerstore) DeleteVolumeSnapshot(snapVol Volume, progressReporter iopro
 	// For VM images, delete the filesystem volume too.
 	if snapVol.IsVMBlock() {
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
-		fsVol.SetParentUUID(snapVol.parentUUID)
 
 		err := d.DeleteVolumeSnapshot(fsVol, progressReporter)
 		if err != nil {
@@ -1270,7 +1262,6 @@ func (d *powerstore) MountVolumeSnapshot(snapVol Volume, progressReporter ioprog
 	// For VMs, also clone the filesystem snapshot.
 	if snapVol.IsVMBlock() {
 		snapFsVol := snapVol.NewVMBlockFilesystemVolume()
-		snapFsVol.SetParentUUID(snapVol.parentUUID)
 
 		fsSnapVolClone, err := d.newMountableSnapshotVolume(snapFsVol)
 		if err != nil {
@@ -1349,7 +1340,6 @@ func (d *powerstore) UnmountVolumeSnapshot(snapVol Volume, progressReporter iopr
 	// For VMs, also delete the filesystem clone.
 	if snapVol.IsVMBlock() {
 		snapFsVol := snapVol.NewVMBlockFilesystemVolume()
-		snapFsVol.SetParentUUID(snapVol.parentUUID)
 
 		fsSnapVolClone, err := d.newMountableSnapshotVolume(snapFsVol)
 		if err != nil {

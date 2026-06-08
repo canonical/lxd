@@ -222,10 +222,6 @@ func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), fsVolSnapshots...)
 		srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume(), srcFsVolSnapshots...)
 
-		// Ensure parent UUID is retained for the filesystem volumes.
-		fsVol.SetParentUUID(vol.parentUUID)
-		srcFSVol.SetParentUUID(srcVol.parentUUID)
-
 		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, progressReporter)
 		if err != nil {
 			return err
@@ -1070,9 +1066,7 @@ func (d *pure) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprog
 	// For VMs, also restore the filesystem volume.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
-
 		snapFSVol := snapVol.NewVMBlockFilesystemVolume()
-		snapFSVol.SetParentUUID(snapVol.parentUUID)
 
 		err := d.RestoreVolume(fsVol, snapFSVol, progressReporter)
 		if err != nil {
@@ -1157,9 +1151,6 @@ func (d *pure) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool, p
 	if snapVol.IsVMBlock() && snapshotVMfilesystem {
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
 
-		// Set the parent volume's UUID.
-		fsVol.SetParentUUID(snapVol.parentUUID)
-
 		err := d.CreateVolumeSnapshot(fsVol, progressReporter)
 		if err != nil {
 			return err
@@ -1230,7 +1221,6 @@ func (d *pure) DeleteVolumeSnapshot(snapVol Volume, progressReporter ioprogress.
 	// For VM images, delete the filesystem volume too.
 	if snapVol.IsVMBlock() {
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
-		fsVol.SetParentUUID(snapVol.parentUUID)
 
 		err := d.DeleteVolumeSnapshot(fsVol, progressReporter)
 		if err != nil {
@@ -1273,8 +1263,6 @@ func (d *pure) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.P
 	// For VMs, also create the temporary filesystem volume snapshot.
 	if snapVol.IsVMBlock() {
 		snapFsVol := snapVol.NewVMBlockFilesystemVolume()
-		snapFsVol.SetParentUUID(snapVol.parentUUID)
-
 		parentFsVol := snapFsVol.GetParent()
 
 		snapFsVolName, err := d.getVolumeName(snapFsVol)

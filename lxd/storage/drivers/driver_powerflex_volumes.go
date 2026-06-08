@@ -859,9 +859,6 @@ func (d *powerflex) CreateVolumeSnapshot(snapVol Volume, progressReporter ioprog
 	if snapVol.IsVMBlock() {
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
 
-		// Set the parent volume's UUID.
-		fsVol.SetParentUUID(snapVol.parentUUID)
-
 		err := d.CreateVolumeSnapshot(fsVol, progressReporter)
 		if err != nil {
 			return err
