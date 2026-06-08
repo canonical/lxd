@@ -133,13 +133,45 @@ GPU devices of type `mig` have the following device options:
     :end-before: <!-- config group device-gpu-mig-device-conf end -->
 ```
 
-You must set either {config:option}`device-gpu-mig-device-conf:mig.uuid` (NVIDIA drivers 470+) or both {config:option}`device-gpu-mig-device-conf:mig.ci` and {config:option}`device-gpu-mig-device-conf:mig.gi` (old NVIDIA drivers).
+You must use one of the following options to specify the MIG device to pass through:
+
+- {config:option}`device-gpu-mig-device-conf:mig.uuid`: Specify the MIG device UUID directly.
+  The `MIG-` prefix is optional.
+  The UUID uniquely identifies the MIG device, so no parent GPU selector is required.
+  You may optionally provide `pci`, `id` (as a DRM card ID), or both `vendorid` and `productid` to validate that the expected parent GPU is present.
+
+- {config:option}`device-gpu-mig-device-conf:mig.gi` and {config:option}`device-gpu-mig-device-conf:mig.ci`: Specify both the GPU instance ID and compute instance ID.
+  LXD resolves these to a MIG UUID via NVML.
+  On systems with multiple NVIDIA GPUs, also provide `pci`, `id` (as a DRM card ID), or both `vendorid` and `productid` to identify the parent GPU.
+
+- {config:option}`device-gpu-mig-device-conf:id` (CDI identifier only): Use CDI notation to pass the MIG device through directly.
+  Supported formats: `nvidia.com/mig=<uuid>` and `nvidia.com/mig=<dev_idx>:<mig_idx>`.
+  The CDI identifier is self-contained.
+  If you set `id` to a CDI identifier, then you cannot set `pci`, `vendorid`, `productid`, or a non-CDI `id` (DRM card ID).
+
+These three methods are mutually exclusive. All three use CDI internally to configure the device in the container.
 
 ### Configuration examples
 
-Add a `mig` GPU device to an instance by specifying its UUID and the PCI address of the GPU:
+Add a `mig` GPU device by specifying a UUID:
+
+    lxc config device add <instance_name> <device_name> gpu gputype=mig mig.uuid=<mig_uuid>
+
+Add a `mig` GPU device by specifying a UUID as well as a PCI address to validate the parent GPU:
 
     lxc config device add <instance_name> <device_name> gpu gputype=mig mig.uuid=<mig_uuid> pci=<pci_address>
+
+Add a `mig` GPU device by specifying GPU instance and compute instance IDs:
+
+    lxc config device add <instance_name> <device_name> gpu gputype=mig mig.gi=<gi_id> mig.ci=<ci_id> pci=<pci_address>
+
+Add a `mig` GPU device by specifying a CDI identifier (UUID):
+
+    lxc config device add <instance_name> <device_name> gpu gputype=mig id=nvidia.com/mig=<mig_uuid>
+
+Add a `mig` GPU device by specifying a CDI identifier (index):
+
+    lxc config device add <instance_name> <device_name> gpu gputype=mig id=nvidia.com/mig=<dev_idx>:<mig_idx>
 
 See {ref}`instances-configure-devices` for more information.
 
