@@ -546,7 +546,7 @@ jobs:
           - devlxd-container
           - devlxd-vm
           - docker
-          - efi-vars-editor-vm
+          - efi-vm
           - lxd-installer
           - lxd-user
           - interception
