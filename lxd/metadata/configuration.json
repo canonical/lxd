@@ -339,28 +339,28 @@
 				"keys": [
 					{
 						"id": {
-							"longdesc": "",
-							"shortdesc": "DRM card ID of the GPU device",
+							"longdesc": "The ID can either be the DRM card ID of the parent GPU device, or a fully-qualified Container Device Interface (CDI) name for the MIG device.\nHere are some examples of fully-qualified CDI names:\n\n- `nvidia.com/mig=0:2`: Instructs LXD to pass through the MIG device at index 2 on GPU 0. You can find the index using `nvidia-smi -L` on your host.\n- `nvidia.com/mig=MIG-74c6a31a-fde5-5c61-973b-70e12346c202`: Instructs LXD to pass through a MIG device with a given unique identifier. This identifier should also appear with `nvidia-smi -L`.",
+							"shortdesc": "DRM card ID of the parent GPU, or CDI identifier of the MIG GPU device",
 							"type": "string"
 						}
 					},
 					{
 						"mig.ci": {
-							"longdesc": "",
+							"longdesc": "Use this together with {config:option}`device-gpu-mig-device-conf:mig.gi` to\nidentify a MIG device by its GPU instance ID and compute instance ID.\nLXD resolves the pair to a MIG device UUID using NVML and then uses CDI\nto pass the device through to the container.",
 							"shortdesc": "Existing MIG compute instance ID",
 							"type": "integer"
 						}
 					},
 					{
 						"mig.gi": {
-							"longdesc": "",
+							"longdesc": "Use this together with {config:option}`device-gpu-mig-device-conf:mig.ci` to\nidentify a MIG device by its GPU instance ID and compute instance ID.\nLXD resolves the pair to a MIG device UUID using NVML and then uses CDI\nto pass the device through to the container.",
 							"shortdesc": "Existing MIG GPU instance ID",
 							"type": "integer"
 						}
 					},
 					{
 						"mig.uuid": {
-							"longdesc": "You can omit the `MIG-` prefix when specifying this option.",
+							"longdesc": "You can omit the `MIG-` prefix when specifying this option.\nLXD uses CDI to pass the MIG device through to the container.",
 							"shortdesc": "Existing MIG device UUID",
 							"type": "string"
 						}
