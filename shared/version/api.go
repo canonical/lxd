@@ -496,6 +496,7 @@ var APIExtensions = []string{
 	"cluster_links_used_by",
 	"network_load_balancer_pool",
 	"clustering_evacuation_force",
+	"gpu_mig_cdi",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
