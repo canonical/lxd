@@ -110,3 +110,34 @@ func Test_Volume_ConfigSizeFromSource(t *testing.T) {
 		assert.Equal(t, test.err, err)
 	}
 }
+
+// Test NewVMBlockFilesystemVolume.
+func Test_NewVMBlockFilesystemVolume(t *testing.T) {
+	testDriver := dir{}
+
+	tests := []struct {
+		vol        Volume
+		parentUUID string
+	}{
+		{
+			// Check a FS volume derived from a regular volume doesn't have a parent UUID.
+			vol:        Volume{driver: &testDriver, config: map[string]string{}, name: "foo"},
+			parentUUID: "",
+		},
+		{
+			// Check a FS volume derived from a regular volume doesn't have a parent UUID even if the parent volume falsely has a parent UUID assigned.
+			vol:        Volume{driver: &testDriver, config: map[string]string{}, name: "foo", parentUUID: "b9e0b32f-5bb7-4782-8993-9f0c458fde75"},
+			parentUUID: "",
+		},
+		{
+			// Check a FS volume derived from a snapshot volume does have the parent's UUID.
+			vol:        Volume{driver: &testDriver, config: map[string]string{}, name: "foo/snap0", parentUUID: "b9e0b32f-5bb7-4782-8993-9f0c458fde75"},
+			parentUUID: "b9e0b32f-5bb7-4782-8993-9f0c458fde75",
+		},
+	}
+
+	for _, test := range tests {
+		vol := test.vol.NewVMBlockFilesystemVolume()
+		assert.Equal(t, test.parentUUID, vol.parentUUID)
+	}
+}
