@@ -282,6 +282,11 @@ func GetMeminfo(field string) (int64, error) {
 		return valueInt * multiplier, nil
 	}
 
+	err = scan.Err()
+	if err != nil {
+		return -1, fmt.Errorf("Failed reading %s: %w", f.Name(), err)
+	}
+
 	return -1, fmt.Errorf("Could not find %s", field)
 }
 
