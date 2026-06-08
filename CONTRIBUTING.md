@@ -32,19 +32,7 @@ All pull requests undergo review and must be approved before being merged into t
 
 ### Commit structure
 
-Use separate commits for different types of changes:
-
-| Type                 | Affects files                                    | Commit message format               |
-|----------------------|--------------------------------------------------|-------------------------------------|
-| **API extensions**   | `doc/api-extensions.md`, `shared/version/api.go` | `api: Add XYZ extension`            |
-| **Documentation**    | Files in `doc/`                                  | `doc: Update XYZ`                   |
-| **API structure**    | Files in `shared/api/`                           | `shared/api: Add XYZ`               |
-| **Go client package**| Files in `client/`                               | `client: Add XYZ`                   |
-| **CLI changes**      | Files in `lxc/`                                  | `lxc/<command>: Change XYZ`         |
-| **LXD daemon**       | Files in `lxd/`                                  | `lxd/<package>: Add support for XYZ`|
-| **Tests**            | Files in `test/`                                 | `test/<path>: Add test for XYZ`     |
-| **GitHub**           | Files in `.github/`                              | `github: Update XYZ`                |
-| **Makefile**         | `Makefile`                                       | `Makefile: Update XYZ`              |
+See [`COMMITS.md`](https://github.com/canonical/lxd/blob/main/COMMITS.md) for the full commit prefix table and signing requirements.
 
 Depending on complexity, large changes might be further split into smaller, logical commits. This commit structure facilitates the review process and simplifies backporting fixes to stable branches.
 
