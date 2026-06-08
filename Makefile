@@ -235,16 +235,20 @@ check-gomin:
 		echo "Please update the Go version in 'doc/requirements.md' to be $(GOMIN) instead of $(DOC_GOMIN)"; \
 		exit 1; \
 	fi
+	@echo "Check AGENTS.md mentions the right Go minimum version"
+	@find . -name 'AGENTS.md' -not -path './.git/*' | while read -r f; do \
+		ver=$$(sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' "$$f"); \
+		if [ -n "$$ver" ] && [ "$$ver" != "$(GOMIN)" ]; then \
+			echo "Please update the Go version in '$$f' to be $(GOMIN) instead of $$ver"; \
+			exit 1; \
+		fi; \
+	done
 	@echo "Check copilot-instructions.md mentions the right Go minimum version"
 	$(eval COPILOT_GOMIN := $(shell sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' .github/copilot-instructions.md))
 	if [ "$(COPILOT_GOMIN)" != "$(GOMIN)" ]; then \
 		echo "Please update the Go version in '.github/copilot-instructions.md' to be $(GOMIN) instead of $(COPILOT_GOMIN)"; \
 		exit 1; \
 	fi
-
-.PHONY: update-copilot-instructions
-update-copilot-instructions:
-	@./scripts/update-copilot-instructions.sh
 
 .PHONY: update-gomin
 update-gomin:
@@ -267,11 +271,12 @@ endif
 	@# Update GOMIN in go.mod and tools/go.mod
 	sed -i 's/^go [0-9.]\+$$/go $(NEW_GOMIN)/' go.mod tools/go.mod
 
-	@# Update doc/requirements.md and .github/copilot-instructions.md
+	@# Update doc/requirements.md, all AGENTS.md files, and .github/copilot-instructions.md
+	find . -name 'AGENTS.md' -not -path './.git/*' -exec sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' {} +
 	sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' doc/requirements.md .github/copilot-instructions.md
 
 	@echo "Go minimum version updated to $(NEW_GOMIN)"
-	@./scripts/check-and-commit.sh "Makefile go.mod tools/go.mod doc/requirements.md .github/copilot-instructions.md" "go: Update Go minimum version to $(NEW_GOMIN)"
+	@./scripts/check-and-commit.sh "Makefile go.mod tools/go.mod doc/requirements.md $(shell find . -name 'AGENTS.md' -not -path './.git/*') .github/copilot-instructions.md" "go: Update Go minimum version to $(NEW_GOMIN)"
 
 .PHONY: update-gomod
 update-gomod:
