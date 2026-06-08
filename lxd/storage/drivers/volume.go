@@ -429,6 +429,11 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 	// Propagate mount custom path of parent volume.
 	vol.SetMountCustomPath(v.mountCustomPath)
 
+	if v.IsSnapshot() {
+		// Propagate UUID of parent volume.
+		vol.SetParentUUID(v.parentUUID)
+	}
+
 	return vol
 }
 

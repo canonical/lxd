@@ -3608,14 +3608,14 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, progressReporter iopr
 
 	revert.Add(func() { _, _ = b.driver.UnmountVolume(vol, false, progressReporter) })
 
-	diskPath, err := b.getInstanceDisk(inst)
-	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
-		return nil, fmt.Errorf("Failed getting disk path: %w", err)
-	}
-
 	var mountInfo MountInfo
 
-	if diskPath != "" {
+	if inst.Type() == instancetype.VM {
+		diskPath, err := b.driver.GetVolumeDiskPath(vol)
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting disk path: %w", err)
+		}
+
 		mountInfo.DevSource = config.DevSourcePath{
 			Path: diskPath,
 		}
@@ -3678,39 +3678,6 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, progressReporter io
 	_, err = b.driver.UnmountVolume(vol, false, progressReporter)
 
 	return err
-}
-
-// getInstanceDisk returns the location of the disk.
-func (b *lxdBackend) getInstanceDisk(inst instance.Instance) (string, error) {
-	if inst.Type() != instancetype.VM {
-		return "", drivers.ErrNotSupported
-	}
-
-	// Check we can convert the instance to the volume type needed.
-	volType, err := InstanceTypeToVolumeType(inst.Type())
-	if err != nil {
-		return "", err
-	}
-
-	contentType := InstanceContentType(inst)
-	volStorageName := project.Instance(inst.Project().Name, inst.Name())
-
-	// Load storage volume from database.
-	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
-	if err != nil {
-		return "", err
-	}
-
-	// Get the volume.
-	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
-
-	// Get the location of the disk block device.
-	diskPath, err := b.driver.GetVolumeDiskPath(vol)
-	if err != nil {
-		return "", err
-	}
-
-	return diskPath, nil
 }
 
 // CreateInstanceSnapshot creates a snapshot of an instance volume.
@@ -4163,14 +4130,14 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, progressRepor
 		return nil, err
 	}
 
-	diskPath, err := b.getInstanceDisk(inst)
-	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
-		return nil, fmt.Errorf("Failed getting disk path: %w", err)
-	}
-
 	var mountInfo MountInfo
 
-	if diskPath != "" {
+	if inst.Type() == instancetype.VM {
+		diskPath, err := b.driver.GetVolumeDiskPath(vol)
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting disk path: %w", err)
+		}
+
 		mountInfo.DevSource = config.DevSourcePath{
 			Path: diskPath,
 		}

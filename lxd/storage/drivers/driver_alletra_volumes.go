@@ -596,10 +596,6 @@ func (d *alletra) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowI
 		fsVol := NewVolumeCopy(vol.NewVMBlockFilesystemVolume(), fsVolSnapshots...)
 		srcFSVol := NewVolumeCopy(srcVol.NewVMBlockFilesystemVolume(), srcFsVolSnapshots...)
 
-		// Ensure parent UUID is retained for the filesystem volumes.
-		fsVol.SetParentUUID(vol.parentUUID)
-		srcFSVol.SetParentUUID(srcVol.parentUUID)
-
 		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, progressReporter)
 		if err != nil {
 			return err
@@ -1426,9 +1422,6 @@ func (d *alletra) createVolumeSnapshot(snapVol Volume, snapshotVMfilesystem bool
 	if snapVol.IsVMBlock() && snapshotVMfilesystem {
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
 
-		// Set the parent volume's UUID.
-		fsVol.SetParentUUID(snapVol.parentUUID)
-
 		err := d.CreateVolumeSnapshot(fsVol, progressReporter)
 		if err != nil {
 			return err
@@ -1489,7 +1482,6 @@ func (d *alletra) DeleteVolumeSnapshot(snapVol Volume, progressReporter ioprogre
 	// For VM images, delete the filesystem volume too.
 	if snapVol.IsVMBlock() {
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
-		fsVol.SetParentUUID(snapVol.parentUUID)
 
 		err := d.DeleteVolumeSnapshot(fsVol, progressReporter)
 		if err != nil {
@@ -1610,7 +1602,6 @@ func (d *alletra) RestoreVolume(vol Volume, snapVol Volume, progressReporter iop
 		fsVol := vol.NewVMBlockFilesystemVolume()
 
 		snapFSVol := snapVol.NewVMBlockFilesystemVolume()
-		snapFSVol.SetParentUUID(snapVol.parentUUID)
 
 		err := d.RestoreVolume(fsVol, snapFSVol, progressReporter)
 		if err != nil {
