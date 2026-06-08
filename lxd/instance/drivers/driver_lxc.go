@@ -1990,7 +1990,6 @@ func (d *lxc) startCommon(ctx context.Context, progressReporter ioprogress.Progr
 
 	// Create the devices
 	nicID := -1
-	nvidiaDevices := []string{}
 
 	sortedDevices := d.expandedDevices.Sorted()
 	startDevices := make([]device.Device, 0, len(sortedDevices))
@@ -2133,23 +2132,6 @@ func (d *lxc) startCommon(ctx context.Context, progressReporter ioprogress.Progr
 		// Add any post start hooks.
 		if len(runConf.PostHooks) > 0 {
 			postStartHooks = append(postStartHooks, runConf.PostHooks...)
-		}
-
-		// Build list of NVIDIA GPUs (used for MIG).
-		if len(runConf.GPUDevice) > 0 {
-			for _, entry := range runConf.GPUDevice {
-				if entry.Key == device.GPUNvidiaDeviceKey {
-					nvidiaDevices = append(nvidiaDevices, entry.Value)
-				}
-			}
-		}
-	}
-
-	// Override NVIDIA_VISIBLE_DEVICES if we have devices that need it.
-	if len(nvidiaDevices) > 0 {
-		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_VISIBLE_DEVICES="+strings.Join(nvidiaDevices, ","))
-		if err != nil {
-			return nil, "", nil, fmt.Errorf("Cannot set NVIDIA_VISIBLE_DEVICES in LXC environment: %w", err)
 		}
 	}
 

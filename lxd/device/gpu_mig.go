@@ -21,9 +21,6 @@ type gpuMIG struct {
 	deviceCommon
 }
 
-// GPUNvidiaDeviceKey is the key used for NVIDIA devices through libnvidia-container.
-const GPUNvidiaDeviceKey = "nvidia.device"
-
 // validateConfig checks the supplied config for correctness.
 func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
 	if !instanceSupported(instConf.Type(), instancetype.Container) {
