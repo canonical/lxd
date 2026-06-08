@@ -3680,39 +3680,6 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, progressReporter io
 	return err
 }
 
-// getInstanceDisk returns the location of the disk.
-func (b *lxdBackend) getInstanceDisk(inst instance.Instance) (string, error) {
-	if inst.Type() != instancetype.VM {
-		return "", drivers.ErrNotSupported
-	}
-
-	// Check we can convert the instance to the volume type needed.
-	volType, err := InstanceTypeToVolumeType(inst.Type())
-	if err != nil {
-		return "", err
-	}
-
-	contentType := InstanceContentType(inst)
-	volStorageName := project.Instance(inst.Project().Name, inst.Name())
-
-	// Load storage volume from database.
-	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
-	if err != nil {
-		return "", err
-	}
-
-	// Get the volume.
-	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
-
-	// Get the location of the disk block device.
-	diskPath, err := b.driver.GetVolumeDiskPath(vol)
-	if err != nil {
-		return "", err
-	}
-
-	return diskPath, nil
-}
-
 // CreateInstanceSnapshot creates a snapshot of an instance volume.
 func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, progressReporter ioprogress.ProgressReporter) error {
 	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "src": src.Name()})
