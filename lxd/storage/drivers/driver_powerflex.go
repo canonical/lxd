@@ -406,16 +406,47 @@ func (d *powerflex) GetResources() (*api.ResourcesStoragePool, error) {
 		return nil, err
 	}
 
-	stats, err := d.client().getStoragePoolStatistics(pool.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	used := stats.NetCapacityInUseInKb * 1024
-
+	client := d.client()
 	res := &api.ResourcesStoragePool{}
-	res.Space.Total = stats.NetUnusedCapacityInKb*1024 + used
-	res.Space.Used = used
+
+	if !d.hasThinCloneSupport() {
+		// PowerFlex 4 allows querying stats from the pool directly.
+		stats, err := client.getStoragePoolStatistics(pool.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		used := stats.NetCapacityInUseInKb * 1024
+
+		res.Space.Total = stats.NetUnusedCapacityInKb*1024 + used
+		res.Space.Used = used
+	} else {
+		// PowerFlex 5 requires using the new metrics endpoint.
+		metrics, err := client.getStoragePoolMetrics(pool.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(metrics.Resources) != 1 {
+			return nil, fmt.Errorf("Unexpected number of resources in metrics response for pool %q", pool.ID)
+		}
+
+		for _, metric := range metrics.Resources[0].Metrics {
+			if len(metric.Values) != 1 {
+				return nil, fmt.Errorf("Unexpected number of values in metrics response for pool %q and metric %q", pool.ID, metric.Name)
+			}
+
+			if metric.Name == "physical_total" {
+				res.Space.Total = metric.Values[0]
+				continue
+			}
+
+			if metric.Name == "physical_used" {
+				res.Space.Used = metric.Values[0]
+				continue
+			}
+		}
+	}
 
 	return res, nil
 }
