@@ -5,7 +5,7 @@ Module: `github.com/canonical/lxd`.
 
 ## Prerequisites
 
-LXD requires Go 1.26.3 or higher and is only tested with the Golang compiler.
+LXD requires Go 1.26.4 or higher and is only tested with the Golang compiler.
 - CGO native dependencies (dqlite, liblxc). Fetch them once with:
 
   ```bash

@@ -1,7 +1,7 @@
 # LXD Copilot Instructions
 
 LXD is a modern, secure system container and virtual machine manager.
-LXD requires Go 1.26.3 or higher and is only tested with the Golang compiler.
+LXD requires Go 1.26.4 or higher and is only tested with the Golang compiler.
 See `AGENTS.md` for the full development runbook.
 
 ## Repository layout
