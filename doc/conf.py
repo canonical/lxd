@@ -26,8 +26,15 @@ copyright = "2014-%s %s" % (datetime.date.today().year, author)
 with open("../shared/version/flex.go") as fd:
     version = fd.read().split("\n")[-2].split()[-1].strip("\"")
 
-# Base URL of RTD hosted project
-html_baseurl = 'https://documentation.ubuntu.com/lxd/'
+# URL configuration for canonical.com/lxd/docs
+
+version_slug = f"{os.environ.get('READTHEDOCS_VERSION', 'local')}"
+
+slug = 'lxd/docs'
+
+html_baseurl = f"https://canonical.com/lxd/docs/{version_slug}/"
+
+ogp_site_url = f"https://canonical.com/lxd/docs/{version_slug}/"
 
 # Extensions.
 extensions = [
@@ -63,7 +70,7 @@ intersphinx_mapping = {
     'cloud-init': ('https://cloudinit.readthedocs.io/en/latest/', None)
 }
 
-notfound_urls_prefix = "/lxd/en/latest/"
+notfound_urls_prefix = f'/lxd/docs/{version_slug}/'
 
 # Setup theme.
 templates_path = [".sphinx/_templates"]
@@ -75,8 +82,9 @@ html_favicon = ".sphinx/_static/favicon.ico"
 html_static_path = ['.sphinx/_static']
 html_css_files = ['custom.css']
 html_js_files = [
-    'header-nav.js',
-    'rtd-versions-flyout.js',
+    'js/header-nav.js',
+    'js/rtd-versions-flyout.js',
+    'js/overwrite_links.js',
 ]
 html_extra_path = ['.sphinx/_extra']
 
@@ -162,9 +170,8 @@ exclude_patterns = ['html', 'README.md', '.sphinx', 'config_options_cheat_sheet.
 
 # Open Graph configuration
 
-ogp_site_url = "https://documentation.ubuntu.com/lxd/en/stable-5.0/"
 ogp_site_name = "LXD documentation"
-ogp_image = "https://documentation.ubuntu.com/lxd/en/stable-5.0/_static/tag.png"
+ogp_image = f"https://canonical.com/lxd/docs/{version_slug}/_static/tag.png"
 
 # Links to ignore when checking links
 
