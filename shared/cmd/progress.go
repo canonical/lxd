@@ -182,7 +182,7 @@ func (p *ProgressRenderer) Warn(status string, timeout time.Duration) {
 	fmt.Print(msg)
 }
 
-// UpdateProgress is a helper to update the status using an iopgress instance.
+// UpdateProgress is a helper to update the status using an ioprogress instance.
 func (p *ProgressRenderer) UpdateProgress(progress ioprogress.ProgressData) {
 	p.Update(progress.Text)
 }
