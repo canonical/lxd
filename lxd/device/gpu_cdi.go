@@ -257,9 +257,9 @@ func stopCDIDevices(d *deviceCommon, configDevices cdi.ConfigDevices, runConf *d
 			return nil
 		})
 
-		// The disk device doesn't exist do nothing.
+		// The disk device doesn't exist, do nothing.
 		if !shared.PathExists(devPath) {
-			return nil
+			continue
 		}
 
 		// Request an unmount of the device inside the instance.
