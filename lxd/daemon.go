@@ -527,6 +527,11 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, allowUntru
 		}, nil
 	}
 
+	d.globalConfigMu.Lock()
+	trustCACertificates := d.globalConfig.TrustCACertificates()
+	clusterUUID := d.globalConfig.ClusterUUID()
+	d.globalConfigMu.Unlock()
+
 	// Request has TLS. If client sent a peer certificate, check mTLS and CA.
 	if len(r.TLS.PeerCertificates) > 0 {
 		// Convert list of peer certificates to map.
@@ -610,7 +615,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, allowUntru
 
 		// Lastly, check if core.trust_ca_certificates is true. If so, allow all CA signed certificates without checking
 		// mTLS.
-		if d.endpoints.NetworkCert().CA() != nil && d.globalConfig.TrustCACertificates() {
+		if d.endpoints.NetworkCert().CA() != nil && trustCACertificates {
 			for f, cert := range peerCertificates {
 				trusted, _, _ := util.CheckCASignature(cert, d.endpoints.NetworkCert())
 				if trusted {
@@ -625,7 +630,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, allowUntru
 	}
 
 	// Check if the caller has a bearer token.
-	isBearerRequest, tokenLocation, token, subject := bearer.IsAPIRequest(r, d.globalConfig.ClusterUUID())
+	isBearerRequest, tokenLocation, token, subject := bearer.IsAPIRequest(r, clusterUUID)
 	if isBearerRequest {
 		if tokenLocation == auth.TokenLocationQuery {
 			// Query token parameters are only valid for browser requests to the root URL.
@@ -687,7 +692,9 @@ func (d *Daemon) getCoreAuthSecrets(ctx context.Context) (dbCluster.AuthSecrets,
 	defer d.internalSecretsMu.Unlock()
 
 	// Get the expiry.
+	d.globalConfigMu.Lock()
 	expiry := d.globalConfig.AuthSecretExpiry()
+	d.globalConfigMu.Unlock()
 
 	// Check if the current in-memory secrets are valid.
 	err := d.internalSecrets.Validate(expiry)
@@ -1071,7 +1078,7 @@ var sharedMountsLock sync.Mutex
 // setupSharedMounts will mount any shared mounts needed, and set daemon.SharedMountsSetup to true.
 func setupSharedMounts() error {
 	// Check if we already went through this
-	if daemon.SharedMountsSetup {
+	if daemon.SharedMountsSetup.Load() {
 		return nil
 	}
 
@@ -1082,7 +1089,7 @@ func setupSharedMounts() error {
 	// Check if already setup
 	path := shared.VarPath("shmounts")
 	if filesystem.IsMountPoint(path) {
-		daemon.SharedMountsSetup = true
+		daemon.SharedMountsSetup.Store(true)
 		return nil
 	}
 
@@ -1099,7 +1106,7 @@ func setupSharedMounts() error {
 		return err
 	}
 
-	daemon.SharedMountsSetup = true
+	daemon.SharedMountsSetup.Store(true)
 	return nil
 }
 
@@ -1710,7 +1717,12 @@ func (d *Daemon) init() error {
 	}
 
 	d.events.SetLocalLocation(d.serverName)
-	d.events.SetClusterIdentifier(d.globalConfig.ClusterUUID())
+
+	d.globalConfigMu.Lock()
+	clusterUUID := d.globalConfig.ClusterUUID()
+	d.globalConfigMu.Unlock()
+
+	d.events.SetClusterIdentifier(clusterUUID)
 
 	// Mount the storage pools.
 	logger.Info("Initializing storage pools")
@@ -1769,7 +1781,12 @@ func (d *Daemon) init() error {
 	}
 
 	d.events.SetLocalLocation(d.serverName)
-	d.events.SetClusterIdentifier(d.globalConfig.ClusterUUID())
+
+	d.globalConfigMu.Lock()
+	clusterUUID = d.globalConfig.ClusterUUID()
+	d.globalConfigMu.Unlock()
+
+	d.events.SetClusterIdentifier(clusterUUID)
 
 	// Get daemon configuration.
 	bgpAddress := d.localConfig.BGPAddress()
@@ -2335,7 +2352,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		}
 	}
 
-	if d.db != nil && d.db.Node != nil {
+	if d.db.Node != nil {
 		trackError(d.db.Node.Close(), "Close local database")
 	}
 

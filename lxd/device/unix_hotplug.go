@@ -216,10 +216,6 @@ func (d *unixHotplug) Start() (*deviceConfig.RunConfig, error) {
 
 		// Remove unix device on failure to setup device.
 		runConf.Revert = func() { _ = unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf) }
-
-		if err != nil {
-			return nil, fmt.Errorf("Cannot setup unix hotplug device: %w", err)
-		}
 	}
 
 	return &runConf, nil

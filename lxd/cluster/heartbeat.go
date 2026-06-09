@@ -169,6 +169,7 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			// Ensure only update nodes that exist in Members already.
 			hbNode, existing := hbState.Members[nodeID]
 			if !existing {
+				heartbeatData.Unlock()
 				return
 			}
 
@@ -311,7 +312,13 @@ func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 	g.HeartbeatLock.Lock()
 	defer g.HeartbeatLock.Unlock()
 
-	if g.Cluster == nil || g.server == nil || g.memoryDial != nil {
+	g.lock.RLock()
+	cluster := g.Cluster
+	server := g.server
+	memoryDial := g.memoryDial
+	g.lock.RUnlock()
+
+	if cluster == nil || server == nil || memoryDial != nil {
 		// We're not a raft node or we're not clustered
 		return
 	}

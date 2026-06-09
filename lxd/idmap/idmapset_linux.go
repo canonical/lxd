@@ -542,19 +542,22 @@ func (m IdmapSet) toMappings(isUID bool) []syscall.SysProcIDMap {
 			continue
 		}
 
-		// Bound checking.
-		if e.Nsid > math.MaxInt || e.Nsid < math.MinInt {
-			logger.Warnf("Skipping idmap entry with Nsid %d as it exceeds the int range", e.Nsid)
+		// Bound checking. Kernel uid/gid map fields are 32-bit unsigned integers,
+		// so valid values are in [0, math.MaxUint32]. Negative values are invalid.
+		// Additionally cap to math.MaxInt to avoid overflow when converting to int
+		// on 32-bit platforms where int is 32 bits wide.
+		if e.Nsid < 0 || e.Nsid > math.MaxUint32 || e.Nsid > math.MaxInt {
+			logger.Warnf("Skipping idmap entry with Nsid %d as it exceeds the valid range", e.Nsid)
 			continue
 		}
 
-		if e.Hostid > math.MaxInt || e.Hostid < math.MinInt {
-			logger.Warnf("Skipping idmap entry with Hostid %d as it exceeds the int range", e.Hostid)
+		if e.Hostid < 0 || e.Hostid > math.MaxUint32 || e.Hostid > math.MaxInt {
+			logger.Warnf("Skipping idmap entry with Hostid %d as it exceeds the valid range", e.Hostid)
 			continue
 		}
 
-		if e.Maprange > math.MaxInt || e.Maprange < math.MinInt {
-			logger.Warnf("Skipping idmap entry with Maprange %d as it exceeds the int range", e.Maprange)
+		if e.Maprange < 0 || e.Maprange > math.MaxUint32 || e.Maprange > math.MaxInt {
+			logger.Warnf("Skipping idmap entry with Maprange %d as it exceeds the valid range", e.Maprange)
 			continue
 		}
 

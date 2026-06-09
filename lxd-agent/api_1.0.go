@@ -130,7 +130,11 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 	// Let LXD know, we were able to connect successfully.
 	d.chConnected <- struct{}{}
 
-	if d.devlxdEnabled {
+	d.devlxdMu.Lock()
+	devlxdEnabled := d.devlxdEnabled
+	d.devlxdMu.Unlock()
+
+	if devlxdEnabled {
 		err = startDevlxdServer(d)
 	} else {
 		err = stopDevlxdServer(d)

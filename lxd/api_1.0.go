@@ -845,7 +845,11 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		return response.BadRequest(errors.New("The cluster UUID cannot be changed"))
 	}
 
-	err := validateOIDCConfiguration(d.globalConfig, stringReqConfig, patch)
+	d.globalConfigMu.Lock()
+	currentGlobalConfig := d.globalConfig
+	d.globalConfigMu.Unlock()
+
+	err := validateOIDCConfiguration(currentGlobalConfig, stringReqConfig, patch)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1294,8 +1298,8 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 				return util.HTTPClient("", d.proxy)
 			}
 
-			sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, d.globalConfig.OIDCSessionExpiry)
-			d.oidcVerifier, err = oidc.NewVerifier(s.ShutdownCtx, oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, oidcDeviceClientID, d.globalConfig.ClusterUUID(), d.endpoints.NetworkAddress(), s.CoreAuthSecrets, httpClientFunc, sessionHandler)
+			sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, newClusterConfig.OIDCSessionExpiry)
+			d.oidcVerifier, err = oidc.NewVerifier(s.ShutdownCtx, oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, oidcDeviceClientID, newClusterConfig.ClusterUUID(), d.endpoints.NetworkAddress(), s.CoreAuthSecrets, httpClientFunc, sessionHandler)
 			if err != nil {
 				return fmt.Errorf("Failed creating verifier: %w", err)
 			}

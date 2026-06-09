@@ -1840,7 +1840,7 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 		},
 	}
 
-	if snapshot.Stateful && args.Live {
+	if snapshot.Stateful && args != nil && args.Live {
 		err := r.CheckExtension("container_snapshot_stateful_migration")
 		if err != nil {
 			return nil, err
@@ -1942,10 +1942,13 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 	// Source request
 	sourceReq := api.InstanceSnapshotPost{
 		Migration: true,
-		Name:      args.Name,
 	}
 
-	if snapshot.Stateful && args.Live {
+	if args != nil {
+		sourceReq.Name = args.Name
+	}
+
+	if snapshot.Stateful && args != nil && args.Live {
 		sourceReq.Live = args.Live
 	}
 

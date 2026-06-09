@@ -76,7 +76,11 @@ func (d *Daemon) init() error {
 
 	_ = f.Close()
 
-	if d.devlxdEnabled {
+	d.devlxdMu.Lock()
+	devlxdEnabled := d.devlxdEnabled
+	d.devlxdMu.Unlock()
+
+	if devlxdEnabled {
 		err = startDevlxdServer(d)
 		if err != nil {
 			return err

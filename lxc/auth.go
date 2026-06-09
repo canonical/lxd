@@ -1833,21 +1833,33 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 		't': {
 			Header: "ENTITY TYPE",
 			DataFunc: func(a any) (string, error) {
-				p, _ := a.(*displayPermission)
+				p, ok := a.(*displayPermission)
+				if !ok {
+					return "", fmt.Errorf("Unexpected data type %T", a)
+				}
+
 				return p.entityType, nil
 			},
 		},
 		'u': {
 			Header: "URL",
 			DataFunc: func(a any) (string, error) {
-				p, _ := a.(*displayPermission)
+				p, ok := a.(*displayPermission)
+				if !ok {
+					return "", fmt.Errorf("Unexpected data type %T", a)
+				}
+
 				return p.url, nil
 			},
 		},
 		'e': {
 			Header: "ENTITLEMENTS ==> (GROUPS)",
 			DataFunc: func(a any) (string, error) {
-				p, _ := a.(*displayPermission)
+				p, ok := a.(*displayPermission)
+				if !ok {
+					return "", fmt.Errorf("Unexpected data type %T", a)
+				}
+
 				rowsAssigned := make([]string, 0, len(p.entitlementsAssigned))
 				for k, v := range p.entitlementsAssigned {
 					// Pretty format for tables.

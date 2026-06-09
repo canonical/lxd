@@ -174,7 +174,10 @@ func instanceFileGet(ctx context.Context, s *state.State, inst instance.Instance
 		fileType = "symlink"
 	}
 
-	fs, _ := stat.Sys().(*sftp.FileStat)
+	fs, ok := stat.Sys().(*sftp.FileStat)
+	if !ok {
+		return response.InternalError(fmt.Errorf("Failed getting file stat for %q", path))
+	}
 
 	// Prepare the response.
 	headers := map[string]string{
@@ -258,9 +261,9 @@ func instanceFileGet(ctx context.Context, s *state.State, inst instance.Instance
 
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(ctx, inst, logger.Ctx{"path": path}))
 		return response.SyncResponseHeaders(true, dirEnts, headers)
+	default:
+		return response.InternalError(fmt.Errorf("Bad file type: %s", fileType))
 	}
-
-	return response.InternalError(fmt.Errorf("Bad file type: %s", fileType))
 }
 
 // swagger:operation HEAD /1.0/instances/{name}/files instances instance_files_head
@@ -338,7 +341,10 @@ func instanceFileHead(inst instance.Instance, path string) response.Response {
 		fileType = "symlink"
 	}
 
-	fs, _ := stat.Sys().(*sftp.FileStat)
+	fs, ok := stat.Sys().(*sftp.FileStat)
+	if !ok {
+		return response.InternalError(fmt.Errorf("Failed getting file stat for %q", path))
+	}
 
 	// Prepare the response.
 	headers := map[string]string{

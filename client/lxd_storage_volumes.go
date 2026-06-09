@@ -577,15 +577,20 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		return nil, errors.New("The target server is missing the required \"custom_volume_refresh\" API extension")
 	}
 
+	destVolumeName := volume.Name
+	if args != nil && args.Name != "" {
+		destVolumeName = args.Name
+	}
+
 	req := api.StorageVolumesPost{
-		Name: args.Name,
+		Name: destVolumeName,
 		Type: volume.Type,
 		Source: api.StorageVolumeSource{
 			Name:       volume.Name,
 			Type:       api.SourceTypeCopy,
 			Pool:       sourcePool,
-			VolumeOnly: args.VolumeOnly,
-			Refresh:    args.Refresh,
+			VolumeOnly: args != nil && args.VolumeOnly,
+			Refresh:    args != nil && args.Refresh,
 		},
 	}
 

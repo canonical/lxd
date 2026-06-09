@@ -83,14 +83,24 @@ func (p *ProgressRenderer) Done(msg string) {
 // Update changes the status message to the provided string.
 func (p *ProgressRenderer) Update(status string) {
 	// Wait if needed
-	timeout := time.Until(p.wait)
+	p.lock.Lock()
+	wait := p.wait
+	p.lock.Unlock()
+
+	timeout := time.Until(wait)
 	if timeout.Seconds() > 0 {
 		time.Sleep(timeout)
 	}
 
-	// Acquire rendering lock
+	// Re-acquire rendering lock
 	p.lock.Lock()
 	defer p.lock.Unlock()
+
+	// Another thread might have called Warn() extending p.wait further than the
+	// time we waited for. Don't overwrite the warning message until it expires.
+	if time.Since(p.wait) < 0 {
+		return
+	}
 
 	// Check if we're already done
 	if p.done {

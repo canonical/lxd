@@ -61,6 +61,7 @@ func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.Ce
 		acceptCh:    make(chan net.Conn),
 		store:       &dqliteNodeStore{},
 		state:       stateFunc,
+		updateFunc:  runUpdate,
 	}
 
 	err := gateway.init(false)
@@ -118,6 +119,10 @@ type Gateway struct {
 	// detected a peer with an higher version.
 	upgradeTriggered bool
 
+	// updateFunc is the function called by triggerUpdate to run the actual
+	// update executable. It defaults to runUpdate and can be replaced in tests.
+	updateFunc func() error
+
 	// Used for the heartbeat handler
 	Cluster                   *db.Cluster
 	HeartbeatNodeHook         HeartbeatHook
@@ -144,6 +149,33 @@ const dqliteVersion = 1
 // Set the dqlite version header.
 func setDqliteVersionHeader(request *http.Request) {
 	request.Header.Set("X-Dqlite-Version", strconv.FormatInt(dqliteVersion, 10))
+}
+
+// triggerUpdate ensures runUpdate() is called at most once.
+// It sets the upgradeTriggered flag under g.lock before calling runUpdate()
+// without holding the lock, and rolls back the flag on failure.
+func (g *Gateway) triggerUpdate() {
+	g.lock.Lock()
+	shouldTrigger := !g.upgradeTriggered
+	if shouldTrigger {
+		g.upgradeTriggered = true
+	}
+
+	g.lock.Unlock()
+
+	if !shouldTrigger {
+		return
+	}
+
+	err := g.updateFunc()
+	if err != nil {
+		g.lock.Lock()
+		if g.upgradeTriggered {
+			g.upgradeTriggered = false
+		}
+
+		g.lock.Unlock()
+	}
 }
 
 // HandlerFuncs returns the HTTP handlers that should be added to the REST API
@@ -182,14 +214,7 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, identityCache 
 
 		if version != dqliteVersion {
 			if version > dqliteVersion {
-				g.lock.Lock()
-				if !g.upgradeTriggered {
-					err = triggerUpdate()
-					if err == nil {
-						g.upgradeTriggered = true
-					}
-				}
-				g.lock.Unlock()
+				g.triggerUpdate()
 				http.Error(w, "503 unsupported dqlite version", http.StatusServiceUnavailable)
 			} else {
 				http.Error(w, "426 dqlite version too old ", http.StatusUpgradeRequired)
@@ -530,16 +555,20 @@ func (g *Gateway) DemoteOfflineNode(raftID uint64) error {
 func (g *Gateway) Shutdown() error {
 	logger.Info("Stop database gateway")
 
-	var err error
-	if g.server == nil {
+	g.lock.RLock()
+	server := g.server
+	info := g.info
+	g.lock.RUnlock()
+
+	if server == nil {
 		return nil
 	}
 
-	if g.info.Role == db.RaftVoter {
+	if info != nil && info.Role == db.RaftVoter {
 		g.Sync()
 	}
 
-	err = g.server.Close()
+	err := server.Close()
 	if err != nil {
 		logger.Error("Failed stopping dqlite", logger.Ctx{"err": err})
 	}
@@ -1116,14 +1145,7 @@ func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway
 	// If the remote server has detected that we are out of date, let's
 	// trigger an upgrade.
 	if response.StatusCode == http.StatusUpgradeRequired {
-		g.lock.Lock()
-		defer g.lock.Unlock()
-		if !g.upgradeTriggered {
-			err = triggerUpdate()
-			if err == nil {
-				g.upgradeTriggered = true
-			}
-		}
+		g.triggerUpdate()
 		return nil, errors.New("Upgrade needed")
 	}
 
