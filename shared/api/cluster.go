@@ -418,6 +418,12 @@ type ClusterLink struct {
 	// Cluster link configuration map (refer to doc/clustering.md).
 	// Example: {"user.*": ""}
 	Config map[string]string `json:"config" yaml:"config"`
+
+	// UsedBy is a list of LXD entity URLs that reference the cluster link.
+	// Example: ["/1.0/replicators/my-replicator?project=default"]
+	//
+	// API extension: cluster_links_used_by
+	UsedBy []string `json:"used_by" yaml:"used_by"`
 }
 
 // ClusterLinkPut represents the modifiable fields of a cluster link.
