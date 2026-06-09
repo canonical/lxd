@@ -132,6 +132,17 @@ type powerFlexStoragePoolStatistics struct {
 	NetCapacityInUseInKb uint64 `json:"netCapacityInUseInKb"`
 }
 
+// powerFlexStoragePoolMetrics represents the metrics of a storage pool in PowerFlex.
+type powerFlexStoragePoolMetrics struct {
+	Resources []struct {
+		ID      string `json:"id"`
+		Metrics []struct {
+			Name   string   `json:"name"`
+			Values []uint64 `json:"values"`
+		} `json:"metrics"`
+	} `json:"resources"`
+}
+
 // powerFlexProtectionDomain represents a protection domain in PowerFlex.
 type powerFlexProtectionDomain struct {
 	ID       string `json:"id"`
@@ -345,11 +356,33 @@ func (p *powerFlexClient) getStoragePool(poolID string) (*powerFlexStoragePool, 
 }
 
 // getStoragePoolStatistics returns the storage pools statistics.
+// Cannot be used with PowerFlex 5.
 func (p *powerFlexClient) getStoragePoolStatistics(poolID string) (*powerFlexStoragePoolStatistics, error) {
 	var actualResponse powerFlexStoragePoolStatistics
 	err := p.requestAuthenticated(http.MethodGet, "/api/instances/StoragePool::"+poolID+"/relationships/Statistics", nil, &actualResponse)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting storage pool statistics: %q: %w", poolID, err)
+	}
+
+	return &actualResponse, nil
+}
+
+// getStoragePoolMetrics returns the storage pools metrics.
+// Present starting with PowerFlex 5.
+func (p *powerFlexClient) getStoragePoolMetrics(poolID string) (*powerFlexStoragePoolMetrics, error) {
+	body := map[string]any{
+		"resource_type": "storage_pool",
+		"metrics": []string{
+			"physical_total",
+			"physical_used",
+		},
+		"ids": []string{poolID},
+	}
+
+	var actualResponse powerFlexStoragePoolMetrics
+	err := p.requestAuthenticated(http.MethodPost, "/dtapi/rest/v1/metrics/query", body, &actualResponse)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting storage pool metrics: %q: %w", poolID, err)
 	}
 
 	return &actualResponse, nil
