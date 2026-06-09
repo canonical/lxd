@@ -151,11 +151,14 @@ var clusterConfigRefs = []clusterConfigRef{
 	},
 }
 
-// GetClusterLinkUsedBy returns a list of URLs of all entities that reference the cluster link with the given name via the 'cluster' config key.
-// If firstOnly is true then the search stops after the first match.
-func GetClusterLinkUsedBy(ctx context.Context, tx *sql.Tx, clusterLinkName string, firstOnly bool) ([]string, error) {
+// GetClusterLinksUsedBy returns a map of cluster link name to list of URLs of all entities that reference the cluster link via the 'cluster' config key.
+// If clusterLinkName is non-nil, only references to that cluster link are returned.
+// If firstOnly is true then the search stops after the first match overall (LIMIT 1 applied globally); only meaningful when clusterLinkName is non-nil.
+func GetClusterLinksUsedBy(ctx context.Context, tx *sql.Tx, clusterLinkName *string, firstOnly bool) (map[string][]string, error) {
 	var b strings.Builder
-	args := make([]any, 0, len(clusterConfigRefs))
+	var args []any
+
+	urls := make(map[string][]string)
 
 	for i, ref := range clusterConfigRefs {
 		if i > 0 {
@@ -166,7 +169,9 @@ func GetClusterLinkUsedBy(ctx context.Context, tx *sql.Tx, clusterLinkName strin
 		b.WriteString(strconv.FormatInt(ref.typeCode, 10))
 		b.WriteString(`, `)
 		b.WriteString(ref.entityTable)
-		b.WriteString(`.name, projects.name FROM `)
+		b.WriteString(`.name, projects.name, `)
+		b.WriteString(ref.configTable)
+		b.WriteString(`.value FROM `)
 		b.WriteString(ref.entityTable)
 		b.WriteString(`
 JOIN `)
@@ -183,29 +188,33 @@ JOIN projects ON `)
 		b.WriteString(`.project_id = projects.id
 WHERE `)
 		b.WriteString(ref.configTable)
-		b.WriteString(`.key = 'cluster' AND `)
-		b.WriteString(ref.configTable)
-		b.WriteString(`.value = ?`)
-		args = append(args, clusterLinkName)
+		b.WriteString(`.key = 'cluster'`)
+
+		if clusterLinkName != nil {
+			b.WriteString(` AND `)
+			b.WriteString(ref.configTable)
+			b.WriteString(`.value = ?`)
+			args = append(args, *clusterLinkName)
+		}
 	}
 
 	if firstOnly {
 		b.WriteString(" LIMIT 1")
 	}
 
-	var urls []string
 	err := query.Scan(ctx, tx, b.String(), func(scan func(dest ...any) error) error {
 		var eType EntityType
 		var eName string
 		var pName string
-		err := scan(&eType, &eName, &pName)
+		var linkName string
+		err := scan(&eType, &eName, &pName, &linkName)
 		if err != nil {
 			return err
 		}
 
 		switch entity.Type(eType) {
 		case entity.TypeReplicator:
-			urls = append(urls, entity.ReplicatorURL(pName, eName).String())
+			urls[linkName] = append(urls[linkName], entity.ReplicatorURL(pName, eName).String())
 		default:
 			return errors.New("Unexpected entity type in cluster link usage query")
 		}
