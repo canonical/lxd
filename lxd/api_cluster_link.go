@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -165,6 +166,7 @@ func clusterLinksGet(d *Daemon, r *http.Request) response.Response {
 	var clusterLinks []dbCluster.ClusterLinkRow
 	var clusterLinkURLs []string
 	var allConfigs map[int64]map[string]string
+	var allUsedBy map[string][]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		clusterLinks, clusterLinkURLs, err = dbCluster.GetClusterLinksAndURLs(ctx, tx.Tx(), func(link dbCluster.ClusterLinkRow) bool {
@@ -178,6 +180,11 @@ func clusterLinksGet(d *Daemon, r *http.Request) response.Response {
 			allConfigs, err = dbCluster.ClusterLinksConfigStore().GetAll(ctx, tx.Tx())
 			if err != nil {
 				return fmt.Errorf("Failed loading cluster link configs: %w", err)
+			}
+
+			allUsedBy, err = dbCluster.GetClusterLinksUsedBy(ctx, tx.Tx(), nil, false)
+			if err != nil {
+				return fmt.Errorf("Failed loading cluster link usage: %w", err)
 			}
 		}
 
@@ -193,7 +200,9 @@ func clusterLinksGet(d *Daemon, r *http.Request) response.Response {
 
 	apiClusterLinks := make([]*api.ClusterLink, 0, len(clusterLinks))
 	for _, link := range clusterLinks {
-		apiClusterLinks = append(apiClusterLinks, link.ToAPI(allConfigs))
+		apiClusterLink := link.ToAPI(allConfigs)
+		apiClusterLink.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, allUsedBy[link.Name])
+		apiClusterLinks = append(apiClusterLinks, apiClusterLink)
 	}
 
 	if len(withEntitlements) > 0 {
@@ -258,6 +267,7 @@ func clusterLinkGet(d *Daemon, r *http.Request) response.Response {
 
 	name := r.PathValue("name")
 	var apiClusterLink *api.ClusterLink
+	var usedByMap map[string][]string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbClusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), name)
 		if err != nil {
@@ -270,11 +280,19 @@ func clusterLinkGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		apiClusterLink = dbClusterLink.ToAPI(config)
+
+		usedByMap, err = dbCluster.GetClusterLinksUsedBy(ctx, tx.Tx(), &name, false)
+		if err != nil {
+			return fmt.Errorf("Failed loading cluster link usage: %w", err)
+		}
+
 		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	apiClusterLink.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, usedByMap[name])
 
 	if len(withEntitlements) > 0 {
 		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeClusterLink, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ClusterLinkURL(name): apiClusterLink})
@@ -510,12 +528,12 @@ func clusterLinkPost(d *Daemon, r *http.Request) response.Response {
 	// Get the existing cluster link.
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Prevent rename if the cluster link is referenced by any entity.
-		usedBy, err := dbCluster.GetClusterLinkUsedBy(ctx, tx.Tx(), name, true)
+		usedBy, err := dbCluster.GetClusterLinksUsedBy(ctx, tx.Tx(), &name, true)
 		if err != nil {
 			return err
 		}
 
-		if len(usedBy) > 0 {
+		if len(usedBy[name]) > 0 {
 			return api.StatusErrorf(http.StatusBadRequest, "Cluster link is currently in use")
 		}
 
@@ -595,12 +613,12 @@ func clusterLinkDelete(d *Daemon, r *http.Request) response.Response {
 	var identity *dbCluster.IdentitiesRow
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Prevent deletion if the cluster link is referenced by any entity.
-		usedBy, err := dbCluster.GetClusterLinkUsedBy(ctx, tx.Tx(), name, true)
+		usedBy, err := dbCluster.GetClusterLinksUsedBy(ctx, tx.Tx(), &name, true)
 		if err != nil {
 			return err
 		}
 
-		if len(usedBy) > 0 {
+		if len(usedBy[name]) > 0 {
 			return api.StatusErrorf(http.StatusBadRequest, "Cluster link is currently in use")
 		}
 
