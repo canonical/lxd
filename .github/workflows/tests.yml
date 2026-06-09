@@ -546,7 +546,7 @@ jobs:
           - devlxd-container
           - devlxd-vm
           - docker
-          - efi-vars-editor-vm
+          - efi-vm
           - lxd-installer
           - lxd-user
           - interception
@@ -554,8 +554,7 @@ jobs:
           - network-ovn ovn:deb
           - network-ovn ovn:latest/edge
           - network-routed
-          # XXX: Skip pylxd tests until https://github.com/canonical/pylxd/pull/677 is merged.
-          #- pylxd
+          - pylxd
           - qemu-external-vm
           - snapd
           - storage-buckets
