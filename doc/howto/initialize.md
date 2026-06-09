@@ -40,6 +40,11 @@ Networking (see {ref}`networks` and {ref}`Network devices <devices-nic>`)
 
   You can create additional bridges and assign them to instances later.
 
+  ```{warning}
+  Creating a managed bridge (or a Fan overlay) enables IPv4 forwarding (`net.ipv4.ip_forward=1`) on the host; if the bridge also has an IPv6 subnet, IPv6 forwarding is enabled on every interface (`net.ipv6.conf.<iface>.forwarding=1`).
+  This is a global toggle: it affects *all* interfaces, not just the LXD bridge, effectively making a multi-homed host an IP router.
+  ```
+
 Storage pools (see {ref}`exp-storage` and  {ref}`storage-drivers`)
 : Instances (and other data) are stored in storage pools.
 
@@ -102,6 +107,10 @@ EOF
 ```
 
 This preseed configuration initializes the LXD daemon to listen for HTTPS connections on port 9999 of the 192.0.2.1 address, to automatically update images every 15 hours and to create a network bridge device named `lxdbr0`, which gets assigned an IPv4 address automatically.
+
+```{warning}
+Creating a managed bridge with an IPv4 or IPv6 subnet enables the corresponding host-wide forwarding sysctls (`net.ipv4.ip_forward=1` and/or `net.ipv6.conf.<iface>.forwarding=1`), which turn on forwarding for *all* interfaces on the host.
+```
 
 ### Re-configuring an existing LXD installation
 
