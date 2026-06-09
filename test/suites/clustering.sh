@@ -5754,6 +5754,19 @@ test_clustering_replicator_basic() {
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator list --project replicator-project | grep -F 'my-replicator'
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator show my-replicator --project replicator-project
 
+  sub_test "Verify cluster link used_by field"
+
+  # Single GET reports the replicator in used_by.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/cluster/links/lxd_two" \
+    | jq --exit-status '.used_by | contains(["/1.0/replicators/my-replicator?project=replicator-project"])'
+
+  # List with recursion=1 also reports used_by.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/cluster/links?recursion=1" \
+    | jq --exit-status 'map(select(.name == "lxd_two")) | .[0].used_by | contains(["/1.0/replicators/my-replicator?project=replicator-project"])'
+
+  # Delete is blocked while a replicator references the link.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete lxd_two || false
+
   sub_test "Verify rename"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator rename my-replicator my-replicator-renamed --project replicator-project
