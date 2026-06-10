@@ -133,6 +133,12 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		}
 	}
 
+	// Ensure the fingerprint is valid.
+	err = validateImageFingerprint(fp)
+	if err != nil {
+		return nil, err
+	}
+
 	// Ensure we are the only ones operating on this image.
 	unlock := d.imageDownloadLock(fp)
 	defer unlock()
