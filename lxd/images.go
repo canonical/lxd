@@ -598,7 +598,7 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 		compressWriter := io.MultiWriter(imageFile, sha256)
 		go func() {
 			defer wg.Done()
-			compressErr = compressFile(compress, tarReader, compressWriter)
+			compressErr = compressFile(s.OS, compress, tarReader, compressWriter)
 
 			// If a compression error occurred, close the writer to end the instance export.
 			if compressErr != nil {
