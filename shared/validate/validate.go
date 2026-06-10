@@ -1019,3 +1019,16 @@ func IsDottedVersion(dottedVersion string) error {
 	_, err := version.NewDottedVersion(dottedVersion)
 	return err
 }
+
+// IsLowercaseHex returns an error if the given hash contains any characters that are not lowercase hexadecimal.
+func IsLowercaseHex(hash string) error {
+	isNotHex := func(r rune) bool {
+		return (r < '0' || r > '9') && (r < 'a' || r > 'f')
+	}
+
+	if strings.ContainsFunc(hash, isNotHex) {
+		return errors.New("Hash must contain only lowercase hexadecimal characters")
+	}
+
+	return nil
+}
