@@ -310,14 +310,14 @@ func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName
 func ensureSparseFile(filePath string, sizeBytes int64) error {
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		return fmt.Errorf("Failed opening %s: %w", filePath, err)
+		return fmt.Errorf("Failed opening %q: %w", filePath, err)
 	}
 
 	defer func() { _ = f.Close() }()
 
 	err = f.Truncate(sizeBytes)
 	if err != nil {
-		return fmt.Errorf("Failed creating sparse file %s: %w", filePath, err)
+		return fmt.Errorf("Failed creating sparse file %q: %w", filePath, err)
 	}
 
 	return f.Close()
