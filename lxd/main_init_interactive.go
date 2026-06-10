@@ -337,6 +337,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 	localBridgeCreate := false
 
 	if config.Cluster == nil {
+		fmt.Println("Warning: Creating a bridge enables IPv4 and IPv6 forwarding on the host, which affects all interfaces.")
 		localBridgeCreate, err = c.global.asker.AskBool("Would you like to create a new local network bridge? (yes/no) [default=yes]: ", "yes")
 		if err != nil {
 			return err
@@ -407,6 +408,7 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 				break
 			}
 		} else if config.Cluster != nil && fanKernel {
+			fmt.Println("Warning: Creating a Fan overlay network enables IPv4 and IPv6 forwarding on the host, which affects all interfaces.")
 			fan, err := c.global.asker.AskBool("Would you like to create a new Fan overlay network? (yes/no) [default=yes]: ", "yes")
 			if err != nil {
 				return err
