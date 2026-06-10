@@ -75,9 +75,11 @@ jobs:
           rsync -a --exclude .git --delete . ~/"${PACKAGE}-pkg-snap-lp"/
           cd ~/"${PACKAGE}-pkg-snap-lp"
           lxd-snapcraft -package "${PACKAGE}" -set-version "${ver[0]}" -set-source-commit "${ver[1]}"
-          git add snapcraft.yaml
+          git add --all
           git commit --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
+          echo "::group::git commit details"
           git show
+          echo "::endgroup::"
           git push --quiet
 
           # Unload the SSH key from the agent now that the push is done, to
