@@ -594,20 +594,20 @@ func DirCopy(source string, dest string) error {
 	if PathExists(dest) {
 		err := os.RemoveAll(dest)
 		if err != nil {
-			return fmt.Errorf("failed removing destination directory %s: %w", dest, err)
+			return fmt.Errorf("failed removing destination directory %q: %w", dest, err)
 		}
 	}
 
 	// Create dest.
 	err = os.MkdirAll(dest, info.Mode())
 	if err != nil {
-		return fmt.Errorf("failed creating destination directory %s: %w", dest, err)
+		return fmt.Errorf("failed creating destination directory %q: %w", dest, err)
 	}
 
 	// Copy all files.
 	entries, err := os.ReadDir(source)
 	if err != nil {
-		return fmt.Errorf("failed reading source directory %s: %w", source, err)
+		return fmt.Errorf("failed reading source directory %q: %w", source, err)
 	}
 
 	for _, entry := range entries {
@@ -617,12 +617,12 @@ func DirCopy(source string, dest string) error {
 		if entry.IsDir() {
 			err := DirCopy(sourcePath, destPath)
 			if err != nil {
-				return fmt.Errorf("failed copying sub-directory from %s to %s: %w", sourcePath, destPath, err)
+				return fmt.Errorf("failed copying sub-directory from %q to %q: %w", sourcePath, destPath, err)
 			}
 		} else {
 			err := FileCopy(sourcePath, destPath)
 			if err != nil {
-				return fmt.Errorf("failed copying file from %s to %s: %w", sourcePath, destPath, err)
+				return fmt.Errorf("failed copying file from %q to %q: %w", sourcePath, destPath, err)
 			}
 		}
 	}
