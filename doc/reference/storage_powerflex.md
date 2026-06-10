@@ -13,6 +13,8 @@ LXD takes care of connecting to the respective subsystem.
 When using the SDC, LXD requires it to already be connected to the Dell Metadata Manager (MDM) beforehand.
 As LXD doesn't set up the SDC, follow the official guides from Dell for configuration details.
 
+LXD supports both PowerFlex 4 and 5.
+
 ## Terminology
 
 PowerFlex groups various so-called {abbr}`SDS (storage data servers)` under logical groups within a protection domain.
@@ -75,23 +77,29 @@ The `powerflex` driver has the following limitations:
 Limit of snapshots in a single vTree
 : An internal limitation in the PowerFlex vTree does not allow to take more than 126 snapshots of any volume in PowerFlex.
   This limit also applies to any child of any of the parent volume's snapshots.
-  A single vTree can only have 126 branches.
+  In PowerFlex 4 a single vTree can only have 126 branches.
+  PowerFlex 5 supports having 1022 snapshots per volume family (formerly vTree).
 
 Non-optimized image storage
-: Due to the limit of 126 snapshots in the vTree, the PowerFlex driver doesn't come with support for optimized image storage.
-  This would limit LXD to create only 126 instances from an image.
+: Due to the limit of snapshots in the vTree, the PowerFlex driver doesn't come with support for optimized image storage.
+  This would limit LXD to create only a finite number of instances from an image.
   Instead, when launching a new instance, the image's contents get copied to the instance's root volume.
 
 Copying volumes
 : PowerFlex does not support creating a copy of the volume so that it gets its own vTree.
   Therefore, LXD falls back to copying the volume on the local system.
   This implicates an increased use of bandwidth due to the volume's contents being transferred over the network twice.
+  Enabling {config:option}`storage-powerflex-pool-conf:powerflex.snapshot_copy` creates a PowerFlex snapshot when performing a copy.
+  Starting with PowerFlex 5, enabling {config:option}`storage-powerflex-pool-conf:powerflex.snapshot_copy` will cause any
+  volume copies to be performed on PowerFlex directly.
 
 Volume size constraints
-: In PowerFlex, the size (quota) of a volume must be in multiples of 8 GiB.
-  This results in the smallest possible volume size of 8 GiB.
+: In PowerFlex 4, the size (quota) of a volume must be in multiples of 8 GiB.
+  PowerFlex 5 requires the size to be in multiples of 1 GiB.
+  This results in the smallest possible volume size of 8 GiB or 1 GiB depending on the version of PowerFlex.
   However, if not specified otherwise, volumes are getting thin-provisioned by LXD.
   PowerFlex volumes can only be increased in size.
+  When no volume size is set, it's rounded to the next multiple which fits the instance image.
 
 Sharing custom volumes between instances
 : The PowerFlex driver "simulates" volumes with content type `filesystem` by putting a file system on top of a PowerFlex volume.
@@ -99,9 +107,6 @@ Sharing custom volumes between instances
 
 Sharing the PowerFlex storage pool between installations
 : Sharing the same PowerFlex storage pool between multiple LXD installations is not supported.
-
-Recovering PowerFlex storage pools
-: Recovery of PowerFlex storage pools using `lxd recover` is not supported.
 
 Incompatible instance images
 : The Ubuntu Noble Numbat image cannot be used together with the {config:option}`storage-powerflex-pool-conf:powerflex.mode` set to `sdc`.

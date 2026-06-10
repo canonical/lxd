@@ -110,6 +110,12 @@ func (p *powerFlexError) HTTPStatusCode() float64 {
 	return code
 }
 
+// powerFlexSystemInfo stores system information from PowerFlex.
+type powerFlexSystemInfo struct {
+	// Present starting with PowerFlex 5.
+	SystemNQN string `json:"systemNqn"`
+}
+
 // powerFlexStoragePool represents a storage pool in PowerFlex.
 type powerFlexStoragePool struct {
 	ID                 string `json:"id"`
@@ -124,6 +130,17 @@ type powerFlexStoragePoolStatistics struct {
 	NetUnusedCapacityInKb uint64 `json:"netUnusedCapacityInKb"`
 	// Actual used storage capacity.
 	NetCapacityInUseInKb uint64 `json:"netCapacityInUseInKb"`
+}
+
+// powerFlexStoragePoolMetrics represents the metrics of a storage pool in PowerFlex.
+type powerFlexStoragePoolMetrics struct {
+	Resources []struct {
+		ID      string `json:"id"`
+		Metrics []struct {
+			Name   string   `json:"name"`
+			Values []uint64 `json:"values"`
+		} `json:"metrics"`
+	} `json:"resources"`
 }
 
 // powerFlexProtectionDomain represents a protection domain in PowerFlex.
@@ -339,11 +356,33 @@ func (p *powerFlexClient) getStoragePool(poolID string) (*powerFlexStoragePool, 
 }
 
 // getStoragePoolStatistics returns the storage pools statistics.
+// Cannot be used with PowerFlex 5.
 func (p *powerFlexClient) getStoragePoolStatistics(poolID string) (*powerFlexStoragePoolStatistics, error) {
 	var actualResponse powerFlexStoragePoolStatistics
 	err := p.requestAuthenticated(http.MethodGet, "/api/instances/StoragePool::"+poolID+"/relationships/Statistics", nil, &actualResponse)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting storage pool statistics: %q: %w", poolID, err)
+	}
+
+	return &actualResponse, nil
+}
+
+// getStoragePoolMetrics returns the storage pools metrics.
+// Present starting with PowerFlex 5.
+func (p *powerFlexClient) getStoragePoolMetrics(poolID string) (*powerFlexStoragePoolMetrics, error) {
+	body := map[string]any{
+		"resource_type": "storage_pool",
+		"metrics": []string{
+			"physical_total",
+			"physical_used",
+		},
+		"ids": []string{poolID},
+	}
+
+	var actualResponse powerFlexStoragePoolMetrics
+	err := p.requestAuthenticated(http.MethodPost, "/dtapi/rest/v1/metrics/query", body, &actualResponse)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting storage pool metrics: %q: %w", poolID, err)
 	}
 
 	return &actualResponse, nil
@@ -358,6 +397,29 @@ func (p *powerFlexClient) getStoragePoolVolumes(poolID string) ([]powerFlexVolum
 	}
 
 	return actualResponse, nil
+}
+
+// getVersion returns the version of the PowerFlex system.
+func (p *powerFlexClient) getVersion() (string, error) {
+	var actualResponse string
+	err := p.requestAuthenticated(http.MethodGet, "/api/version", nil, &actualResponse)
+	if err != nil {
+		return "", fmt.Errorf("Failed getting system version: %w", err)
+	}
+
+	// The API returns the version in quotes.
+	return strings.Trim(actualResponse, `"`), nil
+}
+
+// getSystemInfo returns system information from the PowerFlex system with the given systemID.
+func (p *powerFlexClient) getSystemInfo(systemID string) (*powerFlexSystemInfo, error) {
+	var actualResponse powerFlexSystemInfo
+	err := p.requestAuthenticated(http.MethodGet, "/api/instances/System::"+systemID, nil, &actualResponse)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting system instances: %w", err)
+	}
+
+	return &actualResponse, nil
 }
 
 // getProtectionDomainID returns the ID of the protection domain behind domainName.
@@ -531,8 +593,23 @@ func (p *powerFlexClient) renameVolume(volumeID string, newName string) error {
 	return nil
 }
 
+// refreshVolume refreshes the volume behind volumeID with the given volume/snapshot behind sourceVolumeID.
+// Present starting with PowerFlex 5.
+func (p *powerFlexClient) refreshVolume(volumeID string, sourceVolumeID string) error {
+	body := map[string]any{
+		"srcVolumeId": sourceVolumeID,
+	}
+
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/Volume::"+volumeID+"/action/refresh", body, nil)
+	if err != nil {
+		return fmt.Errorf("Failed refreshing volume %q with volume %q: %w", volumeID, sourceVolumeID, err)
+	}
+
+	return nil
+}
+
 // createVolumeSnapshot creates a new volume snapshot under the given systemID for the volume behind volumeID.
-// The accessMode can be either ReadWrite or ReadOnly.
+// The accessMode can be either ReadWrite or ReadOnly and is only relevant for PowerFlex 4.
 // The returned string represents the ID of the snapshot.
 func (p *powerFlexClient) createVolumeSnapshot(systemID string, volumeID string, snapshotName string, accessMode powerFlexSnapshotMode) (string, error) {
 	body := map[string]any{
@@ -542,14 +619,22 @@ func (p *powerFlexClient) createVolumeSnapshot(systemID string, volumeID string,
 				"snapshotName": snapshotName,
 			},
 		},
-		"accessModeLimit": accessMode,
 	}
 
 	var actualResponse struct {
 		VolumeIDs []string `json:"volumeIdList"`
 	}
 
-	err := p.requestAuthenticated(http.MethodPost, "/api/instances/System::"+systemID+"/action/snapshotVolumes", body, &actualResponse)
+	action := "createSnapshot"
+	if !p.driver.hasThinCloneSupport() {
+		// PowerFlex 4 uses a different endpoint to snapshot volumes.
+		action = "snapshotVolumes"
+		// PowerFlex 4 requires setting the access mode for the snapshot.
+		// This is an illegal parameter in PowerFlex 5.
+		body["accessModeLimit"] = accessMode
+	}
+
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/System::"+systemID+"/action/"+action, body, &actualResponse)
 	if err != nil {
 		powerFlexError, ok := err.(*powerFlexError)
 		if ok {
@@ -565,6 +650,43 @@ func (p *powerFlexClient) createVolumeSnapshot(systemID string, volumeID string,
 
 	if len(actualResponse.VolumeIDs) == 0 {
 		return "", errors.New("Response does not contain a single snapshot ID")
+	}
+
+	return actualResponse.VolumeIDs[0], nil
+}
+
+// createVolumeThinClone creates a new thin clone for the volume behind volumeID under the given systemID.
+// The returned string represents the ID of the thin clone.
+func (p *powerFlexClient) createVolumeThinClone(systemID string, volumeID string, thinCloneName string) (string, error) {
+	body := map[string]any{
+		"snapshotDefs": []map[string]string{
+			{
+				"volumeId":     volumeID,
+				"snapshotName": thinCloneName,
+			},
+		},
+	}
+
+	var actualResponse struct {
+		VolumeIDs []string `json:"volumeIdList"`
+	}
+
+	err := p.requestAuthenticated(http.MethodPost, "/api/instances/System::"+systemID+"/action/createThinClone", body, &actualResponse)
+	if err != nil {
+		powerFlexError, ok := err.(*powerFlexError)
+		if ok {
+			// API returns 500 if the snapshot name is too long.
+			// To not confuse it with other 500 that might occur check the error code too.
+			if powerFlexError.HTTPStatusCode() == http.StatusInternalServerError && powerFlexError.ErrorCode() == powerFlexCodeNameTooLong {
+				return "", api.StatusErrorf(http.StatusNotFound, "Thin clone name exceeds the allowed length of 31 characters: %q", thinCloneName)
+			}
+		}
+
+		return "", fmt.Errorf("Failed creating thin clone: %q: %w", thinCloneName, err)
+	}
+
+	if len(actualResponse.VolumeIDs) == 0 {
+		return "", errors.New("Response does not contain a single thin clone ID")
 	}
 
 	return actualResponse.VolumeIDs[0], nil
@@ -831,34 +953,56 @@ func (d *powerflex) getHostGUID() (string, error) {
 }
 
 // getNVMeTargetQN discovers the targetQN used for the given addresses.
-// The targetQN is unqiue per PowerFlex storage pool.
+// The targetQN is unique per PowerFlex system.
+// Starting with PowerFlex 5 the targetQN can be retrieved directly from the API.
 // Cache the targetQN as it doesn't change throughout the lifetime of the storage pool.
 func (d *powerflex) getNVMeTargetQN(targetAddresses ...string) (string, error) {
 	if d.nvmeTargetQN == "" {
-		connector, err := d.connector()
-		if err != nil {
-			return "", err
-		}
-
-		// The discovery log from the first reachable target address is returned.
-		discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
-		if err != nil {
-			return "", fmt.Errorf("Failed discovering SDT NQN: %w", err)
-		}
-
-		for _, recordAny := range discoveryLogRecords {
-			record, ok := recordAny.(connectors.NVMeDiscoveryLogRecord)
-			if !ok {
-				return "", fmt.Errorf("Invalid discovery log record entry type %T is not connectors.NVMeDiscoveryLogRecord", recordAny)
+		if !d.hasThinCloneSupport() {
+			connector, err := d.connector()
+			if err != nil {
+				return "", err
 			}
 
-			if record.SubType != connectors.SubtypeNVMESubsys {
-				continue
+			// The discovery log from the first reachable target address is returned.
+			discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, targetAddresses...)
+			if err != nil {
+				return "", fmt.Errorf("Failed discovering SDT NQN: %w", err)
 			}
 
-			// The targetQN is listed together with every log record of type SubtypeNVMESubsys.
-			d.nvmeTargetQN = record.SubNQN
-			break
+			for _, recordAny := range discoveryLogRecords {
+				record, ok := recordAny.(connectors.NVMeDiscoveryLogRecord)
+				if !ok {
+					return "", fmt.Errorf("Invalid discovery log record entry type %T is not connectors.NVMeDiscoveryLogRecord", recordAny)
+				}
+
+				if record.SubType != connectors.SubtypeNVMESubsys {
+					continue
+				}
+
+				// The targetQN is listed together with every log record of type SubtypeNVMESubsys.
+				d.nvmeTargetQN = record.SubNQN
+				break
+			}
+		} else {
+			client := d.client()
+
+			pool, err := d.resolvePool()
+			if err != nil {
+				return "", err
+			}
+
+			domain, err := client.getProtectionDomain(pool.ProtectionDomainID)
+			if err != nil {
+				return "", err
+			}
+
+			systemInfo, err := client.getSystemInfo(domain.SystemID)
+			if err != nil {
+				return "", err
+			}
+
+			d.nvmeTargetQN = systemInfo.SystemNQN
 		}
 	}
 
@@ -1334,8 +1478,10 @@ func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 	// If volume is snapshot, prepend snapshot prefix to its name.
 	// This allows differentiating between snapshots which actually belong to its parent volume
 	// and snapshots which were being created as part of copying a volume using powerflex.snapshot_copy.
-	// The latter are snapshots of the original volume stand on their own and don't use the snapshot prefix.
-	if vol.IsSnapshot() {
+	// The latter are snapshots of the original volume which stand on their own and don't use the snapshot prefix.
+	// PowerFlex 5 tracks snapshots separately from the original volume but is still using the prefix for consistency.
+	// In case the snapshot doesn't have a parent UUID, it's a thin clone of the snapshot so we don't append the prefix.
+	if vol.IsSnapshot() && vol.parentUUID != "" {
 		volName = powerFlexSnapshotPrefix + volName
 	}
 
