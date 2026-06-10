@@ -58,7 +58,10 @@ func (d *powerstore) load() error {
 		return nil
 	}
 
+	versions := connectors.GetSupportedVersions(powerStoreSupportedConnectors)
+	powerStoreVersion = strings.Join(versions, " / ")
 	powerStoreLoaded = true
+
 	return nil
 }
 
