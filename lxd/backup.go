@@ -156,7 +156,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		defer l.Debug("Finished backup tarball writer")
 		if compress != "none" {
 			backupProgressWriter.WriteCloser = tarFileWriter
-			compressErr = compressFile(compress, tarPipeReader, backupProgressWriter)
+			compressErr = compressFile(s.OS, compress, tarPipeReader, backupProgressWriter)
 
 			// If a compression error occurred, close the tarPipeWriter to end the export.
 			if compressErr != nil {
@@ -445,7 +445,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 		l.Debug("Started backup tarball writer")
 		defer l.Debug("Finished backup tarball writer")
 		if compress != "none" {
-			compressErr = compressFile(compress, tarPipeReader, tarFileWriter)
+			compressErr = compressFile(s.OS, compress, tarPipeReader, tarFileWriter)
 
 			// If a compression error occurred, close the tarPipeWriter to end the export.
 			if compressErr != nil {
