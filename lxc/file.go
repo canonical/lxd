@@ -1047,7 +1047,7 @@ func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, inst string, source st
 
 	sendFile := func(p string, fInfo os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("Failed walking path for %s: %s", p, err)
+			return fmt.Errorf("Failed walking path for %q: %w", p, err)
 		}
 
 		// Detect unsupported files
