@@ -146,7 +146,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		defer logger.Debug("Finished backup tarball writer")
 		if compress != "none" {
 			backupProgressWriter.WriteCloser = tarFileWriter
-			compressErr = compressFile(compress, tarPipeReader, backupProgressWriter)
+			compressErr = compressFile(s, compress, tarPipeReader, backupProgressWriter)
 
 			// If a compression error occurred, close the tarPipeWriter to end the export.
 			if compressErr != nil {
