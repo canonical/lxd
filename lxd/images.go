@@ -28,7 +28,7 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
-	"github.com/canonical/lxd/client"
+	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/filter"
@@ -105,13 +105,31 @@ var imageAliasCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: imageAliasPut, AccessHandler: allowProjectPermission("images", "manage-images")},
 }
 
-/* We only want a single publish running at any one time.
-   The CPU and I/O load of publish is such that running multiple ones in
-   parallel takes longer than running them serially.
+// validateImageFingerprint validates that the given string is exactly 64 characters long contains only lowercase hex characters.
+func validateImageFingerprint(fingerprint string) error {
+	if len(fingerprint) != 64 {
+		return api.StatusErrorf(http.StatusBadRequest, "Image fingerprint must contain 64 characters")
+	}
 
-   Additionally, publishing the same container or container snapshot
-   twice would lead to storage problem, not to mention a conflict at the
-   end for whichever finishes last. */
+	// Prefixes containing non-hex or uppercase characters can never match an image.
+	err := validate.IsLowercaseHex(fingerprint)
+	if err != nil {
+		return api.StatusErrorf(http.StatusBadRequest, "Failed validating image fingerprint: %v", err)
+	}
+
+	return nil
+}
+
+/*
+We only want a single publish running at any one time.
+
+	The CPU and I/O load of publish is such that running multiple ones in
+	parallel takes longer than running them serially.
+
+	Additionally, publishing the same container or container snapshot
+	twice would lead to storage problem, not to mention a conflict at the
+	end for whichever finishes last.
+*/
 var imagePublishLock sync.Mutex
 
 func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
@@ -754,15 +772,17 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 
 // swagger:operation POST /1.0/images images images_post
 //
-// Add an image
+// # Add an image
 //
 // Adds a new image to the image store.
 //
 // ---
 // consumes:
 //   - application/json
+//
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
@@ -774,7 +794,7 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 //     description: Image
 //     required: false
 //     schema:
-//       $ref: "#/definitions/ImagesPost"
+//     $ref: "#/definitions/ImagesPost"
 //   - in: body
 //     name: raw_image
 //     description: Raw image file
@@ -783,22 +803,24 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 //     name: X-LXD-secret
 //     description: Push secret for server to server communication
 //     schema:
-//       type: string
+//     type: string
 //     example: RANDOM-STRING
 //   - in: header
 //     name: X-LXD-fingerprint
 //     description: Expected fingerprint when pushing a raw image
 //     schema:
-//       type: string
+//     type: string
+//
 // responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"202":
+//	  $ref: "#/responses/Operation"
+//	"400":
+//	  $ref: "#/responses/BadRequest"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imagesPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
@@ -1283,13 +1305,14 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses
 
 // swagger:operation GET /1.0/images?recursion=1 images images_get_recursion1
 //
-// Get the images
+// # Get the images
 //
 // Returns a list of images (structs).
 //
 // ---
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
@@ -1301,34 +1324,36 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses
 //     description: Collection filter
 //     type: string
 //     example: default
+//
 // responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of images
-//           items:
-//             $ref: "#/definitions/Image"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"200":
+//	  description: API endpoints
+//	  schema:
+//	    type: object
+//	    description: Sync response
+//	    properties:
+//	      type:
+//	        type: string
+//	        description: Response type
+//	        example: sync
+//	      status:
+//	        type: string
+//	        description: Status description
+//	        example: Success
+//	      status_code:
+//	        type: integer
+//	        description: Status code
+//	        example: 200
+//	      metadata:
+//	        type: array
+//	        description: List of images
+//	        items:
+//	          $ref: "#/definitions/Image"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imagesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	filterStr := r.FormValue("filter")
@@ -2097,28 +2122,31 @@ func doDeleteImageFromPool(state *state.State, fingerprint string, storagePool s
 
 // swagger:operation DELETE /1.0/images/{fingerprint} images image_delete
 //
-// Delete the image
+// # Delete the image
 //
 // Removes the image from the image store.
 //
 // ---
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
 //     description: Project name
 //     type: string
 //     example: default
+//
 // responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"202":
+//	  $ref: "#/responses/Operation"
+//	"400":
+//	  $ref: "#/responses/BadRequest"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imageDelete(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint := mux.Vars(r)["fingerprint"]
@@ -2353,44 +2381,47 @@ func imageValidSecret(d *Daemon, r *http.Request, projectName string, fingerprin
 
 // swagger:operation GET /1.0/images/{fingerprint} images image_get
 //
-// Get the image
+// # Get the image
 //
 // Gets a specific image.
 //
 // ---
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
 //     description: Project name
 //     type: string
 //     example: default
+//
 // responses:
-//   "200":
-//     description: Image
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/Image"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"200":
+//	  description: Image
+//	  schema:
+//	    type: object
+//	    description: Sync response
+//	    properties:
+//	      type:
+//	        type: string
+//	        description: Response type
+//	        example: sync
+//	      status:
+//	        type: string
+//	        description: Status description
+//	        example: Success
+//	      status_code:
+//	        type: integer
+//	        description: Status code
+//	        example: 200
+//	      metadata:
+//	        $ref: "#/definitions/Image"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imageGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint := mux.Vars(r)["fingerprint"]
@@ -2417,15 +2448,17 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PUT /1.0/images/{fingerprint} images image_put
 //
-// Update the image
+// # Update the image
 //
 // Updates the entire image definition.
 //
 // ---
 // consumes:
 //   - application/json
+//
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
@@ -2437,18 +2470,20 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 //     description: Image configuration
 //     required: true
 //     schema:
-//       $ref: "#/definitions/ImagePut"
+//     $ref: "#/definitions/ImagePut"
+//
 // responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"200":
+//	  $ref: "#/responses/EmptySyncResponse"
+//	"400":
+//	  $ref: "#/responses/BadRequest"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"412":
+//	  $ref: "#/responses/PreconditionFailed"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imagePut(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
@@ -2503,15 +2538,17 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/images/{fingerprint} images image_patch
 //
-// Partially update the image
+// # Partially update the image
 //
 // Updates a subset of the image definition.
 //
 // ---
 // consumes:
 //   - application/json
+//
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
@@ -2523,18 +2560,20 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 //     description: Image configuration
 //     required: true
 //     schema:
-//       $ref: "#/definitions/ImagePut"
+//     $ref: "#/definitions/ImagePut"
+//
 // responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"200":
+//	  $ref: "#/responses/EmptySyncResponse"
+//	"400":
+//	  $ref: "#/responses/BadRequest"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"412":
+//	  $ref: "#/responses/PreconditionFailed"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imagePatch(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
@@ -2607,15 +2646,17 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/images/aliases images images_aliases_post
 //
-// Add an image alias
+// # Add an image alias
 //
 // Creates a new image alias.
 //
 // ---
 // consumes:
 //   - application/json
+//
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
@@ -2627,16 +2668,18 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 //     description: Image alias
 //     required: true
 //     schema:
-//       $ref: "#/definitions/ImageAliasesPost"
+//     $ref: "#/definitions/ImageAliasesPost"
+//
 // responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"200":
+//	  $ref: "#/responses/EmptySyncResponse"
+//	"400":
+//	  $ref: "#/responses/BadRequest"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	req := api.ImageAliasesPost{}
@@ -2725,47 +2768,50 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/images/aliases?recursion=1 images images_aliases_get_recursion1
 //
-// Get the image aliases
+// # Get the image aliases
 //
 // Returns a list of image aliases (structs).
 //
 // ---
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
 //     description: Project name
 //     type: string
 //     example: default
+//
 // responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of image aliases
-//           items:
-//             $ref: "#/definitions/ImageAliasesEntry"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"200":
+//	  description: API endpoints
+//	  schema:
+//	    type: object
+//	    description: Sync response
+//	    properties:
+//	      type:
+//	        type: string
+//	        description: Response type
+//	        example: sync
+//	      status:
+//	        type: string
+//	        description: Status description
+//	        example: Success
+//	      status_code:
+//	        type: integer
+//	        description: Status code
+//	        example: 200
+//	      metadata:
+//	        type: array
+//	        description: List of image aliases
+//	        items:
+//	          $ref: "#/definitions/ImageAliasesEntry"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
@@ -2841,44 +2887,47 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/images/aliases/{name} images image_alias_get
 //
-// Get the image alias
+// # Get the image alias
 //
 // Gets a specific image alias.
 //
 // ---
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
 //     description: Project name
 //     type: string
 //     example: default
+//
 // responses:
-//   "200":
-//     description: Image alias
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/ImageAliasesEntry"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"200":
+//	  description: Image alias
+//	  schema:
+//	    type: object
+//	    description: Sync response
+//	    properties:
+//	      type:
+//	        type: string
+//	        description: Response type
+//	        example: sync
+//	      status:
+//	        type: string
+//	        description: Status description
+//	        example: Success
+//	      status_code:
+//	        type: integer
+//	        description: Status code
+//	        example: 200
+//	      metadata:
+//	        $ref: "#/definitions/ImageAliasesEntry"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
@@ -2894,28 +2943,31 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation DELETE /1.0/images/aliases/{name} images image_alias_delete
 //
-// Delete the image alias
+// # Delete the image alias
 //
 // Deletes a specific image alias.
 //
 // ---
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
 //     description: Project name
 //     type: string
 //     example: default
+//
 // responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"200":
+//	  $ref: "#/responses/EmptySyncResponse"
+//	"400":
+//	  $ref: "#/responses/BadRequest"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
@@ -2937,15 +2989,17 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PUT /1.0/images/aliases/{name} images images_aliases_put
 //
-// Update the image alias
+// # Update the image alias
 //
 // Updates the entire image alias configuration.
 //
 // ---
 // consumes:
 //   - application/json
+//
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
@@ -2957,18 +3011,20 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 //     description: Image alias configuration
 //     required: true
 //     schema:
-//       $ref: "#/definitions/ImageAliasesEntryPut"
+//     $ref: "#/definitions/ImageAliasesEntryPut"
+//
 // responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"200":
+//	  $ref: "#/responses/EmptySyncResponse"
+//	"400":
+//	  $ref: "#/responses/BadRequest"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"412":
+//	  $ref: "#/responses/PreconditionFailed"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
@@ -3011,15 +3067,17 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/images/aliases/{name} images images_alias_patch
 //
-// Partially update the image alias
+// # Partially update the image alias
 //
 // Updates a subset of the image alias configuration.
 //
 // ---
 // consumes:
 //   - application/json
+//
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
@@ -3031,18 +3089,20 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 //     description: Image alias configuration
 //     required: true
 //     schema:
-//       $ref: "#/definitions/ImageAliasesEntryPut"
+//     $ref: "#/definitions/ImageAliasesEntryPut"
+//
 // responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"200":
+//	  $ref: "#/responses/EmptySyncResponse"
+//	"400":
+//	  $ref: "#/responses/BadRequest"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"412":
+//	  $ref: "#/responses/PreconditionFailed"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
@@ -3101,15 +3161,17 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/images/aliases/{name} images images_alias_post
 //
-// Rename the image alias
+// # Rename the image alias
 //
 // Renames an existing image alias.
 //
 // ---
 // consumes:
 //   - application/json
+//
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
@@ -3121,16 +3183,18 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 //     description: Image alias rename request
 //     required: true
 //     schema:
-//       $ref: "#/definitions/ImageAliasesEntryPost"
+//     $ref: "#/definitions/ImageAliasesEntryPost"
+//
 // responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"200":
+//	  $ref: "#/responses/EmptySyncResponse"
+//	"400":
+//	  $ref: "#/responses/BadRequest"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
@@ -3203,19 +3267,22 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 // produces:
 //   - application/octet-stream
 //   - multipart/form-data
+//
 // parameters:
 //   - in: query
 //     name: project
 //     description: Project name
 //     type: string
 //     example: default
+//
 // responses:
-//   "200":
-//     description: Raw image data
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"200":
+//	  description: Raw image data
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imageExport(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint := mux.Vars(r)["fingerprint"]
@@ -3314,7 +3381,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/images/{fingerprint}/secret images images_secret_post
 //
-// Generate secret for retrieval of the image by an untrusted client
+// # Generate secret for retrieval of the image by an untrusted client
 //
 // This generates a background operation including a secret one time key
 // in its metadata which can be used to fetch this image from an untrusted
@@ -3323,19 +3390,22 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 // ---
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
 //     description: Project name
 //     type: string
 //     example: default
+//
 // responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"202":
+//	  $ref: "#/responses/Operation"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imageSecret(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint := mux.Vars(r)["fingerprint"]
@@ -3436,7 +3506,7 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 
 // swagger:operation POST /1.0/images/{fingerprint}/refresh images images_refresh_post
 //
-// Refresh an image
+// # Refresh an image
 //
 // This causes LXD to check the image source server for an updated
 // version of the image and if available to refresh the local copy with the
@@ -3445,19 +3515,22 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 // ---
 // produces:
 //   - application/json
+//
 // parameters:
 //   - in: query
 //     name: project
 //     description: Project name
 //     type: string
 //     example: default
+//
 // responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//
+//	"202":
+//	  $ref: "#/responses/Operation"
+//	"403":
+//	  $ref: "#/responses/Forbidden"
+//	"500":
+//	  $ref: "#/responses/InternalServerError"
 func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint := mux.Vars(r)["fingerprint"]
