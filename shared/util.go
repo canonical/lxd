@@ -994,11 +994,22 @@ type RunError struct {
 }
 
 func (e RunError) Error() string {
-	if e.stderr.Len() == 0 {
-		return fmt.Sprintf("Failed running: %s %s: %v", e.cmd, strings.Join(e.args, " "), e.err)
+	hasStdout := e.stdout != nil && e.stdout.Len() > 0
+	hasStderr := e.stderr.Len() > 0
+
+	if hasStdout && hasStderr {
+		return fmt.Sprintf("Failed running: %s %s: %v (%s) (%s)", e.cmd, strings.Join(e.args, " "), e.err, strings.TrimSpace(e.stdout.String()), strings.TrimSpace(e.stderr.String()))
 	}
 
-	return fmt.Sprintf("Failed running: %s %s: %v (%s)", e.cmd, strings.Join(e.args, " "), e.err, strings.TrimSpace(e.stderr.String()))
+	if hasStdout {
+		return fmt.Sprintf("Failed running: %s %s: %v (%s)", e.cmd, strings.Join(e.args, " "), e.err, strings.TrimSpace(e.stdout.String()))
+	}
+
+	if hasStderr {
+		return fmt.Sprintf("Failed running: %s %s: %v (%s)", e.cmd, strings.Join(e.args, " "), e.err, strings.TrimSpace(e.stderr.String()))
+	}
+
+	return fmt.Sprintf("Failed running: %s %s: %v", e.cmd, strings.Join(e.args, " "), e.err)
 }
 
 func (e RunError) Unwrap() error {
