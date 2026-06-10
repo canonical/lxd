@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -78,12 +79,12 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 
 	certBlock, _ := pem.Decode(certBytes)
 	if certBlock == nil {
-		return response.BadRequest(fmt.Errorf("Certificate must be base64 encoded PEM certificate: %w", err))
+		return response.BadRequest(errors.New("Certificate must be PEM-encoded X.509 certificate"))
 	}
 
 	keyBlock, _ := pem.Decode(keyBytes)
 	if keyBlock == nil {
-		return response.BadRequest(fmt.Errorf("Private key must be base64 encoded PEM key: %w", err))
+		return response.BadRequest(errors.New("Private key must be PEM-encoded (PKCS#1/PKCS#8) key"))
 	}
 
 	requestor, err := request.GetRequestor(r.Context())

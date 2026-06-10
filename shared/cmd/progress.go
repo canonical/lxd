@@ -116,9 +116,9 @@ func (p *ProgressRenderer) Update(status string) {
 	if p.terminal == 0 {
 		if !termios.IsTerminal(int(os.Stdout.Fd())) {
 			p.terminal = -1
+		} else {
+			p.terminal = 1
 		}
-
-		p.terminal = 1
 	}
 
 	if p.terminal != 1 {
@@ -182,7 +182,7 @@ func (p *ProgressRenderer) Warn(status string, timeout time.Duration) {
 	fmt.Print(msg)
 }
 
-// UpdateProgress is a helper to update the status using an iopgress instance.
+// UpdateProgress is a helper to update the status using an ioprogress instance.
 func (p *ProgressRenderer) UpdateProgress(progress ioprogress.ProgressData) {
 	p.Update(progress.Text)
 }

@@ -233,7 +233,7 @@ func generateAMDSpec(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec
 	}
 
 	var spec specs.Spec
-	err = yaml.Unmarshal([]byte(specRaw), &spec)
+	err = yaml.Unmarshal(specRaw, &spec)
 	if err != nil {
 		return nil, fmt.Errorf("Failed unmarshaling AMD CDI spec: %w", err)
 	}

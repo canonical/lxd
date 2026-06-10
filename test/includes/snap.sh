@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # download_snap: downloads a snap to the cache dir.
 download_snap() {
     local name="${1}"
@@ -110,7 +112,7 @@ install_snap() {
 # sideload_lxd_snap: installs the lxd snap and sideloads the lxc, lxd and lxd-agent binaries.
 sideload_lxd_snap() {
     local channel="${1:-"latest/edge"}"
-    local bin
+    local bin lxd_agent_bin
     install_snap core26 "latest/candidate"
     install_snap lxd "${channel}"
 
@@ -118,12 +120,22 @@ sideload_lxd_snap() {
     # Failed to run: lvcreate --yes --wipesignatures y --thinpool --extents 100%FREE: Device or resource busy
     snap set lxd lvm.external=true
 
-    for bin in "${_LXC:-$(command -v lxc)}" "$(command -v lxd)" "$(command -v lxd-user)"; do
+    for bin in "${_LXC:-$(command -v lxc || true)}" "$(command -v lxd || true)" "$(command -v lxd-user || true)"; do
+        if [ -z "${bin}" ]; then
+            echo "Error: Required binary not found in PATH" >&2
+            return 1
+        fi
         cp "${bin}" "/var/snap/lxd/common/${bin##*/}.debug"
     done
 
     # Use a mount bind as /snap/lxd is readonly
-    mount -o ro,bind "$(command -v lxd-agent)" /snap/lxd/current/bin/lxd-agent
+    lxd_agent_bin="$(command -v lxd-agent || true)"
+    if [ -z "${lxd_agent_bin}" ]; then
+        echo "Error: lxd-agent not found in PATH" >&2
+        return 1
+    fi
+
+    mount -o ro,bind "${lxd_agent_bin}" /snap/lxd/current/bin/lxd-agent
 }
 
 # gocoverage_lxd_snap sets up the LXD snap to collect Go coverage data.

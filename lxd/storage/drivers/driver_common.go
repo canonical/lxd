@@ -291,7 +291,7 @@ func (d *common) HasPatch(name string) bool {
 }
 
 // moveGPTAltHeader moves the GPT alternative header to the end of the disk device supplied.
-// If the device supplied is not detected as not being a GPT disk then no action is taken and nil is returned.
+// If the device supplied is not detected as a GPT disk then no action is taken and nil is returned.
 // If the required sgdisk command is not available a warning is logged, but no error is returned, as really it is
 // the job of the VM guest to ensure the partitions are resized to the size of the disk (as LXD does not dictate
 // what partition structure (if any) the disk should have. However we do attempt to move the GPT alternative
@@ -339,7 +339,7 @@ func (d *common) moveGPTAltHeader(devPath string) error {
 		exitError, ok := runErr.Unwrap().(*exec.ExitError)
 		if ok {
 			// sgdisk exit code 3 = “Non-GPT  disk  detected and no -g option, but operation requires a write action”
-			// exit code 2 = “an error occurred while reading the partition table" (e.g. no GPT present or header CRC mismatch)
+			// exit code 2 = “an error occurred while reading the partition table" (e.g. no GPT present or header CRC mismatch).
 			// Treat both as non-error for raw/MBR images, since we only relocate a GPT alternative header if one exists.
 			if exitError.ExitCode() == 2 || exitError.ExitCode() == 3 {
 				return nil // Non-error as non-GPT disk specified.

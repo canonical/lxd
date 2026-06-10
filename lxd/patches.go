@@ -151,13 +151,13 @@ func (p *patch) apply(d *Daemon) error {
 
 // Return the names of all available patches.
 func patchesGetNames() []string {
-	names := make([]string, len(patches))
-	for i, patch := range patches {
+	names := make([]string, 0, len(patches))
+	for _, patch := range patches {
 		if patch.stage == patchNoStageSet {
 			continue // Ignore any patch without explicitly set stage (it is defined incorrectly).
 		}
 
-		names[i] = patch.name
+		names = append(names, patch.name)
 	}
 
 	return names
@@ -719,7 +719,6 @@ func patchNetworkOVNRemoveRoutes(name string, d *Daemon) error {
 // patchNetworkOVNEnableNAT adds "ipv4.nat" and "ipv6.nat" keys set to "true" to OVN networks if not present.
 // This is to ensure existing networks retain the old behaviour of always having NAT enabled as we introduce
 // the new NAT settings which default to disabled if not specified.
-// patchNetworkCearBridgeVolatileHwaddr removes the unsupported `volatile.bridge.hwaddr` config key from networks.
 func patchNetworkOVNEnableNAT(name string, d *Daemon) error {
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projectNetworks, err := tx.GetCreatedNetworks(ctx)
@@ -986,7 +985,7 @@ func patchStorageZfsUnsetInvalidBlockSettings(_ string, d *Daemon) error {
 
 // patchStorageZfsUnsetInvalidBlockSettingsV2 removes invalid block settings from volumes.
 // This patch fixes the previous one.
-// - Handle non-clusted environments correctly.
+// - Handle non-clustered environments correctly.
 // - Always remove block.* settings from VMs.
 func patchStorageZfsUnsetInvalidBlockSettingsV2(_ string, d *Daemon) error {
 	s := d.State()
