@@ -217,7 +217,7 @@ func (d *gpuMIG) migCDIID() (cdi.ID, error) {
 	return cdi.ID{Vendor: cdi.NVIDIA, Class: cdi.MIG, Name: migUUID}, nil
 }
 
-// CanHotPlug returns whether the device can be managed whilst the instance is running,.
+// CanHotPlug returns whether the device can be managed whilst the instance is running.
 func (d *gpuMIG) CanHotPlug() bool {
 	return false
 }
