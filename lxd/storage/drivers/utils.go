@@ -648,10 +648,25 @@ func copyDevice(inputPath string, outputPath string) error {
 	}
 
 	// Check for Direct I/O support.
-	from, err := os.OpenFile(inputPath, unix.O_DIRECT|unix.O_RDONLY, 0)
-	if err == nil {
-		cmd = append(cmd, "iflag=direct")
-		_ = from.Close()
+
+	// dd from uutils/coreutils has a broken 'iflag=direct' implementation.
+	// https://github.com/uutils/coreutils/issues/12085
+	ddPath, err := exec.LookPath("dd")
+	if err != nil {
+		return fmt.Errorf("Failed finding dd binary: %w", err)
+	}
+
+	ddFullPath, err := filepath.EvalSymlinks(ddPath)
+	if err != nil {
+		return fmt.Errorf("Failed evaluating symlinks for dd binary: %w", err)
+	}
+
+	if !strings.HasSuffix(ddFullPath, "cargo/bin/coreutils/dd") {
+		from, err := os.OpenFile(inputPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+		if err == nil {
+			cmd = append(cmd, "iflag=direct")
+			_ = from.Close()
+		}
 	}
 
 	to, err := os.OpenFile(outputPath, unix.O_DIRECT|unix.O_WRONLY, 0)
