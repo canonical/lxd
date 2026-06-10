@@ -33,9 +33,14 @@ func (c *connectorSDC) Transport() TransportType {
 	return TransportTCP
 }
 
-// Version returns an empty string and no error.
+// Version returns a non-empty string if the SDC kernel module is loaded.
 func (c *connectorSDC) Version() (string, error) {
-	return "", nil
+	ok := c.drvCfgIsSDCInstalled()
+	if !ok {
+		return "", errors.New("SDC kernel module is not loaded")
+	}
+
+	return "detected (" + TypeSDC + ")", nil
 }
 
 // drvCfgIsSDCInstalled checks if the SDC kernel module is loaded.
