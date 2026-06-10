@@ -116,7 +116,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			}
 		}
 
-		// For public images, handle aliases and initial metadata
+		// Get the image information
 		if args.Secret == "" {
 			// Look for a matching alias
 			entry, _, err := remote.GetImageAliasType(args.Type, fp)
@@ -131,6 +131,18 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			}
 
 			fp = info.Fingerprint
+		} else {
+			info, _, err = remote.GetPrivateImage(fp, args.Secret)
+			if err != nil {
+				return nil, fmt.Errorf("Failed getting remote image info: %w", err)
+			}
+
+			fp = info.Fingerprint
+
+			// Set alias to equal fingerprint so that we don't save this remote as an image source or try to auto-update
+			// the image (we can't get it again since it is private). In this case the alias may have actually been an
+			// image fingerprint prefix.
+			alias = info.Fingerprint
 		}
 	}
 
@@ -384,25 +396,6 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		}
 
 		defer func() { _ = destRootfs.Close() }()
-
-		// Get the image information
-		if info == nil {
-			if args.Secret != "" {
-				info, _, err = remote.GetPrivateImage(fp, args.Secret)
-				if err != nil {
-					return nil, err
-				}
-
-				// Expand the fingerprint now and mark alias string to match
-				fp = info.Fingerprint
-				alias = info.Fingerprint
-			} else {
-				info, _, err = remote.GetImage(fp)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
 
 		// Compatibility with older LXD servers
 		if info.Type == "" {
