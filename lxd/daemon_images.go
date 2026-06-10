@@ -135,6 +135,12 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		}
 	}
 
+	// Ensure the fingerprint is valid.
+	err = validateImageFingerprint(fp)
+	if err != nil {
+		return nil, err
+	}
+
 	// Ensure we are the only ones operating on this image.
 	unlock, err := imageOperationLock(fp)
 	if err != nil {
