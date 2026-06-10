@@ -104,7 +104,7 @@ func (d *powerflex) isRemote() bool {
 // hasThinCloneSupport returns true if the PowerFlex system version supports thin clones.
 // This is true for all PowerFlex version starting with 5.0.
 func (d *powerflex) hasThinCloneSupport() bool {
-	powerFlexVersion, err := version.NewDottedVersion(d.config["powerflex.version"])
+	powerFlexVersion, err := version.NewDottedVersion(d.config["volatile.powerflex.version"])
 	if err != nil {
 		return false
 	}
@@ -173,8 +173,8 @@ func (d *powerflex) FillConfig() error {
 	}
 
 	// Exit if there already is a PowerFlex version set as this field gets auto-populated.
-	if d.config["powerflex.version"] != "" {
-		return errors.New(`Cannot set "powerflex.version" manually`)
+	if d.config["volatile.powerflex.version"] != "" {
+		return errors.New(`Cannot set "volatile.powerflex.version" manually`)
 	}
 
 	// Retrieve and store the PowerFlex system version.
@@ -183,7 +183,7 @@ func (d *powerflex) FillConfig() error {
 		return err
 	}
 
-	d.config["powerflex.version"] = version
+	d.config["volatile.powerflex.version"] = version
 	return nil
 }
 
@@ -328,7 +328,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  shortdesc: Size/quota of the storage volume
 		//  scope: global
 		"volume.size": validate.Optional(validate.IsMultipleOfUnit("1GiB")),
-		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.version)
+		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=volatile.powerflex.version)
 		// This field is automatically populated after querying the PowerFlex version.
 		// It cannot be set by the user.
 		// ---
@@ -336,7 +336,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  defaultdesc: Discovered version
 		//  shortdesc: Software version of the PowerFlex array.
 		//  scope: global
-		"powerflex.version": validate.Optional(validate.IsDottedVersion),
+		"volatile.powerflex.version": validate.Optional(validate.IsDottedVersion),
 	}
 
 	err := d.validatePool(config, rules, d.commonVolumeRules())
@@ -346,8 +346,8 @@ func (d *powerflex) Validate(config map[string]string) error {
 
 	// Ensure powerflex.mode cannot be changed to avoid leaving volume mappings
 	// and to prevent disturbing running instances.
-	// Ensure powerflex.version cannot be changed.
-	immutableKeys := []string{"powerflex.mode", "powerflex.version"}
+	// Ensure volatile.powerflex.version cannot be changed.
+	immutableKeys := []string{"powerflex.mode", "volatile.powerflex.version"}
 	for _, key := range immutableKeys {
 		newVal := config[key]
 		oldVal := d.config[key]
