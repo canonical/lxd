@@ -7021,15 +7021,6 @@
 						}
 					},
 					{
-						"powerflex.version": {
-							"defaultdesc": "Discovered version",
-							"longdesc": "This field is automatically populated after querying the PowerFlex version.\nIt cannot be set by the user.",
-							"scope": "global",
-							"shortdesc": "Software version of the PowerFlex array.",
-							"type": "string"
-						}
-					},
-					{
 						"rsync.bwlimit": {
 							"defaultdesc": "`0` (no limit)",
 							"longdesc": "When `rsync` must be used to transfer storage entities, this option specifies the upper limit\nto be placed on the socket I/O.",
@@ -7045,6 +7036,15 @@
 							"scope": "global",
 							"shortdesc": "Whether to use compression while migrating storage pools",
 							"type": "bool"
+						}
+					},
+					{
+						"volatile.powerflex.version": {
+							"defaultdesc": "Discovered version",
+							"longdesc": "This field is automatically populated after querying the PowerFlex version.\nIt cannot be set by the user.",
+							"scope": "global",
+							"shortdesc": "Software version of the PowerFlex array.",
+							"type": "string"
 						}
 					},
 					{
