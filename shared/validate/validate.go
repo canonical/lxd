@@ -825,3 +825,14 @@ func ParseNetworkVLANRange(vlan string) (int, int, error) {
 
 	return vlanRangeStart, vlanRangeEnd - vlanRangeStart + 1, nil
 }
+
+// IsLowercaseHex returns an error if the given hash contains any characters that are not lowercase and hexadecimal.
+func IsLowercaseHex(hash string) error {
+	for _, b := range []byte(hash) {
+		if (b < '0' || b > '9') && (b < 'a' || b > 'f') {
+			return errors.New("Hash must contain only lowercase hexadecimal characters")
+		}
+	}
+
+	return nil
+}
