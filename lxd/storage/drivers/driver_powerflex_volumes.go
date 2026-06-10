@@ -28,6 +28,14 @@ import (
 // factorGiB divides a byte size value into Gibibytes.
 const factorGiB = 1024 * 1024 * 1024
 
+// emptyParentUUID is used whenever we have to differentiate between a snapshot and a thin clone in PowerFlex 5.
+// A snapshot with a parent UUID will be treated as one.
+// However when unsetting its parent UUID, we treat it as a thin clone.
+// This helps when mounting snapshots as we have to create a thin clone of the respective snapshot.
+// Unlike other drivers we cannot use the "s" prefix for this use case.
+// PowerFlex 4 tracks snapshots as regular volumes (not underneath their parent vol) which required using the prefix there.
+const emptyParentUUID = ""
+
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied filler function.
 func (d *powerflex) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
 	revert := revert.New()
@@ -1066,7 +1074,7 @@ func (d *powerflex) GetVolumeDiskPath(vol Volume) (string, error) {
 		// maps a temporary thin clone.
 		// Therefore ensure the snapshot's parent volume UUID is unset to indicate we are referring to the thin clone
 		// when deriving the volume name.
-		vol.SetParentUUID("")
+		vol.SetParentUUID(emptyParentUUID)
 	}
 
 	if vol.IsVMBlock() || (vol.volType == VolumeTypeCustom && IsContentBlock(vol.contentType)) {
@@ -1384,7 +1392,7 @@ func (d *powerflex) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogr
 
 	// Unset parent vol UUID to indicate thin clone.
 	// Get the new thin clone volume name.
-	snapVol.SetParentUUID("")
+	snapVol.SetParentUUID(emptyParentUUID)
 	thinCloneVolName, err := d.getVolumeName(snapVol)
 	if err != nil {
 		return err
@@ -1414,7 +1422,7 @@ func (d *powerflex) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogr
 		}
 
 		// Unset parent vol UUID to indicate thin clone.
-		snapFsVol.SetParentUUID("")
+		snapFsVol.SetParentUUID(emptyParentUUID)
 		thinCloneFsVolName, err := d.getVolumeName(snapFsVol)
 		if err != nil {
 			return err
@@ -1446,7 +1454,7 @@ func (d *powerflex) UnmountVolumeSnapshot(snapVol Volume, progressReporter iopro
 	}
 
 	// Unset parent vol UUID to indicate thin clone.
-	snapVol.SetParentUUID("")
+	snapVol.SetParentUUID(emptyParentUUID)
 
 	ourUnmount, err := d.UnmountVolume(snapVol, false, progressReporter)
 	if err != nil {
@@ -1479,7 +1487,7 @@ func (d *powerflex) UnmountVolumeSnapshot(snapVol Volume, progressReporter iopro
 		snapFsVol := snapVol.NewVMBlockFilesystemVolume()
 
 		// Unset parent vol UUID to indicate thin clone.
-		snapFsVol.SetParentUUID("")
+		snapFsVol.SetParentUUID(emptyParentUUID)
 
 		snapFsVolName, err := d.getVolumeName(snapFsVol)
 		if err != nil {
