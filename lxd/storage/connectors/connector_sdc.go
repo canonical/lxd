@@ -28,6 +28,11 @@ func (c *connectorSDC) Type() string {
 	return TypeSDC
 }
 
+// Transport returns the transport type of the connector.
+func (c *connectorSDC) Transport() TransportType {
+	return TransportTCP
+}
+
 // Version returns an empty string and no error.
 func (c *connectorSDC) Version() (string, error) {
 	return "", nil

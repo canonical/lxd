@@ -18,6 +18,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 const (
@@ -56,6 +57,7 @@ func (PowerStoreHostInitiator) selector() string {
 type PowerStoreHostVolumeMapping struct {
 	HostID   string `json:"host_id,omitempty"`
 	VolumeID string `json:"volume_id,omitempty"`
+	LUN      int    `json:"logical_unit_number,omitempty"`
 }
 
 // PowerStoreHost represents a PowerStore host.
@@ -68,7 +70,7 @@ type PowerStoreHost struct {
 }
 
 func (PowerStoreHost) selector() string {
-	return "id,name,os_type,initiators(id,port_name,port_type),mapped_hosts(id,host_id,volume_id)"
+	return "id,name,os_type,initiators(id,port_name,port_type),mapped_hosts(id,host_id,volume_id,logical_unit_number)"
 }
 
 // PowerStoreVolume represents a PowerStore volume.
@@ -562,6 +564,8 @@ func (c *PowerStoreClient) GetCurrentHost(connectorType string, qn string) (*Pow
 		return nil, err
 	}
 
+	qn = formatQN(connectorType, qn)
+
 	// Find initiator with the provided port type (connector type) and name (qualified name),
 	// and retrieve the ID of the host it belongs to.
 	var initiator PowerStoreHostInitiator
@@ -628,6 +632,8 @@ func (c *PowerStoreClient) CreateHost(hostName string, connectorType string, qn 
 	if err != nil {
 		return "", err
 	}
+
+	qn = formatQN(connectorType, qn)
 
 	req := map[string]any{
 		"name":    hostName,
@@ -935,19 +941,19 @@ func (c *PowerStoreClient) RestoreVolume(volumeID string, snapshotID string) err
 	return nil
 }
 
-// AttachVolumeToHost attaches (maps) volume to host, returning true if the volume was freshly
-// attached to the host, and false if the volume was already attached to the host.
-func (c *PowerStoreClient) AttachVolumeToHost(volumeID string, hostID string) (bool, error) {
+// AttachVolumeToHost attaches (maps) volume to host. It returns the assigned volume LUN and
+// whether a new host to volume mapping was created.
+func (c *PowerStoreClient) AttachVolumeToHost(volumeID string, hostID string) (lun int, attached bool, err error) {
 	// Check if the volume is already attached to the host.
 	host, err := c.GetHost(hostID)
 	if err != nil {
-		return false, err
+		return 0, false, err
 	}
 
 	for _, mapping := range host.MappedVolumes {
 		if mapping.VolumeID == volumeID {
 			// The volume is already attached to the host.
-			return false, nil
+			return mapping.LUN, false, nil
 		}
 	}
 
@@ -959,10 +965,28 @@ func (c *PowerStoreClient) AttachVolumeToHost(volumeID string, hostID string) (b
 	url := api.NewURL().Path("api", "rest", "volume", volumeID, "attach")
 	err = c.requestAuthenticated(http.MethodPost, url.URL, req, nil, nil)
 	if err != nil {
-		return false, fmt.Errorf("Failed attaching PowerStore volume to the host: %w", err)
+		return 0, false, fmt.Errorf("Failed attaching PowerStore volume to the host: %w", err)
 	}
 
-	return true, nil
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	reverter.Add(func() { _ = c.DetachVolumeFromHost(volumeID, hostID) })
+
+	// Fetch host again to retrieve the LUN assigned to the newly created mapping.
+	host, err = c.GetHost(hostID)
+	if err != nil {
+		return 0, true, fmt.Errorf("Failed retrieving volume attachments after attach: %w", err)
+	}
+
+	for _, mapping := range host.MappedVolumes {
+		if mapping.VolumeID == volumeID {
+			reverter.Success()
+			return mapping.LUN, true, nil
+		}
+	}
+
+	return 0, true, errors.New("Failed retrieving LUN for attached volume")
 }
 
 // DetachVolumeFromHost detaches (unmaps) volume from host.
@@ -1025,7 +1049,35 @@ func powerStoreConnectorToPortType(connectorType string) (string, error) {
 		return "iSCSI", nil
 	case connectors.TypeNVMeTCP:
 		return "NVMe", nil
+	case connectors.TypeSCSIFC:
+		return "FC", nil
 	default:
 		return "", fmt.Errorf("Unsupported connector type: %q", connectorType)
 	}
+}
+
+// formatQN formats the qualified name (or WWPN in case of FC) into PowerStore expected format
+// based on the connector transport type.
+func formatQN(connectorType string, qn string) string {
+	if connectorType != connectors.TypeSCSIFC {
+		return qn
+	}
+
+	// Normalize into a plain 16-hex-char WWPN.
+	normalized := strings.ToLower(strings.TrimSpace(qn))
+	normalized = strings.TrimPrefix(normalized, "0x")
+	normalized = strings.ReplaceAll(normalized, ":", "")
+
+	// PowerStore identifies initiators on the FC fabric using the colon-separated byte format
+	// ("21:00:34:80:0d:70:35:b3"). If we do not have exactly 8 bytes, do not attempt to reformat.
+	if len(normalized) != 16 {
+		return qn
+	}
+
+	parts := make([]string, 8)
+	for i := range 8 {
+		parts[i] = normalized[i*2 : i*2+2]
+	}
+
+	return strings.Join(parts, ":")
 }

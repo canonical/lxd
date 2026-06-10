@@ -32,8 +32,8 @@ const (
 	iscsiErrCodeNotFound = 21
 )
 
-// iscsiDiskDevicePrefix is the prefix of the iSCSI disk device name in /dev/disk/by-id/.
-const iscsiDiskDevicePrefix = "scsi-"
+// scsiDiskDevicePrefix is the prefix of the SCSI disk device name in /dev/disk/by-id/.
+const scsiDiskDevicePrefix = "scsi-"
 
 const (
 	// ISCSIDefaultPort is the default port number for iSCSI targets.
@@ -58,6 +58,11 @@ type ISCSIDiscoveryLogRecord struct {
 // Type returns the type of the connector.
 func (c *connectorISCSI) Type() string {
 	return TypeISCSI
+}
+
+// Transport returns the transport type of the connector.
+func (c *connectorISCSI) Transport() TransportType {
+	return TransportTCP
 }
 
 // Version returns the version of the iSCSI CLI (iscsiadm).
@@ -363,7 +368,7 @@ func (c *connectorISCSI) WaitDiskDevicePath(ctx context.Context, diskPathFilter 
 		defer cancel()
 	}
 
-	devicePath, err := block.WaitDiskDevicePath(ctx, iscsiDiskDevicePrefix, diskPathFilter)
+	devicePath, err := block.WaitDiskDevicePath(ctx, scsiDiskDevicePrefix, diskPathFilter)
 	if err != nil {
 		return "", err
 	}
@@ -400,7 +405,7 @@ func (c *connectorISCSI) WaitDiskDevicePath(ctx context.Context, diskPathFilter 
 
 	// The multipath command is synchronous, but udev updates the /dev/disk/by-id
 	// symlinks asynchronously. Wait for the multipath-backed device path to appear.
-	mpDevicePath, err := block.WaitDiskDevicePath(ctx, iscsiDiskDevicePrefix, multipathDeviceFilter)
+	mpDevicePath, err := block.WaitDiskDevicePath(ctx, scsiDiskDevicePrefix, multipathDeviceFilter)
 	if err != nil {
 		return "", err
 	}
@@ -415,7 +420,7 @@ func (c *connectorISCSI) WaitDiskDevicePath(ctx context.Context, diskPathFilter 
 
 // GetDiskDevicePath returns the path of the mapped iSCSI device.
 func (c *connectorISCSI) GetDiskDevicePath(diskPathFilter block.DevicePathFilterFunc) (string, error) {
-	return block.GetDiskDevicePath(iscsiDiskDevicePrefix, diskPathFilter)
+	return block.GetDiskDevicePath(scsiDiskDevicePrefix, diskPathFilter)
 }
 
 // RemoveDiskDevice removes the disk device from the system.
@@ -530,6 +535,12 @@ func (c *connectorISCSI) WaitDiskDeviceResize(ctx context.Context, diskPath stri
 		defer cancel()
 	}
 
+	// Trigger rescan on all SCSI devices so the kernel reports the new size.
+	err := rescanMultipathSCSIDevices(diskPath)
+	if err != nil {
+		return err
+	}
+
 	if isMultipathDevice(diskPath) {
 		// Ask multipathd to refresh multipath device size.
 		_, err := shared.RunCommand(ctx, "multipath", "-r", diskPath)
@@ -640,6 +651,35 @@ func findMultipathSCSIDevices(dmName string) ([]string, error) {
 	}
 
 	return devices, nil
+}
+
+// rescanMultipathSCSIDevices triggers a SCSI capacity rescan on the device(s) backing the given
+// multipath device.
+// For multipath devices, all underlying SCSI devices are rescanned.
+// For single-path SCSI devices (sd*), the device itself is rescanned.
+func rescanMultipathSCSIDevices(devicePath string) error {
+	deviceName := filepath.Base(devicePath)
+
+	var deviceNames []string
+	if isMultipathDevice(devicePath) {
+		var err error
+		deviceNames, err = findMultipathSCSIDevices(deviceName)
+		if err != nil {
+			return fmt.Errorf("Failed finding slave SCSI devices for %q: %w", devicePath, err)
+		}
+	} else {
+		deviceNames = []string{deviceName}
+	}
+
+	for _, name := range deviceNames {
+		rescanPath := filepath.Join("/sys/block", name, "device", "rescan")
+		err := os.WriteFile(rescanPath, []byte("1"), 0200)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("Failed rescanning SCSI device %q: %w", name, err)
+		}
+	}
+
+	return nil
 }
 
 // waitMultipathReady checks if the multipath device has at least one active path.

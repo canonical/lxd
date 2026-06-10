@@ -20,6 +20,20 @@ const (
 
 	// TypeISCSI represents an iSCSI storage connector.
 	TypeISCSI string = "iscsi"
+
+	// TypeSCSIFC represents a Fibre Channel storage connector.
+	TypeSCSIFC string = "scsi/fc"
+)
+
+// TransportType represents the transport type of the storage connector.
+type TransportType string
+
+const (
+	// TransportTCP represents a TCP-based storage transport.
+	TransportTCP TransportType = "tcp"
+
+	// TransportFC represents a Fibre Channel storage transport.
+	TransportFC TransportType = "fc"
 )
 
 // session represents a connector session that is established with a target.
@@ -38,6 +52,7 @@ type session struct {
 // appropriate storage subsystem.
 type Connector interface {
 	Type() string
+	Transport() TransportType
 	Version() (string, error)
 	QualifiedName() (string, error)
 	LoadModules() error
@@ -70,6 +85,11 @@ func NewConnector(connectorType string, serverUUID string) (Connector, error) {
 
 	case TypeISCSI:
 		return &connectorISCSI{
+			common: common,
+		}, nil
+
+	case TypeSCSIFC:
+		return &connectorSCSIFC{
 			common: common,
 		}, nil
 

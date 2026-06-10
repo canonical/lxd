@@ -1514,15 +1514,11 @@ func (d *powerstore) ensureHost() (hostID string, cleanup revert.Hook, err error
 		}
 
 		// The storage host entry with a qualified name of the current LXD host does not exist.
-		// Therefore, create a new one and name it after the server name.
-		serverName, err := ResolveServerName(d.state.ServerName)
+		// Therefore, create a new one and name it after the resolved server name.
+		hostname, err := ResolveServerNameWithConnectorType(d.state.ServerName, connector.Type())
 		if err != nil {
 			return "", nil, err
 		}
-
-		// Append the mode to the server name because storage array does not allow mixing
-		// NQNs, IQNs, and WWNs for a single host.
-		hostname := serverName + "-" + connector.Type()
 
 		hostID, err = client.CreateHost(hostname, connector.Type(), qn)
 		if err != nil {
@@ -1630,8 +1626,8 @@ func (d *powerstore) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 
 	reverter.Add(cleanup)
 
-	// Ensure the volume is connected to the host.
-	connCreated, err := client.AttachVolumeToHost(volID, hostID)
+	// Ensure the volume is connected to the host, obtaining the assigned LUN.
+	lun, connCreated, err := client.AttachVolumeToHost(volID, hostID)
 	if err != nil {
 		return nil, fmt.Errorf("Failed attaching volume %q to host: %w", vol.name, err)
 	}
@@ -1651,7 +1647,13 @@ func (d *powerstore) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 
 	// Connect to the array.
 	for qualifiedName, addresses := range targets {
-		connReverter, err := connector.Connect(d.state.ShutdownCtx, qualifiedName, addresses...)
+		var connReverter revert.Hook
+		if connector.Transport() == connectors.TransportFC {
+			connReverter, err = connector.Connect(d.state.ShutdownCtx, qualifiedName, strconv.Itoa(lun))
+		} else {
+			connReverter, err = connector.Connect(d.state.ShutdownCtx, qualifiedName, addresses...)
+		}
+
 		if err != nil {
 			return nil, err
 		}

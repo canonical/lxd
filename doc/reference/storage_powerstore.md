@@ -4,9 +4,9 @@
 Dell PowerStore is a storage solution from [Dell Technologies](https://www.dell.com/).
 It offers the consumption of block storage across the network.
 
-LXD supports connecting to PowerStore storage through {abbr}`iSCSI` (Internet Small Computer Systems Interface).
+LXD supports connecting to PowerStore storage through {abbr}`iSCSI` (Internet Small Computer Systems Interface) or {abbr}`FC` (Fibre Channel).
 
-Ensure that the required kernel modules and the iSCSI CLI (`iscsiadm`) are installed on your host system.
+For iSCSI, ensure that the required kernel modules and the iSCSI CLI (`iscsiadm`) are installed on your host system.
 
 ## Terminology
 
@@ -28,8 +28,9 @@ This driver provides remote storage.
 As a result, and depending on the internal network, storage access might be a bit slower compared to local storage.
 On the other hand, using remote storage has significant advantages in a cluster setup: all cluster members have access to the same storage pools with the exact same contents, without requiring the storage pools to be synchronized between members.
 
-When a volume is first mapped to the LXD host, LXD discovers the available targets from the PowerStore array and connects to them.
-Alternatively, you can specify the targets with {config:option}`storage-powerstore-pool-conf:powerstore.target`.
+For iSCSI, when a volume is first mapped to the LXD host, LXD discovers the available targets from the PowerStore array and connects to them.
+You can optionally restrict connections to specific targets using {config:option}`storage-powerstore-pool-conf:powerstore.target`.
+For Fibre Channel, targets are discovered automatically through the FC {abbr}`HBA` (Host Bus Adapter). The {config:option}`storage-powerstore-pool-conf:powerstore.target` option does not apply to FC mode.
 
 Volume snapshots are supported by PowerStore.
 When a volume with at least one snapshot is copied, LXD sequentially creates snapshots on the destination volume from snapshots on the source volume.
