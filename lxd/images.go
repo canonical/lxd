@@ -219,10 +219,24 @@ func validateImageFingerprintPrefix(prefix string) error {
 	}
 
 	// Prefixes containing non-hex or uppercase characters can never match an image.
-	for _, b := range []byte(prefix) {
-		if (b < '0' || b > '9') && (b < 'a' || b > 'f') {
-			return api.NewStatusError(http.StatusBadRequest, "Image fingerprint prefix must contain only lowercase hexadecimal characters")
-		}
+	err := validate.IsLowercaseHex(prefix)
+	if err != nil {
+		return api.StatusErrorf(http.StatusBadRequest, "Failed validating image fingerprint: %w", err)
+	}
+
+	return nil
+}
+
+// validateImageFingerprint validates that the given string is exactly 64 characters long and contains only lowercase hex characters.
+func validateImageFingerprint(fingerprint string) error {
+	if len(fingerprint) != 64 {
+		return api.NewStatusError(http.StatusBadRequest, "Image fingerprint must contain 64 characters")
+	}
+
+	// Prefixes containing non-hex or uppercase characters can never match an image.
+	err := validate.IsLowercaseHex(fingerprint)
+	if err != nil {
+		return api.StatusErrorf(http.StatusBadRequest, "Failed validating image fingerprint: %w", err)
 	}
 
 	return nil
