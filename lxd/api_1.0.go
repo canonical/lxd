@@ -1298,7 +1298,13 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 				return util.HTTPClient("", d.proxy)
 			}
 
-			sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, newClusterConfig.OIDCSessionExpiry)
+			expiryFunc := func() string {
+				d.globalConfigMu.Lock()
+				defer d.globalConfigMu.Unlock()
+				return d.globalConfig.OIDCSessionExpiry()
+			}
+
+			sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, expiryFunc)
 			oidcVerifier, err := oidc.NewVerifier(s.ShutdownCtx, oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, oidcDeviceClientID, newClusterConfig.ClusterUUID(), d.endpoints.NetworkAddress(), s.CoreAuthSecrets, httpClientFunc, sessionHandler)
 			if err != nil {
 				return fmt.Errorf("Failed creating verifier: %w", err)
