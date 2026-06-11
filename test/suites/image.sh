@@ -653,3 +653,65 @@ test_image_cached() {
   lxc remote remove l2
   kill_lxd "${LXD2_DIR}"
 }
+
+test_image_with_rootfs_symlink() {
+  local tmpDir imgDir imgTar format out
+
+  for format in gnu ustar pax; do
+    sub_test "Reject top-level symlink during rootfs unpack (${format})"
+
+    imgDir=$(create_image_with_rootfs_symlink "${format}")
+    imgTar="${imgDir}/image.tar"
+
+    lxc image import "${imgTar}" --alias image-rootfs-symlink
+    lxc init image-rootfs-symlink c-symlink
+
+    # Once instance is created, create file on host FS.
+    tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+    echo "This is a file on the host FS" > "${imgDir}/hostfs.txt"
+
+    # Try pulling the file from the instance and ensure the injected symlink is not followed.
+    if out=$(lxc file pull c-symlink/hostfs.txt "${tmpDir}/hostfs.txt" 2>&1); then
+      echo "ERROR: Pulling file with a top-level rootfs symlink unexpectedly succeeded" >&2
+      exit 1
+    fi
+
+    echo "${out}" | grep -q "path escapes from parent"
+
+    # Cleanup.
+    lxc delete -f c-symlink
+    lxc image delete image-rootfs-symlink
+
+    rm -rf "${tmpDir}"
+    rm -rf "${imgDir}"
+  done
+}
+
+create_image_with_rootfs_symlink() {
+  local tarFormat tmpDir imgDir imgTar
+  tarFormat="${1:-gnu}"
+
+  # Setup directory.
+  tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+  imgDir="${tmpDir}/image"
+  imgTar="${tmpDir}/image.tar"
+
+  # Build image tarball.
+  mkdir -p "${imgDir}/rootfs"
+  printf '%s\n' "architecture: $(uname -m)" "creation_date: 1" > "${imgDir}/metadata.yaml"
+  tar \
+    --format="${tarFormat}" \
+    -cf "${imgTar}" \
+    -C "${imgDir}" .
+
+  # Append rootfs symlink to image tarball.
+  (
+    cd "${imgDir}"
+    rmdir "rootfs"
+    ln -s "${tmpDir}" "rootfs"
+    tar -f "${imgTar}" --append "./rootfs"
+  )
+
+  rm -rf "${imgDir}"
+  echo "${tmpDir}"
+}
