@@ -147,6 +147,8 @@ const (
 	ProjectReplicaModeUpdate
 	ReplicatorRunInstanceRestore
 	ReplicatorFinalize
+	ReplicatorRunVolume
+	ReplicatorRunVolumeRestore
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -402,6 +404,10 @@ func (t Type) Description() string {
 		return "Updating project replica mode"
 	case ReplicatorFinalize:
 		return "Finalizing replicator"
+	case ReplicatorRunVolume:
+		return "Replicating storage volume"
+	case ReplicatorRunVolumeRestore:
+		return "Restoring replicated volume"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -428,7 +434,8 @@ func (t Type) EntityType() entity.Type {
 	// (the entity being created is not yet referenceable).
 	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken, CustomVolumeBackupRestore,
 		InstanceStateUpdateBulk, BackupRestore, ProjectDelete, NetworkCreate, NetworkACLCreate, StorageBucketCreate,
-		NetworkZoneCreate, ProjectReplicaModeUpdate, ReplicatorRunInstanceRestore:
+		NetworkZoneCreate, ProjectReplicaModeUpdate, ReplicatorRunInstanceRestore, ReplicatorRunVolume,
+		ReplicatorRunVolumeRestore:
 		return entity.TypeProject
 
 	// Storage bucket operations.
