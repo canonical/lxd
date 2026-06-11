@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"maps"
 	"math"
 	"math/rand"
@@ -428,9 +429,18 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 		return nil
 	}
 
-	err = filepath.Walk(c.RootfsPath(), sumSize)
+	rootfsRoot, err := c.OpenRootfs()
 	if err != nil {
-		return nil, err
+		if !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
+		}
+	} else {
+		_ = rootfsRoot.Close()
+
+		err = filepath.Walk(rootfsRoot.Name(), sumSize)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Track progress creating image.
