@@ -69,10 +69,9 @@ func (d *powerflex) load() error {
 	powerFlexVersion = strings.Join(versions, " / ")
 	powerFlexLoaded = true
 
-	// Load the kernel modules of the respective connector.
-	// Ignore if the modules cannot be loaded.
-	// Support for a specific connector is checked during pool creation.
-	// When a LXD host gets rebooted this ensures that the kernel modules are still loaded.
+	// Load the kernel modules of the respective connector, ignoring those that cannot be loaded.
+	// Support for a specific connector is checked during pool creation. However, this
+	// ensures that the kernel modules are loaded, even if the host has been rebooted.
 	connector, err := d.connector()
 	if err == nil {
 		_ = connector.LoadModules()
