@@ -715,3 +715,75 @@ create_image_with_rootfs_symlink() {
   rm -rf "${imgDir}"
   echo "${tmpDir}"
 }
+
+test_image_with_templates_symlink() {
+  local tmpDir imgDir format tplListOut tplShowOut tplCreateOut tplDeleteOut expectErr
+  expectErr="openat templates: path escapes from parent"
+
+  for format in gnu ustar pax; do
+    sub_test "Reject top-level symlink for templates directory (${format})"
+
+    imgDir=$(create_image_with_templates_symlink "${format}")
+
+    # Import image and initialize container.
+    lxc image import "${imgDir}/image.tar" --alias image-templates-symlink
+    lxc init image-templates-symlink c-symlink
+
+    # Attempt creating and reading template file from the instance with injected top-level symlink.
+    if tplListOut=$(lxc config template list c-symlink 2>&1); then
+      echo "ERROR: Listing templates with a top-level symlink unexpectedly succeeded" >&2
+      exit 1
+    fi
+
+    if tplShowOut=$(lxc config template show c-symlink non-existing 2>&1); then
+      echo "ERROR: Showing a template with a top-level symlink unexpectedly succeeded" >&2
+      exit 1
+    fi
+
+    if tplCreateOut=$(lxc config template create c-symlink tpl1 2>&1); then
+      echo "ERROR: Creating a template with a top-level symlink unexpectedly succeeded" >&2
+      exit 1
+    fi
+
+    if tplDeleteOut=$(lxc config template delete c-symlink tpl1 2>&1); then
+      echo "ERROR: Deleting a template with a top-level symlink unexpectedly succeeded" >&2
+      exit 1
+    fi
+
+    echo "${tplListOut}" | grep "${expectErr}"
+    echo "${tplShowOut}" | grep "${expectErr}"
+    echo "${tplDeleteOut}" | grep "${expectErr}"
+    echo "${tplCreateOut}" | grep "${expectErr}"
+
+    lxc delete -f c-symlink
+    lxc image delete image-templates-symlink
+
+    rm -rf "${imgDir}"
+  done
+}
+
+create_image_with_templates_symlink() {
+  local tarFormat tmpDir imgDir imgTar
+  tarFormat="${1:-gnu}"
+
+  # Setup directory.
+  tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+  imgDir="${tmpDir}/image"
+  imgTar="${tmpDir}/image.tar"
+
+  mkdir -p "${imgDir}/rootfs"
+
+  # Content.
+  ln -s "${tmpDir}" "${imgDir}/templates"
+  echo "This is rootfs" > "${imgDir}/rootfs/rootfs.txt"
+  printf '%s\n' "architecture: $(uname -m)" "creation_date: 1" > "${imgDir}/metadata.yaml"
+
+  # Build combined image tarball (rootfs + metadata).
+  tar \
+    --format="${tarFormat}" \
+    -cf "${imgTar}" \
+    -C "${imgDir}" .
+
+  rm -rf "${imgDir}"
+  echo "${tmpDir}"
+}
