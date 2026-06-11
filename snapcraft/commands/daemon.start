@@ -272,6 +272,15 @@ if [ "${SNAP_BASE}" = "core26" ]; then
     echo "==> Adding missing chroot symlink for core26"
     ln -s /usr/lib/cargo/bin/coreutils/chroot /run/bin/chroot
   fi
+
+  # Force gnudd as the dd implementation
+  # dd from core26's coreutils 'iflag=direct' support is broken: https://github.com/uutils/coreutils/issues/12085
+  if [ -e /usr/lib/cargo/bin/coreutils/dd ]; then
+    GNUDD_PATH="$(command -v gnudd 2>/dev/null || true)"
+    if [ -n "${GNUDD_PATH}" ]; then
+      ln -s "${GNUDD_PATH}" /run/bin/dd
+    fi
+  fi
 fi
 
 # Setup a functional /etc
