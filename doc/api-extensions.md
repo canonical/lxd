@@ -3121,3 +3121,7 @@ Renames storage pool NVMe/TCP mode from `nvme` to `nvme/tcp`.
 ## `project_replica_mode`
 
 Adds a `replica_mode` field to projects and a new `PUT /1.0/projects/<name>/state` endpoint for promoting and demoting projects between leader and standby modes for replication.
+
+## `cluster_links_used_by`
+
+Adds a `used_by` field to `ClusterLink` resources, returned by `GET /1.0/cluster/links` (with `recursion=1`) and `GET /1.0/cluster/links/{name}`. The field lists URLs of entities that reference the cluster link, filtered by the caller's view permissions.
