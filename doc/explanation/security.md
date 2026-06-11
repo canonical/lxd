@@ -166,6 +166,11 @@ In this networking mode, the LXD host functions as a router, and static routes a
 By default, the `veth` interface created on the host has its `accept_ra` setting disabled to prevent router advertisements from the container modifying the IPv6 routing table on the LXD host.
 In addition to that, the `rp_filter` on the host is set to `1` to prevent source address spoofing for IPs that the host does not know the container has.
 
+(security-cryptography)=
+## Cryptography
+
+LXD uses cryptographic technologies to authenticate, encrypt, and decrypt communication between servers, and to verify images copied from remote servers. For details, see {ref}`authentication` and {ref}`about-images`, as well as the guides to common operations related to {ref}`lxd-server` and {ref}`images`.
+
 ## Related topics
 
 {{security_how}}
@@ -173,3 +178,4 @@ In addition to that, the `rp_filter` on the host is set to `1` to prevent source
 Explanation:
 
 - {ref}`authentication`
+- {ref}`about-images`
