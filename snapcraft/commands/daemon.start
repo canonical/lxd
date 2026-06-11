@@ -265,6 +265,15 @@ ln -s "${SNAP}/bin/ebtables-legacy" "/run/bin/ebtables"
 ln -s /usr/sbin/xtables-legacy-multi "/run/bin/ip6tables"
 ln -s /usr/sbin/xtables-legacy-multi "/run/bin/iptables"
 
+# core26 workarounds
+if [ "${SNAP_BASE}" = "core26" ]; then
+  # Add missing symlink for chroot
+  if ! command -v chroot >/dev/null && [ -e /usr/lib/cargo/bin/coreutils/chroot ]; then
+    echo "==> Adding missing chroot symlink for core26"
+    ln -s /usr/lib/cargo/bin/coreutils/chroot /run/bin/chroot
+  fi
+fi
+
 # Setup a functional /etc
 echo "==> Preparing a clean copy of /etc"
 
