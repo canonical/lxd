@@ -789,8 +789,7 @@ create_image_with_templates_symlink() {
 }
 
 test_image_with_exec_output_symlink() {
-  local tmpDir imgDir repakDir
-
+  local tmpDir opID
   tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
 
   # Export image.
@@ -818,7 +817,12 @@ test_image_with_exec_output_symlink() {
     "record-output":true
   }' | jq -r .id)
 
-  cat "${tmpDir}/exec_${opID}.stdout"
+  op=$(lxc query "/1.0/operations/${opID}")
+  echo "${op}" | jq -e '.status == "Failure"'
+  echo "${op}" | jq -e .err | grep "openat exec-output: path escapes from parent"
+
+  lxc delete -f c-repack
+  lxc image delete image-repack
 
   rm -rf "${tmpDir}"
 }
