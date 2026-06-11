@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -716,22 +715,22 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		var stdout, stderr *os.File
 
 		if post.RecordOutput {
-			// Ensure exec-output directory exists
-			execOutputDir := inst.ExecOutputPath()
-			err = os.Mkdir(execOutputDir, 0600)
-			if err != nil && !errors.Is(err, fs.ErrExist) {
+			execOutputRoot, err := inst.OpenExecOutput()
+			if err != nil {
 				return err
 			}
 
+			defer func() { _ = execOutputRoot.Close() }()
+
 			// Prepare stdout and stderr recording.
-			stdout, err = os.OpenFile(filepath.Join(execOutputDir, fmt.Sprintf("exec_%s.stdout", op.ID())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			stdout, err = execOutputRoot.OpenFile(fmt.Sprintf("exec_%s.stdout", op.ID()), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
 
 			defer func() { _ = stdout.Close() }()
 
-			stderr, err = os.OpenFile(filepath.Join(execOutputDir, fmt.Sprintf("exec_%s.stderr", op.ID())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			stderr, err = execOutputRoot.OpenFile(fmt.Sprintf("exec_%s.stderr", op.ID()), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
