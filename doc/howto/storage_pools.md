@@ -457,6 +457,35 @@ Storage pool my-powerflex-pool created
 ```
 
 ````
+````{group-tab} powerstore
+
+Create a storage pool named `my-powerstore-pool` using the {ref}`Dell PowerStore driver <storage-powerstore>`:
+
+```{terminal}
+lxc storage create my-powerstore-pool powerstore --target=vm01
+
+Storage pool my-powerstore-pool pending on member vm01
+```
+
+```{terminal}
+lxc storage create my-powerstore-pool powerstore --target=vm02
+
+Storage pool my-powerstore-pool pending on member vm02
+```
+
+```{terminal}
+lxc storage create my-powerstore-pool powerstore --target=vm03
+
+Storage pool my-powerstore-pool pending on member vm03
+```
+
+```{terminal}
+lxc storage create my-powerstore-pool powerstore powerstore.mode=scsi/fc powerstore.gateway=https://<powerstore-storage-address> powerstore.user.name=<admin-username> powerstore.user.password=<admin-password>
+
+Storage pool my-powerstore-pool created
+```
+
+````
 ````{group-tab} pure
 
 Create a storage pool named `my-purestorage-pool` using the {ref}`Pure Storage driver <storage-pure>`:
