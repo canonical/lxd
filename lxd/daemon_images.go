@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -53,6 +54,24 @@ func (d *Daemon) imageDownloadLock(fingerprint string) locking.UnlockFunc {
 	defer logger.Debugf("Lock acquired for image download of %q", fingerprint)
 
 	return locking.Lock(fmt.Sprintf("ImageDownload_%s", fingerprint))
+}
+
+func filepathSafeJoin(dir, file string) (string, error) {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return "", err
+	}
+
+	absJoined, err := filepath.Abs(filepath.Join(absDir, file))
+	if err != nil {
+		return "", err
+	}
+
+	if !strings.HasPrefix(absJoined, absDir+string(filepath.Separator)) {
+		return "", errors.New("File contains directory traversal elements")
+	}
+
+	return absJoined, nil
 }
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it
