@@ -28,3 +28,11 @@ Unit tests (no root needed):
 make check-unit
 ```
 
+## Shell script style (test/*.sh)
+
+- No trailing whitespace, and no tab characters (use spaces for indentation).
+- New `test_*` functions must be registered in `test/includes/test-groups.sh`
+  (checked by `test/lint/test-tests.sh`).
+- Avoid `grep -q` in pipelines under `set -o pipefail` (can cause SIGPIPE issues);
+  avoid `grep -v` at the end of a pipeline to test for absence of a pattern — its
+  exit code doesn't reliably reflect that.
