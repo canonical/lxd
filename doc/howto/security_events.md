@@ -48,6 +48,7 @@ Access requires appropriate permissions on the server.
 
 For general event stream usage, see {ref}`events`.
 
+(howto-security-events-loki)=
 ## Monitor security events with Loki
 
 In a production environment, forward security events to
