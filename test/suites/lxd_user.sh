@@ -58,6 +58,13 @@ test_snap_lxd_user() {
     useradd --create-home testuser --groups lxd --uid 5000
   fi
 
+  # Allow testuser to run lxd-user daemon without creating a systemd user session
+  # See https://forum.snapcraft.io/t/46210
+  loginctl enable-linger testuser
+  # Allow time for the session to be usable
+  for _ in $(seq 30); do [ -d /run/user/5000 ] && break; sleep 0.1; done
+  [ -d /run/user/5000 ]
+
   echo "==> Access the lxd-user daemon from a regular user"
   snap_lxc_user project list
 
@@ -80,5 +87,13 @@ test_snap_lxd_user() {
   lxc project delete user-5000
   lxc network delete lxdbr-5000
   rm -rf "${LXD_USER_DIR}/users/5000"
-  userdel --remove --force testuser 2>/dev/null || true
+
+  # End the user session
+  loginctl terminate-user testuser
+  loginctl disable-linger testuser
+  # Allow time for the session to end
+  for _ in $(seq 30); do [ ! -d /run/user/5000 ] && break; sleep 0.1; done
+  [ ! -d /run/user/5000 ]
+
+  userdel --remove --force testuser
 }
