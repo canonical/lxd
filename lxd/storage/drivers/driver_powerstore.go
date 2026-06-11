@@ -62,6 +62,14 @@ func (d *powerstore) load() error {
 	powerStoreVersion = strings.Join(versions, " / ")
 	powerStoreLoaded = true
 
+	// Load the kernel modules of the respective connector, ignoring those that cannot be loaded.
+	// Support for a specific connector is checked during pool creation. However, this
+	// ensures that the kernel modules are loaded, even if the host has been rebooted.
+	connector, err := d.connector()
+	if err == nil {
+		_ = connector.LoadModules()
+	}
+
 	return nil
 }
 
