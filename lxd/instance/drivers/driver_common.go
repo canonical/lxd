@@ -452,16 +452,6 @@ func (d *common) OpenTemplates() (*os.Root, error) {
 	return d.openOrCreateSubPath("templates", 0700)
 }
 
-// ExecOutputPath returns the instance's exec output path.
-func (d *common) ExecOutputPath() string {
-	return filepath.Join(d.Path(), "exec-output")
-}
-
-// RootfsPath returns the instance's rootfs path.
-func (d *common) RootfsPath() string {
-	return filepath.Join(d.Path(), "rootfs")
-}
-
 // ShmountsPath returns the instance's shared mounts path.
 func (d *common) ShmountsPath() string {
 	name := project.Instance(d.project.Name, d.name)
@@ -471,11 +461,6 @@ func (d *common) ShmountsPath() string {
 // StatePath returns the instance's state path.
 func (d *common) StatePath() string {
 	return filepath.Join(d.Path(), "state")
-}
-
-// TemplatesPath returns the instance's templates path.
-func (d *common) TemplatesPath() string {
-	return filepath.Join(d.Path(), "templates")
 }
 
 // StoragePool returns the storage pool name.
