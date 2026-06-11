@@ -171,15 +171,20 @@ func (d *powerflex) FillConfig() error {
 		}
 	}
 
-	// Exit if there already is a PowerFlex version set as this field gets auto-populated.
-	if d.config["volatile.powerflex.version"] != "" {
-		return errors.New(`Cannot set "volatile.powerflex.version" manually`)
-	}
-
 	// Retrieve and store the PowerFlex system version.
 	version, err := d.client().getVersion()
 	if err != nil {
 		return err
+	}
+
+	userProvidedVersion := d.config["volatile.powerflex.version"]
+
+	// Exit if there already is a different PowerFlex version set by the user as this field gets auto-populated.
+	// This ensures we don't overwrite a user-provided value.
+	// We have to allow setting it to support creating pools in a cluster which will trigger the creation of each member
+	// using the config which is provided in the final pool create call.
+	if userProvidedVersion != "" && userProvidedVersion != version {
+		return errors.New(`Cannot set "volatile.powerflex.version" manually`)
 	}
 
 	d.config["volatile.powerflex.version"] = version
