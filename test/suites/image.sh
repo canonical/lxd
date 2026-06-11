@@ -584,3 +584,42 @@ create_image_with_templates_symlink() {
   rm -rf "${imgDir}"
   echo "${tmpDir}"
 }
+
+test_image_with_exec_output_symlink() {
+  local tmpDir opID
+  tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+
+  # Export image.
+  lxc image export images:alpine/edge "${tmpDir}/image"
+
+  # Unpack image.
+  mkdir "${tmpDir}/repack"
+  xz -cd "${tmpDir}/image" | tar -f- -vx -C "${tmpDir}/repack"
+
+  # Create symlink for exec-output.
+  rm -rf "${tmpDir}/repack/exec-output"
+  ln -s "${tmpDir}" "${tmpDir}/repack/exec-output"
+
+  # Repack image.
+  tar -cf- -C "${tmpDir}/repack" . | xz -c > "${tmpDir}/image"
+  rm -rf "${tmpDir}/repack"
+
+  # Import image.
+  lxc image import "${tmpDir}"/* --alias image-repack
+  lxc launch image-repack c-repack
+
+  # Exec with record-output via REST API and confirm output is written to symlinked host path.
+  opID=$(lxc query -X POST /1.0/instances/c-repack/exec -d '{
+    "command":["cat", "/etc/os-release"],
+    "record-output":true
+  }' | jq -r .id)
+
+  op=$(lxc query "/1.0/operations/${opID}")
+  echo "${op}" | jq -e '.status == "Failure"'
+  echo "${op}" | jq -e .err | grep "openat exec-output: path escapes from parent"
+
+  lxc delete -f c-repack
+  lxc image delete image-repack
+
+  rm -rf "${tmpDir}"
+}
