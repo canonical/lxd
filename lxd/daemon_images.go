@@ -295,7 +295,10 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 	// Cleanup any leftover from a past attempt
 	destDir := shared.VarPath("images")
-	destName := filepath.Join(destDir, fp)
+	destName, err := filepathSafeJoin(destDir, fp)
+	if err != nil {
+		return nil, err
+	}
 
 	failure := true
 	cleanup := func() {
@@ -359,7 +362,12 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			ProgressHandler: progress,
 			Canceler:        canceler,
 			DeltaSourceRetriever: func(fingerprint string, file string) string {
-				path := shared.VarPath("images", fmt.Sprintf("%s.%s", fingerprint, file))
+				path, err := filepathSafeJoin(shared.VarPath("images"), fmt.Sprintf("%s.%s", fingerprint, file))
+				if err != nil {
+					logger.Warn("Encountered a delta file name with path traversal elements")
+					return ""
+				}
+
 				if shared.PathExists(path) {
 					return path
 				}
