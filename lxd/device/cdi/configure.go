@@ -335,8 +335,15 @@ func GenerateFromCDI(isCore bool, inst instance.Instance, cdiID ID) (*ConfigDevi
 		return nil, nil, fmt.Errorf("Failed generating CDI spec: %w", err)
 	}
 
+	rootfsRoot, err := inst.OpenRootfs()
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed opening instance rootfs: %w", err)
+	}
+
+	defer func() { _ = rootfsRoot.Close() }()
+
 	// Initialize the hooks as empty
-	hooks := &Hooks{ContainerRootFS: inst.RootfsPath()}
+	hooks := &Hooks{ContainerRootFS: rootfsRoot.Name()}
 	mounts := make([]*specs.Mount, 0)
 	configDevices := &ConfigDevices{UnixCharDevs: make([]map[string]string, 0), BindMounts: make([]map[string]string, 0)}
 
