@@ -166,9 +166,6 @@ type Instance interface {
 	OpenExecOutput() (*os.Root, error)
 	OpenRootfs() (*os.Root, error)
 	OpenTemplates() (*os.Root, error)
-	ExecOutputPath() string
-	RootfsPath() string
-	TemplatesPath() string
 	StatePath() string
 	LogFilePath() string
 	ConsoleBufferLogPath() string
