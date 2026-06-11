@@ -171,7 +171,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 		ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", effectiveParentName)
 		sysctlVal, err := util.SysctlGet(ipv4FwdPath)
 		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %w", ipv4FwdPath, err)
+			return fmt.Errorf("Error reading net sysctl %q: %w", ipv4FwdPath, err)
 		}
 
 		if sysctlVal != "1" {
@@ -185,7 +185,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", effectiveParentName)
 		sysctlVal, err := util.SysctlGet(ipv6FwdPath)
 		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %w", ipv6FwdPath, err)
+			return fmt.Errorf("Error reading net sysctl %q: %w", ipv6FwdPath, err)
 		}
 
 		if sysctlVal != "1" {
@@ -196,7 +196,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", effectiveParentName)
 		sysctlVal, err = util.SysctlGet(ipv6ProxyNdpPath)
 		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %w", ipv6ProxyNdpPath, err)
+			return fmt.Errorf("Error reading net sysctl %q: %w", ipv6ProxyNdpPath, err)
 		}
 
 		if sysctlVal != "1" {
@@ -381,7 +381,7 @@ func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 		ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", parentName)
 		err := util.SysctlSet(ipv4FwdPath, "1")
 		if err != nil {
-			return fmt.Errorf("Error setting net sysctl %s: %w", ipv4FwdPath, err)
+			return fmt.Errorf("Error setting net sysctl %q: %w", ipv4FwdPath, err)
 		}
 	}
 
@@ -390,13 +390,13 @@ func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", parentName)
 		err := util.SysctlSet(ipv6FwdPath, "1")
 		if err != nil {
-			return fmt.Errorf("Error setting net sysctl %s: %w", ipv6FwdPath, err)
+			return fmt.Errorf("Error setting net sysctl %q: %w", ipv6FwdPath, err)
 		}
 
 		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", parentName)
 		err = util.SysctlSet(ipv6ProxyNdpPath, "1")
 		if err != nil {
-			return fmt.Errorf("Error setting net sysctl %s: %w", ipv6ProxyNdpPath, err)
+			return fmt.Errorf("Error setting net sysctl %q: %w", ipv6ProxyNdpPath, err)
 		}
 	}
 

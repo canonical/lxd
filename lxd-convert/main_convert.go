@@ -903,13 +903,13 @@ func (c *cmdConvert) run(cmd *cobra.Command, args []string) error {
 		// Mount the path
 		err = unix.Mount(config.SourcePath, target, "none", unix.MS_BIND, "")
 		if err != nil {
-			return fmt.Errorf("Failed mounting %s: %w", config.SourcePath, err)
+			return fmt.Errorf("Failed mounting %q: %w", config.SourcePath, err)
 		}
 
 		// Make it read-only
 		err = unix.Mount("", target, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
 		if err != nil {
-			return fmt.Errorf("Failed making %s read-only: %w", config.SourcePath, err)
+			return fmt.Errorf("Failed making %q read-only: %w", config.SourcePath, err)
 		}
 
 		// In conversion mode, server expects the volume size hint in the request.

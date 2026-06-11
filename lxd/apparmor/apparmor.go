@@ -155,13 +155,13 @@ func deleteProfile(sysOS *sys.OS, fullName string, name string) error {
 	cachePath := filepath.Join(sysOS.AppArmorCacheDir, name)
 	err = os.Remove(cachePath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("Failed removing %s: %w", cachePath, err)
+		return fmt.Errorf("Failed removing %q: %w", cachePath, err)
 	}
 
 	profilePath := filepath.Join(aaPath, "profiles", name)
 	err = os.Remove(profilePath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("Failed removing %s: %w", profilePath, err)
+		return fmt.Errorf("Failed removing %q: %w", profilePath, err)
 	}
 
 	return nil

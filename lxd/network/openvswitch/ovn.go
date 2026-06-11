@@ -208,14 +208,14 @@ func NewOVN(nbConnection string, sslSettings func() (sslCACert string, sslClient
 			envFilePath := filepath.Join(snapDataRoot, "microovn", "ovn-env", "env", "ovn.env")
 			envFile, err := os.Open(envFilePath)
 			if err != nil {
-				return nil, fmt.Errorf("Failed opening MicroOVN env file %s: %w", envFilePath, err)
+				return nil, fmt.Errorf("Failed opening MicroOVN env file %q: %w", envFilePath, err)
 			}
 
 			defer envFile.Close()
 
 			ovnEnvVars, err := envparse.Parse(envFile)
 			if err != nil {
-				return nil, fmt.Errorf("Failed parsing MicroOVN env file %s: %w", envFilePath, err)
+				return nil, fmt.Errorf("Failed parsing MicroOVN env file %q: %w", envFilePath, err)
 			}
 
 			nbConn, ok := ovnEnvVars["OVN_NB_CONNECT"]

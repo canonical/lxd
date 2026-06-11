@@ -46,7 +46,7 @@ func setReceivedUUID(path string, UUID string) error {
 
 	f, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("Failed opening %s: %w", path, err)
+		return fmt.Errorf("Failed opening %q: %w", path, err)
 	}
 
 	defer func() { _ = f.Close() }()
