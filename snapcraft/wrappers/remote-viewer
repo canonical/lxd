@@ -4,7 +4,7 @@ run_cmd() {
     shift
 
     unset LD_LIBRARY_PATH
-    export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    export PATH="/run/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     export HOME="${SNAP_REAL_HOME}"
     export USER="${USERNAME}"
 
