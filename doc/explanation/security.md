@@ -185,6 +185,11 @@ In a production environment, you can forward security events to a centralized lo
 
 For detailed information on monitoring and configuring security events, see {ref}`howto-security-events`.
 
+(security-cryptography)=
+## Cryptography
+
+LXD uses cryptographic technologies to authenticate, encrypt, and decrypt communication between servers, and to verify images copied from remote servers. For details, see {ref}`authentication` and {ref}`about-images`, as well as the guides to common operations related to {ref}`lxd-server` and {ref}`images`.
+
 ## Related topics
 
 {{security_how}}
@@ -192,3 +197,4 @@ For detailed information on monitoring and configuring security events, see {ref
 Explanation:
 
 - {ref}`authentication`
+- {ref}`about-images`
