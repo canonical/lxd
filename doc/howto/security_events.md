@@ -5,7 +5,7 @@ myst:
 ---
 
 (howto-security-events)=
-# Monitor security events
+# How to monitor security events
 
 LXD emits security events that track authentication attempts, authorization
 decisions, and administrative changes. You can access these events through
