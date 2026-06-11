@@ -1,0 +1,31 @@
+set -ex
+
+export DEBIAN_FRONTEND=noninteractive
+
+pkgs=(
+  binutils-dev
+  build-essential
+  autoconf
+  pkg-config
+  automake
+  libtool
+  make
+  libuv1-dev
+  libsqlite3-dev
+  liblz4-dev
+  meson
+  libapparmor-dev
+  libcap-dev
+  libseccomp-dev
+  libacl1-dev
+  libudev-dev
+  git
+  ninja-build
+  shellcheck
+  jq
+  xdelta3
+  xfslibs-dev
+)
+
+apt-get update
+apt-get install -y --no-install-recommends "${pkgs[@]}"
