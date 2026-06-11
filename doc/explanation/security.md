@@ -163,6 +163,13 @@ In this networking mode, the LXD host functions as a router, and static routes a
 By default, the `veth` interface created on the host has its `accept_ra` setting disabled to prevent router advertisements from the container modifying the IPv6 routing table on the LXD host.
 In addition to that, the `rp_filter` on the host is set to `1` to prevent source address spoofing for IPs that the host does not know the container has.
 
+(security-logging)=
+## Events and logging
+
+LXD emits {ref}`events <events>` that track actions in your system.  In a production environment, you can {ref}`monitor these events with Loki <logs_loki>` or another centralized logging system to maintain a persistent audit trail.
+
+For additional logging methods, consult the {ref}`Logging <howto-security-harden-logging>` section in {ref}`howto-security-harden`. For details on metrics, including how to gather metrics with Prometheus, consult {ref}`metrics`. You can also {ref}`set up Grafana <grafana>` to visualize metrics and logging data.
+
 (security-cryptography)=
 ## Cryptography
 
