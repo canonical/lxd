@@ -163,6 +163,9 @@ type Instance interface {
 
 	// Paths.
 	Path() string
+	OpenExecOutput() (*os.Root, error)
+	OpenRootfs() (*os.Root, error)
+	OpenTemplates() (*os.Root, error)
 	ExecOutputPath() string
 	RootfsPath() string
 	TemplatesPath() string
