@@ -322,6 +322,10 @@ In this case, the server still uses the same certificate, but all API calls retu
 
 ## Related topics
 
+How-to guides:
+
+- {ref}`howto-security-harden`
+- {ref}`server-expose`
+
 {{security_exp}}
 
-{{security_how}}
