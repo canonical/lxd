@@ -228,7 +228,7 @@ jobs:
           name: coverage-unit
           path: ${{env.GOCOVERDIR}}
           retention-days: 1
-        if: env.GOCOVERDIR != ''
+        if: env.GOCOVERDIR != '' && github.repository == 'canonical/lxd'
 
       - name: Prime cache with external test images
         uses: ./.github/actions/download-images
@@ -505,7 +505,7 @@ jobs:
           name: coverage-${{ steps.sanitize.outputs.artifact_name }}
           path: ${{ env.GOCOVERDIR }}
           retention-days: 1
-        if: env.GOCOVERDIR != ''
+        if: env.GOCOVERDIR != '' && github.repository == 'canonical/lxd'
 
       - name: Tmate debugging session
         if: ${{ failure() && inputs.tmate-debug }}
@@ -806,7 +806,7 @@ jobs:
           name: coverage-${{ steps.sanitize.outputs.artifact_name }}
           path: ${{ env.GOCOVERDIR }}
           retention-days: 1
-        if: env.GOCOVERDIR != ''
+        if: env.GOCOVERDIR != '' && github.repository == 'canonical/lxd'
 
       - name: Tmate debugging session
         if: ${{ failure() && inputs.tmate-debug }}
@@ -1032,7 +1032,7 @@ jobs:
           name: coverage-clients-${{ runner.os }}
           path: ${{env.GOCOVERDIR}}
           retention-days: 1
-        if: env.GOCOVERDIR != ''
+        if: env.GOCOVERDIR != '' && github.repository == 'canonical/lxd'
 
       - name: Upload lxc client artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -1242,7 +1242,7 @@ jobs:
           name: coverage-ui-e2e-tests
           path: ${{env.GOCOVERDIR}}
           retention-days: 1
-        if: env.GOCOVERDIR != ''
+        if: env.GOCOVERDIR != '' && github.repository == 'canonical/lxd'
 
   documentation:
     name: Documentation
