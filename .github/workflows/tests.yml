@@ -93,7 +93,7 @@ jobs:
 
       - name: Dependency Review
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.repository == 'canonical/lxd'
 
       # XXX: `make static-analysis` also run shellcheck but this one provides
       #      useful feedback in the PR through github-code-scanning bot
