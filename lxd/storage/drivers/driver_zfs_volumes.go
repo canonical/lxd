@@ -2563,6 +2563,11 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 		return nil, fmt.Errorf("Unexpected duplicate volume %q found", volName)
 	}
 
+	err = scanner.Err()
+	if err != nil {
+		return nil, fmt.Errorf("Failed scanning volume list: %w", err)
+	}
+
 	errMsg, err := io.ReadAll(stderr)
 	if err != nil {
 		return nil, err
