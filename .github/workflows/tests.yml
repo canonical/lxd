@@ -1346,7 +1346,7 @@ jobs:
     name: Trigger snap edge build
     runs-on: ubuntu-24.04
     needs: [code-tests, system-tests, client, documentation]
-    if: ${{ github.repository_owner == 'canonical' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
+    if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
     env:
       SSH_AUTH_SOCK: /tmp/ssh_agent.sock
       PACKAGE: "lxd"
