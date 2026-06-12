@@ -2053,3 +2053,57 @@ func replicateVolume(ctx context.Context, s *state.State, vol replicatorVolume, 
 
 	return nil
 }
+
+// restoreVolume pushes one custom volume back to the source cluster from the promoted target with
+// an incremental refresh. The source pool must already exist.
+func restoreVolume(ctx context.Context, s *state.State, vol api.StorageVolume, projectName string, localMemberAddress string, dstMember string, srcClient lxd.InstanceServer) error {
+	// On a non-clustered standby the member address is the wildcard sentinel; resolve a
+	// concrete address so the local push connection can reach this server, mirroring the
+	// instance restore path.
+	if util.IsWildCardAddress(localMemberAddress) || localMemberAddress == "" {
+		localMemberAddress = s.LocalConfig.ClusterAddress()
+		if util.IsWildCardAddress(localMemberAddress) || localMemberAddress == "" {
+			localMemberAddress = s.LocalConfig.HTTPSAddress()
+		}
+	}
+
+	if util.IsWildCardAddress(localMemberAddress) || localMemberAddress == "" {
+		return fmt.Errorf("Cannot restore volume %q: configure a concrete address using cluster.https_address or core.https_address", vol.Name)
+	}
+
+	// Use a cluster-notify connection rather than the unix socket; the standby guard on
+	// the storage volume create endpoint rejects unix-socket requests even for the
+	// replicator itself, whereas a notify connection bypasses that check.
+	localClient, err := lxdCluster.Connect(ctx, localMemberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+	if err != nil {
+		return fmt.Errorf("Failed connecting to local server for volume %q: %w", vol.Name, err)
+	}
+
+	localClient = localClient.UseProject(projectName)
+	srcClient = srcClient.UseProject(projectName)
+
+	// Co-place an exclusively-attached volume on the member its owning instance restores to;
+	// empty means no local owner was found, so the scheduler decides placement.
+	if dstMember != "" {
+		localClient = localClient.UseTarget(dstMember)
+	}
+
+	copyOp, err := localClient.CopyStoragePoolVolume(vol.Pool, srcClient, vol.Pool, vol, &lxd.StoragePoolVolumeCopyArgs{
+		Mode:    "push",
+		Refresh: true,
+	})
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Storage pool %q does not exist on the source cluster: %w", vol.Pool, err)
+		}
+
+		return fmt.Errorf("Failed starting restore of volume %q: %w", vol.Name, err)
+	}
+
+	err = copyOp.Wait()
+	if err != nil {
+		return fmt.Errorf("Restore of volume %q failed: %w", vol.Name, err)
+	}
+
+	return nil
+}
