@@ -1247,7 +1247,7 @@ jobs:
   documentation:
     name: Documentation
     runs-on: ubuntu-24.04
-    if: github.event_name == 'workflow_dispatch' || github.repository_owner == 'canonical'
+    if: ${{ github.event_name != 'schedule' || github.repository_owner == 'canonical' }}
     needs: code-tests
     steps:
       - name: Checkout
