@@ -51,18 +51,18 @@ runs:
         fi
 
         # Build from unpacked dist tarball.
-        cd /home/runner/work/lxd/lxd-test
+        cd "${GITHUB_WORKSPACE}/../lxd-test"
         make deps
 
         # Include dqlite libs in dependencies for system tests.
         mkdir -p /home/runner/go/bin/dqlite
-        mv /home/runner/work/lxd/lxd-test/vendor/dqlite/include /home/runner/go/bin/dqlite/include
-        mv /home/runner/work/lxd/lxd-test/vendor/dqlite/.libs /home/runner/go/bin/dqlite/libs
+        mv "${GITHUB_WORKSPACE}/../lxd-test/vendor/dqlite/include" /home/runner/go/bin/dqlite/include
+        mv "${GITHUB_WORKSPACE}/../lxd-test/vendor/dqlite/.libs" /home/runner/go/bin/dqlite/libs
 
         # Include liblxc libs in dependencies for system tests.
         mkdir -p /home/runner/go/bin/liblxc
-        mv /home/runner/work/lxd/lxd-test/vendor/liblxc/include /home/runner/go/bin/liblxc/include
-        mv /home/runner/work/lxd/lxd-test/vendor/liblxc/lib /home/runner/go/bin/liblxc/libs
+        mv "${GITHUB_WORKSPACE}/../lxd-test/vendor/liblxc/include" /home/runner/go/bin/liblxc/include
+        mv "${GITHUB_WORKSPACE}/../lxd-test/vendor/liblxc/lib" /home/runner/go/bin/liblxc/libs
 
         # liblxc requires a rootfs dir
         mkdir -p /home/runner/go/bin/liblxc/rootfs
