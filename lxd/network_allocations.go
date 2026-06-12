@@ -135,16 +135,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// If project "foo" is provided but "foo" has `features.networks=false`, then we'll be returning IP allocations
-	// from the default project. In this case, "default" is set as the effective project on the request.Info in the
-	// context of the auth check. This tells the fine-grained auth driver to overwrite "foo" in the URL with "default"
-	// so it can find the actual entity.
-	//
-	// When performing auth checks for instances, the network feature has no relevance, so we need the authorizer to
-	// ignore the effective project. If we didn't do this, URLs would have the project parameter rewritten to "default"
-	// and the authorizer would either not be able to find an entity with that URL, or perform an auth check against an
-	// incorrect entity.
-	canViewInstanceIgnoringEffectiveProject, err := s.Authorizer.GetPermissionCheckerWithoutEffectiveProject(r.Context(), auth.EntitlementCanView, entity.TypeInstance)
+	canViewInstance, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeInstance)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -225,7 +216,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 					} else {
 						allocationType = "instance"
 						usedByURL := api.NewURL().Path(version.APIVersion, "instances", lease.Hostname).Project(lease.Project)
-						if !canViewInstanceIgnoringEffectiveProject(usedByURL) {
+						if !canViewInstance(usedByURL) {
 							continue
 						}
 
