@@ -413,8 +413,8 @@ jobs:
     # avoid runaway test burning 6 hours of CI
     timeout-minutes: 60
     permissions:
-      # need that to manipulate caches
-      actions: write
+      actions: write  # to manipulate caches
+      contents: read  # for private repos or higher API rate limits
     strategy:
       fail-fast: false
       matrix:
