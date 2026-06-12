@@ -5786,6 +5786,14 @@ test_clustering_replicator_basic() {
   printf 'description: "Updated description"\nconfig:\n  cluster: lxd_two\n' | LXD_DIR="${LXD_ONE_DIR}" lxc replicator edit my-replicator --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator show my-replicator --project replicator-project | grep -F 'Updated description'
 
+  sub_test "Verify duplicate cluster link target is rejected"
+
+  # Creating a second replicator in the same project that targets the same cluster link must fail.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator-2 cluster=lxd_two --project replicator-project 2>&1)" = 'Error: A replicator targeting cluster link "lxd_two" already exists in project "replicator-project"' ]
+
+  # Re-saving the existing replicator with its own unchanged cluster link must still succeed (no false positive).
+  printf 'description: "Updated description"\nconfig:\n  cluster: lxd_two\n' | LXD_DIR="${LXD_ONE_DIR}" lxc replicator edit my-replicator --project replicator-project
+
   sub_test "Verify direct instance creation is blocked in standby project"
 
   if CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c1-standby-bypass --project replicator-project 2>/dev/null; then
