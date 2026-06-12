@@ -69,10 +69,9 @@ func (d *powerflex) load() error {
 	powerFlexVersion = strings.Join(versions, " / ")
 	powerFlexLoaded = true
 
-	// Load the kernel modules of the respective connector.
-	// Ignore if the modules cannot be loaded.
-	// Support for a specific connector is checked during pool creation.
-	// When a LXD host gets rebooted this ensures that the kernel modules are still loaded.
+	// Load the kernel modules of the respective connector, ignoring those that cannot be loaded.
+	// Support for a specific connector is checked during pool creation. However, this
+	// ensures that the kernel modules are loaded, even if the host has been rebooted.
 	connector, err := d.connector()
 	if err == nil {
 		_ = connector.LoadModules()
@@ -104,7 +103,7 @@ func (d *powerflex) isRemote() bool {
 // hasThinCloneSupport returns true if the PowerFlex system version supports thin clones.
 // This is true for all PowerFlex version starting with 5.0.
 func (d *powerflex) hasThinCloneSupport() bool {
-	powerFlexVersion, err := version.NewDottedVersion(d.config["powerflex.version"])
+	powerFlexVersion, err := version.NewDottedVersion(d.config["volatile.powerflex.version"])
 	if err != nil {
 		return false
 	}
@@ -172,18 +171,23 @@ func (d *powerflex) FillConfig() error {
 		}
 	}
 
-	// Exit if there already is a PowerFlex version set as this field gets auto-populated.
-	if d.config["powerflex.version"] != "" {
-		return errors.New(`Cannot set "powerflex.version" manually`)
-	}
-
 	// Retrieve and store the PowerFlex system version.
 	version, err := d.client().getVersion()
 	if err != nil {
 		return err
 	}
 
-	d.config["powerflex.version"] = version
+	userProvidedVersion := d.config["volatile.powerflex.version"]
+
+	// Exit if there already is a different PowerFlex version set by the user as this field gets auto-populated.
+	// This ensures we don't overwrite a user-provided value.
+	// We have to allow setting it to support creating pools in a cluster which will trigger the creation of each member
+	// using the config which is provided in the final pool create call.
+	if userProvidedVersion != "" && userProvidedVersion != version {
+		return errors.New(`Cannot set "volatile.powerflex.version" manually`)
+	}
+
+	d.config["volatile.powerflex.version"] = version
 	return nil
 }
 
@@ -328,7 +332,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  shortdesc: Size/quota of the storage volume
 		//  scope: global
 		"volume.size": validate.Optional(validate.IsMultipleOfUnit("1GiB")),
-		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=powerflex.version)
+		// lxdmeta:generate(entities=storage-powerflex; group=pool-conf; key=volatile.powerflex.version)
 		// This field is automatically populated after querying the PowerFlex version.
 		// It cannot be set by the user.
 		// ---
@@ -336,7 +340,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		//  defaultdesc: Discovered version
 		//  shortdesc: Software version of the PowerFlex array.
 		//  scope: global
-		"powerflex.version": validate.Optional(validate.IsDottedVersion),
+		"volatile.powerflex.version": validate.Optional(validate.IsDottedVersion),
 	}
 
 	err := d.validatePool(config, rules, d.commonVolumeRules())
@@ -346,8 +350,8 @@ func (d *powerflex) Validate(config map[string]string) error {
 
 	// Ensure powerflex.mode cannot be changed to avoid leaving volume mappings
 	// and to prevent disturbing running instances.
-	// Ensure powerflex.version cannot be changed.
-	immutableKeys := []string{"powerflex.mode", "powerflex.version"}
+	// Ensure volatile.powerflex.version cannot be changed.
+	immutableKeys := []string{"powerflex.mode", "volatile.powerflex.version"}
 	for _, key := range immutableKeys {
 		newVal := config[key]
 		oldVal := d.config[key]

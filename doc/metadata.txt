@@ -6340,15 +6340,6 @@ Must have at least SystemAdmin role to give LXD full control over managed storag
 
 ```
 
-```{config:option} powerflex.version storage-powerflex-pool-conf
-:defaultdesc: "Discovered version"
-:scope: "global"
-:shortdesc: "Software version of the PowerFlex array."
-:type: "string"
-This field is automatically populated after querying the PowerFlex version.
-It cannot be set by the user.
-```
-
 ```{config:option} rsync.bwlimit storage-powerflex-pool-conf
 :defaultdesc: "`0` (no limit)"
 :scope: "global"
@@ -6364,6 +6355,15 @@ to be placed on the socket I/O.
 :shortdesc: "Whether to use compression while migrating storage pools"
 :type: "bool"
 
+```
+
+```{config:option} volatile.powerflex.version storage-powerflex-pool-conf
+:defaultdesc: "Discovered version"
+:scope: "global"
+:shortdesc: "Software version of the PowerFlex array."
+:type: "string"
+This field is automatically populated after querying the PowerFlex version.
+It cannot be set by the user.
 ```
 
 ```{config:option} volume.size storage-powerflex-pool-conf

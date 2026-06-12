@@ -233,11 +233,15 @@ func storagePoolDriversCacheUpdate(ctx context.Context, s *state.State) {
 	supportedDrivers := make([]api.ServerStorageDriverInfo, 0, len(info))
 
 	for _, entry := range info {
-		supportedDrivers = append(supportedDrivers, api.ServerStorageDriverInfo{
-			Name:    entry.Name,
-			Version: entry.Version,
-			Remote:  entry.Remote,
-		})
+		// If an empty version is reported by the driver that is an indicator that
+		// the driver (or its dependencies) are not available on this system.
+		if entry.Version != "" {
+			supportedDrivers = append(supportedDrivers, api.ServerStorageDriverInfo{
+				Name:    entry.Name,
+				Version: entry.Version,
+				Remote:  entry.Remote,
+			})
+		}
 
 		if slices.Contains(drivers, entry.Name) {
 			usedDrivers[entry.Name] = entry.Version
