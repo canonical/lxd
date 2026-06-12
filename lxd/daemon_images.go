@@ -26,6 +26,7 @@ import (
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -355,6 +356,12 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		return info, nil
 	}
 
+	// Validate the protocol. This is after handling cached images to allow previously downloaded images that were
+	// retrieved using the now deprecated "direct" protocol.
+	if !slices.Contains([]string{"lxd", "simplestreams"}, protocol) {
+		return nil, fmt.Errorf("Unsupported protocol: %v", protocol)
+	}
+
 	// Begin downloading
 	if op != nil {
 		l = l.AddContext(logger.Ctx{"trigger": op.URL(), "operation": op.ID()})
@@ -363,17 +370,35 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 	l.Info("Downloading image")
 
 	// Cleanup any leftover from a past attempt
-	destDir := s.ImagesStoragePath(args.ProjectName)
-	destName := filepath.Join(destDir, fp)
-
-	failure := true
-	cleanup := func() {
-		if failure {
-			_ = os.Remove(destName)
-			_ = os.Remove(destName + ".rootfs")
-		}
+	destRoot, err := os.OpenRoot(s.ImagesStoragePath(args.ProjectName))
+	if err != nil {
+		return nil, err
 	}
-	defer cleanup()
+
+	defer func() { _ = destRoot.Close() }()
+
+	destFile, err := destRoot.Create(fp)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = destFile.Close() }()
+
+	destRootfsFileName := fp + ".rootfs"
+	destRootfsFile, err := destRoot.Create(destRootfsFileName)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = destRootfsFile.Close() }()
+
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	reverter.Add(func() {
+		_ = destRoot.Remove(fp)
+		_ = destRoot.Remove(destRootfsFileName)
+	})
 
 	// Setup a progress handler
 	var progress ioprogress.ProgressHandler
@@ -386,92 +411,72 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		canceler = cancel.NewHTTPRequestCancellerWithContext(ctx)
 	}
 
-	switch protocol {
-	case "lxd", "simplestreams":
-		// Create the target files
-		dest, err := os.Create(destName)
-		if err != nil {
-			return nil, err
-		}
+	// Compatibility with older LXD servers
+	if info.Type == "" {
+		info.Type = "container"
+	}
 
-		defer func() { _ = dest.Close() }()
+	if args.Budget > 0 && info.Size > args.Budget {
+		return nil, fmt.Errorf("Remote image with size %d exceeds allowed bugdget of %d", info.Size, args.Budget)
+	}
 
-		destRootfs, err := os.Create(destName + ".rootfs")
-		if err != nil {
-			return nil, err
-		}
-
-		defer func() { _ = destRootfs.Close() }()
-
-		// Compatibility with older LXD servers
-		if info.Type == "" {
-			info.Type = "container"
-		}
-
-		if args.Budget > 0 && info.Size > args.Budget {
-			return nil, fmt.Errorf("Remote image with size %d exceeds allowed bugdget of %d", info.Size, args.Budget)
-		}
-
-		// Download the image
-		var resp *lxd.ImageFileResponse
-		request := lxd.ImageFileRequest{
-			MetaFile:        io.WriteSeeker(dest),
-			RootfsFile:      io.WriteSeeker(destRootfs),
-			ProgressHandler: progress,
-			Canceler:        canceler,
-			DeltaSourceRetriever: func(fingerprint string, file string) string {
-				path := filepath.Join(destDir, fingerprint+"."+file)
-				if shared.PathExists(path) {
-					return path
-				}
-
-				return ""
-			},
-		}
-
-		if args.Secret != "" {
-			resp, err = remote.GetPrivateImageFile(fp, args.Secret, request)
-		} else {
-			resp, err = remote.GetImageFile(fp, request)
-		}
-
-		if err != nil {
-			return nil, err
-		}
-
-		// Truncate down to size
-		if resp.RootfsSize > 0 {
-			err = destRootfs.Truncate(resp.RootfsSize)
-			if err != nil {
-				return nil, err
+	// Download the image
+	var resp *lxd.ImageFileResponse
+	imageFileRequest := lxd.ImageFileRequest{
+		MetaFile:        io.WriteSeeker(destFile),
+		RootfsFile:      io.WriteSeeker(destRootfsFile),
+		ProgressHandler: progress,
+		Canceler:        canceler,
+		DeltaSourceRetriever: func(fingerprint string, file string) string {
+			filename := fingerprint + "." + file
+			_, err := destRoot.Lstat(filename)
+			if err == nil {
+				return filepath.Join(destRoot.Name(), filename)
 			}
-		}
 
-		err = dest.Truncate(resp.MetaSize)
+			return ""
+		},
+	}
+
+	if args.Secret != "" {
+		resp, err = remote.GetPrivateImageFile(fp, args.Secret, imageFileRequest)
+	} else {
+		resp, err = remote.GetImageFile(fp, imageFileRequest)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Truncate down to size
+	if resp.RootfsSize > 0 {
+		err = destRootfsFile.Truncate(resp.RootfsSize)
 		if err != nil {
 			return nil, err
 		}
+	}
 
-		// Deal with unified images
-		if resp.RootfsSize == 0 {
-			err := os.Remove(destName + ".rootfs")
-			if err != nil {
-				return nil, err
-			}
-		}
+	err = destFile.Truncate(resp.MetaSize)
+	if err != nil {
+		return nil, err
+	}
 
-		err = dest.Close()
+	// Deal with unified images
+	if resp.RootfsSize == 0 {
+		err := destRoot.Remove(destRootfsFileName)
 		if err != nil {
 			return nil, err
 		}
+	}
 
-		err = destRootfs.Close()
-		if err != nil {
-			return nil, err
-		}
+	err = destFile.Close()
+	if err != nil {
+		return nil, err
+	}
 
-	default:
-		return nil, fmt.Errorf("Unsupported protocol: %v", protocol)
+	err = destRootfsFile.Close()
+	if err != nil {
+		return nil, err
 	}
 
 	// Override visiblity
@@ -493,21 +498,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 	}
 
 	// Image is in the DB now, don't wipe on-disk files on failure
-	failure = false
-
-	// Check if the image path changed (private images)
-	newDestName := filepath.Join(destDir, fp)
-	if newDestName != destName {
-		err = shared.FileMove(destName, newDestName)
-		if err != nil {
-			return nil, err
-		}
-
-		err = shared.FileMove(destName+".rootfs", newDestName+".rootfs")
-		if err != nil && !os.IsNotExist(err) {
-			return nil, err
-		}
-	}
+	reverter.Success()
 
 	// Record the image source
 	if alias != fp {
