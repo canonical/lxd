@@ -190,29 +190,7 @@ func (e *embeddedOpenFGA) GetViewableProjects(ctx context.Context, permissions [
 	return projects, nil
 }
 
-// CheckPermission checks if the current requestor has the given entitlement on the given entity URL.
-func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
-	return e.checkPermission(ctx, entityURL, entitlement, true)
-}
-
-// CheckPermissionWithoutEffectiveProject checks a permission without considering the effective project that is set in
-// the request context.
-func (e *embeddedOpenFGA) CheckPermissionWithoutEffectiveProject(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
-	return e.checkPermission(ctx, entityURL, entitlement, false)
-}
-
-// GetPermissionChecker returns an auth.PermissionChecker for the OpenFGA authorization driver.
-func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
-	return e.getPermissionChecker(ctx, entitlement, entityType, true)
-}
-
-// GetPermissionCheckerWithoutEffectiveProject returns an auth.PermissionChecker that does not consider the effective
-// project that is set in the request context.
-func (e *embeddedOpenFGA) GetPermissionCheckerWithoutEffectiveProject(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
-	return e.getPermissionChecker(ctx, entitlement, entityType, false)
-}
-
-// checkPermission checks whether the user who sent the request has the given entitlement on the given entity using the
+// CheckPermission checks whether the user who sent the request has the given entitlement on the given entity using the
 // embedded OpenFGA server. A http.StatusNotFound error is returned when the entity does not exist, or when the entity
 // exists but the caller does not have permission to view it. A http.StatusForbidden error is returned if the caller has
 // permission to view the entity, but does not have the given entitlement.
@@ -227,7 +205,7 @@ func (e *embeddedOpenFGA) GetPermissionCheckerWithoutEffectiveProject(ctx contex
 // authorization check, but will not automatically allow "punching through" to the effective (default) project. An
 // administrator can allow specific permissions against those entities. This behaviour is turned off when
 // checkEffectiveProject is false.
-func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement, checkEffectiveProject bool) error {
+func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
 	entityType, projectName, location, pathArguments, err := entity.ParseURL(entityURL.URL)
 	if err != nil {
 		return fmt.Errorf("Failed parsing entity URL: %w", err)
@@ -266,15 +244,6 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 
 	// Combine the users LXD groups with any mappings that have come from the IDP.
 	groups := requestor.CallerEffectiveAuthorizationGroupNames()
-	if checkEffectiveProject {
-		// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
-		// will fail because the resource doesn't actually exist in that project. To correct this, we use the effective project from
-		// the request context if present.
-		effectiveProject, _ := request.GetContextValue[string](ctx, request.CtxEffectiveProjectName)
-		if effectiveProject != "" {
-			projectName = effectiveProject
-		}
-	}
 
 	// Construct the URL in a standardised form (adding the project parameter if it was not present).
 	entityURL, err = entityType.URL(projectName, location, pathArguments...)
@@ -403,13 +372,8 @@ func (e *embeddedOpenFGA) checkPermission(ctx context.Context, entityURL *api.UR
 	return nil
 }
 
-// getPermissionChecker returns an auth.PermissionChecker using the embedded OpenFGA server.
-//
-// Note: As with checkPermission, we need to be careful about the usage of this function for entity types that may not
-// be enabled within a project. If the effective project must be considered, then it must be set on the request.Info
-// before the returned auth.PermissionChecker is called. If checkEffectiveProject is false, the effective project is not
-// considered.
-func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type, checkEffectiveProject bool) (auth.PermissionChecker, error) {
+// GetPermissionChecker returns an auth.PermissionChecker using the embedded OpenFGA server.
+func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
 	logCtx := logger.Ctx{"entity_type": entityType, "entitlement": entitlement}
 
 	// allowFunc is used to allow/disallow all.
@@ -535,16 +499,6 @@ func (e *embeddedOpenFGA) getPermissionChecker(ctx context.Context, entitlement 
 		if parsedEntityType != entityType {
 			l.Error("Unexpected permission checker input URL", logger.Ctx{"expected_entity_type": entityType, "actual_entity_type": parsedEntityType, "url": entityURL.String()})
 			return false
-		}
-
-		if checkEffectiveProject {
-			// The project in the given URL may be for a project that does not have a feature enabled, in this case the auth check
-			// will fail because the resource doesn't actually exist in that project. To correct this, we use the effective project from
-			// the request context if present.
-			effectiveProject, _ := request.GetContextValue[string](ctx, request.CtxEffectiveProjectName)
-			if effectiveProject != "" {
-				projectName = effectiveProject
-			}
 		}
 
 		standardisedEntityURL, err := entityType.URL(projectName, location, pathArguments...)
