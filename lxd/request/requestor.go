@@ -170,6 +170,15 @@ func (r *Requestor) CallerIdentityType() (identity.Type, error) {
 	return r.identityType, nil
 }
 
+// IsIdentityType returns true if the given identity type matches the name of requestor's [identity.Type].
+func (r *Requestor) IsIdentityType(idType string) bool {
+	if r.identityType == nil {
+		return false
+	}
+
+	return r.identityType.Name() == idType
+}
+
 // IsForwarded returns true if the request was forwarded from another cluster member and false otherwise.
 func (r *Requestor) IsForwarded() bool {
 	return r.isForwarded
