@@ -406,6 +406,38 @@ func replicatorValidateConfig(ctx context.Context, s *state.State, config map[st
 	return nil
 }
 
+// replicatorCheckClusterLinkUnique returns an error if another replicator in the given project
+// already targets the given cluster link. excludeID should be the ID of the replicator being
+// updated, or 0 when creating a new replicator.
+func replicatorCheckClusterLinkUnique(ctx context.Context, tx *db.ClusterTx, projectName string, clusterLinkName string, excludeID int64) error {
+	replicators, _, err := dbCluster.GetReplicatorsAndURLs(ctx, tx.Tx(), &projectName, nil)
+	if err != nil {
+		return err
+	}
+
+	ids := make([]int64, 0, len(replicators))
+	for _, replicator := range replicators {
+		ids = append(ids, replicator.Row.ID)
+	}
+
+	allConfigs, err := dbCluster.ReplicatorsConfigStore().GetByEntityIDs(ctx, tx.Tx(), ids...)
+	if err != nil {
+		return fmt.Errorf("Failed loading replicator configs: %w", err)
+	}
+
+	for _, replicator := range replicators {
+		if replicator.Row.ID == excludeID {
+			continue
+		}
+
+		if allConfigs[replicator.Row.ID]["cluster"] == clusterLinkName {
+			return api.StatusErrorf(http.StatusConflict, "A replicator targeting cluster link %q already exists in project %q", clusterLinkName, projectName)
+		}
+	}
+
+	return nil
+}
+
 // swagger:operation POST /1.0/replicators replicators replicators_post
 //
 //	Add a replicator
@@ -466,6 +498,11 @@ func replicatorsPost(d *Daemon, r *http.Request) response.Response {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
 			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
+		}
+
+		err = replicatorCheckClusterLinkUnique(ctx, tx, projectName, req.Config["cluster"], 0)
+		if err != nil {
+			return err
 		}
 
 		id, err := dbCluster.CreateReplicator(ctx, tx.Tx(), dbCluster.ReplicatorRow{
@@ -729,6 +766,11 @@ func updateReplicator(d *Daemon, r *http.Request, isPatch bool) response.Respons
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = replicatorCheckClusterLinkUnique(ctx, tx, projectName, req.Config["cluster"], dbReplicator.Row.ID)
+		if err != nil {
+			return err
+		}
+
 		if !isPatch || req.Description != "" {
 			dbReplicator.Row.Description = req.Description
 		}
