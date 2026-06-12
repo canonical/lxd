@@ -1684,14 +1684,9 @@ func replicatorCheckInstancesStopped(allInsts []instance.Instance) error {
 func replicateInstance(ctx context.Context, s *state.State, op *operations.Operation, inst instance.Instance, memberAddress string, dstClient lxd.InstanceServer, targetCertPEM string) error {
 	instName := inst.Name()
 	projectName := inst.Project().Name
-	// Snapshotting is unconditional; the only exception is when the instance already has a
-	// snapshot schedule defined, since scheduled snapshots provide point-in-time history so
-	// an extra one here would be redundant.
-	createSnapshot := inst.ExpandedConfig()["snapshots.schedule"] == ""
-
 	// Instance on another cluster member: connect to the hosting cluster member and
-	// drive the snapshot (if needed) and push migration through its API so the
-	// migration source has direct access to the instance's storage.
+	// drive the push migration through its API so the migration
+	// source has direct access to the instance's storage.
 	if inst.Location() != s.ServerName {
 		if memberAddress == "" {
 			return fmt.Errorf("Failed resolving cluster member address for instance %q", instName)
@@ -1704,19 +1699,6 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		}
 
 		memberClient = memberClient.UseProject(projectName)
-
-		// Create a snapshot on the hosting cluster member if needed.
-		if createSnapshot {
-			snapOp, err := memberClient.CreateInstanceSnapshot(instName, api.InstanceSnapshotsPost{})
-			if err != nil {
-				return fmt.Errorf("Failed creating snapshot of instance %q on hosting cluster member: %w", instName, err)
-			}
-
-			err = snapOp.Wait()
-			if err != nil {
-				return fmt.Errorf("Failed waiting for snapshot of instance %q on hosting cluster member: %w", instName, err)
-			}
-		}
 
 		// Get instance metadata from the hosting cluster member.
 		srcInstInfo, _, err := memberClient.GetInstance(instName)
@@ -1776,18 +1758,6 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 	}
 
 	// Local instance: handle replication directly.
-	if createSnapshot {
-		snapName, err := instance.NextSnapshotName(s, inst, "snap%d")
-		if err != nil {
-			return fmt.Errorf("Failed generating snapshot name for instance %q: %w", instName, err)
-		}
-
-		err = inst.Snapshot(ctx, snapName, nil, false, api.DiskVolumesModeRoot, nil)
-		if err != nil {
-			return fmt.Errorf("Failed creating snapshot of instance %q: %w", instName, err)
-		}
-	}
-
 	srcRenderRes, _, err := inst.Render()
 	if err != nil {
 		return fmt.Errorf("Failed rendering source instance %q: %w", instName, err)
