@@ -41,7 +41,7 @@ echo "  ${1}"
 if [ "${USERNS}" = "0" ]; then
     echo ""
     echo "Your system has unprivileged user namespaces disabled, as a result, "
-    echo "you will need to manually run one a SPICE client with the URI above."
+    echo "you will need to manually run a SPICE client with the URI above."
     exec sleep infinity
 else
     while :; do
