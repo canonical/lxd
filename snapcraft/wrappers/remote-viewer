@@ -17,12 +17,12 @@ USERNS=1
 find_and_spawn() {
     for path in /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin; do
         if [ -x "/var/lib/snapd/hostfs/${path}/remote-viewer" ]; then
-            run_cmd remote-viewer "${1}"
+            run_cmd "${path}/remote-viewer" "${1}"
             return
         fi
 
         if [ -x "/var/lib/snapd/hostfs/${path}/spicy" ]; then
-            run_cmd spicy --uri="${1}"
+            run_cmd "${path}/spicy" --uri="${1}"
             return
         fi
     done
