@@ -1969,3 +1969,53 @@ func snapshotVolume(ctx context.Context, s *state.State, vol replicatorVolume, m
 
 	return nil
 }
+
+// replicateVolume performs an incremental push-refresh of one custom volume to the target cluster
+// from its most recent snapshot. Refresh makes a replay over an already-replicated volume safe and
+// carries the volume's existing snapshots with it. The target pool must already exist.
+func replicateVolume(ctx context.Context, s *state.State, vol replicatorVolume, memberAddress string, dstClient lxd.InstanceServer) error {
+	volName := vol.volume.Name
+
+	var sourceServer lxd.InstanceServer
+	if vol.volume.Location != "" && vol.volume.Location != s.ServerName {
+		// Volume pinned to a remote cluster member: connect to that member to drive the push.
+		if memberAddress == "" {
+			return fmt.Errorf("Failed resolving cluster member address for volume %q", volName)
+		}
+
+		var err error
+		sourceServer, err = lxdCluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+		if err != nil {
+			return fmt.Errorf("Failed connecting to hosting cluster member for volume %q: %w", volName, err)
+		}
+	} else {
+		// Volume is on this member (shared pool or locally pinned): use the local unix socket.
+		var err error
+		sourceServer, err = lxd.ConnectLXDUnix(s.OS.GetUnixSocket(), nil)
+		if err != nil {
+			return fmt.Errorf("Failed connecting to local server for volume %q: %w", volName, err)
+		}
+	}
+
+	sourceServer = sourceServer.UseProject(vol.volume.Project)
+	dstClient = dstClient.UseProject(vol.volume.Project)
+
+	copyOp, err := dstClient.CopyStoragePoolVolume(vol.volume.Pool, sourceServer, vol.volume.Pool, vol.volume.StorageVolume, &lxd.StoragePoolVolumeCopyArgs{
+		Mode:    "push",
+		Refresh: true,
+	})
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Storage pool %q does not exist on the target cluster: %w", vol.volume.Pool, err)
+		}
+
+		return fmt.Errorf("Failed starting replication of volume %q: %w", volName, err)
+	}
+
+	err = copyOp.Wait()
+	if err != nil {
+		return fmt.Errorf("Replication of volume %q failed: %w", volName, err)
+	}
+
+	return nil
+}
