@@ -900,7 +900,43 @@ func (c *cmdReplicatorInfo) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return nil
+	// The replicator also replicates the project's custom volumes, so list them alongside
+	// the instances. Each volume's used_by is returned populated by the recursive fetch.
+	// A project without features.storage.volumes owns no custom volumes; the listing would
+	// show volumes inherited from the default project that the replicator never transfers,
+	// so skip the volumes section entirely for such projects.
+	proj, _, err := resource.server.GetProject(replicator.Project)
+	if err != nil {
+		return err
+	}
+
+	if shared.IsFalse(proj.Config["features.storage.volumes"]) {
+		return nil
+	}
+
+	volumes, err := resource.server.GetVolumesWithFilter([]string{"type=custom"})
+	if err != nil {
+		return err
+	}
+
+	filteredVolumes := make([]api.StorageVolume, 0, len(volumes))
+	for _, vol := range volumes {
+		if !shared.IsSnapshot(vol.Name) {
+			filteredVolumes = append(filteredVolumes, vol)
+		}
+	}
+
+	sort.Slice(filteredVolumes, func(i, j int) bool {
+		return filteredVolumes[i].Name < filteredVolumes[j].Name
+	})
+
+	volumeData := make([][]string, 0, len(filteredVolumes))
+	for _, vol := range filteredVolumes {
+		volumeData = append(volumeData, []string{vol.Name, vol.Pool, strings.Join(vol.UsedBy, "\n")})
+	}
+
+	fmt.Println("Volumes:")
+	return cli.RenderTable(cli.TableFormatTable, []string{"NAME", "POOL", "USED BY"}, volumeData, filteredVolumes)
 }
 
 // Rename.
