@@ -1481,7 +1481,7 @@ func (d *powerflex) getVolumeName(vol Volume) (string, error) {
 	// The latter are snapshots of the original volume which stand on their own and don't use the snapshot prefix.
 	// PowerFlex 5 tracks snapshots separately from the original volume but is still using the prefix for consistency.
 	// In case the snapshot doesn't have a parent UUID, it's a thin clone of the snapshot so we don't append the prefix.
-	if vol.IsSnapshot() && vol.parentUUID != "" {
+	if vol.IsSnapshot() && vol.parentUUID != emptyParentUUID {
 		volName = powerFlexSnapshotPrefix + volName
 	}
 
