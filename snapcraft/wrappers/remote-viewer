@@ -15,13 +15,15 @@ USERNS=1
 [ -e /proc/sys/kernel/unprivileged_userns_clone ] && grep -qxF 0 /proc/sys/kernel/unprivileged_userns_clone && USERNS=0
 
 find_and_spawn() {
-    for path in / /usr/ /usr/local/; do
-        if [ -e "/var/lib/snapd/hostfs/${path}bin/remote-viewer" ] || [ -e "${path}sbin/remote-viewer" ]; then
+    for path in /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin; do
+        if [ -x "/var/lib/snapd/hostfs/${path}/remote-viewer" ]; then
             run_cmd remote-viewer "${1}"
+            return
         fi
 
-        if [ -e "/var/lib/snapd/hostfs/${path}bin/spicy" ] || [ -e "${path}sbin/spicy" ]; then
+        if [ -x "/var/lib/snapd/hostfs/${path}/spicy" ]; then
             run_cmd spicy --uri="${1}"
+            return
         fi
     done
 }
