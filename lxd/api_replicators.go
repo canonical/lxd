@@ -1955,3 +1955,51 @@ func buildVolumeWorkList(ctx context.Context, s *state.State, projectName string
 
 	return work, nil
 }
+
+// snapshotVolume takes a snapshot of a custom volume before replication. Callers must only pass
+// snapshottable volumes; the work list builder filters out volumes that must not be snapshotted.
+func snapshotVolume(ctx context.Context, s *state.State, vol replicatorVolume, memberAddress string) error {
+	// A remote/shared pool volume has no hosting member (Location ""); the local member
+	// can reach it directly, so only a member-pinned volume on another member is remote.
+	if vol.volume.Location != "" && vol.volume.Location != s.ServerName {
+		if memberAddress == "" {
+			return fmt.Errorf("Failed resolving cluster member address for volume %q", vol.volume.Name)
+		}
+
+		memberClient, err := lxdCluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+		if err != nil {
+			return fmt.Errorf("Failed connecting to hosting cluster member for volume %q: %w", vol.volume.Name, err)
+		}
+
+		memberClient = memberClient.UseProject(vol.volume.Project)
+
+		snapOp, err := memberClient.CreateStoragePoolVolumeSnapshot(vol.volume.Pool, dbCluster.StoragePoolVolumeTypeNameCustom, vol.volume.Name, api.StorageVolumeSnapshotsPost{})
+		if err != nil {
+			return fmt.Errorf("Failed creating snapshot of volume %q on hosting cluster member: %w", vol.volume.Name, err)
+		}
+
+		err = snapOp.Wait()
+		if err != nil {
+			return fmt.Errorf("Failed waiting for snapshot of volume %q on hosting cluster member: %w", vol.volume.Name, err)
+		}
+
+		return nil
+	}
+
+	pool, err := storagePools.LoadByName(s, vol.volume.Pool)
+	if err != nil {
+		return fmt.Errorf("Failed loading storage pool for volume %q: %w", vol.volume.Name, err)
+	}
+
+	snapName, err := storagePools.VolumeDetermineNextSnapshotName(ctx, s, vol.volume.Pool, vol.volume.Name, vol.volume.Config)
+	if err != nil {
+		return fmt.Errorf("Failed generating snapshot name for volume %q: %w", vol.volume.Name, err)
+	}
+
+	_, err = pool.CreateCustomVolumeSnapshot(ctx, vol.volume.Project, vol.volume.Name, snapName, "", nil, nil)
+	if err != nil {
+		return fmt.Errorf("Failed creating snapshot of volume %q: %w", vol.volume.Name, err)
+	}
+
+	return nil
+}
