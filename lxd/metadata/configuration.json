@@ -5141,14 +5141,6 @@
 							"shortdesc": "Cron expression for the replication schedule.",
 							"type": "string"
 						}
-					},
-					{
-						"snapshot": {
-							"longdesc": "",
-							"scope": "global",
-							"shortdesc": "Whether to snapshot instances before replication.",
-							"type": "bool"
-						}
 					}
 				]
 			},

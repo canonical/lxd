@@ -4604,13 +4604,6 @@ Required when creating a replicator.
 Specify a cron expression for the replication schedule. For example, `@daily` or `0 6 * * *`.
 ```
 
-```{config:option} snapshot replicator-conf
-:scope: "global"
-:shortdesc: "Whether to snapshot instances before replication."
-:type: "bool"
-
-```
-
 <!-- config group replicator-conf end -->
 <!-- config group replicator-miscellaneous start -->
 ```{config:option} user.* replicator-miscellaneous

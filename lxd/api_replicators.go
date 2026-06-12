@@ -359,14 +359,6 @@ func replicatorValidateConfig(ctx context.Context, s *state.State, config map[st
 			return s.Authorizer.CheckPermission(ctx, entity.ClusterLinkURL(value), auth.EntitlementCanView)
 		}),
 
-		// lxdmeta:generate(entities=replicator; group=conf; key=snapshot)
-		//
-		// ---
-		//  type: bool
-		//  shortdesc: Whether to snapshot instances before replication.
-		//  scope: global
-		"snapshot": validate.Optional(validate.IsBool),
-
 		// lxdmeta:generate(entities=replicator; group=conf; key=schedule)
 		// Specify a cron expression for the replication schedule. For example, `@daily` or `0 6 * * *`.
 		// ---
