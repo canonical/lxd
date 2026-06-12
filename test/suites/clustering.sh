@@ -6218,7 +6218,7 @@ test_clustering_replicator_snapshot() {
 
   # Configure replica project settings: standby sets replica.cluster, leader creates replicator.
   LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one
-  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create snap-replicator cluster=lxd_two snapshot=true --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create snap-replicator cluster=lxd_two --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
 
@@ -6231,7 +6231,7 @@ test_clustering_replicator_snapshot() {
 
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage replicator-project
 
-  sub_test "Verify snapshot=true creates a snapshot when instance has no snapshot schedule"
+  sub_test "Verify snapshotting creates a snapshot when instance has no snapshot schedule"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --project replicator-project -d "${SMALL_ROOT_DISK}"
 
@@ -6243,7 +6243,7 @@ test_clustering_replicator_snapshot() {
   # Instance and snapshot must also have been replicated to LXD_TWO.
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c1,STOPPED,1'
 
-  sub_test "Verify snapshot=true skips snapshot creation when instance has a snapshot schedule"
+  sub_test "Verify snapshotting is skipped when instance has a snapshot schedule"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 snapshots.schedule="@daily" --project replicator-project
 
@@ -6333,19 +6333,19 @@ test_clustering_replicator_multi_member() {
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
-  sub_test "Verify snapshot=true works for instances on other cluster members"
+  sub_test "Verify snapshotting works for instances on other cluster members"
 
   LXD_DIR="${LXD_THREE_DIR}" lxc delete c1 c2 --project replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc replicator set my-replicator snapshot=true --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
 
-  # Snapshots must have been created on both source instances.
-  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 1'
-  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c2/snapshots?project=replicator-project" | jq --exit-status 'length == 1'
+  # Snapshots must have been created on both source instances (the first run already took one,
+  # so each instance now has two snapshots total).
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 2'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c2/snapshots?project=replicator-project" | jq --exit-status 'length == 2'
 
   # Both instances and their snapshots must be on the target.
-  LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c1,STOPPED,1'
-  LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c2,STOPPED,1'
+  LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c1,STOPPED,2'
+  LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c2,STOPPED,2'
 
   sub_test "Verify idempotent run with instances on other cluster members"
 
@@ -6353,13 +6353,13 @@ test_clustering_replicator_multi_member() {
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
-  # Snapshot count must have incremented on both source instances after the second snapshot=true run.
-  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 2'
-  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c2/snapshots?project=replicator-project" | jq --exit-status 'length == 2'
+  # Snapshot count must have incremented on both source instances after the third run.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 3'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c2/snapshots?project=replicator-project" | jq --exit-status 'length == 3'
 
   # Target must also reflect the new snapshots.
-  LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c1,STOPPED,2'
-  LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c2,STOPPED,2'
+  LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c1,STOPPED,3'
+  LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c2,STOPPED,3'
 
   sub_test "Verify --restore rejects running instances on other members"
 
@@ -6386,8 +6386,8 @@ test_clustering_replicator_multi_member() {
   jq --exit-status '.status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   # Both instances must be present on the source cluster with their snapshots.
-  LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c1,STOPPED,2'
-  LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c2,STOPPED,2'
+  LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c1,STOPPED,3'
+  LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c2,STOPPED,3'
 
   # Verify instances were restored to their original cluster members.
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nL | grep -xF 'c1,node1'
@@ -6611,20 +6611,19 @@ test_clustering_replicator_vm() {
   # Run replicator.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run vm-replicator --project replicator-project
 
-  # VM must appear on the target cluster.
-  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ntS | grep -xF 'v1,VIRTUAL-MACHINE,0'
+  # VM must appear on the target cluster with its snapshot (the first run snapshots unconditionally).
+  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ntS | grep -xF 'v1,VIRTUAL-MACHINE,1'
 
-  sub_test "Verify VM replication with snapshot=true"
+  sub_test "Verify VM replication creates a snapshot"
 
   LXD_DIR="${LXD_TWO_DIR}" lxc delete v1 --project replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc replicator set vm-replicator snapshot=true --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run vm-replicator --project replicator-project
 
-  # A snapshot must have been created on the source VM.
-  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/v1/snapshots?project=replicator-project" | jq --exit-status 'length == 1'
+  # Source now has two snapshots: one from the first run, one from this run.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/v1/snapshots?project=replicator-project" | jq --exit-status 'length == 2'
 
-  # VM and snapshot must be on the target.
-  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ntS | grep -xF 'v1,VIRTUAL-MACHINE,1'
+  # VM and both snapshots must be on the target.
+  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ntS | grep -xF 'v1,VIRTUAL-MACHINE,2'
 
   sub_test "Verify idempotent second run for VM replication"
 
@@ -6636,11 +6635,11 @@ test_clustering_replicator_vm() {
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '.status == "Success" and ((.children // []) | length) == 1 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
-  # snapshot=true creates a second snapshot, so source now has 2.
-  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/v1/snapshots?project=replicator-project" | jq --exit-status 'length == 2'
+  # Each run adds a snapshot; source now has three.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/v1/snapshots?project=replicator-project" | jq --exit-status 'length == 3'
 
-  # VM must still exist with both snapshots on the target.
-  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ntS | grep -xF 'v1,VIRTUAL-MACHINE,2'
+  # VM must still exist with all three snapshots on the target.
+  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ntS | grep -xF 'v1,VIRTUAL-MACHINE,3'
 
   # Cleanup
   LXD_DIR="${LXD_TWO_DIR}" lxc delete v1 --project replicator-project
