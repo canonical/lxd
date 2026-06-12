@@ -24,6 +24,7 @@ The following storage drivers are supported:
 - [CephFS - `cephfs`](storage-cephfs)
 - [Ceph Object - `cephobject`](storage-cephobject)
 - [Dell PowerFlex - `powerflex`](storage-powerflex)
+- [Dell PowerStore - `powerstore`](storage-powerstore)
 - [Pure Storage - `pure`](storage-pure)
 - [HPE Alletra - `alletra`](storage-alletra)
 
@@ -38,12 +39,17 @@ See the following how-to guides for additional information:
 Where the LXD data is stored depends on the configuration and the selected storage driver.
 Depending on the storage driver that is used, LXD can either share the file system with its host or keep its data separate.
 
-Storage location         | Directory | Btrfs    | LVM      | ZFS      | Ceph (all) | Dell PowerFlex | Pure Storage | HPE Alletra |
-:---                     | :-:       | :-:      | :-:      | :-:      | :-:        | :-:            | :-:         | :-:         |
-Shared with the host     | &#x2713;  | &#x2713; | -        | &#x2713; | -          | -              | -           | -           |
-Dedicated disk/partition | -         | &#x2713; | &#x2713; | &#x2713; | -          | -              | -           | -           |
-Loop disk                | -         | &#x2713; | &#x2713; | &#x2713; | -          | -              | -           | -           |
-Remote storage           | -         | -        | -        | -        | &#x2713;   | &#x2713;       | &#x2713;    | &#x2713;    |
+| Storage driver  | Shared with the host | Dedicated disk/partition | Loop disk | Remote storage |
+| :---            | :-:                  | :-:                      | :-:       | :-:            |
+| Directory       | &#x2713;             | -                        | -         | -              |
+| Btrfs           | &#x2713;             | &#x2713;                 | &#x2713;  | -              |
+| LVM             | -                    | &#x2713;                 | &#x2713;  | -              |
+| ZFS             | &#x2713;             | &#x2713;                 | &#x2713;  | -              |
+| Ceph (all)      | -                    | -                        | -         | &#x2713;       |
+| Dell PowerFlex  | -                    | -                        | -         | &#x2713;       |
+| Dell PowerStore | -                    | -                        | -         | &#x2713;       |
+| Pure Storage    | -                    | -                        | -         | &#x2713;       |
+| HPE Alletra     | -                    | -                        | -         | &#x2713;       |
 
 #### Shared with the host
 

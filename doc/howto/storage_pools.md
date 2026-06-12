@@ -239,6 +239,21 @@ Create a storage pool named `pool5` that explicitly uses the PowerFlex SDC:
     lxc storage create pool5 powerflex powerflex.mode=sdc powerflex.pool=<id of sp1> powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
 
 ````
+````{group-tab} powerstore
+
+Create a storage pool named `pool1` that uses iSCSI to connect to PowerStore array:
+
+    lxc storage create pool1 powerstore powerstore.mode=iscsi powerstore.gateway=https://powerstore powerstore.user.name=lxd powerstore.user.password=foo
+
+Create a storage pool named `pool2` that uses SCSI/FC to connect to PowerStore array:
+
+    lxc storage create pool2 powerstore powerstore.mode=scsi/fc powerstore.gateway=https://powerstore powerstore.user.name=lxd powerstore.user.password=foo
+
+Create a storage pool named `pool3` that uses a PowerStore gateway with a certificate that is not trusted:
+
+    lxc storage create pool3 powerstore powerstore.mode=iscsi powerstore.gateway=https://powerstore powerstore.gateway.verify=false powerstore.user.name=lxd powerstore.user.password=foo
+
+````
 ````{group-tab} pure
 
 Create a storage pool named `pool1` that uses NVMe/TCP by default:
@@ -439,6 +454,35 @@ Storage pool my-powerflex-pool pending on member vm03
 lxc storage create my-powerflex-pool powerflex powerflex.mode=sdc powerflex.pool=sp1 powerflex.domain=pd1 powerflex.gateway=https://powerflex powerflex.user.name=lxd powerflex.user.password=foo
 
 Storage pool my-powerflex-pool created
+```
+
+````
+````{group-tab} powerstore
+
+Create a storage pool named `my-powerstore-pool` using the {ref}`Dell PowerStore driver <storage-powerstore>`:
+
+```{terminal}
+lxc storage create my-powerstore-pool powerstore --target=vm01
+
+Storage pool my-powerstore-pool pending on member vm01
+```
+
+```{terminal}
+lxc storage create my-powerstore-pool powerstore --target=vm02
+
+Storage pool my-powerstore-pool pending on member vm02
+```
+
+```{terminal}
+lxc storage create my-powerstore-pool powerstore --target=vm03
+
+Storage pool my-powerstore-pool pending on member vm03
+```
+
+```{terminal}
+lxc storage create my-powerstore-pool powerstore powerstore.mode=scsi/fc powerstore.gateway=https://<powerstore-storage-address> powerstore.user.name=<admin-username> powerstore.user.password=<admin-password>
+
+Storage pool my-powerstore-pool created
 ```
 
 ````
