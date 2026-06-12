@@ -15,6 +15,35 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// featureFlags is a map of entity.Type to the feature flag that governs whether they are present in the requested or effective project.
+var featureFlags = map[entity.Type]string{
+	entity.TypeImage:                 "features.images",
+	entity.TypeImageAlias:            "features.images",
+	entity.TypeProfile:               "features.profiles",
+	entity.TypeNetwork:               "features.networks",
+	entity.TypeNetworkACL:            "features.networks",
+	entity.TypeNetworkZone:           "features.networks.zones",
+	entity.TypeStorageVolume:         "features.storage.volumes",
+	entity.TypeStorageVolumeBackup:   "features.storage.volumes",
+	entity.TypeStorageVolumeSnapshot: "features.storage.volumes",
+	entity.TypeStorageBucket:         "features.storage.buckets",
+}
+
+// onCreateEntities is a map of project entitlements to the entity types they represent creation of.
+// This is used when checking if the caller has permission to create an entity in the default project.
+// They may not have access to the default project directly but are able to create e.g. a network in the default project
+// because one or more of the projects that they can access does not have features.networks enabled.
+var onCreateEntities = map[auth.Entitlement]entity.Type{
+	auth.EntitlementCanCreateImages:         entity.TypeImage,
+	auth.EntitlementCanCreateImageAliases:   entity.TypeImageAlias,
+	auth.EntitlementCanCreateProfiles:       entity.TypeProfile,
+	auth.EntitlementCanCreateNetworks:       entity.TypeNetwork,
+	auth.EntitlementCanCreateNetworkACLs:    entity.TypeNetworkACL,
+	auth.EntitlementCanCreateNetworkZones:   entity.TypeNetworkZone,
+	auth.EntitlementCanCreateStorageVolumes: entity.TypeStorageVolume,
+	auth.EntitlementCanCreateStorageBuckets: entity.TypeStorageBucket,
+}
+
 const (
 	// DriverTLS is used at start up to allow communication between cluster members and initialise the cluster database.
 	DriverTLS string = "tls"
@@ -88,19 +117,16 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
 	}
 
+	callerProjectsWithFeatures := requestor.CallerAllowedProjectsWithFeatures()
+	_, hasProject := callerProjectsWithFeatures[projectName]
+
 	// Check project level permissions against the certificates project list.
-	if !slices.Contains(requestor.CallerAllowedProjectNames(), projectName) {
+	if !hasProject && !checkEffectiveProject(entityType, projectName, callerProjectsWithFeatures) {
 		t.emitAuthzFail(ctx, entityURL, entitlement, entityType)
 		return api.StatusErrorf(http.StatusForbidden, "User does not have permission for project %q", projectName)
 	}
 
 	return nil
-}
-
-// CheckPermissionWithoutEffectiveProject calls CheckPermission. This is because the TLS auth driver does not need to consider
-// the effective project at all.
-func (t *tls) CheckPermissionWithoutEffectiveProject(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement) error {
-	return t.CheckPermission(ctx, entityURL, entitlement)
 }
 
 // GetPermissionChecker returns a function that can be used to check whether a user has the required entitlement on an authorization object.
@@ -165,14 +191,35 @@ func (t *tls) GetPermissionChecker(ctx context.Context, entitlement auth.Entitle
 		}
 
 		// Otherwise, check if the project is in the list of allowed projects for the entity.
-		return slices.Contains(requestor.CallerAllowedProjectNames(), project)
+		if slices.Contains(requestor.CallerAllowedProjectNames(), project) {
+			return true
+		}
+
+		// Lastly, check effective project of entity type against the callers allowed project feature list.
+		return checkEffectiveProject(entityType, project, requestor.CallerAllowedProjectsWithFeatures())
 	}, nil
 }
 
-// GetPermissionCheckerWithoutEffectiveProject calls GetPermissionChecker. This is because the TLS auth driver does not need to consider
-// the effective project at all.
-func (t *tls) GetPermissionCheckerWithoutEffectiveProject(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type) (auth.PermissionChecker, error) {
-	return t.GetPermissionChecker(ctx, entitlement, entityType)
+// checkEffectiveProject returns true if the given project name is [api.ProjectDefaultName] and any of the
+// allowedProjectFeature flags is false for the given entity type. This means that if the caller has access to any
+// projects that have e.g. features.networks=false, then they can view networks in the default project.
+func checkEffectiveProject(entityType entity.Type, projectName string, allowedProjectFeatureFlags map[string]map[string]bool) bool {
+	if projectName != api.ProjectDefaultName {
+		return false
+	}
+
+	flag, ok := featureFlags[entityType]
+	if !ok {
+		return false
+	}
+
+	for _, features := range allowedProjectFeatureFlags {
+		if !features[flag] {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, entityType entity.Type, requestor *request.Requestor, projectName string, pathArguments []string) bool {
@@ -193,9 +240,28 @@ func (t *tls) allowProjectUnspecificEntityType(entitlement auth.Entitlement, ent
 		// the identifier of the identity (their fingerprint). This line allows the caller to view their own certificate and no one else's.
 		return entitlement == auth.EntitlementCanView && len(pathArguments) > 0 && pathArguments[0] == requestor.Username
 	case entity.TypeProject:
+		callerProjectsWithFeatures := requestor.CallerAllowedProjectsWithFeatures()
+		_, hasProject := callerProjectsWithFeatures[projectName]
+
 		// If the project is in the list of projects that the identity is restricted to, then they have the following
 		// entitlements.
-		return slices.Contains(requestor.CallerAllowedProjectNames(), projectName) && slices.Contains([]auth.Entitlement{auth.EntitlementCanView, auth.EntitlementCanCreateImages, auth.EntitlementCanCreateImageAliases, auth.EntitlementCanCreateInstances, auth.EntitlementCanCreateNetworks, auth.EntitlementCanCreateNetworkACLs, auth.EntitlementCanCreateNetworkZones, auth.EntitlementCanCreateProfiles, auth.EntitlementCanCreateStorageVolumes, auth.EntitlementCanCreateStorageBuckets, auth.EntitlementCanViewEvents, auth.EntitlementCanViewOperations, auth.EntitlementCanViewMetrics}, entitlement)
+		if hasProject && slices.Contains([]auth.Entitlement{auth.EntitlementCanView, auth.EntitlementCanCreateImages, auth.EntitlementCanCreateImageAliases, auth.EntitlementCanCreateInstances, auth.EntitlementCanCreateNetworks, auth.EntitlementCanCreateNetworkACLs, auth.EntitlementCanCreateNetworkZones, auth.EntitlementCanCreateProfiles, auth.EntitlementCanCreateStorageVolumes, auth.EntitlementCanCreateStorageBuckets, auth.EntitlementCanViewEvents, auth.EntitlementCanViewOperations, auth.EntitlementCanViewMetrics}, entitlement) {
+			return true
+		}
+
+		// If the project is not the default project, return.
+		if projectName != api.ProjectDefaultName {
+			return false
+		}
+
+		// Check if the entitlement represents entity creation.
+		createdEntity, ok := onCreateEntities[entitlement]
+		if !ok {
+			return false
+		}
+
+		// Check if the created entity type is disabled in any of the callers projects.
+		return checkEffectiveProject(createdEntity, api.ProjectDefaultName, callerProjectsWithFeatures)
 
 	default:
 		return false
