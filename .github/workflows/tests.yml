@@ -182,7 +182,7 @@ jobs:
           set -eux
 
           # Build from unpacked dist directory.
-          cd /home/runner/work/lxd/lxd-test
+          cd "${GITHUB_WORKSPACE}/../lxd-test"
           make
 
       - name: Get pinned golangci-lint version
@@ -1150,7 +1150,7 @@ jobs:
           set -eux
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
-          export LXD_DOCUMENTATION="/home/runner/work/lxd/lxd/doc/_build/"
+          export LXD_DOCUMENTATION="${GITHUB_WORKSPACE}/doc/_build/"
           export PATH="/home/runner/go/bin:$PATH"
           sudo rm -rf /var/lib/lxd
           sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH,LXD_DOCUMENTATION $(go env GOPATH)/bin/lxd --group sudo &
