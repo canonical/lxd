@@ -1,5 +1,5 @@
- // Replace oldDomain with newDomain
- const oldDomain = 'canonical-lxd-documentation.readthedocs-hosted.com';
+ // Replaces oldDomain with newDomain in relevant anchor tags
+ const oldDomain = 'canonical-lxd.readthedocs-hosted.com';
  const newDomain = 'canonical.com/lxd/docs';
 
  function escapeRegExp(value) {
