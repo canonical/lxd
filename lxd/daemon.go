@@ -235,6 +235,10 @@ type APIEndpoint struct {
 	Post        APIEndpointAction
 	Delete      APIEndpointAction
 	Patch       APIEndpointAction
+
+	// ProjectSpecific indicates that the endpoint manages project specific resources.
+	// This is used for global authorization checks.
+	ProjectSpecific bool
 }
 
 // APIEndpointAlias represents an alias URL of and APIEndpoint in our API.
@@ -245,11 +249,27 @@ type APIEndpointAlias struct {
 
 // APIEndpointAction represents an action on an API endpoint.
 type APIEndpointAction struct {
-	Handler        func(d *Daemon, r *http.Request) response.Response
-	AccessHandler  func(d *Daemon, r *http.Request) response.Response
-	AllowUntrusted bool
-	ContentTypes   []string // Client content types to allow.
+	Handler         func(d *Daemon, r *http.Request) response.Response
+	AccessHandler   func(d *Daemon, r *http.Request) response.Response
+	AllowUntrusted  bool
+	AllProjectsMode allProjectsMode
+	ContentTypes    []string // Client content types to allow.
 }
+
+// allProjectsMode dictates how the all-projects query parameter is handled if present.
+type allProjectsMode uint8
+
+const (
+	// allProjectsModeNotSupported is the default (zero) value.
+	allProjectsModeNotSupported allProjectsMode = iota
+
+	// allProjectsModeDisallowRestrictedTLSClients is used to prevent restricted TLS clients from querying resources
+	// across all projects. This is to maintain legacy behaviour and can be removed when restricted TLS clients are removed.
+	allProjectsModeDisallowRestrictedTLSClients
+
+	// allProjectsModeAllowAll allows all (authenticated) callers to use the all projects query parameter.
+	allProjectsModeAllowAll
+)
 
 // allowAuthenticated is an AccessHandler which allows only authenticated requests. This should be used in conjunction
 // with further access control within the handler (e.g. to filter resources the user is able to view/edit).
