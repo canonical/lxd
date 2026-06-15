@@ -6613,6 +6613,30 @@ test_clustering_replicator_unclustered() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project create replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc project create replicator-project
 
+  sub_test "Verify clear-replica resets a project's replica mode back to empty"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create replica-state-project
+
+  # New projects have no replica mode set.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq -r '.replica_mode' || echo fail)" = "" ]
+
+  # clear-replica is rejected when the project has no replica mode set.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc project clear-replica replica-state-project 2>&1)" = 'Error: Project "replica-state-project" is not in a replica mode' ]
+
+  # clear-replica resets the replica mode back to empty from leader mode.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replica-state-project
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq -r '.replica_mode')" = "leader" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc project clear-replica replica-state-project
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq -r '.replica_mode' || echo fail)" = "" ]
+
+  # clear-replica resets the replica mode back to empty from standby mode.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replica-state-project --force
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq -r '.replica_mode')" = "standby" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc project clear-replica replica-state-project
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq -r '.replica_mode' || echo fail)" = "" ]
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete replica-state-project
+
   # Setup auth groups and cluster links so that promote validation can reach
   # the target project through the cluster-link identity.
   LXD_DIR="${LXD_ONE_DIR}" lxc auth group create replicator-group
