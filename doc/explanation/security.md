@@ -58,16 +58,13 @@ The root user and all members of the `lxd` group can interact with the local dae
 (security_remote_access)=
 ### Access to the remote API
 
-By default, access to the daemon is only possible locally.
-By setting the {config:option}`server-core:core.https_address` configuration option, you can expose the same API over the network on a {abbr}`TLS (Transport Layer Security)` socket.
-See {ref}`server-expose` for instructions.
+By default, access to the daemon is only possible locally, but you can also {ref}`expose LXD to the network <server-expose>` on a {abbr}`TLS` (Transport Layer Security) socket. 
 Remote clients can then connect to LXD and access any image that is marked for public use.
 
 There are several ways to authenticate remote clients as trusted clients to allow them to access the API.
 See {ref}`authentication` for details.
+To increase your security posture in a production setup, you can also {ref}`harden remote API access <howto-security-harden-remote>` and {ref}`configure your firewall <network-bridge-firewall>`.
 
-In a production setup, you should set {config:option}`server-core:core.https_address` to the single address where the server should be available (rather than any address on the host).
-In addition, you should set firewall rules to allow access to the LXD port only from authorized hosts/subnets.
 
 (container-security)=
 ## Container security
@@ -185,6 +182,11 @@ In a production environment, you can forward security events to a centralized lo
 
 For detailed information on monitoring and configuring security events, see {ref}`howto-security-events`.
 
+(security-cryptography)=
+## Cryptography
+
+LXD uses cryptographic technologies to authenticate, encrypt, and decrypt communication between servers, and to verify images copied from remote servers. For details, see {ref}`authentication` and {ref}`about-images`, as well as the guides to common operations related to {ref}`lxd-server` and {ref}`images`.
+
 ## Related topics
 
 {{security_how}}
@@ -192,3 +194,4 @@ For detailed information on monitoring and configuring security events, see {ref
 Explanation:
 
 - {ref}`authentication`
+- {ref}`about-images`
