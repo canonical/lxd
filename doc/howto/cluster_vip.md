@@ -12,7 +12,7 @@ For more information about HA in LXD clusters, including both the control and da
 (howto-cluster-vip-keepalived)=
 ## Use Keepalived
 
-While VRRP is implemented by various tools, [**Keepalived**](https://keepalived.org/doc/) is the most commonly used implementation in Linux environments. The VIP configured with Keepalived is only active on one cluster member at a given time (called the `MASTER`), and Keepalived performs regular checks to reassign the VIP to another member (a `BACKUP`) if the `MASTER` fails to respond.
+While VRRP is implemented by various tools, [**Keepalived**](https://keepalived.org/documentation/) is the most commonly used implementation in Linux environments. The VIP configured with Keepalived is only active on one cluster member at a given time (called the `MASTER`), and Keepalived performs regular checks to reassign the VIP to another member (a `BACKUP`) if the `MASTER` fails to respond.
 
 To install Keepalived, run the following commands on each cluster member:
 
@@ -145,7 +145,7 @@ From the client server, list the instances running on the cluster once more, usi
 (howto-cluster-vip-keepalived-example-config-keys)=
 #### Configuration keys
 
-In this section, we provide brief descriptions of the configuration keys used in this guide. Keep in mind that our example minimal configuration does not include authentication and other settings that might be relevant in production. For full configuration details, refer to the [official Keepalived documentation](https://keepalived.org/doc/configuration_synopsis.html).
+In this section, we provide brief descriptions of the configuration keys used in this guide. Keep in mind that our example minimal configuration does not include authentication and other settings that might be relevant in production. For full configuration details, refer to the [official Keepalived documentation](https://keepalived.org/documentation/user-guide/configuration-synopsis/).
 
 `state`:
 : Only one cluster member can be designated the `MASTER` state. The rest must be set as `BACKUP`.
@@ -168,7 +168,7 @@ In this section, we provide brief descriptions of the configuration keys used in
 (howto-cluster-vip-load-balancing)=
 ## Load balancing
 
-Using a VIP to route requests to a single cluster member can cause high load on that machine. Keepalived also provides a framework for load balancing, using the Linux Virtual Server (IPVS) kernel module. For details, see the [Keepalived documentation](https://keepalived.org/doc/).
+Using a VIP to route requests to a single cluster member can cause high load on that machine. Keepalived also provides a framework for load balancing, using the Linux Virtual Server (IPVS) kernel module. For details, see the [Keepalived documentation](https://keepalived.org/documentation/).
 
 Alternatively, consider combining Keepalived with an implementation of [HAProxy](https://www.haproxy.org/). HAProxy is a reverse proxy that can redirect traffic for both TCP and HTTP protocols, which means that it can handle load balancing both API and UI traffic for LXD clusters.
 
