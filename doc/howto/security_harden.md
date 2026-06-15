@@ -76,6 +76,16 @@ For external HTTPS access, set a trusted IP address on the LXD management interf
 
 **Do not** specify a port number alone, such as `:8443`, as this exposes the LXD API to every interface on the host.
 
+(howto-security-harden-restrict-outbound)=
+### Restrict outbound requests
+
+An authenticated user with the `can_create_images` entitlement can probe internal networks by directing the LXD daemon to download images from internal network addresses.
+The requests will fail, but error messages may provide information about internal services.
+
+To prevent users from probing internal networks, restrict IP addresses or domains available to LXD for outbound HTTP and HTTPS requests.
+First, set up a proxy to filter requests.
+Then {ref}`configure the LXD server <server-configure>` to use the proxy by setting **both** {config:option}`server-core:core.proxy_http` and {config:option}`server-core:core.proxy_https` to the proxy address.
+
 (howto-security-harden-instance)=
 ## Instance security
 
