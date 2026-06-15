@@ -73,6 +73,32 @@ check_log_presence() {
   fi
 }
 
+# check_log_absence checks that specific messages do not appear in a log file.
+# The order in which the reference messages are given does not matter.
+check_log_absence() {
+  local logfile="$1"
+  shift
+  local unexpected_messages=("$@")
+
+  local none_found=true
+  for message in "${unexpected_messages[@]}"; do
+    if grep -qF "$message" "$logfile"; then
+      echo "ERROR: Found unexpected message: '$message'"
+      none_found=false
+    else
+      echo "Confirmed absent message: '$message'"
+    fi
+  done
+
+  if [ "$none_found" = "true" ]; then
+    echo "Log file check completed. No unexpected messages found."
+    return 0
+  else
+    echo "Log file check completed with errors. Unexpected messages found."
+    return 1
+  fi
+}
+
 # check_log_order checks for specific messages in a log file and validates their order.
 # * The matching priorities are in the following order:
 #   1. Unix nano timestamps (timestamp=<unix_nano>)
