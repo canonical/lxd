@@ -16,8 +16,9 @@ Replication is configured at the project level. Both clusters have a project wit
 
 - `leader`: The project is writable. Instances in this project are the source of replication. The replicator runs from this cluster.
 - `standby`: Instances in this project are replicas, kept in sync by the replicator. New instances cannot be created directly in this project, and existing instances cannot be started. The project must be promoted to `leader` during a failover before instances can be started.
+- (empty): The project is not part of any replication setup. This is the default for new projects.
 
-Replica mode is managed via `lxc project promote-replica` and `lxc project demote-replica`. It is not a configuration key and cannot be set with `lxc project set`.
+Replica mode is managed via `lxc project promote-replica`, `lxc project demote-replica`, and `lxc project clear-replica` (which resets the replica mode back to empty). It is not a configuration key and cannot be set with `lxc project set`.
 
 Only the standby project needs the {config:option}`project-replica:replica.cluster` configuration key, which identifies the cluster link that is allowed to push replication data into it. The leader project does not need this key because the replicator defines the target cluster.
 
