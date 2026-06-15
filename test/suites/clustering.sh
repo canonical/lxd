@@ -7028,3 +7028,47 @@ test_clustering_acme() {
 
   kill_acme
 }
+
+test_clustering_replicator_volumes() {
+  # Wiring up the leader and standby cluster pair dominates the runtime, so the
+  # scenarios share a single pair that is set up once. Each scenario removes the
+  # instances and volumes it creates so the next one starts from a clean project.
+  local vol_pool
+  setup_replicator_volume_test
+
+  _clustering_replicator_volume_guard
+
+  teardown_replicator_volume_test
+}
+
+_clustering_replicator_volume_guard() {
+  sub_test "Direct volume creation in standby project is blocked with 403"
+
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc storage volume create "${vol_pool}" blocked-vol --project replicator-project 2>&1)" = 'Error: Cannot create storage volumes in a standby replica project' ]
+
+  sub_test "Volume metadata update on standby is permitted"
+
+  # Replicate a volume to the standby first so there is something to update.
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${vol_pool}" allowed-vol --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/allowed-vol?project=replicator-project" \
+    | jq --exit-status '.name == "allowed-vol"'
+
+  # Setting a config key on an existing standby volume must succeed; the guard covers creation only.
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume set "${vol_pool}" allowed-vol user.test=standby-ok --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/allowed-vol?project=replicator-project" \
+    | jq --exit-status '.config["user.test"] == "standby-ok"'
+
+  sub_test "Replicator run still creates volumes on the standby"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${vol_pool}" second-vol --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/second-vol?project=replicator-project" \
+    | jq --exit-status '.name == "second-vol"'
+
+  # Cleanup
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${vol_pool}" allowed-vol --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${vol_pool}" second-vol --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${vol_pool}" allowed-vol --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${vol_pool}" second-vol --project replicator-project
+}
