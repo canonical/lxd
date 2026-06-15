@@ -83,6 +83,8 @@ If a target cluster is unreachable, promotion still proceeds to allow disaster r
 
 After configuring the projects on both clusters, create a replicator on the leader cluster. The `cluster` configuration key is required and must be set to the name of an existing cluster link.
 
+Each cluster link can be targeted by at most one replicator per project. Creating or updating a replicator to target a cluster link already used by another replicator in the same project fails with a conflict error.
+
 ```bash
 lxc replicator create <replicator_name> cluster=<standby_cluster_link_name> --project <project_name>
 ```
