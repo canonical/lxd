@@ -35,7 +35,7 @@ var storagePoolVolumeSnapshotsTypeCmd = APIEndpoint{
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots",
 	MetricsType: entity.TypeStoragePool,
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
 	Post: APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypePost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageSnapshots)},
 }
 
