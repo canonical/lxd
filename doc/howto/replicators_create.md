@@ -136,10 +136,10 @@ Each cluster link can be targeted by at most one replicator per project. Creatin
    lxc replicator create my-replicator cluster=lxd-standby --project myproject
    ```
 
-   You can also create a replicator with a schedule and snapshot options:
+   You can also create a replicator with a schedule:
 
    ```bash
-   lxc replicator create my-replicator cluster=lxd-standby schedule="@daily" snapshot=true --project myproject
+   lxc replicator create my-replicator cluster=lxd-standby schedule="@daily" --project myproject
    ```
 
 ````
@@ -151,7 +151,7 @@ Each cluster link can be targeted by at most one replicator per project. Creatin
    Select the cluster link established between the leader and the standby.
    Enter a name and optionally a description for the new replicator.
    Select the {ref}`project that you configured <howto-replicators-project-setup>`.
-   You can also select a snapshot option and enter a schedule.
+   You can also enter a schedule.
 
    Click {guilabel}`Create`.
 
@@ -212,10 +212,10 @@ Each replicator run performs an incremental instance sync to the standby cluster
 the equivalent of `lxc copy --refresh`. This transfers only the data that has changed since the last sync,
 using any existing snapshots as a reference point to minimize the amount of data transferred.
 
-When you set `snapshot=true` on a replicator, LXD creates a point-in-time snapshot of each
-source instance before performing the incremental copy. This gives the copy operation a
-consistent reference point, which reduces the amount of data transferred on each sync and
-provides a rollback point on the source in case anything goes wrong during replication.
+Before the incremental copy, LXD creates a point-in-time snapshot of each source instance.
+This gives the copy operation a consistent reference point, which reduces the amount of data
+transferred on each sync and provides a rollback point on the source in case anything goes
+wrong during replication.
 
 Snapshot naming and expiry are controlled entirely by the instance's own configuration (for
 example {config:option}`instance-snapshots:snapshots.pattern` and
@@ -225,10 +225,6 @@ instance. The replicator does not impose its own naming scheme.
 If an instance already has a {config:option}`instance-snapshots:snapshots.schedule` set at
 the instance or profile level, the replicator skips creating a new snapshot and reuses the
 most recent existing snapshot as the reference point for the incremental copy instead.
-
-When `snapshot` is not set (or set to `false`), no new snapshot is created before the
-incremental copy runs. If existing snapshots are present on the instance, the copy operation
-uses them to transfer only the delta; if no snapshots exist, the full instance is transferred.
 
 ```{note}
 Snapshots created by replication accumulate over time. Use `snapshots.expiry` on the instance or
