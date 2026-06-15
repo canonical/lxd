@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"reflect"
 	"testing"
 
@@ -16,9 +17,24 @@ func Test_generateDevLXDInstanceDevices(t *testing.T) {
 
 	// AccessValidator that checks if volume management is enabled and
 	// if the device is a custom volume disk.
-	allowCustomVolumeAccess := func(isVolumeManagementEnabled bool) func(d map[string]string) bool {
-		return func(device map[string]string) bool {
-			return isVolumeManagementEnabled && filters.IsCustomVolumeDisk(device)
+	allowCustomVolumeAccess := func(isVolumeManagementEnabled bool) func(d map[string]string) error {
+		return func(device map[string]string) error {
+			if !isVolumeManagementEnabled || !filters.IsCustomVolumeDisk(device) {
+				return api.NewGenericStatusError(http.StatusForbidden)
+			}
+
+			return nil
+		}
+	}
+
+	// isDeviceOwned always returns the given result, regardless of the device.
+	isDeviceOwned := func(isOwned bool) func(d map[string]string) error {
+		return func(device map[string]string) error {
+			if !isOwned {
+				return api.NewGenericStatusError(http.StatusForbidden)
+			}
+
+			return nil
 		}
 	}
 
@@ -42,13 +58,14 @@ func Test_generateDevLXDInstanceDevices(t *testing.T) {
 	}
 
 	tests := []struct {
-		TestName        string
-		CurrentInstance api.Instance                   // Existing instance data.
-		RequestInstance api.DevLXDInstancePut          // Instance data from the request.
-		AccessValidator func(d map[string]string) bool // Function that determines if devLXD can manage the device.
-		ExpectConfig    map[string]string              // expected configuration after patch.
-		ExpectDevices   map[string]map[string]string   // expected Devices after patch.
-		ExpectErr       string
+		TestName                 string
+		CurrentInstance          api.Instance                    // Existing instance data.
+		RequestInstance          api.DevLXDInstancePut           // Instance data from the request.
+		AccessValidator          func(d map[string]string) error // Function that determines if devLXD can manage the device.
+		DeviceOwnershipValidator func(d map[string]string) error // Function that determines if devLXD identity owns the device's source volume.
+		ExpectConfig             map[string]string               // expected configuration after patch.
+		ExpectDevices            map[string]map[string]string    // expected Devices after patch.
+		ExpectErr                string
 	}{
 		{
 			TestName: "Create device adds device and owner",
@@ -58,6 +75,15 @@ func Test_generateDevLXDInstanceDevices(t *testing.T) {
 			AccessValidator: allowCustomVolumeAccess(true),
 			ExpectDevices:   Devices{"disk1": customVolumeDevice()},
 			ExpectConfig:    Config{"volatile.disk1.devlxd.owner": identityID},
+		},
+		{
+			TestName: "Create device fails when source volume is not owned",
+			RequestInstance: api.DevLXDInstancePut{
+				Devices: Devices{"disk1": customVolumeDevice()},
+			},
+			AccessValidator:          allowCustomVolumeAccess(true),
+			DeviceOwnershipValidator: isDeviceOwned(false),
+			ExpectErr:                "Forbidden",
 		},
 		{
 			TestName: "Update device modifies device and sets owner",
@@ -166,7 +192,11 @@ func Test_generateDevLXDInstanceDevices(t *testing.T) {
 				test.CurrentInstance.Devices = map[string]map[string]string{}
 			}
 
-			newDevices, newConfig, err := generateDevLXDInstanceDevices(test.CurrentInstance, test.RequestInstance, identityID, test.AccessValidator)
+			if test.DeviceOwnershipValidator == nil {
+				test.DeviceOwnershipValidator = isDeviceOwned(true)
+			}
+
+			newDevices, newConfig, err := generateDevLXDInstanceDevices(test.CurrentInstance, test.RequestInstance, identityID, test.AccessValidator, test.DeviceOwnershipValidator)
 
 			if test.ExpectErr != "" {
 				if err == nil {
