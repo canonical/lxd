@@ -338,9 +338,26 @@ func imagesGetAccessHandler(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(nil)
 	}
 
-	// The caller is trusted and is listing resources in a non-default project (or using all-projects).
-	// Use the same access handler as is used for listing any project specific entity type.
-	return allowProjectResourceList(false)(d, r)
+	if requestor.IsAdmin() {
+		return response.EmptySyncResponse
+	}
+
+	if allProjects {
+		if requestor.IsIdentityType(api.IdentityTypeCertificateClientRestricted) {
+			return response.Forbidden(errors.New("Certificate is restricted"))
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	s := d.State()
+
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanView)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
 }
 
 func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
