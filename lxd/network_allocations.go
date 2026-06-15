@@ -23,10 +23,11 @@ import (
 )
 
 var networkAllocationsCmd = APIEndpoint{
-	Path:        "network-allocations",
-	MetricsType: entity.TypeNetwork,
+	Path:            "network-allocations",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
-	Get: APIEndpointAction{Handler: networkAllocationsGet, AccessHandler: allowProjectResourceList(false)},
+	Get: APIEndpointAction{Handler: networkAllocationsGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 }
 
 // swagger:operation GET /1.0/network-allocations network-allocations network_allocations_get
