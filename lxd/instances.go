@@ -90,7 +90,7 @@ var instanceSnapshotsCmd = APIEndpoint{
 	Path:        "instances/{name}/snapshots",
 	MetricsType: entity.TypeInstance,
 
-	Get:  APIEndpointAction{Handler: instanceSnapshotsGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: instanceSnapshotsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Post: APIEndpointAction{Handler: instanceSnapshotsPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageSnapshots, "name")},
 }
 
@@ -143,7 +143,7 @@ var instanceBackupsCmd = APIEndpoint{
 	Path:        "instances/{name}/backups",
 	MetricsType: entity.TypeInstance,
 
-	Get:  APIEndpointAction{Handler: instanceBackupsGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: instanceBackupsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Post: APIEndpointAction{Handler: instanceBackupsPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageBackups, "name")},
 }
 

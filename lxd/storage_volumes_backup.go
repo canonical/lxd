@@ -35,7 +35,7 @@ var storagePoolVolumeTypeCustomBackupsCmd = APIEndpoint{
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/backups",
 	MetricsType: entity.TypeStoragePool,
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
 	Post: APIEndpointAction{Handler: storagePoolVolumeTypeCustomBackupsPost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageBackups)},
 }
 
