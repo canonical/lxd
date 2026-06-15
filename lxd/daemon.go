@@ -1041,50 +1041,7 @@ func (d *Daemon) createCmd(restAPI *http.ServeMux, version string, c APIEndpoint
 			return
 		}
 
-		handleRequest := func(action APIEndpointAction) response.Response {
-			// Protect against CSRF when using LXD-UI with browser that supports Fetch metadata.
-			// Deny Sec-Fetch-Site when set to cross-site or same-site.
-			if http.NewCrossOriginProtection().Check(r) != nil {
-				return response.ErrorResponse(http.StatusForbidden, "Forbidden Sec-Fetch-Site header value")
-			}
-
-			if len(action.ContentTypes) == 0 {
-				// Require application/json if not specified by handler.
-				action.ContentTypes = []string{"application/json"}
-			}
-
-			// Validate browser Content-Type if supplied, or if non-zero Content-Length supplied.
-			if isBrowserClient(r) {
-				contentTypeParts := shared.SplitNTrimSpace(r.Header.Get("Content-Type"), ";", 2, false) // Ignore multi-part boundary part.
-				contentLength := r.Header.Get("Content-Length")
-				hasContentLength := contentLength != "" && contentLength != "0"
-				if (hasContentLength || contentTypeParts[0] != "") && !slices.Contains(action.ContentTypes, contentTypeParts[0]) {
-					return response.ErrorResponse(http.StatusUnsupportedMediaType, "Unsupported Content-Type for this request")
-				}
-			}
-
-			// All APIEndpointActions should have an access handler or should allow untrusted requests.
-			if action.AccessHandler == nil && !action.AllowUntrusted {
-				return response.InternalError(fmt.Errorf("Access handler not defined for %s %s", r.Method, r.URL.RequestURI()))
-			}
-
-			// If the request is not trusted, only call the handler if the action allows it.
-			if !requestor.Trusted && !action.AllowUntrusted {
-				return response.Forbidden(errors.New("You must be authenticated"))
-			}
-
-			// Call the access handler if there is one.
-			if action.AccessHandler != nil {
-				resp := action.AccessHandler(d, r)
-				if resp != response.EmptySyncResponse {
-					return resp
-				}
-			}
-
-			return action.Handler(d, r)
-		}
-
-		resp = handleRequest(endpointAction)
+		resp = handleRequest(d, r, endpointAction)
 
 		// Handle errors
 		err = resp.Render(w, r)
@@ -1095,6 +1052,57 @@ func (d *Daemon) createCmd(restAPI *http.ServeMux, version string, c APIEndpoint
 			}
 		}
 	})
+}
+
+// handleRequest is called from the HTTP handler func defined in (*Daemon).createCmd for all API endpoint actions.
+func handleRequest(d *Daemon, r *http.Request, action APIEndpointAction) response.Response {
+	// Protect against CSRF when using LXD-UI with browser that supports Fetch metadata.
+	// Deny Sec-Fetch-Site when set to cross-site or same-site.
+	if http.NewCrossOriginProtection().Check(r) != nil {
+		return response.ErrorResponse(http.StatusForbidden, "Forbidden Sec-Fetch-Site header value")
+	}
+
+	contentTypes := action.ContentTypes
+	if len(contentTypes) == 0 {
+		// Require application/json if not specified by handler.
+		contentTypes = []string{"application/json"}
+	}
+
+	// Validate browser Content-Type if supplied, or if non-zero Content-Length supplied.
+	if isBrowserClient(r) {
+		contentTypeParts := shared.SplitNTrimSpace(r.Header.Get("Content-Type"), ";", 2, false) // Ignore multi-part boundary part.
+		contentLength := r.Header.Get("Content-Length")
+		hasContentLength := contentLength != "" && contentLength != "0"
+		if (hasContentLength || contentTypeParts[0] != "") && !slices.Contains(contentTypes, contentTypeParts[0]) {
+			return response.ErrorResponse(http.StatusUnsupportedMediaType, "Unsupported Content-Type for this request")
+		}
+	}
+
+	// All APIEndpointActions should have an access handler or should allow untrusted requests.
+	if action.AccessHandler == nil && !action.AllowUntrusted {
+		return response.InternalError(fmt.Errorf("Access handler not defined for %s %s", r.Method, r.URL.RequestURI()))
+	}
+
+	// Get the requestor.
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// If the request is not trusted, only call the handler if the action allows it.
+	if !requestor.IsTrusted() && !action.AllowUntrusted {
+		return response.Forbidden(errors.New("You must be authenticated"))
+	}
+
+	// Call the access handler if there is one.
+	if action.AccessHandler != nil {
+		resp := action.AccessHandler(d, r)
+		if resp != response.EmptySyncResponse {
+			return resp
+		}
+	}
+
+	return action.Handler(d, r)
 }
 
 // have we setup shared mounts?
