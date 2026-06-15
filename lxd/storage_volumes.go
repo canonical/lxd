@@ -47,38 +47,43 @@ import (
 )
 
 var storageVolumesCmd = APIEndpoint{
-	Path:        "storage-volumes",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-volumes",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
-	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList(false)},
+	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 }
 
 var storageVolumesTypeCmd = APIEndpoint{
-	Path:        "storage-volumes/{type}",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-volumes/{type}",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
-	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList(false)},
+	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 }
 
 var storagePoolVolumesCmd = APIEndpoint{
-	Path:        "storage-pools/{poolName}/volumes",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-pools/{poolName}/volumes",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes), ContentTypes: []string{"application/json", "application/octet-stream"}},
 }
 
 var storagePoolVolumesTypeCmd = APIEndpoint{
-	Path:        "storage-pools/{poolName}/volumes/{type}",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-pools/{poolName}/volumes/{type}",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes), ContentTypes: []string{"application/json", "application/octet-stream"}},
 }
 
 var storagePoolVolumeTypeCmd = APIEndpoint{
-	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-pools/{poolName}/volumes/{type}/{volumeName}",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},

@@ -36,16 +36,18 @@ import (
 )
 
 var replicatorsCmd = APIEndpoint{
-	Path:        "replicators",
-	MetricsType: entity.TypeReplicator,
+	Path:            "replicators",
+	MetricsType:     entity.TypeReplicator,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: replicatorsGet, AccessHandler: allowAuthenticated},
+	Get:  APIEndpointAction{Handler: replicatorsGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 	Post: APIEndpointAction{Handler: replicatorsPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateReplicators)},
 }
 
 var replicatorCmd = APIEndpoint{
-	Path:        "replicators/{name}",
-	MetricsType: entity.TypeReplicator,
+	Path:            "replicators/{name}",
+	MetricsType:     entity.TypeReplicator,
+	ProjectSpecific: true,
 
 	Get:    APIEndpointAction{Handler: replicatorGet, AccessHandler: allowPermission(entity.TypeReplicator, auth.EntitlementCanView, "name")},
 	Post:   APIEndpointAction{Handler: replicatorPost, AccessHandler: allowPermission(entity.TypeReplicator, auth.EntitlementCanEdit, "name")},
@@ -55,8 +57,9 @@ var replicatorCmd = APIEndpoint{
 }
 
 var replicatorStateCmd = APIEndpoint{
-	Path:        "replicators/{name}/state",
-	MetricsType: entity.TypeReplicator,
+	Path:            "replicators/{name}/state",
+	MetricsType:     entity.TypeReplicator,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: replicatorStateGet, AccessHandler: allowPermission(entity.TypeReplicator, auth.EntitlementCanView, "name")},
 	Put: APIEndpointAction{Handler: replicatorStatePut, AccessHandler: allowPermission(entity.TypeReplicator, auth.EntitlementCanEdit, "name")},
