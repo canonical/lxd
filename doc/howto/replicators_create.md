@@ -186,7 +186,7 @@ To manually trigger a replicator run:
 ````
 `````
 
-This syncs all instances in the source project to the standby cluster.
+This syncs all instances and custom volumes in the source project to the standby cluster.
 
 To schedule replication automatically, set the `schedule` configuration key with a cron expression:
 
