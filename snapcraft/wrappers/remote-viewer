@@ -15,13 +15,15 @@ USERNS=1
 [ -e /proc/sys/kernel/unprivileged_userns_clone ] && grep -qxF 0 /proc/sys/kernel/unprivileged_userns_clone && USERNS=0
 
 find_and_spawn() {
-    for path in / /usr/ /usr/local/; do
-        if [ -e "/var/lib/snapd/hostfs/${path}bin/remote-viewer" ] || [ -e "${path}sbin/remote-viewer" ]; then
-            run_cmd remote-viewer "${1}"
+    for path in /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin; do
+        if [ -x "/var/lib/snapd/hostfs/${path}/remote-viewer" ]; then
+            run_cmd "${path}/remote-viewer" "${1}"
+            return
         fi
 
-        if [ -e "/var/lib/snapd/hostfs/${path}bin/spicy" ] || [ -e "${path}sbin/spicy" ]; then
-            run_cmd spicy --uri="${1}"
+        if [ -x "/var/lib/snapd/hostfs/${path}/spicy" ]; then
+            run_cmd "${path}/spicy" --uri="${1}"
+            return
         fi
     done
 }
@@ -41,7 +43,7 @@ echo "  ${1}"
 if [ "${USERNS}" = "0" ]; then
     echo ""
     echo "Your system has unprivileged user namespaces disabled, as a result, "
-    echo "you will need to manually run one a SPICE client with the URI above."
+    echo "you will need to manually run a SPICE client with the URI above."
     exec sleep infinity
 else
     while :; do
