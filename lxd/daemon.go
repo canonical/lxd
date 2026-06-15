@@ -1036,7 +1036,7 @@ func (d *Daemon) createCmd(restAPI *http.ServeMux, version string, c APIEndpoint
 			return
 		}
 
-		resp = handleRequest(d, r, endpointAction)
+		resp = handleRequest(d, r, endpointAction, endpoint.ProjectSpecific)
 
 		// Handle errors
 		err = resp.Render(w, r)
@@ -1050,7 +1050,7 @@ func (d *Daemon) createCmd(restAPI *http.ServeMux, version string, c APIEndpoint
 }
 
 // handleRequest is called from the HTTP handler func defined in (*Daemon).createCmd for all API endpoint actions.
-func handleRequest(d *Daemon, r *http.Request, action APIEndpointAction) response.Response {
+func handleRequest(d *Daemon, r *http.Request, action APIEndpointAction, projectSpecific bool) response.Response {
 	// Protect against CSRF when using LXD-UI with browser that supports Fetch metadata.
 	// Deny Sec-Fetch-Site when set to cross-site or same-site.
 	if http.NewCrossOriginProtection().Check(r) != nil {
@@ -1087,6 +1087,40 @@ func handleRequest(d *Daemon, r *http.Request, action APIEndpointAction) respons
 	// If the request is not trusted, only call the handler if the action allows it.
 	if !requestor.IsTrusted() && !action.AllowUntrusted {
 		return response.Forbidden(errors.New("You must be authenticated"))
+	}
+
+	// Global permission checks applied for project specific endpoints (when endpoint action does not allow untrusted requests).
+	if projectSpecific && !action.AllowUntrusted {
+		projectName, allProjects, err := request.ProjectParams(r)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if allProjects {
+			// Handle all-projects query parameter according to endpoint action specified mode.
+			// The default value if unspecified is allProjectsModeNotSupported.
+			switch action.AllProjectsMode {
+			case allProjectsModeNotSupported:
+				return response.BadRequest(errors.New("All projects queries are not supported"))
+			case allProjectsModeDisallowRestrictedTLSClients:
+				requestor, err := request.GetRequestor(r.Context())
+				if err != nil {
+					return response.SmartError(err)
+				}
+
+				if requestor.IsIdentityType(api.IdentityTypeCertificateClientRestricted) {
+					return response.Forbidden(errors.New("Certificate is restricted"))
+				}
+
+			case allProjectsModeAllowAll:
+			}
+		} else {
+			// Check that the caller can view the requested project.
+			err = d.authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanView)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
 	}
 
 	// Call the access handler if there is one.
