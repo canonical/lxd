@@ -9,6 +9,7 @@ permissions: {}
 
 jobs:
   label:
+    if: ${{ github.repository == 'canonical/lxd' }}
     permissions:
       contents: read  # for actions/labeler to determine modified files
       pull-requests: write  # for actions/labeler to add labels to PRs

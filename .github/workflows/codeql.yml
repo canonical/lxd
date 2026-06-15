@@ -33,7 +33,7 @@ permissions: {}
 
 jobs:
   analyze:
-    if: ${{ github.repository_owner == 'canonical' }}
+    if: ${{ github.repository == 'canonical/lxd' }}
     name: Analyze
     # Runner size impacts CodeQL analysis time. To learn more, please see:
     #   - https://gh.io/recommended-hardware-resources-for-running-codeql
@@ -98,7 +98,7 @@ jobs:
       # Create a symlink so the cache-dqlite-liblxc action can build from the checkout on a cache miss.
       - name: Create deps build symlink
         if: matrix.language == 'go'
-        run: ln -s "${GITHUB_WORKSPACE}" /home/runner/work/lxd/lxd-test
+        run: ln -s "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}/../lxd-test"
 
       # Build or restore dqlite/liblxc from the daily cache (Go only).
       - name: Build or restore dqlite/liblxc dependencies
