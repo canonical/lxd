@@ -67,9 +67,14 @@ Control traffic on LXD networks.
 (howto-security-harden-use-ip)=
 ### Limit network exposure
 
-By default, LXD is only accessible locally through a Unix socket. If you need to {ref}`expose LXD to the network <server-expose>`, you must set the LXD server’s {config:option}`server-core:core.https_address`. To reduce the attack surface, do not set this address to a port alone.
+By default, LXD is only accessible locally through a Unix socket.
+If you need to {ref}`expose LXD to the network <server-expose>`, you must set the LXD server’s {config:option}`server-core:core.https_address`.
 
-Instead, use a trusted IP address on the LXD management interface along with a port, such as `192.0.2.10:8443`. If you only need local HTTPS access, use the loopback address and port, such as `127.0.0.1:8443`.
+To reduce the attack surface, provide a full socket address with IP address and port number.
+If you only need local HTTPS access, use a loopback address and port, such as `127.0.0.1:8443`.
+For external HTTPS access, set a trusted IP address on the LXD management interface along with a port, such as `192.0.2.10:8443`.
+
+**Do not** specify a port number alone, such as `:8443`, as this exposes the LXD API to every interface on the host.
 
 (howto-security-harden-instance)=
 ## Instance security
