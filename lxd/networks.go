@@ -43,16 +43,18 @@ import (
 )
 
 var networksCmd = APIEndpoint{
-	Path:        "networks",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 	Post: APIEndpointAction{Handler: networksPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworks)},
 }
 
 var networkCmd = APIEndpoint{
-	Path:        "networks/{networkName}",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks/{networkName}",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: networkDelete, AccessHandler: networkAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
@@ -62,15 +64,17 @@ var networkCmd = APIEndpoint{
 }
 
 var networkLeasesCmd = APIEndpoint{
-	Path:        "networks/{networkName}/leases",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks/{networkName}/leases",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 }
 
 var networkStateCmd = APIEndpoint{
-	Path:        "networks/{networkName}/state",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks/{networkName}/state",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 }

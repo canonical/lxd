@@ -26,16 +26,18 @@ import (
 )
 
 var networkACLsCmd = APIEndpoint{
-	Path:        "network-acls",
-	MetricsType: entity.TypeNetwork,
+	Path:            "network-acls",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: networkACLsGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: networkACLsGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 	Post: APIEndpointAction{Handler: networkACLsPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworkACLs)},
 }
 
 var networkACLCmd = APIEndpoint{
-	Path:        "network-acls/{name}",
-	MetricsType: entity.TypeNetwork,
+	Path:            "network-acls/{name}",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: networkACLDelete, AccessHandler: allowPermission(entity.TypeNetworkACL, auth.EntitlementCanDelete, "name")},
 	Get:    APIEndpointAction{Handler: networkACLGet, AccessHandler: allowPermission(entity.TypeNetworkACL, auth.EntitlementCanView, "name")},
@@ -45,8 +47,9 @@ var networkACLCmd = APIEndpoint{
 }
 
 var networkACLLogCmd = APIEndpoint{
-	Path:        "network-acls/{name}/log",
-	MetricsType: entity.TypeNetwork,
+	Path:            "network-acls/{name}/log",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: networkACLLogGet, AccessHandler: allowPermission(entity.TypeNetworkACL, auth.EntitlementCanView, "name")},
 }

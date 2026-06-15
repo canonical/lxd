@@ -22,16 +22,18 @@ import (
 )
 
 var networkLoadBalancersCmd = APIEndpoint{
-	Path:        "networks/{networkName}/load-balancers",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks/{networkName}/load-balancers",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Get:  APIEndpointAction{Handler: networkLoadBalancersGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 	Post: APIEndpointAction{Handler: networkLoadBalancersPost, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var networkLoadBalancerCmd = APIEndpoint{
-	Path:        "networks/{networkName}/load-balancers/{listenAddress}",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks/{networkName}/load-balancers/{listenAddress}",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: networkLoadBalancerDelete, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 	Get:    APIEndpointAction{Handler: networkLoadBalancerGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
