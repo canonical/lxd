@@ -239,6 +239,7 @@ readonly test_group_standalone_storage=(
     "container_recover"
     "container_local_cross_pool_handling"
     "devlxd_volume_management"
+    "devlxd_volume_management_ownership"
     "devlxd_volume_management_snapshots"
     "filemanip"
     "filemanip_req_content_type"
