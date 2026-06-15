@@ -51,6 +51,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .rootPath }}/etc/nsswitch.conf         r,
   {{ .rootPath }}/etc/passwd                r,
   {{ .rootPath }}/etc/group                 r,
+  {{ .rootPath }}/etc/ssl/openssl.cnf       r,
   @{PROC}/version                           r,
 
   # Extra config paths
