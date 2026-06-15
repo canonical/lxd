@@ -974,17 +974,17 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 
 		switch r.Method {
 		case "GET":
-			resp = handleRequest(d, r, c.Get)
+			resp = handleRequest(d, r, c.Get, c.ProjectSpecific)
 		case "HEAD":
-			resp = handleRequest(d, r, c.Head)
+			resp = handleRequest(d, r, c.Head, c.ProjectSpecific)
 		case "PUT":
-			resp = handleRequest(d, r, c.Put)
+			resp = handleRequest(d, r, c.Put, c.ProjectSpecific)
 		case "POST":
-			resp = handleRequest(d, r, c.Post)
+			resp = handleRequest(d, r, c.Post, c.ProjectSpecific)
 		case "DELETE":
-			resp = handleRequest(d, r, c.Delete)
+			resp = handleRequest(d, r, c.Delete, c.ProjectSpecific)
 		case "PATCH":
-			resp = handleRequest(d, r, c.Patch)
+			resp = handleRequest(d, r, c.Patch, c.ProjectSpecific)
 		default:
 			resp = response.NotFound(fmt.Errorf("Method %q not found", r.Method))
 		}
@@ -1007,7 +1007,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 }
 
 // handleRequest is called from the HTTP handler func defined in (*Daemon).createCmd for all API endpoint actions.
-func handleRequest(d *Daemon, r *http.Request, action APIEndpointAction) response.Response {
+func handleRequest(d *Daemon, r *http.Request, action APIEndpointAction, projectSpecific bool) response.Response {
 	if action.Handler == nil {
 		return response.NotImplemented(nil)
 	}
@@ -1048,6 +1048,37 @@ func handleRequest(d *Daemon, r *http.Request, action APIEndpointAction) respons
 	// If the request is not trusted, only call the handler if the action allows it.
 	if !requestor.IsTrusted() && !action.AllowUntrusted {
 		return response.Forbidden(errors.New("You must be authenticated"))
+	}
+
+	// Global permission checks applied for project specific endpoints.
+	// This can only be globally applied for trusted endpoints.
+	// Endpoints that allow untrusted requests must enforce the project check themselves.
+	if projectSpecific && !action.AllowUntrusted {
+		projectName, allProjects, err := request.ProjectParams(r)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if allProjects {
+			// Handle all-projects query parameter according to endpoint action specified mode.
+			// The default value if unspecified is allProjectsModeNotSupported.
+			switch action.AllProjectsMode {
+			case allProjectsModeNotSupported:
+				return response.BadRequest(errors.New("All projects queries are not supported"))
+			case allProjectsModeDisallowRestrictedTLSClients:
+				if requestor.IsIdentityType(api.IdentityTypeCertificateClientRestricted) {
+					return response.Forbidden(errors.New("Certificate is restricted"))
+				}
+
+			case allProjectsModeAllowAll:
+			}
+		} else {
+			// Check that the caller can view the requested project.
+			err = d.authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanView)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
 	}
 
 	// Call the access handler if there is one.
