@@ -69,6 +69,9 @@ type Network interface {
 	LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) (net.IP, error)
 	LoadBalancerUpdate(listenAddress string, newLoadBalancer api.NetworkLoadBalancerPut, clientType request.ClientType) error
 	LoadBalancerDelete(listenAddress string, clientType request.ClientType) error
+	LoadBalancerPoolCreate(loadBalancerPool api.NetworkLoadBalancerPoolsPost) error
+	LoadBalancerPoolUpdate(poolName string, loadBalancerPool api.NetworkLoadBalancerPoolPut) error
+	LoadBalancerPoolDelete(poolName string) error
 
 	// Peerings.
 	PeerCreate(forward api.NetworkPeersPost) error

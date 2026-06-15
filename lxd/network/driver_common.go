@@ -40,10 +40,21 @@ type Info struct {
 	Peering            bool // Indicates if the driver supports network peering.
 }
 
+// forwardTargetInstance represents a single instance used to forward traffic.
+type forwardTargetInstance struct {
+	// name of the instance.
+	name string
+	// UUID of the instance.
+	uuid string
+	// name of the instance device that traffic is forwarded to.
+	deviceName string
+}
+
 // forwardTarget represents a single port forward target.
 type forwardTarget struct {
-	address net.IP
-	ports   []uint64
+	address  net.IP
+	instance *forwardTargetInstance
+	ports    []uint64
 }
 
 // forwardPortMap represents a mapping of listen port(s) to target port(s) for a protocol/target address pair.
@@ -1418,6 +1429,36 @@ func (n *common) loadBalancerValidate(listenAddress net.IP, forward api.NetworkL
 			return nil, fmt.Errorf("Invalid port protocol in port specification %d, protocol must be one of: %s", portSpecID, strings.Join(validPortProcols, ", "))
 		}
 
+		if len(portSpec.TargetBackend) == 0 && portSpec.TargetPool == "" {
+			return nil, fmt.Errorf("Missing target_backend or target_pool in port specification %d", portSpecID)
+		}
+
+		if portSpec.TargetPool != "" {
+			if len(portSpec.TargetBackend) > 0 {
+				return nil, fmt.Errorf("Cannot specify both target_backend and target_pool in port specification %d", portSpecID)
+			}
+
+			listenPort, rangeSize, err := ParsePortRange(portSpec.ListenPort)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid listen port in port specification %d: %w", portSpecID, err)
+			}
+
+			_, found := listenPorts[portSpec.Protocol][listenPort]
+			if found {
+				return nil, fmt.Errorf("Duplicate listen port %d for protocol %q in port specification %d", listenPort, portSpec.Protocol, portSpecID)
+			}
+
+			if rangeSize > 1 {
+				return nil, fmt.Errorf("Port ranges cannot be used with pool in port specification %d", portSpecID)
+			}
+
+			// Record listen port as used.
+			listenPorts[portSpec.Protocol][listenPort] = struct{}{}
+
+			// Done validating the port when in pool mode.
+			continue
+		}
+
 		// Check valid listen port(s) supplied.
 		listenPortRanges := shared.SplitNTrimSpace(portSpec.ListenPort, ",", -1, true)
 		if len(listenPortRanges) <= 0 {
@@ -1724,4 +1765,19 @@ func (n *common) setAvailable() {
 	unavailableNetworksMu.Lock()
 	delete(unavailableNetworks, pn)
 	unavailableNetworksMu.Unlock()
+}
+
+// LoadBalancerPoolCreate returns ErrNotImplemented for drivers that do not support load balancer pools.
+func (n *common) LoadBalancerPoolCreate(loadBalancer api.NetworkLoadBalancerPoolsPost) error {
+	return ErrNotImplemented
+}
+
+// LoadBalancerPoolUpdate returns ErrNotImplemented for drivers that do not support load balancer pools.
+func (n *common) LoadBalancerPoolUpdate(poolName string, loadBalancerPool api.NetworkLoadBalancerPoolPut) error {
+	return ErrNotImplemented
+}
+
+// LoadBalancerPoolDelete returns ErrNotImplemented for drivers that do not support load balancer pools.
+func (n *common) LoadBalancerPoolDelete(poolName string) error {
+	return ErrNotImplemented
 }

@@ -3916,10 +3916,18 @@
 					},
 					{
 						"target_backend": {
-							"longdesc": "",
-							"required": "yes",
-							"shortdesc": "Backend name or names to forward to",
+							"longdesc": "If you do not provide a list of backends, then you must provide a pool to `target_pool`.",
+							"required": "no",
+							"shortdesc": "Backend name(s) to forward to",
 							"type": "backend list"
+						}
+					},
+					{
+						"target_pool": {
+							"longdesc": "If you do not provide a pool, then you must provide a list of backends to `target_backend`.",
+							"required": "no",
+							"shortdesc": "Pool of instances to forward to",
+							"type": "string"
 						}
 					}
 				]
@@ -3964,6 +3972,29 @@
 							"required": "no",
 							"shortdesc": "List of port specifications",
 							"type": "port list"
+						}
+					}
+				]
+			}
+		},
+		"network-load-balancer-pool": {
+			"properties": {
+				"keys": [
+					{
+						"protocol": {
+							"defaultdesc": "`tcp`",
+							"longdesc": "Can be either `tcp` or `udp`.",
+							"required": "no",
+							"shortdesc": "Protocol used for ingress pool traffic.",
+							"type": "string"
+						}
+					},
+					{
+						"target_port": {
+							"longdesc": "",
+							"required": "yes",
+							"shortdesc": "Port used on instances for ingress pool traffic",
+							"type": "string"
 						}
 					}
 				]

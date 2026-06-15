@@ -116,21 +116,38 @@ type NetworkLoadBalancerPort struct {
 	ListenPort string `json:"listen_port" yaml:"listen_port"`
 
 	// lxdmeta:generate(entities=network-load-balancer; group=load-balancer-port-properties; key=target_backend)
-	//
+	// If you do not provide a list of backends, then you must provide a pool to `target_pool`.
 	// ---
 	//  type: backend list
-	//  required: yes
-	//  shortdesc: Backend name or names to forward to
+	//  required: no
+	//  shortdesc: Backend name(s) to forward to
 
-	// TargetBackend backend names to load balance ListenPorts to
+	// TargetBackend specifies backend names to load balance ListenPorts to
 	// Example: ["c1-http","c2-http"]
-	TargetBackend []string `json:"target_backend" yaml:"target_backend"`
+	TargetBackend []string `json:"target_backend,omitempty" yaml:"target_backend,omitempty"`
+
+	// lxdmeta:generate(entities=network-load-balancer; group=load-balancer-port-properties; key=target_pool)
+	// If you do not provide a pool, then you must provide a list of backends to `target_backend`.
+	// ---
+	//  type: string
+	//  required: no
+	//  shortdesc: Pool of instances to forward to
+
+	// TargetPool specifies a pool to load balance ListenPorts to
+	// Example: http-pool
+	TargetPool string `json:"target_pool,omitempty" yaml:"target_pool,omitempty"`
 }
 
 // Normalise normalises the fields in the load balancer port so that they are comparable with ones stored.
 func (p *NetworkLoadBalancerPort) Normalise() {
 	p.Description = strings.TrimSpace(p.Description)
 	p.Protocol = strings.TrimSpace(p.Protocol)
+	p.TargetPool = strings.TrimSpace(p.TargetPool)
+
+	// Set TargetBackend to nil if it's an empty list.
+	if len(p.TargetBackend) == 0 {
+		p.TargetBackend = nil
+	}
 
 	// Remove space from ListenPort list.
 	subjects := strings.Split(p.ListenPort, ",")
@@ -280,4 +297,103 @@ func (lb *NetworkLoadBalancer) SetWritable(put NetworkLoadBalancerPut) {
 	lb.Config = put.Config
 	lb.Backends = put.Backends
 	lb.Ports = put.Ports
+}
+
+// NetworkLoadBalancerPoolInstance represents an instance in a load balancer pool.
+// An instance can have multiple targets depending on how many addresses it has in the pool's network.
+//
+// swagger:model
+//
+// API extension: network_load_balancer_pool.
+type NetworkLoadBalancerPoolInstance struct {
+	// The name of the instance in the pool.
+	// Example: i1
+	Name string `json:"name" yaml:"name"`
+
+	// Optional target port to override the pool's default target port.
+	// Example: "8443"
+	TargetPort string `json:"target_port,omitempty" yaml:"target_port,omitempty"`
+}
+
+// NetworkLoadBalancerPool used for displaying a network load balancer pool.
+//
+// swagger:model
+//
+// API extension: network_load_balancer_pool.
+type NetworkLoadBalancerPool struct {
+	// The name of the load balancer pool.
+	// Example: https
+	Name string `json:"name" yaml:"name"`
+
+	// Description of the load balancer pool.
+	// Example: My HTTPS load balancer pool.
+	Description string `json:"description" yaml:"description"`
+
+	// Load balancer pool configuration map (refer to doc/howto/network_load_balancers.md)
+	// Example: {"protocol": "tcp"}
+	Config map[string]string `json:"config" yaml:"config"`
+
+	// Instances included in the pool.
+	// Example: [{"name": "i1"},{"name": "i2", "target_port": "8443"}]
+	Instances []NetworkLoadBalancerPoolInstance `json:"instances" yaml:"instances"`
+
+	// UsedBy is a list of LXD entity URLs that reference this load balancer pool.
+	// Example: ["/1.0/networks/default/load-balancers/192.0.2.1"]
+	UsedBy []string `json:"used_by" yaml:"used_by"`
+}
+
+// Writable converts a full NetworkLoadBalancerPool struct into a NetworkLoadBalancerPoolPut struct (filters read-only fields).
+func (n *NetworkLoadBalancerPool) Writable() NetworkLoadBalancerPoolPut {
+	return NetworkLoadBalancerPoolPut{
+		Description: n.Description,
+		Config:      n.Config,
+		Instances:   n.Instances,
+	}
+}
+
+// Normalise normalises the fields in the load balancer pool so that they are comparable with ones stored.
+func (n *NetworkLoadBalancerPool) Normalise() {
+	n.Description = strings.TrimSpace(n.Description)
+}
+
+// Etag returns the values used for etag generation.
+func (n *NetworkLoadBalancerPool) Etag() []any {
+	return []any{n.Name, n.Description, n.Config, n.Instances}
+}
+
+// NetworkLoadBalancerPoolPut represents the modifiable fields of a LXD network load balancer pool.
+//
+// swagger:model
+//
+// API extension: network_load_balancer_pool.
+type NetworkLoadBalancerPoolPut struct {
+	// Description of the load balancer pool.
+	// Example: My HTTPS load balancer pool.
+	Description string `json:"description" yaml:"description"`
+
+	// Load balancer pool configuration map (refer to doc/howto/network_load_balancers.md)
+	// Example: {"protocol": "tcp"}
+	Config map[string]string `json:"config" yaml:"config"`
+
+	// List of instances in the pool.
+	// Example: [{"name": "c1"},{"name": "c2", "target_port": "8443"}]
+	Instances []NetworkLoadBalancerPoolInstance `json:"instances" yaml:"instances"`
+}
+
+// Normalise normalises the fields in the load balancer so that they are comparable with ones stored.
+func (n *NetworkLoadBalancerPoolPut) Normalise() {
+	n.Description = strings.TrimSpace(n.Description)
+}
+
+// NetworkLoadBalancerPoolsPost represents the fields of a new LXD network load balancer pool.
+//
+// swagger:model
+//
+// API extension: network_load_balancer_pool.
+type NetworkLoadBalancerPoolsPost struct {
+	NetworkLoadBalancerPoolPut `yaml:",inline"`
+
+	// The name of the load balancer pool.
+	// Example: https
+	Name string `json:"name" yaml:"name"`
 }

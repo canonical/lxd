@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"maps"
@@ -21,8 +22,10 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -84,6 +87,19 @@ type OVNInstanceNICStopOpts struct {
 	InstanceUUID string
 	DeviceName   string
 	DeviceConfig deviceConfig.Device
+}
+
+// OVNLoadBalancerInstanceNIC represents an OVN load balancer pool instance NIC.
+// It also carries the respective load balancer's listen address and port.
+type OVNLoadBalancerInstanceNIC struct {
+	InstanceName string
+	// Defaults to the target port set on the load balancer pool.
+	// In case the pool instance is configured to use a different target port, it takes precedence.
+	EffectiveTargetPort string
+	Protocol            string
+	PoolName            string
+	ListenAddress       string
+	ListenPort          string
 }
 
 // ovn represents a LXD OVN network.
@@ -3136,6 +3152,27 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 		if err != nil {
 			return fmt.Errorf("Failed deleting network forwards and load balancers: %w", err)
 		}
+
+		// Delete any load balancer pools.
+		// The load balancers and their ports are already cleaned up at this stage.
+		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			pools, err := dbCluster.GetNetworksLoadBalancerPools(ctx, tx.Tx(), n.ID(), nil)
+			if err != nil {
+				return err
+			}
+
+			for _, pool := range pools {
+				err = dbCluster.DeleteNetworksLoadBalancerPool(ctx, tx.Tx(), n.ID(), pool.Row.Name)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return n.delete()
@@ -4325,6 +4362,12 @@ func (n *ovn) InstanceDevicePortAdd(opts *OVNInstanceNICSetupOpts, securityACLsR
 // InstanceDevicePortStart is called after the host side of the device has been configured and the logical switch port is up.
 // The passed deviceInstance can be used to trigger any post-start configuration.
 func (n *ovn) InstanceDevicePortStart(deviceInstance instance.Instance) error {
+	// Update any load balancer referencing this instance.
+	err := n.loadBalancerUpdateForInstance(deviceInstance.Name())
+	if err != nil {
+		return fmt.Errorf("Failed updating load balancer for instance: %w", err)
+	}
+
 	return nil
 }
 
@@ -4347,6 +4390,22 @@ func (n *ovn) instanceDeviceACLDefaults(deviceConfig deviceConfig.Device, direct
 	}
 
 	return defaults[fmt.Sprintf("security.acls.default.%s.action", direction)], shared.IsTrue(defaults[fmt.Sprintf("security.acls.default.%s.logged", direction)])
+}
+
+// InstanceDevicePortIsUp returns whether the logical switch port is bound to a chassis and up.
+func (n *ovn) InstanceDevicePortIsUp(client *openvswitch.OVN, instanceUUID string, deviceName string) (bool, error) {
+	if instanceUUID == "" {
+		return false, errors.New("Instance UUID is required")
+	}
+
+	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
+
+	portUp, err := client.LogicalSwitchPortIsUp(instancePortName)
+	if err != nil {
+		return false, fmt.Errorf("Failed getting OVN switch port status: %w", err)
+	}
+
+	return portUp, nil
 }
 
 // InstanceDevicePortIPs returns the allocated IPs for a device port.
@@ -4373,8 +4432,8 @@ func (n *ovn) InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]n
 // InstanceDevicePortRemove unregisters the NIC device in the OVN database by removing the DNS entry that should
 // have been created during InstanceDevicePortAdd(). If the DNS record exists at remove time then this indicates
 // the NIC device was successfully added and this function also clears any DHCP reservations for the NIC's IPs.
-func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error {
-	instancePortName := n.getInstanceDevicePortName(instanceUUID, deviceName)
+func (n *ovn) InstanceDevicePortRemove(opts *OVNInstanceNICSetupOpts) error {
+	instancePortName := n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceName)
 
 	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
 	if err != nil {
@@ -4391,9 +4450,15 @@ func (n *ovn) InstanceDevicePortRemove(instanceUUID string, deviceName string, d
 		return nil
 	}
 
+	// Update any load balancer referencing this instance.
+	err = n.loadBalancerUpdateForInstance(opts.DNSName)
+	if err != nil {
+		return fmt.Errorf("Failed updating load balancer for instance: %w", err)
+	}
+
 	n.logger.Debug("Deleting instance port", logger.Ctx{"port": instancePortName})
 
-	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(deviceConfig)
+	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(opts.DeviceConfig)
 	if err != nil {
 		return fmt.Errorf("Failed parsing NIC device routes: %w", err)
 	}
@@ -5247,7 +5312,7 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 }
 
 // loadBalancerFlattenVIPs flattens port maps into format compatible with OVN load balancers.
-func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBalancerPortMap) []openvswitch.OVNLoadBalancerVIP {
+func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBalancerPortMap) ([]openvswitch.OVNLoadBalancerVIP, error) {
 	totalVIPs := 0
 	for _, portMap := range portMaps {
 		totalVIPs += len(portMap.listenPorts)
@@ -5275,17 +5340,182 @@ func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBala
 					targetPort = target.ports[i]
 				}
 
-				vip.Targets = append(vip.Targets, openvswitch.OVNLoadBalancerTarget{
+				loadBalancerTarget := openvswitch.OVNLoadBalancerTarget{
 					Address: target.address,
 					Port:    targetPort,
-				})
+				}
+
+				// Populate the instance's switch port if present.
+				if target.instance != nil {
+					loadBalancerTarget.SwitchPort = n.getInstanceDevicePortName(target.instance.uuid, target.instance.deviceName)
+				}
+
+				vip.Targets = append(vip.Targets, loadBalancerTarget)
 			}
 
 			vips = append(vips, vip)
 		}
 	}
 
-	return vips
+	return vips, nil
+}
+
+// checkLoadBalancerPoolInstances check if any of the load balancer ports reference a pool of instances.
+// It checks the instances in the pool and returns port maps for the respective parent load balancer.
+// Instances which are stopped are filtered out and not included in the port maps.
+func (n *ovn) checkLoadBalancerPoolInstances(listenAddress net.IP, forward api.NetworkLoadBalancerPut) ([]*loadBalancerPortMap, error) {
+	var portMaps []*loadBalancerPortMap
+
+	activeNICs, err := n.getLoadBalancerInstanceNICs()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get a single OVN client to be used for probing port status.
+	client, err := openvswitch.NewOVN(n.state.GlobalConfig.NetworkOVNNorthboundConnection(), n.state.GlobalConfig.NetworkOVNSSL)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting OVN client: %w", err)
+	}
+
+	for _, portSpec := range forward.Ports {
+		if portSpec.TargetPool != "" {
+			var pool *api.NetworkLoadBalancerPool
+
+			err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				var err error
+
+				pool, err = n.getLoadBalancerPool(ctx, tx.Tx(), portSpec.TargetPool)
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			// If the pool protocol is unset, assume a default of "tcp".
+			poolProtocol := pool.Config["protocol"]
+			if poolProtocol == "" {
+				poolProtocol = "tcp"
+			}
+
+			if poolProtocol != portSpec.Protocol {
+				return nil, fmt.Errorf("Cannot use pool protocol %q with port protocol %q", poolProtocol, portSpec.Protocol)
+			}
+
+			listenPort, err := strconv.Atoi(portSpec.ListenPort)
+			if err != nil {
+				return nil, fmt.Errorf("Failed converting listen port %q to int: %w", portSpec.ListenPort, err)
+			}
+
+			portMap := loadBalancerPortMap{
+				listenPorts: []uint64{uint64(listenPort)},
+				protocol:    portSpec.Protocol,
+				targets:     make([]forwardTarget, 0, len(pool.Instances)),
+			}
+
+			for _, poolInstance := range pool.Instances {
+				// Load the instance from the DB by name.
+				dbInst, err := instance.LoadByProjectAndName(n.state, n.project, poolInstance.Name)
+				if err != nil {
+					return nil, fmt.Errorf("Failed loading instance %q: %w", poolInstance.Name, err)
+				}
+
+				instanceUUID := dbInst.LocalConfig()["volatile.uuid"]
+				instanceHasNICInNetwork := false
+
+				// Find NICs connected to this network.
+				for devName, devConfig := range dbInst.ExpandedDevices() {
+					if devConfig["type"] != "nic" || !NICUsesNetwork(devConfig, &api.Network{Name: n.name}) {
+						continue
+					}
+
+					instanceHasNICInNetwork = true
+
+					// Check if the port is up.
+					// We cannot add it as target to the load balancer as it might collide with an enabled health check.
+					// When OVN sets up the health check's service monitor, it sets its initial status to "[]".
+					// But only targets with a status of "offline" won't be considered as load balancer targets.
+					// Therefore we skip down ports of offline instances to not cause the load balancer redirecting traffic to them.
+					portUp, err := n.InstanceDevicePortIsUp(client, instanceUUID, devName)
+					if err != nil {
+						logger.Warn("Skipping load balancer pool instance as failed checking if its port is up", logger.Ctx{"instance": poolInstance.Name, "pool": pool.Name, "network": n.name, "err": err})
+						continue
+					}
+
+					if !portUp {
+						logger.Warn("Skipping load balancer pool instance as its port is not up", logger.Ctx{"instance": poolInstance.Name, "pool": pool.Name, "network": n.name})
+						continue
+					}
+
+					devIPs, err := n.InstanceDevicePortIPs(instanceUUID, devName)
+					if err != nil || len(devIPs) == 0 {
+						logger.Warn("Skipping load balancer pool instance as it's missing an IP in network", logger.Ctx{"instance": poolInstance.Name, "pool": pool.Name, "network": n.name})
+						continue
+					}
+
+					targetPort := pool.Config["target_port"]
+
+					// An instance might use its own port.
+					if poolInstance.TargetPort != "" {
+						targetPort = poolInstance.TargetPort
+					}
+
+					// A specific target port on a pool's instance can only ever be referenced by a single load balancer pool.
+					// This is because OVN doesn't support having the same instance port as a target in multiple load balancer pools.
+					// The reason for this is because OVN would not create separate health checks for the target port.
+					// But this is required as different pools could have different health check configuration (if any).
+					// Different address families used for the same target port are allowed.
+					for _, activeNIC := range activeNICs {
+						vipIP := net.ParseIP(activeNIC.ListenAddress)
+
+						// Same family if both are IPv4 or both are IPv6.
+						sameAddressFamily := (vipIP.To4() != nil) == (listenAddress.To4() != nil)
+
+						if activeNIC.InstanceName == poolInstance.Name && activeNIC.EffectiveTargetPort == targetPort && activeNIC.PoolName != pool.Name && activeNIC.Protocol == poolProtocol && sameAddressFamily {
+							vipStr := net.JoinHostPort(activeNIC.ListenAddress, activeNIC.ListenPort)
+							return nil, api.StatusErrorf(http.StatusBadRequest, "Instance %q with port %q and protocol %q is already in use by load balancer %q and pool %q", poolInstance.Name, activeNIC.EffectiveTargetPort, activeNIC.Protocol, vipStr, activeNIC.PoolName)
+						}
+					}
+
+					targetPortInt, err := strconv.Atoi(targetPort)
+					if err != nil {
+						return nil, fmt.Errorf("Failed converting pool target port %q: %w", targetPort, err)
+					}
+
+					for _, ip := range devIPs {
+						// Skip IPs that don't match the listen address family.
+						if listenAddress.To4() != nil && ip.To4() == nil {
+							continue
+						} else if listenAddress.To4() == nil && ip.To4() != nil {
+							continue
+						}
+
+						portMap.targets = append(portMap.targets, forwardTarget{
+							address: ip,
+							instance: &forwardTargetInstance{
+								name:       dbInst.Name(),
+								uuid:       instanceUUID,
+								deviceName: devName,
+							},
+							ports: []uint64{uint64(targetPortInt)},
+						})
+					}
+				}
+
+				if !instanceHasNICInNetwork {
+					return nil, fmt.Errorf("Instance %q does not have a device in network %q", poolInstance.Name, n.name)
+				}
+			}
+
+			// If the pool doesn't have any instances, don't bother creating a port map.
+			if len(portMap.targets) == 0 {
+				continue
+			}
+
+			portMaps = append(portMaps, &portMap)
+		}
+	}
+
+	return portMaps, nil
 }
 
 // loadBalancerValidate validates the load balancer request.
@@ -5295,7 +5525,18 @@ func (n *ovn) loadBalancerValidate(listenAddress net.IP, forward api.NetworkLoad
 		return nil, err
 	}
 
-	return n.common.loadBalancerValidate(listenAddress, forward)
+	portMaps, err := n.common.loadBalancerValidate(listenAddress, forward)
+	if err != nil {
+		return nil, err
+	}
+
+	portMapsPools, err := n.checkLoadBalancerPoolInstances(listenAddress, forward)
+	if err != nil {
+		return nil, err
+	}
+
+	portMaps = append(portMaps, portMapsPools...)
+	return portMaps, nil
 }
 
 // LoadBalancerCreate creates a network load balancer.
@@ -5353,7 +5594,10 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 			_ = n.loadBalancerBGPSetupPrefixes()
 		})
 
-		vips := n.loadBalancerFlattenVIPs(net.ParseIP(loadBalancer.ListenAddress), portMaps)
+		vips, err := n.loadBalancerFlattenVIPs(net.ParseIP(loadBalancer.ListenAddress), portMaps)
+		if err != nil {
+			return nil, fmt.Errorf("Failed flattening load balancer VIPs: %w", err)
+		}
 
 		err = client.LoadBalancerApply(n.getLoadBalancerName(loadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
 		if err != nil {
@@ -5389,8 +5633,82 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 	return listenIPAddress, nil
 }
 
+// loadBalancerUpdateForInstance updates load balancers that reference this instance.
+func (n *ovn) loadBalancerUpdateForInstance(instanceName string) error {
+	// If any of the device's IP addresses have changed, update any load balancers
+	// whose ports reference pools containing this instance.
+	var pools []*api.NetworkLoadBalancerPool
+	var loadBalancers map[int64]*api.NetworkLoadBalancer
+
+	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		poolsDB, err := dbCluster.GetNetworksLoadBalancerPools(ctx, tx.Tx(), n.ID(), nil)
+		if err != nil {
+			return err
+		}
+
+		allConfigs, err := dbCluster.GetNetworksLoadBalancerPoolConfig(ctx, tx.Tx(), n.ID(), nil)
+		if err != nil {
+			return err
+		}
+
+		allInstances, err := dbCluster.GetNetworksLoadBalancerPoolInstances(ctx, tx.Tx(), nil)
+		if err != nil {
+			return err
+		}
+
+		pools = make([]*api.NetworkLoadBalancerPool, 0, len(poolsDB))
+
+		for _, poolDB := range poolsDB {
+			pool, err := poolDB.ToAPI(allConfigs, allInstances)
+			if err != nil {
+				return err
+			}
+
+			pools = append(pools, pool)
+		}
+
+		loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), false)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed loading load balancer pools: %w", err)
+	}
+
+	// Find pools that reference this instance.
+	poolNames := []string{}
+	for _, pool := range pools {
+		for _, poolInstance := range pool.Instances {
+			if poolInstance.Name == instanceName {
+				poolNames = append(poolNames, pool.Name)
+				break
+			}
+		}
+	}
+
+	// Update load balancers whose ports reference affected pools.
+	for _, loadBalancer := range loadBalancers {
+		for _, port := range loadBalancer.Ports {
+			if slices.Contains(poolNames, port.TargetPool) {
+				n.logger.Debug("Updating load balancer using instance", logger.Ctx{"load_balancer": loadBalancer.ListenAddress, "instance": instanceName})
+
+				err = n.loadBalancerUpdate(loadBalancer.ListenAddress, loadBalancer.Writable(), request.ClientTypeNormal, true)
+				if err != nil {
+					return fmt.Errorf("Failed updating load balancer %q: %w", loadBalancer.ListenAddress, err)
+				}
+
+				// Only need to update each load balancer once even if multiple ports match.
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // LoadBalancerUpdate updates a network load balancer.
-func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalancerPut, clientType request.ClientType) error {
+// The update can be forced in case any of the referenced entities (like pools) got updated
+// which require also an update of the parent load balancer.
+func (n *ovn) loadBalancerUpdate(listenAddress string, req api.NetworkLoadBalancerPut, clientType request.ClientType, force bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -5432,7 +5750,8 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 			return err
 		}
 
-		if curForwardEtagHash == newLoadBalancerEtagHash {
+		// In case a force update was requested, ignore the etag.
+		if curForwardEtagHash == newLoadBalancerEtagHash && !force {
 			return nil // Nothing has changed.
 		}
 
@@ -5441,7 +5760,10 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 			return fmt.Errorf("Failed getting OVN client: %w", err)
 		}
 
-		vips := n.loadBalancerFlattenVIPs(net.ParseIP(newLoadBalancer.ListenAddress), portMaps)
+		vips, err := n.loadBalancerFlattenVIPs(net.ParseIP(newLoadBalancer.ListenAddress), portMaps)
+		if err != nil {
+			return fmt.Errorf("Failed flattening load balancer VIPs: %w", err)
+		}
 
 		err = client.LoadBalancerApply(n.getLoadBalancerName(newLoadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
 		if err != nil {
@@ -5452,7 +5774,14 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 			// Apply old settings to OVN on failure.
 			portMaps, err := n.loadBalancerValidate(net.ParseIP(curLoadBalancer.ListenAddress), curLoadBalancer.Writable())
 			if err == nil {
-				vips := n.loadBalancerFlattenVIPs(net.ParseIP(curLoadBalancer.ListenAddress), portMaps)
+				vips, err := n.loadBalancerFlattenVIPs(net.ParseIP(curLoadBalancer.ListenAddress), portMaps)
+				if err != nil {
+					logger.Error("Failed flattening load balancer VIPs", logger.Ctx{"listen_address": curLoadBalancer.ListenAddress, "err": err})
+
+					// Return early because passing an empty list of vips to LoadBalancerApply deletes the load balancer.
+					return
+				}
+
 				_ = client.LoadBalancerApply(n.getLoadBalancerName(curLoadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
 				_ = n.forwardBGPSetupPrefixes()
 			}
@@ -5498,6 +5827,11 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 
 	revert.Success()
 	return nil
+}
+
+// LoadBalancerUpdate updates a network load balancer.
+func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalancerPut, clientType request.ClientType) error {
+	return n.loadBalancerUpdate(listenAddress, req, clientType, false)
 }
 
 // LoadBalancerDelete deletes a network load balancer.
@@ -6262,4 +6596,533 @@ func (n *ovn) checkAddressNotInOVNRange(addr net.IP) error {
 	}
 
 	return nil
+}
+
+// loadBalancerPoolValidate validates the load balancer pool request.
+// It also tries to fetch and returns the pool from the database in case it already exists.
+func (n *ovn) loadBalancerPoolValidate(ctx context.Context, tx *db.ClusterTx, poolName string, pool api.NetworkLoadBalancerPoolPut) (*dbCluster.NetworksLoadBalancerPool, error) {
+	var loadBalancerPoolDB *dbCluster.NetworksLoadBalancerPool
+
+	// Validate the pool names under the same constraints present for network names.
+	err := n.ValidateName(poolName)
+	if err != nil {
+		return nil, api.NewStatusError(http.StatusBadRequest, err.Error())
+	}
+
+	var allProjectInstances []string
+
+	// Fetch all instances in the current project.
+	// Do this before returning an error if the pool doesn't exist.
+	// This ensures the project instances are always loaded for validation.
+	allProjectInstances, err = tx.GetInstanceNames(ctx, n.project)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate if the pool exists.
+	loadBalancerPoolDB, err = dbCluster.GetNetworksLoadBalancerPool(ctx, tx.Tx(), n.ID(), poolName)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return nil, err
+	}
+
+	// Validate if the instances exist in the current project.
+	for _, instance := range pool.Instances {
+		if !slices.Contains(allProjectInstances, instance.Name) {
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Instance %q does not exist in project %q", instance.Name, n.project)
+		}
+
+		// Setting the target port on an instance is optional.
+		// If unset it inherits the port from the parent pool.
+		if instance.TargetPort != "" {
+			// Validate target port.
+			err = validate.IsNetworkPort(instance.TargetPort)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	checkedFields := map[string]struct{}{}
+	rules := map[string]func(value string) error{
+		// lxdmeta:generate(entities=network-load-balancer-pool; group=properties; key=protocol)
+		// Can be either `tcp` or `udp`.
+		// ---
+		//  type: string
+		//  defaultdesc: `tcp`
+		//  required: no
+		//  shortdesc: Protocol used for ingress pool traffic.
+		"protocol": validate.Optional(validate.IsOneOf("tcp", "udp")),
+		// lxdmeta:generate(entities=network-load-balancer-pool; group=properties; key=target_port)
+		//
+		// ---
+		//  type: string
+		//  required: yes
+		//  shortdesc: Port used on instances for ingress pool traffic
+		"target_port": validate.Required(validate.IsNetworkPort),
+	}
+
+	// Run the validator against each field.
+	for k, validator := range rules {
+		checkedFields[k] = struct{}{} // Mark field as checked.
+		err := validator(pool.Config[k])
+		if err != nil {
+			return nil, fmt.Errorf("Invalid value for pool %q option %q: %w", poolName, k, err)
+		}
+	}
+
+	// Validate config fields.
+	for k := range pool.Config {
+		_, checked := checkedFields[k]
+		if checked {
+			continue
+		}
+
+		// User keys are not validated.
+		if config.IsUserConfig(k) {
+			continue
+		}
+
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Invalid option %q", k)
+	}
+
+	return loadBalancerPoolDB, nil
+}
+
+// LoadBalancerPoolCreate creates a network load balancer pool.
+func (n *ovn) LoadBalancerPoolCreate(loadBalancerPool api.NetworkLoadBalancerPoolsPost) error {
+	// If no protocol is specified, default to "tcp".
+	if loadBalancerPool.Config["protocol"] == "" {
+		loadBalancerPool.Config["protocol"] = "tcp"
+	}
+
+	return n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		loadBalancerPoolDB, err := n.loadBalancerPoolValidate(ctx, tx, loadBalancerPool.Name, loadBalancerPool.NetworkLoadBalancerPoolPut)
+		if err != nil {
+			return err
+		}
+
+		if loadBalancerPoolDB != nil {
+			return api.StatusErrorf(http.StatusBadRequest, "Pool with name %q already exists on network %q", loadBalancerPool.Name, n.Name())
+		}
+
+		// Create load balancer pool DB record.
+		poolID, err := query.Create(ctx, tx.Tx(), dbCluster.NetworksLoadBalancerPoolRow{
+			NetworkID:   n.ID(),
+			Name:        loadBalancerPool.Name,
+			Description: loadBalancerPool.Description,
+		})
+		if err != nil {
+			return err
+		}
+
+		// Create load balancer pool config.
+		err = dbCluster.CreateNetworksLoadBalancerPoolConfig(ctx, tx.Tx(), poolID, loadBalancerPool.Config)
+		if err != nil {
+			return err
+		}
+
+		// Create load balancer pool instance records.
+		// The CLI does not make use of this but it ensures the API endpoint can be used to already add instances in a single request.
+		for _, instance := range loadBalancerPool.Instances {
+			err := n.loadBalancerPoolAddInstance(ctx, tx, poolID, instance)
+			if err != nil {
+				return fmt.Errorf("Failed adding instance %q to pool %q: %w", instance.Name, loadBalancerPool.Name, err)
+			}
+		}
+
+		return nil
+	})
+}
+
+func (n *ovn) loadBalancerPoolAddInstance(ctx context.Context, tx *db.ClusterTx, poolID int64, instance api.NetworkLoadBalancerPoolInstance) error {
+	// Fetch instance.
+	instanceID, err := tx.GetInstanceID(ctx, n.project, instance.Name)
+	if err != nil {
+		return err
+	}
+
+	targetPort := 0
+	if instance.TargetPort != "" {
+		targetPort, err = strconv.Atoi(instance.TargetPort)
+		if err != nil {
+			return fmt.Errorf("Failed parsing target port %q: %w", instance.TargetPort, err)
+		}
+	}
+
+	// Create load balancer pool instance DB record.
+	_, err = query.Create(ctx, tx.Tx(), dbCluster.NetworksLoadBalancerPoolInstanceRow{
+		PoolID:     poolID,
+		InstanceID: int64(instanceID),
+		TargetPort: int64(targetPort),
+	})
+	return err
+}
+
+func (n *ovn) loadBalancerPoolUpdateInstance(ctx context.Context, tx *db.ClusterTx, poolID int64, instance api.NetworkLoadBalancerPoolInstance) error {
+	// Fetch instance.
+	instanceID, err := tx.GetInstanceID(ctx, n.project, instance.Name)
+	if err != nil {
+		return err
+	}
+
+	targetPort := 0
+	if instance.TargetPort != "" {
+		targetPort, err = strconv.Atoi(instance.TargetPort)
+		if err != nil {
+			return fmt.Errorf("Failed parsing target port %q: %w", instance.TargetPort, err)
+		}
+	}
+
+	instanceDB := &dbCluster.NetworksLoadBalancerPoolInstanceRow{
+		PoolID:     poolID,
+		InstanceID: int64(instanceID),
+		TargetPort: int64(targetPort),
+	}
+
+	// Update load balancer pool instance DB record.
+	return dbCluster.UpdateNetworkLoadBalancerPoolInstanceRow(ctx, tx.Tx(), instanceDB)
+}
+
+func (n *ovn) loadBalancerPoolRemoveInstance(ctx context.Context, tx *db.ClusterTx, poolID int64, instanceName string) error {
+	// Fetch instance.
+	instanceID, err := tx.GetInstanceID(ctx, n.project, instanceName)
+	if err != nil {
+		return err
+	}
+
+	// Remove load balancer pool instance DB record.
+	return dbCluster.DeleteNetworksLoadBalancerPoolInstanceRow(ctx, tx.Tx(), poolID, int64(instanceID))
+}
+
+// LoadBalancerPoolUpdate updates a network load balancer pool.
+func (n *ovn) LoadBalancerPoolUpdate(poolName string, loadBalancerPoolPut api.NetworkLoadBalancerPoolPut) error {
+	// Create two reverters.
+	// It's essential that the load balancer revert gets executed last.
+	// Therefore defer it first.
+	// Before updating (reverting) the load balancer in OVN, the database already needs to be cleaned up.
+	lbRevert := revert.New()
+	defer lbRevert.Fail()
+
+	dbRevert := revert.New()
+	defer dbRevert.Fail()
+
+	// Track whether or not the load balancer requires an update.
+	// Skip the update on the OVN layer if it's a DB only update.
+	loadBalancerRequiresUpdate := false
+
+	var loadBalancerPoolDB *dbCluster.NetworksLoadBalancerPool
+	var loadBalancerPool *api.NetworkLoadBalancerPool
+
+	// Populated if pool requires an update of the parent load balancer(s).
+	var loadBalancers map[int64]*api.NetworkLoadBalancer
+
+	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		loadBalancerPoolDB, err = n.loadBalancerPoolValidate(ctx, tx, poolName, loadBalancerPoolPut)
+		if err != nil {
+			return err
+		}
+
+		if loadBalancerPoolDB == nil {
+			return api.StatusErrorf(http.StatusNotFound, "Pool with name %q does not exist on network %q", poolName, n.Name())
+		}
+
+		allConfigs, err := dbCluster.GetNetworksLoadBalancerPoolConfig(ctx, tx.Tx(), n.ID(), &loadBalancerPoolDB.Row.ID)
+		if err != nil {
+			return err
+		}
+
+		allInstances, err := dbCluster.GetNetworksLoadBalancerPoolInstances(ctx, tx.Tx(), &loadBalancerPoolDB.Row.ID)
+		if err != nil {
+			return err
+		}
+
+		loadBalancerPool, err = loadBalancerPoolDB.ToAPI(allConfigs, allInstances)
+		if err != nil {
+			return err
+		}
+
+		// Create simple list of instances currently set on the pool.
+		var poolInstances []string
+		for _, instance := range loadBalancerPool.Instances {
+			poolInstances = append(poolInstances, instance.Name)
+		}
+
+		// Check if list of instances requires an update.
+		for _, instance := range loadBalancerPoolPut.Instances {
+			// Handle new instances not present in the DB.
+			if !slices.Contains(poolInstances, instance.Name) {
+				loadBalancerRequiresUpdate = true
+
+				// Add instance to the pool.
+				// If the pool is currently referenced by a port, this requires modification of the load balancer in OVN.
+				// If the pool is unused, this only adds the instance in the database.
+				err := n.loadBalancerPoolAddInstance(ctx, tx, loadBalancerPoolDB.Row.ID, instance)
+				if err != nil {
+					return fmt.Errorf("Failed adding instance %q to pool %q: %w", instance.Name, poolName, err)
+				}
+			} else {
+				for _, instanceDB := range loadBalancerPool.Instances {
+					if instanceDB.Name == instance.Name && instanceDB.TargetPort != instance.TargetPort {
+						// Ensure the target port is up to date.
+						err := n.loadBalancerPoolUpdateInstance(ctx, tx, loadBalancerPoolDB.Row.ID, instance)
+						if err != nil {
+							return fmt.Errorf("Failed updating instance %q in pool %q: %w", instance.Name, poolName, err)
+						}
+
+						// Indicate the load balancers requires and update too.
+						loadBalancerRequiresUpdate = true
+					}
+				}
+			}
+		}
+
+		// Create simple list of instances requested to be on the pool.
+		var requestedPoolInstances []string
+		for _, instance := range loadBalancerPoolPut.Instances {
+			requestedPoolInstances = append(requestedPoolInstances, instance.Name)
+		}
+
+		// Check if list of DB instances requires an update.
+		for _, instance := range loadBalancerPool.Instances {
+			// Handle existing instances present in the DB.
+			if !slices.Contains(requestedPoolInstances, instance.Name) {
+				loadBalancerRequiresUpdate = true
+
+				// Remove instance from the pool.
+				err := n.loadBalancerPoolRemoveInstance(ctx, tx, loadBalancerPoolDB.Row.ID, instance.Name)
+				if err != nil {
+					return fmt.Errorf("Failed removing instance %q from pool %q: %w", instance.Name, poolName, err)
+				}
+			}
+		}
+
+		// If no protocol is specified, default to "tcp".
+		// This happens when the protocol gets unset.
+		if loadBalancerPoolPut.Config["protocol"] == "" {
+			loadBalancerPoolPut.Config["protocol"] = "tcp"
+		}
+
+		// Check if load balancer requires an update based on config changes.
+		for k, v := range loadBalancerPoolPut.Config {
+			if loadBalancerPool.Config[k] != v {
+				loadBalancerRequiresUpdate = true
+
+				// Stop checking further config options as the load balancer will require an update anyway.
+				break
+			}
+		}
+
+		// Check if any config options got removed which means the defaults should be applied.
+		if len(loadBalancerPool.Config) != len(loadBalancerPoolPut.Config) {
+			loadBalancerRequiresUpdate = true
+		}
+
+		// Update the pool description and config.
+		poolDBNew := &dbCluster.NetworksLoadBalancerPoolRow{
+			ID:          loadBalancerPoolDB.Row.ID,
+			NetworkID:   loadBalancerPoolDB.Row.NetworkID,
+			Name:        loadBalancerPoolDB.Row.Name,
+			Description: loadBalancerPoolPut.Description,
+		}
+
+		err = dbCluster.UpdateNetworksLoadBalancerPool(ctx, tx.Tx(), poolDBNew, loadBalancerPoolPut.Config)
+		if err != nil {
+			return err
+		}
+
+		// Fetch a list of parent load balancers that might require an update.
+		if loadBalancerRequiresUpdate {
+			loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), false)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	dbRevert.Add(func() {
+		_ = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return dbCluster.UpdateNetworksLoadBalancerPool(ctx, tx.Tx(), &loadBalancerPoolDB.Row, loadBalancerPool.Config)
+		})
+	})
+
+	// Update the parent load balancer in case the pool was modified.
+	for _, loadBalancer := range loadBalancers {
+		for _, port := range loadBalancer.Ports {
+			if port.TargetPool == poolName {
+				// Force the update of the load balancer.
+				// It's etag value is not changed because the load balancer itself wasn't modified.
+				// If it returns an error here, loadBalancerUpdate takes care of reverting the changes.
+				err = n.loadBalancerUpdate(loadBalancer.ListenAddress, loadBalancer.Writable(), request.ClientTypeNormal, true)
+				if err != nil {
+					return fmt.Errorf("Failed updating load balancer %q: %w", loadBalancer.ListenAddress, err)
+				}
+
+				// If something fails, trigger an update (revert) of this load balancer.
+				// This requires that the DB is already reverted.
+				lbRevert.Add(func() {
+					_ = n.loadBalancerUpdate(loadBalancer.ListenAddress, loadBalancer.Writable(), request.ClientTypeNormal, true)
+				})
+
+				// If the pool is used by multiple ports of the same load balancer, continue if it got updated already.
+				break
+			}
+		}
+	}
+
+	lbRevert.Success()
+	dbRevert.Success()
+	return nil
+}
+
+// LoadBalancerPoolDelete deletes a network load balancer pool.
+func (n *ovn) LoadBalancerPoolDelete(poolName string) error {
+	var allLoadBalancers map[string][]string
+
+	// Check if the pool is still referenced by any load balancer port.
+	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		// Get all load balancers referencing the pool with any of their ports.
+		allLoadBalancers, err = dbCluster.GetNetworksLoadBalancersByPool(ctx, tx.Tx(), n.ID(), &poolName)
+		if err != nil {
+			return fmt.Errorf("Failed getting load balancers for network %q: %w", n.Name(), err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(allLoadBalancers) > 0 {
+		return api.StatusErrorf(http.StatusBadRequest, "Pool %q is still referenced by at least one load balancer port", poolName)
+	}
+
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Try to delete the pool.
+		// If it doesn't exist a not found error is returned.
+		return dbCluster.DeleteNetworksLoadBalancerPool(ctx, tx.Tx(), n.ID(), poolName)
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// getLoadBalancerPool returns a load balancer pool by its name.
+func (n *ovn) getLoadBalancerPool(ctx context.Context, tx *sql.Tx, poolName string) (*api.NetworkLoadBalancerPool, error) {
+	poolDB, err := dbCluster.GetNetworksLoadBalancerPool(ctx, tx, n.ID(), poolName)
+	if err != nil {
+		return nil, err
+	}
+
+	allConfigs, err := dbCluster.GetNetworksLoadBalancerPoolConfig(ctx, tx, n.ID(), &poolDB.Row.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	allInstances, err := dbCluster.GetNetworksLoadBalancerPoolInstances(ctx, tx, &poolDB.Row.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return poolDB.ToAPI(allConfigs, allInstances)
+}
+
+// getLoadBalancerInstanceNICs returns a list of active instance NICs which are referenced by load balancers on this network.
+// The operation is performed with the records from the database.
+// Another approach would be to query all the active service monitors using ovn-sbctl.
+func (n *ovn) getLoadBalancerInstanceNICs() ([]OVNLoadBalancerInstanceNIC, error) {
+	var activePorts []OVNLoadBalancerInstanceNIC
+
+	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		loadBalancers, err := tx.GetNetworkLoadBalancers(ctx, n.ID(), false)
+		if err != nil {
+			return err
+		}
+
+		for _, loadBalancer := range loadBalancers {
+			for _, port := range loadBalancer.Ports {
+				// Skip load balancer ports which don't use a target pool.
+				if port.TargetPool == "" {
+					continue
+				}
+
+				pool, err := n.getLoadBalancerPool(ctx, tx.Tx(), port.TargetPool)
+				if err != nil {
+					return fmt.Errorf("Failed getting load balancers in network %q: %w", n.name, err)
+				}
+
+				// Iterate through all pool's instances.
+				for _, instance := range pool.Instances {
+					effectiveTargetPort := pool.Config["target_port"]
+					if instance.TargetPort != "" {
+						effectiveTargetPort = instance.TargetPort
+					}
+
+					activePorts = append(activePorts, OVNLoadBalancerInstanceNIC{
+						InstanceName:        instance.Name,
+						EffectiveTargetPort: effectiveTargetPort,
+						Protocol:            port.Protocol,
+						PoolName:            pool.Name,
+						ListenAddress:       loadBalancer.ListenAddress,
+						ListenPort:          port.ListenPort,
+					})
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return activePorts, nil
+}
+
+// InstanceDevicePortValidateUseByLoadBalancer checks whether the given instance is referenced by any load balancer pool on this network.
+// Returns an error if it is, indicating the instance must be removed from the pool first.
+func (n *ovn) InstanceDevicePortValidateUseByLoadBalancer(deviceInstance instance.Instance) error {
+	var loadBalancers map[int64]*api.NetworkLoadBalancer
+	var err error
+
+	return n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), false)
+		if err != nil {
+			return err
+		}
+
+		for _, lb := range loadBalancers {
+			for _, port := range lb.Ports {
+				if port.TargetPool == "" {
+					continue
+				}
+
+				// Load the pool and check its instances.
+				pool, err := n.getLoadBalancerPool(ctx, tx.Tx(), port.TargetPool)
+				if err != nil {
+					return fmt.Errorf("Failed getting load balancer pool %q: %w", port.TargetPool, err)
+				}
+
+				for _, poolInst := range pool.Instances {
+					if poolInst.Name == deviceInstance.Name() {
+						return api.StatusErrorf(http.StatusBadRequest, "Instance %q is referenced by load balancer pool %q and listen address %q", deviceInstance.Name(), port.TargetPool, lb.ListenAddress)
+					}
+				}
+			}
+		}
+
+		return nil
+	})
 }

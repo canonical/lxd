@@ -38,9 +38,10 @@ type ovnNet interface {
 	network.Network
 
 	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
+	InstanceDevicePortValidateUseByLoadBalancer(deviceInstance instance.Instance) error
 	InstanceDevicePortAdd(opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error)
 	InstanceDevicePortStart(deviceInstance instance.Instance) error
-	InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
+	InstanceDevicePortRemove(opts *network.OVNInstanceNICSetupOpts) error
 	InstanceDevicePortIPs(instanceUUID string, deviceName string) ([]net.IP, error)
 }
 
@@ -916,7 +917,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 
 		// Remove the port only when IP addresses have changed.
 		if ipv4Changed || ipv6Changed {
-			err = d.network.InstanceDevicePortRemove(d.inst.LocalConfig()["volatile.uuid"], d.name, oldConfig)
+			err = d.network.InstanceDevicePortRemove(nicSetupOpts)
 			if err != nil {
 				return fmt.Errorf("Failed removing old instance device port config: %w", err)
 			}
@@ -1131,6 +1132,13 @@ func (d *nicOVN) postStop() error {
 	return nil
 }
 
+// PreRemoveCheck indicates if the device is available for removal.
+func (d *nicOVN) PreRemoveCheck() error {
+	// Check if this device is referenced by any load balancer pool on this network.
+	// Reject removal if so, as the instance must be removed from the pool first.
+	return d.network.InstanceDevicePortValidateUseByLoadBalancer(d.inst)
+}
+
 // Remove is run when the device is removed from the instance or the instance is deleted.
 func (d *nicOVN) Remove() error {
 	// Check for port groups that will become unused (and need deleting) as this NIC is deleted.
@@ -1147,7 +1155,20 @@ func (d *nicOVN) Remove() error {
 		}
 	}
 
-	return d.network.InstanceDevicePortRemove(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
+	// Last remove the actual port.
+	nicSetupOpts := &network.OVNInstanceNICSetupOpts{
+		InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
+		DeviceName:   d.name,
+		DeviceConfig: d.config,
+		DNSName:      d.inst.Name(),
+	}
+
+	err := d.network.InstanceDevicePortRemove(nicSetupOpts)
+	if err != nil {
+		return fmt.Errorf("Failed removing instance device port: %w", err)
+	}
+
+	return nil
 }
 
 // State gets the state of an OVN NIC by querying the OVN Northbound logical switch port record.

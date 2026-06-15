@@ -496,10 +496,10 @@ test_network_ovn() {
   lxc network load-balancer backend add "${ovn_network}" "${volatile_ip6}" c1-backend "${c1_ipv6_address}" 162
 
   echo "Configure ports for the load balancers."
-  lxc network load-balancer port add "${ovn_network}" 192.0.2.1 tcp 80 c1-backend
-  lxc network load-balancer port add "${ovn_network}" 2001:db8:1:2::1 tcp 80 c1-backend
-  lxc network load-balancer port add "${ovn_network}" "${volatile_ip4}" udp 162 c1-backend
-  lxc network load-balancer port add "${ovn_network}" "${volatile_ip6}" udp 162 c1-backend
+  lxc network load-balancer port add "${ovn_network}" 192.0.2.1 tcp 80 target_backend=c1-backend
+  lxc network load-balancer port add "${ovn_network}" 2001:db8:1:2::1 tcp 80 target_backend=c1-backend
+  lxc network load-balancer port add "${ovn_network}" "${volatile_ip4}" udp 162 target_backend=c1-backend
+  lxc network load-balancer port add "${ovn_network}" "${volatile_ip6}" udp 162 target_backend=c1-backend
 
   echo "Check that load balancers are associated with the internal OVN switch."
   [ "$(ovn-nbctl get logical_switch "${internal_switch_name}" load_balancer | tr -d '[]' | awk -F, '{print NF}')" = "4" ]
@@ -576,8 +576,8 @@ test_network_ovn() {
   lxc network load-balancer backend add "${ovn_network}" fd42:bd85:5f89:5293::20 c1-backend "${c1_ipv6_address}" 80
 
   echo "Configure ports for internal load balancers."
-  lxc network load-balancer port add "${ovn_network}" 10.24.140.20 tcp 80 c1-backend
-  lxc network load-balancer port add "${ovn_network}" fd42:bd85:5f89:5293::20 tcp 80 c1-backend
+  lxc network load-balancer port add "${ovn_network}" 10.24.140.20 tcp 80 target_backend=c1-backend
+  lxc network load-balancer port add "${ovn_network}" fd42:bd85:5f89:5293::20 tcp 80 target_backend=c1-backend
 
   echo "Clean up internal load balancers."
   lxc network load-balancer delete "${ovn_network}" 10.24.140.20
@@ -634,7 +634,7 @@ test_network_ovn() {
   # 2. Create a dummy backend.
   lxc network load-balancer backend add "${ovn_network}" 2001:db8:1:2::1 c1 fd42:bd85:5f89:5293::10
   # 3. Setup a port pointing to the backend.
-  lxc network load-balancer port add "${ovn_network}" 2001:db8:1:2::1 tcp 80 c1
+  lxc network load-balancer port add "${ovn_network}" 2001:db8:1:2::1 tcp 80 target_backend=c1
   # 4. Get the load balancer's internal UUID.
   load_balancer_name="${chassis_group_name}-lb-2001:db8:1:2::1-tcp"
   load_balancer_uuid="$(ovn-nbctl get load_balancer "${load_balancer_name}" _uuid)"
@@ -889,19 +889,292 @@ test_network_ovn() {
   reset_row_count
   assert_row_count
 
+  ########################################################################################################################
+
+  echo "==> Test OVN load balancer pools."
+
+  echo "Create a bridge for use as an uplink."
+  lxc network create "${uplink_network}" \
+      ipv4.address=10.10.10.1/24 ipv4.nat=true \
+      ipv4.dhcp.ranges=10.10.10.2-10.10.10.199 \
+      ipv4.ovn.ranges=10.10.10.200-10.10.10.254 \
+      ipv6.address=fd42:4242:4242:1010::1/64 ipv6.nat=true \
+      ipv6.ovn.ranges=fd42:4242:4242:1010::200-fd42:4242:4242:1010::254 \
+      ipv4.routes=192.0.2.0/24 ipv6.routes=2001:db8:1:2::/64
+
+  echo "==> Create an OVN network."
+  lxc network create "${ovn_network}" --type ovn network="${uplink_network}" \
+    ipv4.address=10.24.140.1/24 ipv4.nat=true \
+    ipv6.address=fd42:bd85:5f89:5293::1/64 ipv6.nat=true
+
+  echo "==> Create load balancers for both IP families on the OVN network (internal)."
+  lxc network load-balancer create "${ovn_network}" 10.24.140.100
+  lxc network load-balancer create "${ovn_network}" fd42:bd85:5f89:5293::100
+
+  echo "==> Create load balancers for both IP families on the UPLINK network (external)."
+  lxc network load-balancer create "${ovn_network}" 192.0.2.100
+  lxc network load-balancer create "${ovn_network}" 2001:db8:1:2::100
+
+  echo "==> Ensure we can reach into the OVN network for internal load balancer checks."
+  router_ipv4="$(lxc network get "${ovn_network}" volatile.network.ipv4.address)"
+  router_ipv6="$(lxc network get "${ovn_network}" volatile.network.ipv6.address)"
+  ip route add 10.24.140.100 via "${router_ipv4}"
+  ip route add 192.0.2.100 via "${router_ipv4}"
+  ip -6 route add fd42:bd85:5f89:5293::100 via "${router_ipv6}"
+  ip -6 route add 2001:db8:1:2::100 via "${router_ipv6}"
+
+  load_balancer_ips=("10.24.140.100" "fd42:bd85:5f89:5293::100" "192.0.2.100" "2001:db8:1:2::100")
+
+  echo "==> Create a load balancer pool using 80 TCP."
+  lxc network load-balancer pool create "${ovn_network}" http target_port=80
+
+  echo "==> Check the list of load balancer pools shows the created pool."
+  [ "$(lxc network load-balancer pool list "${ovn_network}" -f json | jq length)" = "1" ]
+
+  echo "==> Check that the load balancer pool shows the right target port."
+  [ "$(lxc network load-balancer pool get "${ovn_network}" http target_port)" = "80" ]
+
+  echo "==> Check that the load balancer pool shows port tcp if none was provided during creation."
+  [ "$(lxc network load-balancer pool get "${ovn_network}" http protocol)" = "tcp" ]
+
+  echo "==> Check the list of load balancer pool instances is empty."
+  [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.instances | length')" = "0" ]
+
+  echo "==> Create a project that uses the OVN network of the default project."
+  lxc project create testovn -c features.networks=false
+  lxc project switch testovn
+
+  echo "==> Check that any load balancer pool operation is forbidden on networks outside of the project."
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc network load-balancer pool list "${ovn_network}" 2>&1)" = 'Error: Project "testovn" requires features.networks=true' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc network load-balancer pool show "${ovn_network}" http 2>&1)" = 'Error: Project "testovn" requires features.networks=true' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc network load-balancer pool edit "${ovn_network}" http 2>&1)" = 'Error: Project "testovn" requires features.networks=true' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc network load-balancer pool create "${ovn_network}" http2 target_port=80 2>&1)" = 'Error: Project "testovn" requires features.networks=true' ]
+
+  echo "==> Switch back to the default project."
+  lxc project delete testovn
+
+  # Required in setup_instance_ip4_interface.
+  ovn_network_id="$(lxd sql global --format csv "SELECT id FROM networks WHERE name = '${ovn_network}'")"
+  chassis_group_name="lxd-net${ovn_network_id}"
+
+  echo "==> Create targets for the load balancer pool."
+  for i in 1 2 3; do
+    lxc launch testimage "c${i}" -n "${ovn_network}"
+    setup_instance_ip4_interface "c${i}"
+  done
+
+  echo "==> Attach targets to the load balancer pool."
+  for i in 1 2 3; do
+    lxc network load-balancer pool instance add "${ovn_network}" http "c${i}"
+  done
+
+  echo "==> Check that the load balancer pool shows three backends."
+  [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.instances | length')" = "3" ]
+
+  echo "==> Check the load balancer pool for both IP families after assigning it to a port."
+  for ip in "${load_balancer_ips[@]}"; do
+    bracketed_ip="$(wrap_ipv6 "${ip}")"
+
+    echo "==> Check that a port range cannot be used to reference a pool."
+    [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc network load-balancer port add "${ovn_network}" "${ip}" tcp 80-81 target_pool=http 2>&1)" = 'Error: Failed updating load balancer: Port ranges cannot be used with pool in port specification 0' ]
+
+    echo "==> Create a load balancer port using the pool."
+    lxc network load-balancer port add "${ovn_network}" "${ip}" tcp 80 target_pool=http
+
+    echo "==> Check the pool cannot be removed when being referenced by a port."
+    [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc network load-balancer pool delete "${ovn_network}" http 2>&1)" = 'Error: Failed deleting load balancer pool: Pool "http" is still referenced by at least one load balancer port' ]
+
+    echo "==> Setup a fourth instance which doesn't have an interface in the OVN network."
+    lxc init testimage c4
+
+    echo "==> Check the instance without interface cannot be attached to the load balancer pool as it's referenced by a port."
+    [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc network load-balancer pool instance add "${ovn_network}" http c4 2>&1)" = 'Error: Failed updating load balancer pool: Failed updating load balancer "'"${ip}"'": Instance "c4" does not have a device in network "'"${ovn_network}"'"' ]
+
+    lxc rm -f c4
+
+    echo "==> Check we cannot remove instance devices while they are actively used by a load balancer port."
+    [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc config device remove c1 eth0 2>&1)" = 'Error: Failed pre-remove check for device "eth0": Instance "c1" is referenced by load balancer pool "http" and listen address "'"${ip}"'"' ]
+
+    echo "==> Create a profile with a network device in the OVN network."
+    lxc profile show default | lxc profile create foo
+    lxc profile device set foo eth0 network="${ovn_network}"
+
+    echo "==> Setup a fourth instance using the profile."
+    lxc init testimage c4 -p foo
+
+    echo "==> Check the instance can be added to the pool."
+    lxc network load-balancer pool instance add "${ovn_network}" http c4
+
+    echo "==> Check the profile device cannot be removed while the interface is used by a load balancer port."
+    [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc profile device remove foo eth0 2>&1)" = "Error: At least one instance relies on this profile's nic device for network load balancer pool membership" ]
+
+    echo "==> Check the instance can be removed which also removes its participation in the load balancer pool."
+    lxc rm -f c4
+
+    lxc profile delete foo
+
+    echo "==> Check the load balancer pool shows as being used."
+    [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.used_by | length')" = "1" ]
+
+    echo "==> Spawn a web server in all instances to serve traffic on port 80."
+    for i in 1 2 3; do
+      # shellcheck disable=SC2016
+      lxc exec "c${i}" -- sh -c 'echo "$(hostname)" > /tmp/index.html && httpd -p 80 -h /tmp'
+    done
+
+    echo "==> Check that the load balancers accordingly distribute traffic to all instances."
+    probe_pool_targets "${bracketed_ip}" c1 c2 c3
+
+    echo "==> Tear down all servers."
+    for i in 1 2 3; do
+      lxc exec "c${i}" -- killall httpd || true
+    done
+
+    echo "==> Cleanup port."
+    lxc network load-balancer port remove "${ovn_network}" "${ip}" tcp 80
+  done
+
+  echo "==> Detach instances from the load balancer pool by deleting them."
+  for i in 1 2 3; do
+    lxc rm -f "c${i}"
+  done
+
+  echo "==> Check the list of load balancer pool instances is empty."
+  [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.instances | length')" = "0" ]
+
+  echo "==> Create a new instance (and target) with pre-defined address and attach it to the pool."
+  lxc launch testimage c1 -n "${ovn_network}" -d "eth0,ipv4.address=10.24.140.50"
+  setup_instance_ip4_interface c1
+  # shellcheck disable=SC2016
+  lxc exec c1 -- sh -c 'echo "$(hostname)" > /tmp/index.html && httpd -p 80 -h /tmp'
+  lxc network load-balancer pool instance add "${ovn_network}" http c1
+
+  echo "==> Create a dual-stack load balancer using the same pool."
+  lxc network load-balancer port add "${ovn_network}" 192.0.2.100 tcp 80 target_pool=http
+  lxc network load-balancer port add "${ovn_network}" 2001:db8:1:2::100 tcp 80 target_pool=http
+
+   echo "==> Check the load balancer pool shows as being used twice."
+  [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.used_by | length')" = "2" ]
+
+  echo "==> Check that the load balancers accordingly distribute traffic to the single instance."
+  probe_pool_targets 192.0.2.100 c1
+  probe_pool_targets "$(wrap_ipv6 2001:db8:1:2::100)" c1
+
+  echo "==> Change the instance IPv4 address and check the load balancer updates the target address accordingly."
+  lxc config device set c1 eth0 ipv4.address=10.24.140.51
+  # Mimic what the DHCP client would do.
+  setup_instance_ip4_interface c1
+
+  echo "==> Check that the load balancers accordingly distribute traffic to the single instance."
+  probe_pool_targets 192.0.2.100 c1
+  probe_pool_targets "$(wrap_ipv6 2001:db8:1:2::100)" c1
+
+  echo "==> Change the pool's target port to something invalid and use the instance override to restore."
+  lxc network load-balancer pool set "${ovn_network}" http target_port=81
+  lxc network load-balancer pool show "${ovn_network}" http | yq '.instances[].target_port = "80"' | lxc network load-balancer pool edit "${ovn_network}" http
+
+  echo "==> Check that the load balancers accordingly distribute traffic to the single instance."
+  probe_pool_targets 192.0.2.100 c1
+  probe_pool_targets "$(wrap_ipv6 2001:db8:1:2::100)" c1
+
+  echo "==> Create a second pool containing the same instance and a conflicting target port."
+  lxc network load-balancer pool create "${ovn_network}" http2 target_port=80
+  lxc network load-balancer pool instance add "${ovn_network}" http2 c1
+
+  echo "==> Check that we cannot setup another port referencing an already used instance target port (with an already existing health check from pool http)"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc network load-balancer port add "${ovn_network}" 192.0.2.100 tcp 8080 target_pool=http2 2>&1)" = 'Error: Failed updating load balancer: Instance "c1" with port "80" and protocol "tcp" is already in use by load balancer "192.0.2.100:80" and pool "http"' ]
+
+  echo "==> Cleanup."
+  for ip in "${load_balancer_ips[@]}"; do
+    lxc network load-balancer delete "${ovn_network}" "${ip}"
+  done
+  lxc rm -f c1
+  # Don't delete the "http" pool manually.
+  # It should get deleted when deleting the parent "${ovn_network}".
+  lxc network load-balancer pool delete "${ovn_network}" http2
+  ip route del 10.24.140.100
+  ip route del 192.0.2.100
+  ip -6 route del fd42:bd85:5f89:5293::100
+  ip -6 route del 2001:db8:1:2::100
+  # Also deletes the "http" pool.
+  lxc network delete "${ovn_network}"
+  lxc network delete "${uplink_network}"
+
+  # Validate northbound database is now empty.
+  reset_row_count
+  assert_row_count
+
   unset_ovn_configuration
 }
 
-setup_instance_ip4_interface() {
-  local uuid internal_switch_port_name ipv4_address
+probe_pool_targets() {
+  load_balancer_ip="${1}"
+  shift
+  valid_responses=("$@")
+
+  # Declare an array to track all responses.
+  declare -A seen
+  for valid in "${valid_responses[@]}"; do
+    seen["${valid}"]=false
+  done
+
+  # Try 100 times to be sure we got a response from all instances, as the load balancer may choose the same instance for multiple consecutive requests.
+  for i in $(seq 1 100); do
+    response="$(curl --silent --connect-timeout 5 -H "Connection: close" "http://${load_balancer_ip}:80")"
+    match=false
+    for valid in "${valid_responses[@]}"; do
+      if [ "${response}" = "${valid}" ]; then
+        # Indicate we got a valid response.
+        match=true
+
+        # Record the response.
+        seen["${response}"]=true
+        break
+      fi
+    done
+
+    # Exit in case the response wasn't expected.
+    if [ "${match}" = "false" ]; then
+      echo "Unexpected response from load balancer: ${response}"
+      exit 1
+    fi
+  done
+
+  # Check that every expected response was observed at least once.
+  for valid in "${valid_responses[@]}"; do
+    if [ "${seen[${valid}]}" = "false" ]; then
+      echo "Load balancer never responded with: ${valid}"
+      exit 1
+    fi
+  done
+}
+
+instance_ip4_address() {
+  local uuid internal_switch_port_name address
 
   uuid="$(lxc query /1.0/instances/"${1}" | jq -er '.config."volatile.uuid"')"
   internal_switch_port_name="${chassis_group_name}-instance-${uuid}-eth0"
 
-  ipv4_address="$(ovn-nbctl get logical_switch_port "${internal_switch_port_name}" dynamic_addresses | tr -d '"' | cut -d' ' -f 2)"
+  # If no explicit ipv4.address is set on the instance, check the dynamic_addresses field.
+  address="$(ovn-nbctl get logical_switch_port "${internal_switch_port_name}" dynamic_addresses | tr -d '"' | cut -d' ' -f 2)"
+  if [ "${address}" = "[]" ]; then
+    # There are no dynamic addresses, get the one which was specifically set in the addresses field.
+    ovn-nbctl get logical_switch_port "${internal_switch_port_name}" addresses | tr -d '"' | cut -d' ' -f 2
+  else
+    echo "${address}"
+  fi
+}
 
-  lxc exec "${1}" -- ip -4 addr add "${ipv4_address}/24" dev eth0
-  lxc exec "${1}" -- ip -4 route add default via 10.24.140.1 dev eth0
+setup_instance_ip4_interface() {
+  local address gateway
+
+  # First flush all addresses currently set on the device.
+  lxc exec "${1}" -- ip -4 addr flush dev eth0
+  address="$(instance_ip4_address "${1}")"
+  lxc exec "${1}" -- ip -4 addr add "${address}/24" dev eth0
+  # Replace the default route if it already exists.
+  gateway="${address%.*}.1"
+  lxc exec "${1}" -- ip -4 route replace default via "${gateway}" dev eth0
 }
 
 auto_allocate_forwards_ip4() {
@@ -978,4 +1251,13 @@ auto_allocate_load_balancers_ip6() {
   for i in $(seq 2 7); do
     lxc network load-balancer delete "${ovn_network}" "${1}::${i}"
   done
+}
+
+wrap_ipv6() {
+    local ip="$1"
+    if [[ "${ip}" == *:* && "${ip}" != \[*\] ]]; then
+        printf '[%s]\n' "${ip}"
+    else
+        printf '%s\n' "${ip}"
+    fi
 }
