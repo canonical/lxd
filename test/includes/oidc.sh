@@ -1,12 +1,17 @@
 # mini-oidc related test helpers.
 
 spawn_oidc() {
+  local port=${1:-}
+
   # Return if OIDC is already set up.
   [ -e "${TEST_DIR}/oidc.pid" ] && return
 
-  PORT="$(local_tcp_port)"
-  echo "${PORT}" > "${TEST_DIR}/oidc.port"
-  mini-oidc "${PORT}" "${TEST_DIR}/oidc.user" &
+  if [ "${port}" = "" ]; then
+    port="$(local_tcp_port)"
+  fi
+
+  echo "${port}" > "${TEST_DIR}/oidc.port"
+  mini-oidc "${port}" "${TEST_DIR}/oidc.user" &
   echo $! > "${TEST_DIR}/oidc.pid"
 
   sleep 3

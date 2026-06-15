@@ -158,7 +158,7 @@ func rootGet(d *Daemon, r *http.Request) response.Response {
 // A method expression promotes the receiver to the first explicit argument, allowing
 // oidcHandler to call fn(verifier, w, r) uniformly for any [oidc.Verifier] method.
 func oidcHandler(d *Daemon, r *http.Request, fn func(*oidc.Verifier, http.ResponseWriter, *http.Request)) response.Response {
-	verifier := d.oidcVerifier
+	verifier := d.oidcVerifier.Load()
 	if verifier == nil {
 		return response.NotFound(nil)
 	}

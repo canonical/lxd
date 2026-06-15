@@ -19,8 +19,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/Rican7/retry"
+	"github.com/Rican7/retry/backoff"
+	"github.com/Rican7/retry/strategy"
 	dqliteClient "github.com/canonical/go-dqlite/v3/client"
 	"github.com/canonical/go-dqlite/v3/driver"
 	"golang.org/x/sys/unix"
@@ -115,7 +119,7 @@ type Daemon struct {
 
 	proxy func(req *http.Request) (*url.URL, error)
 
-	oidcVerifier *oidc.Verifier
+	oidcVerifier atomic.Pointer[oidc.Verifier]
 
 	// Stores last heartbeat node information to detect node changes.
 	lastNodeList *cluster.APIHeartbeat
@@ -494,7 +498,7 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 // authentication. Errors returned from this function never trigger the
 // event because they may originate from a server-side fault (e.g. an
 // unreachable IdP).
-func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, allowUntrusted bool) (*request.RequestorArgs, error) {
+func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, oidcVerifier *oidc.Verifier, allowUntrusted bool) (*request.RequestorArgs, error) {
 	if r.TLS == nil {
 		// For a socket, the server is listening on a file, but the client does not have an address.
 		// Since there is no address, the kernel uses an unnamed unix socket address.
@@ -653,8 +657,8 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, allowUntru
 	}
 
 	// Lastly, check OIDC authentication using the verifier.
-	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
-		result, err := d.oidcVerifier.Auth(w, r)
+	if oidcVerifier != nil && oidcVerifier.IsRequest(r) {
+		result, err := oidcVerifier.Auth(w, r)
 		if err != nil {
 			return nil, fmt.Errorf("Failed OIDC Authentication: %w", err)
 		}
@@ -909,13 +913,14 @@ func (d *Daemon) createCmd(restAPI *http.ServeMux, version string, c APIEndpoint
 		}
 
 		// Authentication
-		requestor, err := d.Authenticate(w, r, endpointAction.AllowUntrusted)
+		oidcVerifier := d.oidcVerifier.Load()
+		requestor, err := d.Authenticate(w, r, oidcVerifier, endpointAction.AllowUntrusted)
 		if err != nil {
 			_, ok := errors.AsType[oidc.AuthError](err)
 			if ok {
 				// Ensure the OIDC headers are set if needed.
-				if d.oidcVerifier != nil {
-					_ = d.oidcVerifier.WriteHeaders(w)
+				if oidcVerifier != nil {
+					_ = oidcVerifier.WriteHeaders(w)
 				}
 
 				// Return 401 Unauthorized error. This indicates to the client that it needs to use the
@@ -958,8 +963,8 @@ func (d *Daemon) createCmd(restAPI *http.ServeMux, version string, c APIEndpoint
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug("Allowing untrusted "+r.Method, logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else {
-			if d.oidcVerifier != nil {
-				_ = d.oidcVerifier.WriteHeaders(w)
+			if oidcVerifier != nil {
+				_ = oidcVerifier.WriteHeaders(w)
 			}
 
 			logger.Warn("Rejecting request from untrusted client", logger.Ctx{"ip": r.RemoteAddr})
@@ -1800,7 +1805,6 @@ func (d *Daemon) init() error {
 
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
 	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := d.globalConfig.LokiServer()
-	oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, oidcDeviceClientID := d.globalConfig.OIDCServer()
 	syslogSocketEnabled := d.localConfig.SyslogSocket()
 
 	d.endpoints.NetworkUpdateTrustedProxy(d.globalConfig.HTTPSTrustedProxy())
@@ -1821,18 +1825,8 @@ func (d *Daemon) init() error {
 		}
 	}
 
-	// Setup OIDC authentication.
-	if oidcIssuer != "" && oidcClientID != "" {
-		httpClientFunc := func() (*http.Client, error) {
-			return util.HTTPClient("", d.proxy)
-		}
-
-		sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, d.globalConfig.OIDCSessionExpiry)
-		d.oidcVerifier, err = oidc.NewVerifier(d.shutdownCtx, oidcIssuer, oidcClientID, oidcClientSecret, oidcScopes, oidcAudience, oidcGroupsClaim, oidcDeviceClientID, d.globalConfig.ClusterUUID(), d.endpoints.NetworkAddress(), d.getCoreAuthSecrets, httpClientFunc, sessionHandler)
-		if err != nil {
-			logger.Warn("Failed setting up OIDC verifier", logger.Ctx{"err": err})
-		}
-	}
+	// Setup OIDC verifier
+	initializeOIDCVerifier(d)
 
 	// Setup BGP listener.
 	d.bgp = bgp.NewServer()
@@ -2446,6 +2440,99 @@ func initializeDbObject(d *Daemon) error {
 	}
 
 	return nil
+}
+
+// initializeOIDCVerifier attempts to initialise the [oidc.Verifier] in the background and set it on the [Daemon].
+// OIDC initialization can fail because it calls out to the IdP to get endpoint information and JWKs (discovery).
+// This is prone to failure, especially if the IdP is deployed within LXD as a VM (e.g. on reboot we need to wait for
+// the VM to start).
+func initializeOIDCVerifier(d *Daemon) {
+	// If no issuer or client ID, then nothing to set up.
+	d.globalConfigMu.Lock()
+	issuer, clientID, _, _, _, _, _ := d.globalConfig.OIDCServer()
+	if issuer == "" || clientID == "" {
+		d.globalConfigMu.Unlock()
+		return
+	}
+
+	d.globalConfigMu.Unlock()
+
+	// Anonymous function to initialize the verifier.
+	setupOIDC := func() error {
+		// Don't attempt to configure the verifier if the daemon is shutting down.
+		if d.shutdownCtx.Err() != nil {
+			return nil
+		}
+
+		// If running in the background, an admin might update the config via /1.0 and the verifier might already be set.
+		// If so, nothing to do.
+		verifier := d.oidcVerifier.Load()
+		if verifier != nil {
+			return nil
+		}
+
+		// If no issuer or client ID, then nothing to set up. These values may have been unset via /1.0, if so, cancel retries by returning nil.
+		d.globalConfigMu.Lock()
+		issuer, clientID, clientSecret, scopes, audience, groupsClaim, deviceClientID := d.globalConfig.OIDCServer()
+		if issuer == "" || clientID == "" {
+			d.globalConfigMu.Unlock()
+			return nil
+		}
+
+		d.globalConfigMu.Unlock()
+
+		// Proxy set up (for LXD to reach the IdP).
+		httpClientFunc := func() (*http.Client, error) {
+			return util.HTTPClient("", d.proxy)
+		}
+
+		// Set up session handler and verifier. This will perform OIDC discovery and may fail.
+		expiryFunc := func() string {
+			d.globalConfigMu.Lock()
+			defer d.globalConfigMu.Unlock()
+			return d.globalConfig.OIDCSessionExpiry()
+		}
+
+		sessionHandler := dbOIDC.NewSessionHandler(d.db.Cluster, d.events, expiryFunc)
+
+		var err error
+		verifier, err = oidc.NewVerifier(d.shutdownCtx, issuer, clientID, clientSecret, scopes, audience, groupsClaim, deviceClientID, d.globalConfig.ClusterUUID(), d.endpoints.NetworkAddress(), d.getCoreAuthSecrets, httpClientFunc, sessionHandler)
+		if err != nil {
+			return err
+		}
+
+		d.oidcVerifier.Store(verifier)
+		return nil
+	}
+
+	// Start goroutine to handle set up.
+	go func() {
+		var attemptLimit uint = 14
+		algorithm := backoff.Fibonacci(time.Second)
+		err := retry.Retry(func(attempt uint) error {
+			err := setupOIDC()
+			if err != nil {
+				if attempt < attemptLimit {
+					logger.Warn("Failed applying OIDC configuration", logger.Ctx{"err": err, "attempt": attempt, "retrying_in": algorithm(attempt)})
+				} else {
+					logger.Error("Failed applying OIDC configuration", logger.Ctx{"err": err, "attempt": attempt})
+				}
+
+				return err
+			}
+
+			return nil
+		}, strategy.Backoff(algorithm), strategy.Limit(attemptLimit))
+
+		if err != nil {
+			err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.UpsertWarningLocalNode(ctx, "", "", -1, warningtype.OIDCAuthenticationUnavailable, "Failed applying OIDC configuration")
+			})
+			if err != nil {
+				logger.Error("Failed creating warning after failing to apply OIDC configuration", logger.Ctx{"err": err})
+			}
+		}
+	}()
 }
 
 // hasMemberStateChanged returns true if the number of members, their addresses or state has changed.

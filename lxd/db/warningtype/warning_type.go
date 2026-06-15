@@ -58,6 +58,9 @@ const (
 	StoragePoolUnvailable
 	// UnableToUpdateClusterCertificate represents the unable to update cluster certificate warning.
 	UnableToUpdateClusterCertificate
+	// OIDCAuthenticationUnavailable warnings are created when OIDC is configured on LXD but LXD is unable to use those
+	// settings to initialize the OIDC verifier.
+	OIDCAuthenticationUnavailable
 )
 
 // TypeNames associates a warning code to its name.
@@ -88,6 +91,7 @@ var TypeNames = map[Type]string{
 	InstanceTypeNotOperational:             "Instance type not operational",
 	StoragePoolUnvailable:                  "Storage pool unavailable",
 	UnableToUpdateClusterCertificate:       "Cannot update cluster certificate",
+	OIDCAuthenticationUnavailable:          "Failed applying OIDC settings",
 }
 
 // Severity returns the severity of the warning type.
@@ -145,6 +149,8 @@ func (t Type) Severity() Severity {
 		return SeverityHigh
 	case UnableToUpdateClusterCertificate:
 		return SeverityLow
+	case OIDCAuthenticationUnavailable:
+		return SeverityModerate
 	}
 
 	return SeverityLow
