@@ -1296,6 +1296,11 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogr
 		return err
 	}
 
+	isRecentLVM, err := d.lvmVersionIsAtLeast(lvmVersion, "2.03.17")
+	if err != nil {
+		return fmt.Errorf("Error checking LVM version: %w", err)
+	}
+
 	// If the pool uses classic logical volumes, then the process for restoring a snapshot is as follows:
 	// 1. Ensure snapshot volumes have sufficient CoW capacity to allow restoration.
 	// 2. Mount source and target.
@@ -1320,7 +1325,25 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogr
 	// as newer snapshots are taken at using the "100%ORIGIN" size). Confusing isn't it.
 	if snapVol.IsVMBlock() || snapVol.contentType == ContentTypeFS {
 		snapLVPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, ContentTypeFS, snapVol.name)
-		_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvresize", "-l", "+100%ORIGIN", "-f", snapLVPath)
+		args := []string{"-l", "+100%ORIGIN", "-f"}
+		if isRecentLVM {
+			args = append(args, "--fs=ignore")
+		}
+
+		args = append(args, snapLVPath)
+
+		_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvresize", args...)
+		if err != nil {
+			// lvresize exits with code 5 when the LV already has the right size ("No size change.").
+			runErr, ok := err.(shared.RunError)
+			if ok {
+				exitError, ok := runErr.Unwrap().(*exec.ExitError)
+				if ok && exitError.ExitCode() == 5 {
+					err = nil
+				}
+			}
+		}
+
 		if err != nil {
 			return fmt.Errorf("Error resizing LV snapshot named %q: %w", snapLVPath, err)
 		}
@@ -1328,7 +1351,25 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogr
 
 	if snapVol.IsVMBlock() || (snapVol.contentType == ContentTypeBlock && snapVol.volType == VolumeTypeCustom) {
 		snapLVPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, ContentTypeBlock, snapVol.name)
-		_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvresize", "-l", "+100%ORIGIN", "-f", snapLVPath)
+		args := []string{"-l", "+100%ORIGIN", "-f"}
+		if isRecentLVM {
+			args = append(args, "--fs=ignore")
+		}
+
+		args = append(args, snapLVPath)
+
+		_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvresize", args...)
+		if err != nil {
+			// lvresize exits with code 5 when the LV already has the right size ("No size change.").
+			runErr, ok := err.(shared.RunError)
+			if ok {
+				exitError, ok := runErr.Unwrap().(*exec.ExitError)
+				if ok && exitError.ExitCode() == 5 {
+					err = nil
+				}
+			}
+		}
+
 		if err != nil {
 			return fmt.Errorf("Error resizing LV snapshot named %q: %w", snapLVPath, err)
 		}
