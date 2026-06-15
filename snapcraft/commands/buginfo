@@ -47,7 +47,7 @@ if lxc info >/dev/null 2>&1; then
 
     echo "## Instances"
     echo '```'
-    lxc list
+    lxc list --all-projects
     echo '```'
     echo ""
 
