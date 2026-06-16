@@ -1,0 +1,195 @@
+---
+myst:
+  html_meta:
+    description: Release notes for LXD 6.9, including highlights about new features, bugfixes, and other updates from the LXD project.
+---
+
+(ref-release-notes-6.9)=
+# LXD 6.9 release notes
+
+This is a {ref}`feature release <ref-releases-feature>` and is not recommended for production use.
+
+```{admonition} Release notes content
+:class: note
+These release notes cover updates in the [core LXD repository](https://github.com/canonical/lxd) and the [LXD snap package](https://snapcraft.io/lxd).
+For a tour of [LXD UI](https://github.com/canonical/lxd-ui) updates, please see the release announcement in [our Discourse forum](https://discourse.ubuntu.com/t/lxd-6-9-has-been-released/84211).
+```
+
+(ref-release-notes-6.9-highlights)=
+## Highlights
+
+This section highlights new and improved features in this release.
+
+### Network load balancer pools
+
+Load balancer pools have been introduced for OVN networks, allowing instances to be grouped together as targets for load balancer traffic distribution.
+
+Pools provide a way to manage collections of backend instances that receive forwarded traffic from load balancers, with health checking support and dynamic membership based on instance availability.
+
+New `lxc network load-balancer pool` subcommands have been added to manage these pools.
+
+- Documentation: {ref}`network-load-balancers`
+- API extension: {ref}`extension-network-load-balancer-pool`
+
+### PowerStore storage driver
+
+A new `powerstore` storage driver has been added, enabling the use of Dell PowerStore storage arrays with LXD.
+
+The driver supports iSCSI and Fibre Channel (FC) connectivity modes, providing flexible options for connecting to PowerStore volumes.
+
+- Documentation: {ref}`storage-powerstore`
+- API extension: {ref}`extension-storage-driver-powerstore`
+
+### Fibre Channel storage connector
+
+A new Fibre Channel (FC) storage connector has been added, enabling FC-based connectivity for remote storage drivers.
+
+This allows supporting storage drivers like PowerStore to use FC transport for volume attachment, in addition to the existing iSCSI and NVMe/TCP options.
+
+### PowerFlex 5 support
+
+The PowerFlex storage driver has been updated to support Dell PowerFlex version 5, including thin clone support and updated API compatibility.
+
+The driver now automatically detects the PowerFlex version and adapts its behavior accordingly, maintaining backwards compatibility with PowerFlex 4.
+
+### Security events
+
+A new `security` event type has been added, providing OWASP-compliant audit logging for security-relevant operations.
+
+Security events cover authentication (login failures, token operations, certificate changes), authorization (permission denials, admin actions), and system events (startup, shutdown, monitoring changes).
+
+These events can be routed to Grafana Loki by adding `security` to the `loki.types` server configuration.
+
+- Documentation: {ref}`howto-security-events`
+- API extension: {ref}`extension-event-security`
+
+### OIDC device client ID
+
+A new {config:option}`server-oidc:oidc.device.client.id` configuration key has been added to support separate OAuth clients for CLI authentication.
+
+This allows administrators to configure a dedicated device authorization grant client for the `lxc` CLI, separate from the main OIDC client used by the LXD UI, enabling different authentication flows and security requirements for each.
+
+- API extension: {ref}`extension-oidc-device-client-id`
+
+### Optimized ZFS instance creation with image variants
+
+The ZFS storage driver now supports optimized instance creation through image variants.
+
+When creating instances, LXD can now cache and reuse ZFS clones that match the instance's configuration (such as initial block mode or filesystem type), significantly improving creation time for subsequent instances using the same image variant.
+
+Stale image variants are automatically cleaned up when pool configuration changes.
+
+- Documentation: {ref}`storage-zfs-internals`
+
+### Project replica mode
+
+Projects now have an explicit `replica_mode` field that indicates whether a project is in `leader` or `standby` mode for replication purposes.
+
+New `lxc project promote-replica` and `lxc project demote-replica` commands have been added to manage project replication state, and instances in standby projects are prevented from starting.
+
+- API extension: {ref}`extension-project-replica-mode`
+
+### Cluster links `used_by` field
+
+Cluster links now include a `used_by` field that lists all entities referencing the link, such as replicators.
+
+This enables better visibility into cluster link dependencies and prevents accidental deletion or renaming of in-use links.
+
+- API extension: {ref}`extension-cluster-links-used-by`
+
+### Switch to Go standard library HTTP router
+
+The LXD daemon has switched from `gorilla/mux` to the Go standard library's `http.ServeMux` for HTTP routing.
+
+This reduces external dependencies and leverages the improved routing capabilities added in Go 1.22.
+
+### OIDC verifier background initialization
+
+The OIDC verifier is now initialized in the background on daemon startup, with automatic retry on failure.
+
+This prevents LXD startup from being blocked by unavailable identity providers and adds a warning when OIDC authentication is unavailable.
+
+(ref-release-notes-6.9-bugfixes)=
+## Bug fixes
+
+The following bug fixes are included in this release.
+
+- [{spellexception}`Fix replicator failing to process instances on remote cluster members`](https://github.com/canonical/lxd/pull/18207)
+- [{spellexception}`Fix replicator backup file write errors on idempotent refresh operations`](https://github.com/canonical/lxd/pull/18207)
+- [{spellexception}`Prevent duplicate replicators targeting the same cluster link`](https://github.com/canonical/lxd/pull/18442)
+- [{spellexception}`Fix replicator restore for unclustered standby clusters`](https://github.com/canonical/lxd/pull/18312)
+- [{spellexception}`Fix ZFS storage pool leak after shutdown due to lingering forkfile daemon`](https://github.com/canonical/lxd/pull/18446)
+- [{spellexception}`Fix listing images with --all-projects flag`](https://github.com/canonical/lxd/pull/18371)
+- [{spellexception}`Fix LVM thin-pool usage calculation accuracy`](https://github.com/canonical/lxd/pull/18311)
+- [{spellexception}`Fix btrfs send failure during refresh migration`](https://github.com/canonical/lxd/pull/18207)
+- [{spellexception}`Fix instance copy refresh when target does not exist`](https://github.com/canonical/lxd/pull/18207)
+- [{spellexception}`Fix race condition in Rename with pending forkfile cleanup`](https://github.com/canonical/lxd/pull/18254)
+- [{spellexception}`Fix events websocket disconnection logic in the client`](https://github.com/canonical/lxd/pull/18365)
+- [{spellexception}`Fix hung goroutine on ReadJSON in events`](https://github.com/canonical/lxd/pull/18359)
+- [{spellexception}`Address possible iSCSI race conditions`](https://github.com/canonical/lxd/pull/18332)
+- [{spellexception}`Fix missing secure boot firmware message for VMs`](https://github.com/canonical/lxd/pull/18375)
+- [{spellexception}`Improve snapshot config validation during import`](https://github.com/canonical/lxd/pull/18301)
+- [{spellexception}`Fix backup file error handling for refresh`](https://github.com/canonical/lxd/pull/18242)
+- [{spellexception}`Fix local config being wiped out by reverter`](https://github.com/canonical/lxd/pull/18180)
+- [{spellexception}`Fix operation entity URLs for storage volumes/backups/snapshots`](https://github.com/canonical/lxd/pull/18167)
+- [{spellexception}`Use merged node config for local pool creation`](https://github.com/canonical/lxd/pull/18270)
+- [{spellexception}`Bypass HTTP proxy for cluster connections`](https://github.com/canonical/lxd/pull/18338)
+- [{spellexception}`Bypass proxy when retrieving certificate during cluster join`](https://github.com/canonical/lxd/pull/18354)
+- [{spellexception}`Include slab_reclaimable in MemAvailable metric`](https://github.com/canonical/lxd/pull/18289)
+- [{spellexception}`Fix architecture filter to match displayed values in lxc image`](https://github.com/canonical/lxd/pull/18292)
+- [{spellexception}`Validate snapshot.ExpiresAt is non-nil`](https://github.com/canonical/lxd/pull/18320)
+- [{spellexception}`Use legacy CephFS mount syntax on kernel < 5.17`](https://github.com/canonical/lxd/pull/18192)
+- [{spellexception}`Fix Identity API group management visibility`](https://github.com/canonical/lxd/pull/18177)
+- [{spellexception}`Allow dynamic OVN NIC address updates`](https://github.com/canonical/lxd/pull/18156)
+
+(ref-release-notes-6.9-incompatible)=
+## Backwards-incompatible changes
+
+These changes are not compatible with older versions of LXD or its clients.
+
+### NVMe/TCP storage pool mode renamed
+
+The storage pool NVMe/TCP mode has been renamed from `nvme` to `nvme/tcp` for clarity and consistency with other transport modes.
+
+Existing pools using the `nvme` mode are automatically migrated to use `nvme/tcp` on upgrade.
+
+- API extension: {ref}`extension-storage-nvme-tcp`
+
+### Image import from client-specified URL removed
+
+Support for importing images from a client-specified URL (the `direct` protocol) has been removed.
+
+Images should be imported using the standard image server protocols (simplestreams or LXD).
+Existing images using this deprecated source type will no longer auto-update.
+
+(ref-release-notes-6.9-go)=
+## Updated minimum Go version
+
+If you are building LXD from source instead of using a package manager, the minimum version of Go required to build LXD is now 1.26.4.
+
+(ref-release-notes-6.9-snap)=
+## Snap packaging changes
+
+- Removed `libcephfs` from the snap due to unusable missing dependencies.
+- ZFS 2.3 bumped to 2.3.7.
+- ZFS 2.4 bumped to 2.4.2.
+- LXCFS: Reverted partial backport of PSI functionality that prevented host machine suspend ([#17983](https://github.com/canonical/lxd/issues/17983)).
+- Removed unused `arptables` binary.
+- Removed unneeded Python dependencies from Ceph.
+- Various snap size optimizations (removed unused QEMU keymaps, LXD UI localization files, uefivars bloat).
+
+(ref-release-notes-6.9-changelog)=
+## Change log
+
+View the [complete list of all changes in this release](https://github.com/canonical/lxd/compare/lxd-6.8...lxd-6.9).
+
+(ref-release-notes-6.9-downloads)=
+## Downloads
+
+The source tarballs and binary clients can be found on our [download page](https://github.com/canonical/lxd/releases/tag/lxd-6.9).
+
+Binary packages are also available for:
+
+- **Linux:** `snap install lxd --channel=6/stable`
+- **MacOS client:** `brew install lxc`
+- **Windows client:** `choco install lxc`
