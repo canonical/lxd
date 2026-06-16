@@ -312,15 +312,17 @@ func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
 	return nil
 }
 
+const ctxImagesPublicOnly request.CtxKey = "public_only"
+
 func imagesGetAccessHandler(d *Daemon, r *http.Request) response.Response {
+	publicOnly := true
+	defer func() {
+		request.SetContextValue(r, ctxImagesPublicOnly, publicOnly)
+	}()
+
 	projectName, allProjects, err := request.ProjectParams(r)
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Regardless of trust status, if the request is for the default project then we allow it. This is to return public images.
-	if !allProjects && projectName == api.ProjectDefaultName {
-		return response.EmptySyncResponse
 	}
 
 	requestor, err := request.GetRequestor(r.Context())
@@ -328,35 +330,65 @@ func imagesGetAccessHandler(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// An untrusted caller has attempted to list images in a non-default project, or to use the all-projects parameter.
-	// Reject immediately.
-	if !requestor.IsTrusted() {
-		if allProjects {
-			return response.Forbidden(errors.New("Untrusted callers may only access public images in the default project"))
-		}
-
-		return response.NotFound(nil)
-	}
-
 	if requestor.IsAdmin() {
+		publicOnly = false
 		return response.EmptySyncResponse
 	}
 
 	if allProjects {
+		if !requestor.IsTrusted() {
+			return response.Forbidden(errors.New("Untrusted callers may only access public images in the default project"))
+		}
+
 		if requestor.IsIdentityType(api.IdentityTypeCertificateClientRestricted) {
 			return response.Forbidden(errors.New("Certificate is restricted"))
 		}
 
+		publicOnly = false
 		return response.EmptySyncResponse
 	}
+
+	if projectName != api.ProjectDefaultName && !requestor.IsTrusted() {
+		return response.NotFound(nil)
+	}
+
+	effectiveProjectName := api.ProjectDefaultName
+	defer func() {
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
+	}()
 
 	s := d.State()
 
 	err = s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanView)
 	if err != nil {
+		if !auth.IsDeniedError(err) {
+			return response.SmartError(err)
+		}
+
+		if projectName == api.ProjectDefaultName {
+			return response.EmptySyncResponse
+		}
+
 		return response.SmartError(err)
 	}
 
+	if projectName != api.ProjectDefaultName {
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
+			return err
+		})
+		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				// Return a generic not found so that the caller cannot determine the existence of a project by the
+				// contents of the error message.
+				return response.NotFound(nil)
+			}
+
+			return response.SmartError(err)
+		}
+	}
+
+	publicOnly = false
 	return response.EmptySyncResponse
 }
 
@@ -1682,6 +1714,13 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 
 func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses *filter.ClauseSet, hasPermission auth.PermissionChecker, allProjects bool) (any, error) {
 	mustLoadObjects := recursion || (clauses != nil && len(clauses.Clauses) > 0)
+	authProjectName := projectName
+	if !allProjects {
+		effectiveProjectName, err := request.GetContextValue[string](ctx, request.CtxEffectiveProjectName)
+		if err == nil {
+			authProjectName = effectiveProjectName
+		}
+	}
 
 	imagesProjectsMap := map[string][]string{}
 	if allProjects {
@@ -1718,7 +1757,12 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 				continue
 			}
 
-			if !image.Public && !hasPermission(entity.ImageURL(project, fingerprint)) {
+			effectiveProjectName := project
+			if !allProjects {
+				effectiveProjectName = authProjectName
+			}
+
+			if !image.Public && !hasPermission(entity.ImageURL(effectiveProjectName, fingerprint)) {
 				continue
 			}
 
@@ -1998,35 +2042,12 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
+	publicOnly, err := request.GetContextValue[bool](r.Context(), ctxImagesPublicOnly)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	trusted := requestor.IsTrusted()
-
 	s := d.State()
-	if !allProjects && trusted && projectName != api.ProjectDefaultName {
-		var effectiveProjectName string
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
-			return err
-		})
-		if err != nil {
-			if api.StatusErrorCheck(err, http.StatusNotFound) {
-				// Return a generic not found so that the caller cannot determine the existence of a project by the
-				// contents of the error message.
-				return response.NotFound(nil)
-			}
-
-			return response.SmartError(err)
-		}
-
-		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-	}
-
-	// If the caller is not trusted, we only want to list public images in the default project.
-	publicOnly := !trusted
 
 	// Get a permission checker. If the caller is not authenticated, the permission checker will deny all.
 	// However, the permission checker is only called when an image is private. Both trusted and untrusted clients will
@@ -2055,6 +2076,11 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
+		effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
 		// We need to get each image project and fingerprint to construct its entity URL,
 		// so we need to cast the result to a slice of `api.Image` pointers.
 		// This cast should work as we would have never entered this if block if the request was not set with recursion=1,
@@ -2066,7 +2092,12 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 
 		urlToImage := make(map[*api.URL]auth.EntitlementReporter, len(images))
 		for _, image := range images {
-			urlToImage[entity.ImageURL(image.Project, image.Fingerprint)] = image
+			authProjectName := image.Project
+			if !allProjects {
+				authProjectName = effectiveProjectName
+			}
+
+			urlToImage[entity.ImageURL(authProjectName, image.Fingerprint)] = image
 		}
 
 		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImage, withEntitlements, urlToImage)
