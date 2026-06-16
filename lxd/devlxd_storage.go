@@ -779,7 +779,7 @@ func devLXDStoragePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func
 		s := d.State()
 
 		// Disallow cross-project access and ensure project query parameter is set.
-		err := enforceDevLXDProject(r)
+		projectName, err := enforceDevLXDProject(r)
 		if err != nil {
 			return response.DevLXDErrorResponse(err)
 		}
@@ -787,6 +787,15 @@ func devLXDStoragePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func
 		err = checkStoragePoolVolumeTypeAccess(s, r, entitlement)
 		if err != nil {
 			return response.DevLXDErrorResponse(err)
+		}
+
+		effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+		if err != nil {
+			return response.DevLXDErrorResponse(err)
+		}
+
+		if effectiveProjectName != projectName {
+			return response.DevLXDErrorResponse(api.NewStatusError(http.StatusServiceUnavailable, `Project does not have "features.storage.volumes" enabled`))
 		}
 
 		return response.EmptySyncResponse
