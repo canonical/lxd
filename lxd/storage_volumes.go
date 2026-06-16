@@ -137,14 +137,19 @@ func checkStoragePoolVolumeTypeAccess(s *state.State, r *http.Request, entitleme
 		return err
 	}
 
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return err
+	}
+
 	var u *api.URL
 	switch {
 	case details.snapshotName != "":
-		u = entity.StorageVolumeSnapshotURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, details.snapshotName)
+		u = entity.StorageVolumeSnapshotURL(effectiveProjectName, details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, details.snapshotName)
 	case details.backupName != "":
-		u = entity.StorageVolumeBackupURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, details.backupName)
+		u = entity.StorageVolumeBackupURL(effectiveProjectName, details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, details.backupName)
 	default:
-		u = entity.StorageVolumeURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName)
+		u = entity.StorageVolumeURL(effectiveProjectName, details.location, details.pool.Name(), details.volumeTypeName, details.volumeName)
 	}
 
 	err = s.Authorizer.CheckPermission(r.Context(), u, entitlement)
@@ -821,16 +826,6 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// The auth.PermissionChecker expects the url to contain the request project (not the effective project).
-	// So when getting networks in a single project, ensure we use the request project name.
-	authCheckProject := func(dbProject string) string {
-		if !allProjects {
-			return requestProjectName
-		}
-
-		return dbProject
-	}
-
 	recursion, _ := util.IsRecursionRequest(r)
 	if recursion > 0 {
 		volumes := make([]*api.StorageVolume, 0, len(dbVolumes))
@@ -839,7 +834,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			vol := &dbVol.StorageVolume
 
 			volumeName, _, _ := api.GetParentAndSnapshotName(vol.Name)
-			if !userHasPermission(entity.StorageVolumeURL(authCheckProject(vol.Project), vol.Location, dbVol.Pool, dbVol.Type, volumeName)) {
+			if !userHasPermission(entity.StorageVolumeURL(vol.Project, vol.Location, dbVol.Pool, dbVol.Type, volumeName)) {
 				continue
 			}
 
@@ -871,7 +866,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	for _, dbVol := range dbVolumes {
 		volumeName, _, _ := api.GetParentAndSnapshotName(dbVol.Name)
 
-		if !userHasPermission(entity.StorageVolumeURL(authCheckProject(dbVol.Project), dbVol.Location, dbVol.Pool, dbVol.Type, volumeName)) {
+		if !userHasPermission(entity.StorageVolumeURL(dbVol.Project, dbVol.Location, dbVol.Pool, dbVol.Type, volumeName)) {
 			continue
 		}
 
