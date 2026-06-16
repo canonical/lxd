@@ -1074,7 +1074,7 @@ auth_project_features() {
   # Validate restricted caller cannot see resources in projects they do not have access to.
   ! lxc_remote list "${remote}:" --project default --format csv || false
   ! lxc_remote profile list "${remote}:" --project default --format csv || false
-  [ "$(lxc_remote profile list "${remote}:" --all-projects --format csv || echo fail)" = "" ]
+  [ "$(lxc_remote profile list "${remote}:" --all-projects --format csv)" = "blah,default,Default LXD profile for project blah,0" ]
   ! lxc_remote network list "${remote}:" --project default --format csv || false
   ! lxc_remote operation list "${remote}:" --project default --format csv || false
   ! lxc_remote network zone list "${remote}:" --project default --format csv || false
