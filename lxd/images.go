@@ -3455,8 +3455,39 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(nil)
 	}
 
-	// Untrusted callers that do not provide a secret may only view public images.
-	publicOnly := !trusted && secret == ""
+	var validSecret bool
+	if secret != "" {
+		// If a secret was provided expect the caller to send the full fingerprint and validate it regardless of whether
+		// the image is public or the caller has sufficient privilege. This is to ensure the image token operation is cancelled.
+		op, err := imageValidSecret(s, r, projectName, fingerprint, secret, operationtype.ImageDownloadToken)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// If an operation was found the caller has access, otherwise continue to other access checks.
+		if op != nil {
+			validSecret = true
+		}
+	}
+
+	// If the secret is not valid, check the caller can view the requested project.
+	publicOnly := !validSecret
+	if publicOnly {
+		err = s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanView)
+		if err != nil {
+			if !auth.IsDeniedError(err) {
+				return response.SmartError(err)
+			}
+
+			// If the caller can't view the project (and it is not the default project) return 404.
+			if projectName != api.ProjectDefaultName {
+				return response.NotFound(nil)
+			}
+		} else {
+			// If the caller can view the project include private images.
+			publicOnly = false
+		}
+	}
 
 	// Get the image. We need to do this before the permission check because the URL in the permission check will not
 	// work with partial fingerprints.
@@ -3483,51 +3514,26 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Access check.
-	var userCanViewImage bool
-	if secret != "" {
-		// If a secret was provided, validate it regardless of whether the image is public or the caller has sufficient
-		// privilege. This is to ensure the image token operation is cancelled.
-		op, err := imageValidSecret(s, r, projectName, info.Fingerprint, secret, operationtype.ImageDownloadToken)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		// If an operation was found the caller has access, otherwise continue to other access checks.
-		if op != nil {
-			userCanViewImage = true
-		}
-	}
-
-	// No operation found for the secret. Perform other access checks.
-	if !userCanViewImage {
-		// Untrusted callers can only access non-default projects with a valid secret.
-		if !trusted && projectName != api.ProjectDefaultName {
+	// No operation found for the secret and not public. Perform other access checks.
+	if !validSecret && !info.Public {
+		if !requestor.IsTrusted() {
 			return response.NotFound(nil)
 		}
 
-		if info.Public {
-			// If the image is public any client can view it.
-			userCanViewImage = true
-		} else {
-			// Otherwise perform an access check with the full image fingerprint.
-			request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, info.Fingerprint), auth.EntitlementCanView)
-			if err != nil && !auth.IsDeniedError(err) {
+		// Check the caller can view the image.
+		err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(effectiveProjectName, info.Fingerprint), auth.EntitlementCanView)
+		if err != nil {
+			if !auth.IsDeniedError(err) {
 				return response.SmartError(err)
-			} else if err == nil {
-				userCanViewImage = true
 			}
+
+			// Always send a plain 404 so that the response is the same for all identity types.
+			return response.NotFound(nil)
 		}
 	}
 
-	// If the client still cannot view the image, return a generic not found error.
-	if !userCanViewImage {
-		return response.NotFound(nil)
-	}
-
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImage, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageURL(projectName, fingerprint): info})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImage, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageURL(effectiveProjectName, fingerprint): info})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -4585,8 +4591,39 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(nil)
 	}
 
-	// Without a secret, untrusted callers are restricted to public images in the default project.
-	publicOnly := !trusted && secret == ""
+	var validSecret bool
+	if secret != "" {
+		// If a secret was provided expect the caller to send the full fingerprint and validate it regardless of whether
+		// the image is public or the caller has sufficient privilege. This is to ensure the image token operation is cancelled.
+		op, err := imageValidSecret(s, r, projectName, fingerprint, secret, operationtype.ImageDownloadToken)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// If an operation was found the caller has access, otherwise continue to other access checks.
+		if op != nil {
+			validSecret = true
+		}
+	}
+
+	// If the secret is not valid, check the caller can view the requested project.
+	publicOnly := !validSecret
+	if publicOnly {
+		err = s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanView)
+		if err != nil {
+			if !auth.IsDeniedError(err) {
+				return response.SmartError(err)
+			}
+
+			// If the caller can't view the project (and it is not the default project) return 404.
+			if projectName != api.ProjectDefaultName {
+				return response.NotFound(nil)
+			}
+		} else {
+			// If the caller can view the project include private images.
+			publicOnly = false
+		}
+	}
 
 	// Get the image. We need to do this before the permission check because the URL in the permission check will not
 	// work with partial fingerprints.
@@ -4614,46 +4651,22 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Access control.
-	var userCanViewImage bool
-	if secret != "" {
-		// If a secret was provided, validate it regardless of whether the image is public or the caller has sufficient
-		// privilege. This is to ensure the image token operation is cancelled.
-		op, err := imageValidSecret(s, r, projectName, imgInfo.Fingerprint, secret, operationtype.ImageDownloadToken)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		// If an operation was found the caller has access, otherwise continue to other access checks.
-		if op != nil {
-			userCanViewImage = true
-		}
-	}
-
-	if !userCanViewImage {
-		// Untrusted callers can only access non-default projects with a valid secret.
-		if !trusted && projectName != api.ProjectDefaultName {
+	// No operation found for the secret and not public. Perform other access checks.
+	if !validSecret && !imgInfo.Public {
+		if !requestor.IsTrusted() {
 			return response.NotFound(nil)
 		}
 
-		if imgInfo.Public {
-			// If the image is public any client can view it.
-			userCanViewImage = true
-		} else {
-			// Otherwise perform an access check with the full image fingerprint.
-			request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(projectName, imgInfo.Fingerprint), auth.EntitlementCanView)
-			if err != nil && !auth.IsDeniedError(err) {
+		// Check the caller can view the image.
+		err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(effectiveProjectName, imgInfo.Fingerprint), auth.EntitlementCanView)
+		if err != nil {
+			if !auth.IsDeniedError(err) {
 				return response.SmartError(err)
-			} else if err == nil {
-				userCanViewImage = true
 			}
-		}
-	}
 
-	// If the client still cannot view the image, return a generic not found error.
-	if !userCanViewImage {
-		return response.NotFound(nil)
+			// Always send a plain 404 so that the response is the same for all identity types.
+			return response.NotFound(nil)
+		}
 	}
 
 	return imageExportFiles(r.Context(), s, imgInfo, projectName)
