@@ -1210,19 +1210,11 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	projectName := request.ProjectParam(r)
 
-	// If the client is not authenticated, CheckPermission will return a http.StatusForbidden api.StatusError.
-	var userCanCreateImages bool
-	err := s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanCreateImages)
-	if err != nil && !auth.IsDeniedError(err) {
-		return response.SmartError(err)
-	} else if err == nil {
-		userCanCreateImages = true
-	}
-
 	// Load the project entry so we have a valid project name.
 	var dbProject *dbCluster.Project
 	var projectConfig map[string]string
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
 		dbProject, err = dbCluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
 			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
@@ -1251,6 +1243,15 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	fingerprint := r.Header.Get("X-LXD-fingerprint")
 
 	var imageMetadata map[string]any
+
+	// If the client is not authenticated, CheckPermission will return a http.StatusForbidden api.StatusError.
+	var userCanCreateImages bool
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(imageProject), auth.EntitlementCanCreateImages)
+	if err != nil && !auth.IsDeniedError(err) {
+		return response.SmartError(err)
+	} else if err == nil {
+		userCanCreateImages = true
+	}
 
 	// If user does not have permission to create images. They must provide a secret and a fingerprint.
 	if !userCanCreateImages && (secret == "" || fingerprint == "") {
