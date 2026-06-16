@@ -211,11 +211,6 @@ func (d *lvm) logicalVolumeExists(volDevPath string) (bool, error) {
 // If pool lvm.thinpool_metadata_size setting >0 will manually set metadata size for the thinpool, otherwise LVM
 // will pick an appropriate size.
 func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSizeBytes int64) error {
-	isRecent, err := d.lvmVersionIsAtLeast(lvmVersion, "2.02.99")
-	if err != nil {
-		return fmt.Errorf("Error checking LVM version: %w", err)
-	}
-
 	lvmThinPool := d.config["lvm.vg_name"] + "/" + thinPoolName
 
 	args := []string{
@@ -235,10 +230,8 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSiz
 
 	if thinpoolSizeBytes > 0 {
 		args = append(args, "--size", strconv.FormatInt(thinpoolSizeBytes, 10)+"b")
-	} else if isRecent {
-		args = append(args, "--extents", "100%FREE")
 	} else {
-		args = append(args, "--size", "1G")
+		args = append(args, "--extents", "100%FREE")
 	}
 
 	// Because the thin pool is created as an LVM volume, if the volume stripes option is set we need to apply
@@ -260,14 +253,6 @@ func (d *lvm) createDefaultThinPool(lvmVersion, thinPoolName string, thinpoolSiz
 	_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvcreate", args...)
 	if err != nil {
 		return fmt.Errorf("Error creating LVM thin pool named %q: %w", thinPoolName, err)
-	}
-
-	if !isRecent && thinpoolSizeBytes <= 0 {
-		// Grow it to the maximum VG size (two step process required by old LVM).
-		_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvextend", "--alloc", "anywhere", "-l", "100%FREE", lvmThinPool)
-		if err != nil {
-			return fmt.Errorf("Error growing LVM thin pool named %q: %w", thinPoolName, err)
-		}
 	}
 
 	return nil
@@ -384,18 +369,11 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 		}
 	}
 
-	isRecent, err := d.lvmVersionIsAtLeast(lvmVersion, "2.02.99")
+	// Disable auto activation of volume.
+	// Must be done after volume create so that zeroing and signature wiping can take place.
+	_, err = shared.RunCommand(context.TODO(), "lvchange", "--setactivationskip", "y", volDevPath)
 	if err != nil {
-		return fmt.Errorf("Error checking LVM version: %w", err)
-	}
-
-	if isRecent {
-		// Disable auto activation of volume on LVM versions that support it.
-		// Must be done after volume create so that zeroing and signature wiping can take place.
-		_, err := shared.RunCommand(context.TODO(), "lvchange", "--setactivationskip", "y", volDevPath)
-		if err != nil {
-			return fmt.Errorf("Failed setting activation skip on LVM logical volume %q: %w", volDevPath, err)
-		}
+		return fmt.Errorf("Failed setting activation skip on LVM logical volume %q: %w", volDevPath, err)
 	}
 
 	d.logger.Debug("Logical volume created", logger.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": strconv.FormatInt(lvSizeBytes, 10) + "b", "fs": vol.ConfigBlockFilesystem()})
@@ -405,18 +383,10 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 // createLogicalVolumeSnapshot creates a snapshot of a logical volume.
 func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol Volume, snapVol Volume, readonly bool, makeThinLv bool) (string, error) {
 	srcVolDevPath := d.lvmDevPath(vgName, srcVol.volType, srcVol.contentType, srcVol.name)
-	isRecent, err := d.lvmVersionIsAtLeast(lvmVersion, "2.02.99")
-	if err != nil {
-		return "", fmt.Errorf("Error checking LVM version: %w", err)
-	}
 
 	snapLvName := d.lvmFullVolumeName(snapVol.volType, snapVol.contentType, snapVol.name)
 	logCtx := logger.Ctx{"vg_name": vgName, "lv_name": snapLvName, "src_dev": srcVolDevPath, "thin": makeThinLv}
-	args := []string{"-n", snapLvName, "-s", srcVolDevPath}
-
-	if isRecent {
-		args = append(args, "--setactivationskip", "y")
-	}
+	args := []string{"-n", snapLvName, "-s", srcVolDevPath, "--setactivationskip", "y"}
 
 	// If the source is not a thin volume the size needs to be specified.
 	// Create snapshot at 100% the size of the origin to allow restoring it to the origin volume without
@@ -434,7 +404,7 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol Volume, snapVol 
 	revert := revert.New()
 	defer revert.Fail()
 
-	_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvcreate", args...)
+	_, err := shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvcreate", args...)
 	if err != nil {
 		return "", fmt.Errorf("Error creating LV snapshot named %q: %w", snapLvName, err)
 	}
