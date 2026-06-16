@@ -278,6 +278,7 @@ if [ "${SNAP_BASE}" = "core26" ]; then
   if [ -e /usr/lib/cargo/bin/coreutils/dd ]; then
     GNUDD_PATH="$(command -v gnudd 2>/dev/null || true)"
     if [ -n "${GNUDD_PATH}" ]; then
+      echo "==> Diverting dd to gnudd for core26"
       ln -s "${GNUDD_PATH}" /run/bin/dd
     fi
   fi
