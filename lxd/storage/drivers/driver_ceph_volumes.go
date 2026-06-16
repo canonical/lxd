@@ -2051,6 +2051,11 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.P
 		mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(snapVol.ConfigBlockMountOptions(), ","))
 		mountOptions = addNoRecoveryMountOption(mountOptions, RBDFilesystem)
 
+		// Snapshots should be mounted read-only. This is also required for the norecovery option added
+		// above to be accepted (the kernel rejects rw mounts combined with norecovery/noload), which can
+		// otherwise fail when snapshotting a running instance with a dirty filesystem journal.
+		mountFlags |= unix.MS_RDONLY
+
 		if renegerateFilesystemUUIDNeeded(RBDFilesystem) {
 			// When mounting XFS filesystems temporarily we can use the nouuid option rather than fully
 			// regenerating the filesystem UUID.
