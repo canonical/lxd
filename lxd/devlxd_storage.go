@@ -779,7 +779,7 @@ func devLXDStoragePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func
 		s := d.State()
 
 		// Disallow cross-project access and ensure project query parameter is set.
-		err := enforceDevLXDProject(r)
+		_, err := enforceDevLXDProject(r)
 		if err != nil {
 			return response.DevLXDErrorResponse(err)
 		}
