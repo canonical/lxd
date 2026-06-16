@@ -265,7 +265,8 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 			apiProfiles = make([]*api.Profile, 0, len(profiles))
 			for _, profile := range profiles {
-				if !userHasPermission(entity.ProfileURL(requestProjectName, profile.Name)) {
+				profileURL := entity.ProfileURL(profile.Project, profile.Name)
+				if !userHasPermission(profileURL) {
 					continue
 				}
 
@@ -280,14 +281,21 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 				}
 
 				apiProfiles = append(apiProfiles, apiProfile)
-				urlToProfile[entity.ProfileURL(requestProjectName, profile.Name)] = apiProfile
+				urlToProfile[profileURL] = apiProfile
+				if !allProjects {
+					apiProfile.Project = requestProjectName
+				}
 			}
 		} else {
 			profileURLs = make([]string, 0, len(profiles))
 			for _, profile := range profiles {
-				profileURL := entity.ProfileURL(requestProjectName, profile.Name)
+				profileURL := entity.ProfileURL(profile.Project, profile.Name)
 				if userHasPermission(profileURL) {
-					profileURLs = append(profileURLs, profileURL.String())
+					if allProjects {
+						profileURLs = append(profileURLs, profileURL.String())
+					} else {
+						profileURLs = append(profileURLs, entity.ProfileURL(requestProjectName, profile.Name).String())
+					}
 				}
 			}
 		}
