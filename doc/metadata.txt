@@ -6552,6 +6552,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 
 ```{config:option} powerstore.mode storage-powerstore-pool-conf
 :defaultdesc: "the discovered mode"
+:required: "true"
 :scope: "global"
 :shortdesc: "How volumes are mapped to the local server"
 :type: "string"

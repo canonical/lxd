@@ -7249,6 +7249,7 @@
 						"powerstore.mode": {
 							"defaultdesc": "the discovered mode",
 							"longdesc": "The mode to use to map PowerStore volumes to the local server.\nSupported values are `iscsi` and `scsi/fc`.",
+							"required": "true",
 							"scope": "global",
 							"shortdesc": "How volumes are mapped to the local server",
 							"type": "string"
