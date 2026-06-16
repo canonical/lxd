@@ -412,7 +412,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	for _, volume := range volumes {
 		_, snapshotName, _ := api.GetParentAndSnapshotName(volume.Name)
 
-		if !canView(entity.StorageVolumeSnapshotURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, snapshotName)) {
+		if !canView(entity.StorageVolumeSnapshotURL(effectiveProjectName, details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, snapshotName)) {
 			continue
 		}
 
