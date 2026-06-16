@@ -22,16 +22,18 @@ import (
 )
 
 var networkForwardsCmd = APIEndpoint{
-	Path:        "networks/{networkName}/forwards",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks/{networkName}/forwards",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Get:  APIEndpointAction{Handler: networkForwardsGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 	Post: APIEndpointAction{Handler: networkForwardsPost, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var networkForwardCmd = APIEndpoint{
-	Path:        "networks/{networkName}/forwards/{listenAddress}",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks/{networkName}/forwards/{listenAddress}",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: networkForwardDelete, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 	Get:    APIEndpointAction{Handler: networkForwardGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},

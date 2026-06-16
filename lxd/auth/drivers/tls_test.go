@@ -52,7 +52,14 @@ func (s *tlsSuite) setupCtx(details request.RequestorArgs) context.Context {
 			return &request.RequestorHookResult{
 				IdentityID:   1,
 				IdentityType: identity.CertificateClientRestricted{},
-				Projects:     []string{"foo"},
+				Projects: map[string]map[string]bool{
+					"foo": {
+						"features.images":          true,
+						"features.profiles":        true,
+						"features.storage.volumes": true,
+						"features.storage.buckets": true,
+					},
+				},
 			}, nil
 		case "unrestricted":
 			return &request.RequestorHookResult{

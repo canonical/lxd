@@ -8,6 +8,8 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
@@ -26,14 +28,14 @@ var devLXDStoragePoolVolumesEndpoint = APIEndpoint{
 	MetricsType: entity.TypeStoragePool,
 	Path:        "storage-pools/{poolName}/volumes",
 	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumesGetHandler, AccessHandler: allowDevLXDAuthenticated},
-	Post:        APIEndpointAction{Handler: devLXDStoragePoolVolumesPostHandler, AccessHandler: allowDevLXDPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
+	Post:        APIEndpointAction{Handler: devLXDStoragePoolVolumesPostHandler, AccessHandler: devLXDStoragePoolVolumePostAccessHandler},
 }
 
 var devLXDStoragePoolVolumesTypeEndpoint = APIEndpoint{
 	MetricsType: entity.TypeStoragePool,
 	Path:        "storage-pools/{poolName}/volumes/{type}",
 	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumesGetHandler, AccessHandler: allowDevLXDAuthenticated},
-	Post:        APIEndpointAction{Handler: devLXDStoragePoolVolumesPostHandler, AccessHandler: allowDevLXDPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
+	Post:        APIEndpointAction{Handler: devLXDStoragePoolVolumesPostHandler, AccessHandler: devLXDStoragePoolVolumePostAccessHandler},
 }
 
 var devLXDStoragePoolVolumeTypeEndpoint = APIEndpoint{
@@ -57,6 +59,32 @@ var devLXDStoragePoolVolumeSnapshotEndpoint = APIEndpoint{
 	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
 	Get:         APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotGetHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
 	Delete:      APIEndpointAction{Handler: devLXDStoragePoolVolumeSnapshotDeleteHandler, AccessHandler: devLXDStoragePoolVolumeTypeAccessHandler(auth.EntitlementCanDelete)},
+}
+
+func devLXDStoragePoolVolumePostAccessHandler(d *Daemon, r *http.Request) response.Response {
+	// Disallow cross-project access and ensure project query parameter is set.
+	projectName, err := enforceDevLXDProject(r)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	s := d.State()
+	effectiveProjectName, err := project.StorageVolumeProject(s.DB.Cluster, projectName, cluster.StoragePoolVolumeTypeCustom)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	if projectName != effectiveProjectName {
+		return response.DevLXDErrorResponse(api.NewStatusError(http.StatusServiceUnavailable, `Project does not have "features.storage.volumes" enabled`))
+	}
+
+	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(effectiveProjectName), auth.EntitlementCanCreateStorageVolumes)
+	if err != nil {
+		return response.DevLXDErrorResponse(err)
+	}
+
+	return response.EmptySyncResponse
 }
 
 // devLXDStoragePoolGetHandler retrieves information about the specified storage pool.
@@ -779,7 +807,7 @@ func devLXDStoragePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func
 		s := d.State()
 
 		// Disallow cross-project access and ensure project query parameter is set.
-		err := enforceDevLXDProject(r)
+		projectName, err := enforceDevLXDProject(r)
 		if err != nil {
 			return response.DevLXDErrorResponse(err)
 		}
@@ -787,6 +815,15 @@ func devLXDStoragePoolVolumeTypeAccessHandler(entitlement auth.Entitlement) func
 		err = checkStoragePoolVolumeTypeAccess(s, r, entitlement)
 		if err != nil {
 			return response.DevLXDErrorResponse(err)
+		}
+
+		effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+		if err != nil {
+			return response.DevLXDErrorResponse(err)
+		}
+
+		if effectiveProjectName != projectName {
+			return response.DevLXDErrorResponse(api.NewStatusError(http.StatusServiceUnavailable, `Project does not have "features.storage.volumes" enabled`))
 		}
 
 		return response.EmptySyncResponse

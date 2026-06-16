@@ -19,8 +19,9 @@ import (
 )
 
 var storagePoolVolumeTypeStateCmd = APIEndpoint{
-	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/state",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-pools/{poolName}/volumes/{type}/{volumeName}/state",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: storagePoolVolumeTypeStateGet, AccessHandler: allowPermission(entity.TypeStorageVolume, auth.EntitlementCanView, "poolName", "type", "volumeName")},
 }

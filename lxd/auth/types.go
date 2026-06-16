@@ -37,18 +37,6 @@ type Authorizer interface {
 	// calling the PermissionChecker.
 	GetPermissionChecker(ctx context.Context, entitlement Entitlement, entityType entity.Type) (PermissionChecker, error)
 
-	// CheckPermissionWithoutEffectiveProject checks a permission, but does not replace the project in the entity URL
-	// with the effective project stored in the context.
-	//
-	// Warn: You almost never need this function. You should use CheckPermission instead.
-	CheckPermissionWithoutEffectiveProject(ctx context.Context, entityURL *api.URL, entitlement Entitlement) error
-
-	// GetPermissionCheckerWithoutEffectiveProject returns a PermissionChecker does not replace the project in the entity URL
-	// with the effective project stored in the context.
-	//
-	// Warn: You almost never need this function. You should use GetPermissionChecker instead.
-	GetPermissionCheckerWithoutEffectiveProject(ctx context.Context, entitlement Entitlement, entityType entity.Type) (PermissionChecker, error)
-
 	// GetViewableProjects accepts a list of permissions and returns a list of projects that a member of a group with these permissions is able to view.
 	GetViewableProjects(ctx context.Context, permissions []api.Permission) ([]string, error)
 }

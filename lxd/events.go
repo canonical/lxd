@@ -26,10 +26,11 @@ var eventTypes = []string{api.EventTypeLogging, api.EventTypeOperation, api.Even
 var privilegedEventTypes = []string{api.EventTypeLogging, api.EventTypeOVN, api.EventTypeSecurity}
 
 var eventsCmd = APIEndpoint{
-	Path:        "events",
-	MetricsType: entity.TypeServer,
+	Path:            "events",
+	MetricsType:     entity.TypeServer,
+	ProjectSpecific: true,
 
-	Get: APIEndpointAction{Handler: eventsGet, AccessHandler: allowProjectResourceList(true)},
+	Get: APIEndpointAction{Handler: eventsGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeAllowAll},
 }
 
 type eventsServe struct {

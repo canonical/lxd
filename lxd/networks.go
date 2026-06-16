@@ -43,16 +43,18 @@ import (
 )
 
 var networksCmd = APIEndpoint{
-	Path:        "networks",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowProjectResourceList(false)},
-	Post: APIEndpointAction{Handler: networksPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworks)},
+	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
+	Post: APIEndpointAction{Handler: networksPost, AccessHandler: networkAccessHandler(auth.EntitlementCanCreateNetworks)},
 }
 
 var networkCmd = APIEndpoint{
-	Path:        "networks/{networkName}",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks/{networkName}",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: networkDelete, AccessHandler: networkAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
@@ -62,15 +64,17 @@ var networkCmd = APIEndpoint{
 }
 
 var networkLeasesCmd = APIEndpoint{
-	Path:        "networks/{networkName}/leases",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks/{networkName}/leases",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 }
 
 var networkStateCmd = APIEndpoint{
-	Path:        "networks/{networkName}/state",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks/{networkName}/state",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 }
@@ -85,41 +89,33 @@ type networkDetails struct {
 	requestProject api.Project
 }
 
-// addNetworkDetailsToRequestContext sets the effective project on the request.Info and sets ctxNetworkDetails (networkDetails)
-// in the request context.
-func addNetworkDetailsToRequestContext(s *state.State, r *http.Request) error {
-	networkName := r.PathValue("networkName")
-	requestProjectName := request.ProjectParam(r)
-	effectiveProjectName, requestProject, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
-	if err != nil {
-		return fmt.Errorf("Failed checking project %q network feature: %w", requestProjectName, err)
-	}
-
-	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-	request.SetContextValue(r, ctxNetworkDetails, networkDetails{
-		networkName:    networkName,
-		requestProject: *requestProject,
-	})
-
-	return nil
-}
-
 // networkAccessHandler calls addNetworkDetailsToRequestContext, then uses the details to perform an access check with
 // the given auth.Entitlement.
 func networkAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
-		err := addNetworkDetailsToRequestContext(s, r)
+		requestProjectName := request.ProjectParam(r)
+		effectiveProjectName, requestProject, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(fmt.Errorf("Failed checking project %q network feature: %w", requestProjectName, err))
 		}
 
-		details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
-		if err != nil {
-			return response.SmartError(err)
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
+
+		var u *api.URL
+		switch entitlement {
+		case auth.EntitlementCanCreateNetworks:
+			u = entity.ProjectURL(effectiveProjectName)
+		default:
+			networkName := r.PathValue("networkName")
+			u = entity.NetworkURL(effectiveProjectName, networkName)
+			request.SetContextValue(r, ctxNetworkDetails, networkDetails{
+				networkName:    networkName,
+				requestProject: *requestProject,
+			})
 		}
 
-		err = s.Authorizer.CheckPermission(r.Context(), entity.NetworkURL(details.requestProject.Name, details.networkName), entitlement)
+		err = s.Authorizer.CheckPermission(r.Context(), u, entitlement)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -357,8 +353,13 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 	for kind, projectNetworks := range networks {
 		for projectName, networkNames := range projectNetworks {
 			for _, networkName := range networkNames {
+				authProjectName := projectName
+				if kind == managed && !allProjects {
+					authProjectName = effectiveProjectName
+				}
+
 				// Filter out managed networks that the caller doesn't have permission to view.
-				if kind == managed && !userHasPermission(entity.NetworkURL(projectName, networkName)) {
+				if kind == managed && !userHasPermission(entity.NetworkURL(authProjectName, networkName)) {
 					continue
 				}
 
@@ -378,7 +379,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 					}
 
 					resultMap = append(resultMap, &net)
-					urlToNetwork[entity.NetworkURL(projectName, networkName)] = &net
+					urlToNetwork[entity.NetworkURL(authProjectName, networkName)] = &net
 				}
 			}
 		}
@@ -1029,7 +1030,12 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeNetwork, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkURL(details.requestProject.Name, details.networkName): &n})
+		effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeNetwork, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkURL(effectiveProjectName, details.networkName): &n})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1091,7 +1097,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 		apiNet.Description = n.Description()
 		apiNet.Type = n.Type()
 
-		err = s.Authorizer.CheckPermission(r.Context(), entity.NetworkURL(requestProjectName, networkName), auth.EntitlementCanEdit)
+		err = s.Authorizer.CheckPermission(r.Context(), entity.NetworkURL(effectiveProjectName, networkName), auth.EntitlementCanEdit)
 		if err != nil && !auth.IsDeniedError(err) {
 			return api.Network{}, err
 		} else if err == nil {

@@ -32,7 +32,7 @@ type RequestorHookResult struct {
 	AuthGroups             []string
 	IdentityProviderGroups []string
 	EffectiveAuthGroups    []string
-	Projects               []string
+	Projects               map[string]map[string]bool
 }
 
 // RequestorArgs contains information that is gathered when the requestor is initially authenticated.
@@ -64,7 +64,7 @@ type Requestor struct {
 	clientType               ClientType
 	authGroups               []string
 	mappedAuthGroups         []string
-	projects                 []string
+	projects                 map[string]map[string]bool
 	identityType             identity.Type
 	expiresAt                *time.Time
 	isForwarded              bool
@@ -121,6 +121,18 @@ func (r *Requestor) CallerEffectiveAuthorizationGroupNames() []string {
 
 // CallerAllowedProjectNames returns a list of names of projects that the caller has access to.
 func (r *Requestor) CallerAllowedProjectNames() []string {
+	projects := make([]string, 0, len(r.projects))
+	for p := range r.projects {
+		projects = append(projects, p)
+	}
+
+	return projects
+}
+
+// CallerAllowedProjectsWithFeatures returns a map of projects that the caller has access to, to a map of project
+// feature flag to boolean (indicating if the feature is enabled or not). This is only set for legacy restricted TLS
+// client identities.
+func (r *Requestor) CallerAllowedProjectsWithFeatures() map[string]map[string]bool {
 	return r.projects
 }
 
@@ -168,6 +180,15 @@ func (r *Requestor) CallerIdentityType() (identity.Type, error) {
 	}
 
 	return r.identityType, nil
+}
+
+// IsIdentityType returns true if the given identity type matches the name of requestor's [identity.Type].
+func (r *Requestor) IsIdentityType(idType string) bool {
+	if r.identityType == nil {
+		return false
+	}
+
+	return r.identityType.Name() == idType
 }
 
 // IsForwarded returns true if the request was forwarded from another cluster member and false otherwise.

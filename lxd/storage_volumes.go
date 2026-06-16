@@ -47,44 +47,67 @@ import (
 )
 
 var storageVolumesCmd = APIEndpoint{
-	Path:        "storage-volumes",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-volumes",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
-	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList(false)},
+	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 }
 
 var storageVolumesTypeCmd = APIEndpoint{
-	Path:        "storage-volumes/{type}",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-volumes/{type}",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
-	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList(false)},
+	Get: APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 }
 
 var storagePoolVolumesCmd = APIEndpoint{
-	Path:        "storage-pools/{poolName}/volumes",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-pools/{poolName}/volumes",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList(false)},
-	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes)},
+	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
+	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: storagePoolVolumeTypePostAccessHandler},
 }
 
 var storagePoolVolumesTypeCmd = APIEndpoint{
-	Path:        "storage-pools/{poolName}/volumes/{type}",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-pools/{poolName}/volumes/{type}",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectResourceList(false)},
-	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageVolumes), ContentTypes: []string{"application/json", "application/octet-stream"}},
+	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
+	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: storagePoolVolumeTypePostAccessHandler, ContentTypes: []string{"application/json", "application/octet-stream"}},
 }
 
 var storagePoolVolumeTypeCmd = APIEndpoint{
-	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-pools/{poolName}/volumes/{type}/{volumeName}",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: storagePoolVolumeDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: storagePoolVolumeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
 	Patch:  APIEndpointAction{Handler: storagePoolVolumePatch, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
 	Post:   APIEndpointAction{Handler: storagePoolVolumePost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
 	Put:    APIEndpointAction{Handler: storagePoolVolumePut, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanEdit)},
+}
+
+func storagePoolVolumeTypePostAccessHandler(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	// Get the effective project. Only custom volumes can be created via this API.
+	effectiveProject, err := project.StorageVolumeProject(s.DB.Cluster, request.ProjectParam(r), cluster.StoragePoolVolumeTypeCustom)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed getting effective project name: %w", err))
+	}
+
+	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProject)
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(effectiveProject), auth.EntitlementCanCreateStorageVolumes)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
 }
 
 // storagePoolVolumeTypeAccessHandler returns an access handler which checks the given entitlement on a storage volume.
@@ -114,14 +137,19 @@ func checkStoragePoolVolumeTypeAccess(s *state.State, r *http.Request, entitleme
 		return err
 	}
 
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+	if err != nil {
+		return err
+	}
+
 	var u *api.URL
 	switch {
 	case details.snapshotName != "":
-		u = entity.StorageVolumeSnapshotURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, details.snapshotName)
+		u = entity.StorageVolumeSnapshotURL(effectiveProjectName, details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, details.snapshotName)
 	case details.backupName != "":
-		u = entity.StorageVolumeBackupURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, details.backupName)
+		u = entity.StorageVolumeBackupURL(effectiveProjectName, details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, details.backupName)
 	default:
-		u = entity.StorageVolumeURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName)
+		u = entity.StorageVolumeURL(effectiveProjectName, details.location, details.pool.Name(), details.volumeTypeName, details.volumeName)
 	}
 
 	err = s.Authorizer.CheckPermission(r.Context(), u, entitlement)
@@ -798,16 +826,6 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// The auth.PermissionChecker expects the url to contain the request project (not the effective project).
-	// So when getting networks in a single project, ensure we use the request project name.
-	authCheckProject := func(dbProject string) string {
-		if !allProjects {
-			return requestProjectName
-		}
-
-		return dbProject
-	}
-
 	recursion, _ := util.IsRecursionRequest(r)
 	if recursion > 0 {
 		volumes := make([]*api.StorageVolume, 0, len(dbVolumes))
@@ -816,7 +834,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			vol := &dbVol.StorageVolume
 
 			volumeName, _, _ := api.GetParentAndSnapshotName(vol.Name)
-			if !userHasPermission(entity.StorageVolumeURL(authCheckProject(vol.Project), vol.Location, dbVol.Pool, dbVol.Type, volumeName)) {
+			if !userHasPermission(entity.StorageVolumeURL(vol.Project, vol.Location, dbVol.Pool, dbVol.Type, volumeName)) {
 				continue
 			}
 
@@ -848,7 +866,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	for _, dbVol := range dbVolumes {
 		volumeName, _, _ := api.GetParentAndSnapshotName(dbVol.Name)
 
-		if !userHasPermission(entity.StorageVolumeURL(authCheckProject(dbVol.Project), dbVol.Location, dbVol.Pool, dbVol.Type, volumeName)) {
+		if !userHasPermission(entity.StorageVolumeURL(dbVol.Project, dbVol.Location, dbVol.Pool, dbVol.Type, volumeName)) {
 			continue
 		}
 
@@ -977,7 +995,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 
 	poolName := r.PathValue("poolName")
 	requestProjectName := request.ProjectParam(r)
-	projectName, err := project.StorageVolumeProject(s.DB.Cluster, requestProjectName, cluster.StoragePoolVolumeTypeCustom)
+	projectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}

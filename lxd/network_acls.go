@@ -26,29 +26,61 @@ import (
 )
 
 var networkACLsCmd = APIEndpoint{
-	Path:        "network-acls",
-	MetricsType: entity.TypeNetwork,
+	Path:            "network-acls",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: networkACLsGet, AccessHandler: allowProjectResourceList(false)},
-	Post: APIEndpointAction{Handler: networkACLsPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworkACLs)},
+	Get:  APIEndpointAction{Handler: networkACLsGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
+	Post: APIEndpointAction{Handler: networkACLsPost, AccessHandler: networkACLAccessHandler(auth.EntitlementCanCreateNetworkACLs)},
 }
 
 var networkACLCmd = APIEndpoint{
-	Path:        "network-acls/{name}",
-	MetricsType: entity.TypeNetwork,
+	Path:            "network-acls/{name}",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
-	Delete: APIEndpointAction{Handler: networkACLDelete, AccessHandler: allowPermission(entity.TypeNetworkACL, auth.EntitlementCanDelete, "name")},
-	Get:    APIEndpointAction{Handler: networkACLGet, AccessHandler: allowPermission(entity.TypeNetworkACL, auth.EntitlementCanView, "name")},
-	Put:    APIEndpointAction{Handler: networkACLPut, AccessHandler: allowPermission(entity.TypeNetworkACL, auth.EntitlementCanEdit, "name")},
-	Patch:  APIEndpointAction{Handler: networkACLPut, AccessHandler: allowPermission(entity.TypeNetworkACL, auth.EntitlementCanEdit, "name")},
-	Post:   APIEndpointAction{Handler: networkACLPost, AccessHandler: allowPermission(entity.TypeNetworkACL, auth.EntitlementCanEdit, "name")},
+	Delete: APIEndpointAction{Handler: networkACLDelete, AccessHandler: networkACLAccessHandler(auth.EntitlementCanDelete)},
+	Get:    APIEndpointAction{Handler: networkACLGet, AccessHandler: networkACLAccessHandler(auth.EntitlementCanView)},
+	Put:    APIEndpointAction{Handler: networkACLPut, AccessHandler: networkACLAccessHandler(auth.EntitlementCanEdit)},
+	Patch:  APIEndpointAction{Handler: networkACLPut, AccessHandler: networkACLAccessHandler(auth.EntitlementCanEdit)},
+	Post:   APIEndpointAction{Handler: networkACLPost, AccessHandler: networkACLAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var networkACLLogCmd = APIEndpoint{
-	Path:        "network-acls/{name}/log",
-	MetricsType: entity.TypeNetwork,
+	Path:            "network-acls/{name}/log",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
-	Get: APIEndpointAction{Handler: networkACLLogGet, AccessHandler: allowPermission(entity.TypeNetworkACL, auth.EntitlementCanView, "name")},
+	Get: APIEndpointAction{Handler: networkACLLogGet, AccessHandler: networkACLAccessHandler(auth.EntitlementCanView)},
+}
+
+func networkACLAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
+		requestProject := request.ProjectParam(r)
+
+		s := d.State()
+		effectiveProject, _, err := project.NetworkProject(s.DB.Cluster, requestProject)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProject)
+
+		var u *api.URL
+		switch entitlement {
+		case auth.EntitlementCanCreateNetworkACLs:
+			u = entity.ProjectURL(effectiveProject)
+		default:
+			u = entity.NetworkACLURL(effectiveProject, r.PathValue("name"))
+		}
+
+		err = s.Authorizer.CheckPermission(r.Context(), u, entitlement)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
+	}
 }
 
 // API endpoints.
@@ -219,7 +251,12 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 	urlToNetworkACL := make(map[*api.URL]auth.EntitlementReporter)
 	for projectName, acls := range aclNames {
 		for _, aclName := range acls {
-			if !userHasPermission(entity.NetworkACLURL(projectName, aclName)) {
+			authProjectName := projectName
+			if !allProjects {
+				authProjectName = effectiveProjectName
+			}
+
+			if !userHasPermission(entity.NetworkACLURL(authProjectName, aclName)) {
 				continue
 			}
 
@@ -243,7 +280,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 				netACLInfo.Project = projectName
 
 				resultMap = append(resultMap, netACLInfo)
-				urlToNetworkACL[entity.NetworkACLURL(requestProjectName, aclName)] = netACLInfo
+				urlToNetworkACL[entity.NetworkACLURL(authProjectName, aclName)] = netACLInfo
 			}
 		}
 	}
@@ -298,7 +335,7 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	requestProject := request.ProjectParam(r)
-	effectiveProjectName, _, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -380,7 +417,7 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	effectiveProjectName, _, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -480,7 +517,7 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 func networkACLGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	projectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -587,7 +624,7 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 func networkACLPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	projectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -708,7 +745,7 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 
 	aclName := r.PathValue("name")
 	requestProject := request.ProjectParam(r)
-	effectiveProjectName, _, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -790,7 +827,7 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 func networkACLLogGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, _, err := project.NetworkProject(s.DB.Cluster, request.ProjectParam(r))
+	projectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}

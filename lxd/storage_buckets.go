@@ -25,16 +25,18 @@ import (
 )
 
 var storagePoolBucketsCmd = APIEndpoint{
-	Path:        "storage-pools/{poolName}/buckets",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-pools/{poolName}/buckets",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: storagePoolBucketsGet, AccessHandler: allowProjectResourceList(false)},
-	Post: APIEndpointAction{Handler: storagePoolBucketsPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateStorageBuckets)},
+	Get:  APIEndpointAction{Handler: storagePoolBucketsGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
+	Post: APIEndpointAction{Handler: storagePoolBucketsPost, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanCreateStorageBuckets)},
 }
 
 var storagePoolBucketCmd = APIEndpoint{
-	Path:        "storage-pools/{poolName}/buckets/{bucketName}",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-pools/{poolName}/buckets/{bucketName}",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: storagePoolBucketDelete, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: storagePoolBucketGet, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanView)},
@@ -43,16 +45,18 @@ var storagePoolBucketCmd = APIEndpoint{
 }
 
 var storagePoolBucketKeysCmd = APIEndpoint{
-	Path:        "storage-pools/{poolName}/buckets/{bucketName}/keys",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-pools/{poolName}/buckets/{bucketName}/keys",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
 	Get:  APIEndpointAction{Handler: storagePoolBucketKeysGet, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanView)},
 	Post: APIEndpointAction{Handler: storagePoolBucketKeysPost, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var storagePoolBucketKeyCmd = APIEndpoint{
-	Path:        "storage-pools/{poolName}/buckets/{bucketName}/keys/{keyName}",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-pools/{poolName}/buckets/{bucketName}/keys/{keyName}",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: storagePoolBucketKeyDelete, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanEdit)},
 	Get:    APIEndpointAction{Handler: storagePoolBucketKeyGet, AccessHandler: storageBucketAccessHandler(auth.EntitlementCanView)},
@@ -65,26 +69,44 @@ var storagePoolBucketKeyCmd = APIEndpoint{
 func storageBucketAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
+		projectName := request.ProjectParam(r)
 
-		err := addStorageBucketDetailsToContext(d, r)
+		effectiveProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectName)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		details, err := request.GetContextValue[storageBucketDetails](r.Context(), ctxStorageBucketDetails)
-		if err != nil {
-			return nil
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
+
+		var u *api.URL
+		switch entitlement {
+		case auth.EntitlementCanCreateStorageBuckets:
+			u = entity.ProjectURL(effectiveProjectName)
+		default:
+			poolName := r.PathValue("poolName")
+			pool, err := storagePools.LoadByName(s, poolName)
+			if err != nil {
+				return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
+			}
+
+			bucketName := r.PathValue("bucketName")
+
+			// If the storage pool is a remote driver, the auth subsystem does not require a target parameter to create a
+			// unique URL for the storage bucket. So even if the caller supplied a target parameter, we don't use it in the
+			// access check if the pool is remote.
+			target := ""
+			if !pool.Driver().Info().Remote {
+				target = request.QueryParam(r, "target")
+			}
+
+			u = entity.StorageBucketURL(effectiveProjectName, target, poolName, bucketName)
+			request.SetContextValue(r, ctxStorageBucketDetails, storageBucketDetails{
+				bucketName: bucketName,
+				pool:       pool,
+			})
 		}
 
-		// If the storage pool is a remote driver, the auth subsystem does not require a target parameter to create a
-		// unique URL for the storage bucket. So even if the caller supplied a target parameter, we don't use it in the
-		// access check if the pool is remote.
-		target := ""
-		if !details.pool.Driver().Info().Remote {
-			target = request.QueryParam(r, "target")
-		}
-
-		err = s.Authorizer.CheckPermission(r.Context(), entity.StorageBucketURL(request.ProjectParam(r), target, details.pool.Name(), details.bucketName), entitlement)
+		err = s.Authorizer.CheckPermission(r.Context(), u, entitlement)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -266,7 +288,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 	filteredDBBuckets := make([]*db.StorageBucket, 0)
 
 	for _, bucket := range dbBuckets {
-		if !userHasPermission(entity.StorageBucketURL(requestProjectName, bucket.Location, poolName, bucket.Name)) {
+		if !userHasPermission(entity.StorageBucketURL(bucket.Project, bucket.Location, poolName, bucket.Name)) {
 			continue
 		}
 
@@ -449,7 +471,7 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, request.ProjectParam(r))
+	bucketProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1321,38 +1343,4 @@ const ctxStorageBucketDetails request.CtxKey = "storage-bucket-details"
 type storageBucketDetails struct {
 	bucketName string
 	pool       storagePools.Pool
-}
-
-// addStorageBucketDetailsToContext extracts storageBucketDetails from the http.Request and adds it to the
-// request context with the ctxStorageBucketDetails request.CtxKey. Additionally, the effective project of the storage
-// bucket is added to the request.Info.
-func addStorageBucketDetailsToContext(d *Daemon, r *http.Request) error {
-	var details storageBucketDetails
-	defer func() {
-		request.SetContextValue(r, ctxStorageBucketDetails, details)
-	}()
-
-	s := d.State()
-
-	projectName := request.ProjectParam(r)
-
-	effectiveProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectName)
-	if err != nil {
-		return err
-	}
-
-	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-
-	poolName := r.PathValue("poolName")
-	pool, err := storagePools.LoadByName(s, poolName)
-	if err != nil {
-		return fmt.Errorf("Failed loading storage pool: %w", err)
-	}
-
-	details.pool = pool
-
-	bucketName := r.PathValue("bucketName")
-
-	details.bucketName = bucketName
-	return nil
 }
