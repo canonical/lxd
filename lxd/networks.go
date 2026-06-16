@@ -48,7 +48,7 @@ var networksCmd = APIEndpoint{
 	ProjectSpecific: true,
 
 	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
-	Post: APIEndpointAction{Handler: networksPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateNetworks)},
+	Post: APIEndpointAction{Handler: networksPost, AccessHandler: networkAccessHandler(auth.EntitlementCanCreateNetworks)},
 }
 
 var networkCmd = APIEndpoint{
@@ -89,41 +89,33 @@ type networkDetails struct {
 	requestProject api.Project
 }
 
-// addNetworkDetailsToRequestContext sets the effective project on the request.Info and sets ctxNetworkDetails (networkDetails)
-// in the request context.
-func addNetworkDetailsToRequestContext(s *state.State, r *http.Request) error {
-	networkName := r.PathValue("networkName")
-	requestProjectName := request.ProjectParam(r)
-	effectiveProjectName, requestProject, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
-	if err != nil {
-		return fmt.Errorf("Failed checking project %q network feature: %w", requestProjectName, err)
-	}
-
-	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-	request.SetContextValue(r, ctxNetworkDetails, networkDetails{
-		networkName:    networkName,
-		requestProject: *requestProject,
-	})
-
-	return nil
-}
-
 // networkAccessHandler calls addNetworkDetailsToRequestContext, then uses the details to perform an access check with
 // the given auth.Entitlement.
 func networkAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		s := d.State()
-		err := addNetworkDetailsToRequestContext(s, r)
+		requestProjectName := request.ProjectParam(r)
+		effectiveProjectName, requestProject, err := project.NetworkProject(s.DB.Cluster, requestProjectName)
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(fmt.Errorf("Failed checking project %q network feature: %w", requestProjectName, err))
 		}
 
-		details, err := request.GetContextValue[networkDetails](r.Context(), ctxNetworkDetails)
-		if err != nil {
-			return response.SmartError(err)
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
+
+		var u *api.URL
+		switch entitlement {
+		case auth.EntitlementCanCreateNetworks:
+			u = entity.ProjectURL(effectiveProjectName)
+		default:
+			networkName := r.PathValue("networkName")
+			u = entity.NetworkURL(effectiveProjectName, networkName)
+			request.SetContextValue(r, ctxNetworkDetails, networkDetails{
+				networkName:    networkName,
+				requestProject: *requestProject,
+			})
 		}
 
-		err = s.Authorizer.CheckPermission(r.Context(), entity.NetworkURL(details.requestProject.Name, details.networkName), entitlement)
+		err = s.Authorizer.CheckPermission(r.Context(), u, entitlement)
 		if err != nil {
 			return response.SmartError(err)
 		}
