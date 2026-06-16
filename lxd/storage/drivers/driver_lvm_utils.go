@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -82,17 +81,8 @@ func (d *lvm) openLoopFile(source string) (string, error) {
 // isLVMNotFoundExitError checks whether the supplied error is an exit error from an LVM command
 // meaning that the object was not found. Returns true if it is (exit status 5) false if not.
 func (d *lvm) isLVMNotFoundExitError(err error) bool {
-	runErr, ok := err.(shared.RunError)
-	if ok {
-		exitError, ok := runErr.Unwrap().(*exec.ExitError)
-		if ok {
-			if exitError.ExitCode() == 5 {
-				return true
-			}
-		}
-	}
-
-	return false
+	exitStatus, _ := shared.ExitStatus(err)
+	return exitStatus == 5
 }
 
 // physicalVolumeExists checks if an LVM Physical Volume exists.
