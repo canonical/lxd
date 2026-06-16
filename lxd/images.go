@@ -373,7 +373,12 @@ func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Re
 			return response.SmartError(err)
 		}
 
-		err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(request.ProjectParam(r), details.image.Fingerprint), entitlement)
+		effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		err = s.Authorizer.CheckPermission(r.Context(), entity.ImageURL(effectiveProjectName, details.image.Fingerprint), entitlement)
 		if err != nil {
 			return response.SmartError(err)
 		}
