@@ -179,7 +179,8 @@ func (d *powerstore) Validate(config map[string]string) error {
 		//  defaultdesc: the discovered mode
 		//  shortdesc: How volumes are mapped to the local server
 		//  scope: global
-		"powerstore.mode": validate.Optional(validate.IsOneOf(powerStoreSupportedConnectors...)),
+		//  required: true
+		"powerstore.mode": validate.IsOneOf(powerStoreSupportedConnectors...),
 		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.target)
 		// A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
 		// ---
