@@ -214,7 +214,7 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 		return &request.RequestorHookResult{
 			IdentityID:   1,
 			IdentityType: identity.CertificateClientRestricted{},
-			Projects:     []string{dbProject.Name},
+			Projects:     map[string]map[string]bool{dbProject.Name: {}},
 		}, nil
 	}, details)
 	require.NoError(t, err)
