@@ -353,8 +353,13 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 	for kind, projectNetworks := range networks {
 		for projectName, networkNames := range projectNetworks {
 			for _, networkName := range networkNames {
+				authProjectName := projectName
+				if kind == managed && !allProjects {
+					authProjectName = effectiveProjectName
+				}
+
 				// Filter out managed networks that the caller doesn't have permission to view.
-				if kind == managed && !userHasPermission(entity.NetworkURL(projectName, networkName)) {
+				if kind == managed && !userHasPermission(entity.NetworkURL(authProjectName, networkName)) {
 					continue
 				}
 
@@ -374,7 +379,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 					}
 
 					resultMap = append(resultMap, &net)
-					urlToNetwork[entity.NetworkURL(projectName, networkName)] = &net
+					urlToNetwork[entity.NetworkURL(authProjectName, networkName)] = &net
 				}
 			}
 		}
@@ -1025,7 +1030,12 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeNetwork, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkURL(details.requestProject.Name, details.networkName): &n})
+		effectiveProjectName, err := request.GetContextValue[string](r.Context(), request.CtxEffectiveProjectName)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeNetwork, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.NetworkURL(effectiveProjectName, details.networkName): &n})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1087,7 +1097,7 @@ func doNetworkGet(s *state.State, r *http.Request, allNodes bool, requestProject
 		apiNet.Description = n.Description()
 		apiNet.Type = n.Type()
 
-		err = s.Authorizer.CheckPermission(r.Context(), entity.NetworkURL(requestProjectName, networkName), auth.EntitlementCanEdit)
+		err = s.Authorizer.CheckPermission(r.Context(), entity.NetworkURL(effectiveProjectName, networkName), auth.EntitlementCanEdit)
 		if err != nil && !auth.IsDeniedError(err) {
 			return api.Network{}, err
 		} else if err == nil {
