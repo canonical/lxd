@@ -251,7 +251,12 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 	urlToNetworkACL := make(map[*api.URL]auth.EntitlementReporter)
 	for projectName, acls := range aclNames {
 		for _, aclName := range acls {
-			if !userHasPermission(entity.NetworkACLURL(projectName, aclName)) {
+			authProjectName := projectName
+			if !allProjects {
+				authProjectName = effectiveProjectName
+			}
+
+			if !userHasPermission(entity.NetworkACLURL(authProjectName, aclName)) {
 				continue
 			}
 
@@ -275,7 +280,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 				netACLInfo.Project = projectName
 
 				resultMap = append(resultMap, netACLInfo)
-				urlToNetworkACL[entity.NetworkACLURL(requestProjectName, aclName)] = netACLInfo
+				urlToNetworkACL[entity.NetworkACLURL(authProjectName, aclName)] = netACLInfo
 			}
 		}
 	}
