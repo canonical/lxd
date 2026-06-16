@@ -1170,8 +1170,14 @@ auth_project_features() {
   # Delete it anyway to test that we can import a new one.
   lxc image delete "${test_image_fingerprint}" --project default
 
-  # Members of test-group can create images.
+  # Members of test-group cannot create images unless they have can_create_images in the default project.
+  ! lxc_remote image import "${TEST_DIR}/${test_image_fingerprint}.tar"* "${remote}:" --project blah || false
+  lxc auth group permission add test-group project default can_create_images
   lxc_remote image import "${TEST_DIR}/${test_image_fingerprint}.tar"* "${remote}:" --project blah
+
+  # Members of test-group cannot create image aliases unless they have can_create_image_aliases in the default project.
+  ! lxc_remote image alias create "${remote}:testimage" "${test_image_fingerprint}" --project blah || false
+  lxc auth group permission add test-group project default can_create_image_aliases
   lxc_remote image alias create "${remote}:testimage" "${test_image_fingerprint}" --project blah
 
   # We can view the image we've created via project blah (whose effective project is default) because we've granted the
@@ -1182,6 +1188,8 @@ auth_project_features() {
   # Image clean up
   lxc image delete "${test_image_fingerprint}" --project default
   lxc auth group permission remove test-group project default can_view_images
+  lxc auth group permission remove test-group project default can_create_images
+  lxc auth group permission remove test-group project default can_create_image_aliases
   lxc auth group permission remove test-group project default can_view
   rm "${TEST_DIR}/${test_image_fingerprint}.tar"*
 
@@ -1217,7 +1225,9 @@ auth_project_features() {
   # Members of test-group cannot delete the network.
   ! lxc_remote network delete "${remote}:${networkName}" --project blah || false
 
-  # Create a network in the blah project.
+  # Members of test-group cannot create networks unless they have can_create_networks in the default project
+  ! lxc_remote network create "${remote}:blah-network" --project blah ipv4.address=none ipv6.address=none || false
+  lxc auth group permission add test-group project default can_create_networks
   lxc_remote network create "${remote}:blah-network" --project blah ipv4.address=none ipv6.address=none
 
   # The network is visible only because we have granted view access on networks in the default project.
@@ -1237,6 +1247,7 @@ auth_project_features() {
   lxc network delete "${networkName}" --project blah
   lxc network delete blah-network --project blah
   lxc auth group permission remove test-group project default can_view_networks
+  lxc auth group permission remove test-group project default can_create_networks
   lxc auth group permission remove test-group project default can_view
 
   ### NETWORK ZONES (initial value is false in new projects).
@@ -1267,7 +1278,9 @@ auth_project_features() {
   # Members of test-group can delete the network zone.
   ! lxc_remote network zone delete "${remote}:${zoneName}" --project blah || false
 
-  # Create a network zone in the blah project.
+  # Members of test-group cannot create network zones unless they have can_create_network_zones in the default project.
+  ! lxc_remote network zone create "${remote}:blah-zone" --project blah || false
+  lxc auth group permission add test-group project default can_create_network_zones
   lxc_remote network zone create "${remote}:blah-zone" --project blah
 
   # Network zone is visible to members of test-group in project blah (because they can view network zones in the default project).
@@ -1284,6 +1297,7 @@ auth_project_features() {
   lxc network zone delete "${zoneName}" --project blah
   lxc network zone delete blah-zone --project blah
   lxc auth group permission remove test-group project default can_view_network_zones
+  lxc auth group permission remove test-group project default can_create_network_zones
   lxc auth group permission remove test-group project default can_view
 
   ### Network allocations
@@ -1362,7 +1376,9 @@ auth_project_features() {
   # Members of test-group cannot delete the profile.
   ! lxc_remote profile delete "${remote}:${profileName}" --project blah || false
 
-  # Create a profile in the blah project.
+  # Members of test-group cannot create profiles unless they have can_create_profiles in the default project
+  ! lxc_remote profile create "${remote}:blah-profile" --project blah || false
+  lxc auth group permission add test-group project default can_create_profiles
   lxc_remote profile create "${remote}:blah-profile" --project blah
 
   # Profile is visible to members of test-group in project blah and project default.
@@ -1378,6 +1394,7 @@ auth_project_features() {
   lxc profile delete "${profileName}" --project blah
   lxc profile delete blah-profile --project blah
   lxc auth group permission remove test-group project default can_view_profiles
+  lxc auth group permission remove test-group project default can_create_profiles
   lxc auth group permission remove test-group project default can_view
 
   ### STORAGE VOLUMES (initial value is true for new projects)
@@ -1409,7 +1426,9 @@ auth_project_features() {
   # Members of test-group cannot delete the storage volume.
   ! lxc_remote storage volume delete "${remote}:${pool_name}" "${volName}" --project blah || false
 
-  # Create a storage volume in the blah project.
+  # Members of test-group cannot create storage volumes unless they have can_create_storage_volumes in the default project
+  ! lxc_remote storage volume create "${remote}:${pool_name}" blah-volume --project blah || false
+  lxc auth group permission add test-group project default can_create_storage_volumes
   lxc_remote storage volume create "${remote}:${pool_name}" blah-volume --project blah
 
   # Storage volume is visible to members of test-group in project blah (because they can view volumes in the default project).
@@ -1425,6 +1444,7 @@ auth_project_features() {
   lxc storage volume delete "${pool_name}" "${volName}"
   lxc storage volume delete "${pool_name}" blah-volume
   lxc auth group permission remove test-group project default can_view_storage_volumes
+  lxc auth group permission remove test-group project default can_create_storage_volumes
   lxc auth group permission remove test-group project default can_view
 
   ### STORAGE BUCKETS (initial value is true for new projects)
@@ -1460,7 +1480,9 @@ auth_project_features() {
     # Members of test-group cannot delete the storage bucket.
     ! lxc_remote storage bucket delete "${remote}:s3" "${bucketName}" --project blah || false
 
-    # Create a storage bucket in the blah project.
+    # Members of test-group cannot create storage buckets unless they have can_create_storage_buckets in the default project
+    ! lxc_remote storage bucket create "${remote}:s3" blah-bucket --project blah || false
+    lxc auth group permission add test-group project default can_create_storage_buckets
     lxc_remote storage bucket create "${remote}:s3" blah-bucket --project blah
 
     # Storage bucket is visible to members of test-group in project blah (because they can view buckets in the default project).
@@ -1475,6 +1497,7 @@ auth_project_features() {
     lxc storage bucket delete s3 blah-bucket --project blah
     lxc storage bucket delete s3 "${bucketName}" --project blah
     lxc auth group permission remove test-group project default can_view_storage_buckets
+    lxc auth group permission remove test-group project default can_create_storage_buckets
     lxc auth group permission remove test-group project default can_view
     delete_object_storage_pool s3
   fi
