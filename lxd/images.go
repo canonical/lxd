@@ -113,7 +113,7 @@ var imageAliasesCmd = APIEndpoint{
 	ProjectSpecific: true,
 
 	Get:  APIEndpointAction{Handler: imageAliasesGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
-	Post: APIEndpointAction{Handler: imageAliasesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateImageAliases)},
+	Post: APIEndpointAction{Handler: imageAliasesPost, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanCreateImageAliases)},
 }
 
 var imageAliasCmd = APIEndpoint{
@@ -384,7 +384,6 @@ func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Re
 
 func imageAliasAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
-		imageAliasName := r.PathValue("name")
 		requestProjectName := request.ProjectParam(r)
 		var effectiveProjectName string
 		s := d.State()
@@ -399,8 +398,16 @@ func imageAliasAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *ht
 			return response.SmartError(err)
 		}
 
+		var u *api.URL
+		switch entitlement {
+		case auth.EntitlementCanCreateImageAliases:
+			u = entity.ProjectURL(effectiveProjectName)
+		default:
+			u = entity.ImageAliasURL(effectiveProjectName, r.PathValue("name"))
+		}
+
 		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-		err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(requestProjectName, imageAliasName), entitlement)
+		err = s.Authorizer.CheckPermission(r.Context(), u, entitlement)
 		if err != nil {
 			return response.SmartError(err)
 		}
