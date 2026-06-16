@@ -498,7 +498,7 @@ run_images_public() {
   # All callers can get the image with a prefix of 12 characters or more.
   query "/1.0/images/%25" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
   query "/1.0/images/${fingerprint:0:11}" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
-  query "/1.0/images/%25${fingerprint:0:11}" | jq --exit-status '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
+  query "/1.0/images/%25${fingerprint:0:11}" | jq --exit-status '.error == "Failed validating image fingerprint: Hash must contain only lowercase hexadecimal characters" and .error_code == 400'
   query "/1.0/images/${fingerprint}abc" | jq --exit-status '.error == "Image fingerprint cannot be longer than 64 characters" and .error_code == 400'
   query "/1.0/images/${fingerprint:0:12}" | jq --exit-status '.status_code == 200'
   query "/1.0/images/${fingerprint}" | jq --exit-status '.status_code == 200'
@@ -533,7 +533,7 @@ run_images_public() {
   # All callers can export the public image if using a valid prefix.
   query "/1.0/images/%25/export" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
   query "/1.0/images/${fingerprint:0:11}/export" | jq --exit-status '.error == "Image fingerprint prefix must contain 12 characters or more" and .error_code == 400'
-  query "/1.0/images/%25${fingerprint:0:11}/export" | jq --exit-status '.error == "Image fingerprint prefix must contain only lowercase hexadecimal characters" and .error_code == 400'
+  query "/1.0/images/%25${fingerprint:0:11}/export" | jq --exit-status '.error == "Failed validating image fingerprint: Hash must contain only lowercase hexadecimal characters" and .error_code == 400'
   query "/1.0/images/${fingerprint}abc/export" | jq --exit-status '.error == "Image fingerprint cannot be longer than 64 characters" and .error_code == 400'
   query "/1.0/images/${fingerprint}/export" -o /dev/null
   query "/1.0/images/${fingerprint}/export?project=default" -o /dev/null
