@@ -1895,7 +1895,7 @@ func (d *lxc) startCommon(ctx context.Context, progressReporter ioprogress.Progr
 	// Wait for any file operations to complete.
 	// This is to avoid having an active mount by forkfile and so all file operations
 	// from this point will use the container's namespace rather than a chroot.
-	d.stopForkfile(false)
+	d.StopForkFile(false)
 
 	// Mount instance root volume.
 	mountInfo, err := d.mount()
@@ -2615,7 +2615,7 @@ func (d *lxc) Stop(ctx context.Context, stateful bool) error {
 	}
 
 	// Forcefully stop any forkfile process if running.
-	d.stopForkfile(true)
+	d.StopForkFile(true)
 
 	// Release liblxc container once done.
 	defer func() {
@@ -2897,7 +2897,7 @@ func (d *lxc) onStop(ctx context.Context, args map[string]string) error {
 
 		// Wait for any file operations to complete.
 		// This is to required so we can actually unmount the container.
-		d.stopForkfile(false)
+		d.StopForkFile(false)
 
 		// Clean up devices.
 		d.cleanupDevices(false, "")
@@ -3352,7 +3352,7 @@ func (d *lxc) RenderState(hostInterfaces []net.Interface, opts ...instance.State
 // snapshot creates a snapshot of the instance.
 func (d *lxc) snapshot(ctx context.Context, name string, expiry *time.Time, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
 	// Wait for any file operations to complete to have a more consistent snapshot.
-	d.stopForkfile(false)
+	d.StopForkFile(false)
 
 	return d.snapshotCommon(ctx, d, name, expiry, false, diskVolumesMode, progressReporter)
 }
@@ -3390,7 +3390,7 @@ func (d *lxc) Restore(ctx context.Context, sourceContainer instance.Instance, st
 
 	// Wait for any file operations to complete.
 	// This is required so we can actually unmount the container and restore its rootfs.
-	d.stopForkfile(false)
+	d.StopForkFile(false)
 
 	wasRunning, op, err := d.restoreCommon(ctx, d, sourceContainer, diskVolumesMode, progressReporter)
 	if err != nil {
@@ -3457,7 +3457,7 @@ func (d *lxc) delete(ctx context.Context, force bool) error {
 	// Wait for any file operations to complete.
 	// This is required so we can actually unmount the container and delete it.
 	if !d.IsSnapshot() {
-		d.stopForkfile(false)
+		d.StopForkFile(false)
 	}
 
 	// Delete any persistent warnings for instance.
@@ -3576,7 +3576,7 @@ func (d *lxc) Rename(ctx context.Context, newName string, applyTemplateTrigger b
 	// race with the unmount and fail. Snapshots cannot have file operations
 	// in flight, so this is not required for them.
 	if !d.IsSnapshot() {
-		d.stopForkfile(false)
+		d.StopForkFile(false)
 	}
 
 	// Clean things up.
@@ -5982,8 +5982,8 @@ func (d *lxc) FileSFTPNoLock() (*sftp.Client, error) {
 	return d.fileSFTPConnToClient(conn)
 }
 
-// stopForkFile attempts to send SIGTERM (if force is true) or SIGINT to forkfile then waits for it to exit.
-func (d *lxc) stopForkfile(force bool) {
+// StopForkFile attempts to send SIGTERM (if force is true) or SIGINT to forkfile then waits for it to exit.
+func (d *lxc) StopForkFile(force bool) {
 	// Make sure that when the function exits, no forkfile is running by acquiring the lock (which indicates
 	// that forkfile isn't running and holding the lock) and then releasing it.
 	defer func() {
@@ -6999,7 +6999,7 @@ func (d *lxc) LockExclusive() (*operationlock.InstanceOperation, error) {
 	}
 
 	// Stop forkfile as otherwise it will hold the root volume open preventing unmount.
-	d.stopForkfile(false)
+	d.StopForkFile(false)
 
 	return op, err
 }

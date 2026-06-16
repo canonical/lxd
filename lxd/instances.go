@@ -539,6 +539,13 @@ func instancesShutdown(ctx context.Context, instances []instance.Instance) {
 	for i, inst := range instances {
 		// Skip stopped instances.
 		if !inst.IsRunning() {
+			// Stopped containers could still have a forkfile daemon running which could make
+			// the storage busy, causing unmount to fail, so make sure it is stopped.
+			c, isContainer := inst.(instance.Container)
+			if isContainer {
+				c.StopForkFile(true)
+			}
+
 			continue
 		}
 
