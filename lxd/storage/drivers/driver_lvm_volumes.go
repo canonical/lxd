@@ -1335,12 +1335,9 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogr
 		_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvresize", args...)
 		if err != nil {
 			// lvresize exits with code 5 when the LV already has the right size ("No size change.").
-			runErr, ok := err.(shared.RunError)
-			if ok {
-				exitError, ok := runErr.Unwrap().(*exec.ExitError)
-				if ok && exitError.ExitCode() == 5 {
-					err = nil
-				}
+			exitStatus, _ := shared.ExitStatus(err)
+			if exitStatus == 5 {
+				err = nil
 			}
 		}
 
@@ -1361,12 +1358,9 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogr
 		_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "lvresize", args...)
 		if err != nil {
 			// lvresize exits with code 5 when the LV already has the right size ("No size change.").
-			runErr, ok := err.(shared.RunError)
-			if ok {
-				exitError, ok := runErr.Unwrap().(*exec.ExitError)
-				if ok && exitError.ExitCode() == 5 {
-					err = nil
-				}
+			exitStatus, _ := shared.ExitStatus(err)
+			if exitStatus == 5 {
+				err = nil
 			}
 		}
 
