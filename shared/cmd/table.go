@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"slices"
 
 	"github.com/olekukonko/tablewriter"
 	"go.yaml.in/yaml/v2"
@@ -20,11 +19,6 @@ const (
 	TableFormatCompact   = "compact"
 	TableFormatSQLResult = "sql"
 )
-
-// isTableFormat returns true if the given format can be rendered as an actual table or csv with columns and rows.
-func isTableFormat(format string) bool {
-	return slices.Contains([]string{TableFormatTable, TableFormatCSV, TableFormatCompact, TableFormatSQLResult}, format)
-}
 
 // RenderTable renders tabular data in various formats.
 func RenderTable(format string, header []string, data [][]string, raw any) error {
