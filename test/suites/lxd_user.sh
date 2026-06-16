@@ -63,7 +63,7 @@ test_snap_lxd_user() {
   loginctl enable-linger testuser
   # Allow time for the session to be usable
   for _ in $(seq 30); do [ -d /run/user/5000 ] && break; sleep 0.1; done
-  [ -d /run/user/5000 ]
+  [ -d /run/user/5000 ] && sleep 1
 
   echo "==> Access the lxd-user daemon from a regular user"
   snap_lxc_user project list
@@ -93,7 +93,7 @@ test_snap_lxd_user() {
   loginctl disable-linger testuser
   # Allow time for the session to end
   for _ in $(seq 30); do [ ! -d /run/user/5000 ] && break; sleep 0.1; done
-  [ ! -d /run/user/5000 ]
+  [ ! -d /run/user/5000 ] && sleep 1
 
   userdel --remove --force testuser
 }
