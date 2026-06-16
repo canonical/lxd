@@ -90,8 +90,6 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
-
-		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	}
 
 	var projectNames []string
@@ -142,13 +140,6 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 	// Then, get all the networks, their network forwards and their network load balancers.
 	for _, projectName := range projectNames {
-		// The auth.PermissionChecker expects the url to contain the request project (not the effective project).
-		// So when getting networks in a single project, ensure we use the request project name.
-		authCheckProjectName := projectName
-		if !allProjects {
-			authCheckProjectName = requestProjectName
-		}
-
 		var networkNames []string
 
 		err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -164,7 +155,7 @@ func networkAllocationsGet(d *Daemon, r *http.Request) response.Response {
 
 		// Get all the networks, their attached instances, their network forwards and their network load balancers.
 		for _, networkName := range networkNames {
-			if !canViewNetwork(entity.NetworkURL(authCheckProjectName, networkName)) {
+			if !canViewNetwork(entity.NetworkURL(projectName, networkName)) {
 				continue
 			}
 
