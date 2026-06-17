@@ -233,15 +233,10 @@ test_security_events() {
   lxc init --empty c-security-event-test
   lxc delete c-security-event-test --force
 
-  # Retry for up to 5 seconds for the lifecycle event to appear in the monitor file
+  # Poll for up to 10 seconds for the lifecycle event to appear in the monitor file
   # before killing the monitor, so the file contents are reliably complete.
-  for _ in $(seq 5); do
-    jq --exit-status --slurp 'map(select(.type == "lifecycle" and .metadata.action == "instance-created")) | length == 1' "${monfile_lifecycle}" && break
-    sleep 1
-  done
-
+  wait_jq "${monfile_lifecycle}" 'map(select(.type == "lifecycle" and .metadata.action == "instance-created")) | length == 1' || true
   kill_go_proc "${mon_lifecycle_pid}" || true
-
   jq --exit-status --slurp 'map(select(.type == "lifecycle" and .metadata.action == "instance-created")) | length == 1' "${monfile_lifecycle}"
 
   rm -f "${monfile_lifecycle}"
@@ -295,12 +290,9 @@ test_security_sys_events() {
 
   shutdown_lxd "${LXD_SYS_DIR}"
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "sys_shutdown")) | length >= 1' "${monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "security" and .metadata.name == "sys_shutdown")) | .[0] | (.metadata.level == "info") and (.metadata.description == "LXD daemon stopping") and (.metadata | has("requestor") | not)' "${monfile}"
+  wait_jq "${monfile}" \
+    'map(select(.type == "security" and .metadata.name == "sys_shutdown")) | length >= 1' \
+    'map(select(.type == "security" and .metadata.name == "sys_shutdown")) | .[0] | (.metadata.level == "info") and (.metadata.description == "LXD daemon stopping") and (.metadata | has("requestor") | not)'
 
   kill_go_proc "${mon_pid}" || true
   kill_lxd "${LXD_SYS_DIR}"
@@ -332,12 +324,9 @@ test_security_user_events() {
   sub_test "Verify user_created fires when a bearer identity is created"
   lxc auth identity create bearer/security-user-events-bearer
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:")))) | length >= 1' "${monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:")))) | length == 1' "${monfile}"
+  wait_jq "${monfile}" \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_created:")))) | length >= 1' \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_created:")))) | length == 1'
   # OWASP-required fields populated by the request middleware: caller protocol,
   # address, request URI, and HTTP method. The event name encodes the affected
   # identity ("user_created:bearer:<id>") so consumers can identify which user
@@ -349,23 +338,17 @@ test_security_user_events() {
   lxc auth group create security-user-events-group
   lxc auth identity group add bearer/security-user-events-bearer security-user-events-group
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")))) | length >= 1' "${monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")))) | length == 1' "${monfile}"
+  wait_jq "${monfile}" \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")))) | length >= 1' \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")))) | length == 1'
   jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")))) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity updated") and (.metadata.requestor.protocol != "")' "${monfile}"
 
   sub_test "Verify user_deleted fires when a bearer identity is removed"
   lxc auth identity delete bearer/security-user-events-bearer
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")))) | length >= 1' "${monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")))) | length == 1' "${monfile}"
+  wait_jq "${monfile}" \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")))) | length >= 1' \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")))) | length == 1'
   jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")))) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity deleted") and (.metadata.request_method == "DELETE")' "${monfile}"
 
   sub_test "Verify lifecycle and security events coexist 1:1 with no duplication"
@@ -373,59 +356,41 @@ test_security_user_events() {
   # security event; cross-stream counts must match. Bearer identities
   # are addressed in lifecycle URLs by their generated UUID, not their
   # friendly name, so match the source by prefix.
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "lifecycle" and .metadata.action == "identity-created" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length >= 1' "${lifecycle_monfile}" && break
-    sleep 1
-  done
+  wait_jq "${lifecycle_monfile}" \
+    'map(select(.type == "lifecycle" and .metadata.action == "identity-created" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length >= 1' \
+    'map(select(.type == "lifecycle" and .metadata.action == "identity-created" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length == 1'
 
-  jq --exit-status --slurp 'map(select(.type == "lifecycle" and .metadata.action == "identity-created" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length == 1' "${lifecycle_monfile}"
+  wait_jq "${lifecycle_monfile}" \
+    'map(select(.type == "lifecycle" and .metadata.action == "identity-updated" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length >= 1' \
+    'map(select(.type == "lifecycle" and .metadata.action == "identity-updated" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length == 1'
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "lifecycle" and .metadata.action == "identity-updated" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length >= 1' "${lifecycle_monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "lifecycle" and .metadata.action == "identity-updated" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length == 1' "${lifecycle_monfile}"
-
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "lifecycle" and .metadata.action == "identity-deleted" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length >= 1' "${lifecycle_monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "lifecycle" and .metadata.action == "identity-deleted" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length == 1' "${lifecycle_monfile}"
+  wait_jq "${lifecycle_monfile}" \
+    'map(select(.type == "lifecycle" and .metadata.action == "identity-deleted" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length >= 1' \
+    'map(select(.type == "lifecycle" and .metadata.action == "identity-deleted" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length == 1'
 
   sub_test "Verify user_created fires when a TLS identity is created"
   gen_cert_and_key "security-tls-user"
   lxc auth identity create tls/security-tls-user "${LXD_CONF}/security-tls-user.crt"
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | length >= 1' "${monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | length == 1' "${monfile}"
+  wait_jq "${monfile}" \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_created:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | length >= 1' \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_created:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | length == 1'
   jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity created") and (.metadata.request_method == "POST") and (.metadata.requestor.protocol != "") and (.metadata.requestor.address != "")' "${monfile}"
 
   sub_test "Verify user_updated fires when a TLS identity is modified"
   lxc auth identity group add tls/security-tls-user security-user-events-group
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | length >= 1' "${monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | length == 1' "${monfile}"
+  wait_jq "${monfile}" \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | length >= 1' \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | length == 1'
   jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity updated") and (.metadata.requestor.protocol != "")' "${monfile}"
 
   sub_test "Verify user_deleted fires when a TLS identity is removed"
   lxc auth identity delete tls/security-tls-user
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | length >= 1' "${monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | length == 1' "${monfile}"
+  wait_jq "${monfile}" \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | length >= 1' \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | length == 1'
   jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")) and (.metadata.request_path | startswith("/1.0/auth/identities/tls")))) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity deleted") and (.metadata.request_method == "DELETE")' "${monfile}"
 
   sub_test "Verify user_updated fires when a pending TLS identity is activated"
@@ -493,34 +458,25 @@ test_security_user_events_cluster_link() {
   sub_test "Verify user_created fires when a pending cluster link is created"
   LXD_DIR="${LXD_LINK_DIR}" lxc cluster link create security-user-events-link --quiet
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:")) and .metadata.request_path == "/1.0/cluster/links")) | length >= 1' "${monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:")) and .metadata.request_path == "/1.0/cluster/links")) | length == 1' "${monfile}"
+  wait_jq "${monfile}" \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_created:")) and .metadata.request_path == "/1.0/cluster/links")) | length >= 1' \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_created:")) and .metadata.request_path == "/1.0/cluster/links")) | length == 1'
   jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:")) and .metadata.request_path == "/1.0/cluster/links")) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity created") and (.metadata.request_method == "POST") and (.metadata.requestor.protocol != "")' "${monfile}"
 
   sub_test "Verify user_updated fires when a cluster link is renamed"
   LXD_DIR="${LXD_LINK_DIR}" lxc cluster link rename security-user-events-link security-user-events-link-renamed
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and (.metadata.request_path | startswith("/1.0/cluster/links/security-user-events-link")))) | length >= 1' "${monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and (.metadata.request_path | startswith("/1.0/cluster/links/security-user-events-link")))) | length == 1' "${monfile}"
+  wait_jq "${monfile}" \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and (.metadata.request_path | startswith("/1.0/cluster/links/security-user-events-link")))) | length >= 1' \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and (.metadata.request_path | startswith("/1.0/cluster/links/security-user-events-link")))) | length == 1'
   jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and (.metadata.request_path | startswith("/1.0/cluster/links/security-user-events-link")))) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity updated") and (.metadata.request_method == "POST")' "${monfile}"
 
   sub_test "Verify user_deleted fires when a pending cluster link is removed"
   LXD_DIR="${LXD_LINK_DIR}" lxc cluster link delete security-user-events-link-renamed
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")) and (.metadata.request_path | startswith("/1.0/cluster/links")))) | length >= 1' "${monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")) and (.metadata.request_path | startswith("/1.0/cluster/links")))) | length == 1' "${monfile}"
+  wait_jq "${monfile}" \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")) and (.metadata.request_path | startswith("/1.0/cluster/links")))) | length >= 1' \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")) and (.metadata.request_path | startswith("/1.0/cluster/links")))) | length == 1'
   jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_deleted:")) and (.metadata.request_path | startswith("/1.0/cluster/links")))) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity deleted") and (.metadata.request_method == "DELETE")' "${monfile}"
 
   sub_test "Verify user_updated fires when a pending cluster link is activated"
@@ -544,12 +500,9 @@ test_security_user_events_cluster_link() {
   cluster_link_trust_token="$(LXD_DIR="${LXD_LINK_DIR}" lxc cluster link create security-user-events-link-remote --quiet)"
   LXD_DIR="${LXD_LINK_DIR_REMOTE}" lxc cluster link create security-user-events-link-local --token "${cluster_link_trust_token}"
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and .metadata.request_path == "/1.0/cluster/links")) | length >= 1' "${activation_monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and .metadata.request_path == "/1.0/cluster/links")) | length == 1' "${activation_monfile}"
+  wait_jq "${activation_monfile}" \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and .metadata.request_path == "/1.0/cluster/links")) | length >= 1' \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and .metadata.request_path == "/1.0/cluster/links")) | length == 1'
   jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and .metadata.request_path == "/1.0/cluster/links")) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity updated") and (.metadata.request_method == "POST") and (.metadata.requestor.address != "")' "${activation_monfile}"
 
   kill_go_proc "${activation_mon_pid}" || true
@@ -583,23 +536,19 @@ test_security_user_events_oidc() {
 
   lxc query oidc-security:/1.0 | jq --exit-status '.auth == "trusted"'
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:oidc:")))) | length >= 1' "${monfile}" && break
-    sleep 1
-  done
-
   # Emitted as a ServerEvent because LXD is mirroring identity state from
   # the IdP, not creating it on behalf of the logging-in user. Hence no
   # requestor, request_path, or request_method on the event.
-  jq --exit-status --slurp '
-    map(select(.type == "security" and (.metadata.name | startswith("user_created:oidc:")))) as $events |
+  # shellcheck disable=SC2016
+  wait_jq "${monfile}" \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_created:oidc:")))) | length >= 1' \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_created:oidc:")))) as $events |
     ($events | length) == 1
     and ($events[0].metadata.level == "info")
     and ($events[0].metadata.description == "Identity created")
     and ($events[0].metadata | has("requestor") | not)
     and ($events[0].metadata | has("request_path") | not)
-    and ($events[0].metadata | has("request_method") | not)
-    ' "${monfile}"
+    and ($events[0].metadata | has("request_method") | not)'
 
   sub_test "Verify user_updated fires when an admin updates the OIDC identity"
   # Adding the identity to a group goes through updateIdentityPrivileged which
@@ -608,12 +557,9 @@ test_security_user_events_oidc() {
   lxc auth group create security-oidc-test-group
   lxc auth identity group add "oidc/test-user-security@example.com" security-oidc-test-group
 
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:oidc:")))) | length >= 1' "${monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:oidc:")))) | length == 1' "${monfile}"
+  wait_jq "${monfile}" \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_updated:oidc:")))) | length >= 1' \
+    'map(select(.type == "security" and (.metadata.name | startswith("user_updated:oidc:")))) | length == 1'
   jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:oidc:")))) | .[0] | (.metadata.level == "info") and (.metadata.description == "Identity updated") and (.metadata.requestor.username | strings | length > 0) and (.metadata.requestor.protocol | strings | length > 0)' "${monfile}"
 
   sub_test "Verify user_created does not fire on subsequent OIDC logins"
@@ -674,12 +620,7 @@ test_security_events_bearer_authn() {
 
   # Poll the monitor file (up to 10 s) for the authn_token_reuse event raised
   # by bearer.Authenticate when verifyToken fails against the rotated secret.
-  for _ in $(seq 10); do
-    jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("authn_token_reuse")))) | length >= 1' "${monfile}" && break
-    sleep 1
-  done
-
-  jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("authn_token_reuse")))) | length >= 1' "${monfile}"
+  wait_jq "${monfile}" 'map(select(.type == "security" and (.metadata.name | startswith("authn_token_reuse")))) | length >= 1'
   jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("authn_token_reuse")))) | .[0] | (.metadata.level == "warning") and (.metadata.requestor.protocol != "") and (.metadata.requestor.username != "") and (.metadata.request_path == "/1.0") and (.metadata.requestor.address != "")' "${monfile}"
 
   kill_go_proc "${mon_pid}" || true
@@ -696,10 +637,7 @@ test_authn_events() {
   # caller's responsibility so that follow-on assertions can read it.
   _wait_authn_event() {
     local monfile="${1}" mon_pid="${2}" jq_filter="${3}"
-    for _ in $(seq 10); do
-      jq --exit-status --slurp "${jq_filter}" "${monfile}" && break
-      sleep 1
-    done
+    wait_jq "${monfile}" "${jq_filter}" || true
     kill_go_proc "${mon_pid}" || true
     jq --exit-status --slurp "${jq_filter}" "${monfile}"
   }
@@ -845,6 +783,24 @@ test_authn_events() {
   lxc config trust remove "${self_new_fp}"
 }
 
+# wait_jq polls monfile with jq --exit-status --slurp for up to 10 seconds
+# until poll_filter succeeds, then runs one final assertion with assert_filter.
+# If assert_filter is omitted, poll_filter is reused for the final check.
+# Returns the exit code of the final jq call.
+# Usage: wait_jq <monfile> <poll_filter> [assert_filter]
+wait_jq() {
+  local monfile="${1}"
+  local poll_filter="${2}"
+  local assert_filter="${3:-${2}}"
+
+  for _ in $(seq 10); do
+    jq --exit-status --slurp "${poll_filter}" "${monfile}" && break
+    sleep 1
+  done
+
+  jq --exit-status --slurp "${assert_filter}" "${monfile}"
+}
+
 # wait_for_security_event slurps the given JSON-Lines monitor file and waits
 # up to 10 seconds for at least one event matching the provided jq condition.
 # Usage: wait_for_security_event <monfile> <jq_select_body>
@@ -852,14 +808,9 @@ wait_for_security_event() {
   local monfile="${1}"
   local jq_select="${2}"
 
-  for _ in $(seq 10); do
-    if jq --exit-status --slurp \
-      'map(select(.type == "security")) | map(select('"${jq_select}"')) | length >= 1' \
-      "${monfile}"; then
-      return 0
-    fi
-    sleep 1
-  done
+  if wait_jq "${monfile}" 'map(select(.type == "security")) | map(select('"${jq_select}"')) | length >= 1'; then
+    return 0
+  fi
 
   echo "Expected security event not found in ${monfile}: ${jq_select}"
   cat "${monfile}"
