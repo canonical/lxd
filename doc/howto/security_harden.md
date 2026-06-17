@@ -195,9 +195,10 @@ Configure the audit daemon to track all commands to the LXD daemon:
 -a always,exit -F path=/snap/bin/lxd.lxc -p x -k lxd_execution
 ```
 
-### `lxc` `monitor` and Loki
+(howto-security-harden-logging-events)=
+### Monitor LXD events
 
-The`lxc monitor` command is used to view information about logging and life cycle LXD events. Consider using a dedicated system that allows you to keep a record of these events, such as Loki. See: {ref}`logs_loki`.
+LXD emits {ref}`events <events>`, including {ref}`security events <events-security>`, with information about actions that have occurred. You can use the CLI, REST API, or Loki to {ref}`monitor security events <howto-security-events>`.
 
 (howto-security-harden-multi-user)=
 ## Multi-user environment

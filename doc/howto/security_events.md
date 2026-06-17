@@ -5,7 +5,7 @@ myst:
 ---
 
 (howto-security-events)=
-# Monitor security events
+# How to monitor security events
 
 LXD emits security events that track authentication attempts, authorization
 decisions, and administrative changes. You can access these events through
@@ -48,6 +48,7 @@ Access requires appropriate permissions on the server.
 
 For general event stream usage, see {ref}`events`.
 
+(howto-security-events-loki)=
 ## Monitor security events with Loki
 
 In a production environment, forward security events to

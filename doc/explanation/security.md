@@ -169,7 +169,7 @@ In addition to that, the `rp_filter` on the host is set to `1` to prevent source
 (security-audit-events)=
 ## Security events and audit logging
 
-LXD emits security events that track important security-related actions in your system. These events provide a comprehensive audit trail of authentication attempts, authorization decisions, and administrative changes. This is essential for compliance, intrusion detection, and security incident investigation.
+LXD emits {ref}`security events <events-security>` that track important security-related actions in your system. These events provide a comprehensive audit trail of authentication attempts, authorization decisions, and administrative changes. This is essential for compliance, intrusion detection, and security incident investigation.
 
 Security events include:
 
@@ -178,9 +178,9 @@ Security events include:
 - **Daemon lifecycle events**: Track daemon startup/shutdown and changes to monitoring configuration
 - **User lifecycle events**: Track identity creation, modification, and deletion
 
-In a production environment, you can forward security events to a centralized logging system like Loki to maintain a persistent audit trail. Events are available through the `/1.0/events` API endpoint, the `lxc monitor` command, or integration with syslog.
+In a production environment, you can {ref}`monitor security events with Loki <howto-security-events-loki>` or another centralized logging system to maintain a persistent audit trail. To access security events with the CLI or REST API, consult {ref}`howto-security-events`.
 
-For detailed information on monitoring and configuring security events, see {ref}`howto-security-events`.
+For additional logging methods, consult the {ref}`Logging <howto-security-harden-logging>` section in {ref}`howto-security-harden`. For details on metrics, including how to gather metrics with Prometheus, consult {ref}`metrics`. You can also {ref}`set up Grafana <grafana>` to visualize metrics and logging data.
 
 (security-cryptography)=
 ## Cryptography
@@ -189,7 +189,11 @@ LXD uses cryptographic technologies to authenticate, encrypt, and decrypt commun
 
 ## Related topics
 
-{{security_how}}
+How-to guides:
+
+- {ref}`howto-security-harden`
+- {ref}`server-expose`
+- {ref}`howto-security-events`
 
 Explanation:
 
