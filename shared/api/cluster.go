@@ -297,6 +297,12 @@ const (
 
 	// ClusterRestoreModeSkip indicates that cluster member status should be restored without starting local instances or migrating back evacuated instances.
 	ClusterRestoreModeSkip = "skip"
+
+	// ClusterMemberActionEvacuate indicates the member should be evacuated.
+	ClusterMemberActionEvacuate = "evacuate"
+
+	// ClusterMemberActionRestore indicates the member should be restored.
+	ClusterMemberActionRestore = "restore"
 )
 
 // ClusterMemberStatePost represents the fields required to evacuate a cluster member.
@@ -316,6 +322,12 @@ type ClusterMemberStatePost struct {
 	//
 	// API extension: clustering_evacuation_mode
 	Mode string `json:"mode" yaml:"mode"`
+
+	// Permit evacuation even if it would drop the cluster below the required voter majority.
+	// Example: false
+	//
+	// API extension: clustering_evacuation_force
+	Force bool `json:"force" yaml:"force"`
 }
 
 // ClusterGroupsPost represents the fields available for a new cluster group.

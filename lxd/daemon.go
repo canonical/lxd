@@ -2754,14 +2754,19 @@ func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHea
 	isDegraded := false
 	hasNodesNotPartOfRaft := false
 	hasNonControlPlaneMemberWithDatabaseRole := false
+	hasEvacuatedMemberWithDatabaseRole := false
 	onlineVoters := int64(0)
 	onlineStandbys := int64(0)
 	offlineMemberIDs = make([]int64, 0, len(heartbeatData.Members))
 
 	// Build member roles map from heartbeat data.
 	memberRoles := make(map[string][]db.ClusterRole, len(heartbeatData.Members))
+	var evacuatedMembers []string
 	for _, member := range heartbeatData.Members {
 		memberRoles[member.Address] = member.Roles
+		if member.State == db.ClusterMemberStateEvacuated {
+			evacuatedMembers = append(evacuatedMembers, member.Address)
+		}
 	}
 
 	controlPlaneActive := cluster.IsControlPlaneActive(memberRoles)
@@ -2785,6 +2790,11 @@ func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHea
 				hasNonControlPlaneMemberWithDatabaseRole = true
 				logger.Info("Detected non-control-plane member with database role", logger.Ctx{"address": node.Address, "role": role, "local": localClusterAddress})
 			}
+
+			if node.State == db.ClusterMemberStateEvacuated && role != db.RaftSpare {
+				hasEvacuatedMemberWithDatabaseRole = true
+				logger.Info("Detected evacuated member with database role", logger.Ctx{"address": node.Address, "role": role, "local": localClusterAddress})
+			}
 		} else {
 			offlineMemberIDs = append(offlineMemberIDs, id)
 			if role != db.RaftSpare {
@@ -2795,7 +2805,7 @@ func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHea
 
 	maxVoters := s.GlobalConfig.MaxVoters()
 	maxStandBy := s.GlobalConfig.MaxStandBy()
-	needsRebalance := isDegraded || onlineVoters != maxVoters || onlineStandbys != maxStandBy || hasNonControlPlaneMemberWithDatabaseRole
+	needsRebalance := isDegraded || onlineVoters != maxVoters || onlineStandbys != maxStandBy || hasNonControlPlaneMemberWithDatabaseRole || hasEvacuatedMemberWithDatabaseRole
 
 	if !needsRebalance && !hasNodesNotPartOfRaft {
 		return offlineMemberIDs
@@ -2807,7 +2817,7 @@ func (d *Daemon) handleHeartbeatClusterRoleChanges(heartbeatData *cluster.APIHea
 	// If there are offline members that have voter or stand-by database roles, let's see if we can replace them with spare ones.
 	if needsRebalance {
 		logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
-		err := rebalanceMemberRoles(context.Background(), s, d.gateway, unavailableMembers, memberRoles)
+		err := rebalanceMemberRoles(context.Background(), s, d.gateway, unavailableMembers, memberRoles, evacuatedMembers)
 		if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 			logger.Warn("Could not rebalance cluster member roles", logger.Ctx{"err": err, "local": localClusterAddress})
 		}

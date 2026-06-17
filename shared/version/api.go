@@ -495,6 +495,7 @@ var APIExtensions = []string{
 	"project_replica_mode",
 	"cluster_links_used_by",
 	"network_load_balancer_pool",
+	"clustering_evacuation_force",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

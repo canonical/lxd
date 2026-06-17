@@ -65,7 +65,7 @@ test_clustering_waitready() {
   # We should be able to use the waitready command until all resources are successfully started again.
   # In the last step we can then safely run "lxc cluster restore" to bring the member back online.
   # If this member had any instance relying on those resources, they can now safely be moved back.
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --yes
 
   echo "==> Corrupt the network by setting an invalid external interface"
   ns1_pid="$(< "${TEST_DIR}/ns/${ns1}/PID")"
@@ -149,7 +149,7 @@ test_clustering_waitready() {
   LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" true
 
   # The cluster member cannot be evacuated as long as its networks and storage pools have not started.
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --force 2>&1)" = 'Error: Failed updating cluster member state: Cannot evacuate "node1" because some networks have not started yet' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --yes 2>&1)" = 'Error: Failed updating cluster member state: Cannot evacuate "node1" because some networks have not started yet' ]
 
   echo "==> Restore the network by unsetting the external interface"
   LXD_DIR="${LXD_ONE_DIR}" lxc network unset br1 bridge.external_interfaces --target "node1"
@@ -161,7 +161,7 @@ test_clustering_waitready() {
   LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" true
 
   # The cluster member cannot be evacuated as long as its storage pools have not started.
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --force 2>&1)" = 'Error: Failed updating cluster member state: Cannot evacuate "node1" because some storage pools have not started yet' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --yes 2>&1)" = 'Error: Failed updating cluster member state: Cannot evacuate "node1" because some storage pools have not started yet' ]
 
   echo "==> Restore the storage pool directory"
   rm "${LXD_ONE_DIR}/storage-pools/pool1"
@@ -171,7 +171,7 @@ test_clustering_waitready() {
   LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" true
 
   # The cluster member can now be evacuated.
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --yes
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore "node1" --force
 
   # Cleanup.

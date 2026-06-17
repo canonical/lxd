@@ -3600,3 +3600,10 @@ This includes the following new endpoints (see {ref}`rest-api` for details):
 * [`GET /1.0/networks/{networkName}/load-balancer-pools/{poolName}`](swagger:/network-load-balancer-pools/network_load_balancer_pool_get)
 * [`PUT /1.0/networks/{networkName}/load-balancer-pools/{poolName}`](swagger:/network-load-balancer-pools/network_load_balancer_pool_put)
 * [`DELETE /1.0/networks/{networkName}/load-balancer-pools/{poolName}`](swagger:/network-load-balancer-pools/network_load_balancer_pool_delete)
+
+(extension-clustering-evacuation-force)=
+## `clustering_evacuation_force`
+
+Adds a `force` field to `POST /1.0/cluster/members/{name}/state` when performing an `evacuate` action.
+
+When `force` is set to `true`, LXD skips the quorum safety check that otherwise would not allow you to evacuate an online raft voter when the remaining online voters would fall below the required majority.
