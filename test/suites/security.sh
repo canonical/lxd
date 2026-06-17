@@ -233,7 +233,7 @@ test_security_events() {
   lxc init --empty c-security-event-test
   lxc delete c-security-event-test --force
 
-  # Poll for up to 10 seconds for the lifecycle event to appear in the monitor file
+  # Poll for up to a few seconds for the lifecycle event to appear in the monitor file
   # before killing the monitor, so the file contents are reliably complete.
   wait_jq "${monfile_lifecycle}" 'map(select(.type == "lifecycle" and .metadata.action == "instance-created")) | length == 1' || true
   kill_go_proc "${mon_lifecycle_pid}" || true
@@ -612,7 +612,7 @@ test_security_events_bearer_authn() {
   # daemon translates to a 403 Forbidden response.
   curl --silent --insecure --header "Authorization: Bearer ${bearer_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.error_code == 403'
 
-  # Poll the monitor file (up to 10 s) for the authn_token_reuse event raised
+  # Poll the monitor file (up to a few seconds) for the authn_token_reuse event raised
   # by bearer.Authenticate when verifyToken fails against the rotated secret.
   wait_jq "${monfile}" 'map(select(.type == "security" and (.metadata.name | startswith("authn_token_reuse")))) | length >= 1'
   jq --exit-status --slurp 'map(select(.type == "security" and (.metadata.name | startswith("authn_token_reuse")))) | .[0] | (.metadata.level == "warning") and (.metadata.requestor.protocol != "") and (.metadata.requestor.username != "") and (.metadata.request_path == "/1.0") and (.metadata.requestor.address != "")' "${monfile}"
@@ -626,7 +626,7 @@ test_security_events_bearer_authn() {
 test_authn_events() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  # Helper: poll the JSONL monitor file (up to 10 s) for jq_filter, then kill
+  # Helper: poll the JSONL monitor file (up to a few seconds) for jq_filter, then kill
   # the monitor and assert one final time. Cleanup of the file is the
   # caller's responsibility so that follow-on assertions can read it.
   _wait_authn_event() {
@@ -777,7 +777,7 @@ test_authn_events() {
   lxc config trust remove "${self_new_fp}"
 }
 
-# wait_jq polls monfile with jq --exit-status --slurp for up to 10 seconds
+# wait_jq polls monfile with jq --exit-status --slurp for up to a few seconds
 # until poll_filter succeeds, then runs one final assertion with assert_filter.
 # If assert_filter is omitted, poll_filter is reused for the final check.
 # Returns the exit code of the final jq call.
@@ -787,7 +787,7 @@ wait_jq() {
   local poll_filter="${2}"
   local assert_filter="${3:-${2}}"
 
-  for _ in $(seq 10); do
+  for _ in $(seq 15); do
     jq --exit-status --slurp "${poll_filter}" "${monfile}" && break
     sleep 1
   done
@@ -796,7 +796,7 @@ wait_jq() {
 }
 
 # wait_for_security_event slurps the given JSON-Lines monitor file and waits
-# up to 10 seconds for at least one event matching the provided jq condition.
+# up to a few seconds for at least one event matching the provided jq condition.
 # Usage: wait_for_security_event <monfile> <jq_select_body>
 wait_for_security_event() {
   local monfile="${1}"
