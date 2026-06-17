@@ -209,7 +209,7 @@ func (d *lvm) DeleteVolume(vol Volume, progressReporter ioprogress.ProgressRepor
 	}
 
 	if lvExists {
-		// Only call UnmountVolume if mounted to avoid breaking deactivaion ref counts.
+		// Only call UnmountVolume if mounted to avoid breaking deactivation ref counts.
 		if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(vol.MountPath()) {
 			_, err = d.UnmountVolume(vol, false, progressReporter)
 			if err != nil {
@@ -1087,7 +1087,7 @@ func (d *lvm) DeleteVolumeSnapshot(snapVol Volume, progressReporter ioprogress.P
 	}
 
 	if lvExists {
-		// Only call UnmountVolumeSnapshot if mounted to avoid breaking deactivaion ref counts.
+		// Only call UnmountVolumeSnapshot if mounted to avoid breaking deactivation ref counts.
 		if snapVol.contentType == ContentTypeFS && filesystem.IsMountPoint(snapVol.MountPath()) {
 			_, err = d.UnmountVolumeSnapshot(snapVol, progressReporter)
 			if err != nil {
