@@ -1603,6 +1603,9 @@ parts:
     source-depth: 1
     source-type: git
     plugin: nil
+    build-packages:
+      - nodejs
+      - npm
     override-prime: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
@@ -1611,7 +1614,6 @@ parts:
       [ "$(uname -m)" = "armv7l" ] && exit 0
       [ "$(uname -m)" = "riscv64" ] && exit 0
 
-      snap install node --channel=24/stable --classic
       craftctl default
     override-build: |
       [ "$(uname -m)" = "armv7l" ] && exit 0
