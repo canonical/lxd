@@ -1786,16 +1786,6 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 		return cli.RenderTable(c.flagFormat, nil, nil, permissionsInfo)
 	}
 
-	// Otherwise, data returned from the permissions API can be condensed into a more easily viewable format.
-	// We'll group entitlements together by the API resource they are defined on, and separate the entitlements that
-	// are assigned to groups from the ones that are not assigned.
-	type displayPermission struct {
-		entityType              string
-		url                     string
-		entitlementsAssigned    map[string][]string
-		entitlementsNotAssigned []string
-	}
-
 	i := 0
 	displayPermissions := make([]*displayPermission, 0, len(permissionsInfo))
 	displayPermissionIdx := make(map[string]int)
@@ -1829,91 +1819,81 @@ func (c *cmdPermissionList) run(cmd *cobra.Command, args []string) error {
 		i++
 	}
 
-	columns := map[rune]cli.Column{
-		't': {
-			Header: "ENTITY TYPE",
-			DataFunc: func(a any) (string, error) {
-				p, ok := a.(*displayPermission)
-				if !ok {
-					return "", fmt.Errorf("Unexpected data type %T", a)
-				}
-
-				return p.entityType, nil
-			},
-		},
-		'u': {
-			Header: "URL",
-			DataFunc: func(a any) (string, error) {
-				p, ok := a.(*displayPermission)
-				if !ok {
-					return "", fmt.Errorf("Unexpected data type %T", a)
-				}
-
-				return p.url, nil
-			},
-		},
-		'e': {
-			Header: "ENTITLEMENTS ==> (GROUPS)",
-			DataFunc: func(a any) (string, error) {
-				p, ok := a.(*displayPermission)
-				if !ok {
-					return "", fmt.Errorf("Unexpected data type %T", a)
-				}
-
-				rowsAssigned := make([]string, 0, len(p.entitlementsAssigned))
-				for k, v := range p.entitlementsAssigned {
-					// Pretty format for tables.
-					var assignedRow string
-					if c.flagFormat == cli.TableFormatCSV {
-						// Machine readable format for CSV.
-						assignedRow = k + ":(" + strings.Join(v, ",") + ")"
-					} else {
-						assignedRow = k + " ==> (" + strings.Join(v, ", ") + ")"
-					}
-
-					rowsAssigned = append(rowsAssigned, assignedRow)
-				}
-
-				// Sort the entitlements alphabetically, and put the assigned entitlements first.
-				sort.Strings(rowsAssigned)
-				sort.Strings(p.entitlementsNotAssigned)
-
-				// Only show unassigned entitlements up to and including `--max-entitlements`
-				if c.flagMaxEntitlements > 0 && len(p.entitlementsNotAssigned) > c.flagMaxEntitlements {
-					p.entitlementsNotAssigned = p.entitlementsNotAssigned[:c.flagMaxEntitlements]
-					p.entitlementsNotAssigned = append(p.entitlementsNotAssigned[:c.flagMaxEntitlements], "...")
-				}
-
-				rows := append(rowsAssigned, p.entitlementsNotAssigned...)
-				delimiter := "\n"
-				if c.flagFormat == cli.TableFormatCSV {
-					// Don't use newlines for CSV. We can use a comma because the field will be wrapped in quotes.
-					delimiter = ","
-				}
-
-				return strings.Join(rows, delimiter), nil
-			},
-		},
+	// Parse column flags.
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
+	if err != nil {
+		return err
 	}
 
-	// Normalize the column specification so comma-separated values like "t,u,e" work,
-	// while rejecting empty entries (e.g. ",t", "t,,u", or trailing commas).
-	if c.flagColumns == "" {
-		return fmt.Errorf("Invalid column list %q: column list must not be empty", c.flagColumns)
-	}
+	data := cli.ColumnData(columns, displayPermissions)
+	sort.Sort(cli.StringList(data))
+	header := cli.ColumnHeaders(columns)
 
-	var b strings.Builder
-	for p := range strings.SplitSeq(c.flagColumns, ",") {
-		if p == "" {
-			return fmt.Errorf("Invalid column list %q: empty column entry", c.flagColumns)
+	return cli.RenderTable(c.flagFormat, header, data, permissionsInfo)
+}
+
+// displayPermission is a condensed form of a group of permissions as they apply to a single API entity.
+type displayPermission struct {
+	entityType string
+	url        string
+
+	// entitlementsAssigned is a map of group name to list of entitlements assigned to that group for this entity.
+	entitlementsAssigned map[string][]string
+
+	// entitlementsNotAssigned is a list of all entitlements that are applicable for this entity.
+	entitlementsNotAssigned []string
+}
+
+// columns returns the ordered column definitions for permission list.
+func (c *cmdPermissionList) columns() []cli.ShorthandColumn[*displayPermission] {
+	return []cli.ShorthandColumn[*displayPermission]{
+		{Shorthand: 't', Name: "ENTITY TYPE", Data: c.entityTypeColumnData},
+		{Shorthand: 'u', Name: "URL", Data: c.urlColumnData},
+		{Shorthand: 'e', Name: "ENTITLEMENTS ==> (GROUPS)", Data: c.entitlementsColumnData},
+	}
+}
+
+func (c *cmdPermissionList) entityTypeColumnData(p *displayPermission) string {
+	return p.entityType
+}
+
+func (c *cmdPermissionList) urlColumnData(p *displayPermission) string {
+	return p.url
+}
+
+func (c *cmdPermissionList) entitlementsColumnData(p *displayPermission) string {
+	rowsAssigned := make([]string, 0, len(p.entitlementsAssigned))
+	for k, v := range p.entitlementsAssigned {
+		// Pretty format for tables.
+		var assignedRow string
+		if c.flagFormat == cli.TableFormatCSV {
+			// Machine readable format for CSV.
+			assignedRow = k + ":(" + strings.Join(v, ",") + ")"
+		} else {
+			assignedRow = k + " ==> (" + strings.Join(v, ", ") + ")"
 		}
 
-		b.WriteString(p)
+		rowsAssigned = append(rowsAssigned, assignedRow)
 	}
 
-	normalizedColumns := b.String()
+	// Sort the entitlements alphabetically, and put the assigned entitlements first.
+	sort.Strings(rowsAssigned)
+	sort.Strings(p.entitlementsNotAssigned)
 
-	return cli.RenderSlice(displayPermissions, c.flagFormat, normalizedColumns, "u", columns)
+	// Only show unassigned entitlements up to and including `--max-entitlements`
+	if c.flagMaxEntitlements > 0 && len(p.entitlementsNotAssigned) > c.flagMaxEntitlements {
+		p.entitlementsNotAssigned = p.entitlementsNotAssigned[:c.flagMaxEntitlements]
+		p.entitlementsNotAssigned = append(p.entitlementsNotAssigned[:c.flagMaxEntitlements], "...")
+	}
+
+	rows := append(rowsAssigned, p.entitlementsNotAssigned...)
+	delimiter := "\n"
+	if c.flagFormat == cli.TableFormatCSV {
+		// Don't use newlines for CSV. We can use a comma because the field will be wrapped in quotes.
+		delimiter = ","
+	}
+
+	return strings.Join(rows, delimiter)
 }
 
 type cmdIdentityProviderGroup struct {
