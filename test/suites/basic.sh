@@ -605,7 +605,7 @@ test_basic_usage() {
   lxc launch testimage lxd-apparmor-test
 
   aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
-  aa-status | grep -F ":${aa_namespace}:unconfined" || aa-status | grep -F ":${aa_namespace}://unconfined"
+  aa-status | grep -F -e ":${aa_namespace}:unconfined" -e ":${aa_namespace}://unconfined"
   lxc stop lxd-apparmor-test --force
   ! aa-status | grep -F ":${aa_namespace}:" || false
 
