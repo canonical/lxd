@@ -109,6 +109,16 @@ The OIDC verifier is now initialized in the background on daemon startup, with a
 
 This prevents LXD startup from being blocked by unavailable identity providers and adds a warning when OIDC authentication is unavailable.
 
+### Cluster evacuation quorum protection and raft rebalancing
+
+Cluster member evacuation now validates the raft quorum before proceeding and refuses to evacuate an online voter when doing so would drop the remaining online voters below the required majority.
+
+During evacuation, LXD transfers leadership first when needed, marks the member as evacuated, and triggers an immediate raft rebalance so that evacuated members are demoted and excluded from promotion candidacy before workloads are migrated. Restore reverses this by prioritizing networks and instances before triggering a raft rebalance.
+
+The quorum safety check can be bypassed by passing `force` to the evacuate action.
+
+- API extension: {ref}`extension-clustering-evacuation-force`
+
 (ref-release-notes-6.9-bugfixes)=
 ## Bug fixes
 
@@ -141,6 +151,9 @@ The following bug fixes are included in this release.
 - [{spellexception}`Use legacy CephFS mount syntax on kernel < 5.17`](https://github.com/canonical/lxd/pull/18192)
 - [{spellexception}`Fix Identity API group management visibility`](https://github.com/canonical/lxd/pull/18177)
 - [{spellexception}`Allow dynamic OVN NIC address updates`](https://github.com/canonical/lxd/pull/18156)
+- [{spellexception}`Mount Ceph RBD snapshots read-only to support modern ext4`](https://github.com/canonical/lxd/pull/18469)
+- [{spellexception}`Work with modern LVM`](https://github.com/canonical/lxd/pull/18463)
+- [{spellexception}`Add missing content types for storage volume POST`](https://github.com/canonical/lxd/pull/18457)
 
 (ref-release-notes-6.9-incompatible)=
 ## Backwards-incompatible changes
@@ -162,6 +175,14 @@ Support for importing images from a client-specified URL (the `direct` protocol)
 Images should be imported using the standard image server protocols (simplestreams or LXD).
 Existing images using this deprecated source type will no longer auto-update.
 
+### `lxc cluster evacuate` and `restore` flag changes
+
+The `--force` flag of `lxc cluster evacuate` and `lxc cluster restore` no longer acts as a confirmation bypass. It now bypasses the server-side raft quorum safety check instead.
+
+Use the new `--yes` flag to skip the interactive confirmation prompt, matching the convention used elsewhere in the `lxc` CLI.
+
+- API extension: {ref}`extension-clustering-evacuation-force`
+
 (ref-release-notes-6.9-go)=
 ## Updated minimum Go version
 
@@ -170,11 +191,13 @@ If you are building LXD from source instead of using a package manager, the mini
 (ref-release-notes-6.9-snap)=
 ## Snap packaging changes
 
-- Removed `libcephfs` from the snap due to unusable missing dependencies.
+- LXCFS: Reverted partial backport of PSI functionality that prevented host machine suspend ([#17983](https://github.com/canonical/lxd/issues/17983)).
+- libnvidia-container bumped to v1.19.1.
+- AMD ROCm container toolkit bumped to v1.3.0.
 - ZFS 2.3 bumped to 2.3.7.
 - ZFS 2.4 bumped to 2.4.2.
-- LXCFS: Reverted partial backport of PSI functionality that prevented host machine suspend ([#17983](https://github.com/canonical/lxd/issues/17983)).
 - Removed unused `arptables` binary.
+- Removed `libcephfs` from the snap due to unusable missing dependencies.
 - Removed unneeded Python dependencies from Ceph.
 - Various snap size optimizations (removed unused QEMU keymaps, LXD UI localization files, uefivars bloat).
 
