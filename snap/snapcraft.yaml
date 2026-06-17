@@ -1608,16 +1608,13 @@ parts:
       - npm
     override-prime: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
 
       craftctl default
     override-build: |
       [ "$(uname -m)" = "armv7l" ] && exit 0
-      [ "$(uname -m)" = "riscv64" ] && exit 0
 
       craftctl default
 
