@@ -356,17 +356,11 @@ test_security_user_events() {
   # security event; cross-stream counts must match. Bearer identities
   # are addressed in lifecycle URLs by their generated UUID, not their
   # friendly name, so match the source by prefix.
-  wait_jq "${lifecycle_monfile}" \
-    'map(select(.type == "lifecycle" and .metadata.action == "identity-created" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length >= 1' \
-    'map(select(.type == "lifecycle" and .metadata.action == "identity-created" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length == 1'
-
-  wait_jq "${lifecycle_monfile}" \
-    'map(select(.type == "lifecycle" and .metadata.action == "identity-updated" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length >= 1' \
-    'map(select(.type == "lifecycle" and .metadata.action == "identity-updated" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length == 1'
-
-  wait_jq "${lifecycle_monfile}" \
-    'map(select(.type == "lifecycle" and .metadata.action == "identity-deleted" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length >= 1' \
-    'map(select(.type == "lifecycle" and .metadata.action == "identity-deleted" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length == 1'
+  for action in identity-created identity-updated identity-deleted; do
+    wait_jq "${lifecycle_monfile}" \
+      'map(select(.type == "lifecycle" and .metadata.action == "'"${action}"'" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length >= 1' \
+      'map(select(.type == "lifecycle" and .metadata.action == "'"${action}"'" and (.metadata.source | startswith("/1.0/auth/identities/bearer/")))) | length == 1'
+  done
 
   sub_test "Verify user_created fires when a TLS identity is created"
   gen_cert_and_key "security-tls-user"
