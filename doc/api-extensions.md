@@ -3625,3 +3625,10 @@ In addition a new endpoint [`GET /1.0/networks/{networkName}/load-balancer-pools
 ## `operation_child_count`
 
 Adds a `child_count` field to the `Operation` struct, indicating the number of child operations. This allows clients to determine whether an operation has children without requiring `recursion=2`.
+
+(extension-replicator-custom-volumes)=
+## `replicator_custom_volumes`
+
+Replicators now replicate and restore a project's custom storage volumes alongside its instances, so a standby replica project is suitable for failover when its instances depend on project volumes.
+
+This also removes the `snapshot` replicator configuration key. Snapshotting before replication is now unconditional, so the key no longer has any effect and is rejected as an unknown key.
