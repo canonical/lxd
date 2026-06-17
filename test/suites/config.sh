@@ -247,9 +247,7 @@ test_config_profiles() {
 
   lxc launch testimage foo -s "lxdtest-$(basename "${LXD_DIR}")" -p onenic -p unconfined
 
-  if [ -e /sys/module/apparmor ]; then
-    [ "$(lxc exec foo -- cat /proc/self/attr/current)" = "unconfined" ]
-  fi
+  [ "$(lxc exec foo -- cat /proc/self/attr/current)" = "unconfined" ]
   lxc exec foo -- ls /sys/class/net | grep -wF eth0
 
   lxc delete --force foo
