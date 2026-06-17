@@ -341,7 +341,6 @@ func (s *consoleWs) doConsole(ctx context.Context) error {
 	s.connsLock.Unlock()
 
 	defer func() {
-		_ = consoleConn.WriteMessage(websocket.BinaryMessage, []byte("\n\r"))
 		_ = consoleConn.Close()
 		_ = ctrlConn.Close()
 	}()
