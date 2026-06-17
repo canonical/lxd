@@ -283,6 +283,7 @@ RCG
 RPC
 RPCs
 RSA
+ROCm
 runtime
 SATA
 scalable
