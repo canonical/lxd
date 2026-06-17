@@ -1,9 +1,4 @@
 _instance_apparmor() {
-  if [ ! -e /sys/module/apparmor/ ]; then
-    export TEST_UNMET_REQUIREMENT="missing AppArmor kernel support"
-    return
-  fi
-
   ensure_import_testimage
 
   echo "Create and start a test container"

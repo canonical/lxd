@@ -600,21 +600,17 @@ test_basic_usage() {
   my_curl -X DELETE "https://${LXD_ADDR}/1.0/instances/deleterunning" | grep "Instance is running"
   lxc delete deleterunning -f
 
-  if [ -e /sys/module/apparmor/ ]; then
-    # check that an apparmor profile is created for this container, that it is
-    # unloaded on stop, and that it is deleted when the container is deleted
-    lxc launch testimage lxd-apparmor-test
+  # check that an apparmor profile is created for this container, that it is
+  # unloaded on stop, and that it is deleted when the container is deleted
+  lxc launch testimage lxd-apparmor-test
 
-    aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
-    aa-status | grep -F ":${aa_namespace}:unconfined" || aa-status | grep -F ":${aa_namespace}://unconfined"
-    lxc stop lxd-apparmor-test --force
-    ! aa-status | grep -F ":${aa_namespace}:" || false
+  aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
+  aa-status | grep -F -e ":${aa_namespace}:unconfined" -e ":${aa_namespace}://unconfined"
+  lxc stop lxd-apparmor-test --force
+  ! aa-status | grep -F ":${aa_namespace}:" || false
 
-    lxc delete lxd-apparmor-test
-    [ ! -f "${LXD_DIR}/security/apparmor/profiles/lxd-lxd-apparmor-test" ]
-  else
-    echo "==> SKIP: apparmor tests (missing kernel support)"
-  fi
+  lxc delete lxd-apparmor-test
+  [ ! -f "${LXD_DIR}/security/apparmor/profiles/lxd-lxd-apparmor-test" ]
 
   if [ "$(awk '/^Seccomp:/ {print $2}' "/proc/self/status")" -eq "0" ]; then
     lxc launch testimage lxd-seccomp-test
