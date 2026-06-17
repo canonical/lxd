@@ -3523,7 +3523,7 @@ This includes the following new endpoints (see {ref}`rest-api` for details):
 * [`DELETE /1.0/cluster/links/<name>`](swagger:/cluster-links/cluster_link_delete)
 
 (extension-replicators)=
-## replicators
+## `replicators`
 
 This introduces the replicators API. Replicators are used to replicate project instances across clusters.
 
