@@ -250,6 +250,15 @@ test_basic_usage() {
   # Ensure invalid compression algorithm is rejected.
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc publish bar --compression=ls 2>&1)" = 'Error: Invalid compression algorithm "ls"' ]
 
+  # Ensure compression algorithm cannot be supplied with dangerous arguments.
+  lxc init testimage c1
+  ! lxc publish c1 --compression="zstd -d -f --pass-through -o ${TEST_DIR}/busybox -- ${LXD_DIR}/containers/c1/rootfs/bin/busybox" || false
+  if [ -e "${TEST_DIR}/busybox" ]; then
+    echo "Custom compression attack successful!" >&2
+    exit 1
+  fi
+  lxc delete c1
+
   # Test image compression on publish
   lxc publish bar --alias=foo-image-compressed --compression=bzip2 prop=val1
   [ "$(lxc image get-property foo-image-compressed prop)" = "val1" ]
