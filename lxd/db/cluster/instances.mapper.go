@@ -249,7 +249,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 	var err error
 
 	// Result slice.
-	objects := make([]Instance, 0)
+	var objects []Instance
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt

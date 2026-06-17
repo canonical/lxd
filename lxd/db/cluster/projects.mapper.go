@@ -116,7 +116,7 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]P
 	var err error
 
 	// Result slice.
-	objects := make([]Project, 0)
+	var objects []Project
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt

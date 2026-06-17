@@ -127,7 +127,7 @@ func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filters ...InstanceSn
 	var err error
 
 	// Result slice.
-	objects := make([]InstanceSnapshot, 0)
+	var objects []InstanceSnapshot
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt

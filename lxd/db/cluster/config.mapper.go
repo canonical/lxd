@@ -80,7 +80,7 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string, filters ...Config
 	var err error
 
 	// Result slice.
-	objects := make([]Config, 0)
+	var objects []Config
 
 	configObjectsLocal := strings.ReplaceAll(configObjects, "%s_id", parent+"_id")
 	fillParent := make([]any, strings.Count(configObjectsLocal, "%s"))
