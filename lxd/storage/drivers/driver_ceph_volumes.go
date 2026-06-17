@@ -2056,7 +2056,7 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.P
 		// otherwise fail when snapshotting a running instance with a dirty filesystem journal.
 		mountFlags |= unix.MS_RDONLY
 
-		if renegerateFilesystemUUIDNeeded(RBDFilesystem) {
+		if regenerateFilesystemUUIDNeeded(RBDFilesystem) {
 			// When mounting XFS filesystems temporarily we can use the nouuid option rather than fully
 			// regenerating the filesystem UUID.
 			if RBDFilesystem == "xfs" {

@@ -765,7 +765,7 @@ func (d *lvm) mountCommon(vol Volume, progressReporter ioprogress.ProgressReport
 		// we do not want to modify a snapshot in case it is corrupted for some reason, so at mount time
 		// we take another snapshot of the snapshot, regenerate the temporary snapshot's UUID and then
 		// mount that.
-		regenerateFSUUID := renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem())
+		regenerateFSUUID := regenerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem())
 		if isSnapshot && regenerateFSUUID {
 			// Instantiate a new volume to be the temporary writable snapshot.
 			tmpVolName := vol.name + tmpVolSuffix
@@ -1236,7 +1236,7 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogr
 		})
 
 		// If the volume's filesystem needs to have its UUID regenerated to allow mount then do so now.
-		if restoreVol.contentType == ContentTypeFS && renegerateFilesystemUUIDNeeded(restoreVol.ConfigBlockFilesystem()) {
+		if restoreVol.contentType == ContentTypeFS && regenerateFilesystemUUIDNeeded(restoreVol.ConfigBlockFilesystem()) {
 			_, err = d.activateVolume(restoreVol)
 			if err != nil {
 				return nil, err
