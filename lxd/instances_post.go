@@ -1430,29 +1430,10 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		// Only replicator runs from the configured cluster link (or internal cluster
-		// notifications forwarded by the coordinator) can create instances in a standby
-		// replica project.
-		if targetProject.ReplicaMode == api.ReplicatorProjectModeStandby && !clusterNotification {
-			expectedCluster := targetProject.Config["replica.cluster"]
-
-			// Verify the request comes from the configured cluster link identity.
-			clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), expectedCluster)
-			if err != nil {
-				if api.StatusErrorCheck(err, http.StatusNotFound) {
-					return api.StatusErrorf(http.StatusForbidden, "Cannot create instances in a standby replica project")
-				}
-
-				return fmt.Errorf("Failed loading cluster link %q: %w", expectedCluster, err)
-			}
-
-			// Only allow the expected cluster link identity to create instances in the standby replica project.
-			// We can check this using the requestor identity ID, since cluster links always communicate using a named
-			// TLS identity. We need to ensure the identity is not nil - since it can be nil for admin protocols.
-			// (Admins are not allowed to create instances in this project while it is in standby either).
-			if requestor.IdentityID == nil || *requestor.IdentityID != *clusterLink.IdentityID {
-				return api.StatusErrorf(http.StatusForbidden, "Cannot create instances in a standby replica project")
-			}
+		// Guard against writes to standby replica projects; cluster notifications (replicator restore path) are exempt.
+		err = checkStandbyReplicaProjectWriteGuard(ctx, tx, targetProjectName, requestor, "instances")
+		if err != nil {
+			return err
 		}
 
 		var allMembers []db.NodeInfo
