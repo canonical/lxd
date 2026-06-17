@@ -3643,3 +3643,8 @@ For bearer tokens the expiry is recorded when a token is issued and cleared when
 The field is omitted for identities whose credential has no expiry, that have no credential yet (pending identities), or whose token has been revoked.
 
 Note that bearer identities created prior to this extension will have an omitted `expires_at` field until a new token is issued.
+
+(extension-replicator-custom-volumes)=
+## `replicator_custom_volumes`
+
+Replicators now replicate and restore a project's custom storage volumes alongside its instances, so a standby replica project is suitable for failover when its instances depend on project volumes.
