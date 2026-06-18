@@ -1,0 +1,238 @@
+name: qemu-for-lxd
+base: core24
+assumes:
+  - snapd2.63
+version: '1'
+grade: devel
+summary: External Qemu for LXD
+description: |-
+ External Qemu for LXD
+
+contact: lxd@lists.canonical.com
+issues: https://github.com/canonical/lxd/issues
+source-code: https://github.com/canonical/lxd
+website: https://ubuntu.com/lxd
+confinement: strict
+
+slots:
+  qemu-external:
+    interface: content
+    content: qemu-external-binaries
+    read:
+      - $SNAP/external/qemu
+
+parts:
+  #
+  # This step is extremely important, as it ensures that no mesa libs will
+  # be provided with this snap to prevent any possible version mistmatches
+  # between this snap and mesa-2604 snap.
+  # If you the error like:
+  # DRI driver not from this Mesa build ('24.0.5-1ubuntu1' vs '24.0.9-0ubuntu0.1')
+  # this is a clear sign that you likely ship some mesa library along with your qemu-for-lxd
+  # snap and it has a version conflict with what you have in gpu-2604 interface snap.
+  #
+  gpu-2604:
+    after:
+      - virgl
+      - qemu
+    source: https://github.com/canonical/gpu-snap.git
+    plugin: dump
+    override-prime: |
+      set -ex
+
+      CUSTOM_PREFIX="external/qemu"
+      CRAFT_PRIME_OVERRIDE="${CRAFT_PRIME}/${CUSTOM_PREFIX}"
+
+      # cleanup script expects to see libraries in usr/lib, while we have them in lib
+      mkdir "${CRAFT_PRIME_OVERRIDE}/usr"
+      ln -s "${CRAFT_PRIME_OVERRIDE}/lib" "${CRAFT_PRIME_OVERRIDE}/usr/lib"
+
+      # a bit hacky way to call a cleanup script forcing it to look in a right directory
+      CRAFT_PRIME="${CRAFT_PRIME_OVERRIDE}" ${CRAFT_PART_SRC}/bin/gpu-2604-cleanup mesa-2604 nvidia-2604
+
+      rm -rf "${CRAFT_PRIME_OVERRIDE}/usr"
+
+      set +ex
+
+  virgl:
+    source: https://gitlab.freedesktop.org/virgl/virglrenderer.git
+    source-tag: virglrenderer-1.2.0
+    source-depth: 1
+    plugin: meson
+    meson-parameters:
+      - --prefix=/external/qemu
+    build-packages:
+      - meson
+      - python3-yaml
+      - libgbm-dev
+      - libdrm-dev
+
+  qemu:
+    after:
+      - virgl
+    source: https://gitlab.com/qemu-project/qemu
+    source-commit: b2995afed254e4804611df52210067a4d5dbdf0b # v9.2.4
+    source-depth: 1
+    source-submodules: []
+    source-type: git
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=/external/qemu
+      - --enable-opengl
+      - --enable-virglrenderer
+      - --disable-smartcard
+# options from LXD snap:
+      - --disable-bochs
+      - --disable-cloop
+      - --disable-dmg
+      - --disable-docs
+      - --disable-guest-agent
+      - --disable-parallels
+      - --disable-qed
+      - --disable-slirp
+      - --disable-user
+      - --disable-vdi
+      - --disable-vnc
+      - --disable-xen
+      - --enable-attr
+      - --enable-cap-ng
+      - --enable-kvm
+      - --enable-libusb
+      - --enable-usb-redir
+      - --enable-linux-aio
+#      - --enable-linux-io-uring
+      - --enable-numa
+      - --enable-pie
+      - --enable-rbd
+      - --enable-seccomp
+      - --enable-spice
+      - --enable-system
+      - --enable-tcg
+      - --enable-tools
+      - --enable-vhost-crypto
+      - --enable-vhost-kernel
+      - --enable-vhost-net
+      - --enable-vhost-user
+      - --enable-virtfs
+      - --firmwarepath=/snap/lxd/current/share/qemu/
+      - --localstatedir=/var/
+    build-environment:
+      - ACLOCAL_PATH: /usr/share/aclocal
+      - PKG_CONFIG_PATH: $CRAFT_STAGE/external/qemu/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig:$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig:/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
+      - PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/snapcraft/current/bin/scriptlet-bin:$PATH
+      - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+    override-pull: |
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+
+      craftctl default
+    override-build: |
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && exit 0
+      set -ex
+      # Mangle the configure a bit
+      QEMUARCH="$(uname -m)"
+      [ "${QEMUARCH}" = "ppc64le" ] && QEMUARCH="ppc64"
+
+      sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
+
+      set +ex
+      craftctl default
+    build-packages:
+      - bison
+      - flex
+      - gettext
+      - libaio-dev
+      - libbluetooth-dev
+      - libbrlapi-dev
+      - libbz2-dev
+      - libcap-dev
+      - libcap-ng-dev
+      - libcacard-dev
+      - libcurl4-gnutls-dev
+      - libepoxy-dev
+      - libfdt-dev
+      - libgtk-3-dev
+      - libglib2.0-dev
+      - libglusterfs-dev
+      - libibverbs-dev
+      - libiscsi-dev
+      - libjemalloc-dev
+      - libjpeg8-dev
+      - liblzo2-dev
+      - libncurses5-dev
+      - libnfs-dev
+      - libnuma-dev
+      - libpango1.0-dev
+      - libpixman-1-dev
+      - libpulse-dev
+      - librbd-dev
+      - librdmacm-dev
+      - libsasl2-dev
+      - libseccomp-dev
+      - libsdl2-dev
+      - libsdl2-image-dev
+      - libsnappy-dev
+      - libspice-protocol-dev
+      - libspice-server-dev
+      - libusb-1.0-0-dev
+      - libusbredirhost-dev
+      - libusbredirparser-dev
+      - libvde-dev
+      - libvdeplug-dev
+      - libvte-2.91-dev
+      - libxml2-dev
+      - libx11-dev
+      - libzstd-dev
+      - ninja-build
+      - zlib1g-dev
+    stage-packages:
+      - libepoxy0
+      - libvte-2.91-0
+      - libsndio7.0
+      - libaio1t64
+      - libasn1-8-heimdal
+      - libboost-iostreams1.74.0
+      - libboost-thread1.74.0
+      - libbrlapi0.8
+      - libcurl3-gnutls
+      - libfdt1
+      - libgfapi0
+      - libgfrpc0
+      - libgfxdr0
+      - libgssapi3-heimdal
+      - libhcrypto5t64-heimdal
+      - libheimbase1-heimdal
+      - libheimntlm0-heimdal
+      - libhx509-5-heimdal
+      - libibverbs1
+      - libiscsi7
+      - libjemalloc2
+      - libkrb5-26-heimdal
+      - libnfs14
+      - libnghttp2-14
+      - libnuma1
+      - librados2
+      - librbd1
+      - librdmacm1
+      - libroken19-heimdal
+      - librtmp1
+      - libsasl2-2
+      - libsdl2-2.0-0
+      - libsdl2-image-2.0-0
+      - libsnappy1v5
+      - libspice-server1
+      - libtirpc3
+      - liburcu8
+      - libusb-1.0-0
+      - libusbredirhost1
+      - libusbredirparser1
+      - libvdeplug2
+      - libwind0-heimdal
+      - seabios
+    organize:
+      lib/: external/qemu/lib/
+      usr/bin/: external/qemu/bin/
+      usr/lib/: external/qemu/lib/
+      usr/local/bin/: external/qemu/bin/
+      usr/local/lib/: external/qemu/lib/
+      usr/local/libexec/: external/qemu/bin/
+      usr/local/share/: external/qemu/share/

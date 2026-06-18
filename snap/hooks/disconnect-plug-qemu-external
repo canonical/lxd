@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ]; then
+  label="$(cat /proc/self/attr/current 2>/dev/null)"
+  if [ "$label" != "unconfined" ] && [ -n "${label##*(unconfined)}" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+  fi
+fi
+
+rm -f "${SNAP_COMMON}/use-qemu-external-snap"
+
+echo reload > "${SNAP_COMMON}/state"
+read -r PID < "${SNAP_COMMON}/lxd.pid"
+kill "$PID"

@@ -1,0 +1,77 @@
+#!/bin/sh
+run_cmd() {
+    CMD="$1"
+    shift
+
+    unset LD_LIBRARY_PATH
+    export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    export HOME="${SNAP_REAL_HOME}"
+    export USER="${USERNAME}"
+    IGNORERCFILES=""
+    if [ "${HOME}" != "/root" ] && [ "${CMD}" = "nano" ]; then
+        export XDG_DATA_HOME="${HOME}/.local/share"
+        if [ ! -d "/var/lib/snapd/hostfs/${XDG_DATA_HOME}" ]; then
+            echo "Instructing nano to ignore RC files due to missing directory: \"${XDG_DATA_HOME}\""
+           IGNORERCFILES="--ignorercfiles"
+        fi
+    fi
+
+    # Use --propagation slave so unmounts in the parent namespace propagate to
+    # the editor's namespace. This prevents leftover mounts (ZFS/LVM) from
+    # blocking storage delete operations while the editor is open.
+    # shellcheck disable=SC2145
+    exec unshare --kill-child -U -m --propagation slave -p -r -f --root="/var/lib/snapd/hostfs/" "/bin/sh" -c "mount -t proc proc /proc 2>/dev/null || true; exec \"${CMD}\" ${IGNORERCFILES} \"$@\""
+}
+
+# Detect base name
+SNAP_BASE="$(sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' /meta/snap.yaml)"
+
+USERNS=1
+[ -e /proc/sys/kernel/unprivileged_userns_clone ] && grep -qxF 0 /proc/sys/kernel/unprivileged_userns_clone && USERNS=0
+
+find_and_spawn() {
+    for path in / /usr/ /usr/local/; do
+        if [ -e "/var/lib/snapd/hostfs/${path}bin/${1}" ] || [ -L "/var/lib/snapd/hostfs/${path}bin/${1}" ]; then
+            run_cmd "$@"
+        fi
+    done
+}
+
+EDIT_CMD="${1}"
+EDIT_PATH="${2}"
+if [ -z "${EDIT_PATH}" ] || [ "$#" -ge "3" ]; then
+    EDIT_CMD=""
+    for arg in "${@}"; do
+        EDIT_PATH="${arg}"
+    done
+fi
+
+# Default to trying nano if no editor is provided
+if [ -z "${EDIT_CMD}" ]; then
+    EDIT_CMD="nano"
+fi
+
+# Try running the editor through the host.
+if [ -n "${EDIT_CMD}" ] && [ "${USERNS}" = 1 ]; then
+    exec 9< /tmp/
+    # Replace "/tmp/" prefix by exec'ed FD 9.
+    EDIT_PATH_HOST="/proc/self/fd/9/${EDIT_PATH##*/}"
+    find_and_spawn "${EDIT_CMD}" "${EDIT_PATH_HOST}"
+fi
+
+# Fallback to using vim.tiny from base snap
+
+# Search for a vimrc
+for vimrc in "${SNAP_USER_COMMON}/.vimrc" "/snap/${SNAP_BASE}/current/etc/vim/vimrc"; do
+    [ -r "${vimrc}" ] || continue
+    export VIMINIT="source ${vimrc}"
+done
+
+# Ignore vimrc if none was found to be readable.
+EDIT_IGNORE_RC=""
+if [ -z "${VIMINIT:-""}" ]; then
+    EDIT_IGNORE_RC="--clean"
+fi
+
+# Run the editor.
+exec vim.tiny -Z ${EDIT_IGNORE_RC} "${EDIT_PATH}"

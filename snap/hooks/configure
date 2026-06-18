@@ -1,0 +1,99 @@
+#!/bin/sh
+set -eu
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ]; then
+  label="$(cat /proc/self/attr/current 2>/dev/null)"
+  if [ "$label" != "unconfined" ] && [ -n "${label##*(unconfined)}" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+  fi
+fi
+
+# Utility functions
+get_bool() {
+    value=$(echo "${1:-}" | tr '[:upper:]' '[:lower:]')
+
+    # See if it's true
+    for yes in "true" "1" "yes" "on"; do
+        if [ "${value}" = "${yes}" ]; then
+            echo "true"
+            return
+        fi
+    done
+
+    # See if it's false
+    for no in "false" "0" "no" "off"; do
+        if [ "${value}" = "${no}" ]; then
+            echo "false"
+            return
+        fi
+    done
+
+    # Invalid value (or not set)
+    return
+}
+
+# Don't fail if the mount namespace isn't properly setup yet
+if [ ! -e /run/snapd-snap.socket ]; then
+    exit 0
+fi
+
+# Get the current config
+apparmor_unprivileged_restrictions_disable=$(get_bool "$(snapctl get apparmor.unprivileged-restrictions-disable)")
+ceph_builtin=$(get_bool "$(snapctl get ceph.builtin)")
+ceph_external=$(get_bool "$(snapctl get ceph.external)")
+daemon_debug=$(get_bool "$(snapctl get daemon.debug)")
+daemon_group=$(snapctl get daemon.group)
+daemon_user_group=$(snapctl get daemon.user.group)
+daemon_syslog=$(get_bool "$(snapctl get daemon.syslog)")
+daemon_verbose=$(get_bool "$(snapctl get daemon.verbose)")
+db_trace=$(get_bool "$(snapctl get db.trace)")
+lvm_external=$(get_bool "$(snapctl get lvm.external)")
+lxcfs_loadavg=$(get_bool "$(snapctl get lxcfs.loadavg)")
+lxcfs_cfs=$(get_bool "$(snapctl get lxcfs.cfs)")
+lxcfs_debug=$(get_bool "$(snapctl get lxcfs.debug)")
+openvswitch_builtin=$(get_bool "$(snapctl get openvswitch.builtin)")
+openvswitch_external=$(get_bool "$(snapctl get openvswitch.external)")
+ovn_builtin=$(get_bool "$(snapctl get ovn.builtin)")
+zfs_external=$(get_bool "$(snapctl get zfs.external)")
+
+# Special-handling of daemon.preseed
+daemon_preseed=$(snapctl get daemon.preseed)
+if [ -n "${daemon_preseed}" ]; then
+    echo "${daemon_preseed}" > "${SNAP_COMMON}/init.yaml"
+fi
+
+# Generate the config
+config="${SNAP_COMMON}/config"
+
+cat << EOC > "${config}"
+# This file is auto-generated, do NOT manually edit
+apparmor_unprivileged_restrictions_disable=${apparmor_unprivileged_restrictions_disable:-"true"}
+ceph_builtin=${ceph_builtin:-"false"}
+ceph_external=${ceph_external:-"false"}
+daemon_debug=${daemon_debug:-"false"}
+daemon_group=${daemon_group:-"lxd"}
+daemon_syslog=${daemon_syslog:-"false"}
+daemon_user_group=${daemon_user_group:-"lxd"}
+daemon_verbose=${daemon_verbose:-"false"}
+db_trace=${db_trace:-"false"}
+lvm_external=${lvm_external:-"false"}
+lxcfs_cfs=${lxcfs_cfs:-"false"}
+lxcfs_debug=${lxcfs_debug:-"false"}
+lxcfs_loadavg=${lxcfs_loadavg:-"false"}
+openvswitch_builtin=${openvswitch_builtin:-"false"}
+openvswitch_external=${openvswitch_external:-"false"}
+ovn_builtin=${ovn_builtin:-"false"}
+zfs_external=${zfs_external:-"false"}
+EOC
+
+# Set socket ownership in case it changed
+if [ -e "${SNAP_COMMON}/lxd/unix.socket" ] && getent group "${daemon_group}" >/dev/null 2>&1; then
+    chgrp "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
+fi
+
+if [ -e "${SNAP_COMMON}/lxd-user/unix.socket" ] && getent group "${daemon_user_group}" >/dev/null 2>&1; then
+    chgrp "${daemon_user_group}" "${SNAP_COMMON}/lxd-user/unix.socket"
+fi
+
+exit 0

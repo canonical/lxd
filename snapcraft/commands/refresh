@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Trigger a refresh of LXD and ensure we get the phased side of any phased rollout.
+exec nsenter -t 1 -m snap refresh lxd --cohort=+ --no-wait

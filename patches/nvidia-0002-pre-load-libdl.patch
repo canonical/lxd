@@ -1,0 +1,29 @@
+From cc121b63d1d010e91ef113db12c91141d98fb7b0 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?St=C3=A9phane=20Graber?= <stgraber@ubuntu.com>
+Date: Mon, 20 Mar 2023 13:36:31 -0400
+Subject: [PATCH] driver: Pre-load libdl.so.2
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Stéphane Graber <stgraber@ubuntu.com>
+---
+ src/driver.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/driver.c b/src/driver.c
+index 706f141a..73881978 100644
+--- a/src/driver.c
++++ b/src/driver.c
+@@ -122,6 +122,8 @@ driver_init_1_svc(ptr_t ctxptr, driver_init_res *res, maybe_unused struct svc_re
+ 
+         /* Preload glibc libraries to avoid symbols mismatch after changing root. */
+         if (!str_equal(ctx->root, "/")) {
++                if (xdlopen(err, "libdl.so.2", RTLD_NOW) == NULL)
++                        goto fail;
+                 if (xdlopen(err, "libm.so.6", RTLD_NOW) == NULL)
+                         goto fail;
+                 if (xdlopen(err, "librt.so.1", RTLD_NOW) == NULL)
+-- 
+2.37.2
+
