@@ -1292,15 +1292,15 @@ func (d *Daemon) init() error {
 		logger.Info(" - netnsid-based network retrieval: no")
 	}
 
-	d.os.PidFds = canUsePidFds()
-	if d.os.PidFds {
+	d.os.PidFds.Store(canUsePidFds())
+	if d.os.PidFds.Load() {
 		logger.Info(" - pidfds: yes")
 	} else {
 		logger.Info(" - pidfds: no")
 	}
 
-	d.os.CoreScheduling = canUseCoreScheduling()
-	if d.os.CoreScheduling {
+	d.os.CoreScheduling.Store(canUseCoreScheduling())
+	if d.os.CoreScheduling.Load() {
 		logger.Info(" - core scheduling: yes")
 	} else {
 		logger.Info(" - core scheduling: no")
@@ -1411,7 +1411,7 @@ func (d *Daemon) init() error {
 		fd, err := os.Open(testDev)
 		if err != nil && os.IsPermission(err) {
 			logger.Warn("Cannot access device nodes, LXD likely running on a nodev mount")
-			d.os.Nodev = true
+			d.os.Nodev.Store(true)
 		}
 
 		_ = fd.Close()

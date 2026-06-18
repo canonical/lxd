@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -62,9 +63,9 @@ type OS struct {
 	ExecPath        string          // Absolute path to the LXD executable
 	IdmapSet        *idmap.IdmapSet // Information about user/group ID mapping
 	InotifyWatch    InotifyInfo
-	LxcPath         string // Path to the $LXD_DIR/containers directory
-	MockMode        bool   // If true some APIs will be mocked (for testing)
-	Nodev           bool
+	LxcPath         string      // Path to the $LXD_DIR/containers directory
+	MockMode        bool        // If true some APIs will be mocked (for testing)
+	Nodev           atomic.Bool // Set when the devices path is mounted nodev.
 	RunningInUserNS bool
 
 	// Privilege dropping
@@ -87,20 +88,20 @@ type OS struct {
 	CGInfo cgroup.Info
 
 	// Kernel features
-	BPFToken                bool // BPFToken indicates support for BPF token delegation mechanism.
-	CloseRange              bool // CloseRange indicates support for the close_range syscall.
-	CoreScheduling          bool // CoreScheduling indicates support for core scheduling syscalls.
-	IdmappedMounts          bool // IdmappedMounts indicates kernel support for VFS idmap.
-	NativeTerminals         bool // NativeTerminals indicates support for TIOGPTPEER ioctl.
-	NetnsGetifaddrs         bool // NetnsGetifaddrs indicates support for NETLINK_GET_STRICT_CHK.
-	PidFds                  bool // PidFds indicates support for PID fds.
-	PidFdSetns              bool // PidFdSetns indicates support for setns through PID fds.
-	SeccompListenerAddfd    bool // SeccompListenerAddfd indicates support for passing new FD to process through seccomp notify.
-	SeccompListener         bool // SeccompListener indicates support for seccomp notify.
-	SeccompListenerContinue bool // SeccompListenerContinue indicates support continuing syscalls path for process through seccomp notify.
-	UeventInjection         bool // UeventInjection indicates support for injecting uevents to a specific netns.
-	UnprivBinfmt            bool // UnprivBinfmt indicates support for mounting binfmt_misc inside of a user namespace.
-	VFS3Fscaps              bool // VFS3FScaps indicates support for v3 filesystem capabilities.
+	BPFToken                bool        // BPFToken indicates support for BPF token delegation mechanism.
+	CloseRange              bool        // CloseRange indicates support for the close_range syscall.
+	CoreScheduling          atomic.Bool // CoreScheduling indicates support for core scheduling syscalls.
+	IdmappedMounts          bool        // IdmappedMounts indicates kernel support for VFS idmap.
+	NativeTerminals         bool        // NativeTerminals indicates support for TIOGPTPEER ioctl.
+	NetnsGetifaddrs         bool        // NetnsGetifaddrs indicates support for NETLINK_GET_STRICT_CHK.
+	PidFds                  atomic.Bool // PidFds indicates support for PID fds.
+	PidFdSetns              bool        // PidFdSetns indicates support for setns through PID fds.
+	SeccompListenerAddfd    bool        // SeccompListenerAddfd indicates support for passing new FD to process through seccomp notify.
+	SeccompListener         bool        // SeccompListener indicates support for seccomp notify.
+	SeccompListenerContinue bool        // SeccompListenerContinue indicates support continuing syscalls path for process through seccomp notify.
+	UeventInjection         bool        // UeventInjection indicates support for injecting uevents to a specific netns.
+	UnprivBinfmt            bool        // UnprivBinfmt indicates support for mounting binfmt_misc inside of a user namespace.
+	VFS3Fscaps              bool        // VFS3FScaps indicates support for v3 filesystem capabilities.
 
 	// LXC features
 	LXCFeatures map[string]bool

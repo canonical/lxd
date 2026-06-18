@@ -649,7 +649,7 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		return nil, err
 	}
 
-	if d.state.OS.CoreScheduling {
+	if d.state.OS.CoreScheduling.Load() {
 		err = lxcSetConfigItem(cc, "lxc.sched.core", "1")
 		if err != nil {
 			return nil, err
@@ -5705,7 +5705,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 }
 
 func (d *lxc) inheritInitPidFd() (int, *os.File) {
-	if d.state.OS.PidFds {
+	if d.state.OS.PidFds.Load() {
 		pidFdFile, err := d.InitPidFd()
 		if err != nil {
 			return -1, nil

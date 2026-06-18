@@ -1612,7 +1612,7 @@ func (d *common) recordLastState() error {
 }
 
 func (d *common) setCoreSched(pids []int) error {
-	if !d.state.OS.CoreScheduling {
+	if !d.state.OS.CoreScheduling.Load() {
 		return nil
 	}
 
