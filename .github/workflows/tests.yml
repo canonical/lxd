@@ -1409,9 +1409,9 @@ jobs:
           sed -i -e "s/^version: git$/version: ${versionString}/" snapcraft.yaml
 
           git add snapcraft.yaml
-          git commit --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
+          git commit --quiet -s -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev} (version: ${versionString})"
           git show
-          #git push --quiet --force launchpad:"${BRANCH}"
+          git push --quiet --force launchpad:"${BRANCH}"
 
           # Unload the SSH key from the agent now that the push is done, to
           # prevent accidental usage in any subsequent steps within this job.
