@@ -1373,12 +1373,12 @@ jobs:
           set -eux
           echo "${PATH}"
           localRev="$(git rev-parse HEAD)"
-          cd ~/"${PACKAGE}-pkg-snap-lp"
+          cd "${GITHUB_WORKSPACE}/snap"
           lxd-snapcraft -package "${PACKAGE}" -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
           git add snapcraft.yaml
           git commit --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
           git show
-          git push --quiet
+          git push --quiet --force
 
           # Unload the SSH key from the agent now that the push is done, to
           # prevent accidental usage in any subsequent steps within this job.
