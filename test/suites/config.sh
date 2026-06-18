@@ -171,7 +171,8 @@ test_config_profiles() {
   [ "$(lxc profile device get onenic eth0 nictype)" = "p2p" ]
 
   # test setting limits.cpu.pin_strategy at the local config and profile level
-  ! lxc config set c1 limits.cpu.pin_strategy=auto || false
+  ! lxc config set foo limits.cpu.pin_strategy=auto || false
+  [ "$(lxc config get foo limits.cpu.pin_strategy || echo fail)" = "" ]
   lxc profile set default limits.cpu.pin_strategy=auto
   ! lxc profile set default limits.cpu=1-2 || false # test adding a cpu limit with limits.cpu.pin_strategy set (should fail)
   lxc profile unset default limits.cpu.pin_strategy
