@@ -1573,9 +1573,13 @@ test_clustering_downgrade() {
   kill_lxd "${LXD_THREE_DIR}"
 }
 
-# Perform an upgrade of an 8-member cluster.
+# Perform an upgrade of a large cluster.
 test_clustering_upgrade_large() {
-  local N=8
+  local N="$(($(nproc) * 2))"
+  if [ "${N}" -gt 8 ]; then
+    N=8
+  fi
+
   local LXD_CLUSTER_DIR
   LXD_CLUSTER_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
 
