@@ -1130,9 +1130,7 @@ parts:
       patch -p1 $SNAPCRAFT_PART_INSTALL/snap/lxd/current/lxcfs/lxc.mount.hook < "${SNAPCRAFT_PROJECT_DIR}/patches/lxcfs-0001-hook.patch"
 
   lxd:
-    source: https://github.com/canonical/lxd
-    source-type: git
-    source-branch: stable-4.0
+    source: .
     after:
       - lxc
       - dqlite
