@@ -196,7 +196,7 @@ If you are building LXD from source instead of using a package manager, the mini
 - AMD ROCm container toolkit bumped to v1.3.0.
 - ZFS 2.2 bumped to 2.2.10.
 - ZFS 2.3 bumped to 2.3.8.
-- ZFS 2.4 bumped to 2.4.2.
+- ZFS 2.4 bumped to 2.4.3.
 - Removed unused `arptables` binary.
 - Removed `libcephfs` from the snap due to unusable missing dependencies.
 - Removed unneeded Python dependencies from Ceph.
