@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/canonical/go-dqlite/v3"
@@ -130,6 +131,11 @@ type Gateway struct {
 	heartbeatCancel           context.CancelFunc
 	heartbeatCancelLock       sync.Mutex
 	HeartbeatLock             sync.Mutex
+
+	// Used for the heartbeat reception detection.
+	// If a heartbeat is not received in time, durable operations on this node are cancelled.
+	// The cluster leader will restart them.
+	heartbeatDetectionCanceller atomic.Pointer[context.CancelFunc]
 
 	// NodeStore wrapper.
 	store *dqliteNodeStore
@@ -253,6 +259,7 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, identityCache 
 				return
 			}
 
+			g.heartbeatReceived()
 			heartbeatHandler(w, r, isLeader, &heartbeatData)
 
 			return
