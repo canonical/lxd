@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -146,6 +147,13 @@ type Operation struct {
 	// running is the basis of the [context.Context] passed into the onRun hook.
 	// It is cancelled when the onRun hook completes or when Cancel is called (on operation deletion).
 	running cancel.Canceller
+
+	// internallyCancelled can only be set to true for durable operations. It is set when a heartbeat is not received on
+	// this node within the offline threshold, or when the operation is updated by a member that is no longer assigned
+	// to the operation in the database.
+	//
+	// When this is true, we skip deleting the database record and instead just remove the operation from the in-memory map.
+	internallyCancelled atomic.Bool
 
 	// Locking for concurrent access to the Operation
 	lock sync.Mutex
@@ -496,6 +504,19 @@ func (op *Operation) start() {
 					op.errCode = http.StatusInternalServerError
 				}
 
+				// If the durable operation was cancelled locally because of missed heartbeat, only set its local status
+				// to cancelled without persisting it (otherwise it will be persisted in a final state and not restarted).
+				// We also don't want to send any events relating to the change. These will continue on the leader.
+				if op.internallyCancelled.Load() {
+					// Cancel the running context and call done, but don't finalize the operation in the database.
+					// We keep the api.Running status because it is still running, it is being moved to another cluster
+					// member to be restarted.
+					op.running.Cancel()
+					op.lock.Unlock()
+					op.done()
+					return
+				}
+
 				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
 				if errors.Is(err, context.Canceled) {
 					op.persistWithNewStatus(api.Cancelled)
@@ -709,6 +730,50 @@ func (op *Operation) cancelImmediate() {
 	op.err = context.Canceled.Error()
 	op.errCode = http.StatusInternalServerError
 	op.persistWithNewStatus(api.Cancelled)
+}
+
+// cancelInternal sets the Operation.internallyCancelled flag to true and cancels the run context for the operation and
+// all of its children. The result is that the operation should stop running via context cancellation but will not be
+// marked as cancelled in the database.
+func cancelInternal(op *Operation) {
+	// Note that on purpose we don't lock the operation lock here.
+	// We don't want to wait on the lock while the operation is updating its status.
+	// This is because internal cancellation only occurs when heartbeats fail, or when the operation has already been
+	// relocated to the leader. We don't want to wait for e.g. a database connection if the cluster is unhealthy.
+	// Setting internallyCancelled and cancelling the operation run context are atomic operations, so this is safe.
+
+	// Mark this operation as having missed the heartbeat.
+	// It will tell the end routines not to clear the database record.
+	op.internallyCancelled.Store(true)
+
+	// Signal the operation to stop.
+	// The operation will be marked as finished and removed from the local operations map
+	// by the rest of the Start() routine after it actually stops.
+	op.running.Cancel()
+	for _, child := range op.children {
+		cancelInternal(child)
+	}
+}
+
+// CancelLocalDurableOperations stops all durable operations running on this node.
+// These operations are only removed from the local operations map, the database records are left intact.
+// The cluster leader will later restart these operations.
+func CancelLocalDurableOperations() {
+	operationsLock.Lock()
+	for _, op := range operations {
+		if op.class != operationtype.OperationClassDurable {
+			continue
+		}
+
+		// Child operations are cancelled when the parent is cancelled.
+		if op.parent != nil {
+			continue
+		}
+
+		cancelInternal(op)
+	}
+
+	operationsLock.Unlock()
 }
 
 // Connect connects a websocket operation. If the operation is not a websocket
