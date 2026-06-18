@@ -868,6 +868,11 @@ func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allPr
 	}
 
 	filtered := []*db.StorageVolume{}
+	var clauseSet filter.ClauseSet
+	if clauses != nil {
+		clauseSet = *clauses
+	}
+
 	for _, volume := range volumes {
 		// Filter out image volumes that are not used by this project.
 		if volume.Type == cluster.StoragePoolVolumeTypeNameImage && !allProjects && !slices.Contains(filterProjectImages, volume.Name) {
@@ -879,7 +884,7 @@ func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allPr
 			Snapshot:      strconv.FormatBool(strings.Contains(volume.Name, shared.SnapshotDelimiter)),
 		}
 
-		match, err := filter.Match(tmpVolume, *clauses)
+		match, err := filter.Match(tmpVolume, clauseSet)
 		if err != nil {
 			return nil, err
 		}
