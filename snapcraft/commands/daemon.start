@@ -198,7 +198,7 @@ export PATH="/run/bin:${PATH}"
 if [ -e "${SNAP_COMMON}/use-qemu-external-snap" ]; then
     echo "==> Setting up external QEMU snap integration"
     export SNAP_QEMU_PREFIX="external/qemu"
-    LD_LPATH_PIPEWIRE="$(readlink -f "${SNAP_CURRENT}"/${SNAP_QEMU_PREFIX}/lib/"${ARCH}"/pipewire-*/)"
+    LD_LPATH_PIPEWIRE="$(readlink -f "${SNAP_CURRENT}/${SNAP_QEMU_PREFIX}/lib/${ARCH}"/pipewire-*/)"
     export LD_LIBRARY_PATH="${SNAP_CURRENT}/${SNAP_QEMU_PREFIX}/lib/${ARCH}:${SNAP_CURRENT}/${SNAP_QEMU_PREFIX}/lib/${ARCH}/pulseaudio:${SNAP_CURRENT}/${SNAP_QEMU_PREFIX}/lib/${ARCH}/ceph:${LD_LPATH_PIPEWIRE:+${LD_LPATH_PIPEWIRE}:}${LD_LIBRARY_PATH}"
 fi
 
@@ -687,6 +687,8 @@ if [ -n "${PID}" ] && [ "$(readlink "/proc/self/ns/mnt")" != "$(readlink "/proc/
             "${SNAP_COMMON}/shmounts/storage-pools/"* | "${SNAP_COMMON}/lxd/storage-pools/"*)
                 nsenter -t "${PID}" -m umount -l "${mp}" || true
                 ;;
+            *)
+                ;;
         esac
     done < "/proc/${PID}/mountinfo"
 fi
@@ -779,7 +781,7 @@ set +e
     exec ${CMD}
 )&
 PID=$!
-echo ${PID} > "${SNAP_COMMON}/lxd.pid"
+echo "${PID}" > "${SNAP_COMMON}/lxd.pid"
 
 ## Wait for it to be ready
 "${LXD}" waitready &
