@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Set the root path
+exec nvidia-container-cli.real -r /var/lib/snapd/hostfs/ "$@"
