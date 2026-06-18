@@ -377,8 +377,12 @@ func (p *AlletraClient) requestAuthenticated(method string, url url.URL, reqBody
 		}
 
 		// Add Session Key to Headers.
+		sessionKeysMtx.RLock()
+		sessionKey := p.sessionKey
+		sessionKeysMtx.RUnlock()
+
 		reqHeaders := map[string]string{
-			"X-HP3PAR-WSAPI-SessionKey": p.sessionKey,
+			"X-HP3PAR-WSAPI-SessionKey": sessionKey,
 		}
 
 		// Initiate request.
