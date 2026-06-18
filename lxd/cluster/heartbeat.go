@@ -322,6 +322,32 @@ func (g *Gateway) HeartbeatRestart() bool {
 	return false
 }
 
+func (g *Gateway) cancelDurableOperationsIfHeartbeatNotReceived(ctx context.Context, duration time.Duration) {
+	timer := time.NewTimer(duration)
+	select {
+	case <-timer.C:
+		// Heartbeat not received in time, cancel durable operations.
+		logger.Error("Heartbeat not received in time, cancelling durable operations")
+		operations.CancelLocalDurableOperations()
+	case <-ctx.Done():
+		// Heartbeat received in time, cancel the timer.
+		timer.Stop()
+	}
+}
+
+// heartbeatReceived is called when a heartbeat is received on this node.
+// It resets the heartbeat detection timer.
+func (g *Gateway) heartbeatReceived() {
+	ctx, newCancel := context.WithCancel(g.shutdownCtx)
+	oldCancel := g.heartbeatDetectionCanceller.Swap(&newCancel)
+	if oldCancel != nil && *oldCancel != nil {
+		(*oldCancel)()
+	}
+
+	// Wait for the next heartbeat and cancel durable operations if not received within the offline threshold.
+	go g.cancelDurableOperationsIfHeartbeatNotReceived(ctx, g.offlineThreshold())
+}
+
 func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 	// Avoid concurrent heartbeat loops.
 	// This is possible when both the regular task and the out of band heartbeat round from a dqlite
@@ -338,6 +364,19 @@ func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 	if cluster == nil || server == nil || memoryDial != nil {
 		// We're not a raft node or we're not clustered
 		return
+	}
+
+	isLeader, err := g.isLeader()
+	if err != nil {
+		logger.Warn("Failed determining if node is leader", logger.Ctx{"err": err})
+	}
+
+	// If we're a leader, we are not going to send heartbeats to ourselves.
+	// So just record like that we have received one.
+	// This is useful if we started as a leader, but later we lost connection to the rest of the cluster, and therefore we lost leadership.
+	// In such case we should have a heartbeat detection enabled and cancel durable operations if heartbeats don't arrive in time.
+	if isLeader {
+		g.heartbeatReceived()
 	}
 
 	// Acquire the cancellation lock and populate it so that this heartbeat round can be cancelled if a
