@@ -76,8 +76,9 @@ runs:
         unset INPUTS_SSH_KEY
         ssh-add -L > ~/.ssh/id_ed25519.pub
 
-    - name: Git clone repository
+    - name: Setup Launchpad repository remote
       shell: bash
       run: |
         set -eux
-        git clone --depth 1 -b "${BRANCH}" "${REPO}" ~/"${PACKAGE}-pkg-snap-lp"
+        git remote add launchpad "${REPO}"
+        git fetch launchpad
