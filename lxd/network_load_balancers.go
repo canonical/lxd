@@ -775,8 +775,8 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 //	    schema:
 //	      $ref: "#/definitions/NetworkLoadBalancerPoolsPost"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -869,7 +869,28 @@ func networkLoadBalancerPoolUsedBy(projectName string, networkName string, loadB
 //	    example: default
 //	responses:
 //	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of network load balancer pools
+//	          items:
+//	            $ref: "#/definitions/NetworkLoadBalancerPool"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -962,7 +983,25 @@ func networkLoadBalancerPoolsGet(d *Daemon, r *http.Request) response.Response {
 //	    example: default
 //	responses:
 //	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/NetworkLoadBalancerPool"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1127,8 +1166,8 @@ func networkLoadBalancerPoolStateGet(d *Daemon, r *http.Request) response.Respon
 //	    type: string
 //	    example: default
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
@@ -1209,8 +1248,8 @@ func networkLoadBalancerPoolDelete(d *Daemon, r *http.Request) response.Response
 //	    schema:
 //	      $ref: "#/definitions/NetworkLoadBalancerPoolPut"
 //	responses:
-//	  "200":
-//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/Operation"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
