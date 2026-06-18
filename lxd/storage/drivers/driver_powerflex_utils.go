@@ -1351,6 +1351,9 @@ func (d *powerflex) unmapVolume(vol Volume) error {
 		if err != nil {
 			return err
 		}
+
+	default:
+		return fmt.Errorf("Unsupported PowerFlex mode %q", d.config["powerflex.mode"])
 	}
 
 	err = client.deleteHostVolumeMapping(host.ID, volume)
