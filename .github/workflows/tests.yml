@@ -1365,8 +1365,17 @@ jobs:
       - name: Trigger Launchpad snap build
         run: |
           set -eux
+          set -o pipefail
           echo "${PATH}"
           localRev="$(git rev-parse HEAD)"
+
+          # Extract a strict major.minor[.patch] version from shared/version/flex.go.
+          version="$(sed -nE 's/^var Version = "([0-9]+\.[0-9]+(\.[0-9]+)?)"$/\1/p' "${GITHUB_WORKSPACE}/shared/version/flex.go")"
+
+          if [ -z "${version}" ]; then
+            echo "ERROR: Invalid version format in shared/version/flex.go. Expected format: n.n or n.n.n" >&2
+            exit 1
+          fi
 
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             BRANCH="latest-edge"
@@ -1377,12 +1386,28 @@ jobs:
           elif [[ "${GITHUB_REF_NAME}" =~ ^release-([0-9]+)\.([0-9]+)\.[0-9]+$ ]]; then
             BRANCH="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}-candidate"
           else
-            echo "ERROR: Unsupported github.ref_name pattern: ${GITHUB_REF_NAME}" >&2
+            echo "ERROR: Unsupported GITHUB_REF_NAME pattern: ${GITHUB_REF_NAME}" >&2
             exit 1
           fi
 
+          # Determine snap version format based on edge or candidate.
+          if [[ "${BRANCH}" == *"-candidate" ]]; then
+            versionString="${version}-${localRev:0:7}"
+          else
+            versionString="git-${localRev:0:7}"
+          fi
+
           cd "${GITHUB_WORKSPACE}/snap"
-          lxd-snapcraft -package "${PACKAGE}" -set-version "git-${localRev:0:7}"
+
+          # Fail unless exactly one `version: git` line exists, then replace it.
+          match_count="$(awk '/^version: git$/ {count++} END {print count+0}' snapcraft.yaml)"
+          if [ "${match_count}" -ne 1 ]; then
+            echo "ERROR: Expected exactly one 'version: git' line in snapcraft.yaml, found ${match_count}" >&2
+            exit 1
+          fi
+
+          sed -i -e "s/^version: git$/version: ${versionString}/" snapcraft.yaml
+
           git add snapcraft.yaml
           git commit --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
           git show
