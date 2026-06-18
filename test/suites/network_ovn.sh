@@ -1337,7 +1337,12 @@ probe_pool_targets() {
 
   # Try 100 times to be sure we got a response from all instances, as the load balancer may choose the same instance for multiple consecutive requests.
   for i in $(seq 1 100); do
-    response="$(curl --silent --connect-timeout 5 -H "Connection: close" "http://${load_balancer_ip}:80")"
+    # We have to use a fairly long connect timeout to ensure the first request goes through when using OVN load balancer health checks.
+    # When using the gateway/router as source IP for the health checks, there seems to be an initial MAC binding missing which drops
+    # the backend's reply for the SYN sent by curl.
+    # Therefore wait for retransmit.
+    # All of the following requests will go through immediately.
+    response="$(curl --silent --connect-timeout 120 -H "Connection: close" "http://${load_balancer_ip}:80")"
     match=false
     for valid in "${valid_responses[@]}"; do
       if [ "${response}" = "${valid}" ]; then
