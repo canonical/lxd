@@ -382,6 +382,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v5.0.1
 
+      # XXX: from this point onwards in this **specific job**, the private SSH key is
+      #      available through the SSH_AUTH_SOCK environment variable.
       - uses: ./.github/actions/lp-snap-build
         with:
           ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}"
@@ -391,12 +393,26 @@ jobs:
           set -eux
           echo "${PATH}"
           localRev="$(git rev-parse HEAD)"
+
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            BRANCH="latest-edge"
+          elif [[ "${GITHUB_REF_NAME}" =~ ^stable- ]]; then
+            BRANCH="${GITHUB_REF_NAME#stable-}-edge"
+          elif [[ "${GITHUB_REF_NAME}" =~ ^release-6\. ]]; then
+            BRANCH="6-candidate"
+          elif [[ "${GITHUB_REF_NAME}" =~ ^release-([0-9]+)\.([0-9]+)\.[0-9]+$ ]]; then
+            BRANCH="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}-candidate"
+          else
+            echo "ERROR: Unsupported github.ref_name pattern: ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+
           cd "${GITHUB_WORKSPACE}/snap"
-          lxd-snapcraft -package "${PACKAGE}" -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
-          git add --all
-          git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
+          lxd-snapcraft -package "${PACKAGE}" -set-version "git-${localRev:0:7}"
+          git add snapcraft.yaml
+          git commit --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
           git show
-          git push --quiet --force
+          #git push --quiet --force launchpad:"${BRANCH}"
 
           # Unload the SSH key from the agent now that the push is done, to
           # prevent accidental usage in any subsequent steps within this job.
