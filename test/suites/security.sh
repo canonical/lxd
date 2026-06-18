@@ -137,7 +137,7 @@ test_security() {
 test_security_protection() {
   ensure_import_testimage
 
-  # Test deletion protecton
+  # Test deletion protection
   lxc profile set default security.protection.delete true
 
   lxc init --empty c1 -d "${SMALL_ROOT_DISK}"
