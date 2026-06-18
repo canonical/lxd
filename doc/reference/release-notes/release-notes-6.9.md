@@ -194,7 +194,8 @@ If you are building LXD from source instead of using a package manager, the mini
 - LXCFS: Reverted partial backport of PSI functionality that prevented host machine suspend ([#17983](https://github.com/canonical/lxd/issues/17983)).
 - libnvidia-container bumped to v1.19.1.
 - AMD ROCm container toolkit bumped to v1.3.0.
-- ZFS 2.3 bumped to 2.3.7.
+- ZFS 2.2 bumped to 2.2.10.
+- ZFS 2.3 bumped to 2.3.8.
 - ZFS 2.4 bumped to 2.4.2.
 - Removed unused `arptables` binary.
 - Removed `libcephfs` from the snap due to unusable missing dependencies.
