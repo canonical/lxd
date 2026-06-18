@@ -89,6 +89,16 @@ func IsUint32(value string) error {
 	return nil
 }
 
+// IsUint64 validates whether the string can be converted to an uint64.
+func IsUint64(value string) error {
+	_, err := strconv.ParseUint(value, 10, 64)
+	if err != nil {
+		return fmt.Errorf("Invalid value for uint64 %q: %w", value, err)
+	}
+
+	return nil
+}
+
 // ParseUint32Range parses a uint32 range in the form "number" or "start-end".
 // Returns the start number and the size of the range.
 func ParseUint32Range(value string) (start uint32, rangeSize uint32, err error) {
