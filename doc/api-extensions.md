@@ -3625,3 +3625,17 @@ Because the legacy `nvidia.runtime` instance-level option is incompatible with C
 ## `cluster_links_unidirectional`
 
 This extends the {ref}`cluster links <exp-cluster-links>` API with support for unidirectional cluster links. The local cluster consumes a trust token issued by the remote cluster to establish the link and pin the remote's certificate. The remote cluster creates a dedicated identity for the local cluster and can authenticate its incoming requests, but does not store addresses for the local cluster and cannot initiate outbound requests to it.
+
+(extension-network-load-balancer-pool-health-checks)=
+## `network_load_balancer_pool_health_checks`
+
+This introduces health checks for OVN load balancer pools.
+New configuration options on the load balancer pool are added to further customize (or disable) the health check:
+
+* {config:option}`network-load-balancer-pool-properties:healthcheck`
+* {config:option}`network-load-balancer-pool-properties:healthcheck.interval`
+* {config:option}`network-load-balancer-pool-properties:healthcheck.timeout`
+* {config:option}`network-load-balancer-pool-properties:healthcheck.success_count`
+* {config:option}`network-load-balancer-pool-properties:healthcheck.failure_count`
+
+In addition a new endpoint [`GET /1.0/networks/{networkName}/load-balancer-pools/{poolName}/state`](swagger:/network-load-balancer-pools/network_load_balancer_pool_state_get) is added which returns the health check status for all instances in the pool.
