@@ -1001,7 +1001,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 					volumeSnapCreationDate = srcBackup.Config.Snapshots[i].CreatedAt
 				}
 
-				if rootVol != nil && len(rootVol.Snapshots) > i && rootVol.Snapshots[i] != nil && rootVol.Snapshots[i].Name == backupFileSnap {
+				if len(rootVol.Snapshots) > i && rootVol.Snapshots[i] != nil && rootVol.Snapshots[i].Name == backupFileSnap {
 					// If the backup restore interface provides volume snapshot config use it,
 					// otherwise use default volume config for the storage pool.
 					volumeSnapDescription = rootVol.Snapshots[i].Description
