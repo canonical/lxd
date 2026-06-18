@@ -119,6 +119,67 @@ The quorum safety check can be bypassed by passing `force` to the evacuate actio
 
 - API extension: {ref}`extension-clustering-evacuation-force`
 
+## UI updates
+
+This release introduces replicator management, load balancer support, and an initial file explorer for instances, alongside cluster link enhancements, identity improvements, and a range of user-driven refinements.
+
+### Replicators
+
+- Added full replicator management, including:
+    - Project configuration page to set up replicators and cluster links
+    - Replicator list page
+    - Detailed replicator view
+    - Create and edit workflows
+    - Run modal for manual execution
+    - Rich status chips and visual indicators
+    - Instance usage visibility per project
+- Improved replicator validation, permissions handling, and overall user experience.
+
+### Load balancers
+
+- Added load balancer management for OVN networks to the UI.
+- Added support for managing load balancer instances.
+
+### Storage
+
+- Improved Dell PowerStore support with updates to PowerStore configuration and management workflows.
+- Improved storage-related form behavior and validation.
+
+### Instance experience
+
+- Introduced the initial Instance File Explorer implementation.
+- Added support for file and directory deletion within the File Explorer.
+- Improved instance creation workflow by automatically focusing newly added profiles.
+- Fixed image tab state handling in the All Projects view.
+
+### Identity and access management
+
+- OIDC configuration can now be accessed directly from Settings when managing identities and permissions.
+- Improved identity page header controls and alignment.
+
+### Cluster management
+
+- Enhanced cluster links with:
+    - Rich chips for improved visibility
+    - Better creation and confirmation workflows
+    - Improved copy and guidance throughout the UI
+    - Protection against deleting cluster links that are currently in use
+- Cluster links are now displayed on single-node servers where applicable.
+- Improved handling of cluster link tokens and redirects.
+- The "Same for all members" option is now hidden when a cluster contains only a single member.
+
+### User-driven improvements
+
+- Improved cluster link onboarding and setup guidance.
+- Standardized navigation and redirection behavior across cluster-linked environments.
+- Replaced Monaco Editor with CodeMirror for YAML and configuration editing.
+
+### Bug fixes
+
+- Fixed issues with image registry renaming when rename permissions are unavailable.
+- Fixed sorting of modified timestamps.
+- Fixed several cluster link validation, token handling, and UX issues.
+
 (ref-release-notes-6.9-bugfixes)=
 ## Bug fixes
 
