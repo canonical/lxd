@@ -190,10 +190,17 @@ func DriverStatuses() map[instancetype.Type]*DriverStatus {
 		if driverInfo.Error != nil || driverInfo.Version == "" {
 			logger.Warn("Instance type not operational", logger.Ctx{"type": driverInfo.Type, "driver": driverInfo.Name, "err": driverInfo.Error})
 
+			var lastMessage string
+			if driverInfo.Error != nil {
+				lastMessage = driverInfo.Error.Error()
+			} else if driverInfo.Version == "" {
+				lastMessage = "Driver version not available"
+			}
+
 			driverStatus.Supported = false
 			driverStatus.Warning = &cluster.Warning{
 				TypeCode:    warningtype.InstanceTypeNotOperational,
-				LastMessage: driverInfo.Error.Error(),
+				LastMessage: lastMessage,
 			}
 		} else {
 			logger.Info("Instance type operational", logger.Ctx{"type": driverInfo.Type, "driver": driverInfo.Name, "features": driverInfo.Features})
