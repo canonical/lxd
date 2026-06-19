@@ -339,8 +339,8 @@ parts:
 
   dqlite:
     source: https://github.com/canonical/dqlite
-    source-branch: v1.18.x
-    source-depth: 1
+    source-commit: f6058ba74838f89b3720c74b7bb4a944bfc36a09 # v1.18.6
+    source-depth: 0
     source-type: git
     plugin: autotools
     autotools-configure-parameters:
@@ -358,6 +358,19 @@ parts:
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
+    override-build: |
+      set -ex
+
+      # Git cherry-picks
+      cd ../src
+      git config user.email "noreply@lists.canonical.com"
+      git config user.name "LXD snap builder"
+
+      git cherry-pick -x ef0fa37880d0112c19953f75eee45819128a4e99 # feat: use MFD_CLOEXEC flag to prevent leak across exec calls (#893)
+
+      set +ex
+      craftctl default
+      set -ex
     prime:
       - bin/sqlite3  # not used by LXD but small and useful for emergency situations
       - lib/libdqlite*so*
@@ -1287,6 +1300,7 @@ parts:
   # Core components
   lxc:
     source: https://github.com/lxc/lxc
+    source-commit: 2597434ae2472114c70ad2bdf4ae5580c9e22717 # v6.0.6
     source-depth: 1
     source-type: git
     build-packages:
@@ -1351,7 +1365,8 @@ parts:
     after:
       - python-runtime
     source: https://github.com/lxc/lxcfs
-    source-depth: 1
+    source-commit: 7ff173bfdb01bc10ab92c3d083a868d8f7fdd94d # v6.0.6
+    source-depth: 0
     source-type: git
     # XXX: needed for snapcraft 8.x only
     build-environment:
@@ -1398,6 +1413,13 @@ parts:
       cd ../src
       git config user.email "noreply@lists.canonical.com"
       git config user.name "LXD snap builder"
+
+      git revert --no-edit 607bf69846a3295d0e33ab1a67329428e6eb092c # meson: don't forget to set PSI trigger mocks for liblxcfstest
+      git revert --no-edit d07ba3eeeec1ae299c5aad9aeba4da6c6c769d44 # github: enable mocks for CI upgrade tests
+      git revert --no-edit a83059c8d5d3dd466ba7eeee89b57e82b3f7116f # github: pass LIBFUSE env variable to upgrade tests
+      git revert --no-edit 5ee5468c99a2d0141221a77e7abf8e286d2310a2 # proc_fuse: move release/releasedir at the end
+      git revert --no-edit 4ae2b3cf8c7dad4b8c229da2293ca5fcb4879c93 # lxcfs: wire up ->poll callback for /proc
+      git revert --no-edit 59fca61464523ae406346dc7d1b5d4788023e087 # lxcfs: wire up ->write callback for /proc
 
       set +ex
       craftctl default

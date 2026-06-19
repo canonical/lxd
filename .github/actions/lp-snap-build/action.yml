@@ -57,4 +57,3 @@ runs:
       run: |
         set -eux
         git remote add launchpad "${REPO}"
-        git fetch launchpad
