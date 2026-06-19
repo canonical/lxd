@@ -377,3 +377,41 @@ is_uuid_v7() {
   # a, or b. This accounts for the version and variant. See https://datatracker.ietf.org/doc/html/rfc9562#name-uuid-version-7.
   echo "${1}" | grep -ixE '[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
 }
+
+lxd_leader_name() {
+  local LXD_DIR="${1}"
+  LXD_DIR="${LXD_DIR}" lxc query /1.0/cluster/members?recursion=1 | jq --exit-status -r '.[] | select(.roles[] == "database-leader") | .server_name'
+}
+
+lxd_dir_from_name() {
+  local name="${1}"
+  lxd_dir_from_index "${name#node}"
+}
+
+lxd_dir_from_index() {
+  local index="${1}"
+  case "${index}" in
+    1)
+      echo "${LXD_ONE_DIR}";;
+    2)
+      echo "${LXD_TWO_DIR}";;
+    3)
+      echo "${LXD_THREE_DIR}";;
+    4)
+      echo "${LXD_FOUR_DIR}";;
+    5)
+      echo "${LXD_FIVE_DIR}";;
+    6)
+      echo "${LXD_SIX_DIR}";;
+    7)
+      echo "${LXD_SEVEN_DIR}";;
+    8)
+      echo "${LXD_EIGHT_DIR}";;
+    9)
+      echo "${LXD_NINE_DIR}";;
+    *)
+      echo "lxd_dir_from_index: Unknown cluster member index ${index}"
+      false
+      ;;
+  esac
+}
