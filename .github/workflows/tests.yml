@@ -1368,7 +1368,6 @@ jobs:
         run: |
           set -eux
           set -o pipefail
-          echo "${PATH}"
           localRev="$(git rev-parse HEAD)"
 
           # Extract a strict major.minor[.patch] version from shared/version/flex.go.
