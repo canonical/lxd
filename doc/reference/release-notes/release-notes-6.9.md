@@ -244,6 +244,24 @@ Use the new `--yes` flag to skip the interactive confirmation prompt, matching t
 
 - API extension: {ref}`extension-clustering-evacuation-force`
 
+(ref-release-notes-6.9-known-issues)=
+## Known issues
+
+This section covers known temporary limitations and integration regressions in this release.
+
+### CDI GPU passthrough failure on Ubuntu Core 26
+
+Users attempting to pass through GPUs to containers on Ubuntu Core 26 environments using the `gpu-2604` interface (provided by the `mesa-2604` snap) will encounter a container startup failure:
+
+```
+Error: Failed starting device "gpu0": Failed generating CDI spec: Failed determining NVIDIA driver root path: Failed running: /snap/lxd/<revision>/gpu-2604/bin/gpu-2604-provider-wrapper printenv NVIDIA_DRIVER_ROOT: exit status 1
+```
+
+This is caused by an upstream architectural mismatch on the Core 26 track between the `pc-kernel` snap and the `mesa-2604` graphics provider snap.
+The `pc-kernel` snap exposes NVIDIA driver files using new interfaces, but the `mesa-2604` wrapper script is still looking for legacy `kernel-gpu-2604` directory paths.
+
+There is currently no native LXD configuration workaround.
+
 (ref-release-notes-6.9-go)=
 ## Updated minimum Go version
 
