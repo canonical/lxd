@@ -1357,11 +1357,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Enable git bitmaps and run garbage collection
-        run: |
-          git config --local pack.useBitmaps true
-          git gc --prune=now
-
       # XXX: from this point onwards in this **specific job**, the private SSH key is
       #      available through the SSH_AUTH_SOCK environment variable.
       - uses: ./.github/actions/lp-snap-build
@@ -1433,6 +1428,12 @@ jobs:
           git add snapcraft.yaml
           git commit --quiet -s -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev} (version: ${versionString})"
           git show
+
+          # Pack all objects (including lxd-private ones) and generate a bitmap index
+          # right before the push so that pack generation benefits from full bitmap coverage.
+          git config --local pack.useBitmaps true
+          git gc --prune=now
+
           git push --quiet --force launchpad HEAD:"${BRANCH}"
 
           # Unload the SSH key from the agent now that the push is done, to
