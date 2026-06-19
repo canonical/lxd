@@ -22,6 +22,9 @@ var runUdevData = "/run/udev/data"
 var sysClassBlock = "/sys/class/block"
 var procSelfMountInfo = "/proc/self/mountinfo"
 
+// Most CD-ROM drives report this size when no media is present.
+const cdromNoMediaReportedSize = 0x1fffff * 512
+
 func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) error {
 	// Attempt to open the device path
 	f, err := os.Open(devicePath)
@@ -313,7 +316,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				disk.Type = "cdrom"
 
 				// Most cdrom drives report this as size regardless of media
-				if disk.Size == 0x1fffff*512 {
+				if disk.Size == cdromNoMediaReportedSize {
 					disk.Size = 0
 				}
 			}
