@@ -381,6 +381,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v5.0.1
+        with:
+          # A non-shallow clone is needed for the git push
+          fetch-depth: 0
+          persist-credentials: false
+
 
       # XXX: from this point onwards in this **specific job**, the private SSH key is
       #      available through the SSH_AUTH_SOCK environment variable.
