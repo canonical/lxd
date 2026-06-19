@@ -3152,27 +3152,6 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 		if err != nil {
 			return fmt.Errorf("Failed deleting network forwards and load balancers: %w", err)
 		}
-
-		// Delete any load balancer pools.
-		// The load balancers and their ports are already cleaned up at this stage.
-		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			pools, err := dbCluster.GetNetworksLoadBalancerPools(ctx, tx.Tx(), n.ID(), nil)
-			if err != nil {
-				return err
-			}
-
-			for _, pool := range pools {
-				err = dbCluster.DeleteNetworksLoadBalancerPool(ctx, tx.Tx(), n.ID(), pool.Row.Name)
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
-		})
-		if err != nil {
-			return err
-		}
 	}
 
 	return n.delete()
@@ -7094,14 +7073,13 @@ func (n *ovn) getLoadBalancerInstanceNICs() ([]OVNLoadBalancerInstanceNIC, error
 // InstanceDevicePortValidateUseByLoadBalancer checks whether the given instance is referenced by any load balancer pool on this network.
 // Returns an error if it is, indicating the instance must be removed from the pool first.
 func (n *ovn) InstanceDevicePortValidateUseByLoadBalancer(deviceInstance instance.Instance) error {
-	var loadBalancers map[int64]*api.NetworkLoadBalancer
-	var err error
-
 	return n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), false)
+		loadBalancers, err := tx.GetNetworkLoadBalancers(ctx, n.ID(), false)
 		if err != nil {
 			return err
 		}
+
+		loadBalancerPools := make(map[string]*api.NetworkLoadBalancerPool)
 
 		for _, lb := range loadBalancers {
 			for _, port := range lb.Ports {
@@ -7110,12 +7088,14 @@ func (n *ovn) InstanceDevicePortValidateUseByLoadBalancer(deviceInstance instanc
 				}
 
 				// Load the pool and check its instances.
-				pool, err := n.getLoadBalancerPool(ctx, tx.Tx(), port.TargetPool)
-				if err != nil {
-					return fmt.Errorf("Failed getting load balancer pool %q: %w", port.TargetPool, err)
+				if loadBalancerPools[port.TargetPool] == nil {
+					loadBalancerPools[port.TargetPool], err = n.getLoadBalancerPool(ctx, tx.Tx(), port.TargetPool)
+					if err != nil {
+						return fmt.Errorf("Failed getting load balancer pool %q: %w", port.TargetPool, err)
+					}
 				}
 
-				for _, poolInst := range pool.Instances {
+				for _, poolInst := range loadBalancerPools[port.TargetPool].Instances {
 					if poolInst.Name == deviceInstance.Name() {
 						return api.StatusErrorf(http.StatusBadRequest, "Instance %q is referenced by load balancer pool %q and listen address %q", deviceInstance.Name(), port.TargetPool, lb.ListenAddress)
 					}
