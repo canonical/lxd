@@ -358,6 +358,17 @@ parts:
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
+    override-build: |
+      set -ex
+
+      # Git cherry-picks
+      cd ../src
+      git config user.email "noreply@lists.canonical.com"
+      git config user.name "LXD snap builder"
+
+      set +ex
+      craftctl default
+      set -ex
     prime:
       - bin/sqlite3  # not used by LXD but small and useful for emergency situations
       - lib/libdqlite*so*
