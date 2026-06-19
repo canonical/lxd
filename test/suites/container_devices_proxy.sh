@@ -715,7 +715,7 @@ container_devices_proxy_with_overlapping_forward_net() {
 
   lxc network create "${netName}" \
         ipv4.address=192.0.2.1/24 \
-        ipv6.address=fd42:4242:4242:1010::1/64
+        ipv6.address=none
 
   overlappingAddr="192.0.2.2"
   proxyTesterStaticIP="192.0.2.3"
