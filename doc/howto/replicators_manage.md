@@ -51,6 +51,13 @@ To view the current state and job information for a specific replicator, send th
 See [`GET /1.0/replicators/{name}/state`](swagger:/replicators/{name}/state/replicator_state_get) for more information.
 
 ````
+````{group-tab} UI
+
+For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Replicators` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Replicators` from the expanded drop-down list.
+
+To view the configuration for a specific replicator, click on the replicator's name.
+
+````
 `````
 
 (howto-replicators-modify)=
@@ -58,28 +65,13 @@ See [`GET /1.0/replicators/{name}/state`](swagger:/replicators/{name}/state/repl
 
 See {ref}`ref-replicator-config` for all available configuration options.
 
-You can edit the entire configuration at once:
-
 ````{tabs}
 ```{group-tab} CLI
-To edit a replicator in your default text editor, run:
+To edit the entire configuration of a replicator at once in your default text editor, run:
 
     lxc replicator edit <replicator_name>
 
-```
-```{group-tab} API
-To edit a replicator, send the following request:
-
-    lxc query --request PUT /1.0/replicators/<name>?project=<project_name> --data "<replicator_configuration>"
-
-See [`PUT /1.0/replicators/{name}`](swagger:/replicators/replicator_put) for more information.
-```
-````
-
-You can update a single configuration option for a replicator:
-
-````{tabs}
-```{group-tab} CLI
+You can also update a single configuration option for a replicator:
 
     lxc replicator set <replicator_name> <key>=<value>
 
@@ -89,10 +81,24 @@ To unset a configuration key, run:
 
 ```
 ```{group-tab} API
+To edit the entire configuration of a replicator, send the following request:
+
+    lxc query --request PUT /1.0/replicators/<name>?project=<project_name> --data "<replicator_configuration>"
+
+See [`PUT /1.0/replicators/{name}`](swagger:/replicators/replicator_put) for more information.
+
+You can also update a single configuration option for a replicator:
 
     lxc query --request PATCH /1.0/replicators/<name>?project=<project_name> --data '{"config": {"<key>": "<value>"}}'
 
 See [`PATCH /1.0/replicators/{name}`](swagger:/replicators/replicator_patch) for more information.
+
+```
+```{group-tab} UI
+To edit a replicator, click on the pencil icon at the end of that replicator's row, then set configuration options in the side panel.
+
+Alternatively, click on a replicator name to view its detail page, then click on the {guilabel}`Edit` button in the header.
+
 ```
 ````
 
@@ -111,6 +117,11 @@ See [`PATCH /1.0/replicators/{name}`](swagger:/replicators/replicator_patch) for
 
 See [`POST /1.0/replicators/{name}`](swagger:/replicators/replicator_post) for more information.
 ```
+```{group-tab} UI
+
+To rename a replicator, click on a replicator name to view its detail page. Then click on the replicator name in the header, enter the new name, and click {guilabel}`Save`.
+
+```
 ````
 
 (howto-replicators-delete)=
@@ -127,6 +138,13 @@ See [`POST /1.0/replicators/{name}`](swagger:/replicators/replicator_post) for m
     lxc query --request DELETE /1.0/replicators/<name>?project=<project_name>
 
 See [`DELETE /1.0/replicators/{name}`](swagger:/replicators/replicator_delete) for more information.
+```
+```{group-tab} UI
+
+To delete a replicator, click on the trash can icon at the end of that replicator's row.
+
+Alternatively, click on a replicator name to view its detail page, then click on the {guilabel}`Delete` button in the header.
+
 ```
 ````
 

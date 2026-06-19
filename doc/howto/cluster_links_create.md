@@ -49,6 +49,8 @@ To create a bidirectional cluster link between two clusters (Cluster A and Clust
 
 1. On Cluster A, create a new cluster link to Cluster B and receive a trust token:
 
+   `````{tabs}
+   ````{group-tab} CLI
    ```bash
    lxc cluster link create <name-of-link-to-cluster-b> --auth-group <auth-group-name>
    ```
@@ -65,9 +67,24 @@ To create a bidirectional cluster link between two clusters (Cluster A and Clust
    ```bash
    lxc cluster link create cluster_b --auth-group clusters
    ```
+   ````
+   ````{group-tab} UI
+   For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Cluster links` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
 
-1. On Cluster B, create the corresponding cluster link using the trust token from Cluster A:
+   Click on the {guilabel}`+ Create cluster link` button to open the side panel.
 
+   Enter a name and optionally a description for the new cluster link.
+   Leave {guilabel}`Generate token` checked, select relevant authentication group(s), and click {guilabel}`Create link`.
+
+   In the modal, copy the trust token by clicking the {guilabel}`Copy token` button next to the token. You'll need it for the next step.
+
+   ````
+   `````
+
+2. On Cluster B, create the corresponding cluster link using the trust token from Cluster A:
+
+   `````{tabs}
+   ````{group-tab} CLI
    ```bash
    lxc cluster link create <name-of-link-to-cluster-a> --token <token-from-A> --auth-group <auth-group-name>
    ```
@@ -83,6 +100,17 @@ To create a bidirectional cluster link between two clusters (Cluster A and Clust
    ```bash
    lxc cluster link create cluster_a --token <token-from-A> --auth-group clusters
    ```
+   ````
+   ````{group-tab} UI
+   For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Cluster links` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
+
+   Click on the {guilabel}`+ Create cluster link` button to open the side panel.
+
+   Enter a name and optionally a description for the new cluster link.
+   Select {guilabel}`I have a token`, and paste the trust token you generated in the previous step.
+   Select relevant authentication group(s), then click {guilabel}`Create link`.
+   ````
+   `````
 
 (howto-cluster-links-create-unidirectional)=
 ## Create a unidirectional cluster link
