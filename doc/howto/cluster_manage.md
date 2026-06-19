@@ -145,6 +145,7 @@ To cleanly delete a member from the cluster, use the following command:
 
 You can only cleanly delete members that are online and that don't have any instances located on them.
 
+(cluster-manage-offline-members)=
 ### Deal with offline cluster members
 
 If a cluster member goes permanently offline, you can force-remove it from the cluster.
@@ -183,6 +184,7 @@ Run [`lxc cluster list`](lxc_cluster_list.md) on a cluster member that is not bl
 As you proceed updating or upgrading the rest of the cluster members, they will all transition to the "blocked" state.
 When you update or upgrade the last member, the blocked members will notice that all LXD versions now match, and the blocked members become operational again.
 
+(cluster-manage-update-certificate)=
 ## Update the cluster certificate
 
 In a LXD cluster, the API on all servers responds with the same shared certificate, which is usually a standard self-signed certificate with an expiry set to ten years.

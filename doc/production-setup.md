@@ -31,6 +31,15 @@ Recover instances </howto/disaster_recovery>
 Disaster recovery with storage replication </howto/disaster_recovery_replication>
 ```
 
+How to decommission your LXD deployment:
+
+```{toctree}
+:titlesonly:
+
+Decommission LXD </howto/decommission>
+```
+
+
 ## Related topics
 
 {{performance_exp}}
