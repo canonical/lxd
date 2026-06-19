@@ -453,7 +453,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			}
 
 			// If no RPM set and drive is rotational, set to RPM to 1
-			diskRotationalPath := filepath.Join("/sys/class/block/", entryName, "queue/rotational")
+			diskRotationalPath := filepath.Join(sysClassBlock, entryName, "queue/rotational")
 			if disk.RPM == 0 && pathExists(diskRotationalPath) {
 				diskRotational, err := readUint(diskRotationalPath)
 				if err == nil {
