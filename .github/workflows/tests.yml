@@ -29,13 +29,14 @@ on:
         type: string
         default: ''
       ubuntu-releases:
-        description: Ubuntu releases to run the tests against. In JSON format, i.e. '["22.04", "24.04"]'.
+        description: Ubuntu releases to run the tests against. In JSON format, i.e. '["24.04", "26.04"]'.
         type: choice
-        default: '["24.04"]'
+        default: '["26.04"]'
         options:
-          - '["22.04", "24.04"]'
           - '["22.04"]'
           - '["24.04"]'
+          - '["26.04"]'
+          - '["24.04", "26.04"]'
       snap-risk:
         description: Snap risk level, `edge`, `candidate` or `stable`
         type: choice
@@ -86,7 +87,7 @@ jobs:
       SUDO_PRESERVE_ENV: "CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,PKG_CONFIG_PATH,LD_LIBRARY_PATH,PATH"
     if: ${{ github.event_name != 'schedule' || github.repository_owner == 'canonical' }}
     name: Code
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -284,7 +285,7 @@ jobs:
       SUDO_PRESERVE_ENV: "PATH,GOPATH,GOCOVERDIR,GOTRACEBACK,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,IMAGE_CACHE_DIR,LXD_VERBOSE,LXD_REPEAT_TESTS,LXD_BACKENDS,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LXD_TMPFS"
     if: ${{ github.event_name != 'schedule' || github.repository_owner == 'canonical' }}
     name: System
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: code-tests
     strategy:
       fail-fast: false
@@ -533,7 +534,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(inputs.ubuntu-releases || '["24.04"]') }}
+        os: ${{ fromJSON(inputs.ubuntu-releases || '["26.04"]') }}
         test:
           - cgroup
           - cloud-init
@@ -817,7 +818,7 @@ jobs:
 
   tics:
     name: Tiobe TICS
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: [client, system-tests, snap-tests, ui-e2e-tests]
     env:
       CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
@@ -1044,7 +1045,7 @@ jobs:
       needs.client.result == 'success' &&
       (needs.ui-e2e-tests.result == 'success' || needs.ui-e2e-tests.result == 'skipped') &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'canonical/lxd')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       code-quality: write
@@ -1098,7 +1099,7 @@ jobs:
 
   ui-e2e-tests:
     name: UI e2e tests
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: [code-tests, documentation]
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' ) && github.ref_name == 'main' && github.repository_owner == 'canonical' }}
     env:
@@ -1301,7 +1302,7 @@ jobs:
 
   documentation:
     name: Documentation
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: ${{ github.event_name != 'schedule' || github.repository_owner == 'canonical' }}
     needs: code-tests
     steps:
@@ -1358,7 +1359,7 @@ jobs:
 
   documentation-linkcheck:
     name: Documentation link check
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: documentation
     # Run link checker manually anywhere or on scheduled CI runs on the main repo.
     if: ${{ github.event_name == 'workflow_dispatch' || ( github.event_name == 'schedule' && github.repository == 'canonical/lxd' ) }}
@@ -1401,7 +1402,7 @@ jobs:
 
   snap:
     name: Trigger snap build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: [code-tests, system-tests, client, documentation]
     if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
     env:
