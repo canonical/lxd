@@ -1350,7 +1350,6 @@ jobs:
     env:
       SSH_AUTH_SOCK: /tmp/ssh_agent.sock
       PACKAGE: "lxd"
-      REPO: "git+ssh://lxdbot@git.launchpad.net/~lxd-snap/lxd"
     steps:
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -1368,6 +1367,7 @@ jobs:
       #      available through the SSH_AUTH_SOCK environment variable.
       - uses: ./.github/actions/lp-snap-build
         with:
+          repo: "git+ssh://lxdbot@git.launchpad.net/~lxd-snap/lxd"
           ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}" # zizmor: ignore[secrets-outside-env]
 
       - name: Setup lxd-private SSH access
