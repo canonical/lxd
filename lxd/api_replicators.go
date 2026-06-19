@@ -1808,19 +1808,19 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 func validateReplicatorModes(sourceMode string, targetMode string, restore bool) error {
 	if restore {
 		if sourceMode != api.ReplicatorProjectModeStandby {
-			return errors.New("Source project must be in standby mode to run replicator in restore mode")
+			return errors.New("Local project must be in standby mode to run replicator in restore mode")
 		}
 
 		if targetMode != api.ReplicatorProjectModeLeader {
-			return errors.New("Target project must be in leader mode to run replicator in restore mode")
+			return errors.New("Project on the remote cluster must be in leader mode to run replicator in restore mode")
 		}
 	} else {
 		if sourceMode != api.ReplicatorProjectModeLeader {
-			return errors.New("Source project must be in leader mode to run replicator")
+			return errors.New("Local project must be in leader mode to run replicator")
 		}
 
 		if targetMode != api.ReplicatorProjectModeStandby {
-			return errors.New("Target project must be in standby mode to run replicator")
+			return errors.New("Project on the remote cluster must be in standby mode to run replicator")
 		}
 	}
 
