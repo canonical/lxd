@@ -1423,7 +1423,7 @@ jobs:
           cd "${GITHUB_WORKSPACE}/snap"
 
           # Fail unless exactly one `version: git` line exists, then replace it.
-          match_count="$(awk '/^version: git$/ {count++} END {print count+0}' snapcraft.yaml)"
+          match_count="$(grep -cxF 'version: git' snapcraft.yaml || true)"
           if [ "${match_count}" -ne 1 ]; then
             echo "ERROR: Expected exactly one 'version: git' line in snapcraft.yaml, found ${match_count}" >&2
             exit 1
