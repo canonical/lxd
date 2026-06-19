@@ -21,7 +21,7 @@ defaults:
 jobs:
   trivy-repo:
     name: Trivy - Repository
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       security-events: write # for uploading SARIF results to the security tab
@@ -68,7 +68,7 @@ jobs:
 
   trivy-snap:
     name: Trivy - Snap
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: trivy-repo
     permissions:
       contents: read
