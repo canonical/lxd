@@ -1664,6 +1664,9 @@ parts:
       - lxd
       - qemu
     source: https://github.com/canonical/gpu-snap.git
+    source-commit: 3143c9fa59a0c49c1b6671133192a67addf86f4e # main
+    source-depth: 1
+    source-type: git
     plugin: dump
     override-prime: |
       ${CRAFT_PART_SRC}/bin/gpu-2604-cleanup mesa-2604
