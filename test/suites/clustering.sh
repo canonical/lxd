@@ -6087,7 +6087,7 @@ test_clustering_replicator_dr() {
 
   grep -F 'ACTIVE' <<< "${link_info}"
 
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project 2>&1)" = 'Error: Target project must be in standby mode to run replicator' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project 2>&1)" = 'Error: Project on the remote cluster must be in standby mode to run replicator' ]
 
   sub_test "Verify --restore is rejected when local instances are running"
 
@@ -6714,7 +6714,7 @@ test_clustering_replicator_unclustered() {
 
   # LXD_ONE still has leader mode set; forward run must be rejected because LXD_TWO
   # (the target) is now also leader.
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project 2>&1)" = 'Error: Target project must be in standby mode to run replicator' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project 2>&1)" = 'Error: Project on the remote cluster must be in standby mode to run replicator' ]
 
   sub_test "Verify --restore is rejected when local instances are running"
 
