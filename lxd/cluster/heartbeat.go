@@ -270,14 +270,19 @@ func HeartbeatTask(gateway *Gateway) (task.Func, task.Schedule) {
 	return heartbeatWrapper, schedule
 }
 
-// heartbeatInterval returns heartbeat interval to use.
-func (g *Gateway) heartbeatInterval() time.Duration {
+// offlineThreshold returns the currently configured offline threshold or the default if not set.
+func (g *Gateway) offlineThreshold() time.Duration {
 	threshold := g.HeartbeatOfflineThreshold
 	if threshold <= 0 {
 		threshold = time.Duration(db.DefaultOfflineThreshold) * time.Second
 	}
 
-	return threshold / 2
+	return threshold
+}
+
+// heartbeatInterval returns heartbeat interval to use.
+func (g *Gateway) heartbeatInterval() time.Duration {
+	return g.offlineThreshold() / 2
 }
 
 // HearbeatCancelFunc returns the function that can be used to cancel an ongoing heartbeat.
