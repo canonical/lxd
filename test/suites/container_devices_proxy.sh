@@ -175,12 +175,11 @@ container_devices_proxy_tcp() {
   # Try NAT
   lxc init testimage nattest
 
-  lxc network create lxdt$$ dns.domain=test dns.mode=managed ipv6.dhcp.stateful=true
+  lxc network create lxdt$$ dns.domain=test dns.mode=managed ipv6.dhcp.stateful=true ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64
   lxc network attach lxdt$$ nattest eth0
-  v4_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)0"
-  v6_addr="$(lxc network get lxdt$$ ipv6.address | cut -d/ -f1)00"
-  lxc config device set nattest eth0 ipv4.address "${v4_addr}"
-  lxc config device set nattest eth0 ipv6.address "${v6_addr}"
+  v4_addr="192.0.2.10"
+  v6_addr="2001:db8::100"
+  lxc config device set nattest eth0 ipv4.address="${v4_addr}" ipv6.address="${v6_addr}"
 
   firewallDriver=$(lxc info | awk -F ":" '/firewall:/{gsub(/ /, "", $0); print $2}')
 
