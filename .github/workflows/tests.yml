@@ -1411,7 +1411,7 @@ jobs:
           git add snapcraft.yaml
           git commit --quiet -s -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev} (version: ${versionString})"
           git show
-          git push --quiet --force launchpad:"${BRANCH}"
+          git push --quiet --force launchpad HEAD:"${BRANCH}"
 
           # Unload the SSH key from the agent now that the push is done, to
           # prevent accidental usage in any subsequent steps within this job.
