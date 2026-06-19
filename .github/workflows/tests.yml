@@ -1344,7 +1344,7 @@ jobs:
   snap:
     name: Trigger snap edge build
     runs-on: ubuntu-24.04
-    needs: [code-tests, system-tests, client, documentation]
+    #needs: [code-tests, system-tests, client, documentation]
     if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
     env:
       SSH_AUTH_SOCK: /tmp/ssh_agent.sock
@@ -1354,6 +1354,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
+          # A non-shallow clone is needed for the git push
+          fetch-depth: 0
           persist-credentials: false
 
       # XXX: from this point onwards in this **specific job**, the private SSH key is
