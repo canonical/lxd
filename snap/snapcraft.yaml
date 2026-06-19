@@ -340,7 +340,7 @@ parts:
   dqlite:
     source: https://github.com/canonical/dqlite
     source-commit: f6058ba74838f89b3720c74b7bb4a944bfc36a09 # v1.18.6
-    source-depth: 1
+    source-depth: 0
     source-type: git
     plugin: autotools
     autotools-configure-parameters:
