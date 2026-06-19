@@ -1374,14 +1374,9 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		"duration": duration.String(),
 	}
 
-	var entityURL *api.URL
-	if req.EntityURL != "" {
-		u, err := url.Parse(req.EntityURL)
-		if err != nil {
-			return response.BadRequest(fmt.Errorf("Failed parsing operation entity URL: %w", err))
-		}
-
-		entityURL = &api.URL{URL: *u}
+	u, err := url.Parse(req.EntityURL)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Failed parsing operation entity URL: %w", err))
 	}
 
 	if req.NumberOfChildren > 10 {
@@ -1406,7 +1401,7 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 			Class:       req.OpClass,
 			RunHook:     waitHandlerOperationRunHook,
 			ConnectHook: onConnect,
-			EntityURL:   entityURL,
+			EntityURL:   &api.URL{URL: *u},
 			Inputs:      inputs,
 		}
 
@@ -1420,7 +1415,7 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		Class:             req.OpClass,
 		RunHook:           waitHandlerOperationRunHook,
 		ConnectHook:       onConnect,
-		EntityURL:         entityURL,
+		EntityURL:         &api.URL{URL: *u},
 		Inputs:            inputs,
 		ConflictReference: req.ConflictReference,
 		Children:          childrenArgs,
