@@ -1364,12 +1364,27 @@ jobs:
         with:
           ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}" # zizmor: ignore[secrets-outside-env]
 
+      - name: Setup lxd-private SSH access
+        env:
+          INPUTS_SSH_KEY: ${{ secrets.LXD_PRIVATE_DEPLOY_KEY }} # zizmor: ignore[secrets-outside-env]
+        run: |
+          set -eu # let's not use -x here to avoid leaking the SSH key in the logs
+          ssh-add - <<< "${INPUTS_SSH_KEY}"
+          unset INPUTS_SSH_KEY
+
       - name: Trigger Launchpad snap build
         run: |
           set -eux
           set -o pipefail
-          echo "${PATH}"
+
+          # Record current commit hash before rebasing lxd-private so the snap version retains the correct hash.
           localRev="$(git rev-parse HEAD)"
+
+          # Add the private LXD repository and rebase to incorporate private security fixes.
+          git remote add lxd-private git@github.com:canonical/lxd-private.git
+          git fetch lxd-private "${GITHUB_REF_NAME}"
+          git checkout --quiet -B "lxd-private-${GITHUB_REF_NAME}" "lxd-private/${GITHUB_REF_NAME}"
+          git rebase --quiet --no-stat "origin/${GITHUB_REF_NAME}"
 
           # Extract a strict major.minor[.patch] version from shared/version/flex.go.
           version="$(sed -nE 's/^var Version = "([0-9]+\.[0-9]+(\.[0-9]+)?)"$/\1/p' "${GITHUB_WORKSPACE}/shared/version/flex.go")"
