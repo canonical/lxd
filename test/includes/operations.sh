@@ -21,6 +21,13 @@ lxd_volume_operation() {
   lxc query --wait -X POST -d '{"duration": "'"${duration}"'", "op_class": 1, "op_type": 32, "entity_url": "/1.0/storage-pools/'"${pool_name}"'/volumes/custom/'"${volume_name}"'?project='"${project_name}"'"}' "/internal/testing/operation-wait?project=${project_name}"
 }
 
+lxd_durable_wait_operation() {
+  local duration="${1}"
+
+  # op_type 75 is the durable wait operation type
+  lxc query -X POST -d '{"duration": "'"${duration}"'", "op_class": 4, "op_type": 75}' "/internal/testing/operation-wait" | jq --exit-status -r '.id'
+}
+
 # check_registered_operations checks for registered operations.
 # It ensures that all the PIDs related to ongoing operations are still running.
 check_registered_operations() {
