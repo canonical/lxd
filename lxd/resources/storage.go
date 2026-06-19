@@ -3,6 +3,7 @@ package resources
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -383,8 +384,14 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				partition.Size = partitionSize * 512
 
 				// Pull device filesystem UUID information.
+				// Within LXD the block-devices interface is auto-connected, so blkid is
+				// always accessible. Permission errors can only surface when this code is
+				// reused outside LXD under tighter confinement (for example a snap that
+				// does not connect the block-devices interface). That is not an advertised
+				// use case, but we tolerate it by leaving DeviceFSUUID empty rather than
+				// failing the whole resources query.
 				partition.DeviceFSUUID, err = block.DiskFSUUID(filepath.Join("/dev", subEntryName))
-				if err != nil {
+				if err != nil && !errors.Is(err, os.ErrPermission) {
 					return nil, err
 				}
 
@@ -452,8 +459,14 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			}
 
 			// Pull device filesystem UUID information.
+			// Within LXD the block-devices interface is auto-connected, so blkid is
+			// always accessible. Permission errors can only surface when this code is
+			// reused outside LXD under tighter confinement (for example a snap that
+			// does not connect the block-devices interface). That is not an advertised
+			// use case, but we tolerate it by leaving DeviceFSUUID empty rather than
+			// failing the whole resources query.
 			disk.DeviceFSUUID, err = block.DiskFSUUID(devPath)
-			if err != nil {
+			if err != nil && !errors.Is(err, os.ErrPermission) {
 				return nil, err
 			}
 
