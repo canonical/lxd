@@ -5,9 +5,11 @@ description: |
 
   It relies on some environment variables being set:
   - `SSH_AUTH_SOCK`: The path to the SSH agent socket.
-  - `REPO`: The URL of the snap packaging repository.
 
 inputs:
+  repo:
+    description: The Git repository URL to use as the `launchpad` remote.
+    required: true
   ssh-key:
     description: The private SSH key for pulling/pushing to Launchpad and commit signing.
     required: true
@@ -50,6 +52,8 @@ runs:
 
     - name: Setup Launchpad repository remote
       shell: bash
+      env:
+        REPO: ${{ inputs.repo }}
       run: |
         set -eux
         git remote add launchpad "${REPO}"
