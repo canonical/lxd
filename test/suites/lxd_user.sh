@@ -1,5 +1,5 @@
 lxc_user() {
-  sudo -u nobody -Es -- env GOCOVERDIR="${GOCOVERDIR:-}" LXD_CONF="${USER_TEMPDIR}" "${_LXC}" "$@"
+  sudo -u nobody -- env GOCOVERDIR="${GOCOVERDIR:-}" LXD_CONF="${USER_TEMPDIR}" LXD_DIR="${LXD_DIR}" "${_LXC}" "$@"
 }
 
 test_lxd_user() {
