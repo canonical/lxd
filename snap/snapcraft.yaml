@@ -366,6 +366,8 @@ parts:
       git config user.email "noreply@lists.canonical.com"
       git config user.name "LXD snap builder"
 
+      git cherry-pick -x ef0fa37880d0112c19953f75eee45819128a4e99 # feat: use MFD_CLOEXEC flag to prevent leak across exec calls (#893)
+
       set +ex
       craftctl default
       set -ex
