@@ -361,6 +361,16 @@ Cause: This bug is tied to Secure Boot and is hypothesized to be related to memo
 
 The workaround for now is disabling Secure Boot (setting {config:option}`instance-boot:boot.mode` to `uefi-nosecureboot`).
 
+### EDK2 update: vTPM measurement shift
+
+The EDK2 rebase to `2025.11-3ubuntu7` updates the authenticated UEFI variables (`KEK` and `db`), which modifies the platform state and causes a shift in measurements within the virtual Trusted Platform Module (`vTPM`).
+
+Consequently, integrity validation will fail during the next boot for guests using TPM-bound LUKS profiles on Linux or BitLocker Device Encryption on modern Windows (11+). These systems will require manual entry of a recovery key or passphrase to proceed from recovery mode.
+
+Administrators must secure and back up all guest recovery keys (BitLocker) and passphrases (LUKS) before upgrading LXD or restarting virtual machine instances.
+
+For more details, see [{spellexception}`[FFe + SRU] edk2: Introduce FirmwareSecvarUpdater for MS 2023 CA rollout`](https://bugs.launchpad.net/ubuntu/+source/edk2/+bug/2146560) and the [Discourse post](https://discourse.ubuntu.com/t/microsoft-uefi-ca-rotation-what-it-means-for-ubuntu-users-and-vendors/82652) accompanying it.
+
 (ref-release-notes-6.8-go)=
 ## Updated minimum Go version
 
