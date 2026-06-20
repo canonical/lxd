@@ -1054,7 +1054,10 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 		// Remove any former exclusive data limit.
 		_, err = shared.RunCommand(context.TODO(), "btrfs", "qgroup", "limit", "-e", "none", qgroup, volPath)
 		if err != nil {
-			return err
+			// On modern kernels, clearing a limit on a subvolume that is already over quota
+			// will return exit status 1 (Disk quota exceeded) due to metadata transaction tree checks.
+			// We should log a warning instead of failing the entire volume adjustment.
+			d.logger.Warn("Failed clearing exclusive qgroup limit", logger.Ctx{"path": volPath, "err": err})
 		}
 	} else if qgroup != "" {
 		// Remove all limits.
@@ -1065,7 +1068,10 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 
 		_, err = shared.RunCommand(context.TODO(), "btrfs", "qgroup", "limit", "-e", "none", qgroup, volPath)
 		if err != nil {
-			return err
+			// On modern kernels, clearing a limit on a subvolume that is already over quota
+			// will return exit status 1 (Disk quota exceeded) due to metadata transaction tree checks.
+			// We should log a warning instead of failing the entire volume adjustment.
+			d.logger.Warn("Failed clearing exclusive qgroup limit", logger.Ctx{"path": volPath, "err": err})
 		}
 	}
 
