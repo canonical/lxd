@@ -13,11 +13,11 @@ test_exec() {
   [ "$(lxc list -f csv -c s x1)" = "RUNNING" ]
 
   for i in $(seq 1 25); do
-    exec_container_interactive "${i}" > "${LXD_DIR}/exec-${i}.out" 2>&1
+    exec_container_interactive "${i}"
   done
 
   for i in $(seq 1 25); do
-    exec_container_noninteractive "${i}" > "${LXD_DIR}/exec-${i}.out" 2>&1
+    exec_container_noninteractive "${i}"
   done
 
   # Check non-websocket based exec works.
@@ -47,12 +47,12 @@ test_concurrent_exec() {
 
   PIDS=""
   for i in $(seq 1 25); do
-    exec_container_interactive "${i}" > "${LXD_DIR}/exec-${i}.out" 2>&1 &
+    exec_container_interactive "${i}" &
     PIDS="${PIDS} $!"
   done
 
   for i in $(seq 1 25); do
-    exec_container_noninteractive "${i}" > "${LXD_DIR}/exec-${i}.out" 2>&1 &
+    exec_container_noninteractive "${i}" &
     PIDS="${PIDS} $!"
   done
 
