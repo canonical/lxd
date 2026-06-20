@@ -1019,7 +1019,7 @@ test_network_ovn() {
     echo "==> Spawn a web server in all instances to serve traffic on port 80."
     for i in 1 2 3; do
       # shellcheck disable=SC2016
-      lxc exec "c${i}" -- sh -c 'echo "$(hostname)" > /tmp/index.html && httpd -p 80 -h /tmp'
+      lxc exec "c${i}" -- sh -c 'hostname > /tmp/index.html && httpd -p 80 -h /tmp'
     done
 
     echo "==> Check that the load balancers accordingly distribute traffic to all instances."
