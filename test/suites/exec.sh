@@ -64,6 +64,14 @@ test_concurrent_exec() {
 }
 
 test_exec_exit_code() {
+  local initial_unprivileged_unconfined
+  initial_unprivileged_unconfined="$(sysctl -n kernel.apparmor_restrict_unprivileged_unconfined 2>/dev/null || echo 0)"
+
+  if [ "${initial_unprivileged_unconfined}" -ne 0 ]; then
+    echo "==> Enabling unprivileged unconfined support in the kernel"
+    sysctl --write kernel.apparmor_restrict_unprivileged_unconfined=0
+  fi
+
   ensure_import_testimage
   lxc launch testimage x1
 
@@ -100,4 +108,9 @@ test_exec_exit_code() {
   wait $!
 
   lxc delete --force x1
+
+  if [ "${initial_unprivileged_unconfined}" -ne 0 ]; then
+    echo "==> Restoring unprivileged unconfined support in the kernel"
+    sysctl --write kernel.apparmor_restrict_unprivileged_unconfined="${initial_unprivileged_unconfined}"
+  fi
 }
