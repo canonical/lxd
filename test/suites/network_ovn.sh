@@ -641,7 +641,7 @@ test_network_ovn() {
   # 5. Edit the load balancer by setting another listen port.
   lxc network load-balancer show "${ovn_network}" 2001:db8:1:2::1 | yq '.ports.[].listen_port = "8080"' | lxc network load-balancer edit "${ovn_network}" 2001:db8:1:2::1
   # 6. Check the load balancer's UUID is still identical.
-  [ "$(lxc network load-balancer show "${ovn_network}" 2001:db8:1:2::1 | yq -r '.ports.[].listen_port')" = "8080" ]
+  lxc network load-balancer show "${ovn_network}" 2001:db8:1:2::1 | yq --exit-status '.ports.[].listen_port == "8080"'
   [ "$(ovn-nbctl get load_balancer "${load_balancer_name}" _uuid)" = "${load_balancer_uuid}" ]
   # 7. Cleanup load balancer.
   lxc network load-balancer delete "${ovn_network}" 2001:db8:1:2::1
@@ -938,7 +938,7 @@ test_network_ovn() {
   [ "$(lxc network load-balancer pool get "${ovn_network}" http protocol)" = "tcp" ]
 
   echo "==> Check the list of load balancer pool instances is empty."
-  [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.instances | length')" = "0" ]
+  lxc network load-balancer pool show "${ovn_network}" http | yq --exit-status '.instances | length == 0'
 
   echo "==> Create a project that uses the OVN network of the default project."
   lxc project create testovn -c features.networks=false
@@ -969,7 +969,7 @@ test_network_ovn() {
   done
 
   echo "==> Check that the load balancer pool shows three backends."
-  [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.instances | length')" = "3" ]
+  lxc network load-balancer pool show "${ovn_network}" http | yq --exit-status '.instances | length == 3'
 
   echo "==> Check the load balancer pool for both IP families after assigning it to a port."
   for ip in "${load_balancer_ips[@]}"; do
@@ -1014,7 +1014,7 @@ test_network_ovn() {
     lxc profile delete foo
 
     echo "==> Check the load balancer pool shows as being used."
-    [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.used_by | length')" = "1" ]
+    lxc network load-balancer pool show "${ovn_network}" http | yq --exit-status '.used_by | length == 1'
 
     echo "==> Spawn a web server in all instances to serve traffic on port 80."
     for i in 1 2 3; do
@@ -1040,7 +1040,7 @@ test_network_ovn() {
   done
 
   echo "==> Check the list of load balancer pool instances is empty."
-  [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.instances | length')" = "0" ]
+  lxc network load-balancer pool show "${ovn_network}" http | yq --exit-status '.instances | length == 0'
 
   echo "==> Create a new instance (and target) with pre-defined address and attach it to the pool."
   lxc launch testimage c1 -n "${ovn_network}" -d "eth0,ipv4.address=10.24.140.50"
@@ -1053,8 +1053,8 @@ test_network_ovn() {
   lxc network load-balancer port add "${ovn_network}" 192.0.2.100 tcp 80 target_pool=http
   lxc network load-balancer port add "${ovn_network}" 2001:db8:1:2::100 tcp 80 target_pool=http
 
-   echo "==> Check the load balancer pool shows as being used twice."
-  [ "$(lxc network load-balancer pool show "${ovn_network}" http | yq '.used_by | length')" = "2" ]
+  echo "==> Check the load balancer pool shows as being used twice."
+  lxc network load-balancer pool show "${ovn_network}" http | yq --exit-status '.used_by | length == 2'
 
   echo "==> Check that the load balancers accordingly distribute traffic to the single instance."
   probe_pool_targets 192.0.2.100 c1
