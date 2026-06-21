@@ -86,6 +86,23 @@ func (r *ProtocolLXD) GetOperation(uuid string) (*api.Operation, string, error) 
 	return &op, etag, nil
 }
 
+// GetOperationFull returns an OperationFull entry (with children) for the provided uuid.
+func (r *ProtocolLXD) GetOperationFull(uuid string) (*api.OperationFull, string, error) {
+	err := r.CheckExtension("bulk_operations")
+	if err != nil {
+		return nil, "", err
+	}
+
+	op := api.OperationFull{}
+
+	etag, err := r.queryStruct(http.MethodGet, "/operations/"+url.PathEscape(uuid)+"?recursion=1", nil, "", &op)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &op, etag, nil
+}
+
 // GetOperationWait returns an Operation entry for the provided uuid once it's complete or hits the timeout.
 func (r *ProtocolLXD) GetOperationWait(uuid string, timeout int) (*api.Operation, string, error) {
 	op := api.Operation{}
