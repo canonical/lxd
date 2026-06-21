@@ -163,6 +163,7 @@ readonly test_group_standalone=(
     "duplicate_detection"
     "fdleak"
     "filtering"
+    "bulk_operation_children"
     "get_operations"
     "operations_conflict_reference"
     "instances_selective_recursion"

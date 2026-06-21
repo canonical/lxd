@@ -52,6 +52,39 @@ test_get_operations() {
   )
 }
 
+test_bulk_operation_children() {
+  ensure_import_testimage
+
+  (
+    set -e
+
+    # Create two containers to generate a bulk operation with child operations.
+    lxc launch testimage c1
+    lxc launch testimage c2
+
+    # Trigger a bulk state change, which creates a parent operation with one child per instance.
+    bulk_op_id=$(lxc query -X PUT /1.0/instances -d '{"state": {"action": "stop"}}' | jq -r '.id')
+
+    # Wait for the bulk operation to complete.
+    lxc query "/1.0/operations/${bulk_op_id}/wait?timeout=60" > /dev/null
+
+    # Assert the CHILDREN column in lxc operation list shows the correct child count.
+    child_count=$(lxc operation list --format json | jq --arg id "${bulk_op_id}" '.[] | select(.id == $id) | .child_count')
+    [ "${child_count}" -eq 2 ]
+
+    # Assert child_count is accurate on a non-recursive single GET (no recursion=1 required).
+    api_child_count=$(lxc query "/1.0/operations/${bulk_op_id}" | jq '.child_count')
+    [ "${api_child_count}" -eq 2 ]
+
+    # Assert lxc operation list-children shows the expected number of child operations.
+    list_children_count=$(lxc operation list-children "${bulk_op_id}" --format json | jq 'length')
+    [ "${list_children_count}" -eq 2 ]
+
+    lxc delete c1 --force
+    lxc delete c2 --force
+  )
+}
+
 test_operations_conflict_reference() {
   conflictRef="test-conflict-ref"
 
