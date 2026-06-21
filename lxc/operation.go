@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -30,6 +31,10 @@ func (c *cmdOperation) command() *cobra.Command {
 	// List
 	operationListCmd := cmdOperationList{global: c.global, operation: c}
 	cmd.AddCommand(operationListCmd.command())
+
+	// List children
+	operationListChildrenCmd := cmdOperationListChildren{global: c.global, operation: c}
+	cmd.AddCommand(operationListChildrenCmd.command())
 
 	// Show
 	operationShowCmd := cmdOperationShow{global: c.global, operation: c}
@@ -106,6 +111,7 @@ func (c *cmdOperationList) columns() []cli.ShorthandColumn[api.Operation] {
 		{Shorthand: 's', Name: "STATUS", Data: c.statusColumnData},
 		{Shorthand: 'c', Name: "CANCELABLE", Data: c.cancelableColumnData},
 		{Shorthand: 'C', Name: "CREATED", Data: c.createdColumnData},
+		{Shorthand: 'n', Name: "CHILDREN", Data: c.childrenColumnData},
 	}
 }
 
@@ -217,6 +223,78 @@ func (c *cmdOperationList) createdColumnData(op api.Operation) string {
 
 func (c *cmdOperationList) locationColumnData(op api.Operation) string {
 	return op.Location
+}
+
+func (c *cmdOperationList) childrenColumnData(op api.Operation) string {
+	return strconv.FormatInt(op.ChildCount, 10)
+}
+
+// ListChildren.
+type cmdOperationListChildren struct {
+	global    *cmdGlobal
+	operation *cmdOperation
+
+	flagFormat  string
+	flagColumns string
+}
+
+func (c *cmdOperationListChildren) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("list-children", "[<remote>:]<operation>")
+	cmd.Short = "List child operations of a background operation"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Example = cli.FormatSection("", `lxc operation list-children 019e9cad-3e66-79e0-ba80-6288755433a9
+    List child operations of the given operation UUID`)
+
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	listHelper := &cmdOperationList{}
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(listHelper.columns()), cli.FormatStringFlagLabel("Columns"))
+
+	cmd.RunE = c.run
+
+	return cmd
+}
+
+func (c *cmdOperationListChildren) run(cmd *cobra.Command, args []string) error {
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	op, _, err := resource.server.GetOperationFull(resource.name)
+	if err != nil {
+		return err
+	}
+
+	listHelper := &cmdOperationList{global: c.global}
+	cols := listHelper.columns()
+	defaultColumns := cli.DefaultColumnString(cols)
+	if resource.server.IsClustered() {
+		cols = append(cols, cli.ShorthandColumn[api.Operation]{Shorthand: 'L', Name: "LOCATION", Data: listHelper.locationColumnData})
+		if c.flagColumns == defaultColumns {
+			c.flagColumns = cli.DefaultColumnString(cols)
+		}
+	} else if strings.ContainsAny(c.flagColumns, "L") {
+		return errors.New("Cannot use column shorthand char 'L' (LOCATION) when not clustered")
+	}
+
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
+	if err != nil {
+		return err
+	}
+
+	data := cli.ColumnData(columns, op.Children)
+	sort.Sort(cli.SortColumnsNaturally(data))
+	header := cli.ColumnHeaders(columns)
+
+	return cli.RenderTable(c.flagFormat, header, data, op.Children)
 }
 
 // Show.
