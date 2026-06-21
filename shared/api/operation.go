@@ -80,6 +80,12 @@ type Operation struct {
 	// API extension: bulk_operations
 	ErrCode int64 `json:"err_code" yaml:"err_code"`
 
+	// Number of child operations.
+	// Example: 2
+	//
+	// API extension: operation_child_count
+	ChildCount int64 `json:"child_count" yaml:"child_count"`
+
 	// Which cluster member this record was found on
 	// Example: lxd01
 	//
