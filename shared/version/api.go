@@ -499,6 +499,7 @@ var APIExtensions = []string{
 	"gpu_mig_cdi",
 	"cluster_links_unidirectional",
 	"network_load_balancer_pool_health_checks",
+	"operation_child_count",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
