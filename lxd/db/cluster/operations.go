@@ -395,3 +395,47 @@ func GetOperationsWithParent(ctx context.Context, tx *sql.Tx, parentID int64) ([
 func GetOperationsByNodeID(ctx context.Context, tx *sql.Tx, nodeID int64) ([]Operation, error) {
 	return query.Select[Operation](ctx, tx, "WHERE operations.node_id = ?", nodeID)
 }
+
+// CountOperationChildrenByParent returns a map of parent operation UUID to child count.
+// This is used to populate ChildCount on list responses without loading full child operations.
+func CountOperationChildrenByParent(ctx context.Context, tx *sql.Tx) (map[string]int64, error) {
+	stmt := `
+		SELECT parent_op.uuid, COUNT(*)
+		FROM operations child_op
+		JOIN operations parent_op ON child_op.parent = parent_op.id
+		WHERE child_op.parent IS NOT NULL
+		GROUP BY parent_op.id`
+
+	counts := make(map[string]int64)
+	err := query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
+		var uuid string
+		var count int64
+		err := scan(&uuid, &count)
+		if err != nil {
+			return err
+		}
+
+		counts[uuid] = count
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed counting child operations by parent: %w", err)
+	}
+
+	return counts, nil
+}
+
+// CountOperationChildren returns the number of child operations for the given parent operation DB ID.
+func CountOperationChildren(ctx context.Context, tx *sql.Tx, parentID int64) (int64, error) {
+	stmt := `SELECT COUNT(*) FROM operations WHERE parent = ?`
+
+	var count int64
+	err := query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
+		return scan(&count)
+	}, parentID)
+	if err != nil {
+		return 0, fmt.Errorf("Failed counting child operations: %w", err)
+	}
+
+	return count, nil
+}
