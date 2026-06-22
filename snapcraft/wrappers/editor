@@ -1,0 +1,59 @@
+#!/bin/sh
+run_cmd() {
+    CMD="$1"
+    shift
+
+    unset LD_LIBRARY_PATH
+    export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    export HOME="${SNAP_REAL_HOME}"
+    export USER="${USERNAME}"
+    [ -z "${XDG_DATA_HOME:-}" ] && export XDG_DATA_HOME="${HOME}/.local/share/"
+    [ -z "${XDG_CONFIG_HOME:-}" ] && export XDG_CONFIG_HOME="${HOME}/.config/"
+    [ -z "${XDG_STATE_HOME:-}" ] && export XDG_STATE_HOME="${HOME}/.local/state/"
+
+    # shellcheck disable=SC2145
+    exec unshare --kill-child -U -m -p -r -f -R "/var/lib/snapd/hostfs/" "/bin/sh" -c "mount -t proc proc /proc 2>/dev/null || true; exec \"${CMD}\" \"$@\""
+}
+
+find_and_spawn() {
+    for path in / /usr/ /usr/local/; do
+        if [ -e "/var/lib/snapd/hostfs/${path}bin/${1}" ] || [ -L "/var/lib/snapd/hostfs/${path}bin/${1}" ]; then
+            run_cmd "$@"
+        fi
+    done
+}
+
+EDIT_CMD="${1}"
+EDIT_PATH="${2}"
+if [ -z "${EDIT_PATH}" ] || [ "$#" -ge "3" ]; then
+    EDIT_CMD=""
+    for arg in "${@}"; do
+        EDIT_PATH="${arg}"
+    done
+fi
+
+# Try running the editor through the host.
+if [ -n "${EDIT_CMD}" ]; then
+    exec 9< /tmp/
+    EDIT_PATH_HOST="$(echo "${EDIT_PATH}" | sed "s#/tmp/#/proc/self/fd/9/#g")"
+    find_and_spawn "${EDIT_CMD}" "${EDIT_PATH_HOST}"
+fi
+
+# Default to built-in nano.
+if [ -z "${EDIT_CMD}" ]; then
+    EDIT_CMD="nano"
+fi
+
+# Setup for VIM.
+if [ "$EDIT_CMD" != "nano" ]; then
+    if [ -e "${SNAP_USER_COMMON}/.vimrc" ]; then
+        export VIMINIT="source ${SNAP_USER_COMMON}/.vimrc"
+    else
+        export VIMINIT="source ${SNAP}/etc/vimrc"
+    fi
+
+    EDIT_CMD="vim.tiny"
+fi
+
+# Run the editor.
+exec "${EDIT_CMD}" "${EDIT_PATH}"

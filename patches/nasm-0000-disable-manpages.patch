@@ -1,0 +1,14 @@
+diff --git a/Makefile.in b/Makefile.in
+index baca4396..0e739217 100644
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -389,9 +389,6 @@ install: nasm$(X) ndisasm$(X)
+ 	$(MKDIR_P) $(DESTDIR)$(bindir)
+ 	$(INSTALL_PROGRAM) nasm$(X) $(DESTDIR)$(bindir)/nasm$(X)
+ 	$(INSTALL_PROGRAM) ndisasm$(X) $(DESTDIR)$(bindir)/ndisasm$(X)
+-	$(MKDIR_P) $(DESTDIR)$(mandir)/man1
+-	$(INSTALL_DATA) $(srcdir)/nasm.1 $(DESTDIR)$(mandir)/man1/nasm.1
+-	$(INSTALL_DATA) $(srcdir)/ndisasm.1 $(DESTDIR)$(mandir)/man1/ndisasm.1
+ 
+ clean:
+ 	for d in . $(SUBDIRS) $(XSUBDIRS); do \

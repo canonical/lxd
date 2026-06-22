@@ -1,0 +1,63 @@
+name: Builds
+on:
+  push:
+    branches:
+      - 4.0-edge
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lxd-migrate:
+    name: Test lxd-migrate build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6.0.3
+
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.18.x
+
+      - name: Test lxd-migrate build
+        run: |
+          set -eux
+          cd ~/work/lxd-pkg-snap/lxd-pkg-snap/lxd-migrate
+          CGO_ENABLED=0 go build -v -tags netgo
+
+  snap:
+    name: Trigger snap build
+    needs: lxd-migrate
+    runs-on: ubuntu-24.04
+    if: ${{ github.repository == 'canonical/lxd-pkg-snap' && github.actor != 'dependabot[bot]' }}
+    env:
+      SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+      PACKAGE: "lxd"
+      REPO: "git+ssh://lxdbot@git.launchpad.net/~lxd-snap/lxd"
+      BRANCH: ${{ github.ref_name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6.0.3
+
+      - uses: canonical/lxd/.github/actions/lp-snap-build@main
+        with:
+          ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}"
+
+      - name: Trigger Launchpad snap build
+        run: |
+          set -eux
+          localRev="$(git rev-parse HEAD)"
+          # XXX: `ver` contains an array with the 2 versions
+          ver=($(lxd-snapcraft -package "${PACKAGE}" -get-version -file ~/"${PACKAGE}-pkg-snap-lp/snapcraft.yaml"))
+          rsync -a --exclude .git --delete . ~/"${PACKAGE}-pkg-snap-lp"/
+          cd ~/"${PACKAGE}-pkg-snap-lp"
+          lxd-snapcraft -package lxd -set-version "${ver[0]}" -set-source-commit "${ver[1]}"
+          git add --all
+          git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
+          git show
+          git push --quiet
