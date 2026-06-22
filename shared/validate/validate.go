@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kballard/go-shellquote"
 	"github.com/robfig/cron/v3"
-	"go.yaml.in/yaml/v2"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/osarch"

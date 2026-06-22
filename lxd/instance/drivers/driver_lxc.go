@@ -30,7 +30,7 @@ import (
 	"github.com/google/uuid"
 	liblxc "github.com/lxc/go-lxc"
 	"github.com/pkg/sftp"
-	yaml "go.yaml.in/yaml/v2"
+	yaml "go.yaml.in/yaml/v3"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 

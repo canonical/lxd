@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"go.yaml.in/yaml/v2"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"

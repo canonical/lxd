@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	yaml "go.yaml.in/yaml/v2"
+	yaml "go.yaml.in/yaml/v3"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"

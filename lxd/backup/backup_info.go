@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"go.yaml.in/yaml/v2"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/state"

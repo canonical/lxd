@@ -17,7 +17,7 @@ import (
 	"unsafe"
 
 	"github.com/google/uuid"
-	"go.yaml.in/yaml/v2"
+	"go.yaml.in/yaml/v3"
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/backup"
