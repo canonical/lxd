@@ -529,7 +529,7 @@ prepare_vm_for_hard_stop() {
 # Setup instance to collect coverage data from running Go binaries from inside the instance.
 # If coverage is not enabled, this is a no-op.
 # If the instance is a VM, the lxd-agent will be instrumented too.
-# Note: incompatible with `migration.stateful=true` instances.
+# Note: incompatible with `migration.stateful=true` instances due to relying on host shared directory for coverage data.
 setup_instance_gocoverage() {
   coverage_enabled || return 0
 
