@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -666,7 +667,9 @@ func (c *cmdStorageVolumeCreate) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		err = yaml.UnmarshalStrict(contents, &volumePut)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&volumePut)
 		if err != nil {
 			return err
 		}

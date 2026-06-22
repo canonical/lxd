@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -332,7 +333,9 @@ func (c *cmdNetworkForwardCreate) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		err = yaml.UnmarshalStrict(contents, &forwardPut)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&forwardPut)
 		if err != nil {
 			return err
 		}
@@ -773,7 +776,9 @@ func (c *cmdNetworkForwardEdit) run(cmd *cobra.Command, args []string) error {
 		// Allow output of `lxc network forward show` command to be passed in here, but only take the
 		// contents of the NetworkForwardPut fields when updating. The other fields are silently discarded.
 		newData := api.NetworkForward{}
-		err = yaml.UnmarshalStrict(contents, &newData)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&newData)
 		if err != nil {
 			return err
 		}
@@ -808,7 +813,9 @@ func (c *cmdNetworkForwardEdit) run(cmd *cobra.Command, args []string) error {
 	for {
 		// Parse the text received from the editor.
 		newData := api.NetworkForward{} // We show the full info, but only send the writable fields.
-		err = yaml.UnmarshalStrict(content, &newData)
+		dec := yaml.NewDecoder(bytes.NewReader(content))
+		dec.KnownFields(true)
+		err = dec.Decode(&newData)
 		if err == nil {
 			newData.Normalise()
 			var op lxd.Operation

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -127,7 +128,9 @@ func (c *cmdStorageBucketCreate) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		err = yaml.UnmarshalStrict(contents, &bucketPut)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&bucketPut)
 		if err != nil {
 			return err
 		}
@@ -1006,7 +1009,9 @@ func (c *cmdStorageBucketKeyCreate) runAdd(cmd *cobra.Command, args []string) er
 			return err
 		}
 
-		err = yaml.UnmarshalStrict(contents, &bucketKeyPut)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&bucketKeyPut)
 		if err != nil {
 			return err
 		}

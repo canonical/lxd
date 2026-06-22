@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -306,7 +307,9 @@ func (c *cmdPlacementGroupCreate) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		err = yaml.UnmarshalStrict(contents, &stdinData)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&stdinData)
 		if err != nil {
 			return err
 		}
@@ -443,7 +446,9 @@ func (c *cmdPlacementGroupEdit) run(cmd *cobra.Command, args []string) error {
 		// Allow output of `lxc placement group show` command to be passed in here, but only take the contents
 		// of the [api.PlacementGroupPut] fields when updating the placement group. The other fields are silently discarded.
 		newdata := api.PlacementGroup{}
-		err = yaml.UnmarshalStrict(contents, &newdata)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&newdata)
 		if err != nil {
 			return err
 		}
@@ -471,7 +476,9 @@ func (c *cmdPlacementGroupEdit) run(cmd *cobra.Command, args []string) error {
 	for {
 		// Parse the text received from the editor.
 		newdata := api.PlacementGroup{} // We show the full placement group info, but only send the writable fields.
-		err = yaml.UnmarshalStrict(content, &newdata)
+		dec := yaml.NewDecoder(bytes.NewReader(content))
+		dec.KnownFields(true)
+		err = dec.Decode(&newdata)
 		if err == nil {
 			err = resource.server.UpdatePlacementGroup(resource.name, newdata.Writable(), etag)
 		}

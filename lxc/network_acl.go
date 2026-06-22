@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -449,7 +450,9 @@ func (c *cmdNetworkACLCreate) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		err = yaml.UnmarshalStrict(contents, &aclPut)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&aclPut)
 		if err != nil {
 			return err
 		}
@@ -707,7 +710,9 @@ func (c *cmdNetworkACLEdit) run(cmd *cobra.Command, args []string) error {
 		// Allow output of `lxc network acl show` command to be passed in here, but only take the contents
 		// of the NetworkACLPut fields when updating the ACL. The other fields are silently discarded.
 		newdata := api.NetworkACL{}
-		err = yaml.UnmarshalStrict(contents, &newdata)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&newdata)
 		if err != nil {
 			return err
 		}
@@ -740,7 +745,9 @@ func (c *cmdNetworkACLEdit) run(cmd *cobra.Command, args []string) error {
 	for {
 		// Parse the text received from the editor.
 		newdata := api.NetworkACL{} // We show the full ACL info, but only send the writable fields.
-		err = yaml.UnmarshalStrict(content, &newdata)
+		dec := yaml.NewDecoder(bytes.NewReader(content))
+		dec.KnownFields(true)
+		err = dec.Decode(&newdata)
 		if err == nil {
 			var op lxd.Operation
 			op, err = resource.server.UpdateNetworkACL(resource.name, newdata.Writable(), etag)

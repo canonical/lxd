@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -12,7 +13,7 @@ import (
 
 func (c *cmdInit) runPreseed() (*api.InitPreseed, error) {
 	// Read the YAML
-	bytes, err := io.ReadAll(os.Stdin)
+	data, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		return nil, fmt.Errorf("Failed reading from stdin: %w", err)
 	}
@@ -20,7 +21,9 @@ func (c *cmdInit) runPreseed() (*api.InitPreseed, error) {
 	// Parse the YAML
 	config := api.InitPreseed{}
 	// Use strict checking to notify about unknown keys.
-	err = yaml.UnmarshalStrict(bytes, &config)
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	err = dec.Decode(&config)
 	if err != nil {
 		return nil, fmt.Errorf("Failed parsing the preseed: %w", err)
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -328,7 +329,9 @@ func (c *cmdNetworkLoadBalancerCreate) run(cmd *cobra.Command, args []string) er
 			return err
 		}
 
-		err = yaml.UnmarshalStrict(contents, &loadBalancerPut)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&loadBalancerPut)
 		if err != nil {
 			return err
 		}
@@ -738,7 +741,9 @@ func (c *cmdNetworkLoadBalancerEdit) run(cmd *cobra.Command, args []string) erro
 		// contents of the NetworkLoadBalancerPut fields when updating.
 		// The other fields are silently discarded.
 		newData := api.NetworkLoadBalancer{}
-		err = yaml.UnmarshalStrict(contents, &newData)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&newData)
 		if err != nil {
 			return err
 		}
@@ -773,7 +778,9 @@ func (c *cmdNetworkLoadBalancerEdit) run(cmd *cobra.Command, args []string) erro
 	for {
 		// Parse the text received from the editor.
 		newData := api.NetworkLoadBalancer{} // We show the full info, but only send the writable fields.
-		err = yaml.UnmarshalStrict(content, &newData)
+		dec := yaml.NewDecoder(bytes.NewReader(content))
+		dec.KnownFields(true)
+		err = dec.Decode(&newData)
 		if err == nil {
 			newData.Normalise()
 			var op lxd.Operation
@@ -1508,7 +1515,9 @@ func (c *cmdNetworkLoadBalancerPool) runEdit(cmd *cobra.Command, args []string) 
 		// contents of the NetworkLoadBalancerPoolPut fields when updating.
 		// The other fields are silently discarded.
 		newData := api.NetworkLoadBalancerPool{}
-		err = yaml.UnmarshalStrict(contents, &newData)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&newData)
 		if err != nil {
 			return err
 		}
@@ -1543,7 +1552,9 @@ func (c *cmdNetworkLoadBalancerPool) runEdit(cmd *cobra.Command, args []string) 
 	for {
 		// Parse the text received from the editor.
 		newData := api.NetworkLoadBalancerPool{} // We show the full info, but only send the writable fields.
-		err = yaml.UnmarshalStrict(content, &newData)
+		dec := yaml.NewDecoder(bytes.NewReader(content))
+		dec.KnownFields(true)
+		err = dec.Decode(&newData)
 		if err == nil {
 			newData.Normalise()
 			op, err := client.UpdateNetworkLoadBalancerPool(resource.name, args[1], newData.Writable(), etag)

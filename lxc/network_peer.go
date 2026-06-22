@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -308,7 +309,9 @@ func (c *cmdNetworkPeerCreate) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		err = yaml.UnmarshalStrict(contents, &peerPut)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&peerPut)
 		if err != nil {
 			return err
 		}
@@ -682,7 +685,9 @@ func (c *cmdNetworkPeerEdit) run(cmd *cobra.Command, args []string) error {
 		// Allow output of `lxc network peer show` command to be passed in here, but only take the contents
 		// of the NetworkPeerPut fields when updating. The other fields are silently discarded.
 		newData := api.NetworkPeer{}
-		err = yaml.UnmarshalStrict(contents, &newData)
+		dec := yaml.NewDecoder(bytes.NewReader(contents))
+		dec.KnownFields(true)
+		err = dec.Decode(&newData)
 		if err != nil {
 			return err
 		}
@@ -715,7 +720,9 @@ func (c *cmdNetworkPeerEdit) run(cmd *cobra.Command, args []string) error {
 	for {
 		// Parse the text received from the editor.
 		newData := api.NetworkPeer{} // We show the full info, but only send the writable fields.
-		err = yaml.UnmarshalStrict(content, &newData)
+		dec := yaml.NewDecoder(bytes.NewReader(content))
+		dec.KnownFields(true)
+		err = dec.Decode(&newData)
 		if err == nil {
 			var op lxd.Operation
 			op, err = client.UpdateNetworkPeer(resource.name, args[1], newData.Writable(), etag)
