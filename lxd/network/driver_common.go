@@ -1090,11 +1090,11 @@ func (n *common) forwardValidate(listenAddress net.IP, forward api.NetworkForwar
 			return nil, fmt.Errorf("Target address is not within the network subnet in port specification %d", portSpecID)
 		}
 
-		if targetIsIP4 && IPIsBroadcast(netSubnet, targetAddress) {
+		if targetIsIP4 && netSubnet != nil && IPIsBroadcast(netSubnet, targetAddress) {
 			return nil, errors.New("Target address cannot be a broadcast address")
 		}
 
-		if targetAddress.Equal(netSubnet.IP) {
+		if netSubnet != nil && targetAddress.Equal(netSubnet.IP) {
 			return nil, errors.New("Target address cannot be a network address")
 		}
 

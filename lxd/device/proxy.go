@@ -597,7 +597,7 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 	containerPidFd := -1
 	lxdPidFd := -1
 	var inheritFd []*os.File
-	if d.state.OS.PidFds {
+	if d.state.OS.PidFds.Load() {
 		cPidFd, err := cc.InitPidFd()
 		if err == nil {
 			dPidFd, err := linux.PidFdOpen(os.Getpid(), 0)

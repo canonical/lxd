@@ -142,7 +142,19 @@ func (c *migrationConn) WebSocket(ctx context.Context) (*websocket.Conn, error) 
 
 	select {
 	case <-c.connected:
-		return c.conn, nil
+		c.mu.Lock()
+		conn := c.conn
+		disconnected := c.disconnected
+		c.mu.Unlock()
+		if disconnected {
+			return nil, errors.New("Connection already disconnected")
+		}
+
+		if conn == nil {
+			return nil, errors.New("Connection is no longer available")
+		}
+
+		return conn, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}

@@ -768,7 +768,7 @@ func InstanceNeedsIntercept(s *state.State, c Instance) (bool, error) {
 
 // MakePidFd prepares a pidfd to inherit for the init process of the container.
 func MakePidFd(pid int, s *state.State) (int, *os.File) {
-	if s.OS.PidFds {
+	if s.OS.PidFds.Load() {
 		pidFdFile, err := linux.PidFdOpen(pid, 0)
 		if err != nil {
 			return -1, nil

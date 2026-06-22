@@ -89,12 +89,16 @@ func (g *Group) Start(ctx context.Context) {
 // In case the given timeout expires before all tasks complete, this method
 // exits immediately and returns an error, otherwise it returns nil.
 func (g *Group) Stop(timeout time.Duration) error {
-	if g.cancel == nil {
+	g.mu.Lock()
+	groupCancel := g.cancel
+	g.mu.Unlock()
+
+	if groupCancel == nil {
 		// We were not even started
 		return nil
 	}
 
-	g.cancel()
+	groupCancel()
 
 	graceful := make(chan struct{}, 1)
 	go func() {

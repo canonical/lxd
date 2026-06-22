@@ -1075,15 +1075,14 @@ func (d *nicOVN) postStop() error {
 	networkVethFillFromVolatile(d.config, v)
 
 	if d.config["acceleration"] == "sriov" {
-		// Restoring host-side interface.
 		network.SRIOVVirtualFunctionMutex.Lock()
+		defer network.SRIOVVirtualFunctionMutex.Unlock()
+
+		// Restoring host-side interface.
 		err := networkSRIOVRestoreVF(d.deviceCommon, false, v)
 		if err != nil {
-			network.SRIOVVirtualFunctionMutex.Unlock()
 			return err
 		}
-
-		network.SRIOVVirtualFunctionMutex.Unlock()
 
 		link := &ip.Link{Name: d.config["host_name"]}
 		err = link.SetDown()
@@ -1091,30 +1090,26 @@ func (d *nicOVN) postStop() error {
 			return fmt.Errorf("Failed bringing down the host interface %s: %w", d.config["host_name"], err)
 		}
 	} else if d.config["acceleration"] == "vdpa" {
-		// Retrieve the last state vDPA device name.
 		network.SRIOVVirtualFunctionMutex.Lock()
+		defer network.SRIOVVirtualFunctionMutex.Unlock()
+
+		// Retrieve the last state vDPA device name.
 		vDPADevName, ok := v["last_state.vdpa.name"]
 		if !ok {
-			network.SRIOVVirtualFunctionMutex.Unlock()
 			return errors.New("Failed finding PCI slot name for vDPA device")
 		}
 
 		// Delete the vDPA management device.
 		err := ip.DeleteVDPADevice(vDPADevName)
 		if err != nil {
-			network.SRIOVVirtualFunctionMutex.Unlock()
 			return err
 		}
 
 		// Restoring host-side interface.
-		network.SRIOVVirtualFunctionMutex.Lock()
 		err = networkSRIOVRestoreVF(d.deviceCommon, false, v)
 		if err != nil {
-			network.SRIOVVirtualFunctionMutex.Unlock()
 			return err
 		}
-
-		network.SRIOVVirtualFunctionMutex.Unlock()
 
 		link := &ip.Link{Name: d.config["host_name"]}
 		err = link.SetDown()

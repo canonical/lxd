@@ -713,28 +713,24 @@ func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(errors.New("Invalid instance type"))
 	}
 
-	truncateConsoleLogFile := func(path string) error {
+	if !inst.IsRunning() {
+		consoleLogpath := c.ConsoleBufferLogPath()
+		if consoleLogpath == "" {
+			return response.SmartError(errors.New("Container does not keep a console logfile"))
+		}
+
 		// Check that this is a regular file. We don't want to try and unlink
 		// /dev/stderr or /dev/null or something.
-		st, err := os.Stat(path)
+		st, err := os.Stat(consoleLogpath)
 		if err != nil {
-			return err
+			return response.SmartError(err)
 		}
 
 		if !st.Mode().IsRegular() {
-			return errors.New("The console log is not a regular file")
+			return response.SmartError(errors.New("The console log is not a regular file"))
 		}
 
-		if path == "" {
-			return errors.New("Container does not keep a console logfile")
-		}
-
-		return os.Truncate(path, 0)
-	}
-
-	if !inst.IsRunning() {
-		consoleLogpath := c.ConsoleBufferLogPath()
-		return response.SmartError(truncateConsoleLogFile(consoleLogpath))
+		return response.SmartError(os.Truncate(consoleLogpath, 0))
 	}
 
 	// Send a ringbuffer request to the container.

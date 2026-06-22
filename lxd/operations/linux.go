@@ -205,9 +205,7 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
-	if s != nil {
-		op.SetEventServer(s.Events)
-	}
+	op.SetEventServer(s.Events)
 
 	// Load operation inputs.
 	var inputs map[string]any

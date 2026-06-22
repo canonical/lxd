@@ -47,6 +47,9 @@ type RequestCache struct {
 	// This is because the OpenFGA server will call methods on a datastore implementation concurrently.
 	initialised atomic.Bool
 
+	// initMu serialises cache initialisation so that only one goroutine populates the fields below.
+	initMu sync.Mutex
+
 	// permissionsByEntityType is a cache that allows us to know which groups have a given permission on a given entity.
 	// This is used by the ReadUsersetTuples method.
 	// The integer key is the entity ID.
@@ -237,13 +240,15 @@ func (o *openfgaStore) ensureCacheLoaded(ctx context.Context, cache *RequestCach
 		return nil
 	}
 
-	// If not loaded, lock the cache and set loaded to true. This should mean that concurrent callers may think the cache
-	// is loaded when it isn't yet - but it will be loaded when they are able to acquire a lock.
-	cache.permissionsByEntityTypeMu.Lock()
-	cache.permissionsByGroupMu.Lock()
-	defer cache.permissionsByEntityTypeMu.Unlock()
-	defer cache.permissionsByGroupMu.Unlock()
-	cache.initialised.Store(true)
+	// Serialise initialisation. A second goroutine that races past the fast-path check above
+	// will block here and then see initialised=true once the first goroutine is done.
+	cache.initMu.Lock()
+	defer cache.initMu.Unlock()
+
+	// Re-check after acquiring the lock in case another goroutine already populated the cache.
+	if cache.initialised.Load() {
+		return nil
+	}
 
 	// Get a map of group to slice of permissions.
 	var groupPermissions map[string][]cluster.Permission
@@ -298,8 +303,18 @@ func (o *openfgaStore) ensureCacheLoaded(ctx context.Context, cache *RequestCach
 		}
 	}
 
+	// Write each field under only its own mutex so that the locking pattern is
+	// consistent between writes and reads and does not confuse lockset analysis.
+	cache.permissionsByEntityTypeMu.Lock()
 	cache.permissionsByEntityType = permissionCacheByEntityType
+	cache.permissionsByEntityTypeMu.Unlock()
+
+	cache.permissionsByGroupMu.Lock()
 	cache.permissionsByGroup = permissionCacheByGroup
+	cache.permissionsByGroupMu.Unlock()
+
+	// Mark the cache as fully populated only after both fields have been written.
+	cache.initialised.Store(true)
 	return nil
 }
 

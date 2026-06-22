@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -301,8 +302,20 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		Name: name,
 	}
 
-	maxVoters := state.GlobalConfig.MaxVoters()
-	maxStandBy := state.GlobalConfig.MaxStandBy()
+	// Bound check the values before converting to int. The conversion is safe
+	// because math.MaxInt32 always fits in an int, and the config validators
+	// keep the values far below this bound in practice.
+	maxVotersInt64 := state.GlobalConfig.MaxVoters()
+	maxVoters := math.MaxInt32
+	if maxVotersInt64 < math.MaxInt32 {
+		maxVoters = int(maxVotersInt64)
+	}
+
+	maxStandByInt64 := state.GlobalConfig.MaxStandBy()
+	maxStandBy := math.MaxInt32
+	if maxStandByInt64 < math.MaxInt32 {
+		maxStandBy = int(maxStandByInt64)
+	}
 
 	var canPromote bool
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -314,9 +327,9 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	}
 
 	if canPromote {
-		if count > 1 && voters < int(maxVoters) {
+		if count > 1 && voters < maxVoters {
 			node.Role = db.RaftVoter
-		} else if standbys < int(maxStandBy) {
+		} else if standbys < maxStandBy {
 			node.Role = db.RaftStandBy
 		}
 	}
@@ -1623,13 +1636,25 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 		}
 	}
 
-	maxVoters := state.GlobalConfig.MaxVoters()
-	maxStandBy := state.GlobalConfig.MaxStandBy()
+	// Bound check the values before converting to int. The conversion is safe
+	// because math.MaxInt32 always fits in an int, and the config validators
+	// keep the values far below this bound in practice.
+	maxVotersInt64 := state.GlobalConfig.MaxVoters()
+	maxVoters := math.MaxInt32
+	if maxVotersInt64 < math.MaxInt32 {
+		maxVoters = int(maxVotersInt64)
+	}
+
+	maxStandByInt64 := state.GlobalConfig.MaxStandBy()
+	maxStandBy := math.MaxInt32
+	if maxStandByInt64 < math.MaxInt32 {
+		maxStandBy = int(maxStandByInt64)
+	}
 
 	roles := &app.RolesChanges{
 		Config: app.RolesConfig{
-			Voters:   int(maxVoters),
-			StandBys: int(maxStandBy),
+			Voters:   maxVoters,
+			StandBys: maxStandBy,
 		},
 		State: cluster,
 	}
