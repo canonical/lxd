@@ -257,12 +257,20 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 	return &op, nil
 }
 
-// PruneExpiredOperations deletes database entries of all operations which finished more than 24 hours ago.
-// Normally, operations are cleared 5 seconds after they finish. However, more complex operations, such as bulk operations,
-// are only cleared by this task, to allow more time to inspect their results.
+// PruneExpiredOperations deletes database entries of all bulk operations which finished more than 24 hours ago and all
+// other operations that finished more than 5 seconds ago.
 func PruneExpiredOperations(ctx context.Context, s *state.State) error {
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		dbOps, err := query.Select[cluster.OperationsRow](ctx, tx.Tx(), "")
+		var dbOps []cluster.OperationsRow
+		isParent := make(map[int64]bool)
+		err := query.SelectFunc[cluster.OperationsRow](ctx, tx.Tx(), "", func(row cluster.OperationsRow) error {
+			dbOps = append(dbOps, row)
+			if row.Parent != nil {
+				isParent[*row.Parent] = true
+			}
+
+			return nil
+		})
 		if err != nil {
 			return fmt.Errorf("Failed loading operations: %w", err)
 		}
@@ -278,8 +286,15 @@ func PruneExpiredOperations(ctx context.Context, s *state.State) error {
 				continue
 			}
 
-			// Prune operations which were last updated more than 24 hours ago.
-			if dbOp.UpdatedAt.Add(24 * time.Hour).After(time.Now()) {
+			elapsedSinceLastUpdate := time.Since(dbOp.UpdatedAt)
+
+			// Skip bulk operations if they were updated less than 24 hours ago.
+			if isParent[dbOp.ID] && elapsedSinceLastUpdate < 24*time.Hour {
+				continue
+			}
+
+			// Skip all operations if they were updated less than 5 seconds ago
+			if elapsedSinceLastUpdate < 5*time.Second {
 				continue
 			}
 
