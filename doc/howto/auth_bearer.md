@@ -31,6 +31,9 @@ Next, issue a token for the identity:
 ```
 `````
 
+The `expiry` field accepts multiple space-separated values of the form `<number><unit>`, such as `1d 3H 5M` (1 day, 3 hours, and 5 minutes).
+Case-sensitive units: years (`y`), months (`m`), weeks (`w`), days (`d`), hours (`H`), minutes (`M`), and seconds (`S`).
+
 The returned token can be used to authenticate with LXD.
 It must be set as a bearer token in the `Authorization` header.
 
