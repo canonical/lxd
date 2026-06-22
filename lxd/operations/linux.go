@@ -147,18 +147,6 @@ func updateDBOperation(ctx context.Context, op *Operation) error {
 	return nil
 }
 
-func removeDBOperation(op *Operation) error {
-	if op.state == nil {
-		return nil
-	}
-
-	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return cluster.DeleteOperation(ctx, tx.Tx(), op.id)
-	})
-
-	return err
-}
-
 func (op *Operation) sendEvent(eventMessage any) {
 	if op.events == nil {
 		return
