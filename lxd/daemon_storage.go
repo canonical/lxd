@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -244,6 +245,14 @@ func daemonStorageValidate(s *state.State, target string) (validatedTarget strin
 		// Don't fail on systems with snapdir=visible.
 		if entryName == ".zfs" {
 			continue
+		}
+
+		if slices.Contains([]string{"instances", "custom"}, entryName) {
+			// Don't fail on multi-node volumes (e.g. CephFS) which might already contain the
+			// directory skeleton for storing instance and custom volume backups.
+			if pool.Driver().Info().VolumeMultiNode {
+				continue
+			}
 		}
 
 		return "", fmt.Errorf("Storage volume %q isn't empty", target)
