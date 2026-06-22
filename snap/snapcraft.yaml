@@ -3,7 +3,7 @@ base: core26
 assumes:
   - snapd2.75
 version: git
-grade: devel
+grade: stable
 summary: LXD - container and VM manager
 license: AGPL-3.0-only
 title: LXD
