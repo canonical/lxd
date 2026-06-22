@@ -107,7 +107,7 @@ test_exec_exit_code() {
   [ "${exitCode:-0}" -eq 137 ]
   wait $!
 
-  lxc delete --force x1
+  lxc delete x1
 
   if [ "${initial_unprivileged_unconfined}" -ne 0 ]; then
     echo "==> Restoring unprivileged unconfined support in the kernel"
