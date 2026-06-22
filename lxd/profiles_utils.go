@@ -120,7 +120,7 @@ func doProfileUpdate(ctx context.Context, s *state.State, p api.Project, profile
 	// using that root disk device.
 	oldProfileRootDiskDeviceKey, oldProfileRootDiskDevice, _ := api.GetRootDiskDevice(profile.Devices)
 	_, newProfileRootDiskDevice, _ := api.GetRootDiskDevice(req.Devices)
-	if len(insts) > 0 && oldProfileRootDiskDevice["pool"] != "" && newProfileRootDiskDevice["pool"] == "" || (oldProfileRootDiskDevice["pool"] != newProfileRootDiskDevice["pool"]) {
+	if oldProfileRootDiskDevice["pool"] != newProfileRootDiskDevice["pool"] {
 		// Check for instances using the device.
 		for _, inst := range insts {
 			// Check if the device is locally overridden.
