@@ -58,13 +58,6 @@ runs:
           exit 0
         fi
 
-        # XXX: Only needed here because other jobs interact with snapd much later (in terms of uptime)
-        # workaround for https://bugs.launchpad.net/snapd/+bug/2104066
-        sudo mkdir -p /etc/systemd/system/snapd.service.d
-        printf "%s\n%s\n%s\n" "# Workaround for https://bugs.launchpad.net/snapd/+bug/2104066" "[Service]" "Environment=SNAPD_STANDBY_WAIT=1m" | sudo tee  /etc/systemd/system/snapd.service.d/override.conf
-        sudo systemctl daemon-reload
-        sudo systemctl try-restart snapd.service || true
-
         # XXX: it doesn't matter that `xdelta3` is not installed as no delta
         # can be used as we start without any snaps
 
