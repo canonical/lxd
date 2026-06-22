@@ -201,7 +201,7 @@ func extractAdditionalSSHKeys(instanceConfig map[string]string) map[string]*user
 // cloudConfig represents a cloud-config parsed into a map.
 type cloudConfig struct {
 	comments string
-	keys     map[any]any
+	keys     map[string]any
 }
 
 // string marshals a cloud-config map into a YAML string.
@@ -248,10 +248,10 @@ func (config *cloudConfig) mergeSSHKeyCloudConfig(userKeys map[string]*userSSHKe
 
 	// Merge the specified additional keys into the provided cloud config.
 	for user, keys := range userKeys {
-		var targetUser map[any]any
+		var targetUser map[string]any
 
 		for index, field := range userList {
-			mapField, ok := field.(map[any]any)
+			mapField, ok := field.(map[string]any)
 
 			// The user has to be either a mapping yaml node or a simple string indicating the name of a user to be created.
 			if !ok {
@@ -259,7 +259,7 @@ func (config *cloudConfig) mergeSSHKeyCloudConfig(userKeys map[string]*userSSHKe
 				userName, isString := field.(string)
 				if isString && userName == user {
 					// Else, create a user map for us to add the keys into. Use the previously defined name as the name in the user map.
-					targetUser = make(map[any]any)
+					targetUser = make(map[string]any)
 					targetUser["name"] = userName
 					userList[index] = targetUser
 					break
@@ -275,7 +275,7 @@ func (config *cloudConfig) mergeSSHKeyCloudConfig(userKeys map[string]*userSSHKe
 
 		// If the target user was not present in the cloud config, create an entry for it.
 		if targetUser == nil {
-			targetUser = make(map[any]any)
+			targetUser = make(map[string]any)
 			targetUser["name"] = user
 			userList = append(userList, targetUser)
 		}
@@ -306,7 +306,7 @@ func (config *cloudConfig) mergeSSHKeyCloudConfig(userKeys map[string]*userSSHKe
 // and adds all provided values along with addedValueTag on the side to mark added values.
 // addedKeyTag is simply appended to the values added, any parsing to separate the tag from the
 // value should be done outside this function.
-func addValueToListsInMap(user map[any]any, addedValues []string, fieldKeys []string, addedValueTag string) error {
+func addValueToListsInMap(user map[string]any, addedValues []string, fieldKeys []string, addedValueTag string) error {
 	// If there are no keys to add, this function should be a no-op.
 	if len(addedValues) == 0 {
 		return nil
@@ -341,7 +341,7 @@ func addValueToListsInMap(user map[any]any, addedValues []string, fieldKeys []st
 // this function does not change the provided map.
 // If the value under the key is a string, the returned slice will contain it.
 // If the value for the key is of any other type, return an error.
-func findOrCreateListInMap(yamlMap map[any]any, key string) ([]any, error) {
+func findOrCreateListInMap(yamlMap map[string]any, key string) ([]any, error) {
 	// Get previously defined list in provided map, if present.
 	field, hasField := yamlMap[key]
 	listField, isSlice := field.([]any)
