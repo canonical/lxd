@@ -134,7 +134,7 @@ func parseCloudConfig(rawCloudConfig string) (*cloudConfig, error) {
 	// Parse YAML cloud-config into map.
 	cloudConfigMap := cloudConfig{
 		comments: "",
-		keys:     make(map[any]any),
+		keys:     make(map[string]any),
 	}
 
 	// Parse the initial comments in the cloud config file.
