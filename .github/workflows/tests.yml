@@ -1349,25 +1349,19 @@ jobs:
     if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
     env:
       SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-      PACKAGE: "lxd"
-      REPO: "git+ssh://lxdbot@git.launchpad.net/~lxd-snap/lxd"
     steps:
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          # A non-shallow clone is needed for the git push
+          # A non-shallow clone is needed for the rebase with the lxd-private branch
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Enable git bitmaps and run garbage collection
-        run: |
-          git config --local pack.useBitmaps true
-          git gc --prune=now
 
       # XXX: from this point onwards in this **specific job**, the private SSH key is
       #      available through the SSH_AUTH_SOCK environment variable.
       - uses: ./.github/actions/lp-snap-build
         with:
+          repo: "git+ssh://lxdbot@git.launchpad.net/~lxd-snap/lxd"
           ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}" # zizmor: ignore[secrets-outside-env]
 
       - name: Setup lxd-private SSH access
@@ -1423,7 +1417,7 @@ jobs:
           cd "${GITHUB_WORKSPACE}/snap"
 
           # Fail unless exactly one `version: git` line exists, then replace it.
-          match_count="$(awk '/^version: git$/ {count++} END {print count+0}' snapcraft.yaml)"
+          match_count="$(grep -cxF 'version: git' snapcraft.yaml || true)"
           if [ "${match_count}" -ne 1 ]; then
             echo "ERROR: Expected exactly one 'version: git' line in snapcraft.yaml, found ${match_count}" >&2
             exit 1
@@ -1434,6 +1428,12 @@ jobs:
           git add snapcraft.yaml
           git commit --quiet -s -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev} (version: ${versionString})"
           git show
+
+          # Pack all objects (including lxd-private ones) and generate a bitmap index
+          # right before the push so that pack generation benefits from full bitmap coverage.
+          git config --local pack.useBitmaps true
+          git gc --prune=now
+
           git push --quiet --force launchpad HEAD:"${BRANCH}"
 
           # Unload the SSH key from the agent now that the push is done, to

@@ -1,17 +1,15 @@
 name: Setup SSH for integration with snap build on Launchpad
 description: |
-  This action sets up SSH access to Launchpad for pushing and pulling code and signing commits.
+  This action adds a `launchpad` Git remote using SSH transport.
   It also configures Git with the necessary settings for signing commits.
-  It clones the snap packaging repository into ~/${PACKAGE}-pkg-snap-lp
-  Lastly it installs the `lxd-snapcraft` tool to allow modifying the snapcraft.yaml file.
 
   It relies on some environment variables being set:
   - `SSH_AUTH_SOCK`: The path to the SSH agent socket.
-  - `REPO`: The URL of the snap packaging repository.
-  - `BRANCH`: The branch to clone from the snap packaging repository.
-  - `PACKAGE`: The name of the snap package.
 
 inputs:
+  repo:
+    description: The Git repository URL to use as the `launchpad` remote.
+    required: true
   ssh-key:
     description: The private SSH key for pulling/pushing to Launchpad and commit signing.
     required: true
@@ -54,6 +52,8 @@ runs:
 
     - name: Setup Launchpad repository remote
       shell: bash
+      env:
+        REPO: ${{ inputs.repo }}
       run: |
         set -eux
         git remote add launchpad "${REPO}"
