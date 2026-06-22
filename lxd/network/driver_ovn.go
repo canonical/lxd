@@ -6638,6 +6638,46 @@ func (n *ovn) loadBalancerPoolValidate(ctx context.Context, tx *db.ClusterTx, po
 		//  required: yes
 		//  shortdesc: Port used on instances for ingress pool traffic
 		"target_port": validate.Required(validate.IsNetworkPort),
+		// lxdmeta:generate(entities=network-load-balancer-pool; group=properties; key=healthcheck)
+		//
+		// ---
+		//  type: bool
+		//  defaultdesc: `true`
+		//  required: no
+		//  shortdesc: Whether to enable or disable health checks
+		"healthcheck": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=network-load-balancer-pool; group=properties; key=healthcheck.interval)
+		//
+		// ---
+		//  type: integer
+		//  defaultdesc: `5`
+		//  required: no
+		//  shortdesc: Interval in seconds between probes of the pool's instances.
+		"healthcheck.interval": validate.Optional(validate.IsUint64),
+		// lxdmeta:generate(entities=network-load-balancer-pool; group=properties; key=healthcheck.timeout)
+		//
+		// ---
+		//  type: integer
+		//  defaultdesc: `3`
+		//  required: no
+		//  shortdesc: Timeout in seconds after a probe appears to be faulty.
+		"healthcheck.timeout": validate.Optional(validate.IsUint64),
+		// lxdmeta:generate(entities=network-load-balancer-pool; group=properties; key=healthcheck.success_count)
+		//
+		// ---
+		//  type: integer
+		//  defaultdesc: `1`
+		//  required: no
+		//  shortdesc: Number of successful probe attempts after which an instance is considered healthy.
+		"healthcheck.success_count": validate.Optional(validate.IsUint64),
+		// lxdmeta:generate(entities=network-load-balancer-pool; group=properties; key=healthcheck.failure_count)
+		//
+		// ---
+		//  type: integer
+		//  defaultdesc: `1`
+		//  required: no
+		//  shortdesc: Number of failed probe attempts after which an instance is considered unhealthy.
+		"healthcheck.failure_count": validate.Optional(validate.IsUint64),
 	}
 
 	// Run the validator against each field.
