@@ -270,6 +270,7 @@ If you are building LXD from source instead of using a package manager, the mini
 (ref-release-notes-6.9-snap)=
 ## Snap packaging changes
 
+- Transitioned the snap base from `core24` to `core26`.
 - LXCFS: Reverted partial backport of PSI functionality that prevented host machine suspend ([#17983](https://github.com/canonical/lxd/issues/17983)).
 - libnvidia-container bumped to v1.19.1.
 - AMD ROCm container toolkit bumped to v1.3.0.
