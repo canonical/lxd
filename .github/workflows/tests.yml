@@ -1343,7 +1343,7 @@ jobs:
           make doc-linkcheck
 
   snap:
-    name: Trigger snap edge build
+    name: Trigger snap build
     runs-on: ubuntu-24.04
     needs: [code-tests, system-tests, client, documentation]
     if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
