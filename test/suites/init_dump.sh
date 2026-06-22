@@ -48,59 +48,59 @@ cluster_uuid="$(lxc config get volatile.uuid)"
 
 cat <<EOF > expected.yaml
 config:
-  core.https_address: 127.0.0.1:9999
-  images.auto_update_interval: "15"
-  volatile.uuid: ${cluster_uuid}
+    core.https_address: 127.0.0.1:9999
+    images.auto_update_interval: "15"
+    volatile.uuid: ${cluster_uuid}
 networks:
-- config:
-    ipv4.address: none
-    ipv6.address: none
-  description: ""
-  name: lxdt$$
-  type: bridge
-  project: default
+    - config:
+        ipv4.address: none
+        ipv6.address: none
+      description: ""
+      name: lxdt$$
+      type: bridge
+      project: default
 storage_pools:
-- config:
-    source: ${LXD_DIR}/storage-pools/${storage_pool}
-  description: ""
-  name: ${storage_pool}
-  driver: ${driver}
+    - config:
+        source: ${LXD_DIR}/storage-pools/${storage_pool}
+      description: ""
+      name: ${storage_pool}
+      driver: ${driver}
 storage_volumes: []
 profiles:
-- config: {}
-  description: Default LXD profile
-  devices:
-    eth0:
-      name: eth0
-      nictype: p2p
-      type: nic
-    root:
-      path: /
-      pool: ${storage_pool}
-      type: disk
-  name: default
-- config:
-    limits.memory: 2GiB
-  description: Test profile
-  devices:
-    test0:
-      name: test0
-      nictype: bridged
-      parent: lxdt$$
-      type: nic
-  name: test-profile
+    - config: {}
+      description: Default LXD profile
+      devices:
+        eth0:
+            name: eth0
+            nictype: p2p
+            type: nic
+        root:
+            path: /
+            pool: ${storage_pool}
+            type: disk
+      name: default
+    - config:
+        limits.memory: 2GiB
+      description: Test profile
+      devices:
+        test0:
+            name: test0
+            nictype: bridged
+            parent: lxdt$$
+            type: nic
+      name: test-profile
 projects:
-- config:
-    features.images: "true"
-    features.networks: "true"
-    features.networks.zones: "true"
-    features.profiles: "true"
-    features.storage.buckets: "true"
-    features.storage.volumes: "true"
-  description: Default LXD project
-  name: default
-  storage: ""
-  network: ""
+    - config:
+        features.images: "true"
+        features.networks: "true"
+        features.networks.zones: "true"
+        features.profiles: "true"
+        features.storage.buckets: "true"
+        features.storage.volumes: "true"
+      description: Default LXD project
+      name: default
+      storage: ""
+      network: ""
 
 EOF
 
