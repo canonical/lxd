@@ -112,6 +112,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && runner.debug == '1' && !cancelled() }}
 
       - name: Install Go
+        # zizmor: ignore[cache-poisoning]
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: 'go.mod'
@@ -120,6 +121,7 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         if: github.event_name != 'pull_request'
         with:
+          # zizmor: ignore[cache-poisoning]
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
             doc/requirements.txt
@@ -720,6 +722,7 @@ jobs:
         uses: $/.github/actions/disable-docker
 
       - name: Install Go
+        # zizmor: ignore[cache-poisoning]
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: 'go.mod'
@@ -812,6 +815,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Go
+        # zizmor: ignore[cache-poisoning]
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: 'go.mod'
@@ -951,6 +955,7 @@ jobs:
           dotrun install
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        # zizmor: ignore[cache-poisoning]
         with:
           node-version: 22
 
@@ -1120,6 +1125,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Go
+        # zizmor: ignore[cache-poisoning]
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: 'go.mod'
@@ -1127,6 +1133,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
+          # zizmor: ignore[cache-poisoning]
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
             doc/requirements.txt
@@ -1175,6 +1182,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Go
+        # zizmor: ignore[cache-poisoning]
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: 'go.mod'
@@ -1182,6 +1190,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
+          # zizmor: ignore[cache-poisoning]
           cache: 'pip' # caching pip dependencies
           cache-dependency-path: |
             doc/requirements.txt
