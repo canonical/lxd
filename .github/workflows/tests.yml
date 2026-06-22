@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - stable-*
+      - release-*
   pull_request:
   workflow_dispatch:
     inputs:
