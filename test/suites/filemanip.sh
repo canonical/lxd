@@ -172,21 +172,34 @@ test_filemanip() {
   [ "$(lxc exec filemanip --project=test -- readlink /tmp/create-symlink)" = "foo" ]
 
   # Test SFTP functionality.
-  "${_LXC}" file mount filemanip --listen=127.0.0.1:2022 --no-auth &
+  CURL_OPTIONS="--silent --show-error"
+  if grep -qxF 'VERSION_ID="24.04"' /etc/os-release; then
+    # On 24.04, curl insists on checking ~/.ssh/known_hosts even if --hostpubsha256 is used.
+    # --insecure disables that check while still allowing the fingerprint check to work.
+    CURL_OPTIONS="${CURL_OPTIONS} --insecure"
+  fi
+
+  NOAUTH_FILE="$(mktemp)"
+  "${_LXC}" file mount filemanip --listen=127.0.0.1:2022 --no-auth > "${NOAUTH_FILE}" &
   mountPID=$!
   sleep 0.1
+  fingerprint=$(sed -nE 's/^SSH host key fingerprint: SHA256:(.+)$/\1/p' "${NOAUTH_FILE}")
+  rm "${NOAUTH_FILE}"
 
-  [ "$(curl -s -S --insecure sftp://127.0.0.1:2022/foo)" = "foo" ]
+  # shellcheck disable=SC2086
+  [ "$(curl ${CURL_OPTIONS} --hostpubsha256 "${fingerprint}" sftp://127.0.0.1:2022/foo)" = "foo" ]
   kill_go_proc "${mountPID}"
 
   CREDS_FILE="$(mktemp)"
   "${_LXC}" file mount filemanip --listen=127.0.0.1:2022 > "${CREDS_FILE}" &
   mountPID=$!
   sleep 0.1
+  fingerprint=$(sed -nE 's/^SSH host key fingerprint: SHA256:(.+)$/\1/p' "${CREDS_FILE}")
   userCreds=$(sed -nE 's/^[^"]+ "([^"]+)" [^"]+ "([^"]+)"$/\1:\2/p' "${CREDS_FILE}")
   rm "${CREDS_FILE}"
 
-  [ "$(curl -s -S --insecure --user "${userCreds}" sftp://127.0.0.1:2022/foo)" = "foo" ]
+  # shellcheck disable=SC2086
+  [ "$(curl ${CURL_OPTIONS} --hostpubsha256 "${fingerprint}" --user "${userCreds}" sftp://127.0.0.1:2022/foo)" = "foo" ]
   kill_go_proc "${mountPID}"
 
   lxc delete -f filemanip
