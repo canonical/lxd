@@ -262,6 +262,25 @@ The `pc-kernel` snap exposes NVIDIA driver files using new interfaces, but the `
 
 There is currently no native LXD configuration workaround.
 
+### Strict process tracking failures with `core26` snap base
+
+For applications running on `core26` and newer bases, `snapd` enforces stricter process tracking and device cgroup validations that rely on an active `systemd` user session.
+
+If you run `lxc` commands inside environments where a user identity was switched without spawning a corresponding user session (e.g., non-interactive scripts, or mechanisms like `sudo`, `su`, or `runuser`), the execution will fail with the following error:
+
+```
+The user ubuntu cannot run snap applications on this system.
+See https://forum.snapcraft.io/t/46210 for more details.
+internal error, please report: running "lxd.lxc" failed: cannot track application process
+```
+
+This behavior is triggered by a bug in `snapd` where the enforcement logic incorrectly checks for an application-specific security tag instead of the overarching snap security tag when validating self-managed device cgroups support. As a result, `snapd` fails to fall back safely when a standard `systemd` user session is absent. A fix is on its way in a [future `snapd` release](https://github.com/canonical/snapd/pull/17238), but until then, users can work around this issue by ensuring that a user session is active when running LXD commands.
+
+Possible workarounds include:
+
+1. Ensure a user session is active when running `lxc` commands.
+2. `loginctl enable-linger USERNAME` to enable a persistent user session for the specified user.
+
 (ref-release-notes-6.9-go)=
 ## Updated minimum Go version
 
@@ -270,6 +289,7 @@ If you are building LXD from source instead of using a package manager, the mini
 (ref-release-notes-6.9-snap)=
 ## Snap packaging changes
 
+- Transitioned the snap base from `core24` to `core26`.
 - LXCFS: Reverted partial backport of PSI functionality that prevented host machine suspend ([#17983](https://github.com/canonical/lxd/issues/17983)).
 - libnvidia-container bumped to v1.19.1.
 - AMD ROCm container toolkit bumped to v1.3.0.
