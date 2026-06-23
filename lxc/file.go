@@ -1462,6 +1462,7 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 	}
 
 	fmt.Printf("SSH SFTP listening on %v\n", listener.Addr())
+	fmt.Printf("SSH host key fingerprint: %s\n", ssh.FingerprintSHA256(private.PublicKey()))
 
 	if config.PasswordCallback != nil {
 		fmt.Printf("Login with username %q and password %q\n", authUser, authPass)
