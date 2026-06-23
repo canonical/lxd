@@ -1059,7 +1059,10 @@ test_network_ovn() {
     probe_pool_targets "${bracketed_ip}" c1 c2
 
     echo "==> Tear down the second server."
-    lxc exec "c2" -- killall httpd
+    # XXX: On modern Ubuntu (26.04+), kernel.apparmor_restrict_unprivileged_unconfined=1 prevents 'killall' from killing httpd in the container
+    #      so instead use an external pkill scoped to the container's PID namespace to ensure the httpd process is killed.
+    PARENT_PID="$(lxc list -f csv -c p c2)"
+    pkill --parent "${PARENT_PID}" --full httpd
 
     echo "==> Wait for the second instance target to become unhealthy."
     for i in $(seq 1 3); do
@@ -1187,9 +1190,12 @@ test_network_ovn() {
     echo "==> Wait for background monitor to confirm clean transition to online status."
     wait "${monitor_pid}"
 
-    echo "==> Tear down all servers."
-    for i in 1 2 3; do
-      lxc exec "c${i}" -- killall httpd || true
+    echo "==> Tear down the first and third servers."
+    # XXX: On modern Ubuntu (26.04+), kernel.apparmor_restrict_unprivileged_unconfined=1 prevents 'killall' from killing httpd in the container
+    #      so instead use an external pkill scoped to the container's PID namespace to ensure the httpd processes are killed.
+    for i in 1 3; do
+      PARENT_PID="$(lxc list -f csv -c p "c${i}")"
+      pkill --parent "${PARENT_PID}" --full httpd
     done
 
     echo "==> Cleanup port."
