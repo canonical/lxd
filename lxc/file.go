@@ -1398,8 +1398,12 @@ func generateRandomString(length int) (string, error) {
 	return string(result), nil
 }
 
-// sshSFTPServer runs an SSH server listening on a random port of 127.0.0.1.
-// It provides an unauthenticated SFTP server connected to the instance's filesystem.
+// sshSFTPServer runs an SSH server listening on the address specified by --listen,
+// or on a random port of 127.0.0.1 if --listen is not set.
+// It provides an SFTP server connected to the instance's filesystem.
+// By default, password authentication is enabled using randomly generated credentials.
+// Authentication can be disabled with the --no-auth flag.
+// Note: the server's host key is ephemeral; use the printed fingerprint to verify the server for the duration of the command.
 func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resource remoteResource) error {
 	// Check instance exists.
 	_, _, err := resource.server.GetInstance(instName)
