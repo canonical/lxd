@@ -133,8 +133,8 @@ type Instance interface {
 
 	// Paths.
 	Path() string
-	RootfsPath() string
-	TemplatesPath() string
+	RootfsPath() (string, error)
+	TemplatesPath() (string, error)
 	StatePath() string
 	LogFilePath() string
 	ConsoleBufferLogPath() string
