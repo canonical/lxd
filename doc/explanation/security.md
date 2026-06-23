@@ -18,7 +18,13 @@ relatedlinks: "[Linux&#32;containers&#32;security](https://linuxcontainers.org/l
 
 See the following sections for detailed information. Also see: {ref}`howto-security-harden`.
 
-If you discover a security issue, see the [LXD security policy](https://github.com/canonical/lxd/blob/main/SECURITY.md) for information on how to report the issue.
+## Reporting vulnerabilities
+
+LXD adheres to the [Ubuntu disclosure policy](https://ubuntu.com/security/disclosure-policy).
+If you discover a security issue, see the [LXD security policy](https://github.com/canonical/lxd/blob/main/SECURITY.md) for information about how to report the issue.
+
+[LXD security advisories](https://github.com/canonical/lxd/security/advisories) are published on GitHub.
+For additional information about about LXD releases and development, refer to our {ref}`ref-release-notes` and [LXD news on Discourse](https://discourse.ubuntu.com/c/project/lxd/news/143).
 
 ## Supported versions
 
