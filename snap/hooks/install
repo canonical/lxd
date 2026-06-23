@@ -1,0 +1,5 @@
+#!/bin/sh -eu
+
+# Create paths needed by the units
+mkdir -p "${SNAP_COMMON}/lxd"
+chmod 0711 "${SNAP_COMMON}/lxd"

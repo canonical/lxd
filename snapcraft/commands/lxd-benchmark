@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ] && [ "$(cat /proc/self/attr/current)" != "unconfined" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+fi
+
+# Check if native and snap installed
+pid=$(ss -nlpx src "/var/lib/lxd/unix.socket" 2>/dev/null | grep "/var/lib/lxd/unix.socket" | sed -e "s/.*pid=//" -e "s/,.*//g")
+if [ "${pid}" -gt 0 ] 2>/dev/null; then
+    echo "Error: Both native and snap packages are installed on this system"
+    echo "       Run \"lxd.migrate\" to complete your migration to the snap package"
+    exit 1
+fi
+
+export LXD_DIR="${LXD_DIR:-"${SNAP_COMMON}/lxd/"}"
+export LXD_CONF="${SNAP_USER_COMMON}/config"
+
+exec lxd-benchmark "$@"

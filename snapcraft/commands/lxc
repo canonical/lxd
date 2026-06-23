@@ -1,0 +1,60 @@
+#!/bin/sh
+set -eu
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ] && [ "$(cat /proc/self/attr/current)" != "unconfined" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+fi
+
+# Check if native and snap installed
+pid=$(ss -nlpx src "/var/lib/lxd/unix.socket" 2>/dev/null | grep "/var/lib/lxd/unix.socket" | sed -e "s/.*pid=//" -e "s/,.*//g")
+if [ "${pid}" -gt 0 ] 2>/dev/null; then
+    echo "Error: Both native and snap packages are installed on this system"
+    echo "       Run \"lxd.migrate\" to complete your migration to the snap package"
+    exit 1
+fi
+
+# Fill SNAP_REAL_HOME if missing
+if [ -z "${SNAP_REAL_HOME:-""}" ]; then
+    SNAP_REAL_HOME="${HOME}"
+    if [ "${USER:-}" = "root" ] && [ -e "/root" ]; then
+        SNAP_REAL_HOME="/root"
+    elif [ -n "${USER:-}" ] && [ -e "/home/${USER}" ]; then
+        SNAP_REAL_HOME="/home/${USER}"
+    fi
+fi
+
+# Migrate data if needed
+if [ ! -d "${SNAP_USER_COMMON}/config" ]; then
+    if [ -d "${SNAP_USER_DATA}/.config/lxc" ]; then
+        mv "${SNAP_USER_DATA}/.config/lxc" "${SNAP_USER_COMMON}/config" || true
+        rmdir "${SNAP_USER_DATA}/.config/" || true
+    elif [ -d "${SNAP_REAL_HOME}/.config/lxc" ]; then
+        cp -r "${SNAP_REAL_HOME}/.config/lxc" "${SNAP_USER_COMMON}/config" || true
+    fi
+
+    mkdir -p "${SNAP_USER_COMMON}/config"
+fi
+
+# Set the environment
+export LXD_DIR="${LXD_DIR:-"${SNAP_COMMON}/lxd/"}"
+export LXD_CONF="${SNAP_USER_COMMON}/config"
+
+# Use editor wrapper
+export EDITOR="${SNAP}/bin/editor ${EDITOR:-}"
+export VISUAL="${EDITOR}"
+
+# Reset all locales as it isn't available in the snap (#29)
+LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
+# Add extra binaries to path
+export PATH="/run/bin:${PATH}"
+
+LXC="lxc"
+if [ -x "${SNAP_COMMON}/lxc.debug" ]; then
+    LXC="${SNAP_COMMON}/lxc.debug"
+fi
+
+# Run lxc itself
+exec "${LXC}" "$@"

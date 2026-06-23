@@ -1,0 +1,150 @@
+#!/bin/sh -e
+# Work from the snap
+export PATH=/snap/bin/:${PATH}
+export LANG=C.UTF-8
+
+# Functions
+maskcidr() {
+   local x=${1##*255.}
+   set -- 0^^^128^192^224^240^248^252^254^ $(( (${#1} - ${#x})*2 )) ${x%%.*}
+   x=${1%%$3*}
+   echo $(( $2 + (${#x}/4) ))
+}
+
+# Skip if already converted
+if [ ! -e /etc/default/lxd-bridge ]; then
+    echo "LXD bridge already converted"
+    exit 0
+fi
+
+# Source current configuration
+. /etc/default/lxd-bridge
+
+# Setup temporary config dir
+export LXD_CONF=$(mktemp -d)
+
+# Check if LXD is functional (chroot detection)
+if ! lxc info --force-local >/dev/null 2>&1; then
+    echo "This system isn't running LXD, assuming stock configuration."
+    mv /etc/default/lxd-bridge /etc/default/lxd-bridge.upgraded
+
+    echo "Cleaning up lxd-bridge state files"
+    rm -Rf /var/lib/lxd-bridge /run/lxd-bridge "${LXD_CONF}"
+    exit 0
+fi
+
+# Clear deprecated settings
+echo "Unsetting deprecated profile options"
+lxc profile unset default user.network_mode --force-local || true
+lxc profile unset default environment.http_proxy --force-local || true
+
+# Done for unconfigured bridges
+if [ "${USE_LXD_BRIDGE}" != "true" ] || [ -z "${LXD_BRIDGE}" ]; then
+    echo "No bridge configuration to convert"
+    mv /etc/default/lxd-bridge /etc/default/lxd-bridge.upgraded
+
+    echo "Cleaning up lxd-bridge state files"
+    rm -Rf /var/lib/lxd-bridge /run/lxd-bridge "${LXD_CONF}"
+    exit 0
+fi
+
+# Attempting to kill existing lxd-bridge
+echo "Attempting to kill current lxd-bridge"
+if [ -e "/run/systemd/system" ] && systemctl -q is-active lxd-bridge; then
+    systemctl stop lxd-bridge || true
+fi
+
+if [ -e "/run/lxd-bridge/network_up" ] && [ -e "/usr/lib/lxd/lxd-bridge" ]; then
+    /usr/lib/lxd/lxd-bridge stop || true
+fi
+
+if [ -e "/run/lxd-bridge/dnsmasq.pid" ]; then
+    kill -9 "$(cat /run/lxd-bridge/dnsmasq.pid)" >/dev/null 2>&1 || true
+fi
+
+# Check if the bridge exists
+EXISTING=false
+if [ -e "/sys/class/net/${LXD_BRIDGE}" ]; then
+    EXISTING=true
+fi
+
+# Check for stock installation
+if [ "${EXISTING}" = "false" ] && [ "$(md5sum /etc/default/lxd-bridge | cut -d' ' -f1)" = "e8cfb4997d9443fe48302bb75326b09f" ]; then
+    echo "Stock LXD installation detected, resetting to new defaults"
+    lxc profile device remove default eth0 --force-local >/dev/null 2>&1 || true
+    mv /etc/default/lxd-bridge /etc/default/lxd-bridge.upgraded
+
+    echo "Cleaning up lxd-bridge state files"
+    rm -Rf /var/lib/lxd-bridge /run/lxd-bridge "${LXD_CONF}"
+    exit 0
+fi
+
+# Bring down and rename an existing bridge
+if [ "${EXISTING}" = "true" ]; then
+    if [ -e "/sys/class/net/lxd-upgrade" ]; then
+        ip link del lxd-upgrade
+    fi
+
+    echo "Bringing down and renaming existing bridge ${LXD_BRIDGE} to lxd-upgrade"
+    ip link set "${LXD_BRIDGE}" down
+    ip link set "${LXD_BRIDGE}" name lxd-upgrade
+fi
+
+# Define the bridge in LXD
+echo "Creating a new LXD bridge"
+if ! lxc network show "${LXD_BRIDGE}" >/dev/null 2>&1; then
+    lxc network create "${LXD_BRIDGE}" ipv4.address=none ipv6.address=none dns.mode=dynamic --force-local
+fi
+
+# Move the old bridge into place
+if [ "${EXISTING}" = "true" ]; then
+    echo "Moving the old bridge into place"
+    [ -e "/sys/class/net/${LXD_BRIDGE}" ] && ip link del "${LXD_BRIDGE}"
+    ip link set lxd-upgrade name "${LXD_BRIDGE}" up
+fi
+
+# Configure the bridge
+echo "Configuring the new LXD bridge"
+if [ -n "${LXD_CONFILE}" ] && [ -e "${LXD_CONFILE}" ]; then
+    echo "Setting dnsmasq conf-file to ${LXD_CONFILE}"
+    lxc network set "${LXD_BRIDGE}" raw.dnsmasq "conf-file=${LXD_CONFILE}" --force-local
+fi
+
+if [ "${LXD_DOMAIN}" != "lxd" ]; then
+    echo "Setting DNS domain to ${LXD_DOMAIN}"
+    lxc network set "${LXD_BRIDGE}" dns.domain "${LXD_DOMAIN}" --force-local
+fi
+
+if [ -n "${LXD_IPV4_ADDR}" ] && [ -n "${LXD_IPV4_NETMASK}" ]; then
+    IPV4_CIDR="${LXD_IPV4_ADDR}/$(maskcidr "${LXD_IPV4_NETMASK}")"
+    echo "Setting IPv4 network to ${IPV4_CIDR}"
+    lxc network set "${LXD_BRIDGE}" ipv4.address "${IPV4_CIDR}" --force-local
+
+    if [ -n "${LXD_IPV4_DHCP_RANGE}" ]; then
+        IPV4_RANGE=$(echo "${LXD_IPV4_DHCP_RANGE}" | sed "s/,/-/")
+        echo "Setting IPv4 DHCP range to ${IPV4_RANGE}"
+        lxc network set "${LXD_BRIDGE}" ipv4.dhcp.ranges "${IPV4_RANGE}" --force-local
+    fi
+
+    if [ "${LXD_IPV4_NAT}" = "true" ]; then
+        echo "Enabling IPv4 NAT"
+        lxc network set "${LXD_BRIDGE}" ipv4.nat true --force-local
+    fi
+fi
+
+if [ -e /proc/sys/net/ipv6 ] && [ -n "${LXD_IPV6_ADDR}" ] && [ -n "${LXD_IPV6_MASK}" ]; then
+    IPV6_CIDR="${LXD_IPV6_ADDR}/${LXD_IPV6_MASK}"
+    echo "Setting IPv6 network to ${IPV6_CIDR}"
+    lxc network set "${LXD_BRIDGE}" ipv6.address "${IPV6_CIDR}" --force-local
+
+    if [ "${LXD_IPV6_NAT}" = "true" ]; then
+        echo "Enabling IPv6 NAT"
+        lxc network set "${LXD_BRIDGE}" ipv6.nat true --force-local
+    fi
+fi
+
+echo "Done converting your bridge, renaming old configuration"
+mv /etc/default/lxd-bridge /etc/default/lxd-bridge.upgraded
+
+echo "Cleaning up lxd-bridge state files"
+rm -Rf /var/lib/lxd-bridge /run/lxd-bridge "${LXD_CONF}"
