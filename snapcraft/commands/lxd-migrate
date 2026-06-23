@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ] && [ "$(cat /proc/self/attr/current)" != "unconfined" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+fi
+
+# shellcheck disable=SC2155
+export SNAP_CURRENT="$(realpath "${SNAP}/..")/current"
+
+export LXD_DIR="${LXD_DIR:-"${SNAP_COMMON}/lxd/"}"
+
+# Setup for ZFS
+if [ -e /sys/module/zfs/version ]; then
+    VERSION=$(cat /sys/module/zfs/version)
+else
+    VERSION=$(nsenter -t 1 -m modinfo -F version zfs 2>/dev/null || true)
+fi
+
+if echo "${VERSION}" | grep -q ^2\.1; then
+    export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-2.1/lib/:${LD_LIBRARY_PATH}"
+    export PATH="${SNAP_CURRENT}/zfs-2.1/bin:${PATH}"
+elif echo "${VERSION}" | grep -q ^2\.0; then
+    export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-2.0/lib/:${LD_LIBRARY_PATH}"
+    export PATH="${SNAP_CURRENT}/zfs-2.0/bin:${PATH}"
+elif echo "${VERSION}" | grep -q ^0\.8; then
+    export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-0.8/lib/:${LD_LIBRARY_PATH}"
+    export PATH="${SNAP_CURRENT}/zfs-0.8/bin:${PATH}"
+elif echo "${VERSION}" | grep -q ^0\.7; then
+    export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-0.7/lib/:${LD_LIBRARY_PATH}"
+    export PATH="${SNAP_CURRENT}/zfs-0.7/bin:${PATH}"
+elif echo "${VERSION}" | grep -q ^0\.6; then
+    export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-0.6/lib/:${LD_LIBRARY_PATH}"
+    export PATH="${SNAP_CURRENT}/zfs-0.6/bin:${PATH}"
+fi
+
+exec lxd-migrate "$@"

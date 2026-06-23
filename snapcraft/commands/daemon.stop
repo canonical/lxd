@@ -1,0 +1,172 @@
+#!/bin/sh
+set -eu
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ] && [ "$(cat /proc/self/attr/current)" != "unconfined" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+fi
+
+export LXD_DIR="${SNAP_COMMON}/lxd/"
+PID=$(cat "${SNAP_COMMON}/lxd.pid" || true)
+
+# FIXME: Detect stop reason
+#        This should be exposed by snapd directly
+STATUS=$(snap-query /run/snapd.socket lxd 2>/dev/null || true)
+
+reason="host shutdown"
+if [ -s "${SNAP_COMMON}/state" ]; then
+    reason="$(cat "${SNAP_COMMON}/state")"
+elif [ "${STATUS}" = "auto-refresh" ]; then
+    reason="snap refresh"
+elif [ "${STATUS}" = "refresh-snap" ]; then
+    reason="snap refresh"
+elif [ "${STATUS}" = "install-snap" ]; then
+    reason="snap refresh"
+elif [ "${STATUS}" = "remove-snap" ]; then
+    reason="snap removal"
+fi
+
+echo "=> Stop reason is: ${reason}"
+
+# Handle lxd shutdown
+if [ "${reason}" = "shutdown" ]; then
+    exit 0
+fi
+
+# Handle reloads and crashes
+if [ "${reason}" = "reload" ] || [ "${reason}" = "crashed" ]; then
+    exit 0
+fi
+
+# Handle refreshes
+if [ "${reason}" = "snap refresh" ]; then
+    echo "=> Stopping LXD"
+    if [ -n "${PID}" ] && kill -0 "${PID}" 2>/dev/null; then
+        if ! kill "${PID}"; then
+            echo "==> Failed to signal LXD to exit"
+        fi
+
+        DEAD=0
+        # shellcheck disable=SC2034
+        for i in $(seq 320); do
+            if ! kill -0 "${PID}" 2>/dev/null; then
+                DEAD=1
+                echo "==> Stopped LXD"
+                break
+            fi
+            sleep 1
+        done
+
+        if [ "${DEAD}" = "0" ]; then
+            echo "==> Forcefully stopping LXD after 5 minutes wait"
+            if kill -9 "${PID}" 2>/dev/null; then
+                echo "==> Stopped LXD"
+            else
+                echo "==> Failed to stop LXD"
+            fi
+        fi
+    fi
+
+    exit 0
+fi
+
+# Shutdown the daemons
+## LXD
+echo "=> Stopping LXD (with container shutdown)"
+
+echo host-shutdown > "${SNAP_COMMON}/state"
+if [ -n "${PID}" ] && kill -0 "${PID}" 2>/dev/null; then
+    if ! kill -30 "${PID}"; then
+        echo "==> Failed to signal LXD to shutdown"
+    fi
+
+    DEAD=0
+    # shellcheck disable=SC2034
+    for i in $(seq 540); do
+        if ! kill -0 "${PID}" 2>/dev/null; then
+            DEAD=1
+            echo "==> Stopped LXD"
+            break
+        fi
+        sleep 1
+    done
+
+    if [ "${DEAD}" = "0" ]; then
+        echo "==> Forcefully stopping LXD after 9 minutes wait"
+        if kill -9 "${PID}" 2>/dev/null; then
+            echo "==> Stopped LXD"
+        else
+            echo "==> Failed to stop LXD"
+        fi
+    fi
+fi
+
+## OpenVswitch
+if [ -e "${SNAP_COMMON}/openvswitch/run/ovs-vswitchd.pid" ]; then
+    PID=$(cat "${SNAP_COMMON}/openvswitch/run/ovs-vswitchd.pid")
+    if [ -n "${PID}" ] && kill -0 "${PID}" 2>/dev/null; then
+        (
+            echo "=> Stopping Open vSwitch"
+
+            set -e
+            export OVS_LOGDIR="${SNAP_COMMON}/openvswitch/logs/"
+            export OVS_RUNDIR="${SNAP_COMMON}/openvswitch/run/"
+            export OVS_DBDIR="${SNAP_COMMON}/openvswitch/db/"
+            export OVS_SYSCONFDIR="${SNAP_COMMON}/openvswitch/conf/"
+            export OVS_PKGDATADIR="${SNAP}/share/openvswitch/"
+            export OVS_BINDIR="${SNAP}/bin/"
+            export OVS_SBINDIR="${SNAP}/bin/"
+
+            if "${SNAP}/share/openvswitch/scripts/ovs-ctl" stop; then
+                echo "==> Stopped Open vSwitch"
+            else
+                echo "==> Failed to stop Open vSwitch"
+            fi
+        )
+    fi
+fi
+
+## LXCFS
+if [ -e "${SNAP_COMMON}/lxcfs.pid" ]; then
+    echo "=> Stopping LXCFS"
+
+    PID=$(cat "${SNAP_COMMON}/lxcfs.pid")
+    if [ -n "${PID}" ] && kill -0 "${PID}" 2>/dev/null; then
+        if ! kill "$PID"; then
+            echo "==> Failed to signal LXCFS to stop"
+        fi
+
+        DEAD=0
+        # shellcheck disable=SC2034
+        for i in $(seq 30); do
+            if ! kill -0 "${PID}" 2>/dev/null; then
+                DEAD=1
+                echo "==> Stopped LXCFS"
+                break
+            fi
+            sleep 1
+        done
+
+        if [ "${DEAD}" = "0" ]; then
+            echo "==> Forcefully stopping LXCFS after 30 seconds wait"
+            if kill -9 "${PID}" 2>/dev/null; then
+                echo "==> Stopped LXCFS"
+            else
+                echo "==> Failed to stop LXCFS"
+            fi
+        fi
+
+        fusermount -u "${SNAP_COMMON}/var/lib/lxcfs" >/dev/null 2>&1 || true
+    fi
+fi
+
+## Cleanup
+echo "=> Cleaning up PID files"
+rm -f "${SNAP_COMMON}/lxcfs.pid" "${SNAP_COMMON}/lxd.pid"
+
+## Flush our shared namespace from the host
+echo "=> Cleaning up namespaces"
+nsenter -t 1 -m umount -l /var/snap/lxd/common/ns 2>/dev/null || true
+
+echo "=> All done"
+exit 0

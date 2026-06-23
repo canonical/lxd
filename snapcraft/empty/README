@@ -1,0 +1,6 @@
+This is a fake source directory to avoid the default behavior of legacy 2.x Snapcraft which sets an implicit "." `source` directory for parts without the `source` key.  This prevents parts that uses the `nil` plugin be considered "changed" whenever a file under "." directory is modified.
+
+Refer the following snapcraft forum topic for more info about this issue:
+
+    Snapcraft implicit source - snapcraft - snapcraft.io
+    https://forum.snapcraft.io/t/snapcraft-implicit-source/7060

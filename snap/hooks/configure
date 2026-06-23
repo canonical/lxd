@@ -1,0 +1,100 @@
+#!/bin/sh -eu
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ] && [ "$(cat /proc/self/attr/current)" != "unconfined" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+fi
+
+# Utility functions
+get_bool() {
+    value=$(echo "${1:-}" | tr '[:upper:]' '[:lower:]')
+
+    # See if it's true
+    for yes in "true" "1" "yes" "on"; do
+        if [ "${value}" = "${yes}" ]; then
+            echo "true"
+            return
+        fi
+    done
+
+    # See if it's false
+    for no in "false" "0" "no" "off"; do
+        if [ "${value}" = "${no}" ]; then
+            echo "false"
+            return
+        fi
+    done
+
+    # Invalid value (or not set)
+    return
+}
+
+verify_int () {
+    value="${1:-}"
+
+    # Verify if the value is a positive integer
+    if echo "${value}" | grep -Eq '^[0-9]+$'; then
+        echo "${value}"
+        return
+    fi
+
+    # Invalid value (or not set)
+    return
+}
+
+# Don't fail if the mount namespace isn't properly setup yet
+if [ ! -e /run/snapd-snap.socket ]; then
+    exit 0
+fi
+
+# Get the current config
+ceph_builtin=$(get_bool "$(snapctl get ceph.builtin)")
+ceph_external=$(get_bool "$(snapctl get ceph.external)")
+criu_enable=$(get_bool "$(snapctl get criu.enable)")
+daemon_debug=$(get_bool "$(snapctl get daemon.debug)")
+daemon_group=$(snapctl get daemon.group)
+daemon_syslog=$(get_bool "$(snapctl get daemon.syslog)")
+daemon_verbose=$(get_bool "$(snapctl get daemon.verbose)")
+lvm_external=$(get_bool "$(snapctl get lvm.external)")
+lxcfs_loadavg=$(get_bool "$(snapctl get lxcfs.loadavg)")
+lxcfs_pidfd=$(get_bool "$(snapctl get lxcfs.pidfd)")
+lxcfs_cfs=$(get_bool "$(snapctl get lxcfs.cfs)")
+openvswitch_builtin=$(get_bool "$(snapctl get openvswitch.builtin)")
+openvswitch_external=$(get_bool "$(snapctl get openvswitch.external)")
+shiftfs_enable=$(get_bool "$(snapctl get shiftfs.enable)")
+
+# Special-handling of daemon.preseed
+daemon_preseed=$(snapctl get daemon.preseed)
+if [ -n "${daemon_preseed}" ]; then
+    echo "${daemon_preseed}" > "${SNAP_COMMON}/init.yaml"
+fi
+
+# Generate the config
+config="${SNAP_COMMON}/config"
+
+{
+    echo "# This file is auto-generated, do NOT manually edit"
+    echo "ceph_builtin=${ceph_builtin:-"false"}"
+    echo "ceph_external=${ceph_external:-"false"}"
+    echo "criu_enable=${criu_enable:-"false"}"
+    echo "daemon_debug=${daemon_debug:-"false"}"
+    echo "daemon_group=${daemon_group:-"lxd"}"
+    echo "daemon_syslog=${daemon_syslog:-"false"}"
+    echo "daemon_verbose=${daemon_verbose:-"false"}"
+    echo "lvm_external=${lvm_external:-"false"}"
+    echo "lxcfs_loadavg=${lxcfs_loadavg:-"false"}"
+    echo "lxcfs_pidfd=${lxcfs_pidfd:-"false"}"
+    echo "lxcfs_cfs=${lxcfs_cfs:-"false"}"
+    echo "openvswitch_builtin=${openvswitch_builtin:-"false"}"
+    echo "openvswitch_external=${openvswitch_external:-"false"}"
+    echo "shiftfs_enable=${shiftfs_enable:-"auto"}"
+} > "${config}"
+
+# Set socket ownership in case it changed
+if getent group "${daemon_group}" >/dev/null 2>&1; then
+    if [ -e "${SNAP_COMMON}/lxd/unix.socket" ]; then
+        chgrp "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
+    fi
+fi
+
+exit 0

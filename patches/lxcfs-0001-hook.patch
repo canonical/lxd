@@ -1,0 +1,21 @@
+--- /root/parts/lxcfs/install/snap/lxd/current/lxcfs/lxc.mount.hook	2022-03-31 11:35:47.937752513 +0800
++++ lxc.mount.hook	2022-03-31 11:30:15.094738379 +0800
+@@ -31,8 +31,16 @@
+ fi
+ 
+ # Allow nesting lxcfs
+-if [ -d ${LXC_ROOTFS_MOUNT}/var/lib/lxcfs/ ]; then
+-    mount -n --bind /var/snap/lxd/common/var/lib/lxcfs ${LXC_ROOTFS_MOUNT}/var/lib/lxcfs/
++if [ -d "${LXC_ROOTFS_MOUNT}/var/snap/lxd/" ]; then
++    rm -Rf "${LXC_ROOTFS_MOUNT}/var/snap/lxd/common/var/lib/lxcfs"
++    mkdir -p "${LXC_ROOTFS_MOUNT}/var/snap/lxd/common/var/lib/lxcfs"
++    mount -n --bind /var/snap/lxd/common/var/lib/lxcfs "${LXC_ROOTFS_MOUNT}/var/snap/lxd/common/var/lib/lxcfs/"
++fi
++
++# For backward compatibility, hand `/var/lib/lxcfs` through the host to
++# the container being as the lxcfs mount point.
++if [ -d "${LXC_ROOTFS_MOUNT}/var/lib/lxcfs/" ]; then
++    mount -n --bind /var/snap/lxd/common/var/lib/lxcfs "${LXC_ROOTFS_MOUNT}/var/lib/lxcfs/"
+ fi
+ 
+ # no need for lxcfs cgroups if we have cgroup namespaces
