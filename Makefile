@@ -188,10 +188,12 @@ dist: doc
 	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
 
 	# Download the dqlite libraries
-	git clone --depth=1 https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
+	git clone https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
+	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git reset --hard 50ee9af350b2fb4e79f9eb58db22c8a0927138de)
 	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
-	git clone --depth=1 https://github.com/canonical/raft $(TMP)/lxd-$(VERSION)/vendor/raft
+	git clone https://github.com/canonical/raft $(TMP)/lxd-$(VERSION)/vendor/raft
+	(cd $(TMP)/lxd-$(VERSION)/vendor/raft ; git reset --hard abf9c42a9bb63c24920ab9f0bfbc4b7a47e7e5f4)
 	(cd $(TMP)/lxd-$(VERSION)/vendor/raft ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
 	# Copy doc output
