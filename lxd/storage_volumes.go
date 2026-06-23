@@ -657,6 +657,21 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Currently not allowed to create storage volumes of type %q", req.Type))
 	}
 
+	if req.Source.Type == "copy" {
+		// Determine the effective source project for the permission check without mutating
+		// req.Source.Project. The cluster-internal copy path forwards req.Source.Project to the
+		// source member, where an empty value means "same as the request project". Setting it to an
+		// explicit value here would make that path treat the copy as a cross-project move and fail.
+		sourceProject := req.Source.Project
+		if sourceProject == "" {
+			sourceProject = requestProjectName
+		}
+
+		if !s.Authorizer.UserHasPermission(r, sourceProject, "view") {
+			return response.Forbidden(nil)
+		}
+	}
+
 	poolID, err := s.DB.Cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
