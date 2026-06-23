@@ -1558,9 +1558,9 @@ parts:
         exit 1
       fi
 
-      # Some python dependencies are not available for armhf/riscv64 or just require a build from source.
+      # Some python dependencies are not available for armhf or just require a build from source.
       # Not worth the effort for now.
-      if [ "$(uname -m)" != "armv7l" ] && [ "$(uname -m)" != "riscv64" ]; then
+      if [ "$(uname -m)" != "armv7l" ]; then
         # Build the static website
         # XXX: needed for snapcraft 8.x only
         PATH="/usr/bin:${PATH}" make doc # ensure python3 is found in PATH
