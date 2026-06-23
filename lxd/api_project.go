@@ -1529,6 +1529,11 @@ func projectStatePut(d *Daemon, r *http.Request) response.Response {
 			return projectDemote(ctx, s, name, force)
 		}
 
+	case api.ReplicatorProjectModeNone:
+		run = func(ctx context.Context, op *operations.Operation) error {
+			return projectClearReplicaMode(ctx, s, name)
+		}
+
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown replica mode %q", req.ReplicaMode))
 	}
@@ -1725,6 +1730,40 @@ func projectDemote(ctx context.Context, s *state.State, projectName string, forc
 	// Update the replica mode to standby.
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return dbCluster.UpdateProjectReplicaMode(ctx, tx.Tx(), projectName, api.ReplicatorProjectModeStandby)
+	})
+	if err != nil {
+		return fmt.Errorf("Failed updating project replica mode: %w", err)
+	}
+
+	s.Events.SendLifecycle(projectName, lifecycle.ProjectUpdated.Event(projectName, request.CreateRequestor(ctx), nil))
+
+	return nil
+}
+
+// projectClearReplicaMode clears the project's replica mode, removing it from any replication setup.
+func projectClearReplicaMode(ctx context.Context, s *state.State, projectName string) error {
+	var replicaMode dbCluster.ProjectReplicaMode
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
+		}
+
+		replicaMode = dbProject.ReplicaMode
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if replicaMode == dbCluster.ProjectReplicaMode(api.ReplicatorProjectModeNone) {
+		return fmt.Errorf("Project %q is not in a replica mode", projectName)
+	}
+
+	// Clear the replica mode.
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.UpdateProjectReplicaMode(ctx, tx.Tx(), projectName, api.ReplicatorProjectModeNone)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed updating project replica mode: %w", err)

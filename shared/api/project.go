@@ -139,7 +139,7 @@ type ProjectStateResource struct {
 //
 // API extension: project_replica_mode.
 type ProjectStatePut struct {
-	// Replica mode to set: "leader" or "standby"
+	// Replica mode to set: "leader", "standby", or "" to clear the replica mode
 	// Example: leader
 	ReplicaMode string `json:"replica_mode" yaml:"replica_mode"`
 }

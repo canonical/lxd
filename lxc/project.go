@@ -87,6 +87,10 @@ func (c *cmdProject) command() *cobra.Command {
 	projectDemoteCmd := cmdProjectDemote{global: c.global, project: c}
 	cmd.AddCommand(projectDemoteCmd.command())
 
+	// Clear replica mode
+	projectClearReplicaCmd := cmdProjectClearReplica{global: c.global, project: c}
+	cmd.AddCommand(projectClearReplicaCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -1251,6 +1255,69 @@ func (c *cmdProjectDemote) run(cmd *cobra.Command, args []string) error {
 
 	if !c.global.flagQuiet {
 		fmt.Printf("Project %s demoted to standby mode\n", resource.name)
+	}
+
+	return nil
+}
+
+// Clear replica mode.
+type cmdProjectClearReplica struct {
+	global  *cmdGlobal
+	project *cmdProject
+}
+
+func (c *cmdProjectClearReplica) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("clear-replica", "[<remote>:]<project>")
+	cmd.Short = "Clear the replica mode of a project"
+	cmd.Long = cli.FormatSection("Description",
+		`Clears the replica mode of a project, removing it from any replication setup.`)
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpTopLevelResource("project", toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdProjectClearReplica) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return errors.New("Missing project name")
+	}
+
+	// Clear the project's replica mode
+	op, err := resource.server.UpdateProjectState(resource.name, api.ProjectStatePut{ReplicaMode: api.ReplicatorProjectModeNone}, false)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf("Project %s replica mode cleared\n", resource.name)
 	}
 
 	return nil

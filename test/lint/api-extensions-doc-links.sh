@@ -20,3 +20,12 @@ if [ "${#missing[@]}" -gt 0 ]; then
   printf '  - %s\n' "${missing[@]}"
   exit 1
 fi
+
+echo "Checking that API extension headings in ${DOC_FILE} are formatted as code..."
+
+bad_headings="$(grep -nE '^## [^`]' "${DOC_FILE}" || true)"
+if [ -n "${bad_headings}" ]; then
+  echo "ERROR: the following headings in ${DOC_FILE} are not formatted as code (expected ## \`name\`):"
+  echo "${bad_headings}"
+  exit 1
+fi

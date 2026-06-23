@@ -5,6 +5,9 @@ import (
 )
 
 const (
+	// ReplicatorProjectModeNone indicates the project is not part of any replication setup.
+	ReplicatorProjectModeNone = ""
+
 	// ReplicatorProjectModeLeader indicates the project is the active source for replication.
 	ReplicatorProjectModeLeader = "leader"
 

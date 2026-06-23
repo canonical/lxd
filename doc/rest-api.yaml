@@ -5184,7 +5184,7 @@ definitions:
         description: ProjectStatePut represents the fields for updating project replica state
         properties:
             replica_mode:
-                description: 'Replica mode to set: "leader" or "standby"'
+                description: 'Replica mode to set: "leader", "standby", or "" to clear the replica mode'
                 example: leader
                 type: string
                 x-go-name: ReplicaMode
