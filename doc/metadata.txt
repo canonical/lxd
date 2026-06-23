@@ -298,27 +298,38 @@ For example: `i915-GVTg_V5_4`
 <!-- config group device-gpu-mdev-device-conf end -->
 <!-- config group device-gpu-mig-device-conf start -->
 ```{config:option} id device-gpu-mig-device-conf
-:shortdesc: "DRM card ID of the GPU device"
+:shortdesc: "DRM card ID of the parent GPU, or CDI identifier of the MIG GPU device"
 :type: "string"
+The ID can either be the DRM card ID of the parent GPU device, or a fully-qualified Container Device Interface (CDI) name for the MIG device.
+Here are some examples of fully-qualified CDI names:
 
+- `nvidia.com/mig=0:2`: Instructs LXD to pass through the MIG device at index 2 on GPU 0. You can find the index using `nvidia-smi -L` on your host.
+- `nvidia.com/mig=MIG-74c6a31a-fde5-5c61-973b-70e12346c202`: Instructs LXD to pass through a MIG device with a given unique identifier. This identifier should also appear with `nvidia-smi -L`.
 ```
 
 ```{config:option} mig.ci device-gpu-mig-device-conf
 :shortdesc: "Existing MIG compute instance ID"
 :type: "integer"
-
+Use this together with {config:option}`device-gpu-mig-device-conf:mig.gi` to
+identify a MIG device by its GPU instance ID and compute instance ID.
+LXD resolves the pair to a MIG device UUID using NVML and then uses CDI
+to pass the device through to the container.
 ```
 
 ```{config:option} mig.gi device-gpu-mig-device-conf
 :shortdesc: "Existing MIG GPU instance ID"
 :type: "integer"
-
+Use this together with {config:option}`device-gpu-mig-device-conf:mig.ci` to
+identify a MIG device by its GPU instance ID and compute instance ID.
+LXD resolves the pair to a MIG device UUID using NVML and then uses CDI
+to pass the device through to the container.
 ```
 
 ```{config:option} mig.uuid device-gpu-mig-device-conf
 :shortdesc: "Existing MIG device UUID"
 :type: "string"
 You can omit the `MIG-` prefix when specifying this option.
+LXD uses CDI to pass the MIG device through to the container.
 ```
 
 ```{config:option} pci device-gpu-mig-device-conf

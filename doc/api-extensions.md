@@ -3607,3 +3607,16 @@ This includes the following new endpoints (see {ref}`rest-api` for details):
 Adds a `force` field to `POST /1.0/cluster/members/{name}/state` when performing an `evacuate` action.
 
 When `force` is set to `true`, LXD skips the quorum safety check that otherwise would not allow you to evacuate an online raft voter when the remaining online voters would fall below the required majority.
+
+(extension-gpu-mig-cdi)=
+## `gpu_mig_cdi`
+
+Updates `gputype=mig` GPU devices to use the Container Device Interface (CDI) for device passthrough instead of the legacy `nvidia.runtime` approach.
+
+The following changes are included:
+
+- `mig.uuid`: The UUID is now resolved to a CDI identifier (`nvidia.com/mig=<uuid>`) internally. The `MIG-` prefix remains optional. Because a MIG UUID uniquely identifies the device, no parent GPU selector (`pci`, `vendorid`, `productid`, or `id`) is required alongside `mig.uuid`. If a parent GPU selector is provided, it is used to validate that the matching GPU exists and is an NVIDIA card, preserving backward compatibility.
+- `mig.gi` and `mig.ci`: The GPU instance ID and compute instance ID pair is now resolved to a MIG UUID via NVML, which is then used as a CDI identifier.
+- `id`: Now accepts either a CDI identifier for `gputype=mig` devices or a DRM card ID selector for the parent GPU. Supported CDI formats are `nvidia.com/mig=<uuid>` and `nvidia.com/mig=<dev_idx>:<mig_idx>`. When a CDI identifier is provided, it is used directly and is mutually exclusive with `mig.uuid`, `mig.gi`, and `mig.ci`.
+
+Because the legacy `nvidia.runtime` instance-level option is incompatible with CDI-based MIG passthrough, attaching a `gputype=mig` device to a container with {config:option}`instance-nvidia:nvidia.runtime` set to `true` is rejected. To preserve backward compatibility, an upgrade patch unsets `nvidia.runtime` on existing containers and snapshots that have a `gputype=mig` device attached.

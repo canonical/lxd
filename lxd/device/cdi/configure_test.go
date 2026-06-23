@@ -111,7 +111,7 @@ func TestGenerateFromCDI(t *testing.T) {
 	})
 
 	t.Run("Device Name Mismatch", func(t *testing.T) {
-		// If device name doesn't match, specific edits shouldn't be applied
+		// If device name doesn't match any device in the spec, GenerateFromCDI returns an error.
 		generateSpec = func(isCore bool, cdiID ID, inst instance.Instance) (*specs.Spec, error) {
 			return &specs.Spec{
 				Version: "0.5.0",
@@ -132,9 +132,9 @@ func TestGenerateFromCDI(t *testing.T) {
 		inst := &mockInstance{rootfsPath: "/tmp/rootfs"}
 		cdiID := ID{Vendor: NVIDIA, Class: GPU, Name: "gpu1"} // Mismatch
 
-		config, _, err := GenerateFromCDI(false, inst, cdiID)
-		assert.NoError(t, err)
-		assert.Empty(t, config.UnixCharDevs)
+		_, _, err := GenerateFromCDI(false, inst, cdiID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), `CDI device "nvidia.com/gpu=gpu1" not found in generated spec`)
 	})
 
 	t.Run("GenerateSpec Failure", func(t *testing.T) {

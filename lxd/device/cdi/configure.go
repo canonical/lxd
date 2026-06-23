@@ -341,12 +341,14 @@ func GenerateFromCDI(isCore bool, inst instance.Instance, cdiID ID) (*ConfigDevi
 	configDevices := &ConfigDevices{UnixCharDevs: make([]map[string]string, 0), BindMounts: make([]map[string]string, 0)}
 
 	// 2. Process the specific device configuration
+	found := false
 	for _, device := range spec.Devices {
 		// If cdiID.Name is 'all', then the edits for all the visible devices will be
 		// applied from the generated spec (it has a special case 'all' device entry).
 		// Otherwise, only the edits for the specific device identified by cdiID.Name
 		// will be applied.
 		if device.Name == cdiID.Name {
+			found = true
 			err := applyContainerEdits(device.ContainerEdits, configDevices, hooks)
 			if err != nil {
 				return nil, nil, err
@@ -355,6 +357,10 @@ func GenerateFromCDI(isCore bool, inst instance.Instance, cdiID ID) (*ConfigDevi
 			mounts = append(mounts, device.ContainerEdits.Mounts...)
 			break
 		}
+	}
+
+	if cdiID.Name != "all" && !found {
+		return nil, nil, fmt.Errorf("CDI device %q not found in generated spec", cdiID.String())
 	}
 
 	// 3. Process general container edits (device-independent)

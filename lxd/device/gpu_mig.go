@@ -3,8 +3,12 @@ package device
 import (
 	"errors"
 	"fmt"
+	"io/fs"
+	"net/http"
+	"strconv"
 	"strings"
 
+	"github.com/canonical/lxd/lxd/device/cdi"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	pcidev "github.com/canonical/lxd/lxd/device/pci"
 	"github.com/canonical/lxd/lxd/instance"
@@ -17,9 +21,6 @@ import (
 type gpuMIG struct {
 	deviceCommon
 }
-
-// GPUNvidiaDeviceKey is the key used for NVIDIA devices through libnvidia-container.
-const GPUNvidiaDeviceKey = "nvidia.device"
 
 // validateConfig checks the supplied config for correctness.
 func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
@@ -44,6 +45,14 @@ func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
+	// MIG devices use CDI for passthrough, which is incompatible with the legacy "nvidia.runtime"
+	// LXC hook. The hook sets NVIDIA_VISIBLE_DEVICES=none and mounts driver files via
+	// nvidia-container-cli, which conflicts with the CDI-managed device nodes and prevents the
+	// MIG slices from appearing inside the container.
+	if shared.IsTrue(instConf.ExpandedConfig()["nvidia.runtime"]) {
+		return errors.New(`The "nvidia.runtime" instance option is incompatible with gputype=mig devices`)
+	}
+
 	if d.config["pci"] != "" {
 		for _, field := range []string{"id", "productid", "vendorid"} {
 			if d.config[field] != "" {
@@ -54,14 +63,51 @@ func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
 		d.config["pci"] = pcidev.NormaliseAddress(d.config["pci"])
 	}
 
+	// Validate the "id" field.
 	if d.config["id"] != "" {
 		for _, field := range []string{"pci", "productid", "vendorid"} {
 			if d.config[field] != "" {
 				return fmt.Errorf(`Cannot use %q when "id" is set`, field)
 			}
 		}
+
+		// Validate "id" is either an integer DRM card ID or a CDI identifier.
+		_, err = strconv.ParseUint(d.config["id"], 10, 64)
+		if err != nil {
+			cdiID, err := cdi.ToCDI(d.config["id"])
+			if err != nil {
+				// Structurally incorrect CDI ID supplied.
+				if api.StatusErrorCheck(err, http.StatusBadRequest) {
+					return fmt.Errorf(`"id" must be an integer DRM card ID or a CDI ID: %w`, err)
+				}
+
+				// Structurally correct CDI ID supplied, but still invalid.
+				return err
+			}
+
+			// CDI "id" must be of MIG class.
+			if cdiID.Class != cdi.MIG {
+				return fmt.Errorf("CDI identifier %q is not a MIG device; use gputype=physical for non-MIG CDI devices", d.config["id"])
+			}
+
+			// CDI "id" must refer to a single MIG device.
+			if cdiID.Name == "all" {
+				return fmt.Errorf(`CDI identifier %q must refer to a single MIG device, not "all"`, d.config["id"])
+			}
+
+			// CDI "id" is mutually exclusive with mig.* fields.
+			for _, field := range []string{"mig.uuid", "mig.gi", "mig.ci"} {
+				if d.config[field] != "" {
+					return fmt.Errorf(`Cannot use %q when a CDI "id" is set`, field)
+				}
+			}
+
+			// CDI "id" is the only MIG selector needed.
+			return nil
+		}
 	}
 
+	// Without a CDI "id", require mig.uuid or mig.gi+mig.ci.
 	if d.config["mig.uuid"] != "" {
 		for _, field := range []string{"mig.gi", "mig.ci"} {
 			if d.config[field] != "" {
@@ -69,7 +115,7 @@ func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
 			}
 		}
 	} else if d.config["mig.gi"] == "" || d.config["mig.ci"] == "" {
-		return errors.New(`Either "mig.uuid" or both "mig.gi" and "mig.ci" must be set`)
+		return errors.New(`Either "mig.uuid", both "mig.gi" and "mig.ci", or a CDI "id" must be set`)
 	}
 
 	return nil
@@ -77,27 +123,107 @@ func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuMIG) validateEnvironment() error {
-	if shared.IsFalseOrEmpty(d.inst.ExpandedConfig()["nvidia.runtime"]) {
-		return errors.New("nvidia.runtime must be set to true for MIG GPUs to work")
-	}
-
 	return validatePCIDevice(d.config["pci"])
 }
 
-// buildMIGDeviceName builds the name of the MIG device based on old/new format.
-func (d *gpuMIG) buildMIGDeviceName(gpu api.ResourcesGPUCard) string {
-	if d.config["mig.uuid"] != "" {
-		if strings.HasPrefix(d.config["mig.uuid"], "MIG-") {
-			return d.config["mig.uuid"]
+// migCDIID resolves the CDI identifier for the MIG device from the device config.
+// It handles three cases: a direct CDI "id", a "mig.uuid", or a "mig.gi"+"mig.ci" pair.
+func (d *gpuMIG) migCDIID() (cdi.ID, error) {
+	// Case 1: direct CDI "id".
+	if d.config["id"] != "" {
+		cdiID, err := cdi.ToCDI(d.config["id"])
+		if err == nil && cdiID != nil {
+			return *cdiID, nil
 		}
-
-		return "MIG-" + d.config["mig.uuid"]
 	}
 
-	return fmt.Sprintf("MIG-%s/%s/%s", gpu.Nvidia.UUID, d.config["mig.gi"], d.config["mig.ci"])
+	// Case 2: "mig.uuid". The UUID uniquely identifies the MIG device, no parent GPU lookup is needed.
+	// However, if a parent GPU selector (id, pci, vendorid, productid) is present, perform the lookup
+	// for validation to preserve backward compatibility with existing configurations.
+	if d.config["mig.uuid"] != "" {
+		migUUID := d.config["mig.uuid"]
+		if !strings.HasPrefix(migUUID, "MIG-") {
+			migUUID = "MIG-" + migUUID
+		}
+
+		hasSelector := d.config["id"] != "" || d.config["pci"] != "" || d.config["vendorid"] != "" || d.config["productid"] != ""
+		if hasSelector {
+			gpus, err := resources.GetGPU()
+			if err != nil {
+				return cdi.ID{}, fmt.Errorf("Failed getting GPU resources: %w", err)
+			}
+
+			var parentGPU *api.ResourcesGPUCard
+			for i := range gpus.Cards {
+				if !gpuSelected(d.Config(), gpus.Cards[i]) {
+					continue
+				}
+
+				if parentGPU != nil {
+					return cdi.ID{}, errors.New("More than one GPU matched the MIG device")
+				}
+
+				parentGPU = &gpus.Cards[i]
+			}
+
+			if parentGPU == nil {
+				return cdi.ID{}, errors.New("Failed detecting requested GPU device")
+			}
+
+			if parentGPU.Nvidia == nil {
+				return cdi.ID{}, errors.New("Card is not an NVIDIA GPU or driver is not properly set up")
+			}
+		}
+
+		return cdi.ID{Vendor: cdi.NVIDIA, Class: cdi.MIG, Name: migUUID}, nil
+	}
+
+	// Case 3: "mig.gi"+"mig.ci". Resolve to UUID via NVML, which requires the parent GPU PCI address.
+	gpus, err := resources.GetGPU()
+	if err != nil {
+		return cdi.ID{}, fmt.Errorf("Failed getting GPU resources: %w", err)
+	}
+
+	var parentGPU *api.ResourcesGPUCard
+	for i := range gpus.Cards {
+		if !gpuSelected(d.Config(), gpus.Cards[i]) {
+			continue
+		}
+
+		if parentGPU != nil {
+			return cdi.ID{}, errors.New("More than one GPU matched the MIG device")
+		}
+
+		parentGPU = &gpus.Cards[i]
+	}
+
+	if parentGPU == nil {
+		return cdi.ID{}, errors.New("Failed detecting requested GPU device")
+	}
+
+	if parentGPU.Nvidia == nil {
+		return cdi.ID{}, errors.New("Card is not an NVIDIA GPU or driver is not properly set up")
+	}
+
+	gi, err := strconv.Atoi(d.config["mig.gi"])
+	if err != nil {
+		return cdi.ID{}, fmt.Errorf("Invalid mig.gi value %q: %w", d.config["mig.gi"], err)
+	}
+
+	ci, err := strconv.Atoi(d.config["mig.ci"])
+	if err != nil {
+		return cdi.ID{}, fmt.Errorf("Invalid mig.ci value %q: %w", d.config["mig.ci"], err)
+	}
+
+	migUUID, err := cdi.MIGDeviceUUID(parentGPU.PCIAddress, gi, ci)
+	if err != nil {
+		return cdi.ID{}, fmt.Errorf("Failed resolving MIG device UUID for gi=%d ci=%d: %w", gi, ci, err)
+	}
+
+	return cdi.ID{Vendor: cdi.NVIDIA, Class: cdi.MIG, Name: migUUID}, nil
 }
 
-// CanHotPlug returns whether the device can be managed whilst the instance is running,.
+// CanHotPlug returns whether the device can be managed whilst the instance is running.
 func (d *gpuMIG) CanHotPlug() bool {
 	return false
 }
@@ -110,60 +236,49 @@ func (d *gpuMIG) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	runConf := deviceConfig.RunConfig{}
-
-	// Get all the GPUs.
-	gpus, err := resources.GetGPU()
+	// Resolve the CDI identifier for the MIG device.
+	cdiID, err := d.migCDIID()
 	if err != nil {
 		return nil, err
 	}
 
-	var pciAddress string
-	for _, gpu := range gpus.Cards {
-		// Skip any cards that are not selected.
-		if !gpuSelected(d.Config(), gpu) {
-			continue
-		}
-
-		// We found a match.
-		if pciAddress != "" {
-			return nil, errors.New("More than one GPU matched the MIG device")
-		}
-
-		pciAddress = gpu.PCIAddress
-
-		// Validate the GPU.
-		if gpu.Nvidia == nil {
-			return nil, errors.New("Card is not a NVIDIA GPU or driver is not properly setup")
-		}
-
-		// Validate the MIG.
-		fields := strings.SplitN(gpu.Nvidia.CardDevice, ":", 2)
-		if len(fields) != 2 {
-			return nil, errors.New("Bad NVIDIA GPU (could not find ID)")
-		}
-
-		gpuID := fields[1]
-
-		if d.config["mig.uuid"] == "" {
-			if !shared.PathExists(fmt.Sprintf("/proc/driver/nvidia/capabilities/gpu%s/mig/gi%s/ci%s/access", gpuID, d.config["mig.gi"], d.config["mig.ci"])) {
-				return nil, fmt.Errorf("MIG device gi=%s ci=%s does not exist on GPU %s", d.config["mig.gi"], d.config["mig.ci"], gpuID)
-			}
-		}
-
-		runConf.GPUDevice = append(runConf.GPUDevice, []deviceConfig.RunConfigItem{
-			{Key: GPUNvidiaDeviceKey, Value: d.buildMIGDeviceName(gpu)},
-		}...)
-	}
-
-	if pciAddress == "" {
-		return nil, errors.New("Failed detecting requested GPU device")
+	runConf := deviceConfig.RunConfig{}
+	err = applyCDIDeviceToContainer(&d.deviceCommon, cdiID, &runConf)
+	if err != nil {
+		return nil, err
 	}
 
 	return &runConf, nil
 }
 
-// Stop is run when the device is removed from the instance.
+// Stop is run when the device is removed from the container.
 func (d *gpuMIG) Stop() (*deviceConfig.RunConfig, error) {
-	return nil, nil
+	runConf := deviceConfig.RunConfig{
+		PostHooks: []func() error{d.postStop},
+	}
+
+	configFilePath := cdiConfigDevicesFilePath(d.inst.DevicesPath(), d.name)
+	configDevices, err := cdi.ReloadConfigDevicesFromDisk(configFilePath)
+	if err != nil {
+		// Instances started before the CDI migration have no config file on disk.
+		// Treat missing file as a no-op to allow a clean stop.
+		if errors.Is(err, fs.ErrNotExist) {
+			return &runConf, nil
+		}
+
+		return nil, err
+	}
+
+	err = stopCDIDevices(&d.deviceCommon, configDevices, &runConf)
+	if err != nil {
+		return nil, err
+	}
+
+	return &runConf, nil
+}
+
+// postStop is run after the device is removed from the container.
+func (d *gpuMIG) postStop() error {
+	// missingFilesOK=true because instances started before the CDI migration have no files to clean up.
+	return postStopCDIDevice(&d.deviceCommon, true)
 }
