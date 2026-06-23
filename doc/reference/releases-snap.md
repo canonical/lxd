@@ -8,7 +8,8 @@ relatedlinks: "[Snap&#32;documentation](https://snapcraft.io/docs),[LXD&#32;snap
 (ref-releases)=
 ## Releases
 
-The LXD team maintains both Long Term Support (LTS) and feature releases in parallel. Release notes are published on [Discourse](https://discourse.ubuntu.com/tags/c/lxd/news/143/release).
+The LXD team maintains both Long Term Support (LTS) and feature releases in parallel.
+See our {ref}`ref-release-notes` for details about each release.
 
 (ref-releases-lts)=
 ### LTS releases

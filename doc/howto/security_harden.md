@@ -8,7 +8,8 @@ To increase the security posture of your LXD deployment, review the following ha
 (howto-security-harden-supported)=
 ### Use a supported version
 
-Use only supported LTS releases or the latest feature release of LXD, and ensure that you update it regularly to receive security updates and bugfixes. See: {ref}`ref-releases`.
+Use only supported LTS releases or the latest feature release of LXD, and update LXD regularly to receive security updates and bugfixes.
+See {ref}`ref-releases-snap` for details.
 
 (howto-security-harden-delete-unused)=
 ### Delete unused resources
