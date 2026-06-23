@@ -238,7 +238,12 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 		return nil
 	}
 
-	err = filepath.Walk(c.RootfsPath(), sumSize)
+	rootfsPath, err := c.RootfsPath()
+	if err != nil {
+		return nil, err
+	}
+
+	err = filepath.Walk(rootfsPath, sumSize)
 	if err != nil {
 		return nil, err
 	}
