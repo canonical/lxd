@@ -447,8 +447,22 @@ dist: dist-dir
 	# Cleanup
 	rm -rf lxd-$(VERSION)
 
+# Targets run concurrently by `static-analysis` (below) via a recursive
+# `$(MAKE) -j`, so this is parallel regardless of how `make static-analysis`
+# itself was invoked. `static-analysis` has no Makefile prerequisites of its
+# own -- to add another independent check-* target to static-analysis, add it
+# to this list, NOT as a `static-analysis: ...` prerequisite (which would be
+# silently ignored).
+STATIC_ANALYSIS_CHECKS := check-api check-auth check-metadata check-schema
+
 .PHONY: static-analysis
-static-analysis: check-api check-auth check-metadata check-schema
+static-analysis:
+	@# -j with no number runs all of STATIC_ANALYSIS_CHECKS in parallel without
+	@# needing to keep a job count in sync with the list length.
+	@# -Otarget keeps each target's output as one contiguous block.
+	@# Close stdin to avoid prompting when calling the `update-*`/`check-*` targets.
+	$(MAKE) -j -Otarget $(STATIC_ANALYSIS_CHECKS) < /dev/null
+
 	@# XXX: if errortype becomes available as a golangci-lint linter, remove this and update golangci-lint config
 	@./scripts/check-tool-version.sh fillmore-labs.com/errortype fillmore-labs.com/errortype errortype
 
