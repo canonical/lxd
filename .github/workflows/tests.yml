@@ -338,6 +338,24 @@ jobs:
           name: ${{ runner.os }}
           path: bin/
 
+  lxd-migrate:
+    name: Test lxd-migrate build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6.0.3
+
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.18.x
+
+      - name: Test lxd-migrate build
+        run: |
+          set -eux
+          cd "${GITHUB_WORKSPACE}/lxd-migrate"
+          CGO_ENABLED=0 go build -v -tags netgo
+
   documentation:
     name: Documentation
     runs-on: ubuntu-latest
