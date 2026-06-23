@@ -320,8 +320,7 @@ update-protobuf:
 
 .PHONY: update-schema
 update-schema:
-	@# XXX: `go install ...@latest` is almost a noop if already up to date
-	go install golang.org/x/tools/cmd/goimports@latest
+	@./scripts/check-tool-version.sh golang.org/x/tools golang.org/x/tools/cmd/goimports goimports
 	$(shell [ -n "$(GOCOVERDIR)" ] && mkdir -p "$(GOCOVERDIR)" && chmod 0777 "$(GOCOVERDIR)")
 	go build -C lxd/db/generate -v -trimpath -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(COVER) $(DEBUG)
 	go build -C lxd/db/dbgen -v -trimpath -o $(GOPATH)/bin/dbgen -tags "$(TAG_SQLITE3)" $(COVER) $(DEBUG)
@@ -337,7 +336,7 @@ check-schema: update-schema
 
 .PHONY: update-api
 update-api:
-	go install github.com/go-swagger/go-swagger/cmd/swagger@latest
+	@./scripts/check-tool-version.sh github.com/go-swagger/go-swagger github.com/go-swagger/go-swagger/cmd/swagger swagger
 	@# Generate spec and exclude package from dependency which causes a 'classifier: unknown swagger annotation "extendee"' error.
 	@# For more details see: https://github.com/go-swagger/go-swagger/issues/2917.
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m -x github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2/options
@@ -451,10 +450,10 @@ dist: dist-dir
 .PHONY: static-analysis
 static-analysis: check-api check-auth check-metadata check-schema
 	@# XXX: if errortype becomes available as a golangci-lint linter, remove this and update golangci-lint config
-	go install fillmore-labs.com/errortype@latest
+	@./scripts/check-tool-version.sh fillmore-labs.com/errortype fillmore-labs.com/errortype errortype
 
 	@# XXX: if zerolint becomes available as a golangci-lint linter, remove this and update golangci-lint config
-	go install fillmore-labs.com/zerolint@latest
+	@./scripts/check-tool-version.sh fillmore-labs.com/zerolint fillmore-labs.com/zerolint zerolint
 ifneq ($(shell command -v yamllint),)
 	yamllint .github/workflows/*.yml
 endif
