@@ -36,6 +36,8 @@ Never use unsupported LXD versions in a production environment.
     :end-before: <!-- Include end supported versions -->
 ```
 
+See {ref}`ref-releases-snap` for the currently supported releases as well as information about updates and upgrades to the LXD snap.
+
 (security-daemon-access)=
 ## Access to the LXD daemon
 
