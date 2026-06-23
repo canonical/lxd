@@ -155,11 +155,7 @@ func (m *Mapping) ColumnFields(exclude ...string) []*Field {
 	fields := []*Field{}
 
 	for _, field := range m.Fields {
-		if slices.Contains(exclude, field.Name) {
-			continue
-		}
-
-		if field.Type.Code == TypeColumn {
+		if field.Type.Code == TypeColumn && !slices.Contains(exclude, field.Name) {
 			fields = append(fields, field)
 		}
 	}

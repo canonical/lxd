@@ -156,7 +156,7 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filters ...WarningFilter) ([]W
 	var err error
 
 	// Result slice.
-	objects := make([]Warning, 0)
+	var objects []Warning
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt

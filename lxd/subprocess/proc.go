@@ -45,16 +45,12 @@ func (p *Process) hasApparmor() bool {
 		return false
 	}
 
-	_, err := exec.LookPath("aa-exec")
-	if err != nil {
-		return false
-	}
-
 	if !shared.PathExists("/sys/kernel/security/apparmor") {
 		return false
 	}
 
-	return true
+	_, err := exec.LookPath("aa-exec")
+	return err == nil
 }
 
 // GetPid returns the pid for the given process object.

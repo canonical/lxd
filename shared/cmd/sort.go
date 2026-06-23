@@ -137,18 +137,10 @@ type byPrecedence struct {
 }
 
 func (a byPrecedence) Len() int {
-	if a.data == nil {
-		return 0
-	}
-
 	return len(a.data)
 }
 
 func (a byPrecedence) Swap(i, j int) {
-	if a.data == nil {
-		return
-	}
-
 	a.data[i], a.data[j] = a.data[j], a.data[i]
 }
 

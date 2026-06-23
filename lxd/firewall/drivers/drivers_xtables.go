@@ -1276,7 +1276,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 	}
 
 	// Detect kernels that lack IPv6 support.
-	if !shared.PathExists("/proc/sys/net/ipv6") && ipVersion == 6 {
+	if ipVersion == 6 && !shared.PathExists("/proc/sys/net/ipv6") {
 		return nil
 	}
 

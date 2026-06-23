@@ -143,7 +143,7 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 	var err error
 
 	// Result slice.
-	objects := make([]Image, 0)
+	var objects []Image
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt

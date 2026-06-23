@@ -39,6 +39,7 @@ func RenderTable(format string, header []string, data [][]string, raw any) error
 		table.Render()
 	case TableFormatCSV:
 		w := csv.NewWriter(os.Stdout)
+		// Intentionally omitting the header for CSV output.
 		err := w.WriteAll(data)
 		if err != nil {
 			return err

@@ -169,13 +169,13 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 			return nil
 		}
 
-		// Only process go files
-		if !info.IsDir() && filepath.Ext(path) != ".go" {
+		// Continue walking if directory
+		if info.IsDir() {
 			return nil
 		}
 
-		// Continue walking if directory
-		if info.IsDir() {
+		// Only process go files
+		if filepath.Ext(path) != ".go" {
 			return nil
 		}
 

@@ -158,7 +158,7 @@ func GetProfiles(ctx context.Context, tx *sql.Tx, filters ...ProfileFilter) ([]P
 	var err error
 
 	// Result slice.
-	objects := make([]Profile, 0)
+	var objects []Profile
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt

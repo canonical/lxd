@@ -80,7 +80,7 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...Devic
 	var err error
 
 	// Result slice.
-	objects := make([]Device, 0)
+	var objects []Device
 
 	deviceObjectsLocal := strings.ReplaceAll(deviceObjects, "%s_id", parent+"_id")
 	fillParent := make([]any, strings.Count(deviceObjectsLocal, "%s"))

@@ -600,7 +600,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []string, refr
 		// Generate a new filesystem UUID if needed (this is required because some filesystems won't allow
 		// volumes with the same UUID to be mounted at the same time). This should be done before volume
 		// resize as some filesystems will need to mount the filesystem to resize.
-		if renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
+		if regenerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
 			_, err = d.activateVolume(vol)
 			if err != nil {
 				return err

@@ -109,7 +109,7 @@ func GetClusterGroups(ctx context.Context, tx *sql.Tx, filters ...ClusterGroupFi
 	var err error
 
 	// Result slice.
-	objects := make([]ClusterGroup, 0)
+	var objects []ClusterGroup
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt

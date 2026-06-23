@@ -957,7 +957,7 @@ func (d *zfs) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowIncon
 			}
 		}
 
-		if d.isBlockBacked(srcVol.Volume) && renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
+		if d.isBlockBacked(srcVol.Volume) && regenerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
 			activated, volPath, err := d.activateVolume(vol.Volume)
 			if err != nil {
 				return err
@@ -1311,7 +1311,7 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 			}
 		}
 
-		if d.isBlockBacked(vol) && renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
+		if d.isBlockBacked(vol) && regenerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
 			// Activate volume if needed.
 			activated, volPath, err := d.activateVolume(vol)
 			if err != nil {
@@ -3590,7 +3590,7 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 			// we do not want to modify a snapshot in case it is corrupted for some reason, so at mount time
 			// we take another snapshot of the snapshot, regenerate the temporary snapshot's UUID and then
 			// mount that.
-			regenerateFSUUID := renegerateFilesystemUUIDNeeded(snapVol.ConfigBlockFilesystem())
+			regenerateFSUUID := regenerateFilesystemUUIDNeeded(snapVol.ConfigBlockFilesystem())
 			if regenerateFSUUID {
 				// Instantiate a new volume to be the temporary writable snapshot.
 				tmpVolName := snapVol.name + tmpVolSuffix
@@ -3880,7 +3880,7 @@ func (d *zfs) restoreVolume(vol Volume, snapVol Volume, migration bool, progress
 		}
 	}
 
-	if vol.contentType == ContentTypeFS && d.isBlockBacked(vol) && renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
+	if vol.contentType == ContentTypeFS && d.isBlockBacked(vol) && regenerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
 		activated, volPath, err := d.activateVolume(vol)
 		if err != nil {
 			return err

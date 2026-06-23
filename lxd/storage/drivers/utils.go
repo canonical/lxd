@@ -532,8 +532,8 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 	}, nil)
 }
 
-// renegerateFilesystemUUIDNeeded returns true if fsType requires UUID regeneration, false if not.
-func renegerateFilesystemUUIDNeeded(fsType string) bool {
+// regenerateFilesystemUUIDNeeded returns true if fsType requires UUID regeneration, false if not.
+func regenerateFilesystemUUIDNeeded(fsType string) bool {
 	switch fsType {
 	case "btrfs":
 		return true

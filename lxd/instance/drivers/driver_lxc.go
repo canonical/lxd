@@ -6114,7 +6114,8 @@ func (d *lxc) ConsoleLog(ctx context.Context, opts liblxc.ConsoleLogOptions) (st
 // Exec executes a command inside the instance.
 func (d *lxc) Exec(ctx context.Context, req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
 	// Generate the LXC config if missing.
-	configPath := filepath.Join(d.LogPath(), "lxc.conf")
+	logPath := d.LogPath()
+	configPath := filepath.Join(logPath, "lxc.conf")
 	if !shared.PathExists(configPath) {
 		cc, err := d.initLXC(true)
 		if err != nil {
@@ -6136,8 +6137,7 @@ func (d *lxc) Exec(ctx context.Context, req api.InstanceExecPost, stdin *os.File
 	}
 
 	// Setup logfile
-	logPath := filepath.Join(d.LogPath(), "forkexec.log")
-	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, state.LogFilePermissions)
+	logFile, err := os.OpenFile(filepath.Join(logPath, "forkexec.log"), os.O_WRONLY|os.O_CREATE|os.O_SYNC, state.LogFilePermissions)
 	if err != nil {
 		return nil, err
 	}

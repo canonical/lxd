@@ -311,11 +311,10 @@ func Init() {
 
 	// Check for additional legacy cgroup features
 	val, ok := cgControllers["blkio"]
-	if ok && val == V1 && shared.PathExists("/sys/fs/cgroup/blkio/blkio.weight") {
-		cgControllers["blkio.weight"] = V1
-	} else {
-		val, ok := cgControllers["blkio"]
-		if ok && val == V1 && shared.PathExists("/sys/fs/cgroup/blkio/blkio.bfq.weight") {
+	if ok && val == V1 {
+		if shared.PathExists("/sys/fs/cgroup/blkio/blkio.weight") {
+			cgControllers["blkio.weight"] = V1
+		} else if shared.PathExists("/sys/fs/cgroup/blkio/blkio.bfq.weight") {
 			cgControllers["blkio.weight"] = V1
 		}
 	}

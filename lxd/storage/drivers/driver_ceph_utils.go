@@ -1139,7 +1139,7 @@ func (d *ceph) getRBDMappedDevPath(vol Volume, mapIfMissing bool) (bool, string,
 
 // generateUUID regenerates the XFS/btrfs UUID as needed.
 func (d *ceph) generateUUID(fsType string, devPath string) error {
-	if !renegerateFilesystemUUIDNeeded(fsType) {
+	if !regenerateFilesystemUUIDNeeded(fsType) {
 		return nil
 	}
 
