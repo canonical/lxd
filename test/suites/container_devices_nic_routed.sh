@@ -63,6 +63,9 @@ test_container_devices_nic_routed() {
   lxc config device add "${ctName}" eth0 nic name=eth0 nictype=routed parent="${ctName}"
 
   # Check starting routed NIC with IPs in use on parent network is prevented.
+  # Wait for DAD on parent bridge to ensure its link-local address is not tentative
+  # before attempting neighbor probes (otherwise the bind may fail with ENODEV).
+  wait_for_dad "${ctName}"
   lxc config device set "${ctName}" eth0 ipv4.address="192.0.2.254"
   ! lxc start "${ctName}" || false
   lxc config device set "${ctName}" eth0 ipv4.neighbor_probe=false
@@ -71,6 +74,7 @@ test_container_devices_nic_routed() {
 
   lxc config device set "${ctName}" eth0 ipv4.address="" ipv6.address="2001:db8::FFFF"
 
+  wait_for_dad "${ctName}"
   ! lxc start "${ctName}" || false
   lxc config device set "${ctName}" eth0 ipv6.neighbor_probe=false
   lxc start "${ctName}"
