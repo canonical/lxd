@@ -923,6 +923,20 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	if req.Source.Type == "copy" {
+		if req.Source.Source == "" {
+			return response.BadRequest(fmt.Errorf("Must specify a source instance"))
+		}
+
+		if req.Source.Project == "" {
+			req.Source.Project = targetProjectName
+		}
+
+		if !s.Authorizer.UserHasPermission(r, req.Source.Project, "view") {
+			return response.Forbidden(nil)
+		}
+	}
+
 	var targetProject *api.Project
 	var profiles []api.Profile
 	var sourceInst *dbCluster.Instance
