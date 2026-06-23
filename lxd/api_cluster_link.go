@@ -1372,33 +1372,8 @@ func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
 
 	var targetCert *x509.Certificate
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbClusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), name)
-		if err != nil {
-			return err
-		}
-
-		config, err := dbCluster.ClusterLinksConfigStore().GetByEntityIDs(ctx, tx.Tx(), dbClusterLink.ID)
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link config: %w", err)
-		}
-
-		clusterLink = dbClusterLink.ToAPI(config)
-
-		identity, err := dbCluster.GetIdentityByID(ctx, tx.Tx(), dbClusterLink.IdentityID)
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link identity: %w", err)
-		}
-
-		certs, err := dbCluster.GetIdentitiesPEMCertificates(ctx, tx.Tx(), &identity.ID)
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link certificate: %w", err)
-		}
-
-		if len(certs[identity.ID]) == 0 {
-			return fmt.Errorf("No certificate found for cluster link identity %q", identity.Name)
-		}
-
-		targetCert, err = shared.ParseCert([]byte(certs[identity.ID][0]))
+		var err error
+		_, clusterLink, targetCert, err = cluster.LoadClusterLinkAndCert(ctx, tx.Tx(), name)
 		return err
 	})
 	if err != nil {
