@@ -13,11 +13,11 @@ test_exec() {
   [ "$(lxc list -f csv -c s x1)" = "RUNNING" ]
 
   for i in $(seq 1 25); do
-    exec_container_interactive "${i}" > "${LXD_DIR}/exec-${i}.out" 2>&1
+    exec_container_interactive "${i}"
   done
 
   for i in $(seq 1 25); do
-    exec_container_noninteractive "${i}" > "${LXD_DIR}/exec-${i}.out" 2>&1
+    exec_container_noninteractive "${i}"
   done
 
   # Check non-websocket based exec works.
@@ -47,12 +47,12 @@ test_concurrent_exec() {
 
   PIDS=""
   for i in $(seq 1 25); do
-    exec_container_interactive "${i}" > "${LXD_DIR}/exec-${i}.out" 2>&1 &
+    exec_container_interactive "${i}" &
     PIDS="${PIDS} $!"
   done
 
   for i in $(seq 1 25); do
-    exec_container_noninteractive "${i}" > "${LXD_DIR}/exec-${i}.out" 2>&1 &
+    exec_container_noninteractive "${i}" &
     PIDS="${PIDS} $!"
   done
 
@@ -64,6 +64,14 @@ test_concurrent_exec() {
 }
 
 test_exec_exit_code() {
+  local initial_unprivileged_unconfined
+  initial_unprivileged_unconfined="$(sysctl -n kernel.apparmor_restrict_unprivileged_unconfined 2>/dev/null || echo 0)"
+
+  if [ "${initial_unprivileged_unconfined}" -ne 0 ]; then
+    echo "==> Enabling unprivileged unconfined support in the kernel"
+    sysctl --write kernel.apparmor_restrict_unprivileged_unconfined=0
+  fi
+
   ensure_import_testimage
   lxc launch testimage x1
 
@@ -81,23 +89,28 @@ test_exec_exit_code() {
 
   # Signaling the process spawned by lxc exec and checking its exit code.
   # Simulates what can happen if the container stops in the middle of lxc exec.
-  (sleep 1 && lxc exec x1 -- killall -s SIGTERM sleep) &
+  (sleep 0.1 && lxc exec x1 -- killall -TERM sleep) &
   lxc exec x1 -- sleep 60 || exitCode=$?
   [ "${exitCode:-0}" -eq 143 ] # 128 + 15(SIGTERM)
 
-  (sleep 1 && lxc exec x1 -- killall -s SIGHUP sleep) &
+  (sleep 0.1 && lxc exec x1 -- killall -HUP sleep) &
   lxc exec x1 -- sleep 60 || exitCode=$?
   [ "${exitCode:-0}" -eq 129 ] # 128 + 1(SIGHUP)
 
-  (sleep 1 && lxc exec x1 -- killall -s SIGKILL sleep) &
+  (sleep 0.1 && lxc exec x1 -- killall -KILL sleep) &
   lxc exec x1 -- sleep 60 || exitCode=$?
   [ "${exitCode:-0}" -eq 137 ] # 128 + 9(SIGKILL)
 
   # Try disconnecting a container stopping forcefully.
-  (sleep 1 && lxc stop -f x1) &
+  (sleep 0.1 && lxc stop -f x1) &
   lxc exec x1 -- sleep 60 || exitCode=$?
   [ "${exitCode:-0}" -eq 137 ]
   wait $!
 
-  lxc delete --force x1
+  lxc delete x1
+
+  if [ "${initial_unprivileged_unconfined}" -ne 0 ]; then
+    echo "==> Restoring unprivileged unconfined support in the kernel"
+    sysctl --write kernel.apparmor_restrict_unprivileged_unconfined="${initial_unprivileged_unconfined}"
+  fi
 }
