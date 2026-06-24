@@ -651,9 +651,11 @@ func (op *Operation) Cancel() {
 	op.lock.Unlock()
 
 	// If the operation does not have a run hook (e.g. a token operation) we need to call op.done(), because it won't be
-	// called automatically when the run hook completes.
+	// called automatically when the run hook completes. We then need to spawn a goroutine to delete the operation from
+	// the internal map so that we don't block from this exported function call.
 	if op.onRun == nil {
 		op.done()
+		go op.delete()
 	}
 }
 
