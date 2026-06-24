@@ -1,0 +1,771 @@
+#!/bin/sh
+set -eu
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ] && [ "$(cat /proc/self/attr/current)" != "unconfined" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+fi
+
+echo "=> Preparing the system (${SNAP_REVISION})"
+
+# shellcheck disable=SC2155
+export SNAP_CURRENT="$(realpath "${SNAP}/..")/current"
+
+# Turn `/snap/lxd/28637/lib/x86_64-linux-gnu` into `x86_64-linux-gnu`
+# Similar to `basename` but using variable substitution instead of external executable
+LIB_ARCH="$(readlink -f "${SNAP_CURRENT}"/lib/*-linux-gnu*/)"
+export ARCH="${LIB_ARCH##*/}"
+
+export HOME="/tmp/"
+export LXD_DIR="${SNAP_COMMON}/lxd/"
+export LXD_LXC_TEMPLATE_CONFIG="${SNAP_CURRENT}/lxc/config/"
+export LXD_LXC_HOOK="${SNAP_CURRENT}/lxc/hooks/"
+export LXD_EXEC_PATH="${SNAP_CURRENT}/bin/lxd"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:${SNAP_CURRENT}/lib:${SNAP_CURRENT}/lib/${ARCH}:${SNAP_CURRENT}/lib/${ARCH}/ceph"
+export PATH="${PATH}:${SNAP_CURRENT}/bin"
+export LXD_CLUSTER_UPDATE="${SNAP_CURRENT}/commands/refresh"
+export LXD_OVMF_PATH="${SNAP_CURRENT}/share/qemu"
+export PYTHONPATH=/snap/lxd/current/lib/python3/dist-packages/
+
+# Detect LXD appliance
+LXD_APPLIANCE="false"
+if nsenter -t 1 -m snap model --assertion | grep -q "^model: lxd-core"; then
+    LXD_APPLIANCE="true"
+fi
+
+# Detect base name
+SNAP_BASE="$(sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' /meta/snap.yaml)"
+
+# Wait for appliance configuration
+if [ "${LXD_APPLIANCE}" = "true" ]; then
+    while :; do
+        [ "$(nsenter -t 1 -m snap managed)" = "true" ] && break
+        sleep 5
+    done
+fi
+
+# Workaround for systemd nuking our cgroups on refreshes
+nsenter -t 1 -m systemd-run -u snap."${SNAP_INSTANCE_NAME}".workaround -p Delegate=yes -r /bin/true >/dev/null 2>&1 || true
+
+# Cleanup last state
+true > "${SNAP_COMMON}/state"
+
+# Load our configuration
+if [ ! -e "${SNAP_COMMON}/config" ]; then
+    echo "==> Creating missing snap configuration"
+    "${SNAP_CURRENT}/meta/hooks/configure"
+fi
+
+echo "==> Loading snap configuration"
+# shellcheck disable=SC1091
+. "${SNAP_COMMON}/config"
+
+daemon_group="${daemon_group:-"lxd"}"
+
+# Create the main directory
+if [ ! -d "${SNAP_COMMON}/lxd" ]; then
+    echo "==> Creating ${SNAP_COMMON}/lxd"
+    mkdir -p "${SNAP_COMMON}/lxd"
+    chmod 0711 "${SNAP_COMMON}/lxd"
+fi
+
+if [ ! -d "${SNAP_COMMON}/lxd/logs" ]; then
+    echo "==> Creating ${SNAP_COMMON}/lxd/logs"
+    mkdir -p "${SNAP_COMMON}/lxd/logs"
+    chmod 0700 "${SNAP_COMMON}/lxd/logs"
+fi
+
+if [ ! -d "${SNAP_COMMON}/global-conf" ]; then
+    echo "==> Creating ${SNAP_COMMON}/global-conf"
+    mkdir -p "${SNAP_COMMON}/global-conf"
+    chmod 0755 "${SNAP_COMMON}/global-conf"
+fi
+
+# Setup mntns symlink
+if [ ! -e "${SNAP_COMMON}/mntns" ] || [ -L "${SNAP_COMMON}/mntns" ]; then
+    echo "==> Setting up mntns symlink ($(readlink /proc/self/ns/mnt))"
+    rm -f "${SNAP_COMMON}/mntns"
+    ln -s /proc/$$/root "${SNAP_COMMON}/mntns"
+fi
+
+# Fix /dev/pts
+if [ "$(grep -F "devpts /dev/pts " /proc/self/mountinfo)" = "2" ]; then
+    echo "==> Setting up /dev/pts"
+    umount -l /dev/ptmx
+    umount -l /dev/pts
+fi
+
+# Setup rshared propagation on mount holding paths
+for path in "${SNAP_COMMON}/lxd/storage-pools" "${SNAP_COMMON}/lxd/devices"; do
+    if ! cut -d' ' -f5 /proc/self/mountinfo | grep -qF "${path}"; then
+        echo "==> Setting up mount propagation on ${path}"
+        if [ ! -e "${path}" ]; then
+            mkdir -p "${path}"
+            chmod 0711 "${path}"
+        fi
+
+        mount -o bind "${path}" "${path}"
+        mount --make-rshared "${path}"
+    fi
+done
+
+# Setup shmounts
+if ! mountpoint -q "${SNAP_COMMON}/shmounts"; then
+    echo "==> Setting up persistent shmounts path"
+    if ! mountpoint -q /media || ! setup-shmounts; then
+        echo "====> Failed to setup shmounts, continuing without"
+        mkdir -p "${SNAP_COMMON}/shmounts"
+        mount -t tmpfs tmpfs "${SNAP_COMMON}/shmounts" -o size=1M,mode=0711
+    fi
+
+    if ! mountpoint -q "${SNAP_COMMON}/lxd/shmounts"; then
+        echo "====> Making LXD shmounts use the persistent path"
+        mkdir -p "${SNAP_COMMON}/shmounts/instances"
+        if [ ! -L "${SNAP_COMMON}/lxd/shmounts" ]; then
+            mkdir -p "${SNAP_COMMON}/lxd/"
+            rm -rf "${SNAP_COMMON}/lxd/shmounts"
+        else
+            rm "${SNAP_COMMON}/lxd/shmounts"
+        fi
+        ln -s "${SNAP_COMMON}/shmounts/instances" "${SNAP_COMMON}/lxd/shmounts"
+    fi
+
+    if ! mountpoint -q "${SNAP_COMMON}/var/lib/lxcfs"; then
+        echo "====> Making LXCFS use the persistent path"
+        mkdir -p "${SNAP_COMMON}/shmounts/lxcfs"
+        if [ ! -L "${SNAP_COMMON}/var/lib/lxcfs" ]; then
+            mkdir -p "${SNAP_COMMON}/var/lib/"
+            rm -rf "${SNAP_COMMON}/var/lib/lxcfs"
+            ln -s "${SNAP_COMMON}/shmounts/lxcfs" "${SNAP_COMMON}/var/lib/lxcfs"
+        fi
+    fi
+fi
+
+# Fix lsmod/modprobe
+echo "==> Setting up kmod wrapper"
+mountpoint -q /bin/kmod && umount -l /bin/kmod
+mount -o ro,bind "${SNAP}/wrappers/kmod" "/bin/kmod"
+
+# Setup /boot
+if [ -e /var/lib/snapd/hostfs/boot ]; then
+    echo "==> Preparing /boot"
+    umount -l /boot >/dev/null 2>&1 || true
+    mount -o ro,bind "/var/lib/snapd/hostfs/boot" "/boot"
+fi
+
+# Setup a functional /run
+echo "==> Preparing a clean copy of /run"
+if [ -e "/run/.lxd_generated" ]; then
+    umount -l /run
+fi
+mount -t tmpfs tmpfs /run -o mode=0755,nosuid,nodev
+touch /run/.lxd_generated
+for entry in NetworkManager resolvconf netconfig snapd snapd.socket snapd-snap.socket systemd udev user; do
+    [ -e "/var/lib/snapd/hostfs/run/${entry}" ] || [ -L "/var/lib/snapd/hostfs/run/${entry}" ] || continue
+    ln -s "/var/lib/snapd/hostfs/run/${entry}" "/run/${entry}"
+done
+
+# Setup an additional bin directory
+echo "==> Preparing /run/bin"
+mkdir -p "/run/bin"
+export PATH="/run/bin:${PATH}"
+
+if [ "${ceph_external:-"false"}" = "true" ]; then
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/ceph"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/radosgw-admin"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/rbd"
+fi
+
+if [ "${openvswitch_external:-"false"}" = "true" ]; then
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/ovs-appctl"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/ovs-vsctl"
+fi
+
+if [ "${lvm_external:-"false"}" = "true" ]; then
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/lvm"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/vgs"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/lvs"
+
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/pvcreate"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/pvremove"
+
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/vgcreate"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/vgchange"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/vgremove"
+
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/lvcreate"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/lvchange"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/lvextend"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/lvrename"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/lvremove"
+    ln -s "${SNAP}/wrappers/run-host" "/run/bin/lvresize"
+fi
+
+# Detect presence of sideloaded lxd-agent executable.
+if [ -x "${SNAP_COMMON}/lxd-agent.debug" ]; then
+    echo "==> WARNING: Using a custom debug lxd-agent binary!"
+    ln -s "${SNAP_COMMON}/lxd-agent.debug" "/run/bin/lxd-agent"
+fi
+
+# Redirect getent to the host
+ln -s "${SNAP}/wrappers/run-host" "/run/bin/getent"
+
+# Redirect pro to the host
+ln -s "${SNAP}/wrappers/run-host" "/run/bin/pro"
+
+# Avoid xtables talking to nft
+ln -s "${SNAP}/bin/arptables-legacy" "/run/bin/arptables"
+ln -s "${SNAP}/bin/ebtables-legacy" "/run/bin/ebtables"
+ln -s /usr/sbin/xtables-legacy-multi "/run/bin/ip6tables"
+ln -s /usr/sbin/xtables-legacy-multi "/run/bin/iptables"
+
+# Setup a functional /etc
+echo "==> Preparing a clean copy of /etc"
+
+## Unmount and replace with an empty tmpfs
+if [ -e "/etc/.lxd_generated" ]; then
+    umount -l /etc
+fi
+mount -t tmpfs tmpfs /etc -o mode=0755
+touch /etc/.lxd_generated
+
+## Generate a new ld.so.cache
+ldconfig
+
+## Pass the bits we need from the host
+for entry in hostid hostname hosts nsswitch.conf os-release passwd group localtime pki resolv.conf resolvconf timezone writable; do
+    [ -e "/var/lib/snapd/hostfs/etc/${entry}" ] || [ -L "/var/lib/snapd/hostfs/etc/${entry}" ] || continue
+    ln -s "/var/lib/snapd/hostfs/etc/${entry}" "/etc/${entry}"
+done
+
+## And the bits we need from the base/core snap
+for entry in alternatives apparmor apparmor.d ethertypes protocols; do
+    ln -s "/snap/${SNAP_BASE}/current/etc/${entry}" "/etc/${entry}"
+done
+
+## Setup mtab
+ln -s "/proc/mounts" "/etc/mtab"
+
+## Handle SSL certs
+if [ -e "/var/lib/snapd/hostfs/etc/ssl" ] && [ -e "/var/lib/snapd/hostfs/usr/share/ca-certificates" ]; then
+    ln -s "/var/lib/snapd/hostfs/etc/ssl" "/etc/ssl"
+    mountpoint -q "/usr/share/ca-certificates" || mount -o ro,bind "/var/lib/snapd/hostfs/usr/share/ca-certificates" "/usr/share/ca-certificates"
+else
+    ln -s "/snap/${SNAP_BASE}/current/etc/ssl" "/etc/ssl"
+fi
+
+## Try to handle special /etc/resolv.conf setups
+if [ -L /etc/resolv.conf ] && [ ! -e /etc/resolv.conf ]; then
+    echo "====> Unusual /etc/resolv.conf detected, using workaround"
+    rm -f /etc/resolv.conf
+    # shellcheck disable=SC2094
+    nsenter -t 1 -m cat /etc/resolv.conf > /etc/resolv.conf || true
+fi
+
+# Setup a functional /usr/share/misc
+echo "==> Preparing a clean copy of /usr/share/misc"
+if [ -e "/usr/share/misc/.lxd_generated" ]; then
+    umount -l /usr/share/misc
+fi
+mount -t tmpfs tmpfs /usr/share/misc -o mode=0755
+touch /usr/share/misc/.lxd_generated
+ln -s "${SNAP_CURRENT}/share/misc/pci.ids" /usr/share/misc/
+ln -s "${SNAP_CURRENT}/share/misc/usb.ids" /usr/share/misc/
+
+# Setup host access
+## Make /var/lib/snapd/hostfs more useful to us
+for entry in dev proc sys; do
+    mountpoint -q "/var/lib/snapd/hostfs/${entry}" && continue
+    mount -o bind "/${entry}" "/var/lib/snapd/hostfs/${entry}"
+done
+
+# Setup the "lxd" group
+if [ "${daemon_group}" = "lxd" ] && ! getent group lxd >/dev/null 2>&1; then
+    echo "==> Creating \"lxd\" group"
+    if grep -q "^group.*extrausers" /var/lib/snapd/hostfs/etc/nsswitch.conf; then
+        nsenter -t 1 -m groupadd --system --extrausers lxd || true
+    else
+        nsenter -t 1 -m groupadd --system lxd || true
+    fi
+fi
+
+# Setup the "lxd" user
+if ! getent passwd lxd >/dev/null 2>&1; then
+    echo "==> Creating \"lxd\" user"
+    if grep -q "^passwd.*extrausers" /var/lib/snapd/hostfs/etc/nsswitch.conf; then
+        nsenter -t 1 -m useradd --system -M -N --home "${SNAP_COMMON}/lxd" --shell /bin/false --gid lxd --extrausers lxd || true
+    else
+        nsenter -t 1 -m useradd --system -M -N --home "${SNAP_COMMON}/lxd" --shell /bin/false --gid lxd lxd || true
+    fi
+fi
+
+# Setup for ceph
+echo "==> Setting up ceph configuration"
+if [ "${ceph_builtin:-"false"}" = "true" ]; then
+    mkdir -p "${SNAP_COMMON}/ceph"
+    ln -s "${SNAP_COMMON}/ceph" /etc/ceph
+elif [ -d "${SNAP_DATA}/microceph" ]; then
+    ln -snf "${SNAP_DATA}/microceph/conf/" /etc/ceph
+else
+    ln -s /var/lib/snapd/hostfs/etc/ceph /etc/ceph
+fi
+
+# Setup for LVM
+echo "==> Setting up LVM configuration"
+mkdir -p /etc/lvm/
+sed \
+    -e "s#obtain_device_list_from_udev = 1#obtain_device_list_from_udev = 0#g" \
+    -e "s#cache_file_prefix = \"\"#cache_file_prefix = \"lxd\"#g" \
+    -e "s#udev_sync = 1#udev_sync = 0#g" \
+    -e "s#udev_rules = 1#udev_rules = 0#g" \
+    -e "s#use_lvmetad = 1#use_lvmetad = 0#g" \
+    -e "s#monitoring = 1#monitoring = 0#g" \
+    -e "s%# executable = \"/sbin/dmeventd\"%executable = \"${SNAP}/bin/dmeventd\"%g" \
+    -e "/# .*_executable =/s/# //g" \
+    -e "s#/usr/sbin/#${SNAP}/bin/#g" \
+    "${SNAP}/etc/lvm/lvm.conf" > /etc/lvm/lvm.conf
+
+# Setup for OVN
+echo "==> Setting up OVN configuration"
+if [ "${ovn_builtin:-"false"}" = "true" ]; then
+    mkdir -p "${SNAP_COMMON}/ovn"
+    ln -s "${SNAP_COMMON}/ovn" /etc/ovn
+else
+    ln -s /var/lib/snapd/hostfs/etc/ovn /etc/ovn
+fi
+
+# Rotate logs
+echo "==> Rotating logs"
+logrotate -f "${SNAP}/etc/logrotate.conf" -s "/etc/logrotate.status" || true
+
+# Setup for ZFS
+if [ -e /sys/module/zfs/version ]; then
+    read -r VERSION < /sys/module/zfs/version
+else
+    VERSION=$(nsenter -t 1 -m modinfo -F version zfs 2>/dev/null || true)
+fi
+
+ZFS_VER="$(echo "${VERSION}" | cut -c 1-3)"
+
+if [ -d "${SNAP_CURRENT}/zfs-${ZFS_VER}/bin" ]; then
+    echo "==> Setting up ZFS (${ZFS_VER})"
+    export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/lib/:${LD_LIBRARY_PATH}"
+    export PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/bin:${PATH}"
+elif [ -n "${ZFS_VER}" ]; then
+    echo "==> Unsupported ZFS version (${ZFS_VER})"
+else
+    echo "==> No ZFS support"
+fi
+
+# Escape resource limits
+echo "==> Escaping the systemd cgroups"
+if [ -e "/sys/fs/cgroup/cgroup.procs" ]; then
+    echo "====> Detected cgroup V2"
+
+    # Try to escape to the root (V2 hosts)
+    if ! echo "$$" > "/sys/fs/cgroup/cgroup.procs" 2>/dev/null; then
+        # Create a .lxc cgroup if missing
+        if [ ! -d "/sys/fs/cgroup/.lxc" ]; then
+            mkdir /sys/fs/cgroup/.lxc
+        fi
+
+        # Use .lxc as the cgroup
+        echo "$$" > "/sys/fs/cgroup/.lxc/cgroup.procs"
+    fi
+else
+    echo "====> Detected cgroup V1"
+    for ctr in /sys/fs/cgroup/*; do
+        [ -e "${ctr}/cgroup.procs" ] || continue
+        echo "$$" > "${ctr}/cgroup.procs"
+    done
+
+    # Fix common cgroup issues
+    if [ -e /sys/fs/cgroup/cpuset/cgroup.clone_children ]; then
+        # Attempt to enable clone_children behavior (ignore failures)
+        echo 1 > /sys/fs/cgroup/cpuset/cgroup.clone_children 2>/dev/null || true
+    fi
+fi
+
+# Update system limits
+if [ "$(stat -c '%u' /proc)" = 0 ]; then
+    ## prlimits
+    echo "==> Escaping the systemd process resource limits"
+    prlimit -p $$ --nofile=1048576:1048576 || true
+    prlimit -p $$ --nproc=unlimited:unlimited || true
+
+    ## Handle sysctls
+    if [ -e /proc/sys/fs/inotify/max_user_instances ]; then
+        if [ "$(cat /proc/sys/fs/inotify/max_user_instances)" -lt "1024" ]; then
+            echo "==> Increasing the number of inotify user instances"
+            echo 1024 > /proc/sys/fs/inotify/max_user_instances || true
+        fi
+    fi
+
+    if [ -e /proc/sys/fs/inotify/max_user_watches ]; then
+        if [ "$(cat /proc/sys/fs/inotify/max_user_watches)" -lt "1048576" ]; then
+            echo "==> Increasing the number of inotify user watches"
+            echo 1048576 > /proc/sys/fs/inotify/max_user_watches || true
+        fi
+    fi
+
+    if [ -e /proc/sys/kernel/keys/maxkeys ]; then
+        if [ "$(cat /proc/sys/kernel/keys/maxkeys)" -lt "2000" ]; then
+            echo "==> Increasing the number of keys for a nonroot user"
+            echo 2000 > /proc/sys/kernel/keys/maxkeys || true
+        fi
+    fi
+
+    if [ -e /proc/sys/kernel/keys/maxbytes ]; then
+        if [ "$(cat /proc/sys/kernel/keys/maxbytes)" -lt "2000000" ]; then
+            echo "==> Increasing the number of bytes for a nonroot user"
+            echo 2000000 > /proc/sys/kernel/keys/maxbytes || true
+        fi
+    fi
+
+    if [ -e /proc/sys/kernel/unprivileged_userns_clone ]; then
+        if [ "$(cat /proc/sys/kernel/unprivileged_userns_clone)" = "0" ]; then
+            echo "==> Enabling unprivileged containers kernel support"
+            echo 1 > /proc/sys/kernel/unprivileged_userns_clone || true
+        fi
+    fi
+
+    if [ "${apparmor_unprivileged_restrictions_disable:-"true"}" = "true" ]; then
+        if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns)" = "1" ]; then
+                echo "==> Disabling Apparmor unprivileged userns mediation"
+                echo 0 > /proc/sys/kernel/apparmor_restrict_unprivileged_userns || true
+            fi
+        fi
+
+        if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_unconfined ]; then
+            if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_unconfined)" = "1" ]; then
+                echo "==> Disabling Apparmor unprivileged unconfined mediation"
+                echo 0 > /proc/sys/kernel/apparmor_restrict_unprivileged_unconfined || true
+            fi
+        fi
+    fi
+fi
+
+# Setup CRIU
+if [ "${criu_enable:-"false"}" = "true" ]; then
+    echo "==> Enabling CRIU"
+    export PATH="${SNAP_CURRENT}/criu:${PATH}"
+fi
+
+# Setup UI
+if [ "${ui_enable:-"false"}" = "true" ]; then
+    echo "==> Enabling LXD UI"
+    export LXD_UI="${SNAP_CURRENT}/share/lxd-ui/"
+fi
+
+# Setup shiftfs
+if [ "${shiftfs_enable:-"auto"}" = "auto" ]; then
+    echo "==> Disabling shiftfs on this kernel (auto)"
+    shiftfs_enable="false"
+elif [ "${shiftfs_enable:-"auto"}" = "false" ]; then
+    echo "==> Disabling shiftfs at user request"
+fi
+
+if [ "${shiftfs_enable:-"auto"}" = "false" ]; then
+    export LXD_SHIFTFS_DISABLE=true
+fi
+
+# LXC
+## Host specific overrides
+mkdir -p "${SNAP_COMMON}/lxc"
+touch "${SNAP_COMMON}/lxc/local.conf"
+if [ -d /sys/kernel/security/apparmor ] && ! grep -qF -- "-Ubuntu" /proc/version; then
+    echo "==> Detected kernel with partial AppArmor support"
+    echo "lxc.apparmor.allow_incomplete = 1" > "${SNAP_COMMON}/lxc/local.conf"
+else
+    true > "${SNAP_COMMON}/lxc/local.conf"
+fi
+
+# Open vSwitch
+if [ "${openvswitch_builtin:-"false"}" = "true" ]; then
+    echo "=> Starting Open vSwitch"
+    export OVS_RUNDIR="${SNAP_COMMON}/openvswitch/run/"
+    (
+        set -e
+        export OVS_LOGDIR="${SNAP_COMMON}/openvswitch/logs/"
+        export OVS_DBDIR="${SNAP_COMMON}/openvswitch/db/"
+        export OVS_SYSCONFDIR="${SNAP_COMMON}/openvswitch/conf/"
+        export OVS_PKGDATADIR="${SNAP}/share/openvswitch/"
+        export OVS_BINDIR="${SNAP}/bin/"
+        export OVS_SBINDIR="${SNAP}/bin/"
+
+        mkdir -p "${OVS_SYSCONFDIR}/openvswitch"
+        (
+            # Close socket activation fd
+            exec 3<&- || true
+
+           "${SNAP}/share/openvswitch/scripts/ovs-ctl" start --system-id=random
+        )
+    )
+else
+    ln -s /var/lib/snapd/hostfs/run/openvswitch /run/openvswitch
+fi
+
+# LXCFS
+if [ -e "${SNAP_COMMON}/var/lib/lxcfs/cgroup" ]; then
+    echo "=> Re-using existing LXCFS"
+
+    ## Get the libfuse soname the new lxcfs wants to use
+    NEW_FUSE="$(ldd "${SNAP_CURRENT}/bin/lxcfs" | sed -n "/libfuse3\?\.so/ s/.*libfuse3\?\.so\.\([^ ]\+\) .*/\1/p")"
+    CURRENT_FUSE="${NEW_FUSE}"
+
+    ## Get the name of the base (core2X) used by the new snap
+    NEW_BASE="${SNAP_BASE}"
+    CURRENT_BASE="${NEW_BASE}"
+
+    ## Use the old lxcfs instance to get the libfuse soname and old base it uses
+    if [ -e "${SNAP_COMMON}/lxcfs.pid" ]; then
+        read -r CURRENT_PID < "${SNAP_COMMON}/lxcfs.pid"
+        if [ -e "/proc/${CURRENT_PID}" ]; then
+            CURRENT_FUSE="$(ldd "/proc/${CURRENT_PID}/exe" | sed -n "/libfuse3\?\.so/ s/.*libfuse3\?\.so\.\([^ ]\+\) .*/\1/p")"
+            CURRENT_BASE="$(sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' "/proc/${CURRENT_PID}/root/meta/snap.yaml")"
+        fi
+    fi
+
+    ## If the base snap or the libfuse soname changed, warn that a system restart is needed
+    ## otherwise, proceed with reloading lxcfs
+    if [ "${CURRENT_BASE}" != "${NEW_BASE}" ]; then
+        echo "==> snap base has changed, restart system to upgrade LXCFS"
+    elif [ "${CURRENT_FUSE}" != "${NEW_FUSE}" ]; then
+        echo "==> FUSE version mismatch, restart system to upgrade LXCFS"
+    elif [ -n "${CURRENT_PID:-}" ]; then
+        echo "==> Reloading LXCFS"
+        kill -USR1 "${CURRENT_PID}" || true
+    fi
+else
+    ## Undo any existing mount
+    umount -l "${SNAP_COMMON}/var/lib/lxcfs" >/dev/null 2>&1 || true
+    fusermount -u "${SNAP_COMMON}/var/lib/lxcfs" >/dev/null 2>&1 || true
+
+    ## Create the mount point
+    mkdir -p "${SNAP_COMMON}/var/lib/lxcfs"
+
+    ## Cleanup any leftover
+    rm -f "${SNAP_COMMON}/lxcfs.pid"
+
+    ## Start lxcfs
+    echo "=> Starting LXCFS"
+    (
+        # Close socket activation fd
+        exec 3<&- || true
+
+        # Spawn lxcfs
+        export LD_LIBRARY_PATH="${SNAP_CURRENT}/lib:${SNAP_CURRENT}/lib/${ARCH}"
+        lxcfs_args=
+        [ "${lxcfs_loadavg:-"false"}" = "true" ] && lxcfs_args="${lxcfs_args} --enable-loadavg"
+        [ "${lxcfs_pidfd:-"false"}" = "true" ] && lxcfs_args="${lxcfs_args} --enable-pidfd"
+        [ "${lxcfs_cfs:-"false"}" = "true" ] && lxcfs_args="${lxcfs_args} --enable-cfs"
+        [ "${lxcfs_debug:-"false"}" = "true" ] && lxcfs_args="${lxcfs_args} -d"
+
+        # Preload libSegFault.so to catch crashes
+        export LD_PRELOAD="${LD_PRELOAD:+${LD_PRELOAD}:}${SNAP_CURRENT}/lib/${ARCH}/libSegFault.so"
+        export SEGFAULT_USE_ALTSTACK=1
+        export SEGFAULT_SIGNALS="all"
+
+        if [ -n "${lxcfs_args}" ]; then
+            # shellcheck disable=SC2086
+            lxcfs ${lxcfs_args} "${SNAP_COMMON}/var/lib/lxcfs" -p "${SNAP_COMMON}/lxcfs.pid" &
+        else
+            lxcfs "${SNAP_COMMON}/var/lib/lxcfs" -p "${SNAP_COMMON}/lxcfs.pid" &
+        fi
+
+        # Wait for PID file
+        sleep 1
+    )
+fi
+
+PID=""
+[ -e "${SNAP_COMMON}/lxcfs.pid" ] && read -r PID < "${SNAP_COMMON}/lxcfs.pid"
+if [ -n "${PID}" ] && [ "$(readlink "/proc/self/ns/mnt")" != "$(readlink "/proc/${PID}/ns/mnt")" ]; then
+    echo "==> Cleaning up existing LXCFS namespace"
+
+    cut -d' ' -f5 "/proc/${PID}/mountinfo" | while read -r line; do
+        if echo "${line}" | grep -q "^${SNAP_COMMON}/shmounts/storage-pools/"; then
+            nsenter -t "${PID}" -m umount -l "${line}" || true
+        fi
+
+        if echo "${line}" | grep -q "^${SNAP_COMMON}/lxd/storage-pools/"; then
+            nsenter -t "${PID}" -m umount -l "${line}" || true
+        fi
+    done
+fi
+
+# LXD
+## Check for existing LXDs
+for pid in $(pgrep --euid 0 --full "lxd(\.debug)? --logfile"); do
+    # Cheap confirmation that we likely have a LXD PID
+    grep -q --line-regexp --fixed-strings --max-count=1 "SNAP_NAME=lxd" "/proc/${pid}/environ" || continue
+
+    # Confirm the PID found by pgrep is indeed ours and not one from
+    # a nested instance also running LXD or a recycled PID. By writing
+    # to a file using the `/proc` path and comparing the content seen from
+    # the `/var` path, we can conclude if the LXD daemon is executing
+    # in the same mount namespace as ours (safe to kill) or not (ignore).
+    # A priv nested LXD would pass the EUID=0 and SNAP_NAME=lxd tests but would
+    # fail the `.validate` test as it wouldn't be in the same mount namespace.
+    echo "$$" > "/proc/${pid}/root${SNAP_COMMON}/lxd/.validate" 2>/dev/null || true
+    if [ "$(cat "${SNAP_COMMON}/lxd/.validate" 2>/dev/null)" = "$$" ]; then
+        echo "=> Killing conflicting LXD (pid=${pid})"
+        kill -9 "${pid}" || true
+    fi
+    rm -f "/proc/${pid}/root${SNAP_COMMON}/lxd/.validate"
+done
+
+## Move the database out of the versioned path if present
+if [ -L "${SNAP_COMMON}/lxd/lxd.db" ]; then
+    echo "=> Moving database from versioned path to common"
+    rm "${SNAP_COMMON}/lxd/lxd.db"
+    mv "${SNAP_DATA}/lxd/lxd.db" "${SNAP_COMMON}/lxd/lxd.db"
+fi
+
+# Warn the user if a debug LXC binary is found
+if [ -x "${SNAP_COMMON}/lxc.debug" ]; then
+    echo "==> WARNING: A custom debug LXC binary was found!"
+fi
+
+## Start lxd
+echo "=> Starting LXD"
+
+LXD="lxd"
+if [ -x "${SNAP_COMMON}/lxd.debug" ]; then
+    LXD="${SNAP_COMMON}/lxd.debug"
+    export LXD_EXEC_PATH="${LXD}"
+    echo "==> WARNING: Using a custom debug LXD binary!"
+fi
+
+CMD="${LXD} --logfile ${SNAP_COMMON}/lxd/logs/lxd.log"
+
+if getent group "${daemon_group}" >/dev/null 2>&1; then
+    CMD="${CMD} --group ${daemon_group}"
+    if [ -e "${SNAP_COMMON}/lxd/unix.socket" ]; then
+        chgrp "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
+    fi
+else
+    echo "==> No \"${daemon_group}\" group found, only root will be able to use LXD."
+fi
+
+if [ "${daemon_debug:-"false"}" = "true" ]; then
+    CMD="${CMD} --debug"
+fi
+
+if [ "${daemon_syslog:-"false"}" = "true" ]; then
+    CMD="${CMD} --syslog"
+fi
+
+if [ "${daemon_verbose:-"false"}" = "true" ]; then
+    CMD="${CMD} --verbose"
+fi
+
+# Check if this is the first time LXD is started.
+FIRSTRUN="false"
+if [ ! -d "${SNAP_COMMON}/lxd/database" ]; then
+    FIRSTRUN="true"
+fi
+
+# We deal with errors ourselves from this point on
+set +e
+
+# Spawn LXD
+(
+    read -r sbpid _ < /proc/self/stat
+    export LISTEN_PID="${sbpid}"
+
+    # shellcheck disable=SC2086
+    exec ${CMD}
+)&
+PID=$!
+echo ${PID} > "${SNAP_COMMON}/lxd.pid"
+
+## Wait for it to be ready
+"${LXD}" waitready &
+WAIT_PID=$!
+
+## Monitor LXD and waitready
+(
+    while :; do
+        sleep 1
+
+        if ! kill -0 "${WAIT_PID}" >/dev/null 2>&1; then
+            # "lxd waitready" exited
+            break
+        fi
+
+        if ! kill -0 "${PID}" >/dev/null 2>&1; then
+            # "lxd" exited
+            kill -9 "${WAIT_PID}"
+        fi
+    done
+) &
+
+## Wait for waitready to be done
+wait "${WAIT_PID}"
+RET=$?
+
+if [ "${RET}" -gt "0" ]; then
+    echo "=> LXD failed to start"
+    echo "crashed" > "${SNAP_COMMON}/state"
+    exit 1
+fi
+
+## Process preseed if present
+if [ "${FIRSTRUN}" = "true" ]; then
+    set -e
+    echo "=> First LXD execution on this system"
+
+    if [ -e "${SNAP_COMMON}/init.yaml" ]; then
+        echo "==> Running LXD preseed file"
+        ${LXD} init --preseed < "${SNAP_COMMON}/init.yaml"
+        mv "${SNAP_COMMON}/init.yaml" "${SNAP_COMMON}/init.yaml.applied"
+    elif [ "${LXD_APPLIANCE}" = "true" ]; then
+        echo "==> Initializing LXD appliance"
+
+        # Network (NIC with the default gateway)
+        NIC="$(ip -4 -o route get 0.0.0.1 | cut -d' ' -f5)"
+        lxc --force-local --quiet profile device add default eth0 nic nictype=macvlan parent="${NIC}" name=eth0
+
+        # Storage (80% of free space)
+        AVAIL="$(($(df --output=avail "${SNAP_COMMON}" | tail -1)*1024*80/100))"
+        for fs in zfs btrfs; do
+            lxc --force-local --quiet storage create local "${fs}" size="${AVAIL}" && break
+        done
+        lxc --force-local --quiet profile device add default root disk pool=local path=/
+
+        # Network access
+        lxc --force-local --quiet config set core.https_address :8443
+    fi
+    set +e
+fi
+
+## Wait for the daemon to die
+echo "=> LXD is ready"
+wait "$PID"
+RET=$?
+
+if [ "${RET}" -gt "0" ]; then
+    echo "crashed" > "${SNAP_COMMON}/state"
+    echo "=> LXD failed with return code ${RET}"
+    exit 1
+else
+    STATE=""
+    [ -e "${SNAP_COMMON}/state" ] && read -r STATE < "${SNAP_COMMON}/state"
+
+    if [ "${STATE}" = "reload" ]; then
+        echo "=> LXD is reloading"
+        exit 1
+    fi
+
+    if [ "${STATE}" = "host-shutdown" ]; then
+        true > "${SNAP_COMMON}/state"
+    else
+        echo shutdown > "${SNAP_COMMON}/state"
+    fi
+
+    echo "=> LXD exited cleanly"
+fi
+
+exit 0

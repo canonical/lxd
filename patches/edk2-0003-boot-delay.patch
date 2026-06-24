@@ -1,0 +1,29 @@
+From ee3d02a41cdad0c2dac00a2f8114d8d24d022e33 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?St=C3=A9phane=20Graber?= <stgraber@ubuntu.com>
+Date: Thu, 20 Aug 2020 16:40:47 -0400
+Subject: [PATCH] X64: Bump boot delay to 3s
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Stéphane Graber <stgraber@ubuntu.com>
+---
+ OvmfPkg/OvmfPkgX64.dsc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/OvmfPkg/OvmfPkgX64.dsc b/OvmfPkg/OvmfPkgX64.dsc
+index b80710fbdc..74b6647209 100644
+--- a/OvmfPkg/OvmfPkgX64.dsc
++++ b/OvmfPkg/OvmfPkgX64.dsc
+@@ -597,7 +597,7 @@
+   gUefiOvmfPkgTokenSpaceGuid.PcdPciMmio64Size|0x800000000
+ !endif
+ 
+-  gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|0
++  gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|3
+ 
+   # Set video resolution for text setup.
+   gEfiMdeModulePkgTokenSpaceGuid.PcdSetupVideoHorizontalResolution|640
+-- 
+2.27.0
+

@@ -1,0 +1,94 @@
+From: Mate Kukri <mate.kukri@canonical.com>
+Date: Wed, 6 Dec 2023 15:47:42 +0000
+Subject: Shell: Disable the Shell when SecureBoot is enabled and not in
+ SetupMode
+
+Signed-off-by: Mate Kukri <mate.kukri@canonical.com>
+---
+ ShellPkg/Application/Shell/Shell.c   | 14 ++++++++++++++
+ ShellPkg/Application/Shell/Shell.h   |  3 +++
+ ShellPkg/Application/Shell/Shell.inf |  2 ++
+ ShellPkg/ShellPkg.dsc                |  1 +
+ 4 files changed, 20 insertions(+)
+
+diff --git a/ShellPkg/Application/Shell/Shell.c b/ShellPkg/Application/Shell/Shell.c
+index f95c799..502013d 100644
+--- a/ShellPkg/Application/Shell/Shell.c
++++ b/ShellPkg/Application/Shell/Shell.c
+@@ -357,6 +357,20 @@ UefiMain (
+   EFI_HANDLE                      ConInHandle;
+   EFI_SIMPLE_TEXT_INPUT_PROTOCOL  *OldConIn;
+   SPLIT_LIST                      *Split;
++  UINT8                           SetupMode;
++
++  //
++  // Check for Secure Boot mode
++  //
++  if (IsSecureBootEnabled()) {
++    Status = GetSetupMode (&SetupMode);
++    if (EFI_ERROR (Status)) {
++        return (Status);
++    }
++    if (SetupMode != 1) {
++      return (EFI_SECURITY_VIOLATION);
++    }
++  }
+ 
+   if (PcdGet8 (PcdShellSupportLevel) > 3) {
+     return (EFI_UNSUPPORTED);
+diff --git a/ShellPkg/Application/Shell/Shell.h b/ShellPkg/Application/Shell/Shell.h
+index 89b4ac6..595ec79 100644
+--- a/ShellPkg/Application/Shell/Shell.h
++++ b/ShellPkg/Application/Shell/Shell.h
+@@ -11,9 +11,11 @@
+ #define _SHELL_INTERNAL_HEADER_
+ 
+ #include <Uefi.h>
++#include <UefiSecureBoot.h>
+ 
+ #include <Guid/ShellVariableGuid.h>
+ #include <Guid/ShellAliasGuid.h>
++#include <Guid/ImageAuthentication.h>
+ 
+ #include <Protocol/LoadedImage.h>
+ #include <Protocol/SimpleTextOut.h>
+@@ -42,6 +44,7 @@
+ #include <Library/HandleParsingLib.h>
+ #include <Library/FileHandleLib.h>
+ #include <Library/UefiHiiServicesLib.h>
++#include <Library/SecureBootVariableLib.h>
+ 
+ #include "ShellParametersProtocol.h"
+ #include "ShellProtocol.h"
+diff --git a/ShellPkg/Application/Shell/Shell.inf b/ShellPkg/Application/Shell/Shell.inf
+index f1e41de..340585f 100644
+--- a/ShellPkg/Application/Shell/Shell.inf
++++ b/ShellPkg/Application/Shell/Shell.inf
+@@ -47,6 +47,7 @@
+   MdePkg/MdePkg.dec
+   ShellPkg/ShellPkg.dec
+   MdeModulePkg/MdeModulePkg.dec
++  SecurityPkg/SecurityPkg.dec
+ 
+ [LibraryClasses]
+   BaseLib
+@@ -66,6 +67,7 @@
+   SortLib
+   HandleParsingLib
+   UefiHiiServicesLib
++  SecureBootVariableLib
+ 
+ [Guids]
+   gShellVariableGuid                                      ## SOMETIMES_CONSUMES ## GUID
+diff --git a/ShellPkg/ShellPkg.dsc b/ShellPkg/ShellPkg.dsc
+index dd0d886..28d6a87 100644
+--- a/ShellPkg/ShellPkg.dsc
++++ b/ShellPkg/ShellPkg.dsc
+@@ -64,6 +64,7 @@
+   DxeServicesTableLib|MdePkg/Library/DxeServicesTableLib/DxeServicesTableLib.inf
+   DxeServicesLib|MdePkg/Library/DxeServicesLib/DxeServicesLib.inf
+   ReportStatusCodeLib|MdePkg/Library/BaseReportStatusCodeLibNull/BaseReportStatusCodeLibNull.inf
++  SecureBootVariableLib|SecurityPkg/Library/SecureBootVariableLib/SecureBootVariableLib.inf
+ 
+ [LibraryClasses.ARM,LibraryClasses.AARCH64]
+   #

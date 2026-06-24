@@ -1,0 +1,30 @@
+#!/bin/sh
+# Turn `/usr/sbin/foo` into `foo`
+# Similar to `basename` but using variable substitution instead of external executable
+NAME="${0##*/}"
+
+# Detect base name
+SNAP_BASE="$(sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' /meta/snap.yaml)"
+
+if [ "$(id -u)" != "0" ] && [ "${NAME}" = "modinfo" ]; then
+    TMPDIR="$(mktemp -d)"
+    ln -s "/snap/${SNAP_BASE}/current/bin/kmod" "${TMPDIR}/modinfo"
+    "${TMPDIR}/modinfo" "$@"
+    RET=$?
+    rm -Rf "${TMPDIR}"
+    exit "${RET}"
+fi
+
+if [ "${NAME}" = "lsmod" ]; then
+    exec "/snap/${SNAP_BASE}/current/bin/kmod" "list" "$@"
+fi
+
+for i in "/bin/${NAME}" "/sbin/${NAME}" "/usr/bin/${NAME}" "/usr/sbin/${NAME}"; do
+    [ ! -e "/var/lib/snapd/hostfs/${i}" ] && continue
+
+    # shellcheck disable=SC2093
+    exec nsenter -t 1 -m "${i}" "$@"
+done
+
+echo "Unable to find ${NAME}" 1>&2
+exit 1

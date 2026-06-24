@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ] && [ "$(cat /proc/self/attr/current)" != "unconfined" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+fi
+
+# Check if native and snap installed
+pid=$(ss -nlpx src "/var/lib/lxd/unix.socket" 2>/dev/null | grep "/var/lib/lxd/unix.socket" | sed -e "s/.*pid=//" -e "s/,.*//g")
+if [ "${1:-""}" != "waitready" ] && [ "${pid}" -gt 0 ] 2>/dev/null; then
+    echo "Error: Both native and snap packages are installed on this system"
+    echo "       Run \"lxd.migrate\" to complete your migration to the snap package"
+    exit 1
+fi
+
+# shellcheck disable=SC2155
+export SNAP_CURRENT="$(realpath "${SNAP}/..")/current"
+
+# Turn `/snap/lxd/28637/lib/x86_64-linux-gnu` into `x86_64-linux-gnu`
+# Similar to `basename` but using variable substitution instead of external executable
+LIB_ARCH="$(readlink -f "${SNAP_CURRENT}"/lib/*-linux-gnu*/)"
+export ARCH="${LIB_ARCH##*/}"
+
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:${SNAP_CURRENT}/lib:${SNAP_CURRENT}/lib/${ARCH}:${SNAP_CURRENT}/lib/${ARCH}/ceph"
+export PATH="${PATH}:${SNAP_CURRENT}/bin"
+export LXD_DIR="${LXD_DIR:-"${SNAP_COMMON}/lxd/"}"
+
+# Make sure we have a ZFS binary on the path
+export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-2.1/lib/:${LD_LIBRARY_PATH}"
+export PATH="${SNAP_CURRENT}/zfs-2.1/bin:${PATH}"
+
+LXD="lxd"
+if [ -x "${SNAP_COMMON}/lxd.debug" ]; then
+    LXD="${SNAP_COMMON}/lxd.debug"
+fi
+
+exec "${LXD}" "$@"

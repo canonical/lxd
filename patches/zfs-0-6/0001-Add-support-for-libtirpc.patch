@@ -1,0 +1,333 @@
+From d05ce7059125fb232dea51d70d14eb4cf52e6f0e Mon Sep 17 00:00:00 2001
+From: Brian Behlendorf <behlendorf1@llnl.gov>
+Date: Tue, 26 Apr 2016 17:24:41 -0700
+Subject: [PATCH 1/5] Add support for libtirpc
+
+While OpenSolaris libc and glibc both include XDR support, the musl libc
+does not in favor of depending on the BSD-licensed libtirpc library.
+
+Adding support is a simple matter of detecting the library, including
+the headers and linking against it.  By default libtirpc will be checked
+for and if available used.  Otherwise, configure will fall back to using
+the xdr implementation provided by libc if available.  The options
+--with-tirpc/--without-tirpc can be used to disable this checking.
+
+In addition, the xdr_control() function has been simplied to only
+handle ZFSs specific use case.
+
+Original-patch-by: stf <s@ctrlc.hu>
+Original-patch-by: Richard Yao <ryao@gentoo.org>
+Signed-off-by: Brian Behlendorf <behlendorf1@llnl.gov>
+Signed-off-by: Signed-off-by: Carlo Landmeter <clandmeter@gmail.com>
+Closes #2254
+Closes #4559
+(cherry picked from commit 1ab3678b5d671b4561a2d63958d56b2f7ca1b69e)
+Signed-off-by: Alexander Mikhalitsyn <aleksandr.mikhalitsyn@canonical.com>
+---
+ config/user-libtirpc.m4             | 30 +++++++++++
+ config/user.m4                      |  1 +
+ lib/libnvpair/Makefile.am           |  6 +--
+ lib/libnvpair/nvpair_alloc_system.c |  1 +
+ lib/libspl/Makefile.am              |  1 -
+ lib/libspl/include/rpc/Makefile.am  |  1 -
+ lib/libspl/include/rpc/types.h      | 32 ------------
+ lib/libspl/include/rpc/xdr.h        | 43 +++++++++-------
+ lib/libspl/xdr.c                    | 78 -----------------------------
+ 9 files changed, 61 insertions(+), 132 deletions(-)
+ create mode 100644 config/user-libtirpc.m4
+ delete mode 100644 lib/libspl/include/rpc/types.h
+ delete mode 100644 lib/libspl/xdr.c
+
+diff --git a/config/user-libtirpc.m4 b/config/user-libtirpc.m4
+new file mode 100644
+index 000000000..5f929061f
+--- /dev/null
++++ b/config/user-libtirpc.m4
+@@ -0,0 +1,30 @@
++dnl #
++dnl # Check for libtirpc - may be needed for xdr functionality
++dnl #
++AC_DEFUN([ZFS_AC_CONFIG_USER_LIBTIRPC], [
++	AC_ARG_WITH([tirpc],
++	    [AS_HELP_STRING([--with-tirpc],
++	        [use tirpc for xdr encoding @<:@default=check@:>@])],
++	    [],
++	    [with_tirpc=check])
++
++	LIBTIRPC=
++	LIBTIRPC_CFLAGS=
++
++	AS_IF([test "x$with_tirpc" != xno],
++	    [AC_CHECK_LIB([tirpc], [xdrmem_create],
++		[AC_SUBST([LIBTIRPC], [-ltirpc])
++		 AC_SUBST([LIBTIRPC_CFLAGS], [-I/usr/include/tirpc])
++		 AC_DEFINE([HAVE_LIBTIRPC], [1], [Define if you have libtirpc])
++		],
++		[if test "x$with_tirpc" != xcheck; then
++		    AC_MSG_FAILURE(
++			[--with-tirpc was given, but test for tirpc failed])
++		 fi
++		AC_SEARCH_LIBS([xdrmem_create], [tirpc], [], [
++		    AC_MSG_FAILURE([xdrmem_create() requires tirpc or libc])])
++		])],
++	    [AC_SEARCH_LIBS([xdrmem_create], [tirpc], [], [
++		AC_MSG_FAILURE([xdrmem_create() requires libc])])
++	    ])
++])
+diff --git a/config/user.m4 b/config/user.m4
+index bb7393cb9..0c624c2e6 100644
+--- a/config/user.m4
++++ b/config/user.m4
+@@ -10,6 +10,7 @@ AC_DEFUN([ZFS_AC_CONFIG_USER], [
+ 	ZFS_AC_CONFIG_USER_ARCH
+ 	ZFS_AC_CONFIG_USER_ZLIB
+ 	ZFS_AC_CONFIG_USER_LIBUUID
++	ZFS_AC_CONFIG_USER_LIBTIRPC
+ 	ZFS_AC_CONFIG_USER_LIBBLKID
+ 	ZFS_AC_CONFIG_USER_FRAME_LARGER_THAN
+ 	ZFS_AC_CONFIG_USER_RUNSTATEDIR
+diff --git a/lib/libnvpair/Makefile.am b/lib/libnvpair/Makefile.am
+index c9ac1f1fb..2833557a3 100644
+--- a/lib/libnvpair/Makefile.am
++++ b/lib/libnvpair/Makefile.am
+@@ -4,7 +4,7 @@ VPATH = \
+ 	$(top_srcdir)/module/nvpair \
+ 	$(top_srcdir)/lib/libnvpair
+ 
+-AM_CFLAGS += $(DEBUG_STACKFLAGS) $(FRAME_LARGER_THAN)
++AM_CFLAGS += $(DEBUG_STACKFLAGS) $(FRAME_LARGER_THAN) $(LIBTIRPC_CFLAGS)
+ 
+ DEFAULT_INCLUDES += \
+ 	-I$(top_srcdir)/include \
+@@ -26,8 +26,8 @@ nodist_libnvpair_la_SOURCES = \
+ 	$(KERNEL_C)
+ 
+ libnvpair_la_LIBADD = \
+-        $(top_builddir)/lib/libuutil/libuutil.la
+-
++	$(top_builddir)/lib/libuutil/libuutil.la \
++	$(LIBTIRPC)
+ libnvpair_la_LDFLAGS = -version-info 1:1:0
+ 
+ EXTRA_DIST = $(USER_C)
+diff --git a/lib/libnvpair/nvpair_alloc_system.c b/lib/libnvpair/nvpair_alloc_system.c
+index f45dc5f0b..54dde1ee6 100644
+--- a/lib/libnvpair/nvpair_alloc_system.c
++++ b/lib/libnvpair/nvpair_alloc_system.c
+@@ -27,6 +27,7 @@
+ 
+ 
+ #include <rpc/types.h>
++#include <sys/kmem.h>
+ #include <sys/nvpair.h>
+ 
+ static void *
+diff --git a/lib/libspl/Makefile.am b/lib/libspl/Makefile.am
+index a56944623..afd64fcca 100644
+--- a/lib/libspl/Makefile.am
++++ b/lib/libspl/Makefile.am
+@@ -29,7 +29,6 @@ USER_C = \
+ 	strnlen.c \
+ 	timestamp.c \
+ 	zone.c \
+-	xdr.c \
+ 	include/sys/list.h \
+ 	include/sys/list_impl.h
+ 
+diff --git a/lib/libspl/include/rpc/Makefile.am b/lib/libspl/include/rpc/Makefile.am
+index 7a29aba73..78ee5a29e 100644
+--- a/lib/libspl/include/rpc/Makefile.am
++++ b/lib/libspl/include/rpc/Makefile.am
+@@ -1,4 +1,3 @@
+ libspldir = $(includedir)/libspl/rpc
+ libspl_HEADERS = \
+-	$(top_srcdir)/lib/libspl/include/rpc/types.h \
+ 	$(top_srcdir)/lib/libspl/include/rpc/xdr.h
+diff --git a/lib/libspl/include/rpc/types.h b/lib/libspl/include/rpc/types.h
+deleted file mode 100644
+index aa9901fd1..000000000
+--- a/lib/libspl/include/rpc/types.h
++++ /dev/null
+@@ -1,32 +0,0 @@
+-/*
+- * CDDL HEADER START
+- *
+- * The contents of this file are subject to the terms of the
+- * Common Development and Distribution License (the "License").
+- * You may not use this file except in compliance with the License.
+- *
+- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+- * or http://www.opensolaris.org/os/licensing.
+- * See the License for the specific language governing permissions
+- * and limitations under the License.
+- *
+- * When distributing Covered Code, include this CDDL HEADER in each
+- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+- * If applicable, add the following below this CDDL HEADER, with the
+- * fields enclosed by brackets "[]" replaced with your own identifying
+- * information: Portions Copyright [yyyy] [name of copyright owner]
+- *
+- * CDDL HEADER END
+- */
+-/*
+- * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
+- * Use is subject to license terms.
+- */
+-
+-#ifndef LIBSPL_RPC_TYPES_H
+-#define	LIBSPL_RPC_TYPES_H
+-
+-#include_next <rpc/types.h>
+-#include <sys/kmem.h>
+-
+-#endif /* LIBSPL_RPC_TYPES_H */
+diff --git a/lib/libspl/include/rpc/xdr.h b/lib/libspl/include/rpc/xdr.h
+index 99500d657..3c7c53fcc 100644
+--- a/lib/libspl/include/rpc/xdr.h
++++ b/lib/libspl/include/rpc/xdr.h
+@@ -32,11 +32,20 @@
+ #ifndef LIBSPL_RPC_XDR_H
+ #define	LIBSPL_RPC_XDR_H
+ 
+-#include_next <rpc/xdr.h>
+-
+ /*
+- * These are XDR control operators
++ * When available prefer libtirpc for xdr functionality.  This library is
++ * mandatory when compiling with musl libc because it does not provide xdr.
+  */
++#if defined(HAVE_LIBTIRPC)
++
++#include <tirpc/rpc/xdr.h>
++#ifdef xdr_control
++#undef xdr_control
++#endif
++
++#else
++#include_next <rpc/xdr.h>
++#endif /* HAVE_LIBTIRPC */
+ 
+ #define	XDR_GET_BYTES_AVAIL 1
+ 
+@@ -46,20 +55,20 @@ typedef struct xdr_bytesrec {
+ } xdr_bytesrec_t;
+ 
+ /*
+- * These are the request arguments to XDR_CONTROL.
+- *
+- * XDR_PEEK - returns the contents of the next XDR unit on the XDR stream.
+- * XDR_SKIPBYTES - skips the next N bytes in the XDR stream.
+- * XDR_RDMAGET - for xdr implementation over RDMA, gets private flags from
+- *		 the XDR stream being moved over RDMA
+- * XDR_RDMANOCHUNK - for xdr implementaion over RDMA, sets private flags in
+- *                   the XDR stream moving over RDMA.
++ * This functionality is not required and is disabled in user space.
+  */
+-#define	XDR_PEEK	2
+-#define	XDR_SKIPBYTES	3
+-#define	XDR_RDMAGET	4
+-#define	XDR_RDMASET	5
++static inline bool_t
++xdr_control(XDR *xdrs, int request, void *info)
++{
++	xdr_bytesrec_t *xptr;
+ 
+-extern bool_t xdr_control(XDR *xdrs, int request, void *info);
++	ASSERT3U(request, ==, XDR_GET_BYTES_AVAIL);
+ 
+-#endif
++	xptr = (xdr_bytesrec_t *)info;
++	xptr->xc_is_last_record = TRUE;
++	xptr->xc_num_avail = xdrs->x_handy;
++
++	return (TRUE);
++}
++
++#endif /* LIBSPL_RPC_XDR_H */
+diff --git a/lib/libspl/xdr.c b/lib/libspl/xdr.c
+deleted file mode 100644
+index 288a338a1..000000000
+--- a/lib/libspl/xdr.c
++++ /dev/null
+@@ -1,78 +0,0 @@
+-/*
+- * CDDL HEADER START
+- *
+- * The contents of this file are subject to the terms of the
+- * Common Development and Distribution License, Version 1.0 only
+- * (the "License").  You may not use this file except in compliance
+- * with the License.
+- *
+- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+- * or http://www.opensolaris.org/os/licensing.
+- * See the License for the specific language governing permissions
+- * and limitations under the License.
+- *
+- * When distributing Covered Code, include this CDDL HEADER in each
+- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+- * If applicable, add the following below this CDDL HEADER, with the
+- * fields enclosed by brackets "[]" replaced with your own identifying
+- * information: Portions Copyright [yyyy] [name of copyright owner]
+- *
+- * CDDL HEADER END
+- *
+- * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+- * Use is subject to license terms.
+- *
+- *	Copyright (c) 1983, 1984, 1985, 1986, 1987, 1988, 1989 AT&T
+- *	  All Rights Reserved
+- *
+- * Portions of this source code were derived from Berkeley 4.3 BSD
+- * under license from the Regents of the University of California.
+- */
+-
+-#include <rpc/xdr.h>
+-
+-/*
+- * As of glibc-2.5-25 there is not support for xdr_control().  The
+- * xdrmem implementation from OpenSolaris is used here.
+- *
+- * FIXME: Not well tested it may not work as expected.
+- */
+-bool_t
+-xdr_control(XDR *xdrs, int request, void *info)
+-{
+-	xdr_bytesrec_t *xptr;
+-	int32_t *int32p;
+-	int len;
+-
+-	switch (request) {
+-	case XDR_GET_BYTES_AVAIL:
+-		xptr = (xdr_bytesrec_t *)info;
+-		xptr->xc_is_last_record = TRUE;
+-		xptr->xc_num_avail = xdrs->x_handy;
+-		return (TRUE);
+-
+-	case XDR_PEEK:
+-		/*
+-		 * Return the next 4 byte unit in the XDR stream.
+-		 */
+-		if (xdrs->x_handy < sizeof (int32_t))
+-			return (FALSE);
+-		int32p = (int32_t *)info;
+-		*int32p = (int32_t)ntohl((uint32_t)
+-		    (*((int32_t *)(xdrs->x_private))));
+-		return (TRUE);
+-
+-	case XDR_SKIPBYTES:
+-		/*
+-		 * Skip the next N bytes in the XDR stream.
+-		 */
+-		int32p = (int32_t *)info;
+-		len = RNDUP((int)(*int32p));
+-		if ((xdrs->x_handy -= len) < 0)
+-			return (FALSE);
+-		xdrs->x_private += len;
+-		return (TRUE);
+-
+-	}
+-	return (FALSE);
+-}
+-- 
+2.34.1
+

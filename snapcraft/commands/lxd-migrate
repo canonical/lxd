@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ] && [ "$(cat /proc/self/attr/current)" != "unconfined" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+fi
+
+# shellcheck disable=SC2155
+export SNAP_CURRENT="$(realpath "${SNAP}/..")/current"
+
+export LXD_DIR="${LXD_DIR:-"${SNAP_COMMON}/lxd/"}"
+
+# Setup for ZFS
+if [ -e /sys/module/zfs/version ]; then
+    VERSION=$(cat /sys/module/zfs/version)
+else
+    VERSION=$(nsenter -t 1 -m modinfo -F version zfs 2>/dev/null || true)
+fi
+
+ZFS_VER="$(echo "${VERSION}" | cut -c 1-3)"
+
+if [ -d "${SNAP_CURRENT}/zfs-${ZFS_VER}/bin" ]; then
+    echo "==> Setting up ZFS (${ZFS_VER})"
+    export LD_LIBRARY_PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/lib/:${LD_LIBRARY_PATH}"
+    export PATH="${SNAP_CURRENT}/zfs-${ZFS_VER}/bin:${PATH}"
+fi
+
+exec lxd-migrate "$@"

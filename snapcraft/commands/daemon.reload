@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ] && [ "$(cat /proc/self/attr/current)" != "unconfined" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+fi
+
+echo reload > "${SNAP_COMMON}/state"
+read -r PID < "${SNAP_COMMON}/lxd.pid"
+kill "$PID"
