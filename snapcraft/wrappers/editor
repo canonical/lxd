@@ -74,4 +74,8 @@ if [ -z "${VIMINIT:-""}" ]; then
 fi
 
 # Run the editor.
-exec vim.tiny -Z ${EDIT_IGNORE_RC} "${EDIT_PATH}"
+if [ -n "${EDIT_IGNORE_RC}" ]; then
+    exec vim.tiny -Z "${EDIT_IGNORE_RC}" "${EDIT_PATH}"
+fi
+
+exec vim.tiny -Z "${EDIT_PATH}"

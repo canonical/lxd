@@ -38,6 +38,6 @@ if [ -e "/etc/.lxd_generated" ]; then
   ceph_builtin=$(get_bool "$(snapctl get ceph.builtin)")
 
   if ! [ "${ceph_builtin:-"false"}" = "true" ]; then
-    ln -snf ${SNAP_DATA}/microceph/conf/ /etc/ceph
+    ln -snf "${SNAP_DATA}/microceph/conf/" /etc/ceph
   fi
 fi

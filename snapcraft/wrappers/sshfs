@@ -33,7 +33,7 @@ fi
 shift 2
 SRC="${1}"
 shift
-DST="$(echo "${1}" | sed "s#/var/lib/snapd/hostfs##g")"
+DST="${1#/var/lib/snapd/hostfs}"
 shift
 
 exec nsenter -t 1 -m "${CMD}" -o slave "${SRC}" "${DST}" "$@"

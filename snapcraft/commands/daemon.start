@@ -786,7 +786,7 @@ set +e
     exec ${CMD}
 )&
 PID=$!
-echo ${PID} > "${SNAP_COMMON}/lxd.pid"
+echo "${PID}" > "${SNAP_COMMON}/lxd.pid"
 
 ## Wait for it to be ready
 "${LXD}" waitready &
