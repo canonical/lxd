@@ -5,10 +5,16 @@ To increase the security posture of your LXD deployment, review the following ha
 
 ## General
 
+(howto-security-harden-update-operating-system)=
+### Update the operating system
+
+Keep your operating system up-to-date and install available security patches.
+
 (howto-security-harden-supported)=
 ### Use a supported version
 
-Use only supported LTS releases or the latest feature release of LXD, and ensure that you update it regularly to receive security updates and bugfixes. See: {ref}`ref-releases`.
+Use only supported LTS releases or the latest feature release of LXD, and update LXD regularly to receive security updates and bugfixes.
+See {ref}`ref-releases-snap` for details.
 
 (howto-security-harden-delete-unused)=
 ### Delete unused resources
@@ -22,7 +28,7 @@ Delete unused networks and storage pools to reduce the attack surface.
 
 Users in the `lxd` group who access LXD through the local Unix socket are given full administrative control over LXD. Thus, ensure that only trusted users are members of the `lxd` group (or any custom group you configure via `snap.lxd.daemon.group`). Audit group membership regularly.
 
-Also see: {ref}`howto-security-harden-restricted-group`.
+Also see {ref}`howto-security-harden-restricted-group`.
 
 (howto-security-harden-remote)=
 ### Harden remote API access
@@ -96,7 +102,7 @@ Rather than applying these options on a per-instance basis, use either {ref}`pro
 (howto-security-harden-unprivileged)=
 ### Use unprivileged containers
 
-By default, LXD containers are unprivileged. If you need to use privileged containers, make sure to put appropriate security measures in place. For more information, see: {ref}`container-security`.
+By default, LXD containers are unprivileged. If you need to use privileged containers, make sure to put appropriate security measures in place. For more information, see {ref}`container-security`.
 
 (howto-security-harden-instance-resource-limits)=
 ### Set instance resource limits
@@ -220,7 +226,7 @@ sudo snap set lxd daemon.user.group=lxdusers
 (howto-security-harden-projects)=
 ### Confine users to projects
 
-You can confine users to specific projects, which can be configured with stricter restrictions to prevent misuse. For details, see: {ref}`projects-confine-users`, {ref}`exp-projects`, and {ref}`restricted-tls-certs`.
+You can confine users to specific projects, which can be configured with stricter restrictions to prevent misuse. For details, see {ref}`projects-confine-users`, {ref}`exp-projects`, and {ref}`restricted-tls-certs`.
 
 (howto-security-harden-name-leakage)=
 ### Prevent name leakage

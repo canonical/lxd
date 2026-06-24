@@ -13,15 +13,17 @@ myst:
 :title: LXD security
 ```
 
-% Include content from [../../README.md](../../README.md)
-```{include} ../../README.md
-    :start-after: <!-- Include start security -->
-    :end-before: <!-- Include end security -->
-```
+Security considerations are critical when you install and deploy LXD.
+This page provides a high-level overview of information and concepts related to LXD security.
+To further increase your security posture, see {ref}`howto-security-harden`.
 
-See the following sections for detailed information. Also see: {ref}`howto-security-harden`.
+## Reporting vulnerabilities
 
-If you discover a security issue, see the [LXD security policy](https://github.com/canonical/lxd/blob/main/SECURITY.md) for information on how to report the issue.
+LXD adheres to the [Ubuntu disclosure policy](https://ubuntu.com/security/disclosure-policy).
+If you discover a security issue, see the [LXD security policy](https://github.com/canonical/lxd/blob/main/SECURITY.md) for information about how to report the issue.
+
+[LXD security advisories](https://github.com/canonical/lxd/security/advisories) are published on GitHub.
+For additional information about LXD releases and development, refer to our {ref}`ref-release-notes` and [LXD news on Discourse](https://discourse.ubuntu.com/c/project/lxd/news/143).
 
 ## Supported versions
 
@@ -32,6 +34,8 @@ Never use unsupported LXD versions in a production environment.
     :start-after: <!-- Include start supported versions -->
     :end-before: <!-- Include end supported versions -->
 ```
+
+See {ref}`ref-releases-snap` for the currently supported releases as well as information about updates and upgrades to the LXD snap.
 
 (security-daemon-access)=
 ## Access to the LXD daemon
