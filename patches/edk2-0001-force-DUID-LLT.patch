@@ -1,0 +1,34 @@
+From a27ea9e98aefe5e49de1bd92b4c56f6141c3217c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?St=C3=A9phane=20Graber?= <stgraber@ubuntu.com>
+Date: Thu, 4 Jun 2020 15:02:27 -0400
+Subject: [PATCH] dhcp6: Force DUID-LLT
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+LXD VMs set the SMBIOS UUID but guest operating systems usually do not
+use it for DHCPv6 DUID. As we have users who need to be able to use
+MAC-based config in their DHCP servers, we'll just force the use of
+DUID-LLT instead.
+
+Signed-off-by: Stéphane Graber <stgraber@ubuntu.com>
+---
+ NetworkPkg/Dhcp6Dxe/Dhcp6Utility.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/NetworkPkg/Dhcp6Dxe/Dhcp6Utility.c b/NetworkPkg/Dhcp6Dxe/Dhcp6Utility.c
+index d249a1cca7..35d785df91 100644
+--- a/NetworkPkg/Dhcp6Dxe/Dhcp6Utility.c
++++ b/NetworkPkg/Dhcp6Dxe/Dhcp6Utility.c
+@@ -58,7 +58,7 @@ Dhcp6GenerateClientId (
+   //
+   // If System UUID is found from SMBIOS Table, use DUID-UUID type.
+   //
+-  if ((PcdGet8 (PcdDhcp6UidType) == Dhcp6DuidTypeUuid) && !EFI_ERROR (NetLibGetSystemGuid (&Uuid)) && !CompareGuid (&Uuid, &gZeroGuid)) {
++  if (0 && (PcdGet8 (PcdDhcp6UidType) == Dhcp6DuidTypeUuid) && !EFI_ERROR (NetLibGetSystemGuid (&Uuid)) && !CompareGuid (&Uuid, &gZeroGuid)) {
+     //
+     //
+     //  The format of DUID-UUID:
+-- 
+2.25.1
+

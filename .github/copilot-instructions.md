@@ -13,7 +13,7 @@ LXD requires Go 1.25.11 or higher and is only tested with the Golang compiler.
 ```
 /
 ├── lxd/                    # Main server daemon source
-├── lxc/                    # Client CLI tool source  
+├── lxc/                    # Client CLI tool source
 ├── lxd-agent/              # VM agent source
 ├── lxd-convert/            # Conversion tool source
 ├── client/                 # Go client library
@@ -83,7 +83,7 @@ The CI pipeline (`.github/workflows/tests.yml`) runs:
 
 4. **Documentation**:
    - Sphinx build
-   - Link checking  
+   - Link checking
    - Spell checking
    - Inclusive language checking
 

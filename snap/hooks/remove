@@ -1,0 +1,36 @@
+#!/bin/sh
+set -eu
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ]; then
+  label="$(cat /proc/self/attr/current 2>/dev/null)"
+  if [ "$label" != "unconfined" ] && [ -n "${label##*(unconfined)}" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+  fi
+fi
+
+# Unmount potential LXD paths.
+for path in "${SNAP_COMMON}/ns/shmounts" "${SNAP_COMMON}/ns/mntns" "${SNAP_COMMON}/ns" "${SNAP_COMMON}/var/lib/lxcfs/" "${SNAP_COMMON}/shmounts"; do
+    nsenter -t 1 -m umount -l "${path}" >/dev/null 2>&1 || true
+done
+
+# Stop workaround unit
+nsenter -t 1 -m systemctl stop snap.lxd.workaround >/dev/null 2>&1 || true
+
+# Remove systemd override snippet
+SYSTEMD_OVERRIDE_DIR="/var/lib/snapd/hostfs/run/systemd/system/snap.lxd.daemon.service.d"
+if [ -e "${SYSTEMD_OVERRIDE_DIR}/lxd-shutdown.conf" ]; then
+    rm "${SYSTEMD_OVERRIDE_DIR}/lxd-shutdown.conf" || true
+    rmdir --ignore-fail-on-non-empty "${SYSTEMD_OVERRIDE_DIR}"
+    nsenter -t 1 -m systemctl daemon-reload || true
+fi
+
+# Remove sysctl override snippet
+SYSCTL_OVERRIDE_DIR="/var/lib/snapd/hostfs/run/sysctl.d"
+if [ -e "${SYSCTL_OVERRIDE_DIR}/zz-lxd.conf" ]; then
+    rm "${SYSCTL_OVERRIDE_DIR}/zz-lxd.conf" || true
+    rmdir --ignore-fail-on-non-empty "${SYSCTL_OVERRIDE_DIR}"
+    nsenter -t 1 -m systemctl restart systemd-sysctl.service || true
+fi
+
+exit 0

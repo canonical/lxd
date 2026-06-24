@@ -1,0 +1,1790 @@
+name: lxd
+base: core24
+assumes:
+  - snapd2.39
+version: git
+grade: devel
+summary: LXD - container and VM manager
+license: AGPL-3.0-only
+title: LXD
+description: |-
+ LXD is a system container and virtual machine manager.
+
+ It offers a simple CLI and REST API to manage local or remote instances,
+ uses an image based workflow and support for a variety of advanced features.
+
+ Images are available for all Ubuntu releases and architectures as well
+ as for a wide number of other Linux distributions. Existing
+ integrations with many deployment and operation tools, makes it work
+ just like a public cloud, except everything is under your control.
+
+ LXD containers are lightweight, secure by default and a great
+ alternative to virtual machines when running Linux on Linux.
+
+ LXD virtual machines are modern and secure, using UEFI and secure-boot
+ by default and a great choice when a different kernel or operating
+ system is needed.
+
+ With clustering, up to 50 LXD servers can be easily joined and managed
+ together with the same tools and APIs and without needing any external
+ dependencies.
+
+
+ Supported configuration options for the snap (snap set lxd [<key>=<value>...]):
+
+   - apparmor.unprivileged-restrictions-disable: Whether to disable restrictions on unprivileged user namespaces [default=true]
+   - ceph.builtin: Use snap-specific Ceph configuration [default=false]
+   - ceph.external: Use the system's ceph tools (ignores ceph.builtin) [default=false]
+   - criu.enable: Enable experimental live-migration support [default=false]
+   - daemon.debug: Increase logging to debug level [default=false]
+   - daemon.group: Set group of users that have full control over LXD [default=lxd]
+   - daemon.user.group: Set group of users that have restricted LXD access [default=lxd]
+   - daemon.preseed: Pass a YAML configuration to `lxd init` on initial start
+   - daemon.syslog: Send LXD log events to syslog [default=false]
+   - daemon.verbose: Increase logging to verbose level [default=false]
+   - db.trace: Enable dqlite trace logging (very verbose) [default=false]
+   - lvm.external: Use the system's LVM tools [default=false]
+   - lxcfs.pidfd: Start per-container process tracking [default=true]
+   - lxcfs.loadavg: Start tracking per-container load average [default=false]
+   - lxcfs.cfs: Consider CPU shares for CPU usage [default=false]
+   - lxcfs.debug: Increase logging to debug level [default=false]
+   - minio.path: Path to the directory containing the minio and mc binaries to use with LXD [default=""]
+   - openvswitch.builtin: Run a snap-specific OVS daemon [default=false]
+   - openvswitch.external: Use the system's OVS tools (ignores openvswitch.builtin) [default=false]
+   - ovn.builtin: Use snap-specific OVN configuration [default=false]
+   - ui.enable: Enable the web interface [default=true]
+   - zfs.external: Use the system's ZFS tools [default=false]
+
+ For system-wide configuration of the CLI, place your configuration in
+ /var/snap/lxd/common/global-conf/ (config.yml and servercerts)
+
+contact: lxd@lists.canonical.com
+issues: https://github.com/canonical/lxd/issues
+source-code: https://github.com/canonical/lxd
+website: https://ubuntu.com/lxd
+confinement: strict
+
+plugs:
+ ceph-conf:
+   interface: content
+   target: "$SNAP_DATA/microceph"
+ ovn-certificates:
+   interface: content
+   target: "$SNAP_DATA/microovn/certificates"
+ ovn-chassis:
+   interface: content
+   target: "$SNAP_DATA/microovn/chassis"
+
+apps:
+  # Main commands
+  activate:
+    command: commands/daemon.activate
+    daemon: oneshot
+    plugs:
+      - lxd-support
+      - system-observe
+
+  daemon:
+    command: commands/daemon.start
+    reload-command: commands/daemon.reload
+    stop-command: commands/daemon.stop
+    stop-timeout: 600s
+    restart-condition: on-failure
+    daemon: simple
+    slots:
+      - lxd
+    plugs:
+      - lxd-support
+      - network-bind
+      - system-observe
+    sockets:
+      unix:
+        listen-stream: $SNAP_COMMON/lxd/unix.socket
+        socket-mode: 0660
+
+  user-daemon:
+    command: commands/lxd-user
+    stop-timeout: 600s
+    restart-condition: on-failure
+    daemon: simple
+    plugs:
+      - lxd-support
+      - network-bind
+      - system-observe
+    sockets:
+      unix:
+        listen-stream: $SNAP_COMMON/lxd-user/unix.socket
+        socket-mode: 0660
+
+  lxc:
+    command: commands/lxc
+    completer: lxc-completer.sh
+    plugs:
+      - lxd-support
+      - system-observe
+
+  lxd:
+    command: commands/lxd
+    plugs:
+      - lxd-support
+      - system-observe
+
+  # Sub-commands
+  buginfo:
+    command: commands/buginfo
+    plugs:
+      - lxd-support
+      - system-observe
+  check-kernel:
+    command: commands/lxd-check-kernel
+    plugs:
+      - lxd-support
+      - system-observe
+
+hooks:
+  connect-plug-ceph-conf:
+    plugs:
+      - lxd-support
+      - system-observe
+  disconnect-plug-ceph-conf:
+    plugs:
+      - lxd-support
+      - system-observe
+  connect-plug-ovn-certificates:
+    plugs:
+      - lxd-support
+      - system-observe
+  disconnect-plug-ovn-certificates:
+    plugs:
+      - lxd-support
+      - system-observe
+  connect-plug-ovn-chassis:
+    plugs:
+      - lxd-support
+      - system-observe
+  disconnect-plug-ovn-chassis:
+    plugs:
+      - lxd-support
+      - system-observe
+  configure:
+    plugs:
+      - lxd-support
+      - network
+      - system-observe
+  remove:
+    plugs:
+      - lxd-support
+      - system-observe
+
+parts:
+  # Dependencies
+  btrfs:
+    plugin: nil
+    stage-packages:
+      - btrfs-progs
+    organize:
+      sbin/: bin/
+    prime:
+      - bin/btrfs
+      - bin/btrfstune
+      - bin/mkfs.btrfs
+
+  ceph:
+    after:
+      - libatomic
+    plugin: nil
+    stage-packages:
+      # XXX: explicitly depend on libsnappy1v5 due to https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2072656
+      - to armhf: []
+      - else:
+        - ceph-common
+        - libsnappy1v5
+    organize:
+      usr/bin/: bin/
+      usr/lib/: lib/
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    prime:
+      - bin/ceph
+      - bin/radosgw-admin
+      - bin/rbd
+      - lib/*/ceph
+      - lib/*/libcephfs*
+      - lib/python3
+
+      - lib/*/libboost_context.so*
+      - lib/*/libboost_filesystem.so*
+      - lib/*/libboost_iostreams.so*
+      - lib/*/libboost_program_options.so*
+      - lib/*/libboost_thread.so*
+      - lib/*/libboost_url.so*
+      - lib/*/libbrotlicommon.so*
+      - lib/*/libbrotlidec.so*
+      - lib/*/libcurl-gnutls.so*
+      - lib/*/libdaxctl.so*
+      - lib/*/libibverbs.so*
+      - lib/*/libicudata.so*
+      - lib/*/libicuuc.so*
+      - lib/*/liblber-2.5.so*
+      - lib/*/liblber.so*
+      - lib/*/libldap-2.5.so*
+      - lib/*/libldap.so*
+      - lib/*/liblmdb.so*
+      - lib/*/liblua5.4.so*
+      - lib/*/libncurses.so*
+      - lib/*/libndctl.so*
+      - lib/*/libnghttp2.so*
+      - lib/*/liboath.so*
+      - lib/*/libpmemobj.so*
+      - lib/*/libpmem.so*
+      - lib/*/libpsl.so*
+      - lib/*/librabbitmq.so*
+      - lib/*/librados.so*
+      - lib/*/librbd.so*
+      - lib/*/librdmacm.so*
+      - lib/*/librtmp.so*
+      - lib/*/libsasl2.so*
+      - lib/*/libsnappy.so*
+      - lib/*/libssh.so*
+      - lib/*/libtcmalloc.so*
+      - lib/*/libunwind.so*
+
+  criu:
+    source: https://github.com/checkpoint-restore/criu
+    source-commit: c2b48ff423aa663b3534a5ba96907366e4c1b408 # v4.0
+    source-depth: 1
+    source-type: git
+    plugin: nil
+    build-packages:
+      - asciidoc
+      - libcap-dev
+      - libnet1-dev
+      - libnl-3-dev
+      - libprotobuf-c-dev
+      - libprotobuf-dev
+      - protobuf-c-compiler
+      - protobuf-compiler
+      - xmlto
+    stage-packages:
+      - libnet1
+      - libprotobuf-c1
+    override-prime: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && [ "$(uname -m)" != "armv7l" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && [ "$(uname -m)" != "armv7l" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && [ "$(uname -m)" != "ppc64le" ] && [ "$(uname -m)" != "s390x" ] && [ "$(uname -m)" != "armv7l" ] && exit 0
+      set -ex
+
+      git config user.email "noreply@lists.canonical.com"
+      git config user.name "LXD snap builder"
+
+      make criu
+      mkdir -p "${CRAFT_PART_INSTALL}/criu/"
+      cp criu/criu "${CRAFT_PART_INSTALL}/criu/"
+    organize:
+      usr/lib/: lib/
+    prime:
+      - criu/*
+      - lib/*/libnet*
+      - lib/*/libproto*
+
+  dqlite:
+    source: https://github.com/canonical/dqlite
+    source-branch: lts-1.17.x
+    source-depth: 1
+    source-type: git
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=
+      - --enable-build-raft
+    stage-packages:
+      - liblz4-1
+      - libuv1t64
+      - sqlite3
+    build-packages:
+      - liblz4-dev
+      - libsqlite3-dev
+      - libuv1-dev
+      - xfslibs-dev
+    organize:
+      usr/bin/: bin/
+      usr/lib/: lib/
+    prime:
+      - bin/sqlite3
+      - lib/libdqlite*so*
+      - lib/*/libsqlite3*so*
+      - lib/*/libuv*
+      #- lib/*/liblz4.so*  # use liblz4.so from the base snap
+
+  edk2:
+    after:
+      - qemu
+    source: https://git.launchpad.net/ubuntu/+source/edk2
+    source-depth: 1
+    source-commit: fa8b3cd4c87f4a63ce02a509684a9b7282b3c376 # import/2024.02-2ubuntu0.8
+    source-type: git
+    plugin: nil
+    build-packages:
+      - to amd64:
+        - acpica-tools
+        - bc
+        - debhelper
+        - dosfstools
+        - g++
+        - jq
+        - lsb-release
+        - mtools
+        - nasm
+        - python3
+        - python3-pexpect
+        - python3-virt-firmware
+        - quilt
+        - uuid-dev
+        - xorriso
+      - to arm64:
+        - acpica-tools
+        - bc
+        - debhelper
+        - dosfstools
+        - g++
+        - jq
+        - lsb-release
+        - mtools
+        - nasm
+        - python3
+        - python3-pexpect
+        - python3-virt-firmware
+        - quilt
+        - uuid-dev
+        - xorriso
+    override-stage: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      set -eux
+
+      # Ensure staged libraries are found (needed for qemu to generate secure boot vars)
+      export LD_LIBRARY_PATH="${CRAFT_STAGE}/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH):${CRAFT_STAGE}/lib:${LD_LIBRARY_PATH:-}"
+
+      # Apply patches from Ubuntu sources.
+      QUILT_PATCHES=debian/patches quilt push -a
+
+      # Enable KVM if available
+      if [ -c /dev/kvm ] && [ -w /dev/kvm ]; then
+          sed -i 's/accel=tcg/accel=kvm:tcg/' debian/python/UEFI/Qemu.py
+      fi
+      # Ensure fast RNG in the build VM to speed up secure boot vars generation.
+      sed -i "s/'-serial', 'stdio',/'-serial', 'stdio', '-device', 'virtio-rng-pci',/" debian/python/UEFI/Qemu.py
+
+      # Apply patches
+      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0001-force-DUID-LLT.patch"
+      cp "${CRAFT_PROJECT_DIR}/patches/edk2-0002-logo.bmp" MdeModulePkg/Logo/Logo.bmp
+      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0003-boot-delay.patch"
+
+      # Install files destination
+      mkdir -p "${CRAFT_PART_INSTALL}/share/qemu/"
+
+      if [ "$(uname -m)" = "x86_64" ]; then
+          DSC="OvmfPkg/OvmfPkgX64.dsc"
+          BUILD_TARGET="build-ovmf"
+          SRC_DIR="debian/ovmf-install"
+          SRC_CODE="OVMF_CODE_4M.secboot.fd"
+          SRC_VARS="OVMF_VARS_4M.fd"
+          SRC_VARS_MS="OVMF_VARS_4M.ms.fd"
+          # Add DEBUG_VERBOSE to print error level for DEBUG build
+          # * 0x80000000 (DEBUG_ERROR)
+          # * 0x00000040 (DEBUG_INFO)
+          # * 0x0000000F (Bits 0-3: DEBUG_INIT, DEBUG_WARN, DEBUG_LOAD, DEBUG_FS)
+          # = 0x8000004F
+          # Adding 0x00400000 (DEBUG_VERBOSE) gives 0x8040004F
+          SED_EXPR="s#PcdDebugPrintErrorLevel|0x8000004F#PcdDebugPrintErrorLevel|0x8040004F#g"
+      elif [ "$(uname -m)" = "aarch64" ]; then
+          DSC="ArmVirtPkg/ArmVirt.dsc.inc"
+          BUILD_TARGET="build-qemu-efi-aarch64"
+          SRC_DIR="debian/aavmf-install"
+          SRC_CODE="AAVMF_CODE.secboot.fd"
+          SRC_VARS="AAVMF_VARS.fd"
+          SRC_VARS_MS="AAVMF_VARS.ms.fd"
+          # See note in `x86_64` section for DEBUG_VERBOSE explanation
+          SED_EXPR="s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g"
+      fi
+
+      # Function to run build and install
+      run_build() {
+          local TYPE="${1}"
+          local SUFFIX="${2}"
+
+          # Clean up previous build stamps/artifacts to ensure clean rebuild with new TYPE
+          rm -f debian/setup-build-stamp
+          rm -rf debian/*-install
+          rm -rf Build
+
+          if [ "${TYPE}" = "DEBUG" ]; then
+              # Add `DEBUG_VERBOSE` to print error level for DEBUG build
+              sed --in-place=.bak "${SED_EXPR}" "${DSC}"
+          fi
+
+          /usr/bin/make -f debian/rules "${BUILD_TARGET}" BUILD_TYPE="${TYPE}"
+
+          if [ "${TYPE}" = "DEBUG" ] && [ -f "${DSC}.bak" ]; then
+              mv "${DSC}.bak" "${DSC}"
+          fi
+
+          cp "${SRC_DIR}/${SRC_CODE}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB${SUFFIX}.fd"
+          cp "${SRC_DIR}/${SRC_VARS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB${SUFFIX}.fd"
+
+          if [ "${TYPE}" = "RELEASE" ]; then
+               cp "${SRC_DIR}/${SRC_VARS_MS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.ms.fd"
+          fi
+      }
+
+      # Build Release
+      run_build RELEASE ""
+
+      # Build Debug
+      run_build DEBUG ".debug"
+
+      # Cleanup debug vars
+      rm "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.debug.fd"
+    prime:
+      - share/qemu/*
+
+  libatomic:
+    plugin: nil
+    override-stage: |-
+      [ "$(uname -m)" != "s390x" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" != "s390x" ] && exit 0
+      craftctl default
+    stage-packages:
+      - to s390x:
+        - libatomic1
+    organize:
+      usr/lib/: lib/
+    prime:
+      # XXX: libatomic.so is only needed by Ceph/QEMU on s390x and no other arch.
+      - lib/*/libatomic.so*
+
+  logrotate:
+    plugin: nil
+    stage-packages:
+      - logrotate
+    organize:
+      usr/bin/: bin/
+      usr/lib/: lib/
+      usr/sbin/: bin/
+    stage:
+      - bin/logrotate
+    prime:
+      - bin/logrotate
+
+  lvm:
+    plugin: nil
+    stage-packages:
+      - dmeventd
+      - lvm2
+      - thin-provisioning-tools
+    organize:
+      sbin/: bin/
+      usr/lib/: lib/
+      usr/sbin/: bin/
+    override-build: |-
+      # Patch lvm.conf to:
+      # 1) Disable bits that don't apply in a snap'ed env. Handle commented
+      #    out variants that represent builtin values.
+      #    * udev_sync
+      #    * udev_rules
+      #    * use_lvmetad
+      #    * monitoring
+      # 2) Uncomment all executable directives to override their builtin
+      #    values. Replace paths in /usr/bin, /usr/sbin, /bin and /sbin
+      #    by /snap/lxd/current/bin to use executables from the snap.
+      sed -i \
+        -e "s%\(# \)\?udev_sync = 1%udev_sync = 0%" \
+        -e "s%\(# \)\?udev_rules = 1%udev_rules = 0%" \
+        -e "s%\(# \)\?use_lvmetad = 1%use_lvmetad = 0%" \
+        -e "s%\(# \)\?monitoring = 1%monitoring = 0%" \
+        -e "/# .*_\?executable =/s/# //" \
+        -e "s%\(/usr\)\?/s\?bin/%/snap/lxd/current/bin/%" \
+        "${CRAFT_PART_INSTALL}/etc/lvm/lvm.conf"
+
+      craftctl default
+    prime:
+      - bin/cache_*
+      - bin/dmeventd
+      - bin/era_*
+      - bin/lv*
+      - bin/pdata_tools
+      - bin/pv*
+      - bin/thin_*
+      - bin/vg*
+      - -bin/vgimportclone
+      - -bin/lvmconf
+      - -bin/lvmdump
+      - -bin/lvmetad
+      - -bin/lvmpolld
+      - etc/lvm/lvm.conf
+      - etc/lvm/profile/*
+      - lib/*/device-mapper/*
+      - lib/*/libaio.so*
+      - lib/*/libdevmapper*
+      - lib/*/liblvm*
+      - lib/*/libreadline.so*
+
+  nftables:
+    plugin: nil
+    stage-packages:
+      - nftables
+    organize:
+      usr/lib/: lib/
+      usr/sbin/: bin/
+    prime:
+      - bin/nft
+      - lib/*/libjansson*so*
+      - lib/*/libnftables*so*
+
+  nvidia-container:
+    source: https://github.com/NVIDIA/libnvidia-container
+    source-commit: 7585946c6471402577e14474d7c56ca5be0348d7 # v1.19.0
+    source-depth: 1
+    source-type: git
+    plugin: make
+    build-environment:
+      - GIT_TAG: "1.19.0" # Enables source-depth: 1, should match git tag without "v" prefix.
+    build-packages:
+      - to amd64:
+        - bmake
+        - curl
+        - libelf-dev
+        - libseccomp-dev
+        - lsb-release
+        - libtirpc-dev
+      - to arm64:
+        - bmake
+        - curl
+        - libelf-dev
+        - libseccomp-dev
+        - lsb-release
+        - libtirpc-dev
+    build-snaps:
+      - go/1.25/stable
+    override-stage: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      set -ex
+
+      # Setup build environment
+      export GOTOOLCHAIN="local"
+
+      # Git cherry-picks
+      git config user.email "noreply@lists.canonical.com"
+      git config user.name "LXD snap builder"
+
+      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/nvidia-0001-Fix-for-22.04-build.patch"
+      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/nvidia-0002-pre-load-libdl.patch"
+
+      mkdir -p "${CRAFT_PART_INSTALL}/bin/"
+      cp "${CRAFT_PROJECT_DIR}/snapcraft/wrappers/nvidia-container-cli" "${CRAFT_PART_INSTALL}/bin/"
+
+      set +ex
+      craftctl default
+    organize:
+      usr/local/bin/nvidia-container-cli: bin/nvidia-container-cli.real
+      usr/local/lib: lib/
+    prime:
+      - bin/nvidia-container-cli*
+      - lib/libnvidia-container.so*
+      - lib/libnvidia-container-go.so*  # dlopen()'ed by libnvidia-container.so
+
+  nvidia-container-toolkit:
+    source: https://github.com/NVIDIA/nvidia-container-toolkit
+    source-depth: 1
+    source-commit: ec7b4e2fa2caecad6d89be4a26029b831fe7503a # v1.19.0
+    source-type: git
+    build-snaps:
+      - go/1.25/stable
+    plugin: make
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      set -ex
+
+      # Setup build environment
+      export GOTOOLCHAIN="local"
+
+      make binaries
+      mkdir -p "${CRAFT_PART_INSTALL}/bin/"
+      cp nvidia-ctk "${CRAFT_PART_INSTALL}/bin/"
+    organize:
+      usr/bin/: bin/
+    prime:
+      - bin/nvidia-ctk
+
+  nvme:
+    plugin: nil
+    stage-packages:
+      - nvme-cli
+    organize:
+      usr/lib/: lib/
+      usr/sbin/: bin/
+    prime:
+      - bin/nvme
+      - lib/*/libnvme*
+
+  openvswitch:
+    plugin: nil
+    stage-packages:
+      - to armhf: []
+      - else:
+        - openvswitch-common
+        - openvswitch-switch
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    organize:
+      sbin/: bin/
+      usr/bin/: bin/
+      usr/lib/: lib/
+      usr/share/: share/
+    prime:
+      - bin/ovs-vsctl
+      - lib/*/libunbound*so*
+      - share/openvswitch/*.ovsschema
+
+  ovn:
+    after:
+      - openvswitch
+    plugin: nil
+    stage-packages:
+      - to armhf: []
+      - else:
+        - ovn-common
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    organize:
+      usr/bin/: bin/
+      usr/lib/: lib/
+    prime:
+      - bin/ovn-nbctl
+      - bin/ovn-sbctl
+      - lib/*/libunbound*so*
+
+  spice-server:
+    source: https://git.launchpad.net/ubuntu/+source/spice
+    source-commit: 085ca6b2bf58014ad8be571f3b601465c85ae931 # import/0.15.1-1build2
+    source-depth: 1
+    source-type: git
+    plugin: meson
+    meson-parameters:
+      - --prefix=/
+      - -Dgstreamer=no
+      - -Dmanual=false
+      - -Dlz4=false
+      - -Dsasl=false
+      - -Dopus=disabled
+      - -Dsmartcard=disabled
+      - -Dtests=false
+    build-packages:
+      - to armhf: []
+      - else:
+        - libspice-protocol-dev
+        - libjpeg-turbo8-dev
+        - python3-pyparsing
+        - python3-six
+        - meson
+        - ninja-build
+    stage-packages:
+      - to armhf: []
+      - else:
+        - libjpeg-turbo8
+        - libpixman-1-0
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+
+      # Apply patches from Ubuntu sources.
+      cd ../src
+      QUILT_PATCHES=debian/patches quilt push -a
+      cd ../build
+
+      craftctl default
+    organize:
+      sbin/: bin/
+      usr/lib: lib/
+      usr/local/lib/: lib/
+    prime:
+      - lib/*/libjpeg*so*
+      - lib/*/libspice-server*so*
+      - lib/*/libpixman*so*
+
+  swtpm:
+    plugin: nil
+    stage-packages:
+      - swtpm
+    organize:
+      usr/bin/: bin/
+      usr/lib/: lib/
+    prime:
+      - bin/swtpm
+      - lib/*/swtpm/libswtpm*so*
+      - lib/*/libtpms*so*
+
+  qemu:
+    after:
+      - libatomic
+      - spice-server
+    source: https://git.launchpad.net/ubuntu/+source/qemu
+    source-commit: c003da9fa7abc4bdbfa7bfffccd1339f608dbd0f # import/1%8.2.2+ds-0ubuntu1.17
+    source-depth: 1
+    source-type: git
+    plugin: autotools
+    autotools-configure-parameters:
+      - --disable-bochs
+      - --disable-cloop
+      - --disable-dmg
+      - --disable-docs
+      - --disable-guest-agent
+      - --disable-parallels
+      - --disable-pvrdma
+      - --disable-qed
+      - --disable-slirp
+      - --disable-tcg  # See note about TCG in the override-build section
+      - --disable-user
+      - --disable-vdi
+      - --disable-vnc
+      - --disable-xen
+      - --disable-xkbcommon
+      - --enable-attr
+      - --enable-cap-ng
+      - --enable-kvm
+      - --enable-libusb
+      - --enable-usb-redir
+      - --enable-linux-aio
+      - --enable-linux-io-uring
+      - --enable-numa
+      - --enable-pie
+      - --enable-rbd
+      - --enable-seccomp
+      - --enable-spice
+      - --enable-system
+      - --enable-tools
+      - --enable-vhost-crypto
+      - --enable-vhost-kernel
+      - --enable-vhost-net
+      - --enable-vhost-user
+      - --enable-virtfs
+      - --firmwarepath=/snap/lxd/current/share/qemu/
+      - --localstatedir=/var/
+      - --disable-install-blobs # Ubuntu sources don't have the ROM blobs in them.
+    build-packages:
+      - to armhf: []
+      - else:
+        - bison
+        - bzip2
+        - flex
+        - pkg-config
+        - libaio-dev
+        - libcap-ng-dev
+        - libfdt-dev
+        - libglib2.0-dev
+        - libnuma-dev
+        - libpixman-1-dev
+        - libseccomp-dev
+        - liburing-dev
+        - libusb-1.0-0-dev
+        - libusbredirparser-dev
+        - python3-pip
+        - quilt
+        - librbd-dev
+    stage-packages:
+      - to armhf: []
+      - else:
+        - genisoimage
+        - ipxe-qemu # This is needed due to --disable-install-blobs.
+        - libfdt1
+        - libmagic1t64
+        - libnuma1
+        - libpixman-1-0
+        - libusb-1.0-0
+        - libusbredirparser1t64
+        - liburing2
+        - seabios # This is needed due to --disable-install-blobs.
+        - qemu-system-data # This is needed due to --disable-install-blobs.
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+
+      set -eux
+
+      # Download meson and tomli Python wheels (normally shipped in upstream tarballs)
+      pip download --dest python/wheels meson==1.2.3 tomli==2.0.1
+
+      # Ensure the wheels were downloaded
+      [ "$(sha256sum python/wheels/meson-1.2.3-py3-none-any.whl | awk '{print $1}')" = "17d9124ffad38f5bbb6b198a8de5ecc55ebcd164d35a1d9dae06b8de0605a252" ] || { echo "Invalid sha256sum for meson"; exit 1; }
+      [ "$(sha256sum python/wheels/tomli-2.0.1-py3-none-any.whl | awk '{print $1}')" = "939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc" ] || { echo "Invalid sha256sum for tomli"; exit 1; }
+
+    override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      set -ex
+      # Mangle the configure a bit
+      QEMUARCH="$(uname -m)"
+      [ "${QEMUARCH}" = "ppc64le" ] && QEMUARCH="ppc64"
+
+      # Apply patches from Ubuntu sources.
+      QUILT_PATCHES=debian/patches quilt push -a
+
+      sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
+      sed -i 's#libseccomp_minver=".*#libseccomp_minver="0.0"#g' configure
+
+      # TCG is not used (nor supported) at runtime however it may be needed at
+      # build time by the `edk2` part if KVM acceleration is not available.
+      # `edk2` is only built for `amd64` and `arm64` and Launchpad `amd64`
+      # builders support KVM acceleration so TCG is only needed on `arm64`.
+      if [ "${QEMUARCH}" = "aarch64" ]; then
+          # `set -- "$@"`: preserve arguments passed to `configure` and append
+          # `--enable-tcg` at the end to override the previous `--disable-tcg`.
+          sed -i '1 a set -- "$@" --enable-tcg' configure
+      fi
+
+      # Extract efi-virtio.rom from ipxe-qemu.
+      # This doesn't work in the organize section below.
+      mkdir -p "${CRAFT_PART_INSTALL}"/share/qemu
+      mv "${CRAFT_PART_INSTALL}"/usr/lib/ipxe/qemu/efi-virtio.rom "${CRAFT_PART_INSTALL}"/share/qemu/
+
+      set +ex
+      craftctl default
+
+    organize:
+      usr/bin/: bin/
+      usr/lib/: lib/
+      usr/local/bin/: bin/
+      usr/local/lib/: lib/
+      usr/local/libexec/: bin/
+      usr/local/share/: share/
+      usr/share/qemu/kvmvapic.bin: share/qemu/
+      usr/share/qemu/s390-ccw.img: share/qemu/
+      usr/share/qemu/s390-netboot.img: share/qemu/
+      usr/share/qemu/slof.bin: share/qemu/
+      usr/share/seabios/bios-256k.bin: share/qemu/
+      usr/share/seabios/vgabios-*: share/qemu/
+    prime:
+      - bin/genisoimage*
+      - bin/mkisofs*
+      - bin/qemu-system-*
+      - bin/qemu-img*
+      - bin/virtfs-proxy-helper*
+      - lib/*/libatomic.so*
+      - lib/*/libmagic*so*
+      - lib/*/libnuma*so*
+      - lib/*/libpixman*so*
+      - lib/*/liburing.so*
+      - lib/*/libusbredir*so*
+      - lib/*/libusb*so*
+      - lib/*/libfdt*.so*
+      - share/qemu/keymaps/*
+      - share/qemu/bios-256k.bin
+      - share/qemu/efi-virtio.rom
+      - share/qemu/kvmvapic.bin
+      - share/qemu/s390-ccw.img
+      - share/qemu/s390-netboot.img
+      - share/qemu/slof.bin
+      - share/qemu/vgabios-bochs-display.bin
+      - share/qemu/vgabios-qxl.bin
+      - share/qemu/vgabios-ramfb.bin
+      - share/qemu/vgabios-stdvga.bin
+      - share/qemu/vgabios-virtio.bin
+
+  squashfs-tools-ng:
+    plugin: nil
+    stage-packages:
+      - squashfs-tools-ng
+    organize:
+      usr/bin/: bin/
+      usr/lib/: lib/
+    prime:
+      - bin/sqfs2tar
+      - bin/tar2sqfs
+      - lib/*/libsquashfs.so*
+
+  virtiofsd:
+    plugin: nil
+    stage-packages:
+      - to amd64:
+        - virtiofsd
+    organize:
+      usr/libexec/: bin/
+    prime:
+      - bin/virtiofsd*
+    override-stage: |-
+      [ "$(uname -m)" != "x86_64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" != "x86_64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" != "x86_64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" != "x86_64" ] && exit 0
+      craftctl default
+
+  xfs:
+    plugin: nil
+    stage-packages:
+      - xfsprogs
+    organize:
+      usr/lib/: lib/
+      usr/sbin/: bin/
+      sbin/: bin/
+    prime:
+      - bin/xfs_admin
+      - bin/xfs_db
+      - bin/xfs_growfs
+      - bin/xfs_repair
+      - bin/mkfs.xfs
+      - lib/*/libinih.so*
+      - lib/*/liburcu.so*
+
+  xtables:
+    plugin: nil
+    stage-packages:
+      - arptables
+      - ebtables
+      - netbase
+    organize:
+      usr/lib/ebtables/: lib/
+      usr/sbin/: bin/
+    prime:
+      #- etc/ethertypes  # use ethertypes from the base snap
+      #- etc/protocols   # use protocols from the base snap
+      - bin/arptables-legacy
+      - bin/ebtables-legacy
+      - lib/libebtc.so.*
+
+  xz:
+    plugin: nil
+    stage-packages:
+      - xz-utils
+    organize:
+      usr/bin/: bin/
+      usr/lib/: lib/
+      usr/sbin/: bin/
+    prime:
+      - bin/lzma
+      - bin/xz
+      - lib/*/liblzma*so*
+    override-build: |
+      craftctl default
+
+      # Include the lzma symlink
+      ln -s xz "${CRAFT_PART_INSTALL}/usr/bin/lzma"
+
+  zfs-0-8:
+    source: https://github.com/openzfs/zfs
+    source-commit: 2bc66898b7056140108a4937a6557d9fe27cafc6 # zfs-0.8.6
+    source-depth: 1
+    source-type: git
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=/
+      - --with-config=user
+    build-packages:
+      - to armhf: []
+      - else:
+        - libblkid-dev
+        - libssl-dev
+        - uuid-dev
+        - zlib1g-dev
+        - libtirpc-dev
+    override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+      set -ex
+
+      ZFS_VER="0.8"
+
+      mv "${CRAFT_PART_INSTALL}" "${CRAFT_PART_INSTALL}.tmp"
+      mkdir -p "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib"
+      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zfs" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zpool" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/lib/udev/zvol_id" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
+      rm -Rf "${CRAFT_PART_INSTALL}.tmp"
+
+      # unused .so
+      #rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*  # XXX: not present in 0.8
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
+
+  zfs-2-1:
+    source: https://github.com/openzfs/zfs
+    source-commit: a7186651d3306debca6b4f72797239eea61db36c # zfs-2.1.16
+    source-depth: 1
+    source-type: git
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=/
+      - --with-config=user
+    build-packages:
+      - to armhf: []
+      - else:
+        - libblkid-dev
+        - libssl-dev
+        - uuid-dev
+        - zlib1g-dev
+        - libtirpc-dev
+    override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+      set -ex
+
+      ZFS_VER="2.1"
+
+      mv "${CRAFT_PART_INSTALL}" "${CRAFT_PART_INSTALL}.tmp"
+      mkdir -p "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib"
+      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zfs" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zpool" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/lib/udev/zvol_id" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
+      rm -Rf "${CRAFT_PART_INSTALL}.tmp"
+
+      # unused .so
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
+
+  zfs-2-2:
+    source: https://github.com/openzfs/zfs
+    source-commit: 079ba86d71571bf997ff688da061d8c4aa2fd052 # zfs-2.2.9
+    source-depth: 1
+    source-type: git
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=/
+      - --with-config=user
+    build-packages:
+      - to armhf: []
+      - else:
+        - libblkid-dev
+        - libssl-dev
+        - uuid-dev
+        - zlib1g-dev
+        - libtirpc-dev
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+      set -ex
+
+      ZFS_VER="2.2"
+
+      mv "${CRAFT_PART_INSTALL}" "${CRAFT_PART_INSTALL}.tmp"
+      mkdir -p "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib"
+      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zfs" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zpool" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/lib/udev/zvol_id" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
+      rm -Rf "${CRAFT_PART_INSTALL}.tmp"
+
+      # unused .so
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
+
+  zfs-2-3:
+    source: https://github.com/openzfs/zfs
+    source-commit: c840612ee1af993b835d3b3e59baee631970a781 # zfs-2.3.6
+    source-depth: 1
+    source-type: git
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=/
+      - --with-config=user
+    build-packages:
+      - to armhf: []
+      - else:
+        - libblkid-dev
+        - libssl-dev
+        - uuid-dev
+        - zlib1g-dev
+        - libtirpc-dev
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+      set -ex
+
+      ZFS_VER="2.3"
+
+      mv "${CRAFT_PART_INSTALL}" "${CRAFT_PART_INSTALL}.tmp"
+      mkdir -p "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib"
+      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zfs" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zpool" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/lib/udev/zvol_id" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
+      rm -Rf "${CRAFT_PART_INSTALL}.tmp"
+
+      # unused .so
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
+
+  zfs-2-4:
+    source: https://github.com/openzfs/zfs
+    source-commit: 1c702dda346a59e05cfd3029569bbb1d5d91c54b # zfs-2.4.1
+    source-depth: 1
+    source-type: git
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=/
+      - --with-config=user
+    build-packages:
+      - to armhf: []
+      - else:
+        - libblkid-dev
+        - libssl-dev
+        - uuid-dev
+        - zlib1g-dev
+        - libtirpc-dev
+    override-stage: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" = "armv7l" ] && exit 0
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+      set -ex
+
+      ZFS_VER="2.4"
+
+      mv "${CRAFT_PART_INSTALL}" "${CRAFT_PART_INSTALL}.tmp"
+      mkdir -p "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib"
+      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zfs" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/sbin/zpool" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/lib/udev/zvol_id" "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/bin/"
+      mv "${CRAFT_PART_INSTALL}.tmp/lib/"*so* "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/"
+      rm -Rf "${CRAFT_PART_INSTALL}.tmp"
+
+      # unused .so
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzfsbootenv.so"*
+      rm "${CRAFT_PART_INSTALL}/zfs-${ZFS_VER}/lib/libzpool.so"*
+
+  zstd:
+    plugin: nil
+    stage-packages:
+      - zstd
+    organize:
+      usr/bin/: bin/
+    prime:
+      - bin/pzstd
+      - bin/zstd
+
+  apparmor:
+    plugin: nil
+    stage-packages:
+      - apparmor
+    organize:
+      sbin/: bin/
+    prime:
+      - bin/apparmor_parser
+
+  # Core components
+  lxc:
+    after:
+      - apparmor
+    source: https://github.com/lxc/lxc
+    source-branch: stable-6.0
+    source-depth: 1
+    source-type: git
+    build-packages:
+      - libapparmor-dev
+      - libcap-dev
+      - libseccomp-dev
+      - pkg-config
+      - meson
+      - ninja-build
+    plugin: meson
+    meson-parameters:
+      - "--buildtype=release"
+      - -Dapparmor=true
+      - -Dcapabilities=true
+      - -Dcommands=false
+      - -Ddbus=false
+      - -Dexamples=false
+      - -Dinstall-init-files=false
+      - -Dinstall-state-dirs=false
+      - -Dlibdir=lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}
+      - -Dman=false
+      - -Dmemfd-rexec=false
+      - -Dopenssl=false
+      - -Dprefix=/
+      - -Drootfs-mount-path=/var/snap/lxd/common/lxc/
+      - -Dseccomp=true
+      - -Dselinux=false
+      - -Dspecfile=false
+      - -Dtests=false
+      - -Dtools=false
+    organize:
+      snap/lxd/current/lxc: lxc
+      share/lxc/hooks: lxc/hooks
+    prime:
+      - bin/lxc-checkconfig
+      - lib/*/liblxc.so.1
+      - lib/*/liblxc.so.1.*
+      - lxc/config/common.conf.d
+      - lxc/hooks/nvidia
+    override-build: |
+      set -ex
+
+      # Git cherry-picks
+      cd ../src
+      git config user.email "noreply@lists.canonical.com"
+      git config user.name "LXD snap builder"
+
+      # lxc-checkconfig.in does not need any preprocessing
+      mkdir -p "${CRAFT_PART_INSTALL}/bin/"
+      install --mode=0755 src/lxc/cmd/lxc-checkconfig.in "${CRAFT_PART_INSTALL}/bin/lxc-checkconfig"
+
+      cd ../build
+
+      set +ex
+      craftctl default
+      set -ex
+
+      mkdir -p "${CRAFT_PART_INSTALL}/lxc/config/common.conf.d/"
+      ln -s /var/snap/lxd/common/lxc/local.conf "${CRAFT_PART_INSTALL}/lxc/config/common.conf.d/01-local.conf"
+
+  lxcfs:
+    source: https://github.com/lxc/lxcfs
+    source-branch: stable-6.0
+    source-depth: 1
+    source-type: git
+    build-packages:
+      - libfuse3-dev
+      - pkg-config
+      - python3-jinja2
+      - meson
+      - ninja-build
+    stage-packages:
+      - fuse3
+      - glibc-tools
+    plugin: meson
+    meson-parameters:
+      - --prefix=/
+      - --datadir=/snap/lxd/current/
+      - --localstatedir=/var/snap/lxd/common/var/
+      - -Ddocs=false
+      - -Dtests=false
+    organize:
+      lib/*/lxcfs/liblxcfs.so: lib/
+      snap/lxd/current/lxc/config/common.conf.d/*: lxc/config/common.conf.d/
+      snap/lxd/current/lxcfs/: lxcfs/
+      usr/lib/: lib/
+    prime:
+      - bin/fusermount
+      - bin/fusermount3
+      - lib/*/libfuse3.so.*
+
+      - lib/*/libSegFault.so
+
+      - bin/lxcfs
+      - lib/liblxcfs.so
+
+      - lxc/config/common.conf.d/00-lxcfs.conf
+      - lxcfs/
+    override-build: |
+      set -ex
+
+      # Git cherry-picks
+      cd ../src
+      git config user.email "noreply@lists.canonical.com"
+      git config user.name "LXD snap builder"
+
+      set +ex
+      craftctl default
+      set -ex
+
+      patch -p1 "${CRAFT_PART_INSTALL}/snap/lxd/current/lxcfs/lxc.mount.hook" < "${CRAFT_PROJECT_DIR}/patches/lxcfs-0001-hook.patch"
+
+  uefivars:
+    after:
+      - spice-server
+      - edk2
+      - nftables
+    source: https://git.launchpad.net/ubuntu/+source/python-uefivars
+    source-commit: f5390dfa5df2c99da84a471fe5b322020d78cb15 # import/1.2-0ubuntu1
+    source-depth: 1
+    source-type: git
+    plugin: python
+    build-packages:
+      - quilt
+    stage-packages:
+      - to amd64:
+        - python3-crc32c
+      - to arm64:
+        - python3-crc32c
+    override-stage: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
+    override-prime: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
+    override-build: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+
+      # Apply patches from Ubuntu sources.
+      QUILT_PATCHES=debian/patches quilt push -a
+
+      craftctl default
+    organize:
+      lib/python3.12/site-packages/: lib/python3/dist-packages/
+      bin/uefivars: bin/uefivars.py
+    prime:
+      - bin/uefivars.py  # LXD expects the .py extension
+      - lib/python3/dist-packages/crc32c*
+      - lib/python3/dist-packages/pyuefivars*
+
+  lxd:
+    source: https://github.com/canonical/lxd
+    source-branch: stable-5.21
+    # XXX: We often cherry-pick for candidate builds so don't do shallow clone (0 means full clone).
+    source-depth: 0
+    source-type: git
+    after:
+      - lxc
+      - dqlite
+    build-packages:
+      - cmake
+      - libacl1-dev
+      - libudev-dev
+      - libxml2-dev
+      - libxslt1-dev
+      - libblas-dev
+      - libopenblas-dev
+      - liblapack-dev
+      - pkg-config
+      - pypy3-dev
+      - python3-dev
+      - python3-pip
+      - python3-venv
+    build-snaps:
+      - go/1.25/stable
+    stage-packages:
+      - acl
+      - attr
+      - dnsmasq-base
+      - gdisk
+      - iw
+      - lshw
+      - pci.ids
+      - pigz
+      - rsync
+      - usb.ids
+      - xdelta3
+    plugin: nil
+    override-pull: |
+      craftctl default
+      set -ex
+
+      # Setup build environment
+      export GOTOOLCHAIN="local"
+      export GOPATH="$(realpath ./.go)"
+
+      # Setup the GOPATH
+      rm -Rf "${GOPATH}"
+      mkdir -p "${GOPATH}/src/github.com/canonical"
+      ln -s "$(pwd)" "${GOPATH}/src/github.com/canonical/lxd"
+
+      # Download the dependencies
+      go get -v ./...
+    override-build: |
+      set -ex
+
+      # Git cherry-picks
+      cd ../src
+      git config user.email "noreply@lists.canonical.com"
+      git config user.name "LXD snap builder"
+
+      # Setup build environment
+      export GOTOOLCHAIN="local"
+      export GOPATH="$(realpath ./.go)"
+      export CGO_CFLAGS="-I${CRAFT_STAGE}/include/ -I${CRAFT_STAGE}/usr/local/include/"
+      export CGO_LDFLAGS="-L${CRAFT_STAGE}/lib/ -L${CRAFT_STAGE}/usr/local/lib/"
+      export CGO_LDFLAGS_ALLOW="(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+
+      # Build the binaries
+      go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxc" github.com/canonical/lxd/lxc
+
+      # Build LXD server binary into ${CRAFT_PART_INSTALL}/sbin/lxd so that it does not conflict with the
+      # lxd-stophook wrapper script which is stored in ${CRAFT_PART_INSTALL}/bin/lxd.
+      # This way when a container stops it will call "/snap/lxd/current/bin/lxd callhook" which is handled by the
+      # lxd-stophook script, which in turn will execute "/snap/lxd/current/bin/lxd-user callhook" to notify LXD.
+      go build -trimpath -o "${CRAFT_PART_INSTALL}/sbin/lxd" -tags=libsqlite3 github.com/canonical/lxd/lxd
+
+      # Build static binaries
+      CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
+      CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-user" -tags netgo github.com/canonical/lxd/lxd-user
+
+      # Check which Go version was used to compile each of the lxc/lxd binaries
+      # XXX: fail if an unexpected version (like a Go toolchain) was used
+      GOVER="$(snap list go | awk '{if ($1 == "go") print $2}')"
+      UNEXPECTED_GO_VER="$(go version -v "${CRAFT_PART_INSTALL}/bin/lxc"* "${CRAFT_PART_INSTALL}/bin/lxd"* | grep -vF ": go${GOVER}" || true)"
+      if [ -n "${UNEXPECTED_GO_VER:-}" ]; then
+        echo "Some binaries were compiled with an unexpected Go version (!= ${GOVER}):"
+        echo "${UNEXPECTED_GO_VER}"
+        exit 1
+      fi
+
+      # Some python dependencies are not available for armhf/riscv64 or just require a build from source.
+      # Not worth the effort for now.
+      if [ "$(uname -m)" != "armv7l" ] && [ "$(uname -m)" != "riscv64" ]; then
+        # Build the static website
+        make doc
+
+        # Remove unneeded bits
+        rm doc/_build/objects.inv    # only objects.inv.txt is used
+        # not needed once built
+        rm doc/_build/.buildinfo
+        rm -rf doc/_build/_sphinx_design_static/
+
+        # Copy the static website
+        mkdir -p "${CRAFT_PART_INSTALL}/share/lxd-documentation"
+        cp -a doc/_build/. "${CRAFT_PART_INSTALL}/share/lxd-documentation/"
+      fi
+
+      # Setup bash completion
+      mkdir -p "${CRAFT_PART_INSTALL}/etc/bash_completion.d/"
+      # Snapd requires the unaliased command `lxd.lxc` to be supplied as the first command for completion to be detected
+      set_cmds='s/^\s*complete.*__start_lxc /&lxd.lxc /'
+      # When executed by snapd, the COLUMNS shell value is unset, so use $(tput cols) instead
+      set_cols='s/# $COLUMNS.*/COLUMN="$(tput cols)"  \# store the current shell width./'
+      # When executed by snapd, the `compopt` support detection doesn't work so fake that it is always `builtin`
+      set_compopt='s|$(type -t compopt)|"builtin"|'
+      # Modify requestComp variable to use lxc based on context ($SNAP/bin/lxc in Snap environment)
+      set_request_comp='s|requestComp="${words\[0\]} __complete ${args\[\*\]}"|requestComp="/snap/lxd/current/commands/lxc __complete ${args[*]}"|'
+      # Generate completions script
+      "${CRAFT_PART_INSTALL}/bin/lxc" completion bash | sed -e "${set_cmds}" -e "${set_cols}" -e "${set_compopt}" -e "${set_request_comp}" > "${CRAFT_PART_INSTALL}/lxc-completer.sh"
+      chmod +x "${CRAFT_PART_INSTALL}/lxc-completer.sh"
+    organize:
+      usr/bin/: bin/
+      usr/lib/: lib/
+      usr/share/misc/: share/misc/
+      var/lib/usbutils/usb.ids: share/misc/
+      usr/sbin/: bin/
+      sbin/sgdisk: bin/
+    prime:
+      - bin/dnsmasq
+      - bin/getfattr
+      - bin/setfattr
+      - bin/iw   # used by liblxc when moving the parent dev in a container
+      - bin/pigz
+      - bin/rsync
+      - bin/setfacl
+      - bin/sgdisk
+      - bin/xdelta3
+
+      - lib/*/libidn.so.*
+
+      - lxc-completer.sh
+
+      - share/lxd-documentation*
+      - share/misc/pci.ids
+      - share/misc/usb.ids
+
+      - bin/lxc
+      - bin/lxd-agent
+      - bin/lxd-user
+      - sbin/lxd
+
+  lxd-ui:
+    source: https://github.com/canonical/lxd-ui
+    source-branch: stable-5.21
+    source-depth: 1
+    source-type: git
+    plugin: nil
+    override-prime: |-
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+      craftctl default
+    override-pull: |-
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+
+      snap install node --channel=22/stable --classic
+      craftctl default
+    override-build: |
+      [ "$(uname -m)" = "riscv64" ] && exit 0
+
+      craftctl default
+
+      npm install yarn --global
+      yarn install
+      yarn build
+
+      mkdir -p "${CRAFT_PART_INSTALL}/share"
+      cp -R build/ui "${CRAFT_PART_INSTALL}/share/lxd-ui/"
+    prime:
+      - share/lxd-ui*
+
+  shmounts:
+    source: shmounts/
+    plugin: make
+    prime:
+      - bin/setup-shmounts
+
+  strip:
+    after:
+      - btrfs
+      - ceph
+      - dqlite
+      - logrotate
+      - lvm
+      - nvidia-container
+      - openvswitch
+      - ovn
+      - spice-server
+      - squashfs-tools-ng
+      - swtpm
+      - virtiofsd
+      - xfs
+      - xz
+      - wrappers
+      - xtables
+      - zfs-0-8
+      - zfs-2-1
+      - zfs-2-2
+      - zfs-2-3
+      - zfs-2-4
+      - zstd
+      - lxc
+      - lxcfs
+      - criu
+      - lxd
+      - shmounts
+      - nvidia-container-toolkit
+    plugin: nil
+    override-prime: |
+      set -x
+
+      # XXX: remove unneeded files/directories
+      rm -rf "${CRAFT_PRIME}/lib/systemd/"
+      rm -rf "${CRAFT_PRIME}/lib/udev/"
+      rm -rf "${CRAFT_PRIME}/usr/local/"
+      rm -rf "${CRAFT_PRIME}/usr/share/"
+
+      # Strip binaries (excluding shell scripts and LXCFS)
+      # The "${CRAFT_PRIME}/bin/lxd" file is ignored as that is the lxd-stophook wrapper script.
+      find "${CRAFT_PRIME}"/bin -type f \
+        -not -path "${CRAFT_PRIME}/bin/ceph" \
+        -not -path "${CRAFT_PRIME}/bin/editor" \
+        -not -path "${CRAFT_PRIME}/bin/lxc-checkconfig" \
+        -not -path "${CRAFT_PRIME}/bin/lxd" \
+        -not -path "${CRAFT_PRIME}/bin/nvidia-container-cli" \
+        -not -path "${CRAFT_PRIME}/bin/remote-viewer" \
+        -not -path "${CRAFT_PRIME}/bin/snap-query" \
+        -not -path "${CRAFT_PRIME}/bin/sshfs" \
+        -not -path "${CRAFT_PRIME}/bin/virt-v2v-in-place" \
+        -not -path "${CRAFT_PRIME}/bin/xfs_admin" \
+        -not -path "${CRAFT_PRIME}/bin/uefivars.py" \
+        -not -path "${CRAFT_PRIME}/bin/lxcfs" \
+        -not -path "${CRAFT_PRIME}/bin/gpu-2404-custom-wrapper" \
+        -exec strip --strip-all {} +
+
+      # This is the actual LXD binary.
+      strip --strip-all "${CRAFT_PRIME}/sbin/lxd"
+
+      # Strip binaries not under bin/ due to being dynamically
+      # added to the path with `snap set lxd`, like `criu.enable=true`
+      for binary in "${CRAFT_PRIME}/criu/criu"; do
+        [ -e "${binary}" ] || continue
+        strip -s "${binary}"
+      done
+
+      # Strip all versions of zfs utils
+      for v in "${CRAFT_PRIME}"/zfs-*; do
+        [ -d "${v}" ] || continue
+        find "${v}/" -type f -exec strip -s {} +
+      done
+
+      # Strip libraries (excluding python3 scripts and liblxcfs)
+      find "${CRAFT_PRIME}"/lib -type f \
+        -not -path "${CRAFT_PRIME}/lib/python3/*" \
+        -not -path "${CRAFT_PRIME}/lib/liblxcfs.so" \
+        -exec strip -s {} +
+
+      # Delete empty directories
+      find "${CRAFT_PRIME}/" -type d -empty -print -delete
+
+      # XXX: look for broken symlinks indicating missing/invalid prime
+      broken_symlinks="$(find "${CRAFT_PRIME}/" -xtype l \
+                           -not -path "${CRAFT_PRIME}/lxc/config/common.conf.d/*")"
+      if [ -n "${broken_symlinks}" ]; then
+          echo "Found broken symlinks:"
+          echo "${broken_symlinks}"
+          exit 1
+      fi
+
+      # Fixup logrotate.conf permissions to not be group writable
+      chmod g-w "${CRAFT_PRIME}/etc/logrotate.conf"
+
+      # XXX: do not keep the duplicated and often outdated CA certificates
+      # store from Python `certifi`. This file is not even used as the
+      # `python3-certifi` package providing it is patched to always use:
+      # `/etc/ssl/certs/ca-certificates.crt`
+      truncate --no-create --size=0 "${CRAFT_PRIME}/lib/python3/dist-packages/certifi/cacert.pem"
+
+      exit 0
+
+  wrappers:
+    plugin: dump
+    source: snapcraft/
+    organize:
+      commands/snap-query: bin/
+      hooks/: snap/hooks/
+      wrappers/lxd-stophook: bin/lxd
+      wrappers/editor: bin/
+      wrappers/remote-viewer: bin/
+      wrappers/sshfs: bin/
+      wrappers/virt-v2v-in-place: bin/

@@ -1,0 +1,96 @@
+#!/usr/bin/python3
+
+"""Query the status of the lxd snap."""
+
+# Python implementation of:
+# $ curl -s --unix /run/snapd.socket 'http://unix.socket/v2/changes?select=in-progress&for=lxd'  | jq -r '.result[0].kind'
+# auto-refresh
+
+# The full JSON output when querying the in-progress changes for the lxd snap:
+# $ curl -s --unix /run/snapd.socket 'http://snapd/v2/changes?select=in-progress&for=lxd' | jq -r .
+# {
+#   "type": "sync",
+#   "status-code": 200,
+#   "status": "OK",
+#   "result": [
+#     {
+#       "id": "1907",
+#       "kind": "auto-refresh",
+#       "summary": "Auto-refresh snap \"lxd\"",
+#       "status": "Hold",
+#       "ready": true,
+#       "spawn-time": "2024-02-19T10:21:34.429396408-05:00",
+#       "data": {
+#         "snap-names": [
+#           "lxd"
+#         ]
+#       }
+#     }
+#   ]
+# }
+
+# Heavily inspired from snapd's api-client.py:
+# https://github.com/snapcore/snapd/blob/master/tests/main/theme-install/api-client/bin/api-client.py
+
+import http.client
+import json
+import socket
+import sys
+
+
+# This class is a subclass of http.client.HTTPConnection that connects to a Unix socket instead of a TCP socket.
+class UnixSocketHTTPConnection(http.client.HTTPConnection):
+    def __init__(self, socket_path):
+        super().__init__("snapd")
+        self._socket_path = socket_path
+
+    def connect(self):
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.connect(self._socket_path)
+        self.sock = s
+
+
+# This function connects to the Unix socket and requests the in-progress changes for the lxd snap.
+# Returns the kind of the first result, or an empty string if an error occurs.
+def main():
+    # Try to connect to the Unix socket and request the in-progress changes for the lxd snap.
+    # If an exception occurs, print an error message and return an empty string.
+    try:
+        conn = UnixSocketHTTPConnection("/run/snapd.socket")
+        conn.request("GET", "/v2/changes?select=in-progress&for=lxd")
+        response = conn.getresponse()
+        body = response.read().decode()
+    except FileNotFoundError:
+        print("missing socket", file=sys.stderr)
+        return ""
+    except http.client.HTTPException as e:
+        print("HTTP exception:", e, file=sys.stderr)
+        return ""
+    finally:
+        conn.close()
+
+    # If the response status is not 200, print an error message and return an empty string.
+    if response.status != 200:
+        print("HTTP error:", response.status, file=sys.stderr)
+        return ""
+
+    # If the response body is missing or empty, print an error message and return an empty string.
+    if not body:
+        print("Missing/empty body", file=sys.stderr)
+        return ""
+
+    # Try to parse the response body as JSON, and extract the "kind" field from the first result.
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError as e:
+        print("JSON decode exception:", e, file=sys.stderr)
+        return ""
+
+    if "result" in data and isinstance(data["result"], list) and len(data["result"]):
+        return data["result"][0].get("kind", "")
+
+    return ""
+
+
+if __name__ == "__main__":
+    print(main())
