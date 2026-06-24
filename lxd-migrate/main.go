@@ -308,7 +308,7 @@ func askBool(question string, default_ string) bool {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
-		fmt.Printf(question)
+		fmt.Print(question)
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSuffix(input, "\n")
 		if input == "" {
