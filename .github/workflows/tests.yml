@@ -49,7 +49,7 @@ on:
 env:
   LXD_SKIP_TESTS: "concurrent"  # concurrent is too unreliable/racy
   LXD_REQUIRED_TESTS: "storage_buckets network_ovn"
-  GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && github.event.inputs.coverage == 'true' ) || ( github.event_name == 'schedule' && github.repository == 'canonical/lxd' )) && 'true' || 'false' }}
+  GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && inputs.coverage ) || ( github.event_name == 'schedule' && github.repository == 'canonical/lxd' )) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
   IMAGE_CACHE_DIR: "/home/runner/image-cache"
   SNAP_CACHE_DIR: "/home/runner/snap-cache"
@@ -95,7 +95,7 @@ jobs:
 
       - name: Dependency Review
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.repository == 'canonical/lxd'
 
       # XXX: `make static-analysis` also run shellcheck but this one provides
       #      useful feedback in the PR through github-code-scanning bot
@@ -105,7 +105,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           strict-check-on-push: true
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.repository == 'canonical/lxd'
 
       - name: Upload artifact with ShellCheck defects in SARIF format
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -156,7 +156,7 @@ jobs:
         run: |
           set -eux
           make dist
-          tar -xzf lxd-test.tar.gz -C /home/runner/work/lxd/
+          tar -xzf lxd-test.tar.gz -C "${GITHUB_WORKSPACE}/.."
           rm lxd-test.tar.gz
 
       # In code-tests, this action warms the cache for the system-tests job
@@ -178,7 +178,7 @@ jobs:
           set -eux
 
           # Build from unpacked dist tarball.
-          cd /home/runner/work/lxd/lxd-test
+          cd "${GITHUB_WORKSPACE}/../lxd-test"
           make
 
       # XXX: `make static-analysis` also run golangci-lint but this one provides
@@ -215,7 +215,7 @@ jobs:
           name: coverage-unit
           path: ${{env.GOCOVERDIR}}
           retention-days: 1
-        if: env.GOCOVERDIR != ''
+        if: env.GOCOVERDIR != '' && github.repository == 'canonical/lxd'
 
       - name: Prime cache with external test images
         uses: ./.github/actions/download-images
@@ -389,7 +389,7 @@ jobs:
           name: coverage-${{ steps.sanitize.outputs.artifact_name }}
           path: ${{ env.GOCOVERDIR }}
           retention-days: 1
-        if: env.GOCOVERDIR != ''
+        if: env.GOCOVERDIR != '' && github.repository == 'canonical/lxd'
 
       - name: Tmate debugging session
         if: ${{ failure() && inputs.tmate-debug }}
@@ -413,8 +413,8 @@ jobs:
     # avoid runaway test burning 6 hours of CI
     timeout-minutes: 60
     permissions:
-      # need that to manipulate caches
-      actions: write
+      actions: write  # to manipulate caches
+      contents: read  # for private repos or higher API rate limits
     strategy:
       fail-fast: false
       matrix:
@@ -685,7 +685,7 @@ jobs:
           name: coverage-${{ steps.sanitize.outputs.artifact_name }}
           path: ${{ env.GOCOVERDIR }}
           retention-days: 1
-        if: env.GOCOVERDIR != ''
+        if: env.GOCOVERDIR != '' && github.repository == 'canonical/lxd'
 
       - name: Tmate debugging session
         if: ${{ failure() && inputs.tmate-debug }}
@@ -901,7 +901,7 @@ jobs:
           name: coverage-clients-${{ runner.os }}
           path: ${{env.GOCOVERDIR}}
           retention-days: 1
-        if: env.GOCOVERDIR != ''
+        if: env.GOCOVERDIR != '' && github.repository == 'canonical/lxd'
 
       - name: Upload lxc client artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -1017,7 +1017,7 @@ jobs:
           set -eux
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
-          export LXD_DOCUMENTATION="/home/runner/work/lxd/lxd/doc/_build/"
+          export LXD_DOCUMENTATION="${GITHUB_WORKSPACE}/doc/_build/"
           export PATH="/home/runner/go/bin:$PATH"
           sudo rm -rf /var/lib/lxd
           sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH,LXD_DOCUMENTATION $(go env GOPATH)/bin/lxd --group sudo &
@@ -1107,12 +1107,12 @@ jobs:
           name: coverage-ui-e2e-tests
           path: ${{env.GOCOVERDIR}}
           retention-days: 1
-        if: env.GOCOVERDIR != ''
+        if: env.GOCOVERDIR != '' && github.repository == 'canonical/lxd'
 
   documentation:
     name: Documentation
     runs-on: ubuntu-24.04
-    if: github.event_name == 'workflow_dispatch' || github.repository == 'canonical/lxd'
+    if: ${{ github.event_name != 'schedule' || github.repository_owner == 'canonical' }}
     needs: code-tests
     steps:
       - name: Checkout
@@ -1169,8 +1169,8 @@ jobs:
     name: Documentation link check
     runs-on: ubuntu-24.04
     needs: documentation
-    # Run link checker during manual or scheduled CI runs only
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
+    # Run link checker manually anywhere or on scheduled CI runs on the main repo.
+    if: ${{ github.event_name == 'workflow_dispatch' || ( github.event_name == 'schedule' && github.repository == 'canonical/lxd' ) }}
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
