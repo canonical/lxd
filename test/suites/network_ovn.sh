@@ -275,7 +275,7 @@ test_network_ovn() {
     geneve_overhead=78 # IPv6 overhead
   fi
 
-  ovn_encap_iface_name="$(ip -json address | jq -r '.[] | select(.addr_info | .[] | .local == "'"${ovn_encap_ip}"'" ) | .ifname')"
+  ovn_encap_iface_name="$(ip -json address | jq --raw-output --exit-status '.[] | select(.addr_info | .[] | .local == "'"${ovn_encap_ip}"'" ) | .ifname')"
   ovn_encap_iface_mtu="$(< "/sys/class/net/${ovn_encap_iface_name}/mtu")"
 
   # MTU is 1500 if overlay MTU is greater than or equal to 1500 plus the overhead.
@@ -368,8 +368,8 @@ test_network_ovn() {
   tables["Logical_Switch_Port"]=$((tables["Logical_Switch_Port"]+1))
   assert_row_count
 
-  c1_mac_address="$(lxc query /1.0/instances/c1 | jq -er '.config."volatile.eth0.hwaddr"')"
-  c1_uuid="$(lxc query /1.0/instances/c1 | jq -er '.config."volatile.uuid"')"
+  c1_mac_address="$(lxc query /1.0/instances/c1 | jq --raw-output --exit-status '.config."volatile.eth0.hwaddr"')"
+  c1_uuid="$(lxc query /1.0/instances/c1 | jq --raw-output --exit-status '.config."volatile.uuid"')"
   c1_internal_switch_port_name="${chassis_group_name}-instance-${c1_uuid}-eth0"
 
   # Busybox test image won't bring up the IPv4 interface by itself. Get the address and bring it up.
@@ -379,13 +379,13 @@ test_network_ovn() {
   lxc exec c1 -- ip -4 route add default via 10.24.140.1 dev eth0
 
   # Should now be able to get the same IPv4 address from the instance state.
-  [ "$(lxc query /1.0/instances/c1?recursion=1 | jq -er '.state.network.eth0.addresses | .[] | select(.family == "inet").address')" = "${c1_ipv4_address}" ]
+  lxc query /1.0/instances/c1?recursion=1 | jq --exit-status --arg addr "${c1_ipv4_address}" '.state.network.eth0.addresses | any(.family == "inet" and .address == $addr)'
 
   # For IPv6, the interface will come up on it's own via SLAAC but we need to wait for DAD.
   wait_for_dad c1 eth0
 
   # Once up, we can verify the address is the same as in the dynamic addresses of the logical switch port.
-  [ "$(lxc query /1.0/instances/c1?recursion=1 | jq -er '.state.network.eth0.addresses | .[] | select(.family == "inet6" and .scope == "global").address')" = "${c1_ipv6_address}" ]
+  lxc query /1.0/instances/c1?recursion=1 | jq --exit-status --arg addr "${c1_ipv6_address}" '.state.network.eth0.addresses | any(.family == "inet6" and .scope == "global" and .address == $addr)'
 
   # Assert switch port configuration.
   ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" addresses | jq --exit-status '.[0] == "'"${c1_mac_address}"' dynamic"'
@@ -639,7 +639,7 @@ test_network_ovn() {
   load_balancer_name="${chassis_group_name}-lb-2001:db8:1:2::1-tcp"
   load_balancer_uuid="$(ovn-nbctl get load_balancer "${load_balancer_name}" _uuid)"
   # 5. Edit the load balancer by setting another listen port.
-  lxc network load-balancer show "${ovn_network}" 2001:db8:1:2::1 | yq '.ports.[].listen_port = "8080"' | lxc network load-balancer edit "${ovn_network}" 2001:db8:1:2::1
+  lxc network load-balancer show "${ovn_network}" 2001:db8:1:2::1 | yq --exit-status '.ports.[].listen_port = "8080"' | lxc network load-balancer edit "${ovn_network}" 2001:db8:1:2::1
   # 6. Check the load balancer's UUID is still identical.
   lxc network load-balancer show "${ovn_network}" 2001:db8:1:2::1 | yq --exit-status '.ports.[].listen_port == "8080"'
   [ "$(ovn-nbctl get load_balancer "${load_balancer_name}" _uuid)" = "${load_balancer_uuid}" ]
@@ -929,7 +929,7 @@ test_network_ovn() {
   lxc network load-balancer pool create "${ovn_network}" http target_port=80 healthcheck.interval=1 healthcheck.timeout=1
 
   echo "==> Check the list of load balancer pools shows the created pool."
-  [ "$(lxc network load-balancer pool list "${ovn_network}" -f json | jq length)" = "1" ]
+  lxc network load-balancer pool list "${ovn_network}" -f json | jq --exit-status 'length == 1'
 
   echo "==> Check that the load balancer pool shows the right target port."
   [ "$(lxc network load-balancer pool get "${ovn_network}" http target_port)" = "80" ]
@@ -1122,7 +1122,7 @@ test_network_ovn() {
       timeout=10
       elapsed=0
       while true; do
-        status="$(lxc network load-balancer pool info "${ovn_network}" http | yq -r '."load-balancers"."'"${bracketed_ip}"':80".[] | select(.instance == "c1").status')"
+        status="$(lxc network load-balancer pool info "${ovn_network}" http | yq -r --exit-status '."load-balancers"."'"${bracketed_ip}"':80".[] | select(.instance == "c1").status')"
         if [ "${status}" = "online" ]; then
           exit 0
         fi
@@ -1159,7 +1159,7 @@ test_network_ovn() {
       timeout=10
       elapsed=0
       while true; do
-        status="$(lxc network load-balancer pool info "${ovn_network}" http | yq -r '."load-balancers"."'"${bracketed_ip}"':80".[] | select(.instance == "c1").status')"
+        status="$(lxc network load-balancer pool info "${ovn_network}" http | yq -r --exit-status '."load-balancers"."'"${bracketed_ip}"':80".[] | select(.instance == "c1").status')"
         if [ "${status}" = "online" ]; then
           exit 0
         fi
@@ -1262,7 +1262,7 @@ test_network_ovn() {
 
   echo "==> Change the pool's target port to something invalid and use the instance override to restore."
   lxc network load-balancer pool set "${ovn_network}" http target_port=81
-  lxc network load-balancer pool show "${ovn_network}" http | yq '.instances[].target_port = "80"' | lxc network load-balancer pool edit "${ovn_network}" http
+  lxc network load-balancer pool show "${ovn_network}" http | yq --exit-status '.instances[].target_port = "80"' | lxc network load-balancer pool edit "${ovn_network}" http
 
   echo "==> Wait for the target to become healthy again for the dual-stack load balancer."
   wait_for_pool_status "${ovn_network}" 192.0.2.100 http online 1
@@ -1374,7 +1374,7 @@ probe_pool_targets() {
 instance_ip4_address() {
   local uuid internal_switch_port_name address
 
-  uuid="$(lxc query /1.0/instances/"${1}" | jq -er '.config."volatile.uuid"')"
+  uuid="$(lxc query /1.0/instances/"${1}" | jq --raw-output --exit-status '.config."volatile.uuid"')"
   internal_switch_port_name="${chassis_group_name}-instance-${uuid}-eth0"
 
   # If no explicit ipv4.address is set on the instance, check the dynamic_addresses field.
