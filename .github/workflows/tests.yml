@@ -441,6 +441,7 @@ jobs:
           woke-args: "*.md **/*.md -c https://github.com/canonical/Inclusive-naming/raw/main/config.yml"
 
       - name: Run link checker
+        if: ${{ github.repository == 'canonical/lxd' }}
         run: |
           set -eux
           make doc-linkcheck
