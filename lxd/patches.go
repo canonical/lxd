@@ -127,6 +127,7 @@ var patches = []patch{
 	{name: "clustering_event_hub_role_to_control_plane", stage: patchPreLoadClusterConfig, run: patchClusteringEventHubRoleToControlPlane},
 	{name: "storage_zfs_remove_local_bucket_datasets", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "storage_rename_nvme_mode", stage: patchPreLoadClusterConfig, run: patchStoragePoolConnectorNVMeMode},
+	{name: "config_remove_legacy_nvidia_keys", stage: patchPreLoadClusterConfig, run: patchRemoveLegacyNvidiaConfigKeys},
 }
 
 type patch struct {
@@ -2452,6 +2453,25 @@ func patchStoragePoolConnectorNVMeMode(_ string, d *Daemon) error {
 			err = tx.UpdateStoragePool(ctx, pool.Name, pool.Description, pool.Config)
 			if err != nil {
 				return fmt.Errorf("Failed updating storage pool %q: %w", pool.Name, err)
+			}
+		}
+
+		return nil
+	})
+}
+
+// patchRemoveLegacyNvidiaConfigKeys removes the legacy NVIDIA instance-level configuration keys
+// (nvidia.runtime, nvidia.driver.capabilities, nvidia.require.cuda, nvidia.require.driver) that
+// were used by the (now-removed) nvidia_runtime and nvidia_runtime_config API extensions. These
+// keys are no longer recognised by LXD. The gputype=mig and gputype=physical GPU devices use the
+// CDI for NVIDIA passthrough instead.
+func patchRemoveLegacyNvidiaConfigKeys(_ string, d *Daemon) error {
+	return d.State().DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Remove the keys from instance configs, instance snapshot configs and profile configs.
+		for _, table := range []string{"instances_config", "instances_snapshots_config", "profiles_config"} {
+			_, err := tx.Tx().ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE key IN ('nvidia.runtime', 'nvidia.driver.capabilities', 'nvidia.require.cuda', 'nvidia.require.driver')`, table))
+			if err != nil {
+				return fmt.Errorf("Failed removing legacy NVIDIA config keys from %s: %w", table, err)
 			}
 		}
 
