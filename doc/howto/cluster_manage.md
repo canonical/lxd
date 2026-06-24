@@ -194,6 +194,6 @@ The certificate is stored at `/var/snap/lxd/common/lxd/cluster.crt` (if you use 
 You can replace the standard certificate with another one, such as a valid certificate obtained through ACME services (see {ref}`authentication-server-certificate` for more information).
 To do so, run the following command on any cluster member:
 
-    lxc cluster update-certificate
+    lxc cluster update-certificate <cert.crt> <cert.key>
 
 This command replaces the certificate on all cluster members. For more information, see: [`lxc cluster update-certificate`](lxc_cluster_update-certificate.md).
