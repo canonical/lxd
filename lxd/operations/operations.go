@@ -490,6 +490,10 @@ func (op *Operation) start() {
 		}
 
 		go func(ctx context.Context, op *Operation) {
+			// Delete the operation from the internal map when the goroutine completes.
+			// This will wait for 5 seconds before deleting the operation and is a no-op for child operations.
+			defer op.delete()
+
 			var err error
 
 			// Parent operation with children: start all children, wait for them to finish, then
