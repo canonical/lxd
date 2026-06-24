@@ -607,13 +607,6 @@ This adds a new `lifecycle` message type to the events API.
 
 This adds the ability to copy and move custom storage volumes between remote.
 
-(extension-nvidia-runtime)=
-## `nvidia_runtime`
-
-Adds a {config:option}`instance-nvidia:nvidia.runtime` configuration option for containers, setting this to
-`true` will have the NVIDIA runtime and CUDA libraries passed to the
-container.
-
 (extension-container-mount-propagation)=
 ## `container_mount_propagation`
 
@@ -772,16 +765,6 @@ This effectively allows for [`lxc list`](lxc_list.md) to get all it needs in one
 
 This introduces a new {config:option}`server-miscellaneous:backups.compression_algorithm` configuration key which
 allows configuration of backup compression.
-
-(extension-nvidia-runtime-config)=
-## `nvidia_runtime_config`
-
-This introduces a few extra configuration keys when using {config:option}`instance-nvidia:nvidia.runtime` and the `libnvidia-container` library.
-Those keys translate pretty much directly to the matching NVIDIA container environment variables:
-
-* {config:option}`instance-nvidia:nvidia.driver.capabilities` => `NVIDIA_DRIVER_CAPABILITIES`
-* {config:option}`instance-nvidia:nvidia.require.cuda` => `NVIDIA_REQUIRE_CUDA`
-* {config:option}`instance-nvidia:nvidia.require.driver` => `NVIDIA_REQUIRE_DRIVER`
 
 (extension-storage-api-volume-snapshots)=
 ## `storage_api_volume_snapshots`
