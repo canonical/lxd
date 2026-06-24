@@ -64,49 +64,6 @@ gpu_run_generic_tests() {
   lxc config device remove "${ctName}" gpu-default
 }
 
-gpu_run_nvidia_legacy_tests() {
-  echo "==> Running NVIDIA legacy GPU device tests"
-  local ctName="$1"
-
-  # Check if nvidia GPU exists.
-  if [ ! -c /dev/nvidia0  ]; then
-    echo "==> SKIP: /dev/nvidia0 does not exist, skipping nvidia legacy tests"
-    return
-  fi
-
-  # Check support for nvidia runtime
-  lxc stop -f "${ctName}"
-  lxc config set "${ctName}" nvidia.runtime true
-  lxc start "${ctName}"
-  # Instead of relying on an exact mount count (which can vary across
-  # environments/drivers), verify that the important NVIDIA-related mount
-  # points are present in the container's mount table.
-  nvidiaMounts="$(lxc exec "${ctName}" -- mount | grep -F nvidia || true)"
-
-  if [ -z "${nvidiaMounts}" ]; then
-    echo "nvidia runtime mounts invalid: no nvidia mounts found"
-    false
-  fi
-
-  missing=0
-  for req in "/dev/nvidia-uvm" "/dev/nvidia-uvm-tools" "/dev/nvidiactl"; do
-    if ! echo "${nvidiaMounts}" | grep -qF "${req}"; then
-      echo "nvidia runtime mount missing: ${req}"
-      missing=$((missing+1))
-    fi
-  done
-
-  if [ "${missing}" -ne 0 ]; then
-    echo "nvidia runtime mounts invalid (missing ${missing} required entries):"
-    echo "${nvidiaMounts}"
-    false
-  fi
-
-  lxc stop -f "${ctName}"
-  lxc config set "${ctName}" nvidia.runtime false
-  lxc start "${ctName}"
-}
-
 gpu_verify_nvidia_mounts() {
   local ctName="$1"
 
@@ -240,7 +197,6 @@ test_container_devices_gpu() {
 
   gpu_run_generic_tests "${ctName}" "${gpuCardName}" "${gpuCardIndex}"
   gpu_run_nvidia_tests "${ctName}" "${gpuCardName}"
-  gpu_run_nvidia_legacy_tests "${ctName}"
   gpu_run_amd_tests "${ctName}" "${gpuCardName}"
 
   lxc delete -f "${ctName}"
