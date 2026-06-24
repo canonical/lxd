@@ -1540,7 +1540,7 @@ parts:
       - bin/lxd-user
 
   lxd-migrate:
-    source: lxd-migrate/
+    source: .
     after:
       - lxd
       - sqlite
@@ -1565,11 +1565,11 @@ parts:
       export CGO_LDFLAGS="-L${CRAFT_STAGE}/lib/ -L${CRAFT_STAGE}/usr/local/lib/"
 
       # Build the binaries
-      go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-migrate" -tags=libsqlite3 ./
+      go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-migrate" -tags=libsqlite3 ./lxd-migrate/...
 
       # Install bridge script
       mkdir -p "${CRAFT_PART_INSTALL}/bin/"
-      cp scripts/upgrade-bridge "${CRAFT_PART_INSTALL}/bin/upgrade-bridge"
+      cp ./lxd-migrate/scripts/upgrade-bridge "${CRAFT_PART_INSTALL}/bin/upgrade-bridge"
     prime:
       - bin/lxd-migrate
       - bin/upgrade-bridge
