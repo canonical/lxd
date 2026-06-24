@@ -951,19 +951,18 @@ EOF
     # shellcheck disable=SC2031
     btrfs quota disable "${LXD_DIR}/storage-pools/${pool_name}"
     # Usage 0 indicates the driver does not support getting volume usage.
-    [ "$(lxc query /1.0/instances/c1/state | jq '.disk.root.usage')" = "0" ]
-    [ "$(lxc query "/1.0/storage-pools/${pool_name}/volumes/custom/fsvol/state" | jq '.usage.used')" = "0" ]
+    lxc query /1.0/instances/c1/state | jq --exit-status '.disk.root.usage == 0'
+    lxc query "/1.0/storage-pools/${pool_name}/volumes/custom/fsvol/state" | jq --exit-status '.usage.used == 0'
     # Total 0 indicates the volume is unbound.
-    [ "$(lxc query /1.0/instances/c1/state | jq '.disk.root.total')" = "0" ]
-    [ "$(lxc query "/1.0/storage-pools/${pool_name}/volumes/custom/fsvol/state" | jq '.usage.total')" = "0" ]
+    lxc query /1.0/instances/c1/state | jq --exit-status '.disk.root.total == 0'
+    lxc query "/1.0/storage-pools/${pool_name}/volumes/custom/fsvol/state" | jq --exit-status '.usage.total == 0'
 
     lxc storage volume delete "${pool_name}" fsvol
 
     # Enable quotas. The usage should then be > 0.
     # shellcheck disable=SC2031
     btrfs quota enable "${LXD_DIR}/storage-pools/${pool_name}"
-    usage=$(lxc query /1.0/instances/c1/state | jq '.disk.root.usage')
-    [ "${usage}" -gt 0 ]
+    lxc query /1.0/instances/c1/state | jq --exit-status '.disk.root.usage > 0'
 
     # Clean up everything.
     lxc delete c1
