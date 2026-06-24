@@ -189,7 +189,7 @@ EOF
 
   # Cache the pool's configuration for later recovery.
   # Join each key/value pair with '=' and each pair using a whitespace.
-  pool_config="$(lxc storage show "${poolName3}" | yq -r '.config | to_entries | map(.key + "=" + .value) | join(" ")')"
+  pool_config="$(lxc storage show "${poolName3}" | yq -r --exit-status '.config | to_entries | map(.key + "=" + .value) | join(" ")')"
 
   # Get the volume's UUIDs before deleting the pool's database entry.
   vol3_uuid="$(lxc storage volume get "${poolName3}" vol3 volatile.uuid)"
@@ -1244,11 +1244,11 @@ test_backup_metadata() {
   tar -xzf "${tmpDir}/c1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
-  [ "$(yq '.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "${highest_version}" ]
-  [ "$(yq '.config.volumes | length' < "${tmpDir}/backup/index.yaml")" = "2" ]
-  [ "$(yq '.config.volumes.[0].snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq '.config.pools | length' < "${tmpDir}/backup/index.yaml")" = "2" ]
+  yq --exit-status '.snapshots | length == 1' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.version == '"${highest_version}"'' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.volumes | length == 2' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.volumes.[0].snapshots | length == 1' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.pools | length == 2' < "${tmpDir}/backup/index.yaml"
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/c1.tar.gz"
 
@@ -1258,12 +1258,12 @@ test_backup_metadata() {
   tar -xzf "${tmpDir}/c1.tar.gz" -C "${tmpDir}" --occurrence=1 backup/index.yaml
 
   cat "${tmpDir}/backup/index.yaml"
-  [ "$(yq .config.version < "${tmpDir}/backup/index.yaml")" = "null" ]
-  [ "$(yq .config.container < "${tmpDir}/backup/index.yaml")" != "null" ]
-  [ "$(yq .config.pool < "${tmpDir}/backup/index.yaml")" != "null" ]
-  [ "$(yq .config.volume < "${tmpDir}/backup/index.yaml")" != "null" ]
-  [ "$(yq '.config.snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
-  [ "$(yq '.config.volume_snapshots | length' < "${tmpDir}/backup/index.yaml")" = "1" ]
+  yq --exit-status '.config.version == null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.container != null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.pool != null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.volume != null' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.snapshots | length == 1' < "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.volume_snapshots | length == 1' < "${tmpDir}/backup/index.yaml"
 
   rm -rf "${tmpDir}/backup" "${tmpDir}/c1.tar.gz"
   lxc delete c1
@@ -1429,8 +1429,8 @@ EOF
   # Fix the backup's config by taking the contents from the index.
   # As we are using yq from the snap, it doesn't have permission to read inside ${tmpDir}.
   # Instead we have to juggle a bit to read and overwrite the original file as we cannot use yq -i for inplace updates.
-  yq '.instance.config = {}' < "${tmpDir}/backup/container/backup.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/container/backup.yaml"
-  yq '.instance.expanded_config = {}' < "${tmpDir}/backup/container/backup.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/container/backup.yaml"
+  yq --exit-status '.instance.config = {}' < "${tmpDir}/backup/container/backup.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/container/backup.yaml"
+  yq --exit-status '.instance.expanded_config = {}' < "${tmpDir}/backup/container/backup.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/container/backup.yaml"
 
   # Re-package the fixed archive.
   tar -cf "${tmpDir}/fixed-backup.tar" -C "${tmpDir}" "backup/"
@@ -1441,8 +1441,8 @@ EOF
   lxc delete inconsistent-instance
 
   # Now make the index inconsistent.
-  yq '.config.instance.config += {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
-  yq '.config.instance.expanded_config += {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.instance.config += {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.instance.expanded_config += {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
 
   # Re-package the inconsistent archive.
   tar -cf "${tmpDir}/inconsistent-backup.tar" -C "${tmpDir}" "backup/"
@@ -1452,8 +1452,8 @@ EOF
   [ "$(tail -1 error)" = 'Error: Failed checking if instance creation allowed: Invalid value "true" for config "security.privileged" on container "inconsistent-instance" of project "restricted": Privileged containers are forbidden' ]
 
   # Fix the index.
-  yq '.config.instance.config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
-  yq '.config.instance.expanded_config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.instance.config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.instance.expanded_config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
 
   # Re-package the fixed archive.
   tar -cf "${tmpDir}/fixed-backup.tar" -C "${tmpDir}" "backup/"
@@ -1464,8 +1464,8 @@ EOF
   lxc delete inconsistent-instance
 
   # Now make the index snapshot inconsistent.
-  yq '.config.snapshots[0].config = {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
-  yq '.config.snapshots[0].expanded_config = {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.snapshots[0].config = {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.snapshots[0].expanded_config = {"security.privileged": "true"}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
 
   # Re-package the inconsistent archive.
   tar -cf "${tmpDir}/inconsistent-backup.tar" -C "${tmpDir}" "backup/"
@@ -1475,8 +1475,8 @@ EOF
   [ "$(tail -1 error)" = 'Error: Failed checking if instance creation allowed: Invalid value "true" for config "security.privileged" on container "inconsistent-instance/snap0" of project "restricted": Privileged containers are forbidden' ]
 
   # Fix the index snapshot.
-  yq '.config.snapshots[0].config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
-  yq '.config.snapshots[0].expanded_config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.snapshots[0].config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
+  yq --exit-status '.config.snapshots[0].expanded_config = {}' < "${tmpDir}/backup/index.yaml" > temp.yaml && mv temp.yaml "${tmpDir}/backup/index.yaml"
 
   # Re-package the fixed archive.
   tar -cf "${tmpDir}/fixed-backup.tar" -C "${tmpDir}" "backup/"
@@ -1527,7 +1527,7 @@ _backup_nullable_assert_keys() {
         return 1
         ;;
     esac
-  done < <(yq "${path} | keys | .[]" "${file}")
+  done < <(yq --exit-status "${path} | keys | .[]" "${file}")
 }
 
 # _backup_nullable_filter_keys prints the leaf keys directly under the
@@ -1736,7 +1736,7 @@ _backup_nullable_fields_run() {
   # and an inter-mutation name collision surfaces as an unexpected rc on
   # the next iteration's import.
   while IFS=$'\t' read -r outcome mutation; do
-    yq "${mutation}" < "${workDir}/baseline-index.yaml" > "${workDir}/extract/backup/index.yaml"
+    yq --exit-status "${mutation}" < "${workDir}/baseline-index.yaml" > "${workDir}/extract/backup/index.yaml"
     tar --create --file "${workDir}/case.tar" --directory "${workDir}/extract" backup/
 
     rc=0
