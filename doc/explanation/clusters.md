@@ -160,7 +160,7 @@ See {ref}`howto-cluster-groups` and {ref}`cluster-target-instance` for more info
 
 Cluster links enable communication between separate LXD clusters by pinning the remote cluster's TLS certificate and optionally establishing mutual trust.
 
-Cluster links are the foundation for {ref}`replicators <exp-replicators>`, which use bidirectional links to sync instances across clusters for active-passive disaster recovery. Unidirectional links are suited to scenarios where one cluster needs to read from another without granting reciprocal access.
+Cluster links are the foundation for {ref}`replicators <exp-replicators>`, which use bidirectional links to sync instances across clusters for active-passive disaster recovery. Unidirectional links are suited to scenarios where one cluster needs to access another cluster without granting reciprocal access.
 
 ### Link types
 
