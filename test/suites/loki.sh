@@ -73,14 +73,14 @@ test_loki_security_types() {
 
   sub_test "Verify sys_monitor_disabled fires when Loki is disabled after being enabled"
   local sys_monitor_disabled_count_before_full_off sys_monitor_disabled_count_after_full_off
-  sys_monitor_disabled_count_before_full_off=$(jq --raw-output --slurp 'map(select(.type == "security" and .metadata.name == "sys_monitor_disabled")) | length' "${monfile}")
+  sys_monitor_disabled_count_before_full_off=$(jq --raw-output --slurp --exit-status 'map(select(.type == "security" and .metadata.name == "sys_monitor_disabled")) | length' "${monfile}")
 
   # Disabling loki.api.url tears down the loki client; this is the
   # enabled -> disabled transition that emits sys_monitor_disabled.
   lxc config set loki.api.url="" loki.auth.username="" loki.auth.password="" loki.types=""
 
   for _ in $(seq 10); do
-    sys_monitor_disabled_count_after_full_off=$(jq --raw-output --slurp 'map(select(.type == "security" and .metadata.name == "sys_monitor_disabled")) | length' "${monfile}")
+    sys_monitor_disabled_count_after_full_off=$(jq --raw-output --slurp --exit-status 'map(select(.type == "security" and .metadata.name == "sys_monitor_disabled")) | length' "${monfile}")
     [ "${sys_monitor_disabled_count_after_full_off}" -gt "${sys_monitor_disabled_count_before_full_off}" ] && break
     sleep 1
   done
@@ -92,12 +92,12 @@ test_loki_security_types() {
   # Loki is already off; toggling an unrelated server config must not raise
   # a fresh sys_monitor_disabled event.
   local sys_monitor_disabled_count_before
-  sys_monitor_disabled_count_before=$(jq --raw-output --slurp 'map(select(.type == "security" and .metadata.name == "sys_monitor_disabled")) | length' "${monfile}")
+  sys_monitor_disabled_count_before=$(jq --raw-output --slurp --exit-status 'map(select(.type == "security" and .metadata.name == "sys_monitor_disabled")) | length' "${monfile}")
   lxc config set core.proxy_ignore_hosts="example.invalid"
   lxc config unset core.proxy_ignore_hosts
   sleep 1
   local sys_monitor_disabled_count_after
-  sys_monitor_disabled_count_after=$(jq --raw-output --slurp 'map(select(.type == "security" and .metadata.name == "sys_monitor_disabled")) | length' "${monfile}")
+  sys_monitor_disabled_count_after=$(jq --raw-output --slurp --exit-status 'map(select(.type == "security" and .metadata.name == "sys_monitor_disabled")) | length' "${monfile}")
   [ "${sys_monitor_disabled_count_after}" = "${sys_monitor_disabled_count_before}" ]
 
   kill_go_proc "${mon_pid}" || true
