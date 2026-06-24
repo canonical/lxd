@@ -1026,61 +1026,6 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		}
 	}
 
-	// Setup NVIDIA runtime
-	if shared.IsTrue(d.expandedConfig["nvidia.runtime"]) {
-		hookDir := os.Getenv("LXD_LXC_HOOK")
-		if hookDir == "" {
-			hookDir = "/usr/share/lxc/hooks"
-		}
-
-		hookPath := filepath.Join(hookDir, "nvidia")
-		if !shared.PathExists(hookPath) {
-			return nil, errors.New("The NVIDIA LXC hook could not be found")
-		}
-
-		_, err := exec.LookPath("nvidia-container-cli")
-		if err != nil {
-			return nil, errors.New("The NVIDIA container tools could not be found")
-		}
-
-		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_VISIBLE_DEVICES=none")
-		if err != nil {
-			return nil, err
-		}
-
-		nvidiaDriver := d.expandedConfig["nvidia.driver.capabilities"]
-		if nvidiaDriver == "" {
-			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES=compute,utility")
-		} else {
-			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES="+nvidiaDriver)
-		}
-
-		if err != nil {
-			return nil, err
-		}
-
-		nvidiaRequireCuda := d.expandedConfig["nvidia.require.cuda"]
-		if nvidiaRequireCuda != "" {
-			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_REQUIRE_CUDA="+nvidiaRequireCuda)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		nvidiaRequireDriver := d.expandedConfig["nvidia.require.driver"]
-		if nvidiaRequireDriver != "" {
-			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_REQUIRE_DRIVER="+nvidiaRequireDriver)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		err = lxcSetConfigItem(cc, "lxc.hook.mount", hookPath)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	if shared.IsTrue(d.expandedConfig["security.delegate_bpf"]) {
 		err = lxcSetConfigItem(cc, "lxc.hook.start-host", d.state.OS.ExecPath+" callhook "+shared.VarPath("")+" "+projectShellQuoted+" "+instanceShellQuoted+" starthost")
 		if err != nil {
