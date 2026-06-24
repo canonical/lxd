@@ -437,70 +437,26 @@ func (op *Operation) done() {
 	op.onConnect = nil
 	op.finished.Cancel()
 	op.lock.Unlock()
+}
 
+func (op *Operation) delete() {
 	// If we are a child operation, we're done. The parent operation will clean all the child entries when it finishes.
 	if op.parent != nil {
 		return
 	}
 
-	// If this is a parent operation of a bulk operation, we clear the entries from the internal map, but leave the database records in place.
-	// The database records will be cleared later by the pruneExpiredOperationsTask().
-	if len(op.children) > 0 {
-		operationsLock.Lock()
-		_, ok := operations[op.id]
-		if !ok {
-			operationsLock.Unlock()
-			return
-		}
+	time.Sleep(5 * time.Second)
 
-		delete(operations, op.id)
+	operationsLock.Lock()
+	defer operationsLock.Unlock()
 
-		// Clear child operations
-		for _, childOp := range op.children {
-			_, ok := operations[childOp.id]
-			if ok {
-				delete(operations, childOp.id)
-			}
-		}
-
-		operationsLock.Unlock()
-		return
+	// Clear any child operations
+	for _, childOp := range op.children {
+		delete(operations, childOp.id)
 	}
 
-	go func() {
-		shutdownCtx := context.Background()
-		if op.state != nil {
-			shutdownCtx = op.state.ShutdownCtx
-		}
-
-		select {
-		case <-shutdownCtx.Done():
-			return // Expect all operation records to be removed by daemon.Stop in one query.
-		case <-time.After(time.Second * 5): // Wait 5s before removing from internal map and database.
-		}
-
-		operationsLock.Lock()
-		_, ok := operations[op.id]
-		if !ok {
-			operationsLock.Unlock()
-			return
-		}
-
-		delete(operations, op.id)
-		operationsLock.Unlock()
-
-		if op.state == nil {
-			return
-		}
-
-		err := removeDBOperation(op)
-		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-			// Operations can be deleted from the database before the operation clean up go routine has
-			// run in cases where the project that the operation(s) are associated to is deleted first.
-			// So don't log warning if operation not found.
-			op.logger.Warn("Failed deleting operation", logger.Ctx{"status": op.status, "err": err})
-		}
-	}()
+	// Clear the operation
+	delete(operations, op.id)
 }
 
 func updateStatus(op *Operation, newStatus api.StatusCode) {
