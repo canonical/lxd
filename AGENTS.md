@@ -70,8 +70,23 @@ make check-unit
 make
 ```
 
-`make static-analysis` may reformat files or regenerate output. Review any modifications
-and stage only changes relevant to your work.
+`make static-analysis` may regenerate output (e.g. `doc/rest-api.yaml`, generated DB code,
+auth entitlements, metadata docs) and errors out if that leaves an uncommitted diff; it
+never prompts or commits on its own (stdin is closed for the checks it runs), so it's safe
+to run from an agent session. If it reports drift, re-run `make update-api`,
+`make update-auth`, `make update-metadata`, or `make update-schema` (whichever produced the
+file in question) to regenerate it, then stop and leave the diff for a human to review and
+commit; these four targets never call git themselves. Do not run an individual `check-*`
+target (e.g. `make check-api`) or `scripts/check-and-commit.sh` directly, and do not run
+other `update-*` targets like `update-gomod`, `update-golangci`, or `update-godeps` as a
+substitute; unlike the four above, those call `check-and-commit.sh` directly and will
+prompt interactively to commit, which hangs an agent session with no one to answer.
+
+`make static-analysis` requires network access (it installs/updates golangci-lint,
+errortype, zerolint, goimports, and go-swagger at versions pinned in `tools/go.mod`).
+If you don't have network access, skip it and rely on the style rules below plus
+`make check-unit` and `make` — a maintainer or CI will run the full
+`make static-analysis` before merge.
 
 ## Integration tests
 
@@ -100,6 +115,20 @@ See [`COMMITS.md`](COMMITS.md) for the full commit prefix table and signing requ
 - No inline variable declarations inside `if` conditions — assign on a separate line first.
 - Prefer early returns to reduce nesting.
 - Check `shared/` for existing helpers before implementing utilities from scratch.
+
+### Additional Go style rules (enforced by `make static-analysis`)
+
+- Use `shared.IsFalse(x)` / `shared.IsTrue(x)` directly — do not write
+  `!shared.IsTrue(x)` or `!shared.IsFalse(x)`.
+- Always use the parenthesized `import (...)` block, even for a single import
+  (except `import "C"` for cgo).
+- Do not alias `github.com/canonical/lxd/client` as `lxd` — this collides
+  conceptually with the LXD daemon package name.
+- Prefer structured logging: `logger.Error("message", logger.Ctx{"key": val})` over
+  `logger.Errorf("message: %v", val)` — use the `f`-suffixed variants (`Debugf`,
+  `Infof`, `Warnf`, `Errorf`) only when the format string actually contains a `%` verb.
+- Add a blank line after a closing `}` of a block before the next statement, unless
+  the next line continues the same construct (e.g. `} else {` or another `case`).
 
 ### Shell test style
 
