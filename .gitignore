@@ -41,7 +41,6 @@ doc/**/__pycache__
 # snap
 parts/
 prime/
-snap/
 stage/
 *.snap
 
