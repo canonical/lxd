@@ -89,14 +89,6 @@ type Operation struct {
 	IdentityIdentifier string `db:"coalesce(identities.identifier, '')"`
 }
 
-// OperationFilter specifies potential query parameter fields.
-type OperationFilter struct {
-	ID     *int64
-	NodeID *int64
-	UUID   *string
-	Parent *int64
-}
-
 // RequestorProtocol is the database representation of the Requestor Protocol.
 //
 // RequestorProtocol is defined on string so that constants can be converted by casting. The [sql.Scanner] and
