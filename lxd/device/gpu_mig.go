@@ -14,7 +14,6 @@ import (
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/resources"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -43,14 +42,6 @@ func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
 	err := d.config.Validate(gpuValidationRules(requiredFields, optionalFields))
 	if err != nil {
 		return err
-	}
-
-	// MIG devices use CDI for passthrough, which is incompatible with the legacy "nvidia.runtime"
-	// LXC hook. The hook sets NVIDIA_VISIBLE_DEVICES=none and mounts driver files via
-	// nvidia-container-cli, which conflicts with the CDI-managed device nodes and prevents the
-	// MIG slices from appearing inside the container.
-	if shared.IsTrue(instConf.ExpandedConfig()["nvidia.runtime"]) {
-		return errors.New(`The "nvidia.runtime" instance option is incompatible with gputype=mig devices`)
 	}
 
 	if d.config["pci"] != "" {
