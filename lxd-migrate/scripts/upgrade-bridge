@@ -7,8 +7,8 @@ export LANG=C.UTF-8
 # Functions
 maskcidr() {
    local x=${1##*255.}
-   set -- 0^^^128^192^224^240^248^252^254^ $(( (${#1} - ${#x})*2 )) ${x%%.*}
-   x=${1%%$3*}
+   set -- 0^^^128^192^224^240^248^252^254^ $(( (${#1} - ${#x})*2 )) "${x%%.*}"
+   x="${1%%"${3}"*}"
    echo $(( $2 + (${#x}/4) ))
 }
 
@@ -19,10 +19,12 @@ if [ ! -e /etc/default/lxd-bridge ]; then
 fi
 
 # Source current configuration
+# shellcheck disable=1091
 . /etc/default/lxd-bridge
 
 # Setup temporary config dir
-export LXD_CONF=$(mktemp -d)
+LXD_CONF="$(mktemp -d)"
+export LXD_CONF
 
 # Check if LXD is functional (chroot detection)
 if ! lxc info --force-local >/dev/null 2>&1; then
@@ -122,6 +124,7 @@ if [ -n "${LXD_IPV4_ADDR}" ] && [ -n "${LXD_IPV4_NETMASK}" ]; then
     lxc network set "${LXD_BRIDGE}" ipv4.address "${IPV4_CIDR}" --force-local
 
     if [ -n "${LXD_IPV4_DHCP_RANGE}" ]; then
+        # shellcheck disable=2001
         IPV4_RANGE=$(echo "${LXD_IPV4_DHCP_RANGE}" | sed "s/,/-/")
         echo "Setting IPv4 DHCP range to ${IPV4_RANGE}"
         lxc network set "${LXD_BRIDGE}" ipv4.dhcp.ranges "${IPV4_RANGE}" --force-local
