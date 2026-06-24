@@ -669,7 +669,7 @@ test_basic_usage() {
   lxc list | grep c2 | grep RUNNING
 
   # Find the respective operation
-  bulk_op="$(lxc query -X GET '/1.0/operations?recursion=2' | jq '.. | objects | select(.description == "Updating the state of multiple instances")')"
+  bulk_op="$(lxc query -X GET '/1.0/operations?recursion=2' | jq --exit-status '.. | objects | select(.description == "Updating the state of multiple instances")')"
 
   # There should be 2 child operations under one parent operation, that's 3 operations in total.
   # Explanation of the jq query:
@@ -681,7 +681,7 @@ test_basic_usage() {
   jq --exit-status '([., (.children? // [])[]] | length) == 3' <<< "${bulk_op}"
 
   # Grab the ID of the parent operation
-  parent_op="$(jq --raw-output '.id' <<< "${bulk_op}")"
+  parent_op="$(jq --raw-output --exit-status '.id' <<< "${bulk_op}")"
 
   # Check there are 3 operations in total when querying the specific operation ID too.
   lxc query -X GET "/1.0/operations/${parent_op}?recursion=1" | jq --exit-status '.. | objects | select(.description == "Updating the state of multiple instances") | ([., (.children? // [])[]] | length) == 3'
