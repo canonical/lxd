@@ -2198,48 +2198,6 @@
 					}
 				]
 			},
-			"nvidia": {
-				"keys": [
-					{
-						"nvidia.driver.capabilities": {
-							"condition": "container",
-							"defaultdesc": "`compute,utility`",
-							"liveupdate": "no",
-							"longdesc": "The specified driver capabilities are used to set `libnvidia-container NVIDIA_DRIVER_CAPABILITIES`.",
-							"shortdesc": "What driver capabilities the instance needs",
-							"type": "string"
-						}
-					},
-					{
-						"nvidia.require.cuda": {
-							"condition": "container",
-							"liveupdate": "no",
-							"longdesc": "The specified version expression is used to set `libnvidia-container NVIDIA_REQUIRE_CUDA`.",
-							"shortdesc": "Required CUDA version",
-							"type": "string"
-						}
-					},
-					{
-						"nvidia.require.driver": {
-							"condition": "container",
-							"liveupdate": "no",
-							"longdesc": "The specified version expression is used to set `libnvidia-container NVIDIA_REQUIRE_DRIVER`.",
-							"shortdesc": "Required driver version",
-							"type": "string"
-						}
-					},
-					{
-						"nvidia.runtime": {
-							"condition": "container",
-							"defaultdesc": "`false`",
-							"liveupdate": "no",
-							"longdesc": "",
-							"shortdesc": "Whether to pass the host NVIDIA and CUDA runtime libraries into the instance",
-							"type": "bool"
-						}
-					}
-				]
-			},
 			"placement": {
 				"keys": [
 					{
