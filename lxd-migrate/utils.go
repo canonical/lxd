@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -156,7 +157,7 @@ func packagesRemovable(names []string) error {
 		}
 
 		pkg := strings.TrimSpace(line)
-		if !shared.ValueInSlice(pkg, rdepends) && !shared.ValueInSlice(pkg, names) {
+		if !slices.Contains(rdepends, pkg) && !slices.Contains(names, pkg) {
 			rdepends = append(rdepends, pkg)
 		}
 	}
@@ -166,7 +167,7 @@ func packagesRemovable(names []string) error {
 	for _, pkg := range rdepends {
 		output, err := shared.RunCommand("dpkg-query", "-W", "-f=${Status}", pkg)
 		if err == nil && strings.HasSuffix(output, " installed") {
-			if shared.ValueInSlice(pkg, []string{"adapt", "autopkgtest", "lxc2", "nova-compute-lxd", "snapcraft", "ubuntu-server"}) {
+			if slices.Contains([]string{"adapt", "autopkgtest", "lxc2", "nova-compute-lxd", "snapcraft", "ubuntu-server"}, pkg) {
 				continue
 			}
 

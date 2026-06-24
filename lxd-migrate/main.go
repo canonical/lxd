@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/storage/filesystem"
@@ -313,9 +314,10 @@ func askBool(question string, default_ string) bool {
 		if input == "" {
 			input = default_
 		}
-		if shared.ValueInSlice(strings.ToLower(input), []string{"yes", "y"}) {
+
+		if slices.Contains([]string{"yes", "y"}, strings.ToLower(input)) {
 			return true
-		} else if shared.ValueInSlice(strings.ToLower(input), []string{"no", "n"}) {
+		} else if slices.Contains([]string{"no", "n"}, strings.ToLower(input)) {
 			return false
 		}
 
