@@ -383,35 +383,104 @@ jobs:
           path: doc/html
 
   snap:
-    name: Trigger snap edge build
+    name: Trigger snap build
     runs-on: ubuntu-24.04
     needs: [code-tests, system-tests, client, documentation]
     if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
     env:
       SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-      PACKAGE: "lxd"
-      REPO: "git+ssh://lxdbot@git.launchpad.net/~lxd-snap/lxd"
-      BRANCH: >-
-        ${{ fromJson('{
-          "main": "latest-edge",
-          "stable-4.0": "4.0-edge",
-        }')[github.ref_name] }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v5.0.1
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # A non-shallow clone is needed for the rebase with the lxd-private branch
+          fetch-depth: 0
+          persist-credentials: false
 
+      # XXX: from this point onwards in this **specific job**, the private SSH key is
+      #      available through the SSH_AUTH_SOCK environment variable.
       - uses: ./.github/actions/lp-snap-build
         with:
-          ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}"
+          repo: "git+ssh://lxdbot@git.launchpad.net/~lxd-snap/lxd"
+          ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}" # zizmor: ignore[secrets-outside-env]
 
       - name: Trigger Launchpad snap build
         run: |
           set -eux
-          echo "${PATH}"
+          set -o pipefail
+
+          # Record current commit hash before rebasing lxd-private so the snap version retains the correct hash.
           localRev="$(git rev-parse HEAD)"
-          cd ~/"${PACKAGE}-pkg-snap-lp"
-          lxd-snapcraft -package "${PACKAGE}" -set-version "git-${localRev:0:7}" -set-source-commit "${localRev}"
-          git add --all
-          git commit --all --quiet -s --allow-empty -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev}"
+
+          # Add the private LXD repository and rebase to incorporate private security fixes.
+          git remote add lxd-private git@github.com:canonical/lxd-private.git
+          git fetch lxd-private "${GITHUB_REF_NAME}"
+          git checkout --quiet -B "lxd-private-${GITHUB_REF_NAME}" "lxd-private/${GITHUB_REF_NAME}"
+          git rebase --quiet --no-stat "origin/${GITHUB_REF_NAME}"
+
+          # Extract a strict major.minor[.patch] version from shared/version/flex.go.
+          version="$(sed -nE 's/^var Version = "([0-9]+\.[0-9]+(\.[0-9]+)?)"$/\1/p' "${GITHUB_WORKSPACE}/shared/version/flex.go")"
+
+          if [ -z "${version}" ]; then
+            echo "ERROR: Invalid version format in shared/version/flex.go. Expected format: n.n or n.n.n" >&2
+            exit 1
+          fi
+
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            BRANCH="latest-edge"
+          elif [[ "${GITHUB_REF_NAME}" =~ ^stable- ]]; then
+            BRANCH="${GITHUB_REF_NAME#stable-}-edge"
+          elif [[ "${GITHUB_REF_NAME}" =~ ^release-6\. ]]; then
+            BRANCH="6-candidate"
+          elif [[ "${GITHUB_REF_NAME}" =~ ^release-([0-9]+)\.([0-9]+)\.[0-9]+$ ]]; then
+            BRANCH="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}-candidate"
+          else
+            echo "ERROR: Unsupported GITHUB_REF_NAME pattern: ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+
+          # Determine snap version and grade based on edge or candidate.
+          grade="devel"
+          if [[ "${BRANCH}" == *"-candidate" ]]; then
+            versionString="${version}-${localRev:0:7}"
+            grade="stable"
+          else
+            versionString="git-${localRev:0:7}"
+          fi
+
+          cd "${GITHUB_WORKSPACE}/snap"
+
+          # Fail unless exactly one `version: git` line exists, then replace it.
+          match_count="$(grep -cxF 'version: git' snapcraft.yaml || true)"
+          if [ "${match_count}" -ne 1 ]; then
+            echo "ERROR: Expected exactly one 'version: git' line in snapcraft.yaml, found ${match_count}" >&2
+            exit 1
+          fi
+
+          sed -i -e "s/^version: git$/version: ${versionString}/" snapcraft.yaml
+
+          if [ "${grade}" = "stable" ]; then
+            # Fail unless exactly one `grade: devel` line exists, then replace it.
+            match_count="$(grep -cxF 'grade: devel' snapcraft.yaml || true)"
+            if [ "${match_count}" -ne 1 ]; then
+              echo "ERROR: Expected exactly one 'grade: devel' line in snapcraft.yaml, found ${match_count}" >&2
+              exit 1
+            fi
+
+            sed -i -e "s/^grade: devel$/grade: stable/" snapcraft.yaml
+          fi
+
+          git add snapcraft.yaml
+          git commit --quiet -s -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev} (version: ${versionString})"
           git show
-          git push --quiet
+
+          # Pack all objects (including lxd-private ones) and generate a bitmap index
+          # right before the push so that pack generation benefits from full bitmap coverage.
+          git config --local pack.useBitmaps true
+          git gc --prune=now
+
+          #git push --quiet --force launchpad HEAD:"${BRANCH}"
+
+          # Unload the SSH key from the agent now that the push is done, to
+          # prevent accidental usage in any subsequent steps within this job.
+          ssh-add -D
