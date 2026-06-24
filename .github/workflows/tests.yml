@@ -479,7 +479,7 @@ jobs:
           git config --local pack.useBitmaps true
           git gc --prune=now
 
-          #git push --quiet --force launchpad HEAD:"${BRANCH}"
+          git push --quiet --force launchpad HEAD:"${BRANCH}"
 
           # Unload the SSH key from the agent now that the push is done, to
           # prevent accidental usage in any subsequent steps within this job.
