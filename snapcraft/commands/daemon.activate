@@ -1,0 +1,114 @@
+#!/bin/sh
+set -eu
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ] && [ "$(cat /proc/self/attr/current 2>/dev/null)" != "unconfined" ]; then
+    if ! aa-exec --help >/dev/null 2>&1; then
+        echo "The LXD snap was unable to run aa-exec, this usually indicates a LXD sideload." >&2
+        echo "When sideloading, make sure to manually connect all interfaces." >&2
+        exit 0
+    fi
+
+    exec aa-exec -p unconfined -- "$0" "$@" || true
+fi
+
+# shellcheck disable=SC2155
+export SNAP_CURRENT="$(realpath "${SNAP}/..")/current"
+
+# Turn `/snap/lxd/28637/lib/x86_64-linux-gnu` into `x86_64-linux-gnu`
+# Similar to `basename` but using variable substitution instead of external executable
+LIB_ARCH="$(readlink -f "${SNAP_CURRENT}"/lib/*-linux-gnu*/)"
+export ARCH="${LIB_ARCH##*/}"
+
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:${SNAP_CURRENT}/lib:${SNAP_CURRENT}/lib/${ARCH}:${SNAP_CURRENT}/lib/${ARCH}/ceph"
+export PATH="${PATH}:${SNAP_CURRENT}/bin"
+export LXD_DIR="${LXD_DIR:-"${SNAP_COMMON}/lxd/"}"
+
+echo "=> Starting LXD activation"
+
+# Load our configuration
+if [ ! -e "${SNAP_COMMON}/config" ]; then
+    echo "==> Creating missing snap configuration"
+    "${SNAP_CURRENT}/meta/hooks/configure"
+fi
+
+echo "==> Loading snap configuration"
+# shellcheck disable=SC1091
+. "${SNAP_COMMON}/config"
+
+daemon_group="${daemon_group:-"lxd"}"
+daemon_user_group="${daemon_user_group:-"lxd"}"
+
+# Detect missing socket activation support
+echo "==> Checking for socket activation support"
+if ! nsenter -t 1 -m systemctl is-active -q snap."${SNAP_INSTANCE_NAME}".daemon.unix.socket; then
+    sleep 3s
+    if ! nsenter -t 1 -m systemctl is-active -q snap."${SNAP_INSTANCE_NAME}".daemon.unix.socket; then
+        echo "===> System doesn't support socket activation, starting LXD now"
+        nsenter -t 1 -m systemctl start snap."${SNAP_INSTANCE_NAME}".daemon
+        exit 0
+    fi
+fi
+
+# Start LXD if running as an appliance
+if nsenter -t 1 -m snap model --assertion | grep -q "^model: lxd-core"; then
+    echo "==> LXD appliance detected, starting LXD"
+    nsenter -t 1 -m systemctl start snap."${SNAP_INSTANCE_NAME}".daemon --no-block
+    exit 0
+fi
+
+# Setup the "lxd" group
+if [ "${daemon_group}" = "lxd" ] && ! getent group lxd >/dev/null 2>&1; then
+    echo "==> Creating \"lxd\" group"
+    if grep -q "^group.*extrausers" /var/lib/snapd/hostfs/etc/nsswitch.conf; then
+        nsenter -t 1 -m groupadd --system --extrausers lxd || true
+    else
+        nsenter -t 1 -m groupadd --system lxd || true
+    fi
+fi
+
+# Setup the "lxd" user
+if ! getent passwd lxd >/dev/null 2>&1; then
+    echo "==> Creating \"lxd\" user"
+    if grep -q "^passwd.*extrausers" /var/lib/snapd/hostfs/etc/nsswitch.conf; then
+        nsenter -t 1 -m useradd --system -M -N --home "${SNAP_COMMON}/lxd" --shell /bin/false --gid lxd --extrausers lxd || true
+    else
+        nsenter -t 1 -m useradd --system -M -N --home "${SNAP_COMMON}/lxd" --shell /bin/false --gid lxd lxd || true
+    fi
+fi
+
+# Set socket ownership
+if getent group "${daemon_group}" >/dev/null 2>&1; then
+    if [ -e "${SNAP_COMMON}/lxd/unix.socket" ]; then
+        echo "==> Setting LXD socket ownership"
+        chgrp "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
+    fi
+fi
+
+if getent group "${daemon_user_group}" >/dev/null 2>&1; then
+    if [ -e "${SNAP_COMMON}/lxd-user/unix.socket" ]; then
+        echo "==> Setting LXD user socket ownership"
+        chgrp "${daemon_user_group}" "${SNAP_COMMON}/lxd-user/unix.socket"
+    fi
+fi
+
+# Check if LXD ever started
+if [ ! -d "${SNAP_COMMON}/lxd/database" ]; then
+    echo "==> LXD never started on this system, no need to start it now"
+    exit 0
+fi
+
+# Check if LXD should start
+LXD="lxd"
+if [ -x "${SNAP_COMMON}/lxd.debug" ]; then
+    LXD="${SNAP_COMMON}/lxd.debug"
+    echo "==> WARNING: Using a custom debug LXD binary!"
+fi
+
+echo "==> Checking if LXD needs to be activated"
+if ! "${LXD}" activateifneeded; then
+    echo "====> Activation check failed, forcing activation"
+    nsenter -t 1 -m systemctl start snap."${SNAP_INSTANCE_NAME}".daemon
+fi
+
+exit 0

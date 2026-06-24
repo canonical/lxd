@@ -1,0 +1,88 @@
+From 7ad02ce3357f69fc08f368ed3a4d1e047dfb2bd5 Mon Sep 17 00:00:00 2001
+From: Romain Dolbeau <romain.dolbeau@european-processor-initiative.eu>
+Date: Thu, 6 Feb 2020 18:25:29 +0100
+Subject: [PATCH 2/3] Fix static data to link with -fno-common
+
+-fno-common is the new default in GCC 10, replacing -fcommon in
+GCC <= 9, so static data must only be allocated once.
+
+Reviewed-by: Brian Behlendorf <behlendorf1@llnl.gov>
+Signed-off-by: Romain Dolbeau <romain.dolbeau@european-processor-initiative.eu>
+Closes #9943
+(cherry picked from commit af09c050e95bebbaeca52156218f3f91e8c9951a)
+Signed-off-by: Alexander Mikhalitsyn <aleksandr.mikhalitsyn@canonical.com>
+---
+ cmd/zfs/zfs_util.h     | 2 +-
+ cmd/zpool/zpool_main.c | 2 ++
+ cmd/zpool/zpool_util.h | 2 +-
+ lib/libshare/smb.c     | 2 ++
+ lib/libshare/smb.h     | 2 +-
+ 5 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/cmd/zfs/zfs_util.h b/cmd/zfs/zfs_util.h
+index 3ddff9e22..a56af59ad 100644
+--- a/cmd/zfs/zfs_util.h
++++ b/cmd/zfs/zfs_util.h
+@@ -33,7 +33,7 @@ extern "C" {
+ 
+ void * safe_malloc(size_t size);
+ void nomem(void);
+-libzfs_handle_t *g_zfs;
++extern libzfs_handle_t *g_zfs;
+ 
+ #ifdef	__cplusplus
+ }
+diff --git a/cmd/zpool/zpool_main.c b/cmd/zpool/zpool_main.c
+index 591e2e5cd..f49a21b62 100644
+--- a/cmd/zpool/zpool_main.c
++++ b/cmd/zpool/zpool_main.c
+@@ -65,6 +65,8 @@
+ 
+ #include "statcommon.h"
+ 
++libzfs_handle_t *g_zfs;
++
+ static int zpool_do_create(int, char **);
+ static int zpool_do_destroy(int, char **);
+ 
+diff --git a/cmd/zpool/zpool_util.h b/cmd/zpool/zpool_util.h
+index aef2cff27..acd3df15f 100644
+--- a/cmd/zpool/zpool_util.h
++++ b/cmd/zpool/zpool_util.h
+@@ -78,7 +78,7 @@ void pool_list_free(zpool_list_t *);
+ int pool_list_count(zpool_list_t *);
+ void pool_list_remove(zpool_list_t *, zpool_handle_t *);
+ 
+-libzfs_handle_t *g_zfs;
++extern libzfs_handle_t *g_zfs;
+ 
+ 
+ typedef	struct vdev_cmd_data
+diff --git a/lib/libshare/smb.c b/lib/libshare/smb.c
+index 91d4decb8..f1fa0638b 100644
+--- a/lib/libshare/smb.c
++++ b/lib/libshare/smb.c
+@@ -64,6 +64,8 @@ static boolean_t smb_available(void);
+ 
+ static sa_fstype_t *smb_fstype;
+ 
++smb_share_t *smb_shares;
++
+ /*
+  * Retrieve the list of SMB shares.
+  */
+diff --git a/lib/libshare/smb.h b/lib/libshare/smb.h
+index 7a0c0fd16..8ea44677f 100644
+--- a/lib/libshare/smb.h
++++ b/lib/libshare/smb.h
+@@ -44,6 +44,6 @@ typedef struct smb_share_s {
+ 	struct smb_share_s *next;
+ } smb_share_t;
+ 
+-smb_share_t *smb_shares;
++extern smb_share_t *smb_shares;
+ 
+ void libshare_smb_init(void);
+-- 
+2.34.1
+

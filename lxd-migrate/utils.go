@@ -2,358 +2,183 @@ package main
 
 import (
 	"bufio"
-	"context"
-	"crypto/x509"
-	"encoding/pem"
-	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
-	"reflect"
+	"slices"
+	"strconv"
 	"strings"
 
-	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
-	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery/form"
-	cookiejar "github.com/juju/persistent-cookiejar"
-	"golang.org/x/sys/unix"
-	"golang.org/x/term"
-	schemaform "gopkg.in/juju/environschema.v1/form"
-
-	"github.com/canonical/lxd/client"
-	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/version"
-	"github.com/canonical/lxd/shared/ws"
 )
 
-func transferRootDiskForMigration(ctx context.Context, op lxd.Operation, rootfs string, rsyncArgs string, instanceType api.InstanceType) error {
-	opAPI := op.Get()
+func runSnapCommand(name string, arg ...string) (string, error) {
+	args := []string{"--mount=/run/snapd/ns/lxd.mnt", name}
+	args = append(args, arg...)
 
-	// Connect to the websockets
-	wsControl, err := op.GetWebsocket(opAPI.Metadata[api.SecretNameControl].(string))
-	if err != nil {
-		return err
+	return shared.RunCommand("nsenter", args...)
+}
+
+func compareVersions(a string, b string) int {
+	aFields := strings.Split(a, ".")
+	bFields := strings.Split(b, ".")
+
+	fields := len(aFields)
+	if len(bFields) > fields {
+		fields = len(bFields)
 	}
 
-	abort := func(err error) error {
-		protoSendError(wsControl, err)
-		return err
-	}
+	// Iterate over parts of both versions
+	for i := 0; i < fields; i++ {
+		var err error
 
-	wsFs, err := op.GetWebsocket(opAPI.Metadata[api.SecretNameFilesystem].(string))
-	if err != nil {
-		return abort(err)
-	}
-
-	// Setup control struct
-	var fs migration.MigrationFSType
-	var rsyncHasFeature bool
-
-	if instanceType == api.InstanceTypeVM {
-		fs = migration.MigrationFSType_BLOCK_AND_RSYNC
-		rsyncHasFeature = false
-	} else {
-		fs = migration.MigrationFSType_RSYNC
-		rsyncHasFeature = true
-	}
-
-	offerHeader := migration.MigrationHeader{
-		RsyncFeatures: &migration.RsyncFeatures{
-			Xattrs:   &rsyncHasFeature,
-			Delete:   &rsyncHasFeature,
-			Compress: &rsyncHasFeature,
-		},
-		Fs: &fs,
-	}
-
-	if instanceType == api.InstanceTypeVM {
-		stat, err := os.Stat(filepath.Join(rootfs, "root.img"))
-		if err != nil {
-			return abort(err)
+		// Parse the left part
+		aInt := int64(0)
+		if len(aFields) > i {
+			aInt, err = strconv.ParseInt(aFields[i], 10, 64)
+			if err != nil {
+				aInt = 0
+			}
 		}
 
-		size := stat.Size()
-		offerHeader.VolumeSize = &size
-		rootfs = shared.AddSlash(rootfs)
-	}
+		// Parse the right part
+		bInt := int64(0)
+		if len(bFields) > i {
+			bInt, err = strconv.ParseInt(bFields[i], 10, 64)
+			if err != nil {
+				bInt = 0
+			}
+		}
 
-	err = migration.ProtoSend(wsControl, &offerHeader)
-	if err != nil {
-		return abort(err)
-	}
-
-	var respHeader migration.MigrationHeader
-	err = migration.ProtoRecv(wsControl, &respHeader)
-	if err != nil {
-		return abort(err)
-	}
-
-	rsyncFeaturesOffered := offerHeader.GetRsyncFeaturesSlice()
-	rsyncFeaturesResponse := respHeader.GetRsyncFeaturesSlice()
-
-	if !reflect.DeepEqual(rsyncFeaturesOffered, rsyncFeaturesResponse) {
-		return abort(fmt.Errorf("Offered rsync features (%v) differ from those in the migration response (%v)", rsyncFeaturesOffered, rsyncFeaturesResponse))
-	}
-
-	// Send the filesystem
-	err = rsyncSend(ctx, wsFs, rootfs, rsyncArgs, instanceType)
-	if err != nil {
-		return abort(fmt.Errorf("Failed sending filesystem volume: %w", err))
-	}
-
-	// Send block volume
-	if instanceType == api.InstanceTypeVM {
-		err := sendBlockVol(ctx, ws.NewWrapper(wsFs), filepath.Join(rootfs, "root.img"))
-		if err != nil {
-			return abort(err)
+		// Compare versions
+		if aInt == bInt {
+			continue
+		} else if aInt < bInt {
+			return -1
+		} else if aInt > bInt {
+			return 1
 		}
 	}
 
-	// Check the result
-	msg := migration.MigrationControl{}
-	err = migration.ProtoRecv(wsControl, &msg)
+	return 0
+}
+
+func systemdCtl(action string, units ...string) error {
+	args := []string{}
+	args = append(args, action)
+	args = append(args, units...)
+
+	// Run systemctl
+	_, err := shared.RunCommand("systemctl", args...)
+	return err
+}
+
+func upstartCtl(action string, units ...string) error {
+	args := []string{}
+	args = append(args, action)
+	args = append(args, units...)
+
+	// Run initctl
+	_, err := shared.RunCommand("initctl", args...)
+	return err
+}
+
+func convertPath(path string, src string, dst string) string {
+	// Relative paths are handled by LXD
+	if !strings.HasPrefix(path, "/") {
+		return path
+	}
+
+	// /dev is always available
+	if strings.HasPrefix(path, "/dev/") {
+		return path
+	}
+
+	// Somehow the path is already correct
+	if strings.HasPrefix(path, dst) {
+		return path
+	}
+
+	// Prefixed with old path
+	if strings.HasPrefix(path, src) {
+		return fmt.Sprintf("%s%s", dst, strings.TrimPrefix(path, src))
+	}
+
+	// Requires host access
+	return fmt.Sprintf("/var/lib/snapd/hostfs%s", path)
+}
+
+func osID() string {
+	f, err := os.Open("/etc/os-release")
 	if err != nil {
-		_ = wsControl.Close()
+		return "unknown"
+	}
+
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		s := strings.Split(scanner.Text(), "=")
+		if len(s) >= 2 && s[0] == "ID" {
+			return s[1]
+		}
+	}
+
+	return "unknown"
+}
+
+func osInit() string {
+	initExe, err := os.Readlink("/proc/1/exe")
+	if err != nil {
+		return "unknown"
+	}
+
+	fields := strings.Split(initExe, " ")
+	init := filepath.Base(fields[0])
+
+	if init == "init" {
+		init = "upstart"
+	}
+
+	return init
+}
+
+func packagesRemovable(names []string) error {
+	rdepends := []string{}
+
+	// Get all reverse depends
+	output, err := shared.RunCommand("apt-cache", append([]string{"-i", "rdepends"}, names...)...)
+	if err != nil {
 		return err
 	}
 
-	if !msg.GetSuccess() {
-		return errors.New(msg.GetMessage())
+	for _, line := range strings.Split(output, "\n") {
+		if !strings.HasPrefix(line, "  ") {
+			continue
+		}
+
+		pkg := strings.TrimSpace(line)
+		if !slices.Contains(rdepends, pkg) && !slices.Contains(names, pkg) {
+			rdepends = append(rdepends, pkg)
+		}
+	}
+
+	// Check for what's installed
+	problems := []string{}
+	for _, pkg := range rdepends {
+		output, err := shared.RunCommand("dpkg-query", "-W", "-f=${Status}", pkg)
+		if err == nil && strings.HasSuffix(output, " installed") {
+			if slices.Contains([]string{"adapt", "autopkgtest", "lxc2", "nova-compute-lxd", "snapcraft", "ubuntu-server"}, pkg) {
+				continue
+			}
+
+			problems = append(problems, pkg)
+		}
+	}
+
+	if len(problems) > 0 {
+		return fmt.Errorf("The following packages depend on %v: %s", names, strings.Join(problems, ", "))
 	}
 
 	return nil
-}
-
-func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
-	args := lxd.ConnectionArgs{
-		AuthType: authType,
-	}
-
-	clientFingerprint := ""
-
-	if authType == "tls" {
-		var clientCrt []byte
-		var clientKey []byte
-
-		// Generate a new client certificate for this
-		if certPath == "" || keyPath == "" {
-			var err error
-
-			clientCrt, clientKey, err = shared.GenerateMemCert(true, false)
-			if err != nil {
-				return nil, "", err
-			}
-
-			clientFingerprint, err = shared.CertFingerprintStr(string(clientCrt))
-			if err != nil {
-				return nil, "", err
-			}
-
-			// When using certificate add tokens, there's no need to show the temporary certificate.
-			if token == "" {
-				fmt.Printf("\nYour temporary certificate is:\n%s\n", string(clientCrt))
-			}
-		} else {
-			var err error
-
-			clientCrt, err = os.ReadFile(certPath)
-			if err != nil {
-				return nil, "", fmt.Errorf("Failed to read client certificate: %w", err)
-			}
-
-			clientKey, err = os.ReadFile(keyPath)
-			if err != nil {
-				return nil, "", fmt.Errorf("Failed to read client key: %w", err)
-			}
-		}
-
-		args.TLSClientCert = string(clientCrt)
-		args.TLSClientKey = string(clientKey)
-	} else if authType == "candid" {
-		args.AuthInteractor = []httpbakery.Interactor{
-			form.Interactor{Filler: schemaform.IOFiller{}},
-			httpbakery.WebBrowserInteractor{
-				OpenWebBrowser: httpbakery.OpenWebBrowser,
-			},
-		}
-
-		f, err := os.CreateTemp("", "lxd-migrate_")
-		if err != nil {
-			return nil, "", err
-		}
-
-		_ = f.Close()
-
-		jar, err := cookiejar.New(
-			&cookiejar.Options{
-				Filename: f.Name(),
-			})
-		if err != nil {
-			return nil, "", err
-		}
-
-		args.CookieJar = jar
-	}
-
-	// Attempt to connect using the system CA
-	args.UserAgent = fmt.Sprintf("LXC-MIGRATE %s", version.Version)
-	instanceServer, err := lxd.ConnectLXD(url, &args)
-
-	var certificate *x509.Certificate
-	if err != nil {
-		// Failed to connect using the system CA, so retrieve the remote certificate
-		certificate, err = shared.GetRemoteCertificate(url, args.UserAgent)
-		if err != nil {
-			return nil, "", err
-		}
-	}
-
-	// Handle certificate prompt
-	if certificate != nil {
-		serverCrt := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
-		args.TLSServerCert = string(serverCrt)
-
-		// Setup a new connection, this time with the remote certificate
-		instanceServer, err = lxd.ConnectLXD(url, &args)
-		if err != nil {
-			return nil, "", err
-		}
-	}
-
-	if authType == "candid" {
-		instanceServer.RequireAuthenticated(false)
-	}
-
-	// Get server information
-	srv, _, err := instanceServer.GetServer()
-	if err != nil {
-		return nil, "", err
-	}
-
-	// Check if our cert is already trusted
-	if srv.Auth == "trusted" {
-		fmt.Printf("\nRemote LXD server:\n  Hostname: %s\n  Version: %s\n\n", srv.Environment.ServerName, srv.Environment.ServerVersion)
-		return instanceServer, "", nil
-	}
-
-	if authType == "tls" {
-		if token != "" {
-			req := api.CertificatesPost{
-				Password: token,
-			}
-
-			err = instanceServer.CreateCertificate(req)
-			if err != nil {
-				return nil, "", fmt.Errorf("Failed to create certificate: %w", err)
-			}
-		} else {
-			fmt.Println("It is recommended to have this certificate be manually added to LXD through `lxc config trust add` on the target server.\nAlternatively you could use a pre-defined trust password to add it remotely (use of a trust password can be a security issue).")
-
-			fmt.Println("")
-
-			useTrustPassword, err := c.global.asker.AskBool("Would you like to use a trust password? [default=no]: ", "no")
-			if err != nil {
-				return nil, "", err
-			}
-
-			if useTrustPassword {
-				// Prompt for trust password
-				fmt.Print("Trust password: ")
-				pwd, err := term.ReadPassword(0)
-				if err != nil {
-					return nil, "", err
-				}
-
-				fmt.Println("")
-
-				// Add client certificate to trust store
-				req := api.CertificatesPost{
-					Password: string(pwd),
-				}
-
-				req.Type = api.CertificateTypeClient
-
-				err = instanceServer.CreateCertificate(req)
-				if err != nil {
-					return nil, "", err
-				}
-			} else {
-				fmt.Print("Press ENTER after the certificate was added to the remote server: ")
-				_, err = bufio.NewReader(os.Stdin).ReadString('\n')
-				if err != nil {
-					return nil, "", err
-				}
-			}
-		}
-	} else {
-		instanceServer.RequireAuthenticated(true)
-	}
-
-	// Get full server information
-	srv, _, err = instanceServer.GetServer()
-	if err != nil {
-		if clientFingerprint != "" {
-			_ = instanceServer.DeleteCertificate(clientFingerprint)
-		}
-
-		return nil, "", err
-	}
-
-	if srv.Auth == "untrusted" {
-		return nil, "", fmt.Errorf("Server doesn't trust us after authentication")
-	}
-
-	fmt.Printf("\nRemote LXD server:\n  Hostname: %s\n  Version: %s\n\n", srv.Environment.ServerName, srv.Environment.ServerVersion)
-
-	return instanceServer, clientFingerprint, nil
-}
-
-func setupSource(path string, mounts []string) error {
-	prefix := "/"
-	if len(mounts) > 0 {
-		prefix = mounts[0]
-	}
-
-	// Mount everything
-	for _, mount := range mounts {
-		target := fmt.Sprintf("%s/%s", path, strings.TrimPrefix(mount, prefix))
-
-		// Mount the path
-		err := unix.Mount(mount, target, "none", unix.MS_BIND, "")
-		if err != nil {
-			return fmt.Errorf("Failed to mount %s: %w", mount, err)
-		}
-
-		// Make it read-only
-		err = unix.Mount("", target, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
-		if err != nil {
-			return fmt.Errorf("Failed to make %s read-only: %w", mount, err)
-		}
-	}
-
-	return nil
-}
-
-func parseURL(URL string) (string, error) {
-	u, err := url.Parse(URL)
-	if err != nil {
-		return "", err
-	}
-
-	// Create a URL with scheme and hostname since it wasn't provided
-	if u.Scheme == "" && u.Host == "" && u.Path != "" {
-		u, err = url.Parse(fmt.Sprintf("https://%s", u.Path))
-		if err != nil {
-			return "", err
-		}
-	}
-
-	// If no port was provided, use default port
-	if u.Port() == "" {
-		u.Host = fmt.Sprintf("%s:%d", u.Hostname(), shared.HTTPSDefaultPort)
-	}
-
-	return u.String(), nil
 }

@@ -1,0 +1,36 @@
+From 93866d1908e963d73af829c37e1c99d12ae661eb Mon Sep 17 00:00:00 2001
+From: Stéphane Graber <stgraber@ubuntu.com>
+Date: Tue, 28 Feb 2023 01:16:25 +0000
+Subject: [PATCH] Fix for 22.04 build
+
+Signed-off-by: Stéphane Graber <stgraber@ubuntu.com>
+---
+ Makefile | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+index 00d561e..8710bfd 100644
+--- a/Makefile
++++ b/Makefile
+@@ -18,7 +18,7 @@
+ ##### Global variables #####
+ 
+ WITH_NVCGO   ?= yes
+-WITH_LIBELF  ?= no
++WITH_LIBELF  ?= yes
+ WITH_TIRPC   ?= no
+ WITH_SECCOMP ?= yes
+ 
+@@ -168,6 +168,9 @@ ifeq ($(WITH_TIRPC), yes)
+ LIB_CPPFLAGS       += -isystem $(DEPS_DIR)$(includedir)/tirpc -DWITH_TIRPC
+ LIB_LDLIBS_STATIC  += -l:libtirpc.a
+ LIB_LDLIBS_SHARED  += -lpthread
++else
++LIB_CPPFLAGS       += $(shell pkg-config --cflags libtirpc)
++LIB_LDLIBS_SHARED  += $(shell pkg-config --libs libtirpc)
+ endif
+ ifeq ($(WITH_SECCOMP), yes)
+ LIB_CPPFLAGS       += -DWITH_SECCOMP $(shell pkg-config --cflags libseccomp)
+-- 
+2.34.1
+

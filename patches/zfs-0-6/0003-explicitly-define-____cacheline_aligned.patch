@@ -1,0 +1,27 @@
+From 452ae7146c0b9f6bbb25b15f4d575fb91da78748 Mon Sep 17 00:00:00 2001
+From: Alexander Mikhalitsyn <aleksandr.mikhalitsyn@canonical.com>
+Date: Thu, 7 Dec 2023 14:09:59 +0100
+Subject: [PATCH 3/5] explicitly define ____cacheline_aligned
+
+See also 37fb3e431 ("OpenZFS 8484 - Implement aggregate sum and use for arc counter")
+
+Signed-off-by: Alexander Mikhalitsyn <aleksandr.mikhalitsyn@canonical.com>
+---
+ include/sys/zfs_context.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/sys/zfs_context.h b/include/sys/zfs_context.h
+index 4f7e3287f..9b16f2794 100644
+--- a/include/sys/zfs_context.h
++++ b/include/sys/zfs_context.h
+@@ -749,5 +749,7 @@ extern fstrans_cookie_t spl_fstrans_mark(void);
+ extern void spl_fstrans_unmark(fstrans_cookie_t);
+ extern int spl_fstrans_check(void);
+ 
++#define	____cacheline_aligned
++
+ #endif /* _KERNEL */
+ #endif	/* _SYS_ZFS_CONTEXT_H */
+-- 
+2.34.1
+

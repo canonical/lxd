@@ -1,0 +1,39 @@
+#!/bin/sh
+if [ "$(id -u)" != "0" ]; then
+    echo "" >&2
+    echo "\"lxc file mount\" with SSHFS can only be used as root in the LXD snap." >&2
+    echo  "For use as a regular user, please use the --listen option instead." >&2
+    echo "" >&2
+    exit 1
+fi
+
+# Turn `/usr/sbin/foo` into `foo`
+# Similar to `basename` but using variable substitution instead of external executable
+CMD="${0##*/}"
+
+unset LD_LIBRARY_PATH
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+FOUND=0
+for path in $(echo "${PATH}" | tr ':' '\n'); do
+    if [ -e "/var/lib/snapd/hostfs${path}/sshfs" ]; then
+         FOUND=1
+         break
+    fi
+done
+
+if [ "${FOUND}" = "0" ]; then
+    echo "" >&2
+    echo "sshfs couldn't be found on the system." >&2
+    echo "Install sshfs or use the --listen option instead." >&2
+    echo "" >&2
+    exit 1
+fi
+
+shift 2
+SRC="${1}"
+shift
+DST="${1#/var/lib/snapd/hostfs}"
+shift
+
+exec nsenter -t 1 -m "${CMD}" -o slave "${SRC}" "${DST}" "$@"

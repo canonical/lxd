@@ -1,0 +1,39 @@
+From 565f47922bd80e423064bf1e44a2f8a4468ab057 Mon Sep 17 00:00:00 2001
+From: Alexander Mikhalitsyn <aleksandr.mikhalitsyn@canonical.com>
+Date: Thu, 7 Dec 2023 14:21:18 +0100
+Subject: [PATCH 3/3] A simplified backport of 2faf05612f9 ("libshare/smb:
+ cleanup")
+
+Signed-off-by: Alexander Mikhalitsyn <aleksandr.mikhalitsyn@canonical.com>
+---
+ lib/libshare/smb.c | 2 +-
+ lib/libshare/smb.h | 2 --
+ 2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/lib/libshare/smb.c b/lib/libshare/smb.c
+index f1fa0638b..8c5ad7d69 100644
+--- a/lib/libshare/smb.c
++++ b/lib/libshare/smb.c
+@@ -64,7 +64,7 @@ static boolean_t smb_available(void);
+ 
+ static sa_fstype_t *smb_fstype;
+ 
+-smb_share_t *smb_shares;
++static smb_share_t *smb_shares;
+ 
+ /*
+  * Retrieve the list of SMB shares.
+diff --git a/lib/libshare/smb.h b/lib/libshare/smb.h
+index 8ea44677f..c45e0aec6 100644
+--- a/lib/libshare/smb.h
++++ b/lib/libshare/smb.h
+@@ -44,6 +44,4 @@ typedef struct smb_share_s {
+ 	struct smb_share_s *next;
+ } smb_share_t;
+ 
+-extern smb_share_t *smb_shares;
+-
+ void libshare_smb_init(void);
+-- 
+2.34.1
+
