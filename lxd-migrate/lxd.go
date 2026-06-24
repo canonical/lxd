@@ -138,6 +138,7 @@ func (d *lxdDaemon) showReport() error {
 	if d.networks != nil {
 		fmt.Printf("  Networks: %d\n", len(d.networks))
 	}
+
 	if d.storagePools != nil {
 		fmt.Printf("  Storage pools: %d\n", len(d.storagePools))
 	}
@@ -345,6 +346,7 @@ func (d *lxdDaemon) cleanMounts() error {
 	if err != nil {
 		return err
 	}
+
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)

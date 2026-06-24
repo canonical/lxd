@@ -40,6 +40,7 @@ int dosetns(int pid, char *nstype) {
 		close(mntns);
 		return -1;
 	}
+
 	close(mntns);
 
 	return 0;

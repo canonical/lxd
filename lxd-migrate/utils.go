@@ -113,6 +113,7 @@ func osID() string {
 	if err != nil {
 		return "unknown"
 	}
+
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
