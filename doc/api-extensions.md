@@ -3602,8 +3602,6 @@ The following changes are included:
 - `mig.gi` and `mig.ci`: The GPU instance ID and compute instance ID pair is now resolved to a MIG UUID via NVML, which is then used as a CDI identifier.
 - `id`: Now accepts either a CDI identifier for `gputype=mig` devices or a DRM card ID selector for the parent GPU. Supported CDI formats are `nvidia.com/mig=<uuid>` and `nvidia.com/mig=<dev_idx>:<mig_idx>`. When a CDI identifier is provided, it is used directly and is mutually exclusive with `mig.uuid`, `mig.gi`, and `mig.ci`.
 
-Because the legacy `nvidia.runtime` instance-level option is incompatible with CDI-based MIG passthrough, attaching a `gputype=mig` device to a container with {config:option}`instance-nvidia:nvidia.runtime` set to `true` is rejected. To preserve backward compatibility, an upgrade patch unsets `nvidia.runtime` on existing containers and snapshots that have a `gputype=mig` device attached.
-
 (extension-cluster-links-unidirectional)=
 ## `cluster_links_unidirectional`
 
