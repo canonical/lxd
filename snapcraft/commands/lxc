@@ -1,0 +1,49 @@
+#!/bin/sh
+set -eu
+
+# Fill SNAP_REAL_HOME if missing
+if [ -z "${SNAP_REAL_HOME:-""}" ]; then
+    SNAP_REAL_HOME="${HOME}"
+    if [ "${USER:-}" = "root" ] && [ -e "/root" ]; then
+        SNAP_REAL_HOME="/root"
+    elif [ -n "${USER:-}" ] && [ -e "/home/${USER}" ]; then
+        SNAP_REAL_HOME="/home/${USER}"
+    fi
+fi
+
+# Set the environment
+if [ -z "${LXD_DIR:-""}" ]; then
+    export LXD_DIR="${SNAP_COMMON}/lxd/"
+
+    if [ ! -w "${SNAP_COMMON}/lxd/unix.socket" ] && [ -w "${SNAP_COMMON}/lxd-user/unix.socket" ]; then
+        export LXD_DIR="${SNAP_COMMON}/lxd-user/"
+    fi
+fi
+
+export LXD_CONF="${SNAP_USER_COMMON}/config"
+[ -d "${LXD_CONF}" ] || mkdir -p "${LXD_CONF}"
+export LXD_GLOBAL_CONF="${LXD_GLOBAL_CONF:-"${SNAP_COMMON}/global-conf/"}"
+
+# Use editor wrapper
+export EDITOR="${SNAP}/bin/editor ${EDITOR:-}"
+export VISUAL="${EDITOR}"
+
+# Reset all locales as it isn't available in the snap (#29)
+LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
+# Add extra binaries to path
+export PATH="/run/bin:${PATH}"
+
+LXC="${SNAP}/bin/lxc"
+if [ -x "${SNAP_COMMON}/lxc.debug" ]; then
+    LXC="${SNAP_COMMON}/lxc.debug"
+fi
+
+# Run lxc itself outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ]; then
+  exec /usr/bin/aa-exec -p unconfined -- "${LXC}" "$@"
+fi
+
+# Run lxc itself
+exec "${LXC}" "$@"

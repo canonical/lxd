@@ -1,0 +1,119 @@
+#!/bin/sh
+set -u
+
+# Re-exec outside of apparmor confinement
+if [ -d /sys/kernel/security/apparmor ]; then
+  label="$(cat /proc/self/attr/current 2>/dev/null)"
+  if [ "$label" != "unconfined" ] && [ -n "${label##*(unconfined)}" ]; then
+    exec aa-exec -p unconfined -- "$0" "$@"
+  fi
+fi
+
+# Check that we're root
+if [ "$(id -u)" != "0" ]; then
+    echo "error: This tool must be run as root."
+    exit 1
+fi
+
+# Environment
+export LXD_DIR="${LXD_DIR:-"${SNAP_COMMON}/lxd/"}"
+
+echo "# Base information"
+if [ -e "/var/lib/snapd/hostfs/etc/os-release" ]; then
+    # shellcheck disable=SC1091
+    . /var/lib/snapd/hostfs/etc/os-release
+
+    echo " - Distribution: ${NAME}"
+    echo " - Distribution version: ${VERSION}"
+else
+    echo " - Distribution: unknown (no os-release)"
+fi
+echo " - Kernel version: $(uname -a)"
+echo " - LXC version: $(lxc --version)"
+echo " - LXD version: $(lxd --version)"
+echo ""
+
+echo "# Detailed snap information"
+echo '```'
+nsenter -t 1 -m snap list --all lxd core20 core22 core24 snapd
+echo '```'
+echo ""
+
+echo "# Detailed LXD information"
+if lxc info >/dev/null 2>&1; then
+    echo "## Daemon configuration"
+    echo '```'
+    lxc info
+    echo '```'
+    echo ""
+
+    echo "## Instances"
+    echo '```'
+    lxc list --all-projects
+    echo '```'
+    echo ""
+
+    echo "## Images"
+    echo '```'
+    lxc image list
+    echo '```'
+    echo ""
+
+    echo "## Storage pools"
+    echo '```'
+    lxc storage list
+    echo '```'
+    echo ""
+
+    echo "## Networks"
+    echo '```'
+    lxc network list
+    echo '```'
+    echo ""
+
+    echo "## Projects"
+    echo '```'
+    lxc project list
+    echo '```'
+    echo ""
+
+    echo "## Profiles"
+    echo '```'
+    lxc profile list
+    echo '```'
+    echo ""
+
+    echo "## Default profile"
+    echo '```'
+    lxc profile show default
+    echo '```'
+    echo ""
+
+    if lxc cluster list >/dev/null 2>&1; then
+        echo "## Cluster"
+        echo '```'
+        lxc cluster list
+        echo '```'
+        echo ""
+    fi
+else
+    echo "LXD daemon unreachable"
+    echo ""
+fi
+
+echo "# Kernel log (last 50 lines)"
+echo '```'
+dmesg | tail -n 50
+echo '```'
+echo ""
+
+echo "# Daemon log (last 50 lines)"
+echo '```'
+tail -n 50 "${SNAP_COMMON}/lxd/logs/lxd.log"
+echo '```'
+echo ""
+
+echo "# Systemd log (last 50 lines)"
+echo '```'
+nsenter -t 1 -m journalctl --no-pager -u snap.lxd.daemon -n50
+echo '```'

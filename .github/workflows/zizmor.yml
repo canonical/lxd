@@ -1,0 +1,28 @@
+name: GHA Security Analysis
+
+on:
+  push:
+    branches:
+      - latest-edge
+      - latest-candidate
+      - '[0-9]*-edge'
+      - '[0-9]*-candidate'
+  pull_request:
+
+permissions: {}
+
+jobs:
+  zizmor:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read # only needed for private or internal repos
+      actions: read # only needed for private or internal repos
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d # v0.5.6

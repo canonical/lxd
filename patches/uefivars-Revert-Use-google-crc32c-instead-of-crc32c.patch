@@ -1,0 +1,66 @@
+From: Mate Kukri <mate.kukri@canonical.com>
+Date: Thu, 19 Oct 2023 11:48:21 +0100
+Subject: Revert "Use google-crc32c instead of crc32c"
+
+This reverts commit 9679002a4392d8e7831d2dbda3fab41ccc5c6b8c.
+
+google-crc32c isn't currently packaged in Ubuntu, crc32c however
+is, and there isn't a seemingly good reason to use the former
+outside of licensing appeal to upstream hence this patch.
+---
+ pyuefivars/aws.py | 9 ++++-----
+ setup.py          | 2 +-
+ 2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/pyuefivars/aws.py b/pyuefivars/aws.py
+index 24bf4d8..9e430dc 100644
+--- a/pyuefivars/aws.py
++++ b/pyuefivars/aws.py
+@@ -7,12 +7,11 @@ import os
+ import zlib
+ import base64
+ import tempfile
+-import google_crc32c as crc32c
++import crc32c
+ from .varstore import UEFIVar, UEFIVarStore
+ from .aws_v0 import UEFIVarStoreV0
+ from .aws_file import AWSVarStoreFile
+ 
+-
+ class AWSUEFIVarStore(UEFIVarStore):
+     EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS = 0x20
+     AMZNUEFI = 0x494645554e5a4d41
+@@ -34,7 +33,7 @@ class AWSUEFIVarStore(UEFIVarStore):
+ 
+         # Validate crc32c
+         location = file.file.tell()
+-        comp_crc32 = crc32c.value(file.readall())
++        comp_crc32 = crc32c.crc32(file.readall())
+         if (comp_crc32 != crc32):
+             raise Exception("Invalid checksum, please check you copied all data")
+         file.file.seek(location, os.SEEK_SET)
+@@ -96,8 +95,8 @@ class AWSUEFIVarStore(UEFIVarStore):
+         f = tempfile.SpooledTemporaryFile()
+         f = AWSVarStoreFile(f)
+         f.write64(self.AMZNUEFI)
+-        f.write32(crc32c.value(int(0).to_bytes(4, byteorder='little') + zdata))
+-        f.write32(0)  # Version 0
++        f.write32(crc32c.crc32(int(0).to_bytes(4, byteorder='little') + zdata))
++        f.write32(0) # Version 0
+         f.write(zdata)
+         f.file.seek(0, os.SEEK_SET)
+ 
+diff --git a/setup.py b/setup.py
+index df3da7b..5fc454c 100644
+--- a/setup.py
++++ b/setup.py
+@@ -18,7 +18,7 @@ setuptools.setup(
+     long_description_content_type='text/markdown',
+     url="https://github.com/awslabs/python-uefivars",
+     packages=setuptools.find_packages(),
+-    install_requires=['google-crc32c', 'deepdiff'],
++    install_requires=['crc32c', 'deepdiff'],
+     entry_points={
+         'console_scripts': [
+             'uefivars = pyuefivars:main',
+

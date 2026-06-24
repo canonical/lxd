@@ -1,0 +1,14 @@
+#!/bin/sh
+
+CMD="virt-v2v-in-place"
+
+unset XDG_RUNTIME_DIR
+unset LD_LIBRARY_PATH
+
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+if [ "$(id -u)" = "0" ]; then
+    exec nsenter -t 1 -m "${CMD}" "$@"
+fi
+
+exec unshare -U -r --root="/var/lib/snapd/hostfs/" "${CMD}" "$@"

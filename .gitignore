@@ -37,3 +37,13 @@ doc/**/__pycache__
 # For Atom ctags
 .tags
 .tags1
+
+# snap
+parts/
+prime/
+snap/
+stage/
+*.snap
+
+# Workshop
+.workshop.lock
