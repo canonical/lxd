@@ -77,7 +77,7 @@ func (d *gpuPhysical) validateConfig(instConf instance.ConfigReader) error {
 		// Validate id is either integer DRM ID or CDI ID.
 		_, err = strconv.Atoi(d.config["id"])
 		if err != nil {
-			cdiID, err := cdi.ToCDI(d.config["id"])
+			_, err := cdi.ToCDI(d.config["id"])
 			if err != nil {
 				// Structurally incorrect CDI ID supplied.
 				if api.StatusErrorCheck(err, http.StatusBadRequest) {
@@ -86,16 +86,6 @@ func (d *gpuPhysical) validateConfig(instConf instance.ConfigReader) error {
 
 				// Structurally correct CDI ID supplied, but still invalid for some reason.
 				return err
-			}
-
-			// Forbid using CDI in conjunction with any nvidia.<options>=true as CDI handles passing
-			// through the Nvidia runtime files.
-			if cdiID != nil {
-				for k, v := range instConf.ExpandedConfig() {
-					if strings.HasPrefix(k, "nvidia.") && shared.IsTrue(v) {
-						return fmt.Errorf("CDI mode is incompatible with any NVIDIA instance configuration option (%q)", k)
-					}
-				}
 			}
 		}
 	}
@@ -237,25 +227,21 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Setup additional unix-char devices for nvidia cards.
-	// No need to mount additional nvidia non-card devices as the nvidia.runtime setting will do this for us.
 	if sawNvidia {
-		instanceConfig := d.inst.ExpandedConfig()
-		if shared.IsFalseOrEmpty(instanceConfig["nvidia.runtime"]) {
-			nvidiaDevices, err := d.getNvidiaNonCardDevices()
-			if err != nil {
-				return nil, err
+		nvidiaDevices, err := d.getNvidiaNonCardDevices()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, dev := range nvidiaDevices {
+			prefix := deviceJoinPath("unix", d.name)
+			if UnixDeviceExists(d.inst.DevicesPath(), prefix, dev.path) {
+				continue
 			}
 
-			for _, dev := range nvidiaDevices {
-				prefix := deviceJoinPath("unix", d.name)
-				if UnixDeviceExists(d.inst.DevicesPath(), prefix, dev.path) {
-					continue
-				}
-
-				err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, dev.major, dev.minor, dev.path, false, &runConf)
-				if err != nil {
-					return nil, err
-				}
+			err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, dev.major, dev.minor, dev.path, false, &runConf)
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
