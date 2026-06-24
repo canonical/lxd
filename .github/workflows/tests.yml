@@ -1210,7 +1210,7 @@ jobs:
   snap:
     name: Trigger snap build
     runs-on: ubuntu-24.04
-    #needs: [code-tests, system-tests, client, documentation]
+    needs: [code-tests, system-tests, client, documentation]
     if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
     env:
       SSH_AUTH_SOCK: /tmp/ssh_agent.sock
