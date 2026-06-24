@@ -3620,3 +3620,8 @@ The following changes are included:
 - `id`: Now accepts either a CDI identifier for `gputype=mig` devices or a DRM card ID selector for the parent GPU. Supported CDI formats are `nvidia.com/mig=<uuid>` and `nvidia.com/mig=<dev_idx>:<mig_idx>`. When a CDI identifier is provided, it is used directly and is mutually exclusive with `mig.uuid`, `mig.gi`, and `mig.ci`.
 
 Because the legacy `nvidia.runtime` instance-level option is incompatible with CDI-based MIG passthrough, attaching a `gputype=mig` device to a container with {config:option}`instance-nvidia:nvidia.runtime` set to `true` is rejected. To preserve backward compatibility, an upgrade patch unsets `nvidia.runtime` on existing containers and snapshots that have a `gputype=mig` device attached.
+
+(extension-cluster-links-unidirectional)=
+## `cluster_links_unidirectional`
+
+This extends the {ref}`cluster links <exp-cluster-links>` API with support for unidirectional cluster links. The local cluster consumes a trust token issued by the remote cluster to establish the link and pin the remote's certificate. The remote cluster creates a dedicated identity for the local cluster and can authenticate its incoming requests, but does not store addresses for the local cluster and cannot initiate outbound requests to it.
