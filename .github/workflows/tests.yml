@@ -156,7 +156,7 @@ jobs:
         run: |
           set -eux
           make dist
-          tar -xzf lxd-test.tar.gz -C /home/runner/work/lxd/
+          tar -xzf lxd-test.tar.gz -C "${GITHUB_WORKSPACE}/.."
           rm lxd-test.tar.gz
 
       # In code-tests, this action warms the cache for the system-tests job
@@ -178,7 +178,7 @@ jobs:
           set -eux
 
           # Build from unpacked dist tarball.
-          cd /home/runner/work/lxd/lxd-test
+          cd "${GITHUB_WORKSPACE}/../lxd-test"
           make
 
       # XXX: `make static-analysis` also run golangci-lint but this one provides
