@@ -1211,7 +1211,7 @@ test_network_ovn() {
   lxc launch testimage c1 -n "${ovn_network}" -d "eth0,ipv4.address=10.24.140.50"
   setup_instance_ip4_interface c1
   # shellcheck disable=SC2016
-  lxc exec c1 -- sh -c 'echo "$(hostname)" > /tmp/index.html && httpd -p 80 -h /tmp'
+  lxc exec c1 -- sh -c 'hostname > /tmp/index.html && httpd -p 80 -h /tmp'
   lxc network load-balancer pool instance add "${ovn_network}" http c1
 
   echo "==> Create a dual-stack load balancer using the same pool."
