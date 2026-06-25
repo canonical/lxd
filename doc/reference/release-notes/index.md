@@ -23,4 +23,9 @@ For full instructions on updating or upgrading LXD via its [snap package](https:
 (ref-release-notes-releases)=
 ## Releases
 
+```{toctree}
+:titlesonly:
+LXD 5.21.5 </reference/release-notes/release-notes-5.21.5>
+```
+
 For older release notes, see [our Discourse forum](https://discourse.ubuntu.com/tags/c/lxd/126/release).
