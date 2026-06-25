@@ -151,7 +151,10 @@ If you are building LXD from source instead of using a package manager, the mini
 ## Snap packaging changes
 
 - Transitioned the snap base from `core22` to `core24`.
-- Several bundled components are now staged from the Ubuntu archive or built from Ubuntu source packages instead of being built from upstream Git, reducing build complexity. This includes QEMU, EDK2/OVMF, SPICE, Open vSwitch, OVN, swtpm, virtiofsd, and squashfs-tools-ng.
+- Several bundled components are now staged from the Ubuntu archive or built from Ubuntu source packages instead of being built from upstream Git, reducing build complexity. This includes Open vSwitch, OVN, swtpm, virtiofsd, and squashfs-tools-ng.
+- QEMU is now built from the Ubuntu source package (`8.2.2+ds-0ubuntu1.17`) instead of upstream Git.
+- EDK2/OVMF is now built from the Ubuntu source package (`2024.02-2ubuntu0.8`) instead of upstream Git.
+- SPICE is now built from the Ubuntu source package (`0.15.1-1build2`) instead of upstream Git.
 - Enabled LXCFS per-container process tracking (`snap set lxd lxcfs.pidfd=true`) by default.
 - dqlite bumped to v1.17.3.
 - LXC bumped to v6.0.6.
