@@ -1331,7 +1331,7 @@ parts:
       - apparmor
       - libseccomp
     source: https://github.com/lxc/lxc
-    source-branch: stable-5.0
+    source-commit: cb8e38aca27a23964941f0f011a8919aab8bebab # lxc-5.0.3
     source-type: git
     build-packages:
       - dpkg-dev
