@@ -595,7 +595,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		return err
+		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
