@@ -3625,3 +3625,8 @@ Because the legacy `nvidia.runtime` instance-level option is incompatible with C
 ## `cluster_links_unidirectional`
 
 This extends the {ref}`cluster links <exp-cluster-links>` API with support for unidirectional cluster links. The local cluster consumes a trust token issued by the remote cluster to establish the link and pin the remote's certificate. The remote cluster creates a dedicated identity for the local cluster and can authenticate its incoming requests, but does not store addresses for the local cluster and cannot initiate outbound requests to it.
+
+(extension-operation-child-count)=
+## `operation_child_count`
+
+Adds a `child_count` field to the `Operation` struct, indicating the number of child operations. This allows clients to determine whether an operation has children without requiring `recursion=2`.
