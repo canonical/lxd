@@ -2162,7 +2162,7 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 		//  defaultdesc: `block`
 		//  shortdesc: Which network subnets are allocated for use in this project
 		"restricted.networks.subnets": validate.Optional(func(value string) error {
-			return projectValidateRestrictedSubnets(s, value)
+			return projectValidateRestrictedSubnets(ctx, s, value)
 		}),
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.networks.zones)
 		// Specify a comma-delimited list of network zones that can be used (or something under them) in this project.
@@ -2304,7 +2304,7 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 
 // projectValidateRestrictedSubnets checks that the project's restricted.networks.subnets are properly formatted
 // and are within the specified uplink network's routes.
-func projectValidateRestrictedSubnets(s *state.State, value string) error {
+func projectValidateRestrictedSubnets(ctx context.Context, s *state.State, value string) error {
 	for _, subnetRaw := range shared.SplitNTrimSpace(value, ",", -1, false) {
 		subnetParts := strings.SplitN(subnetRaw, ":", 2)
 		if len(subnetParts) != 2 {
@@ -2325,7 +2325,7 @@ func projectValidateRestrictedSubnets(s *state.State, value string) error {
 
 		var uplink *api.Network
 
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Check uplink exists and load config to compare subnets.
 			_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkName)
 
