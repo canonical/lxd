@@ -57,7 +57,7 @@ test_instances_selective_recursion() {
   # Test that lxc list automatically optimizes queries based on displayed columns
   # Start background monitor to capture API request URLs
   monitor_urls="${TEST_DIR}/monitor-urls.log"
-  lxc monitor --format=json | stdbuf -oL jq --unbuffered --raw-output 'select(.metadata.context.url? // "" | startswith("/1.0/instances")) | .metadata.context.url' > "${monitor_urls}" &
+  lxc monitor --format=json | stdbuf -oL jq --unbuffered --exit-status --raw-output 'select(.metadata.context.url? // "" | startswith("/1.0/instances")) | .metadata.context.url' > "${monitor_urls}" &
   monitor_pid=$!
   sleep 0.1  # Give monitor time to initialize
 
