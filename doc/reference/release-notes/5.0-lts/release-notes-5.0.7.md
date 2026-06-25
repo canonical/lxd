@@ -73,7 +73,7 @@ Several inputs are now validated more strictly, and some low-level options have 
 - Stricter checks for low-level (`raw.*`) VM configuration options, including `raw.apparmor` and `raw.qemu.conf`.
 - Improved certificate edit validation.
 - Validation of struct slices and configuration during import.
-- The compression algorithm validator now only allows supported values.
+- The compression algorithm validation now only allows supported values.
 
 (ref-release-notes-5.0.7-go)=
 ## Updated minimum Go version
