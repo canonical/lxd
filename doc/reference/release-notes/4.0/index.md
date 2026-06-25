@@ -7,7 +7,7 @@ myst:
 (ref-release-notes-4.0)=
 # Release notes
 
-This page lists release notes for LXD 4.0 LTS.
+This page lists recent release notes for LXD 4.0 LTS.
 
 (ref-release-notes-releases-4.0)=
 ## Releases
@@ -16,7 +16,7 @@ This page lists release notes for LXD 4.0 LTS.
 :titlesonly:
 :maxdepth: 1
 
-LXD 4.0.11 LTS </reference/release-notes/4.0-lts/release-notes-4.0.11>
+LXD 4.0.11 LTS <release-notes-4.0.11>
 ```
 
 For older release notes, see [our Discourse forum](https://discourse.ubuntu.com/tags/c/lxd/126/release).
