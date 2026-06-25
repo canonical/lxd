@@ -7,7 +7,7 @@ myst:
 (ref-release-notes)=
 # Release notes
 
-This page lists recent release notes for LXD, which highlight new features, bug fixes, and other important information for each release.
+This page lists release notes for LXD, which highlight new features, bug fixes, and other important information for each release.
 
 ## Release policy and schedule
 
@@ -20,15 +20,15 @@ For full instructions on updating or upgrading LXD via its [snap package](https:
 - Feature releases are published on the {ref}`current feature track <ref-snap-track-feature>`. If you are already following this track and you want to manually update to the most recent feature release, see the {ref}`howto-snap-updates-manual` section.
 - To move from one LTS track to a higher LTS track or the feature track, see the {ref}`howto-snap-change` section.
 
-(ref-release-notes-releases)=
-## Releases
+(ref-release-notes-series)=
+## Series
 
 ```{toctree}
 :titlesonly:
-LXD 6.9 </reference/release-notes/release-notes-6.9>
-LXD 6.8 </reference/release-notes/release-notes-6.8>
-LXD 6.7 </reference/release-notes/release-notes-6.7>
-LXD 6.6 </reference/release-notes/release-notes-6.6>
-```
+:maxdepth: 1
 
-For older release notes, see [our Discourse forum](https://discourse.ubuntu.com/tags/c/lxd/126/release).
+LXD 6 </reference/release-notes/6-feature/index>
+LXD 5.21 </reference/release-notes/5.21-lts/index>
+LXD 5.0 </reference/release-notes/5.0-lts/index>
+LXD 4.0 </reference/release-notes/4.0-lts/index>
+```
