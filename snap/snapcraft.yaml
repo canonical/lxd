@@ -1334,7 +1334,7 @@ parts:
     after:
       - apparmor
     source: https://github.com/lxc/lxc
-    source-branch: stable-6.0
+    source-commit: 2597434ae2472114c70ad2bdf4ae5580c9e22717 # v6.0.6
     source-depth: 1
     source-type: git
     build-packages:
