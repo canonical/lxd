@@ -50,7 +50,7 @@ Interim HWE kernels are only tentatively supported.
 
 | LXD version | Ubuntu release | GA Kernel (Supported) | HWE Kernel (Best effort) |
 | :---------- | :------------- | :-------------------- | :----------------------- |
-| 5.21 | 24.04 LTS (Noble) | 6.8 | 7.0 (predicted) |
+| 5.21 | 24.04 LTS (Noble) | 6.8 | 7.0 |
 | 5.0 | 22.04 LTS (Jammy) | 5.15 | 6.8 |
 
 For more information on Ubuntu kernel support, please refer to the [Ubuntu kernel lifecycle](https://ubuntu.com/kernel/lifecycle).
