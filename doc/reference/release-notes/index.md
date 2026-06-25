@@ -27,8 +27,8 @@ For full instructions on updating or upgrading LXD via its [snap package](https:
 :titlesonly:
 :maxdepth: 1
 
-LXD 6 </reference/release-notes/6/index>
-LXD 5.21 LTS </reference/release-notes/5.21/index>
-LXD 5.0 LTS </reference/release-notes/5.0/index>
-LXD 4.0 LTS </reference/release-notes/4.0/index>
+LXD 6 <6/index>
+LXD 5.21 LTS <5.21/index>
+LXD 5.0 LTS <5.0/index>
+LXD 4.0 LTS <4.0/index>
 ```
