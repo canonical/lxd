@@ -252,7 +252,7 @@ parts:
     after:
       - sqlite
     source: https://github.com/canonical/dqlite
-    source-branch: lts-1.17.x
+    source-commit: 9c0ac6f4d8a90ff77fd77dc88cfd372e19fa280d # lts-1.17.x
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -905,6 +905,7 @@ parts:
     source: https://github.com/puiterwijk/qemu-ovmf-secureboot
     source-depth: 1
     source-type: git
+    source-commit: 4da81a4cbdd6d96b7a653239865d3b1d92cc6117 # master
     plugin: nil
     build-packages:
       - xorriso
@@ -1331,7 +1332,7 @@ parts:
       - apparmor
       - libseccomp
     source: https://github.com/lxc/lxc
-    source-branch: stable-5.0
+    source-commit: d1e36cc5ff26ff9171419ce6544eb3e1664a3968 # stable-5.0
     source-type: git
     build-packages:
       - dpkg-dev
@@ -1385,7 +1386,7 @@ parts:
 
   lxcfs:
     source: https://github.com/lxc/lxcfs
-    source-branch: stable-5.0
+    source-commit: ae9bf1fde1ba3dd66e33a57cd21ac18567bd1cbd # stable-5.0
     source-type: git
     build-packages:
       - libfuse3-dev
