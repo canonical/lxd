@@ -7,7 +7,7 @@ myst:
 (ref-release-notes-6)=
 # Release notes
 
-This page lists release notes for LXD 6.
+This page lists recent release notes for LXD 6.
 
 (ref-release-notes-releases-6)=
 ## Releases

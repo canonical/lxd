@@ -7,7 +7,7 @@ myst:
 (ref-release-notes-5.0)=
 # Release notes
 
-This page lists release notes for LXD 5.0 LTS.
+This page lists recent release notes for LXD 5.0 LTS.
 
 (ref-release-notes-releases-5.0)=
 ## Releases
