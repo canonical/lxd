@@ -36,50 +36,43 @@ See the following how-to guides for additional information:
 (storage-location)=
 ### Data storage location
 
-Where the LXD data is stored depends on the configuration and the selected storage driver.
-Depending on the storage driver that is used, LXD can either share the file system with its host or keep its data separate.
-
-| Storage driver  | Shared with the host | Dedicated disk/partition | Loop disk | Remote storage |
-| :---            | :-:                  | :-:                      | :-:       | :-:            |
-| Directory       | &#x2713;             | -                        | -         | -              |
-| Btrfs           | &#x2713;             | &#x2713;                 | &#x2713;  | -              |
-| LVM             | -                    | &#x2713;                 | &#x2713;  | -              |
-| ZFS             | &#x2713;             | &#x2713;                 | &#x2713;  | -              |
-| Ceph (all)      | -                    | -                        | -         | &#x2713;       |
-| Dell PowerFlex  | -                    | -                        | -         | &#x2713;       |
-| Dell PowerStore | -                    | -                        | -         | &#x2713;       |
-| Pure Storage    | -                    | -                        | -         | &#x2713;       |
-| HPE Alletra     | -                    | -                        | -         | &#x2713;       |
+Depending on the storage driver, LXD can either share the file system with its host or keep data separate on a dedicated disk or partition, in a loop file, or in remote storage.
 
 #### Shared with the host
 
+Supported for the `dir`, `btrfs`, and `zfs` drivers.
 Sharing the file system with the host is usually the most space-efficient way to run LXD.
 In most cases, it is also the easiest to manage.
 
-This option is supported for the `dir` driver, the `btrfs` driver (if the host is Btrfs and you point LXD to a dedicated sub-volume) and the `zfs` driver (if the host is ZFS and you point LXD to a dedicated dataset on your zpool).
+```{note}
+Only supported for the `btrfs` driver if the host file system is Btrfs and you point LXD to a dedicated sub-volume.
+Only supported for the `zfs` driver if the host has a ZFS pool and you point LXD to a dedicated dataset on that zpool.
+```
 
 #### Dedicated disk or partition
 
+Supported for the `btrfs`, `lvm`, and `zfs` drivers.
 Having LXD use an empty partition on your main disk or a full dedicated disk keeps its storage completely independent from the host.
 
-This option is supported  for the `btrfs` driver, the `lvm` driver and the `zfs` driver.
+#### Loop file
 
-#### Loop disk
-
-LXD can create a loop file on your main drive and have the selected storage driver use that.
-This method is functionally similar to using a disk or partition, but it uses a large file on your main drive instead.
+Supported for the `btrfs`, `lvm`, and `zfs` drivers.
+LXD can create a loop file on your main drive for the selected storage driver to use.
+This method is functionally similar to using a disk or partition, but LXD uses a large file on your main drive instead.
 This means that every write must go through the storage driver and your main drive's file system, which leads to decreased performance.
+Loop files reside in `/var/snap/lxd/common/lxd/disks/` if you use the snap, or in `/var/lib/lxd/disks/` otherwise.
 
-The loop files reside in `/var/snap/lxd/common/lxd/disks/` if you are using the snap, or in `/var/lib/lxd/disks/` otherwise.
-
-Loop files usually cannot be shrunk.
-They will grow up to the configured limit, but deleting instances or images will not cause the file to shrink.
-You can increase their size (quota) though; see {ref}`howto-storage-pools-resize`.
+```{note}
+Loop files will grow up to the configured limit.
+You can increase the size (quota) of loop files, but you usually cannot shrink them.
+In other words, deleting instances or images will not cause the file to shrink.
+See {ref}`howto-storage-pools-resize` for details.
+```
 
 #### Remote storage
 
-The `ceph`, `cephfs` and `cephobject` drivers store the data in a completely independent Ceph storage cluster that must be set up separately.
-The same applies to the `powerflex`, `pure` and `alletra` drivers.
+Supported for the `ceph`, `cephfs`, `cephobject`, `powerflex`, `powerstore`, `pure`, and `alletra` drivers.
+These drivers store the data in a completely independent storage cluster that must be set up separately.
 
 (storage-default-pool)=
 ### Default storage pool
