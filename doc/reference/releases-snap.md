@@ -45,16 +45,15 @@ The currently supported LTS releases are 5.21._z_ and 5.0._z_.
 #### Kernel support
 
 LTS releases support the General Availability (GA) kernel of the Ubuntu release they were released with.
-Support for the **final** Hardware Enablement (HWE) kernels of that Ubuntu release is provided on a best-effort basis.
+Support for the **final** Hardware Enablement (HWE) kernel of that Ubuntu release is provided on a best-effort basis.
 Interim HWE kernels are only tentatively supported.
 
 | LXD version | Ubuntu release | GA Kernel (Supported) | HWE Kernel (Best effort) |
 | :---------- | :------------- | :-------------------- | :----------------------- |
 | 5.21 | 24.04 LTS (Noble) | 6.8 | 7.0 (predicted) |
 | 5.0 | 22.04 LTS (Jammy) | 5.15 | 6.8 |
-| 4.0 | 20.04 LTS (Focal) | 5.4 | 5.15 |
 
-For more information on Ubuntu kernels support, please refer to the [Ubuntu kernels lifecycle](https://ubuntu.com/kernel/lifecycle).
+For more information on Ubuntu kernel support, please refer to the [Ubuntu kernel lifecycle](https://ubuntu.com/kernel/lifecycle).
 
 (ref-releases-feature)=
 ### Feature releases
