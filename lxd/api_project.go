@@ -454,7 +454,7 @@ func projectCreateDefaultProfile(ctx context.Context, tx *db.ClusterTx, project 
 	}
 
 	if len(devices) > 0 {
-		err = dbCluster.CreateProfileDevices(context.TODO(), tx.Tx(), profileID, devices)
+		err = dbCluster.CreateProfileDevices(ctx, tx.Tx(), profileID, devices)
 		if err != nil {
 			return fmt.Errorf("Add root device to default profile of new project: %w", err)
 		}
