@@ -15,6 +15,8 @@ This page lists release notes for LXD 4.0 LTS.
 ```{toctree}
 :titlesonly:
 :maxdepth: 1
+
+LXD 4.0.11 LTS </reference/release-notes/4.0-lts/release-notes-4.0.11>
 ```
 
 For older release notes, see [our Discourse forum](https://discourse.ubuntu.com/tags/c/lxd/126/release).
