@@ -1499,7 +1499,14 @@ parts:
       # Build the binaries
       go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxc" github.com/canonical/lxd/lxc
       go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxc-to-lxd" github.com/canonical/lxd/lxc-to-lxd
-      go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd" -tags=libsqlite3 github.com/canonical/lxd/lxd
+
+      # Build LXD server binary into ${CRAFT_PART_INSTALL}/sbin/lxd so that it does not conflict with the
+      # lxd-stophook wrapper script which is stored in ${CRAFT_PART_INSTALL}/bin/lxd.
+      # This way when a container stops it will call "/snap/lxd/current/bin/lxd callhook" which is handled by the
+      # lxd-stophook script, which in turn will execute "/snap/lxd/current/bin/lxd-user callhook" to notify LXD.
+      go build -trimpath -o "${CRAFT_PART_INSTALL}/sbin/lxd" -tags=libsqlite3 github.com/canonical/lxd/lxd
+
+      # Build static binaries
       CGO_ENABLED=0 go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-agent" -tags=agent,netgo github.com/canonical/lxd/lxd-agent
       go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-benchmark" github.com/canonical/lxd/lxd-benchmark
       go build -trimpath -o "${CRAFT_PART_INSTALL}/bin/lxd-user" github.com/canonical/lxd/lxd-user
@@ -1513,7 +1520,7 @@ parts:
       usr/share/misc/: share/misc/
       var/lib/usbutils/usb.ids: share/misc/
       usr/sbin/: bin/
-      sbin/: bin/
+      sbin/sgdisk: bin/
     prime:
       - bin/dnsmasq
       - bin/getfattr
@@ -1534,10 +1541,10 @@ parts:
 
       - bin/lxc
       - bin/lxc-to-lxd
-      - bin/lxd
       - bin/lxd-agent
       - bin/lxd-benchmark
       - bin/lxd-user
+      - sbin/lxd
 
   lxd-migrate:
     source: .
@@ -1657,10 +1664,12 @@ parts:
       strip -s ${CRAFT_PRIME}/lib/libsqlite*
 
       # Strip binaries (excluding shell scripts and LXCFS)
+      # The "${CRAFT_PRIME}/bin/lxd" file is ignored as that is the lxd-stophook wrapper script.
       find "${CRAFT_PRIME}"/bin -type f \
         -not -path "${CRAFT_PRIME}/bin/ceph" \
         -not -path "${CRAFT_PRIME}/bin/editor" \
         -not -path "${CRAFT_PRIME}/bin/lxc-checkconfig" \
+        -not -path "${CRAFT_PRIME}/bin/lxd" \
         -not -path "${CRAFT_PRIME}/bin/nvidia-container-cli" \
         -not -path "${CRAFT_PRIME}/bin/remote-viewer" \
         -not -path "${CRAFT_PRIME}/bin/snap-query" \
@@ -1669,6 +1678,9 @@ parts:
         -not -path "${CRAFT_PRIME}/bin/xfs_admin" \
         -not -path "${CRAFT_PRIME}/bin/lxcfs" \
         -exec strip -s {} +
+
+      # This is the actual LXD binary.
+      strip --strip-all "${CRAFT_PRIME}/sbin/lxd"
 
       # Strip binaries not under bin/ due to being dynamically
       # added to the path with `snap set lxd`, like `criu.enable=true`
@@ -1711,6 +1723,7 @@ parts:
     organize:
       commands/snap-query: bin/
       hooks/: snap/hooks/
+      wrappers/lxd-stophook: bin/lxd
       wrappers/editor: bin/
       wrappers/remote-viewer: bin/
       wrappers/sshfs: bin/
