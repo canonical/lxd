@@ -54,7 +54,7 @@ Example:
 
     lxc cluster set server1 scheduler.instance manual
 
-Alternatively, you can use the {ref}`use the edit command <cluster-edit>`.
+Alternatively, you can {ref}`use the edit command <cluster-edit>`.
 
 ### Assign member roles
 
