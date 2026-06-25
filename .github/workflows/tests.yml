@@ -101,13 +101,13 @@ jobs:
         run: |
           set -eux
           make dist
-          tar -xzf lxd-test.tar.gz -C ~/work/lxd/
+          tar -xzf lxd-test.tar.gz -C "${GITHUB_WORKSPACE}/.."
           rm lxd-test.tar.gz
 
       - name: Build LXD dependencies
         run: |
           set -eux
-          cd ~/work/lxd/lxd-test
+          cd "${GITHUB_WORKSPACE}/../lxd-test"
           make deps
 
       - name: Run LXD build
