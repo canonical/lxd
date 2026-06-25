@@ -248,7 +248,8 @@ myst_enable_extensions = {
 exclude_patterns = [
     'html',
     'README.md',
-    'config_options_cheat_sheet.md'
+    'config_options_cheat_sheet.md',
+    'reference/release-notes/release-notes-template.md',
 ]
 
 # Adds custom CSS files, located under 'html_static_path'

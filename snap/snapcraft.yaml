@@ -307,7 +307,7 @@ parts:
 
   dqlite:
     source: https://github.com/canonical/dqlite
-    source-branch: lts-1.17.x
+    source-commit: 084aaf5138676e8920867492353795b7ce9d01fb # v1.17.3 LTS
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1334,7 +1334,7 @@ parts:
     after:
       - apparmor
     source: https://github.com/lxc/lxc
-    source-branch: stable-6.0
+    source-commit: 2597434ae2472114c70ad2bdf4ae5580c9e22717 # v6.0.6
     source-depth: 1
     source-type: git
     build-packages:
@@ -1397,8 +1397,8 @@ parts:
 
   lxcfs:
     source: https://github.com/lxc/lxcfs
-    source-branch: stable-6.0
-    source-depth: 1
+    source-commit: 7ff173bfdb01bc10ab92c3d083a868d8f7fdd94d # v6.0.6
+    source-depth: 0
     source-type: git
     build-packages:
       - libfuse3-dev
@@ -1441,11 +1441,19 @@ parts:
       git config user.email "noreply@lists.canonical.com"
       git config user.name "LXD snap builder"
 
+      git revert --no-edit 607bf69846a3295d0e33ab1a67329428e6eb092c # meson: don't forget to set PSI trigger mocks for liblxcfstest
+      git revert --no-edit d07ba3eeeec1ae299c5aad9aeba4da6c6c769d44 # github: enable mocks for CI upgrade tests
+      git revert --no-edit a83059c8d5d3dd466ba7eeee89b57e82b3f7116f # github: pass LIBFUSE env variable to upgrade tests
+      git revert --no-edit 5ee5468c99a2d0141221a77e7abf8e286d2310a2 # proc_fuse: move release/releasedir at the end
+      git revert --no-edit 4ae2b3cf8c7dad4b8c229da2293ca5fcb4879c93 # lxcfs: wire up ->poll callback for /proc
+      git revert --no-edit 59fca61464523ae406346dc7d1b5d4788023e087 # lxcfs: wire up ->write callback for /proc
+
       set +ex
       craftctl default
       set -ex
 
       patch -p1 "${CRAFT_PART_INSTALL}/snap/lxd/current/lxcfs/lxc.mount.hook" < "${CRAFT_PROJECT_DIR}/patches/lxcfs-0001-hook.patch"
+      rm -f "${CRAFT_PART_INSTALL}/snap/lxd/current/lxcfs/lxc.mount.hook.orig"
 
   uefivars:
     after:
