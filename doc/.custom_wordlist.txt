@@ -188,6 +188,7 @@ MNIST
 MTU
 Mullvad
 multicast
+multipath
 namespaced
 NATed
 natively
@@ -342,6 +343,7 @@ subvolume
 subvolumes
 superset
 SVG
+swtpm
 symlink
 symlinks
 syscall
@@ -397,6 +399,7 @@ VFS
 VFs
 VirtIO
 virtiofs
+virtiofsd
 virtualize
 virtualized
 VLAN

@@ -15,6 +15,8 @@ This page lists release notes for LXD 5.0.
 ```{toctree}
 :titlesonly:
 :maxdepth: 1
+
+LXD 5.0.7 </reference/release-notes/5.0-lts/release-notes-5.0.7>
 ```
 
 For older release notes, see [our Discourse forum](https://discourse.ubuntu.com/tags/c/lxd/126/release).
