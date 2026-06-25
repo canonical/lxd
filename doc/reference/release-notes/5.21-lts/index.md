@@ -16,6 +16,7 @@ This page lists release notes for LXD 5.21 LTS.
 :titlesonly:
 :maxdepth: 1
 
+LXD 5.21.5 </reference/release-notes/5.21-lts/release-notes-5.21.5>
 ```
 
 For older release notes, see [our Discourse forum](https://discourse.ubuntu.com/tags/c/lxd/126/release).
