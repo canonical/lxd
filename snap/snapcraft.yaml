@@ -1397,8 +1397,8 @@ parts:
 
   lxcfs:
     source: https://github.com/lxc/lxcfs
-    source-branch: stable-6.0
-    source-depth: 1
+    source-commit: 7ff173bfdb01bc10ab92c3d083a868d8f7fdd94d # v6.0.6
+    source-depth: 0
     source-type: git
     build-packages:
       - libfuse3-dev
