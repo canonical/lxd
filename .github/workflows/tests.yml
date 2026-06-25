@@ -85,8 +85,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          # A non-shallow clone is needed for the Differential ShellCheck
-          fetch-depth: 0
           persist-credentials: false
 
       - name: Tune disk performance
@@ -102,6 +100,7 @@ jobs:
         name: Differential ShellCheck
         uses: redhat-plumbers-in-action/differential-shellcheck@d965e66ec0b3b2f821f75c8eff9b12442d9a7d1e # v5.5.6
         with:
+          diff-scan: false # Forcing a full scan avoid needing the full git history
           token: ${{ secrets.GITHUB_TOKEN }}
           strict-check-on-push: true
         if: github.event_name == 'pull_request' && github.repository == 'canonical/lxd'
