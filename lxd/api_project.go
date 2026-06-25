@@ -1059,13 +1059,13 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
+func projectNodeConfigDelete(ctx context.Context, d *Daemon, s *state.State, name string) error {
 	var config *node.Config
 	imagesVolumeConfig := "storage.project." + name + ".images_volume"
 	backupsVolumeConfig := "storage.project." + name + ".backups_volume"
 
 	// Clear the project-specific config keys from the local node config.
-	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+	err := s.DB.Node.Transaction(ctx, func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 
 		config, err = node.ConfigLoad(ctx, tx)
@@ -1235,7 +1235,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			err = projectNodeConfigDelete(d, s, name)
+			err = projectNodeConfigDelete(ctx, d, s, name)
 			if err != nil {
 				return fmt.Errorf("Failed removing member specific project configuration: %w", err)
 			}
@@ -1362,7 +1362,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Clear the project-specific config keys from the local node config.
-		err = projectNodeConfigDelete(d, s, name)
+		err = projectNodeConfigDelete(ctx, d, s, name)
 		if err != nil {
 			return fmt.Errorf("Failed deleting project specific information from local configuration: %w", err)
 		}
