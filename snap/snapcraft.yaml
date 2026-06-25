@@ -252,7 +252,7 @@ parts:
     after:
       - sqlite
     source: https://github.com/canonical/dqlite
-    source-branch: lts-1.17.x
+    source-commit: 084aaf5138676e8920867492353795b7ce9d01fb # v1.17.3 LTS
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1331,7 +1331,7 @@ parts:
       - apparmor
       - libseccomp
     source: https://github.com/lxc/lxc
-    source-branch: stable-5.0
+    source-commit: cb8e38aca27a23964941f0f011a8919aab8bebab # lxc-5.0.3
     source-type: git
     build-packages:
       - dpkg-dev
@@ -1385,7 +1385,7 @@ parts:
 
   lxcfs:
     source: https://github.com/lxc/lxcfs
-    source-branch: stable-5.0
+    source-commit: c1e2f51fbd97f042434f098d1d0f8e47ade5ad2a # lxcfs-5.0.4
     source-type: git
     build-packages:
       - libfuse3-dev
