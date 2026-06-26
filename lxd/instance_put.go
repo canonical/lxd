@@ -171,6 +171,32 @@ func instanceSnapRestore(s *state.State, projectName string, name string, snap s
 		}
 	}
 
+	// Build the instance config that restoring the snapshot would apply, so it can be
+	// validated against the project's restrictions and limits below.
+	snapProfileNames := make([]string, 0, len(source.Profiles()))
+	for _, profile := range source.Profiles() {
+		snapProfileNames = append(snapProfileNames, profile)
+	}
+
+	snapConfig := api.InstancePut{
+		Config:   source.LocalConfig(),
+		Devices:  source.LocalDevices().CloneNative(),
+		Profiles: snapProfileNames,
+	}
+
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Check that restoring the snapshot does not violate the project's restrictions
+		// or limits. A snapshot can carry config that was permitted when it was taken but
+		// is forbidden in the instance's current project (for example low-level keys such
+		// as raw.lxc or raw.qemu after the instance was moved into a restricted project).
+		// Restoring re-applies the snapshot's config to the instance, so it must be
+		// validated the same way a direct instance update is.
+		return projecthelpers.AllowInstanceUpdate(tx, projectName, name, snapConfig, inst.LocalConfig())
+	})
+	if err != nil {
+		return err
+	}
+
 	err = inst.Restore(source, stateful)
 	if err != nil {
 		return err
