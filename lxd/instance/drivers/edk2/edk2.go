@@ -82,10 +82,10 @@ var architectureInstallations = map[int][]Installation{
 		Usage: map[FirmwareUsage][]FirmwarePair{
 			GENERIC: {
 				{Code: "ovmf-x86_64-4m-code.bin", Vars: "ovmf-x86_64-4m-vars.bin"},
-				{Code: "ovmf-x86_64.bin", Vars: "ovmf-x86_64-code.bin"},
+				{Code: "ovmf-x86_64-code.bin", Vars: "ovmf-x86_64-vars.bin"},
 			},
 			SECUREBOOT: {
-				{Code: "ovmf-x86_64-ms-4m-vars.bin", Vars: "ovmf-x86_64-ms-4m-code.bin"},
+				{Code: "ovmf-x86_64-ms-4m-code.bin", Vars: "ovmf-x86_64-ms-4m-vars.bin"},
 				{Code: "ovmf-x86_64-ms-code.bin", Vars: "ovmf-x86_64-ms-vars.bin"},
 			},
 			CSM: {
