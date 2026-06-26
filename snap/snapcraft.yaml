@@ -1658,12 +1658,6 @@ parts:
       rm -rf "${CRAFT_PRIME}/lib/udev/"
       rm -rf "${CRAFT_PRIME}/usr/local/"
 
-      # Strip some of the heavy bits
-      strip -s ${CRAFT_PRIME}/bin/lxc
-      strip -s ${CRAFT_PRIME}/bin/lxd*
-      strip -s ${CRAFT_PRIME}/lib/libdqlite*
-      strip -s ${CRAFT_PRIME}/lib/libsqlite*
-
       # Strip binaries (excluding shell scripts and LXCFS)
       # The "${CRAFT_PRIME}/bin/lxd" file is ignored as that is the lxd-stophook wrapper script.
       find "${CRAFT_PRIME}"/bin -type f \
