@@ -342,10 +342,12 @@ These client functions are made to be backward compatible with older LXD servers
 
 These features are removed in this release.
 
+(ref-release-notes-6.8-deprecated-maas-integration)=
 ### MAAS integration removed
 
 All MAAS-related configuration options have been removed (see [Backwards-incompatible changes](#ref-release-notes-6.8-incompatible) above).
 
+(ref-release-notes-6.8-deprecated-local-minio)=
 ### Local MinIO storage buckets removed
 
 Local object storage bucket support using MinIO has been removed (see [Backwards-incompatible changes](#ref-release-notes-6.8-incompatible) above).
