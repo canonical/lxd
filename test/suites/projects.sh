@@ -1010,6 +1010,45 @@ test_projects_restrictions() {
   lxc delete c1
   lxc project set local:p1 restricted.containers.lowlevel="" restricted.snapshots=""
 
+  # An instance (or one of its snapshots) created with a forbidden low-level key in an
+  # unrestricted project must not be usable to bypass restricted.containers.lowlevel=block by
+  # being moved into the restricted project. The move itself must validate the resulting
+  # config, the same way direct config changes and snapshot restores already are, otherwise
+  # simply starting the moved instance would apply the forbidden config without ever going
+  # through a check. Use a second, unrestricted project to build the instances.
+  lxc project create p2 -c features.storage.volumes=false
+  lxc profile device add default root disk path="/" pool="${pool}" --project p2
+
+  lxc init --empty c1 -c "raw.idmap=both 0 0" --project p2
+  ! lxc move c1 --target-project p1 --project p2 || false
+  # The instance must be left untouched in its original project.
+  lxc config get c1 raw.idmap --project p2 | grep -wF "both 0 0"
+  ! lxc info c1 --project p1 || false
+  lxc delete c1 --project p2
+
+  # A snapshot carrying the forbidden key must also be checked at move time, even when the
+  # live instance's config no longer has the key set (e.g. it was unset after the snapshot
+  # was taken).
+  lxc init --empty c1 -c "raw.idmap=both 0 0" --project p2
+  lxc snapshot c1 snap0 --project p2
+  lxc config unset c1 raw.idmap --project p2
+  ! lxc move c1 --target-project p1 --project p2 || false
+  ! lxc info c1 --project p1 || false
+  lxc delete c1 --project p2
+
+  # restricted.snapshots=block must also be enforced at move time: an instance carrying a
+  # snapshot must not be movable into a project that disallows snapshots outright, even if
+  # nothing about the snapshot's config violates restricted.containers.lowlevel.
+  lxc project set p1 restricted.containers.lowlevel=allow restricted.snapshots=block
+  lxc init --empty c1 --project p2
+  lxc snapshot c1 snap0 --project p2
+  ! lxc move c1 --target-project p1 --project p2 || false
+  ! lxc info c1 --project p1 || false
+  lxc delete c1 --project p2
+  lxc project set p1 restricted.containers.lowlevel="" restricted.snapshots=""
+
+  lxc project delete p2
+
   # Setting restricted.containers.privilege to 'allow' makes it possible to create
   # privileged containers.
   lxc project set p1 restricted.containers.privilege=allow
