@@ -66,6 +66,8 @@ These features are removed in this release.
 ### Deprecated feature short description placeholder (replace this text)
 
 % Dedicate a separate ### section to describe each deprecated feature.
+% Include a target `(ref-release-notes-x.y-deprecated-feature)=` before the heading.
+% Add each deprecated feature to the top of `doc/reference/deprecation_notices.md`, with a cross reference to the target.
 
 (ref-release-notes-x.y-go)=
 ## Updated minimum Go version
