@@ -706,7 +706,7 @@ create_image_with_rootfs_symlink() {
 
   # Append rootfs symlink to image tarball.
   (
-    cd "${imgDir}"
+    cd "${imgDir}" || exit
     rmdir "rootfs"
     ln -s "${tmpDir}" "rootfs"
     tar -f "${imgTar}" --append "./rootfs"
