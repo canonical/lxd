@@ -40,6 +40,15 @@ The instance template rendering logic was reworked to align with the standard `R
 
 The following bug fixes are included in this release.
 
+- [{spellexception}`Project restriction bypass in instance copy across projects (CVE-2026-55622)`](https://github.com/canonical/lxd/security/advisories/GHSA-qx75-2p3r-pwm5)
+- [{spellexception}`Project restriction bypass for custom volume copy across projects (CVE-2026-55621)`](https://github.com/canonical/lxd/security/advisories/GHSA-7mr3-28h5-m5vx)
+- [{spellexception}`Restricted project bypass leading to arbitrary command execution (CVE-2026-48751)`](https://github.com/canonical/lxd/security/advisories/GHSA-47w9-6r3f-938g)
+- [{spellexception}`Arbitrary file write on host via `exec-output` symlink in crafted image (CVE-2026-48750)`](https://github.com/canonical/lxd/security/advisories/GHSA-9j25-mm2h-2f76)
+- [{spellexception}`Arbitrary file read+write on host via templates/ symlink in malicious image (CVE-2026-48752)`](https://github.com/canonical/lxd/security/advisories/GHSA-jpf8-86f3-wp38)
+- [{spellexception}`Arbitrary file read+write on host via rootfs/ symlink in malicious image (CVE-2026-48749)`](https://github.com/canonical/lxd/security/advisories/GHSA-vghh-5rfx-xhq8)
+- [{spellexception}`Argument injection in backup compression algorithm leading to AFW and ACE (CVE-2026-48755)`](https://github.com/canonical/lxd/security/advisories/GHSA-fmc8-p6q7-75cc)
+- [{spellexception}`Arbitrary file write on client due to trusted image hash (CVE-2026-48769)`](https://github.com/canonical/lxd/security/advisories/GHSA-pjff-c2wc-f6jm)
+- [{spellexception}`Backup snapshot import bypasses project restrictions (CVE-2026-9640)`](https://github.com/canonical/lxd/security/advisories/GHSA-ppq7-4492-5552)
 - [{spellexception}`Compute and verify combined hash during image downloads`](https://github.com/canonical/lxd/pull/17994)
 - [{spellexception}`Validate all backup config slices for nil values`](https://github.com/canonical/lxd/pull/18227)
 - [{spellexception}`Validate backup .Config`](https://github.com/canonical/lxd/pull/18227)
