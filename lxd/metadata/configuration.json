@@ -3981,6 +3981,51 @@
 			"properties": {
 				"keys": [
 					{
+						"healthcheck": {
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Whether to enable or disable health checks",
+							"type": "bool"
+						}
+					},
+					{
+						"healthcheck.failure_count": {
+							"defaultdesc": "`1`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Number of failed probe attempts after which an instance is considered unhealthy.",
+							"type": "integer"
+						}
+					},
+					{
+						"healthcheck.interval": {
+							"defaultdesc": "`5`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Interval in seconds between probes of the pool's instances.",
+							"type": "integer"
+						}
+					},
+					{
+						"healthcheck.success_count": {
+							"defaultdesc": "`1`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Number of successful probe attempts after which an instance is considered healthy.",
+							"type": "integer"
+						}
+					},
+					{
+						"healthcheck.timeout": {
+							"defaultdesc": "`3`",
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "Timeout in seconds after a probe appears to be faulty.",
+							"type": "integer"
+						}
+					},
+					{
 						"protocol": {
 							"defaultdesc": "`tcp`",
 							"longdesc": "Can be either `tcp` or `udp`.",

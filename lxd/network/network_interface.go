@@ -72,6 +72,7 @@ type Network interface {
 	LoadBalancerPoolCreate(loadBalancerPool api.NetworkLoadBalancerPoolsPost) error
 	LoadBalancerPoolUpdate(poolName string, loadBalancerPool api.NetworkLoadBalancerPoolPut) error
 	LoadBalancerPoolDelete(poolName string) error
+	LoadBalancerPoolState(poolName string) (*api.NetworkLoadBalancerPoolState, error)
 
 	// Peerings.
 	PeerCreate(forward api.NetworkPeersPost) error

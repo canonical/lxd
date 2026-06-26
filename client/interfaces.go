@@ -216,6 +216,7 @@ type InstanceServer interface {
 	GetNetworkLoadBalancer(networkName string, listenAddress string) (forward *api.NetworkLoadBalancer, ETag string, err error)
 	GetNetworkLoadBalancerPools(networkName string) (pools []api.NetworkLoadBalancerPool, err error)
 	GetNetworkLoadBalancerPool(networkName string, poolName string) (pool *api.NetworkLoadBalancerPool, ETag string, err error)
+	GetNetworkLoadBalancerPoolState(networkName string, poolName string) (state *api.NetworkLoadBalancerPoolState, err error)
 	CreateNetworkLoadBalancer(networkName string, forward api.NetworkLoadBalancersPost) (op Operation, err error)
 	CreateNetworkLoadBalancerPool(networkName string, pool api.NetworkLoadBalancerPoolsPost) (op Operation, err error)
 	UpdateNetworkLoadBalancer(networkName string, listenAddress string, forward api.NetworkLoadBalancerPut, ETag string) (op Operation, err error)

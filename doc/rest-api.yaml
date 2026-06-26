@@ -3929,6 +3929,68 @@ definitions:
         title: NetworkLoadBalancerPoolPut represents the modifiable fields of a LXD network load balancer pool.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    NetworkLoadBalancerPoolState:
+        properties:
+            targets:
+                description: Actual targets in the pool with their status.
+                items:
+                    $ref: '#/definitions/NetworkLoadBalancerPoolTarget'
+                type: array
+                x-go-name: Targets
+        title: NetworkLoadBalancerPoolState represents the state of a network load balancer pool.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    NetworkLoadBalancerPoolTarget:
+        description: |-
+            If an instance has both IPv4 and IPv6 addresses on the same network interface,
+            those are represented as two targets inside the pool.
+            Each target has its own health check with its own status.
+        properties:
+            address:
+                description: Address represents the address of the target.
+                example: 198.51.100.2
+                type: string
+                x-go-name: Address
+            device:
+                description: Device represents the target instance's network device.
+                example: eth0
+                type: string
+                x-go-name: Device
+            listen_address:
+                description: ListenAddress represents the address of the target's parent load balancer.
+                example: 1.2.3.4
+                type: string
+                x-go-name: ListenAddress
+            listen_port:
+                description: ListenPort represents the port of the target's parent load balancer.
+                example: '"443"'
+                type: string
+                x-go-name: ListenPort
+            name:
+                description: Name represents the target instance's name.
+                example: c1
+                type: string
+                x-go-name: Name
+            port:
+                description: Port represents the port probed on the target's address.
+                example: '"8443"'
+                type: string
+                x-go-name: Port
+            status:
+                description: |-
+                    Status represents the status of the target address.
+                    It can be one of:
+                    error   indicates an error occurred while probing the target address.
+                    offline indicates the target address is not responding to probes.
+                    online  indicates the target address is responding to probes.
+                    pending indicates the target address is pending to being probed.
+                    unknown indicates that the targeted instance is not running and there is no service monitor configured, or that health checks are disabled on the pool.
+                example: online
+                type: string
+                x-go-name: Status
+        title: NetworkLoadBalancerPoolTarget represents the actual targets on a pool's instance.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     NetworkLoadBalancerPoolsPost:
         properties:
             config:
@@ -15082,7 +15144,28 @@ paths:
                 - application/json
             responses:
                 "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of network load balancer pools
+                                items:
+                                    $ref: '#/definitions/NetworkLoadBalancerPool'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
@@ -15112,8 +15195,8 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
@@ -15138,8 +15221,8 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
@@ -15164,7 +15247,25 @@ paths:
                 - application/json
             responses:
                 "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/NetworkLoadBalancerPool'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
@@ -15194,8 +15295,8 @@ paths:
             produces:
                 - application/json
             responses:
-                "200":
-                    $ref: '#/responses/EmptySyncResponse'
+                "202":
+                    $ref: '#/responses/Operation'
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":
@@ -15203,6 +15304,50 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Update a network load balancer pool
+            tags:
+                - network-load-balancer-pools
+    /1.0/networks/{networkName}/load-balancer-pools/{poolName}/state:
+        get:
+            consumes:
+                - application/json
+            description: Retrieves the state of a specific network load balancer pool.
+            operationId: network_load_balancer_pool_state_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/NetworkLoadBalancerPoolState'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the state of a network load balancer pool
             tags:
                 - network-load-balancer-pools
     /1.0/networks/{networkName}/load-balancers:
