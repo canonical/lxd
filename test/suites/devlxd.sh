@@ -538,6 +538,189 @@ EOF
   fi
 }
 
+# Ensure a devLXD identity can only attach custom storage volumes that it owns.
+test_devlxd_volume_management_ownership() {
+  local testName="devlxd-vol-ownership"
+
+  local instPrefix="${testName}"
+  local pool="${testName}"
+  local project="${testName}"
+  local authGroup="${testName}-group"
+  local authIdentity1="devlxd/${testName}-identity-1"
+  local authIdentity2="devlxd/${testName}-identity-2"
+
+  poolDriver="$(storage_backend "$LXD_DIR")"
+  lxc storage create "${pool}" "${poolDriver}"
+
+  if [ "${project}" != "default" ]; then
+    lxc project create "${project}" --config features.images=false
+  fi
+
+  local instTypes="container"
+  ensure_import_testimage
+
+  if [ "${LXD_VM_TESTS}" != "0" ]; then
+    instTypes="${instTypes} virtual-machine"
+    ensure_import_ubuntu_vm_image
+  fi
+
+  for instType in $instTypes; do
+    inst="${instPrefix}-${instType}"
+
+    image="testimage"
+    opts="--storage ${pool} --config security.devlxd.management.volumes=true"
+    if [ "${instType}" = "virtual-machine" ]; then
+      image="ubuntu-vm"
+      opts="$opts --vm --config limits.memory=384MiB --device ${SMALL_VM_ROOT_DISK}"
+    fi
+
+    # shellcheck disable=SC2086 # Variable "opts" must not be quoted, we want word splitting.
+    lxc launch "${image}" "${inst}" $opts --project "${project}"
+    waitInstanceReady "${inst}" "${project}"
+
+    setup_instance_gocoverage "${inst}" "${project}"
+
+    # Install devlxd-client.
+    lxc file push --project "${project}" --quiet "$(command -v devlxd-client)" "${inst}/bin/"
+
+    # Create two identities with identical permissions.
+    lxc auth group create "${authGroup}"
+    lxc auth group permission add "${authGroup}" project "${project}" can_view
+    lxc auth group permission add "${authGroup}" project "${project}" storage_volume_manager
+    lxc auth group permission add "${authGroup}" instance "${inst}" can_edit project="${project}"
+
+    lxc auth identity create "${authIdentity1}" --group "${authGroup}"
+    lxc auth identity create "${authIdentity2}" --group "${authGroup}"
+
+    token1=$(lxc auth identity token issue "${authIdentity1}" --quiet)
+    token2=$(lxc auth identity token issue "${authIdentity2}" --quiet)
+
+    # Each identity creates its own custom storage volume.
+    vol1='{"name": "vol-identity-1", "type": "custom", "config": {"size": "8MiB"}}'
+    vol2='{"name": "vol-identity-2", "type": "custom", "config": {"size": "8MiB"}}'
+
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client storage create-volume "${pool}" "${vol1}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token2}" -- devlxd-client storage create-volume "${pool}" "${vol2}"
+
+    # Identity 1 attaches its own volume to the instance (ok - owned by identity 1).
+    attachOwnReq=$(cat <<EOF
+{
+    "devices": {
+        "vol-identity-1": {
+            "type": "disk",
+            "pool": "${pool}",
+            "source": "vol-identity-1",
+            "path": "/mnt/vol-identity-1"
+        }
+    }
+}
+EOF
+)
+
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client instance update "${inst}" "${attachOwnReq}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client instance get "${inst}" | jq --exit-status '.devices."vol-identity-1".source == "vol-identity-1"'
+
+    # Identity 1 attempts to attach volume from identity 2 to the instance (fail - not owned by identity 1).
+    attachOtherReq=$(cat <<EOF
+{
+    "devices": {
+        "vol-identity-2": {
+            "type": "disk",
+            "pool": "${pool}",
+            "source": "vol-identity-2",
+            "path": "/mnt/vol-identity-2"
+        }
+    }
+}
+EOF
+)
+
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client instance update "${inst}" "${attachOtherReq}")" = "Not Found" ]
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client instance get "${inst}" | jq --exit-status '.devices."vol-identity-2" == null'
+
+    # Identity 2 attempts to remove device vol-identity-1 attached by identity 1 (no-op - device not owned by identity 2, request is silently ignored).
+    removeOtherReq='{"devices": {"vol-identity-1": null}}'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token2}" -- devlxd-client instance update "${inst}" "${removeOtherReq}"
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client instance get "${inst}" | jq --exit-status '.devices."vol-identity-1".source == "vol-identity-1"'
+
+    # Identity 2 attempts to update device vol-identity-1 attached by identity 1 (fail - device not owned by identity 2).
+    updateOtherReq=$(cat <<EOF
+{
+    "devices": {
+        "vol-identity-1": {
+            "type": "disk",
+            "pool": "${pool}",
+            "source": "vol-identity-1",
+            "path": "/mnt/vol-identity-1-renamed"
+        }
+    }
+}
+EOF
+)
+
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token2}" -- devlxd-client instance update "${inst}" "${updateOtherReq}")" = "Not authorized to manage device \"vol-identity-1\"" ]
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client instance get "${inst}" | jq --exit-status '.devices."vol-identity-1".path == "/mnt/vol-identity-1"'
+
+    # Identity 1 attempts to update its own device to reference identity 2's volume (fail - source not owned by identity 1).
+    updateToOtherReq=$(cat <<EOF
+{
+    "devices": {
+        "vol-identity-1": {
+            "type": "disk",
+            "pool": "${pool}",
+            "source": "vol-identity-2",
+            "path": "/mnt/vol-identity-2"
+        }
+    }
+}
+EOF
+)
+
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client instance update "${inst}" "${updateToOtherReq}")" = "Not Found" ]
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client instance get "${inst}" | jq --exit-status '.devices."vol-identity-1".source == "vol-identity-1"'
+
+    # Identity 1 creates a snapshot of its own volume (ok - owned by identity 1).
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client storage create-snapshot "${pool}" custom vol-identity-1 '{"name": "snap0"}'
+
+    # Identity 2 attempts to create a snapshot of identity 1's volume (fail - not owned by identity 2).
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token2}" -- devlxd-client storage create-snapshot "${pool}" custom vol-identity-1 '{"name": "snap-other"}')" = "Not Found" ]
+
+    # Identity 2 attempts to list snapshots of identity 1's volume (fail - not owned by identity 2).
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token2}" -- devlxd-client storage snapshots "${pool}" custom vol-identity-1)" = "Not Found" ]
+
+    # Identity 2 attempts to get a snapshot of identity 1's volume (fail - not owned by identity 2).
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token2}" -- devlxd-client storage get-snapshot "${pool}" custom vol-identity-1 snap0)" = "Not Found" ]
+
+    # Identity 2 attempts to delete a snapshot of identity 1's volume (fail - not owned by identity 2).
+    [ "$(lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token2}" -- devlxd-client storage delete-snapshot "${pool}" custom vol-identity-1 snap0)" = "Not Found" ]
+
+    # Identity 1 can still manage its own snapshot.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client storage snapshots "${pool}" custom vol-identity-1 | jq --exit-status 'length == 1'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client storage delete-snapshot "${pool}" custom vol-identity-1 snap0
+
+    # Cleanup.
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client instance update "${inst}" '{"devices": {"vol-identity-1": null}}'
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token1}" -- devlxd-client storage delete-volume "${pool}" custom vol-identity-1
+    lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token2}" -- devlxd-client storage delete-volume "${pool}" custom vol-identity-2
+
+    imageFingerprint="$(lxc config get "${inst}" volatile.base_image --project "${project}")"
+
+    # Coverage data requires clean lxd-agent stop
+    prepare_vm_for_hard_stop "${inst}" "${project}"
+    lxc delete "${inst}" --project "${project}" --force
+    lxc image delete "${imageFingerprint}" --project "${project}"
+    lxc auth identity delete "${authIdentity1}"
+    lxc auth identity delete "${authIdentity2}"
+    lxc auth group delete "${authGroup}"
+  done
+
+  # Cleanup.
+  lxc storage delete "${pool}"
+  if [ "${project}" != "default" ]; then
+    lxc project delete "${project}"
+  fi
+}
+
 test_devlxd_volume_management_snapshots() {
   local testName="devlxd-volume-mgmt"
 

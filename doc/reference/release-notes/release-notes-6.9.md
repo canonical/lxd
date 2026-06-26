@@ -185,6 +185,17 @@ This release introduces replicator management, load balancer support, and an ini
 
 The following bug fixes are included in this release.
 
+- [{spellexception}`Project restriction bypass in instance copy across projects (CVE-2026-55622)`](https://github.com/canonical/lxd/security/advisories/GHSA-qx75-2p3r-pwm5)
+- [{spellexception}`Project restriction bypass for custom volume copy across projects (CVE-2026-55621)`](https://github.com/canonical/lxd/security/advisories/GHSA-7mr3-28h5-m5vx)
+- [{spellexception}`Restricted project bypass leading to arbitrary command execution (CVE-2026-48751)`](https://github.com/canonical/lxd/security/advisories/GHSA-47w9-6r3f-938g)
+- [{spellexception}`Arbitrary file write on host via `exec-output` symlink in crafted image (CVE-2026-48750)`](https://github.com/canonical/lxd/security/advisories/GHSA-9j25-mm2h-2f76)
+- [{spellexception}`Arbitrary file read+write on host via templates/ symlink in malicious image (CVE-2026-48752)`](https://github.com/canonical/lxd/security/advisories/GHSA-jpf8-86f3-wp38)
+- [{spellexception}`Arbitrary file read+write on host via rootfs/ symlink in malicious image (CVE-2026-48749)`](https://github.com/canonical/lxd/security/advisories/GHSA-vghh-5rfx-xhq8)
+- [{spellexception}`Argument injection in backup compression algorithm leading to AFW and ACE (CVE-2026-48755)`](https://github.com/canonical/lxd/security/advisories/GHSA-fmc8-p6q7-75cc)
+- [{spellexception}`Arbitrary file write on client due to trusted image hash (CVE-2026-48769)`](https://github.com/canonical/lxd/security/advisories/GHSA-pjff-c2wc-f6jm)
+- [{spellexception}`Cross-guest volume hijack via DevLXD device patch (CVE-2026-12411)`](https://github.com/canonical/lxd/security/advisories/GHSA-hhf9-qw4v-72xp)
+- [{spellexception}`CreateCustomVolumeFromBackup nil-pointer dereference on volumes[0].snapshots[*].expires_at (CVE-2026-9639)`](https://github.com/canonical/lxd/security/advisories/GHSA-j93m-3j9p-m5m8)
+- [{spellexception}`Backup snapshot import bypasses project restrictions (CVE-2026-9640)`](https://github.com/canonical/lxd/security/advisories/GHSA-ppq7-4492-5552)
 - [{spellexception}`Fix replicator failing to process instances on remote cluster members`](https://github.com/canonical/lxd/pull/18207)
 - [{spellexception}`Fix replicator backup file write errors on idempotent refresh operations`](https://github.com/canonical/lxd/pull/18207)
 - [{spellexception}`Prevent duplicate replicators targeting the same cluster link`](https://github.com/canonical/lxd/pull/18442)
@@ -262,6 +273,25 @@ The `pc-kernel` snap exposes NVIDIA driver files using new interfaces, but the `
 
 There is currently no native LXD configuration workaround.
 
+### Strict process tracking failures with `core26` snap base
+
+For applications running on `core26` and newer bases, `snapd` enforces stricter process tracking and device cgroup validations that rely on an active `systemd` user session.
+
+If you run `lxc` commands inside environments where a user identity was switched without spawning a corresponding user session (e.g., non-interactive scripts, or mechanisms like `sudo`, `su`, or `runuser`), the execution will fail with the following error:
+
+```
+The user ubuntu cannot run snap applications on this system.
+See https://forum.snapcraft.io/t/46210 for more details.
+internal error, please report: running "lxd.lxc" failed: cannot track application process
+```
+
+This behavior is triggered by a bug in `snapd` where the enforcement logic incorrectly checks for an application-specific security tag instead of the overarching snap security tag when validating self-managed device cgroups support. As a result, `snapd` fails to fall back safely when a standard `systemd` user session is absent. A fix is on its way in a [future `snapd` release](https://github.com/canonical/snapd/pull/17238), but until then, users can work around this issue by ensuring that a user session is active when running LXD commands.
+
+Possible workarounds include:
+
+1. Ensure a user session is active when running `lxc` commands.
+2. `loginctl enable-linger USERNAME` to enable a persistent user session for the specified user.
+
 (ref-release-notes-6.9-go)=
 ## Updated minimum Go version
 
@@ -270,6 +300,7 @@ If you are building LXD from source instead of using a package manager, the mini
 (ref-release-notes-6.9-snap)=
 ## Snap packaging changes
 
+- Transitioned the snap base from `core24` to `core26`.
 - LXCFS: Reverted partial backport of PSI functionality that prevented host machine suspend ([#17983](https://github.com/canonical/lxd/issues/17983)).
 - libnvidia-container bumped to v1.19.1.
 - AMD ROCm container toolkit bumped to v1.3.0.

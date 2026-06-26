@@ -3,14 +3,18 @@ package apparmor
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 var archiveProfileTpl = template.Must(template.New("archiveProfile").Parse(`#include <tunables/global>
@@ -206,4 +210,139 @@ func ArchiveProfileName(outputPath string) string {
 func ArchiveProfileFilename(outputPath string) string {
 	name := strings.ReplaceAll(strings.Trim(outputPath, "/"), "/", "-")
 	return profileName("archive", name)
+}
+
+// compressProfileTpl is a template for a highly restricted apparmor profile for use when compressing instances or
+// storage volumes with a user supplied compression algorithm. Commands running under this profile should expect input
+// via stdin. The template only grants write access to an output file if requested (`hasDstPath` template argument),
+// otherwise it is expected that the command should write to stdout. Only the given set of command paths may be executed.
+var compressProfileTpl = template.Must(template.New("compressProfile").Parse(`#include <tunables/global>
+profile "{{.name}}" {
+  #include <abstractions/base>
+{{range $index, $element := .allowedCommandPaths}}
+  {{$element}} mixr,
+{{- end }}
+
+{{- if .hasDstPath }}
+	{{ .dstPath }} rw,
+{{- end }}
+
+  signal (receive) set=("term"),
+
+{{- if .snap }}
+  # Snap-specific libraries
+  /snap/lxd/*/lib/**.so*                  mr,
+{{- end }}
+}
+`))
+
+// CompressWrapper should be used when applying a user specified compression algorithm.
+// The given command is directly modified such that it runs under `aa-exec` with a restricted profile (see [compressProfileTpl]).
+// It returns a cleanup function that deletes the AppArmor profile that the command is running in.
+func CompressWrapper(sysOS *sys.OS, cmd *exec.Cmd, dstPath string, extraAllowedCommands []string) (func(), error) {
+	if !sysOS.AppArmorAvailable || !sysOS.AppArmorAdmin {
+		return func() {}, nil
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	if dstPath != "" {
+		fullPath, err := filepath.EvalSymlinks(dstPath)
+		if err == nil {
+			dstPath = fullPath
+		}
+	}
+
+	cmds := append(extraAllowedCommands, cmd.Args[0])
+	allowedCmdPaths := make([]string, 0, len(cmds))
+	for _, c := range cmds {
+		cmdPath, err := exec.LookPath(c)
+		if err != nil {
+			return nil, fmt.Errorf("Failed starting compression: Failed finding executable: %w", err)
+		}
+
+		cmdPathFull, err := filepath.EvalSymlinks(cmdPath)
+		if err == nil {
+			cmdPath = cmdPathFull
+		}
+
+		allowedCmdPaths = append(allowedCmdPaths, cmdPath)
+	}
+
+	// Load the profile.
+	profileName, err := compressProfileLoad(sysOS, allowedCmdPaths, dstPath)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading compression profile: %w", err)
+	}
+
+	cleanup := func() { _ = deleteProfile(sysOS, profileName, profileName) }
+	revert.Add(cleanup)
+
+	// Resolve aa-exec.
+	execPath, err := exec.LookPath("aa-exec")
+	if err != nil {
+		return nil, err
+	}
+
+	// Override the command.
+	newArgs := make([]string, 0, 3+len(cmd.Args))
+	newArgs = append(newArgs, "aa-exec", "-p", profileName)
+	newArgs = append(newArgs, cmd.Args...)
+	cmd.Args = newArgs
+	cmd.Path = execPath
+
+	revert.Success()
+	return cleanup, nil
+}
+
+// compressProfileLoad loads [compressProfileTpl] with the given arguments. A name is generated at random for the profile
+// because it should be loaded and unloaded as necessary using [CompressWrapper].
+func compressProfileLoad(sysOS *sys.OS, allowedCommandPaths []string, dstPath string) (string, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Generate a temporary profile name.
+	name := profileName("compress", uuid.New().String())
+	profilePath := filepath.Join(aaPath, "profiles", name)
+
+	// Generate the profile
+	content, err := compressProfile(name, allowedCommandPaths, dstPath)
+	if err != nil {
+		return "", err
+	}
+
+	// Write it to disk.
+	err = os.WriteFile(profilePath, []byte(content), 0600)
+	if err != nil {
+		return "", err
+	}
+
+	revert.Add(func() { os.Remove(profilePath) })
+
+	// Load it.
+	err = loadProfile(sysOS, name)
+	if err != nil {
+		return "", err
+	}
+
+	revert.Success()
+	return name, nil
+}
+
+// compressProfile generates the AppArmor profile template from the given destination path.
+func compressProfile(name string, allowedCommandPaths []string, dstPath string) (string, error) {
+	sb := &strings.Builder{}
+	err := compressProfileTpl.Execute(sb, map[string]any{
+		"allowedCommandPaths": allowedCommandPaths,
+		"name":                name,
+		"hasDstPath":          dstPath != "",
+		"dstPath":             dstPath,
+		"snap":                shared.InSnap(),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return sb.String(), nil
 }

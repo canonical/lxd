@@ -23,7 +23,7 @@ func (m *mockInstance) Project() api.Project                   { return api.Proj
 func (m *mockInstance) ExpandedConfig() map[string]string      { return m.expandedConfig }
 func (m *mockInstance) IsPrivileged() bool                     { return false }
 func (m *mockInstance) Architecture() int                      { return 0 }
-func (m *mockInstance) RootfsPath() string                     { return "" }
+func (m *mockInstance) OpenRootfs() (*os.Root, error)          { return nil, nil }
 func (m *mockInstance) CGroup() (*cgroup.CGroup, error)        { return nil, nil }
 func (m *mockInstance) CurrentIdmap() (*idmap.IdmapSet, error) { return m.idmapSet, nil }
 func (m *mockInstance) DiskIdmap() (*idmap.IdmapSet, error)    { return nil, nil }
