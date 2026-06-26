@@ -1297,6 +1297,22 @@ run_projects_restrictions() {
 
   lxc delete c1
 
+  # A snapshot must not be usable to smuggle forbidden low-level config past the
+  # restriction. Take a snapshot while low-level keys are allowed, clear the key on
+  # the live instance so the restriction can be re-enabled, then confirm the snapshot
+  # cannot be restored (otherwise the restore would re-apply raw.idmap, bypassing
+  # restricted.containers.lowlevel=block).
+  lxc project set local:p1 restricted.containers.lowlevel=allow restricted.snapshots=allow
+  lxc init --empty c1 -c "raw.idmap=both 0 0" -d "${SMALL_ROOT_DISK}"
+  lxc snapshot c1 snap0
+  lxc config unset c1 raw.idmap
+  lxc project set local:p1 restricted.containers.lowlevel=block
+  ! lxc restore c1 snap0 || false
+  # The live instance must be left untouched by the rejected restore.
+  [ "$(lxc config get c1 raw.idmap || echo fail)" = "" ]
+  lxc delete c1
+  lxc project set local:p1 restricted.containers.lowlevel="" restricted.snapshots=""
+
   # Setting restricted.containers.privilege to 'allow' makes it possible to create
   # privileged containers.
   lxc project set local:p1 restricted.containers.privilege=allow

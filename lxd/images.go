@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"maps"
 	"math"
 	"math/rand"
@@ -31,6 +32,7 @@ import (
 	"go.yaml.in/yaml/v2"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/config"
@@ -48,6 +50,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
+	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -217,10 +220,24 @@ func validateImageFingerprintPrefix(prefix string) error {
 	}
 
 	// Prefixes containing non-hex or uppercase characters can never match an image.
-	for _, b := range []byte(prefix) {
-		if (b < '0' || b > '9') && (b < 'a' || b > 'f') {
-			return api.NewStatusError(http.StatusBadRequest, "Image fingerprint prefix must contain only lowercase hexadecimal characters")
-		}
+	err := validate.IsLowercaseHex(prefix)
+	if err != nil {
+		return api.StatusErrorf(http.StatusBadRequest, "Failed validating image fingerprint: %w", err)
+	}
+
+	return nil
+}
+
+// validateImageFingerprint validates that the given string is exactly 64 characters long and contains only lowercase hex characters.
+func validateImageFingerprint(fingerprint string) error {
+	if len(fingerprint) != 64 {
+		return api.NewStatusError(http.StatusBadRequest, "Image fingerprint must contain 64 characters")
+	}
+
+	// Prefixes containing non-hex or uppercase characters can never match an image.
+	err := validate.IsLowercaseHex(fingerprint)
+	if err != nil {
+		return api.StatusErrorf(http.StatusBadRequest, "Failed validating image fingerprint: %w", err)
 	}
 
 	return nil
@@ -401,9 +418,7 @@ var imagePublishLock sync.Mutex
 // stepping on each other's toes.
 var imageTaskMu sync.Mutex
 
-func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
-	var cmd *exec.Cmd
-
+func compressFile(sysOS *sys.OS, compress string, infile io.Reader, outfile io.Writer) error {
 	// Parse the command.
 	fields, err := shellquote.Split(compress)
 	if err != nil {
@@ -433,13 +448,20 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		}
 
 		args = append(args, "--quiet", "--no-skip", "--force", "--compressor", "xz", tempfile.Name())
-		cmd = exec.Command("tar2sqfs", args...)
+		cmd := exec.Command("tar2sqfs", args...)
 		cmd.Stdin = infile
 
+		cleanup, err := apparmor.CompressWrapper(sysOS, cmd, tempfile.Name(), []string{"xz"})
+		if err != nil {
+			return err
+		}
+
+		defer cleanup()
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("tar2sqfs: %w (%v)", err, strings.TrimSpace(string(output)))
 		}
+
 		// Replay the result to outfile
 		_, err = tempfile.Seek(0, io.SeekStart)
 		if err != nil {
@@ -450,23 +472,31 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		if err != nil {
 			return err
 		}
-	} else {
-		args := []string{"-c"}
-		if len(fields) > 1 {
-			args = append(args, fields[1:]...)
-		}
 
-		if fields[0] == "gzip" {
-			args = append(args, "-n")
-		}
+		return nil
+	}
 
-		cmd := exec.Command(fields[0], args...)
-		cmd.Stdin = infile
-		cmd.Stdout = outfile
-		err := cmd.Run()
-		if err != nil {
-			return err
-		}
+	args := []string{"-c"}
+	if len(fields) > 1 {
+		args = append(args, fields[1:]...)
+	}
+
+	if fields[0] == "gzip" {
+		args = append(args, "-n")
+	}
+
+	cmd := exec.Command(fields[0], args...)
+	cmd.Stdin = infile
+	cmd.Stdout = outfile
+	cleanup, err := apparmor.CompressWrapper(sysOS, cmd, "", nil)
+	if err != nil {
+		return err
+	}
+
+	defer cleanup()
+	err = cmd.Run()
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -534,9 +564,18 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 		return nil
 	}
 
-	err = filepath.Walk(c.RootfsPath(), sumSize)
+	rootfsRoot, err := c.OpenRootfs()
 	if err != nil {
-		return nil, err
+		if !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
+		}
+	} else {
+		_ = rootfsRoot.Close()
+
+		err = filepath.Walk(rootfsRoot.Name(), sumSize)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Track progress creating image.
@@ -583,7 +622,7 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 		compressWriter := io.MultiWriter(imageFile, sha256)
 		go func() {
 			defer wg.Done()
-			compressErr = compressFile(compress, tarReader, compressWriter)
+			compressErr = compressFile(s.OS, compress, tarReader, compressWriter)
 
 			// If a compression error occurred, close the writer to end the instance export.
 			if compressErr != nil {

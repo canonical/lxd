@@ -19,8 +19,8 @@ type mockInstance struct {
 	rootfsPath string
 }
 
-func (m *mockInstance) RootfsPath() string {
-	return m.rootfsPath
+func (m *mockInstance) OpenRootfs() (*os.Root, error) {
+	return os.OpenRoot(m.rootfsPath)
 }
 
 func TestGenerateFromCDI(t *testing.T) {
@@ -28,6 +28,11 @@ func TestGenerateFromCDI(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "lxd-cdi-test")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create a rootfs directory for the mock instance.
+	rootfsPath := filepath.Join(tmpDir, "rootfs")
+	err = os.Mkdir(rootfsPath, 0755)
+	require.NoError(t, err)
 
 	// Create a dummy host path for mount test
 	hostPath := filepath.Join(tmpDir, "host-path")
@@ -83,7 +88,7 @@ func TestGenerateFromCDI(t *testing.T) {
 			}, nil
 		}
 
-		inst := &mockInstance{rootfsPath: "/tmp/rootfs"}
+		inst := &mockInstance{rootfsPath: rootfsPath}
 		cdiID := ID{Vendor: NVIDIA, Class: GPU, Name: "gpu0"} // Matching "gpu0"
 
 		config, hooks, err := GenerateFromCDI(false, inst, cdiID)
@@ -92,7 +97,7 @@ func TestGenerateFromCDI(t *testing.T) {
 		assert.NotNil(t, hooks)
 
 		// Check Hooks
-		assert.Equal(t, "/tmp/rootfs", hooks.ContainerRootFS)
+		assert.Equal(t, rootfsPath, hooks.ContainerRootFS)
 		// General edit hook
 		assert.Contains(t, hooks.Symlinks, SymlinkEntry{Target: "/target", Link: "/link"})
 
@@ -129,7 +134,7 @@ func TestGenerateFromCDI(t *testing.T) {
 			}, nil
 		}
 
-		inst := &mockInstance{rootfsPath: "/tmp/rootfs"}
+		inst := &mockInstance{rootfsPath: rootfsPath}
 		cdiID := ID{Vendor: NVIDIA, Class: GPU, Name: "gpu1"} // Mismatch
 
 		_, _, err := GenerateFromCDI(false, inst, cdiID)
@@ -142,7 +147,7 @@ func TestGenerateFromCDI(t *testing.T) {
 			return nil, errors.New("mock error")
 		}
 
-		inst := &mockInstance{rootfsPath: "/tmp/rootfs"}
+		inst := &mockInstance{rootfsPath: rootfsPath}
 		cdiID := ID{Vendor: NVIDIA, Class: GPU, Name: "gpu0"}
 		_, _, err := GenerateFromCDI(false, inst, cdiID)
 		assert.Error(t, err)
@@ -176,7 +181,7 @@ func TestGenerateFromCDI(t *testing.T) {
 			}, nil
 		}
 
-		inst := &mockInstance{rootfsPath: "/tmp/rootfs"}
+		inst := &mockInstance{rootfsPath: rootfsPath}
 		cdiID := ID{Vendor: NVIDIA, Class: GPU, Name: "gpu0"}
 
 		config, _, err := GenerateFromCDI(false, inst, cdiID)
@@ -216,7 +221,7 @@ func TestGenerateFromCDI(t *testing.T) {
 			}, nil
 		}
 
-		inst := &mockInstance{rootfsPath: "/tmp/rootfs"}
+		inst := &mockInstance{rootfsPath: rootfsPath}
 		cdiID := ID{Vendor: NVIDIA, Class: GPU, Name: "gpu0"}
 
 		config, _, err := GenerateFromCDI(false, inst, cdiID)
@@ -267,7 +272,7 @@ func TestGenerateFromCDI(t *testing.T) {
 			}, nil
 		}
 
-		inst := &mockInstance{rootfsPath: "/tmp/rootfs"}
+		inst := &mockInstance{rootfsPath: rootfsPath}
 		cdiID := ID{Vendor: NVIDIA, Class: GPU, Name: "all"}
 
 		config, _, err := GenerateFromCDI(false, inst, cdiID)

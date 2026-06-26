@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -14,7 +15,7 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 )
 
-type devLXDDeviceAccessValidator func(device map[string]string) bool
+type devLXDDeviceAccessValidator func(device map[string]string) error
 
 var devLXDInstanceEndpoint = APIEndpoint{
 	MetricsType: entity.TypeInstance,
@@ -67,7 +68,7 @@ func devLXDInstanceGetHandler(d *Daemon, r *http.Request) response.Response {
 	// Filter devices that are not accessible to devLXD.
 	deviceAccessChecker := newDevLXDDeviceAccessValidator(inst)
 	for name, device := range ownedDevices {
-		if !deviceAccessChecker(device) {
+		if deviceAccessChecker(device) != nil {
 			delete(ownedDevices, name)
 		}
 	}
@@ -136,7 +137,8 @@ func devLXDInstancePatchHandler(d *Daemon, r *http.Request) response.Response {
 
 	// Evaluate instance device changes and derive instance configuration with appropriate device ownership.
 	deviceChecker := newDevLXDDeviceAccessValidator(inst)
-	devices, config, err := generateDevLXDInstanceDevices(targetInst, reqInst, requestor.Username, deviceChecker)
+	deviceResourceOwnershipChecker := newDevLXDDeviceResourceOwnershipValidator(r.Context(), d, projectName)
+	devices, config, err := generateDevLXDInstanceDevices(targetInst, reqInst, requestor.Username, deviceChecker, deviceResourceOwnershipChecker)
 	if err != nil {
 		return response.DevLXDErrorResponse(err)
 	}
@@ -175,10 +177,15 @@ func devLXDInstancePatchHandler(d *Daemon, r *http.Request) response.Response {
 //
 // Note that the function does not mutate the provided instance.
 // Instead, it returns new maps for devices and config to be applied.
-func generateDevLXDInstanceDevices(inst api.Instance, req api.DevLXDInstancePut, identityID string, isDeviceAccessible devLXDDeviceAccessValidator) (devices map[string]map[string]string, config map[string]string, err error) {
+func generateDevLXDInstanceDevices(inst api.Instance, req api.DevLXDInstancePut, identityID string, isDeviceAccessible devLXDDeviceAccessValidator, isDeviceResourceOwned devLXDDeviceAccessValidator) (devices map[string]map[string]string, config map[string]string, err error) {
 	// Ensure device access validator is provided.
 	if isDeviceAccessible == nil {
 		return nil, nil, api.StatusErrorf(http.StatusInternalServerError, "Missing device access validator")
+	}
+
+	// Ensure resource ownership validator is provided.
+	if isDeviceResourceOwned == nil {
+		return nil, nil, api.StatusErrorf(http.StatusInternalServerError, "Missing device resource ownership validator")
 	}
 
 	// Pass local devices, as non-local devices cannot be owned.
@@ -201,20 +208,26 @@ func generateDevLXDInstanceDevices(inst api.Instance, req api.DevLXDInstancePut,
 
 			// Ensure devLXD has sufficient permissions to manage the device.
 			// Pass old device to the validator, as new device is nil.
-			if !isDeviceAccessible(ownedDevice) {
+			if isDeviceAccessible(ownedDevice) != nil {
 				return nil, nil, api.StatusErrorf(http.StatusForbidden, "Not authorized to delete device %q", name)
 			}
 
 			// Device is removed, so remove the owner config key.
 			newConfig["volatile."+name+".devlxd.owner"] = ""
 		} else {
+			// Device is being either added or updated.
 			_, exists := inst.ExpandedDevices[name]
 
-			// Device is being either added or updated.
 			// Ensure devLXD has sufficient permissions to manage the device.
-			// If the device already exists (update), ensure that it is owned.
-			if (exists && !isOwned) || (!isDeviceAccessible(device)) {
+			// If the device already exists, ensure it is owned by devLXD identity.
+			if isDeviceAccessible(device) != nil || (exists && !isOwned) {
 				return nil, nil, api.StatusErrorf(http.StatusForbidden, "Not authorized to manage device %q", name)
+			}
+
+			// Ensure the resource the device references is owned by devLXD identity.
+			err = isDeviceResourceOwned(device)
+			if err != nil {
+				return nil, nil, err
 			}
 
 			// At this point we know that the ownership is correct (there is
@@ -250,7 +263,47 @@ func getDevLXDOwnedDevices(devices map[string]map[string]string, config map[stri
 func newDevLXDDeviceAccessValidator(inst instance.Instance) devLXDDeviceAccessValidator {
 	diskDeviceAllowed := hasInstanceSecurityFeatures(inst.ExpandedConfig(), devLXDSecurityManagementVolumesKey)
 
-	return func(device map[string]string) bool {
-		return diskDeviceAllowed && filters.IsCustomVolumeDisk(device)
+	return func(device map[string]string) error {
+		if !diskDeviceAllowed || !filters.IsCustomVolumeDisk(device) {
+			return api.NewGenericStatusError(http.StatusForbidden)
+		}
+
+		return nil
+	}
+}
+
+// newDevLXDDeviceResourceOwnershipValidator returns a device validator function that checks
+// whether the resource backing a device is owned by the devLXD identity making the request.
+func newDevLXDDeviceResourceOwnershipValidator(ctx context.Context, d *Daemon, projectName string) devLXDDeviceAccessValidator {
+	return func(device map[string]string) error {
+		poolName := device["pool"]
+		volName := device["source"]
+
+		if poolName == "" || volName == "" {
+			return api.StatusErrorf(http.StatusBadRequest, "Invalid device configuration: Missing pool or volume name")
+		}
+
+		url := api.NewURL().Path("1.0", "storage-pools", poolName, "volumes", "custom", volName).Project(projectName)
+		req, err := lxd.NewRequestWithContext(ctx, http.MethodGet, url.String(), nil, "")
+		if err != nil {
+			return api.StatusErrorf(http.StatusInternalServerError, "Failed creating request: %w", err)
+		}
+
+		req.SetPathValue("type", "custom")
+		req.SetPathValue("poolName", poolName)
+		req.SetPathValue("volumeName", volName)
+
+		err = addStoragePoolVolumeDetailsToRequestContext(d.State(), req)
+		if err != nil {
+			return err
+		}
+
+		// Retrieve volume to ensure the volume exists and is owned by the devLXD identity.
+		_, _, err = devLXDStoragePoolVolumeGet(req.Context(), d, "", projectName, poolName, volName, "custom")
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 }
