@@ -51,6 +51,14 @@ const ovnVolatileUplinkIPv6 = "volatile.network.ipv6.address"
 const ovnRouterPolicyPeerAllowPriority = 600
 const ovnRouterPolicyPeerDropPriority = 500
 
+// Until the service monitor performed the first health check, the status is empty.
+// For clarity we return "pending" instead of an empty string.
+const ovnServiceMonitorStatusPending = "pending"
+
+// A status of "unknown" is used to indicate that the target instance is not running and there is no service monitor configured.
+// In addition if health checks are disabled on the pool, the status of all targets is returned as "unknown" as well.
+const ovnServiceMonitorStatusUnknown = "unknown"
+
 // ovnUplinkVars OVN object variables derived from uplink network.
 type ovnUplinkVars struct {
 	// Router.
@@ -7270,10 +7278,8 @@ func (n *ovn) LoadBalancerPoolState(poolName string) (*api.NetworkLoadBalancerPo
 						continue
 					}
 
-					// Until OVN performed the first health check, the status is empty.
-					// Return it as pending.
 					if monitor.Status == "" {
-						monitor.Status = "pending"
+						monitor.Status = ovnServiceMonitorStatusPending
 					}
 
 					for _, port := range listenPorts {
@@ -7299,9 +7305,7 @@ func (n *ovn) LoadBalancerPoolState(poolName string) (*api.NetworkLoadBalancerPo
 							ListenPort:    port,
 							Name:          poolInstance.Name,
 							Device:        devName,
-							// A status of "unknown" is used to indicate that the instance is not running and there is no service monitor configured.
-							// In addition if health checks are disabled on the pool, the status of all targets is returned as "unknown" as well.
-							Status: "unknown",
+							Status:        ovnServiceMonitorStatusUnknown,
 						})
 					}
 				}
