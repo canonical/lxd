@@ -24,8 +24,9 @@ runs:
 
     # GitHub will remove any cache entries that have not been accessed in over 7 days.
     # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#usage-limits-and-eviction-policy
-    - name: Cache dqlite/liblxc deps
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+    # Restoring the cache is safe even from untrusted forks
+    - name: Restore dqlite/liblxc deps
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       id: cache-deps
       with:
         path: |
@@ -66,3 +67,15 @@ runs:
 
         # liblxc requires a rootfs dir
         mkdir -p /home/runner/go/bin/liblxc/rootfs
+
+    # Only save if there wasn't an exact cache hit, AND the code is running on the main repo (not an untrusted fork)
+    - name: Save dqlite/liblxc deps
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      if: |
+        steps.cache-deps.outputs.cache-hit != 'true' &&
+        (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      with:
+        path: |
+          /home/runner/go/bin/dqlite
+          /home/runner/go/bin/liblxc
+        key: ${{ steps.deps-cache-key.outputs.KEY }}
