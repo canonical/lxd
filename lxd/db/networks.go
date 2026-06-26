@@ -41,17 +41,23 @@ func (c *ClusterTx) GetNetworksLocalConfig(ctx context.Context) (map[string]map[
 	return networks, nil
 }
 
+// NetworkNodeParent describes how a network attaches to a parent interface on a
+// given cluster member. Parent is the node-specific parent interface and VLAN is
+// the network's global VLAN setting (empty if unset).
+type NetworkNodeParent struct {
+	Parent string
+	VLAN   string
+}
+
 // GetNetworksNodeParent returns a map associating each node ID in a cluster to networks and their
-// node-specific parent value. If network has no parent, it is omitted.
-func (c *ClusterTx) GetNetworksNodeParent(ctx context.Context) (map[int64]map[string]string, error) {
+// node-specific parent interface together with the network's global VLAN setting.
+// If a network has no parent, it is omitted.
+func (c *ClusterTx) GetNetworksNodeParent(ctx context.Context) (map[int64]map[string]NetworkNodeParent, error) {
 	query := `
-   SELECT networks_config.node_id, networks.name, networks_config.value
+   SELECT COALESCE(networks_config.node_id, 0), networks.name, networks_config.key, networks_config.value
    FROM networks_config
    JOIN networks ON networks.id=networks_config.network_id
-   WHERE (
-      networks_config.key="parent" AND
-      networks_config.node_id IS NOT NULL
-   )`
+   WHERE networks_config.key IN ("parent", "vlan")`
 
 	rows, err := c.tx.QueryContext(ctx, query)
 	if err != nil {
@@ -60,30 +66,43 @@ func (c *ClusterTx) GetNetworksNodeParent(ctx context.Context) (map[int64]map[st
 
 	defer func() { _ = rows.Close() }()
 
-	nodesNetworksParent := make(map[int64]map[string]string)
+	nodesNetworksParent := make(map[int64]map[string]string) // Node ID to network name to node-specific parent.
+	networksVLAN := make(map[string]string)                  // Network name to global VLAN setting.
 
 	for rows.Next() {
 		var (
 			nodeID      int64
 			networkName string
+			key         string
 			value       string
 		)
 
-		err = rows.Scan(&nodeID, &networkName, &value)
+		err = rows.Scan(&nodeID, &networkName, &key, &value)
 		if err != nil {
 			return nil, err
 		}
 
-		if nodeID == 0 || networkName == "" || value == "" {
+		if networkName == "" || value == "" {
 			continue
 		}
 
-		_, nodeInMap := nodesNetworksParent[nodeID]
-		if !nodeInMap {
-			nodesNetworksParent[nodeID] = map[string]string{}
-		}
+		switch key {
+		case "parent":
+			// The parent is node-specific, so it must have a node ID.
+			if nodeID == 0 {
+				continue
+			}
 
-		nodesNetworksParent[nodeID][networkName] = value
+			_, nodeInMap := nodesNetworksParent[nodeID]
+			if !nodeInMap {
+				nodesNetworksParent[nodeID] = map[string]string{}
+			}
+
+			nodesNetworksParent[nodeID][networkName] = value
+		case "vlan":
+			// The VLAN is a global setting shared across all cluster members.
+			networksVLAN[networkName] = value
+		}
 	}
 
 	err = rows.Err()
@@ -91,7 +110,18 @@ func (c *ClusterTx) GetNetworksNodeParent(ctx context.Context) (map[int64]map[st
 		return nil, err
 	}
 
-	return nodesNetworksParent, nil
+	nodesNetworks := make(map[int64]map[string]NetworkNodeParent, len(nodesNetworksParent))
+	for nodeID, networksParent := range nodesNetworksParent {
+		nodesNetworks[nodeID] = make(map[string]NetworkNodeParent, len(networksParent))
+		for networkName, parent := range networksParent {
+			nodesNetworks[nodeID][networkName] = NetworkNodeParent{
+				Parent: parent,
+				VLAN:   networksVLAN[networkName],
+			}
+		}
+	}
+
+	return nodesNetworks, nil
 }
 
 // GetNonPendingNetworkIDs returns a map associating each network name to its ID.
