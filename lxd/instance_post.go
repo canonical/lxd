@@ -677,6 +677,11 @@ func instancePostMigration(ctx context.Context, s *state.State, inst instance.In
 		Stateful:     inst.IsStateful(),
 	}
 
+	err = checkTargetProjectRestrictions(ctx, s, inst, targetArgs.Project, sourceProject, targetArgs.Name, targetArgs.Config, targetArgs.Devices.CloneNative(), req.Profiles, req.InstanceOnly, req.OverrideSnapshotProfiles, rootDevKey, rootDev["pool"])
+	if err != nil {
+		return err
+	}
+
 	if targetMemberInfo != nil {
 		return migrateInstance(ctx, s, inst, targetMemberInfo.Name, targetGroupName, req, &targetArgs, op)
 	}
@@ -1172,4 +1177,103 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 	}
 
 	return f(ctx, op)
+}
+
+// checkTargetProjectRestrictions verifies that inst (with the given target config, devices, and
+// profiles) can be placed in targetProject without violating that project's limits or
+// restrictions. Snapshots are validated when instanceOnly is false. It is a no-op when
+// targetProject and sourceProject are the same. rootDevKey and rootDevPool describe the target
+// instance's root disk, used to adjust snapshot device pools before validation (mirroring what
+// instanceCreateAsCopy persists).
+func checkTargetProjectRestrictions(ctx context.Context, s *state.State, inst instance.Instance, targetProject string, sourceProject string, targetName string, instConfig map[string]string, instDevices map[string]map[string]string, instProfiles []string, instanceOnly bool, overrideSnapshotProfiles bool, rootDevKey string, rootDevPool string) error {
+	if targetProject == sourceProject {
+		return nil
+	}
+
+	var restrictions *limits.ProjectInfo
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		restrictions, err = limits.FetchProject(ctx, tx, targetProject, true)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	if restrictions == nil {
+		return nil
+	}
+
+	// Use a copy of the config: AllowInstanceCreation strips volatile keys from the
+	// config it is given, and this map backs the real instance config.
+	instConfigCopy := make(map[string]string, len(instConfig))
+	maps.Copy(instConfigCopy, instConfig)
+
+	instReq := api.InstancesPost{
+		InstancePut: api.InstancePut{
+			Config:   instConfigCopy,
+			Devices:  instDevices,
+			Profiles: instProfiles,
+		},
+		Name:   targetName,
+		Type:   api.InstanceType(inst.Type().String()),
+		Source: api.InstanceSource{Type: api.SourceTypeMigration},
+	}
+
+	err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, instReq)
+	if err != nil {
+		return fmt.Errorf("Instance cannot be placed in project %q: %w", targetProject, err)
+	}
+
+	if instanceOnly {
+		return nil
+	}
+
+	snapshots, err := inst.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	if len(snapshots) > 0 {
+		err = limits.AllowSnapshotCreation(&restrictions.Project)
+		if err != nil {
+			return fmt.Errorf("Instance snapshots cannot be placed in project %q: %w", targetProject, err)
+		}
+	}
+
+	for _, snap := range snapshots {
+		_, snapName, _ := strings.Cut(snap.Name(), shared.SnapshotDelimiter)
+
+		// If snapshot profiles will be overridden with the target instance's profiles
+		// (see instanceCreateAsCopy), validate against those instead of the snapshot's
+		// own profiles, since that's what actually gets persisted.
+		profileNames := instProfiles
+		if !overrideSnapshotProfiles {
+			profileNames = make([]string, 0, len(snap.Profiles()))
+			for _, p := range snap.Profiles() {
+				profileNames = append(profileNames, p.Name)
+			}
+		}
+
+		snapConfig := make(map[string]string, len(snap.LocalConfig()))
+		maps.Copy(snapConfig, snap.LocalConfig())
+
+		snapReq := api.InstancesPost{
+			InstancePut: api.InstancePut{
+				Config:   snapConfig,
+				Devices:  adjustSnapRootDiskPool(snap.LocalDevices(), snap.ExpandedDevices(), rootDevKey, rootDevPool).CloneNative(),
+				Profiles: profileNames,
+			},
+			Name:   targetName + shared.SnapshotDelimiter + snapName,
+			Type:   api.InstanceType(inst.Type().String()),
+			Source: api.InstanceSource{Type: api.SourceTypeMigration},
+		}
+
+		err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, snapReq)
+		if err != nil {
+			return fmt.Errorf("Snapshot %q cannot be placed in project %q: %w", snap.Name(), targetProject, err)
+		}
+	}
+
+	return nil
 }
