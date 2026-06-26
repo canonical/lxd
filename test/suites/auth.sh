@@ -468,7 +468,7 @@ fine_grained: true"
   LXD_CONF="${TEST_DIR}" gen_cert_and_key "user7"
   tmp_bearer_identity_token="$(lxc auth identity token issue bearer/tmp --quiet)"
 
-  my_curl -s --cert "${TEST_DIR}/user7.crt" --key "${TEST_DIR}/user7.key" "https://${LXD_ADDR}/1.0/auth/identities/tls" -H "Authorization: Bearer ${tmp_bearer_identity_token}" -d '{"name":"peer-tls-cert", "groups":["admins"]}' | jq -e '.error_code == 400 and .error == "Must provide a certificate"'
+  my_curl -s --cert "${TEST_DIR}/user7.crt" --key "${TEST_DIR}/user7.key" "https://${LXD_ADDR}/1.0/auth/identities/tls" -H "Authorization: Bearer ${tmp_bearer_identity_token}" -d '{"name":"peer-tls-cert", "groups":["admins"]}' | jq --exit-status '.error_code == 400 and .error == "Must provide a certificate"'
   my_curl -s --cert "${TEST_DIR}/user7.crt" --key "${TEST_DIR}/user7.key" "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "untrusted"'
 
   lxc auth identity delete bearer/test-user
@@ -1914,13 +1914,13 @@ test_ui_initial_access_link() {
   serverInfoOutput=$(curl -s -k -H "User-Agent: Mozilla" -H "Cookie: token_bearer_session=${cookie}" "https://${LXD_ADDR}/1.0")
 
   # Ensure we are trusted.
-  if ! echo "${serverInfoOutput}" | jq -e '.metadata.auth == "trusted"'; then
+  if ! echo "${serverInfoOutput}" | jq --exit-status '.metadata.auth == "trusted"'; then
     echo "Error: Client is not trusted when accessing using token_bearer_session cookie"
     return 1
   fi
 
   # Ensure authentication method is bearer.
-  if ! echo "${serverInfoOutput}" | jq -e '.metadata.auth_user_method == "bearer"'; then
+  if ! echo "${serverInfoOutput}" | jq --exit-status '.metadata.auth_user_method == "bearer"'; then
     echo "Error: Auth method is not bearer when accessing using token_bearer_session cookie"
     return 1
   fi
@@ -1928,13 +1928,13 @@ test_ui_initial_access_link() {
   echo "==> Testing current identity information"
   currentIdentityOutput=$(curl -s -k -H "User-Agent: Mozilla" -H "Cookie: token_bearer_session=${cookie}" "https://${LXD_ADDR}/1.0/auth/identities/current")
 
-  if ! echo "${currentIdentityOutput}" | jq -e '.metadata.authentication_method == "bearer"'; then
+  if ! echo "${currentIdentityOutput}" | jq --exit-status '.metadata.authentication_method == "bearer"'; then
     echo "Error: Current identity information does not include correct token"
     return 1
   fi
 
   # Ensure token expiry date is set.
-  if ! echo "${currentIdentityOutput}" | jq -e '.metadata.expires_at? != null'; then
+  if ! echo "${currentIdentityOutput}" | jq --exit-status '.metadata.expires_at? != null'; then
     echo "Error: LXD info should include bearer token expiration date"
     return 1
   fi
@@ -1991,7 +1991,7 @@ test_ui_initial_access_link() {
   fi
 
   # Ensure access is forbidden when using the revoked token.
-  curl -s -k -H "User-Agent: Mozilla" -H "Cookie: token_bearer_session=${cookie}" "https://${LXD_ADDR}/1.0/auth/identities/current" | jq -e '.error_code == 403'
+  curl -s -k -H "User-Agent: Mozilla" -H "Cookie: token_bearer_session=${cookie}" "https://${LXD_ADDR}/1.0/auth/identities/current" | jq --exit-status '.error_code == 403'
 
   # Cleanup.
   lxc auth identity delete bearer/ui-admin-initial
