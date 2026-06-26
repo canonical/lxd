@@ -241,7 +241,7 @@ _server_config_storage() {
   fi
 
   # Cleanup
-  lxc delete -f foo
+  lxc delete foo
 }
 
 _server_config_user_microcloud() {
