@@ -531,7 +531,7 @@ jobs:
     # avoid runaway test burning 6 hours of CI
     timeout-minutes: 60
     permissions:
-      actions: write  # to manipulate caches
+      actions: write  # to save caches (only runs from the canonical repo, not fork PRs)
       contents: read  # for private repos or higher API rate limits
     strategy:
       fail-fast: false
@@ -662,6 +662,7 @@ jobs:
 
       # for simplicity, just use one cache directory
       # and make it valid for one day
+      # Restoring the cache is safe even from untrusted forks
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: cache-restore
         if: ${{ matrix.test == 'qemu-external-vm' }}
@@ -771,19 +772,12 @@ jobs:
             sudo systemctl stop snap.lxd.daemon.service
           fi
 
-      # always update cache as we have our own logic of
-      # cache invalidation and updates in addition to a date check
-      - name: Delete previous cache
-        if: ${{ steps.cache-restore.outputs.cache-hit }}
-        continue-on-error: true
-        run: |
-          gh cache delete "cache-${STEPS_GET_DATE_OUTPUTS_DATE}"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          STEPS_GET_DATE_OUTPUTS_DATE: ${{ steps.get-date.outputs.date }}
-
+      # Only save if there wasn't an exact cache hit, AND the code is running on the main repo (not an untrusted fork)
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        if: ${{ matrix.test == 'qemu-external-vm' }}
+        if: |
+          matrix.test == 'qemu-external-vm' &&
+          steps.cache-restore.outputs.cache-hit != 'true' &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           path: /home/runner/work/cache
           key: cache-${{ steps.get-date.outputs.date }}
