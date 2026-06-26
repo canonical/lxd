@@ -149,9 +149,9 @@ type Instance interface {
 
 	// Paths.
 	Path() string
-	ExecOutputPath() string
-	RootfsPath() string
-	TemplatesPath() string
+	OpenExecOutput() (*os.Root, error)
+	OpenRootfs() (*os.Root, error)
+	OpenTemplates() (*os.Root, error)
 	StatePath() string
 	LogFilePath() string
 	ConsoleBufferLogPath() string

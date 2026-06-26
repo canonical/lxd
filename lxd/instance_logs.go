@@ -449,8 +449,22 @@ func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 
 	defer func() { _ = pool.UnmountInstance(inst, nil) }()
 
+	execOutputRoot, err := inst.OpenExecOutput()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	defer func() { _ = execOutputRoot.Close() }()
+
 	// Read exec record-output files
-	dents, err := os.ReadDir(inst.ExecOutputPath())
+	execOutputDir, err := execOutputRoot.Open(".")
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	defer func() { _ = execOutputDir.Close() }()
+
+	dents, err := execOutputDir.ReadDir(-1)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -560,8 +574,15 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 	cleanup := revert.Clone()
 	revert.Success()
 
+	execOutputRoot, err := inst.OpenExecOutput()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	defer func() { _ = execOutputRoot.Close() }()
+
 	ent := response.FileResponseEntry{
-		Path:     filepath.Join(inst.ExecOutputPath(), file),
+		Path:     filepath.Join(execOutputRoot.Name(), file),
 		Filename: file,
 		Cleanup:  cleanup.Fail,
 	}
@@ -653,7 +674,14 @@ func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 
 	defer func() { _ = pool.UnmountInstance(inst, nil) }()
 
-	err = os.Remove(filepath.Join(inst.ExecOutputPath(), file))
+	execOutputRoot, err := inst.OpenExecOutput()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	defer func() { _ = execOutputRoot.Close() }()
+
+	err = execOutputRoot.Remove(file)
 	if err != nil {
 		return response.SmartError(err)
 	}

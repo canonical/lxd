@@ -874,8 +874,15 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 	// Deal with a rootfs.
 	if filters.IsRootDisk(d.config) {
 		// Set the rootfs path.
+		rootfsRoot, err := d.inst.OpenRootfs()
+		if err != nil {
+			return nil, fmt.Errorf("Failed opening rootfs for container start: %w", err)
+		}
+
+		_ = rootfsRoot.Close()
+
 		rootfs := deviceConfig.RootFSEntryItem{
-			Path: d.inst.RootfsPath(),
+			Path: rootfsRoot.Name(),
 		}
 
 		// Read-only rootfs (unlikely to work very well).
@@ -884,7 +891,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		}
 
 		// Handle previous requests for setting new quotas.
-		err := d.applyDeferredQuota()
+		err = d.applyDeferredQuota()
 		if err != nil {
 			return nil, err
 		}
@@ -2285,7 +2292,13 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 		// Set the source path
 		source := d.getDevicePath(devName, dev)
 		if dev["source"] == "" {
-			source = d.inst.RootfsPath()
+			rootfsRoot, err := d.inst.OpenRootfs()
+			if err != nil {
+				return nil, err
+			}
+
+			_ = rootfsRoot.Close()
+			source = rootfsRoot.Name()
 		}
 
 		if !shared.PathExists(source) {
