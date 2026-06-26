@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 
@@ -542,6 +543,16 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 		Stateful:     inst.IsStateful(),
 	}
 
+	// An instance move applies the merged config, devices, and profiles to the instance (and,
+	// for cross-project moves, to its snapshots) via instanceCreateAsCopy without otherwise
+	// going through the usual creation/update restriction checks. Validate the resulting
+	// placement against the target project's limits and restrictions so that user-supplied
+	// overrides (such as security.privileged or raw.lxc) cannot bypass them.
+	err = checkTargetProjectRestrictions(s, inst, newProject, inst.Project().Name, args.Name, args.Config, args.Devices.CloneNative(), profiles, instanceOnly, rootDevKey, rootDev["pool"])
+	if err != nil {
+		return err
+	}
+
 	// If we are moving the instance to a new pool but keeping the same instance name, then we need to create
 	// the copy of the instance on the new pool with a temporary name that is different from the source to
 	// avoid conflicts. Then after the source instance has been deleted we will rename the new instance back
@@ -589,7 +600,101 @@ func instancePostMigration(s *state.State, inst instance.Instance, newName strin
 	return nil
 }
 
-// Move a non-ceph instance to another cluster node. Source and target members must be online.
+// checkTargetProjectRestrictions verifies that inst (with the given target config, devices, and
+// profiles) can be placed in targetProject without violating that project's limits or
+// restrictions. Snapshots are validated when instanceOnly is false. It is a no-op when
+// targetProject and sourceProject are the same. rootDevKey and rootDevPool describe the target
+// instance's root disk, used to adjust snapshot device pools before validation (mirroring what
+// instanceCreateAsCopy persists).
+func checkTargetProjectRestrictions(s *state.State, inst instance.Instance, targetProject string, sourceProject string, targetName string, instConfig map[string]string, instDevices map[string]map[string]string, instProfiles []string, instanceOnly bool, rootDevKey string, rootDevPool string) error {
+	if targetProject == sourceProject {
+		return nil
+	}
+
+	var restrictions *project.ProjectInfo
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		restrictions, err = project.FetchProject(tx, targetProject, true)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	if restrictions == nil {
+		return nil
+	}
+
+	// Use a copy of the config: AllowInstanceCreation strips volatile keys from the
+	// config it is given, and this map backs the real instance config.
+	instConfigCopy := make(map[string]string, len(instConfig))
+	maps.Copy(instConfigCopy, instConfig)
+
+	instReq := api.InstancesPost{
+		InstancePut: api.InstancePut{
+			Config:   instConfigCopy,
+			Devices:  instDevices,
+			Profiles: instProfiles,
+		},
+		Name:   targetName,
+		Type:   api.InstanceType(inst.Type().String()),
+		Source: api.InstanceSource{Type: "migration"},
+	}
+
+	err = project.AllowInstanceCreation(*restrictions, instReq)
+	if err != nil {
+		return fmt.Errorf("Instance cannot be placed in project %q: %w", targetProject, err)
+	}
+
+	if instanceOnly {
+		return nil
+	}
+
+	snapshots, err := inst.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	if len(snapshots) > 0 {
+		err = project.AllowSnapshotCreation(&restrictions.Project)
+		if err != nil {
+			return fmt.Errorf("Instance snapshots cannot be placed in project %q: %w", targetProject, err)
+		}
+	}
+
+	for _, snap := range snapshots {
+		_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
+
+		// Snapshots keep their own profiles when copied (see instanceCreateAsCopy), so
+		// validate against those rather than the target instance's profiles.
+		profileNames := make([]string, 0, len(snap.Profiles()))
+		for _, p := range snap.Profiles() {
+			profileNames = append(profileNames, p.Name)
+		}
+
+		snapConfig := make(map[string]string, len(snap.LocalConfig()))
+		maps.Copy(snapConfig, snap.LocalConfig())
+
+		snapReq := api.InstancesPost{
+			InstancePut: api.InstancePut{
+				Config:   snapConfig,
+				Devices:  adjustSnapRootDiskPool(snap.LocalDevices(), snap.ExpandedDevices(), rootDevKey, rootDevPool).CloneNative(),
+				Profiles: profileNames,
+			},
+			Name:   targetName + shared.SnapshotDelimiter + snapName,
+			Type:   api.InstanceType(inst.Type().String()),
+			Source: api.InstanceSource{Type: "migration"},
+		}
+
+		err = project.AllowInstanceCreation(*restrictions, snapReq)
+		if err != nil {
+			return fmt.Errorf("Snapshot %q cannot be placed in project %q: %w", snap.Name(), targetProject, err)
+		}
+	}
+
+	return nil
+}
+
 func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
 	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
 
