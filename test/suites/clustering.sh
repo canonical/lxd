@@ -1292,6 +1292,53 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net1}"
 
+  sub_test "Test VLAN-aware sharing of physical network parent interfaces"
+
+  # Create a physical network net1 on VLAN 10 using parent i1 on both members.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --type=physical parent=i1 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --type=physical parent=i1 --target=node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net1}" --type=physical vlan=10
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net1}" | grep -xF 'status: Created'
+
+  # Check that the same parent on both members can be shared on a different VLAN.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical vlan=20
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Created'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
+
+  # Check that the same parent and same VLAN cannot be shared on both members.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical vlan=10 || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Errored'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
+
+  # Check that a network without a VLAN cannot share a parent already in use on a VLAN.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Errored'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
+
+  # Check that a VLAN conflict on another member's parent interface alone is detected.
+  # net2 uses the free parent i2 on node1 but parent i1 on node2, where net1 already uses VLAN 10.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical vlan=10 || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Errored'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
+
+  # Check that a different VLAN on a parent shared only via another member is allowed.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical vlan=30
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Created'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
+
+  # Clean up.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net1}"
+
   echo "Test concurrent creation of different bridge networks."
   net1="${net}"
   net2="${net}2"
