@@ -482,11 +482,16 @@ parts:
 
       if [ "$(uname -m)" = "x86_64" ]; then
           DSC="OvmfPkg/OvmfPkgX64.dsc"
-          BUILD_TARGET="install-ovmf"
+          BUILD_TARGETS="install-ovmf-secboot install-ovmf-no-secboot"
           SRC_DIR="debian/tmp/usr/share/OVMF"
-          SRC_CODE="OVMF_CODE_4M.secboot.fd"
+          SRC_CODE="OVMF_CODE_4M.ms.fd"
+          SRC_CODE_NOSB="OVMF_CODE_4M.fd"
           SRC_VARS="OVMF_VARS_4M.fd"
           SRC_VARS_MS="OVMF_VARS_4M.ms.fd"
+          DST_CODE="OVMF_CODE_4M.ms"
+          DST_CODE_NOSB="OVMF_CODE_4M"
+          DST_VARS="OVMF_VARS_4M"
+          DST_VARS_MS="OVMF_VARS_4M.ms"
           # Add DEBUG_VERBOSE to print error level for DEBUG build
           # * 0x80000000 (DEBUG_ERROR)
           # * 0x00000040 (DEBUG_INFO)
@@ -496,20 +501,33 @@ parts:
           SED_EXPR="s#PcdDebugPrintErrorLevel|0x8000004F#PcdDebugPrintErrorLevel|0x8040004F#g"
       elif [ "$(uname -m)" = "aarch64" ]; then
           DSC="ArmVirtPkg/ArmVirt.dsc.inc"
-          BUILD_TARGET="install-qemu-efi-aarch64"
+          BUILD_TARGETS="install-qemu-efi-aarch64-secboot install-qemu-efi-aarch64-no-secboot"
           SRC_DIR="debian/tmp/usr/share/AAVMF"
-          SRC_CODE="AAVMF_CODE.secboot.fd"
+          SRC_CODE="AAVMF_CODE.ms.fd"
+          # XXX: The package doesn't create AAVMF_CODE.fd for this
+          # non-secureboot variant, but we need a consistent name for the snap,
+          # so we copy it from the .no-secboot.fd file.
+          SRC_CODE_NOSB="AAVMF_CODE.no-secboot.fd"
           SRC_VARS="AAVMF_VARS.fd"
           SRC_VARS_MS="AAVMF_VARS.ms.fd"
+          DST_CODE="AAVMF_CODE.ms"
+          DST_CODE_NOSB="AAVMF_CODE"
+          DST_VARS="AAVMF_VARS"
+          DST_VARS_MS="AAVMF_VARS.ms"
           # See note in `x86_64` section for DEBUG_VERBOSE explanation
           SED_EXPR="s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g"
       elif [ "$(uname -m)" = "riscv64" ]; then
           DSC="OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc"
-          BUILD_TARGET="install-qemu-efi-riscv64"
+          BUILD_TARGETS="install-qemu-efi-riscv64"
           SRC_DIR="debian/tmp/usr/share/qemu-efi-riscv64"
-          SRC_CODE="RISCV_VIRT_CODE.fd"
+          SRC_CODE=""
+          SRC_CODE_NOSB="RISCV_VIRT_CODE.fd"
           SRC_VARS="RISCV_VIRT_VARS.fd"
-          SRC_VARS_MS="RISCV_VIRT_VARS.fd"
+          SRC_VARS_MS=""
+          DST_CODE=""
+          DST_CODE_NOSB="RISCV_VIRT_CODE"
+          DST_VARS="RISCV_VIRT_VARS"
+          DST_VARS_MS=""
           # See note in `x86_64` section for DEBUG_VERBOSE explanation
           SED_EXPR="s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g"
       fi
@@ -531,17 +549,23 @@ parts:
 
           # Enable parallel builds to avoid lengthy build times due to LTO. amd64 build on LP goes from ~1h45m -> ~60m
           # lto-wrapper: note: see the ‘-flto’ option documentation for more information
-          /usr/bin/make -j$(nproc) -f debian/rules "${BUILD_TARGET}" BUILD_TYPE="${TYPE}"
+          # BUILD_TARGETS holds one or more space-separated make goals, so it must stay
+          # unquoted here to be word-split into separate targets.
+          # shellcheck disable=SC2086
+          /usr/bin/make -j$(nproc) -f debian/rules ${BUILD_TARGETS} BUILD_TYPE="${TYPE}"
 
           if [ "${TYPE}" = "DEBUG" ] && [ -f "${DSC}.bak" ]; then
               mv "${DSC}.bak" "${DSC}"
           fi
 
-          cp "${SRC_DIR}/${SRC_CODE}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB${SUFFIX}.fd"
-          cp "${SRC_DIR}/${SRC_VARS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB${SUFFIX}.fd"
+          if [ -n "${SRC_CODE}" ] && [ -n "${DST_CODE}" ]; then
+              cp "${SRC_DIR}/${SRC_CODE}" "${CRAFT_PART_INSTALL}/share/qemu/${DST_CODE}${SUFFIX}.fd"
+          fi
+          cp "${SRC_DIR}/${SRC_CODE_NOSB}" "${CRAFT_PART_INSTALL}/share/qemu/${DST_CODE_NOSB}${SUFFIX}.fd"
+          cp "${SRC_DIR}/${SRC_VARS}" "${CRAFT_PART_INSTALL}/share/qemu/${DST_VARS}${SUFFIX}.fd"
 
-          if [ "${TYPE}" = "RELEASE" ]; then
-               cp "${SRC_DIR}/${SRC_VARS_MS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.ms.fd"
+          if [ "${TYPE}" = "RELEASE" ] && [ -n "${SRC_VARS_MS}" ] && [ -n "${DST_VARS_MS}" ]; then
+               cp "${SRC_DIR}/${SRC_VARS_MS}" "${CRAFT_PART_INSTALL}/share/qemu/${DST_VARS_MS}.fd"
           fi
       }
 
@@ -555,7 +579,7 @@ parts:
       fi
 
       # Cleanup debug vars
-      rm -f "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.debug.fd"
+      rm -f "${CRAFT_PART_INSTALL}/share/qemu/${DST_VARS}.debug.fd"
     prime:
       - share/qemu/*
 
