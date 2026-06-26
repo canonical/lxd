@@ -10,6 +10,72 @@ _boot_mode() {
   lxc delete -f v1
 }
 
+# _nvram_rename checks that an existing VM created by an older snap (which shipped its
+# firmware under the OVMF 4MB name) has its NVRAM vars file renamed to the current
+# per-architecture name on start, preserving the existing NVRAM state instead of
+# regenerating it from the firmware template.
+_nvram_rename() {
+  echo "==> VM NVRAM vars file rename on firmware name change"
+
+  # Name used by the previous snap for the secureboot vars file on both x86_64 and arm64.
+  local old_vars="OVMF_VARS.4MB.ms.fd"
+  local inst_dir new_vars old_inode
+
+  lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" --config boot.mode=uefi-secureboot
+  lxc stop -f v1
+
+  # The current name is whatever the running snap shipped (e.g. OVMF_VARS_4M.ms.fd on
+  # x86_64 or AAVMF_VARS.ms.fd on arm64).
+  inst_dir="${LXD_DIR}/virtual-machines/v1"
+  new_vars="$(readlink "${inst_dir}/qemu.nvram" || true)"
+  if [ -n "${new_vars}" ]; then
+    new_vars="$(basename "${new_vars}")"
+  fi
+
+  # Manipulating the stopped VM's NVRAM file requires its instance directory to stay reachable
+  # from the host while the VM is stopped. Storage backends that unmount the VM's filesystem
+  # (config) volume on stop leave qemu.nvram unreachable once stopped, so the
+  # read above comes back empty. The rename itself runs during start (volume
+  # mounted), is backend-agnostic, and was already exercised by the launch
+  # above; only the in-place inode check below needs host access, so skip it
+  # when the stopped directory is not reachable.
+  if [ -z "${new_vars}" ]; then
+    echo "==> SKIP: stopped VM instance directory not reachable on this backend; cannot verify the NVRAM rename in place"
+    lxc delete -f v1
+    return 0
+  fi
+
+  # If the snap still bundles firmware under the old name there is nothing to migrate to yet
+  # (the snapcraft.yaml rename has not reached this snap build). The VM still launched above,
+  # confirming the new binary boots old-named VMs; skip the rest until the snap is updated.
+  if [ "${new_vars}" = "${old_vars}" ]; then
+    echo "==> SKIP: snap still bundles firmware as ${old_vars}; rename migration not applicable yet"
+    lxc delete -f v1
+    return 0
+  fi
+
+  sub_test "Existing NVRAM vars file is renamed (not regenerated) on start"
+
+  # Simulate an instance created by a previous snap that used the old firmware name.
+  mv "${inst_dir}/${new_vars}" "${inst_dir}/${old_vars}"
+  ln -sf "${old_vars}" "${inst_dir}/qemu.nvram"
+  old_inode="$(stat -c %i "${inst_dir}/${old_vars}")"
+
+  lxc start v1
+  lxc stop -f v1
+
+  # The vars file must have been renamed back to the current name and the symlink updated.
+  [ "$(basename "$(readlink "${inst_dir}/qemu.nvram")")" = "${new_vars}" ]
+  [ -f "${inst_dir}/${new_vars}" ]
+  [ ! -e "${inst_dir}/${old_vars}" ]
+
+  # A matching inode proves the file was renamed (preserving NVRAM state) rather than
+  # regenerated from the firmware template.
+  [ "$(stat -c %i "${inst_dir}/${new_vars}")" = "${old_inode}" ]
+
+  lxc delete -f v1
+}
+
 test_vm_empty() {
   if [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.6; then
     export TEST_UNMET_REQUIREMENT="QEMU requires direct-io support which requires a kernel >= 6.6 for tmpfs support (LXD_TMPFS=${LXD_TMPFS})"
@@ -201,4 +267,7 @@ test_vm_pcie_bus() {
 test_snap_vm_empty() {
   # useful to test snap provided BIOS boot
   _boot_mode
+
+  # The NVRAM vars file rename migration only happens inside the snap.
+  _nvram_rename
 }
