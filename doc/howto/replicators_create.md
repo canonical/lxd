@@ -48,27 +48,65 @@ Both clusters need a project with the same name. Only the standby project requir
 
 1. On the leader cluster, create a project:
 
+   `````{tabs}
+   ````{group-tab} CLI
    ```bash
    lxc project create <project_name>
    ```
+   ````
+   ````{group-tab} UI
+   Expand the {guilabel}`Project` drop-down and select {guilabel}`+ Create project` at the bottom.
+
+   Enter a name and optionally a description for the new project.
+   ````
+   `````
 
 1. On the standby cluster, create a project with the same name and configure it to accept replication from the leader cluster:
 
+   `````{tabs}
+   ````{group-tab} CLI
    ```bash
    lxc project create <project_name> -c replica.cluster=<leader_cluster_link_name>
    ```
+   ````
+   ````{group-tab} UI
+   Expand the {guilabel}`Project` drop-down and select {guilabel}`+ Create project` at the bottom.
+
+   Enter the same name as in the previous step, and optionally a description for the new project.
+
+   Go to the new project's configuration and select the {guilabel}`Replication` tab.
+
+   Under {guilabel}`Replica cluster`, select the cluster link established between the standby and the leader.
+   ````
+   `````
 
 1. On the standby cluster, demote the project to standby mode. This prevents new instances from being created in the project and existing instances from being started. The project must be promoted to `leader` during a failover before instances can be started.
 
+   `````{tabs}
+   ````{group-tab} CLI
    ```bash
    lxc project demote-replica <project_name>
    ```
+   ````
+   ````{group-tab} UI
+   Under {guilabel}`Replica mode`, click {guilabel}`Demote to standby`.
+   ````
+   `````
 
 1. On the leader cluster, promote the project to leader mode:
 
+   `````{tabs}
+   ````{group-tab} CLI
    ```bash
    lxc project promote-replica <project_name>
    ```
+   ````
+   ````{group-tab} UI
+   Go to the leader project's configuration and select the {guilabel}`Replication` tab.
+
+   Under {guilabel}`Replica mode`, click {guilabel}`Promote to leader`.
+   ````
+   `````
 
 ```{admonition} Promote validation
 :class: note
@@ -85,40 +123,87 @@ After configuring the projects on both clusters, create a replicator on the lead
 
 Each cluster link can be targeted by at most one replicator per project. Creating or updating a replicator to target a cluster link already used by another replicator in the same project fails with a conflict error.
 
-```bash
-lxc replicator create <replicator_name> cluster=<standby_cluster_link_name> --project <project_name>
-```
+`````{tabs}
+````{group-tab} CLI
 
-For example:
+   ```bash
+   lxc replicator create <replicator_name> cluster=<standby_cluster_link_name> --project <project_name>
+   ```
 
-```bash
-lxc replicator create my-replicator cluster=lxd-standby --project myproject
-```
+   For example:
 
-You can also create a replicator with a schedule and snapshot options:
+   ```bash
+   lxc replicator create my-replicator cluster=lxd-standby --project myproject
+   ```
 
-```bash
-lxc replicator create my-replicator cluster=lxd-standby schedule="@daily" snapshot=true --project myproject
-```
+   You can also create a replicator with a schedule and snapshot options:
+
+   ```bash
+   lxc replicator create my-replicator cluster=lxd-standby schedule="@daily" snapshot=true --project myproject
+   ```
+
+````
+````{group-tab} UI
+   For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Replicators` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Replicators` from the expanded drop-down list.
+
+   Click on the {guilabel}`+ Create replicator` button to open the side panel.
+
+   Select the cluster link established between the leader and the standby.
+   Enter a name and optionally a description for the new replicator.
+   Select the {ref}`project that you configured <howto-replicators-project-setup>`.
+   You can also select a snapshot option and enter a schedule.
+
+   Click {guilabel}`Create`.
+
+````
+`````
 
 See {ref}`ref-replicator-config` for all available configuration options.
 
 (howto-replicators-run)=
 ## Run a replicator
 
-To manually trigger a replicator run, use the following command on the leader cluster:
+To manually trigger a replicator run:
 
-```bash
-lxc replicator run <replicator_name>
-```
+`````{tabs}
+````{group-tab} CLI
+
+   Use the following command on the leader cluster:
+
+   ```bash
+   lxc replicator run <replicator_name>
+   ```
+
+````
+````{group-tab} UI
+
+   On the leader cluster, for a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Replicators` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Replicators` from the expanded drop-down list.
+
+   Click on the "run" button at the end of the replicator's row.
+
+   Alternatively, click on a replicator name to view its detail page, then click on the {guilabel}`Run` button in the header.
+
+````
+`````
 
 This syncs all instances in the source project to the standby cluster.
 
 To schedule replication automatically, set the `schedule` configuration key with a cron expression:
 
-```bash
-lxc replicator set <replicator_name> schedule="0 0 * * *"
-```
+`````{tabs}
+````{group-tab} CLI
+
+   ```bash
+   lxc replicator set <replicator_name> schedule="0 0 * * *"
+   ```
+
+````
+````{group-tab} UI
+
+   In the {guilabel}`Create replicator` or {guilabel}`Edit replicator` side panel, enter a cron expression in the {guilabel}`Schedule` input box.
+
+````
+`````
 
 (howto-replicators-snapshot)=
 ## Snapshot before replication

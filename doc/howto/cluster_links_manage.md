@@ -55,6 +55,9 @@ To view detailed information about the state of a specific cluster link, run:
 See [`GET /1.0/cluster/links/{name}/state`](swagger:/cluster-links/{name}/state/cluster_link_state_get) for more information.
 
 ````
+````{group-tab} UI
+   For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Cluster links` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
+````
 `````
 
 (howto-cluster-links-permissions)=
@@ -87,51 +90,21 @@ lxc auth identity create cluster-link/<name-for-cluster-a> --auth-group <group n
 
 See {ref}`ref-cluster-link-config` for more details on cluster link configuration options.
 
+`````{tabs}
+````{group-tab} CLI
 There are multiple ways to update the configuration for a cluster link.
 
-You can edit the entire configuration at once:
-
-````{tabs}
-```{group-tab} CLI
-To edit a cluster link in your default text editor, enter the following command:
+To edit the entire configuration of a cluster link at once in your default text editor, enter the following command:
 
     lxc cluster link edit <cluster-link-name>
 
-```
-```{group-tab} API
-To edit a cluster link, send the following request:
-
-    lxc query --request PUT /1.0/cluster/links/<name> --data "<link_configuration>"
-
-See [`PUT /1.0/cluster/links/{name}`](swagger:/cluster-links/{name}/cluster_link_put) for more information.
-```
-````
-
-You can update a single property for a cluster link:
-
-````{tabs}
-```{group-tab} CLI
-Use the `set` command with the `--property` flag:
+You can also update a single property for a cluster link by using the `set` command with the `--property` flag:
 
     lxc cluster link set <cluster-link-name> --property <key>=<value>
 
 For example, to update the `description` property:
 
     lxc cluster link set cluster_b --property description="Backup cluster in data center 2"
-
-```
-```{group-tab} API
-To modify a specific property, send the following request:
-
-    lxc query --request PATCH /1.0/cluster/links/<name> --data '{"<key>": "<value>"}'
-
-Example:
-
-    lxc query --request PATCH /1.0/cluster/links/cluster_b --data '{"description": "Backup cluster in data center B"}'
-
-See [`PATCH /1.0/cluster/links/{name}`](swagger:/cluster-links/{name}/cluster_link_patch) for more information.
-```
-````
 
 Cluster links have the following properties:
 
@@ -141,40 +114,76 @@ Cluster links have the following properties:
     :end-before: <!-- config group cluster-link-properties end -->
 ```
 
-You can also update a single configuration option for a cluster link. Run:
-
-````{tabs}
-```{group-tab} CLI
+You can also update a single configuration option for a cluster link.
 
     lxc cluster link set <cluster-link-name> <key>=<value>
 
+````
+````{group-tab} API
+There are multiple ways to update the configuration for a cluster link.
+
+To edit the entire configuration of a cluster link at once, send the following request:
+
+    lxc query --request PUT /1.0/cluster/links/<name> --data "<link_configuration>"
+
+See [`PUT /1.0/cluster/links/{name}`](swagger:/cluster-links/{name}/cluster_link_put) for more information.
+
+To modify a specific property of a cluster link, send the following request:
+
+    lxc query --request PATCH /1.0/cluster/links/<name> --data '{"<key>": "<value>"}'
+
+Example:
+
+    lxc query --request PATCH /1.0/cluster/links/cluster_b --data '{"description": "Backup cluster in data center B"}'
+
+See [`PATCH /1.0/cluster/links/{name}`](swagger:/cluster-links/{name}/cluster_link_patch) for more information.
+
+Cluster links have the following properties:
+
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
+    :start-after: <!-- config group cluster-link-properties start -->
+    :end-before: <!-- config group cluster-link-properties end -->
 ```
-```{group-tab} API
+
+You can also update a single configuration option for a cluster link.
 
     lxc query --request PATCH /1.0/cluster/links/<name> --data '{"config": <config>}'
 
 See [`PATCH /1.0/cluster/links/{name}`](swagger:/cluster-links/{name}/cluster_link_patch) for more information.
-```
 ````
+````{group-tab} UI
+   For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Cluster links` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
+
+   To edit a cluster link, click on the pencil icon at the end of that cluster link's row.
+
+````
+`````
 
 (howto-cluster-links-delete)=
 ## Delete a cluster link
 
+`````{tabs}
+````{group-tab} CLI
 To delete a cluster link, run:
-
-````{tabs}
-```{group-tab} CLI
 
     lxc cluster link delete <cluster-link-name>
 
-```
-```{group-tab} API
+````
+````{group-tab} API
+To delete a cluster link, run:
 
     lxc query --request DELETE /1.0/cluster/links/<name>
 
 See [`DELETE /1.0/cluster/links/{name}`](swagger:/cluster-links/{name}/cluster_link_delete) for more information.
-```
 ````
+````{group-tab} UI
+   For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Cluster links` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
+
+   To delete a cluster link, click on the trash can icon at the end of that cluster link's row.
+
+````
+`````
 
 ```{admonition} Deletion behavior depends on link type
 :class: note
