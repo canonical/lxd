@@ -1060,20 +1060,28 @@ run_projects_restrictions() {
   # Create a project
   lxc project create local:p1 -c features.storage.volumes=false
 
-  # Grant access to the project.
+  # A second, unrestricted project used to construct instances with config that would be
+  # forbidden in "p1", so that moving them into "p1" can be checked.
+  lxc project create local:p2 -c features.storage.volumes=false -c features.profiles=false
+
+  # Grant access to the projects.
   if [ "${remote}" = "restricted" ]; then
-    # For the restricted client we need to grant access to the project first.
+    # For the restricted client we need to grant access to the projects first.
     # shellcheck disable=SC2153
     fingerprint="$(cert_fingerprint "${LXD_CONF}/client.crt")"
-    lxc config trust show "${fingerprint}" | sed -e 's/projects: \[\]/projects: ["p1"]/' | lxc config trust edit "local:${fingerprint}"
+    lxc config trust show "${fingerprint}" | sed -e 's/projects: \[\]/projects: ["p1", "p2"]/' | lxc config trust edit "local:${fingerprint}"
   elif [ "${remote}" = "fine-grained" ]; then
     # For the fine grained client we'll grant (almost) equivalent access to the restricted certificate, with the exception
     # that networks in the default project can never be modified by this user via the "punching through" that the feature flags allow
     # with restricted certs.
     lxc auth group permission add local:test-group project p1 operator
+    lxc auth group permission add local:test-group project p2 operator
     lxc auth group permission add local:test-group project default can_view
     lxc auth group permission add local:test-group project default can_view_networks
     lxc auth group permission add local:test-group server can_view_unmanaged_networks
+    # p2 has features.profiles=false, so it borrows the default project's profiles. Project-level
+    # can_view does not cascade to viewing individual profiles, so grant that explicitly.
+    lxc auth group permission add local:test-group profile default can_view project=default
   fi
 
   # Switch to the project. Also switch the local remote if not already set.
@@ -1313,6 +1321,40 @@ run_projects_restrictions() {
   lxc delete c1
   lxc project set local:p1 restricted.containers.lowlevel="" restricted.snapshots=""
 
+  # An instance (or one of its snapshots) created with a forbidden low-level key in an
+  # unrestricted project must not be usable to bypass restricted.containers.lowlevel=block by
+  # being moved into the restricted project. The move itself must validate the resulting
+  # config, the same way direct config changes and snapshot restores already are, otherwise
+  # simply starting the moved instance would apply the forbidden config without ever going
+  # through a check.
+  lxc --project p2 init --empty c1 -c "raw.idmap=both 0 0" -d "${SMALL_ROOT_DISK}"
+  ! lxc --project p2 move c1 --target-project p1 || false
+  # The instance must be left untouched in its original project.
+  lxc --project p2 config get c1 raw.idmap | grep -wF "both 0 0"
+  ! lxc --project p1 info c1 || false
+  lxc --project p2 delete c1
+
+  # A snapshot carrying the forbidden key must also be checked at move time, even when the
+  # live instance's config no longer has the key set (e.g. it was unset after the snapshot
+  # was taken).
+  lxc --project p2 init --empty c1 -c "raw.idmap=both 0 0" -d "${SMALL_ROOT_DISK}"
+  lxc --project p2 snapshot c1 snap0
+  lxc --project p2 config unset c1 raw.idmap
+  ! lxc --project p2 move c1 --target-project p1 || false
+  ! lxc --project p1 info c1 || false
+  lxc --project p2 delete c1
+
+  # restricted.snapshots=block must also be enforced at move time: an instance carrying a
+  # snapshot must not be movable into a project that disallows snapshots outright, even if
+  # nothing about the snapshot's config violates restricted.containers.lowlevel.
+  lxc project set local:p1 restricted.containers.lowlevel=allow restricted.snapshots=block
+  lxc --project p2 init --empty c1 -d "${SMALL_ROOT_DISK}"
+  lxc --project p2 snapshot c1 snap0
+  ! lxc --project p2 move c1 --target-project p1 || false
+  ! lxc --project p1 info c1 || false
+  lxc --project p2 delete c1
+  lxc project set local:p1 restricted.containers.lowlevel="" restricted.snapshots=""
+
   # Setting restricted.containers.privilege to 'allow' makes it possible to create
   # privileged containers.
   lxc project set local:p1 restricted.containers.privilege=allow
@@ -1387,6 +1429,7 @@ run_projects_restrictions() {
   lxc remote switch local
   lxc project switch default
   lxc project delete p1
+  lxc project delete p2
 
   lxc network delete "${netManaged}"
   lxc storage volume delete "${pool}" "v-proj$$"
