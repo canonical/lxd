@@ -26,6 +26,11 @@ LXD now detects whether the host system is attached to Ubuntu Pro and advertises
 
 The following bug fixes are included in this release.
 
+- [{spellexception}`Arbitrary file write on host via `exec-output` symlink in crafted image (CVE-2026-48750)`](https://github.com/canonical/lxd/security/advisories/GHSA-9j25-mm2h-2f76)
+- [{spellexception}`Arbitrary file read+write on host via templates/ symlink in malicious image (CVE-2026-48752)`](https://github.com/canonical/lxd/security/advisories/GHSA-jpf8-86f3-wp38)
+- [{spellexception}`Arbitrary file read+write on host via rootfs/ symlink in malicious image (CVE-2026-48749)`](https://github.com/canonical/lxd/security/advisories/GHSA-vghh-5rfx-xhq8)
+- [{spellexception}`Argument injection in backup compression algorithm leading to AFW and ACE (CVE-2026-48755)`](https://github.com/canonical/lxd/security/advisories/GHSA-fmc8-p6q7-75cc)
+- [{spellexception}`Arbitrary file write on client due to trusted image hash (CVE-2026-48769)`](https://github.com/canonical/lxd/security/advisories/GHSA-pjff-c2wc-f6jm)
 - [#18228](https://github.com/canonical/lxd/pull/18228) — Fix for [GHSA-r7w7-mmxr-47r9](https://github.com/lxc/incus/security/advisories/GHSA-r7w7-mmxr-47r9) / CVE-2026-40197: Validate all backup config struct slices for nil values to prevent panics when importing backup configs that contain nil slices.
 - [#17981](https://github.com/canonical/lxd/pull/17981) — Fix for [GHSA-83xr-5xxr-mh92](https://github.com/lxc/incus/security/advisories/GHSA-83xr-5xxr-mh92) / CVE-2026-33897: Harden the `pongo2` template rendering engine used for cloud-init and other instance templates. Fixes include: blocking dangerous built-in functions, enforcing a recursion limit, capturing panics to prevent crashes, and preventing output leakage from failed template executions.
 - [#16924](https://github.com/canonical/lxd/pull/16924) — Fix for [GHSA-56mx-8g9f-5crf](https://github.com/lxc/incus/security/advisories/GHSA-56mx-8g9f-5crf) / CVE-2025-64507: Tighten storage pool volume directory permissions to reduce exposure of instance data on the host.
