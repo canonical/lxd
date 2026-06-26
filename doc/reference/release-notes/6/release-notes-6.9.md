@@ -277,7 +277,7 @@ There is currently no native LXD configuration workaround.
 
 For applications running on `core26` and newer bases, `snapd` enforces stricter process tracking and device cgroup validations that rely on an active `systemd` user session.
 
-If you run `lxc` commands inside environments where a user identity was switched without spawning a corresponding user session (e.g., non-interactive scripts, or mechanisms like `sudo`, `su`, or `runuser`), the execution will fail with the following error:
+If you run `lxc` commands inside environments where a user identity was switched without spawning a corresponding user session (for example, non-interactive scripts or mechanisms like `sudo`, `su`, or `runuser`), the execution will fail with the following error:
 
 ```
 The user ubuntu cannot run snap applications on this system.
