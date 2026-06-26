@@ -218,8 +218,8 @@ func (n *physical) Validate(config map[string]string) error {
 // Returns an error if parent is already in use or the check has failed.
 func (n *physical) checkParentUse(ourConfig map[string]string) error {
 	var err error
-	var projectNetworks map[string]map[int64]api.Network // All managed networks across all projects.
-	var nodesNetworksParent map[int64]map[string]string  // Node IDs mapped to networks and their node-specific parent.
+	var projectNetworks map[string]map[int64]api.Network              // All managed networks across all projects.
+	var nodesNetworksParent map[int64]map[string]db.NetworkNodeParent // Node IDs mapped to networks and their node-specific parent and VLAN.
 
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
@@ -266,21 +266,32 @@ func (n *physical) checkParentUse(ourConfig map[string]string) error {
 
 	currNodeID := n.state.DB.Cluster.GetNodeID()
 
-	// Check that parent interfaces on other nodes are not already in use.
+	// Check that parent interfaces on other nodes are not already in use. Two networks can share the same
+	// parent interface only if they are on distinct VLANs, so track the set of VLANs in use per parent.
 	for nodeID, networksParent := range nodesNetworksParent {
 		if nodeID == currNodeID {
 			continue // Skip the current node, it has been checked already.
 		}
 
-		parentsInUse := make(map[string]struct{})
+		parentVLANsInUse := make(map[string]map[string]struct{})
 
 		for _, parent := range networksParent {
-			_, alreadyInUse := parentsInUse[parent]
-			if alreadyInUse {
-				return fmt.Errorf("Parent interface %q in use by another network on cluster member %q", parent, n.nodes[nodeID].Name)
-			}
+			vlansInUse, parentSeen := parentVLANsInUse[parent.Parent]
+			if parentSeen {
+				_, untaggedInUse := vlansInUse[""]
+				_, vlanInUse := vlansInUse[parent.VLAN]
 
-			parentsInUse[parent] = struct{}{}
+				// A network without a VLAN claims the whole parent interface, so it
+				// conflicts with any other network on the same parent. Otherwise only
+				// networks sharing the same VLAN conflict.
+				if parent.VLAN == "" || untaggedInUse || vlanInUse {
+					return fmt.Errorf("Parent interface %q in use by another network on cluster member %q", parent.Parent, n.nodes[nodeID].Name)
+				}
+
+				vlansInUse[parent.VLAN] = struct{}{}
+			} else {
+				parentVLANsInUse[parent.Parent] = map[string]struct{}{parent.VLAN: {}}
+			}
 		}
 	}
 
