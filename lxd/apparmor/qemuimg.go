@@ -29,6 +29,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   capability dac_read_search,
   capability ipc_lock,
 
+  # qemu-img probes for CAP_SYS_ADMIN but works fine without it; deny silently to avoid audit noise.
+  deny capability sys_admin,
+
   @{PROC}/sys/vm/max_map_count r,
   /sys/devices/**/block/*/queue/* r,
   /sys/devices/system/node/ r,
