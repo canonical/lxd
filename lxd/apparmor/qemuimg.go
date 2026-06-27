@@ -30,8 +30,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   capability ipc_lock,
 
   @{PROC}/sys/vm/max_map_count r,
-  /sys/devices/**/block/*/queue/max_segments  r,
-  /sys/devices/**/block/*/queue/zoned  r,
+  /sys/devices/**/block/*/queue/* r,
   /sys/devices/system/node/ r,
   /sys/devices/system/node/** r,
 
