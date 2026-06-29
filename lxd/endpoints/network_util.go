@@ -42,7 +42,7 @@ func (d networkServerErrorLogWriter) stripLog(p []byte) string {
 	var sourceIP string
 	if match != nil {
 		if match[2] != nil {
-			// Inner match omits parentheses of ipv6 address.
+			// Inner match omits brackets of IPv6 address.
 			sourceIP = string(match[2])
 		} else if match[1] != nil {
 			sourceIP = string(match[1])
@@ -51,8 +51,9 @@ func (d networkServerErrorLogWriter) stripLog(p []byte) string {
 
 	// Discard the log if the source is in our list of trusted proxies.
 	if sourceIP != "" {
+		parsedSourceIP := net.ParseIP(sourceIP)
 		for _, ip := range d.proxies {
-			if ip.String() == sourceIP {
+			if ip.Equal(parsedSourceIP) {
 				return ""
 			}
 		}

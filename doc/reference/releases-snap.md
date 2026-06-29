@@ -50,7 +50,7 @@ Interim HWE kernels are only tentatively supported.
 
 | LXD version | Ubuntu release | GA Kernel (Supported) | HWE Kernel (Best effort) |
 | :---------- | :------------- | :-------------------- | :----------------------- |
-| 5.21 | 24.04 LTS (Noble) | 6.8 | 7.0 (predicted) |
+| 5.21 | 24.04 LTS (Noble) | 6.8 | 7.0 |
 | 5.0 | 22.04 LTS (Jammy) | 5.15 | 6.8 |
 
 For more information on Ubuntu kernel support, please refer to the [Ubuntu kernel lifecycle](https://ubuntu.com/kernel/lifecycle).
@@ -133,7 +133,7 @@ In this section, find information about updates and upgrades to the LXD snap, as
 
 (ref-snap-updates)=
 #### Updates
-To update the LXD snap means to refresh it to the release most recently published to its tracked channel. With the exception of updates published to {ref}`the latest track <ref-snap-tracks-latest>`, these are always within the same major version. They can be automatically or manually performed.
+To update the LXD snap means to refresh it to the latest release on its tracked channel. With the exception of updates published to {ref}`the latest track <ref-snap-tracks-latest>`, these are always within the same major version. They can be automatically or manually performed.
 
 By default, installed snaps update automatically when new releases are published to the channel they're tracking. For control over LXD updates, we recommend that you modify this auto-update behavior by either {ref}`holding <howto-snap-updates-hold>` or {ref}`scheduling updates <howto-snap-updates-schedule>` as described in our {ref}`howto-snap` guide. You can then apply updates according to your schedule.
 

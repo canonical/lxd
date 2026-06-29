@@ -454,7 +454,7 @@ func projectCreateDefaultProfile(ctx context.Context, tx *db.ClusterTx, project 
 	}
 
 	if len(devices) > 0 {
-		err = dbCluster.CreateProfileDevices(context.TODO(), tx.Tx(), profileID, devices)
+		err = dbCluster.CreateProfileDevices(ctx, tx.Tx(), profileID, devices)
 		if err != nil {
 			return fmt.Errorf("Add root device to default profile of new project: %w", err)
 		}
@@ -595,7 +595,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		return err
+		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -678,7 +678,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		return err
+		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1059,13 +1059,13 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func projectNodeConfigDelete(d *Daemon, s *state.State, name string) error {
+func projectNodeConfigDelete(ctx context.Context, d *Daemon, s *state.State, name string) error {
 	var config *node.Config
 	imagesVolumeConfig := "storage.project." + name + ".images_volume"
 	backupsVolumeConfig := "storage.project." + name + ".backups_volume"
 
 	// Clear the project-specific config keys from the local node config.
-	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+	err := s.DB.Node.Transaction(ctx, func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 
 		config, err = node.ConfigLoad(ctx, tx)
@@ -1235,7 +1235,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			err = projectNodeConfigDelete(d, s, name)
+			err = projectNodeConfigDelete(ctx, d, s, name)
 			if err != nil {
 				return fmt.Errorf("Failed removing member specific project configuration: %w", err)
 			}
@@ -1362,7 +1362,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Clear the project-specific config keys from the local node config.
-		err = projectNodeConfigDelete(d, s, name)
+		err = projectNodeConfigDelete(ctx, d, s, name)
 		if err != nil {
 			return fmt.Errorf("Failed deleting project specific information from local configuration: %w", err)
 		}
@@ -2162,7 +2162,7 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 		//  defaultdesc: `block`
 		//  shortdesc: Which network subnets are allocated for use in this project
 		"restricted.networks.subnets": validate.Optional(func(value string) error {
-			return projectValidateRestrictedSubnets(s, value)
+			return projectValidateRestrictedSubnets(ctx, s, value)
 		}),
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.networks.zones)
 		// Specify a comma-delimited list of network zones that can be used (or something under them) in this project.
@@ -2304,7 +2304,7 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 
 // projectValidateRestrictedSubnets checks that the project's restricted.networks.subnets are properly formatted
 // and are within the specified uplink network's routes.
-func projectValidateRestrictedSubnets(s *state.State, value string) error {
+func projectValidateRestrictedSubnets(ctx context.Context, s *state.State, value string) error {
 	for _, subnetRaw := range shared.SplitNTrimSpace(value, ",", -1, false) {
 		subnetParts := strings.SplitN(subnetRaw, ":", 2)
 		if len(subnetParts) != 2 {
@@ -2325,7 +2325,7 @@ func projectValidateRestrictedSubnets(s *state.State, value string) error {
 
 		var uplink *api.Network
 
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Check uplink exists and load config to compare subnets.
 			_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkName)
 

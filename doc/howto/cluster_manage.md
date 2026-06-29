@@ -54,7 +54,7 @@ Example:
 
     lxc cluster set server1 scheduler.instance manual
 
-Alternatively, you can use the {ref}`use the edit command <cluster-edit>`.
+Alternatively, you can {ref}`use the edit command <cluster-edit>`.
 
 ### Assign member roles
 
@@ -217,7 +217,7 @@ Offline members cannot be updated or upgraded, and your cluster will end up in a
 Also note that if you are using the snap, updates might happen automatically, so to prevent any issues you should always recover or remove offline members immediately.
 ```
 
-To update or upgrade the cluster, you must apply the change to each cluster member's LXD installation. If you are using the snap, see {ref}`howto-snap-updates` for update instructions about updates, and {ref}`howto-snap-change` for upgrade instructions.
+To update or upgrade the cluster, you must apply the change to each cluster member's LXD installation. If you are using the snap, see {ref}`howto-snap-updates` for update instructions, and {ref}`howto-snap-change` for upgrade instructions.
 
 If the new version of the daemon has database schema or API changes, the upgraded member might transition into a "blocked" state.
 In this case, the member does not serve any LXD API requests (which means that `lxc` commands don't work on that member anymore), but any running instances will continue to run.
