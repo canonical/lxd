@@ -52,9 +52,11 @@ func (d networkServerErrorLogWriter) stripLog(p []byte) string {
 	// Discard the log if the source is in our list of trusted proxies.
 	if sourceIP != "" {
 		parsedSourceIP := net.ParseIP(sourceIP)
-		for _, ip := range d.proxies {
-			if ip.Equal(parsedSourceIP) {
-				return ""
+		if parsedSourceIP != nil {
+			for _, ip := range d.proxies {
+				if ip.Equal(parsedSourceIP) {
+					return ""
+				}
 			}
 		}
 	}
