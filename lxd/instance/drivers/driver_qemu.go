@@ -2638,6 +2638,13 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 		instanceMeta["ephemeral"] = "false"
 	}
 
+	templatesRoot, err := d.OpenTemplates()
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = templatesRoot.Close() }()
+
 	// Go through the templates.
 	for tplPath, tpl := range metadata.Templates {
 		err = func(tplPath string, tpl *api.ImageMetadataTemplate) error {
@@ -2671,7 +2678,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 			defer func() { _ = w.Close() }()
 
 			// Read the template.
-			tplString, err := os.ReadFile(filepath.Join(d.TemplatesPath(), tpl.Template))
+			tplString, err := templatesRoot.ReadFile(tpl.Template)
 			if err != nil {
 				return fmt.Errorf("Failed to read template file: %w", err)
 			}
@@ -5843,13 +5850,19 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	}
 
 	// Include all the templates.
-	fnam = d.TemplatesPath()
-	if shared.PathExists(fnam) {
-		err = filepath.Walk(fnam, writeToTar)
-		if err != nil {
-			d.logger.Error("Failed exporting instance", ctxMap)
-			return meta, err
-		}
+	templatesExportRoot, err := d.OpenTemplates()
+	if err != nil {
+		d.logger.Error("Failed exporting instance", ctxMap)
+		return meta, err
+	}
+
+	_ = templatesExportRoot.Close()
+	fnam = templatesExportRoot.Name()
+
+	err = filepath.Walk(fnam, writeToTar)
+	if err != nil {
+		d.logger.Error("Failed exporting instance", ctxMap)
+		return meta, err
 	}
 
 	err = tarWriter.Close()

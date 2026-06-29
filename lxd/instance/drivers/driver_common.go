@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -385,9 +387,56 @@ func (d *common) Path() string {
 	return storagePools.InstancePath(d.dbType, d.project.Name, d.name, d.isSnapshot)
 }
 
-// RootfsPath returns the instance's rootfs path.
-func (d *common) RootfsPath() string {
-	return filepath.Join(d.Path(), "rootfs")
+// openSubPath opens name as a confined [os.Root] beneath [common.Path], rejecting any attempt to
+// escape the instance path.
+func (d *common) openSubPath(name string) (*os.Root, error) {
+	parent, err := os.OpenRoot(d.Path())
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = parent.Close() }()
+
+	root, err := parent.OpenRoot(name)
+	if err != nil {
+		return nil, fmt.Errorf("Failed opening %q for instance %q (path %s): %w", name, d.Name(), d.Path(), err)
+	}
+
+	return root, nil
+}
+
+// openOrCreateSubPath is like openSubPath but also creates the name if it does not exist.
+func (d *common) openOrCreateSubPath(name string, mode os.FileMode) (*os.Root, error) {
+	parent, err := os.OpenRoot(d.Path())
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = parent.Close() }()
+
+	err = parent.Mkdir(name, mode)
+	if err != nil && !errors.Is(err, fs.ErrExist) {
+		return nil, fmt.Errorf("Failed creating %q for instance %q (path %s): %w", name, d.Name(), d.Path(), err)
+	}
+
+	root, err := parent.OpenRoot(name)
+	if err != nil {
+		return nil, fmt.Errorf("Failed opening %q for instance %q (path %s): %w", name, d.Name(), d.Path(), err)
+	}
+
+	return root, nil
+}
+
+// OpenRootfs opens the instance's rootfs directory as a confined *os.Root.
+// Caller must close the returned Root.
+func (d *common) OpenRootfs() (*os.Root, error) {
+	return d.openSubPath("rootfs")
+}
+
+// OpenTemplates opens the instance's templates directory as a confined *os.Root, creating it if absent.
+// Caller must close the returned Root.
+func (d *common) OpenTemplates() (*os.Root, error) {
+	return d.openOrCreateSubPath("templates", 0700)
 }
 
 // ShmountsPath returns the instance's shared mounts path.
@@ -399,11 +448,6 @@ func (d *common) ShmountsPath() string {
 // StatePath returns the instance's state path.
 func (d *common) StatePath() string {
 	return filepath.Join(d.Path(), "state")
-}
-
-// TemplatesPath returns the instance's templates path.
-func (d *common) TemplatesPath() string {
-	return filepath.Join(d.Path(), "templates")
 }
 
 // StoragePool returns the storage pool name.

@@ -105,6 +105,11 @@ func IsDir(name string) bool {
 	return stat.IsDir()
 }
 
+// IsFileName returns true if name is a plain file name with no path separators or traversal.
+func IsFileName(name string) bool {
+	return !strings.Contains(name, "/") && !strings.Contains(name, "\\") && !strings.Contains(name, "..")
+}
+
 // IsUnixSocket returns true if the given path is either a Unix socket
 // or a symbolic link pointing at a Unix socket.
 func IsUnixSocket(path string) bool {

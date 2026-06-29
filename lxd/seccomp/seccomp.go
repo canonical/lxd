@@ -601,7 +601,7 @@ type Instance interface {
 	ExpandedConfig() map[string]string
 	IsPrivileged() bool
 	Architecture() int
-	RootfsPath() string
+	OpenRootfs() (*os.Root, error)
 	CurrentIdmap() (*idmap.IdmapSet, error)
 	DiskIdmap() (*idmap.IdmapSet, error)
 	IdmappedStorage(path string, fstype string) idmap.IdmapStorageType
