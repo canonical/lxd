@@ -1,3 +1,4 @@
+crypto/internal/entropy/v1.0.0
 vendor/golang.org/x/crypto/chacha20
 vendor/golang.org/x/crypto/chacha20poly1305
 vendor/golang.org/x/crypto/cryptobyte
