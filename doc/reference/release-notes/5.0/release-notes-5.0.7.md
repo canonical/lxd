@@ -87,7 +87,7 @@ Several inputs are now validated more strictly, and some low-level options have 
 (ref-release-notes-5.0.7-go)=
 ## Updated minimum Go version
 
-If you are building LXD from source instead of using a package manager, the minimum version of Go required to build LXD is now 1.25.8 (previously 1.24.6).
+If you are building LXD from source instead of using a package manager, the minimum version of Go required to build LXD is now 1.26.4 (previously 1.24.6).
 
 (ref-release-notes-5.0.7-snap)=
 ## Snap packaging changes
@@ -98,6 +98,8 @@ If you are building LXD from source instead of using a package manager, the mini
 - Added the `apparmor.unprivileged-restrictions-disable` snap configuration option (default `true`).
 - The `lxd-ui` build now uses Node.js 20 (previously 18).
 - Refreshed the bundled Ceph stage libraries for `core22`.
+- libnvidia-container bumped to v1.19.1.
+- ZFS 2.2 bumped to 2.2.10.
 
 (ref-release-notes-5.0.7-changelog)=
 ## Change log
