@@ -825,7 +825,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 
 		err = dbCluster.UpdateProject(ctx, tx.Tx(), project.Name, req)
 		if err != nil {
-			return fmt.Errorf("Persist profile changes: %w", err)
+			return fmt.Errorf("Persist project changes: %w", err)
 		}
 
 		if slices.Contains(configChanged, "features.profiles") {
