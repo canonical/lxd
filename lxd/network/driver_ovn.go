@@ -3203,10 +3203,8 @@ func (n *ovn) chassisEnabled(ctx context.Context, tx *db.ClusterTx) (bool, error
 				break
 			}
 
-			if hasRole {
-				// Some other node has the OVN chassis role, don't enable.
-				enableChassis = 0
-			}
+			// Some other node has the OVN chassis role, don't enable.
+			enableChassis = 0
 		}
 	}
 
