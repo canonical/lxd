@@ -51,6 +51,14 @@ const ovnVolatileUplinkIPv6 = "volatile.network.ipv6.address"
 const ovnRouterPolicyPeerAllowPriority = 600
 const ovnRouterPolicyPeerDropPriority = 500
 
+// Until the service monitor performed the first health check, the status is empty.
+// For clarity we return "pending" instead of an empty string.
+const ovnServiceMonitorStatusPending = "pending"
+
+// A status of "unknown" is used to indicate that the target instance is not running and there is no service monitor configured.
+// In addition if health checks are disabled on the pool, the status of all targets is returned as "unknown" as well.
+const ovnServiceMonitorStatusUnknown = "unknown"
+
 // ovnUplinkVars OVN object variables derived from uplink network.
 type ovnUplinkVars struct {
 	// Router.
@@ -7168,6 +7176,8 @@ func (n *ovn) LoadBalancerPoolState(poolName string) (*api.NetworkLoadBalancerPo
 	var pool *api.NetworkLoadBalancerPool
 	var loadBalancers map[int64]*api.NetworkLoadBalancer
 
+	instancesByName := make(map[string]db.InstanceArgs)
+
 	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
@@ -7177,7 +7187,29 @@ func (n *ovn) LoadBalancerPoolState(poolName string) (*api.NetworkLoadBalancerPo
 		}
 
 		loadBalancers, err = tx.GetNetworkLoadBalancers(ctx, n.ID(), false)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Create a filter for each instance in the pool.
+		instanceFilters := make([]dbCluster.InstanceFilter, 0, len(pool.Instances))
+		for _, poolInst := range pool.Instances {
+			instanceFilters = append(instanceFilters, dbCluster.InstanceFilter{
+				Project: &n.project,
+				Name:    &poolInst.Name,
+			})
+		}
+
+		// Return early if there are no instances in the pool.
+		if len(pool.Instances) == 0 {
+			return nil
+		}
+
+		// Iterate through all instances and cache the right ones using the filter.
+		return tx.InstanceList(ctx, func(inst db.InstanceArgs, _ api.Project) error {
+			instancesByName[inst.Name] = inst
+			return nil
+		}, instanceFilters...)
 	})
 	if err != nil {
 		return nil, err
@@ -7209,16 +7241,15 @@ func (n *ovn) LoadBalancerPoolState(poolName string) (*api.NetworkLoadBalancerPo
 
 	// Populate the pool's instances service monitor target state.
 	for _, poolInstance := range pool.Instances {
-		// Load the instance from the DB by name.
-		dbInst, err := instance.LoadByProjectAndName(n.state, n.project, poolInstance.Name)
-		if err != nil {
-			return nil, fmt.Errorf("Failed loading instance %q: %w", poolInstance.Name, err)
+		inst, ok := instancesByName[poolInstance.Name]
+		if !ok {
+			return nil, fmt.Errorf("Failed loading instance %q", poolInstance.Name)
 		}
 
-		instanceUUID := dbInst.LocalConfig()["volatile.uuid"]
+		instanceUUID := inst.Config["volatile.uuid"]
 
-		// Find NICs connected to this network.
-		for devName, devConfig := range dbInst.ExpandedDevices() {
+		expandedDevices := instancetype.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
+		for devName, devConfig := range expandedDevices {
 			if devConfig["type"] != "nic" || !NICUsesNetwork(devConfig, &api.Network{Name: n.name}) {
 				continue
 			}
@@ -7247,10 +7278,8 @@ func (n *ovn) LoadBalancerPoolState(poolName string) (*api.NetworkLoadBalancerPo
 						continue
 					}
 
-					// Until OVN performed the first health check, the status is empty.
-					// Return it as pending.
 					if monitor.Status == "" {
-						monitor.Status = "pending"
+						monitor.Status = ovnServiceMonitorStatusPending
 					}
 
 					for _, port := range listenPorts {
@@ -7276,9 +7305,7 @@ func (n *ovn) LoadBalancerPoolState(poolName string) (*api.NetworkLoadBalancerPo
 							ListenPort:    port,
 							Name:          poolInstance.Name,
 							Device:        devName,
-							// A status of "unknown" is used to indicate that the instance is not running and there is no service monitor configured.
-							// In addition if health checks are disabled on the pool, the status of all targets is returned as "unknown" as well.
-							Status: "unknown",
+							Status:        ovnServiceMonitorStatusUnknown,
 						})
 					}
 				}
