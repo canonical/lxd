@@ -109,6 +109,21 @@ var imageAliasCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: imageAliasPut, AccessHandler: allowProjectPermission("images", "manage-images")},
 }
 
+// validateImageFingerprint validates that the given string is exactly 64 characters long contains only lowercase hex characters.
+func validateImageFingerprint(fingerprint string) error {
+	if len(fingerprint) != 64 {
+		return api.NewStatusError(http.StatusBadRequest, "Image fingerprint must contain 64 characters")
+	}
+
+	// Prefixes containing non-hex or uppercase characters can never match an image.
+	err := validate.IsLowercaseHex(fingerprint)
+	if err != nil {
+		return api.StatusErrorf(http.StatusBadRequest, "Failed validating image fingerprint: %w", err)
+	}
+
+	return nil
+}
+
 /*
 We only want a single publish running at any one time.
 
