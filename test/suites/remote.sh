@@ -45,16 +45,16 @@ test_remote_url_with_token() {
   echo foo | lxc config trust add -q
 
   # Listing all tokens should show only a single one
-  [ "$(lxc config trust list-tokens -f json | jq '[.[] | select(.ClientName == "foo")] |  length')" -eq 1 ]
+  lxc config trust list-tokens -f json | jq --exit-status '[.[] | select(.ClientName == "foo")] | length == 1'
 
   # Extract token
-  token="$(lxc config trust list-tokens -f json | jq '.[].Token')"
+  token="$(lxc config trust list-tokens -f json | jq --raw-output --exit-status '.[].Token')"
 
   # Invalidate token so that it cannot be used again
   lxc config trust revoke-token foo
 
   # Ensure the token is invalidated
-  [ "$(lxc config trust list-tokens -f json | jq 'length')" -eq 0 ]
+  lxc config trust list-tokens -f json | jq --exit-status 'length == 0'
 
   # Try adding the remote using the invalidated token
   ! lxc_remote remote add test "${token}" || false
@@ -64,61 +64,61 @@ test_remote_url_with_token() {
   echo foo | lxc config trust add -q --projects foo --restricted
 
   # Extract the token
-  token="$(lxc config trust list-tokens -f json | jq -r '.[].Token')"
+  token="$(lxc config trust list-tokens -f json | jq --raw-output --exit-status '.[].Token')"
 
   # Add the valid token
   lxc_remote remote add test "${token}"
 
   # Ensure the token is invalidated
-  [ "$(lxc config trust list-tokens -f json | jq -r 'length')" -eq 0 ]
+  lxc config trust list-tokens -f json | jq --exit-status 'length == 0'
 
   # List instances as the remote has been added
   lxc_remote ls test:
 
   # Clean up
   lxc_remote remote remove test
-  lxc config trust rm "$(lxc config trust list -f json | jq -r '.[].fingerprint')"
+  lxc config trust rm "$(lxc config trust list -f json | jq --raw-output --exit-status '.[].fingerprint')"
 
   # Generate new token
   echo foo | lxc config trust add -q
 
   # Extract token
-  token="$(lxc config trust list-tokens -f json | jq -r '.[].Token')"
+  token="$(lxc config trust list-tokens -f json | jq --raw-output --exit-status '.[].Token')"
 
   # create new certificate
   gen_cert_and_key "token-client"
 
   # Try accessing instances (this should fail)
-  [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances" | jq -r '.error_code')" -eq 403 ]
+  CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances" | jq --exit-status '.error_code == 403'
 
   # Add valid token
   CERTNAME="token-client" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' -d '{"trust_token": "'"${token}"'"}' "https://${LXD_ADDR}/1.0/certificates"
 
   # Check if we can see instances
-  [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances" | jq -r '.status_code')" -eq 200 ]
+  CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances" | jq --exit-status '.status_code == 200'
 
-  lxc config trust rm "$(lxc config trust list -f json | jq -r '.[].fingerprint')"
+  lxc config trust rm "$(lxc config trust list -f json | jq --raw-output --exit-status '.[].fingerprint')"
 
   # Generate new token
   echo foo | lxc config trust add -q --projects foo --restricted
 
   # Extract token
-  token="$(lxc config trust list-tokens -f json | jq -r '.[].Token')"
+  token="$(lxc config trust list-tokens -f json | jq --raw-output --exit-status '.[].Token')"
 
   # Ensure there is a default expiry set (expressed in UTC)
-  expiresAt="$(lxc config trust list-tokens -f json | jq --exit-status --raw-output '.[].ExpiresAt')"
+  expiresAt="$(lxc config trust list-tokens -f json | jq --raw-output --exit-status '.[].ExpiresAt')"
   [[ "${expiresAt}" =~ UTC$ ]]
 
   # Add valid token but override projects
   CERTNAME="token-client" my_curl -X POST --fail-with-body -H 'Content-Type: application/json' -d '{"trust_token": "'"${token}"'","projects":["default","foo"],"restricted":true}' "https://${LXD_ADDR}/1.0/certificates"
 
   # Check if we can see instances in the foo project
-  [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances?project=foo" | jq -r '.status_code')" -eq 200 ]
+  CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances?project=foo" | jq --exit-status '.status_code == 200'
 
   # Check if we can see instances in the default project (this should fail)
-  [ "$(CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances" | jq -r '.error_code')" -eq 403 ]
+  CERTNAME="token-client" my_curl "https://${LXD_ADDR}/1.0/instances" | jq --exit-status '.error_code == 403'
 
-  lxc config trust rm "$(lxc config trust list -f json | jq -r '.[].fingerprint')"
+  lxc config trust rm "$(lxc config trust list -f json | jq --raw-output --exit-status '.[].fingerprint')"
 
   # Set token expiry to 1 seconds
   lxc config set core.remote_token_expiry 1S
@@ -130,7 +130,7 @@ test_remote_url_with_token() {
   lxc_remote remote add test "${token}"
 
   # Remove all trusted clients
-  lxc config trust rm "$(lxc config trust list -f json | jq -r '.[].fingerprint')"
+  lxc config trust rm "$(lxc config trust list -f json | jq --raw-output --exit-status '.[].fingerprint')"
 
   # Remove remote
   lxc_remote remote rm test
@@ -150,7 +150,7 @@ test_remote_url_with_token() {
   running_token_operation_uuid="$(lxc operation list --format csv | grep -F 'TOKEN,Certificate add token,RUNNING' | cut -d, -f1)" # Get the operation UUID
   sleep 1.1 # Wait for token to expire (expiry still set to short expiry)
   lxc query --request POST /internal/testing/prune-tokens # Prune tokens
-  [ "$(lxc query "/1.0/operations/${running_token_operation_uuid}" | jq -r '.status')" = "Cancelled" ] # Expect the operation to be cancelled
+  lxc query "/1.0/operations/${running_token_operation_uuid}" | jq --exit-status '.status == "Cancelled"' # Expect the operation to be cancelled
 
   # Unset token expiry
   lxc config unset core.remote_token_expiry

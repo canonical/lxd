@@ -75,7 +75,7 @@ container_devices_proxy_tcp() {
   lxc launch testimage proxyTester
 
   # Initial test
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat tcp4-listen:4321 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat tcp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT" connect=tcp:127.0.0.1:4321 bind=host
   sleep 0.2
@@ -92,7 +92,7 @@ container_devices_proxy_tcp() {
 
   # Restart the container
   lxc restart -f proxyTester
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat tcp4-listen:4321 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat tcp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   sleep 0.2
 
@@ -107,7 +107,7 @@ container_devices_proxy_tcp() {
   fi
 
   # Change the port
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat tcp4-listen:1337 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat tcp4-listen:1337 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device set proxyTester proxyDev connect tcp:127.0.0.1:1337
   sleep 0.2
@@ -124,7 +124,7 @@ container_devices_proxy_tcp() {
 
   # Initial test: Setting up multiple TCP port proxies
   lxc config device remove proxyTester proxyDev
-  PID=$(lxc query /1.0/instances/proxyTester/state | jq .pid)
+  PID=$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)
 
   # Set up three socat listeners in the container
   nsenter -n -U -t "${PID}" -- socat tcp4-listen:4321 exec:/bin/cat &
@@ -302,7 +302,7 @@ container_devices_proxy_unix() {
 
   # Initial test
   (
-    PID="$(lxc query /1.0/instances/proxyTester/state | jq .pid)"
+    PID="$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)"
     cd "/proc/${PID}/root/tmp/" || exit
     umask 0000
     exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
@@ -327,7 +327,7 @@ container_devices_proxy_unix() {
   # Restart the container
   lxc restart -f proxyTester
   (
-    PID="$(lxc query /1.0/instances/proxyTester/state | jq .pid)"
+    PID="$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)"
     cd "/proc/${PID}/root/tmp/" || exit
     umask 0000
     exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
@@ -349,7 +349,7 @@ container_devices_proxy_unix() {
 
   # Change the socket
   (
-    PID="$(lxc query /1.0/instances/proxyTester/state | jq .pid)"
+    PID="$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)"
     cd "/proc/${PID}/root/tmp/" || exit
     umask 0000
     exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}")-2.sock",unlink-early exec:/bin/cat
@@ -389,7 +389,7 @@ container_devices_proxy_tcp_unix() {
 
   # Initial test
   (
-    PID="$(lxc query /1.0/instances/proxyTester/state | jq .pid)"
+    PID="$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)"
     cd "/proc/${PID}/root/tmp/" || exit
     umask 0000
     exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
@@ -412,7 +412,7 @@ container_devices_proxy_tcp_unix() {
   # Restart the container
   lxc restart -f proxyTester
   (
-    PID="$(lxc query /1.0/instances/proxyTester/state | jq .pid)"
+    PID="$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)"
     cd "/proc/${PID}/root/tmp/" || exit
     umask 0000
     exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
@@ -432,7 +432,7 @@ container_devices_proxy_tcp_unix() {
 
   # Change the socket
   (
-    PID="$(lxc query /1.0/instances/proxyTester/state | jq .pid)"
+    PID="$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)"
     cd "/proc/${PID}/root/tmp/" || exit
     umask 0000
     exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}")-2.sock",unlink-early exec:/bin/cat
@@ -465,7 +465,7 @@ container_devices_proxy_unix_tcp() {
   lxc launch testimage proxyTester
 
   # Initial test
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat tcp4-listen:4321 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat tcp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device add proxyTester proxyDev proxy "listen=unix:${HOST_SOCK}" connect=tcp:127.0.0.1:4321 bind=host
   sleep 0.2
@@ -484,7 +484,7 @@ container_devices_proxy_unix_tcp() {
 
   # Restart the container
   lxc restart -f proxyTester
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat tcp4-listen:4321 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat tcp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   sleep 0.2
 
@@ -501,7 +501,7 @@ container_devices_proxy_unix_tcp() {
   rm -f "${HOST_SOCK}"
 
   # Change the port
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat tcp4-listen:1337 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat tcp4-listen:1337 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device set proxyTester proxyDev connect tcp:127.0.0.1:1337
   sleep 0.2
@@ -531,7 +531,7 @@ container_devices_proxy_udp() {
   lxc launch testimage proxyTester
 
   # Initial test
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device add proxyTester proxyDev proxy "listen=udp:127.0.0.1:$HOST_UDP_PORT" connect=udp:127.0.0.1:4321 bind=host
   sleep 0.2
@@ -548,7 +548,7 @@ container_devices_proxy_udp() {
 
   # Restart the container
   lxc restart -f proxyTester
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   sleep 0.2
 
@@ -563,7 +563,7 @@ container_devices_proxy_udp() {
   fi
 
   # Change the port
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat udp4-listen:1337 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat udp4-listen:1337 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device set proxyTester proxyDev connect udp:127.0.0.1:1337
   sleep 0.2
@@ -591,7 +591,7 @@ container_devices_proxy_unix_udp() {
   lxc launch testimage proxyTester
 
   # Initial test
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device add proxyTester proxyDev proxy "listen=unix:${HOST_SOCK}" connect=udp:127.0.0.1:4321 bind=host
   sleep 0.2
@@ -610,7 +610,7 @@ container_devices_proxy_unix_udp() {
 
   # Restart the container
   lxc restart -f proxyTester
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   sleep 0.2
 
@@ -627,7 +627,7 @@ container_devices_proxy_unix_udp() {
   rm -f "${HOST_SOCK}"
 
   # Change the port
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat udp4-listen:1337 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat udp4-listen:1337 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device set proxyTester proxyDev connect udp:127.0.0.1:1337
   sleep 0.2
@@ -656,7 +656,7 @@ container_devices_proxy_tcp_udp() {
   lxc launch testimage proxyTester
 
   # Initial test
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT" connect=udp:127.0.0.1:4321 bind=host
   sleep 0.2
@@ -673,7 +673,7 @@ container_devices_proxy_tcp_udp() {
 
   # Restart the container
   lxc restart -f proxyTester
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat udp4-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
   sleep 0.2
 
@@ -688,7 +688,7 @@ container_devices_proxy_tcp_udp() {
   fi
 
   # Change the port
-  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq .pid)" -- socat udp4-listen:1337 exec:/bin/cat &
+  nsenter -n -U -t "$(lxc query /1.0/instances/proxyTester/state | jq --exit-status .pid)" -- socat udp4-listen:1337 exec:/bin/cat &
   NSENTER_PID=$!
   lxc config device set proxyTester proxyDev connect udp:127.0.0.1:1337
   sleep 0.2

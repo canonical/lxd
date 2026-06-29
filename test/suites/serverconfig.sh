@@ -19,10 +19,10 @@ _server_config_cluster_uuid() {
   lxc config set volatile.uuid="${cluster_uuid}"
 
   # PATCH
-  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'"}}' | jq -e '.status == "Success" and .status_code == 200'
-  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'","volatile.uuid":""}}' | jq -e '.error == "The cluster UUID cannot be changed" and .error_code == 400'
-  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'","volatile.uuid":"'"$(uuidgen)"'"}}' | jq -e '.error == "The cluster UUID cannot be changed" and .error_code == 400'
-  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'","volatile.uuid":"'"${cluster_uuid}"'"}}' | jq -e '.status == "Success" and .status_code == 200'
+  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'"}}' | jq --exit-status '.status == "Success" and .status_code == 200'
+  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'","volatile.uuid":""}}' | jq --exit-status '.error == "The cluster UUID cannot be changed" and .error_code == 400'
+  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'","volatile.uuid":"'"$(uuidgen)"'"}}' | jq --exit-status '.error == "The cluster UUID cannot be changed" and .error_code == 400'
+  my_curl -X PATCH "https://${LXD_ADDR}/1.0" -d '{"config":{"core.https_address":"'"${LXD_ADDR}"'","volatile.uuid":"'"${cluster_uuid}"'"}}' | jq --exit-status '.status == "Success" and .status_code == 200'
 
   # Check that the cluster UUID matches the server UUID
   [ "$(< "${LXD_DIR}/server.uuid")" = "${cluster_uuid}" ]

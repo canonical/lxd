@@ -80,7 +80,7 @@ EOF
 
     # The certificate was not restricted, so should be able to view server config
     [ "$(lxc_remote config get pki-lxd: core.https_address)" != "" ]
-    curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"'
+    curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq --exit-status '.metadata.config."core.https_address"'
 
     # Revoke the client certificate
     cd "${TEST_DIR}/pki" && "${TEST_DIR}/pki/easyrsa" --batch revoke unrestricted keyCompromise && "${TEST_DIR}/pki/easyrsa" gen-crl && cd -
@@ -93,7 +93,7 @@ EOF
     # Revoked certificate no longer has access even though it is in the trust store.
     lxc_remote info pki-lxd: | grep -F 'auth: untrusted'
     ! lxc_remote ls pki-lxd: || false
-    [ "$(curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq -e -r '.error')" = "Forbidden" ]
+    curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq --exit-status '.error == "Forbidden"'
 
     # Remove cert from truststore.
     fingerprint="$(cert_fingerprint "${LXD_CONF}/client.crt")"
@@ -129,14 +129,14 @@ EOF
 
     # The certificate was restricted, so should not be able to view server config
     [ "$(lxc_remote config get pki-lxd: core.https_address || echo fail)" = "" ]
-    ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"' || false
+    ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq --exit-status '.metadata.config."core.https_address"' || false
 
     # Enable `core.trust_ca_certificates`.
     lxc config set core.trust_ca_certificates true
 
     # The certificate was restricted, so should not be able to view server config even though `core.trust_ca_certificates` is now enabled.
     [ "$(lxc_remote config get pki-lxd: core.https_address || echo fail)" = "" ]
-    ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"' || false
+    ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq --exit-status '.metadata.config."core.https_address"' || false
 
     # Revoke the client certificate
     cd "${TEST_DIR}/pki" && "${TEST_DIR}/pki/easyrsa" --batch revoke restricted keyCompromise && "${TEST_DIR}/pki/easyrsa" gen-crl && cd -
@@ -149,7 +149,7 @@ EOF
     # Revoked certificate no longer has access even though it is in the trust store.
     lxc_remote info pki-lxd: | grep -F 'auth: untrusted'
     ! lxc_remote ls pki-lxd: || false
-    [ "$(curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq -e -r '.error')" = "Forbidden" ]
+    curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq --exit-status '.error == "Forbidden"'
 
     # Remove cert from truststore.
     fingerprint="$(cert_fingerprint "${LXD_CONF}/client.crt")"
@@ -190,14 +190,14 @@ EOF
 
     # The identity is not a member of any groups, so should not be able to view server config
     [ "$(lxc_remote config get pki-lxd: core.https_address || echo fail)" = "" ]
-    ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"' || false
+    ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq --exit-status '.metadata.config."core.https_address"' || false
 
     # Enable `core.trust_ca_certificates`.
     lxc config set core.trust_ca_certificates true
 
     # The identity is not a member of any groups, so should not be able to view server config even though `core.trust_ca_certificates` is now enabled.
     [ "$(lxc_remote config get pki-lxd: core.https_address || echo fail)" = "" ]
-    ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"' || false
+    ! curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq --exit-status '.metadata.config."core.https_address"' || false
 
     # Revoke the client certificate
     cd "${TEST_DIR}/pki" && "${TEST_DIR}/pki/easyrsa" --batch revoke fine-grained keyCompromise && "${TEST_DIR}/pki/easyrsa" gen-crl && cd -
@@ -210,7 +210,7 @@ EOF
     # Revoked certificate no longer has access even though it is in the trust store.
     lxc_remote info pki-lxd: | grep -F 'auth: untrusted'
     ! lxc_remote ls pki-lxd: || false
-    [ "$(curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq -e -r '.error')" = "Forbidden" ]
+    curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq --exit-status '.error == "Forbidden"'
 
     # Remove cert from truststore.
     lxc auth identity delete "tls/${fingerprint}"
@@ -252,7 +252,7 @@ EOF
 
     # The certificate is trusted as root because `core.trust_ca_certificates` is enabled.
     [ "$(lxc_remote config get pki-lxd: core.https_address)" != "" ]
-    curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"'
+    curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq --exit-status '.metadata.config."core.https_address"'
 
     # Unset `core.trust_ca_certificates` (this should work because the certificate is trusted as root as `core.trust_ca_certificates` is still enabled).
     lxc_remote config unset pki-lxd: core.trust_ca_certificates
@@ -260,7 +260,7 @@ EOF
     # Check that we no longer have access.
     lxc_remote info pki-lxd: | grep -F 'auth: untrusted'
     ! lxc_remote ls pki-lxd: || false
-    [ "$(curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq -e -r '.error')" = "Forbidden" ]
+    curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq --exit-status '.error == "Forbidden"'
 
     # Re-enable `core.trust_ca_certificates`.
     lxc config set core.trust_ca_certificates true
@@ -276,7 +276,7 @@ EOF
     # Check that we no longer have access (certificate was previously trusted, but is now revoked).
     lxc_remote info pki-lxd: | grep -F 'auth: untrusted'
     ! lxc_remote ls pki-lxd: || false
-    [ "$(curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq -e -r '.error')" = "Forbidden" ]
+    curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq --exit-status '.error == "Forbidden"'
 
     # Remove remote.
     lxc remote remove pki-lxd
@@ -320,7 +320,7 @@ EOF
     ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --token=incorrect || false
 
     # Check we can't access anything with the revoked certificate.
-    [ "$(curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq -e -r '.error')" = "Forbidden" ]
+    curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq --exit-status '.error == "Forbidden"'
   )
 
   # Confirm that we cannot add a remote using a certificate that is not signed by the CA.
@@ -336,7 +336,7 @@ EOF
   lxc_remote info pki-lxd: | grep -F 'auth: untrusted'
   ! lxc_remote ls pki-lxd: || false
   cat "${LXD_CONF}/client.crt" "${LXD_CONF}/client.key" > "${LXD_CONF}/client.pem"
-  [ "$(curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq -e -r '.error')" = "Forbidden" ]
+  curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0/instances" | jq --exit-status '.error == "Forbidden"'
 
 
   ### Show that mTLS still works for server certificates:
@@ -347,7 +347,7 @@ EOF
 
   # A server certificate should have root access, so we can see server configuration.
   [ "$(lxc_remote config get pki-lxd: core.https_address)" != "" ]
-  curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq -e '.metadata.config."core.https_address"'
+  curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq --exit-status '.metadata.config."core.https_address"'
 
   # Clean up.
 

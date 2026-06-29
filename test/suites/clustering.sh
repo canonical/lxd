@@ -609,7 +609,7 @@ test_clustering_storage() {
   LXD_DIR="${LXD_TWO_DIR}" lxc storage delete data
 
   # Ensure there are no left over storage pools in the preseeded cluster.
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage list -f json | jq length)" = "0" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage list -f json | jq --exit-status 'length == 0'
 
   # Trying to pass config values other than 'source' results in an error
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo size=123 --target node1 || false
@@ -4802,10 +4802,10 @@ test_clustering_roles() {
   # Identify current leader, a non-leader voter that will keep the control-plane role,
   # and two spares that will be promoted into the control plane.
   cluster_list=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list -f json)
-  leader="$(jq -r '[.[] | select(any(.roles[]; . == "database-leader"))] | .[0].server_name' <<< "${cluster_list}")"
-  control_plane_voter="$(jq -r --arg leader "${leader}" '[.[] | select(.server_name != $leader) | select(any(.roles[]; . == "database-voter"))] | .[0].server_name' <<< "${cluster_list}")"
-  spare1="$(jq -r '[.[] | select(any(.roles[]; contains("database")) | not)] | .[0].server_name' <<< "${cluster_list}")"
-  spare2="$(jq -r '[.[] | select(any(.roles[]; contains("database")) | not)] | .[1].server_name' <<< "${cluster_list}")"
+  leader="$(jq --raw-output --exit-status '[.[] | select(any(.roles[]; . == "database-leader"))] | .[0].server_name' <<< "${cluster_list}")"
+  control_plane_voter="$(jq --raw-output --exit-status --arg leader "${leader}" '[.[] | select(.server_name != $leader) | select(any(.roles[]; . == "database-voter"))] | .[0].server_name' <<< "${cluster_list}")"
+  spare1="$(jq --raw-output --exit-status '[.[] | select(any(.roles[]; contains("database")) | not)] | .[0].server_name' <<< "${cluster_list}")"
+  spare2="$(jq --raw-output --exit-status '[.[] | select(any(.roles[]; contains("database")) | not)] | .[1].server_name' <<< "${cluster_list}")"
 
   echo "Current leader: ${leader} (will remain non-control-plane during activation)"
   echo "Current control-plane voter: ${control_plane_voter}"
@@ -4834,7 +4834,7 @@ test_clustering_roles() {
   jq --exit-status '[.[] | select(any(.roles[]; contains("database-voter") or contains("database-leader"))) | select(any(.roles[]; . == "control-plane") | not)] | length == 0' <<< "${cluster_list}"
 
   # Verify leadership transferred away from the original non-control-plane leader
-  current_leader="$(jq -r '[.[] | select(any(.roles[]; . == "database-leader"))] | .[0].server_name' <<< "${cluster_list}")"
+  current_leader="$(jq --raw-output --exit-status '[.[] | select(any(.roles[]; . == "database-leader"))] | .[0].server_name' <<< "${cluster_list}")"
   [ "${current_leader}" != "${leader}" ]
 
   # Verify the original leader is no longer part of the database roles
@@ -5562,8 +5562,8 @@ test_clustering_link_auth() {
   sub_test "Check malformed cluster link request returns error"
 
   malformed_cluster_link_resp="$(curl --silent --unix-socket "${LXD_ONE_DIR}/unix.socket" -H 'Content-Type: application/json' -X POST "lxd/1.0/cluster/links" -d '{"trust_token": "'"${LXD_ONE_TRUST_TOKEN}"'","type":"bidirectional"}')"
-  [ "$(echo "${malformed_cluster_link_resp}" | jq --raw-output '.error_code')" = "400" ]
-  [ "$(echo "${malformed_cluster_link_resp}" | jq --raw-output '.error')" = 'Invalid cluster link request: expected one of pending creation (name without trust_token), active creation (name with trust_token), or activation (trust_token with non-empty "volatile.addresses")' ]
+  echo "${malformed_cluster_link_resp}" | jq --exit-status '.error_code == 400'
+  echo "${malformed_cluster_link_resp}" | jq --exit-status '.error == "Invalid cluster link request: expected one of pending creation (name without trust_token), active creation (name with trust_token), or activation (trust_token with non-empty \"volatile.addresses\")"'
 
   # Get the address of LXD_TWO.
   LXD_TWO_ADDR="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
@@ -5867,7 +5867,7 @@ test_clustering_replicator_basic() {
   sub_test "Run replicator and verify instances appear on LXD_TWO"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '.. | objects | select(.description == "Running replicator")')"
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '.. | objects | select(.description == "Running replicator")')"
   jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
@@ -5889,7 +5889,7 @@ test_clustering_replicator_basic() {
   # Run again without deleting instances from LXD_TWO first; the replicator must overwrite
   # (delete + recreate) existing instances and complete successfully.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
@@ -5902,7 +5902,7 @@ test_clustering_replicator_basic() {
   LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project restricted=true
   LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 c2 c3 --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc project unset replicator-project restricted
 
@@ -6008,13 +6008,13 @@ test_clustering_replicator_scheduled() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get c1 user.foo --project replicator-project)" = "bar" ]
 
   local scheduled_op
-  scheduled_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  scheduled_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 2 and .status == "Success" and ((.children // []) | length) == 1 and (all(.children[]; .status == "Success"))' <<< "${scheduled_op}"
 
   sub_test "Verify scheduler skips replicator when source project is not in leader mode"
 
   local ops_before
-  ops_before="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | length')"
+  ops_before="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | length')"
 
   # Demote the source with --force (skips validation); the scheduler must now skip this replicator.
   LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replicator-project --force
@@ -6082,7 +6082,7 @@ test_clustering_replicator_dr() {
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --project replicator-project -d "${SMALL_ROOT_DISK}"
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 --project replicator-project -d "${SMALL_ROOT_DISK}"
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
@@ -6157,7 +6157,7 @@ test_clustering_replicator_dr() {
   # is running to prevent partial restores. c2 is empty and already stopped.
   LXD_DIR="${LXD_ONE_DIR}" lxc stop c1 --force --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   # c1 and c2 are restored from LXD_TWO's current state; c3 (created on LXD_TWO during failover) is created from scratch.
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
@@ -6176,7 +6176,7 @@ test_clustering_replicator_dr() {
   LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
@@ -6330,7 +6330,7 @@ test_clustering_replicator_multi_member() {
   LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
 
   # The replicator operation must report success with two child operations.
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   sub_test "Verify snapshot=true works for instances on other cluster members"
@@ -6350,7 +6350,7 @@ test_clustering_replicator_multi_member() {
   sub_test "Verify idempotent run with instances on other cluster members"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   # Snapshot count must have incremented on both source instances after the second snapshot=true run.
@@ -6382,7 +6382,7 @@ test_clustering_replicator_multi_member() {
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project
 
   # Restore operation must succeed with both instances.
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '.status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   # Both instances must be present on the source cluster with their snapshots.
@@ -6486,7 +6486,7 @@ test_clustering_replicator_evacuated_member() {
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
 
   # Replicator operation must succeed with two child operations.
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '.status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   sub_test "Restore with evacuated member"
@@ -6633,7 +6633,7 @@ test_clustering_replicator_vm() {
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run vm-replicator --project replicator-project
 
   # Operation must succeed.
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '.status == "Success" and ((.children // []) | length) == 1 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   # snapshot=true creates a second snapshot, so source now has 2.
@@ -6674,22 +6674,22 @@ test_clustering_replicator_unclustered() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project create replica-state-project
 
   # New projects have no replica mode set.
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq -r '.replica_mode' || echo fail)" = "" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq --raw-output --exit-status '.replica_mode' || echo fail)" = "" ]
 
   # clear-replica is rejected when the project has no replica mode set.
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc project clear-replica replica-state-project 2>&1)" = 'Error: Project "replica-state-project" is not in a replica mode' ]
 
   # clear-replica resets the replica mode back to empty from leader mode.
   LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replica-state-project
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq -r '.replica_mode')" = "leader" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq --exit-status '.replica_mode == "leader"'
   LXD_DIR="${LXD_ONE_DIR}" lxc project clear-replica replica-state-project
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq -r '.replica_mode' || echo fail)" = "" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq --raw-output --exit-status '.replica_mode' || echo fail)" = "" ]
 
   # clear-replica resets the replica mode back to empty from standby mode.
   LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replica-state-project --force
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq -r '.replica_mode')" = "standby" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq --exit-status '.replica_mode == "standby"'
   LXD_DIR="${LXD_ONE_DIR}" lxc project clear-replica replica-state-project
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq -r '.replica_mode' || echo fail)" = "" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq --raw-output --exit-status '.replica_mode' || echo fail)" = "" ]
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete replica-state-project
 
@@ -6724,7 +6724,7 @@ test_clustering_replicator_unclustered() {
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --project replicator-project -d "${SMALL_ROOT_DISK}"
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 --project replicator-project -d "${SMALL_ROOT_DISK}"
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
@@ -6785,7 +6785,7 @@ test_clustering_replicator_unclustered() {
   # LXD_ONE is an unclustered standby (DB address = "0.0.0.0"). The restore path
   # must fall back to core.https_address rather than the sentinel address.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq -e '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   # c1 and c2 are restored from LXD_TWO; c3 was created during failover and is also restored.
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'

@@ -241,7 +241,7 @@ test_image_import_url() {
     curl --silent --unix-socket "${LXD_DIR}/unix.socket" -X POST "lxd/1.0/images" \
         -H "Content-Type: application/json" \
         --data '{"source": {"type": "url", "url": "https://example.com/image.tar.gz"}}' \
-        | jq -e '.error_code == 400 and .error == "Image download from client-specified URL is not supported"'
+        | jq --exit-status '.error_code == 400 and .error == "Image download from client-specified URL is not supported"'
 }
 
 test_image_import_existing_alias() {
@@ -815,11 +815,11 @@ test_image_with_exec_output_symlink() {
   opID=$(lxc query -X POST /1.0/instances/c-repack/exec -d '{
     "command":["cat", "/etc/os-release"],
     "record-output":true
-  }' | jq -r .id)
+  }' | jq --raw-output --exit-status .id)
 
   op=$(lxc query "/1.0/operations/${opID}")
-  echo "${op}" | jq -e '.status == "Failure"'
-  echo "${op}" | jq -e .err | grep "openat exec-output: path escapes from parent"
+  echo "${op}" | jq --exit-status '.status == "Failure"'
+  echo "${op}" | jq --exit-status '.err | contains("openat exec-output: path escapes from parent")'
 
   lxc delete -f c-repack
   lxc image delete image-repack

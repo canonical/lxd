@@ -509,7 +509,7 @@ EOF
       # Try increasing block volume size while the volume is attached to a running VM (in use).
       # Ensure the returned status code is 423 (StatusLocked).
       patchReq='{"config": {"size": "12MiB"}}'
-      opID="$(lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X PATCH "lxd/1.0/storage-pools/${pool}/volumes/custom/block-vol" -d "${patchReq}" | jq -r .id)"
+      opID="$(lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X PATCH "lxd/1.0/storage-pools/${pool}/volumes/custom/block-vol" -d "${patchReq}" | jq --raw-output --exit-status .id)"
       [ "$(lxc exec "${inst}" --project "${project}" -- curl -s -o /dev/null -w "%{http_code}" --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X GET "lxd/1.0/operations/${opID}/wait?timeout=5" -d "${patchReq}")" = "423" ]
 
       # Detach device.
@@ -923,9 +923,9 @@ test_devlxd_vm() {
   setup_instance_gocoverage v1
 
   echo "==> Check that devlxd is enabled by default and works"
-  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
-  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
-  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq --exit-status
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq --exit-status
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq --exit-status
   lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data | grep -F 'instance-id:'
   lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data | grep -F 'local-hostname:'
 
@@ -953,9 +953,9 @@ test_devlxd_vm() {
   ! lxc exec v1 -- ip link show a-nic || false
 
   echo "==> Check that devlxd is working after a restart"
-  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
-  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
-  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq --exit-status
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq --exit-status
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq --exit-status
   lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data | grep -F 'instance-id:'
   lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data | grep -F 'local-hostname:'
 
@@ -965,9 +965,9 @@ test_devlxd_vm() {
 
   echo "==> Check that devlxd can be enabled live"
   lxc config set v1 security.devlxd true
-  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
-  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
-  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq --exit-status
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq --exit-status
+  lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq --exit-status
 
   echo "==> Ensure that the output metadata is in correct format"
   META_DATA="$(lxc exec v1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data)"

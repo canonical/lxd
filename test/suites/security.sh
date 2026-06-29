@@ -202,7 +202,7 @@ test_security_protection() {
 
 test_security_events() {
   sub_test "Verify event_security API extension is present"
-  lxc query /1.0 | jq -e '.api_extensions | contains(["event_security"])'
+  lxc query /1.0 | jq --exit-status '.api_extensions | contains(["event_security"])'
 
   sub_test "Verify lxc monitor --type=security connects without error"
   # No security events are emitted yet (emission sites are a later subtask),
@@ -398,12 +398,12 @@ test_security_user_events() {
   mv "${LXD_CONF_TLS_TOKEN}/security-tls-token-user.key" "${LXD_CONF_TLS_TOKEN}/client.key"
 
   local tls_user_updated_before tls_user_updated_after
-  tls_user_updated_before="$(jq --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and .metadata.request_path == "/1.0/auth/identities/tls")) | length' "${monfile}")"
+  tls_user_updated_before="$(jq --slurp --exit-status 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and .metadata.request_path == "/1.0/auth/identities/tls")) | length' "${monfile}")"
 
   LXD_CONF="${LXD_CONF_TLS_TOKEN}" lxc remote add security-tls-token "${tls_token_identity_token}"
 
   for _ in $(seq 10); do
-    tls_user_updated_after="$(jq --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and .metadata.request_path == "/1.0/auth/identities/tls")) | length' "${monfile}")"
+    tls_user_updated_after="$(jq --slurp --exit-status 'map(select(.type == "security" and (.metadata.name | startswith("user_updated:")) and .metadata.request_path == "/1.0/auth/identities/tls")) | length' "${monfile}")"
     [ "${tls_user_updated_after}" = "$((tls_user_updated_before + 1))" ] && break
     sleep 1
   done
@@ -561,7 +561,7 @@ test_security_user_events_oidc() {
   rm -f "${LXD_CONF}/jars/oidc-security"
 
   local before_count
-  before_count="$(jq --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:oidc:")))) | length' "${monfile}")"
+  before_count="$(jq --slurp --exit-status 'map(select(.type == "security" and (.metadata.name | startswith("user_created:oidc:")))) | length' "${monfile}")"
 
   BROWSER=curl lxc query oidc-security:/1.0 | jq --exit-status '.auth == "trusted"'
 
@@ -569,7 +569,7 @@ test_security_user_events_oidc() {
   sleep 2
 
   local after_count
-  after_count="$(jq --slurp 'map(select(.type == "security" and (.metadata.name | startswith("user_created:oidc:")))) | length' "${monfile}")"
+  after_count="$(jq --slurp --exit-status 'map(select(.type == "security" and (.metadata.name | startswith("user_created:oidc:")))) | length' "${monfile}")"
   [ "${before_count}" = "${after_count}" ]
 
   kill_go_proc "${mon_pid}" || true
@@ -675,7 +675,7 @@ test_authn_events() {
   sub_test "Verify authn_token_created fires when a bearer token is issued"
   lxc auth identity create bearer/authn-bearer-test
   local bearer_id
-  bearer_id="$(lxc auth identity list bearer --format json | jq --raw-output '.[] | select(.name == "authn-bearer-test") | .id')"
+  bearer_id="$(lxc auth identity list bearer --format json | jq --raw-output --exit-status '.[] | select(.name == "authn-bearer-test") | .id')"
 
   monfile="${TEST_DIR}/authn-token-created.jsonl"
   lxc monitor --type=security --format=json > "${monfile}" &
@@ -727,7 +727,7 @@ test_authn_events() {
   sleep 0.2
 
   lxc query --request PUT \
-    --data "$(jq --null-input \
+    --data "$(jq --null-input --exit-status \
       --argjson cert "$(cert_to_json "${LXD_CONF}/authn-new-cert.crt")" \
       --arg name "authn-test-cert" \
       '{certificate: $cert, name: $name, restricted: false, projects: [], type: "client"}')" \
@@ -760,7 +760,7 @@ test_authn_events() {
   sleep 0.2
 
   CERTNAME="authn-self-cert" my_curl --request PUT \
-    --data "$(jq --null-input \
+    --data "$(jq --null-input --exit-status \
       --argjson cert "$(cert_to_json "${LXD_CONF}/authn-self-new-cert.crt")" \
       --arg name "authn-self-cert" \
       '{certificate: $cert, name: $name, restricted: true, projects: [], type: "client"}')" \
@@ -819,7 +819,7 @@ count_events_tolerant() {
   local monfile="${1}"
   local jq_select="${2}"
 
-  jq --slurp --raw-input '
+  jq --slurp --raw-input --exit-status '
     split("\n")
     | map(fromjson? | select(. != null))
     | map(select('"${jq_select}"'))
@@ -934,12 +934,12 @@ test_security_authz_events() {
   # must be ignored here.
   local list_filter_authz_fail_jq='map(select(.type == "security" and (.metadata.name | test("^authz_fail:[^:]+:/1\\.0/projects/")))) | length'
   local list_filter_authz_fail_before list_filter_authz_fail_after
-  list_filter_authz_fail_before="$(jq --slurp "${list_filter_authz_fail_jq}" "${monfile}")"
+  list_filter_authz_fail_before="$(jq --slurp --exit-status "${list_filter_authz_fail_jq}" "${monfile}")"
   local _project_list
   _project_list="$(LXD_CONF="${authz_conf}" lxc_remote project list authz-evt: --format csv)"
   _project_list="$(LXD_CONF="${authz_conf}" lxc_remote project list authz-evt: --format csv)"
   sleep 1
-  list_filter_authz_fail_after="$(jq --slurp "${list_filter_authz_fail_jq}" "${monfile}")"
+  list_filter_authz_fail_after="$(jq --slurp --exit-status "${list_filter_authz_fail_jq}" "${monfile}")"
   [ "$((list_filter_authz_fail_after - list_filter_authz_fail_before))" = "0" ]
 
   sub_test "authz_fail does NOT fire on can_edit display probes (server/storage_pool)"
@@ -949,14 +949,14 @@ test_security_authz_events() {
   # produce authz_fail events.
   local probe_jq='map(select(.type == "security" and (.metadata.name == "authz_fail:can_edit:/1.0" or (.metadata.name | test("^authz_fail:can_edit:/1\\.0/storage-pools/"))))) | length'
   local probe_before probe_after _probe_info _probe_pool _probe_show
-  probe_before="$(jq --slurp "${probe_jq}" "${monfile}")"
+  probe_before="$(jq --slurp --exit-status "${probe_jq}" "${monfile}")"
   _probe_info="$(LXD_CONF="${authz_conf}" lxc_remote info authz-evt:)"
   _probe_pool="$(lxc storage list --format csv | awk --field-separator=, 'NR==1 {print $1}')"
   if [ -n "${_probe_pool}" ]; then
     _probe_show="$(LXD_CONF="${authz_conf}" lxc_remote storage show "authz-evt:${_probe_pool}")"
   fi
   sleep 1
-  probe_after="$(jq --slurp "${probe_jq}" "${monfile}")"
+  probe_after="$(jq --slurp --exit-status "${probe_jq}" "${monfile}")"
   [ "$((probe_after - probe_before))" = "0" ]
 
   sub_test "Lifecycle and authz_admin coexist without duplication"

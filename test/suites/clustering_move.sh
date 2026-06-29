@@ -66,25 +66,26 @@ test_clustering_move() {
   echo "c1 can be moved to a new target project and location."
   lxc move cluster:c1 --target node3 --target-project default --project test-project
   lxc info cluster:c1 | grep -xF "Location: node3"
-  lxc query cluster:/1.0/instances/c1 | jq -re '.project == "default"'
+  lxc query cluster:/1.0/instances/c1 | jq --exit-status '.project == "default"'
 
   echo "c1 can be moved to a new target project, pool, and location."
   lxc move cluster:c1 --target node2 --target-project test-project --project default --storage test-pool
   lxc info cluster:c1 --project test-project | grep -xF "Location: node2"
-  lxc query cluster:/1.0/instances/c1?project=test-project | jq -re '.project == "test-project"'
-  lxc query cluster:/1.0/instances/c1?project=test-project | jq -re '.devices.root.pool == "test-pool"'
+  lxc query cluster:/1.0/instances/c1?project=test-project | jq --exit-status '.project == "test-project"'
+  lxc query cluster:/1.0/instances/c1?project=test-project | jq --exit-status '.devices.root.pool == "test-pool"'
   lxc move cluster:c1 --target-project default --project test-project --storage data
 
   lxc move cluster:c1 --target @foobar1
   [ "$(lxc list -f csv -c L cluster:c1)" = "node1" ]
 
   echo "c1 can be moved within the same cluster group if it has multiple members."
-  current_location="$(lxc query cluster:/1.0/instances/c1 | jq -r '.location')"
+  current_location="$(lxc query cluster:/1.0/instances/c1 | jq --raw-output --exit-status '.location')"
   lxc move cluster:c1 --target=@default
-  lxc query cluster:/1.0/instances/c1 | jq -re ".location != \"$current_location\""
-  current_location="$(lxc query cluster:/1.0/instances/c1 | jq -r '.location')"
+  lxc query cluster:/1.0/instances/c1 | jq --exit-status ".location != \"$current_location\""
+  current_location="$(lxc query cluster:/1.0/instances/c1 | jq --raw-output --exit-status '.location')"
   lxc move cluster:c1 --target=@default
-  lxc query cluster:/1.0/instances/c1 | jq -re ".location != \"$current_location\""
+  lxc query cluster:/1.0/instances/c1 | jq --exit-status ".location != \"$current_location\""
+
 
   echo "c1 cannot be moved within the same cluster group if it has a single member."
   lxc move cluster:c1 --target=@foobar3
