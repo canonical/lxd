@@ -198,7 +198,7 @@ func (n *macvlan) Update(newNetwork api.NetworkPut, targetNode string, clientTyp
 		_ = n.update(oldNetwork, targetNode, clientType)
 	})
 
-	// Apply changes to all nodes and databse.
+	// Apply changes to all nodes and database.
 	err = n.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err
