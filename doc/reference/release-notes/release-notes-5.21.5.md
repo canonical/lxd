@@ -172,9 +172,9 @@ If you are building LXD from source instead of using a package manager, the mini
 - LXCFS: Reverted partial backport of PSI functionality that prevented host machine suspend (#17983).
 - libnvidia-container bumped to v1.19.0.
 - NVIDIA container toolkit bumped to v1.19.0.
-- ZFS 2.2 bumped to 2.2.9.
-- ZFS 2.3 bumped to 2.3.6.
-- ZFS 2.4 bumped to 2.4.1.
+- ZFS 2.2 bumped to 2.2.10.
+- ZFS 2.3 bumped to 2.3.8.
+- ZFS 2.4 bumped to 2.4.3.
 
 (ref-release-notes-5.21.5-changelog)=
 ## Change log
