@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/canonical/lxd/lxd/apparmor"
+	"github.com/canonical/lxd/lxd/sys"
 	"github.com/gorilla/mux"
 	"github.com/kballard/go-shellquote"
 	"gopkg.in/yaml.v2"
@@ -123,9 +125,8 @@ var imagePublishLock sync.Mutex
 // stepping on each other's toes.
 var imageTaskMu sync.Mutex
 
-func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
+func compressFile(sysOS *sys.OS, compress string, infile io.Reader, outfile io.Writer) error {
 	reproducible := []string{"gzip"}
-	var cmd *exec.Cmd
 
 	// Parse the command.
 	fields, err := shellquote.Split(compress)
@@ -156,13 +157,20 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		}
 
 		args = append(args, "--no-skip", "--force", "--compressor", "xz", tempfile.Name())
-		cmd = exec.Command(args[0], args[1:]...)
+		cmd := exec.Command(args[0], args[1:]...)
 		cmd.Stdin = infile
 
+		cleanup, err := apparmor.CompressWrapper(sysOS, cmd, tempfile.Name(), []string{"xz"})
+		if err != nil {
+			return err
+		}
+
+		defer cleanup()
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("tar2sqfs: %v (%v)", err, strings.TrimSpace(string(output)))
 		}
+
 		// Replay the result to outfile
 		_, err = tempfile.Seek(0, io.SeekStart)
 		if err != nil {
@@ -173,23 +181,31 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		if err != nil {
 			return err
 		}
-	} else {
-		args := []string{"-c"}
-		if len(fields) > 1 {
-			args = append(args, fields[1:]...)
-		}
 
-		if shared.StringInSlice(fields[0], reproducible) {
-			args = append(args, "-n")
-		}
+		return nil
+	}
 
-		cmd := exec.Command(fields[0], args...)
-		cmd.Stdin = infile
-		cmd.Stdout = outfile
-		err := cmd.Run()
-		if err != nil {
-			return err
-		}
+	args := []string{"-c"}
+	if len(fields) > 1 {
+		args = append(args, fields[1:]...)
+	}
+
+	if shared.StringInSlice(fields[0], reproducible) {
+		args = append(args, "-n")
+	}
+
+	cmd := exec.Command(fields[0], args...)
+	cmd.Stdin = infile
+	cmd.Stdout = outfile
+	cleanup, err := apparmor.CompressWrapper(sysOS, cmd, "", nil)
+	if err != nil {
+		return err
+	}
+
+	defer cleanup()
+	err = cmd.Run()
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -333,7 +349,7 @@ func imgPostInstanceInfo(s *state.State, r *http.Request, req api.ImagesPost, op
 		compressWriter := io.MultiWriter(imageFile, sha256)
 		go func() {
 			defer wg.Done()
-			compressErr = compressFile(compress, tarReader, compressWriter)
+			compressErr = compressFile(s.OS, compress, tarReader, compressWriter)
 
 			// If a compression error occurred, close the writer to end the instance export.
 			if compressErr != nil {
