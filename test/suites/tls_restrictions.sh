@@ -92,6 +92,32 @@ test_tls_restrictions() {
   lxc_remote storage volume list "localhost:${pool_name}" --project blah | grep blah-volume
   lxc_remote storage volume delete "localhost:${pool_name}" blah-volume --project blah
 
+  # Confirm copying an instance or a custom storage volume requires "view" permission of the source project.
+
+  # Create source entities in the default project using the unrestricted (admin) client.
+  # The restricted client is scoped to project blah and cannot view the default project.
+  # Enable features.storage.volumes=true for blah so its volumes are not shared with the default project.
+  lxc init --empty instance-in-default
+  lxc project set blah features.storage.volumes=true
+  lxc storage volume create "${pool_name}" volume-in-default
+
+  # Restricted client must not be able to copy the default project's entities into blah.
+  ! lxc_remote query --wait -X POST "localhost:/1.0/instances?project=blah" -d '{\"name\":\"copied-instance\",\"source\":{\"type\":\"copy\",\"source\":\"instance-in-default\",\"project\":\"default\"}}' || false
+  ! lxc_remote query --wait -X POST "localhost:/1.0/storage-pools/${pool_name}/volumes/custom?project=blah" -d '{\"name\":\"copied-volume\",\"source\":{\"type\":\"copy\",\"name\":\"volume-in-default\",\"pool\":\"'"${pool_name}"'\",\"project\":\"default\"}}' || false
+
+  # Once the certificate can view the default project, the copies should succeed.
+  lxc query -X PATCH "/1.0/certificates/${FINGERPRINT}" -d '{\"projects\":[\"blah\",\"default\"]}'
+  lxc_remote query --wait -X POST "localhost:/1.0/instances?project=blah" -d '{\"name\":\"copied-instance\",\"source\":{\"type\":\"copy\",\"source\":\"instance-in-default\",\"project\":\"default\"}}'
+  lxc_remote query --wait -X POST "localhost:/1.0/storage-pools/${pool_name}/volumes/custom?project=blah" -d '{\"name\":\"copied-volume\",\"source\":{\"type\":\"copy\",\"name\":\"volume-in-default\",\"pool\":\"'"${pool_name}"'\",\"project\":\"default\"}}'
+
+  # Restore the restriction to project blah only and clean up.
+  lxc query -X PATCH "/1.0/certificates/${FINGERPRINT}" -d '{\"projects\":[\"blah\"]}'
+  lxc delete copied-instance --project blah
+  lxc storage volume delete "${pool_name}" copied-volume --project blah
+  lxc delete instance-in-default
+  lxc storage volume delete "${pool_name}" volume-in-default
+  lxc project unset blah features.storage.volumes
+
   # Cleanup
   lxc config trust show "${FINGERPRINT}" | sed -e "s/restricted: true/restricted: false/" | lxc config trust edit "${FINGERPRINT}"
   lxc project delete blah
