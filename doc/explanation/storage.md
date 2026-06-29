@@ -183,7 +183,8 @@ Instead, applications can access a storage bucket directly using its URL.
 
 Each storage bucket is assigned one or more access keys, which the applications must use to access it.
 
-Storage buckets must be located on {ref}`object storage backend <storage-drivers-object>` pools. For Ceph Object storage buckets, the {ref}`RADOS Gateway <howto-storage-pools-ceph-requirements-radosgw>` configured on the Ceph cluster acts as an S3 interface.
+Storage buckets must be located on {ref}`object storage backend <storage-drivers-object>` pools.
+For Ceph Object storage buckets, the {ref}`RADOS Gateway <howto-storage-pools-ceph-requirements-radosgw>` configured on the Ceph cluster acts as an S3 interface.
 
 See the following how-to guide for additional information:
 
