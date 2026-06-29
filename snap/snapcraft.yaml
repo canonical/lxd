@@ -561,12 +561,12 @@ parts:
     after:
       - libseccomp
     source: https://github.com/NVIDIA/libnvidia-container
-    source-commit: a198166e1c1166f4847598438115ea97dacc7a92 # v1.17.6
+    source-commit: 7585946c6471402577e14474d7c56ca5be0348d7 # v1.19.1
     source-depth: 1
     source-type: git
     plugin: make
     build-environment:
-      - GIT_TAG: "1.17.6" # Enables source-depth: 1, should match git tag without "v" prefix.
+      - GIT_TAG: "1.19.1" # Enables source-depth: 1, should match git tag without "v" prefix.
     build-packages:
       - bmake
       - curl
@@ -574,7 +574,7 @@ parts:
       - lsb-release
       - libtirpc-dev
     build-snaps:
-      - go/1.25/stable
+      - go/1.26/stable
     override-prime: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
@@ -1246,7 +1246,7 @@ parts:
 
   zfs-2-2:
     source: https://github.com/openzfs/zfs
-    source-commit: 3e4a3e161c00273303cd9fa9e0dc09ead3499a8a # zfs-2.2.8
+    source-commit: 07c1e2e38e2534818acb056223e6cfe1b667155e # zfs-2.2.10
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1452,7 +1452,7 @@ parts:
       - liblapack-dev
       - pkg-config
     build-snaps:
-      - go/1.25/stable
+      - go/1.26/stable
     stage-packages:
       - acl
       - attr
@@ -1553,7 +1553,7 @@ parts:
       - lxd
       - sqlite
     build-snaps:
-      - go/1.25/stable
+      - go/1.26/stable
     plugin: nil
     override-pull: |
       craftctl default
