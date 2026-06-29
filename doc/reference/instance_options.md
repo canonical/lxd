@@ -14,7 +14,6 @@ The following options are available:
 - {ref}`instance-options-limits`
 - {ref}`instance-options-migration`
 - {ref}`instance-options-placement`
-- {ref}`instance-options-nvidia`
 - {ref}`instance-options-raw`
 - {ref}`instance-options-security`
 - {ref}`instance-options-snapshots`
@@ -240,17 +239,6 @@ The following instance option controls the placement of instances in a cluster:
 ```
 
 See {ref}`cluster-placement-groups` for more information about placement groups.
-
-(instance-options-nvidia)=
-## NVIDIA and CUDA configuration
-
-The following instance options specify the NVIDIA and CUDA configuration of the instance:
-
-% Include content from [../metadata.txt](../metadata.txt)
-```{include} ../metadata.txt
-    :start-after: <!-- config group instance-nvidia start -->
-    :end-before: <!-- config group instance-nvidia end -->
-```
 
 (instance-options-raw)=
 ## Raw instance configuration overrides
