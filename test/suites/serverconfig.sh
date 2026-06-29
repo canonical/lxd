@@ -60,7 +60,18 @@ _server_config_auth() {
 
 _server_config_access() {
   # test untrusted server GET
-  ! my_curl "https://$(< "${LXD_ADDR}")/1.0" | grep -wF "environment" || false
+  local UNTRUSTED_GET
+  UNTRUSTED_GET="$(curl --insecure --silent --fail-with-body "https://${LXD_ADDR}/1.0")"
+
+  if [ -z "${UNTRUSTED_GET}" ]; then
+    echo "Untrusted server GET returned an empty response"
+    false
+  fi
+
+  if grep -wF "environment" <<< "${UNTRUSTED_GET}"; then
+    echo "Untrusted server GET returned environment"
+    false
+  fi
 
   # test authentication type, only tls and bearer are enabled by default
   curl --silent --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq --exit-status '.metadata.auth_methods == ["tls","bearer"]'
