@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -53,6 +54,24 @@ func (d *Daemon) imageDownloadLock(fingerprint string) locking.UnlockFunc {
 	defer logger.Debugf("Lock acquired for image download of %q", fingerprint)
 
 	return locking.Lock(fmt.Sprintf("ImageDownload_%s", fingerprint))
+}
+
+func filepathSafeJoin(dir, file string) (string, error) {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return "", err
+	}
+
+	absJoined, err := filepath.Abs(filepath.Join(absDir, file))
+	if err != nil {
+		return "", err
+	}
+
+	if !strings.HasPrefix(absJoined, absDir+string(filepath.Separator)) {
+		return "", errors.New("File contains directory traversal elements")
+	}
+
+	return absJoined, nil
 }
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it
@@ -103,7 +122,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			}
 		}
 
-		// For public images, handle aliases and initial metadata
+		// Get the image information
 		if args.Secret == "" {
 			// Look for a matching alias
 			entry, _, err := remote.GetImageAliasType(args.Type, fp)
@@ -118,7 +137,25 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			}
 
 			fp = info.Fingerprint
+		} else {
+			info, _, err = remote.GetPrivateImage(fp, args.Secret)
+			if err != nil {
+				return nil, fmt.Errorf("Failed getting remote image info: %w", err)
+			}
+
+			fp = info.Fingerprint
+
+			// Set alias to equal fingerprint so that we don't save this remote as an image source or try to auto-update
+			// the image (we can't get it again since it is private). In this case the alias may have actually been an
+			// image fingerprint prefix.
+			alias = info.Fingerprint
 		}
+	}
+
+	// Ensure the fingerprint is valid.
+	err = validateImageFingerprint(fp)
+	if err != nil {
+		return nil, err
 	}
 
 	// Ensure we are the only ones operating on this image.
@@ -258,7 +295,10 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 	// Cleanup any leftover from a past attempt
 	destDir := shared.VarPath("images")
-	destName := filepath.Join(destDir, fp)
+	destName, err := filepathSafeJoin(destDir, fp)
+	if err != nil {
+		return nil, err
+	}
 
 	failure := true
 	cleanup := func() {
@@ -306,25 +346,6 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		}
 		defer destRootfs.Close()
 
-		// Get the image information
-		if info == nil {
-			if args.Secret != "" {
-				info, _, err = remote.GetPrivateImage(fp, args.Secret)
-				if err != nil {
-					return nil, err
-				}
-
-				// Expand the fingerprint now and mark alias string to match
-				fp = info.Fingerprint
-				alias = info.Fingerprint
-			} else {
-				info, _, err = remote.GetImage(fp)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-
 		// Compatibility with older LXD servers
 		if info.Type == "" {
 			info.Type = "container"
@@ -341,7 +362,12 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			ProgressHandler: progress,
 			Canceler:        canceler,
 			DeltaSourceRetriever: func(fingerprint string, file string) string {
-				path := shared.VarPath("images", fmt.Sprintf("%s.%s", fingerprint, file))
+				path, err := filepathSafeJoin(shared.VarPath("images"), fmt.Sprintf("%s.%s", fingerprint, file))
+				if err != nil {
+					logger.Warn("Encountered a delta file name with path traversal elements")
+					return ""
+				}
+
 				if shared.PathExists(path) {
 					return path
 				}
@@ -474,22 +500,6 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 	// Image is in the DB now, don't wipe on-disk files on failure
 	failure = false
-
-	// Check if the image path changed (private images)
-	newDestName := filepath.Join(destDir, fp)
-	if newDestName != destName {
-		err = shared.FileMove(destName, newDestName)
-		if err != nil {
-			return nil, err
-		}
-
-		if shared.PathExists(destName + ".rootfs") {
-			err = shared.FileMove(destName+".rootfs", newDestName+".rootfs")
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
 
 	// Record the image source
 	if alias != fp {
