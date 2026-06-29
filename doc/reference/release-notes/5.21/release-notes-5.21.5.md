@@ -140,7 +140,7 @@ These changes are not compatible with older versions of LXD or its clients.
 
 The minimum supported version of some components has changed:
 
-- The minimum required version of Go to build LXD is now 1.25.11 (see [Updated minimum Go version](#ref-release-notes-5.21.5-go)).
+- The minimum required version of Go to build LXD is now 1.26.4 (see [Updated minimum Go version](#ref-release-notes-5.21.5-go)).
 
 ### Stricter validation and tightened permissions
 
@@ -155,7 +155,7 @@ Several inputs are now validated more strictly, and some permissions have been t
 (ref-release-notes-5.21.5-go)=
 ## Updated minimum Go version
 
-If you are building LXD from source instead of using a package manager, the minimum version of Go required to build LXD is now 1.25.11 (previously 1.24.5).
+If you are building LXD from source instead of using a package manager, the minimum version of Go required to build LXD is now 1.26.4 (previously 1.24.5).
 
 (ref-release-notes-5.21.5-snap)=
 ## Snap packaging changes
@@ -172,9 +172,9 @@ If you are building LXD from source instead of using a package manager, the mini
 - LXCFS: Reverted partial backport of PSI functionality that prevented host machine suspend (#17983).
 - libnvidia-container bumped to v1.19.0.
 - NVIDIA container toolkit bumped to v1.19.0.
-- ZFS 2.2 bumped to 2.2.9.
-- ZFS 2.3 bumped to 2.3.6.
-- ZFS 2.4 bumped to 2.4.1.
+- ZFS 2.2 bumped to 2.2.10.
+- ZFS 2.3 bumped to 2.3.8.
+- ZFS 2.4 bumped to 2.4.3.
 
 (ref-release-notes-5.21.5-changelog)=
 ## Change log
