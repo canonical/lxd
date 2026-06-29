@@ -56,21 +56,23 @@ const (
 	patchStoragePoolVolumeAPIEndpointCustom     string = "custom"
 )
 
-/* Patches are one-time actions that are sometimes needed to update
-   existing container configuration or move things around on the
-   filesystem.
+/*
+Patches are one-time actions that are sometimes needed to update
 
-   Those patches are applied at startup time after the database schema
-   has been fully updated. Patches can therefore assume a working database.
+	existing container configuration or move things around on the
+	filesystem.
 
-   At the time the patches are applied, the containers aren't started
-   yet and the daemon isn't listening to requests.
+	Those patches are applied at startup time after the database schema
+	has been fully updated. Patches can therefore assume a working database.
 
-   DO NOT use this mechanism for database update. Schema updates must be
-   done through the separate schema update mechanism.
+	At the time the patches are applied, the containers aren't started
+	yet and the daemon isn't listening to requests.
+
+	DO NOT use this mechanism for database update. Schema updates must be
+	done through the separate schema update mechanism.
 
 
-   Only append to the patches list, never remove entries and never re-order them.
+	Only append to the patches list, never remove entries and never re-order them.
 */
 var patches = []patch{
 	{name: "shrink_logs_db_file", stage: patchPostDaemonStorage, run: patchShrinkLogsDBFile},
@@ -3586,7 +3588,7 @@ func patchMoveBackups(name string, d *Daemon) error {
 				}
 				defer compressed.Close()
 
-				err = compressFile("xz", infile, compressed)
+				err = compressFile(d.State(), "xz", infile, compressed)
 				if err != nil {
 					return err
 				}

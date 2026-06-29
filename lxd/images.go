@@ -28,7 +28,8 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
-	lxd "github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/filter"
@@ -132,9 +133,8 @@ We only want a single publish running at any one time.
 */
 var imagePublishLock sync.Mutex
 
-func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
+func compressFile(s *state.State, compress string, infile io.Reader, outfile io.Writer) error {
 	reproducible := []string{"gzip"}
-	var cmd *exec.Cmd
 
 	// Parse the command.
 	fields, err := shellquote.Split(compress)
@@ -162,36 +162,51 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		if len(fields) > 1 {
 			args = append(args, fields[1:]...)
 		}
+
 		args = append(args, "--no-skip", "--force", "--compressor", "xz", tempfile.Name())
-		cmd = exec.Command(args[0], args[1:]...)
+		cmd := exec.Command(args[0], args[1:]...)
 		cmd.Stdin = infile
 
+		cleanup, err := apparmor.CompressWrapper(s, cmd, tempfile.Name(), []string{"xz"})
+		if err != nil {
+			return err
+		}
+
+		defer cleanup()
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("tar2sqfs: %v (%v)", err, strings.TrimSpace(string(output)))
 		}
+
 		// Replay the result to outfile
 		tempfile.Seek(0, 0)
 		_, err = io.Copy(outfile, tempfile)
 		if err != nil {
 			return err
 		}
-	} else {
-		args := []string{"-c"}
-		if len(fields) > 1 {
-			args = append(args, fields[1:]...)
-		}
-		if shared.StringInSlice(fields[0], reproducible) {
-			args = append(args, "-n")
-		}
+	}
 
-		cmd := exec.Command(fields[0], args...)
-		cmd.Stdin = infile
-		cmd.Stdout = outfile
-		err := cmd.Run()
-		if err != nil {
-			return err
-		}
+	args := []string{"-c"}
+	if len(fields) > 1 {
+		args = append(args, fields[1:]...)
+	}
+
+	if shared.StringInSlice(fields[0], reproducible) {
+		args = append(args, "-n")
+	}
+
+	cmd := exec.Command(fields[0], args...)
+	cmd.Stdin = infile
+	cmd.Stdout = outfile
+	cleanup, err := apparmor.CompressWrapper(s, cmd, "", nil)
+	if err != nil {
+		return err
+	}
+
+	defer cleanup()
+	err = cmd.Run()
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -312,7 +327,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 		compressWriter := io.MultiWriter(imageFile, sha256)
 		go func() {
 			defer wg.Done()
-			compressErr = compressFile(compress, tarReader, compressWriter)
+			compressErr = compressFile(d.State(), compress, tarReader, compressWriter)
 
 			// If a compression error occurred, close the writer to end the instance export.
 			if compressErr != nil {
