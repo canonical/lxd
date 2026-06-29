@@ -1151,7 +1151,7 @@ func pruneExpiredOperationsTask(stateFunc func() *state.State) (task.Func, task.
 		}
 	}
 
-	return f, task.Hourly()
+	return f, task.Every(time.Minute, task.SkipFirst)
 }
 
 // operationWaitPost represents the fields of a request to register a dummy operation.
