@@ -1137,12 +1137,12 @@ func (n *ovn) parseRouterIntPortIPv6Net() (net.IP, *net.IPNet, error) {
 	ipNet := n.getRouterIntPortIPv6Net()
 
 	if validate.IsOneOf("none", "")(ipNet) != nil {
-		routerIntPortIPv4, routerIntPortIPv4Net, err := net.ParseCIDR(ipNet)
+		routerIntPortIPv6, routerIntPortIPv6Net, err := net.ParseCIDR(ipNet)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed parsing router's internal port IPv6 Net: %w", err)
 		}
 
-		return routerIntPortIPv4, routerIntPortIPv4Net, nil
+		return routerIntPortIPv6, routerIntPortIPv6Net, nil
 	}
 
 	return nil, nil, nil
