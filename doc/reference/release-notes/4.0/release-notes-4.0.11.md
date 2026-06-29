@@ -34,7 +34,7 @@ The following bug fixes are included in this release.
 - [{spellexception}`Panic when importing backup configs that contain nil slices (CVE-2026-40197)`](https://github.com/lxc/incus/security/advisories/GHSA-r7w7-mmxr-47r9)
 - [{spellexception}`Template sandbox escapes and crash risks in pongo2 rendering (CVE-2026-33897)`](https://github.com/lxc/incus/security/advisories/GHSA-83xr-5xxr-mh92)
 - [{spellexception}`Overly permissive storage pool volume directory permissions expose instance data (CVE-2025-64507)`](https://github.com/lxc/incus/security/advisories/GHSA-56mx-8g9f-5crf)
-- [{spellexception}`Potential shell expansion in LXC hook arguments due to incorrect quoting`](https://github.com/lxc/incus/security/advisories/GHSA-8h3p-58qv-8p53)
+- [{spellexception}`Potential shell expansion in LXC hook arguments due to incorrect quoting`](https://github.com/lxc/incus/pull/2827)
 - [{spellexception}`Improve validation when editing certificates to reject invalid or inconsistent configurations`](https://github.com/canonical/lxd/pull/17954)
 - [{spellexception}`Add raw.apparmor and raw.qemu.conf to the list of forbidden low-level options when low-level configuration is restricted in project limits`](https://github.com/canonical/lxd/pull/17939)
 - [{spellexception}`Fail fast when an unsupported compression algorithm is specified for backup or image operations`](https://github.com/canonical/lxd/pull/17821)
