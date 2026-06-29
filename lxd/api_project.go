@@ -2013,7 +2013,7 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.containers.privilege)
 		// Possible values are `unprivileged`, `isolated`, and `allow`.
 		//
-		// - When set to `unpriviliged`, this option prevents setting {config:option}`instance-security:security.privileged` to `true`.
+		// - When set to `unprivileged`, this option prevents setting {config:option}`instance-security:security.privileged` to `true`.
 		// - When set to `isolated`, this option prevents setting {config:option}`instance-security:security.privileged` to `true` and forces using a unique idmap per container using {config:option}`instance-security:security.idmap.isolated` set to `true`.
 		// - When set to `allow`, there is no restriction.
 		// ---
