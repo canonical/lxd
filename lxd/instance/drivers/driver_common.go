@@ -3,6 +3,7 @@ package drivers
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -321,8 +322,9 @@ func (d *common) Path() string {
 }
 
 // RootfsPath returns the instance's rootfs path.
-func (d *common) RootfsPath() string {
-	return filepath.Join(d.Path(), "rootfs")
+// Returns an error if the path exists and is a symlink.
+func (d *common) RootfsPath() (string, error) {
+	return d.subPath("rootfs")
 }
 
 // ShmountsPath returns the instance's shared mounts path.
@@ -337,8 +339,29 @@ func (d *common) StatePath() string {
 }
 
 // TemplatesPath returns the instance's templates path.
-func (d *common) TemplatesPath() string {
-	return filepath.Join(d.Path(), "templates")
+// Returns an error if the path exists and is a symlink.
+func (d *common) TemplatesPath() (string, error) {
+	return d.subPath("templates")
+}
+
+// subPath returns the path of name beneath the instance's path, rejecting it if it exists and is a symlink.
+func (d *common) subPath(name string) (string, error) {
+	path := filepath.Join(d.Path(), name)
+
+	fi, err := os.Lstat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return path, nil
+		}
+
+		return "", err
+	}
+
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("%q for instance %q is a symlink", name, d.name)
+	}
+
+	return path, nil
 }
 
 //

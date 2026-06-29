@@ -2258,6 +2258,11 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 		instanceMeta["ephemeral"] = "false"
 	}
 
+	templatesPath, err := d.TemplatesPath()
+	if err != nil {
+		return err
+	}
+
 	// Go through the templates.
 	for tplPath, tpl := range metadata.Templates {
 		err = func(tplPath string, tpl *api.ImageMetadataTemplate) error {
@@ -2287,7 +2292,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 			defer w.Close()
 
 			// Read the template.
-			tplString, err := ioutil.ReadFile(filepath.Join(d.TemplatesPath(), tpl.Template))
+			tplString, err := ioutil.ReadFile(filepath.Join(templatesPath, tpl.Template))
 			if err != nil {
 				return errors.Wrap(err, "Failed to read template file")
 			}
@@ -4806,7 +4811,11 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	}
 
 	// Include all the templates.
-	fnam = d.TemplatesPath()
+	fnam, err = d.TemplatesPath()
+	if err != nil {
+		return meta, err
+	}
+
 	if shared.PathExists(fnam) {
 		err = filepath.Walk(fnam, writeToTar)
 		if err != nil {

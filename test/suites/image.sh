@@ -79,6 +79,85 @@ test_image_import_dir() {
     rm "$exported"
 }
 
+test_image_with_rootfs_symlink() {
+    # shellcheck disable=SC2039,SC3043
+    local tmpDir imgDir imgTar out
+
+    tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+    imgDir="${tmpDir}/image"
+    imgTar="${tmpDir}/image.tar"
+
+    # Build an image tarball with a regular rootfs directory.
+    mkdir -p "${imgDir}/rootfs"
+    printf '%s\n' "architecture: $(uname -m)" "creation_date: 1" > "${imgDir}/metadata.yaml"
+    tar -cf "${imgTar}" -C "${imgDir}" .
+
+    # Replace the rootfs entry with a symlink pointing outside the image, then append it so it
+    # overrides the original directory entry on extraction.
+    (
+        cd "${imgDir}" || exit
+        rmdir "rootfs"
+        ln -s "${tmpDir}" "rootfs"
+        tar -f "${imgTar}" --append "./rootfs"
+    )
+
+    lxc image import "${imgTar}" --alias image-rootfs-symlink
+    lxc init image-rootfs-symlink c-rootfs-symlink
+
+    # Place a file on the host FS that a symlinked rootfs would expose.
+    echo "This is a file on the host FS" > "${tmpDir}/hostfs.txt"
+
+    # Pulling a file must reject the symlinked rootfs, not follow it onto the host FS.
+    if out=$(lxc file pull "c-rootfs-symlink/hostfs.txt" "${tmpDir}/pulled.txt" 2>&1); then
+        echo "ERROR: Pulling a file through a symlinked rootfs unexpectedly succeeded" >&2
+        exit 1
+    fi
+
+    echo "${out}" | grep -q "is a symlink"
+
+    lxc delete -f c-rootfs-symlink
+    lxc image delete image-rootfs-symlink
+    rm -rf "${tmpDir}"
+}
+
+test_image_with_templates_symlink() {
+    # shellcheck disable=SC2039,SC3043
+    local tmpDir imgDir imgTar out
+
+    tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+    imgDir="${tmpDir}/image"
+    imgTar="${tmpDir}/image.tar"
+
+    # Build an image tarball with a regular templates directory.
+    mkdir -p "${imgDir}/rootfs" "${imgDir}/templates"
+    printf '%s\n' "architecture: $(uname -m)" "creation_date: 1" > "${imgDir}/metadata.yaml"
+    tar -cf "${imgTar}" -C "${imgDir}" .
+
+    # Replace the templates entry with a symlink pointing outside the image, then append it so it
+    # overrides the original directory entry on extraction.
+    (
+        cd "${imgDir}" || exit
+        rmdir "templates"
+        ln -s "${tmpDir}" "templates"
+        tar -f "${imgTar}" --append "./templates"
+    )
+
+    lxc image import "${imgTar}" --alias image-templates-symlink
+    lxc init image-templates-symlink c-templates-symlink
+
+    # Listing templates must reject the symlinked templates directory, not follow it.
+    if out=$(lxc query "/1.0/instances/c-templates-symlink/metadata/templates" 2>&1); then
+        echo "ERROR: Listing templates through a symlinked templates directory unexpectedly succeeded" >&2
+        exit 1
+    fi
+
+    echo "${out}" | grep -q "is a symlink"
+
+    lxc delete -f c-templates-symlink
+    lxc image delete image-templates-symlink
+    rm -rf "${tmpDir}"
+}
+
 test_image_import_existing_alias() {
     ensure_import_testimage
     lxc init testimage c

@@ -1886,9 +1886,14 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 		return idmap.IdmapStorageNone, nextIdmap, nil
 	}
 
+	rootfsPath, err := d.RootfsPath()
+	if err != nil {
+		return idmap.IdmapStorageNone, nil, err
+	}
+
 	// There's no on-disk idmap applied and the container can use idmapped
 	// storage.
-	idmapType := d.IdmappedStorage(d.RootfsPath())
+	idmapType := d.IdmappedStorage(rootfsPath)
 	if diskIdmap == nil && idmapType != idmap.IdmapStorageNone {
 		return idmapType, nextIdmap, nil
 	}
@@ -1910,11 +1915,11 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 	// Revert the currently applied on-disk idmap.
 	if diskIdmap != nil {
 		if storageType == "zfs" {
-			err = diskIdmap.UnshiftRootfs(d.RootfsPath(), storageDrivers.ShiftZFSSkipper)
+			err = diskIdmap.UnshiftRootfs(rootfsPath, storageDrivers.ShiftZFSSkipper)
 		} else if storageType == "btrfs" {
-			err = storageDrivers.UnshiftBtrfsRootfs(d.RootfsPath(), diskIdmap)
+			err = storageDrivers.UnshiftBtrfsRootfs(rootfsPath, diskIdmap)
 		} else {
-			err = diskIdmap.UnshiftRootfs(d.RootfsPath(), nil)
+			err = diskIdmap.UnshiftRootfs(rootfsPath, nil)
 		}
 		if err != nil {
 			return idmap.IdmapStorageNone, nil, err
@@ -1928,11 +1933,11 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 	// make use of idmapped storage.
 	if nextIdmap != nil && idmapType == idmap.IdmapStorageNone {
 		if storageType == "zfs" {
-			err = nextIdmap.ShiftRootfs(d.RootfsPath(), storageDrivers.ShiftZFSSkipper)
+			err = nextIdmap.ShiftRootfs(rootfsPath, storageDrivers.ShiftZFSSkipper)
 		} else if storageType == "btrfs" {
-			err = storageDrivers.ShiftBtrfsRootfs(d.RootfsPath(), nextIdmap)
+			err = storageDrivers.ShiftBtrfsRootfs(rootfsPath, nextIdmap)
 		} else {
-			err = nextIdmap.ShiftRootfs(d.RootfsPath(), nil)
+			err = nextIdmap.ShiftRootfs(rootfsPath, nil)
 		}
 		if err != nil {
 			return idmap.IdmapStorageNone, nil, err
@@ -1998,6 +2003,11 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		return "", nil, err
 	}
 	revert.Add(func() { d.unmount() })
+
+	rootfsPath, err := d.RootfsPath()
+	if err != nil {
+		return "", nil, err
+	}
 
 	idmapType, nextIdmap, err := d.handleIdmappedStorage()
 	if err != nil {
@@ -2137,19 +2147,19 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					}
 				} else if idmapType == idmap.IdmapStorageShiftfs {
 					// Host side mark mount.
-					err = lxcSetConfigItem(d.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", strconv.Quote(d.RootfsPath()), strconv.Quote(d.RootfsPath())))
+					err = lxcSetConfigItem(d.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", strconv.Quote(rootfsPath), strconv.Quote(rootfsPath)))
 					if err != nil {
 						return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
 					}
 
 					// Container side shift mount.
-					err = lxcSetConfigItem(d.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", strconv.Quote(d.RootfsPath()), strconv.Quote(d.RootfsPath())))
+					err = lxcSetConfigItem(d.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", strconv.Quote(rootfsPath), strconv.Quote(rootfsPath)))
 					if err != nil {
 						return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
 					}
 
 					// Host side umount of mark mount.
-					err = lxcSetConfigItem(d.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", strconv.Quote(d.RootfsPath())))
+					err = lxcSetConfigItem(d.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", strconv.Quote(rootfsPath)))
 					if err != nil {
 						return "", nil, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
 					}
@@ -2298,7 +2308,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	// Unmount any previously mounted shiftfs
-	unix.Unmount(d.RootfsPath(), unix.MNT_DETACH)
+	unix.Unmount(rootfsPath, unix.MNT_DETACH)
 
 	// Snapshot if needed.
 	err = d.startupSnapshot(d)
@@ -4885,7 +4895,11 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 	}
 
 	// Include all the rootfs files.
-	fnam = d.RootfsPath()
+	fnam, err = d.RootfsPath()
+	if err != nil {
+		return meta, err
+	}
+
 	err = filepath.Walk(fnam, writeToTar)
 	if err != nil {
 		d.logger.Error("Failed exporting instance", ctxMap)
@@ -4893,7 +4907,11 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 	}
 
 	// Include all the templates.
-	fnam = d.TemplatesPath()
+	fnam, err = d.TemplatesPath()
+	if err != nil {
+		return meta, err
+	}
+
 	if shared.PathExists(fnam) {
 		err = filepath.Walk(fnam, writeToTar)
 		if err != nil {
@@ -5205,6 +5223,16 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 		containerMeta["privileged"] = "false"
 	}
 
+	rootfsPath, err := d.RootfsPath()
+	if err != nil {
+		return err
+	}
+
+	templatesPath, err := d.TemplatesPath()
+	if err != nil {
+		return err
+	}
+
 	// Go through the templates
 	for tplPath, tpl := range metadata.Templates {
 		err = func(tplPath string, tpl *api.ImageMetadataTemplate) error {
@@ -5224,7 +5252,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			}
 
 			// Open the file to template, create if needed
-			fullpath := filepath.Join(d.RootfsPath(), strings.TrimLeft(tplPath, "/"))
+			fullpath := filepath.Join(rootfsPath, strings.TrimLeft(tplPath, "/"))
 			if shared.PathExists(fullpath) {
 				if tpl.CreateOnly {
 					return nil
@@ -5252,7 +5280,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			defer w.Close()
 
 			// Read the template
-			tplString, err := ioutil.ReadFile(filepath.Join(d.TemplatesPath(), tpl.Template))
+			tplString, err := ioutil.ReadFile(filepath.Join(templatesPath, tpl.Template))
 			if err != nil {
 				return errors.Wrap(err, "Failed to read template file")
 			}
@@ -5324,6 +5352,11 @@ func (d *lxc) FileExists(path string) error {
 		defer pidFd.Close()
 	}
 
+	rootfsPath, err := d.RootfsPath()
+	if err != nil {
+		return err
+	}
+
 	// Check if the file exists in the container
 	_, stderr, err := shared.RunCommandSplit(
 		nil,
@@ -5331,7 +5364,7 @@ func (d *lxc) FileExists(path string) error {
 		d.state.OS.ExecPath,
 		"forkfile",
 		"exists",
-		d.RootfsPath(),
+		rootfsPath,
 		fmt.Sprintf("%d", d.InitPID()),
 		fmt.Sprintf("%d", pidFdNr),
 		path,
@@ -5374,6 +5407,11 @@ func (d *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMod
 		defer pidFd.Close()
 	}
 
+	rootfsPath, err := d.RootfsPath()
+	if err != nil {
+		return -1, -1, 0, "", nil, err
+	}
+
 	// Get the file from the container
 	_, stderr, err := shared.RunCommandSplit(
 		nil,
@@ -5381,7 +5419,7 @@ func (d *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMod
 		d.state.OS.ExecPath,
 		"forkfile",
 		"pull",
-		d.RootfsPath(),
+		rootfsPath,
 		fmt.Sprintf("%d", d.InitPID()),
 		fmt.Sprintf("%d", pidFdNr),
 		srcpath,
@@ -5521,6 +5559,11 @@ func (d *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 		defer pidFd.Close()
 	}
 
+	rootfsPath, err := d.RootfsPath()
+	if err != nil {
+		return err
+	}
+
 	// Push the file to the container
 	_, stderr, err := shared.RunCommandSplit(
 		nil,
@@ -5528,7 +5571,7 @@ func (d *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 		d.state.OS.ExecPath,
 		"forkfile",
 		"push",
-		d.RootfsPath(),
+		rootfsPath,
 		fmt.Sprintf("%d", d.InitPID()),
 		fmt.Sprintf("%d", pidFdNr),
 		srcpath,
@@ -5594,6 +5637,11 @@ func (d *lxc) FileRemove(path string) error {
 		defer pidFd.Close()
 	}
 
+	rootfsPath, err := d.RootfsPath()
+	if err != nil {
+		return err
+	}
+
 	// Remove the file from the container
 	_, stderr, err := shared.RunCommandSplit(
 		nil,
@@ -5601,7 +5649,7 @@ func (d *lxc) FileRemove(path string) error {
 		d.state.OS.ExecPath,
 		"forkfile",
 		"remove",
-		d.RootfsPath(),
+		rootfsPath,
 		fmt.Sprintf("%d", d.InitPID()),
 		fmt.Sprintf("%d", pidFdNr),
 		path,
@@ -6115,8 +6163,13 @@ func (d *lxc) unmount() (bool, error) {
 		return false, err
 	}
 
-	if d.IdmappedStorage(d.RootfsPath()) == idmap.IdmapStorageShiftfs && !d.IsPrivileged() && diskIdmap == nil {
-		unix.Unmount(d.RootfsPath(), unix.MNT_DETACH)
+	rootfsPath, err := d.RootfsPath()
+	if err != nil {
+		return false, err
+	}
+
+	if d.IdmappedStorage(rootfsPath) == idmap.IdmapStorageShiftfs && !d.IsPrivileged() && diskIdmap == nil {
+		unix.Unmount(rootfsPath, unix.MNT_DETACH)
 	}
 
 	unmounted, err := pool.UnmountInstance(d, nil)
