@@ -570,12 +570,12 @@ parts:
 
   nvidia-container:
     source: https://github.com/NVIDIA/libnvidia-container
-    source-commit: 7585946c6471402577e14474d7c56ca5be0348d7 # v1.19.0
+    source-commit: 7585946c6471402577e14474d7c56ca5be0348d7 # v1.19.1
     source-depth: 1
     source-type: git
     plugin: make
     build-environment:
-      - GIT_TAG: "1.19.0" # Enables source-depth: 1, should match git tag without "v" prefix.
+      - GIT_TAG: "1.19.1" # Enables source-depth: 1, should match git tag without "v" prefix.
     build-packages:
       - to amd64:
         - bmake
@@ -592,7 +592,7 @@ parts:
         - lsb-release
         - libtirpc-dev
     build-snaps:
-      - go/1.25/stable
+      - go/1.26/stable
     override-stage: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
@@ -632,10 +632,10 @@ parts:
   nvidia-container-toolkit:
     source: https://github.com/NVIDIA/nvidia-container-toolkit
     source-depth: 1
-    source-commit: ec7b4e2fa2caecad6d89be4a26029b831fe7503a # v1.19.0
+    source-commit: 09ceee5dde66ba9ce25c7cc69b1ebd5e6e3266fa # v1.19.1
     source-type: git
     build-snaps:
-      - go/1.25/stable
+      - go/1.26/stable
     plugin: make
     override-stage: |-
       [ "$(uname -m)" = "armv7l" ] && exit 0
@@ -1165,7 +1165,7 @@ parts:
 
   zfs-2-2:
     source: https://github.com/openzfs/zfs
-    source-commit: 079ba86d71571bf997ff688da061d8c4aa2fd052 # zfs-2.2.9
+    source-commit: 07c1e2e38e2534818acb056223e6cfe1b667155e # zfs-2.2.10
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1214,7 +1214,7 @@ parts:
 
   zfs-2-3:
     source: https://github.com/openzfs/zfs
-    source-commit: c840612ee1af993b835d3b3e59baee631970a781 # zfs-2.3.6
+    source-commit: b4842aee84437fccc6f87d436ca4ca8d4da676ae # zfs-2.3.8
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1263,7 +1263,7 @@ parts:
 
   zfs-2-4:
     source: https://github.com/openzfs/zfs
-    source-commit: 1c702dda346a59e05cfd3029569bbb1d5d91c54b # zfs-2.4.1
+    source-commit: 83020cf8259d057d4cc9102010c05f07ffdfc136 # zfs-2.4.3
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1516,7 +1516,7 @@ parts:
       - python3-pip
       - python3-venv
     build-snaps:
-      - go/1.25/stable
+      - go/1.26/stable
     stage-packages:
       - acl
       - attr
