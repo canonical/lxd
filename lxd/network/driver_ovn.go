@@ -260,12 +260,11 @@ func (n *ovn) projectRestrictedSubnets(p *api.Project, uplinkNetworkName string)
 func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, externalSubnetsInUse []externalSubnetUsage, validator func(*net.IPNet, []externalSubnetUsage) (bool, error)) (net.IP, error) {
 	// Ensure a sensible deadline is set.
 	_, hasDeadline := ctx.Deadline()
-	var cancel context.CancelFunc = func() {}
 	if !hasDeadline {
+		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
 	}
-
-	defer cancel()
 
 	var subnets []*net.IPNet
 	for _, projectRestrictedSubnet := range projectRestrictedSubnets {
