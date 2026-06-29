@@ -28,6 +28,7 @@ import (
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -109,7 +110,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			}
 		}
 
-		// For public images, handle aliases and initial metadata
+		// Get the image information
 		if args.Secret == "" {
 			// Look for a matching alias
 			entry, _, err := remote.GetImageAliasType(args.Type, fp)
@@ -124,7 +125,25 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			}
 
 			fp = info.Fingerprint
+		} else {
+			info, _, err = remote.GetPrivateImage(fp, args.Secret)
+			if err != nil {
+				return nil, fmt.Errorf("Failed getting remote image info: %w", err)
+			}
+
+			fp = info.Fingerprint
+
+			// Set alias to equal fingerprint so that we don't save this remote as an image source or try to auto-update
+			// the image (we can't get it again since it is private). In this case the alias may have actually been an
+			// image fingerprint prefix.
+			alias = info.Fingerprint
 		}
+	}
+
+	// Ensure the fingerprint is valid.
+	err = validateImageFingerprint(fp)
+	if err != nil {
+		return nil, err
 	}
 
 	// Ensure we are the only ones operating on this image.
@@ -318,18 +337,35 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 	l.Info("Downloading image")
 
-	// Cleanup any leftover from a past attempt
-	destDir := s.ImagesStoragePath()
-	destName := filepath.Join(destDir, fp)
-
-	failure := true
-	cleanup := func() {
-		if failure {
-			_ = os.Remove(destName)
-			_ = os.Remove(destName + ".rootfs")
-		}
+	destRoot, err := os.OpenRoot(s.ImagesStoragePath())
+	if err != nil {
+		return nil, err
 	}
-	defer cleanup()
+
+	defer func() { _ = destRoot.Close() }()
+
+	destFile, err := destRoot.Create(fp)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = destFile.Close() }()
+
+	destRootfsFileName := fp + ".rootfs"
+	destRootfsFile, err := destRoot.Create(destRootfsFileName)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = destRootfsFile.Close() }()
+
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	reverter.Add(func() {
+		_ = destRoot.Remove(fp)
+		_ = destRoot.Remove(destRootfsFileName)
+	})
 
 	// Setup a progress handler
 	progress := func(progress ioprogress.ProgressData) {
@@ -355,40 +391,6 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 	switch protocol {
 	case "lxd", "simplestreams":
-		// Create the target files
-		dest, err := os.Create(destName)
-		if err != nil {
-			return nil, err
-		}
-
-		defer func() { _ = dest.Close() }()
-
-		destRootfs, err := os.Create(destName + ".rootfs")
-		if err != nil {
-			return nil, err
-		}
-
-		defer func() { _ = destRootfs.Close() }()
-
-		// Get the image information
-		if info == nil {
-			if args.Secret != "" {
-				info, _, err = remote.GetPrivateImage(fp, args.Secret)
-				if err != nil {
-					return nil, err
-				}
-
-				// Expand the fingerprint now and mark alias string to match
-				fp = info.Fingerprint
-				alias = info.Fingerprint
-			} else {
-				info, _, err = remote.GetImage(fp)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-
 		// Compatibility with older LXD servers
 		if info.Type == "" {
 			info.Type = "container"
@@ -401,14 +403,15 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		// Download the image
 		var resp *lxd.ImageFileResponse
 		request := lxd.ImageFileRequest{
-			MetaFile:        io.WriteSeeker(dest),
-			RootfsFile:      io.WriteSeeker(destRootfs),
+			MetaFile:        io.WriteSeeker(destFile),
+			RootfsFile:      io.WriteSeeker(destRootfsFile),
 			ProgressHandler: progress,
 			Canceler:        canceler,
 			DeltaSourceRetriever: func(fingerprint string, file string) string {
-				path := filepath.Join(destDir, fingerprint+"."+file)
-				if shared.PathExists(path) {
-					return path
+				filename := fingerprint + "." + file
+				_, err := destRoot.Lstat(filename)
+				if err == nil {
+					return filepath.Join(destRoot.Name(), filename)
 				}
 
 				return ""
@@ -427,31 +430,31 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 		// Truncate down to size
 		if resp.RootfsSize > 0 {
-			err = destRootfs.Truncate(resp.RootfsSize)
+			err = destRootfsFile.Truncate(resp.RootfsSize)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		err = dest.Truncate(resp.MetaSize)
+		err = destFile.Truncate(resp.MetaSize)
 		if err != nil {
 			return nil, err
 		}
 
 		// Deal with unified images
 		if resp.RootfsSize == 0 {
-			err := os.Remove(destName + ".rootfs")
+			err := destRoot.Remove(destRootfsFileName)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		err = dest.Close()
+		err = destFile.Close()
 		if err != nil {
 			return nil, err
 		}
 
-		err = destRootfs.Close()
+		err = destRootfsFile.Close()
 		if err != nil {
 			return nil, err
 		}
@@ -501,19 +504,11 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			},
 		}
 
-		// Create the target files
-		f, err := os.Create(destName)
-		if err != nil {
-			return nil, err
-		}
-
-		defer func() { _ = f.Close() }()
-
 		// Hashing
 		sha256 := sha256.New()
 
 		// Download the image
-		writer := shared.NewQuotaWriter(io.MultiWriter(f, sha256), args.Budget)
+		writer := shared.NewQuotaWriter(io.MultiWriter(destFile, sha256), args.Budget)
 		size, err := io.Copy(writer, body)
 		if err != nil {
 			return nil, err
@@ -526,7 +521,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		}
 
 		// Parse the image
-		imageMeta, imageType, err := getImageMetadata(destName)
+		imageMeta, imageType, err := getImageMetadata(destFile.Name())
 		if err != nil {
 			return nil, err
 		}
@@ -540,7 +535,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		info.Properties = imageMeta.Properties
 		info.Type = imageType
 
-		err = f.Close()
+		err = destFile.Close()
 		if err != nil {
 			return nil, err
 		}
@@ -568,23 +563,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 	}
 
 	// Image is in the DB now, don't wipe on-disk files on failure
-	failure = false
-
-	// Check if the image path changed (private images)
-	newDestName := filepath.Join(destDir, fp)
-	if newDestName != destName {
-		err = shared.FileMove(destName, newDestName)
-		if err != nil {
-			return nil, err
-		}
-
-		if shared.PathExists(destName + ".rootfs") {
-			err = shared.FileMove(destName+".rootfs", newDestName+".rootfs")
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
+	reverter.Success()
 
 	// Record the image source
 	if alias != fp {
