@@ -758,10 +758,12 @@ jobs:
             fi
           fi
 
-          # Adding the Go bin directory to PATH ensures that the test scripts will find the
-          # LXD binaries built in the code-tests job and downloaded via the system-test-deps artifact.
-          # This avoids rebuilding them and ensures the coverage data is collected from the intended binaries.
-          export PATH="/home/runner/go/bin:${PATH}"
+          # Append the Go bin directory to PATH so the test scripts can find the host-only
+          # binaries built in the code-tests job and downloaded via the system-test-deps artifact
+          # (notably the coverage-instrumented lxd-convert, which the snap does not ship).
+          # It is appended (not prepended) so the snap's lxc/lxd wrappers keep precedence; the snap
+          # lxc/lxd/lxd-agent coverage is collected separately via the sideloaded *.debug binaries.
+          export PATH="${PATH}:/home/runner/go/bin"
           sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./bin/local-run "tests/${TEST_SCRIPT}" "${SNAP_TRACK}/${SNAP_RISK}" ${EXTRA_ARGS:-}
 
           # Cleanly stopping `snap.lxd.daemon.service` will ensure that any Go
