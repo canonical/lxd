@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -62,8 +63,37 @@ func rsync(args ...string) (string, error) {
 	return stdout.String(), nil
 }
 
+// assertSafePath returns an error if the provided path is not absolute or if it
+// contains a ".." segment. rsync treats arguments beginning with "-" as
+// options, so source and destination paths must always be absolute (and
+// therefore begin with "/"). Rejecting ".." segments additionally prevents a
+// crafted path from traversing outside of its intended directory.
+func assertSafePath(path string) error {
+	if !filepath.IsAbs(path) {
+		return fmt.Errorf("Rsync path %q must be absolute", path)
+	}
+
+	for segment := range strings.SplitSeq(path, "/") {
+		if segment == ".." {
+			return fmt.Errorf("Rsync path %q must not contain %q segments", path, "..")
+		}
+	}
+
+	return nil
+}
+
 func runRsync(source string, dest string, bwlimit string, xattrs bool, rsyncArgs ...string) (string, error) {
-	err := os.MkdirAll(dest, 0755)
+	err := assertSafePath(source)
+	if err != nil {
+		return "", err
+	}
+
+	err = assertSafePath(dest)
+	if err != nil {
+		return "", err
+	}
+
+	err = os.MkdirAll(dest, 0755)
 	if err != nil {
 		return "", err
 	}
@@ -136,6 +166,11 @@ func CopyFile(source string, dest string, bwlimit string, xattrs bool, rsyncArgs
 // Send sets up the sending half of an rsync, to recursively send the
 // directory pointed to by path over the websocket.
 func Send(name string, path string, conn io.ReadWriteCloser, wrapper ioprogress.ReaderWrapper, features []string, bwlimit string, execPath string, rsyncArgs ...string) error {
+	err := assertSafePath(path)
+	if err != nil {
+		return err
+	}
+
 	/*
 	 * The way rsync works, it invokes a subprocess that does the actual
 	 * talking (given to it by a -E argument). Since there isn't an easy
@@ -313,6 +348,11 @@ func Send(name string, path string, conn io.ReadWriteCloser, wrapper ioprogress.
 // half set up by rsync.Send), putting the contents in the directory specified
 // by path.
 func Recv(path string, conn io.ReadWriteCloser, readWrapper ioprogress.ReaderWrapper, features []string) error {
+	err := assertSafePath(path)
+	if err != nil {
+		return err
+	}
+
 	args := []string{
 		"--server",
 		"-vlogDtpre.iLsfx",
