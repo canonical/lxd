@@ -969,6 +969,45 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (attachedVolumes map
 	return attachedVolumes, nil
 }
 
+// sharedAttachedVolumes returns the set of volumes in attachedVolumes that are
+// also attached to at least one other instance in the same project. It uses a
+// single InstanceList pass to avoid one full cluster scan per volume.
+func (d *common) sharedAttachedVolumes(inst instance.Instance, attachedVolumes map[string]db.StorageVolume) (map[string]struct{}, error) {
+	sharedVols := make(map[string]struct{}, len(attachedVolumes))
+	if len(attachedVolumes) == 0 {
+		return sharedVols, nil
+	}
+
+	instanceProject := inst.Project()
+	instOwnStorageProject := project.StorageVolumeProjectFromRecord(&instanceProject, dbCluster.StoragePoolVolumeTypeCustom)
+
+	vols := make([]*db.StorageVolume, 0, len(attachedVolumes))
+	for _, vol := range attachedVolumes {
+		vols = append(vols, &vol)
+	}
+
+	var volumeUsedBy map[string][]db.InstanceArgs
+	err := d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		volumeUsedBy, err = storagePools.VolumesUsedByInstanceDevices(ctx, tx, instOwnStorageProject, vols)
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed detecting shared volumes: %w", err)
+	}
+
+	for volKey, users := range volumeUsedBy {
+		for _, user := range users {
+			if !instance.IsSameLogicalInstance(inst, &user) {
+				sharedVols[volKey] = struct{}{}
+				break
+			}
+		}
+	}
+
+	return sharedVols, nil
+}
+
 // snapshotCommon handles the common part of a snapshot.
 // It creates the DB record and snapshots the instance, derives expiry from
 // inst's "snapshots.expiry" if expiry is nil, mounts the instance to update
