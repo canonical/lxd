@@ -132,8 +132,10 @@ _server_config_storage() {
   lxd_backend=$(storage_backend "$LXD_DIR")
   if [ "$lxd_backend" = "ceph" ]; then
     # The volume doesn't have to be present as the check errors after testing for the remote storage pool.
-    ! lxc config set storage.backups_volume "${pool}/foo" | grep -F "Error: Failed validation of \"storage.backups_volume\": Remote storage pool \"${pool}\" cannot be used" || false
-    ! lxc config set storage.images_volume "${pool}/foo" | grep -F "Error: Failed validation of \"storage.images_volume\": Remote storage pool \"${pool}\" cannot be used" || false
+    ! output=$(lxc config set storage.backups_volume "${pool}/foo" 2>&1) || false
+    [[ "${output}" == "Error: Failed validation of \"storage.backups_volume\": Remote storage pool \"${pool}\" cannot be used" ]]
+    ! output=$(lxc config set storage.images_volume "${pool}/foo" 2>&1) || false
+    [[ "${output}" == "Error: Failed validation of \"storage.images_volume\": Remote storage pool \"${pool}\" cannot be used" ]]
 
     return
   fi
