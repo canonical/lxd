@@ -1313,8 +1313,11 @@ test_backup_inconsistent_config() {
   poolName="lxdtest-$(basename "${LXD_DIR}")"
 
   # Create a restricted project and switch to it.
+  # Allow snapshots so that backup archives containing snapshots can be imported;
+  # this test is about config reconciliation, not snapshot restriction enforcement.
   lxc project create restricted \
-    -c restricted=true
+    -c restricted=true \
+    -c restricted.snapshots=allow
   lxc profile device add default root disk path=/ pool="${poolName}" --project restricted
 
   # Switch to restricted project to test imports.
