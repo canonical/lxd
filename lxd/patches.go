@@ -127,6 +127,7 @@ var patches = []patch{
 	{name: "clustering_event_hub_role_to_control_plane", stage: patchPreLoadClusterConfig, run: patchClusteringEventHubRoleToControlPlane},
 	{name: "storage_zfs_remove_local_bucket_datasets", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "storage_rename_nvme_mode", stage: patchPreLoadClusterConfig, run: patchStoragePoolConnectorNVMeMode},
+	{name: "replicators_remove_snapshot_config_key", stage: patchPreLoadClusterConfig, run: patchReplicatorsRemoveSnapshotConfigKey},
 }
 
 type patch struct {
@@ -2453,6 +2454,17 @@ func patchStoragePoolConnectorNVMeMode(_ string, d *Daemon) error {
 			if err != nil {
 				return fmt.Errorf("Failed updating storage pool %q: %w", pool.Name, err)
 			}
+		}
+
+		return nil
+	})
+}
+
+func patchReplicatorsRemoveSnapshotConfigKey(_ string, d *Daemon) error {
+	return d.State().DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		_, err := tx.Tx().ExecContext(ctx, `DELETE FROM replicators_config WHERE key = 'snapshot'`)
+		if err != nil {
+			return fmt.Errorf("Failed removing replicator snapshot config: %w", err)
 		}
 
 		return nil

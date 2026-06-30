@@ -359,14 +359,6 @@ func replicatorValidateConfig(ctx context.Context, s *state.State, config map[st
 			return s.Authorizer.CheckPermission(ctx, entity.ClusterLinkURL(value), auth.EntitlementCanView)
 		}),
 
-		// lxdmeta:generate(entities=replicator; group=conf; key=snapshot)
-		//
-		// ---
-		//  type: bool
-		//  shortdesc: Whether to snapshot instances before replication.
-		//  scope: global
-		"snapshot": validate.Optional(validate.IsBool),
-
 		// lxdmeta:generate(entities=replicator; group=conf; key=schedule)
 		// Specify a cron expression for the replication schedule. For example, `@daily` or `0 6 * * *`.
 		// ---
@@ -674,7 +666,7 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Replicator %q has no cluster link configured", name))
 	}
 
-	opArgs, err := prepareReplicatorRunOperation(r.Context(), s, projectName, name, clusterLinkName, restore, dbReplicator.Row.ID, shared.IsTrue(apiReplicator.Config["snapshot"]))
+	opArgs, err := prepareReplicatorRunOperation(r.Context(), s, projectName, name, clusterLinkName, restore, dbReplicator.Row.ID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1010,7 +1002,7 @@ func runScheduledReplicatorsTask(stateFunc func() *state.State) (task.Func, task
 }
 
 // prepareReplicatorRunOperation builds the operation used to run a replicator.
-func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectName string, name string, clusterLinkName string, restore bool, replicatorID int64, snapshot bool) (operations.OperationArgs, error) {
+func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectName string, name string, clusterLinkName string, restore bool, replicatorID int64) (operations.OperationArgs, error) {
 	// Load all DB state in a single transaction before any network I/O.
 	var clusterLink *api.ClusterLink
 	var targetCert *x509.Certificate
@@ -1135,7 +1127,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 
 				dstClient = dstClient.UseProject(projectName)
 
-				return replicateInstance(ctx, s, op, inst, memberAddress, snapshot, dstClient, targetCertPEM)
+				return replicateInstance(ctx, s, op, inst, memberAddress, dstClient, targetCertPEM)
 			}
 
 			childArgs = append(childArgs, &operations.OperationArgs{
@@ -1447,17 +1439,17 @@ func replicatorCheckInstancesStopped(allInsts []instance.Instance) error {
 // replicateInstance handles forward replication of a single instance to the
 // destination cluster. It handles both instances on the local cluster member
 // and instances on other cluster members.
-func replicateInstance(ctx context.Context, s *state.State, op *operations.Operation, inst instance.Instance, memberAddress string, snapshot bool, dstClient lxd.InstanceServer, targetCertPEM string) error {
+func replicateInstance(ctx context.Context, s *state.State, op *operations.Operation, inst instance.Instance, memberAddress string, dstClient lxd.InstanceServer, targetCertPEM string) error {
 	instName := inst.Name()
 	projectName := inst.Project().Name
-	// Only snapshot if requested and the instance has no snapshot schedule; if a schedule is
-	// defined, scheduled snapshots already provide point-in-time history so an extra one here
-	// would be redundant.
-	createSnapshot := snapshot && inst.ExpandedConfig()["snapshots.schedule"] == ""
+	// Snapshotting is unconditional; the only exception is when the instance already has a
+	// snapshot schedule defined, since scheduled snapshots provide point-in-time history so
+	// an extra one here would be redundant.
+	createSnapshot := inst.ExpandedConfig()["snapshots.schedule"] == ""
 
 	// Instance on another cluster member: connect to the hosting cluster member and
-	// drive the snapshot + push migration through its API so the migration
-	// source has direct access to the instance's storage.
+	// drive the snapshot (if needed) and push migration through its API so the
+	// migration source has direct access to the instance's storage.
 	if inst.Location() != s.ServerName {
 		if memberAddress == "" {
 			return fmt.Errorf("Failed resolving cluster member address for instance %q", instName)
@@ -1542,9 +1534,6 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 	}
 
 	// Local instance: handle replication directly.
-	// Only take a snapshot if snapshot is requested and the instance has no snapshot schedule;
-	// if a schedule is defined, scheduled snapshots already provide point-in-time history
-	// so creating an extra one here would be redundant.
 	if createSnapshot {
 		snapName, err := instance.NextSnapshotName(s, inst, "snap%d")
 		if err != nil {
@@ -1767,7 +1756,7 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 		return fmt.Errorf("Replicator %q has no cluster link configured", replicator.Name)
 	}
 
-	opArgs, err := prepareReplicatorRunOperation(ctx, s, replicator.Project, replicator.Name, clusterLinkName, false, row.Row.ID, shared.IsTrue(replicator.Config["snapshot"]))
+	opArgs, err := prepareReplicatorRunOperation(ctx, s, replicator.Project, replicator.Name, clusterLinkName, false, row.Row.ID)
 	if err != nil {
 		return err
 	}

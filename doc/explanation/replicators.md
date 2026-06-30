@@ -29,7 +29,7 @@ The leader project pushes its instances to the standby project over the cluster 
 
 When a replicator runs, LXD performs an incremental refresh of every instance in the leader project to the standby project. Instances that do not yet exist on the standby are created; existing instances are updated to match the leader's current state.
 
-If {config:option}`replicator-conf:snapshot` is set to `true` on the replicator, LXD creates a point-in-time snapshot of each instance on the leader before the refresh. This provides a consistent rollback point on the source cluster in case anything goes wrong during replication.
+Before each refresh, LXD creates a point-in-time snapshot of each instance on the leader. This provides a consistent rollback point on the source cluster in case anything goes wrong during replication. The exception is instances that already have a {config:option}`instance-snapshots:snapshots.schedule` configured: their scheduled snapshots already provide point-in-time history, so LXD skips the extra snapshot to avoid redundancy.
 
 Replication can be triggered manually with `lxc replicator run`, or scheduled automatically using a cron expression in the {config:option}`replicator-conf:schedule` configuration key.
 
@@ -54,7 +54,7 @@ LXD supports two distinct approaches to cross-site disaster recovery:
 | **Scheduling** | Controlled by LXD ({config:option}`replicator-conf:schedule` config key) | Controlled by the storage vendor |
 | **Requires cluster link** | Yes | No |
 | **Recovery method** | Promote standby project with `lxc project promote-replica` | Promote storage array, then run `lxd recover` |
-| **Snapshot support** | Optional pre-replication snapshots | Depends on storage vendor |
+| **Snapshot support** | Automatic pre-replication snapshots | Depends on storage vendor |
 
 Use replicators when you want LXD to manage replication end-to-end across two clusters without dependency on a specific storage backend. Use {ref}`storage replication <disaster-recovery-replication>` when you need replication at the storage array level, or when you are not using cluster links.
 
