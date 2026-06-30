@@ -25,6 +25,7 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
+	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -1814,4 +1815,97 @@ func validateReplicatorModes(sourceMode string, targetMode string, restore bool)
 	}
 
 	return nil
+}
+
+// replicatorVolume wraps a custom volume with its attachment classification for a replicator run.
+type replicatorVolume struct {
+	volume *db.StorageVolume
+	usedBy []string // instance names that attach this volume via expanded devices.
+
+	// snapshottable is false when the volume must never get a direct snapshot: ISO content
+	// volumes do not support snapshots, and volumes with their own snapshot schedule use
+	// their scheduled snapshots as the replication basis. Such volumes are still replicated.
+	snapshottable bool
+
+	// needsOwnSnapshot is true when the snapshot phase must take a direct snapshot of this
+	// volume. It is false for non-snapshottable volumes and for exclusively attached volumes
+	// covered by their owning instance's all-exclusive snapshot.
+	needsOwnSnapshot bool
+}
+
+func (v replicatorVolume) isExclusive() bool { return len(v.usedBy) == 1 }
+
+// buildVolumeWorkList enumerates the project's non-snapshot custom volumes, records which
+// instances attach each one and decides how each is snapshotted before replication: a volume
+// attached to exactly one instance is captured by that instance's all-exclusive snapshot,
+// taken at the same moment as its root disk for crash consistency, while shared and
+// standalone volumes get a direct snapshot of their own. ISO content volumes and volumes
+// with their own snapshot schedule are never snapshotted but are still replicated.
+func buildVolumeWorkList(ctx context.Context, s *state.State, projectName string, instByName map[string]instance.Instance) ([]replicatorVolume, error) {
+	customVolumeType := dbCluster.StoragePoolVolumeTypeCustom
+
+	// Both the volume fetch and the instance scan run in one transaction so we only
+	// call InstanceList once regardless of how many volumes the project has.
+	var dbVols []*db.StorageVolume
+	var volumeUsedBy map[string][]db.InstanceArgs
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		// When the project has features.storage.volumes=false, custom volumes belong to the
+		// default project namespace; querying by projectName returns nothing and the work list
+		// is empty, so no custom-volume replication runs for that project.
+		dbVols, err = tx.GetStorageVolumes(ctx, false, db.StorageVolumeFilter{Type: &customVolumeType, Project: &projectName})
+		if err != nil {
+			return err
+		}
+
+		// GetStorageVolumes returns snapshots alongside parent volumes; strip them once
+		// here so neither the attachment scan nor the work-list construction need to check.
+		n := 0
+		for _, v := range dbVols {
+			if !shared.IsSnapshot(v.Name) {
+				dbVols[n] = v
+				n++
+			}
+		}
+
+		dbVols = dbVols[:n]
+
+		volumeUsedBy, err = storagePools.VolumesUsedByInstanceDevices(ctx, tx, projectName, dbVols)
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed enumerating volumes and instance usage for project %q: %w", projectName, err)
+	}
+
+	work := make([]replicatorVolume, 0, len(dbVols))
+	for _, vol := range dbVols {
+		users := volumeUsedBy[vol.Pool+"/"+vol.Name]
+		usedBy := make([]string, 0, len(users))
+		for _, user := range users {
+			usedBy = append(usedBy, user.Name)
+		}
+
+		snapshottable := vol.ContentType != dbCluster.StoragePoolVolumeContentTypeNameISO && vol.Config["snapshots.schedule"] == ""
+
+		// An exclusively attached volume is covered by its owner's all-exclusive snapshot,
+		// so it needs no direct snapshot of its own, unless the owner has its own snapshot
+		// schedule, which suppresses the instance snapshot during the run.
+		needsOwnSnapshot := snapshottable
+		if snapshottable && len(usedBy) == 1 {
+			owner, ok := instByName[usedBy[0]]
+			if ok && owner.ExpandedConfig()["snapshots.schedule"] == "" {
+				needsOwnSnapshot = false
+			}
+		}
+
+		work = append(work, replicatorVolume{
+			volume:           vol,
+			usedBy:           usedBy,
+			snapshottable:    snapshottable,
+			needsOwnSnapshot: needsOwnSnapshot,
+		})
+	}
+
+	return work, nil
 }
