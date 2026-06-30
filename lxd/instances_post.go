@@ -419,6 +419,25 @@ func createFromCopy(s *state.State, r *http.Request, projectName string, profile
 		return response.SmartError(err)
 	}
 
+	// For cross-project copies, validate that the instance and its snapshots satisfy the target
+	// project's restrictions before starting the copy operation. This check must run before any
+	// cluster-redirect early returns so that cross-cluster copies are also covered.
+	if sourceProject != targetProject {
+		profileNames := make([]string, 0, len(profiles))
+		for _, p := range profiles {
+			profileNames = append(profileNames, p.Name)
+		}
+
+		rootDevKey, rootDev, _ := instancetype.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
+
+		// We keep the ContainerOnly for backward compatibility.
+		copyInstanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
+		err = checkTargetProjectRestrictions(s, source, targetProject, sourceProject, req.Name, req.Config, req.Devices, profileNames, copyInstanceOnly, rootDevKey, rootDev["pool"])
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
 	// When clustered, use the node name, otherwise use the hostname.
 	if s.ServerClustered {
 		serverName := s.ServerName
