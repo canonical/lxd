@@ -1029,15 +1029,11 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 
 		defer func() { _ = src.Unfreeze() }()
 
-		rootfs, err := src.OpenRootfs()
-		if err != nil {
-			return err
-		}
-
-		_ = rootfs.Close()
-
 		// Attempt to sync the filesystem.
-		_ = filesystem.SyncFS(rootfs.Name())
+		err = filesystem.SyncFS(src.Path())
+		if err != nil {
+			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+		}
 	}
 
 	revert.Add(func() { _ = b.DeleteInstance(inst, op) })
@@ -1588,15 +1584,11 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 
 		defer func() { _ = src.Unfreeze() }()
 
-		rootfs, err := src.OpenRootfs()
-		if err != nil {
-			return err
-		}
-
-		_ = rootfs.Close()
-
 		// Attempt to sync the filesystem.
-		_ = filesystem.SyncFS(rootfs.Name())
+		err = filesystem.SyncFS(src.Path())
+		if err != nil {
+			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+		}
 	}
 
 	if b.Name() == srcPool.Name() {
@@ -2548,15 +2540,11 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 
 		defer func() { _ = inst.Unfreeze() }()
 
-		rootfs, err := inst.OpenRootfs()
-		if err != nil {
-			return err
-		}
-
-		_ = rootfs.Close()
-
 		// Attempt to sync the filesystem.
-		_ = filesystem.SyncFS(rootfs.Name())
+		err = filesystem.SyncFS(inst.Path())
+		if err != nil {
+			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+		}
 	}
 
 	volCopy := drivers.NewVolumeCopy(vol, sourceSnapshots...)
@@ -2999,15 +2987,11 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 
 		defer func() { _ = src.Unfreeze() }()
 
-		rootfs, err := src.OpenRootfs()
-		if err != nil {
-			return err
-		}
-
-		_ = rootfs.Close()
-
 		// Attempt to sync the filesystem.
-		_ = filesystem.SyncFS(rootfs.Name())
+		err = filesystem.SyncFS(src.Path())
+		if err != nil {
+			l.Warn("Failed to flush writes to instance volume", logger.Ctx{"err": err})
+		}
 	}
 
 	// Lock this operation to ensure that the only one snapshot is made at the time.
