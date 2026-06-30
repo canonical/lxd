@@ -945,6 +945,14 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			return response.SmartError(err)
 		}
 
+		// Verify snapshot creation is permitted before iterating over individual snapshots.
+		if len(bInfo.Config.Snapshots) > 0 {
+			err = limits.AllowSnapshotCreation(&restrictions.Project)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
 		for i, snapshot := range bInfo.Config.Snapshots {
 			if snapshot == nil {
 				return response.SmartError(fmt.Errorf("Nil instance snapshot definition found at index %d", i))
