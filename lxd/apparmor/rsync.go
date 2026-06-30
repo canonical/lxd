@@ -29,6 +29,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   capability fsetid,
   capability mknod,
   capability setfcap,
+  # CAP_SYS_ADMIN is needed to set 'trusted.*' and 'security.*' extended attributes
   capability sys_admin,
 
   unix (connect, send, receive) type=stream,
