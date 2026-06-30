@@ -895,6 +895,10 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 		// Create the identity and its certificate.
 		id, err := dbCluster.CreateTLSIdentity(ctx, tx.Tx(), req.Name, api.IdentityTypeCertificateClusterLink, fingerprint, clusterCert)
 		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusConflict) {
+				return api.NewStatusError(http.StatusConflict, "A cluster link already exists between these clusters")
+			}
+
 			return err
 		}
 
@@ -1068,6 +1072,10 @@ func clusterLinkActivate(s *state.State, r *http.Request, req api.ClusterLinksPo
 		// Activate the pending identity with the certificate.
 		err = dbCluster.ActivateTLSIdentity(ctx, tx.Tx(), identifier, cert)
 		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusConflict) {
+				return api.NewStatusError(http.StatusConflict, "A cluster link already exists between these clusters")
+			}
+
 			return fmt.Errorf("Failed activating identity %q: %w", identifier.String(), err)
 		}
 
