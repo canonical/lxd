@@ -399,6 +399,52 @@ func replicatorValidateConfig(ctx context.Context, s *state.State, config map[st
 	return nil
 }
 
+// checkStandbyReplicaProjectWriteGuard returns a Forbidden error if the project is a standby
+// replica and the requestor is not the expected cluster link identity. It is a no-op for cluster
+// notifications (replicator restore path) and for projects that are not in standby mode.
+func checkStandbyReplicaProjectWriteGuard(ctx context.Context, tx *db.ClusterTx, projectName string, requestor *request.Requestor, entityNoun string) error {
+	// Only replicator runs from the configured cluster link (or internal cluster
+	// notifications forwarded by the coordinator) can create entities in a standby
+	// replica project.
+	if requestor.IsClusterNotification() {
+		return nil
+	}
+
+	dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
+	if err != nil {
+		return fmt.Errorf("Failed loading project %q: %w", projectName, err)
+	}
+
+	if dbProject.ReplicaMode != api.ReplicatorProjectModeStandby {
+		return nil
+	}
+
+	projectConfig, err := dbCluster.GetProjectConfig(ctx, tx.Tx(), projectName)
+	if err != nil {
+		return fmt.Errorf("Failed loading project config %q: %w", projectName, err)
+	}
+
+	expectedCluster := projectConfig["replica.cluster"]
+	clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), expectedCluster)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return api.StatusErrorf(http.StatusForbidden, "Cannot create %s in a standby replica project", entityNoun)
+		}
+
+		return fmt.Errorf("Failed loading cluster link %q: %w", expectedCluster, err)
+	}
+
+	// Only allow the expected cluster link identity to create entities in the standby replica project.
+	// We can check this using the requestor identity ID, since cluster links always communicate using a named
+	// TLS identity. We need to ensure the identity is not nil - since it can be nil for admin protocols.
+	// (Admins are not allowed to create entities in this project while it is in standby either).
+	if requestor.IdentityID == nil || clusterLink.IdentityID == nil || *requestor.IdentityID != *clusterLink.IdentityID {
+		return api.StatusErrorf(http.StatusForbidden, "Cannot create %s in a standby replica project", entityNoun)
+	}
+
+	return nil
+}
+
 // replicatorCheckClusterLinkUnique returns an error if another replicator in the given project
 // already targets the given cluster link. excludeID should be the ID of the replicator being
 // updated, or 0 when creating a new replicator.
