@@ -1071,12 +1071,22 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		}
 	}
 
+	sharedVolumes, err := d.sharedAttachedVolumes(inst, attachedVolumes)
+	if err != nil {
+		return fmt.Errorf("Failed checking shared status of attached volumes: %w", err)
+	}
+
 	// Attached volumes to snapshot alongside the root, excluding ISO volumes whose
-	// snapshots are unsupported. An ISO-only attachment therefore does not need a
-	// crash-consistent freeze.
+	// snapshots are unsupported, and volumes shared with other instances. An ISO-only
+	// attachment does not need a crash-consistent freeze.
 	snapshottableVolumes := make(map[string]db.StorageVolume, len(attachedVolumes))
 	for deviceName, volume := range attachedVolumes {
 		if volume.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
+			continue
+		}
+
+		_, isShared := sharedVolumes[volume.Pool+"/"+volume.Name]
+		if isShared {
 			continue
 		}
 
@@ -1158,8 +1168,9 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		}
 	})
 
-	// Snapshot attached disk volumes.
-	if len(attachedVolumes) > 0 {
+	// Snapshot attached disk volumes. Nothing snapshottable means nothing to record, so the snapshot is left
+	// without the key rather than carrying an empty map that later reads as a lost record.
+	if len(snapshottableVolumes) > 0 {
 		// Snapshot attached custom volumes.
 		storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
 		volatileAttachedVolumes := make(map[string]string)
@@ -1452,7 +1463,7 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 	}
 
 	for _, v := range attachedVolumes {
-		_, isShared := sharedVolumeNames[v.Name]
+		_, isShared := sharedVolumeNames[v.Pool+"/"+v.Name]
 		if isShared {
 			shared = append(shared, v)
 		}
