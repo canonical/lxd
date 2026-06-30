@@ -1446,18 +1446,22 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 
 	// Detect shared volumes.
 	// This is required because currently the only supported disk volumes mode is "all-exclusive".
-	for _, v := range attachedVolumes {
-		err = storagePools.VolumeUsedByInstanceDevices(d.state, v.Pool, v.Project, &v.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-			// Skip this instance.
-			if instance.IsSameLogicalInstance(inst, &dbInst) {
-				return nil
-			}
+	sharedVolumeNames, err := d.sharedAttachedVolumes(inst, attachedVolumes)
+	if err != nil {
+		return nil, fmt.Errorf("Failed checking shared status of attached volumes: %w", err)
+	}
 
+	// Only the volumes the snapshot recorded are restored, so only those have to be exclusive now. A
+	// volume the snapshot skipped as shared is left alone either way.
+	for deviceName := range volatileAttachedVolumes {
+		v, ok := attachedVolumes[deviceName]
+		if !ok {
+			continue
+		}
+
+		_, isShared := sharedVolumeNames[v.Name]
+		if isShared {
 			shared = append(shared, v)
-			return nil
-		})
-		if err != nil {
-			return nil, err
 		}
 	}
 
