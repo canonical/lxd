@@ -904,6 +904,24 @@ func filterVolumes(volumes []*db.StorageVolume, clauses *filter.ClauseSet, allPr
 	return filtered, nil
 }
 
+// checkStandbyReplicaProject loads the named project so the shared standby replica write guard
+// can be applied to it.
+func checkStandbyReplicaProject(ctx context.Context, s *state.State, projectName string, requestor *request.Requestor) error {
+	return s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
+		}
+
+		targetProject, err := dbProject.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		return project.CheckStandbyReplica(ctx, tx, targetProject, requestor)
+	})
+}
+
 // swagger:operation POST /1.0/storage-pools/{poolName}/volumes storage storage_pool_volumes_post
 //
 //	Add a storage volume
@@ -996,6 +1014,24 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	resp := forwardedResponseToNode(r.Context(), s, target)
 	if resp != nil {
 		return resp
+	}
+
+	// A standby replica project's custom volumes may be created only by the replicator:
+	// the configured cluster-link identity, or an internal cluster notification forwarded
+	// within the standby. Placed before the binary-content branch below so it also covers
+	// imports. Update, delete and snapshot of an existing volume are unaffected.
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// The guard keys off the effective storage project. A project without
+	// features.storage.volumes keeps its custom volumes in the default project, which the
+	// replicator never replicates, so volume creation there must stay unrestricted even
+	// when the request project itself is a standby replica.
+	err = checkStandbyReplicaProject(r.Context(), s, projectName, requestor)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// If we're getting binary content, process separately.
@@ -1618,6 +1654,21 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	// This is a migration request so send back requested secrets.
 	if req.Migration {
 		return storagePoolVolumeTypePostMigration(s, r, requestProjectName, effectiveProjectName, details, req)
+	}
+
+	// A standby replica project's custom volumes may be renamed or moved into place only by
+	// the replicator. A move materialises a volume in the target project and a rename creates
+	// a volume entry under a new name, either of which the next replicator run would clobber
+	// or diverge from, so both are guarded like volume creation. The guard keys off the
+	// effective storage project of the destination.
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = checkStandbyReplicaProject(r.Context(), s, targetProjectName, requestor)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
