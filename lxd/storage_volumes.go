@@ -993,6 +993,22 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	// A standby replica project's custom volumes may be created only by the replicator:
+	// the configured cluster-link identity, or an internal cluster notification forwarded
+	// within the standby. Placed before the binary-content branch below so it also covers
+	// imports. Update, delete and snapshot of an existing volume are unaffected.
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return checkStandbyReplicaProjectWriteGuard(ctx, tx, requestProjectName, requestor, "storage volumes")
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// If we're getting binary content, process separately.
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
 		switch r.Header.Get("X-LXD-type") {
