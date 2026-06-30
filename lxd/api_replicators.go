@@ -1956,6 +1956,61 @@ func buildVolumeWorkList(ctx context.Context, s *state.State, projectName string
 	return work, nil
 }
 
+// snapshotInstance takes a snapshot of an instance before replication. Instances with a snapshot
+// schedule are skipped; their own scheduled snapshots serve as the replication basis.
+func snapshotInstance(ctx context.Context, s *state.State, inst instance.Instance, memberAddress string) error {
+	if inst.ExpandedConfig()["snapshots.schedule"] != "" {
+		return nil
+	}
+
+	instName := inst.Name()
+
+	// Use all-exclusive disk volume mode only when the project owns its
+	// own custom volumes. Projects that inherit from the default project
+	// have no project-local volumes to capture, and the API rejects the
+	// all-exclusive mode for them.
+	diskVolumesMode := api.DiskVolumesModeAllExclusive
+	if shared.IsFalse(inst.Project().Config["features.storage.volumes"]) {
+		diskVolumesMode = api.DiskVolumesModeRoot
+	}
+
+	if inst.Location() != s.ServerName {
+		if memberAddress == "" {
+			return fmt.Errorf("Failed resolving cluster member address for instance %q", instName)
+		}
+
+		memberClient, err := lxdCluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+		if err != nil {
+			return fmt.Errorf("Failed connecting to hosting cluster member for instance %q: %w", instName, err)
+		}
+
+		memberClient = memberClient.UseProject(inst.Project().Name)
+		snapOp, err := memberClient.CreateInstanceSnapshot(instName, api.InstanceSnapshotsPost{DiskVolumesMode: diskVolumesMode})
+		if err != nil {
+			return fmt.Errorf("Failed creating snapshot of instance %q on hosting cluster member: %w", instName, err)
+		}
+
+		err = snapOp.Wait()
+		if err != nil {
+			return fmt.Errorf("Failed waiting for snapshot of instance %q on hosting cluster member: %w", instName, err)
+		}
+
+		return nil
+	}
+
+	snapName, err := instance.NextSnapshotName(s, inst, "snap%d")
+	if err != nil {
+		return fmt.Errorf("Failed generating snapshot name for instance %q: %w", instName, err)
+	}
+
+	err = inst.Snapshot(ctx, snapName, nil, false, diskVolumesMode, nil)
+	if err != nil {
+		return fmt.Errorf("Failed creating snapshot of instance %q: %w", instName, err)
+	}
+
+	return nil
+}
+
 // snapshotVolume takes a snapshot of a custom volume before replication. Callers must only pass
 // snapshottable volumes; the work list builder filters out volumes that must not be snapshotted.
 func snapshotVolume(ctx context.Context, s *state.State, vol replicatorVolume, memberAddress string) error {
