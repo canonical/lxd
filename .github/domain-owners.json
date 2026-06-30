@@ -1,0 +1,105 @@
+{
+  "domains": [
+    {
+      "name": "Build, GitHub workflows and test system",
+      "label": "d/build-test",
+      "description": "Everything around the LXD build system, including snap packaging, general test systems and GitHub workflows.",
+      "owners": [
+        "simondeziel",
+        "tomponline",
+        "kadinsayani"
+      ]
+    },
+    {
+      "name": "Networking",
+      "label": "d/networking",
+      "description": "Handles container/VM network interfaces, firewalls, routing, ACLs, load balancers, and DNS.",
+      "owners": [
+        "tomponline",
+        "roosterfish"
+      ]
+    },
+    {
+      "name": "Database",
+      "label": "d/database",
+      "description": "Manages the local and distributed configuration schema and state using SQLite and dqlite.",
+      "owners": [
+        "tomponline",
+        "kadinsayani",
+        "markylaing"
+      ]
+    },
+    {
+      "name": "Clustering",
+      "label": "d/clustering",
+      "description": "Synchronizes state and coordinates workloads across highly available, multi-node LXD deployments.",
+      "owners": [
+        "kadinsayani",
+        "roosterfish"
+      ]
+    },
+    {
+      "name": "Auth",
+      "label": "d/auth",
+      "description": "Governs role-based access control, identity providers, OIDC integration, and client certificates.",
+      "owners": [
+        "markylaing",
+        "MusicDin"
+      ]
+    },
+    {
+      "name": "Images",
+      "label": "d/images",
+      "description": "Manages container/VM image downloading, local caching, exporting, and metadata templates.",
+      "owners": [
+        "nmezhenskyi",
+        "tugbataluy"
+      ]
+    },
+    {
+      "name": "Instance",
+      "label": "d/instance",
+      "description": "Coordinates container and virtual machine lifecycles, configuration, execution, and backups.",
+      "owners": [
+        "tomponline",
+        "MusicDin"
+      ]
+    },
+    {
+      "name": "Storage",
+      "label": "d/storage",
+      "description": "Controls storage pools, volumes, snapshots, and backends like ZFS, Ceph, and Btrfs.",
+      "owners": [
+        "tugbataluy",
+        "roosterfish",
+        "MusicDin"
+      ]
+    },
+    {
+      "name": "Documentation",
+      "label": "d/docs",
+      "description": "Maintains project documentation, user manuals, and technical guides.",
+      "owners": [
+        "elijahgreenstein"
+      ]
+    },
+    {
+      "name": "CLI",
+      "label": "d/cli",
+      "description": "Command-line interface and associated command tools.",
+      "owners": [
+        "MusicDin",
+        "nmezhenskyi"
+      ]
+    },
+    {
+      "name": "API",
+      "label": "d/api",
+      "description": "Public and internal REST API endpoints and schemas.",
+      "owners": [
+        "markylaing",
+        "tomponline"
+      ]
+    }
+  ]
+}
