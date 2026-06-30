@@ -969,6 +969,58 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (attachedVolumes map
 	return attachedVolumes, nil
 }
 
+// sharedAttachedVolumes returns the names of volumes in attachedVolumes that are
+// also attached to at least one other instance in the same project. It uses a
+// single InstanceList pass to avoid one full cluster scan per volume.
+func (d *common) sharedAttachedVolumes(inst instance.Instance, attachedVolumes map[string]db.StorageVolume) (map[string]bool, error) {
+	sharedVols := make(map[string]bool, len(attachedVolumes))
+	if len(attachedVolumes) == 0 {
+		return sharedVols, nil
+	}
+
+	instanceProject := inst.Project()
+	instOwnStorageProject := project.StorageVolumeProjectFromRecord(&instanceProject, dbCluster.StoragePoolVolumeTypeCustom)
+
+	err := d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.InstanceList(ctx, func(instArgs db.InstanceArgs, p api.Project) error {
+			if instance.IsSameLogicalInstance(inst, &instArgs) {
+				return nil
+			}
+
+			instStorageProject := project.StorageVolumeProjectFromRecord(&p, dbCluster.StoragePoolVolumeTypeCustom)
+			if instOwnStorageProject != instStorageProject {
+				return nil
+			}
+
+			devices := instancetype.ExpandInstanceDevices(instArgs.Devices.Clone(), instArgs.Profiles)
+			for _, vol := range attachedVolumes {
+				if sharedVols[vol.Pool+"/"+vol.Name] {
+					continue
+				}
+
+				for _, dev := range devices {
+					usesVol, err := storagePools.VolumeIsUsedByDevice(vol.StorageVolume, instArgs.Type, instArgs.Name, dev)
+					if err != nil {
+						return err
+					}
+
+					if usesVol {
+						sharedVols[vol.Pool+"/"+vol.Name] = true
+						break
+					}
+				}
+			}
+
+			return nil
+		})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed detecting shared volumes: %w", err)
+	}
+
+	return sharedVols, nil
+}
+
 // snapshotCommon handles the common part of a snapshot.
 // It creates the DB record and snapshots the instance, derives expiry from
 // inst's "snapshots.expiry" if expiry is nil, mounts the instance to update
