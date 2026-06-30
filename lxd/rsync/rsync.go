@@ -96,8 +96,12 @@ func runRsync(source string, dest string, bwlimit string, xattrs bool, rsyncArgs
 		args = append(args, rsyncArgs...)
 	}
 
+	// Add an end of options marker ("--") so that the source and destination
+	// paths are never interpreted as rsync options, even if they begin with a
+	// "-".
 	args = append(args,
 		rsyncVerbosity,
+		"--",
 		source,
 		dest)
 
@@ -188,11 +192,13 @@ func Send(name string, path string, conn io.ReadWriteCloser, wrapper ioprogress.
 		args = append(args, rsyncArgs...)
 	}
 
-	args = append(args, []string{
-		path,
-		"localhost:/tmp/foo",
-		"-e",
-		rsyncCmd}...)
+	// The remote shell command (-e) must be passed as an option, so it has to
+	// come before the end of options marker ("--") below.
+	args = append(args, "-e", rsyncCmd)
+
+	// Add an end of options marker ("--") so that the source path is never
+	// interpreted as an rsync option, even if it begins with a "-".
+	args = append(args, "--", path, "localhost:/tmp/foo")
 
 	cmd := exec.Command("rsync", args...)
 
@@ -323,7 +329,9 @@ func Recv(path string, conn io.ReadWriteCloser, readWrapper ioprogress.ReaderWra
 		args = append(args, rsyncFeatureArgs(features)...)
 	}
 
-	args = append(args, []string{".", path}...)
+	// Add an end of options marker ("--") so that the destination path is never
+	// interpreted as an rsync option, even if it begins with a "-".
+	args = append(args, "--", ".", path)
 
 	cmd := exec.Command("rsync", args...)
 
