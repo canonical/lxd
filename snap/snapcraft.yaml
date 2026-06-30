@@ -1075,6 +1075,7 @@ parts:
       usr/local/libexec/: bin/
       usr/local/share/: share/
       usr/share/qemu/efi-virtio.rom: share/qemu/
+      usr/share/qemu/kvmvapic.bin: share/qemu/
       usr/share/qemu/s390-ccw.img: share/qemu/
       usr/share/qemu/slof.bin: share/qemu/
       usr/share/seabios/bios-256k.bin: share/qemu/
@@ -1095,6 +1096,7 @@ parts:
       - to amd64:
         - share/qemu/bios-256k.bin
         - share/qemu/efi-virtio.rom
+        - share/qemu/kvmvapic.bin
         - share/qemu/vgabios-virtio.bin
       - to arm64:
         - share/qemu/vgabios-virtio.bin
