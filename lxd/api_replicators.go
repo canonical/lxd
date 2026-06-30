@@ -25,6 +25,7 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
+	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -1817,4 +1818,136 @@ func validateReplicatorModes(sourceMode string, targetMode string, restore bool)
 	}
 
 	return nil
+}
+
+// replicatorVolume wraps a custom volume with its attachment classification for a replicator run.
+type replicatorVolume struct {
+	volume *db.StorageVolume
+	usedBy []string // instance names that attach this volume via expanded devices.
+
+	// snapshottable is false when the volume must never get a direct snapshot: ISO content
+	// volumes do not support snapshots, and volumes with their own snapshot schedule use
+	// their scheduled snapshots as the replication basis. Such volumes are still replicated.
+	snapshottable bool
+
+	// needsOwnSnapshot is true when the snapshot phase must take a direct snapshot of this
+	// volume. It is false for non-snapshottable volumes and for exclusively attached volumes
+	// covered by their owning instance's all-exclusive snapshot.
+	needsOwnSnapshot bool
+}
+
+func (v replicatorVolume) isExclusive() bool { return len(v.usedBy) == 1 }
+
+// classifyVolumeSnapshot decides how a custom volume is snapshotted before replication.
+//
+// snapshottable is false when the volume must never get a direct snapshot: ISO content volumes
+// do not support snapshots, and volumes with their own snapshot schedule use those scheduled
+// snapshots as the replication basis. Such volumes are still replicated.
+//
+// needsOwnSnapshot is true when the snapshot phase must take a direct snapshot of the volume. A
+// snapshottable volume attached to exactly one instance rides that instance's crash-consistent
+// all-exclusive snapshot and needs none of its own, unless that instance has its own snapshot
+// schedule, which suppresses the instance snapshot during the run. Shared and standalone volumes
+// always take their own. ownerSnapshotScheduled is only consulted when usedByCount is 1.
+func classifyVolumeSnapshot(contentType string, volSnapshotSchedule string, usedByCount int, ownerSnapshotScheduled bool) (snapshottable bool, needsOwnSnapshot bool) {
+	snapshottable = contentType != dbCluster.StoragePoolVolumeContentTypeNameISO && volSnapshotSchedule == ""
+	needsOwnSnapshot = snapshottable
+	if snapshottable && usedByCount == 1 && !ownerSnapshotScheduled {
+		needsOwnSnapshot = false
+	}
+
+	return snapshottable, needsOwnSnapshot
+}
+
+// buildVolumeWorkList enumerates the project's non-snapshot custom volumes, records which
+// instances attach each one and decides how each is snapshotted before replication: a volume
+// attached to exactly one instance is captured by that instance's all-exclusive snapshot,
+// taken at the same moment as its root disk for crash consistency, while shared and
+// standalone volumes get a direct snapshot of their own. ISO content volumes and volumes
+// with their own snapshot schedule are never snapshotted but are still replicated.
+func buildVolumeWorkList(ctx context.Context, s *state.State, projectName string, instByName map[string]instance.Instance) ([]replicatorVolume, error) {
+	customVolumeType := dbCluster.StoragePoolVolumeTypeCustom
+
+	var dbVols []*db.StorageVolume
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		// When the project has features.storage.volumes=false, custom volumes belong to the
+		// default project namespace; querying by projectName returns nothing and the work list
+		// is empty, so no custom-volume replication runs for that project.
+		dbVols, err = tx.GetStorageVolumes(ctx, false, db.StorageVolumeFilter{Type: &customVolumeType, Project: &projectName})
+		if err != nil {
+			return err
+		}
+
+		// GetStorageVolumes returns snapshots alongside parent volumes; strip them once
+		// here so neither the attachment scan nor the work-list construction need to check.
+		n := 0
+		for _, v := range dbVols {
+			if !shared.IsSnapshot(v.Name) {
+				dbVols[n] = v
+				n++
+			}
+		}
+
+		dbVols = dbVols[:n]
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed enumerating volumes for project %q: %w", projectName, err)
+	}
+
+	// Resolve which instances attach each volume from the already-loaded project instances
+	// rather than a second InstanceList scan. Each instance is counted once per volume, so
+	// attaching the same volume through several devices still classifies it as exclusive.
+	volumeUsedBy := make(map[string][]string, len(dbVols))
+	for _, inst := range instByName {
+		devices := inst.ExpandedDevices()
+		for _, vol := range dbVols {
+			// A member-pinned volume cannot be attached by an instance on another member.
+			if vol.Location != "" && inst.Location() != vol.Location {
+				continue
+			}
+
+			for _, dev := range devices {
+				usesVol, err := storagePools.VolumeIsUsedByDevice(vol.StorageVolume, inst.Type(), inst.Name(), dev)
+				if err != nil {
+					return nil, fmt.Errorf("Failed checking use of volume %q in pool %q: %w", vol.Name, vol.Pool, err)
+				}
+
+				if usesVol {
+					key := vol.Pool + "/" + vol.Name
+					volumeUsedBy[key] = append(volumeUsedBy[key], inst.Name())
+					break
+				}
+			}
+		}
+	}
+
+	work := make([]replicatorVolume, 0, len(dbVols))
+	for _, vol := range dbVols {
+		usedBy := volumeUsedBy[vol.Pool+"/"+vol.Name]
+
+		// A single attaching instance rides its all-exclusive snapshot unless it has its own
+		// snapshot schedule. Treat an unknown owner as scheduled so the volume still takes a
+		// direct snapshot of its own.
+		ownerSnapshotScheduled := true
+		if len(usedBy) == 1 {
+			owner, ok := instByName[usedBy[0]]
+			if ok {
+				ownerSnapshotScheduled = owner.ExpandedConfig()["snapshots.schedule"] != ""
+			}
+		}
+
+		snapshottable, needsOwnSnapshot := classifyVolumeSnapshot(vol.ContentType, vol.Config["snapshots.schedule"], len(usedBy), ownerSnapshotScheduled)
+
+		work = append(work, replicatorVolume{
+			volume:           vol,
+			usedBy:           usedBy,
+			snapshottable:    snapshottable,
+			needsOwnSnapshot: needsOwnSnapshot,
+		})
+	}
+
+	return work, nil
 }
