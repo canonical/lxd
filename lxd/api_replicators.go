@@ -20,11 +20,14 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
+	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -1814,4 +1817,82 @@ func validateReplicatorModes(sourceMode string, targetMode string, restore bool)
 	}
 
 	return nil
+}
+
+// replicatorVolume wraps a custom volume with its attachment classification for a replicator run.
+type replicatorVolume struct {
+	volume *db.StorageVolume
+	usedBy []string // instance names that attach this volume via expanded devices.
+}
+
+func (v replicatorVolume) isExclusive() bool { return len(v.usedBy) == 1 }
+
+// buildVolumeWorkList enumerates the project's non-snapshot custom volumes and classifies each
+// by attachment count. Volumes attached exclusively to one instance ride its crash-consistent
+// snapshot; shared or standalone volumes are snapshotted independently.
+func buildVolumeWorkList(ctx context.Context, s *state.State, projectName string) ([]replicatorVolume, error) {
+	customVolumeType := dbCluster.StoragePoolVolumeTypeCustom
+
+	// volumeUsedBy maps each non-snapshot volume (keyed as pool/name) to the instances that attach it.
+	// Both the volume fetch and the instance scan run in one transaction so we only
+	// call InstanceList once regardless of how many volumes the project has.
+	var dbVols []*db.StorageVolume
+	volumeUsedBy := make(map[string][]string)
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		// When the project has features.storage.volumes=false, custom volumes belong to the
+		// default project namespace; querying by projectName returns nothing and the work list
+		// is empty, so no custom-volume replication runs for that project.
+		dbVols, err = tx.GetStorageVolumes(ctx, false, db.StorageVolumeFilter{Type: &customVolumeType, Project: &projectName})
+		if err != nil {
+			return err
+		}
+
+		// GetStorageVolumes returns snapshots alongside parent volumes; strip them once
+		// here so neither the attachment scan nor the work-list construction need to check.
+		n := 0
+		for _, v := range dbVols {
+			if !shared.IsSnapshot(v.Name) {
+				dbVols[n] = v
+				n++
+			}
+		}
+
+		dbVols = dbVols[:n]
+
+		return tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
+			instStorageProject := project.StorageVolumeProjectFromRecord(&p, dbCluster.StoragePoolVolumeTypeCustom)
+			if projectName != instStorageProject {
+				return nil
+			}
+
+			devices := instancetype.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
+			for _, vol := range dbVols {
+				for _, dev := range devices {
+					usesVol, err := storagePools.VolumeIsUsedByDevice(vol.StorageVolume, inst.Type, inst.Name, dev)
+					if err != nil {
+						return err
+					}
+
+					if usesVol {
+						volumeUsedBy[vol.Pool+"/"+vol.Name] = append(volumeUsedBy[vol.Pool+"/"+vol.Name], inst.Name)
+						break
+					}
+				}
+			}
+
+			return nil
+		})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed enumerating volumes and instance usage for project %q: %w", projectName, err)
+	}
+
+	work := make([]replicatorVolume, 0, len(dbVols))
+	for _, vol := range dbVols {
+		work = append(work, replicatorVolume{volume: vol, usedBy: volumeUsedBy[vol.Pool+"/"+vol.Name]})
+	}
+
+	return work, nil
 }
