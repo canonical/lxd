@@ -980,6 +980,63 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (attachedVolumes map
 	return attachedVolumes, nil
 }
 
+// otherVolumeUsers reports the instances attaching each of the given custom volumes apart from inst itself,
+// keyed as pool/name, using a single scan of the instance list. Volumes no other instance attaches have no
+// entry, which is what makes them exclusive to inst.
+func (d *common) otherVolumeUsers(inst instance.Instance, vols []*db.StorageVolume) (map[string][]db.InstanceArgs, error) {
+	others := make(map[string][]db.InstanceArgs, len(vols))
+	if len(vols) == 0 {
+		return others, nil
+	}
+
+	instanceProject := inst.Project()
+	storageProject := project.StorageVolumeProjectFromRecord(&instanceProject, dbCluster.StoragePoolVolumeTypeCustom)
+
+	var users map[string][]db.InstanceArgs
+	err := d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		users, err = storagePools.VolumesUsedBy(ctx, tx, storageProject, vols)
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed finding users of attached volumes: %w", err)
+	}
+
+	for volKey, volUsers := range users {
+		volUsers = slices.DeleteFunc(volUsers, func(user db.InstanceArgs) bool {
+			return instance.IsSameLogicalInstance(inst, &user)
+		})
+
+		if len(volUsers) > 0 {
+			others[volKey] = volUsers
+		}
+	}
+
+	return others, nil
+}
+
+// sharedAttachedVolumes returns the set of volumes in attachedVolumes that are also attached to at least one
+// other instance in the same project. Profile references do not count here: a volume only reachable through a
+// profile applied to this instance alone is still exclusive to it.
+func (d *common) sharedAttachedVolumes(inst instance.Instance, attachedVolumes map[string]db.StorageVolume) (map[string]struct{}, error) {
+	vols := make([]*db.StorageVolume, 0, len(attachedVolumes))
+	for _, vol := range attachedVolumes {
+		vols = append(vols, &vol)
+	}
+
+	others, err := d.otherVolumeUsers(inst, vols)
+	if err != nil {
+		return nil, err
+	}
+
+	sharedVols := make(map[string]struct{}, len(others))
+	for volKey := range others {
+		sharedVols[volKey] = struct{}{}
+	}
+
+	return sharedVols, nil
+}
+
 // snapshotCommon handles the common part of a snapshot.
 // It creates the DB record and snapshots the instance, derives expiry from
 // inst's "snapshots.expiry" if expiry is nil, mounts the instance to update
