@@ -538,7 +538,7 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 		}
 	})
 
-	// Apply changes to all nodes and databse.
+	// Apply changes to all nodes and database.
 	err = n.update(newNetwork, targetNode, clientType)
 	if err != nil {
 		return err

@@ -13,6 +13,13 @@ type networkServerErrorLogWriter struct {
 }
 
 // Regex for the log we want to ignore.
+// Matches net/http TLS handshake reset log lines in the form:
+//
+//	http: TLS handshake error from <ip-or-host>:<port>: <details>: connection reset by peer
+//
+// It supports both:
+//   - unbracketed source values (capture group 1), e.g. IPv4/hostname
+//   - bracketed IPv6 source values (capture group 2, without brackets), e.g. [2001:db8::1]
 var unwantedLogRegex = regexp.MustCompile(`^http: TLS handshake error from ([^\[:]+?|\[([^\]]+?)\]):[0-9]+: .+: connection reset by peer$`)
 
 func (d networkServerErrorLogWriter) Write(p []byte) (int, error) {
@@ -52,9 +59,11 @@ func (d networkServerErrorLogWriter) stripLog(p []byte) string {
 	// Discard the log if the source is in our list of trusted proxies.
 	if sourceIP != "" {
 		parsedSourceIP := net.ParseIP(sourceIP)
-		for _, ip := range d.proxies {
-			if ip.Equal(parsedSourceIP) {
-				return ""
+		if parsedSourceIP != nil {
+			for _, ip := range d.proxies {
+				if ip.Equal(parsedSourceIP) {
+					return ""
+				}
 			}
 		}
 	}

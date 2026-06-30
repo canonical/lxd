@@ -805,7 +805,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 	}
 
 	// Ensure that projects with external images storage have their own images enabled. Otherwise flipping
-	// the feature would require to tranfer the images to the default project storage.
+	// the feature would require to transfer the images to the default project storage.
 	if s.LocalConfig.StorageImagesVolume(project.Name) != "" && shared.IsFalseOrEmpty(req.Config["features.images"]) {
 		return response.BadRequest(fmt.Errorf("Project feature %q cannot be disabled on projects with storage.project.%s.images_volume configured", "features.images", project.Name))
 	}
@@ -825,7 +825,7 @@ func projectChange(ctx context.Context, s *state.State, project *api.Project, re
 
 		err = dbCluster.UpdateProject(ctx, tx.Tx(), project.Name, req)
 		if err != nil {
-			return fmt.Errorf("Persist profile changes: %w", err)
+			return fmt.Errorf("Persist project changes: %w", err)
 		}
 
 		if slices.Contains(configChanged, "features.profiles") {
@@ -2013,7 +2013,7 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.containers.privilege)
 		// Possible values are `unprivileged`, `isolated`, and `allow`.
 		//
-		// - When set to `unpriviliged`, this option prevents setting {config:option}`instance-security:security.privileged` to `true`.
+		// - When set to `unprivileged`, this option prevents setting {config:option}`instance-security:security.privileged` to `true`.
 		// - When set to `isolated`, this option prevents setting {config:option}`instance-security:security.privileged` to `true` and forces using a unique idmap per container using {config:option}`instance-security:security.idmap.isolated` set to `true`.
 		// - When set to `allow`, there is no restriction.
 		// ---

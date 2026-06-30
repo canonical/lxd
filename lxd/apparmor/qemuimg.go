@@ -79,7 +79,11 @@ func (w writerFunc) Write(b []byte) (n int, err error) {
 func handleWriter(out io.Writer, hand func(int64, int64, int64)) io.Writer {
 	var current int64
 	return writerFunc(func(b []byte) (int, error) {
-		n, _ := out.Write(b)
+		n, err := out.Write(b)
+		if err != nil {
+			return n, err
+		}
+
 		numStr, _, _ := strings.Cut(strings.Trim(string(b), "(%) \t\n\v\f\r"), "/")
 		f, err := strconv.ParseFloat(numStr, 64)
 		if err != nil {

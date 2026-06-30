@@ -260,12 +260,11 @@ func (n *ovn) projectRestrictedSubnets(p *api.Project, uplinkNetworkName string)
 func (n *ovn) randomExternalAddress(ctx context.Context, ipVersion int, uplinkRoutes []*net.IPNet, projectRestrictedSubnets []*net.IPNet, externalSubnetsInUse []externalSubnetUsage, validator func(*net.IPNet, []externalSubnetUsage) (bool, error)) (net.IP, error) {
 	// Ensure a sensible deadline is set.
 	_, hasDeadline := ctx.Deadline()
-	var cancel context.CancelFunc = func() {}
 	if !hasDeadline {
+		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
 	}
-
-	defer cancel()
 
 	var subnets []*net.IPNet
 	for _, projectRestrictedSubnet := range projectRestrictedSubnets {
@@ -1138,12 +1137,12 @@ func (n *ovn) parseRouterIntPortIPv6Net() (net.IP, *net.IPNet, error) {
 	ipNet := n.getRouterIntPortIPv6Net()
 
 	if validate.IsOneOf("none", "")(ipNet) != nil {
-		routerIntPortIPv4, routerIntPortIPv4Net, err := net.ParseCIDR(ipNet)
+		routerIntPortIPv6, routerIntPortIPv6Net, err := net.ParseCIDR(ipNet)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed parsing router's internal port IPv6 Net: %w", err)
 		}
 
-		return routerIntPortIPv4, routerIntPortIPv4Net, nil
+		return routerIntPortIPv6, routerIntPortIPv6Net, nil
 	}
 
 	return nil, nil, nil
@@ -3204,10 +3203,8 @@ func (n *ovn) chassisEnabled(ctx context.Context, tx *db.ClusterTx) (bool, error
 				break
 			}
 
-			if hasRole {
-				// Some other node has the OVN chassis role, don't enable.
-				enableChassis = 0
-			}
+			// Some other node has the OVN chassis role, don't enable.
+			enableChassis = 0
 		}
 	}
 
