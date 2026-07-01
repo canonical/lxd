@@ -1165,12 +1165,12 @@ test_network_ovn() {
         fi
 
         # "offline" means that the instance target isn't reachable.
-        #   We don't expect this as the target of the first instance is online.
+        #   This can happen transiently after re-adding the instance to the pool.
         # "unknown" means there is no health check for the instance.
         #   It's not yet added to the LB, but already in the DB so the state endpoint appends it to the list of targets for which a service monitor exists.
         # "pending" means OVN hasn't yet probed the instance target.
         # "" means the yq command didn't find the instance and cannot report a status.
-        if [ "${status}" != "unknown" ] && [ "${status}" != "pending" ] && [ "${status}" != "" ]; then
+        if [ "${status}" != "offline" ] && [ "${status}" != "unknown" ] && [ "${status}" != "pending" ] && [ "${status}" != "" ]; then
           echo "ERROR: Unexpected status '${status}' for c1 target" >&2
           exit 1
         fi
