@@ -3639,3 +3639,10 @@ New configuration options on the load balancer pool are added to further customi
 * {config:option}`network-load-balancer-pool-properties:healthcheck.failure_count`
 
 In addition a new endpoint [`GET /1.0/networks/{networkName}/load-balancer-pools/{poolName}/state`](swagger:/network-load-balancer-pools/network_load_balancer_pool_state_get) is added which returns the health check status for all instances in the pool.
+
+(extension-replicator-custom-volumes)=
+## `replicator_custom_volumes`
+
+Replicators now replicate and restore a project's custom storage volumes alongside its instances, so a standby replica project is suitable for failover when its instances depend on project volumes.
+
+This also removes the `snapshot` replicator configuration key. Snapshotting before replication is now unconditional, so the key no longer has any effect and is rejected as an unknown key.
