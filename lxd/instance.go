@@ -711,7 +711,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshots(ctx context.Context, s *state.St
 
 		args := operations.OperationArgs{
 			Type:    operationtype.SnapshotsExpire,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 
@@ -737,7 +737,7 @@ func pruneExpiredAndAutoCreateInstanceSnapshots(ctx context.Context, s *state.St
 
 		args := operations.OperationArgs{
 			Type:    operationtype.SnapshotsCreateScheduled,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 

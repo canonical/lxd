@@ -695,7 +695,7 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 
 	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(r.Context(), name, projectName, nil))
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // updateReplicator is shared between [replicatorPut] and [replicatorPatch].
@@ -1134,7 +1134,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				ProjectName: projectName,
 				EntityURL:   projectURL,
 				Type:        operationtype.ReplicatorRunInstance,
-				Class:       operations.OperationClassTask,
+				Class:       operationtype.OperationClassTask,
 				Metadata: map[string]any{
 					api.MetadataEntityURL: entity.InstanceURL(projectName, inst.Name()).String(),
 				},
@@ -1146,7 +1146,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 			ProjectName:       projectName,
 			EntityURL:         replicatorURL,
 			Type:              operationtype.ReplicatorRun,
-			Class:             operations.OperationClassTask,
+			Class:             operationtype.OperationClassTask,
 			ConflictReference: replicatorURL.String(), // Prevents concurrent runs; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
 			Children:          childArgs,
 			RunHook: func(_ context.Context, op *operations.Operation) error {
@@ -1313,7 +1313,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				ProjectName: projectName,
 				EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 				Type:        operationtype.InstanceCreate,
-				Class:       operations.OperationClassWebsocket,
+				Class:       operationtype.OperationClassWebsocket,
 				Metadata:    result.sink.Metadata(),
 				ConnectHook: result.sink.Connect,
 				RunHook:     result.run,
@@ -1390,7 +1390,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 			ProjectName: projectName,
 			EntityURL:   projectURL,
 			Type:        operationtype.ReplicatorRunInstance,
-			Class:       operations.OperationClassTask,
+			Class:       operationtype.OperationClassTask,
 			Metadata: map[string]any{
 				api.MetadataEntityURL: entity.InstanceURL(projectName, instName).String(),
 			},
@@ -1402,7 +1402,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 		ProjectName:       projectName,
 		EntityURL:         replicatorURL,
 		Type:              operationtype.ReplicatorRun,
-		Class:             operations.OperationClassTask,
+		Class:             operationtype.OperationClassTask,
 		ConflictReference: replicatorURL.String(), // Prevents concurrent runs; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
 		Children:          childArgs,
 		RunHook: func(_ context.Context, op *operations.Operation) error {
@@ -1604,7 +1604,7 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		ProjectName: projectName,
 		EntityURL:   entity.InstanceURL(projectName, instName),
 		Type:        operationtype.InstanceMigrate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook: func(ctx context.Context, innerOp *operations.Operation) error {
 			done := make(chan struct{})
 			defer close(done)

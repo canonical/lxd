@@ -1043,7 +1043,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		EntityURL: originalEntityURL,
 		Type:      operationtype.ProjectRename,
-		Class:     operations.OperationClassTask,
+		Class:     operationtype.OperationClassTask,
 		RunHook:   run,
 		Metadata: map[string]any{
 			api.MetadataOriginalEntityURL: originalEntityURL.String(),
@@ -1056,7 +1056,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func projectNodeConfigDelete(ctx context.Context, d *Daemon, s *state.State, name string) error {
@@ -1245,7 +1245,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 		op, err := operations.ScheduleUserOperationFromRequest(s, r, operations.OperationArgs{
 			Type:      operationtype.ProjectDelete,
-			Class:     operations.OperationClassTask,
+			Class:     operationtype.OperationClassTask,
 			EntityURL: entity.ProjectURL(name),
 			RunHook:   run,
 		})
@@ -1253,7 +1253,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	var cachedImages []dbCluster.Image
@@ -1399,7 +1399,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, operations.OperationArgs{
 		Type:      operationtype.ProjectDelete,
-		Class:     operations.OperationClassTask,
+		Class:     operationtype.OperationClassTask,
 		EntityURL: entity.ProjectURL(project.Name),
 		RunHook:   run,
 	})
@@ -1407,7 +1407,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/projects/{name}/state projects project_state_get
@@ -1540,7 +1540,7 @@ func projectStatePut(d *Daemon, r *http.Request) response.Response {
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, operations.OperationArgs{
 		Type:      operationtype.ProjectReplicaModeUpdate,
-		Class:     operations.OperationClassTask,
+		Class:     operationtype.OperationClassTask,
 		EntityURL: entity.ProjectURL(name),
 		RunHook:   run,
 	})
@@ -1548,7 +1548,7 @@ func projectStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // validateProjectPromote validates that a project is ready to be promoted to leader mode.

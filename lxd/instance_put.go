@@ -195,7 +195,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        opType,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     do,
 	}
 
@@ -205,7 +205,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	revert.Success()
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func instanceSnapRestore(ctx context.Context, s *state.State, projectName string, name string, req api.InstancePut, op *operations.Operation) error {

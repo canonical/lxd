@@ -1,11 +1,10 @@
-//go:build linux && cgo && !agent
-
 package operations
 
 import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -24,10 +23,10 @@ import (
 
 func registerDBOperation(ctx context.Context, op *Operation) error {
 	if op.state == nil {
-		return nil
+		return errors.New("Failed registering operation: No state available")
 	}
 
-	registerSingleOperation := func(ctx context.Context, tx *db.ClusterTx, op *Operation, parentOpID *int64) (int64, error) {
+	registerSingleOperation := func(ctx context.Context, tx *db.ClusterTx, op *Operation, parentOpID *int64, projectID *int64) (int64, error) {
 		// Conflict reference should only be provided for operation types that support conflicts.
 		if op.dbOpType.ConflictAction() == operationtype.ConflictActionNone && op.conflictReference != "" {
 			return 0, fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", op.conflictReference, op.dbOpType.Description())
@@ -37,21 +36,13 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			UUID:              op.id,
 			Type:              op.dbOpType,
 			NodeID:            tx.GetNodeID(),
+			ProjectID:         projectID,
 			Class:             int64(op.class),
 			CreatedAt:         op.createdAt,
 			UpdatedAt:         op.updatedAt,
 			StatusCode:        int64(op.Status()),
 			Parent:            parentOpID,
 			ConflictReference: op.conflictReference,
-		}
-
-		if op.projectName != "" {
-			projectID, err := cluster.GetProjectID(ctx, tx.Tx(), op.projectName)
-			if err != nil {
-				return 0, fmt.Errorf("Failed fetching project ID: %w", err)
-			}
-
-			operationsRow.ProjectID = &projectID
 		}
 
 		if op.requestor != nil {
@@ -113,15 +104,29 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 	}
 
 	err := op.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var projectIDPtr *int64
+		if op.projectName != "" {
+			projectID, err := cluster.GetProjectID(ctx, tx.Tx(), op.projectName)
+			if err != nil {
+				return fmt.Errorf("Failed fetching project ID: %w", err)
+			}
+
+			projectIDPtr = &projectID
+		}
+
 		// Create parent operation record.
-		parentOpID, err := registerSingleOperation(ctx, tx, op, nil)
+		parentOpID, err := registerSingleOperation(ctx, tx, op, nil, projectIDPtr)
 		if err != nil {
 			return err
 		}
 
 		// Create child operation records, if any.
 		for _, childOp := range op.children {
-			_, err := registerSingleOperation(ctx, tx, childOp, &parentOpID)
+			if childOp.projectName != op.projectName {
+				return errors.New("Child operations cannot have a different project to the parent operation")
+			}
+
+			_, err := registerSingleOperation(ctx, tx, childOp, &parentOpID, projectIDPtr)
 			if err != nil {
 				return err
 			}
@@ -137,6 +142,10 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 }
 
 func updateDBOperation(ctx context.Context, op *Operation) error {
+	if op.state == nil {
+		return errors.New("Failed updating operation: No state available")
+	}
+
 	err := op.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, op.metadata, op.err, op.errCode)
 	})
@@ -149,7 +158,7 @@ func updateDBOperation(ctx context.Context, op *Operation) error {
 
 func removeDBOperation(op *Operation) error {
 	if op.state == nil {
-		return nil
+		return errors.New("Failed deleting operation: No state available")
 	}
 
 	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -159,14 +168,6 @@ func removeDBOperation(op *Operation) error {
 	return err
 }
 
-func (op *Operation) sendEvent(eventMessage any) {
-	if op.events == nil {
-		return
-	}
-
-	_ = op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
-}
-
 // ConstructOperationFromDB is a constructor of a single Operation object based on its database representation.
 // ConstructOperationFromDB doesn't populate the parent field, as that would require loading all other operations from the DB. Instead,
 // the caller is expected to set the parent field on the returned Operation object based on other loaded operations, if needed.
@@ -174,7 +175,7 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 	op := Operation{
 		projectName:       dbOp.ProjectName,
 		id:                dbOp.Row.UUID,
-		class:             OperationClass(dbOp.Row.Class),
+		class:             operationtype.Class(dbOp.Row.Class),
 		createdAt:         dbOp.Row.CreatedAt,
 		updatedAt:         dbOp.Row.UpdatedAt,
 		status:            api.StatusCode(dbOp.Row.StatusCode),
@@ -205,7 +206,7 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
-	op.SetEventServer(s.Events)
+	op.events = s.Events
 
 	// Load operation inputs.
 	var inputs map[string]any

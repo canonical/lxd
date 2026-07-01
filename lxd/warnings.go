@@ -447,7 +447,7 @@ func pruneResolvedWarningsTask(stateFunc func() *state.State) (task.Func, task.S
 
 		args := operations.OperationArgs{
 			Type:    operationtype.WarningsPruneResolved,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 

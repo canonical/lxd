@@ -350,7 +350,7 @@ func pruneExpiredOIDCSessionsTask(stateFunc func() *state.State) (task.Func, tas
 
 		args := operations.OperationArgs{
 			Type:    operationtype.RemoveExpiredOIDCSessions,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 

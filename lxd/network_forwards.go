@@ -317,7 +317,7 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkForwardCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkURL(effectiveProjectName, networkName),
 		Metadata: map[string]any{
@@ -330,7 +330,7 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_delete
@@ -425,7 +425,7 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkForwardDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkURL(effectiveProjectName, networkName),
 	}
@@ -435,7 +435,7 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_get
@@ -704,7 +704,7 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkForwardUpdate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkURL(effectiveProjectName, networkName),
 	}
@@ -714,5 +714,5 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }

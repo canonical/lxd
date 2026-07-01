@@ -30,7 +30,7 @@ func expireLogsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 
 		args := operations.OperationArgs{
 			Type:    operationtype.LogsExpire,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 

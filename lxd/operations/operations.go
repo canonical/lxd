@@ -28,35 +28,8 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-var debug bool
-
 var operationsLock sync.Mutex
 var operations = make(map[string]*Operation)
-
-// OperationClass represents the OperationClass type.
-type OperationClass int
-
-const (
-	// OperationClassTask represents the Task OperationClass.
-	OperationClassTask OperationClass = 1
-	// OperationClassWebsocket represents the Websocket OperationClass.
-	OperationClassWebsocket OperationClass = 2
-	// OperationClassToken represents the Token OperationClass.
-	OperationClassToken OperationClass = 3
-)
-
-func (t OperationClass) String() string {
-	return map[OperationClass]string{
-		OperationClassTask:      api.OperationClassTask,
-		OperationClassWebsocket: api.OperationClassWebsocket,
-		OperationClassToken:     api.OperationClassToken,
-	}[t]
-}
-
-// Init sets the debug value for the operations package.
-func Init(d bool) {
-	debug = d
-}
 
 // Clone returns a clone of the internal operations map containing references to the actual operations.
 func Clone() map[string]*Operation {
@@ -87,7 +60,7 @@ func OperationGetInternal(id string) (*Operation, error) {
 type Operation struct {
 	projectName     string
 	id              string
-	class           OperationClass
+	class           operationtype.Class
 	createdAt       time.Time
 	updatedAt       time.Time
 	status          api.StatusCode
@@ -138,7 +111,7 @@ type Operation struct {
 type OperationArgs struct {
 	ProjectName     string
 	Type            operationtype.Type
-	Class           OperationClass
+	Class           operationtype.Class
 	EntityURL       *api.URL
 	Resources       map[entity.Type][]api.URL
 	Metadata        map[string]any
@@ -195,10 +168,14 @@ func ScheduleServerOperation(s *state.State, args OperationArgs) (*Operation, er
 
 // scheduleOperation schedules a new operation and returns it. If it cannot be created, it returns an error.
 func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
+	if s == nil {
+		return nil, errors.New("State must be provided")
+	}
+
 	// initOperation initializes a single operation structure.
 	initOperation := func(s *state.State, args OperationArgs) (*Operation, error) {
 		// Don't allow new operations when LXD is shutting down.
-		if s != nil && s.ShutdownCtx.Err() == context.Canceled {
+		if s.ShutdownCtx.Err() != nil {
 			return nil, errors.New("LXD is shutting down")
 		}
 
@@ -247,11 +224,8 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 		op.inputs = args.Inputs
 		op.conflictReference = args.ConflictReference
-
-		if s != nil {
-			op.SetEventServer(s.Events)
-			op.location = s.ServerName
-		}
+		op.events = s.Events
+		op.location = s.ServerName
 
 		metadata := args.Metadata
 		if metadata == nil {
@@ -287,15 +261,15 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.onConnect = args.ConnectHook
 
 		// Quick check.
-		if op.class != OperationClassWebsocket && op.onConnect != nil {
+		if op.class != operationtype.OperationClassWebsocket && op.onConnect != nil {
 			return nil, errors.New("Only websocket operations can have a Connect hook")
 		}
 
-		if op.class == OperationClassWebsocket && op.onConnect == nil {
+		if op.class == operationtype.OperationClassWebsocket && op.onConnect == nil {
 			return nil, errors.New("Websocket operations must have a Connect hook")
 		}
 
-		if op.class == OperationClassToken && op.onRun != nil {
+		if op.class == operationtype.OperationClassToken && op.onRun != nil {
 			return nil, errors.New("Token operations cannot have a Run hook")
 		}
 
@@ -310,7 +284,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	}
 
 	// If this is a single task operation without children, it must have a run hook.
-	if !slices.Contains([]OperationClass{OperationClassWebsocket, OperationClassToken}, args.Class) && args.Children == nil && args.RunHook == nil {
+	if !slices.Contains([]operationtype.Class{operationtype.OperationClassWebsocket, operationtype.OperationClassToken}, args.Class) && args.Children == nil && args.RunHook == nil {
 		return nil, errors.New("Task operations must have a Run hook")
 	}
 
@@ -372,11 +346,6 @@ func (op *Operation) AddChildren(children ...*Operation) {
 		child.parent = op
 		child.lock.Unlock()
 	}
-}
-
-// SetEventServer allows injection of event server.
-func (op *Operation) SetEventServer(events *events.Server) {
-	op.events = events
 }
 
 // CheckRequestor checks that the requestor of a given HTTP request is equal to the requestor of the operation.
@@ -701,7 +670,7 @@ func (op *Operation) Cancel() {
 // operation or the operation is not running, it returns an error.
 func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error, error) {
 	op.lock.Lock()
-	if op.class != OperationClassWebsocket {
+	if op.class != operationtype.OperationClassWebsocket {
 		op.lock.Unlock()
 		return nil, errors.New("Only websocket operations can be connected")
 	}
@@ -1010,7 +979,7 @@ func (op *Operation) Status() api.StatusCode {
 }
 
 // Class returns the operation class.
-func (op *Operation) Class() OperationClass {
+func (op *Operation) Class() operationtype.Class {
 	return op.class
 }
 
@@ -1104,4 +1073,13 @@ func (op *Operation) updateProgress(action string, data ioprogress.ProgressData)
 
 	// Write the updated metadata.
 	return op.UpdateMetadata(metadata)
+}
+
+func (op *Operation) sendEvent(eventMessage any) {
+	if op.events == nil {
+		logger.Error("No event server configured for operation", logger.Ctx{"id": op.id, "type": op.dbOpType.Description(), "class": op.class.String()})
+		return
+	}
+
+	_ = op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
 }

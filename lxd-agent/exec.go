@@ -19,8 +19,8 @@ import (
 	"github.com/gorilla/websocket"
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd-agent/operations"
 	"github.com/canonical/lxd/lxd/db/operationtype"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -134,25 +134,19 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 	ws.gid = post.Group
 
 	args := operations.OperationArgs{
-		Type: operationtype.CommandExec,
-		// This dummy URL is required because the agent shares its operations
-		// implementation with LXD. As such, the entity URL has to match the operation type.
-		EntityURL:   api.NewURL().Path("1.0", "instances", "dummy"),
-		Class:       operations.OperationClassWebsocket,
+		Type:        operationtype.CommandExec,
+		Class:       operationtype.OperationClassWebsocket,
 		Metadata:    ws.Metadata(),
 		RunHook:     ws.Do,
 		ConnectHook: ws.Connect,
 	}
 
-	op, err := operations.ScheduleServerOperation(nil, args)
+	op, err := operations.ScheduleOperation(d.events, args)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	// Link the operation to the agent's event server.
-	op.SetEventServer(d.events)
-
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 type execWs struct {

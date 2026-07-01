@@ -435,7 +435,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				ProjectName: projectName,
 				EntityURL:   instanceURL,
 				Type:        operationtype.InstanceMigrate,
-				Class:       operations.OperationClassTask,
+				Class:       operationtype.OperationClassTask,
 				RunHook:     run,
 			}
 
@@ -444,7 +444,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(err)
 			}
 
-			return operations.OperationResponse(op)
+			return response.OperationResponse(op)
 		}
 
 		// We keep the req.ContainerOnly for backward compatibility.
@@ -478,7 +478,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				ProjectName: projectName,
 				EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 				Type:        operationtype.InstanceMigrate,
-				Class:       operations.OperationClassTask,
+				Class:       operationtype.OperationClassTask,
 				RunHook:     run,
 			}
 
@@ -487,7 +487,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(err)
 			}
 
-			return operations.OperationResponse(op)
+			return response.OperationResponse(op)
 		}
 
 		// Pull mode.
@@ -495,7 +495,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			ProjectName: projectName,
 			EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 			Type:        operationtype.InstanceMigrate,
-			Class:       operations.OperationClassWebsocket,
+			Class:       operationtype.OperationClassWebsocket,
 			Metadata:    ws.Metadata(),
 			RunHook:     run,
 			ConnectHook: ws.Connect,
@@ -506,7 +506,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			return response.InternalError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	var id int
@@ -535,7 +535,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   originalEntityURL,
 		Type:        operationtype.InstanceRename,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		Metadata:    metadata,
 	}
@@ -545,7 +545,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // Move an instance.
@@ -901,7 +901,7 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 			ProjectName: targetProject,
 			EntityURL:   instanceURL,
 			Type:        operationtype.InstanceMigrate,
-			Class:       operations.OperationClassWebsocket,
+			Class:       operationtype.OperationClassWebsocket,
 			Metadata:    srcMigration.Metadata(),
 			RunHook:     run,
 			ConnectHook: srcMigration.Connect,

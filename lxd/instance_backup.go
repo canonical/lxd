@@ -371,7 +371,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        operationtype.BackupCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     backup,
 		Metadata:    metadata,
 	}
@@ -381,7 +381,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/instances/{name}/backups/{backup} instances instance_backup_get
@@ -557,7 +557,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		Type:        operationtype.BackupRename,
 		EntityURL:   originalEntityURL,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     rename,
 		Metadata:    metadata,
 	}
@@ -567,7 +567,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/instances/{name}/backups/{backup} instances instance_backup_delete
@@ -640,7 +640,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(projectName),
 		Type:        operationtype.BackupRemove,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     remove,
 	}
 
@@ -649,7 +649,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/instances/{name}/backups/{backup}/export instances instance_backup_export

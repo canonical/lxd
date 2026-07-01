@@ -342,7 +342,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   instanceURL,
 		Type:        operationtype.SnapshotCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     snapshot,
 		Metadata: map[string]any{
 			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", name, "snapshots", req.Name).Project(projectName).String(),
@@ -354,7 +354,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
@@ -534,7 +534,7 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 		ProjectName: snapInst.Project().Name,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name),
 		Type:        opType,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     do,
 	}
 
@@ -543,7 +543,7 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/instances/{name}/snapshots/{snapshot} instances instance_snapshot_get
@@ -697,7 +697,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 				ProjectName: snapInst.Project().Name,
 				EntityURL:   api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name),
 				Type:        operationtype.SnapshotTransfer,
-				Class:       operations.OperationClassTask,
+				Class:       operationtype.OperationClassTask,
 				RunHook:     run,
 			}
 
@@ -706,7 +706,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 				return response.InternalError(err)
 			}
 
-			return operations.OperationResponse(op)
+			return response.OperationResponse(op)
 		}
 
 		// Pull mode.
@@ -714,7 +714,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 			ProjectName: snapInst.Project().Name,
 			EntityURL:   api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name),
 			Type:        operationtype.SnapshotTransfer,
-			Class:       operations.OperationClassWebsocket,
+			Class:       operationtype.OperationClassWebsocket,
 			Metadata:    ws.Metadata(),
 			RunHook:     run,
 			ConnectHook: ws.Connect,
@@ -725,7 +725,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 			return response.InternalError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	newName, err := raw.GetString("name")
@@ -768,7 +768,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		ProjectName: snapInst.Project().Name,
 		EntityURL:   originalEntityURL,
 		Type:        operationtype.SnapshotRename,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     rename,
 		Metadata:    metadata,
 	}
@@ -778,7 +778,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/instances/{name}/snapshots/{snapshot} instances instance_snapshot_delete
@@ -827,7 +827,7 @@ func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance)
 		ProjectName: snapInst.Project().Name,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(snapInst.Project().Name),
 		Type:        operationtype.SnapshotDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     remove,
 	}
 
@@ -836,5 +836,5 @@ func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance)
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }

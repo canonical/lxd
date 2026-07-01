@@ -444,7 +444,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		ProjectName: requestProjectName,
 		EntityURL:   volumeURL,
 		Type:        operationtype.CustomVolumeBackupCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     backup,
 		Metadata: map[string]any{
 			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", details.volumeTypeName, details.volumeName, "backups", backupName).Project(requestProjectName).Target(details.location).String(),
@@ -456,7 +456,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName} storage storage_pool_volumes_type_backup_get
@@ -643,7 +643,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		ProjectName: requestProjectName,
 		EntityURL:   originalEntityURLWithoutProject.Project(effectiveProjectName),
 		Type:        operationtype.CustomVolumeBackupRename,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     rename,
 		Metadata: map[string]any{
 			api.MetadataOriginalEntityURL: originalEntityURLWithoutProject.Project(requestProjectName).String(),
@@ -656,7 +656,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName} storage storage_pool_volumes_type_backup_delete
@@ -741,7 +741,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		ProjectName: requestProjectName,
 		EntityURL:   backupURL,
 		Type:        operationtype.CustomVolumeBackupRemove,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     remove,
 	}
 
@@ -750,7 +750,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/backups/{backupName}/export storage storage_pool_volumes_type_backup_export_get
