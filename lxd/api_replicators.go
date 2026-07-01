@@ -1450,6 +1450,112 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	}, nil
 }
 
+// buildRestoreChildOps builds the restore child list: one child per custom volume then one per instance.
+// volumeWg gates each instance child on all volume restores completing.
+func buildRestoreChildOps(ctx context.Context, s *state.State, projectName string, projectURL *api.URL, iterNames []string, allInsts []instance.Instance, nodeAddressByName map[string]string, clusterLink *api.ClusterLink, clusterCert *shared.CertInfo, targetCert *x509.Certificate) ([]*operations.OperationArgs, error) {
+	// Fetch volumes from the source cluster instead of the local database, since during restore,
+	// the local database may be missing volumes that were created after failover on the leader.
+	srcClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+	if err != nil {
+		return nil, fmt.Errorf("Failed connecting to source cluster for volume list: %w", err)
+	}
+
+	srcClient = srcClient.UseProject(projectName)
+	srcVolumes, err := srcClient.GetVolumesWithFilter([]string{"type=" + dbCluster.StoragePoolVolumeTypeNameCustom})
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting storage volumes from source cluster: %w", err)
+	}
+
+	// Convert API volumes to volumeWork format (ignoring shared volume classification since
+	// we're fetching from the source, not classifying by attachment count).
+	volumeWork := make([]replicatorVolume, 0, len(srcVolumes))
+	for _, vol := range srcVolumes {
+		if !shared.IsSnapshot(vol.Name) {
+			volumeWork = append(volumeWork, replicatorVolume{
+				volume: &db.StorageVolume{
+					StorageVolume: vol,
+				},
+				usedBy: nil, // Not used during restore
+			})
+		}
+	}
+
+	var volumeWg sync.WaitGroup
+	var volumeErrOnce sync.Once
+	var volumeErr error
+
+	// Use our cluster certificate so the leader can verify TLS when
+	// pushing data back to us.
+	localCertPEM := string(clusterCert.PublicKey())
+
+	instByName := make(map[string]instance.Instance, len(allInsts))
+	for _, inst := range allInsts {
+		instByName[inst.Name()] = inst
+	}
+
+	childArgs := make([]*operations.OperationArgs, 0, len(volumeWork)+len(iterNames))
+
+	for _, vol := range volumeWork {
+		// Capture vol in a local variable to avoid loop-variable reference issues in the closure.
+		volumeToRestore := vol.volume.StorageVolume
+		volumeWg.Add(1)
+
+		childArgs = append(childArgs, &operations.OperationArgs{
+			ProjectName: projectName,
+			EntityURL:   projectURL,
+			Type:        operationtype.ReplicatorRunVolume,
+			Class:       operations.OperationClassTask,
+			Metadata: map[string]any{
+				api.MetadataEntityURL: entity.StorageVolumeURL(projectName, "", volumeToRestore.Pool, dbCluster.StoragePoolVolumeTypeNameCustom, volumeToRestore.Name).String(),
+			},
+			RunHook: func(ctx context.Context, _ *operations.Operation) (retErr error) {
+				defer func() {
+					if retErr != nil {
+						volumeErrOnce.Do(func() { volumeErr = retErr })
+					}
+
+					volumeWg.Done()
+				}()
+
+				srcClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+				if err != nil {
+					return fmt.Errorf("Failed connecting to target cluster: %w", err)
+				}
+
+				return restoreVolume(ctx, s, volumeToRestore, projectName, nodeAddressByName[s.ServerName], srcClient)
+			},
+		})
+	}
+
+	for _, instName := range iterNames {
+		var memberAddress string
+		inst, ok := instByName[instName]
+		if ok && inst.Location() != s.ServerName {
+			memberAddress = nodeAddressByName[inst.Location()]
+		}
+
+		childArgs = append(childArgs, &operations.OperationArgs{
+			ProjectName: projectName,
+			EntityURL:   projectURL,
+			Type:        operationtype.ReplicatorRunInstance,
+			Class:       operations.OperationClassTask,
+			Metadata: map[string]any{
+				api.MetadataEntityURL: entity.InstanceURL(projectName, instName).String(),
+			},
+			RunHook: func(ctx context.Context, op *operations.Operation) error {
+				volumeWg.Wait()
+				if volumeErr != nil {
+					return fmt.Errorf("Skipping instance restore: a volume restore child failed: %w", volumeErr)
+				}
+
+				return restoreInstance(ctx, s, op, instName, projectName, memberAddress, localCertPEM, clusterLink, clusterCert, targetCert)
+			},
+		})
+	}
+
+	return childArgs, nil
+}
+
 // buildForwardChildOps builds the forward replication child list: one child per custom volume then one per instance.
 // snapshotWg gates transfers on all snapshots; volumeWg gates instance work on all volume transfers.
 func buildForwardChildOps(ctx context.Context, s *state.State, projectName string, projectURL *api.URL, allInsts []instance.Instance, nodeAddressByName map[string]string, clusterLink *api.ClusterLink, clusterCert *shared.CertInfo, targetCert *x509.Certificate, targetCertPEM string) ([]*operations.OperationArgs, error) {
@@ -2240,5 +2346,191 @@ func restoreVolume(ctx context.Context, s *state.State, vol api.StorageVolume, p
 		return fmt.Errorf("Restore of volume %q failed: %w", vol.Name, err)
 	}
 
+	return nil
+}
+
+// restoreInstance refreshes one instance from the promoted leader cluster; empty memberAddress means local.
+func restoreInstance(ctx context.Context, s *state.State, op *operations.Operation, instName string, projectName string, memberAddress string, localCertPEM string, clusterLink *api.ClusterLink, clusterCert *shared.CertInfo, targetCert *x509.Certificate) error {
+	dstClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+	if err != nil {
+		return fmt.Errorf("Failed connecting to target cluster: %w", err)
+	}
+
+	dstClient = dstClient.UseProject(projectName)
+
+	// In restore mode the local copy is stale; fetch current metadata from
+	// the current leader cluster so the restore uses up-to-date config/state.
+	freshInst, _, err := dstClient.GetInstance(instName)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Instance was deleted on the current leader cluster after failover; skip it rather
+			// than failing the whole run, since the deletion is intentional.
+			logger.Warn("Skipping restore of instance deleted on current leader cluster", logger.Ctx{"instance": instName})
+			return nil
+		}
+
+		return fmt.Errorf("Failed getting instance %q from current leader cluster: %w", instName, err)
+	}
+
+	// If the instance lives on a remote cluster member, forward the restore
+	// migration to that member so the refresh runs where the storage volume is.
+	// Instances on the local member (including unclustered servers) are handled
+	// directly below. This mirrors the logic in replicateInstance.
+	if memberAddress != "" {
+		memberClient, err := lxdCluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+		if err != nil {
+			return fmt.Errorf("Failed connecting to hosting cluster member for instance %q: %w", instName, err)
+		}
+
+		memberClient = memberClient.UseProject(projectName)
+
+		// Set up a push-mode migration sink on the hosting cluster member.
+		restoreOp, err := memberClient.CreateInstance(api.InstancesPost{
+			Name:        instName,
+			InstancePut: freshInst.Writable(),
+			Type:        api.InstanceType(freshInst.Type),
+			Source: api.InstanceSource{
+				Type:    api.SourceTypeMigration,
+				Mode:    "push",
+				Refresh: true,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("Failed requesting restore on hosting cluster member for instance %q: %w", instName, err)
+		}
+
+		restoreOpCancelled := false
+		defer func() {
+			if !restoreOpCancelled {
+				_ = restoreOp.Cancel()
+			}
+		}()
+
+		restoreOpAPI := restoreOp.Get()
+		restoreSecrets, err := restoreOpAPI.WebsocketSecrets()
+		if err != nil {
+			return fmt.Errorf("Failed getting websocket secrets from hosting cluster member for instance %q: %w", instName, err)
+		}
+
+		// Tell the current leader cluster to push-migrate the instance to the hosting cluster member's sink.
+		remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{
+			Migration: true,
+			Target: &api.InstancePostTarget{
+				Operation:   restoreOp.URL().String(),
+				Websockets:  restoreSecrets,
+				Certificate: localCertPEM,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("Failed starting push migration on current leader cluster for instance %q: %w", instName, err)
+		}
+
+		restoreOpCancelled = true
+
+		err = remoteMigrateOp.Wait()
+		if err != nil {
+			return fmt.Errorf("Restore of instance %q failed on current leader cluster: %w", instName, err)
+		}
+
+		return restoreOp.Wait()
+	}
+
+	// Load profiles for the instance to pass to the migration sink.
+	var profiles []api.Profile
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		profiles, err = instanceProfilesFromNames(ctx, tx, projectName, freshInst.Profiles)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed loading profiles for instance %q: %w", instName, err)
+	}
+
+	// Set up a push-mode migration sink locally so the leader pushes data to us.
+	migrateReq := &api.InstancesPost{
+		InstancePut: freshInst.Writable(),
+		Name:        instName,
+		Type:        api.InstanceType(freshInst.Type),
+		Source: api.InstanceSource{
+			Type:    api.SourceTypeMigration,
+			Mode:    "push",
+			Refresh: true,
+		},
+	}
+
+	result, err := prepareInstanceMigrationSink(ctx, s, projectName, profiles, migrateReq, "")
+	if err != nil {
+		return fmt.Errorf("Failed preparing migration sink for instance %q: %w", instName, err)
+	}
+
+	defer result.revert.Fail()
+
+	// Schedule the sink operation so it gets an ID and can accept websocket connections.
+	sinkOpArgs := operations.OperationArgs{
+		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
+		Type:        operationtype.InstanceCreate,
+		Class:       operations.OperationClassWebsocket,
+		Metadata:    result.sink.Metadata(),
+		ConnectHook: result.sink.Connect,
+		RunHook:     result.run,
+	}
+
+	var sinkOp *operations.Operation
+	if op.Requestor() != nil {
+		sinkOp, err = operations.ScheduleUserOperationFromOperation(s, op, sinkOpArgs)
+	} else {
+		sinkOp, err = operations.ScheduleServerOperation(s, sinkOpArgs)
+	}
+
+	if err != nil {
+		return fmt.Errorf("Failed scheduling migration sink operation for instance %q: %w", instName, err)
+	}
+
+	_, sinkOpAPI := sinkOp.Render()
+	sinkSecrets, err := sinkOpAPI.WebsocketSecrets()
+	if err != nil {
+		return fmt.Errorf("Failed getting websocket secrets from local sink for instance %q: %w", instName, err)
+	}
+
+	// Build the operation URL using the server's configured address so the leader can connect back.
+	// cluster.https_address takes precedence; if unset, fall back to core.https_address.
+	localAddress := s.LocalConfig.ClusterAddress()
+	if util.IsWildCardAddress(localAddress) || localAddress == "" {
+		localAddress = s.LocalConfig.HTTPSAddress()
+	}
+
+	if util.IsWildCardAddress(localAddress) || localAddress == "" {
+		sinkOp.Cancel()
+		return errors.New("Cannot restore to this server: configure a concrete address using cluster.https_address or core.https_address")
+	}
+
+	sinkOpURL := "https://" + localAddress + sinkOp.URL()
+
+	// Tell the current leader cluster to push-migrate the instance to our local sink.
+	remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{
+		Migration: true,
+		Target: &api.InstancePostTarget{
+			Operation:   sinkOpURL,
+			Websockets:  sinkSecrets,
+			Certificate: localCertPEM,
+		},
+	})
+	if err != nil {
+		sinkOp.Cancel()
+		return fmt.Errorf("Failed starting push migration on current leader cluster for instance %q: %w", instName, err)
+	}
+
+	remoteErr := remoteMigrateOp.Wait()
+	if remoteErr != nil {
+		sinkOp.Cancel()
+		return fmt.Errorf("Restore of instance %q failed on current leader cluster: %w", instName, remoteErr)
+	}
+
+	sinkErr := sinkOp.Wait(context.Background())
+	if sinkErr != nil {
+		return fmt.Errorf("Restore of instance %q failed: %w", instName, sinkErr)
+	}
+
+	result.revert.Success()
 	return nil
 }
