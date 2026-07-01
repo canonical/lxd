@@ -220,11 +220,8 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 		op.inputs = args.Inputs
 		op.conflictReference = args.ConflictReference
-
-		if s != nil {
-			op.SetEventServer(s.Events)
-			op.location = s.ServerName
-		}
+		op.events = s.Events
+		op.location = s.ServerName
 
 		metadata := args.Metadata
 		if metadata == nil {
@@ -345,11 +342,6 @@ func (op *Operation) AddChildren(children ...*Operation) {
 		child.parent = op
 		child.lock.Unlock()
 	}
-}
-
-// SetEventServer allows injection of event server.
-func (op *Operation) SetEventServer(events *events.Server) {
-	op.events = events
 }
 
 // CheckRequestor checks that the requestor of a given HTTP request is equal to the requestor of the operation.
