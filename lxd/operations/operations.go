@@ -28,35 +28,8 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-var debug bool
-
 var operationsLock sync.Mutex
 var operations = make(map[string]*Operation)
-
-// OperationClass represents the OperationClass type.
-type OperationClass int
-
-const (
-	// OperationClassTask represents the Task OperationClass.
-	OperationClassTask OperationClass = 1
-	// OperationClassWebsocket represents the Websocket OperationClass.
-	OperationClassWebsocket OperationClass = 2
-	// OperationClassToken represents the Token OperationClass.
-	OperationClassToken OperationClass = 3
-)
-
-func (t OperationClass) String() string {
-	return map[OperationClass]string{
-		OperationClassTask:      api.OperationClassTask,
-		OperationClassWebsocket: api.OperationClassWebsocket,
-		OperationClassToken:     api.OperationClassToken,
-	}[t]
-}
-
-// Init sets the debug value for the operations package.
-func Init(d bool) {
-	debug = d
-}
 
 // Clone returns a clone of the internal operations map containing references to the actual operations.
 func Clone() map[string]*Operation {
