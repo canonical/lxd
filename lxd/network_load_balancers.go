@@ -357,7 +357,7 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/networks/{networkName}/load-balancers/{listenAddress} network-load-balancers network_load_balancer_delete
@@ -461,7 +461,7 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/networks/{networkName}/load-balancers/{listenAddress} network-load-balancers network_load_balancer_get
@@ -748,7 +748,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation POST /1.0/networks/{networkName}/load-balancer-pools network-load-balancer-pools network_load_balancer_pools_post
@@ -837,7 +837,7 @@ func networkLoadBalancerPoolsPost(d *Daemon, r *http.Request) response.Response 
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // networkLoadBalancerPoolUsedBy returns a list of URLs of load balancers using the pool.
@@ -1221,7 +1221,7 @@ func networkLoadBalancerPoolDelete(d *Daemon, r *http.Request) response.Response
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation PUT /1.0/networks/{networkName}/load-balancer-pools/{poolName} network-load-balancer-pools network_load_balancer_pool_put
@@ -1312,7 +1312,7 @@ func networkLoadBalancerPoolPut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // networkLoadBalancerPoolCheckAccess validates that a network is accessible for load balancer pool operations.

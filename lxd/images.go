@@ -1565,7 +1565,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	revert.Success()
-	return operations.OperationResponse(imageOp)
+	return response.OperationResponse(imageOp)
 }
 
 func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
@@ -3095,7 +3095,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // doImageDelete deletes an image with the given fingerprint and imageID in the given project.
@@ -4882,7 +4882,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation POST /1.0/images/{fingerprint}/secret images images_secret_post
@@ -5089,7 +5089,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func autoSyncImagesTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
@@ -5341,7 +5341,7 @@ func createImageTokenResponse(s *state.State, r *http.Request, projectName strin
 
 	s.Events.SendLifecycle(projectName, lifecycle.ImageSecretCreated.Event(fingerprint, projectName, op.EventLifecycleRequestor(), nil))
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // resolveProfileIDs finds profile IDs in other projects matching the given names.

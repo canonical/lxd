@@ -444,7 +444,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(err)
 			}
 
-			return operations.OperationResponse(op)
+			return response.OperationResponse(op)
 		}
 
 		// We keep the req.ContainerOnly for backward compatibility.
@@ -487,7 +487,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(err)
 			}
 
-			return operations.OperationResponse(op)
+			return response.OperationResponse(op)
 		}
 
 		// Pull mode.
@@ -506,7 +506,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			return response.InternalError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	var id int
@@ -545,7 +545,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // Move an instance.

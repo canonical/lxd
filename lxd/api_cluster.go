@@ -406,7 +406,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 		logger.Warn("Failed configuring LXD user agent", logger.Ctx{"err": err, "features": features})
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
@@ -819,7 +819,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // clusterPutDisableMu is used to prevent the LXD process from being replaced/stopped during removal from the

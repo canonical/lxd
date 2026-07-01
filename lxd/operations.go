@@ -986,7 +986,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
-		return operations.OperationWebSocket(op)
+		return response.OperationWebSocket(op)
 	}
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
@@ -1019,7 +1019,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return operations.ForwardedOperationWebSocket(id, source)
+	return response.ForwardedOperationWebSocket(id, source)
 }
 
 func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
@@ -1224,5 +1224,5 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }

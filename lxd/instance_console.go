@@ -488,7 +488,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		return operations.ForwardedOperationResponse(opAPI)
+		return response.ForwardedOperationResponse(opAPI)
 	}
 
 	if post.Type == "" {
@@ -554,7 +554,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/instances/{name}/console instances instance_console_get

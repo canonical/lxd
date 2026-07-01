@@ -631,7 +631,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			return response.InternalError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	var profile *api.Profile
@@ -712,7 +712,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation PATCH /1.0/profiles/{name} profiles profile_patch
@@ -853,7 +853,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation POST /1.0/profiles/{name} profiles profile_post

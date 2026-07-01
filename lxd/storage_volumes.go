@@ -1252,7 +1252,7 @@ func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName s
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
@@ -1331,7 +1331,7 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func doVolumeMigration(s *state.State, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
@@ -1411,7 +1411,7 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 		return response.SmartError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation POST /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName} storage storage_pool_volume_type_post
@@ -1594,7 +1594,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 			return response.InternalError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	resp := forwardedResponseToNode(r.Context(), s, target)
@@ -1901,7 +1901,7 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 			return response.InternalError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	// Pull mode.
@@ -1920,7 +1920,7 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // storagePoolVolumeTypePostRename handles volume rename type POST requests.
@@ -1967,7 +1967,7 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, details st
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // storagePoolVolumeTypePostMove handles volume move type POST requests.
@@ -2022,7 +2022,7 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, details stor
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName} storage storage_pool_volume_type_get
@@ -2300,7 +2300,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation PATCH /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName} storage storage_pool_volume_type_patch
@@ -2431,7 +2431,7 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName} storage storage_pool_volume_type_delete
@@ -2507,7 +2507,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // doStoragePoolVolumeDelete returns an [operations.Operation] that, when run, will delete the given storage volume in the given project and pool.
@@ -2657,7 +2657,7 @@ func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProj
 	}
 
 	revert.Success()
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func createStoragePoolVolumeFromTarball(s *state.State, r *http.Request, requestProjectName string, projectName string, data io.Reader, poolName string, volName string) response.Response {
@@ -2717,7 +2717,7 @@ func createStoragePoolVolumeFromTarball(s *state.State, r *http.Request, request
 	}
 
 	revert.Success()
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestProjectName string, projectName string, data io.Reader, pool string, volName string) response.Response {
@@ -2888,7 +2888,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 	}
 
 	revert.Success()
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // ctxStorageVolumeDetails is the request.CtxKey corresponding to storageVolumeDetails, which is added to the request

@@ -303,7 +303,7 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/networks/{networkName}/peers/{peerName} network-peers network_peer_delete
@@ -389,7 +389,7 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/networks/{networkName}/peers/{peerName} network-peers network_peer_get
@@ -618,5 +618,5 @@ func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }

@@ -249,7 +249,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // instanceActionNeeded checks if the instance is already in the desired state for the given action, and thus whether the action needs to be performed or not.

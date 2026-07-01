@@ -205,7 +205,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	revert.Success()
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func instanceSnapRestore(ctx context.Context, s *state.State, projectName string, name string, req api.InstancePut, op *operations.Operation) error {

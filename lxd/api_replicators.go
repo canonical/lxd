@@ -703,7 +703,7 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 
 	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(r.Context(), name, projectName, nil))
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // updateReplicator is shared between [replicatorPut] and [replicatorPatch].

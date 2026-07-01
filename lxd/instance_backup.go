@@ -381,7 +381,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/instances/{name}/backups/{backup} instances instance_backup_get
@@ -567,7 +567,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/instances/{name}/backups/{backup} instances instance_backup_delete
@@ -649,7 +649,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/instances/{name}/backups/{backup}/export instances instance_backup_export

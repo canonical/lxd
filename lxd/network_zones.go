@@ -389,7 +389,7 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/network-zones/{zone} network-zones network_zone_delete
@@ -454,7 +454,7 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // doNetworkZoneDelete deletes the named network zone in the given project.
@@ -717,5 +717,5 @@ func networkZonePut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }

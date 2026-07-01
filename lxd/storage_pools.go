@@ -392,7 +392,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			return response.InternalError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
@@ -466,7 +466,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // storagePoolPartiallyCreated returns true of supplied storage pool has properties that indicate it has had
@@ -916,7 +916,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation PATCH /1.0/storage-pools/{poolName} storage storage_pool_patch
@@ -1197,5 +1197,5 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }

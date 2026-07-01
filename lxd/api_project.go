@@ -1056,7 +1056,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func projectNodeConfigDelete(ctx context.Context, d *Daemon, s *state.State, name string) error {
@@ -1253,7 +1253,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	var cachedImages []dbCluster.Image
@@ -1407,7 +1407,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/projects/{name}/state projects project_state_get
@@ -1548,7 +1548,7 @@ func projectStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // validateProjectPromote validates that a project is ready to be promoted to leader mode.

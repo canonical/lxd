@@ -84,7 +84,7 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // doInstanceDelete deletes an instance in the given project.

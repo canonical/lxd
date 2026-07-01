@@ -354,7 +354,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
@@ -543,7 +543,7 @@ func snapshotPut(s *state.State, r *http.Request, snapInst instance.Instance) re
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/instances/{name}/snapshots/{snapshot} instances instance_snapshot_get
@@ -706,7 +706,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 				return response.InternalError(err)
 			}
 
-			return operations.OperationResponse(op)
+			return response.OperationResponse(op)
 		}
 
 		// Pull mode.
@@ -725,7 +725,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 			return response.InternalError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	newName, err := raw.GetString("name")
@@ -778,7 +778,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/instances/{name}/snapshots/{snapshot} instances instance_snapshot_delete
@@ -836,5 +836,5 @@ func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance)
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }

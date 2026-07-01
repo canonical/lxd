@@ -585,7 +585,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			return response.InternalError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
@@ -725,7 +725,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // networkPartiallyCreated returns true of supplied network has properties that indicate it has had previous
@@ -1238,7 +1238,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // doNetworkDelete deletes the named network in the given project.
@@ -1466,7 +1466,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation PUT /1.0/networks/{name} networks network_put
@@ -1642,7 +1642,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation PATCH /1.0/networks/{name} networks network_patch
