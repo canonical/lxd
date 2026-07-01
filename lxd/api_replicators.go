@@ -1164,32 +1164,9 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 
 	// Forward replication: iterate over all loaded instances directly.
 	if !restore {
-		childArgs := make([]*operations.OperationArgs, 0, len(allInsts))
-
-		for _, inst := range allInsts {
-			memberAddress := nodeAddressByName[inst.Location()]
-
-			copyFunc := func(ctx context.Context, op *operations.Operation) error {
-				dstClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
-				if err != nil {
-					return fmt.Errorf("Failed connecting to target cluster: %w", err)
-				}
-
-				dstClient = dstClient.UseProject(projectName)
-
-				return replicateInstance(ctx, s, op, inst, memberAddress, dstClient, targetCertPEM)
-			}
-
-			childArgs = append(childArgs, &operations.OperationArgs{
-				ProjectName: projectName,
-				EntityURL:   projectURL,
-				Type:        operationtype.ReplicatorRunInstance,
-				Class:       operations.OperationClassTask,
-				Metadata: map[string]any{
-					api.MetadataEntityURL: entity.InstanceURL(projectName, inst.Name()).String(),
-				},
-				RunHook: copyFunc,
-			})
+		childArgs, err := buildForwardChildOps(ctx, s, projectName, projectURL, allInsts, nodeAddressByName, clusterLink, clusterCert, targetCert, targetCertPEM)
+		if err != nil {
+			return operations.OperationArgs{}, err
 		}
 
 		return operations.OperationArgs{
