@@ -116,7 +116,7 @@ func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 
 	args := operations.OperationArgs{
 		Type:    operationtype.RenewServerCertificate,
-		Class:   operations.OperationClassTask,
+		Class:   operationtype.OperationClassTask,
 		RunHook: opRun,
 	}
 

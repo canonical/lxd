@@ -390,7 +390,7 @@ func clusterMembersPost(d *Daemon, r *http.Request) response.Response {
 
 	args := operations.OperationArgs{
 		Type:     operationtype.ClusterJoinToken,
-		Class:    operations.OperationClassToken,
+		Class:    operationtype.OperationClassToken,
 		Metadata: meta,
 	}
 
@@ -1437,7 +1437,7 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 		args := operations.OperationArgs{
 			ProjectName: "",
 			Type:        operationtype.ClusterMemberEvacuate,
-			Class:       operations.OperationClassTask,
+			Class:       operationtype.OperationClassTask,
 			RunHook:     run,
 			// Use ConflictReference to enforce cluster-wide evacuation exclusivity; this prevents evacuation race conditions.
 			ConflictReference: clusterMemberEvacuateConflictReference,
@@ -2237,7 +2237,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 	args := operations.OperationArgs{
 		ProjectName: "",
 		Type:        operationtype.ClusterMemberRestore,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 	}
 

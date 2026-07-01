@@ -1242,7 +1242,7 @@ func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName s
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		Type:        opType,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   volumeURL,
 	}
@@ -1320,7 +1320,7 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		Type:        opType,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entityURL,
 		Metadata:    metadata,
@@ -1399,11 +1399,11 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 	}
 
 	if push {
-		args.Class = operations.OperationClassWebsocket
+		args.Class = operationtype.OperationClassWebsocket
 		maps.Copy(args.Metadata, sink.Metadata())
 		args.ConnectHook = sink.Connect
 	} else {
-		args.Class = operations.OperationClassTask
+		args.Class = operationtype.OperationClassTask
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
@@ -1585,7 +1585,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 			ProjectName: requestProjectName, // Request project may differ from effective project.
 			EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", "custom", details.volumeName).Project(effectiveProjectName).Target(details.location),
 			Type:        operationtype.VolumeMigrate,
-			Class:       operations.OperationClassTask,
+			Class:       operationtype.OperationClassTask,
 			RunHook:     run,
 		}
 
@@ -1818,7 +1818,7 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 		args := operations.OperationArgs{
 			ProjectName: srcProjectName,
 			Type:        operationtype.VolumeMigrate,
-			Class:       operations.OperationClassWebsocket,
+			Class:       operationtype.OperationClassWebsocket,
 			EntityURL:   sourceVolumeURL,
 			Metadata:    srcMigration.Metadata(),
 			RunHook:     run,
@@ -1891,7 +1891,7 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 		args := operations.OperationArgs{
 			ProjectName: requestProjectName,
 			Type:        opType,
-			Class:       operations.OperationClassTask,
+			Class:       operationtype.OperationClassTask,
 			EntityURL:   entityURL,
 			RunHook:     run,
 		}
@@ -1908,7 +1908,7 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		Type:        opType,
-		Class:       operations.OperationClassWebsocket,
+		Class:       operationtype.OperationClassWebsocket,
 		EntityURL:   entityURL,
 		Metadata:    ws.Metadata(),
 		RunHook:     run,
@@ -1957,7 +1957,7 @@ func storagePoolVolumeTypePostRename(s *state.State, r *http.Request, details st
 	args := operations.OperationArgs{
 		ProjectName: request.ProjectParam(r),
 		Type:        operationtype.VolumeMove,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		EntityURL:   volumeURL,
 		RunHook:     run,
 	}
@@ -2013,7 +2013,7 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, details stor
 		ProjectName: request.ProjectParam(r), // Request project may differ from effective project.
 		EntityURL:   volumeURL,
 		Type:        operationtype.VolumeMove,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 	}
 
@@ -2290,7 +2290,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: request.ProjectParam(r),
 		Type:        operationtype.VolumeUpdate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   volumeURL,
 	}
@@ -2421,7 +2421,7 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: request.ProjectParam(r),
 		Type:        operationtype.VolumeUpdate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   volumeURL,
 	}
@@ -2576,7 +2576,7 @@ func doStoragePoolVolumeDelete(ctx context.Context, opScheduler operations.Opera
 		ProjectName: requestProjectName,
 		EntityURL:   volumeURL,
 		Type:        operationtype.VolumeDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 	}
 
@@ -2644,7 +2644,7 @@ func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProj
 		ProjectName: requestProjectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", requestProjectName),
 		Type:        operationtype.VolumeCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		Metadata: map[string]any{
 			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "storage-pools", pool, "volumes", cluster.StoragePoolVolumeTypeNameCustom, volName).Project(requestProjectName).String(),
@@ -2703,7 +2703,7 @@ func createStoragePoolVolumeFromTarball(s *state.State, r *http.Request, request
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		Type:        operationtype.VolumeCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   requestProjectURL,
 		Metadata: map[string]any{
@@ -2878,7 +2878,7 @@ func createStoragePoolVolumeFromBackup(s *state.State, r *http.Request, requestP
 		ProjectName: requestProjectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.CustomVolumeBackupRestore,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 	}
 

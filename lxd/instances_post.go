@@ -149,7 +149,7 @@ func createFromImage(r *http.Request, s *state.State, p api.Project, profiles []
 		ProjectName: p.Name,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", p.Name),
 		Type:        operationtype.InstanceCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		Metadata: map[string]any{
 			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(p.Name).String(),
@@ -210,7 +210,7 @@ func createFromNone(r *http.Request, s *state.State, projectName string, profile
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.InstanceCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		Metadata: map[string]any{
 			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
@@ -441,11 +441,11 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 	}
 
 	if result.push {
-		opArgs.Class = operations.OperationClassWebsocket
+		opArgs.Class = operationtype.OperationClassWebsocket
 		opArgs.Metadata = result.sink.Metadata()
 		opArgs.ConnectHook = result.sink.Connect
 	} else {
-		opArgs.Class = operations.OperationClassTask
+		opArgs.Class = operationtype.OperationClassTask
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, opArgs)
@@ -548,7 +548,7 @@ func createFromConversion(r *http.Request, s *state.State, projectName string, p
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.InstanceCreate,
-		Class:       operations.OperationClassWebsocket,
+		Class:       operationtype.OperationClassWebsocket,
 		Metadata:    metadata,
 		RunHook:     run,
 		ConnectHook: sink.Connect,
@@ -762,7 +762,7 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 		ProjectName: targetProject,
 		EntityURL:   entityURL,
 		Type:        opType,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		Metadata: map[string]any{
 			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
@@ -1080,7 +1080,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		ProjectName: bInfo.Project,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", bInfo.Project),
 		Type:        operationtype.BackupRestore,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		Metadata: map[string]any{
 			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", bInfo.Name).Project(bInfo.Project).String(),

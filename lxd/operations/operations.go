@@ -87,7 +87,7 @@ func OperationGetInternal(id string) (*Operation, error) {
 type Operation struct {
 	projectName     string
 	id              string
-	class           OperationClass
+	class           operationtype.Class
 	createdAt       time.Time
 	updatedAt       time.Time
 	status          api.StatusCode
@@ -138,7 +138,7 @@ type Operation struct {
 type OperationArgs struct {
 	ProjectName     string
 	Type            operationtype.Type
-	Class           OperationClass
+	Class           operationtype.Class
 	EntityURL       *api.URL
 	Resources       map[entity.Type][]api.URL
 	Metadata        map[string]any
@@ -287,15 +287,15 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.onConnect = args.ConnectHook
 
 		// Quick check.
-		if op.class != OperationClassWebsocket && op.onConnect != nil {
+		if op.class != operationtype.OperationClassWebsocket && op.onConnect != nil {
 			return nil, errors.New("Only websocket operations can have a Connect hook")
 		}
 
-		if op.class == OperationClassWebsocket && op.onConnect == nil {
+		if op.class == operationtype.OperationClassWebsocket && op.onConnect == nil {
 			return nil, errors.New("Websocket operations must have a Connect hook")
 		}
 
-		if op.class == OperationClassToken && op.onRun != nil {
+		if op.class == operationtype.OperationClassToken && op.onRun != nil {
 			return nil, errors.New("Token operations cannot have a Run hook")
 		}
 
@@ -310,7 +310,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	}
 
 	// If this is a single task operation without children, it must have a run hook.
-	if !slices.Contains([]OperationClass{OperationClassWebsocket, OperationClassToken}, args.Class) && args.Children == nil && args.RunHook == nil {
+	if !slices.Contains([]operationtype.Class{operationtype.OperationClassWebsocket, operationtype.OperationClassToken}, args.Class) && args.Children == nil && args.RunHook == nil {
 		return nil, errors.New("Task operations must have a Run hook")
 	}
 
@@ -701,7 +701,7 @@ func (op *Operation) Cancel() {
 // operation or the operation is not running, it returns an error.
 func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error, error) {
 	op.lock.Lock()
-	if op.class != OperationClassWebsocket {
+	if op.class != operationtype.OperationClassWebsocket {
 		op.lock.Unlock()
 		return nil, errors.New("Only websocket operations can be connected")
 	}
@@ -1010,7 +1010,7 @@ func (op *Operation) Status() api.StatusCode {
 }
 
 // Class returns the operation class.
-func (op *Operation) Class() OperationClass {
+func (op *Operation) Class() operationtype.Class {
 	return op.class
 }
 

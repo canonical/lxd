@@ -174,7 +174,7 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 	op := Operation{
 		projectName:       dbOp.ProjectName,
 		id:                dbOp.Row.UUID,
-		class:             OperationClass(dbOp.Row.Class),
+		class:             operationtype.Class(dbOp.Row.Class),
 		createdAt:         dbOp.Row.CreatedAt,
 		updatedAt:         dbOp.Row.UpdatedAt,
 		status:            api.StatusCode(dbOp.Row.StatusCode),

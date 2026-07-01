@@ -1554,7 +1554,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: dbProject.Name,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", dbProject.Name),
 		Type:        operationtype.ImageDownload,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		Metadata:    metadata,
 		RunHook:     run,
 	}
@@ -2090,7 +2090,7 @@ func autoUpdateImagesTask(stateFunc func() *state.State) (task.Func, task.Schedu
 
 		args := operations.OperationArgs{
 			Type:    operationtype.ImagesUpdate,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 
@@ -2698,7 +2698,7 @@ func pruneExpiredImagesTask(stateFunc func() *state.State) (task.Func, task.Sche
 
 		args := operations.OperationArgs{
 			Type:    operationtype.ImagesExpire,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 
@@ -2842,7 +2842,7 @@ func pruneLeftoverImages(s *state.State) {
 
 	args := operations.OperationArgs{
 		Type:    operationtype.ImagesPruneLeftover,
-		Class:   operations.OperationClassTask,
+		Class:   operationtype.OperationClassTask,
 		RunHook: opRun,
 	}
 
@@ -3255,7 +3255,7 @@ func doImageDelete(isClusterNotification bool, opCreator operations.OperationSch
 		ProjectName: requestProjectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "images", fingerprint).Project(effectiveProjectName),
 		Type:        operationtype.ImageDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     do,
 	}
 
@@ -4873,7 +4873,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "images", details.image.Fingerprint).Project(details.image.Project),
 		Type:        operationtype.ImageUpload,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 	}
 
@@ -5080,7 +5080,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "images", details.image.Fingerprint).Project(details.image.Project),
 		Type:        operationtype.ImageRefresh,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 	}
 
@@ -5119,7 +5119,7 @@ func autoSyncImagesTask(stateFunc func() *state.State) (task.Func, task.Schedule
 
 		args := operations.OperationArgs{
 			Type:    operationtype.ImagesSynchronize,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 
@@ -5330,7 +5330,7 @@ func createImageTokenResponse(s *state.State, r *http.Request, projectName strin
 		ProjectName: projectName,
 		EntityURL:   entityURL,
 		Type:        tokenType,
-		Class:       operations.OperationClassToken,
+		Class:       operationtype.OperationClassToken,
 		Metadata:    meta,
 	}
 

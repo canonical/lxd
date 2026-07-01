@@ -1043,7 +1043,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		EntityURL: originalEntityURL,
 		Type:      operationtype.ProjectRename,
-		Class:     operations.OperationClassTask,
+		Class:     operationtype.OperationClassTask,
 		RunHook:   run,
 		Metadata: map[string]any{
 			api.MetadataOriginalEntityURL: originalEntityURL.String(),
@@ -1245,7 +1245,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 		op, err := operations.ScheduleUserOperationFromRequest(s, r, operations.OperationArgs{
 			Type:      operationtype.ProjectDelete,
-			Class:     operations.OperationClassTask,
+			Class:     operationtype.OperationClassTask,
 			EntityURL: entity.ProjectURL(name),
 			RunHook:   run,
 		})
@@ -1399,7 +1399,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, operations.OperationArgs{
 		Type:      operationtype.ProjectDelete,
-		Class:     operations.OperationClassTask,
+		Class:     operationtype.OperationClassTask,
 		EntityURL: entity.ProjectURL(project.Name),
 		RunHook:   run,
 	})
@@ -1540,7 +1540,7 @@ func projectStatePut(d *Daemon, r *http.Request) response.Response {
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, operations.OperationArgs{
 		Type:      operationtype.ProjectReplicaModeUpdate,
-		Class:     operations.OperationClassTask,
+		Class:     operationtype.OperationClassTask,
 		EntityURL: entity.ProjectURL(name),
 		RunHook:   run,
 	})

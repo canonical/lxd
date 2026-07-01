@@ -371,7 +371,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        operationtype.BackupCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     backup,
 		Metadata:    metadata,
 	}
@@ -557,7 +557,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		Type:        operationtype.BackupRename,
 		EntityURL:   originalEntityURL,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     rename,
 		Metadata:    metadata,
 	}
@@ -640,7 +640,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name, "backups", backupName).Project(projectName),
 		Type:        operationtype.BackupRemove,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     remove,
 	}
 

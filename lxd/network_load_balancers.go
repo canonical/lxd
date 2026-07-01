@@ -344,7 +344,7 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkLoadBalancerCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkURL(effectiveProjectName, details.networkName),
 		Metadata: map[string]any{
@@ -451,7 +451,7 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkLoadBalancerDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkURL(effectiveProjectName, details.networkName),
 	}
@@ -738,7 +738,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkLoadBalancerUpdate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkURL(effectiveProjectName, details.networkName),
 	}
@@ -827,7 +827,7 @@ func networkLoadBalancerPoolsPost(d *Daemon, r *http.Request) response.Response 
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkLoadBalancerPoolCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkURL(effectiveProjectName, details.networkName),
 	}
@@ -1211,7 +1211,7 @@ func networkLoadBalancerPoolDelete(d *Daemon, r *http.Request) response.Response
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkLoadBalancerPoolDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkURL(effectiveProjectName, details.networkName),
 	}
@@ -1302,7 +1302,7 @@ func networkLoadBalancerPoolPut(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkLoadBalancerPoolUpdate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkURL(effectiveProjectName, details.networkName),
 	}

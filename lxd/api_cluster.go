@@ -390,7 +390,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 
 	args := operations.OperationArgs{
 		Type:    operationtype.ClusterBootstrap,
-		Class:   operations.OperationClassTask,
+		Class:   operationtype.OperationClassTask,
 		RunHook: run,
 	}
 
@@ -810,7 +810,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 	opArgs := operations.OperationArgs{
 		Type:    operationtype.ClusterJoin,
-		Class:   operations.OperationClassTask,
+		Class:   operationtype.OperationClassTask,
 		RunHook: run,
 	}
 
@@ -1737,7 +1737,7 @@ func autoHealCluster(ctx context.Context, s *state.State, gateway *cluster.Gatew
 
 	args := operations.OperationArgs{
 		Type:    operationtype.ClusterHeal,
-		Class:   operations.OperationClassTask,
+		Class:   operationtype.OperationClassTask,
 		RunHook: opRun,
 	}
 

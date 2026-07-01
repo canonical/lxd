@@ -88,7 +88,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 
 	args := operations.OperationArgs{
 		Type:    operationtype.RemoveExpiredTokens,
-		Class:   operations.OperationClassTask,
+		Class:   operationtype.OperationClassTask,
 		RunHook: opRun,
 	}
 

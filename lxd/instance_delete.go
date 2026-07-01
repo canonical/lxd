@@ -128,7 +128,7 @@ func doInstanceDelete(opScheduler operations.OperationScheduler, s *state.State,
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        operationtype.InstanceDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     rmct,
 	}
 

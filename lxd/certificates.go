@@ -614,7 +614,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		args := operations.OperationArgs{
 			ProjectName: api.ProjectDefaultName,
 			Type:        operationtype.CertificateAddToken,
-			Class:       operations.OperationClassToken,
+			Class:       operationtype.OperationClassToken,
 			Metadata:    meta,
 		}
 

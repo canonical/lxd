@@ -335,7 +335,7 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: requestProject,
 		Type:        operationtype.NetworkACLCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.ProjectURL(effectiveProjectName),
 		Metadata: map[string]any{
@@ -424,7 +424,7 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: request.ProjectParam(r),
 		Type:        operationtype.NetworkACLDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkACLURL(effectiveProjectName, aclName),
 	}
@@ -658,7 +658,7 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: request.ProjectParam(r),
 		Type:        operationtype.NetworkACLUpdate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkACLURL(projectName, aclName),
 	}
@@ -743,7 +743,7 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: requestProject,
 		Type:        operationtype.NetworkACLRename,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkACLURL(effectiveProjectName, aclName),
 		Metadata: map[string]any{

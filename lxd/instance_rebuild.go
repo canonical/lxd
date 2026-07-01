@@ -154,7 +154,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: targetProject.Name,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(inst.Project().Name),
 		Type:        operationtype.InstanceRebuild,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 	}
 

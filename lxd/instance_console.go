@@ -543,7 +543,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   instanceURL,
 		Type:        operationtype.ConsoleShow,
-		Class:       operations.OperationClassWebsocket,
+		Class:       operationtype.OperationClassWebsocket,
 		Metadata:    ws.Metadata(),
 		RunHook:     ws.Do,
 		ConnectHook: ws.Connect,

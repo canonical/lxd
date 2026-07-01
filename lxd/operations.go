@@ -100,7 +100,7 @@ func runningInstanceOperations() map[string]map[string][]*operations.Operation {
 	// A single instance may be referenced by multiple operations (e.g. multiple exec websockets).
 	ops := operations.Clone()
 	for _, op := range ops {
-		if !op.IsRunning() || op.Class() == operations.OperationClassToken {
+		if !op.IsRunning() || op.Class() == operationtype.OperationClassToken {
 			continue
 		}
 
@@ -686,7 +686,7 @@ func operationsGetByType(ctx context.Context, s *state.State, projectName string
 
 		apiOps = append(apiOps, &api.Operation{
 			ID:          op.Row.UUID,
-			Class:       operations.OperationClass(op.Row.Class).String(),
+			Class:       operationtype.Class(op.Row.Class).String(),
 			Description: op.Row.Type.Description(),
 			CreatedAt:   op.Row.CreatedAt,
 			UpdatedAt:   op.Row.UpdatedAt,
@@ -1047,7 +1047,7 @@ func autoRemoveOrphanedOperationsTask(stateFunc func() *state.State) (task.Func,
 
 		args := operations.OperationArgs{
 			Type:    operationtype.RemoveOrphanedOperations,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 
@@ -1134,7 +1134,7 @@ func pruneExpiredOperationsTask(stateFunc func() *state.State) (task.Func, task.
 
 		args := operations.OperationArgs{
 			Type:    operationtype.PruneExpiredOperations,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 
@@ -1156,11 +1156,11 @@ func pruneExpiredOperationsTask(stateFunc func() *state.State) (task.Func, task.
 
 // operationWaitPost represents the fields of a request to register a dummy operation.
 type operationWaitPost struct {
-	Duration          string                    `json:"duration" yaml:"duration"`
-	OpClass           operations.OperationClass `json:"op_class" yaml:"op_class"`
-	OpType            operationtype.Type        `json:"op_type" yaml:"op_type"`
-	EntityURL         string                    `json:"entity_url" yaml:"entity_url"`
-	ConflictReference string                    `json:"conflict_reference" yaml:"conflict_reference"`
+	Duration          string              `json:"duration" yaml:"duration"`
+	OpClass           operationtype.Class `json:"op_class" yaml:"op_class"`
+	OpType            operationtype.Type  `json:"op_type" yaml:"op_type"`
+	EntityURL         string              `json:"entity_url" yaml:"entity_url"`
+	ConflictReference string              `json:"conflict_reference" yaml:"conflict_reference"`
 }
 
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
@@ -1202,7 +1202,7 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var onConnect func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error
-	if req.OpClass == operations.OperationClassWebsocket {
+	if req.OpClass == operationtype.OperationClassWebsocket {
 		onConnect = func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 			// Do nothing
 			return nil

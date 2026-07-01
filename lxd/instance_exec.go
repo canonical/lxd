@@ -693,7 +693,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			ProjectName: projectName,
 			EntityURL:   instanceURL,
 			Type:        operationtype.CommandExec,
-			Class:       operations.OperationClassWebsocket,
+			Class:       operationtype.OperationClassWebsocket,
 			Metadata:    ws.Metadata(),
 			RunHook:     ws.Do,
 			ConnectHook: ws.Connect,
@@ -777,7 +777,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   instanceURL,
 		Type:        operationtype.CommandExec,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 	}
 

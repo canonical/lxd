@@ -572,7 +572,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		opArgs := operations.OperationArgs{
 			ProjectName: requestProjectName,
 			Type:        operationtype.NetworkCreate,
-			Class:       operations.OperationClassTask,
+			Class:       operationtype.OperationClassTask,
 			RunHook:     run,
 			EntityURL:   entity.ProjectURL(effectiveProjectName),
 			Metadata: map[string]any{
@@ -712,7 +712,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		Type:        operationtype.NetworkCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.ProjectURL(effectiveProjectName),
 		Metadata: map[string]any{
@@ -1228,7 +1228,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entityURL,
 	}
@@ -1452,7 +1452,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkRename,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkURL(effectiveProjectName, networkName),
 		Metadata: map[string]any{
@@ -1632,7 +1632,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkUpdate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entityURL,
 	}
