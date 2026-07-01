@@ -24,22 +24,25 @@ import (
 )
 
 var instanceLogCmd = APIEndpoint{
-	Path:        "instances/{name}/logs/{file}",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/logs/{file}",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: instanceLogGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 }
 
 var instanceLogsCmd = APIEndpoint{
-	Path:        "instances/{name}/logs",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/logs",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: instanceLogsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 }
 
 var instanceExecOutputCmd = APIEndpoint{
-	Path:        "instances/{name}/logs/exec-output/{file}",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/logs/exec-output/{file}",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: instanceExecOutputDelete, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
 	Get:    APIEndpointAction{Handler: instanceExecOutputGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
@@ -49,8 +52,9 @@ var instanceExecOutputCmd = APIEndpoint{
 var instanceProtectedLogFiles = []string{"edk2.log", "lxc.log", "qemu.log", "qemu.early.log"}
 
 var instanceExecOutputsCmd = APIEndpoint{
-	Path:        "instances/{name}/logs/exec-output",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/logs/exec-output",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: instanceExecOutputsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
 }

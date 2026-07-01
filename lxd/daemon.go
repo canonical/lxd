@@ -233,6 +233,10 @@ type APIEndpoint struct {
 	Delete      APIEndpointAction
 	Patch       APIEndpointAction
 
+	// ProjectSpecific indicates that the endpoint manages project specific resources.
+	// This is used for global authorization checks.
+	ProjectSpecific bool
+
 	// EndpointResolver optionally resolves this endpoint to a more specific sub-endpoint based on the
 	// request path. This is used when multiple logical endpoints share a single ServeMux pattern to avoid
 	// pattern conflicts (e.g. images/aliases/{name...} vs images/{fingerprint}/export). When set, createCmd
@@ -242,11 +246,27 @@ type APIEndpoint struct {
 
 // APIEndpointAction represents an action on an API endpoint.
 type APIEndpointAction struct {
-	Handler        func(d *Daemon, r *http.Request) response.Response
-	AccessHandler  func(d *Daemon, r *http.Request) response.Response
-	AllowUntrusted bool
-	ContentTypes   []string // Client content types to allow.
+	Handler         func(d *Daemon, r *http.Request) response.Response
+	AccessHandler   func(d *Daemon, r *http.Request) response.Response
+	AllowUntrusted  bool
+	AllProjectsMode allProjectsMode
+	ContentTypes    []string // Client content types to allow.
 }
+
+// allProjectsMode dictates how the all-projects query parameter is handled if present.
+type allProjectsMode uint8
+
+const (
+	// allProjectsModeNotSupported is the default (zero) value.
+	allProjectsModeNotSupported allProjectsMode = iota
+
+	// allProjectsModeDisallowRestrictedTLSClients is used to prevent restricted TLS clients from querying resources
+	// across all projects. This is to maintain legacy behaviour and can be removed when restricted TLS clients are removed.
+	allProjectsModeDisallowRestrictedTLSClients
+
+	// allProjectsModeAllowAll allows all (authenticated) callers to use the all projects query parameter.
+	allProjectsModeAllowAll
+)
 
 // allowAuthenticated is an AccessHandler which allows only authenticated requests. This should be used in conjunction
 // with further access control within the handler (e.g. to filter resources the user is able to view/edit).
@@ -302,76 +322,6 @@ func allowPermission(entityType entity.Type, entitlement auth.Entitlement, muxVa
 		err = s.Authorizer.CheckPermission(r.Context(), entityURL, entitlement)
 		if err != nil {
 			return response.SmartError(err)
-		}
-
-		return response.EmptySyncResponse
-	}
-}
-
-// allowProjectResourceList should be used instead of allowAuthenticated when listing resources within a project.
-// This prevents a restricted TLS client from listing resources in a project that they do not have access to.
-// The allowAllProjects parameter controls whether usage of the "all-projects" query parameter is allowed for restricted TLS clients.
-func allowProjectResourceList(allowAllProjects bool) func(d *Daemon, r *http.Request) response.Response {
-	return func(d *Daemon, r *http.Request) response.Response {
-		requestor, err := request.GetRequestor(r.Context())
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		// The caller must be authenticated.
-		if !requestor.IsTrusted() {
-			return response.Forbidden(nil)
-		}
-
-		// A root user can list resources in any project.
-		if requestor.IsAdmin() {
-			return response.EmptySyncResponse
-		}
-
-		idType, err := requestor.CallerIdentityType()
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		requestProjectName, allProjects, err := request.ProjectParams(r)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		if idType.IsFineGrained() {
-			if allProjects {
-				return response.EmptySyncResponse
-			}
-
-			s := d.State()
-
-			// Fine-grained clients must be able to view the containing project.
-			err = s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(requestProjectName), auth.EntitlementCanView)
-			if err != nil {
-				return response.SmartError(err)
-			}
-
-			return response.EmptySyncResponse
-		}
-
-		// We should now only be left with restricted client certificates. Metrics certificates should have been disregarded
-		// already, because they cannot call any endpoint other than /1.0/metrics (which is enforced during authentication).
-		if idType.Name() != api.IdentityTypeCertificateClientRestricted {
-			return response.InternalError(fmt.Errorf("Encountered unexpected identity type %q listing resources", idType.Name()))
-		}
-
-		// all-projects requests may not be allowed, depending on the handler.
-		if allProjects {
-			if allowAllProjects {
-				return response.EmptySyncResponse
-			}
-
-			return response.Forbidden(errors.New("Certificate is restricted"))
-		}
-
-		// Disallow listing resources in projects the caller does not have access to.
-		if !slices.Contains(requestor.CallerAllowedProjectNames(), requestProjectName) {
-			return response.Forbidden(errors.New("Certificate is restricted"))
 		}
 
 		return response.EmptySyncResponse
@@ -1021,50 +971,7 @@ func (d *Daemon) createCmd(restAPI *http.ServeMux, version string, c APIEndpoint
 			return
 		}
 
-		handleRequest := func(action APIEndpointAction) response.Response {
-			// Protect against CSRF when using LXD-UI with browser that supports Fetch metadata.
-			// Deny Sec-Fetch-Site when set to cross-site or same-site.
-			if http.NewCrossOriginProtection().Check(r) != nil {
-				return response.ErrorResponse(http.StatusForbidden, "Forbidden Sec-Fetch-Site header value")
-			}
-
-			if len(action.ContentTypes) == 0 {
-				// Require application/json if not specified by handler.
-				action.ContentTypes = []string{"application/json"}
-			}
-
-			// Validate browser Content-Type if supplied, or if non-zero Content-Length supplied.
-			if isBrowserClient(r) {
-				contentTypeParts := shared.SplitNTrimSpace(r.Header.Get("Content-Type"), ";", 2, false) // Ignore multi-part boundary part.
-				contentLength := r.Header.Get("Content-Length")
-				hasContentLength := contentLength != "" && contentLength != "0"
-				if (hasContentLength || contentTypeParts[0] != "") && !slices.Contains(action.ContentTypes, contentTypeParts[0]) {
-					return response.ErrorResponse(http.StatusUnsupportedMediaType, "Unsupported Content-Type for this request")
-				}
-			}
-
-			// All APIEndpointActions should have an access handler or should allow untrusted requests.
-			if action.AccessHandler == nil && !action.AllowUntrusted {
-				return response.InternalError(fmt.Errorf("Access handler not defined for %s %s", r.Method, r.URL.RequestURI()))
-			}
-
-			// If the request is not trusted, only call the handler if the action allows it.
-			if !requestor.Trusted && !action.AllowUntrusted {
-				return response.Forbidden(errors.New("You must be authenticated"))
-			}
-
-			// Call the access handler if there is one.
-			if action.AccessHandler != nil {
-				resp := action.AccessHandler(d, r)
-				if resp != response.EmptySyncResponse {
-					return resp
-				}
-			}
-
-			return action.Handler(d, r)
-		}
-
-		resp = handleRequest(endpointAction)
+		resp = handleRequest(d, r, endpointAction, endpoint.ProjectSpecific)
 
 		// Handle errors
 		err = resp.Render(w, r)
@@ -1075,6 +982,91 @@ func (d *Daemon) createCmd(restAPI *http.ServeMux, version string, c APIEndpoint
 			}
 		}
 	})
+}
+
+// handleRequest is called from the HTTP handler func defined in (*Daemon).createCmd for all API endpoint actions.
+func handleRequest(d *Daemon, r *http.Request, action APIEndpointAction, projectSpecific bool) response.Response {
+	// Protect against CSRF when using LXD-UI with browser that supports Fetch metadata.
+	// Deny Sec-Fetch-Site when set to cross-site or same-site.
+	if http.NewCrossOriginProtection().Check(r) != nil {
+		return response.ErrorResponse(http.StatusForbidden, "Forbidden Sec-Fetch-Site header value")
+	}
+
+	contentTypes := action.ContentTypes
+	if len(contentTypes) == 0 {
+		// Require application/json if not specified by handler.
+		contentTypes = []string{"application/json"}
+	}
+
+	// Validate browser Content-Type if supplied, or if non-zero Content-Length supplied.
+	if isBrowserClient(r) {
+		contentTypeParts := shared.SplitNTrimSpace(r.Header.Get("Content-Type"), ";", 2, false) // Ignore multi-part boundary part.
+		contentLength := r.Header.Get("Content-Length")
+		hasContentLength := contentLength != "" && contentLength != "0"
+		if (hasContentLength || contentTypeParts[0] != "") && !slices.Contains(contentTypes, contentTypeParts[0]) {
+			return response.ErrorResponse(http.StatusUnsupportedMediaType, "Unsupported Content-Type for this request")
+		}
+	}
+
+	// All APIEndpointActions should have an access handler or should allow untrusted requests.
+	if action.AccessHandler == nil && !action.AllowUntrusted {
+		return response.InternalError(fmt.Errorf("Access handler not defined for %s %s", r.Method, r.URL.RequestURI()))
+	}
+
+	// Get the requestor.
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// If the request is not trusted, only call the handler if the action allows it.
+	if !requestor.IsTrusted() && !action.AllowUntrusted {
+		return response.Forbidden(errors.New("You must be authenticated"))
+	}
+
+	// Global permission checks applied for project specific endpoints (when endpoint action does not allow untrusted requests).
+	if projectSpecific && !action.AllowUntrusted {
+		projectName, allProjects, err := request.ProjectParams(r)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if allProjects {
+			// Handle all-projects query parameter according to endpoint action specified mode.
+			// The default value if unspecified is allProjectsModeNotSupported.
+			switch action.AllProjectsMode {
+			case allProjectsModeNotSupported:
+				return response.BadRequest(errors.New("All projects queries are not supported"))
+			case allProjectsModeDisallowRestrictedTLSClients:
+				requestor, err := request.GetRequestor(r.Context())
+				if err != nil {
+					return response.SmartError(err)
+				}
+
+				if requestor.IsIdentityType(api.IdentityTypeCertificateClientRestricted) {
+					return response.Forbidden(errors.New("Certificate is restricted"))
+				}
+
+			case allProjectsModeAllowAll:
+			}
+		} else {
+			// Check that the caller can view the requested project.
+			err = d.authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanView)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+	}
+
+	// Call the access handler if there is one.
+	if action.AccessHandler != nil {
+		resp := action.AccessHandler(d, r)
+		if resp != response.EmptySyncResponse {
+			return resp
+		}
+	}
+
+	return action.Handler(d, r)
 }
 
 // have we setup shared mounts?

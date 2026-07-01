@@ -22,16 +22,18 @@ import (
 )
 
 var networkPeersCmd = APIEndpoint{
-	Path:        "networks/{networkName}/peers",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks/{networkName}/peers",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Get:  APIEndpointAction{Handler: networkPeersGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
 	Post: APIEndpointAction{Handler: networkPeersPost, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var networkPeerCmd = APIEndpoint{
-	Path:        "networks/{networkName}/peers/{peerName}",
-	MetricsType: entity.TypeNetwork,
+	Path:            "networks/{networkName}/peers/{peerName}",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: networkPeerDelete, AccessHandler: networkAccessHandler(auth.EntitlementCanEdit)},
 	Get:    APIEndpointAction{Handler: networkPeerGet, AccessHandler: networkAccessHandler(auth.EntitlementCanView)},
