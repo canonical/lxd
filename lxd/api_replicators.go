@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -1468,6 +1469,223 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 			})
 		},
 	}, nil
+}
+
+// waitCtx blocks until wg completes or ctx is cancelled, so a hung sibling child cannot pin
+// every other child on the shared barrier past cancellation.
+func waitCtx(ctx context.Context, wg *sync.WaitGroup) error {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// buildForwardChildOps builds the forward replication child list: one child per custom volume then one per instance.
+// snapshotWg gates transfers on all snapshots; volumeWg gates instance work on all volume transfers.
+// The WaitGroups form barriers across children, which relies on the operations framework running
+// every child hook concurrently. Any child added here must register with its barriers before the
+// parent operation is scheduled and must signal completion exactly once even on failure, otherwise
+// sibling children block until their context is cancelled.
+func buildForwardChildOps(ctx context.Context, s *state.State, projectName string, projectURL *api.URL, allInsts []instance.Instance, nodeAddressByName map[string]string, clusterLink *api.ClusterLink, clusterCert *shared.CertInfo, targetCert *x509.Certificate, targetCertPEM string) ([]*operations.OperationArgs, error) {
+	instByName := instancesByName(allInsts)
+
+	volumeWork, err := buildVolumeWorkList(ctx, s, projectName, instByName)
+	if err != nil {
+		return nil, err
+	}
+
+	var snapshotWg sync.WaitGroup
+	var volumeWg sync.WaitGroup
+
+	// Volume replication failures are recorded per attached instance so that each instance
+	// is gated only on the volumes it actually attaches. A failure replicating a standalone
+	// or unrelated volume must not block instances that never use it.
+	var volumeErrMu sync.Mutex
+	volumeErrByInstance := make(map[string]error)
+
+	// Query destination members once; UseTarget is skipped when the source member name is absent on
+	// the destination, so asymmetric topologies fall back to the scheduler.
+	dstMemberSet := make(map[string]bool)
+	tmpDst, dstConnErr := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+	if dstConnErr != nil {
+		logger.Warn("Failed connecting to destination cluster for member discovery; volume co-placement hints will be skipped", logger.Ctx{"err": dstConnErr})
+	} else {
+		dstMembers, dstMembersErr := tmpDst.GetClusterMembers()
+		if dstMembersErr != nil {
+			logger.Warn("Failed listing destination cluster members; volume co-placement hints will be skipped", logger.Ctx{"err": dstMembersErr})
+		} else {
+			for _, m := range dstMembers {
+				dstMemberSet[m.ServerName] = true
+			}
+		}
+	}
+
+	childArgs := make([]*operations.OperationArgs, 0, len(volumeWork)+len(allInsts))
+	for _, vol := range volumeWork {
+		snapshotWg.Add(1)
+		volumeWg.Add(1)
+		memberAddress := nodeAddressByName[vol.volume.Location]
+		if vol.volume.Location == "" {
+			// A remote or shared volume has no hosting member; reach it from the local member.
+			memberAddress = nodeAddressByName[s.ServerName]
+		}
+
+		// Pin an exclusive volume's co-placement with its instance's destination member;
+		// UseTarget is skipped when the member name is absent on the destination.
+		dstMember := ""
+		if vol.isExclusive() {
+			owner, ok := instByName[vol.usedBy[0]]
+			if ok && dstMemberSet[owner.Location()] {
+				dstMember = owner.Location()
+			}
+		}
+
+		childArgs = append(childArgs, &operations.OperationArgs{
+			ProjectName: projectName,
+			EntityURL:   projectURL,
+			Type:        operationtype.ReplicatorRunVolume,
+			Class:       operationtype.OperationClassTask,
+			Metadata: map[string]any{
+				api.MetadataEntityURL: entity.StorageVolumeURL(projectName, vol.volume.Location, vol.volume.Pool, dbCluster.StoragePoolVolumeTypeNameCustom, vol.volume.Name).String(),
+			},
+			RunHook: func(ctx context.Context, _ *operations.Operation) (retErr error) {
+				defer func() {
+					if retErr != nil {
+						volumeErrMu.Lock()
+						for _, user := range vol.usedBy {
+							if volumeErrByInstance[user] == nil {
+								volumeErrByInstance[user] = retErr
+							}
+						}
+						volumeErrMu.Unlock()
+					}
+
+					volumeWg.Done()
+				}()
+
+				// Inner closure: snapshotWg.Done fires before the Wait below, even on panic.
+				var snapErr error
+				func() {
+					defer snapshotWg.Done()
+					if vol.needsOwnSnapshot {
+						snapErr = snapshotVolume(ctx, s, vol, memberAddress)
+					}
+				}()
+
+				waitErr := waitCtx(ctx, &snapshotWg)
+				if waitErr != nil {
+					return waitErr
+				}
+
+				if snapErr != nil {
+					return snapErr
+				}
+
+				// The exclusivity classification was made when the work list was built.
+				// If another instance attached this volume in the meantime, the owner's
+				// snapshot excluded it as shared and no fresh snapshot exists. Re-check
+				// the attachment now that the snapshot phase is complete and take a
+				// direct snapshot when the volume is no longer exclusively attached to
+				// its original owner.
+				if vol.snapshottable && !vol.needsOwnSnapshot {
+					users := make([]string, 0, 2)
+					err := storagePools.VolumeUsedByInstanceDevices(s, vol.volume.Pool, projectName, &vol.volume.StorageVolume, true, func(dbInst db.InstanceArgs, _ api.Project, _ []string) error {
+						users = append(users, dbInst.Name)
+						return nil
+					})
+					if err != nil {
+						return err
+					}
+
+					if len(users) != 1 || users[0] != vol.usedBy[0] {
+						err = snapshotVolume(ctx, s, vol, memberAddress)
+						if err != nil {
+							return err
+						}
+					}
+				}
+
+				dstClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+				if err != nil {
+					return fmt.Errorf("Failed connecting to target cluster: %w", err)
+				}
+
+				if dstMember != "" {
+					dstClient = dstClient.UseTarget(dstMember)
+				}
+
+				return replicateVolume(ctx, s, vol, memberAddress, dstClient)
+			},
+		})
+	}
+
+	for _, inst := range allInsts {
+		snapshotWg.Add(1)
+		memberAddress := nodeAddressByName[inst.Location()]
+
+		childArgs = append(childArgs, &operations.OperationArgs{
+			ProjectName: projectName,
+			EntityURL:   projectURL,
+			Type:        operationtype.ReplicatorRunInstance,
+			Class:       operationtype.OperationClassTask,
+			Metadata: map[string]any{
+				api.MetadataEntityURL: entity.InstanceURL(projectName, inst.Name()).String(),
+			},
+			RunHook: func(ctx context.Context, op *operations.Operation) error {
+				// Inner closure: snapshotWg.Done fires before the Wait below, even on panic.
+				var snapErr error
+				func() {
+					defer snapshotWg.Done()
+					snapErr = snapshotInstance(ctx, s, inst, memberAddress)
+				}()
+
+				waitErr := waitCtx(ctx, &snapshotWg)
+				if waitErr != nil {
+					return waitErr
+				}
+
+				if snapErr != nil {
+					return snapErr
+				}
+
+				waitErr = waitCtx(ctx, &volumeWg)
+				if waitErr != nil {
+					return waitErr
+				}
+
+				volumeErrMu.Lock()
+				attachedVolErr := volumeErrByInstance[inst.Name()]
+				volumeErrMu.Unlock()
+
+				if attachedVolErr != nil {
+					return fmt.Errorf("Skipping instance replication: replication of an attached volume failed: %w", attachedVolErr)
+				}
+
+				dstClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+				if err != nil {
+					return fmt.Errorf("Failed connecting to target cluster: %w", err)
+				}
+
+				dstClient = dstClient.UseProject(projectName)
+
+				if dstMemberSet[inst.Location()] {
+					dstClient = dstClient.UseTarget(inst.Location())
+				}
+
+				return replicateInstance(ctx, s, op, inst, memberAddress, dstClient, targetCertPEM)
+			},
+		})
+	}
+
+	return childArgs, nil
 }
 
 // replicatorCheckInstancesStopped verifies that all project instances across all
