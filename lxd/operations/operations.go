@@ -168,10 +168,14 @@ func ScheduleServerOperation(s *state.State, args OperationArgs) (*Operation, er
 
 // scheduleOperation schedules a new operation and returns it. If it cannot be created, it returns an error.
 func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
+	if s == nil {
+		return nil, errors.New("State must be provided")
+	}
+
 	// initOperation initializes a single operation structure.
 	initOperation := func(s *state.State, args OperationArgs) (*Operation, error) {
 		// Don't allow new operations when LXD is shutting down.
-		if s != nil && s.ShutdownCtx.Err() == context.Canceled {
+		if s.ShutdownCtx.Err() != nil {
 			return nil, errors.New("LXD is shutting down")
 		}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -22,7 +23,7 @@ import (
 
 func registerDBOperation(ctx context.Context, op *Operation) error {
 	if op.state == nil {
-		return nil
+		return errors.New("Failed registering operation: No state available")
 	}
 
 	registerSingleOperation := func(ctx context.Context, tx *db.ClusterTx, op *Operation, parentOpID *int64) (int64, error) {
@@ -135,6 +136,10 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 }
 
 func updateDBOperation(ctx context.Context, op *Operation) error {
+	if op.state == nil {
+		return errors.New("Failed updating operation: No state available")
+	}
+
 	err := op.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, op.metadata, op.err, op.errCode)
 	})
@@ -147,7 +152,7 @@ func updateDBOperation(ctx context.Context, op *Operation) error {
 
 func removeDBOperation(op *Operation) error {
 	if op.state == nil {
-		return nil
+		return errors.New("Failed deleting operation: No state available")
 	}
 
 	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
