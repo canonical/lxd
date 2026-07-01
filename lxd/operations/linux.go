@@ -26,7 +26,7 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 		return errors.New("Failed registering operation: No state available")
 	}
 
-	registerSingleOperation := func(ctx context.Context, tx *db.ClusterTx, op *Operation, parentOpID *int64) (int64, error) {
+	registerSingleOperation := func(ctx context.Context, tx *db.ClusterTx, op *Operation, parentOpID *int64, projectID *int64) (int64, error) {
 		// Conflict reference should only be provided for operation types that support conflicts.
 		if op.dbOpType.ConflictAction() == operationtype.ConflictActionNone && op.conflictReference != "" {
 			return 0, fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", op.conflictReference, op.dbOpType.Description())
@@ -36,21 +36,13 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			UUID:              op.id,
 			Type:              op.dbOpType,
 			NodeID:            tx.GetNodeID(),
+			ProjectID:         projectID,
 			Class:             int64(op.class),
 			CreatedAt:         op.createdAt,
 			UpdatedAt:         op.updatedAt,
 			StatusCode:        int64(op.Status()),
 			Parent:            parentOpID,
 			ConflictReference: op.conflictReference,
-		}
-
-		if op.projectName != "" {
-			projectID, err := cluster.GetProjectID(ctx, tx.Tx(), op.projectName)
-			if err != nil {
-				return 0, fmt.Errorf("Failed fetching project ID: %w", err)
-			}
-
-			operationsRow.ProjectID = &projectID
 		}
 
 		if op.requestor != nil {
@@ -112,15 +104,29 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 	}
 
 	err := op.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var projectIDPtr *int64
+		if op.projectName != "" {
+			projectID, err := cluster.GetProjectID(ctx, tx.Tx(), op.projectName)
+			if err != nil {
+				return fmt.Errorf("Failed fetching project ID: %w", err)
+			}
+
+			projectIDPtr = &projectID
+		}
+
 		// Create parent operation record.
-		parentOpID, err := registerSingleOperation(ctx, tx, op, nil)
+		parentOpID, err := registerSingleOperation(ctx, tx, op, nil, projectIDPtr)
 		if err != nil {
 			return err
 		}
 
 		// Create child operation records, if any.
 		for _, childOp := range op.children {
-			_, err := registerSingleOperation(ctx, tx, childOp, &parentOpID)
+			if childOp.projectName != op.projectName {
+				return errors.New("Child operations cannot have a different project to the parent operation")
+			}
+
+			_, err := registerSingleOperation(ctx, tx, childOp, &parentOpID, projectIDPtr)
 			if err != nil {
 				return err
 			}
