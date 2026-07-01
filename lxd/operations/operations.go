@@ -1074,3 +1074,12 @@ func (op *Operation) updateProgress(action string, data ioprogress.ProgressData)
 	// Write the updated metadata.
 	return op.UpdateMetadata(metadata)
 }
+
+func (op *Operation) sendEvent(eventMessage any) {
+	if op.events == nil {
+		logger.Error("No event server configured for operation", logger.Ctx{"id": op.id, "type": op.dbOpType.Description(), "class": op.class.String()})
+		return
+	}
+
+	_ = op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
+}

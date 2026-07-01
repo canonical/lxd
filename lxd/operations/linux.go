@@ -168,14 +168,6 @@ func removeDBOperation(op *Operation) error {
 	return err
 }
 
-func (op *Operation) sendEvent(eventMessage any) {
-	if op.events == nil {
-		return
-	}
-
-	_ = op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
-}
-
 // ConstructOperationFromDB is a constructor of a single Operation object based on its database representation.
 // ConstructOperationFromDB doesn't populate the parent field, as that would require loading all other operations from the DB. Instead,
 // the caller is expected to set the parent field on the returned Operation object based on other loaded operations, if needed.
