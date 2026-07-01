@@ -7040,3 +7040,172 @@ test_clustering_replicator_volume_guard() {
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_ONE_DIR}"
 }
+
+test_clustering_replicator_volumes() {
+  # Create two standalone clustered LXD daemons to simulate two separate clusters.
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_ONE_DIR}" true
+
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_TWO_DIR}" true
+
+  # Enable clustering on both.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster enable node2
+
+  # Create projects on both clusters.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project create replicator-project
+
+  # Setup auth groups and cluster links.
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  LXD_ONE_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --quiet --auth-group replicator-group)"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}" --auth-group replicator-group
+
+  # Configure replica project settings: standby sets replica.cluster, leader creates replicator.
+  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_two --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
+
+  # Setup storage on both clusters.
+  local pool_one pool_two vol_pool poolDriver
+  pool_one="lxdtest-$(basename "${LXD_ONE_DIR}")"
+  pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
+  # Custom volumes must reside on a pool that exists with the same name on both clusters (pool-parity requirement).
+  # Exercise the backend under test rather than always dir. For ceph the underlying pool is shared between the
+  # two clusters, so keep the LXD pool name identical while giving each cluster a distinct ceph.osd.pool_name.
+  poolDriver="$(storage_backend "${LXD_ONE_DIR}")"
+  vol_pool="volpool"
+  if [ "${poolDriver}" = "ceph" ]; then
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create "${vol_pool}" ceph "ceph.osd.pool_name=lxdtest-$(basename "${LXD_ONE_DIR}")-${vol_pool}"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage create "${vol_pool}" ceph "ceph.osd.pool_name=lxdtest-$(basename "${LXD_TWO_DIR}")-${vol_pool}"
+  elif [ "${poolDriver}" = "lvm" ]; then
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create "${vol_pool}" lvm "lvm.vg_name=lxdtest-$(basename "${LXD_ONE_DIR}")-${vol_pool}"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage create "${vol_pool}" lvm "lvm.vg_name=lxdtest-$(basename "${LXD_TWO_DIR}")-${vol_pool}"
+  elif [ "${poolDriver}" = "zfs" ]; then
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create "${vol_pool}" zfs "zfs.pool_name=lxdtest-$(basename "${LXD_ONE_DIR}")-${vol_pool}"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage create "${vol_pool}" zfs "zfs.pool_name=lxdtest-$(basename "${LXD_TWO_DIR}")-${vol_pool}"
+  else
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create "${vol_pool}" "${poolDriver}"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage create "${vol_pool}" "${poolDriver}"
+  fi
+
+  sub_test "Standalone volume is replicated with a snapshot to the target"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${vol_pool}" standalone-vol --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+
+  # Volume must appear on the target pool.
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/standalone-vol?project=replicator-project" \
+    | jq --exit-status '.name == "standalone-vol"'
+
+  # A snapshot must have been taken on the source before transfer so the volume copy carries data.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/standalone-vol/snapshots?project=replicator-project" \
+    | jq --exit-status 'length == 1'
+
+  # The run produced exactly one volume child (the standalone volume) and no instance children.
+  local bulk_op
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' \
+    | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  jq --exit-status '
+    ([., (.children? // [])[]] | length) == 2
+    and .status == "Success"
+    and ((.children // []) | length) == 1
+    and (all(.children[]; .status == "Success" and .description == "Replicating storage volume"))
+  ' <<< "${bulk_op}"
+
+  # replicator info must list the standalone volume; used_by is empty for a standalone volume.
+  local replicator_info
+  replicator_info="$(LXD_DIR="${LXD_ONE_DIR}" lxc replicator info my-replicator --project replicator-project)"
+  grep -F 'Volumes:' <<< "${replicator_info}"
+  grep -F 'standalone-vol' <<< "${replicator_info}"
+
+  sub_test "Exclusively attached volume rides the instance all-exclusive snapshot without an individual snapshot"
+
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --project replicator-project -d "${SMALL_ROOT_DISK}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${vol_pool}" excl-vol --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device add c1 datadisk disk pool="${vol_pool}" source=excl-vol path=/mnt --project replicator-project
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+
+  # Both the instance and the exclusive volume must appear on the target.
+  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns ns | grep -xF 'c1,STOPPED'
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/excl-vol?project=replicator-project" \
+    | jq --exit-status '.name == "excl-vol"'
+
+  # The instance's all-exclusive snapshot covers excl-vol; no separate individual snapshot
+  # must have been taken for it. Both must have exactly one snapshot after this run.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" \
+    | jq --exit-status 'length == 1'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/excl-vol/snapshots?project=replicator-project" \
+    | jq --exit-status 'length == 1'
+
+  # The run produced two volume children (standalone + excl-vol) and one instance child.
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' \
+    | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  jq --exit-status '
+    ([., (.children? // [])[]] | length) == 4
+    and .status == "Success"
+    and ((.children // []) | length) == 3
+    and ([.children[] | select(.description == "Replicating storage volume")] | length) == 2
+    and ([.children[] | select(.description == "Replicating instance")] | length) == 1
+  ' <<< "${bulk_op}"
+
+  sub_test "Shared volume receives an individual snapshot not covered by the instance all-exclusive snapshot"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --project replicator-project -d "${SMALL_ROOT_DISK}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${vol_pool}" shared-vol --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device add c1 shareddisk disk pool="${vol_pool}" source=shared-vol path=/share --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device add c2 shareddisk disk pool="${vol_pool}" source=shared-vol path=/share --project replicator-project
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+
+  # The shared volume must appear on the target.
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/shared-vol?project=replicator-project" \
+    | jq --exit-status '.name == "shared-vol"'
+
+  # snapshotVolume must have created exactly one individual snapshot for the shared volume.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/shared-vol/snapshots?project=replicator-project" \
+    | jq --exit-status 'length == 1'
+
+  # The run produced three volume children (standalone + excl-vol + shared-vol) and two instance children.
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' \
+    | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  jq --exit-status '
+    ([., (.children? // [])[]] | length) == 6
+    and .status == "Success"
+    and ((.children // []) | length) == 5
+    and ([.children[] | select(.description == "Replicating storage volume")] | length) == 3
+    and ([.children[] | select(.description == "Replicating instance")] | length) == 2
+  ' <<< "${bulk_op}"
+
+  # Cleanup
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device remove default root --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device remove default root --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 --force --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c2 --force --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete c2 --project replicator-project
+  # The pool teardown query only covers the default project; volumes in
+  # replicator-project must be removed here first or the pool deletion fails.
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${vol_pool}" standalone-vol --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${vol_pool}" excl-vol --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${vol_pool}" shared-vol --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${vol_pool}" standalone-vol --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${vol_pool}" excl-vol --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${vol_pool}" shared-vol --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage delete "${vol_pool}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage delete "${vol_pool}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+}
