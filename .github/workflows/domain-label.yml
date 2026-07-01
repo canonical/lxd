@@ -1,0 +1,84 @@
+name: Domain label check
+
+on:
+  # Safe: only checks out .github/domain-owners.json from the base branch.
+  # No PR-supplied code is executed. Write permission is needed to manage labels on fork PRs.
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types:
+      - opened
+      - reopened
+      - labeled
+      - unlabeled
+      - synchronize
+
+permissions: {}
+
+jobs:
+  check-domain-label:
+    if: ${{ github.repository == 'canonical/lxd' }}
+    permissions:
+      pull-requests: write
+    name: Verify domain label
+    runs-on: ubuntu-slim
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/domain-owners.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Check for domain label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Read valid domain labels from domain-owners.json.
+          mapfile -t DOMAIN_LABELS < <(jq -r '.domains[].label' .github/domain-owners.json)
+
+          # Fetch current PR labels.
+          mapfile -t PR_LABELS < <(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json labels --jq '.labels[].name')
+
+          # Check whether any domain label is present.
+          FOUND=false
+          for pr_label in "${PR_LABELS[@]}"; do
+            for domain_label in "${DOMAIN_LABELS[@]}"; do
+              if [[ "${pr_label}" == "${domain_label}" ]]; then
+                FOUND=true
+                break 2
+              fi
+            done
+          done
+
+          if [[ "${FOUND}" == "true" ]]; then
+            echo "Domain label found — removing 'd/missing' if present."
+            gh pr edit "${PR_NUMBER}" --repo "${REPO}" --remove-label "d/missing" || echo "::warning::Failed to remove 'd/missing' label."
+            exit 0
+          fi
+
+          # Check whether d/missing is already applied (to avoid duplicate comments).
+          ALREADY_MISSING=false
+          for pr_label in "${PR_LABELS[@]}"; do
+            if [[ "${pr_label}" == "d/missing" ]]; then
+              ALREADY_MISSING=true
+              break
+            fi
+          done
+
+          echo "No domain label found — adding 'd/missing' label."
+          gh label create "d/missing" \
+            --repo "${REPO}" \
+            --description "PR is missing a domain label" \
+            --color "E4E669" || echo "::warning::Failed to create 'd/missing' label (may already exist)."
+
+          if [[ "${ALREADY_MISSING}" == "false" ]]; then
+            gh pr edit "${PR_NUMBER}" --repo "${REPO}" --add-label "d/missing"
+            gh pr comment "${PR_NUMBER}" --repo "${REPO}" \
+              --body "This PR has no domain label assigned. @canonical/lxd-maintainers please set the appropriate domain labels."
+          else
+            echo "'d/missing' label already present — skipping comment."
+          fi
