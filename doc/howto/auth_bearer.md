@@ -41,7 +41,7 @@ It must be set as a bearer token in the `Authorization` header.
 
 You can verify trust by checking the `auth` field in the response metadata of `GET /1.0`:
 
-```
+```bash
 $ curl -k -H "Authorization: Bearer ${TOKEN}" https://<lxd_address>/1.0
 {
   ...
