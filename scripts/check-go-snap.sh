@@ -12,7 +12,7 @@ REQUIRED_ARCHES="amd64 arm64 armhf ppc64el riscv64 s390x"
 # Derive the channel track from the major.minor of the expected version
 CHANNEL="$(echo "${EXPECTED_VERSION}" | grep -oE '^[0-9]+\.[0-9]+')/stable"
 
-SNAP_OUT="$(./scripts/check-snap.py go --channel "${CHANNEL}" --format plain)"
+SNAP_OUT="$(./scripts/check_snap.py go --channel "${CHANNEL}" --format plain)"
 
 SNAP_LINE="$(echo "${SNAP_OUT}" | grep "^${EXPECTED_VERSION}:" || true)"
 if [ -z "${SNAP_LINE}" ]; then
