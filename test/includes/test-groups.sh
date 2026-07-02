@@ -40,6 +40,7 @@ readonly test_group_cluster=(
     "clustering_upgrade"
     "clustering_upgrade_large"
     "clustering_downgrade"
+    "clustering_durable_operations"
     "clustering_groups"
     "clustering_events"
     "clustering_uuid"

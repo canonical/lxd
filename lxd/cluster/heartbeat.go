@@ -14,7 +14,9 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/db/warningtype"
+	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
@@ -149,7 +151,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 }
 
 // Send sends heartbeat requests to the nodes supplied and updates heartbeat state.
-func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertInfo, serverCert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, spreadDuration time.Duration) {
+func (hbState *APIHeartbeat) Send(ctx context.Context, s *state.State, networkCert *shared.CertInfo, serverCert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, spreadDuration time.Duration, offlineThreshold time.Duration) {
 	heartbeatsWg := sync.WaitGroup{}
 	sendHeartbeat := func(nodeID int64, address string, delay time.Duration, heartbeatData *APIHeartbeat) {
 		defer heartbeatsWg.Done()
@@ -195,6 +197,14 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 				})
 				if err != nil {
 					logger.Warn("Failed creating warning", logger.Ctx{"err": err})
+				}
+
+				offlineTime := time.Now().UTC().Add(-offlineThreshold)
+				if heartbeatData.Members[nodeID].LastHeartbeat.Before(offlineTime) || heartbeatData.Members[nodeID].LastHeartbeat.Equal(offlineTime) {
+					err = operations.RestartDurableOperationsFromNode(ctx, s, nodeID)
+					if err != nil {
+						logger.Warn("Failed restarting durable operations from offline node", logger.Ctx{"node_id": nodeID, "err": err})
+					}
 				}
 			}
 		}
@@ -270,14 +280,19 @@ func HeartbeatTask(gateway *Gateway) (task.Func, task.Schedule) {
 	return heartbeatWrapper, schedule
 }
 
-// heartbeatInterval returns heartbeat interval to use.
-func (g *Gateway) heartbeatInterval() time.Duration {
+// offlineThreshold returns the currently configured offline threshold or the default if not set.
+func (g *Gateway) offlineThreshold() time.Duration {
 	threshold := g.HeartbeatOfflineThreshold
 	if threshold <= 0 {
 		threshold = time.Duration(db.DefaultOfflineThreshold) * time.Second
 	}
 
-	return threshold / 2
+	return threshold
+}
+
+// heartbeatInterval returns heartbeat interval to use.
+func (g *Gateway) heartbeatInterval() time.Duration {
+	return g.offlineThreshold() / 2
 }
 
 // HearbeatCancelFunc returns the function that can be used to cancel an ongoing heartbeat.
@@ -307,6 +322,30 @@ func (g *Gateway) HeartbeatRestart() bool {
 	return false
 }
 
+func (g *Gateway) cancelDurableOperationsIfHeartbeatNotReceived(ctx context.Context, duration time.Duration) {
+	select {
+	case <-time.After(duration):
+		// Heartbeat not received in time, cancel durable operations.
+		logger.Error("Heartbeat not received in time, cancelling durable operations")
+		operations.CancelLocalDurableOperations()
+	case <-ctx.Done():
+		// Heartbeat received in time, nothing to do.
+	}
+}
+
+// heartbeatReceived is called when a heartbeat is received on this node.
+// It resets the heartbeat detection timer.
+func (g *Gateway) heartbeatReceived() {
+	ctx, newCancel := context.WithCancel(g.shutdownCtx)
+	oldCancel := g.heartbeatDetectionCanceller.Swap(&newCancel)
+	if oldCancel != nil && *oldCancel != nil {
+		(*oldCancel)()
+	}
+
+	// Wait for the next heartbeat and cancel durable operations if not received within the offline threshold.
+	go g.cancelDurableOperationsIfHeartbeatNotReceived(ctx, g.offlineThreshold())
+}
+
 func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 	// Avoid concurent heartbeat loops.
 	// This is possible when both the regular task and the out of band heartbeat round from a dqlite
@@ -323,6 +362,19 @@ func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 	if cluster == nil || server == nil || memoryDial != nil {
 		// We're not a raft node or we're not clustered
 		return
+	}
+
+	isLeader, err := g.isLeader()
+	if err != nil {
+		logger.Warn("Failed determining if node is leader", logger.Ctx{"err": err})
+	}
+
+	// If we're a leader, we are not going to send heartbeats to ourselves.
+	// So just record like that we have received one.
+	// This is useful if we started as a leader, but later we lost connection to the rest of the cluster, and therefore we lost leadership.
+	// In such case we should have a heartbeat detection enabled and cancel durable operations if heartbeats don't arrive in time.
+	if isLeader {
+		g.heartbeatReceived()
 	}
 
 	// Acquire the cancellation lock and populate it so that this heartbeat round can be cancelled if a
@@ -425,16 +477,17 @@ func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 	// If this leader node hasn't sent a heartbeat recently, then its node state records
 	// are likely out of date, this can happen when a node becomes a leader.
 	// Send stale set to all nodes in database to get a fresh set of active nodes.
+	offlineThreshold := g.offlineThreshold()
 	if mode == HeartbeatInitial {
-		hbState.Update(false, raftNodes, members, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, members, spreadDuration)
+		hbState.Update(false, raftNodes, members, offlineThreshold)
+		hbState.Send(ctx, s, g.networkCert, serverCert, localClusterAddress, members, spreadDuration, offlineThreshold)
 
 		// We have the latest set of node states now, lets send that state set to all nodes.
 		hbState.FullStateList = true
-		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, members, spreadDuration)
+		hbState.Send(ctx, s, g.networkCert, serverCert, localClusterAddress, members, spreadDuration, offlineThreshold)
 	} else {
-		hbState.Update(true, raftNodes, members, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, members, spreadDuration)
+		hbState.Update(true, raftNodes, members, offlineThreshold)
+		hbState.Send(ctx, s, g.networkCert, serverCert, localClusterAddress, members, spreadDuration, offlineThreshold)
 	}
 
 	// Check if context has been cancelled.
@@ -476,8 +529,8 @@ func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 
 		// If any new nodes found, send heartbeat to just them (with full node state).
 		if len(newMembers) > 0 {
-			hbState.Update(true, raftNodes, members, g.HeartbeatOfflineThreshold)
-			hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, newMembers, 0)
+			hbState.Update(true, raftNodes, members, offlineThreshold)
+			hbState.Send(ctx, s, g.networkCert, serverCert, localClusterAddress, newMembers, 0, offlineThreshold)
 		}
 	}
 

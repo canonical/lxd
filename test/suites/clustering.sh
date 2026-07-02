@@ -6944,3 +6944,123 @@ test_clustering_link_unidirectional() {
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_ONE_DIR}"
 }
+
+test_clustering_durable_operations() {
+  spawn_lxd_and_bootstrap_cluster
+
+  echo "Launched member 1"
+
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+
+  # Spawn a second node
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+
+  echo "Launched member 2"
+
+  # Spawn a third node
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+
+  echo "Launched member 3"
+
+  # Spawn a fourth node, this will be a non-voter, stand-by node.
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+
+  echo "Launched member 4"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -wFc "database-standby")" = "1" ]
+
+  # Set the offline threshold to the minimum allowed value
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold=11
+
+  # Spawn a durable operation on node 2 and sleep to ensure it starts
+  operation_id="$(LXD_DIR="${LXD_TWO_DIR}" lxd_durable_wait_operation "12s")"
+  sleep 1
+
+  # Kill the second node.
+  kill_go_proc "$(< "${LXD_TWO_DIR}/lxd.pid")"
+  echo "Stopped member 2"
+
+  # Wait for the operation to succeed. In this time it will have moved to the leader.
+  succeeded=0
+  for i in $(seq 60); do
+    leader="$(lxd_leader_name "${LXD_ONE_DIR}")"
+    if LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/operations/${operation_id}" | jq --exit-status '.status == "Success" and .location == "'"${leader}"'"'; then
+      succeeded=1
+      break
+    fi
+
+    sleep 1
+  done
+
+  if [ "${succeeded}" = 0 ]; then
+    echo "Durable operation did not move to the leader"
+    false
+  fi
+
+  # Respawn the the second node.
+  echo "Respawning cluster member 2..."
+  respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
+
+  echo "Started member 2"
+
+  leader_dir="$(lxd_leader_dir "${LXD_ONE_DIR}")"
+
+  # Spawn a durable operation on the leader and sleep to ensure it starts
+  operation_id="$(LXD_DIR="${leader_dir}" lxd_durable_wait_operation "12s")"
+  sleep 1
+
+  # Shutdown the leader.
+  leader_pid_file="${leader_dir}/lxd.pid"
+  kill_go_proc "$(< "${leader_pid_file}")"
+  echo "Stopped leader"
+
+  # Wait for the operation to succeed. In this time leader election should occur and the operation should restart on the new leader.
+  succeeded=0
+  for i in $(seq 60); do
+    # Use LXD_TWO_DIR for the query. It should now be the standby.
+    LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/operations/${operation_id}"
+    leader="$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list -f csv | grep -F 'database-leader' | cut -d, -f1)"
+    if LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/operations/${operation_id}" | jq --exit-status '.status == "Success" and .location == "'"${leader}"'"'; then
+      succeeded=1
+      break
+    fi
+
+    sleep 1
+  done
+
+  if [ "${succeeded}" = 0 ]; then
+    echo "Durable operation was not restarted on the the newly elected leader"
+    false
+  fi
+
+  if [ "${LXD_ONE_DIR}" != "${leader_dir}" ]; then
+    LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  fi
+
+  if [ "${LXD_TWO_DIR}" != "${leader_dir}" ]; then
+    LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  fi
+
+  if [ "${LXD_THREE_DIR}" != "${leader_dir}" ]; then
+    LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  fi
+
+  if [ "${LXD_FOUR_DIR}" != "${leader_dir}" ]; then
+    LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+  fi
+
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
+}
