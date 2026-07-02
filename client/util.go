@@ -22,7 +22,7 @@ import (
 
 // tlsHTTPClient creates an HTTP client with a specified Transport Layer Security (TLS) configuration.
 // It takes in parameters for client certificates, keys, Certificate Authority, server certificates,
-// proxy function, and a transport wrapper function.
+// a boolean for skipping verification, a proxy function, a transport wrapper function and the server certificate fingerprint.
 // It returns the HTTP client with the provided configurations and handles any errors that might occur during the setup process.
 func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, insecureSkipVerify bool, proxy func(req *http.Request) (*url.URL, error), transportWrapper func(t *http.Transport) HTTPTransporter, serverCertFingerprint string) (*http.Client, error) {
 	// Get the TLS configuration
