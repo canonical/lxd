@@ -246,6 +246,7 @@ readonly test_group_standalone_storage=(
     "devlxd_volume_management_ownership"
     "devlxd_volume_management_snapshots"
     "filemanip"
+    "filemanip_concurrent_copy"
     "filemanip_req_content_type"
     "fuidshift"
     "idmap"

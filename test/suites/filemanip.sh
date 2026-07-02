@@ -225,3 +225,117 @@ test_filemanip_req_content_type() {
 
   lxc delete "${inst}" --force
 }
+
+# _forkfile_copy_worker is the per-worker body of test_filemanip_concurrent_copy.
+# Each worker repeatedly copies the stopped base instance into a new instance,
+# immediately performs a file push on the copy, then deletes it. Any failure
+# whose error message mentions "forkfile.sock" is appended to error_file.
+_forkfile_copy_worker() {
+  local worker_idx="${1}"
+  local base_name="${2}"
+  local copy_prefix="${3}"
+  local iterations="${4}"
+  local error_file="${5}"
+
+  local i name err
+
+  for i in $(seq "${iterations}"); do
+    name="${copy_prefix}-${worker_idx}-${i}"
+
+    lxc copy "${base_name}" "${name}"
+
+    if ! err=$(lxc file push /dev/null "${name}/forkfile-race-test" 2>&1); then
+      if grep -qF "forkfile.sock" <<< "${err}"; then
+        printf '%s\n' "${err}" >> "${error_file}"
+      else
+        printf 'worker %s: unexpected file operation error: %s\n' "${worker_idx}" "${err}" >&2
+        return 1
+      fi
+    fi
+
+    lxc delete "${name}"
+  done
+}
+
+# Regression test for the forkfile socket race condition in fileSFTPConnNoLock
+# (lxd/instance/drivers/driver_lxc.go) detailed in
+# https://github.com/canonical/lxd/issues/18403
+#
+# The race: net.UnixListener stores the socket path as /proc/self/fd/<N>/forkfile.sock
+# where N is an open directory fd.  That fd is closed when fileSFTPConnNoLock returns,
+# making N available for reuse.  A background goroutine holding the listener then calls
+# Close(), which resolves the now-recycled /proc/self/fd/<N> through whichever directory
+# fd N currently refers to and unlinks that instance's socket — causing the next caller's
+# DialUnix to fail with ENOENT.
+#
+# File systems that support instant copy (e.g. ZFS, Btrfs) eliminates the storage I/O delay
+# between copy completion and the first file operation, making the race window reliably
+# hit.  On slower backends the window exists but is too narrow to trigger consistently.
+# This test uses Btrfs because its CoW is the fastest making test time shorter.
+test_filemanip_concurrent_copy() {
+
+  if [ "$(storage_backend "$LXD_DIR")" != "btrfs" ]; then
+    export TEST_UNMET_REQUIREMENT="requires btrfs backend"
+    return
+  fi
+
+  ensure_import_testimage
+
+  local rand base copy_prefix workers iterations error_file pids w pid
+
+  rand="${RANDOM}"
+  base="forkfile-base-${rand}"
+  copy_prefix="forkfile-copy-${rand}"
+  workers=12
+  iterations=12
+  error_file="$(mktemp -p "${TEST_DIR}" "forkfile-error-${rand}-XXXX")"
+  pids=""
+
+  lxc init testimage "${base}"
+
+  for w in $(seq "${workers}"); do
+    _forkfile_copy_worker "${w}" "${base}" "${copy_prefix}" "${iterations}" "${error_file}" &
+    pids="${pids} $!"
+  done
+
+  local rc failed_pid
+  failed_pid=""
+
+  for pid in ${pids}; do
+    if wait "${pid}"; then
+      rc=0
+    else
+      rc=$?
+    fi
+
+    if [ "${rc}" -ne 0 ] && [ "${rc}" -ne 127 ] && [ -z "${failed_pid}" ]; then
+      failed_pid="${pid}:${rc}"
+    fi
+  done
+
+  # Delete any copies left behind by a worker killed mid-iteration.
+  # Workers delete their own copies on success, so most of these won't exist.
+  for w in $(seq "${workers}"); do
+    for i in $(seq "${iterations}"); do
+      lxc delete "${copy_prefix}-${w}-${i}" 2>/dev/null || true
+    done
+  done
+
+  lxc delete "${base}"
+
+  if [ -n "${failed_pid}" ]; then
+    echo "worker ${failed_pid%%:*} failed with exit status ${failed_pid##*:}"
+  fi
+
+  sub_test "Assert no forkfile socket race condition errors"
+  if [ -s "${error_file}" ]; then
+    echo "==> forkfile socket race detected:"
+    cat "${error_file}"
+    false
+  fi
+
+  rm "${error_file}"
+
+  sub_test "Assert no unexpected file operation errors"
+  [ -z "${failed_pid}" ]
+}
