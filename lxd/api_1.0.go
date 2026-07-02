@@ -274,15 +274,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	// If not authenticated, return now.
 	if !requestor.IsTrusted() {
-		daemonConfig, _ := daemonConfigRender(s)
-		_, flagExists := daemonConfig["user.microcloud"]
-		if flagExists {
-			// Unprivileged users may see the user.microcloud config key
-			srv.Config = map[string]any{
-				"user.microcloud": daemonConfig["user.microcloud"],
-			}
-		}
-
+		srv.Config = s.GlobalConfig.DumpPublic()
 		return response.SyncResponseETag(true, srv, nil)
 	}
 
@@ -448,9 +440,13 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	// Only allow identities that can edit configuration to view it as sensitive information may be stored there.
 	err = s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanEdit)
-	if err != nil && !auth.IsDeniedError(err) {
-		return response.SmartError(err)
-	} else if err == nil {
+	if err != nil {
+		if !auth.IsDeniedError(err) {
+			return response.SmartError(err)
+		}
+
+		fullSrv.Config = s.GlobalConfig.DumpPublic()
+	} else {
 		daemonConfig, err := daemonConfigRender(s)
 		if err != nil {
 			return response.InternalError(err)
