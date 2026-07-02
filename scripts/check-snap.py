@@ -5,6 +5,7 @@ Displays version, revision, architecture, size, and optionally links to git comm
 and download URLs. Output format is auto-detected (terminal hyperlinks for TTY, plain text
 when piped), but can be explicitly set via --format.
 """
+
 from typing import get_args, Literal, Optional
 import argparse
 import json
@@ -23,7 +24,8 @@ def _make_link(text: str, url: str, fmt: Format = "terminal") -> str:
     Args:
         text: The display text to linkify.
         url: The URL to link to. If empty, returns text unchanged.
-        fmt: Output format: "terminal" for terminal hyperlinks, "markdown" for markdown links, "plain" for plain text.
+        fmt: Output format: "terminal" for terminal hyperlinks, "markdown" for
+             markdown links, "plain" for plain text.
 
     Returns:
         Formatted link string, or plain text if url is empty.
@@ -49,7 +51,9 @@ def _make_link(text: str, url: str, fmt: Format = "terminal") -> str:
     return f"\033]8;;{url}\033\\{text}\033]8;;\033\\"
 
 
-def _version_display(version: str, github_repo: Optional[str], fmt: Format = "terminal") -> str:
+def _version_display(
+    version: str, github_repo: Optional[str], fmt: Format = "terminal"
+) -> str:
     """Format a version string with optional git commit link.
 
     Matches both "git-HASH" and "VERSION-HASH" patterns (e.g. 6.7-d814d89, 5.0.6-e49d9f4).
@@ -58,7 +62,8 @@ def _version_display(version: str, github_repo: Optional[str], fmt: Format = "te
         version: The version string, possibly containing a git commit suffix.
         github_repo: GitHub repository in "org/repo" format. If provided and version
                      has a commit suffix, creates a link to the commit. Can be None.
-        fmt: Output format: "terminal" for terminal hyperlinks, "markdown" for markdown links, "plain" for plain text.
+        fmt: Output format: "terminal" for terminal hyperlinks, "markdown" for
+             markdown links, "plain" for plain text.
 
     Returns:
         Formatted version string, potentially with a hyperlink to the commit.
@@ -74,7 +79,7 @@ def _version_display(version: str, github_repo: Optional[str], fmt: Format = "te
         '[git-abc1234](https://github.com/canonical/lxd/commit/abc1234)'
     """
     # Match both "git-HASH" and "VERSION-HASH" (e.g. 6.7-d814d89, 5.0.6-e49d9f4)
-    m = re.search(r'-([0-9a-f]{6,})$', version)
+    m = re.search(r"-([0-9a-f]{6,})$", version)
     if m and github_repo:
         commit = m.group(1)
         url = f"https://github.com/{github_repo}/commit/{commit}"
@@ -82,7 +87,13 @@ def _version_display(version: str, github_repo: Optional[str], fmt: Format = "te
     return version
 
 
-def check_snap(snap_name: str, track: str, risk: str, github_repo: Optional[str] = None, fmt: Format = "auto") -> None:
+def check_snap(
+    snap_name: str,
+    track: str,
+    risk: str,
+    github_repo: Optional[str] = None,
+    fmt: Format = "auto",
+) -> None:
     """Query Snap Store API for release information and display formatted output.
 
     Args:
@@ -97,7 +108,7 @@ def check_snap(snap_name: str, track: str, risk: str, github_repo: Optional[str]
         resolved_fmt: str = "terminal" if sys.stdout.isatty() else "plain"
     else:
         resolved_fmt = fmt
-    snap_name_encoded = urllib.parse.quote(snap_name, safe='')
+    snap_name_encoded = urllib.parse.quote(snap_name, safe="")
     url = f"https://api.snapcraft.io/v2/snaps/info/{snap_name_encoded}"
 
     headers = {
@@ -120,21 +131,22 @@ def check_snap(snap_name: str, track: str, risk: str, github_repo: Optional[str]
         sys.exit(1)
 
     matches = [
-        release for release in data.get('channel-map', [])
-        if release.get('channel', {}).get('track') == track
-        and release.get('channel', {}).get('risk') == risk
+        release
+        for release in data.get("channel-map", [])
+        if release.get("channel", {}).get("track") == track
+        and release.get("channel", {}).get("risk") == risk
     ]
 
     if not matches:
         print(f"No releases found in {track}/{risk}.")
         return
 
-    matches.sort(key=lambda r: r.get('channel', {}).get('architecture', ''))
+    matches.sort(key=lambda r: r.get("channel", {}).get("architecture", ""))
 
     # Group by version so discrepancies are immediately visible
     groups = {}
     for release in matches:
-        version = release.get('version', '?')
+        version = release.get("version", "?")
         groups.setdefault(version, []).append(release)
 
     # Sort groups by version string for deterministic output
@@ -142,12 +154,16 @@ def check_snap(snap_name: str, track: str, risk: str, github_repo: Optional[str]
         releases = groups[version]
         arch_parts = []
         for release in releases:
-            arch = release.get('channel', {}).get('architecture', '?')
-            revision = release.get('revision', '?')
-            dl = release.get('download', {})
-            dl_url = dl.get('url', '')
-            size_bytes = dl.get('size')
-            size_str = f"{size_bytes / (1024 * 1024):.0f}MiB" if size_bytes is not None else '?'
+            arch = release.get("channel", {}).get("architecture", "?")
+            revision = release.get("revision", "?")
+            dl = release.get("download", {})
+            dl_url = dl.get("url", "")
+            size_bytes = dl.get("size")
+            size_str = (
+                f"{size_bytes / (1024 * 1024):.0f}MiB"
+                if size_bytes is not None
+                else "?"
+            )
             arch_link = _make_link(arch, dl_url, resolved_fmt)
             link = f"{arch_link} ({size_str}, rev: {revision})"
             arch_parts.append(link)
@@ -156,29 +172,49 @@ def check_snap(snap_name: str, track: str, risk: str, github_repo: Optional[str]
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Check snap release info from the Snap Store.")
+    parser = argparse.ArgumentParser(
+        description="Check snap release info from the Snap Store."
+    )
     parser.add_argument("snap", help="Snap name to look up")
-    parser.add_argument("--channel", default="latest/edge",
-                        help="Channel in track/risk format (default: latest/edge)")
-    parser.add_argument("--github", "--gh", metavar="ORG/REPO",
-                        help="GitHub repo (e.g. canonical/lxd) to linkify version strings")
-    parser.add_argument("--format", "-f", choices=get_args(Format), default="auto",
-                        help="Output format: auto (default: terminal if TTY, plain otherwise), terminal, markdown, or plain")
+    parser.add_argument(
+        "--channel",
+        default="latest/edge",
+        help="Channel in track/risk format (default: latest/edge)",
+    )
+    parser.add_argument(
+        "--github",
+        "--gh",
+        metavar="ORG/REPO",
+        help="GitHub repo (e.g. canonical/lxd) to linkify version strings",
+    )
+    parser.add_argument(
+        "--format",
+        "-f",
+        choices=get_args(Format),
+        default="auto",
+        help="Output format: auto (default: terminal if TTY, plain otherwise), terminal, markdown, or plain",
+    )
 
     args = parser.parse_args()
 
-    track, _, risk = args.channel.partition('/')
+    track, _, risk = args.channel.partition("/")
     if not risk:
-        risk = 'stable'
+        risk = "stable"
 
     github_repo = None
     if args.github:
-        m = re.match(r'^(?:https?://github\.com/)?([^/]+/[^/?#]+)', args.github)
+        m = re.match(r"^(?:https?://github\.com/)?([^/]+/[^/?#]+)", args.github)
         if m:
-            github_repo = m.group(1).rstrip('/')
+            github_repo = m.group(1).rstrip("/")
         else:
-            print(f"Error: Invalid GitHub repository format: {args.github}", file=sys.stderr)
-            print("Expected format: 'org/repo' or 'https://github.com/org/repo'", file=sys.stderr)
+            print(
+                f"Error: Invalid GitHub repository format: {args.github}",
+                file=sys.stderr,
+            )
+            print(
+                "Expected format: 'org/repo' or 'https://github.com/org/repo'",
+                file=sys.stderr,
+            )
             sys.exit(1)
     else:
         github_repo = f"canonical/{args.snap}"
