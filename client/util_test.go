@@ -293,7 +293,7 @@ func Test_tlsHTTPClient_Fingerprint(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			client, err := tlsHTTPClient(nil, "", "", "", test.serverCert, test.insecureSkip, false, nil, nil, test.fingerprint)
+			client, err := tlsHTTPClient(nil, "", "", "", test.serverCert, test.insecureSkip, nil, nil, test.fingerprint)
 			require.NoError(t, err)
 
 			resp, err := client.Get(server.URL)
@@ -387,7 +387,7 @@ func Test_tlsHTTPClient_CertificateValidity(t *testing.T) {
 			fingerprint := certInfo.Fingerprint()
 			require.NotEmpty(t, fingerprint)
 
-			client, err := tlsHTTPClient(nil, "", "", "", "", test.insecureSkip, false, nil, nil, fingerprint)
+			client, err := tlsHTTPClient(nil, "", "", "", "", test.insecureSkip, nil, nil, fingerprint)
 			require.NoError(t, err)
 
 			// Try connecting to the server.
