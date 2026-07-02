@@ -1040,7 +1040,6 @@ test_network_ovn() {
 
     echo "==> Spawn a web server in the first two instances to serve traffic on port 80."
     for i in 1 2; do
-      # shellcheck disable=SC2016
       lxc exec "c${i}" -- sh -c 'hostname > /tmp/index.html && httpd -p 80 -h /tmp'
     done
 
@@ -1060,7 +1059,10 @@ test_network_ovn() {
     probe_pool_targets "${bracketed_ip}" c1 c2
 
     echo "==> Tear down the second server."
-    lxc exec "c2" -- killall httpd
+    # XXX: On modern Ubuntu (26.04+), kernel.apparmor_restrict_unprivileged_unconfined=1 prevents 'killall' from killing httpd in the container
+    #      so instead use an external pkill scoped to the container's PID namespace to ensure the httpd process is killed.
+    PARENT_PID="$(lxc list -f csv -c p c2)"
+    pkill --parent "${PARENT_PID}" --full httpd
 
     echo "==> Wait for the second instance target to become unhealthy."
     for i in $(seq 1 3); do
@@ -1090,7 +1092,6 @@ test_network_ovn() {
     probe_pool_targets "${bracketed_ip}" c1
 
     echo "==> Start the web server in the third instance."
-    # shellcheck disable=SC2016
     lxc exec c3 -- sh -c 'hostname > /tmp/index.html && httpd -p 80 -h /tmp'
 
     echo "==> Wait for the new target to become healthy."
@@ -1142,7 +1143,6 @@ test_network_ovn() {
     echo "==> Start c1 and its web server."
     lxc start c1
     setup_instance_ip4_interface c1
-    # shellcheck disable=SC2016
     lxc exec c1 -- sh -c 'hostname > /tmp/index.html && httpd -p 80 -h /tmp'
 
     echo "==> Wait for background monitor to confirm clean offline-to-online transition."
@@ -1190,9 +1190,12 @@ test_network_ovn() {
     echo "==> Wait for background monitor to confirm clean transition to online status."
     wait "${monitor_pid}"
 
-    echo "==> Tear down all servers."
-    for i in 1 2 3; do
-      lxc exec "c${i}" -- killall httpd || true
+    echo "==> Tear down the first and third servers."
+    # XXX: On modern Ubuntu (26.04+), kernel.apparmor_restrict_unprivileged_unconfined=1 prevents 'killall' from killing httpd in the container
+    #      so instead use an external pkill scoped to the container's PID namespace to ensure the httpd processes are killed.
+    for i in 1 3; do
+      PARENT_PID="$(lxc list -f csv -c p "c${i}")"
+      pkill --parent "${PARENT_PID}" --full httpd
     done
 
     echo "==> Cleanup port."
@@ -1210,7 +1213,6 @@ test_network_ovn() {
   echo "==> Create a new instance (and target) with pre-defined address and attach it to the pool."
   lxc launch testimage c1 -n "${ovn_network}" -d "eth0,ipv4.address=10.24.140.50"
   setup_instance_ip4_interface c1
-  # shellcheck disable=SC2016
   lxc exec c1 -- sh -c 'hostname > /tmp/index.html && httpd -p 80 -h /tmp'
   lxc network load-balancer pool instance add "${ovn_network}" http c1
 
