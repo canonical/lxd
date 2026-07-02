@@ -172,6 +172,7 @@ def check_snap(
 
 
 def main():
+    """Main entry point for the script."""
     parser = argparse.ArgumentParser(
         description="Check snap release info from the Snap Store."
     )
