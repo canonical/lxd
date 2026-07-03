@@ -21,7 +21,7 @@ A load balancer is made up of:
 - One or more listen ports that are configured to forward to one or more pools of instances.
 
 A pool of instances allows a more simplified definition of backends as it doesn't require additional configuration of the internal IP.
-Furthermore a pool uses health checks to identify offline backends to which the load balancer should not forward any traffic.
+A pool also uses health checks to identify offline backends to which the load balancer should not forward any traffic.
 
 ## Create a network load balancer
 
@@ -152,11 +152,10 @@ lxc network load-balancer pool instance add <network> <pool_name> <instance_name
 ```
 
 ```{important}
-When adding an instance to a pool that is already referenced by a load balancer port, be aware that OVN will start
-to send traffic to this instance immediately as its status isn't yet known to the load balancer.
+OVN will immediately start to send traffic to an instance added to a pool that is already referenced by a load balancer port.
 
-Only after the health check returned for the first time, the instance will be removed from the list of eligible targets
-if there isn't any service listening on the target port.
+The load balancer will only know the status of the new instance after the health check returns for the first time.
+At that point, the instance will be removed from the list of eligible targets if there isn't a service listening on the target port.
 ```
 
 Example:
