@@ -46,6 +46,12 @@ func TestRsyncRejectsOptionLikePaths(t *testing.T) {
 	_, err = CopyFile(optionLikePath, "/tmp/dest", "", false)
 	assert.ErrorContains(t, err, "must be absolute")
 
+	_, err = LocalCopy("/tmp/src", optionLikePath, "", false)
+	assert.ErrorContains(t, err, "must be absolute")
+
+	_, err = CopyFile("/tmp/src", optionLikePath, "", false)
+	assert.ErrorContains(t, err, "must be absolute")
+
 	err = Send("vol", optionLikePath, nil, nil, nil, "", "")
 	assert.ErrorContains(t, err, "must be absolute")
 
@@ -65,6 +71,12 @@ func TestRsyncRejectsTraversalPaths(t *testing.T) {
 	assert.ErrorContains(t, err, "must not contain")
 
 	_, err = CopyFile(traversalPath, "/tmp/dest", "", false)
+	assert.ErrorContains(t, err, "must not contain")
+
+	_, err = LocalCopy("/tmp/src", traversalPath, "", false)
+	assert.ErrorContains(t, err, "must not contain")
+
+	_, err = CopyFile("/tmp/src", traversalPath, "", false)
 	assert.ErrorContains(t, err, "must not contain")
 
 	err = Send("vol", traversalPath, nil, nil, nil, "", "")

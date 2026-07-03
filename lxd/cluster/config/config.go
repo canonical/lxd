@@ -797,7 +797,7 @@ var ConfigSchema = config.Schema{
 		// For example, `1d 3H` is 1 day and 3 hours.
 		//
 		// The default value is `1w` (1 week).
-		// The minimum value is `1d` (1 day).
+		// The minimum value is `1H` (1 hour).
 		// ---
 		//  type: string
 		//  scope: global

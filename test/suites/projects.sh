@@ -479,7 +479,7 @@ test_projects_images() {
 
   # However the image alias is not visible in the default project.
   lxc project switch default
-  ! lxc image list | grep -wF foo-project || false
+  ! lxc image list | grep -wF foo-image || false
 
   # Let's import the same image in the default project
   ensure_import_testimage
