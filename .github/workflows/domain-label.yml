@@ -37,6 +37,11 @@ jobs:
         run: |
           set -euo pipefail
 
+          if ! [ -s ".github/domain-owners.json" ]; then
+            echo "::warning::Missing .github/domain-owners.json file."
+            exit 0
+          fi
+
           # Read valid domain labels from domain-owners.json.
           mapfile -t DOMAIN_LABELS < <(jq -r '.domains[].label' .github/domain-owners.json)
 
