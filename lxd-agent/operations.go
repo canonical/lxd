@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd-agent/operations"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -47,7 +47,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// First check if the query is for a local operation from this node
-	op, err := operations.OperationGetInternal(id)
+	op, err := operations.Get(id)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -70,7 +70,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 	var body *api.Operation
 
 	// First check if the query is for a local operation from this node
-	op, err := operations.OperationGetInternal(id)
+	op, err := operations.Get(id)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -149,12 +149,12 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// First check if the query is for a local operation from this node
-	op, err := operations.OperationGetInternal(id)
+	op, err := operations.Get(id)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return operations.OperationWebSocket(op)
+	return response.OperationWebSocket(op)
 }
 
 func operationWaitGet(d *Daemon, r *http.Request) response.Response {
@@ -178,7 +178,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 
 	defer cancel()
 
-	op, err := operations.OperationGetInternal(id)
+	op, err := operations.Get(id)
 	if err != nil {
 		return response.NotFound(err)
 	}

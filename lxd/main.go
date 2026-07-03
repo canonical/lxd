@@ -10,7 +10,6 @@ import (
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/events"
-	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
 	cli "github.com/canonical/lxd/shared/cmd"
@@ -49,9 +48,6 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	daemon.Debug = c.flagLogDebug
 	rsync.Debug = c.flagLogDebug
 	daemon.Verbose = c.flagLogVerbose
-
-	// Set debug for the operations package
-	operations.Init(daemon.Debug)
 
 	// Set debug for the response package
 	response.Init(daemon.Debug, db.SmartErrors)

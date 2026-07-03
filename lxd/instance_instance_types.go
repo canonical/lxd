@@ -79,7 +79,7 @@ func instanceRefreshTypesTask(stateFunc func() *state.State) (task.Func, task.Sc
 
 		args := operations.OperationArgs{
 			Type:    operationtype.InstanceTypesUpdate,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 

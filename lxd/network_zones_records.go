@@ -248,7 +248,7 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkZoneRecordCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkZoneURL(effectiveProjectName, details.zoneName),
 		Metadata: map[string]any{
@@ -261,7 +261,7 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/network-zones/{zone}/records/{name} network-zones network_zone_record_delete
@@ -331,7 +331,7 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkZoneRecordDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkZoneURL(effectiveProjectName, details.zoneName),
 	}
@@ -341,7 +341,7 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/network-zones/{zone}/records/{name} network-zones network_zone_record_get
@@ -559,7 +559,7 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkZoneRecordUpdate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkZoneURL(effectiveProjectName, details.zoneName),
 	}
@@ -569,5 +569,5 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }

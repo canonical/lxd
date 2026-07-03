@@ -189,7 +189,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 			ProjectName: projectName,
 			EntityURL:   instURL,
 			Type:        opType,
-			Class:       operations.OperationClassTask,
+			Class:       operationtype.OperationClassTask,
 			RunHook:     childRunHook(inst),
 		}
 
@@ -203,7 +203,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   projectURL,
 		Type:        operationtype.InstanceStateUpdateBulk,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		Children:    childArgs,
 	}
 
@@ -212,5 +212,5 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }

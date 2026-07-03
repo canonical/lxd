@@ -1305,7 +1305,7 @@ func autoRefreshClusterLinkVolatileAddressesTask(stateFunc func() *state.State) 
 		logger.Info("Refreshing cluster link addresses")
 		op, err := operations.ScheduleServerOperation(s, operations.OperationArgs{
 			Type:    operationtype.RefreshClusterLinkVolatileAddresses,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		})
 		if err != nil {

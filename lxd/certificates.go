@@ -614,7 +614,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		args := operations.OperationArgs{
 			ProjectName: api.ProjectDefaultName,
 			Type:        operationtype.CertificateAddToken,
-			Class:       operations.OperationClassToken,
+			Class:       operationtype.OperationClassToken,
 			Metadata:    meta,
 		}
 
@@ -623,7 +623,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.InternalError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	} else if r.TLS != nil {
 		// Add client's certificate.
 		if len(r.TLS.PeerCertificates) < 1 {

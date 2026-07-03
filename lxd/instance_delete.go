@@ -84,7 +84,7 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // doInstanceDelete deletes an instance in the given project.
@@ -128,7 +128,7 @@ func doInstanceDelete(opScheduler operations.OperationScheduler, s *state.State,
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "instances", name).Project(projectName),
 		Type:        operationtype.InstanceDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     rmct,
 	}
 

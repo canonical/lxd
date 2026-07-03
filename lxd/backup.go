@@ -328,7 +328,7 @@ func pruneExpiredBackupsTask(stateFunc func() *state.State) (task.Func, task.Sch
 
 		args := operations.OperationArgs{
 			Type:    operationtype.BackupsExpire,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 

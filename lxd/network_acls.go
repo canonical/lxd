@@ -335,7 +335,7 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: requestProject,
 		Type:        operationtype.NetworkACLCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.ProjectURL(effectiveProjectName),
 		Metadata: map[string]any{
@@ -348,7 +348,7 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/network-acls/{name} network-acls network_acl_delete
@@ -424,7 +424,7 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: request.ProjectParam(r),
 		Type:        operationtype.NetworkACLDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkACLURL(effectiveProjectName, aclName),
 	}
@@ -434,7 +434,7 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/network-acls/{name} network-acls network_acl_get
@@ -658,7 +658,7 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: request.ProjectParam(r),
 		Type:        operationtype.NetworkACLUpdate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkACLURL(projectName, aclName),
 	}
@@ -668,7 +668,7 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation POST /1.0/network-acls/{name} network-acls network_acl_post
@@ -743,7 +743,7 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: requestProject,
 		Type:        operationtype.NetworkACLRename,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkACLURL(effectiveProjectName, aclName),
 		Metadata: map[string]any{
@@ -757,7 +757,7 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/network-acls/{name}/log network-acls network_acl_log_get

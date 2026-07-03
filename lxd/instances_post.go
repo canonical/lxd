@@ -149,7 +149,7 @@ func createFromImage(r *http.Request, s *state.State, p api.Project, profiles []
 		ProjectName: p.Name,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", p.Name),
 		Type:        operationtype.InstanceCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		Metadata: map[string]any{
 			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(p.Name).String(),
@@ -161,7 +161,7 @@ func createFromImage(r *http.Request, s *state.State, p api.Project, profiles []
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func createFromNone(r *http.Request, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
@@ -210,7 +210,7 @@ func createFromNone(r *http.Request, s *state.State, projectName string, profile
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.InstanceCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		Metadata: map[string]any{
 			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
@@ -222,7 +222,7 @@ func createFromNone(r *http.Request, s *state.State, projectName string, profile
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // instanceMigrationSinkResult holds the outputs of prepareInstanceMigrationSink needed by
@@ -441,11 +441,11 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 	}
 
 	if result.push {
-		opArgs.Class = operations.OperationClassWebsocket
+		opArgs.Class = operationtype.OperationClassWebsocket
 		opArgs.Metadata = result.sink.Metadata()
 		opArgs.ConnectHook = result.sink.Connect
 	} else {
-		opArgs.Class = operations.OperationClassTask
+		opArgs.Class = operationtype.OperationClassTask
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, opArgs)
@@ -454,7 +454,7 @@ func createFromMigration(r *http.Request, s *state.State, projectName string, pr
 	}
 
 	result.revert.Success()
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // createFromConversion receives the root disk (container FS or VM block volume) from the client and creates an
@@ -548,7 +548,7 @@ func createFromConversion(r *http.Request, s *state.State, projectName string, p
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
 		Type:        operationtype.InstanceCreate,
-		Class:       operations.OperationClassWebsocket,
+		Class:       operationtype.OperationClassWebsocket,
 		Metadata:    metadata,
 		RunHook:     run,
 		ConnectHook: sink.Connect,
@@ -560,7 +560,7 @@ func createFromConversion(r *http.Request, s *state.State, projectName string, p
 	}
 
 	revert.Success()
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func createFromCopy(r *http.Request, s *state.State, projectName string, profiles []api.Profile, req *api.InstancesPost, targetMemberInfo *db.NodeInfo) response.Response {
@@ -781,7 +781,7 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 		ProjectName: targetProject,
 		EntityURL:   entityURL,
 		Type:        opType,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		Metadata: map[string]any{
 			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", req.Name).Project(projectName).String(),
@@ -793,7 +793,7 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func createFromBackup(s *state.State, r *http.Request, projectName string, data io.Reader, pool string, instanceName string, devices map[string]map[string]string) response.Response {
@@ -1107,7 +1107,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		ProjectName: bInfo.Project,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", bInfo.Project),
 		Type:        operationtype.BackupRestore,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		Metadata: map[string]any{
 			api.MetadataEntityURL: api.NewURL().Path(version.APIVersion, "instances", bInfo.Name).Project(bInfo.Project).String(),
@@ -1120,7 +1120,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	}
 
 	revert.Success()
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // instanceProfilesFromNames loads the named profiles from the database and returns them as API
@@ -1732,7 +1732,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		opAPI := op.Get()
-		return operations.ForwardedOperationResponse(&opAPI)
+		return response.ForwardedOperationResponse(&opAPI)
 	}
 
 	// Record the cluster group as a volatile config key if present.
@@ -1758,7 +1758,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		opAPI := op.Get()
-		return operations.ForwardedOperationResponse(&opAPI)
+		return response.ForwardedOperationResponse(&opAPI)
 	}
 
 	// Cases 1b and 2b).

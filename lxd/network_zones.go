@@ -376,7 +376,7 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: requestProjectName,
 		Type:        operationtype.NetworkZoneCreate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.ProjectURL(effectiveProjectName),
 		Metadata: map[string]any{
@@ -389,7 +389,7 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation DELETE /1.0/network-zones/{zone} network-zones network_zone_delete
@@ -444,7 +444,7 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkZoneDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entity.NetworkZoneURL(effectiveProjectName, details.zoneName),
 	}
@@ -454,7 +454,7 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // doNetworkZoneDelete deletes the named network zone in the given project.
@@ -707,7 +707,7 @@ func networkZonePut(d *Daemon, r *http.Request) response.Response {
 	args := operations.OperationArgs{
 		ProjectName: details.requestProject.Name,
 		Type:        operationtype.NetworkZoneUpdate,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 		EntityURL:   entityURL,
 	}
@@ -717,5 +717,5 @@ func networkZonePut(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }

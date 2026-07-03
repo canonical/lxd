@@ -390,7 +390,7 @@ func clusterMembersPost(d *Daemon, r *http.Request) response.Response {
 
 	args := operations.OperationArgs{
 		Type:     operationtype.ClusterJoinToken,
-		Class:    operations.OperationClassToken,
+		Class:    operationtype.OperationClassToken,
 		Metadata: meta,
 	}
 
@@ -401,7 +401,7 @@ func clusterMembersPost(d *Daemon, r *http.Request) response.Response {
 
 	s.Events.SendLifecycle(request.ProjectParam(r), lifecycle.ClusterTokenCreated.Event("members", op.EventLifecycleRequestor(), nil))
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation GET /1.0/cluster/members/{name} cluster cluster_member_get
@@ -1437,7 +1437,7 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 		args := operations.OperationArgs{
 			ProjectName: "",
 			Type:        operationtype.ClusterMemberEvacuate,
-			Class:       operations.OperationClassTask,
+			Class:       operationtype.OperationClassTask,
 			RunHook:     run,
 			// Use ConflictReference to enforce cluster-wide evacuation exclusivity; this prevents evacuation race conditions.
 			ConflictReference: clusterMemberEvacuateConflictReference,
@@ -1448,7 +1448,7 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	case api.ClusterMemberActionRestore:
 		ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterMemberEvacuate, true)
 		if err != nil {
@@ -2237,7 +2237,7 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 	args := operations.OperationArgs{
 		ProjectName: "",
 		Type:        operationtype.ClusterMemberRestore,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 	}
 
@@ -2246,5 +2246,5 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }

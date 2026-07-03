@@ -390,7 +390,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 
 	args := operations.OperationArgs{
 		Type:    operationtype.ClusterBootstrap,
-		Class:   operations.OperationClassTask,
+		Class:   operationtype.OperationClassTask,
 		RunHook: run,
 	}
 
@@ -406,7 +406,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 		logger.Warn("Failed configuring LXD user agent", logger.Ctx{"err": err, "features": features})
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
@@ -810,7 +810,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 	opArgs := operations.OperationArgs{
 		Type:    operationtype.ClusterJoin,
-		Class:   operations.OperationClassTask,
+		Class:   operationtype.OperationClassTask,
 		RunHook: run,
 	}
 
@@ -819,7 +819,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // clusterPutDisableMu is used to prevent the LXD process from being replaced/stopped during removal from the
@@ -1737,7 +1737,7 @@ func autoHealCluster(ctx context.Context, s *state.State, gateway *cluster.Gatew
 
 	args := operations.OperationArgs{
 		Type:    operationtype.ClusterHeal,
-		Class:   operations.OperationClassTask,
+		Class:   operationtype.OperationClassTask,
 		RunHook: opRun,
 	}
 

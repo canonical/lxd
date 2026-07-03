@@ -1554,7 +1554,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: dbProject.Name,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", dbProject.Name),
 		Type:        operationtype.ImageDownload,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		Metadata:    metadata,
 		RunHook:     run,
 	}
@@ -1565,7 +1565,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	revert.Success()
-	return operations.OperationResponse(imageOp)
+	return response.OperationResponse(imageOp)
 }
 
 func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
@@ -2090,7 +2090,7 @@ func autoUpdateImagesTask(stateFunc func() *state.State) (task.Func, task.Schedu
 
 		args := operations.OperationArgs{
 			Type:    operationtype.ImagesUpdate,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 
@@ -2698,7 +2698,7 @@ func pruneExpiredImagesTask(stateFunc func() *state.State) (task.Func, task.Sche
 
 		args := operations.OperationArgs{
 			Type:    operationtype.ImagesExpire,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 
@@ -2842,7 +2842,7 @@ func pruneLeftoverImages(s *state.State) {
 
 	args := operations.OperationArgs{
 		Type:    operationtype.ImagesPruneLeftover,
-		Class:   operations.OperationClassTask,
+		Class:   operationtype.OperationClassTask,
 		RunHook: opRun,
 	}
 
@@ -3095,7 +3095,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // doImageDelete deletes an image with the given fingerprint and imageID in the given project.
@@ -3255,7 +3255,7 @@ func doImageDelete(isClusterNotification bool, opCreator operations.OperationSch
 		ProjectName: requestProjectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "images", fingerprint).Project(effectiveProjectName),
 		Type:        operationtype.ImageDelete,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     do,
 	}
 
@@ -4873,7 +4873,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "images", details.image.Fingerprint).Project(details.image.Project),
 		Type:        operationtype.ImageUpload,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 	}
 
@@ -4882,7 +4882,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // swagger:operation POST /1.0/images/{fingerprint}/secret images images_secret_post
@@ -5080,7 +5080,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   api.NewURL().Path(version.APIVersion, "images", details.image.Fingerprint).Project(details.image.Project),
 		Type:        operationtype.ImageRefresh,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 	}
 
@@ -5089,7 +5089,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 func autoSyncImagesTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
@@ -5119,7 +5119,7 @@ func autoSyncImagesTask(stateFunc func() *state.State) (task.Func, task.Schedule
 
 		args := operations.OperationArgs{
 			Type:    operationtype.ImagesSynchronize,
-			Class:   operations.OperationClassTask,
+			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 
@@ -5330,7 +5330,7 @@ func createImageTokenResponse(s *state.State, r *http.Request, projectName strin
 		ProjectName: projectName,
 		EntityURL:   entityURL,
 		Type:        tokenType,
-		Class:       operations.OperationClassToken,
+		Class:       operationtype.OperationClassToken,
 		Metadata:    meta,
 	}
 
@@ -5341,7 +5341,7 @@ func createImageTokenResponse(s *state.State, r *http.Request, projectName strin
 
 	s.Events.SendLifecycle(projectName, lifecycle.ImageSecretCreated.Event(fingerprint, projectName, op.EventLifecycleRequestor(), nil))
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
 
 // resolveProfileIDs finds profile IDs in other projects matching the given names.

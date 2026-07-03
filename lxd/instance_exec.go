@@ -585,7 +585,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		return operations.ForwardedOperationResponse(opAPI)
+		return response.ForwardedOperationResponse(opAPI)
 	}
 
 	inst, err := instance.LoadByProjectAndName(s, projectName, name)
@@ -693,7 +693,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			ProjectName: projectName,
 			EntityURL:   instanceURL,
 			Type:        operationtype.CommandExec,
-			Class:       operations.OperationClassWebsocket,
+			Class:       operationtype.OperationClassWebsocket,
 			Metadata:    ws.Metadata(),
 			RunHook:     ws.Do,
 			ConnectHook: ws.Connect,
@@ -704,7 +704,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			return response.InternalError(err)
 		}
 
-		return operations.OperationResponse(op)
+		return response.OperationResponse(op)
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
@@ -777,7 +777,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		ProjectName: projectName,
 		EntityURL:   instanceURL,
 		Type:        operationtype.CommandExec,
-		Class:       operations.OperationClassTask,
+		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
 	}
 
@@ -786,5 +786,5 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	return operations.OperationResponse(op)
+	return response.OperationResponse(op)
 }
