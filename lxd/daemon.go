@@ -2220,7 +2220,12 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 	s := d.State()
 
-	if d.gateway != nil {
+	// Skip the member-role handover if the cluster DB never opened (e.g. init()
+	// failed between gateway creation and db.OpenCluster): there is no
+	// membership state to hand over, and handoverMemberRole would dereference
+	// the nil cluster DB. The gateway itself is still torn down below via
+	// Kill() and Shutdown().
+	if d.gateway != nil && d.db.Cluster != nil {
 		d.stopClusterTasks()
 
 		err := handoverMemberRole(d.State(), d.gateway)
