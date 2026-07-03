@@ -772,6 +772,10 @@ func (op *Operation) CommitMetadata() error {
 	op.lock.Lock()
 	defer op.lock.Unlock()
 
+	if op.readonly {
+		return errors.New("Read-only operations cannot be updated")
+	}
+
 	op.updatedAt = time.Now()
 	// Use the operation context for the database update, so that if the operation is cancelled, the database update will be cancelled as well.
 	return updateDBOperation(context.Context(op.running), op)
