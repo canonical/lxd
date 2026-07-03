@@ -144,18 +144,6 @@ func updateDBOperation(ctx context.Context, op *Operation) error {
 	return nil
 }
 
-func removeDBOperation(op *Operation) error {
-	if op.state == nil {
-		return errors.New("Failed deleting operation: No state available")
-	}
-
-	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return cluster.DeleteOperation(ctx, tx.Tx(), op.id)
-	})
-
-	return err
-}
-
 // ConstructOperationsFromDB is a constructs a list of Operation objects based on their database representation.
 func ConstructOperationsFromDB(ctx context.Context, tx *sql.Tx, s *state.State, dbOps []cluster.Operation) ([]*Operation, error) {
 	if len(dbOps) == 0 {
