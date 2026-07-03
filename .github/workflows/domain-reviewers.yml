@@ -8,12 +8,13 @@ on:
     types:
       - labeled
       - unlabeled
+      - ready_for_review
 
 permissions: {}
 
 jobs:
   assign-reviewers:
-    if: ${{ github.repository == 'canonical/lxd' }}
+    if: ${{ github.repository == 'canonical/lxd' && !github.event.pull_request.draft }}
     permissions:
       pull-requests: write
     name: Assign domain reviewers
