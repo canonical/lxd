@@ -59,9 +59,11 @@ func TestDaemon_Stop_NilClusterDB(t *testing.T) {
 	daemon.serverClustered = true
 
 	// Must not panic; the originally-reported symptom.
+	var stopErr error
 	require.NotPanics(t, func() {
-		_ = daemon.Stop(context.Background(), unix.SIGINT)
+		stopErr = daemon.Stop(context.Background(), unix.SIGINT)
 	})
+	require.NoError(t, stopErr)
 }
 
 // The daemon is started and a client can connect to it via unix socket.
