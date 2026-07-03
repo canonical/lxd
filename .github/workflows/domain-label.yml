@@ -10,12 +10,13 @@ on:
       - labeled
       - unlabeled
       - synchronize
+      - ready_for_review
 
 permissions: {}
 
 jobs:
   check-domain-label:
-    if: ${{ github.repository == 'canonical/lxd' }}
+    if: ${{ github.repository == 'canonical/lxd' && !github.event.pull_request.draft }}
     permissions:
       pull-requests: write
     name: Verify domain label
