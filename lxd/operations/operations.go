@@ -56,6 +56,43 @@ func OperationGetInternal(id string) (*Operation, error) {
 	return op, nil
 }
 
+// deleteInternal deletes the operations with the given IDs from the operations map.
+func deleteInternal(ids ...string) {
+	if len(ids) == 0 {
+		return
+	}
+
+	// Get a list of operations to call "done" on. This is so that we hold operationsLock for as little time as possible.
+	// Can't pre-allocate here, as we don't know how many child operations there are.
+	var doneOps []*Operation
+
+	// Iterate over given IDs and check the local map.
+	operationsLock.Lock()
+	for _, id := range ids {
+		op, ok := operations[id]
+		if !ok {
+			continue
+		}
+
+		// Append the parent operation to our list and delete from the map.
+		doneOps = append(doneOps, op)
+		delete(operations, id)
+
+		// Do the same for all the children.
+		for _, child := range op.children {
+			doneOps = append(doneOps, child)
+			delete(operations, child.id)
+		}
+	}
+
+	operationsLock.Unlock()
+
+	// Call done on all operations we collected.
+	for _, op := range doneOps {
+		op.done()
+	}
+}
+
 // Operation represents an operation.
 type Operation struct {
 	projectName     string
@@ -245,6 +282,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 			op.readonly = true
 			op.onRun = nil
 			op.onConnect = nil
+			op.running.Cancel()
 			op.finished.Cancel()
 			op.lock.Unlock()
 
