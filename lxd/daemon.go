@@ -2031,6 +2031,9 @@ func (d *Daemon) init() error {
 
 		// Run scheduled replicators (minutely check of configurable cron expression)
 		d.tasks.Add(runScheduledReplicatorsTask(d.State))
+
+		// Synchronize operations with the database (minutely)
+		d.tasks.Add(synchronizeOperationsTask(d.State))
 	}
 
 	// Load Ubuntu Pro configuration before starting any instances.
@@ -2142,9 +2145,6 @@ func (d *Daemon) startClusterTasks() {
 
 	// Remove orphaned operations
 	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d.State))
-
-	// Prune expired operations from the database (hourly)
-	d.clusterTasks.Add(pruneExpiredOperationsTask(d.State))
 
 	// Perform automatic evacuation for offline cluster members
 	d.clusterTasks.Add(autoHealClusterTask(d.State, d.gateway))
