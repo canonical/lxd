@@ -502,6 +502,25 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		return response.SmartError(err)
 	}
 
+	// For cross-project copies, validate that the instance and its snapshots satisfy the target
+	// project's restrictions before starting the copy operation. This check must run before any
+	// cluster-redirect early returns so that cross-cluster copies are also covered.
+	if sourceProject != targetProject {
+		profileNames := make([]string, 0, len(profiles))
+		for _, p := range profiles {
+			profileNames = append(profileNames, p.Name)
+		}
+
+		rootDevKey, rootDev, _ := instancetype.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
+
+		// We keep the ContainerOnly for backward compatibility.
+		copyInstanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
+		err = checkTargetProjectRestrictions(ctx, s, source, targetProject, sourceProject, req.Name, req.Config, req.Devices, profileNames, copyInstanceOnly, req.Source.OverrideSnapshotProfiles, rootDevKey, rootDev["pool"])
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
 	// When clustered, use the node name, otherwise use the hostname.
 	if s.ServerClustered {
 		serverName := s.ServerName
@@ -799,6 +818,14 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 		err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, req)
 		if err != nil {
 			return response.SmartError(err)
+		}
+
+		// Verify snapshot creation is permitted before iterating over individual snapshots.
+		if len(bInfo.Config.Snapshots) > 0 {
+			err = limits.AllowSnapshotCreation(&restrictions.Project)
+			if err != nil {
+				return response.SmartError(err)
+			}
 		}
 
 		for i, snapshot := range bInfo.Config.Snapshots {

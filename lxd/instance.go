@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
@@ -235,6 +236,42 @@ func instanceRebuildFromEmpty(inst instance.Instance, op *operations.Operation) 
 	return nil
 }
 
+// adjustSnapRootDiskPool returns a clone of snapLocalDevices with the root-disk pool rewritten
+// to parentRootDiskPool when it diverges from the snapshot's expanded root disk pool.
+// parentRootDiskKey is used as the device name when a new local root device must be injected.
+// This is the canonical logic for aligning a snapshot's root disk with its new parent instance
+// before persisting; call it in both the copy path and any pre-flight validation.
+func adjustSnapRootDiskPool(snapLocalDevices deviceConfig.Devices, snapExpandedDevices deviceConfig.Devices, parentRootDiskKey, parentRootDiskPool string) deviceConfig.Devices {
+	result := snapLocalDevices.Clone()
+
+	snapRootKey, snapRootDev, err := instancetype.GetRootDiskDevice(snapExpandedDevices.CloneNative())
+	if err == nil {
+		if snapRootDev["pool"] != parentRootDiskPool {
+			localRoot, found := result[snapRootKey]
+			if found {
+				localRoot["pool"] = parentRootDiskPool
+				result[snapRootKey] = localRoot
+			} else {
+				result[parentRootDiskKey] = deviceConfig.Device{
+					"type": "disk",
+					"path": "/",
+					"pool": parentRootDiskPool,
+				}
+			}
+		}
+	} else if errors.Is(err, instancetype.ErrNoRootDisk) {
+		result[parentRootDiskKey] = deviceConfig.Device{
+			"type": "disk",
+			"path": "/",
+			"pool": parentRootDiskPool,
+		}
+	}
+	// If err is anything else (e.g. multiple root disks) leave result unmodified;
+	// instanceCreateAsCopy cannot safely fix that case either.
+
+	return result
+}
+
 // instanceCreateAsCopyOpts options for copying an instance.
 type instanceCreateAsCopyOpts struct {
 	sourceInstance           instance.Instance // Source instance.
@@ -349,41 +386,10 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		}
 
 		for _, srcSnap := range snapshots {
-			snapLocalDevices := srcSnap.LocalDevices().Clone()
-
-			// Load snap root disk from expanded devices (in case it doesn't have its own root disk).
-			snapExpandedRootDiskDevKey, snapExpandedRootDiskDev, err := instancetype.GetRootDiskDevice(srcSnap.ExpandedDevices().CloneNative())
-			if err == nil {
-				// If the expanded devices has a root disk, but its pool doesn't match our new
-				// parent instance's pool, then either modify the device if it is local or add a
-				// new one to local devices if its coming from the profiles.
-				if snapExpandedRootDiskDev["pool"] != instRootDiskDevice["pool"] {
-					localRootDiskDev, found := snapLocalDevices[snapExpandedRootDiskDevKey]
-					if found {
-						// Modify exist local device's pool.
-						localRootDiskDev["pool"] = instRootDiskDevice["pool"]
-						snapLocalDevices[snapExpandedRootDiskDevKey] = localRootDiskDev
-					} else {
-						// Add a new local device using parent instance's pool.
-						snapLocalDevices[instRootDiskDeviceKey] = map[string]string{
-							"type": "disk",
-							"path": "/",
-							"pool": instRootDiskDevice["pool"],
-						}
-					}
-				}
-			} else if errors.Is(err, instancetype.ErrNoRootDisk) {
-				// If no root disk defined in either local devices or profiles, then add one to the
-				// snapshot local devices using the same device name from the parent instance.
-				snapLocalDevices[instRootDiskDeviceKey] = map[string]string{
-					"type": "disk",
-					"path": "/",
-					"pool": instRootDiskDevice["pool"],
-				}
-			} else { //nolint:staticcheck,revive // (keep the empty branch for the comment)
-				// Snapshot has multiple root disk devices, we can't automatically fix this so
-				// leave alone so we don't prevent copy.
-			}
+			snapLocalDevices := adjustSnapRootDiskPool(
+				srcSnap.LocalDevices(), srcSnap.ExpandedDevices(),
+				instRootDiskDeviceKey, instRootDiskDevice["pool"],
+			)
 
 			_, origSnapName, _ := strings.Cut(srcSnap.Name(), shared.SnapshotDelimiter)
 			newSnapName := inst.Name() + "/" + origSnapName
