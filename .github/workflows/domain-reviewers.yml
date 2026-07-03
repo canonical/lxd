@@ -36,6 +36,11 @@ jobs:
         run: |
           set -euo pipefail
 
+          if ! [ -s ".github/domain-owners.json" ]; then
+            echo "::warning::Missing .github/domain-owners.json file."
+            exit 0
+          fi
+
           # Fetch current PR labels.
           mapfile -t PR_LABELS < <(gh pr view "${PR_NUMBER}" --repo "${REPO}" \
             --json labels --jq '.labels[].name')
