@@ -4,6 +4,9 @@ test_get_operations() {
   ! lxc operation list --project nonexistent || false
   lxc operation list --project default
 
+  # Prune any leftover operations before starting the test.
+  lxc query -X POST /internal/testing/prune-operations
+
   proj1="op-proj1"
   proj2="op-proj2"
 
