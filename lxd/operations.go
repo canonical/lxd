@@ -1100,6 +1100,15 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 	return nil
 }
 
+func internalPruneOperationsHandler(d *Daemon, r *http.Request) response.Response {
+	err := operations.SynchronizeAndPruneExpiredOperations(r.Context(), d.State())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
+}
+
 // synchronizeAndPruneExpiredOperationsTask returns a task function and schedule that is used to synchronize and prune expired operations from the database.
 func synchronizeAndPruneExpiredOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {

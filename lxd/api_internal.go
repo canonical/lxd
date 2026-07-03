@@ -68,6 +68,7 @@ var apiInternal = []APIEndpoint{
 	internalPruneTokenCmd,
 	internalOperationWaitCmd,
 	internalSnapshotScheduledTaskCmd,
+	internalPruneOperationsCmd,
 }
 
 var internalShutdownCmd = APIEndpoint{
@@ -170,6 +171,11 @@ var internalBGPStateCmd = APIEndpoint{
 var internalPruneTokenCmd = APIEndpoint{
 	Path: "testing/prune-tokens",
 	Post: APIEndpointAction{Handler: removeTokenHandler, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+}
+
+var internalPruneOperationsCmd = APIEndpoint{
+	Path: "testing/prune-operations",
+	Post: APIEndpointAction{Handler: internalPruneOperationsHandler, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalOperationWaitCmd = APIEndpoint{
