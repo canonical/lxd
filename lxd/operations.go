@@ -646,9 +646,15 @@ func operationsGetByType(ctx context.Context, s *state.State, projectName string
 		}
 	}
 
+	now := time.Now()
 	apiOps := make([]*api.Operation, 0, len(ops))
 	for _, op := range ops {
 		if s.ServerClustered && excludeOffline && !online[op.NodeAddress] {
+			continue
+		}
+
+		// Skip operations that finished more than 5 seconds ago.
+		if api.StatusCode(op.Row.StatusCode).IsFinal() && now.Sub(op.Row.UpdatedAt) > 5*time.Second {
 			continue
 		}
 
