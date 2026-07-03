@@ -1,0 +1,81 @@
+name: Assign domain reviewers
+
+on:
+  # Safe: only checks out .github/domain-owners.json from the base branch.
+  # No PR-supplied code is executed. Write permission is needed to request
+  # reviewers on fork PRs.
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types:
+      - labeled
+      - unlabeled
+
+permissions: {}
+
+jobs:
+  assign-reviewers:
+    if: ${{ github.repository == 'canonical/lxd' }}
+    permissions:
+      pull-requests: write
+    name: Assign domain reviewers
+    runs-on: ubuntu-slim
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/domain-owners.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Sync domain reviewers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Fetch current PR labels.
+          mapfile -t PR_LABELS < <(gh pr view "${PR_NUMBER}" --repo "${REPO}" \
+            --json labels --jq '.labels[].name')
+
+          # Build the desired reviewer set: union of owners for every domain
+          # label currently on the PR, excluding the PR author, deduplicated.
+          declare -A desired
+          for pr_label in "${PR_LABELS[@]}"; do
+            while IFS= read -r owner; do
+              if [[ -n "${owner}" && "${owner}" != "${PR_AUTHOR}" ]]; then
+                desired["${owner}"]=1
+              fi
+            done < <(jq -r \
+              --arg label "${pr_label}" \
+              '.domains[] | select(.label == $label) | .owners[]' \
+              .github/domain-owners.json)
+          done
+
+          # Fetch current requested reviewers on the PR.
+          mapfile -t CURRENT_REVIEWERS < <(gh pr view "${PR_NUMBER}" --repo "${REPO}" \
+            --json reviewRequests --jq '.reviewRequests[].login')
+
+          # Determine reviewers to add (desired but not already requested).
+          ADD=()
+          for reviewer in "${!desired[@]}"; do
+            already=false
+            for cur in "${CURRENT_REVIEWERS[@]}"; do
+              if [[ "${cur}" == "${reviewer}" ]]; then
+                already=true
+                break
+              fi
+            done
+            "${already}" || ADD+=("${reviewer}")
+          done
+
+          if [[ ${#ADD[@]} -gt 0 ]]; then
+            REVIEWER_LIST=$(printf '%s,' "${ADD[@]}")
+            echo "Adding reviewers: ${REVIEWER_LIST%,}"
+            gh pr edit "${PR_NUMBER}" --repo "${REPO}" \
+              --add-reviewer "${REVIEWER_LIST%,}"
+          else
+            echo "Reviewer list is already up to date."
+          fi
