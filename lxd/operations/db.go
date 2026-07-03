@@ -263,12 +263,6 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 		op.location = dbOp.NodeName
 	}
 
-	// If operation is already in final state, cancel both contexts, there's no point in running any hook.
-	if op.status.IsFinal() {
-		op.running.Cancel()
-		op.finished.Cancel()
-	}
-
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
 	op.events = s.Events
@@ -304,6 +298,14 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 	}
 
 	op.metadata = metadata
+
+	// Set the finalization function.
+	setDoneFunc(&op)
+
+	// Immediately cancel the run context and call done.
+	// We have just reconstructed the operation from the database, so it is for inspection only.
+	op.running.Cancel()
+	op.done()
 
 	return &op, nil
 }
