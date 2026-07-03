@@ -36,9 +36,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Fetch current PR labels.
-          mapfile -t PR_LABELS < <(gh pr view "${PR_NUMBER}" --repo "${REPO}" \
-            --json labels --jq '.labels[].name')
+          # Fetch current PR labels and requested reviewers in one shot.
+          PR_DATA=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" \
+            --json labels,reviewRequests)
+
+          mapfile -t PR_LABELS < <(jq -r '.labels[].name // empty' <<< "${PR_DATA}")
+          mapfile -t CURRENT_REVIEWERS < <(jq -r '.reviewRequests[].login // empty' <<< "${PR_DATA}")
 
           # Build the desired reviewer set: union of owners for every domain
           # label currently on the PR, excluding the PR author, deduplicated.
@@ -53,10 +56,6 @@ jobs:
               '.domains[] | select(.label == $label) | .owners[]' \
               .github/domain-owners.json)
           done
-
-          # Fetch current requested reviewers on the PR.
-          mapfile -t CURRENT_REVIEWERS < <(gh pr view "${PR_NUMBER}" --repo "${REPO}" \
-            --json reviewRequests --jq '.reviewRequests[].login')
 
           # Determine reviewers to add (desired but not already requested).
           ADD=()
