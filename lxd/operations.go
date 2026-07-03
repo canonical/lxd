@@ -1094,24 +1094,12 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 	return nil
 }
 
-// PruneExpiredOperationsTask returns a task function and schedule that is used to prune expired operations from the database.
-func pruneExpiredOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
+// synchronizeAndPruneExpiredOperationsTask returns a task function and schedule that is used to synchronize and prune expired operations from the database.
+func synchronizeAndPruneExpiredOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := stateFunc()
-
-		leaderInfo, err := s.LeaderInfo()
-		if err != nil {
-			logger.Error("Failed getting leader cluster member address", logger.Ctx{"err": err})
-			return
-		}
-
-		if !leaderInfo.Leader {
-			logger.Debug("Skipping pruning expired operations since we're not leader")
-			return
-		}
-
 		opRun := func(ctx context.Context, op *operations.Operation) error {
-			return operations.PruneExpiredOperations(ctx, s)
+			return operations.SynchronizeAndPruneExpiredOperations(ctx, s)
 		}
 
 		args := operations.OperationArgs{
@@ -1133,7 +1121,7 @@ func pruneExpiredOperationsTask(stateFunc func() *state.State) (task.Func, task.
 		}
 	}
 
-	return f, task.Hourly()
+	return f, task.Every(time.Minute, task.SkipFirst)
 }
 
 // operationWaitPost represents the fields of a request to register a dummy operation.
