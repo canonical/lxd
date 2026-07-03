@@ -3475,15 +3475,19 @@ test_clustering_evacuation() {
     delay=0.2
     max_attempts=60
 
+    # Check if the operation is still running in a loop. The jq command is a little complex because the response from
+    # /1.0/operations?recursion=1 is an object where each key is the lowercased operation status, and each value is an
+    # array of operations whose status matches the key. The command flattens this into a single array, then unwraps the
+    # array to get a list of objects, then selects only the evacuation operation by its description, and checks the status code.
     for i in $(seq "${max_attempts}"); do
-      if ! LXD_DIR="${lxd_dir}" lxc operation list --format csv | grep -F "Evacuating cluster member" >/dev/null; then
+      if LXD_DIR="${lxd_dir}" lxc query /1.0/operations?recursion=1 | jq --exit-status '[.[]] | flatten | .[] | select(.description == "Evacuating cluster member") | .status_code >= 200'; then
         return 0
       fi
 
       sleep "${delay}"
     done
 
-    echo "Evacuation operation still present after ${i} attempts (~${delay}s interval)"
+    echo "Evacuation operation still running after ${i} attempts (~${delay}s interval)"
     return 1
   }
   echo "Create cluster with 3 nodes"
