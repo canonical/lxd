@@ -76,16 +76,20 @@ jobs:
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     strategy:
       matrix:
-        version:
-          - "latest"
-          - "5.21"
-          - "5.0"
-          - "4.0"
+        include:
+          - track: "6"
+            branch: main
+          - track: "5.21"
+            branch: stable-5.21
+          - track: "5.0"
+            branch: stable-5.0
+          - track: "4.0"
+            branch: stable-4.0
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          ref: ${{ (matrix.version == 'latest' && 'main') || format('stable-{0}', matrix.version) }}
+          ref: ${{ matrix.branch }}
           persist-credentials: false
 
       - name: Resolve branch HEAD SHA
@@ -96,7 +100,7 @@ jobs:
         env:
           SNAP_NAME: ${{ github.event.repository.name }}
         run: |
-          snap download "${SNAP_NAME}" --channel=${{ matrix.version }}/stable --cohort="+"
+          snap download "${SNAP_NAME}" --channel=${{ matrix.track }}/stable --cohort="+"
           unsquashfs ./${SNAP_NAME}*.snap
 
       - name: Run Trivy vulnerability scanner
@@ -107,7 +111,7 @@ jobs:
           scanners: vuln,secret,misconfig
           format: sarif
           severity: LOW,MEDIUM,HIGH,CRITICAL
-          output: ${{ matrix.version }}-stable.sarif
+          output: ${{ matrix.branch }}.sarif
 
       - name: Flag snap scanning alerts and tag KEV alerts
         run: |
@@ -127,12 +131,12 @@ jobs:
               else
                 .
               end
-            )' ${{ matrix.version }}-stable.sarif > ${{ matrix.version }}-modified.sarif
-          mv ${{ matrix.version }}-modified.sarif ${{ matrix.version }}-stable.sarif
+            )' ${{ matrix.branch }}.sarif > ${{ matrix.branch }}-modified.sarif
+          mv ${{ matrix.branch }}-modified.sarif ${{ matrix.branch }}.sarif
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
-          sarif_file: ${{ matrix.version }}-stable.sarif
+          sarif_file: ${{ matrix.branch }}.sarif
           sha: ${{ steps.branch-sha.outputs.sha }}
-          ref: refs/heads/${{ (matrix.version == 'latest' && 'main') || format('stable-{0}', matrix.version) }}
+          ref: refs/heads/${{ matrix.branch }}
