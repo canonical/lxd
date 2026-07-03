@@ -83,10 +83,10 @@ func TestIntegration_UnixSocket(t *testing.T) {
 // Return a function that can be used to cleanup every associated state.
 func newTestDaemon(t *testing.T) (*Daemon, func()) {
 	// OS
-	os, osCleanup := sys.NewTestOS(t)
+	testOS, osCleanup := sys.NewTestOS(t)
 
 	// Daemon
-	daemon := newDaemon(newConfig(), os)
+	daemon := newDaemon(newConfig(), testOS)
 	require.NoError(t, daemon.Init())
 
 	cleanup := func() {
