@@ -22,10 +22,9 @@ import (
 
 // tlsHTTPClient creates an HTTP client with a specified Transport Layer Security (TLS) configuration.
 // It takes in parameters for client certificates, keys, Certificate Authority, server certificates,
-// a boolean for skipping verification, a boolean for including only legacy curves in ClientHello, a
-// proxy function, and a transport wrapper function.
+// a boolean for skipping verification, a proxy function, a transport wrapper function and the server certificate fingerprint.
 // It returns the HTTP client with the provided configurations and handles any errors that might occur during the setup process.
-func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, insecureSkipVerify bool, legacyCurvesOnly bool, proxy func(req *http.Request) (*url.URL, error), transportWrapper func(t *http.Transport) HTTPTransporter, serverCertFingerprint string) (*http.Client, error) {
+func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, insecureSkipVerify bool, proxy func(req *http.Request) (*url.URL, error), transportWrapper func(t *http.Transport) HTTPTransporter, serverCertFingerprint string) (*http.Client, error) {
 	// Get the TLS configuration
 	tlsConfig, err := shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, tlsCA, tlsServerCert, insecureSkipVerify)
 	if err != nil {
@@ -67,21 +66,6 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 			}
 
 			return nil
-		}
-	}
-
-	// If legacyCurvesOnly is true, don't include the post-quantum curve
-	// (`X25519MLKEM768` or `X25519Kyber768Draft00`) in the list of supported
-	// curves. Those extra curves causes the ClientHello message to be too
-	// large to fit in a single packet, causing some broken middleboxes to reset
-	// the connection because they failed to reassemble the TCP packets.
-	if legacyCurvesOnly {
-		// Matches the default list of curves in Go 1.23 with `GODEBUG=tlskyber=0,tlsmlkem=0`
-		tlsConfig.CurvePreferences = []tls.CurveID{
-			tls.X25519,
-			tls.CurveP256,
-			tls.CurveP384,
-			tls.CurveP521,
 		}
 	}
 
