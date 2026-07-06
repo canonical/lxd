@@ -8603,7 +8603,7 @@ func (d *qemu) CanMigrate() (canMigrate bool, live bool) {
 	return d.canMigrate(d)
 }
 
-// LockExclusive attempts to get exlusive access to the instance's root volume.
+// LockExclusive attempts to get exclusive access to the instance's root volume.
 func (d *qemu) LockExclusive() (*operationlock.InstanceOperation, error) {
 	if d.IsRunning() {
 		return nil, errors.New("Instance is running")
