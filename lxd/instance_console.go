@@ -591,23 +591,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	instanceType, err := urlInstanceTypeDetect(r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	projectName := request.ProjectParam(r)
-	name := r.PathValue("name")
-	if shared.IsSnapshot(name) {
-		return response.BadRequest(errors.New("Invalid instance name"))
-	}
-
-	// Forward the request if the container is remote.
-	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	projectName, name, resp := forwardedInstanceResponse(s, r)
 	if resp != nil {
 		return resp
 	}
