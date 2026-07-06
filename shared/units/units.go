@@ -118,23 +118,23 @@ type integer interface {
 	~int64 | ~uint64
 }
 
-// getSizeString takes a number of base units, precision, a divisor and the
-// ordered unit suffixes, and returns a human representation of the amount of
-// data.
+// getSizeString takes a number of bytes, precision, a divisor and the ordered
+// unit suffixes, and returns a human representation of the amount of data.
 func getSizeString[T integer](input T, precision uint, divisor float64, units []string) string {
 	value := float64(input)
 	if value < divisor {
 		return fmt.Sprintf("%dB", input)
 	}
 
-	for _, unit := range units {
+	var unit string
+	for _, unit = range units {
 		value = value / divisor
 		if value < divisor {
-			return fmt.Sprintf("%.*f%s", precision, value, unit)
+			break
 		}
 	}
 
-	return fmt.Sprintf("%.*fEB", precision, value)
+	return fmt.Sprintf("%.*f%s", precision, value, unit)
 }
 
 // GetByteSizeString takes a number of bytes and precision and returns a
