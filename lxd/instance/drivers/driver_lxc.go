@@ -5754,6 +5754,13 @@ func (d *lxc) fileSFTPConnNoLock() (net.Conn, error) {
 		return nil, err
 	}
 
+	// Prevent Close() from unlinking the listener socket path. net.UnixListener.Close() normally calls
+	// syscall.Unlink on the path it was created with (here a /proc/self/fd/<N>/... path), which can end up
+	// unlinking the wrong instance's socket if that fd number gets reused after this function returns.
+	// Stale sockets are cleaned up by the next caller's os.Remove (above) before it creates its own socket.
+	// Failure cleanup is handled by the revert's explicit os.Remove below.
+	forkfileListener.SetUnlinkOnClose(false)
+
 	revert.Add(func() {
 		_ = forkfileListener.Close()
 		_ = os.Remove(forkfilePath)
@@ -5883,11 +5890,13 @@ func (d *lxc) fileSFTPConnNoLock() (net.Conn, error) {
 			return
 		}
 
-		// Close the listener and delete the socket immediately after forkfile exits to avoid clients
-		// thinking a listener is available while other deferred calls are being processed.
+		// Close the listener after forkfile exits. The socket file is intentionally not
+		// deleted here: SetUnlinkOnClose(false) prevents Close() from unlinking it, and
+		// no explicit os.Remove is done either, because a concurrent fileSFTPConnNoLock
+		// call may have already created a new socket at forkfilePath. Stale sockets are
+		// cleaned up by the next caller's os.Remove before it creates its own socket.
 		defer func() {
 			_ = forkfileListener.Close()
-			_ = os.Remove(forkfilePath)
 			_ = os.Remove(pidFile)
 		}()
 
