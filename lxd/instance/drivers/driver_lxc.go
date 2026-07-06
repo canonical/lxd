@@ -2460,7 +2460,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 // mountBpfFs mounts bpffs inside the container.
 func (d *lxc) mountBpfFs(pid int, bpffsParams map[string]string) error {
 	if !d.state.OS.BPFToken {
-		return errors.New("BPF Token mechanism is not supported by kernel running")
+		return errors.New("BPF Token mechanism is not supported by the running kernel")
 	}
 
 	pidFdNr, pidFd := seccomp.MakePidFd(pid, d.state)
