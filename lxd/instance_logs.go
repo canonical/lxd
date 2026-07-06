@@ -196,15 +196,9 @@ func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, name, resp := forwardedInstanceResponse(s, r)
+	inst, projectName, _, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	// Ensure instance exists.
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	file := r.PathValue("file")
@@ -275,15 +269,9 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, name, resp := forwardedInstanceResponse(s, r)
+	inst, projectName, name, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	// Ensure instance exists.
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	// Mount the instance's root volume
@@ -374,15 +362,9 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 
-	projectName, name, resp := forwardedInstanceResponse(s, r)
+	inst, projectName, name, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	// Ensure instance exists.
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	file := r.PathValue("file")
@@ -457,15 +439,9 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, name, resp := forwardedInstanceResponse(s, r)
+	inst, projectName, name, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	// Ensure instance exists.
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	file := r.PathValue("file")
