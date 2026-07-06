@@ -68,15 +68,9 @@ import (
 func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, name, resp := forwardedInstanceResponse(s, r)
+	inst, projectName, _, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	// Load the container
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	// Start the storage if needed
@@ -144,15 +138,9 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, name, resp := forwardedInstanceResponse(s, r)
+	inst, _, _, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	// Load the instance.
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	// Start the storage if needed.
@@ -337,15 +325,9 @@ func doInstanceMetadataUpdate(s *state.State, inst instance.Instance, metadata a
 func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, name, resp := forwardedInstanceResponse(s, r)
+	c, projectName, _, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	// Load the container
-	c, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	// Start the storage if needed
@@ -477,15 +459,9 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, name, resp := forwardedInstanceResponse(s, r)
+	c, projectName, _, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	// Load the container
-	c, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	// Start the storage if needed
@@ -573,15 +549,9 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, name, resp := forwardedInstanceResponse(s, r)
+	c, projectName, _, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	// Load the container
-	c, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	// Start the storage if needed
