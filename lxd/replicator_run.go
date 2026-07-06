@@ -494,3 +494,13 @@ func snapshotInstance(ctx context.Context, s *state.State, inst instance.Instanc
 
 	return nil
 }
+
+// instancesByName indexes the given instances by name for lookup during child-op construction.
+func instancesByName(insts []instance.Instance) map[string]instance.Instance {
+	byName := make(map[string]instance.Instance, len(insts))
+	for _, inst := range insts {
+		byName[inst.Name()] = inst
+	}
+
+	return byName
+}
