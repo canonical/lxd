@@ -1465,6 +1465,180 @@ func waitCtx(ctx context.Context, wg *sync.WaitGroup) error {
 	}
 }
 
+// buildRestoreChildOps builds the restore child list: one child per custom volume then one per instance.
+// volumeWg gates each instance child on all volume restores completing.
+func buildRestoreChildOps(ctx context.Context, s *state.State, projectName string, projectURL *api.URL, iterNames []string, allInsts []instance.Instance, nodeAddressByName map[string]string, clusterLink *api.ClusterLink, clusterCert *shared.CertInfo, targetCert *x509.Certificate) ([]*operations.OperationArgs, error) {
+	// Fetch volumes from the source cluster instead of the local database, since during restore,
+	// the local database may be missing volumes that were created after failover on the leader.
+	srcClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+	if err != nil {
+		return nil, fmt.Errorf("Failed connecting to source cluster for volume list: %w", err)
+	}
+
+	srcClient = srcClient.UseProject(projectName)
+	srcVolumes, err := srcClient.GetVolumesWithFilter([]string{"type=" + dbCluster.StoragePoolVolumeTypeNameCustom})
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting storage volumes from source cluster: %w", err)
+	}
+
+	// GetVolumesWithFilter returns snapshots alongside parent volumes; strip them here.
+	// No snapshot classification is needed during restore, so the plain API volumes are
+	// used directly rather than the forward path's work-list entries.
+	volumeWork := make([]api.StorageVolume, 0, len(srcVolumes))
+	for _, vol := range srcVolumes {
+		if !shared.IsSnapshot(vol.Name) {
+			volumeWork = append(volumeWork, vol)
+		}
+	}
+
+	var volumeWg sync.WaitGroup
+
+	// Volume restore failures are recorded per volume (keyed as pool/name) so that each
+	// instance is gated only on the volumes it actually attaches. A failure restoring a
+	// standalone or unrelated volume must not block instances that never use it.
+	var volumeErrMu sync.Mutex
+	volumeErrByKey := make(map[string]error)
+
+	// Use our cluster certificate so the leader can verify TLS when
+	// pushing data back to us.
+	localCertPEM := string(clusterCert.PublicKey())
+
+	instByName := instancesByName(allInsts)
+
+	// Classify each source volume by local attachment so an exclusively-attached volume can be
+	// co-placed on the member its owning instance restores to, mirroring the forward path. The
+	// owner's current location is stable across restore (an instance refreshes in place), so its
+	// volume already lives there or is created there. Instances that exist only on the leader are
+	// absent from the local list and get no pin, falling back to scheduler placement.
+	// Each instance counts once per volume, matching the per-instance classification of the
+	// forward path, so attaching the same volume through several devices keeps it exclusive.
+	volUserCount := make(map[string]int)
+	volOwnerMember := make(map[string]string)
+	volKeysByInstance := make(map[string][]string)
+	for _, inst := range allInsts {
+		for _, vol := range volumeWork {
+			attached := false
+			for _, dev := range inst.ExpandedDevices() {
+				usesVol, err := storagePools.VolumeIsUsedByDevice(vol, inst.Type(), inst.Name(), dev)
+				if err != nil {
+					return nil, err
+				}
+
+				if usesVol {
+					attached = true
+					break
+				}
+			}
+
+			if !attached {
+				continue
+			}
+
+			key := vol.Pool + "/" + vol.Name
+			volUserCount[key]++
+			volOwnerMember[key] = inst.Location()
+			volKeysByInstance[inst.Name()] = append(volKeysByInstance[inst.Name()], key)
+		}
+	}
+
+	childArgs := make([]*operations.OperationArgs, 0, len(volumeWork)+len(iterNames))
+
+	for _, vol := range volumeWork {
+		volumeToRestore := vol
+		volumeWg.Add(1)
+
+		// Pin co-placement only when exactly one local instance attaches the volume.
+		dstMember := ""
+		if volUserCount[volumeToRestore.Pool+"/"+volumeToRestore.Name] == 1 {
+			dstMember = volOwnerMember[volumeToRestore.Pool+"/"+volumeToRestore.Name]
+		}
+
+		childArgs = append(childArgs, &operations.OperationArgs{
+			ProjectName: projectName,
+			EntityURL:   projectURL,
+			Type:        operationtype.ReplicatorRunVolume,
+			Class:       operationtype.OperationClassTask,
+			Metadata: map[string]any{
+				api.MetadataEntityURL: entity.StorageVolumeURL(projectName, "", volumeToRestore.Pool, dbCluster.StoragePoolVolumeTypeNameCustom, volumeToRestore.Name).String(),
+			},
+			RunHook: func(ctx context.Context, _ *operations.Operation) (retErr error) {
+				defer func() {
+					if retErr != nil {
+						volumeErrMu.Lock()
+						volumeErrByKey[volumeToRestore.Pool+"/"+volumeToRestore.Name] = retErr
+						volumeErrMu.Unlock()
+					}
+
+					volumeWg.Done()
+				}()
+
+				srcClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+				if err != nil {
+					return fmt.Errorf("Failed connecting to target cluster: %w", err)
+				}
+
+				return restoreVolume(ctx, s, volumeToRestore, projectName, nodeAddressByName[s.ServerName], dstMember, srcClient)
+			},
+		})
+	}
+
+	for _, instName := range iterNames {
+		var memberAddress string
+		inst, ok := instByName[instName]
+		if ok && inst.Location() != s.ServerName {
+			memberAddress = nodeAddressByName[inst.Location()]
+		}
+
+		// An instance known locally is gated only on the volumes it attaches. An instance
+		// that exists solely on the leader has unknown local attachments, so it keeps the
+		// conservative gate on any volume failure.
+		attachedVolKeys := volKeysByInstance[instName]
+		gateOnAnyVolume := !ok
+
+		childArgs = append(childArgs, &operations.OperationArgs{
+			ProjectName: projectName,
+			EntityURL:   projectURL,
+			Type:        operationtype.ReplicatorRunInstance,
+			Class:       operationtype.OperationClassTask,
+			Metadata: map[string]any{
+				api.MetadataEntityURL: entity.InstanceURL(projectName, instName).String(),
+			},
+			RunHook: func(ctx context.Context, op *operations.Operation) error {
+				waitErr := waitCtx(ctx, &volumeWg)
+				if waitErr != nil {
+					return waitErr
+				}
+
+				volumeErrMu.Lock()
+				var attachedVolErr error
+				if gateOnAnyVolume {
+					for _, volErr := range volumeErrByKey {
+						attachedVolErr = volErr
+						break
+					}
+				} else {
+					for _, key := range attachedVolKeys {
+						if volumeErrByKey[key] != nil {
+							attachedVolErr = volumeErrByKey[key]
+							break
+						}
+					}
+				}
+
+				volumeErrMu.Unlock()
+
+				if attachedVolErr != nil {
+					return fmt.Errorf("Skipping instance restore: restore of an attached volume failed: %w", attachedVolErr)
+				}
+
+				return restoreInstance(ctx, s, op, instName, projectName, memberAddress, localCertPEM, clusterLink, clusterCert, targetCert)
+			},
+		})
+	}
+
+	return childArgs, nil
+}
+
 // buildForwardChildOps builds the forward replication child list: one child per custom volume then one per instance.
 // snapshotWg gates transfers on all snapshots; volumeWg gates instance work on all volume transfers.
 // The WaitGroups form barriers across children, which relies on the operations framework running
