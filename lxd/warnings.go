@@ -202,13 +202,13 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var filteredWarnings []api.Warning
+	filteredWarnings, err = filterWarnings(warnings, clauses)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	if recursive == 0 {
 		var resultList []string
-
-		filteredWarnings, err = filterWarnings(warnings, clauses)
-		if err != nil {
-			return response.SmartError(err)
-		}
 
 		for _, w := range filteredWarnings {
 			url := api.NewURL().Path(version.APIVersion, "warnings", w.UUID).String()
@@ -216,11 +216,6 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		return response.SyncResponse(true, resultList)
-	}
-
-	filteredWarnings, err = filterWarnings(warnings, clauses)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	// Return detailed list of warnings
