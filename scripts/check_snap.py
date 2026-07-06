@@ -101,7 +101,8 @@ def check_snap(
         track: The snap channel track (e.g., 'latest').
         risk: The snap channel risk level (e.g., 'stable').
         github_repo: Optional GitHub repository in "org/repo" format for commit linking.
-        fmt: Output format: "auto" (default: detect TTY), "terminal", "markdown", or "plain".
+        fmt: Output format: "auto" (default: detect TTY), "terminal",
+        "markdown", or "plain".
     """
     # Resolve "auto" format based on TTY detection
     if fmt == "auto":
@@ -112,10 +113,12 @@ def check_snap(
     url = f"https://api.snapcraft.io/v2/snaps/info/{snap_name_encoded}"
 
     headers = {
-        # Series 16 is the only valid value; it refers to the snap format generation, not Ubuntu 16.04
+        # Series 16 is the only valid value; it refers to the snap format
+        # generation, not Ubuntu 16.04
         "Snap-Device-Series": "16",
-        # An architecture must be supplied or the API returns only the native arch of the requester;
-        # amd64 is used as a placeholder since the response includes all architectures regardless
+        # An architecture must be supplied or the API returns only the native
+        # arch of the requester; amd64 is used as a placeholder since the
+        # response includes all architectures regardless
         "Snap-Device-Architecture": "amd64",
     }
     req = urllib.request.Request(url, headers=headers)
@@ -193,7 +196,8 @@ def main():
         "-f",
         choices=get_args(Format),
         default="auto",
-        help="Output format: auto (default: terminal if TTY, plain otherwise), terminal, markdown, or plain",
+        help="Output format: auto (default: terminal if TTY, plain otherwise), "
+        "terminal, markdown, or plain",
     )
 
     args = parser.parse_args()
