@@ -69,14 +69,9 @@ import (
 func instanceState(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, name, resp := forwardedInstanceResponse(s, r)
+	c, _, _, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	c, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	hostInterfaces, _ := net.Interfaces()
