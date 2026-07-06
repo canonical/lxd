@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -70,23 +69,7 @@ import (
 func instanceState(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	instanceType, err := urlInstanceTypeDetect(r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	projectName := request.ProjectParam(r)
-	name := r.PathValue("name")
-	if shared.IsSnapshot(name) {
-		return response.BadRequest(errors.New("Invalid instance name"))
-	}
-
-	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	projectName, name, resp := forwardedInstanceResponse(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -140,23 +123,7 @@ func instanceState(d *Daemon, r *http.Request) response.Response {
 func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	instanceType, err := urlInstanceTypeDetect(r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	projectName := request.ProjectParam(r)
-	name := r.PathValue("name")
-	if shared.IsSnapshot(name) {
-		return response.BadRequest(errors.New("Invalid instance name"))
-	}
-
-	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	projectName, name, resp := forwardedInstanceResponse(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -165,7 +132,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 
 	// We default to -1 (i.e. no timeout) here instead of 0 (instant timeout).
 	req.Timeout = -1
-	err = json.NewDecoder(r.Body).Decode(&req)
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
