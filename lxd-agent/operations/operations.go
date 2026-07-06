@@ -74,7 +74,7 @@ type Operation struct {
 	// It is cancelled when the onRun hook completes or when Cancel is called (on operation deletion).
 	running cancel.Canceller
 
-	// Locking for concurent access to the Operation
+	// Locking for concurrent access to the Operation
 	lock sync.Mutex
 
 	events *events.Server

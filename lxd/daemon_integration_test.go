@@ -59,9 +59,11 @@ func TestDaemon_Stop_NilClusterDB(t *testing.T) {
 	daemon.serverClustered = true
 
 	// Must not panic; the originally-reported symptom.
+	var stopErr error
 	require.NotPanics(t, func() {
-		_ = daemon.Stop(context.Background(), unix.SIGINT)
+		stopErr = daemon.Stop(context.Background(), unix.SIGINT)
 	})
+	require.NoError(t, stopErr)
 }
 
 // The daemon is started and a client can connect to it via unix socket.
@@ -83,10 +85,10 @@ func TestIntegration_UnixSocket(t *testing.T) {
 // Return a function that can be used to cleanup every associated state.
 func newTestDaemon(t *testing.T) (*Daemon, func()) {
 	// OS
-	os, osCleanup := sys.NewTestOS(t)
+	testOS, osCleanup := sys.NewTestOS(t)
 
 	// Daemon
-	daemon := newDaemon(newConfig(), os)
+	daemon := newDaemon(newConfig(), testOS)
 	require.NoError(t, daemon.Init())
 
 	cleanup := func() {

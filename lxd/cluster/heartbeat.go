@@ -308,7 +308,7 @@ func (g *Gateway) HeartbeatRestart() bool {
 }
 
 func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
-	// Avoid concurent heartbeat loops.
+	// Avoid concurrent heartbeat loops.
 	// This is possible when both the regular task and the out of band heartbeat round from a dqlite
 	// connection or notification restart both kick in at the same time.
 	g.HeartbeatLock.Lock()
