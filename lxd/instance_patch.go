@@ -13,7 +13,6 @@ import (
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/project/limits"
-	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -58,25 +57,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 
-	instanceType, err := urlInstanceTypeDetect(r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	projectName := request.ProjectParam(r)
-
-	// Get the container
-	name := r.PathValue("name")
-	if shared.IsSnapshot(name) {
-		return response.BadRequest(errors.New("Invalid instance name"))
-	}
-
-	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	projectName, name, resp := forwardedInstanceResponse(s, r)
 	if resp != nil {
 		return resp
 	}
