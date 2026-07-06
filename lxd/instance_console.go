@@ -591,14 +591,9 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	projectName, name, resp := forwardedInstanceResponse(s, r)
+	inst, _, _, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	if inst.Type() != instancetype.Container {
