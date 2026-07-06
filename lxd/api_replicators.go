@@ -1881,6 +1881,16 @@ type replicatorVolume struct {
 
 func (v replicatorVolume) isExclusive() bool { return len(v.usedBy) == 1 }
 
+// instancesByName indexes the given instances by name for lookup during child-op construction.
+func instancesByName(insts []instance.Instance) map[string]instance.Instance {
+	byName := make(map[string]instance.Instance, len(insts))
+	for _, inst := range insts {
+		byName[inst.Name()] = inst
+	}
+
+	return byName
+}
+
 // buildVolumeWorkList enumerates the project's non-snapshot custom volumes, records which
 // instances attach each one and decides how each is snapshotted before replication: a volume
 // attached to exactly one instance is captured by that instance's all-exclusive snapshot,
