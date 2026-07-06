@@ -2337,3 +2337,189 @@ func restoreVolume(ctx context.Context, s *state.State, vol api.StorageVolume, p
 
 	return nil
 }
+
+// restoreInstance refreshes one instance from the promoted leader cluster; empty memberAddress means local.
+func restoreInstance(ctx context.Context, s *state.State, op *operations.Operation, instName string, projectName string, memberAddress string, localCertPEM string, clusterLink *api.ClusterLink, clusterCert *shared.CertInfo, targetCert *x509.Certificate) error {
+	dstClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+	if err != nil {
+		return fmt.Errorf("Failed connecting to target cluster: %w", err)
+	}
+
+	dstClient = dstClient.UseProject(projectName)
+
+	// In restore mode the local copy is stale; fetch current metadata from
+	// the current leader cluster so the restore uses up-to-date config/state.
+	freshInst, _, err := dstClient.GetInstance(instName)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Instance was deleted on the current leader cluster after failover; skip it rather
+			// than failing the whole run, since the deletion is intentional.
+			logger.Warn("Skipping restore of instance deleted on current leader cluster", logger.Ctx{"instance": instName})
+			return nil
+		}
+
+		return fmt.Errorf("Failed getting instance %q from current leader cluster: %w", instName, err)
+	}
+
+	// If the instance lives on a remote cluster member, forward the restore
+	// migration to that member so the refresh runs where the storage volume is.
+	// Instances on the local member (including unclustered servers) are handled
+	// directly below. This mirrors the logic in replicateInstance.
+	if memberAddress != "" {
+		memberClient, err := lxdCluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+		if err != nil {
+			return fmt.Errorf("Failed connecting to hosting cluster member for instance %q: %w", instName, err)
+		}
+
+		memberClient = memberClient.UseProject(projectName)
+
+		// Set up a push-mode migration sink on the hosting cluster member.
+		restoreOp, err := memberClient.CreateInstance(api.InstancesPost{
+			Name:        instName,
+			InstancePut: freshInst.Writable(),
+			Type:        api.InstanceType(freshInst.Type),
+			Source: api.InstanceSource{
+				Type:    api.SourceTypeMigration,
+				Mode:    "push",
+				Refresh: true,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("Failed requesting restore on hosting cluster member for instance %q: %w", instName, err)
+		}
+
+		restoreOpCancelled := false
+		defer func() {
+			if !restoreOpCancelled {
+				_ = restoreOp.Cancel()
+			}
+		}()
+
+		restoreOpAPI := restoreOp.Get()
+		restoreSecrets, err := restoreOpAPI.WebsocketSecrets()
+		if err != nil {
+			return fmt.Errorf("Failed getting websocket secrets from hosting cluster member for instance %q: %w", instName, err)
+		}
+
+		// Tell the current leader cluster to push-migrate the instance to the hosting cluster member's sink.
+		remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{
+			Migration: true,
+			Target: &api.InstancePostTarget{
+				Operation:   restoreOp.URL().String(),
+				Websockets:  restoreSecrets,
+				Certificate: localCertPEM,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("Failed starting push migration on current leader cluster for instance %q: %w", instName, err)
+		}
+
+		restoreOpCancelled = true
+
+		err = remoteMigrateOp.Wait()
+		if err != nil {
+			return fmt.Errorf("Restore of instance %q failed on current leader cluster: %w", instName, err)
+		}
+
+		return restoreOp.Wait()
+	}
+
+	// Load profiles for the instance to pass to the migration sink.
+	var profiles []api.Profile
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		profiles, err = instanceProfilesFromNames(ctx, tx, projectName, freshInst.Profiles)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed loading profiles for instance %q: %w", instName, err)
+	}
+
+	// Set up a push-mode migration sink locally so the leader pushes data to us.
+	migrateReq := &api.InstancesPost{
+		InstancePut: freshInst.Writable(),
+		Name:        instName,
+		Type:        api.InstanceType(freshInst.Type),
+		Source: api.InstanceSource{
+			Type:    api.SourceTypeMigration,
+			Mode:    "push",
+			Refresh: true,
+		},
+	}
+
+	result, err := prepareInstanceMigrationSink(ctx, s, projectName, profiles, migrateReq, "")
+	if err != nil {
+		return fmt.Errorf("Failed preparing migration sink for instance %q: %w", instName, err)
+	}
+
+	defer result.revert.Fail()
+
+	// Schedule the sink operation so it gets an ID and can accept websocket connections.
+	sinkOpArgs := operations.OperationArgs{
+		ProjectName: projectName,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
+		Type:        operationtype.InstanceCreate,
+		Class:       operationtype.OperationClassWebsocket,
+		Metadata:    result.sink.Metadata(),
+		ConnectHook: result.sink.Connect,
+		RunHook:     result.run,
+	}
+
+	var sinkOp *operations.Operation
+	if op.Requestor() != nil {
+		sinkOp, err = operations.ScheduleUserOperationFromOperation(s, op, sinkOpArgs)
+	} else {
+		sinkOp, err = operations.ScheduleServerOperation(s, sinkOpArgs)
+	}
+
+	if err != nil {
+		return fmt.Errorf("Failed scheduling migration sink operation for instance %q: %w", instName, err)
+	}
+
+	_, sinkOpAPI := sinkOp.Render()
+	sinkSecrets, err := sinkOpAPI.WebsocketSecrets()
+	if err != nil {
+		return fmt.Errorf("Failed getting websocket secrets from local sink for instance %q: %w", instName, err)
+	}
+
+	// Build the operation URL using the server's configured address so the leader can connect back.
+	// cluster.https_address takes precedence; if unset, fall back to core.https_address.
+	localAddress := s.LocalConfig.ClusterAddress()
+	if util.IsWildCardAddress(localAddress) || localAddress == "" {
+		localAddress = s.LocalConfig.HTTPSAddress()
+	}
+
+	if util.IsWildCardAddress(localAddress) || localAddress == "" {
+		sinkOp.Cancel()
+		return errors.New("Cannot restore to this server: configure a concrete address using cluster.https_address or core.https_address")
+	}
+
+	sinkOpURL := "https://" + localAddress + sinkOp.URL()
+
+	// Tell the current leader cluster to push-migrate the instance to our local sink.
+	remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{
+		Migration: true,
+		Target: &api.InstancePostTarget{
+			Operation:   sinkOpURL,
+			Websockets:  sinkSecrets,
+			Certificate: localCertPEM,
+		},
+	})
+	if err != nil {
+		sinkOp.Cancel()
+		return fmt.Errorf("Failed starting push migration on current leader cluster for instance %q: %w", instName, err)
+	}
+
+	remoteErr := remoteMigrateOp.Wait()
+	if remoteErr != nil {
+		sinkOp.Cancel()
+		return fmt.Errorf("Restore of instance %q failed on current leader cluster: %w", instName, remoteErr)
+	}
+
+	sinkErr := sinkOp.Wait(context.Background())
+	if sinkErr != nil {
+		return fmt.Errorf("Restore of instance %q failed: %w", instName, sinkErr)
+	}
+
+	result.revert.Success()
+	return nil
+}
