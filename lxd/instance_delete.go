@@ -2,14 +2,12 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -53,23 +51,7 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 
-	instanceType, err := urlInstanceTypeDetect(r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	projectName := request.ProjectParam(r)
-	name := r.PathValue("name")
-	if shared.IsSnapshot(name) {
-		return response.BadRequest(errors.New("Invalid instance name"))
-	}
-
-	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	projectName, name, resp := forwardedInstanceResponse(s, r)
 	if resp != nil {
 		return resp
 	}
