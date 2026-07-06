@@ -317,3 +317,18 @@ func extractVolumeParams(r *http.Request) (poolName string, volType string, volN
 
 	return poolName, volType, volName, nil
 }
+
+// extractVolumeSnapshotParams extracts the pool name, volume type, volume name and snapshot name from the request URL.
+func extractVolumeSnapshotParams(r *http.Request) (poolName string, volType string, volName string, snapshotName string, err error) {
+	poolName, volType, volName, err = extractVolumeParams(r)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	snapshotName, err = url.PathUnescape(r.PathValue("snapshot"))
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	return poolName, volType, volName, snapshotName, nil
+}
