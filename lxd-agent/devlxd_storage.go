@@ -245,12 +245,7 @@ var devLXDStoragePoolVolumeSnapshotEndpoint = devLXDAPIEndpoint{
 }
 
 func devLXDStoragePoolVolumeSnapshotGetHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	poolName, volType, volName, err := extractVolumeParams(r)
-	if err != nil {
-		return errorResponse(http.StatusBadRequest, err.Error())
-	}
-
-	snapshotName, err := url.PathUnescape(r.PathValue("snapshot"))
+	poolName, volType, volName, snapshotName, err := extractVolumeSnapshotParams(r)
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
@@ -272,12 +267,7 @@ func devLXDStoragePoolVolumeSnapshotGetHandler(d *Daemon, r *http.Request) *devL
 }
 
 func devLXDStoragePoolVolumeSnapshotDeleteHandler(d *Daemon, r *http.Request) *devLXDResponse {
-	poolName, volType, volName, err := extractVolumeParams(r)
-	if err != nil {
-		return errorResponse(http.StatusBadRequest, err.Error())
-	}
-
-	snapshotName, err := url.PathUnescape(r.PathValue("snapshot"))
+	poolName, volType, volName, snapshotName, err := extractVolumeSnapshotParams(r)
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())
 	}
