@@ -53,7 +53,7 @@ See [`GET /1.0/replicators/{name}/state`](swagger:/replicators/{name}/state/repl
 ````
 ````{group-tab} UI
 
-For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Replicators` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Replicators` from the expanded drop-down list.
+Click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Replicators` from the expanded drop-down list.
 
 To view the configuration for a specific replicator, click on the replicator's name.
 

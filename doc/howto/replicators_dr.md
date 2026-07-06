@@ -111,7 +111,7 @@ lxc replicator run <replicator_name> --restore
 ```
 ````
 ````{group-tab} UI
-For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Replicators` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Replicators` from the expanded drop-down list.
+Click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Replicators` from the expanded drop-down list.
 
 Click on the "run" button at the end of the replicator's row.
 
