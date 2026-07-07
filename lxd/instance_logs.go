@@ -196,31 +196,9 @@ func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	instanceType, err := urlInstanceTypeDetect(r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	projectName := request.ProjectParam(r)
-	name := r.PathValue("name")
-	if shared.IsSnapshot(name) {
-		return response.BadRequest(errors.New("Invalid instance name"))
-	}
-
-	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	inst, projectName, _, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	// Ensure instance exists.
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	file := r.PathValue("file")
@@ -291,31 +269,9 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 func instanceExecOutputsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	instanceType, err := urlInstanceTypeDetect(r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	projectName := request.ProjectParam(r)
-	name := r.PathValue("name")
-	if shared.IsSnapshot(name) {
-		return response.BadRequest(errors.New("Invalid instance name"))
-	}
-
-	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), d.State(), projectName, name, instanceType)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	inst, projectName, name, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	// Ensure instance exists.
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	// Mount the instance's root volume
@@ -406,31 +362,9 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 
 	s := d.State()
 
-	instanceType, err := urlInstanceTypeDetect(r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	projectName := request.ProjectParam(r)
-	name := r.PathValue("name")
-	if shared.IsSnapshot(name) {
-		return response.BadRequest(errors.New("Invalid instance name"))
-	}
-
-	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	inst, projectName, name, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	// Ensure instance exists.
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	file := r.PathValue("file")
@@ -505,31 +439,9 @@ func instanceExecOutputGet(d *Daemon, r *http.Request) response.Response {
 func instanceExecOutputDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
-	instanceType, err := urlInstanceTypeDetect(r)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	projectName := request.ProjectParam(r)
-	name := r.PathValue("name")
-	if shared.IsSnapshot(name) {
-		return response.BadRequest(errors.New("Invalid instance name"))
-	}
-
-	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	inst, projectName, name, resp := forwardedInstanceResponseWithInstance(s, r)
 	if resp != nil {
 		return resp
-	}
-
-	// Ensure instance exists.
-	inst, err := instance.LoadByProjectAndName(s, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	file := r.PathValue("file")

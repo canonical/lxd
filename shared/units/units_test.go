@@ -233,6 +233,14 @@ func Test_ParseByteSizeString(t *testing.T) {
 			want:    -1,
 			wantErr: true,
 		},
+		{
+			name: "integer overflow",
+			args: args{
+				input: "99999999999999999999B",
+			},
+			want:    -1,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -392,6 +400,14 @@ func Test_ParseBitSizeString(t *testing.T) {
 			name: "invalid integer",
 			args: args{
 				input: "12.34Mbit",
+			},
+			want:    -1,
+			wantErr: true,
+		},
+		{
+			name: "integer overflow",
+			args: args{
+				input: "99999999999999999999bit",
 			},
 			want:    -1,
 			wantErr: true,

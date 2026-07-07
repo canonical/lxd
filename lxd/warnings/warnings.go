@@ -169,9 +169,34 @@ func ResolveWarningsByLocalNodeAndProjectAndType(dbCluster *db.Cluster, projectN
 	return ResolveWarningsByNodeAndProjectAndType(dbCluster, localName, projectName, typeCode)
 }
 
-// ResolveWarningsByNodeAndProjectAndTypeAndEntity resolves warnings with the given node, project, type code, and entity.
-func ResolveWarningsByNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, nodeName string, projectName string, typeCode warningtype.Type, entityType entity.Type, entityID int) error {
-	err := dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+// getLocalNodeName returns the name of the local cluster member.
+func getLocalNodeName(dbCluster *db.Cluster) (string, error) {
+	var err error
+	var localName string
+
+	err = dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		localName, err = tx.GetLocalNodeName(ctx)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("Failed getting local member name: %w", err)
+	}
+
+	if localName == "" {
+		return "", errors.New("Local member name not available")
+	}
+
+	return localName, nil
+}
+
+// applyToWarningsByNodeAndProjectAndTypeAndEntity runs action on each warning matching the given
+// node, project, type code, and entity.
+func applyToWarningsByNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, nodeName string, projectName string, typeCode warningtype.Type, entityType entity.Type, entityID int, action func(ctx context.Context, tx *db.ClusterTx, w cluster.Warning) error) error {
+	return dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		entityTypeCode := cluster.EntityType(entityType)
 		filter := cluster.WarningFilter{
 			TypeCode:   &typeCode,
@@ -187,13 +212,20 @@ func ResolveWarningsByNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, node
 		}
 
 		for _, w := range warnings {
-			err = tx.UpdateWarningStatus(w.UUID, warningtype.StatusResolved)
+			err = action(ctx, tx, w)
 			if err != nil {
 				return err
 			}
 		}
 
 		return nil
+	})
+}
+
+// ResolveWarningsByNodeAndProjectAndTypeAndEntity resolves warnings with the given node, project, type code, and entity.
+func ResolveWarningsByNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, nodeName string, projectName string, typeCode warningtype.Type, entityType entity.Type, entityID int) error {
+	err := applyToWarningsByNodeAndProjectAndTypeAndEntity(dbCluster, nodeName, projectName, typeCode, entityType, entityID, func(ctx context.Context, tx *db.ClusterTx, w cluster.Warning) error {
+		return tx.UpdateWarningStatus(w.UUID, warningtype.StatusResolved)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed resolving warnings: %w", err)
@@ -204,23 +236,9 @@ func ResolveWarningsByNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, node
 
 // ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity resolves warnings with the given project, type code, and entity.
 func ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, projectName string, typeCode warningtype.Type, entityType entity.Type, entityID int) error {
-	var err error
-	var localName string
-
-	err = dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		localName, err = tx.GetLocalNodeName(ctx)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
+	localName, err := getLocalNodeName(dbCluster)
 	if err != nil {
-		return fmt.Errorf("Failed getting local member name: %w", err)
-	}
-
-	if localName == "" {
-		return errors.New("Local member name not available")
+		return err
 	}
 
 	return ResolveWarningsByNodeAndProjectAndTypeAndEntity(dbCluster, localName, projectName, typeCode, entityType, entityID)
@@ -228,29 +246,8 @@ func ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster,
 
 // DeleteWarningsByNodeAndProjectAndTypeAndEntity deletes warnings with the given node, project, type code, and entity.
 func DeleteWarningsByNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, nodeName string, projectName string, typeCode warningtype.Type, entityType entity.Type, entityID int) error {
-	err := dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		entityTypeCode := cluster.EntityType(entityType)
-		filter := cluster.WarningFilter{
-			TypeCode:   &typeCode,
-			Node:       &nodeName,
-			Project:    &projectName,
-			EntityType: &entityTypeCode,
-			EntityID:   &entityID,
-		}
-
-		warnings, err := cluster.GetWarnings(ctx, tx.Tx(), filter)
-		if err != nil {
-			return err
-		}
-
-		for _, w := range warnings {
-			err = cluster.DeleteWarning(ctx, tx.Tx(), w.UUID)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
+	err := applyToWarningsByNodeAndProjectAndTypeAndEntity(dbCluster, nodeName, projectName, typeCode, entityType, entityID, func(ctx context.Context, tx *db.ClusterTx, w cluster.Warning) error {
+		return cluster.DeleteWarning(ctx, tx.Tx(), w.UUID)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed deleting warnings: %w", err)
@@ -259,25 +256,11 @@ func DeleteWarningsByNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, nodeN
 	return nil
 }
 
-// DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity resolves warnings with the given project, type code, and entity.
+// DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity deletes warnings with the given project, type code, and entity.
 func DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, projectName string, typeCode warningtype.Type, entityType entity.Type, entityID int) error {
-	var err error
-	var localName string
-
-	err = dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		localName, err = tx.GetLocalNodeName(ctx)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
+	localName, err := getLocalNodeName(dbCluster)
 	if err != nil {
-		return fmt.Errorf("Failed getting local member name: %w", err)
-	}
-
-	if localName == "" {
-		return errors.New("Local member name not available")
+		return err
 	}
 
 	return DeleteWarningsByNodeAndProjectAndTypeAndEntity(dbCluster, localName, projectName, typeCode, entityType, entityID)

@@ -87,6 +87,60 @@ def _version_display(
     return version
 
 
+def _fetch_snap_info(snap_name: str) -> dict:
+    """Query the Snap Store API for a snap's release information.
+
+    Args:
+        snap_name: Name of the snap to query.
+
+    Returns:
+        The decoded JSON response from the Snap Store API. Exits the process on
+        network or decoding errors.
+    """
+    snap_name_encoded = urllib.parse.quote(snap_name, safe="")
+    url = f"https://api.snapcraft.io/v2/snaps/info/{snap_name_encoded}"
+
+    headers = {
+        # Series 16 is the only valid value; it refers to the snap format
+        # generation, not Ubuntu 16.04
+        "Snap-Device-Series": "16",
+        # An architecture must be supplied or the API returns only the native
+        # arch of the requester; amd64 is used as a placeholder since the
+        # response includes all architectures regardless
+        "Snap-Device-Architecture": "amd64",
+    }
+    req = urllib.request.Request(url, headers=headers)
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return json.loads(response.read().decode())
+    except urllib.error.URLError as e:
+        print(f"Failed to reach the Snap Store API: {e}", file=sys.stderr)
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"Failed to parse API response: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _format_release(release: dict, fmt: Format) -> str:
+    """Format a single release's architecture, size, revision and download link.
+
+    Args:
+        release: A single release entry from the Snap Store channel map.
+        fmt: Output format used for linkification.
+
+    Returns:
+        A formatted string describing the release, e.g. "amd64 (75MiB, rev: 42)".
+    """
+    arch = release.get("channel", {}).get("architecture", "?")
+    revision = release.get("revision", "?")
+    dl = release.get("download", {})
+    size_bytes = dl.get("size")
+    size_str = f"{size_bytes / (1024 * 1024):.0f}MiB" if size_bytes is not None else "?"
+    arch_link = _make_link(arch, dl.get("url", ""), fmt)
+    return f"{arch_link} ({size_str}, rev: {revision})"
+
+
 def check_snap(
     snap_name: str,
     track: str,
@@ -101,34 +155,16 @@ def check_snap(
         track: The snap channel track (e.g., 'latest').
         risk: The snap channel risk level (e.g., 'stable').
         github_repo: Optional GitHub repository in "org/repo" format for commit linking.
-        fmt: Output format: "auto" (default: detect TTY), "terminal", "markdown", or "plain".
+        fmt: Output format: "auto" (default: detect TTY), "terminal",
+        "markdown", or "plain".
     """
     # Resolve "auto" format based on TTY detection
     if fmt == "auto":
         resolved_fmt: str = "terminal" if sys.stdout.isatty() else "plain"
     else:
         resolved_fmt = fmt
-    snap_name_encoded = urllib.parse.quote(snap_name, safe="")
-    url = f"https://api.snapcraft.io/v2/snaps/info/{snap_name_encoded}"
 
-    headers = {
-        # Series 16 is the only valid value; it refers to the snap format generation, not Ubuntu 16.04
-        "Snap-Device-Series": "16",
-        # An architecture must be supplied or the API returns only the native arch of the requester;
-        # amd64 is used as a placeholder since the response includes all architectures regardless
-        "Snap-Device-Architecture": "amd64",
-    }
-    req = urllib.request.Request(url, headers=headers)
-
-    try:
-        with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read().decode())
-    except urllib.error.URLError as e:
-        print(f"Failed to reach the Snap Store API: {e}", file=sys.stderr)
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"Failed to parse API response: {e}", file=sys.stderr)
-        sys.exit(1)
+    data = _fetch_snap_info(snap_name)
 
     matches = [
         release
@@ -151,22 +187,9 @@ def check_snap(
 
     # Sort groups by version string for deterministic output
     for version in sorted(groups.keys()):
-        releases = groups[version]
-        arch_parts = []
-        for release in releases:
-            arch = release.get("channel", {}).get("architecture", "?")
-            revision = release.get("revision", "?")
-            dl = release.get("download", {})
-            dl_url = dl.get("url", "")
-            size_bytes = dl.get("size")
-            size_str = (
-                f"{size_bytes / (1024 * 1024):.0f}MiB"
-                if size_bytes is not None
-                else "?"
-            )
-            arch_link = _make_link(arch, dl_url, resolved_fmt)
-            link = f"{arch_link} ({size_str}, rev: {revision})"
-            arch_parts.append(link)
+        arch_parts = [
+            _format_release(release, resolved_fmt) for release in groups[version]
+        ]
         version_str = _version_display(version, github_repo, resolved_fmt)
         print(f"{version_str}: {',  '.join(arch_parts)}")
 
@@ -193,7 +216,8 @@ def main():
         "-f",
         choices=get_args(Format),
         default="auto",
-        help="Output format: auto (default: terminal if TTY, plain otherwise), terminal, markdown, or plain",
+        help="Output format: auto (default: terminal if TTY, plain otherwise), "
+        "terminal, markdown, or plain",
     )
 
     args = parser.parse_args()

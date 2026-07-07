@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
+	"net/http"
 
 	"github.com/canonical/lxd/lxd/cluster"
+	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/shared"
 )
 
 // forwardedResponseToNode forwards the request to the specified cluster member.
@@ -51,6 +55,53 @@ func forwardedResponseIfInstanceIsRemote(ctx context.Context, s *state.State, pr
 	}
 
 	return response.ForwardedResponse(client), nil
+}
+
+// forwardedInstanceResponse detects the instance type from the request, extracts the project and
+// instance name, rejects snapshot names, and forwards the request to the cluster member running the
+// instance if it is remote. When the returned response is non-nil, the caller should return it
+// immediately: it is either an error response, a bad request for a snapshot name, or the forwarded
+// response from the remote member. When it is nil, the instance is local and the caller should
+// continue using the returned project and instance name.
+func forwardedInstanceResponse(s *state.State, r *http.Request) (projectName string, name string, resp response.Response) {
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return "", "", response.SmartError(err)
+	}
+
+	projectName = request.ProjectParam(r)
+	name = r.PathValue("name")
+	if shared.IsSnapshot(name) {
+		return projectName, name, response.BadRequest(errors.New("Invalid instance name"))
+	}
+
+	forwarded, err := forwardedResponseIfInstanceIsRemote(r.Context(), s, projectName, name, instanceType)
+	if err != nil {
+		return projectName, name, response.SmartError(err)
+	}
+
+	return projectName, name, forwarded
+}
+
+// forwardedInstanceResponseWithInstance behaves like forwardedInstanceResponse and, when the
+// request targets the local member, additionally loads the instance. When the returned response is
+// non-nil, the caller should return it immediately: it is an error response, a bad request for a
+// snapshot name, the forwarded response from the remote member, or the error from loading the
+// instance. When it is nil, the returned instance is loaded and ready for use alongside the project
+// and instance name.
+func forwardedInstanceResponseWithInstance(s *state.State, r *http.Request) (inst instance.Instance, projectName string, name string, resp response.Response) {
+	projectName, name, resp = forwardedInstanceResponse(s, r)
+	if resp != nil {
+		return nil, projectName, name, resp
+	}
+
+	var err error
+	inst, err = instance.LoadByProjectAndName(s, projectName, name)
+	if err != nil {
+		return nil, projectName, name, response.SmartError(err)
+	}
+
+	return inst, projectName, name, nil
 }
 
 // forwardedResponseIfVolumeIsRemote checks for the presence of the ctxStorageVolumeRemoteNodeInfo key in the context.
