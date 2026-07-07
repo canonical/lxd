@@ -161,7 +161,7 @@ To authenticate a client using a trust token, complete the following steps:
        }'
 
    <!-- include start tls identity API -->
-   See [`POST /1.0/auth/identities/tls`](swagger:/auth/identitites/identities_post_tls) for more information.
+   See [`POST /1.0/auth/identities/tls`](swagger:/auth/identities/identities_post_tls) for more information.
 
    The return value of this query contains the information that is required to generate the trust token:
 
