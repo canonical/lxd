@@ -274,89 +274,95 @@ parts:
 
   edk2:
     after:
-      - nasm
-    source: https://github.com/tianocore/edk2
-    source-commit: ba0e0e4c6a174b71b18ccd6e47319cc45878893c # edk2-stable202208
-    # Avoid shallow clone (0 means full clone)
-    source-depth: 0
-    source-submodules: []
+      - qemu
+    source: https://git.launchpad.net/ubuntu/+source/edk2
+    source-depth: 1
+    source-commit: e5417b4778d9298a546997449df5dfa096a71a7f # import/2024.02-2ubuntu0.7
     source-type: git
     plugin: nil
     build-packages:
-      - on amd64:
-        - g++
+      - to amd64:
         - acpica-tools
-        - uuid-dev
-      - on arm64:
+        - bc
+        - debhelper
+        - dosfstools
         - g++
-        - acpica-tools
+        - lsb-release
+        - mtools
+        - nasm
+        - python3
+        - python3-pexpect
+        - quilt
         - uuid-dev
+        - xorriso
+      - to arm64:
+        - acpica-tools
+        - bc
+        - debhelper
+        - dosfstools
+        - g++
+        - lsb-release
+        - mtools
+        - nasm
+        - python3
+        - python3-pexpect
+        - quilt
+        - uuid-dev
+        - xorriso
+    override-stage: |-
+      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
+      craftctl default
     override-prime: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
     override-pull: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
       craftctl default
-
-      set -ex
-
-      # Pull submodules after switching to source-commit
-      git submodule update --init --recursive
     override-build: |-
       [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      set -ex
+      set -eux
 
-      # Git cherry-picks
-      git config user.email "noreply@lists.canonical.com"
-      git config user.name "LXD snap builder"
+      # Ensure staged libraries are found (needed for qemu to generate secure boot vars)
+      export LD_LIBRARY_PATH="${CRAFT_STAGE}/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH):${CRAFT_STAGE}/lib:${LD_LIBRARY_PATH:-}"
+
+      # Apply patches from Ubuntu sources.
+      QUILT_PATCHES=debian/patches quilt push -a
+
+      # Enable KVM if available
+      if [ -c /dev/kvm ] && [ -w /dev/kvm ]; then
+          sed -i 's/accel=tcg/accel=kvm:tcg/' debian/python/UEFI/Qemu.py
+      fi
+      # Ensure fast RNG in the build VM to speed up secure boot vars generation.
+      sed -i "s/'-serial', 'stdio',/'-serial', 'stdio', '-device', 'virtio-rng-pci',/" debian/python/UEFI/Qemu.py
 
       # Apply patches
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0001-force-DUID-LLT.patch"
       cp "${CRAFT_PROJECT_DIR}/patches/edk2-0002-logo.bmp" MdeModulePkg/Logo/Logo.bmp
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0003-boot-delay.patch"
-      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0004-gcc-errors.patch"
-      patch --binary -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0007-Disable-the-Shell-when-SecureBoot-is-enabled.patch"
 
-      ARCH="X64"
-      PKG="OvmfPkg/OvmfPkgX64.dsc"
-      FV_CODE="OVMF_CODE"
-      FV_VARS="OVMF_VARS"
-      if [ "$(uname -m)" = "aarch64" ]; then
-          ARCH="AARCH64"
-          PKG="ArmVirtPkg/ArmVirtQemu.dsc"
-          FV_CODE="QEMU_EFI"
-          FV_VARS="QEMU_VARS"
-      fi
-
-      # Run in a bash sub-shell as edksetup.sh requires it
-      set -ex
-      (
-      cat << EOF
-          . ./edksetup.sh
-          make -C BaseTools ARCH=${ARCH}
-          build -a ${ARCH} -t GCC49 -b RELEASE -p ${PKG} \
-            -DSECURE_BOOT_ENABLE=TRUE \
-            -DNETWORK_IP4_ENABLE=TRUE \
-            -DNETWORK_IP6_ENABLE=TRUE \
-            -DNETWORK_TLS_ENABLE=TRUE \
-            -DNETWORK_HTTP_BOOT_ENABLE=TRUE \
-            -DFD_SIZE_2MB \
-            -DTPM_ENABLE=TRUE \
-            -DTPM_CONFIG_ENABLE=TRUE \
-            -DTPM2_ENABLE=TRUE \
-            -DTPM2_CONFIG_ENABLE=TRUE
-      EOF
-      ) | bash -e
-
+      # Install files destination
       mkdir -p "${CRAFT_PART_INSTALL}/share/qemu/"
-      cp Build/*/*/FV/${FV_CODE}.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.fd"
-      cp Build/*/*/FV/${FV_VARS}.fd "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.fd"
 
-      if [ "$(uname -m)" = "aarch64" ]; then
-          truncate -s 64m "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.fd"
-          truncate -s 64m "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.fd"
+      if [ "$(uname -m)" = "x86_64" ]; then
+          BUILD_TARGET="build-ovmf"
+          SRC_DIR="debian/ovmf-install"
+          SRC_CODE="OVMF_CODE_4M.secboot.fd"
+          SRC_VARS="OVMF_VARS_4M.fd"
+          SRC_VARS_MS="OVMF_VARS_4M.ms.fd"
+      elif [ "$(uname -m)" = "aarch64" ]; then
+          BUILD_TARGET="build-qemu-efi-aarch64"
+          SRC_DIR="debian/aavmf-install"
+          SRC_CODE="AAVMF_CODE.secboot.fd"
+          SRC_VARS="AAVMF_VARS.fd"
+          SRC_VARS_MS="AAVMF_VARS.ms.fd"
       fi
 
+      # Build the firmware (defaults to a RELEASE build)
+      /usr/bin/make -f debian/rules "${BUILD_TARGET}"
+
+      cp "${SRC_DIR}/${SRC_CODE}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.fd"
+      cp "${SRC_DIR}/${SRC_VARS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.fd"
+      cp "${SRC_DIR}/${SRC_VARS_MS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.ms.fd"
     prime:
       - share/qemu/*
 
@@ -508,28 +514,6 @@ parts:
     prime:
       - bin/nano
       - etc/nanorc
-
-  nasm:
-    source: https://github.com/netwide-assembler/nasm
-    source-commit: 214f2d4c56925a280c480950bbf71389e2169e1a # nasm-2.15.05
-    source-depth: 1
-    source-type: git
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=
-    organize:
-      usr/bin/: bin/
-    override-prime:
-      # no need to prime anything as the nasm binary is only used by edk2
-      # and is not needed in the final snap artifact
-      exit 0
-    override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      craftctl default
-    override-build: |
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      patch -p1 < "${CRAFT_PROJECT_DIR}/patches/nasm-0000-disable-manpages.patch"
-      craftctl default
 
   nftables:
     after:
@@ -897,59 +881,6 @@ parts:
       - share/qemu/vgabios-ramfb.bin
       - share/qemu/vgabios-stdvga.bin
       - share/qemu/vgabios-virtio.bin
-
-  qemu-ovmf-secureboot:
-    after:
-      - edk2
-      - qemu
-    source: https://github.com/puiterwijk/qemu-ovmf-secureboot
-    source-depth: 1
-    source-type: git
-    plugin: nil
-    build-packages:
-      - xorriso
-    override-prime: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      craftctl default
-    override-pull: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-      craftctl default
-    override-build: |-
-      [ "$(uname -m)" != "x86_64" ] && [ "$(uname -m)" != "aarch64" ] && exit 0
-
-      export ARCH="$(basename "$(readlink -f "${CRAFT_STAGE}"/lib/*-linux-gnu*/)")"
-      export LD_LIBRARY_PATH="${CRAFT_STAGE}/lib:${CRAFT_STAGE}/lib/${ARCH}"
-
-      set -ex
-      rm -Rf iso-root vfat-root shell.iso
-      mkdir -p iso-root vfat-root/efi/boot
-      cp ../../edk2/build/Build/*/*/*/Shell.efi vfat-root/efi/boot/bootx64.efi
-      cp ../../edk2/build/Build/*/*/*/EnrollDefaultKeys.efi vfat-root/
-      "${CRAFT_STAGE}/bin/qemu-img" convert --image-opts driver=vvfat,floppy=on,fat-type=12,label=UEFI_SHELL,dir=vfat-root iso-root/shell.img
-      xorriso --as mkisofs -input-charset ASCII -J -rational-rock -e shell.img -no-emul-boot -o shell.iso iso-root/
-
-      # Basic aarch64 support
-      if [ "$(uname -m)" = "aarch64" ]; then
-          sed -i ovmf-vars-generator \
-              -e "s/'-machine', machinetype,/'-machine', 'virt', '-cpu', 'cortex-a57',/" \
-              -e "/charserial1/d" \
-              -e "s/ide-cd/scsi-cd/" \
-              -e "s/'-device',$/'-device', 'virtio-scsi-pci,id=scsi', '-device',/"
-      elif [ "$(uname -m)" = "x86_64" ]; then
-          cp -f "${CRAFT_STAGE}/share/qemu/kvmvapic.bin" .
-      fi
-
-      mkdir -p "${CRAFT_PART_INSTALL}/share/qemu/"
-      python3 ovmf-vars-generator \
-        --qemu-binary "${CRAFT_STAGE}/bin/qemu-system-$(uname -m)" \
-        --print-output --disable-smm --skip-testing \
-        --oem-string "$(cat ${CRAFT_PROJECT_DIR}/snapcraft/etc/ubuntu-sb.crt)" \
-        --ovmf-binary "${CRAFT_STAGE}/share/qemu/OVMF_CODE.fd" \
-        --ovmf-template-vars "${CRAFT_STAGE}/share/qemu/OVMF_VARS.fd" \
-        --uefi-shell-iso shell.iso \
-        "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.ms.fd"
-    prime:
-      - share/qemu/*
 
   sqlite:
     source: https://github.com/sqlite/sqlite
