@@ -356,11 +356,11 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 	status, ok := warningtype.StatusTypes[req.Status]
 	if !ok {
 		// Invalid status
-		return response.BadRequest(fmt.Errorf("Invalid warning type %q", req.Status))
+		return response.BadRequest(fmt.Errorf("Invalid warning status %q", req.Status))
 	}
 
 	if status != warningtype.StatusAcknowledged && status != warningtype.StatusNew {
-		return response.Forbidden(errors.New(`Status may only be set to "acknowledge" or "new"`))
+		return response.Forbidden(errors.New(`Status may only be set to "acknowledged" or "new"`))
 	}
 
 	var warning *cluster.Warning
