@@ -6,11 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"slices"
 
 	"github.com/canonical/lxd/lxd/identity"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -159,30 +157,27 @@ func (r *Requestor) IsForwarded() bool {
 	return r.forwardedOriginAddress != ""
 }
 
-// ForwardProxy returns a proxy function that adds the requestor details as headers to be inspected by the receiving cluster member.
-func (r *Requestor) ForwardProxy() func(req *http.Request) (*url.URL, error) {
-	return func(req *http.Request) (*url.URL, error) {
-		req.Header.Add(headerForwardedAddress, r.OriginAddress())
+// SetRequestorHeaders adds the requestor details as forwarded headers on the
+// given HTTP request so the receiving cluster member can identify the caller.
+func SetRequestorHeaders(r *Requestor, req *http.Request) {
+	req.Header.Add(headerForwardedAddress, r.OriginAddress())
 
-		username := r.CallerUsername()
-		if username != "" {
-			req.Header.Add(headerForwardedUsername, username)
+	username := r.CallerUsername()
+	if username != "" {
+		req.Header.Add(headerForwardedUsername, username)
+	}
+
+	protocol := r.CallerProtocol()
+	if protocol != "" {
+		req.Header.Add(headerForwardedProtocol, protocol)
+	}
+
+	identityProviderGroups := r.CallerIdentityProviderGroups()
+	if identityProviderGroups != nil {
+		b, err := json.Marshal(identityProviderGroups)
+		if err == nil {
+			req.Header.Add(headerForwardedIdentityProviderGroups, string(b))
 		}
-
-		protocol := r.CallerProtocol()
-		if protocol != "" {
-			req.Header.Add(headerForwardedProtocol, protocol)
-		}
-
-		identityProviderGroups := r.CallerIdentityProviderGroups()
-		if identityProviderGroups != nil {
-			b, err := json.Marshal(identityProviderGroups)
-			if err == nil {
-				req.Header.Add(headerForwardedIdentityProviderGroups, string(b))
-			}
-		}
-
-		return shared.ProxyFromEnvironment(req)
 	}
 }
 

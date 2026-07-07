@@ -2629,6 +2629,118 @@ test_clustering_image_replication() {
   kill_lxd "${LXD_THREE_DIR}"
 }
 
+test_clustering_image_proxy_bypass() {
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  sub_test "Image replication bypasses configured HTTP proxy"
+  # Set core.proxy_https and core.proxy_http to an unreachable proxy. Intra-cluster
+  # image replication should bypass the proxy entirely.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set core.proxy_https "http://127.0.0.1:1"
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set core.proxy_http "http://127.0.0.1:1"
+
+  # Import the test image on node1. Image replication happens across all nodes by default.
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
+
+  # The image should be visible through both nodes.
+  LXD_DIR="${LXD_ONE_DIR}" lxc image list | grep -wF testimage
+  LXD_DIR="${LXD_TWO_DIR}" lxc image list | grep -wF testimage
+
+  # The image tarball should be replicated to both nodes despite the unreachable proxy.
+  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
+  [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ]
+  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ]
+
+  # Clean up the image.
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+  [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+
+  # Unset the proxy configuration.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config unset core.proxy_https
+  LXD_DIR="${LXD_ONE_DIR}" lxc config unset core.proxy_http
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
+
+test_clustering_join_proxy_bypass() {
+  local LXD_DIR
+
+  # Set HTTP_PROXY and HTTPS_PROXY to an unreachable proxy so that cluster bootstrap
+  # and join fail if they do not bypass the proxy.
+  with_bad_proxy() {
+    HTTP_PROXY="http://127.0.0.1:1" HTTPS_PROXY="http://127.0.0.1:1" \
+    http_proxy="http://127.0.0.1:1" https_proxy="http://127.0.0.1:1" \
+    "$@"
+  }
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  sub_test "Cluster join bypasses HTTP_PROXY and HTTPS_PROXY environment variables"
+
+  # Bootstrap the first node with proxy env vars pointing to an unreachable proxy.
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  with_bad_proxy spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Join a second node with proxy env vars still set.
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  with_bad_proxy spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  # Verify the cluster is functional by checking both nodes are present and online.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -xF "status: Online"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -xF "status: Online"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
+
 test_clustering_dns() {
   local lxdDir
 

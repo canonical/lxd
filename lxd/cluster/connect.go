@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/canonical/lxd/client"
@@ -51,13 +52,19 @@ func Connect(ctx context.Context, address string, networkCert *shared.CertInfo, 
 		args.UserAgent = request.UserAgentNotifier
 	}
 
-	requestor, err := request.GetRequestor(ctx)
-	if err == nil {
-		args.Proxy = requestor.ForwardProxy()
+	// Always set a proxy function to have cluster traffic bypass any configured HTTP proxy.
+	args.Proxy = func(req *http.Request) (*url.URL, error) {
+		// Forward the requestor details if this is a user-initiated request.
+		requestor, err := request.GetRequestor(ctx)
+		if err == nil {
+			request.SetRequestorHeaders(requestor, req)
+		}
+
+		return nil, nil
 	}
 
-	url := "https://" + address
-	return lxd.ConnectLXDWithContext(ctx, url, args)
+	clusterURL := "https://" + address
+	return lxd.ConnectLXDWithContext(ctx, clusterURL, args)
 }
 
 // ConnectIfInstanceIsRemote figures out the address of the cluster member which is running the instance with the
@@ -104,6 +111,11 @@ func SetupTrust(serverCert *shared.CertInfo, clusterPut api.ClusterPut) error {
 		UserAgent:     version.UserAgent,
 	}
 
+	// Always set a proxy function to have cluster traffic bypass any configured HTTP proxy.
+	args.Proxy = func(req *http.Request) (*url.URL, error) {
+		return nil, nil
+	}
+
 	target, err := lxd.ConnectLXD("https://"+clusterPut.ClusterAddress, args)
 	if err != nil {
 		return fmt.Errorf("Failed to connect to target cluster node %q: %w", clusterPut.ClusterAddress, err)
@@ -144,6 +156,11 @@ func UpdateTrust(serverCert *shared.CertInfo, serverName string, targetAddress s
 		TLSClientKey:  string(serverCert.PrivateKey()),
 		TLSServerCert: targetCert,
 		UserAgent:     version.UserAgent,
+	}
+
+	// Always set a proxy function to have cluster traffic bypass any configured HTTP proxy.
+	args.Proxy = func(req *http.Request) (*url.URL, error) {
+		return nil, nil
 	}
 
 	target, err := lxd.ConnectLXD("https://"+targetAddress, args)

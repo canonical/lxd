@@ -23,6 +23,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -474,6 +475,19 @@ func CertFingerprintStr(c string) (string, error) {
 
 // GetRemoteCertificate returns the unverified peer certificate found at a remote address.
 func GetRemoteCertificate(ctx context.Context, address string, useragent string) (*x509.Certificate, error) {
+	return getRemoteCertificate(ctx, address, useragent, false)
+}
+
+// GetRemoteCertificateNoProxy returns the unverified peer certificate found at a remote address,
+// bypassing any configured HTTP proxy.
+func GetRemoteCertificateNoProxy(ctx context.Context, address string, useragent string) (*x509.Certificate, error) {
+	return getRemoteCertificate(ctx, address, useragent, true)
+}
+
+// getRemoteCertificate returns the unverified peer certificate found at a remote address.
+// If bypassProxy is true, the function bypasses any configured HTTP proxy.
+// Otherwise, the function uses the proxy from the environment to make a request.
+func getRemoteCertificate(ctx context.Context, address string, useragent string, bypassProxy bool) (*x509.Certificate, error) {
 	// Setup a permissive TLS config
 	tlsConfig, err := GetTLSConfig(nil)
 	if err != nil {
@@ -491,6 +505,13 @@ func GetRemoteCertificate(ctx context.Context, address string, useragent string)
 		TLSHandshakeTimeout:   time.Second * 5,
 	}
 
+	// Bypass the environment proxy.
+	if bypassProxy {
+		tr.Proxy = func(_ *http.Request) (*url.URL, error) {
+			return nil, nil
+		}
+	}
+
 	// Connect
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
 	if err != nil {
@@ -506,6 +527,8 @@ func GetRemoteCertificate(ctx context.Context, address string, useragent string)
 	if err != nil {
 		return nil, err
 	}
+
+	defer func() { _ = resp.Body.Close() }()
 
 	// Retrieve the certificate
 	if resp.TLS == nil || len(resp.TLS.PeerCertificates) == 0 {

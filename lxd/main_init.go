@@ -177,8 +177,8 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 			// Cluster URL
 			config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
 
-			// Cluster certificate
-			cert, err := shared.GetRemoteCertificate(context.Background(), "https://"+config.Cluster.ClusterAddress, version.UserAgent)
+			// Get cluster certificate bypassing any configured HTTP proxy.
+			cert, err := shared.GetRemoteCertificateNoProxy(context.Background(), "https://"+config.Cluster.ClusterAddress, version.UserAgent)
 			if err != nil {
 				fmt.Printf("Error connecting to existing cluster member %q: %v\n", clusterAddress, err)
 				continue
