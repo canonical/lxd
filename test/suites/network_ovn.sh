@@ -1146,7 +1146,7 @@ test_network_ovn() {
     lxc exec c1 -- sh -c 'hostname > /tmp/index.html && httpd -p 80 -h /tmp'
 
     echo "==> Wait for background monitor to confirm clean offline-to-online transition."
-    wait "${monitor_pid}"
+    wait_pid "${monitor_pid}"
 
     echo "==> Remove the first instance from the pool."
     lxc network load-balancer pool instance remove "${ovn_network}" http c1
@@ -1188,7 +1188,7 @@ test_network_ovn() {
     monitor_pid="$!"
 
     echo "==> Wait for background monitor to confirm clean transition to online status."
-    wait "${monitor_pid}"
+    wait_pid "${monitor_pid}"
 
     echo "==> Tear down the first and third servers."
     # XXX: On modern Ubuntu (26.04+), kernel.apparmor_restrict_unprivileged_unconfined=1 prevents 'killall' from killing httpd in the container
