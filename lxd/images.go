@@ -1618,42 +1618,45 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 	}
 
 	for fingerprint, projects := range imagesProjectsMap {
-		hasAccess := false
-
-		image, err := doImageGet(ctx, tx, projects[0], fingerprint, public)
-		if err != nil {
-			continue
-		}
-
 		for _, project := range projects {
-			if image.Public || hasPermission(entity.ImageURL(project, fingerprint)) {
-				hasAccess = true
-				break
-			}
-		}
-
-		if !hasAccess {
-			continue
-		}
-
-		if !mustLoadObjects {
-			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "images", fingerprint).String())
-		} else {
-			if clauses != nil && len(clauses.Clauses) > 0 {
-				match, err := filter.Match(*image, *clauses)
-				if err != nil {
-					return nil, err
-				}
-
-				if !match {
-					continue
-				}
+			image, err := doImageGet(ctx, tx, project, fingerprint, public)
+			if err != nil {
+				continue
 			}
 
-			if recursion {
-				resultMap = append(resultMap, image)
+			if !image.Public && !hasPermission(entity.ImageURL(project, fingerprint)) {
+				continue
+			}
+
+			if !mustLoadObjects {
+				url := api.NewURL().Path(version.APIVersion, "images", fingerprint)
+				if allProjects {
+					url = url.Project(project)
+				}
+
+				resultString = append(resultString, url.String())
 			} else {
-				resultString = append(resultString, api.NewURL().Path(version.APIVersion, "images", image.Fingerprint).String())
+				if clauses != nil && len(clauses.Clauses) > 0 {
+					match, err := filter.Match(*image, *clauses)
+					if err != nil {
+						return nil, err
+					}
+
+					if !match {
+						continue
+					}
+				}
+
+				if recursion {
+					resultMap = append(resultMap, image)
+				} else {
+					url := api.NewURL().Path(version.APIVersion, "images", image.Fingerprint)
+					if allProjects {
+						url = url.Project(project)
+					}
+
+					resultString = append(resultString, url.String())
+				}
 			}
 		}
 	}

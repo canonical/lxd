@@ -147,6 +147,34 @@ test_image_list_all_aliases() {
     lxc image alias delete zzz
 }
 
+test_image_list_all_projects() {
+    ensure_import_testimage
+
+    local fingerprint
+    fingerprint="$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
+    local fp_short
+    fp_short="$(echo "${fingerprint}" | cut -c1-12)"
+
+    sub_test "Same image in two projects appears twice in --all-projects output"
+
+    # Create a second project and copy the same image into it.
+    lxc project create p1 -c features.images=true -c features.profiles=false
+    lxc image copy "${fingerprint}" local: --target-project p1
+
+    # Verify both entries appear in the table.
+    local count
+    count="$(lxc image list --all-projects -f csv -c f | grep -cxF "${fp_short}")"
+    [ "${count}" -eq 2 ]
+
+    # Verify the project names are correct.
+    lxc image list --all-projects -f csv -c ef | grep -xF "default,${fp_short}"
+    lxc image list --all-projects -f csv -c ef | grep -xF "p1,${fp_short}"
+
+    # Clean up.
+    lxc image delete "${fingerprint}" --project p1
+    lxc project delete p1
+}
+
 test_image_list_remotes() {
     # list images from the `images:` and `ubuntu-minimal:`  builtin remotes if they are reachable
 
