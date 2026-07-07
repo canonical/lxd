@@ -2460,7 +2460,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 // mountBpfFs mounts bpffs inside the container.
 func (d *lxc) mountBpfFs(pid int, bpffsParams map[string]string) error {
 	if !d.state.OS.BPFToken {
-		return errors.New("BPF Token mechanism is not supported by kernel running")
+		return errors.New("BPF Token mechanism is not supported by the running kernel")
 	}
 
 	pidFdNr, pidFd := seccomp.MakePidFd(pid, d.state)
@@ -6976,7 +6976,7 @@ func (d *lxc) CanMigrate() (canMigrate bool, live bool) {
 	return d.canMigrate(d)
 }
 
-// LockExclusive attempts to get exlusive access to the instance's root volume.
+// LockExclusive attempts to get exclusive access to the instance's root volume.
 func (d *lxc) LockExclusive() (*operationlock.InstanceOperation, error) {
 	if d.IsRunning() {
 		return nil, errors.New("Instance is running")
@@ -7588,7 +7588,7 @@ func (d *lxc) loadRawLXCConfig(cc *liblxc.Container) error {
 	return nil
 }
 
-// forfileRunningLockName returns the forkfile-running_ID lock name.
+// forkfileRunningLockName returns the forkfile-running_ID lock name.
 func (d *common) forkfileRunningLockName() string {
 	return "forkfile-running_" + strconv.FormatInt(int64(d.id), 10)
 }
