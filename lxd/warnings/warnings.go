@@ -256,7 +256,7 @@ func DeleteWarningsByNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, nodeN
 	return nil
 }
 
-// DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity resolves warnings with the given project, type code, and entity.
+// DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity deletes warnings with the given project, type code, and entity.
 func DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, projectName string, typeCode warningtype.Type, entityType entity.Type, entityID int) error {
 	localName, err := getLocalNodeName(dbCluster)
 	if err != nil {
