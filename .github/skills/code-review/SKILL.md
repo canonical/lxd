@@ -45,6 +45,9 @@ require a human to act — skip anything static analysis already enforces.
 - **`sub_test` labels** should be present before each logically distinct phase of a test.
   Flag tests that have many sequential commands with no `sub_test` labeling.
 
+- **No need to clean up on failure.** Tests should not attempt to clean up after a
+  failure as CI runners are ephemeral and local runs can be started with `LXD_INSPECT=1` to debug failures in-place.
+
 ### Commit requirements
 
 See [`COMMITS.md`](../../../COMMITS.md) for the full prefix table and signing requirements.
