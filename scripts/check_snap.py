@@ -136,9 +136,7 @@ def _format_release(release: dict, fmt: Format) -> str:
     revision = release.get("revision", "?")
     dl = release.get("download", {})
     size_bytes = dl.get("size")
-    size_str = (
-        f"{size_bytes / (1024 * 1024):.0f}MiB" if size_bytes is not None else "?"
-    )
+    size_str = f"{size_bytes / (1024 * 1024):.0f}MiB" if size_bytes is not None else "?"
     arch_link = _make_link(arch, dl.get("url", ""), fmt)
     return f"{arch_link} ({size_str}, rev: {revision})"
 
