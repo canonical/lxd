@@ -377,3 +377,82 @@ is_uuid_v7() {
   # a, or b. This accounts for the version and variant. See https://datatracker.ietf.org/doc/html/rfc9562#name-uuid-version-7.
   echo "${1}" | grep -ixE '[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
 }
+
+# setup_replicator_volume_test wires two single-member clusters together as a leader
+# (LXD_ONE_DIR) and standby (LXD_TWO_DIR) replicator pair over "replicator-project",
+# then creates a custom volume pool named "volpool" that exists on both clusters. Custom
+# volume replication requires the pool to exist with the same name on both sides, so the
+# backend under test is exercised while the LXD pool name is kept identical. Sets the
+# global LXD_ONE_DIR, LXD_TWO_DIR and vol_pool for the caller.
+setup_replicator_volume_test() {
+  # Create two standalone clustered LXD daemons to simulate two separate clusters.
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_ONE_DIR}" true
+
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_TWO_DIR}" true
+
+  # Enable clustering on both.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster enable node2
+
+  # Create projects on both clusters.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project create replicator-project
+
+  # Setup auth groups and cluster links.
+  local trust_token
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  trust_token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --quiet --auth-group replicator-group)"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one --token "${trust_token}" --auth-group replicator-group
+
+  # Configure replica project settings: standby sets replica.cluster, leader creates replicator.
+  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_two --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
+
+  # Setup storage on both clusters.
+  local pool_one pool_two poolDriver
+  pool_one="lxdtest-$(basename "${LXD_ONE_DIR}")"
+  pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
+  # Custom volumes must reside on a pool that exists with the same name on both clusters (pool-parity requirement).
+  # Exercise the backend under test rather than always dir. For ceph the underlying pool is shared between the
+  # two clusters, so keep the LXD pool name identical while giving each cluster a distinct ceph.osd.pool_name.
+  poolDriver="$(storage_backend "${LXD_ONE_DIR}")"
+  vol_pool="volpool"
+  if [ "${poolDriver}" = "ceph" ]; then
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create "${vol_pool}" ceph "ceph.osd.pool_name=lxdtest-$(basename "${LXD_ONE_DIR}")-${vol_pool}"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage create "${vol_pool}" ceph "ceph.osd.pool_name=lxdtest-$(basename "${LXD_TWO_DIR}")-${vol_pool}"
+  elif [ "${poolDriver}" = "lvm" ]; then
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create "${vol_pool}" lvm "lvm.vg_name=lxdtest-$(basename "${LXD_ONE_DIR}")-${vol_pool}"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage create "${vol_pool}" lvm "lvm.vg_name=lxdtest-$(basename "${LXD_TWO_DIR}")-${vol_pool}"
+  elif [ "${poolDriver}" = "zfs" ]; then
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create "${vol_pool}" zfs "zfs.pool_name=lxdtest-$(basename "${LXD_ONE_DIR}")-${vol_pool}"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage create "${vol_pool}" zfs "zfs.pool_name=lxdtest-$(basename "${LXD_TWO_DIR}")-${vol_pool}"
+  else
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create "${vol_pool}" "${poolDriver}"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage create "${vol_pool}" "${poolDriver}"
+  fi
+}
+
+# teardown_replicator_volume_test removes the shared root disk device and the "volpool"
+# custom volume pool from both clusters and shuts the daemons down. Callers must delete
+# any instances and custom volumes they created first: the pool teardown only succeeds
+# once the pool is empty.
+teardown_replicator_volume_test() {
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device remove default root --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device remove default root --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage delete "${vol_pool}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage delete "${vol_pool}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+}
