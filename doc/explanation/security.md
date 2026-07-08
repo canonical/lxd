@@ -10,15 +10,17 @@ relatedlinks: "[Linux&#32;containers&#32;security](https://linuxcontainers.org/l
 :title: LXD security
 ```
 
-% Include content from [../../README.md](../../README.md)
-```{include} ../../README.md
-    :start-after: <!-- Include start security -->
-    :end-before: <!-- Include end security -->
-```
+Security considerations are critical when you install and deploy LXD.
+This page provides a high-level overview of information and concepts related to LXD security.
+To further increase your security posture, see {ref}`howto-security-harden`.
 
-See the following sections for detailed information. Also see: {ref}`howto-security-harden`.
+## Reporting vulnerabilities
 
-If you discover a security issue, see the [LXD security policy](https://github.com/canonical/lxd/blob/main/SECURITY.md) for information on how to report the issue.
+LXD adheres to the [Ubuntu disclosure policy](https://ubuntu.com/security/disclosure-policy).
+If you discover a security issue, see the [LXD security policy](https://github.com/canonical/lxd/blob/main/SECURITY.md) for information about how to report the issue.
+
+[LXD security advisories](https://github.com/canonical/lxd/security/advisories) are published on GitHub.
+For additional information about LXD releases and development, refer to our {ref}`ref-release-notes` and [LXD news on Discourse](https://discourse.ubuntu.com/c/project/lxd/news/143).
 
 ## Supported versions
 
@@ -29,6 +31,8 @@ Never use unsupported LXD versions in a production environment.
     :start-after: <!-- Include start supported versions -->
     :end-before: <!-- Include end supported versions -->
 ```
+
+See {ref}`ref-releases-snap` for the currently supported releases as well as information about updates and upgrades to the LXD snap.
 
 (security-daemon-access)=
 ## Access to the LXD daemon
@@ -55,16 +59,13 @@ The root user and all members of the `lxd` group can interact with the local dae
 (security_remote_access)=
 ### Access to the remote API
 
-By default, access to the daemon is only possible locally.
-By setting the {config:option}`server-core:core.https_address` configuration option, you can expose the same API over the network on a {abbr}`TLS (Transport Layer Security)` socket.
-See {ref}`server-expose` for instructions.
+By default, access to the daemon is only possible locally, but you can also {ref}`expose LXD to the network <server-expose>` on a {abbr}`TLS` (Transport Layer Security) socket.
 Remote clients can then connect to LXD and access any image that is marked for public use.
 
 There are several ways to authenticate remote clients as trusted clients to allow them to access the API.
 See {ref}`authentication` for details.
+To increase your security posture in a production setup, you can also {ref}`harden remote API access <howto-security-harden-remote>` and {ref}`configure your firewall <network-bridge-firewall>`.
 
-In a production setup, you should set {config:option}`server-core:core.https_address` to the single address where the server should be available (rather than any address on the host).
-In addition, you should set firewall rules to allow access to the LXD port only from authorized hosts/subnets.
 
 (container-security)=
 ## Container security
@@ -166,6 +167,18 @@ In this networking mode, the LXD host functions as a router, and static routes a
 By default, the `veth` interface created on the host has its `accept_ra` setting disabled to prevent router advertisements from the container modifying the IPv6 routing table on the LXD host.
 In addition to that, the `rp_filter` on the host is set to `1` to prevent source address spoofing for IPs that the host does not know the container has.
 
+(security-logging)=
+## Events and logging
+
+LXD emits {ref}`events <events>` that track actions in your system.  In a production environment, you can {ref}`monitor these events with Loki <logs_loki>` or another centralized logging system to maintain a persistent audit trail.
+
+For additional logging methods, consult the {ref}`Logging <howto-security-harden-logging>` section in {ref}`howto-security-harden`. For details on metrics, including how to gather metrics with Prometheus, consult {ref}`metrics`. You can also {ref}`set up Grafana <grafana>` to visualize metrics and logging data.
+
+(security-cryptography)=
+## Cryptography
+
+LXD uses cryptographic technologies to authenticate, encrypt, and decrypt communication between servers, and to verify images copied from remote servers. For details, see {ref}`authentication` and {ref}`about-images`, as well as the guides to common operations related to {ref}`lxd-server` and {ref}`images`.
+
 ## Related topics
 
 {{security_how}}
@@ -173,3 +186,4 @@ In addition to that, the `rp_filter` on the host is set to `1` to prevent source
 Explanation:
 
 - {ref}`authentication`
+- {ref}`about-images`
