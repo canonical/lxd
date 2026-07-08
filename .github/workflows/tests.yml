@@ -419,6 +419,11 @@ jobs:
           git checkout --quiet -B "lxd-private-${GITHUB_REF_NAME}" "lxd-private/${GITHUB_REF_NAME}"
           git rebase --quiet --no-stat "origin/${GITHUB_REF_NAME}"
 
+          # Sync the rebased lxd-private branch back to the lxd-private repo so that it is kept in sync with the public repo.
+          # Do this before any snapcraft.yaml modifications made below.
+          # Use --force-with-lease and --force-if-includes to ensure local branch includes contents from lxd-private remote.
+          git push --quiet --force-with-lease="refs/heads/${GITHUB_REF_NAME}" --force-if-includes lxd-private HEAD:"${GITHUB_REF_NAME}"
+
           # Extract a strict major.minor[.patch] version from shared/version/flex.go.
           version="$(sed -nE 's/^var Version = "([0-9]+\.[0-9]+(\.[0-9]+)?)"$/\1/p' "${GITHUB_WORKSPACE}/shared/version/flex.go")"
 
