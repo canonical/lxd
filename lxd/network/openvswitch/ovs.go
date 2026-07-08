@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/shared"
@@ -17,6 +18,26 @@ import (
 
 // ovnBridgeMappingMutex locks access to read/write external-ids:ovn-bridge-mappings.
 var ovnBridgeMappingMutex sync.Mutex
+
+// ovsHostConfigCacheTTL is how long a successfully resolved static open_vswitch host config value
+// (such as the OVN southbound remote address or the local chassis ID) is cached before being looked
+// up again. This keeps the value fresh enough to follow MicroOVN reconfiguration without restarting
+// LXD, while avoiding a fork/exec of ovs-vsctl on every OVN operation.
+const ovsHostConfigCacheTTL = 30 * time.Second
+
+// ovnSBRemoteMu guards the cached OVN southbound remote address and its expiry.
+var (
+	ovnSBRemoteMu     sync.RWMutex
+	ovnSBRemoteCache  string
+	ovnSBRemoteExpiry time.Time
+)
+
+// chassisIDMu guards the cached local chassis ID and its expiry.
+var (
+	chassisIDMu     sync.RWMutex
+	chassisIDCache  string
+	chassisIDExpiry time.Time
+)
 
 // OVS TCP Flags from OVS lib/packets.h.
 const (
@@ -172,7 +193,26 @@ func (o *OVS) InterfaceAssociateOVNSwitchPort(interfaceName string, ovnSwitchPor
 }
 
 // ChassisID returns the local chassis ID.
+// The resolved value is cached for ovsHostConfigCacheTTL to avoid forking ovs-vsctl on every call.
+// Only successful, non-empty results are cached so that transient failures are retried on the next call.
 func (o *OVS) ChassisID() (string, error) {
+	chassisIDMu.RLock()
+	if chassisIDCache != "" && time.Now().Before(chassisIDExpiry) {
+		chassisID := chassisIDCache
+		chassisIDMu.RUnlock()
+		return chassisID, nil
+	}
+
+	chassisIDMu.RUnlock()
+
+	chassisIDMu.Lock()
+	defer chassisIDMu.Unlock()
+
+	// Re-check in case another goroutine refreshed the cache while waiting for the write lock.
+	if chassisIDCache != "" && time.Now().Before(chassisIDExpiry) {
+		return chassisIDCache, nil
+	}
+
 	// ovs-vsctl's get command doesn't support its --format flag, so we always get the output quoted.
 	// However ovs-vsctl's find and list commands don't support retrieving a single column's map field.
 	// And ovs-vsctl's JSON output is unfriendly towards statically typed languages as it mixes data types
@@ -186,6 +226,11 @@ func (o *OVS) ChassisID() (string, error) {
 	chassisID, err = unquote(chassisID)
 	if err != nil {
 		return "", fmt.Errorf("Failed unquoting: %w", err)
+	}
+
+	if chassisID != "" {
+		chassisIDCache = chassisID
+		chassisIDExpiry = time.Now().Add(ovsHostConfigCacheTTL)
 	}
 
 	return chassisID, nil
@@ -351,7 +396,27 @@ func (o *OVS) HardwareOffloadingEnabled() bool {
 }
 
 // OVNSouthboundDBRemoteAddress gets the address of the southbound ovn database.
+// The resolved address is cached for ovsHostConfigCacheTTL to avoid forking ovs-vsctl on every call,
+// which is a hot path for operations such as the load balancer status monitor. Only successful,
+// non-empty results are cached so that transient failures are retried on the next call.
 func (o *OVS) OVNSouthboundDBRemoteAddress() (string, error) {
+	ovnSBRemoteMu.RLock()
+	if ovnSBRemoteCache != "" && time.Now().Before(ovnSBRemoteExpiry) {
+		addr := ovnSBRemoteCache
+		ovnSBRemoteMu.RUnlock()
+		return addr, nil
+	}
+
+	ovnSBRemoteMu.RUnlock()
+
+	ovnSBRemoteMu.Lock()
+	defer ovnSBRemoteMu.Unlock()
+
+	// Re-check in case another goroutine refreshed the cache while waiting for the write lock.
+	if ovnSBRemoteCache != "" && time.Now().Before(ovnSBRemoteExpiry) {
+		return ovnSBRemoteCache, nil
+	}
+
 	result, err := shared.RunCommand(context.TODO(), "ovs-vsctl", "get", "open_vswitch", ".", "external_ids:ovn-remote")
 	if err != nil {
 		return "", err
@@ -360,6 +425,11 @@ func (o *OVS) OVNSouthboundDBRemoteAddress() (string, error) {
 	addr, err := unquote(strings.TrimSuffix(result, "\n"))
 	if err != nil {
 		return "", err
+	}
+
+	if addr != "" {
+		ovnSBRemoteCache = addr
+		ovnSBRemoteExpiry = time.Now().Add(ovsHostConfigCacheTTL)
 	}
 
 	return addr, nil
