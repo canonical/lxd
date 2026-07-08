@@ -19,10 +19,20 @@ spawn_acme() {
   echo $! > "${TEST_DIR}/acme.pid"
 
   # Wait for the server to be ready.
-  for _ in $(seq 3); do
-    curl -s --cacert "${TEST_DIR}/mini-acme-ca.crt" -o /dev/null "https://${addr}/directory" 2>/dev/null && break
+  success=0
+  for _ in $(seq 10); do
+    if curl -s --cacert "${TEST_DIR}/mini-acme-ca.crt" -o /dev/null "https://${addr}/directory" 2>/dev/null; then
+      success=1
+      break
+    fi
+
     sleep 0.1
   done
+
+  if [ "${success}" = 0 ]; then
+    echo "mini-acme: Not available within 1 second"
+    false
+  fi
 }
 
 kill_acme() {
