@@ -1,19 +1,148 @@
-API:
-- changed-files:
-  - any-glob-to-any-file:
-    - doc/api-extensions.md
-    - doc/rest-api.yaml
-    - shared/api/**/*
-Documentation:
-- changed-files:
-  - any-glob-to-any-file:
-    - doc/**/*
-
-"5.21 LTS":
-- base-branch: 'stable-5.21'
+"4.0 LTS":
+- base-branch: 'stable-4.0'
 
 "5.0 LTS":
 - base-branch: 'stable-5.0'
 
-"4.0 LTS":
-- base-branch: 'stable-4.0'
+"5.21 LTS":
+- base-branch: 'stable-5.21'
+
+d/api:
+- changed-files:
+  - any-glob-to-any-file:
+    - client/**/*
+    - doc/api-extensions.md
+    - doc/api.md
+    - doc/devlxd-api.yaml
+    - doc/rest-api.md
+    - doc/rest-api.yaml
+    - lxd/api*.go
+    - lxd/swagger.go
+    - shared/api/**/*
+
+d/auth:
+- changed-files:
+  - any-glob-to-any-file:
+    - client/lxd_auth.go
+    - client/lxd_certificates.go
+    - client/lxd_oidc.go
+    - lxc/auth.go
+    - lxd/auth/**/*
+    - lxd/auth_groups.go
+    - lxd/certificate/**/*
+    - lxd/certificates.go
+    - lxd/db/oidc/**/*
+    - lxd/db/openfga/**/*
+    - lxd/identities.go
+    - lxd/identity/**/*
+    - lxd/identity_provider_groups.go
+    - lxd/oidc_sessions.go
+    - lxd/permissions.go
+    - lxd/tokens.go
+    - shared/api/auth.go
+    - shared/api/certificate.go
+    - shared/cert.go
+    - shared/trust/**/*
+
+d/build-test:
+- changed-files:
+  - any-glob-to-any-file:
+    - .github/**/*
+    - Makefile
+    - doc/Makefile
+    - lxd-qemu-snap/**/*
+    - lxd/Makefile
+    - scripts/**/*
+    - snap/**/*
+    - snapcraft/**/*
+    - test/**/*
+    - tools/**/*
+
+d/cli:
+- changed-files:
+  - any-glob-to-any-file:
+    - fuidshift/**/*
+    - lxc/**/*
+    - lxd-agent/**/*
+    - lxd-benchmark/**/*
+    - lxd-convert/**/*
+    - lxd-user/**/*
+
+d/clustering:
+- changed-files:
+  - any-glob-to-any-file:
+    - client/lxd_cluster.go
+    - lxc/cluster*.go
+    - lxd/api_cluster*.go
+    - lxd/cluster/**/*
+    - shared/api/cluster*.go
+
+d/database:
+- changed-files:
+  - any-glob-to-any-file:
+    - lxd/db/**/*
+
+d/docs:
+- changed-files:
+  - any-glob-to-any-file:
+    - doc/**/*
+
+d/images:
+- changed-files:
+  - any-glob-to-any-file:
+    - client/lxd_images.go
+    - client/simplestreams*.go
+    - lxc/image*.go
+    - lxc/publish.go
+    - lxd/daemon_images.go
+    - lxd/db/images*.go
+    - lxd/images*.go
+    - lxd/metadata/**/*
+    - shared/api/image.go
+    - shared/simplestreams/**/*
+
+d/instance:
+- changed-files:
+  - any-glob-to-any-file:
+    - client/lxd_instances.go
+    - client/lxd_profiles.go
+    - lxc/config/**/*
+    - lxc/console.go
+    - lxc/exec.go
+    - lxd/backup.go
+    - lxd/backup/**/*
+    - lxd/device/**/*
+    - lxd/devices.go
+    - lxd/instance*.go
+    - lxd/instance/**/*
+    - lxd/instances*.go
+    - lxd/profiles*.go
+    - shared/api/backup.go
+    - shared/api/instance*.go
+    - shared/api/profile.go
+
+d/networking:
+- changed-files:
+  - any-glob-to-any-file:
+    - client/lxd_network*.go
+    - lxc/network*.go
+    - lxd/bgp/**/*
+    - lxd/device/nic*.go
+    - lxd/dns/**/*
+    - lxd/dnsmasq/**/*
+    - lxd/firewall/**/*
+    - lxd/ip/**/*
+    - lxd/network*.go
+    - lxd/network/**/*
+    - shared/api/network*.go
+
+d/storage:
+- changed-files:
+  - any-glob-to-any-file:
+    - client/lxd_storage_*.go
+    - lxc/storage*.go
+    - lxd/daemon_storage.go
+    - lxd/db/storage_*.go
+    - lxd/storage*.go
+    - lxd/storage/**/*
+    - shared/api/storage_pool*.go
