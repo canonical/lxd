@@ -360,9 +360,9 @@ parts:
       # Build the firmware (defaults to a RELEASE build)
       /usr/bin/make -f debian/rules "${BUILD_TARGET}"
 
-      cp "${SRC_DIR}/${SRC_CODE}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.fd"
-      cp "${SRC_DIR}/${SRC_VARS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.fd"
-      cp "${SRC_DIR}/${SRC_VARS_MS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.ms.fd"
+      cp "${SRC_DIR}/${SRC_CODE}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_CODE.4MB.fd"
+      cp "${SRC_DIR}/${SRC_VARS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.fd"
+      cp "${SRC_DIR}/${SRC_VARS_MS}" "${CRAFT_PART_INSTALL}/share/qemu/OVMF_VARS.4MB.ms.fd"
     prime:
       - share/qemu/*
 
