@@ -1901,14 +1901,15 @@ func (d *qemu) setupNvram() error {
 		return err
 	}
 
-	// Generate a symlink if needed.
+	// Generate a symlink.
 	// This is so qemu.nvram can always be assumed to be the OVMF vars file.
 	// The real file name is then used to determine what firmware must be selected.
-	if !shared.PathExists(d.nvramPath()) {
-		err = os.Symlink(ovmfVarsName, d.nvramPath())
-		if err != nil {
-			return err
-		}
+	// Always refresh the symlink so that regenerating the NVRAM (e.g. when
+	// transitioning to a different firmware) points it at the new vars file.
+	_ = os.Remove(d.nvramPath())
+	err = os.Symlink(ovmfVarsName, d.nvramPath())
+	if err != nil {
+		return err
 	}
 
 	return nil
