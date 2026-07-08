@@ -351,10 +351,12 @@ func (s *acmeServer) handleChallenge(w http.ResponseWriter, r *http.Request) {
 		s.challenges[id] = chal
 	}
 
+	chalStatus := chal.status
+
 	s.mu.Unlock()
 
 	// Perform HTTP-01 validation if a validation address is configured.
-	if s.validationAddr != "" && chal.status == "pending" && ord != nil {
+	if s.validationAddr != "" && chalStatus == "pending" && ord != nil {
 		valid := s.validateHTTP01(chal.token)
 
 		s.mu.Lock()
