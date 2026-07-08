@@ -1237,11 +1237,45 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	// Copy OVMF settings firmware to nvram file if needed.
 	// This firmware file can be modified by the VM so it must be copied from the defaults.
-	if d.architectureSupportsUEFI(d.architecture) && (!shared.PathExists(d.nvramPath()) || shared.IsTrue(d.localConfig["volatile.apply_nvram"])) {
-		err = d.setupNvram()
+	if d.architectureSupportsUEFI(d.architecture) {
+		// ovmfNeedsUpdate checks if the nvram file needs to be regenerated using a new template.
+		ovmfNeedsUpdate := func(nvramTarget string) bool {
+			if shared.InSnap() {
+				if filepath.Base(nvramTarget) == "qemu.nvram" {
+					// Older versions of LXD didn't setup a symlink from qemu.nvram to a named
+					// firmware variant specific file, but rather copied the template directly.
+					// So if the resolved target is in fact still just the qemu.nvram file we
+					// know it's an older version of the firmware and it needs regenerating.
+					return true
+				} else if strings.Contains(nvramTarget, "OVMF") && !strings.Contains(nvramTarget, "4MB") {
+					// The 2MB firmware was deprecated in the LXD snap.
+					// Detect this by the absence of "4MB" in the nvram file target.
+					return true
+				}
+			}
+
+			return false
+		}
+
+		// Check if nvram path and its target exist.
+		nvramMissing := false
+		nvramTarget, err := filepath.EvalSymlinks(d.nvramPath())
 		if err != nil {
-			op.Done(err)
-			return err
+			if !os.IsNotExist(err) {
+				op.Done(err)
+				return err
+			}
+
+			nvramMissing = true
+		}
+
+		// Decide if nvram file needs to be setup/refreshed.
+		if nvramMissing || shared.IsTrue(d.localConfig["volatile.apply_nvram"]) || ovmfNeedsUpdate(nvramTarget) {
+			err = d.setupNvram()
+			if err != nil {
+				op.Done(err)
+				return err
+			}
 		}
 	}
 
