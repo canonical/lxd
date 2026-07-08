@@ -183,8 +183,23 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				// List of recognized virtual device types.
 				// Extending this list should be accommodated by setting the UsedBy field to the actual type.
 				virtualDevices := []string{"bcache"}
-				isVirtualDevicePath := func(v string) bool {
-					return pathExists(filepath.Join(entryPath, v)) && !pathExists(filepath.Join(entryPath, "partition"))
+				isVirtualDevicePath := func(deviceType string) bool {
+					// Skip partitions.
+					if pathExists(filepath.Join(entryPath, "partition")) {
+						return false
+					}
+
+					virtualDeviceTypePath := filepath.Join(entryPath, deviceType)
+					isVirtualDevice := pathExists(virtualDeviceTypePath)
+
+					// Identify if the disk is in use by any virtual device.
+					// In case of bcache the device's own ./bcache path is a link, not a directory.
+					// When adding more virtual types, check the behavior is identical to bcache.
+					if isVirtualDevice && pathIsDir(virtualDeviceTypePath) {
+						disk.UsedBy = deviceType
+					}
+
+					return isVirtualDevice
 				}
 
 				if !slices.ContainsFunc(virtualDevices, isVirtualDevicePath) {
@@ -479,12 +494,6 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			disk.DeviceFSUUID, err = block.DiskFSUUID(devPath)
 			if err != nil && !errors.Is(err, os.ErrPermission) {
 				return nil, err
-			}
-
-			// Identify if the disk is in use by any bcache device.
-			// The bcache device's own 'bcache' path is a link, not a directory.
-			if pathIsDir(filepath.Join(devicePath, "bcache")) {
-				disk.UsedBy = "bcache"
 			}
 
 			// Add to list
