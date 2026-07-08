@@ -143,11 +143,12 @@ func ScheduleOperation(eventServer *events.Server, args OperationArgs) (*Operati
 }
 
 func (op *Operation) done() {
+	op.lock.Lock()
 	if op.readonly {
+		op.lock.Unlock()
 		return
 	}
 
-	op.lock.Lock()
 	op.readonly = true
 	op.onRun = nil
 	op.onConnect = nil
