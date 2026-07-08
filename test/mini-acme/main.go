@@ -351,13 +351,14 @@ func (s *acmeServer) handleChallenge(w http.ResponseWriter, r *http.Request) {
 		s.challenges[id] = chal
 	}
 
+	token := chal.token
 	chalStatus := chal.status
 
 	s.mu.Unlock()
 
 	// Perform HTTP-01 validation if a validation address is configured.
 	if s.validationAddr != "" && chalStatus == "pending" && ord != nil {
-		valid := s.validateHTTP01(chal.token)
+		valid := s.validateHTTP01(token)
 
 		s.mu.Lock()
 		if valid {
@@ -366,12 +367,18 @@ func (s *acmeServer) handleChallenge(w http.ResponseWriter, r *http.Request) {
 			chal.status = "invalid"
 		}
 
+		token = chal.token
+		chalStatus = chal.status
 		s.mu.Unlock()
 	}
 
 	// Auto-approve when no validation address is configured.
 	if s.validationAddr == "" {
+		s.mu.Lock()
 		chal.status = "valid"
+		token = chal.token
+		chalStatus = chal.status
+		s.mu.Unlock()
 	}
 
 	s.addNonce(w)
@@ -379,8 +386,8 @@ func (s *acmeServer) handleChallenge(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"type":   "http-01",
 		"url":    s.baseURL + "/challenge/" + id,
-		"token":  chal.token,
-		"status": chal.status,
+		"token":  token,
+		"status": chalStatus,
 	})
 }
 
