@@ -277,7 +277,7 @@ parts:
       - qemu
     source: https://git.launchpad.net/ubuntu/+source/edk2
     source-depth: 1
-    source-commit: e5417b4778d9298a546997449df5dfa096a71a7f # import/2024.02-2ubuntu0.7
+    source-commit: d63241dd1f7e26e4b2b8878fa6caf4439cd8a6b5 # import/2024.02-2ubuntu0.9
     source-type: git
     plugin: nil
     build-packages:
