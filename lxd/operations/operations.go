@@ -946,8 +946,7 @@ func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 	}
 
 	// Get current metadata.
-	newMetadata := op.metadata
-	op.lock.Unlock()
+	newMetadata := maps.Clone(op.metadata)
 
 	// Merge with current one.
 	if op.metadata == nil {
@@ -958,11 +957,11 @@ func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 
 	newMetadata, err := validateMetadata(newMetadata)
 	if err != nil {
+		op.lock.Unlock()
 		return fmt.Errorf("Failed extending operation metadata: %w", err)
 	}
 
 	// Update the operation.
-	op.lock.Lock()
 	op.updatedAt = time.Now()
 	op.metadata = newMetadata
 	op.lock.Unlock()
