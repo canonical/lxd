@@ -930,10 +930,6 @@ func internalImportFromBackup(ctx context.Context, s *state.State, bInfo *backup
 	revert := revert.New()
 	defer revert.Fail()
 
-	if backupConf.Instance == nil {
-		return errors.New("No instance config in backup config")
-	}
-
 	instDBArgs, err := backup.ConfigToInstanceDBArgs(s, backupConf, projectName, true)
 	if err != nil {
 		return err
