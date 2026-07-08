@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -172,21 +173,28 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			entryPath := filepath.Join(sysClassBlock, entryName)
 			devicePath := filepath.Join(entryPath, "device")
 
-			// Only keep the main entries not partitions.
-			// Also account for bcache devices.
-			if !pathExists(devicePath) {
-				if !pathExists(filepath.Join(entryPath, "bcache")) {
-					continue
-				}
-
-				// The bcache virtual device's info is listed right under its entryPath.
-				devicePath = entryPath
-			}
-
 			// Setup the entry
 			disk := api.ResourcesStorageDisk{}
 			disk.ID = entryName
 			devPath := filepath.Join("/dev", entryName)
+
+			// Only keep the main entries not partitions.
+			if !pathExists(devicePath) {
+				// List of recognized virtual device types.
+				// Extending this list should be accommodated by setting the UsedBy field to the actual type.
+				virtualDevices := []string{"bcache"}
+				isVirtualDevicePath := func(v string) bool {
+					return pathExists(filepath.Join(entryPath, v)) && !pathExists(filepath.Join(entryPath, "partition"))
+				}
+
+				if !slices.ContainsFunc(virtualDevices, isVirtualDevicePath) {
+					continue
+				}
+
+				// For virtual block devices (for example bcache) there is no ./device directory.
+				// Use the entry path itself as the device source.
+				devicePath = entryPath
+			}
 
 			// Firmware revision
 			firmwareRevPath := filepath.Join(devicePath, "firmware_rev")
