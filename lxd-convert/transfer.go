@@ -72,7 +72,10 @@ func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instance
 		execPath = os.Args[0]
 	}
 
-	rsyncCmd := fmt.Sprintf("sh -c \"%s netcat %s\"", execPath, auds)
+	// Place cobra's end-of-flags marker ("--") before the positional argument so
+	// that the arguments rsync appends (the remote host and rsync's own --server
+	// options) are not parsed as flags by "lxd-convert netcat".
+	rsyncCmd := fmt.Sprintf("%s netcat -- %s", execPath, auds)
 
 	args := []string{
 		"-ar",

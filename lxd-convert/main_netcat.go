@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"io"
 	"net"
 	"os"
@@ -28,16 +27,11 @@ func (c *cmdNetcat) command() *cobra.Command {
 }
 
 func (c *cmdNetcat) run(cmd *cobra.Command, args []string) error {
-	// Help and usage
+	// Help and usage. rsync appends the remote host and its own arguments after
+	// the address, so tolerate additional arguments and only use the first one.
 	if len(args) == 0 {
 		_ = cmd.Help()
 		return nil
-	}
-
-	// Handle mandatory arguments
-	if len(args) != 1 {
-		_ = cmd.Help()
-		return errors.New("Missing required argument")
 	}
 
 	// Connect to the provided address

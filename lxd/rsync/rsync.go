@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -77,6 +78,41 @@ func assertSafePath(path string) error {
 		if segment == ".." {
 			return fmt.Errorf("Rsync path %q must not contain %q segments", path, "..")
 		}
+	}
+
+	return nil
+}
+
+// rsyncSafeName matches a name that is safe to embed in the rsync "-e" remote
+// shell command. It requires a non-empty string containing no Unicode
+// separator (\p{Z}) or other (\p{C}) characters. This rejects ASCII and
+// Unicode whitespace, control characters, and format characters such as
+// bidirectional overrides (e.g. U+202E), matching the Unicode-aware validation
+// applied to volume names elsewhere rather than only ASCII.
+var rsyncSafeName = regexp.MustCompile(`^[^\p{Z}\p{C}]+$`)
+
+// assertSafeName returns an error if the provided name is not safe to embed in
+// the rsync "-e" remote shell command. The name is passed verbatim as a
+// positional argument to "lxd netcat", which rsync tokenizes on whitespace and
+// executes without a shell, and which also uses the name to build a log path
+// via filepath.Join (see lxd/main_netcat.go). The name must therefore:
+//   - be non-empty and free of whitespace and control characters, so it cannot
+//     inject additional arguments into the remote command;
+//   - be a local path, so it cannot escape the intended log directory.
+//
+// Snapshot delimiters ("/") are still allowed (e.g. "vol/snap"). A leading "-"
+// is safe because Send passes "--" to "lxd netcat" before the positional
+// arguments, so cobra never parses the name as a flag.
+func assertSafeName(name string) error {
+	if !rsyncSafeName.MatchString(name) {
+		return fmt.Errorf("Rsync name %q must be non-empty and must not contain whitespace or control characters", name)
+	}
+
+	// filepath.IsLocal rejects absolute and empty names as well as names that
+	// traverse outside of their directory (via ".."), which would otherwise
+	// let a crafted name escape the log directory used by "lxd netcat".
+	if !filepath.IsLocal(name) {
+		return fmt.Errorf("Rsync name %q must be a local path", name)
 	}
 
 	return nil
@@ -166,7 +202,12 @@ func CopyFile(source string, dest string, bwlimit string, xattrs bool, rsyncArgs
 // Send sets up the sending half of an rsync, to recursively send the
 // directory pointed to by path over the websocket.
 func Send(name string, path string, conn io.ReadWriteCloser, wrapper ioprogress.ReaderWrapper, features []string, bwlimit string, execPath string, rsyncArgs ...string) error {
-	err := assertSafePath(path)
+	err := assertSafeName(name)
+	if err != nil {
+		return err
+	}
+
+	err = assertSafePath(path)
 	if err != nil {
 		return err
 	}
@@ -205,7 +246,11 @@ func Send(name string, path string, conn io.ReadWriteCloser, wrapper ioprogress.
 	 * other end of the lxd websocket), and so the path specified on the
 	 * --server instance of rsync takes precedence.
 	 */
-	rsyncCmd := fmt.Sprintf("%s netcat %s %s --", execPath, auds, name)
+	// Place cobra's end-of-flags marker ("--") before the positional arguments
+	// so that neither the name nor the arguments rsync appends (the remote host
+	// and rsync's own --server options) are parsed as flags by "lxd netcat",
+	// even when the name begins with a "-".
+	rsyncCmd := fmt.Sprintf("%s netcat -- %s %s", execPath, auds, name)
 
 	args := []string{
 		"-ar",
