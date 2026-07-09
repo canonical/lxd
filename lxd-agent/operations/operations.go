@@ -346,19 +346,25 @@ func (op *Operation) Render() (string, *api.Operation) {
 func (op *Operation) Wait(ctx context.Context) error {
 	select {
 	case <-op.finished.Done():
-		if op.err != "" {
+		op.lock.Lock()
+		errMsg := op.err
+		errCode := op.errCode
+		status := op.status
+		op.lock.Unlock()
+
+		if errMsg != "" {
 			// Custom error types can contain additional information about the failure.
 			// To ensure the error returned from the database is the same as error returned
 			// directly from the operation code, we return a new error object consisting
 			// only of the error message and error code.
 
 			// If the operation was cancelled, return fresh context.Cancelled error.
-			if op.status == api.Cancelled {
+			if status == api.Cancelled {
 				return context.Canceled
 			}
 
 			// For other errors, return a new error with the same message and code.
-			return api.NewStatusError(int(op.errCode), op.err)
+			return api.NewStatusError(int(errCode), errMsg)
 		}
 
 		return nil
