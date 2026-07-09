@@ -134,6 +134,31 @@ test_image_import_existing_alias() {
     lxc image delete newimage image2
 }
 
+test_image_import_metadata() {
+  local tmpDir imgDir imgTar out
+
+  sub_test "Reject metadata.yaml that is a symlink pointing outside the archive"
+
+  tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+  imgDir="${tmpDir}/image"
+  imgTar="${tmpDir}/image.tar"
+
+  mkdir -p "${imgDir}/rootfs"
+
+  # Create metadata.yaml as a symlink pointing outside the archive.
+  ln -s "/etc/hostname" "${imgDir}/metadata.yaml"
+
+  tar -cf "${imgTar}" -C "${imgDir}" .
+
+  out="$(! lxc image import "${imgTar}" --alias image-invalid-metadata 2>&1 || false)"
+  echo "${out}" | grep -F 'Error: Cannot read non-regular file "./metadata.yaml"'
+
+  # Check the rejected image was not imported.
+  ! lxc image list -f csv -c l | grep -qF "image-invalid-metadata" || false
+
+  rm -rf "${tmpDir}"
+}
+
 test_image_refresh() {
   # shellcheck disable=2039,3043
   local LXD2_DIR LXD2_ADDR
