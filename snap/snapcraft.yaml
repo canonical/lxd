@@ -1796,6 +1796,10 @@ lint:
     - library:
       # Ignore libs that are `dlopen`ed
       - lib/libnvidia-container-go.so*
+      - zfs-2.1/lib/libnvpair.so*
+      - zfs-2.1/lib/libuutil.so*
+      - zfs-2.1/lib/libzfs_core.so*
+      - zfs-2.1/lib/libzfs.so*
       - zfs-2.2/lib/libnvpair.so*
       - zfs-2.2/lib/libuutil.so*
       - zfs-2.2/lib/libzfs_core.so*
