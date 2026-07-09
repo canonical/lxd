@@ -518,7 +518,10 @@ func instanceFilePost(ctx context.Context, s *state.State, inst instance.Instanc
 
 		defer func() { _ = file.Close() }()
 
-		// Go to the end of the file.
+		// Seek to the end of the file so appended writes land past the existing
+		// content. We cannot rely on os.O_APPEND here: the sftp server writes
+		// with WriteAt using client-supplied offsets and treats the append flag
+		// as a no-op, so the client's offset must be positioned explicitly.
 		_, err = file.Seek(0, io.SeekEnd)
 		if err != nil {
 			return response.InternalError(err)
