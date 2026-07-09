@@ -2316,13 +2316,24 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 
 	newClusterCertFilename := shared.VarPath(acme.ClusterCertFilename)
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return err
+	// Check if we should notify other members
+	var notify bool
+	if r == nil {
+		// If the request is nil, this is not user requested and therefore initiated by a task (e.g ACME) on this member, notify others.
+		notify = true
+	} else {
+		// If the request is not nil, check if this is a cluster notification.
+		requestor, err := request.GetRequestor(r.Context())
+		if err != nil {
+			return err
+		}
+
+		// If it is not a cluster notification then it was initiated by a user. We need to notify other members.
+		notify = !requestor.IsClusterNotification()
 	}
 
 	// First node forwards request to all other cluster nodes
-	if r == nil || !requestor.IsClusterNotification() {
+	if notify {
 		var err error
 
 		revert.Add(func() {
@@ -2412,7 +2423,7 @@ func updateClusterCertificate(ctx context.Context, s *state.State, gateway *clus
 		}
 	}
 
-	err = util.WriteCert(s.OS.VarDir, "cluster", []byte(req.ClusterCertificate), []byte(req.ClusterCertificateKey), nil)
+	err := util.WriteCert(s.OS.VarDir, "cluster", []byte(req.ClusterCertificate), []byte(req.ClusterCertificateKey), nil)
 	if err != nil {
 		return err
 	}
