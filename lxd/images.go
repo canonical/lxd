@@ -1666,6 +1666,15 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 		}
 
 		if hdr.Name == "metadata.yaml" || hdr.Name == "./metadata.yaml" {
+			// Error in case the archive contains a metadata.yaml that is not a regular file.
+			// This ensures we are able to capture the image metadata.
+			// At this stage it is possible that the image contains another metadata.yaml file with actual contents.
+			// However this shouldn't be the case and likely indicates that the image is malformed.
+			// For performance reasons we don't continue reading the rest of the archive.
+			if hdr.Typeflag != tar.TypeReg {
+				return nil, "unknown", fmt.Errorf("Cannot read non-regular file %q", hdr.Name)
+			}
+
 			err = yaml.NewDecoder(util.MaxBytesReader(tr, util.MaxYAMLFileBytes)).Decode(&result)
 			if err != nil {
 				return nil, "unknown", err
