@@ -408,7 +408,11 @@ func (op *Operation) URL() string {
 
 // Status returns the operation status.
 func (op *Operation) Status() api.StatusCode {
-	return op.status
+	op.lock.Lock()
+	status := op.status
+	op.lock.Unlock()
+
+	return status
 }
 
 func (op *Operation) sendEvent(eventMessage any) {
