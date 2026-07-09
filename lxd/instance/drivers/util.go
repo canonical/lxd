@@ -41,18 +41,11 @@ func parseMemoryStr(memory string) (valueInt int64, err error) {
 
 // ParseImageMetadataFile parses the specified YAML file into api.ImageMetadata.
 // If the file exists, but is empty, then a zero value api.ImageMetadata is returned.
-func ParseImageMetadataFile(path string) (*api.ImageMetadata, error) {
-	metadataFile, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("Failed reading metadata file %q: %w", path, err)
-	}
-
-	defer func() { _ = metadataFile.Close() }()
-
+func ParseImageMetadataFile(metadataFile *os.File) (*api.ImageMetadata, error) {
 	metadata := new(api.ImageMetadata)
-	err = yaml.NewDecoder(util.MaxBytesReader(metadataFile, util.MaxYAMLFileBytes)).Decode(metadata)
+	err := yaml.NewDecoder(util.MaxBytesReader(metadataFile, util.MaxYAMLFileBytes)).Decode(metadata)
 	if err != nil && !errors.Is(err, io.EOF) {
-		return nil, fmt.Errorf("Failed parsing metadata file %q: %w", path, err)
+		return nil, fmt.Errorf("Failed parsing metadata file %q: %w", metadataFile.Name(), err)
 	}
 
 	return metadata, nil
