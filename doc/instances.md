@@ -26,7 +26,7 @@ Troubleshoot errors </howto/instances_troubleshoot.md>
 
 ## Attach instances to Ubuntu Pro
 
-An LXD server can automatically attach guest instances to its Ubuntu Pro subscription.
+A LXD server can automatically attach guest instances to its Ubuntu Pro subscription.
 
 ```{toctree}
 :titlesonly:

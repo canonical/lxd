@@ -6,7 +6,7 @@ myst:
 
 # Production setup
 
-These how-to guides cover common operations to prepare an LXD server setup for production.
+These how-to guides cover common operations to prepare a LXD server setup for production.
 
 ## Optimize performance
 
