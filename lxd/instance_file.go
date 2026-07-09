@@ -387,8 +387,12 @@ func effectiveFileOwnership(c instance.Container, headers *shared.LXDFileHeaders
 	}
 
 	idmapranges, err := idmapset.ValidRanges()
-	if len(idmapranges) != 2 {
+	if err != nil {
 		return 0, 0, err
+	}
+
+	if len(idmapranges) != 2 {
+		return 0, 0, fmt.Errorf("Unexpected number of idmap ranges: got %d, expected 2", len(idmapranges))
 	}
 
 	l := logger.AddContext(logger.Ctx{"project": c.Project().Name, "instance": c.Name(), "file": fileName})
