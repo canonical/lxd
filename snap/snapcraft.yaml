@@ -338,7 +338,7 @@ parts:
       - qemu
     source: https://git.launchpad.net/ubuntu/+source/edk2
     source-depth: 1
-    source-commit: fa8b3cd4c87f4a63ce02a509684a9b7282b3c376 # import/2024.02-2ubuntu0.8
+    source-commit: d63241dd1f7e26e4b2b8878fa6caf4439cd8a6b5 # import/2024.02-2ubuntu0.9
     source-type: git
     plugin: nil
     build-packages:
@@ -934,6 +934,14 @@ parts:
           # `set -- "$@"`: preserve arguments passed to `configure` and append
           # `--enable-tcg` at the end to override the previous `--disable-tcg`.
           sed -i '1 a set -- "$@" --enable-tcg' configure
+      elif [ "${QEMUARCH}" = "x86_64" ]; then
+          # Contrary to LP builders, local snapcraft build containers are lacking `/dev/kvm` device node by default.
+          # Since it's a requirement for building `edk2` on `amd64`, we need to check for it and fail the build if it's not available.
+          if  ! { [ -c /dev/kvm ] && [ -w /dev/kvm ]; }; then
+            echo "KVM acceleration is required to build on ${QEMUARCH}."
+            echo "Hint: lxc config --project snapcraft device add snapcraft-lxd-amd64-<ID> kvm unix-char source=/dev/kvm"
+            exit 1
+          fi
       fi
 
       # Extract efi-virtio.rom from ipxe-qemu.
