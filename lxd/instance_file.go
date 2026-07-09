@@ -17,7 +17,6 @@ import (
 	"github.com/pkg/sftp"
 
 	"github.com/canonical/lxd/lxd/instance"
-	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -374,14 +373,9 @@ func instanceFileHead(inst instance.Instance, path string) response.Response {
 }
 
 // For containers we can only run chown/chgrp if target uid/gid is within uidmap allowed range.
-func effectiveFileOwnership(inst instance.Instance, headers *shared.LXDFileHeaders, fileName string) (uid, gid int64, err error) {
+func effectiveFileOwnership(c instance.Container, headers *shared.LXDFileHeaders, fileName string) (uid, gid int64, err error) {
 	uid = headers.UID
 	gid = headers.GID
-
-	c, ok := inst.(instance.Container)
-	if !ok {
-		return 0, 0, fmt.Errorf("Invalid instance type: %T", inst)
-	}
 
 	idmapset, err := c.CurrentIdmap()
 	if err != nil {
@@ -397,7 +391,7 @@ func effectiveFileOwnership(inst instance.Instance, headers *shared.LXDFileHeade
 		return 0, 0, err
 	}
 
-	l := logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "file": fileName})
+	l := logger.AddContext(logger.Ctx{"project": c.Project().Name, "instance": c.Name(), "file": fileName})
 	for _, idmaprange := range idmapranges {
 		if idmaprange.Isuid && !idmaprange.Contains(headers.UID) {
 			l.Info("Requested UID not within idmap range", logger.Ctx{"uid": uid})
@@ -549,8 +543,9 @@ func instanceFilePost(ctx context.Context, s *state.State, inst instance.Instanc
 		if !exists || headers.UIDModifyExisting || headers.GIDModifyExisting {
 			if headers.UID >= 0 || headers.GID >= 0 {
 				// For containers, make sure we are not trying to apply IDs outside of the allowed range.
-				if inst.Type() == instancetype.Container {
-					headers.UID, headers.GID, err = effectiveFileOwnership(inst, headers, file.Name())
+				c, ok := inst.(instance.Container)
+				if ok {
+					headers.UID, headers.GID, err = effectiveFileOwnership(c, headers, file.Name())
 					if err != nil {
 						return response.SmartError(err)
 					}
@@ -612,8 +607,9 @@ func instanceFilePost(ctx context.Context, s *state.State, inst instance.Instanc
 		// Set file ownership.
 		if headers.UID >= 0 || headers.GID >= 0 {
 			// For containers, make sure we are not trying to apply IDs outside of the allowed range.
-			if inst.Type() == instancetype.Container {
-				headers.UID, headers.GID, err = effectiveFileOwnership(inst, headers, path)
+			c, ok := inst.(instance.Container)
+			if ok {
+				headers.UID, headers.GID, err = effectiveFileOwnership(c, headers, path)
 				if err != nil {
 					return response.SmartError(err)
 				}
