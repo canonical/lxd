@@ -240,7 +240,8 @@ func (op *Operation) start() {
 	op.lock.Unlock()
 }
 
-// IsRunning returns true if the operation run hook is still in progress.
+// IsRunning returns true while the operation context has not been cancelled.
+// It returns false once the operation completes or cancellation is requested.
 func (op *Operation) IsRunning() bool {
 	return op.running.Err() == nil
 }
