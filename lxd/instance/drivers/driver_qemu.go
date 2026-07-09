@@ -3224,13 +3224,27 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 }
 
 func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) error {
-	// If there's no metadata, just return.
-	metadata, err := ParseImageMetadataFile(filepath.Join(d.Path(), "metadata.yaml"))
+	instanceRoot, err := d.OpenRoot()
 	if err != nil {
+		return err
+	}
+
+	defer func() { _ = instanceRoot.Close() }()
+
+	metadataFile, err := instanceRoot.Open("metadata.yaml")
+	if err != nil {
+		// If there's no metadata, just return.
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil
 		}
 
+		return err
+	}
+
+	defer func() { _ = metadataFile.Close() }()
+
+	metadata, err := ParseImageMetadataFile(metadataFile)
+	if err != nil {
 		return fmt.Errorf("Failed reading metadata: %w", err)
 	}
 
@@ -6549,13 +6563,37 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		return nil
 	}
 
-	// Parse the metadata file.
-	fnam := filepath.Join(cDir, "metadata.yaml")
-	existingMetadata, err := ParseImageMetadataFile(fnam)
+	instanceRoot, err := d.OpenRoot()
+	if err != nil {
+		_ = tarWriter.Close()
+		d.logger.Error("Failed exporting instance", ctxMap)
+		return meta, err
+	}
+
+	defer func() { _ = instanceRoot.Close() }()
+
+	metadataFile, err := instanceRoot.Open("metadata.yaml")
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		_ = tarWriter.Close()
 		d.logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
+	}
+
+	var fnam string
+	var existingMetadata *api.ImageMetadata
+
+	if metadataFile != nil {
+		defer func() { _ = metadataFile.Close() }()
+
+		// Parse the metadata file.
+		existingMetadata, err = ParseImageMetadataFile(metadataFile)
+		if err != nil {
+			_ = tarWriter.Close()
+			d.logger.Error("Failed exporting instance", ctxMap)
+			return meta, err
+		}
+
+		fnam = filepath.Join(instanceRoot.Name(), "metadata.yaml")
 	}
 
 	if existingMetadata == nil {
@@ -6624,8 +6662,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 			return meta, err
 		}
 
-		tmpOffset := len(filepath.Dir(fnam)) + 1
-		err = tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false)
+		err = tarWriter.WriteFile("metadata.yaml", fnam, fi, false)
 		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
@@ -6671,7 +6708,13 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		}
 
 		// Include metadata.yaml in the tarball.
-		fi, err := os.Lstat(fnam)
+		var fi fs.FileInfo
+		if properties != nil || !expiration.IsZero() {
+			fi, err = os.Lstat(fnam)
+		} else {
+			fi, err = metadataFile.Stat()
+		}
+
 		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Debug("Error statting during export", logger.Ctx{"fileName": fnam})
@@ -6679,13 +6722,8 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 			return meta, err
 		}
 
-		if properties != nil || !expiration.IsZero() {
-			tmpOffset := len(filepath.Dir(fnam)) + 1
-			err = tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false)
-		} else {
-			err = tarWriter.WriteFile(fnam[offset:], fnam, fi, false)
-		}
-
+		// In both sub-cases the desired tar entry name is always "metadata.yaml".
+		err = tarWriter.WriteFile("metadata.yaml", fnam, fi, false)
 		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Debug("Error writing to tarfile", logger.Ctx{"err": err})
