@@ -934,6 +934,14 @@ parts:
           # `set -- "$@"`: preserve arguments passed to `configure` and append
           # `--enable-tcg` at the end to override the previous `--disable-tcg`.
           sed -i '1 a set -- "$@" --enable-tcg' configure
+      elif [ "${QEMUARCH}" = "x86_64" ]; then
+          # Contrary to LP builders, local snapcraft build containers are lacking `/dev/kvm` device node by default.
+          # Since it's a requirement for building `edk2` on `amd64`, we need to check for it and fail the build if it's not available.
+          if  ! { [ -c /dev/kvm ] && [ -w /dev/kvm ]; }; then
+            echo "KVM acceleration is required to build on ${QEMUARCH}."
+            echo "Hint: lxc config --project snapcraft device add snapcraft-lxd-amd64-<ID> kvm unix-char source=/dev/kvm"
+            exit 1
+          fi
       fi
 
       # Extract efi-virtio.rom from ipxe-qemu.
