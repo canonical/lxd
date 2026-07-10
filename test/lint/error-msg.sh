@@ -1,6 +1,7 @@
 #!/bin/bash
 set -eu
 set -o pipefail
+shopt -s inherit_errexit
 
 # This linter enforces error message style conventions tree-wide on all Go
 # files (excluding protobuf bindings).
