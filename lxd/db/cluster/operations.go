@@ -357,11 +357,6 @@ func GetOperationsByProjectAndType(ctx context.Context, tx *sql.Tx, projectName 
 	return query.Select[Operation](ctx, tx, "WHERE coalesce(projects.name, '') = ? AND operations.type = ?", projectName, opType)
 }
 
-// DeleteOperation deletes an operation by UUID.
-func DeleteOperation(ctx context.Context, tx *sql.Tx, operationUUID string) error {
-	return query.DeleteOne[OperationsRow](ctx, tx, "WHERE operations.uuid = ?", operationUUID)
-}
-
 // GetOperation gets an [Operation] by UUID.
 func GetOperation(ctx context.Context, tx *sql.Tx, operationUUID string) (*Operation, error) {
 	return query.SelectOne[Operation](ctx, tx, "WHERE operations.uuid = ?", operationUUID)
