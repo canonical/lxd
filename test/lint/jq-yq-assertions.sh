@@ -1,6 +1,7 @@
 #!/bin/bash
 set -eu
 set -o pipefail
+shopt -s inherit_errexit
 
 # Ensure that all test scripts use `jq` or `yq` with `--exit-status` when
 # checking for JSON/YAML.
