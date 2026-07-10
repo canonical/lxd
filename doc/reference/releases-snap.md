@@ -167,7 +167,7 @@ LXD cluster members must use the same version of the snap at all times. Thus, wh
 (ref-snap-database)=
 #### Database schema update and backup
 
-When the daemon restarts after an LXD update or upgrade, if a new database schema is detected, the database is updated. A backup of the database before the update is created and stored in the same location as the active database. If LXD is installed through the snap, this location is `/var/snap/lxd/common/lxd/database`. If installed by other means, the location is typically `/var/lib/lxd/database/`.
+When the daemon restarts after a LXD update or upgrade, if a new database schema is detected, the database is updated. A backup of the database before the update is created and stored in the same location as the active database. If LXD is installed through the snap, this location is `/var/snap/lxd/common/lxd/database`. If installed by other means, the location is typically `/var/lib/lxd/database/`.
 
 ## Related topics
 

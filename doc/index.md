@@ -35,7 +35,7 @@ These guides help you manage a standalone LXD server or a cluster of servers, in
 
 ### Workload management
 
-An LXD server runs workloads on containers or virtual machines, which are created using images and can be grouped using projects.
+A LXD server runs workloads on containers or virtual machines, which are created using images and can be grouped using projects.
 
 - **Instances**: {ref}`System containers and virtual machines <containers-and-vms>` • {ref}`Guest OS compatibility matrix <guest-os-compatibility>` • {ref}`Create <instances-create>`, {ref}`configure <instances-configure>`, and {ref}`manage <instances-manage>` instances • {ref}`Configuration options <instance-options>` • {ref}`Store configuration options in profiles <profiles>` • {ref}`Automate configuration with cloud-init <cloud-init>` • {ref}`Back up <instances-backup>`, {ref}`migrate <howto-instances-migrate>`, and {ref}`import <import-machines-to-instances>` instances • {ref}`Live migration <live-migration>`
 - **Images**: {ref}`About local and remote images <about-images>` • {ref}`List of remote image servers <remote-image-servers>` •  {ref}`Manage images <images-manage>`

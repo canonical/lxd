@@ -93,7 +93,7 @@ The {ref}`snap:how-to-guides-work-with-snaps-manage-updates` page in the Snap do
 (howto-snap-updates-manual)=
 ### Manual updates
 
-For an LXD snap installed as part of a cluster, see the section on {ref}`synchronizing cluster updates <howto-snap-updates-sync>` below.
+For a LXD snap installed as part of a cluster, see the section on {ref}`synchronizing cluster updates <howto-snap-updates-sync>` below.
 
 Otherwise, run:
 
