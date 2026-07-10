@@ -1,6 +1,7 @@
 #!/bin/bash
 set -eu
 set -o pipefail
+shopt -s inherit_errexit
 
 # If GOCOVERDIR is set, we are running under coverage mode and should skip this test
 if [ -n "${GOCOVERDIR:-}" ]; then
