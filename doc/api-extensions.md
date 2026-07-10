@@ -3639,3 +3639,8 @@ New configuration options on the load balancer pool are added to further customi
 * {config:option}`network-load-balancer-pool-properties:healthcheck.failure_count`
 
 In addition a new endpoint [`GET /1.0/networks/{networkName}/load-balancer-pools/{poolName}/state`](swagger:/network-load-balancer-pools/network_load_balancer_pool_state_get) is added which returns the health check status for all instances in the pool.
+
+(extension-operation-child-count)=
+## `operation_child_count`
+
+Adds a `child_count` field to the `Operation` struct, indicating the number of child operations. This allows clients to determine whether an operation has children without requiring `recursion=2`.

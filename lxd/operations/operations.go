@@ -747,6 +747,7 @@ func (op *Operation) Render() (string, *api.Operation) {
 		Location:    op.location,
 		Err:         op.err,
 		ErrCode:     op.errCode,
+		ChildCount:  int64(len(op.children)),
 	}
 
 	requestor := op.Requestor()

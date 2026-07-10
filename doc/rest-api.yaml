@@ -5031,6 +5031,15 @@ definitions:
     Operation:
         description: Operation represents a LXD background operation
         properties:
+            child_count:
+                description: |-
+                    Number of child operations.
+
+                    API extension: operation_child_count
+                example: 2
+                format: int64
+                type: integer
+                x-go-name: ChildCount
             class:
                 description: Type of operation (task, token or websocket)
                 example: websocket
@@ -5128,6 +5137,15 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     OperationFull:
         properties:
+            child_count:
+                description: |-
+                    Number of child operations.
+
+                    API extension: operation_child_count
+                example: 2
+                format: int64
+                type: integer
+                x-go-name: ChildCount
             children:
                 description: Children is a list of child operations, if any exist.
                 items:
