@@ -56,7 +56,7 @@ See [`GET /1.0/cluster/links/{name}/state`](swagger:/cluster-links/{name}/state/
 
 ````
 ````{group-tab} UI
-   For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Cluster links` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
+   Click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
 ````
 `````
 
@@ -153,7 +153,7 @@ You can also update a single configuration option for a cluster link.
 See [`PATCH /1.0/cluster/links/{name}`](swagger:/cluster-links/{name}/cluster_link_patch) for more information.
 ````
 ````{group-tab} UI
-   For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Cluster links` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
+   Click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
 
    To edit a cluster link, click on the pencil icon at the end of that cluster link's row.
 
@@ -178,7 +178,7 @@ To delete a cluster link, run:
 See [`DELETE /1.0/cluster/links/{name}`](swagger:/cluster-links/{name}/cluster_link_delete) for more information.
 ````
 ````{group-tab} UI
-   For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Cluster links` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
+   Click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
 
    To delete a cluster link, click on the trash can icon at the end of that cluster link's row.
 

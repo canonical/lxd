@@ -69,7 +69,7 @@ To create a bidirectional cluster link between two clusters (Cluster A and Clust
    ```
    ````
    ````{group-tab} UI
-   For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Cluster links` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
+   Click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
 
    Click on the {guilabel}`+ Create cluster link` button to open the side panel.
 
@@ -102,7 +102,7 @@ To create a bidirectional cluster link between two clusters (Cluster A and Clust
    ```
    ````
    ````{group-tab} UI
-   For a single-node cluster, click {guilabel}`Server` in the navigation sidebar, then select the {guilabel}`Cluster links` tab in the main content pane. Otherwise, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
+   Click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Links` from the expanded drop-down list.
 
    Click on the {guilabel}`+ Create cluster link` button to open the side panel.
 
