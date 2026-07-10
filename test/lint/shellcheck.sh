@@ -1,5 +1,7 @@
 #!/bin/bash
 set -eu
+set -o pipefail
+shopt -s inherit_errexit
 
 # differential-shellcheck is run via GitHub actions so avoid checking twice
 if [ -n "${GITHUB_ACTIONS:-}" ]; then
