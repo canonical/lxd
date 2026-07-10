@@ -646,7 +646,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 				row = append(row, "NO")
 			}
 
-			// Display attached volume snapshots
+			// Display attached volume snapshots.
 			if snap.Config["volatile.attached_volumes"] != "" {
 				// Parse the JSON map (device name -> snapshot UUID).
 				var volatileAttachedVolumes map[string]string
@@ -692,6 +692,8 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 				} else {
 					row = append(row, " ")
 				}
+			} else {
+				row = append(row, " ")
 			}
 
 			firstSnapshot = false
