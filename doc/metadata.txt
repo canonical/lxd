@@ -1938,42 +1938,6 @@ User keys can be used in search.
 ```
 
 <!-- config group instance-miscellaneous end -->
-<!-- config group instance-nvidia start -->
-```{config:option} nvidia.driver.capabilities instance-nvidia
-:condition: "container"
-:defaultdesc: "`compute,utility`"
-:liveupdate: "no"
-:shortdesc: "What driver capabilities the instance needs"
-:type: "string"
-The specified driver capabilities are used to set `libnvidia-container NVIDIA_DRIVER_CAPABILITIES`.
-```
-
-```{config:option} nvidia.require.cuda instance-nvidia
-:condition: "container"
-:liveupdate: "no"
-:shortdesc: "Required CUDA version"
-:type: "string"
-The specified version expression is used to set `libnvidia-container NVIDIA_REQUIRE_CUDA`.
-```
-
-```{config:option} nvidia.require.driver instance-nvidia
-:condition: "container"
-:liveupdate: "no"
-:shortdesc: "Required driver version"
-:type: "string"
-The specified version expression is used to set `libnvidia-container NVIDIA_REQUIRE_DRIVER`.
-```
-
-```{config:option} nvidia.runtime instance-nvidia
-:condition: "container"
-:defaultdesc: "`false`"
-:liveupdate: "no"
-:shortdesc: "Whether to pass the host NVIDIA and CUDA runtime libraries into the instance"
-:type: "bool"
-
-```
-
-<!-- config group instance-nvidia end -->
 <!-- config group instance-placement start -->
 ```{config:option} placement.group instance-placement
 :liveupdate: "yes"

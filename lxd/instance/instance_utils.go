@@ -108,14 +108,6 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 		}
 	}
 
-	if shared.IsTrue(config["security.privileged"]) && shared.IsTrue(config["nvidia.runtime"]) {
-		return errors.New("nvidia.runtime is incompatible with privileged containers")
-	}
-
-	if sysOS.InUbuntuCore() && shared.IsTrue(config["nvidia.runtime"]) {
-		return errors.New("nvidia.runtime is incompatible with Ubuntu Core")
-	}
-
 	// Validate pinning strategy when limits.cpu specifies static pinning.
 	cpuPinStrategy := config["limits.cpu.pin_strategy"]
 	cpuLimit := config["limits.cpu"]

@@ -607,13 +607,6 @@ This adds a new `lifecycle` message type to the events API.
 
 This adds the ability to copy and move custom storage volumes between remote.
 
-(extension-nvidia-runtime)=
-## `nvidia_runtime`
-
-Adds a {config:option}`instance-nvidia:nvidia.runtime` configuration option for containers, setting this to
-`true` will have the NVIDIA runtime and CUDA libraries passed to the
-container.
-
 (extension-container-mount-propagation)=
 ## `container_mount_propagation`
 
@@ -772,16 +765,6 @@ This effectively allows for [`lxc list`](lxc_list.md) to get all it needs in one
 
 This introduces a new {config:option}`server-miscellaneous:backups.compression_algorithm` configuration key which
 allows configuration of backup compression.
-
-(extension-nvidia-runtime-config)=
-## `nvidia_runtime_config`
-
-This introduces a few extra configuration keys when using {config:option}`instance-nvidia:nvidia.runtime` and the `libnvidia-container` library.
-Those keys translate pretty much directly to the matching NVIDIA container environment variables:
-
-* {config:option}`instance-nvidia:nvidia.driver.capabilities` => `NVIDIA_DRIVER_CAPABILITIES`
-* {config:option}`instance-nvidia:nvidia.require.cuda` => `NVIDIA_REQUIRE_CUDA`
-* {config:option}`instance-nvidia:nvidia.require.driver` => `NVIDIA_REQUIRE_DRIVER`
 
 (extension-storage-api-volume-snapshots)=
 ## `storage_api_volume_snapshots`
@@ -3618,8 +3601,6 @@ The following changes are included:
 - `mig.uuid`: The UUID is now resolved to a CDI identifier (`nvidia.com/mig=<uuid>`) internally. The `MIG-` prefix remains optional. Because a MIG UUID uniquely identifies the device, no parent GPU selector (`pci`, `vendorid`, `productid`, or `id`) is required alongside `mig.uuid`. If a parent GPU selector is provided, it is used to validate that the matching GPU exists and is an NVIDIA card, preserving backward compatibility.
 - `mig.gi` and `mig.ci`: The GPU instance ID and compute instance ID pair is now resolved to a MIG UUID via NVML, which is then used as a CDI identifier.
 - `id`: Now accepts either a CDI identifier for `gputype=mig` devices or a DRM card ID selector for the parent GPU. Supported CDI formats are `nvidia.com/mig=<uuid>` and `nvidia.com/mig=<dev_idx>:<mig_idx>`. When a CDI identifier is provided, it is used directly and is mutually exclusive with `mig.uuid`, `mig.gi`, and `mig.ci`.
-
-Because the legacy `nvidia.runtime` instance-level option is incompatible with CDI-based MIG passthrough, attaching a `gputype=mig` device to a container with {config:option}`instance-nvidia:nvidia.runtime` set to `true` is rejected. To preserve backward compatibility, an upgrade patch unsets `nvidia.runtime` on existing containers and snapshots that have a `gputype=mig` device attached.
 
 (extension-cluster-links-unidirectional)=
 ## `cluster_links_unidirectional`
