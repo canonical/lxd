@@ -11,6 +11,9 @@ test_acme() {
   local ACME_PORT
   ACME_PORT="$(< "${TEST_DIR}/acme.port")"
 
+  # Save the old certificate
+  cp "${LXD_DIR}/server.crt" "${LXD_DIR}/server.crt.bak"
+
   sub_test "Set ACME configuration and trigger certificate renewal"
   lxc config set acme.agree_tos=true acme.ca_url="https://127.0.0.1:${ACME_PORT}/directory" acme.domain="${ACME_DOMAIN}" acme.email=coyote@acme.example.com
 
@@ -23,8 +26,8 @@ test_acme() {
 
   # Cleanup.
   kill_acme
-  # Note: for speed considerations the LEGO_CA_CERTIFICATES variable is left in
-  # LXD's environment, but since the mini-acme server is stopped and the file
-  # removed it won't cause any issues. If we were to unset it, it would require
-  # respawning LXD again, which would add unnecessary overhead to the test suite.
+
+  shutdown_lxd "${LXD_DIR}"
+  mv "${LXD_DIR}/server.crt.bak" "${LXD_DIR}/server.crt"
+  respawn_lxd "${LXD_DIR}" true
 }
