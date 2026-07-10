@@ -1,5 +1,7 @@
 #!/bin/bash
 set -eu
+set -o pipefail
+shopt -s inherit_errexit
 
 echo "Checking that functional blocks are followed by newlines..."
 
