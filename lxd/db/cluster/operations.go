@@ -347,11 +347,6 @@ func GetOperationsByProjectAndType(ctx context.Context, tx *sql.Tx, projectName 
 	return query.Select[Operation](ctx, tx, "WHERE coalesce(projects.name, '') = ? AND operations.type = ?", projectName, opType)
 }
 
-// DeleteOperation deletes an operation by UUID.
-func DeleteOperation(ctx context.Context, tx *sql.Tx, operationUUID string) error {
-	return query.DeleteOne[OperationsRow](ctx, tx, "WHERE operations.uuid = ?", operationUUID)
-}
-
 // operationDeleteBatchSize is used to limit the number of bind arguments passed to SQLite when deleting operations
 // (see [DeleteOperations]).
 const operationDeleteBatchSize = 500
