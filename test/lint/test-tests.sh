@@ -1,6 +1,7 @@
 #!/bin/bash
 set -eu
 set -o pipefail
+shopt -s inherit_errexit
 
 # This is a meta-test as it tests the tests themselves. It makes sure that all
 # the exising test functions are being called by the test suite.
