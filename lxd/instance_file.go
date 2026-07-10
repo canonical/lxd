@@ -16,6 +16,7 @@ import (
 
 	"github.com/pkg/sftp"
 
+	"github.com/canonical/lxd/lxd/idmap"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/request"
@@ -391,24 +392,51 @@ func effectiveFileOwnership(c instance.Container, headers *shared.LXDFileHeaders
 		return 0, 0, err
 	}
 
-	if len(idmapranges) != 2 {
-		return 0, 0, fmt.Errorf("Unexpected number of idmap ranges: got %d, expected 2", len(idmapranges))
-	}
+	newUID, newGID := effectiveOwnershipInRanges(idmapranges, uid, gid)
 
 	l := logger.AddContext(logger.Ctx{"project": c.Project().Name, "instance": c.Name(), "file": fileName})
+	if newUID != uid {
+		l.Info("Requested UID not within idmap range", logger.Ctx{"uid": uid})
+	}
+
+	if newGID != gid {
+		l.Info("Requested GID not within idmap range", logger.Ctx{"gid": gid})
+	}
+
+	return newUID, newGID, nil
+}
+
+// effectiveOwnershipInRanges adjusts the given UID and GID against the allowed idmap ranges.
+// The idmap can contain multiple non-contiguous UID/GID ranges (e.g. from raw.idmap), so a
+// UID/GID is considered valid when it falls within any range of the matching type. An ID that
+// matches no range of its type is set to -1, while an ID whose type has no ranges is left as-is.
+func effectiveOwnershipInRanges(idmapranges []*idmap.IdRange, uid int64, gid int64) (effectiveUID int64, effectiveGID int64) {
+	var hasUIDRange, hasGIDRange, uidValid, gidValid bool
 	for _, idmaprange := range idmapranges {
-		if idmaprange.Isuid && !idmaprange.Contains(headers.UID) {
-			l.Info("Requested UID not within idmap range", logger.Ctx{"uid": uid})
-			uid = -1
+		if idmaprange.Isuid {
+			hasUIDRange = true
+			if idmaprange.Contains(uid) {
+				uidValid = true
+			}
 		}
 
-		if idmaprange.Isgid && !idmaprange.Contains(headers.GID) {
-			l.Info("Requested GID not within idmap range", logger.Ctx{"gid": gid})
-			gid = -1
+		if idmaprange.Isgid {
+			hasGIDRange = true
+			if idmaprange.Contains(gid) {
+				gidValid = true
+			}
 		}
 	}
 
-	return uid, gid, nil
+	if hasUIDRange && !uidValid {
+		uid = -1
+	}
+
+	if hasGIDRange && !gidValid {
+		gid = -1
+	}
+
+	return uid, gid
 }
 
 // swagger:operation POST /1.0/instances/{name}/files instances instance_files_post
