@@ -1,6 +1,7 @@
 #!/bin/bash
 set -eu
 set -o pipefail
+shopt -s inherit_errexit
 
 if [ -z "${GITHUB_ACTIONS:-}" ]; then
     echo "Skipping binary Go version check on local runs"
