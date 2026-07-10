@@ -5322,3 +5322,101 @@ test_clustering_project_limits() {
 
   kill_lxd "${LXD_ONE_DIR}"
 }
+
+test_clustering_acme() {
+  echo "==> Setting up clustering ACME test"
+
+  # Set up the clustering bridge (100.64.1.1/16)
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  # Start mini-acme on the bridge IP so it's reachable from all cluster nodes.
+  local ACME_DOMAIN="lxd$$.example.com"
+
+  # Syntax: spawn_acme <validation-addr> <listen-addr>
+  # - Listen on bridge IP (100.64.1.1) accessible from all cluster nodes
+  # - Validate against node1 (100.64.1.101:8443) since it is the leader
+  # - Advertise bridge IP in ACME directory URLs
+  spawn_acme "100.64.1.101:8443" "100.64.1.1"
+
+  local ACME_PORT
+  ACME_PORT="$(< "${TEST_DIR}/acme.port")"
+
+  sub_test "Bootstrap cluster with ACME CA certificate"
+
+  local LXD_DIR
+
+  echo "Create cluster with 3 members."
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns1="${prefix}1"
+  LEGO_CA_CERTIFICATES="${TEST_DIR}/mini-acme-ca.crt" spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML has weird rules.
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns2="${prefix}2"
+  LEGO_CA_CERTIFICATES="${TEST_DIR}/mini-acme-ca.crt" spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${LXD_ONE_DIR}"
+
+  # Spawn a third node.
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns3="${prefix}3"
+  LEGO_CA_CERTIFICATES="${TEST_DIR}/mini-acme-ca.crt" spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${LXD_ONE_DIR}"
+
+  sub_test "Configure ACME on cluster node"
+
+  # Configure ACME to use mini-acme server. Use LXD_TWO (leader is LXD_ONE) to update the config so that we test config
+  # forwarding and updating of certificates across the cluster.
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set \
+    acme.agree_tos=true \
+    acme.ca_url="https://100.64.1.1:${ACME_PORT}/directory" \
+    acme.domain="${ACME_DOMAIN}" \
+    acme.email="coyote@acme.example.com"
+
+  sub_test "Verify ACME certificate is served"
+
+  # Verify all members are using the ACME certificate
+  for i in $(seq 3); do
+    success=0
+    for _ in $(seq 10); do
+      # Use --resolve to map domain to the cluster node IP.
+      if curl -s --cacert "${TEST_DIR}/mini-acme-ca.crt" --resolve "${ACME_DOMAIN}:8443:100.64.1.10${i}" -o /dev/null "https://${ACME_DOMAIN}:8443/"; then
+        success=1
+        break
+      fi
+
+      sleep 0.3
+    done
+
+    if [ "${success}" = 0 ]; then
+      echo "Failed verifying ACME certificate on member ${i}"
+      false
+    fi
+  done
+
+  # Cleanup
+  echo "==> Cleaning up clustering ACME test"
+
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+
+  kill_acme
+}

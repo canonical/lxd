@@ -104,6 +104,11 @@ fuidshift:
 	go install -v -trimpath -buildvcs=false $(COVER) ./fuidshift
 	@echo "$@ built successfully"
 
+.PHONY: mini-acme
+mini-acme:
+	go install -C test -v -trimpath -buildvcs=false $(COVER) ./mini-acme
+	@echo "$@ built successfully"
+
 .PHONY: mini-oidc
 mini-oidc:
 	go install -C test -v -trimpath -buildvcs=false $(COVER) ./mini-oidc
@@ -115,7 +120,7 @@ sysinfo:
 	@echo "$@ built successfully"
 
 .PHONY: test-binaries
-test-binaries: devlxd-client lxd-client fuidshift mini-oidc sysinfo
+test-binaries: devlxd-client lxd-client fuidshift mini-acme mini-oidc sysinfo
 	@echo "$@ built successfully"
 
 .PHONY: dqlite

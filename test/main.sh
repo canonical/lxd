@@ -102,7 +102,7 @@ if ! check_dependencies minio mc; then
 fi
 
 echo "==> Checking test dependencies"
-if ! check_dependencies devlxd-client lxd-client fuidshift mini-oidc sysinfo; then
+if ! check_dependencies devlxd-client lxd-client fuidshift mini-oidc mini-acme sysinfo; then
   make -C "${MAIN_DIR}/.." test-binaries
 fi
 
@@ -451,6 +451,7 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_enable "clustering enable"
     run_test test_clustering_edit_configuration "clustering config edit"
     run_test test_clustering_membership "clustering membership"
+    run_test test_clustering_acme "clustering ACME"
     run_test test_clustering_containers "clustering containers"
     run_test test_clustering_storage "clustering storage"
     run_test test_clustering_storage_single_node "clustering storage single node"
@@ -500,6 +501,7 @@ fi
 
 if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     #run_test test_concurrent "concurrent startup" # Disabled as flaky.
+    run_test test_acme "ACME"
     run_test test_concurrent_exec "concurrent exec"
     run_test test_database_restore "database restore"
     run_test test_database_no_disk_space "database out of disk space"
