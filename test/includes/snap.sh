@@ -84,6 +84,7 @@ install_snap() {
 
             if [ "${recursive_call}" = "false" ]; then
               echo "Opportunistically downloading ${name} before installation"
+              # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
               if download_snap "${name}" "${channel}"; then
                   install_snap "${name}" "${channel}"
                   return
