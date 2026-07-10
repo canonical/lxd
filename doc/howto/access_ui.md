@@ -55,7 +55,7 @@ When the server address is configured during the initialization process, LXD off
 Would you like the LXD server to be available over the network? (yes/no) [default=no]: yes
 Address to bind LXD to (not including port) [default=all]:
 Port to bind LXD to [default=8443]:
-Would you like to create an initial LXD UI access link? (yes/no) [default=no]: yes
+Would you like to create an initial LXD UI access link? (yes/no) [default=yes]
 ...
 UI initial identity (type: Initial UI token bearer): ui-admin-initial
 UI initial access link (expires: 2026-01-17 16:36): https://127.0.0.1:8443/?token=<bearer_token>
