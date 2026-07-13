@@ -32,13 +32,9 @@ func (d networkServerErrorLogWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// stripLog removes the trailing newline from the log and also discards TLS
+// handshake errors if they correspond to TCP probes from trusted proxy IP.
 func (d networkServerErrorLogWriter) stripLog(p []byte) string {
-	// Strip the beginning of the log until we reach "http:".
-	idx := bytes.Index(p, []byte("http:"))
-	if idx > 0 {
-		p = p[idx:]
-	}
-
 	// Strip the newline from the end.
 	p = bytes.TrimRightFunc(p, func(r rune) bool {
 		return r == '\n'
