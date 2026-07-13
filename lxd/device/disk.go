@@ -226,7 +226,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		//  type: bool
 		//  defaultdesc: `true`
 		//  required: no
-		//  shortdesc: Whether to fail if the source doesn’t exist
+		//  shortdesc: Whether to fail instance start if the source doesn’t exist
 		"required": validate.Optional(validate.IsBool),
 		"optional": validate.Optional(validate.IsBool), // "optional" is deprecated, replaced by "required".
 		// lxdmeta:generate(entities=device-disk; group=device-conf; key=readonly)

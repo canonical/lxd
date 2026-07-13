@@ -232,7 +232,7 @@
 							"defaultdesc": "`true`",
 							"longdesc": "",
 							"required": "no",
-							"shortdesc": "Whether to fail if the source doesn’t exist",
+							"shortdesc": "Whether to fail instance start if the source doesn’t exist",
 							"type": "bool"
 						}
 					},
