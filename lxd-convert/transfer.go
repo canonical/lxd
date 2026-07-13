@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -96,10 +98,24 @@ func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instance
 	}
 
 	if rsyncArgs != "" {
-		args = append(args, strings.Split(rsyncArgs, " ")...)
+		extraArgs := strings.Fields(rsyncArgs)
+
+		// Reject an explicit end-of-options marker ("--"): it would stop rsync from
+		// parsing the "-e" remote shell option appended below, breaking the transfer.
+		if slices.Contains(extraArgs, "--") {
+			return nil, nil, nil, errors.New("Rsync arguments cannot contain an end-of-options marker (--)")
+		}
+
+		args = append(args, extraArgs...)
 	}
 
-	args = append(args, path, "localhost:/tmp/foo", "-e", rsyncCmd)
+	// The remote shell command (-e) must be passed as an option, so it has to
+	// come before the end of options marker ("--") below.
+	args = append(args, "-e", rsyncCmd)
+
+	// Add an end of options marker ("--") so that the source path is never
+	// interpreted as an rsync option, even if it begins with a "-".
+	args = append(args, "--", path, "localhost:/tmp/foo")
 
 	cmd := exec.CommandContext(ctx, "rsync", args...)
 	cmd.Stdout = os.Stderr

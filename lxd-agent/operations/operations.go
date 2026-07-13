@@ -240,7 +240,8 @@ func (op *Operation) start() {
 	op.lock.Unlock()
 }
 
-// IsRunning returns true if the operation run hook is still in progress.
+// IsRunning returns true while the operation context has not been cancelled.
+// It returns false once the operation completes or cancellation is requested.
 func (op *Operation) IsRunning() bool {
 	return op.running.Err() == nil
 }
@@ -278,9 +279,12 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 	}
 
 	if op.running.Err() != nil {
+		errMsg := op.err
+		errCode := op.errCode
 		op.lock.Unlock()
-		if op.err != "" {
-			return nil, api.NewStatusError(int(op.errCode), "Failed connecting to operation: "+op.err)
+
+		if errMsg != "" {
+			return nil, api.NewStatusError(int(errCode), "Failed connecting to operation: "+errMsg)
 		}
 
 		return nil, api.NewStatusError(http.StatusBadRequest, "Only running operations can be connected")
@@ -342,19 +346,25 @@ func (op *Operation) Render() (string, *api.Operation) {
 func (op *Operation) Wait(ctx context.Context) error {
 	select {
 	case <-op.finished.Done():
-		if op.err != "" {
+		op.lock.Lock()
+		errMsg := op.err
+		errCode := op.errCode
+		status := op.status
+		op.lock.Unlock()
+
+		if errMsg != "" {
 			// Custom error types can contain additional information about the failure.
 			// To ensure the error returned from the database is the same as error returned
 			// directly from the operation code, we return a new error object consisting
 			// only of the error message and error code.
 
 			// If the operation was cancelled, return fresh context.Cancelled error.
-			if op.status == api.Cancelled {
+			if status == api.Cancelled {
 				return context.Canceled
 			}
 
 			// For other errors, return a new error with the same message and code.
-			return api.NewStatusError(int(op.errCode), op.err)
+			return api.NewStatusError(int(errCode), errMsg)
 		}
 
 		return nil
@@ -398,7 +408,11 @@ func (op *Operation) URL() string {
 
 // Status returns the operation status.
 func (op *Operation) Status() api.StatusCode {
-	return op.status
+	op.lock.Lock()
+	status := op.status
+	op.lock.Unlock()
+
+	return status
 }
 
 func (op *Operation) sendEvent(eventMessage any) {

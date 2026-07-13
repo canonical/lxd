@@ -160,4 +160,8 @@ func TestSendRejectsUnsafeNames(t *testing.T) {
 	// "lxd netcat".
 	err = Send("vol/../../etc", "/tmp/src", nil, nil, nil, "", "")
 	assert.ErrorContains(t, err, "local path")
+
+	// Absolute names are not local paths and must be rejected.
+	err = Send("/etc/passwd", "/tmp/src", nil, nil, nil, "", "")
+	assert.ErrorContains(t, err, "local path")
 }

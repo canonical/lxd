@@ -214,6 +214,15 @@ EOF
   lxc exec idmap -- chown 4000009:4000009 /d
   [ "$(stat -c '%u:%g' "/proc/${PID}/root/d")" = "$((UID_BASE+29)):$((GID_BASE+29))" ]
 
+  # Pushing a file with a UID/GID that lands in a non-contiguous idmap range must
+  # succeed even though the map has more than two valid ranges (base map plus the
+  # raw.idmap ranges above).
+  RAW_IDMAP_PUSH_FILE="${TEST_DIR}/raw_idmap_push_file"
+  touch "${RAW_IDMAP_PUSH_FILE}"
+  lxc file push --uid 4000005 --gid 4000005 "${RAW_IDMAP_PUSH_FILE}" idmap/e
+  rm "${RAW_IDMAP_PUSH_FILE}"
+  [ "$(stat -c '%u:%g' "/proc/${PID}/root/e")" = "$((UID_BASE+25)):$((GID_BASE+25))" ]
+
   lxc delete idmap --force
 
   # Respawn LXD with kernel ID shifting support disabled to force manual shifting.
