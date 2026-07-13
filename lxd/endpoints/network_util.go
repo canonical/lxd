@@ -36,9 +36,12 @@ func (d networkServerErrorLogWriter) Write(p []byte) (int, error) {
 // handshake errors if they correspond to TCP probes from trusted proxy IP.
 func (d networkServerErrorLogWriter) stripLog(p []byte) string {
 	// Strip the newline from the end.
-	p = bytes.TrimRightFunc(p, func(r rune) bool {
-		return r == '\n'
-	})
+	p = bytes.TrimRight(p, "\n")
+
+	// No proxies configured, nothing to filter.
+	if len(d.proxies) == 0 {
+		return string(p)
+	}
 
 	// Get the source IP address.
 	match := unwantedLogRegex.FindSubmatch(p)
