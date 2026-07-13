@@ -1484,10 +1484,11 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	cpuExtensions := []string{}
 
 	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
-		// If using Linux 5.10 or later, use HyperV optimizations.
+		// If using Linux 5.10 or later, use HyperV optimizations when not using migration.stateful or BIOS mode.
+		// Hyper-V extensions can cause problems with live migration and Windows booting in BIOS mode.
 		minVer, _ := version.NewDottedVersion("5.10.0")
-		if d.state.OS.KernelVersion.Compare(minVer) >= 0 && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
-			// x86_64 can use hv_time to improve Windows guest performance.
+		if d.state.OS.KernelVersion.Compare(minVer) >= 0 && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) && shared.IsFalseOrEmpty(d.expandedConfig["security.csm"]) {
+			// x86_64 with UEFI can use hv_time (bundled in hv_passthrough) to improve Windows guest performance.
 			cpuExtensions = append(cpuExtensions, "hv_passthrough")
 		}
 
