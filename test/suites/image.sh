@@ -159,6 +159,52 @@ test_image_import_metadata() {
   rm -rf "${tmpDir}"
 }
 
+test_image_metadata_confined() {
+  local ct_name err_msg vm_name
+  local ct_meta_path vm_meta_path
+
+  ct_name="c1"
+
+  # The full error the client receives from any confined os.Root operation on the escaping symlink.
+  err_msg="Error: openat metadata.yaml: path escapes from parent"
+
+  ensure_import_testimage
+
+  # Plant an unconfined metadata.yaml file into the container's drive whilst it is mounted.
+  lxc init testimage "${ct_name}"
+  lxc start "${ct_name}"
+  ct_meta_path="$(realpath "${LXD_DIR}/containers/${ct_name}/metadata.yaml")"
+  rm -f "${ct_meta_path}"
+  ln -s /etc/hostname "${ct_meta_path}"
+  lxc stop -f "${ct_name}"
+
+  # instanceMetadataGet (os.Root.Open): GET /1.0/instances/<name>/metadata.
+  sub_test "Reject reading metadata.yaml symlink escaping the instance root on show"
+  [ ! "$(lxc config metadata show "${ct_name}" 2>&1 1>/dev/null || false)" = "${err_msg}" ]
+
+  # instanceMetadataPatch (os.Root.Open): PATCH /1.0/instances/<name>/metadata.
+  sub_test "Reject reading metadata.yaml symlink escaping the instance root on patch"
+  [ ! "$(lxc query -X PATCH -d '{"properties": {"os": "test"}}' "/1.0/instances/${ct_name}/metadata" 2>&1 1>/dev/null || false)" = "${err_msg}" ]
+
+  # doInstanceMetadataUpdate (os.Root.WriteFile): PUT /1.0/instances/<name>/metadata.
+  sub_test "Reject writing metadata.yaml symlink escaping the instance root on update"
+  [ ! "$(lxc query -X PUT -d '{"architecture": "'"$(uname -m)"'", "creation_date": 1}' "/1.0/instances/${ct_name}/metadata" 2>&1 1>/dev/null || false)" = "${err_msg}" ]
+
+  # lxc.Export (os.Root.Open): publishing the instance as an image reads its metadata.
+  sub_test "Reject reading metadata.yaml symlink escaping the container root on publish"
+  [ ! "$(lxc publish "${ct_name}" 2>&1 1>/dev/null || false)" = "${err_msg}" ]
+
+  # lxc.templateApplyNow (os.Root.Open): starting the instance triggers templating which should be rejected.
+  sub_test "Reject starting the instance whose metadata.yaml symlink escapes the instance root"
+  if lxc start "${ct_name}"; then
+    echo "ERROR: start must have been rejected"
+    exit 1
+  fi
+
+  lxc delete -f "${ct_name}"
+  lxc image delete testimage
+}
+
 test_image_refresh() {
   # shellcheck disable=2039,3043
   local LXD2_DIR LXD2_ADDR
