@@ -227,6 +227,20 @@ EOF
   lxc move cluster:c2 --target @foobar1
   lxc move cluster:c3 --target node1
 
+  sub_test "Same-project move must not bypass project restrictions via config overrides"
+  # Moving an instance to another cluster member within the same (restricted) project applies any
+  # user-supplied config overrides. A same-project move is effectively an instance update, so these
+  # overrides must be validated against the project's restrictions. Otherwise a restricted user
+  # could set security-critical keys (such as security.privileged) during the move and escalate to
+  # a privileged container. c3 is on node1, both node1 and node2 are in allowed cluster groups, so
+  # the move must be rejected only because of the forbidden config override.
+  exit_code=0
+  err_msg="$(LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c3 --target node2 -c security.privileged=true 2>&1)" || exit_code=$?
+  [[ "${exit_code}" -ne 0 ]]
+  [[ "${err_msg}" == *'config "security.privileged"'*"Privileged containers are forbidden"* ]]
+  # The instance must be left untouched on its original member with the override not applied.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list --format csv --columns L,security.privileged cluster:c3)" = "node1," ]
+
   echo "c4 can be migrated from local cluster to remote cluster"
   lxc init --empty c4
   lxc move c4 cluster:c5 --target node1
