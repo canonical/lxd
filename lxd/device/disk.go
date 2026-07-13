@@ -1288,16 +1288,12 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					logPath := filepath.Join(d.inst.LogPath(), "disk."+filesystem.PathNameEncode(d.name)+".log")
 					_ = os.Remove(logPath) // Remove old log if needed.
 
-					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.inst, sockPath, pidPath, logPath, mountedPath, rawIDMaps, virtiofsdThreadPoolSize)
+					revertFunc, err := DiskVMVirtiofsdStart(d.inst, sockPath, pidPath, logPath, mountedPath, rawIDMaps, virtiofsdThreadPoolSize)
 					if err != nil {
 						return err
 					}
 
 					revert.Add(revertFunc)
-					runConf.Revert = func() { _ = unixListener.Close() }
-
-					// Request the unix listener is closed after QEMU has connected on startup.
-					runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)
 
 					// Resolve previous warning
 					_ = warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.DB.Cluster, d.inst.Project().Name, warningtype.MissingVirtiofsd)
