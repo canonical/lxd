@@ -69,6 +69,13 @@ func Test_networkServerErrorLogWriter_shouldDiscard(t *testing.T) {
 			log:     []byte("http: response.WriteHeader on hijacked connection from yourfunction (yourfile.go:80)\n"),
 			want:    "http: response.WriteHeader on hijacked connection from yourfunction (yourfile.go:80)",
 		},
+		{
+			// Ensures the no-proxy fast path still trims the trailing newline.
+			name:    "no proxy (trailing newline trimmed)",
+			proxies: nil,
+			log:     []byte("http: TLS handshake error from 10.24.0.32:55672: write: connection reset by peer\n"),
+			want:    "http: TLS handshake error from 10.24.0.32:55672: write: connection reset by peer",
+		},
 	}
 
 	for i, tt := range tests {
