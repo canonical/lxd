@@ -73,6 +73,7 @@ import (
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/termios"
 	"github.com/canonical/lxd/shared/units"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 // Helper functions.
@@ -1052,6 +1053,13 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		if nvidiaDriver == "" {
 			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES=compute,utility")
 		} else {
+			// Reject values containing line breaks that could inject additional directives into the LXC configuration,
+			// in case they were stored before set-time validation was in place.
+			err = validate.IsNvidiaConfigValue(nvidiaDriver)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid %q value: %w", "nvidia.driver.capabilities", err)
+			}
+
 			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES="+nvidiaDriver)
 		}
 
@@ -1061,6 +1069,13 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 		nvidiaRequireCuda := d.expandedConfig["nvidia.require.cuda"]
 		if nvidiaRequireCuda != "" {
+			// Reject values containing line breaks that could inject additional directives into the LXC configuration,
+			// in case they were stored before set-time validation was in place.
+			err = validate.IsNvidiaConfigValue(nvidiaRequireCuda)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid %q value: %w", "nvidia.require.cuda", err)
+			}
+
 			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_REQUIRE_CUDA="+nvidiaRequireCuda)
 			if err != nil {
 				return nil, err
@@ -1069,6 +1084,13 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 
 		nvidiaRequireDriver := d.expandedConfig["nvidia.require.driver"]
 		if nvidiaRequireDriver != "" {
+			// Reject values containing line breaks that could inject additional directives into the LXC configuration,
+			// in case they were stored before set-time validation was in place.
+			err = validate.IsNvidiaConfigValue(nvidiaRequireDriver)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid %q value: %w", "nvidia.require.driver", err)
+			}
+
 			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_REQUIRE_DRIVER="+nvidiaRequireDriver)
 			if err != nil {
 				return nil, err
