@@ -1,6 +1,7 @@
 #!/bin/bash
 set -eu
 set -o pipefail
+shopt -s inherit_errexit
 
 echo "Checking that API extensions have a doc anchor in doc/api-extensions.md..."
 

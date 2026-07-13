@@ -95,7 +95,6 @@ test_security() {
   unset LXD_UNPRIVILEGED_ONLY
 
   (
-    set -e
     # shellcheck disable=2030
     LXD_DIR="${LXD_STORAGE_DIR}"
 

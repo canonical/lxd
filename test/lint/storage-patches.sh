@@ -1,6 +1,7 @@
 #!/bin/bash
 set -eu
 set -o pipefail
+shopt -s inherit_errexit
 
 # Verify that every patch registered via patchGenericStorage in lxd/patches.go
 # is also present in every storage driver's patches map. Missing entries cause

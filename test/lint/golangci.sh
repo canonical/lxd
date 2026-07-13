@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+shopt -s inherit_errexit
 
 # golangci-lint is run via GitHub actions so avoid checking twice
 if [ -n "${GITHUB_ACTIONS:-}" ]; then

@@ -1,5 +1,7 @@
 #!/bin/bash
 set -eu
+set -o pipefail
+shopt -s inherit_errexit
 
 echo "Checking usage of unneeded format variant of 'logger.(Debug|Info|Warn|Error)f()' functions..."
 

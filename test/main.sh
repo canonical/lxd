@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eu
 set -o pipefail
+# Propagate errexit (set -e) into command substitutions and subshells (bash 4.4+).
+shopt -s inherit_errexit 2>/dev/null || { echo "Bash 4.4+ is required (missing shopt inherit_errexit)." >&2; exit 1; }
 
 export LC_ALL=C.UTF-8  # Ensure consistency in sorting/grep/etc
 
@@ -342,6 +344,7 @@ cleanup() {
     fi
   fi
 
+  # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
   if [ -n "${GITHUB_ACTIONS:-}" ] && is_matrix_final_step; then
     echo "==> Skipping cleanup (final step)"
   else
@@ -710,6 +713,7 @@ run_test() {
       TEST_UNMET_REQUIREMENT="VM test currently disabled due to LXD_VM_TESTS=0"
     else
       # Check for any core dump before running the test
+      # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
       if ! check_coredumps; then
         false
       fi
@@ -726,6 +730,7 @@ run_test() {
       DURATION=$(awk "BEGIN {printf \"%.2f\", ${END_TIME} - ${START_TIME}}")
 
       # Check for any core dump after running the test
+      # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
       if ! check_coredumps; then
         false
       fi
@@ -861,6 +866,7 @@ trap - EXIT HUP INT TERM
 
 # If in CI, wait for the final step before printing the summary table
 # Build a markdown table with the duration of each test
+# shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
 if [ -z "${GITHUB_ACTIONS:-}" ] || is_matrix_final_step; then
     generate_duration_table
 fi

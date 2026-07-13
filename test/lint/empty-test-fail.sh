@@ -1,6 +1,7 @@
 #!/bin/bash
 set -eu
 set -o pipefail
+shopt -s inherit_errexit
 
 # We set -e in the test suite to ensure an exit on error. Unfortunately,
 # `-e` doesn't apply inside a test.

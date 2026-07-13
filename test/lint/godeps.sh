@@ -1,6 +1,7 @@
 #!/bin/bash
 set -eu
 set -o pipefail
+shopt -s inherit_errexit
 
 UPDATE_LISTS="${UPDATE_LISTS:-"false"}"
 

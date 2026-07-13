@@ -1,4 +1,6 @@
 #!/bin/bash
 set -eu
+set -o pipefail
+shopt -s inherit_errexit
 
-errortype ./...
+exec errortype ./...

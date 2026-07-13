@@ -271,8 +271,6 @@ test_container_recover() {
   local poolDriver
   poolDriver="$(storage_backend "${LXD_IMPORT_DIR}")"
   (
-    set -e
-
     # shellcheck disable=SC2030
     LXD_DIR=${LXD_IMPORT_DIR}
 
@@ -1107,8 +1105,6 @@ test_backup_export_import_recover() {
   fi
 
   (
-    set -e
-
     local poolName
     poolName="lxdtest-$(basename "${LXD_DIR}")"
 
