@@ -109,6 +109,7 @@ readonly test_group_image=(
     "image_import_url"
     "image_import_existing_alias"
     "image_import_metadata"
+    "image_metadata_confined"
     "image_list_all_aliases"
     "image_list_all_projects"
     "image_list_remotes"
