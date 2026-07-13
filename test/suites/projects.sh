@@ -1047,6 +1047,16 @@ test_projects_restrictions() {
   lxc delete c1 --project p2
   lxc project set p1 restricted.containers.lowlevel="" restricted.snapshots=""
 
+  # When copying an instance, the server merges the source instance's config with the
+  # config from the request, with the request config taking precedence. The merged result
+  # must be validated against the target project's restrictions. Ensure the config merged
+  # from the source instance is properly validated.
+  lxc init --empty c1 -c security.privileged=true --project p2
+  out="$(! lxc query --wait -X POST -d '{\"name\":\"c1\",\"source\":{\"type\":\"copy\",\"source\":\"c1\",\"project\":\"p2\"}}' "/1.0/instances?project=p1" 2>&1 || false)"
+  echo "${out}" | grep -F "Privileged containers are forbidden"
+  ! lxc info c1 --project p1 || false
+  lxc delete c1 --project p2
+
   lxc project delete p2
 
   # Setting restricted.containers.privilege to 'allow' makes it possible to create
