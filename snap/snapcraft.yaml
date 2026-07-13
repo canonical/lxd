@@ -223,8 +223,10 @@ parts:
       - bin/radosgw-admin
       - bin/rbd
       - lib/*/ceph
-      - lib/*/libcephfs*
       - lib/python3
+
+      # Unneeded Python modules:
+      - -lib/python3/dist-packages/cephfs*
 
       - lib/*/libboost_context.so*
       - lib/*/libboost_filesystem.so*
@@ -1796,3 +1798,22 @@ parts:
       wrappers/remote-viewer: bin/
       wrappers/sshfs: bin/
       wrappers/virt-v2v-in-place: bin/
+
+lint:
+  ignore:
+    - library:
+      # Ignore libs that are `dlopen`ed
+      - lib/libnvidia-container-go.so*
+      - zfs-2.1/lib/libnvpair.so*
+      - zfs-2.1/lib/libuutil.so*
+      - zfs-2.1/lib/libzfs_core.so*
+      - zfs-2.1/lib/libzfs.so*
+      - zfs-2.2/lib/libnvpair.so*
+      - zfs-2.2/lib/libuutil.so*
+      - zfs-2.2/lib/libzfs_core.so*
+      - zfs-2.3/lib/libnvpair.so*
+      - zfs-2.3/lib/libuutil.so*
+      - zfs-2.3/lib/libzfs_core.so*
+      - zfs-2.4/lib/libnvpair.so*
+      - zfs-2.4/lib/libuutil.so*
+      - zfs-2.4/lib/libzfs_core.so*
