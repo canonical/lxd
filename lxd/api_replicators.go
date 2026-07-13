@@ -1119,6 +1119,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	if !restore {
 		childArgs := make([]*operations.OperationArgs, 0, len(allInsts))
 
+		var stage uint16
 		for _, inst := range allInsts {
 			memberAddress := nodeAddressByName[inst.Location()]
 
@@ -1139,8 +1140,12 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				Type:        operationtype.ReplicatorRunInstanceForward,
 				Class:       operationtype.OperationClassTask,
 				RunHook:     copyFunc,
+				Stage:       stage,
 			})
 		}
+
+		stage++
+		childArgs = append(childArgs, replicatorFinalizeOperationArgs(s, projectName, replicatorURL, replicatorID, stage))
 
 		return operations.OperationArgs{
 			ProjectName:       projectName,
@@ -1149,21 +1154,6 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 			Class:             operationtype.OperationClassTask,
 			ConflictReference: replicatorURL.String(), // Prevents concurrent runs; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
 			Children:          childArgs,
-			RunHook: func(_ context.Context, op *operations.Operation) error {
-				runStatus := api.ReplicatorStatusCompleted
-				for _, child := range op.Children() {
-					if child.Status() != api.Success {
-						runStatus = api.ReplicatorStatusFailed
-						break
-					}
-				}
-
-				// Use a fresh context so the status write always completes, even if the operation context was cancelled.
-				// Only the status is updated here; last_run_date was already set when the operation started.
-				return s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-					return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), replicatorID, runStatus)
-				})
-			},
 		}, nil
 	}
 
@@ -1174,6 +1164,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	// pushing data back to us.
 	localCertPEM := string(clusterCert.PublicKey())
 
+	var stage uint16
 	for _, instName := range iterNames {
 		copyFunc := func(ctx context.Context, op *operations.Operation) error {
 			dstClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
@@ -1398,8 +1389,12 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				api.MetadataEntityURL: entity.InstanceURL(projectName, instName).String(),
 			},
 			RunHook: copyFunc,
+			Stage:   stage,
 		})
 	}
+
+	stage++
+	childArgs = append(childArgs, replicatorFinalizeOperationArgs(s, projectName, replicatorURL, replicatorID, stage))
 
 	return operations.OperationArgs{
 		ProjectName:       projectName,
@@ -1408,10 +1403,21 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 		Class:             operationtype.OperationClassTask,
 		ConflictReference: replicatorURL.String(), // Prevents concurrent runs; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
 		Children:          childArgs,
+	}, nil
+}
+
+func replicatorFinalizeOperationArgs(s *state.State, projectName string, replicatorURL *api.URL, replicatorID int64, stage uint16) *operations.OperationArgs {
+	return &operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.ReplicatorFinalize,
+		Class:       operationtype.OperationClassTask,
+		EntityURL:   replicatorURL,
 		RunHook: func(_ context.Context, op *operations.Operation) error {
+			// Iterate over all operations for the bulk replicator run.
+			// If any operations (that are not this one) have failed, then the replicator run has failed overall.
 			runStatus := api.ReplicatorStatusCompleted
-			for _, child := range op.Children() {
-				if child.Status() != api.Success {
+			for _, child := range op.Parent().Children() {
+				if child.ID() != op.ID() && child.Status() != api.Success {
 					runStatus = api.ReplicatorStatusFailed
 					break
 				}
@@ -1423,7 +1429,8 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), replicatorID, runStatus)
 			})
 		},
-	}, nil
+		Stage: stage,
+	}
 }
 
 // replicatorCheckInstancesStopped verifies that all project instances across all
