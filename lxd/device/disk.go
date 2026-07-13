@@ -1326,7 +1326,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 				// Detect ISO files to set correct FSType.
 				// This is very important to support Windows ISO images (amongst other).
-				if strings.HasSuffix(pathSource.Path, ".iso") {
+				if strings.HasSuffix(strings.ToLower(pathSource.Path), ".iso") {
 					mount.FSType = "iso9660"
 				}
 
