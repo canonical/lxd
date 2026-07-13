@@ -38,6 +38,7 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			StatusCode:        int64(op.Status()),
 			Parent:            parentOpID,
 			ConflictReference: op.conflictReference,
+			Stage:             op.stage,
 		}
 
 		if op.requestor != nil {
@@ -254,6 +255,7 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 		errCode:           dbOp.Row.ErrorCode,
 		conflictReference: dbOp.Row.ConflictReference,
 		requestor:         dbOp.Requestor(),
+		stage:             dbOp.Row.Stage,
 	}
 
 	// If server is not clustered, the DB contains 'none' as the node name. In that case we use the server name as the location.
