@@ -444,6 +444,17 @@ func updateStatus(op *Operation, newStatus api.StatusCode) {
 func (op *Operation) start() {
 	op.lock.Lock()
 
+	// Operations that have already been cancelled should not be started.
+	if op.running.Err() != nil {
+		op.lock.Unlock()
+		return
+	}
+
+	// Pending operations have their status set to [api.Running] before invoking the run hook.
+	if op.status == api.Pending {
+		updateStatus(op, api.Running)
+	}
+
 	// If there's a run hook, we need to run it and get the final status from it.
 	// If there are child operations, we need to start and wait for them to finish before we can get the final status of the parent operation.
 	if op.onRun != nil || len(op.children) > 0 {
