@@ -984,3 +984,13 @@ func IsLowercaseHex(hash string) error {
 
 	return nil
 }
+
+// IsNvidiaConfigValue checks that the NVIDIA config value is safe to write into the LXC
+// configuration file (rejects line breaks that could inject directives).
+func IsNvidiaConfigValue(value string) error {
+	if strings.ContainsAny(value, "\n\r") {
+		return errors.New("NVIDIA configuration values cannot contain line breaks")
+	}
+
+	return nil
+}
