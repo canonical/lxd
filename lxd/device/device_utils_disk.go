@@ -313,9 +313,11 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 		return nil, errors.New("Failed getting UnixListener for virtiofsd")
 	}
 
-	revert.Add(func() {
-		_ = unixListener.Close()
-	})
+	defer func() { _ = unixListener.Close() }()
+
+	// Don't unlink the socket file on close after virtiofsd has started.
+	// The socket should remain for qemu to connect to.
+	unixListener.SetUnlinkOnClose(false)
 
 	unixFile, err := unixListener.File()
 	if err != nil {
