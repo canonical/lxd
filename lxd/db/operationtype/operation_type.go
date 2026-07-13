@@ -145,6 +145,7 @@ const (
 	ReplicatorRun
 	ReplicatorRunInstance
 	ProjectReplicaModeUpdate
+	ReplicatorFinalize
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -396,6 +397,8 @@ func (t Type) Description() string {
 		return "Replicating instance"
 	case ProjectReplicaModeUpdate:
 		return "Updating project replica mode"
+	case ReplicatorFinalize:
+		return "Finalizing replicator"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -491,7 +494,7 @@ func (t Type) EntityType() entity.Type {
 	case NetworkZoneUpdate, NetworkZoneDelete, NetworkZoneRecordCreate, NetworkZoneRecordUpdate, NetworkZoneRecordDelete:
 		return entity.TypeNetworkZone
 	// Replicator operations.
-	case ReplicatorRun:
+	case ReplicatorRun, ReplicatorFinalize:
 		return entity.TypeReplicator
 
 	// It should never be possible to reach the default clause.
@@ -537,5 +540,10 @@ func (t Type) ConflictAction() ConflictAction {
 
 // MustRun returns true if operations with this type must run regardless of previous stage failures.
 func (t Type) MustRun() bool {
-	return false
+	switch t {
+	case ReplicatorFinalize:
+		return true
+	default:
+		return false
+	}
 }
