@@ -55,6 +55,7 @@ import (
 	"github.com/canonical/lxd/shared/netutils"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/units"
+	"github.com/canonical/lxd/shared/validate"
 )
 
 // Helper functions
@@ -1073,6 +1074,13 @@ func (d *lxc) initLXC(config bool) error {
 				return err
 			}
 		} else {
+			// Reject values containing line breaks that could inject additional directives into the LXC configuration,
+			// in case they were stored before set-time validation was in place.
+			err = validate.IsNvidiaConfigValue(nvidiaDriver)
+			if err != nil {
+				return fmt.Errorf("Invalid %q value: %w", "nvidia.driver.capabilities", err)
+			}
+
 			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_DRIVER_CAPABILITIES=%s", nvidiaDriver))
 			if err != nil {
 				return err
@@ -1081,6 +1089,13 @@ func (d *lxc) initLXC(config bool) error {
 
 		nvidiaRequireCuda := d.expandedConfig["nvidia.require.cuda"]
 		if nvidiaRequireCuda != "" {
+			// Reject values containing line breaks that could inject additional directives into the LXC configuration,
+			// in case they were stored before set-time validation was in place.
+			err = validate.IsNvidiaConfigValue(nvidiaRequireCuda)
+			if err != nil {
+				return fmt.Errorf("Invalid %q value: %w", "nvidia.require.cuda", err)
+			}
+
 			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_REQUIRE_CUDA=%s", nvidiaRequireCuda))
 			if err != nil {
 				return err
@@ -1089,6 +1104,13 @@ func (d *lxc) initLXC(config bool) error {
 
 		nvidiaRequireDriver := d.expandedConfig["nvidia.require.driver"]
 		if nvidiaRequireDriver != "" {
+			// Reject values containing line breaks that could inject additional directives into the LXC configuration,
+			// in case they were stored before set-time validation was in place.
+			err = validate.IsNvidiaConfigValue(nvidiaRequireDriver)
+			if err != nil {
+				return fmt.Errorf("Invalid %q value: %w", "nvidia.require.driver", err)
+			}
+
 			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_REQUIRE_DRIVER=%s", nvidiaRequireDriver))
 			if err != nil {
 				return err
