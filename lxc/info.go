@@ -143,7 +143,7 @@ func (c *cmdInfo) renderGPU(gpu api.ResourcesGPUCard, prefix string, initial boo
 		fmt.Printf(prefix+"  Current number of VFs: %d\n", gpu.SRIOV.CurrentVFs)
 		fmt.Printf(prefix+"  Maximum number of VFs: %d\n", gpu.SRIOV.MaximumVFs)
 		if len(gpu.SRIOV.VFs) > 0 {
-			fmt.Printf(prefix+"  VFs: %d\n", gpu.SRIOV.MaximumVFs)
+			fmt.Printf(prefix+"  VFs: %d\n", len(gpu.SRIOV.VFs))
 			for _, vf := range gpu.SRIOV.VFs {
 				fmt.Print(prefix + "  - ")
 				c.renderGPU(vf, prefix+"    ", false)
@@ -252,7 +252,7 @@ func (c *cmdInfo) renderNIC(nic api.ResourcesNetworkCard, prefix string, initial
 		fmt.Printf(prefix+"  Current number of VFs: %d\n", nic.SRIOV.CurrentVFs)
 		fmt.Printf(prefix+"  Maximum number of VFs: %d\n", nic.SRIOV.MaximumVFs)
 		if len(nic.SRIOV.VFs) > 0 {
-			fmt.Printf(prefix+"  VFs: %d\n", nic.SRIOV.MaximumVFs)
+			fmt.Printf(prefix+"  VFs: %d\n", len(nic.SRIOV.VFs))
 			for _, vf := range nic.SRIOV.VFs {
 				fmt.Print(prefix + "  - ")
 				c.renderNIC(vf, prefix+"    ", false)
