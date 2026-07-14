@@ -988,13 +988,18 @@ func AllowVolumeUpdate(ctx context.Context, globalConfig *clusterConfig.Config, 
 		return nil
 	}
 
+	newConfig := req.Config
+	if newConfig == nil {
+		newConfig = currentConfig
+	}
+
 	// Change the volume being updated.
 	for i, volume := range info.Volumes {
 		if volume.Name != volumeName {
 			continue
 		}
 
-		info.Volumes[i].Config = req.Config
+		info.Volumes[i].Config = newConfig
 	}
 
 	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, info)
