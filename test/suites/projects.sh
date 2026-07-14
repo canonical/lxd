@@ -193,8 +193,18 @@ test_projects_copy() {
   lxc --project foo storage volume create "${pool}" vol1 size=1MiB
   lxc --project foo --target-project bar storage volume move "${pool}"/vol1 "${pool}"/vol1
 
+  # Moving a volume into a project must respect that project's limits.disk quota.
+  lxc project set bar limits.disk=1MiB
+  lxc --project foo storage volume create "${pool}" vol2 size=2MiB
+  err="$(! lxc --project foo --target-project bar storage volume move "${pool}"/vol2 "${pool}"/vol2 2>&1 || echo fail)"
+  [ "$(tail -1 <<< "${err}")" = 'Error: Failed checking if volume move allowed: Reached maximum aggregate value "1MiB" for "limits.disk" in project "bar"' ]
+  lxc --project foo storage volume show "${pool}" vol2 > /dev/null
+  lxc project unset bar limits.disk
+  lxc --project foo --target-project bar storage volume move "${pool}"/vol2 "${pool}"/vol2
+
   # Clean things up
   lxc --project bar storage volume delete "${pool}" vol1
+  lxc --project bar storage volume delete "${pool}" vol2
   lxc project delete foo
   lxc project delete bar
 }
@@ -621,6 +631,22 @@ test_projects_limits() {
   lxc storage volume create limit2 foo size=10MiB
   ! lxc storage volume create limit2 bar size=10MiB || false
 
+  # Moving a volume into a pool must respect that pool's
+  # limits.disk.pool.<name> quota.
+  lxc storage volume create "${pool}" bar size=10MiB
+  err="$(! lxc storage volume move "${pool}/bar" limit1/bar 2>&1 || echo fail)"
+  [ "$(tail -1 <<< "${err}")" = 'Error: Failed checking if volume move allowed: Reached maximum aggregate value "10MiB" for "limits.disk.pool.limit1" in project "p1"' ]
+  ! lxc storage volume list limit1 -f csv -c n | grep -xF bar || false
+  lxc storage volume show "${pool}" bar > /dev/null
+  lxc storage volume delete "${pool}" bar
+
+  # Restoring a snapshot must still be checked against limits.disk without
+  # spuriously failing (the volume's own config is unaffected by restore).
+  lxc storage volume create "${pool}" baz size=10MiB
+  lxc storage volume snapshot "${pool}" baz snap0
+  lxc storage volume restore "${pool}" baz snap0
+  lxc storage volume delete "${pool}" baz
+
   ! lxc storage volume create "${pool}" foo size=40MiB || false
   lxc storage volume delete limit1 foo
   lxc storage volume delete limit2 foo
@@ -630,6 +656,17 @@ test_projects_limits() {
   lxc project unset p1 limits.disk.pool.limit1
   lxc project unset p1 limits.disk.pool.limit2
   lxc project unset p1 limits.disk
+
+  # A same-project move to a different pool must not double-count the volume being
+  # moved against the project's overall limits.disk quota (regression test for a bug
+  # where the pre-move and post-move entries were both counted, wrongly rejecting a
+  # move that doesn't change the project's total usage).
+  lxc project set p1 limits.disk=10MiB
+  lxc storage volume create "${pool}" qux size=10MiB
+  lxc storage volume move "${pool}/qux" limit1/qux
+  lxc storage volume delete limit1 qux
+  lxc project unset p1 limits.disk
+
   lxc storage delete limit1
   lxc storage delete limit2
 
