@@ -2,6 +2,7 @@ package validate_test
 
 import (
 	"fmt"
+	"testing"
 
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -102,4 +103,30 @@ func ExampleRequired() {
 	// Output: <nil> Invalid value for a boolean ""
 	// <nil> Invalid value for a boolean "foo"
 	// <nil> <nil>
+}
+
+func Test_IsNvidiaConfigValue(t *testing.T) {
+	tests := []struct {
+		value     string
+		expectErr bool
+	}{
+		{"", false},
+		{"all", false},
+		{"compute,utility", false},
+		{"cuda>=11.0", false},
+		{"brand=tesla,driver>=450", false},
+		{"all\n", true},
+		{"all\r", true},
+		{"all\r\n", true},
+		{"foo\nlxc.something = bad", true},
+		{"foo\rbar", true},
+		{"foo\nbar", true},
+	}
+
+	for _, test := range tests {
+		err := validate.IsNvidiaConfigValue(test.value)
+		if (err != nil) != test.expectErr {
+			t.Errorf("IsNvidiaConfigValue(%q) = %v, expected error: %v", test.value, err, test.expectErr)
+		}
+	}
 }
