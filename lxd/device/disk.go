@@ -210,14 +210,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	// Supported propagation types.
 	// If an empty value is supplied the default behavior is to assume "private" mode.
 	// These come from https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt
-	propagationTypes := []string{"", "private", "shared", "slave", "unbindable", "rshared", "rslave", "runbindable", "rprivate"}
-	validatePropagation := func(input string) error {
-		if !slices.Contains(propagationTypes, d.config["bind"]) {
-			return fmt.Errorf("Invalid propagation value. Must be one of: %s", strings.Join(propagationTypes, ", "))
-		}
-
-		return nil
-	}
+	propagationTypes := []string{"private", "shared", "slave", "unbindable", "rshared", "rslave", "runbindable", "rprivate"}
 
 	rules := map[string]func(string) error{
 		// lxdmeta:generate(entities=device-disk; group=device-conf; key=required)
@@ -339,7 +332,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		//  defaultdesc: `private`
 		//  required: no
 		//  shortdesc: How a bind-mount is shared between the instance and the host
-		"propagation": validatePropagation,
+		"propagation": validate.Optional(validate.IsOneOf(propagationTypes...)),
 		// lxdmeta:generate(entities=device-disk; group=device-conf; key=raw.mount.options)
 		//
 		// ---
