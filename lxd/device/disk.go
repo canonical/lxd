@@ -685,7 +685,7 @@ func (d *disk) validateEnvironmentSourcePath() error {
 	instProject := d.inst.Project()
 	if instProject.Name != api.ProjectDefaultName {
 		// If restricted disk paths are in force, then check the disk's source is allowed, and record the
-		// allowed parent path for later user during device start up sequence.
+		// allowed parent path for later use during device start up sequence.
 		if shared.IsTrue(instProject.Config["restricted"]) && instProject.Config["restricted.devices.disk.paths"] != "" {
 			allowed, restrictedParentSourcePath := project.CheckRestrictedDevicesDiskPaths(instProject.Config, d.config["source"])
 			if !allowed {
