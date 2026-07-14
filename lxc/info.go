@@ -518,7 +518,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 			for entry, disk := range inst.State.Disk {
 				// Only show total for disks that are bounded within the pool.
 				if disk.Total != -1 {
-					fmt.Fprintf(&diskTotal, "    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2))
+					fmt.Fprintf(&diskTotal, "    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Total, 2))
 				}
 			}
 		}
