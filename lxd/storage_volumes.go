@@ -1846,11 +1846,30 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	op := &operations.Operation{}
 	op.SetRequestor(r)
 
+	checkVolumeUpdateLimits := func(putReq api.StorageVolumePut) error {
+		return s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return project.AllowVolumeUpdate(tx, projectName, volumeName, putReq, dbVolume.Config)
+		})
+	}
+
 	if volumeType == db.StoragePoolVolumeTypeCustom {
 		// Restore custom volume from snapshot if requested. This should occur first
 		// before applying config changes so that changes are applied to the
 		// restored volume.
 		if req.Restore != "" {
+			// Check that restoring the snapshot doesn't exceed project limits. Restoring
+			// doesn't change the volume's own config row, so checking against the volume's
+			// current config (via a nil req.Config) reflects the state after restore
+			// accurately. Skip this when a config change is also requested below, since
+			// that check already validates the final config and re-running this one against
+			// the stale pre-restore config would just repeat the same project-wide scan.
+			if req.Config == nil {
+				err = checkVolumeUpdateLimits(api.StorageVolumePut{})
+				if err != nil {
+					return response.SmartError(err)
+				}
+			}
+
 			err = pool.RestoreCustomVolume(projectName, dbVolume.Name, req.Restore, op)
 			if err != nil {
 				return response.SmartError(err)
@@ -1861,10 +1880,8 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		// Only apply changes during a snapshot restore if a non-nil config is supplied to avoid clearing
 		// the volume's config if only restoring snapshot.
 		if req.Config != nil || req.Restore == "" {
-			// Possibly check if project limits are honored.
-			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return project.AllowVolumeUpdate(tx, projectName, volumeName, req, dbVolume.Config)
-			})
+			// Check that the update doesn't exceed project limits.
+			err = checkVolumeUpdateLimits(req)
 			if err != nil {
 				return response.SmartError(err)
 			}
