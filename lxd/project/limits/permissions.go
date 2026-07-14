@@ -280,6 +280,60 @@ func AllowVolumeCreation(ctx context.Context, globalConfig *clusterConfig.Config
 	return nil
 }
 
+// AllowVolumeMove returns an error if any project-specific limit or restriction
+// is violated when moving an existing custom volume to targetPoolName in
+// targetProjectName. sourcePoolName and sourceVolumeName identify the volume
+// being moved in sourceProjectName.
+//
+// For a move within the same project the volume already contributes to the
+// project's aggregate limits, so its existing entry is relocated to the target
+// pool rather than counted a second time. For a cross-project move the target
+// project simply gains a new volume, so it's checked like a plain creation
+// (the source volume belongs to a different project and doesn't affect the
+// target project's limits).
+func AllowVolumeMove(ctx context.Context, globalConfig *clusterConfig.Config, tx *db.ClusterTx, sourceProjectName string, sourcePoolName string, sourceVolumeName string, targetProjectName string, targetPoolName string, req api.StorageVolumesPost) error {
+	info, err := FetchProject(ctx, tx, targetProjectName, true)
+	if err != nil {
+		return err
+	}
+
+	if info == nil {
+		return nil
+	}
+
+	relocated := false
+	if sourceProjectName == targetProjectName {
+		// Within a single project a volume is uniquely identified by its pool and
+		// name, so relocate the source volume's existing entry to the target pool
+		// instead of adding a second entry for it.
+		for i, volume := range info.Volumes {
+			if volume.Name == sourceVolumeName && volume.PoolName == sourcePoolName {
+				info.Volumes[i].Name = req.Name
+				info.Volumes[i].Config = req.Config
+				info.Volumes[i].PoolName = targetPoolName
+				relocated = true
+				break
+			}
+		}
+	}
+
+	if !relocated {
+		// Add the volume being moved into the target project.
+		info.Volumes = append(info.Volumes, db.StorageVolumeArgs{
+			Name:     req.Name,
+			Config:   req.Config,
+			PoolName: targetPoolName,
+		})
+	}
+
+	err = checkInstanceRestrictionsAndAggregateLimits(globalConfig, info)
+	if err != nil {
+		return fmt.Errorf("Failed checking if volume move allowed: %w", err)
+	}
+
+	return nil
+}
+
 // GetImageSpaceBudget returns how much disk space is left in the given project
 // for writing images.
 //
