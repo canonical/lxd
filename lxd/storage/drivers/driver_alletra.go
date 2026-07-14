@@ -164,7 +164,7 @@ func (d *alletra) Validate(config map[string]string) error {
 		// A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
 		// ---
 		//  type: string
-		//  defaultdesc: the discovered mode
+		//  defaultdesc: all available targets
 		//  shortdesc: List of target addresses.
 		"alletra.target": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
 		// lxdmeta:generate(entities=storage-alletra; group=pool-conf; key=alletra.mode)
@@ -172,7 +172,7 @@ func (d *alletra) Validate(config map[string]string) error {
 		// Supported values are `iscsi` and `nvme/tcp`.
 		// ---
 		//  type: string
-		//  defaultdesc: the discovered mode
+		//  defaultdesc: `nvme/tcp`
 		//  shortdesc: How volumes are mapped to the local server
 		"alletra.mode": validate.Optional(validate.IsOneOf(alletraSupportedConnectors...)),
 		// lxdmeta:generate(entities=storage-alletra; group=pool-conf; key=volume.size)
