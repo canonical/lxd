@@ -1350,7 +1350,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				}
 
 				if util.IsWildCardAddress(localAddress) || localAddress == "" {
-					sinkOp.Cancel()
+					_ = sinkOp.Cancel()
 					return errors.New("Cannot restore to this server: configure a concrete address using cluster.https_address or core.https_address")
 				}
 			}
@@ -1367,13 +1367,13 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				},
 			})
 			if err != nil {
-				sinkOp.Cancel()
+				_ = sinkOp.Cancel()
 				return fmt.Errorf("Failed starting push migration on current leader cluster for instance %q: %w", instName, err)
 			}
 
 			remoteErr := remoteMigrateOp.Wait()
 			if remoteErr != nil {
-				sinkOp.Cancel()
+				_ = sinkOp.Cancel()
 				return fmt.Errorf("Restore of instance %q failed on current leader cluster: %w", instName, remoteErr)
 			}
 

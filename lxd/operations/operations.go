@@ -547,20 +547,38 @@ func (op *Operation) IsFinished() bool {
 	return op.finished.Err() != nil
 }
 
-// Cancel cancels a running operation. If the operation cannot be cancelled, it
-// returns an error.
-func (op *Operation) Cancel() {
+// Cancel cancels an operation.
+//   - All operations whose run context has not yet been cancelled have their run context cancelled.
+//   - Operations with the [api.Pending] status are set to [api.Cancelled] immediately.
+//   - Operations without a run hook or any children (e.g. tokens) are set to [api.Cancelled] immediately.
+//   - Operations with a run hook or children have their status set to [api.Cancelling] (including all children).
+//     The go routine that is running the run hook will detect a [context.Canceled] error when the run hook exits and set
+//     the status to [api.Cancelled].
+func (op *Operation) Cancel() error {
 	op.lock.Lock()
 	if op.running.Err() != nil {
 		// Already cancelled, nothing to do.
 		op.lock.Unlock()
-		return
+		return nil
+	}
+
+	// If this is a pending child operation whose operation type dictates that it must run, then it cannot be cancelled.
+	if !op.isCancellable() {
+		op.lock.Unlock()
+		return api.StatusErrorf(http.StatusBadRequest, "This operation cannot be cancelled")
 	}
 
 	// Signal the operation to stop.
 	op.running.Cancel()
 
-	if op.onRun != nil || len(op.children) > 0 {
+	// Determine if the operation run hook is in progress. If it is, set the status to cancelling and let the operation
+	// clean itself up when the run hook exits. Otherwise, immediately set the status to cancelled with an error.
+	// If an operation is not in stage zero, it's initial status is pending (which is then updated to running when it is
+	// started). While it is pending, the run hook has not yet been executed, and will never be executed because we have
+	// just cancelled the running context, so we need to cancel immediately.
+	isInProgress := (op.onRun != nil || len(op.children) > 0) && op.status != api.Pending
+
+	if isInProgress {
 		// If the operation has a run hook, or this is a parent operation waiting for children, set the status to cancelling.
 		// If there's a run hook, the status, error and error code will be set to cancelled by the start routine because the run context is cancelled.
 		// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
@@ -570,14 +588,12 @@ func (op *Operation) Cancel() {
 
 		// Signal the child operations to stop as well.
 		for _, childOp := range op.children {
-			childOp.Cancel()
+			// Ignore errors here, if a child operation cannot be cancelled then the parent will still run it.
+			_ = childOp.Cancel()
 		}
 	} else {
-		// If the operation does not have any children or a run hook, set the status and error to cancelled because there is nothing to clean up.
-		// We cannot use the operation context here because it has already been cancelled above.
-		op.err = context.Canceled.Error()
-		op.errCode = http.StatusInternalServerError
-		op.persistWithNewStatus(api.Cancelled)
+		// If the operation does not have any children or a run hook, cancel immediately.
+		op.cancelImmediate()
 	}
 
 	op.lock.Unlock()
@@ -589,11 +605,21 @@ func (op *Operation) Cancel() {
 	op.sendEvent(md)
 	op.lock.Unlock()
 
-	// If the operation does not have a run hook (e.g. a token operation) we need to call op.done(), because it won't be
-	// called automatically when the run hook completes.
-	if op.onRun == nil {
+	// If the operation was immediately cancelled, either its run hook was never executed or it doesn't have a run hook.
+	// In this case we need to call op.done to clean it up. Other operations will be cleaned up when their run hook exits.
+	if !isInProgress {
 		op.done()
 	}
+
+	return nil
+}
+
+// cancelImmediate sets the operation statuses to cancelled and persists the cancellation to the database.
+// This function should only be called under lock when the running context is cancelled and the run hook is not executing.
+func (op *Operation) cancelImmediate() {
+	op.err = context.Canceled.Error()
+	op.errCode = http.StatusInternalServerError
+	op.persistWithNewStatus(api.Cancelled)
 }
 
 // Connect connects a websocket operation. If the operation is not a websocket
@@ -673,7 +699,7 @@ func (op *Operation) Render() (string, *api.Operation) {
 		StatusCode:  op.status,
 		Resources:   renderedResources,
 		Metadata:    metadata,
-		MayCancel:   true,
+		MayCancel:   op.isCancellable(),
 		Location:    op.location,
 		Err:         op.err,
 		ErrCode:     op.errCode,
@@ -688,6 +714,13 @@ func (op *Operation) Render() (string, *api.Operation) {
 	op.lock.Unlock()
 
 	return op.url, retOp
+}
+
+// isCancellable returns true if the operation can be cancelled. Most operations can be cancelled.
+// The exception is a pending child operation whose operation type specifies that it must run.
+// This private function should only be called under lock.
+func (op *Operation) isCancellable() bool {
+	return op.parent == nil || op.status != api.Pending || !op.dbOpType.MustRun()
 }
 
 // RenderWithoutProgress renders the operation structure without progress metadata.
