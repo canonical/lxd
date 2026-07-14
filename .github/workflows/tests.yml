@@ -1223,9 +1223,9 @@ jobs:
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           export LXD_DOCUMENTATION="${GITHUB_WORKSPACE}/doc/_build/"
-          export PATH="/home/runner/go/bin:$PATH"
+          export PATH="${GOPATH}/bin:${PATH}"
           sudo rm -rf /var/lib/lxd
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH,LXD_DOCUMENTATION $(go env GOPATH)/bin/lxd --group sudo &
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH,LXD_DOCUMENTATION "${GOPATH}/bin/lxd" --group sudo &
 
       - name: Run LXD-UI
         env:
@@ -1242,11 +1242,11 @@ jobs:
         shell: bash
         run: |
           set -eux
-          export PATH="/home/runner/go/bin:$PATH"
+          export PATH="${GOPATH}/bin:${PATH}"
           sudo chown $USER /var/lib/lxd/unix.socket
           # Simplify PATH handling when using sudo
-          sudo ln -s /home/runner/go/bin/lxc /usr/bin/lxc
-          sudo ln -s /home/runner/go/bin/lxd /usr/bin/lxd
+          sudo ln -s "${GOPATH}/bin/lxc" /usr/bin/lxc
+          sudo ln -s "${GOPATH}/bin/lxd" /usr/bin/lxd
           lxc storage create default zfs
           lxc profile device add default root disk path=/ pool=default
           lxc network create local-network
@@ -1260,14 +1260,14 @@ jobs:
         shell: bash
         run: |
           set -eux
-          export PATH="/home/runner/go/bin:$PATH"
+          export PATH="${GOPATH}/bin:${PATH}"
           ./lxd-ui/tests/scripts/setup_test
 
       - name: Test basic LXD functionality
         shell: bash
         run: |
           set -eux
-          export PATH="/home/runner/go/bin:$PATH"
+          export PATH="${GOPATH}/bin:${PATH}"
 
           # launch a test instance
           ./test/deps/import-busybox --alias testimage
@@ -1289,7 +1289,7 @@ jobs:
           set -eux
           cd lxd-ui
           sudo chown $USER -R /home/runner/.config
-          export PATH="/home/runner/go/bin:$PATH"
+          export PATH="${GOPATH}/bin:${PATH}"
           export CI=true
           export DISABLE_VM_TESTS=true
           npx playwright test --project "chromium:lxd-${TARGET:-latest-edge}:unclustered"
@@ -1305,8 +1305,8 @@ jobs:
       - name: Shutdown LXD daemon
         run: |
           set -eux
-          export PATH="/home/runner/go/bin:$PATH"
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH $(go env GOPATH)/bin/lxd shutdown
+          export PATH="${GOPATH}/bin:${PATH}"
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH "${GOPATH}/bin/lxd" shutdown
 
       - name: Upload coverage data
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
