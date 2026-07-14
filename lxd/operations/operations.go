@@ -568,8 +568,13 @@ func (op *Operation) IsRunning() bool {
 	return op.running.Err() == nil
 }
 
-// Cancel cancels a running operation. If the operation cannot be cancelled, it
-// returns an error.
+// Cancel cancels an operation.
+//   - All operations whose run context has not yet been cancelled have their run context cancelled.
+//   - Operations with the [api.Pending] status are set to [api.Cancelled] immediately.
+//   - Operations without a run hook or any children (e.g. tokens) are set to [api.Cancelled] immediately.
+//   - Operations with a run hook or children have their status set to [api.Cancelling] (including all children).
+//     The go routine that is running the run hook will detect a [context.Canceled] error when the run hook exits and set
+//     the status to [api.Cancelled].
 func (op *Operation) Cancel() {
 	op.lock.Lock()
 	if op.running.Err() != nil {
@@ -581,7 +586,12 @@ func (op *Operation) Cancel() {
 	// Signal the operation to stop.
 	op.running.Cancel()
 
-	if op.onRun != nil || len(op.children) > 0 {
+	var awaitRunHook bool
+	if (op.onRun != nil || len(op.children) > 0) && op.status != api.Pending {
+		awaitRunHook = true
+	}
+
+	if awaitRunHook {
 		// If the operation has a run hook, or this is a parent operation waiting for children, set the status to cancelling.
 		// If there's a run hook, the status, error and error code will be set to cancelled by the start routine because the run context is cancelled.
 		// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
@@ -610,9 +620,9 @@ func (op *Operation) Cancel() {
 	op.sendEvent(md)
 	op.lock.Unlock()
 
-	// If the operation does not have a run hook (e.g. a token operation) we need to call op.done(), because it won't be
-	// called automatically when the run hook completes.
-	if op.onRun == nil {
+	// If the operation was immediately cancelled, either its run hook was never executed or it doesn't have a run hook.
+	// In this case we need to call op.done to clean it up. Other operations will be cleaned up when their run hook exits.
+	if !awaitRunHook {
 		op.done()
 	}
 }
