@@ -1080,7 +1080,7 @@ func (d *lxc) initLXC(config bool) error {
 		}
 
 		nvidiaRequireCuda := d.expandedConfig["nvidia.require.cuda"]
-		if nvidiaRequireCuda == "" {
+		if nvidiaRequireCuda != "" {
 			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_REQUIRE_CUDA=%s", nvidiaRequireCuda))
 			if err != nil {
 				return err
@@ -1088,7 +1088,7 @@ func (d *lxc) initLXC(config bool) error {
 		}
 
 		nvidiaRequireDriver := d.expandedConfig["nvidia.require.driver"]
-		if nvidiaRequireDriver == "" {
+		if nvidiaRequireDriver != "" {
 			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_REQUIRE_DRIVER=%s", nvidiaRequireDriver))
 			if err != nil {
 				return err
