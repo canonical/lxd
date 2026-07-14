@@ -1979,6 +1979,28 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, details stor
 		revert := revert.New()
 		defer revert.Fail()
 
+		// Check that moving the volume into the target pool/project doesn't exceed its limits.
+		// This also covers same-project moves to a different pool, since projects can set
+		// per-pool disk quotas via "limits.disk.pool.<poolName>". AllowVolumeMove relocates
+		// the source volume's existing entry for same-project moves so its size isn't
+		// double-counted against the target project's aggregate limits, and treats a
+		// cross-project move as a plain creation in the target project.
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			limitsReq := api.StorageVolumesPost{
+				StorageVolumePut: api.StorageVolumePut{
+					Description: vol.Description,
+					Config:      vol.Config,
+				},
+				Name: newVol.Name,
+				Type: vol.Type,
+			}
+
+			return limits.AllowVolumeMove(ctx, s.GlobalConfig, tx, effectiveProjectName, details.pool.Name(), vol.Name, targetProjectName, newPool.Name(), limitsReq)
+		})
+		if err != nil {
+			return err
+		}
+
 		// Update devices using the volume in instances and profiles.
 		cleanup, err := storagePoolVolumeUpdateUsers(ctx, s, effectiveProjectName, details.pool.Name(), vol, newPool.Name(), &newVol)
 		if err != nil {
