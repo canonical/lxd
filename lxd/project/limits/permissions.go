@@ -265,11 +265,6 @@ func AllowVolumeCreation(ctx context.Context, globalConfig *clusterConfig.Config
 		return nil
 	}
 
-	// If "limits.disk" is not set, there's nothing to do.
-	if info.Project.Config["limits.disk"] == "" {
-		return nil
-	}
-
 	// Add the volume being created.
 	info.Volumes = append(info.Volumes, db.StorageVolumeArgs{
 		Name:     req.Name,
@@ -980,11 +975,6 @@ func AllowVolumeUpdate(ctx context.Context, globalConfig *clusterConfig.Config, 
 	}
 
 	if info == nil {
-		return nil
-	}
-
-	// If "limits.disk" is not set, there's nothing to do.
-	if info.Project.Config["limits.disk"] == "" {
 		return nil
 	}
 
