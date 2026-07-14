@@ -180,7 +180,7 @@ func (d *powerstore) Validate(config map[string]string) error {
 		//  shortdesc: How volumes are mapped to the local server
 		//  scope: global
 		//  required: true
-		"powerstore.mode": validate.IsOneOf(powerStoreSupportedConnectors...),
+		"powerstore.mode": validate.Optional(validate.IsOneOf(powerStoreSupportedConnectors...)),
 		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.target)
 		// A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
 		// ---
@@ -258,6 +258,10 @@ func (d *powerstore) ValidateSource() error {
 
 	if d.config["powerstore.user.password"] == "" {
 		return errors.New("The powerstore.user.password cannot be empty")
+	}
+
+	if d.config["powerstore.mode"] == "" {
+		return errors.New("The powerstore.mode cannot be empty")
 	}
 
 	return nil
