@@ -5139,7 +5139,7 @@ The minimum value is `1H` (1 hour).
 ```
 
 ```{config:option} alletra.mode storage-alletra-pool-conf
-:defaultdesc: "the discovered mode"
+:defaultdesc: "`nvme/tcp`"
 :shortdesc: "How volumes are mapped to the local server"
 :type: "string"
 The mode to use to map storage volumes to the local server.
@@ -5147,7 +5147,7 @@ Supported values are `iscsi` and `nvme/tcp`.
 ```
 
 ```{config:option} alletra.target storage-alletra-pool-conf
-:defaultdesc: "the discovered mode"
+:defaultdesc: "all available targets"
 :shortdesc: "List of target addresses."
 :type: "string"
 A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
@@ -6326,7 +6326,7 @@ This option is required only if {config:option}`storage-powerflex-pool-conf:powe
 ```
 
 ```{config:option} powerflex.mode storage-powerflex-pool-conf
-:defaultdesc: "the discovered mode"
+:defaultdesc: "`nvme/tcp`"
 :scope: "global"
 :shortdesc: "How volumes are mapped to the local server"
 :type: "string"
@@ -6559,7 +6559,6 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 ```
 
 ```{config:option} powerstore.mode storage-powerstore-pool-conf
-:defaultdesc: "the discovered mode"
 :required: "true"
 :scope: "global"
 :shortdesc: "How volumes are mapped to the local server"
@@ -6569,7 +6568,7 @@ Supported values are `iscsi` and `scsi/fc`.
 ```
 
 ```{config:option} powerstore.target storage-powerstore-pool-conf
-:defaultdesc: "target addresses"
+:defaultdesc: "all available targets"
 :shortdesc: "List of target addresses the LXD connects to."
 :type: "string"
 A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
@@ -6761,7 +6760,7 @@ API authorization token for Pure Storage gateway. Must have array_admin role to 
 ```
 
 ```{config:option} pure.mode storage-pure-pool-conf
-:defaultdesc: "the discovered mode"
+:defaultdesc: "`nvme/tcp`"
 :shortdesc: "How volumes are mapped to the local server"
 :type: "string"
 The mode to use to map Pure Storage volumes to the local server.
@@ -6769,7 +6768,7 @@ Supported values are `iscsi` and `nvme/tcp`.
 ```
 
 ```{config:option} pure.target storage-pure-pool-conf
-:defaultdesc: "the discovered mode"
+:defaultdesc: "all available targets"
 :shortdesc: "List of target addresses."
 :type: "string"
 A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
