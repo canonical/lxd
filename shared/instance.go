@@ -219,9 +219,9 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"migration.incremental.memory.goal":       validate.Optional(validate.IsUint32),
 
 	"nvidia.runtime":             validate.Optional(validate.IsBool),
-	"nvidia.driver.capabilities": validate.IsAny,
-	"nvidia.require.cuda":        validate.IsAny,
-	"nvidia.require.driver":      validate.IsAny,
+	"nvidia.driver.capabilities": validate.IsNvidiaConfigValue,
+	"nvidia.require.cuda":        validate.IsNvidiaConfigValue,
+	"nvidia.require.driver":      validate.IsNvidiaConfigValue,
 
 	// Caller is responsible for full validation of any raw.* value.
 	"raw.idmap":   validate.IsAny,
