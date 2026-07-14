@@ -191,8 +191,18 @@ test_projects_copy() {
   lxc --project foo storage volume create "${pool}" vol1
   lxc --project foo --target-project bar storage volume move "${pool}"/vol1 "${pool}"/vol1
 
+  # Moving a volume into a project must respect that project's limits.disk quota.
+  lxc project set bar limits.disk=1MiB
+  lxc --project foo storage volume create "${pool}" vol2 size=2MiB
+  err="$(! lxc --project foo --target-project bar storage volume move "${pool}"/vol2 "${pool}"/vol2 2>&1 || echo fail)"
+  [ "$(tail -1 <<< "${err}")" = 'Error: Failed checking if volume move allowed: Reached maximum aggregate value "1MiB" for "limits.disk" in project "bar"' ]
+  lxc --project foo storage volume show "${pool}" vol2 > /dev/null
+  lxc project unset bar limits.disk
+  lxc --project foo --target-project bar storage volume move "${pool}"/vol2 "${pool}"/vol2
+
   # Clean things up
   lxc --project bar storage volume delete "${pool}" vol1
+  lxc --project bar storage volume delete "${pool}" vol2
   lxc project delete foo
   lxc project delete bar
 }
