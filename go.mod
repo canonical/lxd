@@ -1,6 +1,6 @@
 module github.com/canonical/lxd
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/NVIDIA/go-nvml v0.13.2-0
