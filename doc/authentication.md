@@ -32,6 +32,7 @@ On the next connection, a new certificate is generated.
 ### Communication protocol
 
 The supported protocol must be TLS 1.3 or better.
+LXD uses the [Go TLS stack](https://pkg.go.dev/crypto/tls) as the TLS implementation.
 
 It's possible to force LXD to accept TLS 1.2 by setting the `LXD_INSECURE_TLS` environment variable on both client and server.
 However this isn't a supported setup and should only ever be used when forced to use an outdated corporate proxy.

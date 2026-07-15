@@ -16,6 +16,11 @@ You can also use a local image to create a remote instance.
 Each image is identified by a fingerprint (SHA256).
 To make it easier to manage images, LXD allows defining one or more aliases for each image.
 
+LXD uses the [Go TLS stack](https://pkg.go.dev/crypto/tls) to connect to remote image servers, but with post-quantum cryptography ({abbr}`PQC`) disabled.
+This restriction of SimpleStreams connections to legacy TLS curves was implemented to accommodate users operating behind broken network middleboxes.
+PQC hybrid curves require larger keys, and, as a result, the TLS `ClientHello` message can exceed the size of a single TCP packet.
+Broken middleboxes that fail to properly reassemble fragmented TCP packets often abruptly terminate these handshakes.
+
 ## Caching
 
 When you create an instance using a remote image, LXD downloads the image and caches it locally.
