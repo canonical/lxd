@@ -593,11 +593,48 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 			profileNames = append(profileNames, p.Name)
 		}
 
-		rootDevKey, rootDev, _ := api.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
+		// Resolve the effective target root disk device the same way instanceCreateAsCopy
+		// does: expand the request's devices with the target project's profiles. This
+		// yields the root disk device key that each snapshot's root disk will be aligned
+		// to (adjustSnapRootDiskPool), and the pool that the snapshots will actually be
+		// created on.
+		targetDevices := instancetype.ExpandInstanceDevices(deviceConfig.NewDevices(req.Devices), profiles)
+		rootDevKey, rootDev, err := api.GetRootDiskDevice(targetDevices.CloneNative())
+		if err != nil && !errors.Is(err, api.ErrNoRootDisk) {
+			// The only other error is ErrMultipleRootDisks, a client/config error.
+			return response.BadRequest(err)
+		}
+
+		targetPool := rootDev["pool"]
+
+		// If no pool is set on the resolved root disk (neither the request nor the
+		// profiles specify one), fall back to the same single-pool resolution the copy
+		// relies on.
+		if targetPool == "" {
+			targetPool, _, _, _, err = instanceFindStoragePool(s, targetProject, req)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
+		// When neither the request nor the profiles define a root disk, the create path
+		// injects one with a generated name (see setupInstanceArgs). Mirror that name
+		// selection so snapshots are aligned to the same key rather than an empty device
+		// name.
+		if rootDevKey == "" {
+			rootDevKey = "root"
+			for i := range 100 {
+				if req.Devices[rootDevKey] == nil {
+					break
+				}
+
+				rootDevKey = "root" + strconv.Itoa(i)
+			}
+		}
 
 		// We keep the ContainerOnly for backward compatibility.
 		copyInstanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
-		err = checkTargetProjectRestrictions(r.Context(), s, source, targetProject, sourceProject, req.Name, req.Config, req.Devices, profileNames, copyInstanceOnly, req.Source.OverrideSnapshotProfiles, rootDevKey, rootDev["pool"])
+		err = checkTargetProjectRestrictions(r.Context(), s, source, targetProject, sourceProject, req.Name, req.Config, req.Devices, profileNames, copyInstanceOnly, req.Source.OverrideSnapshotProfiles, rootDevKey, targetPool)
 		if err != nil {
 			return response.SmartError(err)
 		}
