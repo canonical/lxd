@@ -27,11 +27,6 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 	}
 
 	registerSingleOperation := func(ctx context.Context, tx *db.ClusterTx, op *Operation, parentOpID *int64, projectID *int64) (int64, error) {
-		// Conflict reference should only be provided for operation types that support conflicts.
-		if op.dbOpType.ConflictAction() == operationtype.ConflictActionNone && op.conflictReference != "" {
-			return 0, fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", op.conflictReference, op.dbOpType.Description())
-		}
-
 		operationsRow := cluster.OperationsRow{
 			UUID:              op.id,
 			Type:              op.dbOpType,
