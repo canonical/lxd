@@ -203,9 +203,10 @@ func instanceFileGet(ctx context.Context, s *state.State, inst instance.Instance
 		revert.Success()
 
 		// Make a file response struct.
+		fileName := filepath.Base(path)
 		files := make([]response.FileResponseEntry, 1)
-		files[0].Identifier = filepath.Base(path)
-		files[0].Filename = filepath.Base(path)
+		files[0].Identifier = fileName
+		files[0].Filename = fileName
 		files[0].File = file
 		files[0].FileSize = stat.Size()
 		files[0].FileModified = stat.ModTime()
@@ -237,9 +238,10 @@ func instanceFileGet(ctx context.Context, s *state.State, inst instance.Instance
 		}
 
 		// Make a file response struct.
+		fileName := filepath.Base(path)
 		files := make([]response.FileResponseEntry, 1)
-		files[0].Identifier = filepath.Base(path)
-		files[0].Filename = filepath.Base(path)
+		files[0].Identifier = fileName
+		files[0].Filename = fileName
 		files[0].File = bytes.NewReader([]byte(target))
 		files[0].FileModified = time.Now()
 		files[0].FileSize = int64(len(target))
