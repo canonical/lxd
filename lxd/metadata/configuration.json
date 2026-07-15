@@ -5725,7 +5725,7 @@
 					},
 					{
 						"alletra.mode": {
-							"defaultdesc": "the discovered mode",
+							"defaultdesc": "`nvme/tcp`",
 							"longdesc": "The mode to use to map storage volumes to the local server.\nSupported values are `iscsi` and `nvme/tcp`.",
 							"shortdesc": "How volumes are mapped to the local server",
 							"type": "string"
@@ -5733,7 +5733,7 @@
 					},
 					{
 						"alletra.target": {
-							"defaultdesc": "the discovered mode",
+							"defaultdesc": "all available targets",
 							"longdesc": "A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.",
 							"shortdesc": "List of target addresses.",
 							"type": "string"
@@ -6997,7 +6997,7 @@
 					},
 					{
 						"powerflex.mode": {
-							"defaultdesc": "the discovered mode",
+							"defaultdesc": "`nvme/tcp`",
 							"longdesc": "The mode gets discovered automatically if the system provides the necessary kernel modules.\nThis can be either `nvme/tcp` or `sdc`.",
 							"scope": "global",
 							"shortdesc": "How volumes are mapped to the local server",
@@ -7242,7 +7242,6 @@
 					},
 					{
 						"powerstore.mode": {
-							"defaultdesc": "the discovered mode",
 							"longdesc": "The mode to use to map PowerStore volumes to the local server.\nSupported values are `iscsi` and `scsi/fc`.",
 							"required": "true",
 							"scope": "global",
@@ -7252,7 +7251,7 @@
 					},
 					{
 						"powerstore.target": {
-							"defaultdesc": "target addresses",
+							"defaultdesc": "all available targets",
 							"longdesc": "A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.",
 							"shortdesc": "List of target addresses the LXD connects to.",
 							"type": "string"
@@ -7459,7 +7458,7 @@
 					},
 					{
 						"pure.mode": {
-							"defaultdesc": "the discovered mode",
+							"defaultdesc": "`nvme/tcp`",
 							"longdesc": "The mode to use to map Pure Storage volumes to the local server.\nSupported values are `iscsi` and `nvme/tcp`.",
 							"shortdesc": "How volumes are mapped to the local server",
 							"type": "string"
@@ -7467,7 +7466,7 @@
 					},
 					{
 						"pure.target": {
-							"defaultdesc": "the discovered mode",
+							"defaultdesc": "all available targets",
 							"longdesc": "A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.",
 							"shortdesc": "List of target addresses.",
 							"type": "string"

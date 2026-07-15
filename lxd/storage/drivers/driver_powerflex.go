@@ -303,7 +303,7 @@ func (d *powerflex) Validate(config map[string]string) error {
 		// This can be either `nvme/tcp` or `sdc`.
 		// ---
 		//  type: string
-		//  defaultdesc: the discovered mode
+		//  defaultdesc: `nvme/tcp`
 		//  shortdesc: How volumes are mapped to the local server
 		//  scope: global
 		"powerflex.mode": validate.Optional(validate.IsOneOf(connectors.TypeNVMeTCP, connectors.TypeSDC)),
