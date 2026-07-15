@@ -46,6 +46,21 @@ The following bug fixes are included in this release.
 
 These changes are not compatible with older versions of LXD or its clients.
 
+(ref-release-notes-4.0.11-secureboot)=
+### Secure Boot compatibility limitations (Microsoft 2023 CA rotation)
+
+LXD 4.0 LTS bundles Microsoft UEFI 2011 CAs that [expired in June 2026](https://discourse.ubuntu.com/t/microsoft-uefi-ca-rotation-what-it-means-for-ubuntu-users-and-vendors/82652). Because LXD 4.0 LTS is out of standard support and ships an older EDK2 firmware utilizing a legacy 2MB flash layout, it will not receive updates to support the new Microsoft 2023 CAs. Due to this 2MB firmware size constraint, LXD 4.0 LTS already has [limited compatibility with modern guests that require Secure Boot](https://bugs.launchpad.net/ubuntu/+source/edk2/+bug/1885662).
+
+**Implications:**
+Virtual machine images using a boot loader signed exclusively with the 2023 CA will fail Secure Boot validation and refuse to boot.
+
+**Workaround:**
+Secure Boot enforcement might need to be disabled for the instance:
+
+```bash
+lxc config set <instance_name> security.secureboot false
+```
+
 ### Minimum system requirement changes
 
 The minimum supported version of some components has changed:
