@@ -712,6 +712,40 @@ test_projects_limits() {
   lxc project delete copydst
   lxc storage delete poolb
 
+  # Cross-project move: the same pool-scoped validation must apply on the move
+  # path. A move that changes the storage pool (--storage) has each snapshot's
+  # root disk rewritten to the target pool, so the restriction preflight must
+  # validate snapshots against that pool.
+  lxc storage create poolm dir
+
+  lxc project create movesrc
+  lxc project create movedst
+
+  lxc profile device add default root disk path="/" pool="${pool}" --project movesrc
+  lxc profile device add default root disk path="/" pool="${pool}" --project movedst
+
+  lxc project set movedst limits.disk.pool.poolm=20MiB
+
+  lxc init --empty c1 --project movesrc -d root,size=30MiB
+  lxc snapshot c1 --project movesrc
+  lxc config device set c1 root size=15MiB --project movesrc
+
+  # Moving into the target project while changing the storage pool to poolm must
+  # be rejected: the 30MiB snapshot root disk, once rewritten to poolm, exceeds
+  # the 20MiB budget.
+  exit_code=0
+  err_msg="$(lxc move c1 c1 --project movesrc --target-project movedst --storage poolm 2>&1)" || exit_code=$?
+  [[ "${exit_code}" -ne 0 ]]
+  [[ "${err_msg}" == *'Snapshot "c1/snap0" cannot be placed'*"Reached maximum aggregate value"*"limits.disk.pool.poolm"* ]]
+  # The source instance must be left untouched and nothing created in the target.
+  lxc info c1 --project movesrc >/dev/null
+  ! lxc info c1 --project movedst || false
+
+  lxc delete c1 --project movesrc
+  lxc project delete movesrc
+  lxc project delete movedst
+  lxc storage delete poolm
+
   # Create a couple of containers in the project.
   lxc init --empty c1
   lxc init --empty c2
