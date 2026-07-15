@@ -249,14 +249,13 @@ func instanceFileGet(ctx context.Context, s *state.State, inst instance.Instance
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceFileRetrieved.Event(ctx, inst, logger.Ctx{"path": path}))
 		return response.FileResponse(files, headers)
 	case "directory":
-		dirEnts := []string{}
-
 		// List the directory.
 		entries, err := client.ReadDir(path)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
+		dirEnts := make([]string, 0, len(entries))
 		for _, entry := range entries {
 			dirEnts = append(dirEnts, entry.Name())
 		}
