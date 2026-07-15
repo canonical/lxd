@@ -69,13 +69,6 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			operationsRow.EntityID = int64(entityReference.EntityID)
 		}
 
-		inputsJSON, err := json.Marshal(op.inputs)
-		if err != nil {
-			return 0, fmt.Errorf("Failed marshalling operation inputs: %w", err)
-		}
-
-		operationsRow.Inputs = string(inputsJSON)
-
 		metadataJSON, err := json.Marshal(op.metadata)
 		if err != nil {
 			return 0, fmt.Errorf("Failed marshalling operation metadata: %w", err)
@@ -207,16 +200,6 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
 	op.events = s.Events
-
-	// Load operation inputs.
-	var inputs map[string]any
-	var err error
-	err = json.Unmarshal([]byte(dbOp.Row.Inputs), &inputs)
-	if err != nil {
-		return nil, fmt.Errorf("Failed unmarshalling operation inputs for operation %d: %w", dbOp.Row.ID, err)
-	}
-
-	op.inputs = inputs
 
 	// Load operation entity URL.
 	// Note that we rely on the entity_type of the operation and the entityURL being the same. This is enforced by a check in the initOperation().

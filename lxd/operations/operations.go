@@ -82,9 +82,6 @@ type Operation struct {
 	onRun     func(context.Context, *Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 
-	// Inputs for the operation, which are stored in the database.
-	inputs map[string]any
-
 	// Operations which conflict with each other share the same conflict reference.
 	conflictReference string
 
@@ -119,7 +116,6 @@ type OperationArgs struct {
 	ConnectHook     func(op *Operation, r *http.Request, w http.ResponseWriter) error
 	requestor       *request.RequestorAuditor
 	metricsCallback func(result metrics.RequestResult)
-	Inputs          map[string]any
 	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
 	// Empty ConflictReference means the operation can be started anytime.
 	ConflictReference string
@@ -222,7 +218,6 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.requestor = args.requestor
 		op.metricsCallback = args.metricsCallback
 		op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
-		op.inputs = args.Inputs
 		op.conflictReference = args.ConflictReference
 		op.events = s.Events
 		op.location = s.ServerName
@@ -986,11 +981,6 @@ func (op *Operation) Class() operationtype.Class {
 // Type returns the db operation type.
 func (op *Operation) Type() operationtype.Type {
 	return op.dbOpType
-}
-
-// Inputs returns the operation inputs from the database.
-func (op *Operation) Inputs() map[string]any {
-	return op.inputs
 }
 
 // Parent returns the parent operation if this operation is a child operation, or nil if this operation is not a child operation.
