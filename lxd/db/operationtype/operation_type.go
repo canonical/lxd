@@ -501,6 +501,16 @@ func (t Type) EntityType() entity.Type {
 	}
 }
 
+// IsBulk returns true if the operation type can have child operations, and false otherwise.
+func (t Type) IsBulk() bool {
+	switch t {
+	case InstanceStateUpdateBulk, ReplicatorRun:
+		return true
+	default:
+		return false
+	}
+}
+
 // ConflictAction returns the action to take if a conflicting operation is already running.
 type ConflictAction int
 
