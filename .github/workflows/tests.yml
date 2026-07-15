@@ -23,6 +23,11 @@ on:
         required: true
         type: boolean
         default: false
+      go-snap-channel:
+        description: Go snap channel to test on Linux, e.g. latest/candidate. Leave empty to use go.mod.
+        required: false
+        type: string
+        default: ''
       ubuntu-releases:
         description: Ubuntu releases to run the tests against. In JSON format, i.e. '["22.04", "24.04"]'.
         type: choice
@@ -47,6 +52,7 @@ on:
     - cron: '0 0 * * *'  # Test TICS daily
 
 env:
+  GOTOOLCHAIN: "local"  # Never download a different Go toolchain
   LXD_SKIP_TESTS: "concurrent"  # concurrent is too unreliable/racy
   LXD_REQUIRED_TESTS: "network_ovn"
   GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && inputs.coverage ) || ( github.event_name == 'schedule' && github.repository == 'canonical/lxd' ) || ( github.event_name == 'pull_request' && github.repository == 'canonical/lxd' )) && 'true' || 'false' }}
@@ -115,10 +121,9 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && runner.debug == '1' && !cancelled() }}
 
       - name: Install Go
-        # zizmor: ignore[cache-poisoning]
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: ./.github/actions/setup-go
         with:
-          go-version-file: 'go.mod'
+          snap-channel: ${{ inputs.go-snap-channel }}
 
       - name: Install Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -828,7 +833,6 @@ jobs:
       LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
       LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
-      GOTOOLCHAIN: "local"
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     steps:
       - name: Checkout
@@ -846,10 +850,9 @@ jobs:
         uses: ./.github/actions/disable-docker
 
       - name: Install Go
-        # zizmor: ignore[cache-poisoning]
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: ./.github/actions/setup-go
         with:
-          go-version-file: 'go.mod'
+          snap-channel: ${{ inputs.go-snap-channel }}
 
       - name: Make GOCOVERDIR
         run: |
@@ -945,10 +948,9 @@ jobs:
           persist-credentials: false
 
       - name: Install Go
-        # zizmor: ignore[cache-poisoning]
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: ./.github/actions/setup-go
         with:
-          go-version-file: 'go.mod'
+          snap-channel: ${{ inputs.go-snap-channel }}
 
       - name: Create build directory
         run: |
@@ -1070,10 +1072,9 @@ jobs:
           persist-credentials: false
 
       - name: Install Go
-        # zizmor: ignore[cache-poisoning]
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: ./.github/actions/setup-go
         with:
-          go-version-file: 'go.mod'
+          snap-channel: ${{ inputs.go-snap-channel }}
 
       - name: Make GOCOVERDIR
         run: |
@@ -1222,9 +1223,9 @@ jobs:
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           export LXD_DOCUMENTATION="${GITHUB_WORKSPACE}/doc/_build/"
-          export PATH="/home/runner/go/bin:$PATH"
+          export PATH="${GOPATH}/bin:${PATH}"
           sudo rm -rf /var/lib/lxd
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH,LXD_DOCUMENTATION $(go env GOPATH)/bin/lxd --group sudo &
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH,LXD_DOCUMENTATION "${GOPATH}/bin/lxd" --group sudo &
 
       - name: Run LXD-UI
         env:
@@ -1241,11 +1242,11 @@ jobs:
         shell: bash
         run: |
           set -eux
-          export PATH="/home/runner/go/bin:$PATH"
+          export PATH="${GOPATH}/bin:${PATH}"
           sudo chown $USER /var/lib/lxd/unix.socket
           # Simplify PATH handling when using sudo
-          sudo ln -s /home/runner/go/bin/lxc /usr/bin/lxc
-          sudo ln -s /home/runner/go/bin/lxd /usr/bin/lxd
+          sudo ln -s "${GOPATH}/bin/lxc" /usr/bin/lxc
+          sudo ln -s "${GOPATH}/bin/lxd" /usr/bin/lxd
           lxc storage create default zfs
           lxc profile device add default root disk path=/ pool=default
           lxc network create local-network
@@ -1259,14 +1260,14 @@ jobs:
         shell: bash
         run: |
           set -eux
-          export PATH="/home/runner/go/bin:$PATH"
+          export PATH="${GOPATH}/bin:${PATH}"
           ./lxd-ui/tests/scripts/setup_test
 
       - name: Test basic LXD functionality
         shell: bash
         run: |
           set -eux
-          export PATH="/home/runner/go/bin:$PATH"
+          export PATH="${GOPATH}/bin:${PATH}"
 
           # launch a test instance
           ./test/deps/import-busybox --alias testimage
@@ -1288,7 +1289,7 @@ jobs:
           set -eux
           cd lxd-ui
           sudo chown $USER -R /home/runner/.config
-          export PATH="/home/runner/go/bin:$PATH"
+          export PATH="${GOPATH}/bin:${PATH}"
           export CI=true
           export DISABLE_VM_TESTS=true
           npx playwright test --project "chromium:lxd-${TARGET:-latest-edge}:unclustered"
@@ -1304,8 +1305,8 @@ jobs:
       - name: Shutdown LXD daemon
         run: |
           set -eux
-          export PATH="/home/runner/go/bin:$PATH"
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH $(go env GOPATH)/bin/lxd shutdown
+          export PATH="${GOPATH}/bin:${PATH}"
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH "${GOPATH}/bin/lxd" shutdown
 
       - name: Upload coverage data
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -1329,10 +1330,9 @@ jobs:
           persist-credentials: false
 
       - name: Install Go
-        # zizmor: ignore[cache-poisoning]
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: ./.github/actions/setup-go
         with:
-          go-version-file: 'go.mod'
+          snap-channel: ${{ inputs.go-snap-channel }}
 
       - name: Install Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -1386,10 +1386,9 @@ jobs:
           persist-credentials: false
 
       - name: Install Go
-        # zizmor: ignore[cache-poisoning]
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: ./.github/actions/setup-go
         with:
-          go-version-file: 'go.mod'
+          snap-channel: ${{ inputs.go-snap-channel }}
 
       - name: Install Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
