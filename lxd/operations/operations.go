@@ -150,29 +150,16 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		return nil, errors.New("State must be provided")
 	}
 
+	err := args.validate(false)
+	if err != nil {
+		return nil, fmt.Errorf("Failed validating operation arguments: %w", err)
+	}
+
 	// initOperation initializes a single operation structure.
 	initOperation := func(s *state.State, args OperationArgs) (*Operation, error) {
 		// Don't allow new operations when LXD is shutting down.
 		if s.ShutdownCtx.Err() != nil {
 			return nil, errors.New("LXD is shutting down")
-		}
-
-		// Validate that the primary entity URL matches the operation entity type to ensure that the operation entity URL
-		// can be reconstructed from a database record (where it is saved as an entity ID).
-		operationEntityType := args.Type.EntityType()
-		if args.EntityURL != nil {
-			entityType, _, _, _, err := entity.ParseURL(args.EntityURL.URL)
-			if err != nil {
-				return nil, fmt.Errorf("Invalid operation entity URL: %w", err)
-			}
-
-			if entityType != operationEntityType {
-				return nil, fmt.Errorf("Entity type for URL %q does not match operation entity type %q", args.EntityURL, operationEntityType)
-			}
-		} else if operationEntityType != entity.TypeServer {
-			return nil, errors.New("Operation entity URL required")
-		} else {
-			args.EntityURL = entity.ServerURL()
 		}
 
 		// Use a v7 UUID for the operation ID.
@@ -204,6 +191,15 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.events = s.Events
 		op.location = s.ServerName
 
+		// The call to args.validate already validated the entity URL. If it is nil, then it should be set to the
+		// server URL (/1.0).
+		entityURL := args.EntityURL
+		if entityURL == nil {
+			entityURL = entity.ServerURL()
+		}
+
+		op.entityURL = entityURL
+
 		metadata := args.Metadata
 		if metadata == nil {
 			metadata = make(map[string]any)
@@ -212,6 +208,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		// If the entity_url field is not already populated, populate it with the entity url of the operation.
 		// This allows the caller to override the entity URL if e.g. creating a new entity but ensures the field is populated.
 		// Skip if the entity type is "server". This doesn't give any useful information to the requestor (since the url will just be "/1.0").
+		operationEntityType := args.Type.EntityType()
 		_, ok := metadata[api.MetadataEntityURL]
 		if !ok && operationEntityType != entity.TypeServer {
 			// The project that is present in the operation entity URL is always the effective project (e.g. the actual
@@ -239,32 +236,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.onRun = args.RunHook
 		op.onConnect = args.ConnectHook
 
-		// Quick check.
-		if op.class != operationtype.OperationClassWebsocket && op.onConnect != nil {
-			return nil, errors.New("Only websocket operations can have a Connect hook")
-		}
-
-		if op.class == operationtype.OperationClassWebsocket && op.onConnect == nil {
-			return nil, errors.New("Websocket operations must have a Connect hook")
-		}
-
-		if op.class == operationtype.OperationClassToken && op.onRun != nil {
-			return nil, errors.New("Token operations cannot have a Run hook")
-		}
-
 		return &op, nil
-	}
-
-	// If this is a bulk operation, don't allow more than one level of nesting.
-	for _, child := range args.Children {
-		if len(child.Children) > 0 {
-			return nil, errors.New("Bulk operations cannot have nested bulk operations")
-		}
-	}
-
-	// If this is a single task operation without children, it must have a run hook.
-	if !slices.Contains([]operationtype.Class{operationtype.OperationClassWebsocket, operationtype.OperationClassToken}, args.Class) && args.Children == nil && args.RunHook == nil {
-		return nil, errors.New("Task operations must have a Run hook")
 	}
 
 	// Create the parent operation
