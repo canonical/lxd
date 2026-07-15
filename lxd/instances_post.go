@@ -545,15 +545,49 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 			profileNames = append(profileNames, p.Name)
 		}
 
-		// Determine the target instance's root disk device by expanding the merged devices with
-		// the target profiles. This is the device instanceCreateAsCopy persists and what snapshot
-		// device validation is based on.
+		// Resolve the effective target root disk device the same way instanceCreateAsCopy
+		// does: expand the merged devices with the target project's profiles. This yields
+		// the root disk device key that each snapshot's root disk will be aligned to
+		// (adjustSnapRootDiskPool), and the pool that the snapshots will actually be
+		// created on.
 		expandedDevices := instancetype.ExpandInstanceDevices(deviceConfig.NewDevices(mergedDevices), profiles)
-		rootDevKey, rootDev, _ := instancetype.GetRootDiskDevice(expandedDevices.CloneNative())
+		rootDevKey, rootDev, err := instancetype.GetRootDiskDevice(expandedDevices.CloneNative())
+		if err != nil && !errors.Is(err, instancetype.ErrNoRootDisk) {
+			// The only other error is multiple root disks, a client/config error.
+			return response.BadRequest(err)
+		}
+
+		targetPool := rootDev["pool"]
+
+		// If no pool is set on the resolved root disk (neither the request nor the
+		// profiles specify one), fall back to the same single-pool resolution the copy
+		// relies on.
+		if targetPool == "" {
+			var resp response.Response
+			targetPool, _, _, _, resp = instanceFindStoragePool(s, targetProject, req)
+			if resp != nil {
+				return resp
+			}
+		}
+
+		// When neither the request nor the profiles define a root disk, the create path
+		// injects one with a generated name (see setupInstanceArgs). Mirror that name
+		// selection so snapshots are aligned to the same key rather than an empty device
+		// name.
+		if rootDevKey == "" {
+			rootDevKey = "root"
+			for i := range 100 {
+				if mergedDevices[rootDevKey] == nil {
+					break
+				}
+
+				rootDevKey = "root" + strconv.Itoa(i)
+			}
+		}
 
 		// We keep the ContainerOnly for backward compatibility.
 		copyInstanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck
-		err = checkTargetProjectRestrictions(ctx, s, source, targetProject, sourceProject, req.Name, mergedConfig, mergedDevices, profileNames, copyInstanceOnly, req.Source.OverrideSnapshotProfiles, rootDevKey, rootDev["pool"])
+		err = checkTargetProjectRestrictions(ctx, s, source, targetProject, sourceProject, req.Name, mergedConfig, mergedDevices, profileNames, copyInstanceOnly, req.Source.OverrideSnapshotProfiles, rootDevKey, targetPool)
 		if err != nil {
 			return response.SmartError(err)
 		}
