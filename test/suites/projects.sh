@@ -1057,6 +1057,20 @@ test_projects_restrictions() {
   ! lxc info c1 --project p1 || false
   lxc delete c1 --project p2
 
+  # The same applies to devices merged from the source instance. With restricted.devices.disk=block
+  # a non-root disk device is forbidden, and must be rejected even when it is not named in the copy
+  # request (here it is inherited from the source instance rather than supplied by the caller).
+  lxc project set p1 restricted.devices.disk=block
+  lxc init --empty c1 --project p2
+  lxc config device add c1 hostroot disk source=/ path=/mnt/host --project p2
+  exit_code=0
+  err_msg="$(lxc query --wait -X POST -d '{\"name\":\"c1\",\"source\":{\"type\":\"copy\",\"source\":\"c1\",\"project\":\"p2\"}}' "/1.0/instances?project=p1" 2>&1)" || exit_code=$?
+  [[ "${exit_code}" -ne 0 ]]
+  [[ "${err_msg}" == *'device "hostroot"'*"Disk devices are forbidden"* ]]
+  ! lxc info c1 --project p1 || false
+  lxc delete c1 --project p2
+  lxc project unset p1 restricted.devices.disk
+
   lxc project delete p2
 
   # Setting restricted.containers.privilege to 'allow' makes it possible to create
