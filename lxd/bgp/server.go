@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -368,7 +369,7 @@ func (s *Server) removePrefixByUUID(pathUUID string) error {
 	// Remove it from the BGP server.
 	if s.bgp != nil {
 		err := s.bgp.DeletePath(context.Background(), &bgpAPI.DeletePathRequest{Uuid: []byte(pathUUID)})
-		if err != nil && err.Error() != "cannot find a specified path" {
+		if err != nil && !strings.Contains(err.Error(), "find a specified path") {
 			return err
 		}
 	}
