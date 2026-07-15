@@ -598,19 +598,21 @@ func instanceFilePost(ctx context.Context, s *state.State, inst instance.Instanc
 		return response.EmptySyncResponse
 	case "symlink":
 		// Figure out target.
-		target, err := io.ReadAll(r.Body)
+		targetBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			return response.InternalError(err)
 		}
 
+		target := string(targetBytes)
+
 		// Check if already setup.
 		currentTarget, err := client.ReadLink(path)
-		if err == nil && currentTarget == string(target) {
+		if err == nil && currentTarget == target {
 			return response.EmptySyncResponse
 		}
 
 		// Create the symlink.
-		err = client.Symlink(string(target), path)
+		err = client.Symlink(target, path)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed creating symlink %q in instance %q: %w", path, inst.Name(), err))
 		}
