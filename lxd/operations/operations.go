@@ -122,6 +122,7 @@ type Operation struct {
 	metricsCallback func(metrics.RequestResult)
 	logger          logger.Logger
 	location        string
+	stage           int64 // OperationArgs has uint16 but this is an int64 to correspond to the database value.
 
 	// Those functions are called at various points in the Operation lifecycle
 	onRun     func(context.Context, *Operation) error
@@ -243,6 +244,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.conflictReference = args.ConflictReference
 		op.events = s.Events
 		op.location = s.ServerName
+		op.stage = int64(args.Stage)
 
 		// The call to args.validate already validated the entity URL. If it is nil, then it should be set to the
 		// server URL (/1.0).
@@ -284,6 +286,14 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		}
 
 		op.metadata = metadata
+
+		// Only operations in stage zero are initially running.
+		// OperationArgs validation ensures that parent operations are in stage zero.
+		// If all children have stage zero, then they are all spawned at once.
+		op.status = api.Running
+		if op.stage > 0 {
+			op.status = api.Pending
+		}
 
 		// Callback functions
 		op.onRun = args.RunHook
