@@ -575,14 +575,7 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		// selection so snapshots are aligned to the same key rather than an empty device
 		// name.
 		if rootDevKey == "" {
-			rootDevKey = "root"
-			for i := range 100 {
-				if mergedDevices[rootDevKey] == nil {
-					break
-				}
-
-				rootDevKey = "root" + strconv.Itoa(i)
-			}
+			rootDevKey = freeRootDiskDeviceName(deviceConfig.NewDevices(mergedDevices))
 		}
 
 		// We keep the ContainerOnly for backward compatibility.
@@ -1033,6 +1026,22 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	return operations.OperationResponse(op)
 }
 
+// freeRootDiskDeviceName returns a name for an injected root disk device that does not
+// collide with an existing device in devices, trying "root" first and then "root0",
+// "root1" and so on.
+func freeRootDiskDeviceName(devices deviceConfig.Devices) string {
+	name := "root"
+	for i := range 100 {
+		if devices[name] == nil {
+			break
+		}
+
+		name = "root" + strconv.Itoa(i)
+	}
+
+	return name
+}
+
 // setupInstanceArgs sets the database instance arguments and determines the storage pool to use.
 func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName string, profiles []api.Profile, req *api.InstancesPost) (storagePool string, instArgs *db.InstanceArgs, resp response.Response) {
 	// Parse the architecture name
@@ -1077,15 +1086,7 @@ func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName s
 
 		// Make sure that we do not overwrite a device the user is currently using
 		// under the name "root".
-		rootDevName := "root"
-		for i := range 100 {
-			if args.Devices[rootDevName] == nil {
-				break
-			}
-
-			rootDevName = "root" + strconv.Itoa(i)
-			continue
-		}
+		rootDevName := freeRootDiskDeviceName(args.Devices)
 
 		args.Devices[rootDevName] = rootDev
 	} else if localRootDiskDeviceKey != "" && localRootDiskDevice["pool"] == "" {
