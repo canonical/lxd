@@ -104,24 +104,6 @@ type Operation struct {
 	events *events.Server
 }
 
-// OperationArgs contains all the arguments for operation creation.
-type OperationArgs struct {
-	ProjectName     string
-	Type            operationtype.Type
-	Class           operationtype.Class
-	EntityURL       *api.URL
-	Resources       map[entity.Type][]api.URL
-	Metadata        map[string]any
-	RunHook         func(ctx context.Context, op *Operation) error
-	ConnectHook     func(op *Operation, r *http.Request, w http.ResponseWriter) error
-	requestor       *request.RequestorAuditor
-	metricsCallback func(result metrics.RequestResult)
-	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
-	// Empty ConflictReference means the operation can be started anytime.
-	ConflictReference string
-	Children          []*OperationArgs
-}
-
 // OperationScheduler is a signature used in function arguments where the function is used to deduplicate operation
 // argument initialisation logic where the operation can be scheduled within an HTTP request or within an operation.
 type OperationScheduler func(s *state.State, args OperationArgs) (*Operation, error)
