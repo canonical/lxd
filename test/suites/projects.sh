@@ -757,6 +757,48 @@ test_projects_limits() {
   lxc storage delete limit1
   lxc storage delete limit2
 
+  # Cross-project copy: a snapshot's root disk pool must be validated against the
+  # target instance's effective pool (as derived from the copy request), not the
+  # source instance's pool. When a copy overrides the root disk pool, each
+  # snapshot's root disk is rewritten to the target pool as it is persisted, so
+  # the project-restriction preflight must validate snapshots against that pool.
+  lxc storage create poolb dir
+
+  lxc project create copysrc
+  lxc project create copydst
+
+  lxc profile device add default root disk path="/" pool="${pool}" --project copysrc
+  lxc profile device add default root disk path="/" pool="${pool}" --project copydst
+
+  # Give the target project a small budget on poolb.
+  lxc project set copydst limits.disk.pool.poolb=20MiB
+
+  # Source instance with a snapshot whose root disk is 30MiB, then shrink the
+  # live root disk to 15MiB so only the snapshot exceeds the target budget. The
+  # live size stays above the ext4 minimum so the shrink succeeds on lvm.
+  lxc init --empty c1 --project copysrc -d root,size=30MiB
+  lxc snapshot c1 --project copysrc
+  lxc config device set c1 root size=15MiB --project copysrc
+
+  # Copying into the target project while overriding the root disk pool to poolb
+  # must be rejected. The 30MiB snapshot root disk, once rewritten to poolb,
+  # exceeds the 20MiB budget.
+  exit_code=0
+  err_msg="$(lxc copy c1 c1 --project copysrc --target-project copydst -d root,pool=poolb 2>&1)" || exit_code=$?
+  [[ "${exit_code}" -ne 0 ]]
+  [[ "${err_msg}" == *'Snapshot "c1/snap0" cannot be placed'*"Reached maximum aggregate value"*"limits.disk.pool.poolb"* ]]
+  ! lxc info c1 --project copydst || false
+
+  # The live instance's 15MiB root disk is within budget, so an instance-only copy
+  # (which omits the oversized snapshot) is accepted.
+  lxc copy c1 c1 --project copysrc --target-project copydst --instance-only -d root,pool=poolb
+  lxc delete c1 --project copydst
+
+  lxc delete c1 --project copysrc
+  lxc project delete copysrc
+  lxc project delete copydst
+  lxc storage delete poolb
+
   # Create a couple of containers in the project.
   lxc init --empty c1
   lxc init --empty c2
