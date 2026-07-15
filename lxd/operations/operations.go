@@ -228,10 +228,12 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 			metadata[api.MetadataEntityURL] = metadataURL.String()
 		}
 
-		op.metadata, err = validateMetadata(metadata)
+		err = validateMetadata(metadata)
 		if err != nil {
 			return nil, fmt.Errorf("Failed validating operation metadata: %w", err)
 		}
+
+		op.metadata = metadata
 
 		// Callback functions
 		op.onRun = args.RunHook
@@ -822,11 +824,11 @@ func (op *Operation) updateStatus(ctx context.Context, newStatus api.StatusCode)
 	return updateDBOperation(ctx, op)
 }
 
-// UpdateMetadata updates the metadata of the operation. It returns an error
-// if the operation is not pending or running, or the operation is read-only.
+// UpdateMetadata updates the metadata of the operation. It returns an error if the operation has completed.
 // The api.MetadataEntityURL field is retained unless the caller sets api.MetadataEntityURL in the input map.
+// If a nil map is passed in, metadata is set to an empty map.
 func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
-	opMetadata, err := validateMetadata(opMetadata)
+	err := validateMetadata(opMetadata)
 	if err != nil {
 		return fmt.Errorf("Failed updating operation metadata: %w", err)
 	}
@@ -840,6 +842,10 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	if op.readonly {
 		op.lock.Unlock()
 		return errors.New("Read-only operations cannot be updated")
+	}
+
+	if opMetadata == nil {
+		opMetadata = make(map[string]any)
 	}
 
 	// Retain entity URL unless it is set in the input map.
@@ -892,6 +898,12 @@ func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 		return errors.New("Read-only operations cannot be updated")
 	}
 
+	// Nothing to do.
+	if len(metadata) == 0 {
+		op.lock.Unlock()
+		return nil
+	}
+
 	// Get current metadata.
 	newMetadata := maps.Clone(op.metadata)
 
@@ -902,7 +914,7 @@ func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 		maps.Copy(newMetadata, metadata)
 	}
 
-	newMetadata, err := validateMetadata(newMetadata)
+	err := validateMetadata(newMetadata)
 	if err != nil {
 		op.lock.Unlock()
 		return fmt.Errorf("Failed extending operation metadata: %w", err)
@@ -975,11 +987,11 @@ func (op *Operation) Children() []*Operation {
 	return op.children
 }
 
-// validateMetadata is used to enforce some consistency in operation metadata.
-func validateMetadata(metadata map[string]any) (map[string]any, error) {
-	// Ensure metadata is never nil.
+// validateMetadata returns an error if the metadata contains a known key with an invalid value (such as
+// [api.MetadataEntityURL] with a non-url value).
+func validateMetadata(metadata map[string]any) error {
 	if metadata == nil {
-		metadata = make(map[string]any)
+		return nil
 	}
 
 	// If any url fields are used, they must always be a string and must always be a valid URL.
@@ -989,17 +1001,17 @@ func validateMetadata(metadata map[string]any) (map[string]any, error) {
 		if ok {
 			urlString, ok := urlAny.(string)
 			if !ok {
-				return nil, fmt.Errorf("Operation metadata field %q must be a string (got %T)", urlField, urlAny)
+				return fmt.Errorf("Operation metadata field %q must be a string (got %T)", urlField, urlAny)
 			}
 
 			err := validate.IsRequestURL(urlString)
 			if err != nil {
-				return nil, fmt.Errorf("Operation metadata field %q must be a valid request URL: %w", urlField, err)
+				return fmt.Errorf("Operation metadata field %q must be a valid request URL: %w", urlField, err)
 			}
 		}
 	}
 
-	return metadata, nil
+	return nil
 }
 
 // ProgressHandler implements [ioprogress.ProgressReporter]. This is used by instance and storage drivers to
