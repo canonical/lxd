@@ -2,6 +2,8 @@ package operations
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
@@ -64,4 +66,99 @@ type OperationArgs struct {
 	// metricsCallback is a function that is called when an operation completes. This is only set on calls to
 	// ScheduleUserOperationFromRequest and is used to update ongoing request metrics.
 	metricsCallback func(result metrics.RequestResult)
+}
+
+// validate returns an error if the [OperationArgs] are invalid.
+func (a OperationArgs) validate(isChild bool) error {
+	err := a.Class.Validate()
+	if err != nil {
+		return err
+	}
+
+	err = operationtype.Validate(a.Type)
+	if err != nil {
+		return err
+	}
+
+	// Validate that the primary entity URL matches the operation entity type to ensure that the operation entity URL
+	// can be reconstructed from a database record (where it is saved as an entity ID).
+	operationEntityType := a.Type.EntityType()
+	if a.EntityURL != nil {
+		entityType, _, _, _, err := entity.ParseURL(a.EntityURL.URL)
+		if err != nil {
+			return fmt.Errorf("Invalid operation entity URL: %w", err)
+		}
+
+		if entityType != operationEntityType {
+			return fmt.Errorf("Entity type for URL %q does not match operation entity type %q", a.EntityURL, operationEntityType)
+		}
+	} else if operationEntityType != entity.TypeServer {
+		return errors.New("Operation entity URL required")
+	}
+
+	isBulkOperation := a.Type.IsBulk()
+
+	// Child operations cannot be bulk operations (they can't be nested).
+	if isChild && isBulkOperation {
+		return errors.New("Bulk operations cannot have nested bulk operations")
+	}
+
+	if isBulkOperation && len(a.Children) == 0 {
+		return errors.New("Bulk operations must have children")
+	}
+
+	if !isBulkOperation && len(a.Children) > 0 {
+		return fmt.Errorf("Child operations not allowed for operation type %q", a.Type.Description())
+	}
+
+	switch a.Class {
+	case operationtype.OperationClassTask:
+		// If this is a single task operation without children, it must have a run hook.
+		if len(a.Children) == 0 && a.RunHook == nil {
+			return errors.New("Task operations must have a Run hook")
+		}
+
+	case operationtype.OperationClassWebsocket:
+		if a.ConnectHook == nil {
+			return errors.New("Websocket operations must have a Connect hook")
+		}
+
+	case operationtype.OperationClassToken:
+		if a.RunHook != nil {
+			return errors.New("Token operations cannot have a Run hook")
+		}
+	}
+
+	if a.Class != operationtype.OperationClassWebsocket && a.ConnectHook != nil {
+		return errors.New("Only websocket operations can have a Connect hook")
+	}
+
+	if a.Class != operationtype.OperationClassTask && isBulkOperation {
+		return errors.New("Only task operations can have children")
+	}
+
+	if a.Class != operationtype.OperationClassTask && isChild {
+		return errors.New("Only task operations can be child operations")
+	}
+
+	if a.ConflictReference != "" && a.Type.ConflictAction() == operationtype.ConflictActionNone {
+		return fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", a.ConflictReference, a.Type.Description())
+	}
+
+	for i, child := range a.Children {
+		if child == nil {
+			return errors.New("Operation children cannot be nil")
+		}
+
+		if child.ProjectName != a.ProjectName {
+			return errors.New("Child operations cannot have a different project to the parent operation")
+		}
+
+		err := child.validate(true)
+		if err != nil {
+			return fmt.Errorf(`Failed validating child operation "%d": %w`, i, err)
+		}
+	}
+
+	return nil
 }
