@@ -174,18 +174,40 @@ test_storage_volume_attach_vm() {
 
   ! lxc exec v1 -- findmnt /mnt || false
 
-  # Cleanup
+  # Cleanup.
   lxc storage volume delete "${pool}" vol1
   lxc storage volume delete "${pool}" vol2
   lxc storage volume delete "${pool}" vol3
 
-  # Coverage data requires clean lxd-agent stop
+  # Coverage data requires clean lxd-agent stop.
   prepare_vm_for_hard_stop v1
-
   lxc delete -f v1
 
+  # Specifically test for https://github.com/canonical/lxd/issues/18561.
+  sub_test "Attaching a shifted filesystem volume must fail fast, not hang"
+  lxc init ubuntu-vm v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  lxc storage volume create "${pool}" volshift size=1MiB
+
+  # Maps a non-root host ID.
+  lxc config set v1 raw.idmap="both 1000000 1000"
+
+  # We cannot use the setup_instance_gocoverage coverage helper here because it will
+  # trigger the same code path that we are trying to test here.
+  lxc start v1
+  waitInstanceReady v1
+
+  # Verify the volume cannot be attached.
+  # Depending on the timing when we attach the device, we may get different errors depending on whether or not virtiofsd already died:
+  # -> Error: Failed starting device "volshift": Failed adding the virtiofs device to port "qemu_pcie5": GenericError: vhost_backend_init failed: Protocol error
+  # -> Error: Failed starting device "volshift": Error connecting to virtiofs socket "/tmp/lxd-test.tmp.cx0h/WLq/devices/v1/virtio-fs.volshift.sock": dial unix /dev/fd/37: connect: connection refused
+  [[ "$(! "${_LXC}" storage volume attach "${pool}" volshift v1 /shift 2>&1 1>/dev/null)" == 'Error: Failed starting device "volshift"'* ]]
+
+  # Cleanup.
+  lxc delete -f v1
+  lxc storage volume delete "${pool}" volshift
+
   if [ -n "${orig_volume_size:-}" ]; then
-    # Restore the volume.size
+    # Restore the volume.size.
     lxc storage set "${pool}" volume.size "${orig_volume_size}"
   fi
 }

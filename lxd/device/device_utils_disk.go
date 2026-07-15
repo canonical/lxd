@@ -242,17 +242,17 @@ func diskAddRootUserNSEntry(idmaps []idmap.IdmapEntry, hostRootID int64) []idmap
 	return idmaps
 }
 
-// DiskVMVirtiofsdStart starts a new virtiofsd process.
+// DiskVMVirtiofsdStart starts a new virtiofsd process with a socket present at the supplied path.
 // If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
 // Returns UnsupportedError error if the host system or instance does not support virtiofsd, returns normal error
 // type if process cannot be started for other reasons.
-// Returns revert function and listener file handle on success.
-func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry, threadPoolSize uint16) (func(), net.Listener, error) {
+// Returns a revert function on success.
+func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry, threadPoolSize uint16) (func(), error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	if !filepath.IsAbs(sharePath) {
-		return nil, nil, fmt.Errorf("Share path not absolute: %q", sharePath)
+		return nil, fmt.Errorf("Share path not absolute: %q", sharePath)
 	}
 
 	// Remove old socket if needed.
@@ -271,27 +271,27 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 	}
 
 	if cmd == "" {
-		return nil, nil, ErrMissingVirtiofsd
+		return nil, ErrMissingVirtiofsd
 	}
 
 	// Currently, virtiofs is broken on at least the ARM architecture.
 	// We therefore restrict virtiofs to 64BIT_INTEL_X86.
 	if inst.Architecture() != osarch.ARCH_64BIT_INTEL_X86 {
-		return nil, nil, UnsupportedError{msg: "Architecture unsupported"}
+		return nil, UnsupportedError{msg: "Architecture unsupported"}
 	}
 
 	if shared.IsTrue(inst.ExpandedConfig()["migration.stateful"]) {
-		return nil, nil, UnsupportedError{"Stateful migration unsupported"}
+		return nil, UnsupportedError{"Stateful migration unsupported"}
 	}
 
 	if shared.IsTrue(inst.ExpandedConfig()["security.sev"]) || shared.IsTrue(inst.ExpandedConfig()["security.sev.policy.es"]) {
-		return nil, nil, UnsupportedError{"SEV unsupported"}
+		return nil, UnsupportedError{"SEV unsupported"}
 	}
 
 	// Trickery to handle paths > 108 chars.
 	socketFileDir, err := os.Open(filepath.Dir(socketPath))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	defer func() { _ = socketFileDir.Close() }()
@@ -300,7 +300,7 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 
 	listener, err := net.Listen("unix", socketFile)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed creating unix listener for virtiofsd: %w", err)
+		return nil, fmt.Errorf("Failed creating unix listener for virtiofsd: %w", err)
 	}
 
 	revert.Add(func() {
@@ -310,16 +310,18 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 
 	unixListener, ok := listener.(*net.UnixListener)
 	if !ok {
-		return nil, nil, errors.New("Failed getting UnixListener for virtiofsd")
+		return nil, errors.New("Failed getting UnixListener for virtiofsd")
 	}
 
-	revert.Add(func() {
-		_ = unixListener.Close()
-	})
+	defer func() { _ = unixListener.Close() }()
+
+	// Don't unlink the socket file on close after virtiofsd has started.
+	// The socket should remain for qemu to connect to.
+	unixListener.SetUnlinkOnClose(false)
 
 	unixFile, err := unixListener.File()
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed getting unix listener file for virtiofsd: %w", err)
+		return nil, fmt.Errorf("Failed getting unix listener file for virtiofsd: %w", err)
 	}
 
 	defer func() { _ = unixFile.Close() }()
@@ -336,7 +338,7 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 
 	proc, err := subprocess.NewProcess(cmd, args, logPath, logPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if len(idmaps) > 0 {
@@ -345,19 +347,19 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 
 	err = proc.StartWithFiles(context.Background(), []*os.File{unixFile})
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed starting virtiofsd: %w", err)
+		return nil, fmt.Errorf("Failed starting virtiofsd: %w", err)
 	}
 
 	revert.Add(func() { _ = proc.Stop() })
 
 	err = proc.Save(pidPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed saving virtiofsd state: %w", err)
+		return nil, fmt.Errorf("Failed saving virtiofsd state: %w", err)
 	}
 
 	cleanup := revert.Clone().Fail
 	revert.Success()
-	return cleanup, listener, err
+	return cleanup, nil
 }
 
 // DiskVMVirtiofsdStop stops an existing virtiofsd process and cleans up.
