@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -131,6 +132,21 @@ func Unpack(file string, path string, blockBackend bool, runningInUserns bool, t
 		logger.Debugf("Unpacking failed")
 		logger.Debugf(err.Error())
 		return fmt.Errorf("Unpack failed, %s.", err)
+	}
+
+	// Check if none of the metadata files are symlinks.
+	// This blocks using images which reference external files.
+	metadataFiles := []string{"metadata.yaml"}
+	for _, file := range metadataFiles {
+		fullPath := filepath.Join(path, file)
+		info, err := os.Lstat(fullPath)
+		if err != nil {
+			return err
+		}
+
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("Image file %s is not a regular file", fullPath)
+		}
 	}
 
 	return nil
