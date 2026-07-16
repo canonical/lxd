@@ -78,6 +78,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			gic-version = "max"
 			accel = "kvm"
 			usb = "off"
+			memory-backend = "mach-virt.ram"
 
 			[boot-opts]
 			strict = "on"`,
@@ -90,6 +91,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			cap-large-decr = "off"
 			accel = "kvm"
 			usb = "off"
+			memory-backend = "ppc_spapr.ram"
 
 			[boot-opts]
 			strict = "on"`,
@@ -102,6 +104,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			accel = "kvm"
 			acpi = "off"
 			usb = "off"
+			memory-backend = "riscv_virt_board.ram"
 
 			[boot-opts]
 			strict = "on"`,
@@ -113,6 +116,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			type = "s390-ccw-virtio"
 			accel = "kvm"
 			usb = "off"
+			memory-backend = "s390.ram"
 
 			[boot-opts]
 			strict = "on"`,
@@ -444,7 +448,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			expected string
 		}{{
 			qemuCPUOpts{
-				architecture:        "x86_64",
+				architecture:        osarch.ARCH_64BIT_INTEL_X86,
 				cpuCount:            8,
 				cpuSockets:          1,
 				cpuCores:            4,
@@ -474,7 +478,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			memdev = "mem0"`,
 		}, {
 			qemuCPUOpts{
-				architecture: "x86_64",
+				architecture: osarch.ARCH_64BIT_INTEL_X86,
 				cpuCount:     2,
 				cpuSockets:   1,
 				cpuCores:     2,
@@ -548,7 +552,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			thread-id = "23"`,
 		}, {
 			qemuCPUOpts{
-				architecture: "x86_64",
+				architecture: osarch.ARCH_64BIT_INTEL_X86,
 				cpuCount:     2,
 				cpuSockets:   1,
 				cpuCores:     2,
@@ -610,7 +614,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			thread-id = "23"`,
 		}, {
 			qemuCPUOpts{
-				architecture: "x86_64",
+				architecture: osarch.ARCH_64BIT_INTEL_X86,
 				cpuCount:     4,
 				cpuSockets:   1,
 				cpuCores:     4,
@@ -680,7 +684,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			thread-id = "23"`,
 		}, {
 			qemuCPUOpts{
-				architecture: "arm64",
+				architecture: osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN,
 				cpuCount:     4,
 				cpuSockets:   1,
 				cpuCores:     4,
@@ -700,7 +704,19 @@ func TestQemuConfigTemplates(t *testing.T) {
 			cpus = "4"
 			sockets = "1"
 			cores = "4"
-			threads = "1"`,
+			threads = "1"
+
+			[object "mach-virt.ram"]
+			qom-type = "memory-backend-file"
+			mem-path = "/hugepages"
+			prealloc = "on"
+			discard-data = "on"
+			size = "12000M"
+			share = "on"
+			policy = "bind"
+			host-nodes.0 = "8"
+			host-nodes.1 = "9"
+			host-nodes.2 = "10"`,
 		}}
 		for _, tc := range testCases {
 			runTest(tc.expected, qemuCPU(&tc.opts, true))
@@ -1610,4 +1626,51 @@ func TestQemuConfigTemplates(t *testing.T) {
 			t.Errorf("Expected: %v. Got: %v", expected, actual)
 		}
 	})
+}
+
+func TestQemuBase_UnmappedArchitectureOmitsMemoryBackend(t *testing.T) {
+	sections := qemuBase(&qemuBaseOpts{architecture: -1})
+
+	for _, entry := range sections[0].entries {
+		if entry.key == "memory-backend" {
+			t.Fatal("Expected unmapped architecture to omit memory-backend")
+		}
+	}
+}
+
+// TestQemuCPU_NumaHostNodesPreservesOrder verifies that qemuCPU emits host-nodes.*
+// entries in the exact order provided by the caller. Deterministic ordering is the
+// responsibility of addCPUMemoryConfig, which iterates the host NUMA nodes in sorted
+// order so that the QEMU node IDs, memory backends and vCPU mappings stay consistent.
+func TestQemuCPU_NumaHostNodesPreservesOrder(t *testing.T) {
+	opts := qemuCPUOpts{
+		architecture:     osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN,
+		cpuCount:         4,
+		cpuSockets:       1,
+		cpuCores:         4,
+		cpuThreads:       1,
+		cpuNumaHostNodes: []uint64{10, 8, 9},
+		hugepages:        "/hugepages",
+		memory:           12000,
+	}
+
+	config := qemuStringifyCfg(qemuCPU(&opts, true)...).String()
+
+	// The caller's order must be preserved verbatim, proving qemuCPU does not reorder.
+	first := strings.Index(config, `host-nodes.0 = "10"`)
+	second := strings.Index(config, `host-nodes.1 = "8"`)
+	third := strings.Index(config, `host-nodes.2 = "9"`)
+
+	if first < 0 || second < 0 || third < 0 {
+		t.Fatalf("Expected host-nodes entries in caller order, got: %s", config)
+	}
+
+	if first >= second || second >= third {
+		t.Fatalf("Expected host-nodes entries in caller order, got: %s", config)
+	}
+
+	// The caller's slice must not be mutated.
+	if !reflect.DeepEqual(opts.cpuNumaHostNodes, []uint64{10, 8, 9}) {
+		t.Fatalf("Expected input slice to be unchanged, got: %v", opts.cpuNumaHostNodes)
+	}
 }

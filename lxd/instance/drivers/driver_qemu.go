@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -4096,7 +4097,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 // If sb is nil then no config is written.
 func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error {
 	cpuOpts := qemuCPUOpts{
-		architecture:        d.architectureName,
+		architecture:        d.architecture,
 		qemuMemObjectFormat: "indexed", // Supported by QEMU 6.0+
 	}
 
@@ -4145,7 +4146,13 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 		//nolint:prealloc
 		numaIDs := []uint64{}
 		numaNode := uint64(0)
-		for hostNode, entry := range cpuInfo.nodes {
+
+		// Iterate the host NUMA nodes in a stable order so the generated QEMU
+		// config (node IDs, memory backends and vCPU mappings) stays consistent
+		// across runs. cpuInfo.nodes is a map, whose iteration order is random.
+		sortedHostNodes := slices.Sorted(maps.Keys(cpuInfo.nodes))
+		for _, hostNode := range sortedHostNodes {
+			entry := cpuInfo.nodes[hostNode]
 			hostNodes = append(hostNodes, hostNode)
 
 			numaIDs = append(numaIDs, numaNode)
@@ -4194,7 +4201,12 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 
 	// Determine per-node memory limit.
 	memSizeMB := memSizeBytes / 1024 / 1024
-	nodeMemory := int64(memSizeMB / int64(len(hostNodes)))
+	nodeMemory := memSizeMB
+	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
+		// On x86_64 the memory is split across one backend per NUMA node.
+		nodeMemory = memSizeMB / int64(len(hostNodes))
+	}
+
 	cpuOpts.memory = nodeMemory
 
 	if cfg != nil {
