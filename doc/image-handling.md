@@ -9,6 +9,7 @@ LXD uses an image-based workflow.
 Each instance is based on an image, which contains a basic operating system (for example, a Linux distribution) and some LXD-related information.
 
 Images are available from remote image stores (see {ref}`remote-image-servers` for an overview), but you can also create your own images, either based on an existing instances or a rootfs image.
+LXD uses the [Go TLS stack](https://pkg.go.dev/crypto/tls) to connect to remote image servers.
 
 You can copy images from remote servers to your local image store, or copy local images to remote servers.
 You can also use a local image to create a remote instance.
