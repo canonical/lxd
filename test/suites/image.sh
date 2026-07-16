@@ -158,6 +158,49 @@ test_image_with_templates_symlink() {
     rm -rf "${tmpDir}"
 }
 
+test_image_with_template_escape() {
+    # shellcheck disable=SC2039,SC3043
+    local tmpDir imgDir imgTar
+
+    tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+    imgDir="${tmpDir}/image"
+    imgTar="${tmpDir}/image.tar"
+
+    # Build an image whose metadata references a template file outside of the templates directory.
+    mkdir -p "${imgDir}/rootfs"
+    mkdir -p "${imgDir}/templates"
+
+    echo "This is rootfs" > "${imgDir}/rootfs/rootfs.txt"
+    cat > "${imgDir}/metadata.yaml" <<EOF
+architecture: $(uname -m)
+creation_date: 1
+templates:
+  /test:
+    when:
+    - create
+    template: ../../../../../../../../etc/passwd
+EOF
+    tar -cf "${imgTar}" -C "${imgDir}" .
+
+    lxc image import "${imgTar}" --alias image-template-escape
+    lxc init image-template-escape c-template-escape
+
+    # Templates with the "create" trigger are applied on first start, so starting the instance
+    # must fail on the template path escape check.
+    if lxc start c-template-escape; then
+        echo "ERROR: Starting a container whose template path escapes the templates directory unexpectedly succeeded" >&2
+        exit 1
+    fi
+
+    # The CLI only reports the forkstart exit status, so verify the rejection reason in the daemon log.
+    # shellcheck disable=SC2153
+    grep -q "attempts to escape the templates directory" "${LXD_DIR}/lxd.log"
+
+    lxc delete -f c-template-escape
+    lxc image delete image-template-escape
+    rm -rf "${tmpDir}"
+}
+
 test_image_import_existing_alias() {
     ensure_import_testimage
     lxc init testimage c
