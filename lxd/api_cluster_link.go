@@ -673,6 +673,47 @@ func clusterLinkDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
+// clusterLinkRequestMode identifies which creation/activation flow a POST /1.0/cluster/links request is for.
+type clusterLinkRequestMode int
+
+const (
+	// clusterLinkRequestPending creates a pending cluster link and returns a trust token for the remote cluster.
+	clusterLinkRequestPending clusterLinkRequestMode = iota
+	// clusterLinkRequestUnidirectional creates a unidirectional cluster link using a trust token from the remote cluster.
+	clusterLinkRequestUnidirectional
+	// clusterLinkRequestBidirectional creates a bidirectional cluster link using a trust token from the remote cluster.
+	clusterLinkRequestBidirectional
+	// clusterLinkRequestActivate activates a pending cluster link using the trust token it was created with.
+	clusterLinkRequestActivate
+)
+
+// validateClusterLinksPostRequest validates the field combinations of a cluster link creation request and
+// classifies which flow it is for. Returned errors carry the HTTP status code to respond with.
+func validateClusterLinksPostRequest(req api.ClusterLinksPost, clusterLinkType dbCluster.ClusterLinkType, addresses []string) (clusterLinkRequestMode, error) {
+	if req.Name != "" && req.TrustToken == "" {
+		return clusterLinkRequestPending, nil
+	}
+
+	// All remaining modes require a trust token.
+	if req.TrustToken == "" {
+		return 0, api.StatusErrorf(http.StatusForbidden, "Trust token required")
+	}
+
+	if req.Name != "" {
+		if clusterLinkType == dbCluster.ClusterLinkType(api.ClusterLinkTypeUnidirectional) {
+			return clusterLinkRequestUnidirectional, nil
+		}
+
+		return clusterLinkRequestBidirectional, nil
+	}
+
+	if len(addresses) > 0 {
+		return clusterLinkRequestActivate, nil
+	}
+
+	return 0, api.StatusErrorf(http.StatusBadRequest, `Invalid cluster link request: expected one of pending creation (name without trust_token), active creation (name with trust_token), or activation (trust_token with non-empty "volatile.addresses")`)
+}
+
 // swagger:operation POST /1.0/cluster/links cluster-links cluster_links_post
 //
 //	Add a cluster link
@@ -724,39 +765,38 @@ func clusterLinksPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	addresses := shared.SplitNTrimSpace(req.Config["volatile.addresses"], ",", -1, true)
+
+	mode, err := validateClusterLinksPostRequest(req, clusterLinkType, addresses)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	networkCert := s.Endpoints.NetworkCert()
 	serverCert := s.ServerCert()
 	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
 	requestor := request.CreateRequestor(r.Context())
 
-	if req.Name != "" && req.TrustToken == "" {
+	var trustToken *api.CertificateAddToken
+	if req.TrustToken != "" {
+		trustToken, err = shared.CertificateTokenDecode(req.TrustToken)
+		if err != nil {
+			return response.Forbidden(fmt.Errorf("Invalid trust token: %w", err))
+		}
+	}
+
+	switch mode {
+	case clusterLinkRequestPending:
 		return clusterLinkCreatePending(s, r, req, clusterLinkType, notify, requestor)
-	}
-
-	// All remaining modes require a trust token.
-	if req.TrustToken == "" {
-		return response.Forbidden(errors.New("Trust token required"))
-	}
-
-	trustToken, err := shared.CertificateTokenDecode(req.TrustToken)
-	if err != nil {
-		return response.Forbidden(fmt.Errorf("Invalid trust token: %w", err))
-	}
-
-	if req.Name != "" && clusterLinkType == dbCluster.ClusterLinkType(api.ClusterLinkTypeUnidirectional) {
+	case clusterLinkRequestUnidirectional:
 		return clusterLinkCreateUnidirectional(s, r, req, requestor, trustToken)
-	}
-
-	if req.Name != "" {
+	case clusterLinkRequestBidirectional:
 		return clusterLinkCreateActive(s, r, req, clusterLinkType, networkCert, notify, requestor, trustToken)
-	}
-
-	addresses := shared.SplitNTrimSpace(req.Config["volatile.addresses"], ",", -1, true)
-	if len(addresses) > 0 {
+	case clusterLinkRequestActivate:
 		return clusterLinkActivate(s, r, req, notify, requestor, trustToken, addresses)
+	default:
+		return response.InternalError(fmt.Errorf("Unhandled cluster link request mode %d", mode))
 	}
-
-	return response.BadRequest(errors.New(`Invalid cluster link request: expected one of pending creation (name without trust_token), active creation (name with trust_token), or activation (trust_token with non-empty "volatile.addresses")`))
 }
 
 // clusterLinkCreatePending handles a request to create a pending cluster link (name provided, no trust token).
