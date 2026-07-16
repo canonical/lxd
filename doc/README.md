@@ -1,8 +1,8 @@
 # LXD documentation
 
-The LXD documentation is available at: <https://documentation.ubuntu.com/lxd/latest/>
+The LXD documentation is available at: <https://canonical.com/lxd/docs/latest/>
 
-GitHub provides a basic rendering of the documentation as well, but important features like includes and clickable links are missing. Therefore, we recommend reading the [published documentation](https://documentation.ubuntu.com/lxd/latest/).
+GitHub provides a basic rendering of the documentation as well, but important features like includes and clickable links are missing. Therefore, we recommend reading the [published documentation](https://canonical.com/lxd/docs/latest/).
 
 ## How it works
 
