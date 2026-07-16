@@ -645,6 +645,22 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 		isContainerOrProfile := instType == instancetype.Container || instType == instancetype.Any
 		isVMOrProfile := instType == instancetype.VM || instType == instancetype.Any
 
+		if config == nil {
+			config = map[string]string{}
+		}
+
+		// Apply the default value for "security.idmap.isolated" when it is not set
+		// explicitly in the instance's expanded config, so that project restrictions
+		// checking this key (such as "restricted.containers.privilege=isolated") cannot
+		// be bypassed by simply omitting it. An unset "security.idmap.isolated" defaults
+		// to non-isolated (shared host idmap).
+		if instType == instancetype.Container {
+			_, ok := config["security.idmap.isolated"]
+			if !ok {
+				config["security.idmap.isolated"] = "false"
+			}
+		}
+
 		// Check if unrestricted low-level options are available. For profiles we require that low-level
 		// features for both containers and VMs are enabled as we don't know which instance the profile
 		// will be used on.
