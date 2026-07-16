@@ -169,6 +169,7 @@ Mibit
 MicroCeph
 MicroCloud
 MicroOVN
+middleboxes
 MII
 MinIO
 MITM
