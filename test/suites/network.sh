@@ -10,6 +10,12 @@ test_network() {
   sleep 2
   dig @"${v4_addr}" 0abc.lxd
   dig @"${v4_addr}" def0.lxd
+
+  # Filtering by IP must work even when no network column is selected.
+  inst_ipv4="192.0.2.42"
+  lxc exec 0abc -- ip address add "${inst_ipv4}" dev eth0
+  [ "$(lxc list -f csv -c n ipv4="${inst_ipv4}")" = "0abc" ]
+
   lxc delete -f 0abc def0
   lxc network delete lxdt$$
 
