@@ -81,6 +81,55 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 	}
 }
 
+// instanceFileStat opens an SFTP client for the instance, stats the given path and prepares
+// the common X-LXD-* response headers. On success the caller takes ownership of the returned
+// client and is responsible for closing it. If a non-nil response is returned, it describes an
+// error, the client has already been closed, and the other return values must be ignored.
+func instanceFileStat(inst instance.Instance, path string) (client *sftp.Client, stat os.FileInfo, fileType string, headers map[string]string, resp response.Response) {
+	// Get a SFTP client. Bind the cleanup hook to this local variable rather than the named
+	// "client" result, so that error-path returns (which reset "client" to nil) cannot turn
+	// the deferred Close into a nil pointer dereference.
+	sftpClient, err := inst.FileSFTP()
+	if err != nil {
+		return nil, nil, "", nil, response.InternalError(err)
+	}
+
+	// Close the client on our own failures; on success the caller takes ownership.
+	revert := revert.New()
+	defer revert.Fail()
+	revert.Add(func() { _ = sftpClient.Close() })
+
+	// Get the file stats.
+	stat, err = sftpClient.Lstat(path)
+	if err != nil {
+		return nil, nil, "", nil, response.SmartError(fmt.Errorf("Failed accessing %q in instance %q: %w", path, inst.Name(), err))
+	}
+
+	fileStat, ok := stat.Sys().(*sftp.FileStat)
+	if !ok {
+		return nil, nil, "", nil, response.InternalError(fmt.Errorf("Failed getting file stat for %q", path))
+	}
+
+	fileType = "file"
+	if stat.Mode().IsDir() {
+		fileType = "directory"
+	} else if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
+		fileType = "symlink"
+	}
+
+	// Prepare the response.
+	headers = map[string]string{
+		"X-LXD-uid":      strconv.FormatUint(uint64(fileStat.UID), 10),
+		"X-LXD-gid":      strconv.FormatUint(uint64(fileStat.GID), 10),
+		"X-LXD-mode":     fmt.Sprintf("%04o", stat.Mode().Perm()),
+		"X-LXD-modified": stat.ModTime().UTC().String(),
+		"X-LXD-type":     fileType,
+	}
+
+	revert.Success()
+	return sftpClient, stat, fileType, headers, nil
+}
+
 // swagger:operation GET /1.0/instances/{name}/files instances instance_files_get
 //
 //	Get a file
@@ -153,40 +202,13 @@ func instanceFileGet(ctx context.Context, s *state.State, inst instance.Instance
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Get a SFTP client.
-	client, err := inst.FileSFTP()
-	if err != nil {
-		return response.InternalError(err)
+	// Get a SFTP client, stat the file and prepare the common headers.
+	client, stat, fileType, headers, resp := instanceFileStat(inst, path)
+	if resp != nil {
+		return resp
 	}
 
 	revert.Add(func() { _ = client.Close() })
-
-	// Get the file stats.
-	stat, err := client.Lstat(path)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed accessing %q in instance %q: %w", path, inst.Name(), err))
-	}
-
-	fileType := "file"
-	if stat.Mode().IsDir() {
-		fileType = "directory"
-	} else if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
-		fileType = "symlink"
-	}
-
-	fs, ok := stat.Sys().(*sftp.FileStat)
-	if !ok {
-		return response.InternalError(fmt.Errorf("Failed getting file stat for %q", path))
-	}
-
-	// Prepare the response.
-	headers := map[string]string{
-		"X-LXD-uid":      strconv.FormatUint(uint64(fs.UID), 10),
-		"X-LXD-gid":      strconv.FormatUint(uint64(fs.GID), 10),
-		"X-LXD-mode":     fmt.Sprintf("%04o", stat.Mode().Perm()),
-		"X-LXD-modified": stat.ModTime().UTC().String(),
-		"X-LXD-type":     fileType,
-	}
 
 	switch fileType {
 	case "file":
@@ -318,43 +340,13 @@ func instanceFileGet(ctx context.Context, s *state.State, inst instance.Instance
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceFileHead(inst instance.Instance, path string) response.Response {
-	revert := revert.New()
-	defer revert.Fail()
-
-	// Get a SFTP client.
-	client, err := inst.FileSFTP()
-	if err != nil {
-		return response.InternalError(err)
+	// Get a SFTP client, stat the file and prepare the common headers.
+	client, stat, fileType, headers, resp := instanceFileStat(inst, path)
+	if resp != nil {
+		return resp
 	}
 
-	revert.Add(func() { _ = client.Close() })
-
-	// Get the file stats.
-	stat, err := client.Lstat(path)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed accessing %q in instance %q: %w", path, inst.Name(), err))
-	}
-
-	fileType := "file"
-	if stat.Mode().IsDir() {
-		fileType = "directory"
-	} else if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
-		fileType = "symlink"
-	}
-
-	fs, ok := stat.Sys().(*sftp.FileStat)
-	if !ok {
-		return response.InternalError(fmt.Errorf("Failed getting file stat for %q", path))
-	}
-
-	// Prepare the response.
-	headers := map[string]string{
-		"X-LXD-uid":      strconv.FormatUint(uint64(fs.UID), 10),
-		"X-LXD-gid":      strconv.FormatUint(uint64(fs.GID), 10),
-		"X-LXD-mode":     fmt.Sprintf("%04o", stat.Mode().Perm()),
-		"X-LXD-modified": stat.ModTime().UTC().String(),
-		"X-LXD-type":     fileType,
-	}
+	defer func() { _ = client.Close() }()
 
 	if fileType == "file" {
 		headers["Content-Type"] = "application/octet-stream"
