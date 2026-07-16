@@ -1304,6 +1304,25 @@ run_projects_restrictions() {
 
   lxc delete c1
 
+  sub_test "restricted.containers.privilege=isolated cannot be bypassed by omitting security.idmap.isolated"
+  lxc project set local:p1 restricted.containers.privilege=isolated
+
+  # Omitting security.idmap.isolated must be rejected (it defaults to non-isolated).
+  ! lxc init --empty c1 -d "${SMALL_ROOT_DISK}" || false
+
+  # Explicitly setting security.idmap.isolated=false must be rejected.
+  ! lxc init --empty c1 -c security.idmap.isolated=false -d "${SMALL_ROOT_DISK}" || false
+
+  # Explicitly setting security.idmap.isolated="" must be rejected.
+  ! lxc init --empty c1 -c security.idmap.isolated="" -d "${SMALL_ROOT_DISK}" || false
+
+  # Only isolated containers are allowed.
+  lxc init --empty c1 -c security.idmap.isolated=true -d "${SMALL_ROOT_DISK}"
+  lxc delete c1
+
+  # Reset the restriction.
+  lxc project set local:p1 restricted.containers.privilege=unprivileged
+
   # It is not possible to use forbidden VM low-level options (raw.apparmor, raw.qemu.conf)
   # when restricted.virtual-machines.lowlevel is blocked.
   ! lxc init --vm --empty v1 -c raw.apparmor="/some/path rw," -d "${SMALL_ROOT_DISK}" || false
