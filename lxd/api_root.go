@@ -132,7 +132,7 @@ var documentationRedirectCmd = APIEndpoint{
 }
 
 // uiUnavailableMessage is the HTML body returned when the LXD web UI is not available.
-const uiUnavailableMessage = `<html><title>The UI is not available</title><body><p>The UI is not available in this installation of LXD. For more information check: <a href="https://documentation.ubuntu.com/lxd/latest/howto/access_ui/">How to access the LXD web UI</a></p></body></html>`
+const uiUnavailableMessage = `<html><title>The UI is not available</title><body><p>The UI is not available in this installation of LXD. For more information check: <a href="https://canonical.com/lxd/docs/latest/howto/access_ui/">How to access the LXD web UI</a></p></body></html>`
 
 func rootGet(d *Daemon, r *http.Request) response.Response {
 	if isBrowserClient(r) {

@@ -1,7 +1,7 @@
 (access-documentation)=
 # How to access the local LXD documentation
 
-The latest version of the LXD documentation is available at [`documentation.ubuntu.com/lxd`](https://documentation.ubuntu.com/lxd/).
+The latest version of the LXD documentation is available at [`canonical.com/lxd/docs`](https://canonical.com/lxd/docs/).
 
 Alternatively, you can access a local version of the LXD documentation that is embedded in the LXD snap.
 This version of the documentation exactly matches the version of your LXD deployment, but might be missing additions, fixes, or clarifications that were added after the release of the snap.
