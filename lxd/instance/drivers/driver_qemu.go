@@ -2281,6 +2281,12 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 				return nil
 			}
 
+			// Read the template, ensuring the template file cannot escape the templates directory.
+			tplFullPath, err := templateFileSafePath(templatesPath, tpl.Template)
+			if err != nil {
+				return err
+			}
+
 			// Create the file itself.
 			w, err = os.Create(filepath.Join(path, fmt.Sprintf("%s.out", tpl.Template)))
 			if err != nil {
@@ -2291,8 +2297,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 			w.Chmod(0644)
 			defer w.Close()
 
-			// Read the template.
-			tplString, err := ioutil.ReadFile(filepath.Join(templatesPath, tpl.Template))
+			tplString, err := ioutil.ReadFile(tplFullPath)
 			if err != nil {
 				return errors.Wrap(err, "Failed to read template file")
 			}

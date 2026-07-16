@@ -5301,8 +5301,13 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			}
 			defer w.Close()
 
-			// Read the template
-			tplString, err := ioutil.ReadFile(filepath.Join(templatesPath, tpl.Template))
+			// Read the template, ensuring the template file cannot escape the templates directory.
+			tplFullPath, err := templateFileSafePath(templatesPath, tpl.Template)
+			if err != nil {
+				return err
+			}
+
+			tplString, err := ioutil.ReadFile(tplFullPath)
 			if err != nil {
 				return errors.Wrap(err, "Failed to read template file")
 			}
