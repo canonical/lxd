@@ -56,7 +56,7 @@ jobs:
         with:
           name: Differential ShellCheck SARIF
           path: ${{ steps.ShellCheck.outputs.sarif }}
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.repository == 'canonical/lxd'
 
       - name: Install Go
         uses: actions/setup-go@v6
