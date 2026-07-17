@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"net/http"
 	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -393,10 +392,16 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 // Project config is not populated (as not in the backup file), however expanded config from backup file is applied
 // to avoid needing to expand config by loading profiles from database.
 func LoadFromBackup(s *state.State, projectName string, instancePath string) (Instance, error) {
-	backupYamlPath := filepath.Join(instancePath, "backup.yaml")
-	backupConf, err := backup.ParseConfigYamlFile(backupYamlPath)
+	instRoot, err := os.OpenRoot(instancePath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed parsing instance backup file from %q: %w", backupYamlPath, err)
+		return nil, fmt.Errorf("Failed opening instance directory %q: %w", instancePath, err)
+	}
+
+	defer func() { _ = instRoot.Close() }()
+
+	backupConf, err := backup.ParseConfigYamlFile(instRoot)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing instance backup file from %q: %w", instancePath, err)
 	}
 
 	if backupConf.Instance == nil {
@@ -423,7 +428,7 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string) (In
 
 	inst, err := Load(s, *instDBArgs, p)
 	if err != nil {
-		return nil, fmt.Errorf("Failed loading instance from backup file %q: %w", backupYamlPath, err)
+		return nil, fmt.Errorf("Failed loading instance from backup file in %q: %w", instancePath, err)
 	}
 
 	return inst, nil
