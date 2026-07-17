@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,6 +32,14 @@ func restServer(d *Daemon) *http.Server {
 		// Every 1.0 endpoint should have a type for the API metrics.
 		if !slices.Contains(entity.APIMetricsEntityTypes(), c.MetricsType) {
 			panic(`Endpoint "/1.0/` + c.Path + `" has invalid MetricsType: ` + string(c.MetricsType))
+		}
+
+		// Every endpoint action should have a valid all-projects mode.
+		// The default value is allProjectsModeNotSupported.
+		for _, e := range []APIEndpointAction{c.Get, c.Head, c.Put, c.Patch, c.Delete, c.Post} {
+			if !slices.Contains([]allProjectsMode{allProjectsModeAllowAll, allProjectsModeDisallowRestrictedTLSClients, allProjectsModeNotSupported}, e.AllProjectsMode) {
+				panic(`Endpoint "/1.0/` + c.Path + `" has invalid all-projects mode: ` + strconv.Itoa(int(e.AllProjectsMode)))
+			}
 		}
 
 		d.createCmd(mux, "1.0", c)
