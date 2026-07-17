@@ -16,6 +16,8 @@ import (
 
 type cmdRecover struct {
 	global *cmdGlobal
+
+	flagProject string
 }
 
 func (c *cmdRecover) command() *cobra.Command {
@@ -30,6 +32,7 @@ func (c *cmdRecover) command() *cobra.Command {
   pools but are not in the LXD database. It will then offer to recreate these database records.
 `
 	cmd.RunE = c.run
+	cmd.Flags().StringVar(&c.flagProject, "project", "", "Restrict the recovery scan to volumes in this project")
 
 	return cmd
 }
@@ -76,7 +79,8 @@ func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 
 		// Send /internal/recover/validate request to LXD.
 		reqValidate = internalRecoverValidatePost{
-			Pools: make([]api.StoragePoolsPost, 0, len(existingPools)),
+			Pools:   make([]api.StoragePoolsPost, 0, len(existingPools)),
+			Project: c.flagProject,
 		}
 
 		// Add existing pools to request.
@@ -138,7 +142,8 @@ func (c *cmdRecover) run(cmd *cobra.Command, args []string) error {
 	// Don't lint next line with staticcheck. It says we should convert reqValidate directly to an internalRecoverImportPost
 	// because their types are identical. This is less clear and will not work if either type changes in the future.
 	reqImport := internalRecoverImportPost{ //nolint:staticcheck
-		Pools: reqValidate.Pools,
+		Pools:   reqValidate.Pools,
+		Project: reqValidate.Project,
 	}
 
 	_, _, err = d.RawQuery(http.MethodPost, "/internal/recover/import", reqImport, "")
