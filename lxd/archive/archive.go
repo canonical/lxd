@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -271,6 +272,24 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 
 		logger.Warn("Unpack failed", logger.Ctx{"file": file, "allowedCmds": allowedCmds, "extension": extension, "path": path, "err": err})
 		return fmt.Errorf("Unpack failed: %w", err)
+	}
+
+	// Check if none of the metadata files are symlinks.
+	// This blocks using images which reference external files.
+	metadataFiles := []string{"metadata.yaml", "backup.yaml"}
+	for _, file := range metadataFiles {
+		fullPath := filepath.Join(path, file)
+
+		// Some metadata files (e.g. backup.yaml) are not present right after unpack.
+		// Therefore accept if they are missing.
+		info, err := os.Lstat(fullPath)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+		if info != nil && !info.Mode().IsRegular() {
+			return fmt.Errorf("Image file %s is not a regular file", fullPath)
+		}
 	}
 
 	return nil
