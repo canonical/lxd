@@ -3990,7 +3990,7 @@ func (d *qemu) addRootDriveConfig(busAllocate busAllocator, mountInfo *storagePo
 
 			clusterName := config["ceph.cluster_name"]
 			if clusterName == "" {
-				clusterName = storageDrivers.CephDefaultUser
+				clusterName = storageDrivers.CephDefaultCluster
 			}
 
 			rbdImageName, snapName := storageDrivers.CephGetRBDImageName(vol, false)

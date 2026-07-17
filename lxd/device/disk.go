@@ -1222,7 +1222,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 					clusterName := config["ceph.cluster_name"]
 					if clusterName == "" {
-						clusterName = storageDrivers.CephDefaultUser
+						clusterName = storageDrivers.CephDefaultCluster
 					}
 
 					contentType := storagePools.VolumeDBContentTypeToContentType(dbContentType)
