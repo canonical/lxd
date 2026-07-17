@@ -439,3 +439,8 @@ func CountOperationChildren(ctx context.Context, tx *sql.Tx, parentID int64) (in
 
 	return count, nil
 }
+
+// GetOperationsByNodeIDAndClass gets all operations on the given node ID and operation class.
+func GetOperationsByNodeIDAndClass(ctx context.Context, tx *sql.Tx, nodeID int64, class int64) ([]Operation, error) {
+	return query.Select[Operation](ctx, tx, "WHERE operations.node_id = ? AND operations.class = ?", nodeID, class)
+}

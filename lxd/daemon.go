@@ -1194,6 +1194,9 @@ func (d *Daemon) init() error {
 
 	var err error
 
+	// Hack to make a durable operations handler map defined in the main package available to the operations
+	operations.InitDurableOperations(DurableOperations)
+
 	// Set default authorizer.
 	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverTLS, logger.Log, authDrivers.WithSendSecurity(d.events.SendSecurity))
 	if err != nil {
@@ -2042,6 +2045,9 @@ func (d *Daemon) init() error {
 
 		// Run scheduled replicators (minutely check of configurable cron expression)
 		d.tasks.Add(runScheduledReplicatorsTask(d.State))
+
+		// Synchronize locally running durable operations with the database (every minute)
+		d.tasks.Add(syncDurableOperationsTask(d.State))
 	}
 
 	// Load Ubuntu Pro configuration before starting any instances.

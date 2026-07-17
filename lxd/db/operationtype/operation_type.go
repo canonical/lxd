@@ -414,7 +414,7 @@ func (t Type) EntityType() entity.Type {
 		BackupsExpire, SnapshotsExpire, ClusterJoinToken, CertificateAddToken, RenewServerCertificate,
 		ClusterHeal, ImagesUpdate, VolumeSnapshotsCreateScheduled, SnapshotsCreateScheduled,
 		PruneExpiredOperations, RefreshClusterLinkVolatileAddresses,
-		StoragePoolCreate:
+		StoragePoolCreate, Wait:
 		return entity.TypeServer
 
 	// Project level operations.
@@ -440,8 +440,7 @@ func (t Type) EntityType() entity.Type {
 	// Instance operations.
 	case BackupCreate, ConsoleShow, InstanceFreeze, InstanceUpdate, InstanceUnfreeze,
 		InstanceStart, InstanceStop, InstanceRestart, InstanceRename, InstanceMigrate, InstanceLiveMigrate,
-		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate, InstanceCopy,
-		Wait:
+		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate, InstanceCopy:
 		return entity.TypeInstance
 
 	// Instance backup operations.

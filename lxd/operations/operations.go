@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -100,12 +101,22 @@ type Operation struct {
 	// It is cancelled when the onRun hook completes or when Cancel is called (on operation deletion).
 	running cancel.Canceller
 
+	// internallyCancelled can only be set to true for durable operations. It is set when a heartbeat is not received on
+	// this node within the offline threshold, or when the operation is updated by a member that is no longer assigned
+	// to the operation in the database.
+	//
+	// When this is true, we skip deleting the database record and instead just remove the operation from the in-memory map.
+	internallyCancelled atomic.Bool
+
 	// Locking for concurrent access to the Operation
 	lock sync.Mutex
 
 	state  *state.State
 	events *events.Server
 }
+
+// RunHook represents the function signature for an operation run hook.
+type RunHook func(ctx context.Context, op *Operation) error
 
 // OperationArgs contains all the arguments for operation creation.
 type OperationArgs struct {
@@ -115,7 +126,7 @@ type OperationArgs struct {
 	EntityURL       *api.URL
 	Resources       map[entity.Type][]api.URL
 	Metadata        map[string]any
-	RunHook         func(ctx context.Context, op *Operation) error
+	RunHook         RunHook
 	ConnectHook     func(op *Operation, r *http.Request, w http.ResponseWriter) error
 	requestor       *request.RequestorAuditor
 	metricsCallback func(result metrics.RequestResult)
@@ -164,6 +175,25 @@ func ScheduleUserOperationFromOperation(s *state.State, op *Operation, args Oper
 // ScheduleServerOperation schedules a new [Operation] that runs as a server background task.
 func ScheduleServerOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	return scheduleOperation(s, args)
+}
+
+// DurableOperationTable represents the table of durable operation hooks.
+type DurableOperationTable map[operationtype.Type]RunHook
+
+var (
+	durableOperations     DurableOperationTable
+	durableOperationsOnce sync.Once
+)
+
+// InitDurableOperations initializes the durable operations table.
+// As durable operations can be restarted on other nodes, the durable operation handlers cannot be defined only in the memory of the node.
+// Therefore we maintain a static map of durable operation handlers based on operation type.
+// As this map contains handlers from across many packages, the table itself is defined in the main package.
+// Because this table needs to be accessible from the operations package, we provide this Init function to set it.
+func InitDurableOperations(opTable DurableOperationTable) {
+	durableOperationsOnce.Do(func() {
+		durableOperations = opTable
+	})
 }
 
 // scheduleOperation schedules a new operation and returns it. If it cannot be created, it returns an error.
@@ -261,6 +291,12 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.onConnect = args.ConnectHook
 
 		// Quick check.
+		if args.Class == operationtype.OperationClassDurable {
+			if args.RunHook != nil || args.ConnectHook != nil {
+				return nil, errors.New("Durable operation run and connect hooks are statically defined")
+			}
+		}
+
 		if op.class != operationtype.OperationClassWebsocket && op.onConnect != nil {
 			return nil, errors.New("Only websocket operations can have a Connect hook")
 		}
@@ -271,6 +307,16 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 
 		if op.class == operationtype.OperationClassToken && op.onRun != nil {
 			return nil, errors.New("Token operations cannot have a Run hook")
+		}
+
+		if op.class == operationtype.OperationClassDurable {
+			// Durable operations must have their hooks defined in the durable operations table.
+			runHook, ok := durableOperations[args.Type]
+			if !ok {
+				return nil, fmt.Errorf("No durable operation handlers defined for operation type %d (%q)", args.Type, args.Type.Description())
+			}
+
+			op.onRun = runHook
 		}
 
 		return &op, nil
@@ -284,7 +330,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	}
 
 	// If this is a single task operation without children, it must have a run hook.
-	if !slices.Contains([]operationtype.Class{operationtype.OperationClassWebsocket, operationtype.OperationClassToken}, args.Class) && args.Children == nil && args.RunHook == nil {
+	if !slices.Contains([]operationtype.Class{operationtype.OperationClassWebsocket, operationtype.OperationClassToken, operationtype.OperationClassDurable}, args.Class) && args.Children == nil && args.RunHook == nil {
 		return nil, errors.New("Task operations must have a Run hook")
 	}
 
@@ -292,6 +338,11 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	op, err := initOperation(s, args)
 	if err != nil {
 		return nil, err
+	}
+
+	// If this is a bulk durable operation, clear the parent run hook even if it's defined in the table per parent operation type.
+	if op.class == operationtype.OperationClassDurable && len(args.Children) > 0 {
+		op.onRun = nil
 	}
 
 	// Create the child operations, if any.
@@ -316,6 +367,35 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	err = registerDBOperation(shutdownCtx, op)
 	if err != nil {
 		return nil, err
+	}
+
+	// Durable operations need to be able to be reloaded from the database.
+	// To ease debugging in case of issues, we want to ensure the reloaded operation will be identical to the one originally created.
+	// Therefore, reload the operation from the database here to ensure everything is properly persisted and can be reloaded correctly.
+	// Notably, when unix socket is used for auth, the op.requestor.OriginAddress is set to '@'. This is not persisted in the database,
+	// so reloading the operation ensures we work with empty ("") OriginAddress instead of "@".
+	if op.class == operationtype.OperationClassDurable {
+		newOp, err := loadDurableOperationFromDB(op)
+		if err != nil {
+			return nil, fmt.Errorf("Failed reloading durable operation from database: %w", err)
+		}
+
+		// Clear the run hook if it's a parent operation.
+		if len(op.children) > 0 {
+			newOp.onRun = nil
+		}
+
+		newOp.children = make([]*Operation, 0, len(op.children))
+		for _, childOp := range op.children {
+			reconstructedChildOp, err := loadDurableOperationFromDB(childOp)
+			if err != nil {
+				return nil, fmt.Errorf("Failed reloading durable child operation from database: %w", err)
+			}
+
+			newOp.AddChildren(reconstructedChildOp)
+		}
+
+		op = newOp
 	}
 
 	op.logger.Debug("New operation")
@@ -412,9 +492,10 @@ func (op *Operation) done() {
 		return
 	}
 
-	// If this is a parent operation of a bulk operation, we clear the entries from the internal map, but leave the database records in place.
+	// If this is a durable operation, or a parent operation of a bulk operation,
+	// we clear the entries from the internal map, but leave the database records in place.
 	// The database records will be cleared later by the pruneExpiredOperationsTask().
-	if len(op.children) > 0 {
+	if len(op.children) > 0 || op.class == operationtype.OperationClassDurable {
 		operationsLock.Lock()
 		_, ok := operations[op.id]
 		if !ok {
@@ -564,6 +645,27 @@ func (op *Operation) start() {
 					op.errCode = http.StatusInternalServerError
 				}
 
+				// If the durable operation was cancelled locally because of missed heartbeat,
+				// we only clear it from the local operations map and leave the database record intact.
+				if op.internallyCancelled.Load() {
+					// Mark the operation as finished. The running context is already cancelled.
+					op.status = api.Cancelled
+					op.finished.Cancel()
+					op.lock.Unlock()
+
+					// Remove the operation from the local operations map.
+					operationsLock.Lock()
+					_, ok := operations[op.id]
+					if !ok {
+						operationsLock.Unlock()
+						return
+					}
+
+					delete(operations, op.id)
+					operationsLock.Unlock()
+					return
+				}
+
 				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
 				if errors.Is(err, context.Canceled) {
 					updateStatus(op, api.Cancelled)
@@ -664,6 +766,39 @@ func (op *Operation) Cancel() {
 	if op.onRun == nil {
 		op.done()
 	}
+}
+
+// CancelLocalDurableOperation stops a durable operation running on this node.
+// This operation is only removed from the local operations map, the database record is left intact.
+// The cluster leader will restart this operation.
+func CancelLocalDurableOperation(op *Operation) {
+	// Note that on purpose we don't lock the operation lock here. Both setting the internallyCancelled flag and cancelling the operation are atomic operations,
+	// so we don't need to lock the operation for that.
+	// If we'd lock the operation here, we might end up waiting on the lock while the operation is trying to update its status, which would delay concelling the operation context.
+
+	// Mark this operation as having missed the heartbeat.
+	// It will tell the end routines not to clear the database record.
+	op.internallyCancelled.Store(true)
+	// Signal the operation to stop.
+	// The operation will be marked as finished and removed from the local operations map
+	// by the rest of the Start() routine after it actually stops.
+	op.running.Cancel()
+}
+
+// CancelLocalDurableOperations stops all durable operations running on this node.
+// These operations are only removed from the local operations map, the database records are left intact.
+// The cluster leader will later restart these operations.
+func CancelLocalDurableOperations() {
+	operationsLock.Lock()
+	for _, op := range operations {
+		if op.class != operationtype.OperationClassDurable {
+			continue
+		}
+
+		CancelLocalDurableOperation(op)
+	}
+
+	operationsLock.Unlock()
 }
 
 // Connect connects a websocket operation. If the operation is not a websocket
