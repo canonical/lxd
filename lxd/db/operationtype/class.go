@@ -16,6 +16,8 @@ const (
 	OperationClassWebsocket Class = 2
 	// OperationClassToken represents the Token Class.
 	OperationClassToken Class = 3
+	// OperationClassDurable represents the Durable Class.
+	OperationClassDurable Class = 4
 )
 
 // String implements [fmt.Stringer] for [Class].
@@ -24,6 +26,7 @@ func (t Class) String() string {
 		OperationClassTask:      api.OperationClassTask,
 		OperationClassWebsocket: api.OperationClassWebsocket,
 		OperationClassToken:     api.OperationClassToken,
+		OperationClassDurable:   api.OperationClassDurable,
 	}[t]
 }
 
