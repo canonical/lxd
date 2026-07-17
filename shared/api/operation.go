@@ -18,6 +18,11 @@ const (
 	// OperationClassToken is shown in the [Operation.Class] field for operations that track tokens that have been issued.
 	// These are used to authenticate later requests.
 	OperationClassToken = "token"
+
+	// OperationClassDurable is shown in the [Operation.Class] field for operations that are restarted on the cluster leader
+	// if the member that is running the operation is considered offline (did not respond to cluster heartbeats for longer than
+	// the offline threshold).
+	OperationClassDurable = "durable"
 )
 
 const (
