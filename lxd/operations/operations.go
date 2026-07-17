@@ -100,6 +100,10 @@ func deleteInternal(operationUUIDs ...string) {
 	}
 }
 
+// RunHook is the function signature of an operation run hook.
+// This is a convenience for passing run hooks as arguments.
+type RunHook func(context.Context, *Operation) error
+
 // Operation represents an operation.
 type Operation struct {
 	dbID            int64
@@ -125,7 +129,7 @@ type Operation struct {
 	stage           uint16
 
 	// Those functions are called at various points in the Operation lifecycle
-	onRun     func(context.Context, *Operation) error
+	onRun     RunHook
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 
 	// Operations which conflict with each other share the same conflict reference.
