@@ -366,6 +366,72 @@ Try \`lxc info --show-log ${vm_name}\` for more info" ]
   lxc image delete testimage
 }
 
+test_image_backup_confined() {
+  local ct_name ct_backup_path err_msg pool_driver pool_name
+
+  ct_name="c1"
+  err_msg="openat backup.yaml: path escapes from parent"
+
+  ensure_import_testimage
+
+  # Plant an unconfined backup.yaml file into the container's drive whilst it is mounted.
+  lxc init testimage "${ct_name}"
+  lxc start "${ct_name}"
+  ct_backup_path="$(realpath "${LXD_DIR}/containers/${ct_name}/backup.yaml")"
+  mv "${ct_backup_path}" "${ct_backup_path}.backup"
+  ln -s /etc/hostname "${ct_backup_path}"
+  lxc stop -f "${ct_name}"
+
+  # UpdateInstanceBackupFile (os.Root.WriteFile): starting the instance rewrites backup.yaml just
+  # before the instance process starts, so a symlinked backup.yaml must not be followed outside
+  # the instance's storage volume.
+  sub_test "Reject writing backup.yaml symlink escaping the instance root on start"
+  [[ "$(lxc start "${ct_name}" 2>&1 || false)" == *"${err_msg}"* ]]
+
+  # UpdateInstanceBackupFile (os.Root.WriteFile): creating a snapshot also rewrites backup.yaml.
+  sub_test "Reject writing backup.yaml symlink escaping the instance root on snapshot create"
+  [[ "$(lxc snapshot "${ct_name}" snap0 2>&1 || false)" == *"${err_msg}"* ]]
+
+  # Only test with the dir driver as we can easily cleanup after corrupting the container.
+  pool_name="$(lxc profile device get default root pool)"
+  pool_driver="$(lxc storage show "${pool_name}" | awk '/^driver:/ {print $2}')"
+  if [ "${pool_driver}" = "dir" ]; then
+    # Remove the instance and its storage volume DB records so recovery treats the volume as
+    # unknown and attempts to parse its (symlinked) backup.yaml.
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='c1'"
+
+    # detectUnknownInstanceVolume/ParseConfigYamlFile (os.Root.ReadFile): recovery reads
+    # backup.yaml from within the volume's mount path. A symlink escaping the volume must be
+    # rejected rather than followed, and recovery of this instance must fail rather than
+    # silently leaking the symlink target's contents into a recovered instance record.
+    if out=$(cat <<EOF | lxd recover 2>&1
+yes
+yes
+EOF
+    ); then
+      echo "ERROR: lxd recover unexpectedly succeeded despite backup.yaml escaping the volume" >&2
+      exit 1
+    fi
+
+    [[ "${out}" == *"${err_msg}"* ]]
+
+    # At this stage the container is broken.
+    # Fix the backup.yaml manually.
+    rm -rf "${LXD_DIR}/storage-pools/${pool_name}/containers/${ct_name}/backup.yaml"
+    mv "${ct_backup_path}.backup" "${ct_backup_path}"
+
+    # Now recover the container.
+    cat <<EOF | lxd recover
+yes
+yes
+EOF
+  fi
+
+  lxc delete -f "${ct_name}"
+  lxc image delete testimage
+}
+
 test_image_refresh() {
   local LXD2_DIR LXD2_ADDR
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
