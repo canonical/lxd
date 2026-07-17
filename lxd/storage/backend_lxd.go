@@ -5438,24 +5438,48 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		return fmt.Errorf("Instance %q in project %q already has storage DB record", instName, projectName)
 	}
 
-	backupYamlPath := filepath.Join(vol.MountPath(), "backup.yaml")
+	mountPath := vol.MountPath()
 	var backupConf *backupConfig.Config
+
+	volRoot, err := os.OpenRoot(mountPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Failed opening volume mount path %q: %w", mountPath, err)
+	}
+
+	var backupFile os.FileInfo
+
+	if volRoot != nil {
+		defer func() { _ = volRoot.Close() }()
+
+		backupFile, err = volRoot.Lstat("backup.yaml")
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed getting info for backup.yaml in volume mount path %q: %w", mountPath, err)
+		}
+	}
 
 	// If the instance is running, it should already be mounted, so check if the backup file
 	// is already accessible, and if so parse it directly, without disturbing the mount count.
-	if shared.PathExists(backupYamlPath) {
-		backupConf, err = backup.ParseConfigYamlFile(backupYamlPath)
+	if backupFile != nil {
+		backupConf, err = backup.ParseConfigYamlFile(volRoot)
 		if err != nil {
-			return fmt.Errorf("Failed parsing backup file %q: %w", backupYamlPath, err)
+			return fmt.Errorf("Failed parsing backup.yaml file: %w", err)
 		}
 	} else {
 		// If backup file not accessible, we take this to mean the instance isn't running
 		// and so we need to mount the volume to access the backup file and then unmount.
 		// This will also create the mount path if needed.
 		err = vol.MountTask(func(_ string, _ *operations.Operation) error {
-			backupConf, err = backup.ParseConfigYamlFile(backupYamlPath)
+			// Open up the root again after mounting the volume.
+			volRoot, err := os.OpenRoot(mountPath)
 			if err != nil {
-				return fmt.Errorf("Failed parsing backup file %q: %w", backupYamlPath, err)
+				return fmt.Errorf("Failed opening volume mount path %q: %w", mountPath, err)
+			}
+
+			defer func() { _ = volRoot.Close() }()
+
+			backupConf, err = backup.ParseConfigYamlFile(volRoot)
+			if err != nil {
+				return fmt.Errorf("Failed parsing backup.yaml file: %w", err)
 			}
 
 			return nil
