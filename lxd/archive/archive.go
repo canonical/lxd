@@ -277,6 +277,15 @@ func doUnpack(s *state.State, file string, path string, blockBackend bool, prote
 		return fmt.Errorf("Unpack failed: %w", err)
 	}
 
+	// Check if none of the metadata files are symlinks.
+	// This blocks using images which reference external files.
+	if protected {
+		err := CheckMetadataFilesAreRegular(path)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
