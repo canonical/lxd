@@ -1,7 +1,6 @@
 package operations
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -47,7 +46,7 @@ type OperationArgs struct {
 	Metadata map[string]any
 
 	// RunHook is the function that runs when the operation is scheduled. Token operations may not have a RunHook.
-	RunHook func(ctx context.Context, op *Operation) error
+	RunHook RunHook
 
 	// ConnectHook is the function that runs when a client calls /1.0/operations/{id}/websocket. It is used for instance
 	// exec and migrations. Only websocket operations can have a ConnectHook.
