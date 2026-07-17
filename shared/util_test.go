@@ -2,9 +2,14 @@ package shared
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -568,4 +573,106 @@ func TestEnsurePort(t *testing.T) {
 			require.Equal(t, test.want, got, "unexpected EnsurePort function result")
 		})
 	}
+}
+
+// TestDownloadFileHashCapsBySize verifies that DownloadFileHash caps the number of bytes read
+// from the response body at the trusted expected size (so a malicious or MITM mirror cannot
+// stream unbounded data), that a negative size disables the cap, and that a zero size reads
+// nothing. The cap must hold even for chunked responses that carry no Content-Length header.
+func TestDownloadFileHashCapsBySize(t *testing.T) {
+	content := []byte("the real trusted image bytes")
+	sum := sha256.Sum256(content)
+	contentHash := hex.EncodeToString(sum[:])
+	expectedSize := int64(len(content))
+
+	// A stream that matches the advertised size and hash downloads successfully.
+	t.Run("exact size succeeds", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write(content)
+		}))
+		defer server.Close()
+
+		target, err := os.CreateTemp(t.TempDir(), "download")
+		require.NoError(t, err)
+		defer func() { _ = target.Close() }()
+
+		size, err := DownloadFileHash(context.Background(), server.Client(), "", nil, nil, "test-image", server.URL, contentHash, sha256.New(), target, expectedSize)
+		require.NoError(t, err)
+		require.Equal(t, expectedSize, size)
+	})
+
+	// A malicious mirror streaming far more than the advertised size (using a chunked
+	// response with no Content-Length) is capped exactly at expectedSize and then fails the
+	// hash verification instead of consuming the unbounded stream.
+	t.Run("oversized chunked stream is capped and fails verification", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Writing in multiple flushed chunks forces chunked transfer encoding, so no
+			// Content-Length header is sent.
+			flusher, _ := w.(http.Flusher)
+			chunk := bytes.Repeat([]byte{0xff}, 4096)
+			for range 4096 { // Up to 16 MiB were the cap not enforced.
+				_, err := w.Write(chunk)
+				if err != nil {
+					return
+				}
+
+				if flusher != nil {
+					flusher.Flush()
+				}
+			}
+		}))
+		defer server.Close()
+
+		target, err := os.CreateTemp(t.TempDir(), "download")
+		require.NoError(t, err)
+		defer func() { _ = target.Close() }()
+
+		_, err = DownloadFileHash(context.Background(), server.Client(), "", nil, nil, "test-image", server.URL, contentHash, sha256.New(), target, expectedSize)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Hash mismatch")
+
+		// The read stopped exactly at the trusted size.
+		info, err := target.Stat()
+		require.NoError(t, err)
+		require.Equal(t, expectedSize, info.Size())
+	})
+
+	// A negative expected size disables the cap and reads the whole body to EOF.
+	t.Run("negative size disables the cap", func(t *testing.T) {
+		body := bytes.Repeat([]byte{0xab}, 100000)
+		bodySum := sha256.Sum256(body)
+		bodyHash := hex.EncodeToString(bodySum[:])
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write(body)
+		}))
+		defer server.Close()
+
+		target, err := os.CreateTemp(t.TempDir(), "download")
+		require.NoError(t, err)
+		defer func() { _ = target.Close() }()
+
+		size, err := DownloadFileHash(context.Background(), server.Client(), "", nil, nil, "test-image", server.URL, bodyHash, sha256.New(), target, -1)
+		require.NoError(t, err)
+		require.Equal(t, int64(len(body)), size)
+	})
+
+	// A zero expected size caps the body at zero bytes.
+	t.Run("zero size reads nothing", func(t *testing.T) {
+		emptySum := sha256.Sum256(nil)
+		emptyHash := hex.EncodeToString(emptySum[:])
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write(content)
+		}))
+		defer server.Close()
+
+		target, err := os.CreateTemp(t.TempDir(), "download")
+		require.NoError(t, err)
+		defer func() { _ = target.Close() }()
+
+		size, err := DownloadFileHash(context.Background(), server.Client(), "", nil, nil, "test-image", server.URL, emptyHash, sha256.New(), target, 0)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), size)
+	})
 }
