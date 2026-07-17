@@ -6,14 +6,19 @@ import (
 	"time"
 )
 
-// OperationClassTask represents the Task OperationClass.
-const OperationClassTask = "task"
+const (
+	// OperationClassTask is shown in the [Operation.Class] field when the operation is an asynchronous background task.
+	// These are used in many places where an API request may take a long time.
+	OperationClassTask = "task"
 
-// OperationClassWebsocket represents the Websocket OperationClass.
-const OperationClassWebsocket = "websocket"
+	// OperationClassWebsocket is shown in the [Operation.Class] field when an operation websocket is available for connection.
+	// These are used for various bi-directional connections such as console.
+	OperationClassWebsocket = "websocket"
 
-// OperationClassToken represents the Token OperationClass.
-const OperationClassToken = "token"
+	// OperationClassToken is shown in the [Operation.Class] field for operations that track tokens that have been issued.
+	// These are used to authenticate later requests.
+	OperationClassToken = "token"
+)
 
 const (
 	// MetadataEntityURL is always set in operation metadata for operations whose associated entity type is not "server".
