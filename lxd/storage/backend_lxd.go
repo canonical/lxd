@@ -7264,29 +7264,31 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 
 	// Update pool information in the backup.yaml file.
 	err = vol.MountTask(func(_ string, _ *operations.Operation) error {
-		// Write the YAML
-		path := filepath.Join(inst.Path(), "backup.yaml")
-		f, err := os.Create(path)
+		instRoot, err := inst.OpenRoot()
 		if err != nil {
-			return fmt.Errorf("Failed to create file %q: %w", path, err)
+			return fmt.Errorf("Failed opening instance root: %w", err)
 		}
 
-		err = f.Chmod(0400)
-		if err != nil {
-			return err
-		}
+		defer func() { _ = instRoot.Close() }()
 
 		data, err := yaml.Marshal(config)
 		if err != nil {
 			return err
 		}
 
-		err = shared.WriteAll(f, data)
+		// Write the YAML.
+		err = instRoot.WriteFile("backup.yaml", data, 0400)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed writing backup.yaml: %w", err)
 		}
 
-		return f.Close()
+		// WriteFile only sets the right permission if the file didn't exist before.
+		err = instRoot.Chmod("backup.yaml", 0400)
+		if err != nil {
+			return fmt.Errorf("Failed setting backup.yaml permissions: %w", err)
+		}
+
+		return nil
 	}, op)
 
 	return err
