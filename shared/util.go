@@ -1194,7 +1194,15 @@ func EscapePathFstab(path string) string {
 // optionally verifying the file's hash using the provided hash function. The function
 // either returns the number of bytes written or an error if the download fails or the
 // hash does not match.
-func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent string, progress func(progress ioprogress.ProgressData), canceler *cancel.HTTPRequestCanceller, filename string, url string, hash string, hashFunc hash.Hash, target io.WriteSeeker) (int64, error) {
+//
+// expectedSize bounds how many bytes are read from the response body: a value of zero or
+// greater caps the body at exactly that many bytes using [io.LimitReader] (for example the
+// size published in a simplestreams index fetched over HTTPS), while a negative value such
+// as -1 disables the cap and reads to EOF. Capping prevents a malicious or man-in-the-middle
+// mirror from streaming unbounded data: reads stop exactly at expectedSize, so any oversized
+// stream is truncated and then fails the hash check. The untrusted HTTP Content-Length header
+// is never used to size this cap.
+func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent string, progress func(progress ioprogress.ProgressData), canceler *cancel.HTTPRequestCanceller, filename string, url string, hash string, hashFunc hash.Hash, target io.WriteSeeker, expectedSize int64) (int64, error) {
 	// Always seek to the beginning
 	_, _ = target.Seek(0, io.SeekStart)
 
@@ -1229,8 +1237,22 @@ func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent st
 		return -1, fmt.Errorf("Cannot fetch %s: %s", url, r.Status)
 	}
 
+	// Cap the number of bytes read from the response body to the trusted expected size.
+	// A negative expectedSize (for example -1) disables the cap and reads the body to EOF.
+	// This deliberately ignores the untrusted Content-Length header so that the limit holds
+	// even for chunked transfers where no Content-Length is present.
+	bodyReader := r.Body
+	progressLength := r.ContentLength
+	if expectedSize >= 0 {
+		// io.LimitReader caps the read at expectedSize bytes (a zero size yields an empty
+		// read). The underlying r.Body is still closed by the deferred close above; the
+		// NopCloser only preserves the io.ReadCloser interface for the progress reader.
+		bodyReader = io.NopCloser(io.LimitReader(r.Body, expectedSize))
+		progressLength = expectedSize
+	}
+
 	// Handle the data
-	body := ioprogress.NewProgressReader(r.Body, ioprogress.WithLength(r.ContentLength), ioprogress.WithDescriptiveProgressHandler(filename, progress))
+	body := ioprogress.NewProgressReader(bodyReader, ioprogress.WithLength(progressLength), ioprogress.WithDescriptiveProgressHandler(filename, progress))
 
 	var size int64
 
