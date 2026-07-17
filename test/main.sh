@@ -322,6 +322,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_image_prefer_cached "image prefer cached"
     run_test test_image_import_dir "import image from directory"
     run_test test_image_import_metadata "import image with invalid metadata"
+    run_test test_image_import_metadata_not_regular_file "import image with non-regular metadata file"
     run_test test_image_metadata_confined "import image with unconfined metadata"
     run_test test_image_refresh "image refresh"
     run_test test_image_acl "image acl"
