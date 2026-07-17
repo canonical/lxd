@@ -200,32 +200,40 @@ test_image_import_metadata_not_regular_file() {
   # shellcheck disable=SC2039,SC3043
   local tmpDir imgDir imgTar out
 
-  echo "Reject metadata.yaml that is overridden with a non-regular file when unpacking into an instance volume"
+  echo "Reject metadata that is overridden with a non-regular file when unpacking into an instance volume"
 
-  tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
-  imgDir="${tmpDir}/image"
-  imgTar="${tmpDir}/image.tar"
+  for m in metadata.yaml backup.yaml; do
+    tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+    imgDir="${tmpDir}/image"
+    imgTar="${tmpDir}/image.tar"
 
-  # Build an image tarball with a valid metadata.yaml as the first entry.
-  mkdir -p "${imgDir}/rootfs"
-  printf '%s\n' "architecture: $(uname -m)" "creation_date: 1" > "${imgDir}/metadata.yaml"
-  tar -cf "${imgTar}" -C "${imgDir}" .
+    # Build an image tarball with a valid metadata.yaml.
+    # The metadata.yaml always has to be present.
+    mkdir -p "${imgDir}/rootfs"
+    printf '%s\n' "architecture: $(uname -m)" "creation_date: 1" > "${imgDir}/metadata.yaml"
+    tar -cf "${imgTar}" -C "${imgDir}" .
 
-  # Append another metadata.yaml file to the archive.
-  rm "${imgDir}/metadata.yaml"
-  ln -s "/etc/hostname" "${imgDir}/metadata.yaml"
-  tar -f "${imgTar}" --append -C "${imgDir}" "./metadata.yaml"
+    # Append the non-regular metadata file to the archive.
+    # In case of the metadata.yaml, this will allow importing the image as the first regular metadata.yaml passes the checks.
+    # But the second metadata.yaml will persist on the filesystem after unpacking the image which will trigger the error below.
+    if [ ! "${m}" = "backup.yaml" ]; then
+        # As the metadata.yaml is always present, remove it before creating the symlink with the same name.
+        rm "${imgDir}/${m}"
+    fi
+    ln -s "/etc/hostname" "${imgDir}/${m}"
+    tar -f "${imgTar}" --append -C "${imgDir}" "./${m}"
 
-  lxc image import "${imgTar}" --alias image-invalid-metadata
+    lxc image import "${imgTar}" --alias image-invalid-metadata
 
-  # Unpacking the image into the instance's storage volume must reject the non-regular metadata.yaml.
-  if out=$(lxc init image-invalid-metadata c1 2>&1); then
-    echo "ERROR: Initializing an instance from an image with a non-regular metadata.yaml unexpectedly succeeded" >&2
-    exit 1
-  fi
+    # Unpacking the image into the instance's storage volume must reject the non-regular metadata file.
+    if out=$(lxc init image-invalid-metadata c1 2>&1); then
+        echo "ERROR: Initializing an instance from an image with a non-regular metadata file unexpectedly succeeded" >&2
+        exit 1
+    fi
 
-  echo "${out}" | grep -qF "is not a regular file"
+    echo "${out}" | grep -qF "is not a regular file"
 
-  lxc image delete image-invalid-metadata
-  rm -rf "${tmpDir}"
+    lxc image delete image-invalid-metadata
+    rm -rf "${tmpDir}"
+  done
 }
