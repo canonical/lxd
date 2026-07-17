@@ -180,19 +180,23 @@ test_image_metadata_confined() {
 
   # instanceMetadataGet (os.Root.Open): GET /1.0/instances/<name>/metadata.
   sub_test "Reject reading metadata.yaml symlink escaping the instance root on show"
-  [ ! "$(lxc config metadata show "${ct_name}" 2>&1 1>/dev/null || false)" = "${err_msg}" ]
+  out="$(! lxc config metadata show "${ct_name}" 2>&1 || false)"
+  echo "${out}" | grep -F "${err_msg}"
 
   # instanceMetadataPatch (os.Root.Open): PATCH /1.0/instances/<name>/metadata.
   sub_test "Reject reading metadata.yaml symlink escaping the instance root on patch"
-  [ ! "$(lxc query -X PATCH -d '{"properties": {"os": "test"}}' "/1.0/instances/${ct_name}/metadata" 2>&1 1>/dev/null || false)" = "${err_msg}" ]
+  out="$(! lxc query -X PATCH -d '{"properties": {"os": "test"}}' "/1.0/instances/${ct_name}/metadata" 2>&1 || false)"
+  echo "${out}" | grep -F "${err_msg}"
 
   # doInstanceMetadataUpdate (os.Root.WriteFile): PUT /1.0/instances/<name>/metadata.
   sub_test "Reject writing metadata.yaml symlink escaping the instance root on update"
-  [ ! "$(lxc query -X PUT -d '{"architecture": "'"$(uname -m)"'", "creation_date": 1}' "/1.0/instances/${ct_name}/metadata" 2>&1 1>/dev/null || false)" = "${err_msg}" ]
+  out="$(! lxc query -X PUT -d '{}' "/1.0/instances/${ct_name}/metadata" 2>&1 || false)"
+  echo "${out}" | grep -F "${err_msg}"
 
   # lxc.Export (os.Root.Open): publishing the instance as an image reads its metadata.
   sub_test "Reject reading metadata.yaml symlink escaping the container root on publish"
-  [ ! "$(lxc publish "${ct_name}" 2>&1 1>/dev/null || false)" = "${err_msg}" ]
+  out="$(! lxc publish "${ct_name}" 2>&1 || false)"
+  echo "${out}" | grep -F "${err_msg}"
 
   # lxc.templateApplyNow (os.Root.Open): starting the instance triggers templating which should be rejected.
   sub_test "Reject starting the instance whose metadata.yaml symlink escapes the instance root"
