@@ -56,6 +56,10 @@ func OperationGetInternal(id string) (*Operation, error) {
 	return op, nil
 }
 
+// RunHook is the function signature of an operation run hook.
+// This is a convenience for passing run hooks as arguments.
+type RunHook func(context.Context, *Operation) error
+
 // Operation represents an operation.
 type Operation struct {
 	projectName     string
@@ -80,7 +84,7 @@ type Operation struct {
 	stage           int64 // OperationArgs has uint16 but this is an int64 to correspond to the database value.
 
 	// Those functions are called at various points in the Operation lifecycle
-	onRun     func(context.Context, *Operation) error
+	onRun     RunHook
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 
 	// Operations which conflict with each other share the same conflict reference.
