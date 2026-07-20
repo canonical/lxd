@@ -53,8 +53,8 @@ type entityTypeDBInfo interface {
 	allURLsQuery() string
 
 	// urlByIDQuery must return a SQL query that when executed, returns values identically to allURLsQuery. The query
-	// must accept a single integer bind argument for the ID of the resource.
-	urlByIDQuery() string
+	// must contain an "IN" clause containing the given ids. It does not accept any bind parameters.
+	urlsByIDsQuery(ids ...int64) string
 
 	// urlsByProjectQuery must return a SQL query that when executed, returns values identically to allURLsQuery. The
 	// query must accept a single string bind argument for the project name.

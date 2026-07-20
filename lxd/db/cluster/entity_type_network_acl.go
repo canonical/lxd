@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeNetworkACL implements entityTypeDBInfo for a NetworkACL.
@@ -24,8 +26,8 @@ func (e entityTypeNetworkACL) urlsByProjectQuery() string {
 	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
-func (e entityTypeNetworkACL) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE networks_acls.id = ?"
+func (e entityTypeNetworkACL) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE networks_acls.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeNetworkACL) idFromURLQuery() string {

@@ -48,8 +48,8 @@ WHERE type IN %s`,
 		query.IntParams(e.identityTypes()...))
 }
 
-func (e entityTypeIdentity) urlByIDQuery() string {
-	return e.allURLsQuery() + " AND identities.id = ?"
+func (e entityTypeIdentity) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " AND identities.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeIdentity) idFromURLQuery() string {

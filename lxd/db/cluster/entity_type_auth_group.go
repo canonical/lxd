@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeAuthGroup implements entityTypeDBInfo for an AuthGroup.
@@ -17,8 +19,8 @@ func (e entityTypeAuthGroup) allURLsQuery() string {
 	return fmt.Sprintf(`SELECT %d, auth_groups.id, '', '', json_array(auth_groups.name) FROM auth_groups`, e.code())
 }
 
-func (e entityTypeAuthGroup) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE auth_groups.id = ?"
+func (e entityTypeAuthGroup) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE auth_groups.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeAuthGroup) idFromURLQuery() string {

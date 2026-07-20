@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeReplicator implements entityTypeDBInfo for a Replicator.
@@ -24,8 +26,8 @@ func (e entityTypeReplicator) urlsByProjectQuery() string {
 	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
-func (e entityTypeReplicator) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE replicators.id = ?"
+func (e entityTypeReplicator) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE replicators.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeReplicator) idFromURLQuery() string {

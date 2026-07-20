@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeInstance implements entityTypeDBInfo for an Instance.
@@ -24,8 +26,8 @@ func (e entityTypeInstance) urlsByProjectQuery() string {
 	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
-func (e entityTypeInstance) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE instances.id = ?"
+func (e entityTypeInstance) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE instances.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeInstance) idFromURLQuery() string {

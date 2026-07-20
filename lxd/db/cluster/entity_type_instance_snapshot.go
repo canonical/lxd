@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeInstanceSnapshot implements entityTypeDBInfo for an InstanceSnapshot.
@@ -25,8 +27,8 @@ func (e entityTypeInstanceSnapshot) urlsByProjectQuery() string {
 	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
-func (e entityTypeInstanceSnapshot) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE projects.name = ?"
+func (e entityTypeInstanceSnapshot) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE instances_snapshots.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeInstanceSnapshot) idFromURLQuery() string {

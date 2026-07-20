@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeIdentityProviderGroup implements entityTypeDBInfo for an IdentityProviderGroup.
@@ -17,8 +19,8 @@ func (e entityTypeIdentityProviderGroup) allURLsQuery() string {
 	return fmt.Sprintf(`SELECT %d, identity_provider_groups.id, '', '', json_array(identity_provider_groups.name) FROM identity_provider_groups`, e.code())
 }
 
-func (e entityTypeIdentityProviderGroup) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE identity_provider_groups.id = ?"
+func (e entityTypeIdentityProviderGroup) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE identity_provider_groups.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeIdentityProviderGroup) idFromURLQuery() string {

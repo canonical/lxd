@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeClusterLink implements entityTypeDBInfo for a [ClusterLinkRow].
@@ -21,8 +23,8 @@ func (e entityTypeClusterLink) urlsByProjectQuery() string {
 	return ""
 }
 
-func (e entityTypeClusterLink) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE cluster_links.id = ?"
+func (e entityTypeClusterLink) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE cluster_links.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeClusterLink) idFromURLQuery() string {
