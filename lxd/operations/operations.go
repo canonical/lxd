@@ -256,7 +256,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 			return nil, fmt.Errorf("Failed creating child operation: %w", err)
 		}
 
-		op.AddChildren(childOp)
+		op.addChild(childOp)
 	}
 
 	shutdownCtx := context.TODO()
@@ -283,20 +283,14 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	return op, nil
 }
 
-// AddChildren adds a child operation to the parent operation. It also sets the parent of the child operation to the parent operation.
-func (op *Operation) AddChildren(children ...*Operation) {
-	if op.children == nil {
-		op.children = make([]*Operation, 0, len(children))
-	}
-
+// addChild adds a child operation to the parent operation. It also sets the parent of the child operation to the parent operation.
+func (op *Operation) addChild(child *Operation) {
 	op.lock.Lock()
-	op.children = append(op.children, children...)
+	op.children = append(op.children, child)
 	op.lock.Unlock()
-	for _, child := range children {
-		child.lock.Lock()
-		child.parent = op
-		child.lock.Unlock()
-	}
+	child.lock.Lock()
+	child.parent = op
+	child.lock.Unlock()
 }
 
 // CheckRequestor checks that the requestor of a given HTTP request is equal to the requestor of the operation.
