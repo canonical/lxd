@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/logger"
 )
 
 // OperationsRow is a row of the operations table.
@@ -222,70 +221,6 @@ func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, nodeID int6
 	}
 
 	return nil
-}
-
-// GetOperationResources loads operation resources from the cluster db.
-// The entity type is used as the key of the map, as the actual key is not stored in the DB.
-func GetOperationResources(ctx context.Context, tx *sql.Tx, opID int64) (map[entity.Type][]api.URL, error) {
-	stmt := `SELECT entity_id, entity_type FROM operations_resources WHERE operation_id = ?`
-
-	// We cannot call GetEntityURL from within the scan function because it would start a new transaction.
-	// So first we read all the entity IDs and types into a slice, then we loop over that slice to get the URLs.
-	resources := []*struct {
-		EntityID   int
-		EntityType EntityType
-	}{}
-	err := query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
-		r := struct {
-			EntityID   int
-			EntityType EntityType
-		}{}
-
-		err := scan(&r.EntityID, &r.EntityType)
-		if err != nil {
-			return err
-		}
-
-		resources = append(resources, &r)
-
-		return nil
-	}, opID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed reading operation resources: %w", err)
-	}
-
-	var result map[entity.Type][]api.URL
-	for _, r := range resources {
-		entityURL, err := GetEntityURL(ctx, tx, entity.Type(r.EntityType), r.EntityID)
-		if err != nil {
-			// If a delete operation has already deleted its resources, it's possible that some of the resources will not be found.
-			// In that case, we just skip those resources and return the ones that are still there.
-			if api.StatusErrorCheck(err, http.StatusNotFound) {
-				logger.Debug("Failed loading resource URL for operation resource, skipping resource", logger.Ctx{"entity_type": r.EntityType, "entity_id": r.EntityID, "err": err})
-				continue
-			}
-
-			return nil, fmt.Errorf("Failed loading resource URL for operation resource: %w", err)
-		}
-
-		if result == nil {
-			result = map[entity.Type][]api.URL{}
-		}
-
-		_, ok := result[entity.Type(r.EntityType)]
-		if !ok {
-			result[entity.Type(r.EntityType)] = []api.URL{}
-		}
-
-		result[entity.Type(r.EntityType)] = append(result[entity.Type(r.EntityType)], *entityURL)
-	}
-
-	return result, nil
-}
-
-// GetParentOperations returns all parent operation, that is all operations that don't have a parent.
-func GetParentOperations(ctx context.Context, tx *sql.Tx) ([]Operation, error) {
-	return query.Select[Operation](ctx, tx, "WHERE operations.parent IS NULL")
 }
 
 // CreateOperationResources registers operation resources in the cluster db.
