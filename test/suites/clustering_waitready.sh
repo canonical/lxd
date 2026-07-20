@@ -171,6 +171,8 @@ test_clustering_waitready() {
   LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" true
 
   # The cluster member can now be evacuated.
+  # Wait for a leader first as `lxd waitready` returns before the cluster has finished electing one.
+  wait_for_cluster_leader "${LXD_ONE_DIR}"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --yes
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore "node1" --force
 
