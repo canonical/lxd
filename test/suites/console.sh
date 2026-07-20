@@ -63,8 +63,12 @@ test_console_vm() {
   OUTPUT="$(mktemp -p "${TEST_DIR}" console_output.XXX)"
   lxc console --type vga v1 > "${OUTPUT}" &
   CONSOLE_PID=$!
-  sleep 0.1
-  grep -F "spice+unix:///" < "${OUTPUT}"
+
+  # Wait for the console output to contain the SPICE socket address
+  for _ in 1 2 3; do
+    grep -F "spice+unix:///" < "${OUTPUT}" && break
+    sleep 0.1
+  done
 
   SPICE_UNIX_SOCKET="$(sed -n '/spice+unix/ s|^\s\+spice+unix://|| p' < "${OUTPUT}")"
   [ -S "${SPICE_UNIX_SOCKET}" ]
