@@ -136,20 +136,9 @@ func Unpack(file string, path string, blockBackend bool, runningInUserns bool, t
 
 	// Check if none of the metadata files are symlinks.
 	// This blocks using images which reference external files.
-	metadataFiles := []string{"metadata.yaml", "backup.yaml"}
-	for _, file := range metadataFiles {
-		fullPath := filepath.Join(path, file)
-
-		// Some metadata files (e.g. backup.yaml) are not present right after unpack.
-		// Therefore accept if they are missing.
-		info, err := os.Lstat(fullPath)
-		if err != nil && !os.IsNotExist(err) {
-			return err
-		}
-
-		if info != nil && !info.Mode().IsRegular() {
-			return fmt.Errorf("Image file %s is not a regular file", fullPath)
-		}
+	err = CheckMetadataFilesAreRegular(path)
+	if err != nil {
+		return err
 	}
 
 	return nil
