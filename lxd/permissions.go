@@ -162,7 +162,7 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		entityURLs, err = cluster.GetEntityURLs(ctx, tx.Tx(), projectNameFilter, entityTypes...)
+		entityURLs, err = cluster.GetEntityURLsByProjectAndType(ctx, tx.Tx(), projectNameFilter, entityTypes...)
 		if err != nil {
 			return err
 		}

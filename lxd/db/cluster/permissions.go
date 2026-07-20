@@ -68,7 +68,7 @@ func GetPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Perm
 
 	// If there are any entity types with multiple permissions, get all URLs for those entities.
 	if len(entityTypes) > 0 {
-		entityURLsAll, err := GetEntityURLs(ctx, tx, "", entityTypes...)
+		entityURLsAll, err := GetEntityURLsByProjectAndType(ctx, tx, "", entityTypes...)
 		if err != nil {
 			return nil, nil, err
 		}
