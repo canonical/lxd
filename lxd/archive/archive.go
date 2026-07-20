@@ -126,7 +126,9 @@ func CompressedTarReader(s *state.State, ctx context.Context, r io.ReadSeeker, u
 	return tr, cancelFunc, nil
 }
 
-func doUnpack(s *state.State, file string, path string, blockBackend bool, excludeDevices bool, tracker *ioprogress.ProgressTracker) error {
+// doUnpack unpacks the specified file to the given path.
+// When protected is set to true, devices will be excluded and instance specific metadata files will be checked to ensure they are not symlinks.
+func doUnpack(s *state.State, file string, path string, blockBackend bool, protected bool, tracker *ioprogress.ProgressTracker) error {
 	extractArgs, extension, unpacker, err := shared.DetectCompression(file)
 	if err != nil {
 		return err
@@ -138,7 +140,7 @@ func doUnpack(s *state.State, file string, path string, blockBackend bool, exclu
 	var reader io.Reader
 	if strings.HasPrefix(extension, ".tar") {
 		command = "tar"
-		if excludeDevices && s.OS.RunningInUserNS {
+		if protected && s.OS.RunningInUserNS {
 			// We can't create char/block devices so avoid extracting them.
 			args = append(args, "--anchored")
 			args = append(args, "--wildcards")
