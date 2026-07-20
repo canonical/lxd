@@ -13,6 +13,7 @@ run_cmd() {
 
 USERNS=1
 [ -e /proc/sys/kernel/unprivileged_userns_clone ] && grep -qxF 0 /proc/sys/kernel/unprivileged_userns_clone && USERNS=0
+[ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ] && grep -qxF 1 /proc/sys/kernel/apparmor_restrict_unprivileged_userns && USERNS=0
 
 find_and_spawn() {
     for path in /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin; do
