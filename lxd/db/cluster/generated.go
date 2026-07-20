@@ -715,6 +715,63 @@ func (o *Operation) ScanArgs() []any {
 	return []any{&o.Row.ID, &o.Row.UUID, &o.Row.NodeID, &o.Row.Type, &o.Row.ProjectID, &o.Row.RequestorProtocol, &o.Row.RequestorIdentityID, &o.Row.EntityID, &o.Row.Metadata, &o.Row.Class, &o.Row.CreatedAt, &o.Row.UpdatedAt, &o.Row.Inputs, &o.Row.StatusCode, &o.Row.Error, &o.Row.ConflictReference, &o.Row.Parent, &o.Row.Stage, &o.Row.ErrorCode, &o.ProjectName, &o.NodeAddress, &o.NodeName, &o.IdentityIdentifier}
 }
 
+// TableName returns the table name for [OperationsResourcesRow] entities.
+func (o OperationsResourcesRow) TableName() string {
+	return "operations_resources"
+}
+
+// SelectColumns returns a slice of column names for [OperationsResourcesRow] entities.
+func (o OperationsResourcesRow) SelectColumns() []string {
+	return []string{
+		"operations_resources.operation_id",
+		"operations_resources.entity_id",
+		"operations_resources.entity_type",
+	}
+}
+
+// Joins returns a slice of join expressions for [OperationsResourcesRow].
+func (o OperationsResourcesRow) Joins() []string {
+	return []string{}
+}
+
+// ScanArgs implements [query.ScanArger] for [OperationsResourcesRow].
+// This returns references to struct fields in definition order.
+func (o *OperationsResourcesRow) ScanArgs() []any {
+	return []any{&o.OperationID, &o.EntityID, &o.EntityType}
+}
+
+// CreateValues returns a list of values from [OperationsResourcesRow] entities matching the bind arguments in [CreateStmt].
+func (o OperationsResourcesRow) CreateValues() []any {
+	return []any{o.OperationID, o.EntityID, o.EntityType}
+}
+
+// UpdateValues returns a list of values from [OperationsResourcesRow] entities matching the columns in [UpdateStmt].
+func (o OperationsResourcesRow) UpdateValues() []any {
+	return []any{o.OperationID, o.EntityID, o.EntityType}
+}
+
+// PKColumns returns the column names for the primary key of a [OperationsResourcesRow] entity used during an update.
+// The returned slice must have the same number of elements as PKValues.
+func (o OperationsResourcesRow) PKColumns() []string {
+	return []string{"operation_id", "entity_id", "entity_type"}
+}
+
+// PKValues returns the values for the primary key of a [OperationsResourcesRow] entity used during an update.
+// The returned slice must have the same number of elements as PKColumns.
+func (o OperationsResourcesRow) PKValues() []any {
+	return []any{o.OperationID, o.EntityID, o.EntityType}
+}
+
+// CreateStmt returns a query that creates a [OperationsResourcesRow] entity.
+func (o OperationsResourcesRow) CreateStmt() string {
+	return "INSERT INTO operations_resources (operation_id, entity_id, entity_type) VALUES (?, ?, ?)"
+}
+
+// UpdateStmt returns a query that updates a [OperationsResourcesRow] by primary key.
+func (o OperationsResourcesRow) UpdateStmt() string {
+	return "UPDATE operations_resources SET operation_id = ?, entity_id = ?, entity_type = ? "
+}
+
 // TableName returns the table name for [OperationsRow] entities.
 func (o OperationsRow) TableName() string {
 	return "operations"
