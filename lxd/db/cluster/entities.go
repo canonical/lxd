@@ -361,6 +361,55 @@ func GetEntityURLsByProjectAndType(ctx context.Context, tx *sql.Tx, projectName 
 	return result, nil
 }
 
+// GetEntityURLsByEntityTypeAndID performs a single query to return entity URLs for many different entity types and IDs.
+// It effectively converts the input map of entity type to list of IDs to a map of entity type to map of ID to URL.
+func GetEntityURLsByEntityTypeAndID(ctx context.Context, tx *sql.Tx, entities map[entity.Type][]int64) (map[entity.Type]map[int64]*api.URL, error) {
+	result := make(map[entity.Type]map[int64]*api.URL)
+	stmts := make([]string, 0, len(entities))
+	for entityType, ids := range entities {
+		if entityType == entity.TypeServer {
+			result[entity.TypeServer] = map[int64]*api.URL{0: entity.ServerURL()}
+			continue
+		}
+
+		info, ok := entityTypes[entityType]
+		if !ok {
+			return nil, fmt.Errorf("Could not get entity URL: Unknown entity type %q", entityType)
+		}
+
+		stmt := info.urlsByIDsQuery(ids...)
+		if stmt == "" {
+			return nil, fmt.Errorf("Could not get entity URL: No statement found for entity type %q", entityType)
+		}
+
+		stmts = append(stmts, stmt)
+		result[entityType] = make(map[int64]*api.URL)
+	}
+
+	// If there were only server entities, then there's nothing left to do.
+	if len(stmts) == 0 {
+		return result, nil
+	}
+
+	// Join into a single statement with UNION and query.
+	stmt := strings.Join(stmts, " UNION ")
+	err := query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
+		entityRef := &EntityRef{}
+		err := entityRef.scan(scan)
+		if err != nil {
+			return fmt.Errorf("Failed scanning entity URL: %w", err)
+		}
+
+		result[entity.Type(entityRef.EntityType)][int64(entityRef.EntityID)] = entityRef.URL()
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed performing entity URL query: %w", err)
+	}
+
+	return result, nil
+}
+
 // PopulateEntityReferencesFromURLs populates the values in the given map with entity references corresponding to the api.URL keys.
 // It will return an error if any of the given URLs do not correspond to a LXD entity.
 func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURLMap map[*api.URL]*EntityRef) error {
