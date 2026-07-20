@@ -801,23 +801,16 @@ func (op *Operation) RenderFullWithoutProgress() (string, *api.OperationFull) {
 		Operation: *baseOp,
 	}
 
-	if len(op.children) > 0 {
-		childAPIOps := make([]*api.Operation, 0, len(op.children))
-		for _, childOp := range op.children {
-			_, child := childOp.RenderWithoutProgress()
-			childAPIOps = append(childAPIOps, child)
-		}
-
-		// Sort operations by UUID. Since we use UUIDv7, this will also sort operations by creation time.
-		slices.SortFunc(childAPIOps, func(a, b *api.Operation) int {
-			return strings.Compare(a.ID, b.ID)
-		})
-
-		retOp.Children = make([]api.Operation, 0, len(op.children))
-		for _, childOp := range childAPIOps {
-			retOp.Children = append(retOp.Children, *childOp)
-		}
+	retOp.Children = make([]api.Operation, 0, len(op.children))
+	for _, childOp := range op.children {
+		_, child := childOp.RenderWithoutProgress()
+		retOp.Children = append(retOp.Children, *child)
 	}
+
+	// Sort operations by UUID. Since we use UUIDv7, this will also sort operations by creation time.
+	slices.SortFunc(retOp.Children, func(a, b api.Operation) int {
+		return strings.Compare(a.ID, b.ID)
+	})
 
 	return url, retOp
 }
