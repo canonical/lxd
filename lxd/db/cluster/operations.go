@@ -169,6 +169,22 @@ func (r *RequestorProtocol) Value() (driver.Value, error) {
 	return nil, fmt.Errorf("Invalid requestor protocol %q", *r)
 }
 
+// OperationsResourcesRow represents a row of the operations_resources table.
+// db:model operations_resources
+type OperationsResourcesRow struct {
+	// db:primary
+	OperationID int64 `db:"operation_id"`
+	// db:primary
+	EntityID int64 `db:"entity_id"`
+	// db:primary
+	EntityType EntityType `db:"entity_type"`
+}
+
+// APIName implements [query.APINamer] for [OperationsResourcesRow] for API friendly error messages.
+func (OperationsResourcesRow) APIName() string {
+	return "Operation resource"
+}
+
 // UpdateOperation updates operation status, metadata and error (if set) in the cluster db.
 // This is used to keep DB in sync with the current status of the operation when the operation changes
 // its status, or when calls to commit metadata explicitly. The caller is expected to pass in the current node ID.
