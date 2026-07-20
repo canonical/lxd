@@ -6,6 +6,7 @@ test_devlxd() {
   lxd sql global "UPDATE images SET cached=0 WHERE fingerprint=\"${fingerprint}\""
 
   lxc launch testimage devlxd -c security.devlxd=false -c boot.autostart=true
+  setup_instance_gocoverage devlxd
 
   ! lxc exec devlxd -- test -S /dev/lxd/sock || false
   lxc config unset devlxd security.devlxd
