@@ -235,12 +235,12 @@ func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entit
 		return nil, fmt.Errorf("Could not get entity URL: Unknown entity type %q", entityType)
 	}
 
-	stmt := info.urlByIDQuery()
+	stmt := info.urlsByIDsQuery(int64(entityID))
 	if stmt == "" {
 		return nil, fmt.Errorf("Could not get entity URL: No statement found for entity type %q", entityType)
 	}
 
-	row := tx.QueryRowContext(ctx, stmt, entityID)
+	row := tx.QueryRowContext(ctx, stmt)
 	entityRef := &EntityRef{}
 	err := entityRef.scan(row.Scan)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
