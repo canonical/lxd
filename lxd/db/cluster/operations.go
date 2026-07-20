@@ -184,6 +184,29 @@ func (OperationsResourcesRow) APIName() string {
 	return "Operation resource"
 }
 
+// GetOperations returns slice of [Operation] based on given filters. If includeChildren is false, only operations that
+// do not reference parent operations are returned. If the project is non-nil, only operations in the given project are
+// returned.
+func GetOperations(ctx context.Context, tx *sql.Tx, includeChildren bool, project *string) ([]Operation, error) {
+	clauses := make([]string, 0, 2)
+	args := make([]any, 0, 1)
+	if !includeChildren {
+		clauses = append(clauses, "operations.parent IS NULL")
+	}
+
+	if project != nil {
+		clauses = append(clauses, "projects.name = ?")
+		args = append(args, *project)
+	}
+
+	clause := ""
+	if len(clauses) > 0 {
+		clause = "WHERE " + strings.Join(clauses, " AND ")
+	}
+
+	return query.Select[Operation](ctx, tx, clause, args...)
+}
+
 // UpdateOperation updates operation status, metadata and error (if set) in the cluster db.
 // This is used to keep DB in sync with the current status of the operation when the operation changes
 // its status, or when calls to commit metadata explicitly. The caller is expected to pass in the current node ID.
