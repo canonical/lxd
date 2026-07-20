@@ -295,8 +295,7 @@ func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resou
 		return nil
 	}
 
-	sb := strings.Builder{}
-	sb.WriteString(`INSERT INTO operations_resources (operation_id, entity_id, entity_type) VALUES `)
+	var opResources []OperationsResourcesRow
 	for _, entityURLs := range resources {
 		for _, entityURL := range entityURLs {
 			entityReference, err := GetEntityReferenceFromURL(ctx, tx, &entityURL)
@@ -304,25 +303,15 @@ func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resou
 				return fmt.Errorf("Failed getting entity ID from resource URL %q: %w", entityURL.String(), err)
 			}
 
-			entityTypeCode, err := entityReference.EntityType.Value()
-			if err != nil {
-				return fmt.Errorf("Failed getting entity type code for entity type %q: %w", entityReference.EntityType, err)
-			}
-
-			fmt.Fprintf(&sb, "(%d, %d, %d),", opID, entityReference.EntityID, entityTypeCode)
+			opResources = append(opResources, OperationsResourcesRow{
+				OperationID: opID,
+				EntityID:    int64(entityReference.EntityID),
+				EntityType:  entityReference.EntityType,
+			})
 		}
 	}
 
-	// Get the final stmt and replace the trailing comma with a semicolon.
-	insertStmt := sb.String()
-	insertStmt = insertStmt[:len(insertStmt)-1] + ";"
-
-	_, err := tx.ExecContext(ctx, insertStmt)
-	if err != nil {
-		return fmt.Errorf("Failed inserting operation resources: %w", err)
-	}
-
-	return nil
+	return query.CreateMany(ctx, tx, opResources)
 }
 
 // deleteEphemeralOperationsFromNodes deletes ephemeral operations from nodes with the given list of IDs.
