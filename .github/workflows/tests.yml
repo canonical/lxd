@@ -268,7 +268,7 @@ jobs:
             /home/runner/go/bin/mini-loki
             /home/runner/go/bin/mini-oidc
             /home/runner/go/bin/sysinfo
-          retention-days: 1
+          retention-days: 3
 
       - name: Pick fast backend for system tests
         id: pick-fast-backend
