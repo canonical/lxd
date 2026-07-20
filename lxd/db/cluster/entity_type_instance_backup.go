@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeInstanceBackup implements entityTypeDBInfo for an InstanceBackup.
@@ -30,8 +32,8 @@ func (e entityTypeInstanceBackup) urlsByProjectQuery() string {
 	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
-func (e entityTypeInstanceBackup) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE instances_backups.id = ?"
+func (e entityTypeInstanceBackup) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE instances_backups.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeInstanceBackup) idFromURLQuery() string {

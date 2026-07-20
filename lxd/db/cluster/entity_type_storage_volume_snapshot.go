@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeStorageVolumeSnapshot implements entityTypeDBInfo for a StorageVolumeSnapshot.
@@ -49,8 +51,8 @@ func (e entityTypeStorageVolumeSnapshot) urlsByProjectQuery() string {
 	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
-func (e entityTypeStorageVolumeSnapshot) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE storage_volumes_snapshots.id = ?"
+func (e entityTypeStorageVolumeSnapshot) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE storage_volumes_snapshots.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeStorageVolumeSnapshot) idFromURLQuery() string {

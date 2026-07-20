@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeStorageBucket implements entityTypeDBInfo for a StorageBucket.
@@ -28,8 +30,8 @@ func (e entityTypeStorageBucket) urlsByProjectQuery() string {
 	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
-func (e entityTypeStorageBucket) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE storage_buckets.id = ?"
+func (e entityTypeStorageBucket) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE storage_buckets.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeStorageBucket) idFromURLQuery() string {

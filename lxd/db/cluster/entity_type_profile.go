@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeProfile implements entityTypeDBInfo for a Profile.
@@ -24,8 +26,8 @@ func (e entityTypeProfile) urlsByProjectQuery() string {
 	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
-func (e entityTypeProfile) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE profiles.id = ?"
+func (e entityTypeProfile) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE profiles.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeProfile) idFromURLQuery() string {
