@@ -252,11 +252,11 @@ func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entit
 	return entityRef.URL(), nil
 }
 
-// GetEntityURLs accepts a project name and a variadic of entity types and returns a map of entity.Type to map of entity ID, to *api.URL.
+// GetEntityURLsByProjectAndType accepts a project name and a variadic of entity types and returns a map of entity.Type to map of entity ID, to *api.URL.
 // This method combines the above queries into a single query using the UNION operator. If no entity types are given, this function will
 // return URLs for all entity types. If no project name is given, this function will return URLs for all projects. This may result in
 // stupendously large queries, so use with caution!
-func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, filteringEntityTypes ...entity.Type) (map[entity.Type]map[int]*api.URL, error) {
+func GetEntityURLsByProjectAndType(ctx context.Context, tx *sql.Tx, projectName string, filteringEntityTypes ...entity.Type) (map[entity.Type]map[int]*api.URL, error) {
 	var stmts []string
 	var args []any
 	result := make(map[entity.Type]map[int]*api.URL)

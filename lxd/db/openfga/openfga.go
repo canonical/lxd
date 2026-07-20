@@ -584,7 +584,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		// Get the entity URLs with the given type and project (if set).
 		var entityURLs map[entity.Type]map[int]*api.URL
 		err = o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			entityURLs, err = cluster.GetEntityURLs(ctx, tx.Tx(), projectName, entityType)
+			entityURLs, err = cluster.GetEntityURLsByProjectAndType(ctx, tx.Tx(), projectName, entityType)
 			if err != nil {
 				return err
 			}

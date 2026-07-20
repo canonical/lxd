@@ -242,7 +242,7 @@ func projectUsedByMap(ctx context.Context, tx *sql.Tx, projectName string) (map[
 		entity.TypeReplicator,
 	}
 
-	entityURLs, err := dbCluster.GetEntityURLs(ctx, tx, projectName, reportedEntityTypes...)
+	entityURLs, err := dbCluster.GetEntityURLsByProjectAndType(ctx, tx, projectName, reportedEntityTypes...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting project used-by URLs: %w", err)
 	}
