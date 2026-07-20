@@ -168,8 +168,8 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 
 		size, err := shared.DownloadFileHash(context.TODO(), &httpClient, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), &multiTarget)
 		if err != nil {
-			// Handle cancelation
-			if err.Error() == "net/http: request canceled" {
+			// If the download was canceled, return immediately instead of retrying over HTTPS.
+			if errors.Is(err, context.Canceled) {
 				return -1, err
 			}
 
