@@ -88,6 +88,22 @@ type Operation struct {
 	IdentityIdentifier string `db:"coalesce(identities.identifier, '')"`
 }
 
+// Requestor returns the [request.RequestorAuditor] for the [Operation], if set.
+func (o Operation) Requestor() *request.RequestorAuditor {
+	// If no protocol is set, it was a server operation with no requestor.
+	if o.Row.RequestorProtocol == nil || *o.Row.RequestorProtocol == "" {
+		return nil
+	}
+
+	// Otherwise return a requestor auditor with the details.
+	// Note that the origin address is not saved.
+	return &request.RequestorAuditor{
+		IdentityID: o.Row.RequestorIdentityID,
+		Username:   o.IdentityIdentifier,
+		Protocol:   string(*o.Row.RequestorProtocol),
+	}
+}
+
 // RequestorProtocol is the database representation of the Requestor Protocol.
 //
 // RequestorProtocol is defined on string so that constants can be converted by casting. The [sql.Scanner] and
