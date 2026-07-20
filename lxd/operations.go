@@ -504,26 +504,6 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	childCounts := make(map[string]int64)
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		projects, err := dbCluster.GetProjectIDsToNames(ctx, tx.Tx())
-		if err != nil {
-			return fmt.Errorf("Failed loading project IDs to names: %w", err)
-		}
-
-		// Make sure the requested project exists if not all-projects.
-		if !allProjects {
-			found := false
-			for _, name := range projects {
-				if name == projectName {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				return fmt.Errorf("Project %q does not exist", projectName)
-			}
-		}
-
 		// For non-recursive responses, retrieve child counts via an aggregate query rather than
 		// loading and constructing every child operation just to compute counts.
 		if recursion < 2 {
@@ -551,22 +531,12 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		// Map of child operations keyed by their parent operation ID (only used for recursion >= 2).
 		childOps := make(map[int64][]*operations.Operation)
 		for _, dbOp := range dbOps {
-			// Get operation project name if it has one.
-			operationProject := ""
-			if dbOp.Row.ProjectID != nil {
-				var ok bool
-				operationProject, ok = projects[*dbOp.Row.ProjectID]
-				if !ok {
-					return fmt.Errorf("Failed finding project name for operation with non-existent project ID %d", *dbOp.Row.ProjectID)
-				}
-			}
-
-			if !allProjects && operationProject != "" && operationProject != projectName {
+			if !allProjects && dbOp.ProjectName != "" && dbOp.ProjectName != projectName {
 				continue
 			}
 
 			// Omit operations that don't have a project if the caller does not have access to server operations.
-			if operationProject == "" && !canViewServerOperations {
+			if dbOp.Row.ProjectID == nil && !canViewServerOperations {
 				continue
 			}
 
@@ -577,7 +547,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Omit operations if the caller does not have `can_view_operations` on the operations' project and the caller is not the operation owner.
-			if !canViewProjectOperations(entity.ProjectURL(operationProject)) && !requestor.CallerIsEqual(op.Requestor()) {
+			if !canViewProjectOperations(entity.ProjectURL(dbOp.ProjectName)) && !requestor.CallerIsEqual(op.Requestor()) {
 				continue
 			}
 
