@@ -278,3 +278,33 @@ func UnpackImage(s *state.State, file string, path string, blockBackend bool, pr
 func UnpackRaw(s *state.State, file string, path string, blockBackend bool, progressHandler ioprogress.ProgressHandler) error {
 	return doUnpack(s, file, path, blockBackend, false, progressHandler)
 }
+
+// CheckMetadataFilesAreRegular verifies that the metadata files inside root are regular files and not symlinks.
+// Missing files are allowed.
+func CheckMetadataFilesAreRegular(root string) error {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return fmt.Errorf("Failed opening directory %q: %w", root, err)
+	}
+
+	defer func() { _ = r.Close() }()
+
+	// Some metadata files (e.g. backup.yaml) are not present right after unpack.
+	// Therefore accept if they are missing.
+	for _, name := range []string{"metadata.yaml", "backup.yaml"} {
+		info, err := r.Lstat(name)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return err
+		}
+
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("Metadata file %q is not a regular file", name)
+		}
+	}
+
+	return nil
+}
