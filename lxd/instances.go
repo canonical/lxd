@@ -27,17 +27,19 @@ import (
 )
 
 var instancesCmd = APIEndpoint{
-	Path:        "instances",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 	Post: APIEndpointAction{Handler: instancesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateInstances), ContentTypes: []string{"application/json", "application/octet-stream"}},
-	Put:  APIEndpointAction{Handler: instancesPut, AccessHandler: allowProjectResourceList(false)},
+	Put:  APIEndpointAction{Handler: instancesPut, AccessHandler: allowAuthenticated},
 }
 
 var instanceCmd = APIEndpoint{
-	Path:        "instances/{name}",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get:    APIEndpointAction{Handler: instanceGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Put:    APIEndpointAction{Handler: instancePut, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
@@ -47,38 +49,43 @@ var instanceCmd = APIEndpoint{
 }
 
 var instanceUEFIVarsCmd = APIEndpoint{
-	Path:        "instances/{name}/uefi-vars",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/uefi-vars",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: instanceUEFIVarsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Put: APIEndpointAction{Handler: instanceUEFIVarsPut, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 }
 
 var instanceRebuildCmd = APIEndpoint{
-	Path:        "instances/{name}/rebuild",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/rebuild",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Post: APIEndpointAction{Handler: instanceRebuildPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
 }
 
 var instanceStateCmd = APIEndpoint{
-	Path:        "instances/{name}/state",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/state",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: instanceState, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Put: APIEndpointAction{Handler: instanceStatePut, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanUpdateState, "name")},
 }
 
 var instanceSFTPCmd = APIEndpoint{
-	Path:        "instances/{name}/sftp",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/sftp",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: instanceSFTPHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanConnectSFTP, "name")},
 }
 
 var instanceFileCmd = APIEndpoint{
-	Path:        "instances/{name}/files",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/files",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get:    APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanAccessFiles, "name")},
 	Head:   APIEndpointAction{Handler: instanceFileHandler, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanAccessFiles, "name")},
@@ -87,16 +94,18 @@ var instanceFileCmd = APIEndpoint{
 }
 
 var instanceSnapshotsCmd = APIEndpoint{
-	Path:        "instances/{name}/snapshots",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/snapshots",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: instanceSnapshotsGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: instanceSnapshotsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Post: APIEndpointAction{Handler: instanceSnapshotsPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageSnapshots, "name")},
 }
 
 var instanceSnapshotCmd = APIEndpoint{
-	Path:        "instances/{name}/snapshots/{snapshotName}",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/snapshots/{snapshotName}",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get:    APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstanceSnapshot, auth.EntitlementCanView, "name", "snapshotName")},
 	Post:   APIEndpointAction{Handler: instanceSnapshotHandler, AccessHandler: allowPermission(entity.TypeInstanceSnapshot, auth.EntitlementCanEdit, "name", "snapshotName")},
@@ -106,8 +115,9 @@ var instanceSnapshotCmd = APIEndpoint{
 }
 
 var instanceConsoleCmd = APIEndpoint{
-	Path:        "instances/{name}/console",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/console",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get:    APIEndpointAction{Handler: instanceConsoleLogGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Post:   APIEndpointAction{Handler: instanceConsolePost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanAccessConsole, "name")},
@@ -115,15 +125,17 @@ var instanceConsoleCmd = APIEndpoint{
 }
 
 var instanceExecCmd = APIEndpoint{
-	Path:        "instances/{name}/exec",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/exec",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Post: APIEndpointAction{Handler: instanceExecPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanExec, "name")},
 }
 
 var instanceMetadataCmd = APIEndpoint{
-	Path:        "instances/{name}/metadata",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/metadata",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get:   APIEndpointAction{Handler: instanceMetadataGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Patch: APIEndpointAction{Handler: instanceMetadataPatch, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name")},
@@ -131,8 +143,9 @@ var instanceMetadataCmd = APIEndpoint{
 }
 
 var instanceMetadataTemplatesCmd = APIEndpoint{
-	Path:        "instances/{name}/metadata/templates",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/metadata/templates",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get:    APIEndpointAction{Handler: instanceMetadataTemplatesGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Post:   APIEndpointAction{Handler: instanceMetadataTemplatesPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanEdit, "name"), ContentTypes: []string{"application/octet-stream"}},
@@ -140,16 +153,18 @@ var instanceMetadataTemplatesCmd = APIEndpoint{
 }
 
 var instanceBackupsCmd = APIEndpoint{
-	Path:        "instances/{name}/backups",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/backups",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: instanceBackupsGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: instanceBackupsGet, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanView, "name")},
 	Post: APIEndpointAction{Handler: instanceBackupsPost, AccessHandler: allowPermission(entity.TypeInstance, auth.EntitlementCanManageBackups, "name")},
 }
 
 var instanceBackupCmd = APIEndpoint{
-	Path:        "instances/{name}/backups/{backupName}",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/backups/{backupName}",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get:    APIEndpointAction{Handler: instanceBackupGet, AccessHandler: allowPermission(entity.TypeInstanceBackup, auth.EntitlementCanView, "name", "backupName")},
 	Post:   APIEndpointAction{Handler: instanceBackupPost, AccessHandler: allowPermission(entity.TypeInstanceBackup, auth.EntitlementCanEdit, "name", "backupName")},
@@ -157,8 +172,9 @@ var instanceBackupCmd = APIEndpoint{
 }
 
 var instanceBackupExportCmd = APIEndpoint{
-	Path:        "instances/{name}/backups/{backupName}/export",
-	MetricsType: entity.TypeInstance,
+	Path:            "instances/{name}/backups/{backupName}/export",
+	MetricsType:     entity.TypeInstance,
+	ProjectSpecific: true,
 
 	Get: APIEndpointAction{Handler: instanceBackupExportGet, AccessHandler: allowPermission(entity.TypeInstanceBackup, auth.EntitlementCanView, "name", "backupName")},
 }

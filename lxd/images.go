@@ -66,16 +66,18 @@ import (
 )
 
 var imagesCmd = APIEndpoint{
-	Path:        "images",
-	MetricsType: entity.TypeImage,
+	Path:            "images",
+	MetricsType:     entity.TypeImage,
+	ProjectSpecific: true,
 
 	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true, AccessHandler: imagesGetAccessHandler},
 	Post: APIEndpointAction{Handler: imagesPost, AllowUntrusted: true, ContentTypes: []string{"application/json", "application/octet-stream", "multipart/form-data"}},
 }
 
 var imageCmd = APIEndpoint{
-	Path:        "images/{fingerprint}",
-	MetricsType: entity.TypeImage,
+	Path:            "images/{fingerprint}",
+	MetricsType:     entity.TypeImage,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: imageDelete, AccessHandler: imageAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: imageGet, AllowUntrusted: true},
@@ -84,38 +86,43 @@ var imageCmd = APIEndpoint{
 }
 
 var imageExportCmd = APIEndpoint{
-	Path:        "images/{fingerprint}/export",
-	MetricsType: entity.TypeImage,
+	Path:            "images/{fingerprint}/export",
+	MetricsType:     entity.TypeImage,
+	ProjectSpecific: true,
 
 	Get:  APIEndpointAction{Handler: imageExport, AllowUntrusted: true},
 	Post: APIEndpointAction{Handler: imageExportPost, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var imageSecretCmd = APIEndpoint{
-	Path:        "images/{fingerprint}/secret",
-	MetricsType: entity.TypeImage,
+	Path:            "images/{fingerprint}/secret",
+	MetricsType:     entity.TypeImage,
+	ProjectSpecific: true,
 
 	Post: APIEndpointAction{Handler: imageSecret, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var imageRefreshCmd = APIEndpoint{
-	Path:        "images/{fingerprint}/refresh",
-	MetricsType: entity.TypeImage,
+	Path:            "images/{fingerprint}/refresh",
+	MetricsType:     entity.TypeImage,
+	ProjectSpecific: true,
 
 	Post: APIEndpointAction{Handler: imageRefresh, AccessHandler: imageAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var imageAliasesCmd = APIEndpoint{
-	Path:        "images/aliases",
-	MetricsType: entity.TypeImage,
+	Path:            "images/aliases",
+	MetricsType:     entity.TypeImage,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: imageAliasesGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: imageAliasesGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 	Post: APIEndpointAction{Handler: imageAliasesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateImageAliases)},
 }
 
 var imageAliasCmd = APIEndpoint{
-	Path:        "images/aliases/{name...}",
-	MetricsType: entity.TypeImage,
+	Path:            "images/aliases/{name...}",
+	MetricsType:     entity.TypeImage,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: imageAliasDelete, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: imageAliasGet, AllowUntrusted: true},
@@ -348,9 +355,26 @@ func imagesGetAccessHandler(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(nil)
 	}
 
-	// The caller is trusted and is listing resources in a non-default project (or using all-projects).
-	// Use the same access handler as is used for listing any project specific entity type.
-	return allowProjectResourceList(false)(d, r)
+	if requestor.IsAdmin() {
+		return response.EmptySyncResponse
+	}
+
+	if allProjects {
+		if requestor.IsIdentityType(api.IdentityTypeCertificateClientRestricted) {
+			return response.Forbidden(errors.New("Certificate is restricted"))
+		}
+
+		return response.EmptySyncResponse
+	}
+
+	s := d.State()
+
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(projectName), auth.EntitlementCanView)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
 }
 
 func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {

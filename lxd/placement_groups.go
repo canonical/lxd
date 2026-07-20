@@ -24,16 +24,18 @@ import (
 )
 
 var placementGroupsCmd = APIEndpoint{
-	Path:        "placement-groups",
-	MetricsType: entity.TypePlacementGroup,
+	Path:            "placement-groups",
+	MetricsType:     entity.TypePlacementGroup,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: placementGroupsGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: placementGroupsGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 	Post: APIEndpointAction{Handler: placementGroupsPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreatePlacementGroups)},
 }
 
 var placementGroupCmd = APIEndpoint{
-	Path:        "placement-groups/{name}",
-	MetricsType: entity.TypePlacementGroup,
+	Path:            "placement-groups/{name}",
+	MetricsType:     entity.TypePlacementGroup,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: placementGroupDelete, AccessHandler: allowPermission(entity.TypePlacementGroup, auth.EntitlementCanDelete, "name")},
 	Get:    APIEndpointAction{Handler: placementGroupGet, AccessHandler: allowPermission(entity.TypePlacementGroup, auth.EntitlementCanView, "name")},

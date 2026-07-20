@@ -32,16 +32,18 @@ import (
 )
 
 var storagePoolVolumeSnapshotsTypeCmd = APIEndpoint{
-	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},
 	Post: APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypePost, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanManageSnapshots)},
 }
 
 var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
-	Path:        "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
-	MetricsType: entity.TypeStoragePool,
+	Path:            "storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots/{snapshotName}",
+	MetricsType:     entity.TypeStoragePool,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeDelete, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeGet, AccessHandler: storagePoolVolumeTypeAccessHandler(auth.EntitlementCanView)},

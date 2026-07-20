@@ -35,16 +35,18 @@ import (
 )
 
 var profilesCmd = APIEndpoint{
-	Path:        "profiles",
-	MetricsType: entity.TypeProfile,
+	Path:            "profiles",
+	MetricsType:     entity.TypeProfile,
+	ProjectSpecific: true,
 
-	Get:  APIEndpointAction{Handler: profilesGet, AccessHandler: allowProjectResourceList(false)},
+	Get:  APIEndpointAction{Handler: profilesGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
 	Post: APIEndpointAction{Handler: profilesPost, AccessHandler: allowPermission(entity.TypeProject, auth.EntitlementCanCreateProfiles)},
 }
 
 var profileCmd = APIEndpoint{
-	Path:        "profiles/{name}",
-	MetricsType: entity.TypeProfile,
+	Path:            "profiles/{name}",
+	MetricsType:     entity.TypeProfile,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: profileDelete, AccessHandler: profileAccessHandler(auth.EntitlementCanDelete)},
 	Get:    APIEndpointAction{Handler: profileGet, AccessHandler: profileAccessHandler(auth.EntitlementCanView)},
