@@ -276,6 +276,7 @@ func (i *IdentitiesRow) ToAPI(idToGroups map[int64][]string, idToCertificates ma
 	}
 
 	var tlsCertificate string
+	var expiresAt *time.Time
 	if i.AuthMethod == api.AuthenticationMethodTLS && !identityType.IsPending() {
 		if idToCertificates == nil {
 			return nil, errors.New("Missing required certificate data")
@@ -288,6 +289,15 @@ func (i *IdentitiesRow) ToAPI(idToGroups map[int64][]string, idToCertificates ma
 
 		// Expect that the zeroth entry is the most recent.
 		tlsCertificate = certs[0]
+
+		// The expiry of a TLS certificate determines identity expiry.
+		cert, err := shared.ParseCert([]byte(tlsCertificate))
+		if err != nil {
+			return nil, fmt.Errorf("Failed parsing certificate of identity %q: %w", i.Identifier, err)
+		}
+
+		notAfter := cert.NotAfter.UTC()
+		expiresAt = &notAfter
 	}
 
 	groups, ok := idToGroups[i.ID]
@@ -302,6 +312,7 @@ func (i *IdentitiesRow) ToAPI(idToGroups map[int64][]string, idToCertificates ma
 		Name:                 i.Name,
 		Groups:               groups,
 		TLSCertificate:       tlsCertificate,
+		ExpiresAt:            expiresAt,
 	}, nil
 }
 
