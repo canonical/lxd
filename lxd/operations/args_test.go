@@ -366,7 +366,7 @@ func (s *argsSuite) TestValidate() {
 			}(),
 			isChild:   true,
 			expectErr: true,
-			errMsg:    "Only task operations can be child operations",
+			errMsg:    `Operations of class "websocket" cannot have a parent operation`,
 		},
 		{
 			name: "nil child",
