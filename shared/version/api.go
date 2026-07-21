@@ -499,6 +499,7 @@ var APIExtensions = []string{
 	"network_load_balancer_pool_health_checks",
 	"operation_child_count",
 	"storage_driver_powerstore_nvme",
+	"access_management_expiry",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
