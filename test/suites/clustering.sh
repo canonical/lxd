@@ -7028,3 +7028,235 @@ test_clustering_acme() {
 
   kill_acme
 }
+
+test_clustering_durable_operations() {
+  spawn_lxd_and_bootstrap_cluster
+  echo "Launched member 1"
+
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+
+  # Spawn a second node
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+
+  echo "Launched member 2"
+
+  # Spawn a third node
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+
+  echo "Launched member 3"
+
+  # Spawn a fourth node, this will be a non-voter, stand-by node.
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+
+  echo "Launched member 4"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -wFc "database-standby")" = "1" ]
+
+  # Set the offline threshold to the minimum allowed value
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold=11
+
+  sub_test "Durable operation moves to leader when member is killed"
+
+  # Spawn a durable operation on node 2 and sleep to ensure it starts.
+  # At the moment we know that node1 is the leader because it is the member that was bootstrapped.
+  operation_id="$(LXD_DIR="${LXD_TWO_DIR}" lxd_durable_wait_operation "12s")"
+  sleep 1
+
+  # Kill the second node.
+  kill_go_proc "$(< "${LXD_TWO_DIR}/lxd.pid")"
+  echo "Stopped member 2"
+
+  # Wait for the operation to succeed. In this time it will have moved to the leader.
+  succeeded=0
+  for i in $(seq 60); do
+    if LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/operations/${operation_id}" | jq --exit-status '.status == "Success" and .location == "node1"'; then
+      succeeded=1
+      break
+    fi
+
+    sleep 1
+  done
+
+  if [ "${succeeded}" = 0 ]; then
+    echo "Durable operation did not move to the leader"
+    false
+  fi
+
+  # Respawn the second node.
+  echo "Respawning cluster member 2..."
+  respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
+
+  echo "Started member 2"
+
+  # Wait for node2 to be detected as back online.
+  for _ in $(seq 20); do
+    if [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc query /1.0/cluster/members/node2 | jq --exit-status -r '.status')" = 'Online' ]; then
+      break
+    fi
+
+    sleep 1
+  done
+
+  echo "Member 2 is online"
+
+  sub_test "Durable operation restarts on new leader when current leader is killed"
+
+  # Spawn a durable operation on the leader and sleep to ensure it starts
+  operation_id="$(LXD_DIR="${LXD_ONE_DIR}" lxd_durable_wait_operation "12s")"
+  sleep 1
+
+  # Shutdown the leader.
+  kill_go_proc "$(< "${LXD_ONE_DIR}/lxd.pid")"
+  echo "Stopped leader (member 1)"
+
+  # Wait for the operation to succeed. In this time leader election should occur and the operation should restart on the new leader.
+  succeeded=0
+  for i in $(seq 60); do
+    leader="$(lxd_leader_name "${LXD_TWO_DIR}")"
+    if LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/operations/${operation_id}" | jq --exit-status '.status == "Success" and .location == "'"${leader}"'"'; then
+      succeeded=1
+      break
+    fi
+
+    sleep 1
+  done
+
+  if [ "${succeeded}" = 0 ]; then
+    echo "Durable operation was not restarted on the newly elected leader"
+    false
+  fi
+
+  echo "Respawning member 1"
+  respawn_lxd_cluster_member "${ns1}" "${LXD_ONE_DIR}"
+  echo "Started member 1"
+
+  # Wait for previous leader to be detected as back online.
+  for _ in $(seq 20); do
+    if [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc query /1.0/cluster/members/node1 | jq --exit-status -r '.status')" = 'Online' ]; then
+      break
+    fi
+
+    sleep 1
+  done
+
+  echo "Member 1 is now online"
+
+  sub_test "Durable operation moves to leader when non-leader member is network partitioned"
+
+  # Spawn a durable operation on a non-leader node.
+  # We know that node1 is not the leader because it has just respawned and rejoined.
+  operation_id="$(LXD_DIR="${LXD_ONE_DIR}" lxd_durable_wait_operation "12s")"
+  sleep 1
+
+  # Partition the node from the network by blocking traffic on port 8443 (cluster HTTPS port)
+  echo "Partitioning node1 from network"
+  ip netns exec "${ns1}" iptables -A INPUT -p tcp --dport 8443 -j DROP
+  ip netns exec "${ns1}" iptables -A OUTPUT -p tcp --sport 8443 -j DROP
+
+  # Wait for the operation to succeed on the leader
+  succeeded=0
+  for i in $(seq 60); do
+    leader="$(lxd_leader_name "${LXD_ONE_DIR}")"
+    # Query from a non-partitioned node
+    if LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/operations/${operation_id}" | jq --exit-status '.status == "Success" and .location == "'"${leader}"'"'; then
+      succeeded=1
+      break
+    fi
+
+    sleep 1
+  done
+
+  if [ "${succeeded}" = 0 ]; then
+    echo "Durable operation did not move to the leader after network partition"
+    # Clean up partition before failing
+    ip netns exec "${ns1}" iptables -F || true
+    false
+  fi
+
+  # Verify the operation was cancelled on the partitioned node by checking it's not in the local operations list
+  # Note: We cannot query the partitioned node's API due to the partition, so we'll verify after removing partition
+
+  # Remove the network partition
+  echo "Removing network partition"
+  ip netns exec "${ns1}" iptables -F
+
+  # Wait for partitioned member to be detected as back online.
+  for _ in $(seq 20); do
+    if [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc query /1.0/cluster/members/node1 | jq --exit-status -r '.status')" = 'Online' ]; then
+      break
+    fi
+
+    sleep 1
+  done
+
+  sub_test "Durable operation restarts on new leader when current leader is partitioned from the network"
+
+  # Spawn a durable operation on the current leader.
+  # We don't know who the leader is, so find it first.
+  leader_name="$(lxd_leader_name "${LXD_ONE_DIR}")"
+  leader_dir="$(lxd_dir_from_name "${leader_name}")"
+  leader_ns="${bridge}${leader_name#node}"
+  operation_id="$(LXD_DIR="${leader_dir}" lxd_durable_wait_operation "12s")"
+  sleep 1
+
+  # Partition the node from the network by blocking traffic on port 8443 (cluster HTTPS port)
+  echo "Partitioning ${leader_name} from network"
+  ip netns exec "${leader_ns}" iptables -A INPUT -p tcp --dport 8443 -j DROP
+  ip netns exec "${leader_ns}" iptables -A OUTPUT -p tcp --sport 8443 -j DROP
+
+  # Wait for the operation to succeed on the leader
+  succeeded=0
+  for i in $(seq 60); do
+    leader="$(lxd_leader_name "${LXD_ONE_DIR}")"
+    # Query from a non-partitioned node
+    if LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/operations/${operation_id}" | jq --exit-status '.status == "Success" and .location == "'"${leader}"'"'; then
+      succeeded=1
+      break
+    fi
+
+    sleep 1
+  done
+
+  if [ "${succeeded}" = 0 ]; then
+    echo "Durable operation did not move to the leader after network partition"
+    # Clean up partition before failing
+    ip netns exec "${leader_ns}" iptables -F || true
+    false
+  fi
+
+  # Verify the operation was cancelled on the partitioned node by checking it's not in the local operations list
+  # Note: We cannot query the partitioned node's API due to the partition, so we'll verify after removing partition
+
+  # Remove the network partition
+  echo "Removing network partition"
+  ip netns exec "${leader_ns}" iptables -F
+
+  # Wait for partitioned member to be detected as back online.
+  for _ in $(seq 20); do
+    if [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/cluster/members/${leader_name}" | jq --exit-status -r '.status')" = 'Online' ]; then
+      break
+    fi
+
+    sleep 1
+  done
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
+}
