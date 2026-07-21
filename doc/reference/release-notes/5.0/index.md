@@ -16,6 +16,7 @@ This page lists recent release notes for LXD 5.0 LTS.
 :titlesonly:
 :maxdepth: 1
 
+LXD 5.0.8 LTS <release-notes-5.0.8>
 LXD 5.0.7 LTS <release-notes-5.0.7>
 ```
 
