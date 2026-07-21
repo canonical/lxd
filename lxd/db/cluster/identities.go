@@ -264,6 +264,68 @@ func (i IdentitiesRow) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 	return &metadata, nil
 }
 
+// BearerMetadata contains metadata for bearer identity types.
+type BearerMetadata struct {
+	// TokenExpiry is the expiry of the issued token for the identity.
+	// It is nil when no token has been issued, or when the token has been revoked.
+	TokenExpiry *time.Time `json:"token_expiry,omitempty"`
+}
+
+// BearerMetadata returns the identity metadata as [BearerMetadata]. The [AuthMethod] of the
+// [IdentitiesRow] must be [api.AuthenticationMethodBearer].
+func (i IdentitiesRow) BearerMetadata() (*BearerMetadata, error) {
+	if i.AuthMethod != api.AuthenticationMethodBearer {
+		return nil, fmt.Errorf("Cannot extract bearer metadata from identity: Identity has authentication method %q (%q required)", i.AuthMethod, api.AuthenticationMethodBearer)
+	}
+
+	// Bearer identities created before token expiry was recorded have empty metadata.
+	if i.Metadata == "" {
+		return &BearerMetadata{}, nil
+	}
+
+	var metadata BearerMetadata
+	err := json.Unmarshal([]byte(i.Metadata), &metadata)
+	if err != nil {
+		return nil, fmt.Errorf("Failed unmarshaling bearer metadata: %w", err)
+	}
+
+	return &metadata, nil
+}
+
+// SetBearerIdentityTokenExpiry records the expiry of the issued token for a bearer identity.
+func SetBearerIdentityTokenExpiry(ctx context.Context, tx *sql.Tx, identityID int64, expiry *time.Time) error {
+	// A non-nil expiry is signed into the token as a JWT NumericDate, which has second
+	// precision, so we truncate to second precision before storing it to ensure the expiry
+	// reported for a listed identity is identical to the one the token itself carries.
+	var value any
+	if expiry != nil {
+		value = expiry.UTC().Truncate(time.Second).Format(time.RFC3339Nano)
+	}
+
+	// Update token_expiry in place so any other metadata fields are preserved.
+	// A nil expiry is stored as JSON null, which unmarshals back to a nil TokenExpiry,
+	// representing "no active token".
+	q := `
+UPDATE identities
+SET metadata = json_set(CASE WHEN metadata = '' THEN '{}' ELSE metadata END, '$.token_expiry', ?)
+WHERE id = ? AND auth_method = ?`
+	res, err := tx.ExecContext(ctx, q, value, identityID, AuthMethod(api.AuthenticationMethodBearer))
+	if err != nil {
+		return fmt.Errorf("Failed setting bearer identity token expiry: %w", err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed checking bearer identity token expiry update: %w", err)
+	}
+
+	if rowsAffected != 1 {
+		return fmt.Errorf("Failed setting bearer identity token expiry: Expected to update 1 row, updated %d", rowsAffected)
+	}
+
+	return nil
+}
+
 // ToAPI converts an [IdentitiesRow] to an [api.Identity], executing database queries as necessary.
 func (i *IdentitiesRow) ToAPI(idToGroups map[int64][]string, idToCertificates map[int64][]string) (*api.Identity, error) {
 	if idToGroups == nil {
@@ -298,6 +360,17 @@ func (i *IdentitiesRow) ToAPI(idToGroups map[int64][]string, idToCertificates ma
 
 		notAfter := cert.NotAfter.UTC()
 		expiresAt = &notAfter
+	} else if i.AuthMethod == api.AuthenticationMethodBearer {
+		metadata, err := i.BearerMetadata()
+		if err != nil {
+			return nil, err
+		}
+
+		// A nil expiry means no token has been issued, or the last issued token was revoked.
+		if metadata.TokenExpiry != nil {
+			tokenExpiry := metadata.TokenExpiry.UTC()
+			expiresAt = &tokenExpiry
+		}
 	}
 
 	groups, ok := idToGroups[i.ID]
