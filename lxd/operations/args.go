@@ -132,18 +132,23 @@ func (a OperationArgs) validate(isChild bool) error {
 		if a.RunHook != nil {
 			return errors.New("Token operations cannot have a Run hook")
 		}
+
+	case operationtype.OperationClassDurable:
+		if a.RunHook != nil {
+			return errors.New("Durable operation Run hooks are statically defined")
+		}
 	}
 
 	if a.Class != operationtype.OperationClassWebsocket && a.ConnectHook != nil {
 		return errors.New("Only websocket operations can have a Connect hook")
 	}
 
-	if a.Class != operationtype.OperationClassTask && isBulkOperation {
-		return errors.New("Only task operations can have children")
+	if !a.Class.SupportsBulkOperations() && isBulkOperation {
+		return fmt.Errorf("Operations of class %q cannot have children", a.Class.String())
 	}
 
-	if a.Class != operationtype.OperationClassTask && isChild {
-		return errors.New("Only task operations can be child operations")
+	if !a.Class.SupportsBulkOperations() && isChild {
+		return fmt.Errorf("Operations of class %q cannot have a parent operation", a.Class.String())
 	}
 
 	if a.ConflictReference != "" && a.Type.ConflictAction() == operationtype.ConflictActionNone {
