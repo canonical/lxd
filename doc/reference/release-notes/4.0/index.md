@@ -16,6 +16,7 @@ This page lists recent release notes for LXD 4.0 LTS.
 :titlesonly:
 :maxdepth: 1
 
+LXD 4.0.12 LTS <release-notes-4.0.12>
 LXD 4.0.11 LTS <release-notes-4.0.11>
 ```
 
