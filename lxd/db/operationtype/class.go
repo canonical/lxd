@@ -1,6 +1,8 @@
 package operationtype
 
 import (
+	"fmt"
+
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -16,10 +18,20 @@ const (
 	OperationClassToken Class = 3
 )
 
+// String implements [fmt.Stringer] for [Class].
 func (t Class) String() string {
 	return map[Class]string{
 		OperationClassTask:      api.OperationClassTask,
 		OperationClassWebsocket: api.OperationClassWebsocket,
 		OperationClassToken:     api.OperationClassToken,
 	}[t]
+}
+
+// Validate returns an error if the [Class] is not known.
+func (t Class) Validate() error {
+	if t.String() == "" {
+		return fmt.Errorf(`Unknown operation class "%d"`, t)
+	}
+
+	return nil
 }

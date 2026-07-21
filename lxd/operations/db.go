@@ -27,11 +27,6 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 	}
 
 	registerSingleOperation := func(ctx context.Context, tx *db.ClusterTx, op *Operation, parentOpID *int64, projectID *int64) (int64, error) {
-		// Conflict reference should only be provided for operation types that support conflicts.
-		if op.dbOpType.ConflictAction() == operationtype.ConflictActionNone && op.conflictReference != "" {
-			return 0, fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", op.conflictReference, op.dbOpType.Description())
-		}
-
 		operationsRow := cluster.OperationsRow{
 			UUID:              op.id,
 			Type:              op.dbOpType,
@@ -68,13 +63,6 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 
 			operationsRow.EntityID = int64(entityReference.EntityID)
 		}
-
-		inputsJSON, err := json.Marshal(op.inputs)
-		if err != nil {
-			return 0, fmt.Errorf("Failed marshalling operation inputs: %w", err)
-		}
-
-		operationsRow.Inputs = string(inputsJSON)
 
 		metadataJSON, err := json.Marshal(op.metadata)
 		if err != nil {
@@ -207,16 +195,6 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 	op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
 	op.events = s.Events
-
-	// Load operation inputs.
-	var inputs map[string]any
-	var err error
-	err = json.Unmarshal([]byte(dbOp.Row.Inputs), &inputs)
-	if err != nil {
-		return nil, fmt.Errorf("Failed unmarshalling operation inputs for operation %d: %w", dbOp.Row.ID, err)
-	}
-
-	op.inputs = inputs
 
 	// Load operation entity URL.
 	// Note that we rely on the entity_type of the operation and the entityURL being the same. This is enforced by a check in the initOperation().

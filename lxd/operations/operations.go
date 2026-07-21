@@ -82,9 +82,6 @@ type Operation struct {
 	onRun     func(context.Context, *Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 
-	// Inputs for the operation, which are stored in the database.
-	inputs map[string]any
-
 	// Operations which conflict with each other share the same conflict reference.
 	conflictReference string
 
@@ -105,25 +102,6 @@ type Operation struct {
 
 	state  *state.State
 	events *events.Server
-}
-
-// OperationArgs contains all the arguments for operation creation.
-type OperationArgs struct {
-	ProjectName     string
-	Type            operationtype.Type
-	Class           operationtype.Class
-	EntityURL       *api.URL
-	Resources       map[entity.Type][]api.URL
-	Metadata        map[string]any
-	RunHook         func(ctx context.Context, op *Operation) error
-	ConnectHook     func(op *Operation, r *http.Request, w http.ResponseWriter) error
-	requestor       *request.RequestorAuditor
-	metricsCallback func(result metrics.RequestResult)
-	Inputs          map[string]any
-	// ConflictReference allows to create the operation only if no other operation with the same conflict reference is running.
-	// Empty ConflictReference means the operation can be started anytime.
-	ConflictReference string
-	Children          []*OperationArgs
 }
 
 // OperationScheduler is a signature used in function arguments where the function is used to deduplicate operation
@@ -172,29 +150,16 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		return nil, errors.New("State must be provided")
 	}
 
+	err := args.validate(false)
+	if err != nil {
+		return nil, fmt.Errorf("Failed validating operation arguments: %w", err)
+	}
+
 	// initOperation initializes a single operation structure.
 	initOperation := func(s *state.State, args OperationArgs) (*Operation, error) {
 		// Don't allow new operations when LXD is shutting down.
 		if s.ShutdownCtx.Err() != nil {
 			return nil, errors.New("LXD is shutting down")
-		}
-
-		// Validate that the primary entity URL matches the operation entity type to ensure that the operation entity URL
-		// can be reconstructed from a database record (where it is saved as an entity ID).
-		operationEntityType := args.Type.EntityType()
-		if args.EntityURL != nil {
-			entityType, _, _, _, err := entity.ParseURL(args.EntityURL.URL)
-			if err != nil {
-				return nil, fmt.Errorf("Invalid operation entity URL: %w", err)
-			}
-
-			if entityType != operationEntityType {
-				return nil, fmt.Errorf("Entity type for URL %q does not match operation entity type %q", args.EntityURL, operationEntityType)
-			}
-		} else if operationEntityType != entity.TypeServer {
-			return nil, errors.New("Operation entity URL required")
-		} else {
-			args.EntityURL = entity.ServerURL()
 		}
 
 		// Use a v7 UUID for the operation ID.
@@ -222,10 +187,18 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.requestor = args.requestor
 		op.metricsCallback = args.metricsCallback
 		op.logger = logger.AddContext(logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
-		op.inputs = args.Inputs
 		op.conflictReference = args.ConflictReference
 		op.events = s.Events
 		op.location = s.ServerName
+
+		// The call to args.validate already validated the entity URL. If it is nil, then it should be set to the
+		// server URL (/1.0).
+		entityURL := args.EntityURL
+		if entityURL == nil {
+			entityURL = entity.ServerURL()
+		}
+
+		op.entityURL = entityURL
 
 		metadata := args.Metadata
 		if metadata == nil {
@@ -235,6 +208,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		// If the entity_url field is not already populated, populate it with the entity url of the operation.
 		// This allows the caller to override the entity URL if e.g. creating a new entity but ensures the field is populated.
 		// Skip if the entity type is "server". This doesn't give any useful information to the requestor (since the url will just be "/1.0").
+		operationEntityType := args.Type.EntityType()
 		_, ok := metadata[api.MetadataEntityURL]
 		if !ok && operationEntityType != entity.TypeServer {
 			// The project that is present in the operation entity URL is always the effective project (e.g. the actual
@@ -251,41 +225,18 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 			metadata[api.MetadataEntityURL] = metadataURL.String()
 		}
 
-		op.metadata, err = validateMetadata(metadata)
+		err = validateMetadata(metadata)
 		if err != nil {
 			return nil, fmt.Errorf("Failed validating operation metadata: %w", err)
 		}
+
+		op.metadata = metadata
 
 		// Callback functions
 		op.onRun = args.RunHook
 		op.onConnect = args.ConnectHook
 
-		// Quick check.
-		if op.class != operationtype.OperationClassWebsocket && op.onConnect != nil {
-			return nil, errors.New("Only websocket operations can have a Connect hook")
-		}
-
-		if op.class == operationtype.OperationClassWebsocket && op.onConnect == nil {
-			return nil, errors.New("Websocket operations must have a Connect hook")
-		}
-
-		if op.class == operationtype.OperationClassToken && op.onRun != nil {
-			return nil, errors.New("Token operations cannot have a Run hook")
-		}
-
 		return &op, nil
-	}
-
-	// If this is a bulk operation, don't allow more than one level of nesting.
-	for _, child := range args.Children {
-		if len(child.Children) > 0 {
-			return nil, errors.New("Bulk operations cannot have nested bulk operations")
-		}
-	}
-
-	// If this is a single task operation without children, it must have a run hook.
-	if !slices.Contains([]operationtype.Class{operationtype.OperationClassWebsocket, operationtype.OperationClassToken}, args.Class) && args.Children == nil && args.RunHook == nil {
-		return nil, errors.New("Task operations must have a Run hook")
 	}
 
 	// Create the parent operation
@@ -845,11 +796,11 @@ func (op *Operation) updateStatus(ctx context.Context, newStatus api.StatusCode)
 	return updateDBOperation(ctx, op)
 }
 
-// UpdateMetadata updates the metadata of the operation. It returns an error
-// if the operation is not pending or running, or the operation is read-only.
+// UpdateMetadata updates the metadata of the operation. It returns an error if the operation has completed.
 // The api.MetadataEntityURL field is retained unless the caller sets api.MetadataEntityURL in the input map.
+// If a nil map is passed in, metadata is set to an empty map.
 func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
-	opMetadata, err := validateMetadata(opMetadata)
+	err := validateMetadata(opMetadata)
 	if err != nil {
 		return fmt.Errorf("Failed updating operation metadata: %w", err)
 	}
@@ -863,6 +814,10 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	if op.readonly {
 		op.lock.Unlock()
 		return errors.New("Read-only operations cannot be updated")
+	}
+
+	if opMetadata == nil {
+		opMetadata = make(map[string]any)
 	}
 
 	// Retain entity URL unless it is set in the input map.
@@ -915,6 +870,12 @@ func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 		return errors.New("Read-only operations cannot be updated")
 	}
 
+	// Nothing to do.
+	if len(metadata) == 0 {
+		op.lock.Unlock()
+		return nil
+	}
+
 	// Get current metadata.
 	newMetadata := maps.Clone(op.metadata)
 
@@ -925,7 +886,7 @@ func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 		maps.Copy(newMetadata, metadata)
 	}
 
-	newMetadata, err := validateMetadata(newMetadata)
+	err := validateMetadata(newMetadata)
 	if err != nil {
 		op.lock.Unlock()
 		return fmt.Errorf("Failed extending operation metadata: %w", err)
@@ -988,11 +949,6 @@ func (op *Operation) Type() operationtype.Type {
 	return op.dbOpType
 }
 
-// Inputs returns the operation inputs from the database.
-func (op *Operation) Inputs() map[string]any {
-	return op.inputs
-}
-
 // Parent returns the parent operation if this operation is a child operation, or nil if this operation is not a child operation.
 func (op *Operation) Parent() *Operation {
 	return op.parent
@@ -1003,11 +959,11 @@ func (op *Operation) Children() []*Operation {
 	return op.children
 }
 
-// validateMetadata is used to enforce some consistency in operation metadata.
-func validateMetadata(metadata map[string]any) (map[string]any, error) {
-	// Ensure metadata is never nil.
+// validateMetadata returns an error if the metadata contains a known key with an invalid value (such as
+// [api.MetadataEntityURL] with a non-url value).
+func validateMetadata(metadata map[string]any) error {
 	if metadata == nil {
-		metadata = make(map[string]any)
+		return nil
 	}
 
 	// If any url fields are used, they must always be a string and must always be a valid URL.
@@ -1017,17 +973,17 @@ func validateMetadata(metadata map[string]any) (map[string]any, error) {
 		if ok {
 			urlString, ok := urlAny.(string)
 			if !ok {
-				return nil, fmt.Errorf("Operation metadata field %q must be a string (got %T)", urlField, urlAny)
+				return fmt.Errorf("Operation metadata field %q must be a string (got %T)", urlField, urlAny)
 			}
 
 			err := validate.IsRequestURL(urlString)
 			if err != nil {
-				return nil, fmt.Errorf("Operation metadata field %q must be a valid request URL: %w", urlField, err)
+				return fmt.Errorf("Operation metadata field %q must be a valid request URL: %w", urlField, err)
 			}
 		}
 	}
 
-	return metadata, nil
+	return nil
 }
 
 // ProgressHandler implements [ioprogress.ProgressReporter]. This is used by instance and storage drivers to
