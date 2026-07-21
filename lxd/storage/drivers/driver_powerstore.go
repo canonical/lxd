@@ -27,6 +27,7 @@ var powerStoreVersion string
 var powerStoreSupportedConnectors = []string{
 	connectors.TypeISCSI,
 	connectors.TypeSCSIFC,
+	connectors.TypeNVMeTCP,
 }
 
 // powerStoreDefaultUser represents the default PowerStore user name.
@@ -135,6 +136,10 @@ func (d *powerstore) FillConfig() error {
 		d.config["powerstore.user.name"] = powerStoreDefaultUser
 	}
 
+	if d.config["powerstore.mode"] == "" {
+		d.config["powerstore.mode"] = connectors.TypeNVMeTCP
+	}
+
 	return nil
 }
 
@@ -173,12 +178,12 @@ func (d *powerstore) Validate(config map[string]string) error {
 		"powerstore.gateway.verify": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.mode)
 		// The mode to use to map PowerStore volumes to the local server.
-		// Supported values are `iscsi` and `scsi/fc`.
+		// Supported values are `iscsi`, `scsi/fc`, and `nvme/tcp`.
 		// ---
 		//  type: string
+		//  defaultdesc: `nvme/tcp`
 		//  shortdesc: How volumes are mapped to the local server
 		//  scope: global
-		//  required: true
 		"powerstore.mode": validate.Optional(validate.IsOneOf(powerStoreSupportedConnectors...)),
 		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.target)
 		// A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
@@ -257,10 +262,6 @@ func (d *powerstore) ValidateSource() error {
 
 	if d.config["powerstore.user.password"] == "" {
 		return errors.New("The powerstore.user.password cannot be empty")
-	}
-
-	if d.config["powerstore.mode"] == "" {
-		return errors.New("The powerstore.mode cannot be empty")
 	}
 
 	return nil
