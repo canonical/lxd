@@ -1710,7 +1710,7 @@ parts:
       craftctl default
 
       npm install yarn --global
-      yarn install
+      yarn install --network-timeout 600000
       yarn build
 
       mkdir -p "${CRAFT_PART_INSTALL}/share"
