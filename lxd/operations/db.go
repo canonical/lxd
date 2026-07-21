@@ -13,10 +13,10 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/db/query"
-	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -157,10 +157,86 @@ func removeDBOperation(op *Operation) error {
 	return err
 }
 
-// ConstructOperationFromDB is a constructor of a single Operation object based on its database representation.
-// ConstructOperationFromDB doesn't populate the parent field, as that would require loading all other operations from the DB. Instead,
-// the caller is expected to set the parent field on the returned Operation object based on other loaded operations, if needed.
-func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, dbOp *cluster.Operation) (*Operation, error) {
+// ConstructOperationsFromDB is a constructs a list of Operation objects based on their database representation.
+func ConstructOperationsFromDB(ctx context.Context, tx *sql.Tx, s *state.State, dbOps []cluster.Operation) ([]*Operation, error) {
+	if len(dbOps) == 0 {
+		return []*Operation{}, nil
+	}
+
+	// Get a list of all entity types and IDs to resolve.
+	allEntities := make(map[entity.Type][]int64)
+
+	// Construct a list of parents.
+	parents := make([]cluster.Operation, 0, len(dbOps))
+
+	// Construct a map of parent operation IDs to their children.
+	children := make(map[int64][]cluster.Operation, len(dbOps))
+
+	// Get a list of all operations to get resources for.
+	opIDs := make([]int64, 0, len(dbOps))
+
+	for _, dbOp := range dbOps {
+		opIDs = append(opIDs, dbOp.Row.ID)
+		opEntityType := dbOp.Row.Type.EntityType()
+		allEntities[opEntityType] = append(allEntities[opEntityType], dbOp.Row.EntityID)
+		if dbOp.Row.Parent == nil {
+			parents = append(parents, dbOp)
+			continue
+		}
+
+		children[*dbOp.Row.Parent] = append(children[*dbOp.Row.Parent], dbOp)
+	}
+
+	// Preload operation resource IDs.
+	resources := make(map[int64][]cluster.OperationsResourcesRow)
+	err := query.SelectFunc[cluster.OperationsResourcesRow](ctx, tx, "WHERE operations_resources.operation_id IN "+query.IntParams(opIDs...), func(resource cluster.OperationsResourcesRow) error {
+		resourceEntityType := entity.Type(resource.EntityType)
+		allEntities[resourceEntityType] = append(allEntities[resourceEntityType], resource.EntityID)
+		resources[resource.OperationID] = append(resources[resource.OperationID], resource)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Get URLs for all operations and their resources.
+	entityURLs, err := cluster.GetEntityURLsByEntityTypeAndID(ctx, tx, allEntities)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting operation entity URLs: %w", err)
+	}
+
+	ops := make([]*Operation, 0, len(dbOps))
+	for _, parent := range parents {
+		op, err := constructSingleOperation(s, parent, resources, entityURLs)
+		if err != nil {
+			return nil, fmt.Errorf("Failed constructing operation: %w", err)
+		}
+
+		for _, child := range children[parent.Row.ID] {
+			childOp, err := constructSingleOperation(s, child, resources, entityURLs)
+			if err != nil {
+				return nil, fmt.Errorf("Failed constructing child operation: %w", err)
+			}
+
+			op.addChild(childOp)
+		}
+
+		ops = append(ops, op)
+	}
+
+	return ops, nil
+}
+
+func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources map[int64][]cluster.OperationsResourcesRow, entityURLs map[entity.Type]map[int64]*api.URL) (*Operation, error) {
+	getURL := func(p entity.Type, id int64) *api.URL {
+		urlsOfType, ok := entityURLs[p]
+		if !ok {
+			return nil
+		}
+
+		return urlsOfType[id]
+	}
+
 	op := Operation{
 		projectName:       dbOp.ProjectName,
 		id:                dbOp.Row.UUID,
@@ -178,6 +254,7 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 		err:               dbOp.Row.Error,
 		errCode:           dbOp.Row.ErrorCode,
 		conflictReference: dbOp.Row.ConflictReference,
+		requestor:         dbOp.Requestor(),
 		stage:             dbOp.Row.Stage,
 	}
 
@@ -198,53 +275,46 @@ func ConstructOperationFromDB(ctx context.Context, tx *sql.Tx, s *state.State, d
 
 	op.events = s.Events
 
-	// Load operation entity URL.
-	// Note that we rely on the entity_type of the operation and the entityURL being the same. This is enforced by a check in the initOperation().
-	entityURL, err := cluster.GetEntityURL(ctx, tx, dbOp.Row.Type.EntityType(), int(dbOp.Row.EntityID))
-	if err == nil {
-		op.entityURL = entityURL
-	} else {
-		// Fail for all errors other than the not found (see below)
-		if !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return nil, fmt.Errorf("Failed loading entity URL for operation: %w", err)
-		}
-
-		// For various delete operations, these operations actually delete the entity somewhere in the operation code, which means that we might not be able to load the entity URL after the entity was deleted.
-		// If this is the case, the entity URL will simply be empty.
-		logger.Debug("Failed loading entity URL for operation, leaving it empty on the operation struct", logger.Ctx{"operationID": dbOp.Row.UUID, "entityType": dbOp.Row.Type.EntityType(), "entityID": dbOp.Row.EntityID})
+	op.entityURL = getURL(dbOp.Row.Type.EntityType(), dbOp.Row.EntityID)
+	if op.entityURL == nil {
+		// Various operations (e.g. deletion operations) actually delete the entity within the operation run hook.
+		// The entity URL is saved to the operation metadata at create time for this reason.
+		// Log a debug message for inspection in case this is not the intended behaviour.
+		op.logger.Debug("Failed loading entity URL for operation, leaving it empty on the operation struct", logger.Ctx{"entityType": dbOp.Row.Type.EntityType(), "entityID": dbOp.Row.EntityID})
 	}
 
 	// Load operation resources.
-	op.resources, err = cluster.GetOperationResources(ctx, tx, dbOp.Row.ID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed loading operation resources for operation %d: %w", dbOp.Row.ID, err)
+	if len(resources[dbOp.Row.ID]) > 0 {
+		op.resources = make(map[entity.Type][]api.URL)
+		for _, resource := range resources[dbOp.Row.ID] {
+			resourceEntityType := entity.Type(resource.EntityType)
+			resourceURL := getURL(resourceEntityType, resource.EntityID)
+			if resourceURL == nil {
+				op.logger.Debug("Failed loading resource URL for operation", logger.Ctx{"entityType": resourceEntityType, "entityID": resource.EntityID})
+				continue
+			}
+
+			op.resources[resourceEntityType] = append(op.resources[resourceEntityType], *resourceURL)
+		}
 	}
 
 	// Load operation metadata.
 	var metadata map[string]any
-	err = json.Unmarshal([]byte(dbOp.Row.Metadata), &metadata)
+	err := json.Unmarshal([]byte(dbOp.Row.Metadata), &metadata)
 	if err != nil {
 		return nil, fmt.Errorf("Failed unmarshalling operation metadata for operation %d: %w", dbOp.Row.ID, err)
 	}
 
 	op.metadata = metadata
 
-	// Load the requestor identity if a protocol was set.
-	// Note that the origin address is not saved, so cannot be set on the reconstructed operation.
-	if dbOp.Row.RequestorProtocol != nil && *dbOp.Row.RequestorProtocol != "" {
-		op.requestor = &request.RequestorAuditor{
-			Protocol: string(*dbOp.Row.RequestorProtocol),
+	// If the operation is durable, load the run hook.
+	if op.class == operationtype.OperationClassDurable {
+		runHook, ok := getDurableOperationRunHook(op.dbOpType)
+		if !ok {
+			return nil, fmt.Errorf("No run hook is defined for durable operation %q", op.dbOpType.Description())
 		}
 
-		if dbOp.Row.RequestorIdentityID != nil {
-			identity, err := cluster.GetIdentityByID(ctx, tx, *dbOp.Row.RequestorIdentityID)
-			if err != nil {
-				return nil, fmt.Errorf("Failed loading identity for operation %d: %w", dbOp.Row.ID, err)
-			}
-
-			op.requestor.IdentityID = &identity.ID
-			op.requestor.Username = identity.Identifier
-		}
+		op.onRun = runHook
 	}
 
 	return &op, nil
