@@ -160,8 +160,8 @@ test_image_import_metadata() {
 }
 
 test_image_metadata_confined() {
-  local ct_name err_msg vm_name
-  local ct_meta_path vm_meta_path
+  local ct_name err_msg
+  local ct_meta_path
 
   ct_name="c1"
 
