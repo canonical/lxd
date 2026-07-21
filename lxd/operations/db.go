@@ -321,6 +321,16 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 
 	op.metadata = metadata
 
+	// If the operation is durable, load the run hook.
+	if op.class == operationtype.OperationClassDurable {
+		runHook, ok := getDurableOperationRunHook(op.dbOpType)
+		if !ok {
+			return nil, fmt.Errorf("No run hook is defined for durable operation %q", op.dbOpType.Description())
+		}
+
+		op.onRun = runHook
+	}
+
 	// Set the finalization function.
 	setDoneFunc(&op)
 
