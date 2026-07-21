@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -507,4 +508,136 @@ func TestGetImageFile_DeltaCombinedFingerprintMismatch(t *testing.T) {
 	// fingerprint (SHA256 of meta || rootfs) doesn't match the advertised one.
 	expectedMsg := fmt.Sprintf("Image fingerprint mismatch. Got %s expected %s", realCombinedFP, bogusCombinedFP)
 	assert.EqualError(t, err, expectedMsg)
+}
+
+// newTestSimpleStreamsServerOversizedRootfs creates a test server whose rootfs handler streams far
+// more bytes than the size advertised in the simplestreams index, simulating a malicious or
+// man-in-the-middle mirror. The metadata file is served correctly so the download reaches the
+// rootfs. The rootfs is served as a chunked response with no Content-Length.
+func newTestSimpleStreamsServerOversizedRootfs(t *testing.T, metaContent []byte, advertisedRootfs []byte, combinedHash string) *httptest.Server {
+	t.Helper()
+
+	metaHash := sha256.Sum256(metaContent)
+	rootfsHash := sha256.Sum256(advertisedRootfs)
+
+	products := simplestreams.Products{
+		ContentID: "images",
+		DataType:  "image-downloads",
+		Format:    "products:1.0",
+		Products: map[string]simplestreams.Product{
+			"test:amd64:default": {
+				Aliases:         "test",
+				Architecture:    "amd64",
+				OperatingSystem: "Test",
+				Release:         "test",
+				ReleaseTitle:    "Test",
+				Versions: map[string]simplestreams.ProductVersion{
+					"20260101_0000": {
+						Items: map[string]simplestreams.ProductVersionItem{
+							"lxd.tar.xz": {
+								FileType:              "lxd.tar.xz",
+								HashSha256:            hex.EncodeToString(metaHash[:]),
+								Size:                  int64(len(metaContent)),
+								Path:                  "images/test/meta.tar.xz",
+								LXDHashSha256SquashFs: combinedHash,
+							},
+							"root.squashfs": {
+								FileType:   "squashfs",
+								HashSha256: hex.EncodeToString(rootfsHash[:]),
+								Size:       int64(len(advertisedRootfs)),
+								Path:       "images/test/rootfs.squashfs",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	productsJSON, err := json.Marshal(products)
+	require.NoError(t, err)
+
+	index := simplestreams.Stream{
+		Index: map[string]simplestreams.StreamIndex{
+			"images": {
+				DataType: "image-downloads",
+				Path:     "streams/v1/images.json",
+				Products: []string{"test:amd64:default"},
+			},
+		},
+		Format: "index:1.0",
+	}
+
+	indexJSON, err := json.Marshal(index)
+	require.NoError(t, err)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/streams/v1/index.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(indexJSON)
+	})
+
+	mux.HandleFunc("/streams/v1/images.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(productsJSON)
+	})
+
+	mux.HandleFunc("/images/test/meta.tar.xz", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(metaContent)
+	})
+
+	mux.HandleFunc("/images/test/rootfs.squashfs", func(w http.ResponseWriter, r *http.Request) {
+		// Stream far more than the advertised size with no Content-Length (chunked). If the
+		// network read were not capped this would attempt to write an unbounded stream.
+		flusher, _ := w.(http.Flusher)
+		chunk := bytes.Repeat([]byte{0xff}, 4096)
+		for range 4096 { // Up to 16 MiB were the cap not enforced.
+			_, err := w.Write(chunk)
+			if err != nil {
+				return
+			}
+
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+	})
+
+	return httptest.NewTLSServer(mux)
+}
+
+// TestGetImageFile_OversizedStreamCappedAtManifestSize verifies that GetImageFile passes the size
+// from the simplestreams index down as a network read cap, so an oversized rootfs stream from a
+// malicious mirror is choked exactly at the advertised size and then fails hash verification
+// rather than being read unbounded.
+func TestGetImageFile_OversizedStreamCappedAtManifestSize(t *testing.T) {
+	metaContent := []byte("fake-metadata-content")
+	rootfsContent := []byte("fake-rootfs-content")
+	combinedFP := computeCombinedFingerprint(metaContent, rootfsContent)
+
+	server := newTestSimpleStreamsServerOversizedRootfs(t, metaContent, rootfsContent, combinedFP)
+	defer server.Close()
+
+	images := newTestSimpleStream(server)
+
+	metaFile, err := os.CreateTemp(t.TempDir(), "meta")
+	require.NoError(t, err)
+	defer metaFile.Close()
+
+	rootfsFile, err := os.CreateTemp(t.TempDir(), "rootfs")
+	require.NoError(t, err)
+	defer rootfsFile.Close()
+
+	_, err = images.GetImageFile(combinedFP, ImageFileRequest{
+		MetaFile:   metaFile,
+		RootfsFile: rootfsFile,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Hash mismatch")
+
+	// The rootfs download stopped exactly at the size advertised in the index instead of
+	// consuming the unbounded stream.
+	info, err := rootfsFile.Stat()
+	require.NoError(t, err)
+	assert.Equal(t, int64(len(rootfsContent)), info.Size())
 }
