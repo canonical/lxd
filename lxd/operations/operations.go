@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -73,6 +74,7 @@ type Operation struct {
 	resources       map[entity.Type][]api.URL
 	entityURL       *api.URL
 	metadata        map[string]any
+	inputs          map[InputKey]json.RawMessage
 	err             string
 	errCode         int64
 	readonly        bool
@@ -252,6 +254,14 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		if op.stage > 0 {
 			op.status = api.Pending
 		}
+
+		// Ensure inputs are non-nil if empty.
+		inputs := args.inputs
+		if inputs == nil {
+			inputs = make(map[InputKey]json.RawMessage)
+		}
+
+		op.inputs = inputs
 
 		// Callback functions
 		op.onRun = args.RunHook
@@ -1187,4 +1197,24 @@ func (op *Operation) sendEvent(eventMessage any) {
 	}
 
 	_ = op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
+}
+
+// GetOperationInputValue returns the input value associated with the given key. It returns an [http.StatusNotFound]
+// error if not present, or an error if value cannot be unmarshalled into the given type.
+func GetOperationInputValue[T any](op *Operation, key InputKey) (T, error) {
+	op.lock.Lock()
+	defer op.lock.Unlock()
+
+	var t T
+	rawJSON, ok := op.inputs[key]
+	if !ok {
+		return t, api.StatusErrorf(http.StatusNotFound, "No value for input key %q", key)
+	}
+
+	err := json.Unmarshal(rawJSON, &t)
+	if err != nil {
+		return t, fmt.Errorf("Failed unmarshalling input value: %w", err)
+	}
+
+	return t, nil
 }

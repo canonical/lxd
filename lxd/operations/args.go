@@ -1,6 +1,7 @@
 package operations
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -13,6 +14,9 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
+
+// InputKey is used to get and set operation inputs. It is a string alias type to encourage const usage (like for context keys).
+type InputKey string
 
 // OperationArgs contains all the arguments for operation creation.
 type OperationArgs struct {
@@ -59,6 +63,11 @@ type OperationArgs struct {
 	// Stage defines ordering of child operations. It is not valid to set Stage > 0 on operations that are not children.
 	// Child stages must be consecutive, starting at zero. This is an uint16 to indicate that it is a low positive integer.
 	Stage uint16
+
+	// inputs are used by durable operations to give the statically defined RunHook access to caller context.
+	// These values are saved to the database should the operation be relocated.
+	// Values must be set via [OperationArgs.SetInputValue].
+	inputs map[InputKey]json.RawMessage
 
 	// Children are sub-operations of a bulk operation. It is not valid to provide children if [operationtype.Type.IsBulk]
 	// returns false for the Type.
@@ -187,5 +196,21 @@ func (a OperationArgs) validate(isChild bool) error {
 		}
 	}
 
+	return nil
+}
+
+// SetInputValue sets the given value on the operation inputs. This enforces that the value can be serialized.
+// Values can be retrieved via [GetOperationInputValue].
+func (a *OperationArgs) SetInputValue(key InputKey, value any) error {
+	if a.inputs == nil {
+		a.inputs = map[InputKey]json.RawMessage{}
+	}
+
+	b, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("Failed setting operation input value: %w", err)
+	}
+
+	a.inputs[key] = b
 	return nil
 }

@@ -73,6 +73,13 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 
 		operationsRow.Metadata = string(metadataJSON)
 
+		inputsJSON, err := json.Marshal(op.inputs)
+		if err != nil {
+			return 0, fmt.Errorf("Failed marshalling operation inputs: %w", err)
+		}
+
+		operationsRow.Inputs = string(inputsJSON)
+
 		dbOpID, err := query.Create(ctx, tx.Tx(), operationsRow)
 		if err != nil {
 			// The operations table has unique index on uuid, and conditional unique index on conflict_reference.
@@ -313,6 +320,14 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 	}
 
 	op.metadata = metadata
+
+	var inputs map[InputKey]json.RawMessage
+	err = json.Unmarshal([]byte(dbOp.Row.Inputs), &inputs)
+	if err != nil {
+		return nil, fmt.Errorf("Failed unmarshalling operation inputs for operation %d: %w", dbOp.Row.ID, err)
+	}
+
+	op.inputs = inputs
 
 	// If the operation is durable, load the run hook.
 	if op.class == operationtype.OperationClassDurable {
