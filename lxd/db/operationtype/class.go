@@ -2,6 +2,7 @@ package operationtype
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/canonical/lxd/shared/api"
 )
@@ -37,4 +38,9 @@ func (t Class) Validate() error {
 	}
 
 	return nil
+}
+
+// SupportsBulkOperations returns true if operations of this class may be a parent or child operation.
+func (t Class) SupportsBulkOperations() bool {
+	return slices.Contains([]Class{OperationClassTask, OperationClassDurable}, t)
 }
