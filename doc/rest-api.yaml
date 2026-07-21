@@ -483,6 +483,24 @@ definitions:
         title: ClusterLink represents high-level information about a cluster link.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    ClusterLinkCertificate:
+        description: |-
+            It is returned when creating a pending public cluster link, and must be submitted back as
+            ClusterLinksPost.ClusterCertificate to confirm and pin it.
+        properties:
+            certificate:
+                description: PEM-encoded X.509 certificate.
+                example: '-----BEGIN CERTIFICATE-----\n..'
+                type: string
+                x-go-name: Certificate
+            fingerprint:
+                description: SHA-256 fingerprint of the certificate.
+                example: a1b2c3d4..
+                type: string
+                x-go-name: Fingerprint
+        title: ClusterLinkCertificate represents a remote cluster certificate fetched for user verification.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     ClusterLinkMemberState:
         properties:
             address:
@@ -583,6 +601,11 @@ definitions:
                 example: lxd02
                 type: string
                 x-go-name: Name
+            remote_address:
+                description: RemoteAddress is the address of the remote cluster, used for public links.
+                example: 10.0.0.1:8443
+                type: string
+                x-go-name: RemoteAddress
             trust_token:
                 description: |-
                     TrustToken for creating a cluster link. This is included in requests to create an active cluster link on the local cluster and activate a pending cluster link on the linked cluster.
