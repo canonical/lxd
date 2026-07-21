@@ -538,3 +538,8 @@ func (t Type) ConflictAction() ConflictAction {
 
 	return ConflictActionNone
 }
+
+// MustRun returns true if operations with this type must run regardless of previous stage failures.
+func (t Type) MustRun() bool {
+	return false
+}
