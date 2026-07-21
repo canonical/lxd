@@ -494,6 +494,12 @@ func (c *cmdList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// The ipv4 and ipv6 filters are applied client side against the instance's network state.
+	filtersNeedNetwork := c.filtersNeedNetwork(filters)
+	if filtersNeedNetwork {
+		needsData = true
+	}
+
 	if needsData && d.HasExtension("container_full") {
 		var instances []api.InstanceFull
 
@@ -503,7 +509,7 @@ func (c *cmdList) run(cmd *cobra.Command, args []string) error {
 		// Initialize as empty slice (not nil) to enable optimization when no fields are needed.
 		recursionFields := []string{}
 		needsDisk := false
-		needsNetwork := false
+		needsNetwork := filtersNeedNetwork
 
 		for _, col := range columns {
 			if col.NeedsDisk {
@@ -1029,4 +1035,21 @@ func (c *cmdList) mapShorthandFilters() {
 		"ipv4":         c.matchByIPV4,
 		"ipv6":         c.matchByIPV6,
 	}
+}
+
+// filtersNeedNetwork returns true if any of the filters is an ipv4 or ipv6 shorthand filter.
+func (c *cmdList) filtersNeedNetwork(filters []string) bool {
+	for _, filter := range filters {
+		key, _, found := strings.Cut(filter, "=")
+		if !found {
+			continue
+		}
+
+		switch strings.ToLower(key) {
+		case "ipv4", "ipv6":
+			return true
+		}
+	}
+
+	return false
 }
