@@ -345,7 +345,7 @@ func (d *powerstore) targets() (map[string][]string, error) {
 		case connectors.TypeISCSI:
 			defaultPort = connectors.ISCSIDefaultPort
 		case connectors.TypeNVMeTCP:
-			defaultPort = connectors.NVMeDefaultDiscoveryPort
+			defaultPort = connectors.NVMeDefaultTransportPort
 		default:
 			return nil, fmt.Errorf("Unsupported PowerStore mode %q", mode)
 		}
