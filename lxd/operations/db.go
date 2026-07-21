@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -390,4 +391,122 @@ func loadAndConstructOperationFromDB(ctx context.Context, s *state.State, opID s
 	}
 
 	return ops[0], nil
+}
+
+// RelocateAndReconstructRunningDurableOperationsFromNode loads all durable operations on the given node, relocates them to this
+// cluster member (by changing their node ID), and reconstructs them.
+func RelocateAndReconstructRunningDurableOperationsFromNode(ctx context.Context, s *state.State, nodeID int64) ([]*Operation, error) {
+	var ops []*Operation
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// See if there are any durable operations running on the node which need to be restarted.
+		dbOps, err := cluster.GetOperationsByNodeIDAndClass(ctx, tx.Tx(), nodeID, operationtype.OperationClassDurable)
+		if err != nil {
+			return fmt.Errorf("Failed loading durable operations for node ID %d: %w", nodeID, err)
+		}
+
+		// Check which are running and which have already completed.
+		var nRunningOps int
+		for _, dbOp := range dbOps {
+			if api.StatusCode(dbOp.Row.StatusCode).IsFinal() {
+				continue
+			}
+
+			nRunningOps++
+		}
+
+		// If none were running, then there are none to restart.
+		if nRunningOps == 0 {
+			return nil
+		}
+
+		// Move the operation that have not completed to this member.
+		nMovedOps, err := relocateUnfinishedDurableOperationsFromNode(ctx, tx, nodeID)
+		if err != nil {
+			return fmt.Errorf("Failed relocating durable operations from node ID %d: %w", nodeID, err)
+		}
+
+		if int(nMovedOps) != nRunningOps {
+			return fmt.Errorf("Failed relocating durable operations from node ID %d: Expected to move %d operations but moved %d", nodeID, nRunningOps, nMovedOps)
+		}
+
+		// Update the records of operations we moved to match what is now in the database.
+		currentNodeID := tx.GetNodeID()
+		for _, dbOp := range dbOps {
+			if api.StatusCode(dbOp.Row.StatusCode).IsFinal() {
+				continue
+			}
+
+			dbOp.Row.NodeID = currentNodeID
+			dbOp.NodeName = s.ServerName
+			dbOp.NodeAddress = s.Endpoints.NetworkAddress()
+		}
+
+		// Reconstruct all durable operations. Even those that have finished.
+		// This is so that bulk operations still have access to their completed children.
+		ops, err = ConstructOperationsFromDB(ctx, tx.Tx(), s, dbOps)
+		if err != nil {
+			return fmt.Errorf("Failed reconstructing durable operations: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Reconstructed operations are a list of parent operations.
+	// If the parent operations have completed, there is no need to restart them.
+	ops = slices.DeleteFunc(ops, func(op *Operation) bool {
+		return op.finished.Err() != nil
+	})
+
+	logger.Warn("Restarting durable operations", logger.Ctx{"count": len(ops)})
+	return ops, nil
+}
+
+// relocateUnfinishedDurableOperationsFromNode moves durable operations from the given nodeID to this cluster member.
+// It is defined in this package (rather than in the db/cluster package) and unexported to prevent usage elsewhere.
+// It returns the number of affected rows.
+func relocateUnfinishedDurableOperationsFromNode(ctx context.Context, tx *db.ClusterTx, fromNodeID int64) (int64, error) {
+	res, err := tx.Tx().ExecContext(ctx, "UPDATE operations SET node_id = ?, updated_at = ? WHERE node_id = ? AND class = ? AND status_code < ?", tx.GetNodeID(), time.Now(), fromNodeID, operationtype.OperationClassDurable, api.Success)
+	if err != nil {
+		return 0, err
+	}
+
+	return res.RowsAffected()
+}
+
+// restartOperation registers the operation and all of its children to the in-memory operations map and then
+// starts the parent (which will handle starting the children).
+func restartOperation(op *Operation) {
+	// Don't restart operations which are already in a final state.
+	if !op.IsRunning() {
+		return
+	}
+
+	operationsLock.Lock()
+	operations[op.id] = op
+	for _, childOp := range op.children {
+		operations[childOp.id] = childOp
+	}
+
+	operationsLock.Unlock()
+
+	op.logger.Debug("Restarting operation", logger.Ctx{"id": op.id})
+	op.start()
+}
+
+// RestartDurableOperationsFromNode restarts all durable operations that were running on the node
+// which failed to respond to heartbeats.
+func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeID int64) error {
+	operations, err := RelocateAndReconstructRunningDurableOperationsFromNode(ctx, s, nodeID)
+	if err != nil {
+		return err
+	}
+
+	for _, op := range operations {
+		restartOperation(op)
+	}
+
+	return nil
 }
