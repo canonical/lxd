@@ -364,3 +364,30 @@ func PruneExpiredOperations(ctx context.Context, s *state.State) error {
 
 	return nil
 }
+
+// loadAndConstructOperationFromDB queries for an operation and all of its children, then reconstructs the result into an [Operation].
+func loadAndConstructOperationFromDB(ctx context.Context, s *state.State, opID string) (*Operation, error) {
+	var ops []*Operation
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbOps, err := cluster.GetOperationWithChildren(ctx, tx.Tx(), opID)
+		if err != nil {
+			return fmt.Errorf("Failed getting operation records: %w", err)
+		}
+
+		ops, err = ConstructOperationsFromDB(ctx, tx.Tx(), s, dbOps)
+		if err != nil {
+			return fmt.Errorf("Failed constructing operation: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ops) != 1 {
+		return nil, fmt.Errorf(`Expected to construct 1 operation but constructed "%d"`, len(ops))
+	}
+
+	return ops[0], nil
+}
