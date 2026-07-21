@@ -112,6 +112,14 @@ type Identity struct {
 	//
 	// API extension: access_management_tls.
 	TLSCertificate string `json:"tls_certificate" yaml:"tls_certificate"`
+
+	// ExpiresAt is the expiration time of the credential belonging to the identity. For TLS identities this is the
+	// expiry of the certificate, and for bearer identities it is the expiry of the most recently issued token.
+	// It is unset for identities whose credential has no expiry, that have no credential yet (pending identities),
+	// or whose token has been revoked.
+	//
+	// API extension: access_management_expiry.
+	ExpiresAt *time.Time `json:"expires_at,omitempty" yaml:"expires_at,omitempty"`
 }
 
 // Writable converts a Identity struct into a IdentityPut struct (filters read-only fields).
@@ -149,10 +157,6 @@ type IdentityInfo struct {
 	// FineGrained is a boolean indicating whether the identity is fine-grained,
 	// meaning that permissions are managed via group membership.
 	FineGrained bool `json:"fine_grained" yaml:"fine_grained"`
-
-	// ExpiresAt is the expiration time of the credential used to authenticate the caller.
-	// It is set only when client is trusted, and authentication method is either bearer or TLS.
-	ExpiresAt *time.Time `json:"expires_at,omitempty" yaml:"expires_at,omitempty"`
 }
 
 // IdentityPut contains the editable fields of an IdentityInfo.

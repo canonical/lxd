@@ -1622,6 +1622,13 @@ func identityGetCurrent(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// Populate metadata expiry from the requestor. This ensures bearer tokens issued before their
+	// expiry was recorded have the field correctly populated from the authenticating token/request.
+	expiresAt := requestor.ExpiresAt()
+	if expiresAt != nil {
+		apiIdentity.ExpiresAt = expiresAt
+	}
+
 	effectivePermissions := make([]api.Permission, 0, len(permissions))
 	for _, permission := range permissions {
 		effectivePermissions = append(effectivePermissions, api.Permission{
@@ -1636,7 +1643,6 @@ func identityGetCurrent(d *Daemon, r *http.Request) response.Response {
 		EffectiveGroups:      effectiveGroups,
 		EffectivePermissions: effectivePermissions,
 		FineGrained:          identityType.IsFineGrained(),
-		ExpiresAt:            requestor.ExpiresAt(),
 	})
 }
 
