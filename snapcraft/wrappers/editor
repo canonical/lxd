@@ -28,6 +28,7 @@ SNAP_BASE="$(sed -n '/^name:/ s/^name:\s*\(core[0-9]\{2\}\)/\1/p' /meta/snap.yam
 
 USERNS=1
 [ -e /proc/sys/kernel/unprivileged_userns_clone ] && grep -qxF 0 /proc/sys/kernel/unprivileged_userns_clone && USERNS=0
+[ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ] && grep -qxF 1 /proc/sys/kernel/apparmor_restrict_unprivileged_userns && USERNS=0
 
 find_and_spawn() {
     for path in / /usr/ /usr/local/; do
