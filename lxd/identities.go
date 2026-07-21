@@ -530,7 +530,8 @@ func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		return nil
+		// Record the expiry alongside the new signing key so that it can be reported when the identity is listed.
+		return dbCluster.SetBearerIdentityTokenExpiry(ctx, tx.Tx(), id.ID, &expiresAt)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -610,7 +611,8 @@ func identityBearerTokenDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed revoking token: %w", err)
 		}
 
-		return nil
+		// Clear the recorded expiry so that the revoked token is no longer reported when the identity is listed.
+		return dbCluster.SetBearerIdentityTokenExpiry(ctx, tx.Tx(), id.ID, nil)
 	})
 	if err != nil {
 		return response.SmartError(err)
