@@ -173,6 +173,7 @@ test_image_metadata_confined() {
   # Plant an unconfined metadata.yaml file into the container's drive whilst it is mounted.
   lxc init testimage "${ct_name}"
   lxc start "${ct_name}"
+  # shellcheck disable=SC2153
   ct_meta_path="$(realpath "${LXD_DIR}/containers/${ct_name}/metadata.yaml")"
   rm -f "${ct_meta_path}"
   ln -s /etc/hostname "${ct_meta_path}"
@@ -220,6 +221,7 @@ test_image_backup_confined() {
   # Plant an unconfined backup.yaml file into the container's drive whilst it is mounted.
   lxc init testimage "${ct_name}"
   lxc start "${ct_name}"
+  # shellcheck disable=SC2153
   ct_backup_path="$(realpath "${LXD_DIR}/containers/${ct_name}/backup.yaml")"
   mv "${ct_backup_path}" "${ct_backup_path}.backup"
   ln -s /etc/hostname "${ct_backup_path}"
@@ -262,6 +264,7 @@ EOF
 
     # At this stage the container is broken.
     # Fix the backup.yaml manually.
+    # shellcheck disable=SC2153
     rm -rf "${LXD_DIR}/storage-pools/${pool_name}/containers/${ct_name}/backup.yaml"
     mv "${ct_backup_path}.backup" "${ct_backup_path}"
 
