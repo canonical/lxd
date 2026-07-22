@@ -1515,9 +1515,9 @@ parts:
 
   lxd-ui:
     source: https://github.com/canonical/lxd-ui
+    source-commit: 465283e8f63ae6636cab2fc0a5258d3c61f04d67 # "0.5.1"
     source-depth: 1
     source-type: git
-    source-branch: stable-5.0
     plugin: nil
     override-prime: |-
       [ "$(uname -m)" = "riscv64" ] && exit 0
