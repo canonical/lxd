@@ -1073,7 +1073,36 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 		return false, err
 	}
 
-	conn, _, err := ndp.Listen(networkInterface, ndp.LinkLocal)
+	// Use the interface's numeric index as its name when probing. The ndp
+	// library derives the IPv6 scope zone from the interface name, which Go's
+	// net package resolves to a scope ID via a name-based cache. Under heavy
+	// interface churn that cache can return a stale or zero index, causing the
+	// kernel to reject the scoped link-local bind ("no such device") or the
+	// solicited-node multicast send ("invalid argument"). A numeric zone is
+	// resolved directly to the scope ID, bypassing the name cache. Interface
+	// address lookups used by ndp.Listen key off the index, so this is safe.
+	probeInterface := &net.Interface{
+		Index:        networkInterface.Index,
+		MTU:          networkInterface.MTU,
+		Name:         strconv.Itoa(networkInterface.Index),
+		HardwareAddr: networkInterface.HardwareAddr,
+		Flags:        networkInterface.Flags,
+	}
+
+	// Prefer binding to the interface's link-local address so that neighbour
+	// solicitations carry a proper source and elicit a unicast advertisement.
+	// If no link-local address is available (e.g. a bridge that has not yet
+	// configured one), fall back to other unicast address types assigned to the
+	// interface. ndp.Unspecified (::) is intentionally excluded: sending from ::
+	// causes EINVAL on newer kernels.
+	var conn *ndp.Conn
+	for _, addrType := range []ndp.Addr{ndp.LinkLocal, ndp.Global, ndp.UniqueLocal} {
+		conn, _, err = ndp.Listen(probeInterface, addrType)
+		if err == nil {
+			break
+		}
+	}
+
 	if err != nil {
 		return false, err
 	}
