@@ -290,6 +290,7 @@ readonly test_group_standalone_storage=(
     "storage_driver_dir"
     "storage_driver_zfs"
     "storage_driver_pure"
+    "storage_pools"
     "storage_buckets"
     "storage_volume_import"
     "storage_volume_initial_config"
