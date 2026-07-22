@@ -216,4 +216,4 @@ The LXD repository includes a [Copilot instructions file](https://github.com/can
 
 ## More information
 
-For more information, including details about contributing to the code as well as the documentation for LXD, see [How to contribute to LXD](https://documentation.ubuntu.com/lxd/latest/contributing/) in the documentation.
+For more information, including details about contributing to the code as well as the documentation for LXD, see [How to contribute to LXD](https://canonical.com/lxd/docs/latest/contributing/) in the documentation.

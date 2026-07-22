@@ -3174,7 +3174,7 @@ func (d *qemu) generateConfigShare() error {
 # LXD VM, rather than being enabled at boot.
 [Unit]
 Description=LXD - agent
-Documentation=https://documentation.ubuntu.com/lxd/latest/
+Documentation=https://canonical.com/lxd/docs/latest/
 Before=multi-user.target cloud-init-local.service shutdown.target umount.target
 After=local-fs.target systemd-journald.socket
 Conflicts=shutdown.target

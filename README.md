@@ -14,11 +14,11 @@ You should consider using LXD if you want to containerize different environments
 
 ## Get started
 
-See [Getting started](https://documentation.ubuntu.com/lxd/latest/getting_started/) in the LXD documentation for installation instructions and first steps.
+See [Getting started](https://canonical.com/lxd/docs/latest/getting_started/) in the LXD documentation for installation instructions and first steps.
 
 - Release announcements: [`https://discourse.ubuntu.com/tags/c/project/lxd/news/143/release`](https://discourse.ubuntu.com/tags/c/project/lxd/news/143/release)
 - Release tarballs: [`https://github.com/canonical/lxd/releases/`](https://github.com/canonical/lxd/releases/)
-- Documentation: [`https://documentation.ubuntu.com/lxd/latest/`](https://documentation.ubuntu.com/lxd/latest/)
+- Documentation: [`https://canonical.com/lxd/docs/latest/`](https://canonical.com/lxd/docs/latest/)
 
 ## Status
 
@@ -40,7 +40,7 @@ macOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | `brew 
 
 The LXD snap packaging repository is available [here](https://github.com/canonical/lxd-pkg-snap).
 
-For more instructions on installing LXD for a wide variety of Linux distributions and operating systems, and to install LXD from source, see [How to install LXD](https://documentation.ubuntu.com/lxd/latest/installing/) in the documentation.
+For more instructions on installing LXD for a wide variety of Linux distributions and operating systems, and to install LXD from source, see [How to install LXD](https://canonical.com/lxd/docs/latest/installing/) in the documentation.
 
 ## Client SDK packages
 
@@ -53,7 +53,7 @@ Language  | URL
 Go        | https://pkg.go.dev/github.com/canonical/lxd/client
 Python    | https://github.com/canonical/pylxd
 
-For more information on using the LXD API, see [REST API](https://documentation.ubuntu.com/lxd/latest/restapi_landing/) in the documentation.
+For more information on using the LXD API, see [REST API](https://canonical.com/lxd/docs/latest/restapi_landing/) in the documentation.
 
 ## Tools for managing LXD
 
@@ -80,9 +80,9 @@ Consider the following aspects to ensure that your LXD installation is secure:
 - Configure your network interfaces to be secure.
 - Do not use privileged containers unless required. If you use privileged containers, put appropriate security measures in place.
   <!-- Include end security -->
-  See [Container security](https://documentation.ubuntu.com/lxd/latest/explanation/security/#container-security) for more information.
+  See [Container security](https://canonical.com/lxd/docs/latest/explanation/security/#container-security) for more information.
 
-See [Security](https://documentation.ubuntu.com/lxd/latest/explanation/security/) for detailed information.
+See [Security](https://canonical.com/lxd/docs/latest/explanation/security/) for detailed information.
 
 **IMPORTANT:**
 <!-- Include start security note -->
@@ -103,7 +103,7 @@ Ask questions or engage in discussions: [`https://discourse.ubuntu.com/c/project
 
 ### Documentation
 
-Access the official documentation: [`https://documentation.ubuntu.com/lxd/latest/`](https://documentation.ubuntu.com/lxd/latest/)
+Access the official documentation: [`https://canonical.com/lxd/docs/latest/`](https://canonical.com/lxd/docs/latest/)
 
 ### Bug reports and feature requests
 
@@ -115,7 +115,7 @@ You can find additional resources on the [LXD website](https://canonical.com/lxd
 
 ## Commercial support
 
-LTS releases of LXD receive standard support for five years, which means they receive continuous updates. Commercial support for LXD is provided as part of [Ubuntu Pro](https://ubuntu.com/pro) (both Infra-only and full Ubuntu Pro), including for [attached LXD instances running Ubuntu](https://documentation.ubuntu.com/lxd/latest/howto/instances_ubuntu_pro_attach/). See the [full service description](https://ubuntu.com/legal/ubuntu-pro-description) for details.
+LTS releases of LXD receive standard support for five years, which means they receive continuous updates. Commercial support for LXD is provided as part of [Ubuntu Pro](https://ubuntu.com/pro) (both Infra-only and full Ubuntu Pro), including for [attached LXD instances running Ubuntu](https://canonical.com/lxd/docs/latest/howto/instances_ubuntu_pro_attach/). See the [full service description](https://ubuntu.com/legal/ubuntu-pro-description) for details.
 
 Managed solutions and firefighting support are also available for LXD deployments. See: [Managed services](https://ubuntu.com/managed).
 
