@@ -21,7 +21,6 @@ import (
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/subprocess"
 	"github.com/canonical/lxd/shared"
-	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
 )
 
@@ -272,12 +271,6 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 
 	if cmd == "" {
 		return nil, ErrMissingVirtiofsd
-	}
-
-	// Currently, virtiofs is broken on at least the ARM architecture.
-	// We therefore restrict virtiofs to 64BIT_INTEL_X86.
-	if inst.Architecture() != osarch.ARCH_64BIT_INTEL_X86 {
-		return nil, UnsupportedError{msg: "Architecture unsupported"}
 	}
 
 	if shared.IsTrue(inst.ExpandedConfig()["migration.stateful"]) {

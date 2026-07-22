@@ -1153,7 +1153,8 @@ parts:
   virtiofsd:
     plugin: nil
     stage-packages:
-      - to amd64:
+      - to armhf: []
+      - else:
         - virtiofsd
     organize:
       usr/libexec/: bin/

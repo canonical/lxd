@@ -114,6 +114,26 @@ func qemuMachineType(architecture int) string {
 	return machineType
 }
 
+// qemuDefaultRAMObject returns QEMU's default RAM object name for the architecture.
+// Reusing that name for an explicit main memory backend preserves migration compatibility.
+// An empty string is returned for architectures without a known default RAM object.
+func qemuDefaultRAMObject(architecture int) string {
+	switch architecture {
+	case osarch.ARCH_64BIT_INTEL_X86:
+		return "pc.ram"
+	case osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN, osarch.ARCH_32BIT_ARMV8_LITTLE_ENDIAN, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN:
+		return "mach-virt.ram"
+	case osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN:
+		return "ppc_spapr.ram"
+	case osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN:
+		return "riscv_virt_board.ram"
+	case osarch.ARCH_64BIT_S390_BIG_ENDIAN:
+		return "s390.ram"
+	}
+
+	return ""
+}
+
 type qemuBaseOpts struct {
 	architecture int
 }
@@ -134,18 +154,31 @@ func qemuBase(opts *qemuBaseOpts) []cfgSection {
 		acpi = "off"
 	}
 
+	entries := []cfgEntry{
+		{key: "graphics", value: "off"},
+		{key: "type", value: machineType},
+		{key: "gic-version", value: gicVersion},
+		{key: "cap-large-decr", value: capLargeDecr},
+		{key: "accel", value: "kvm"},
+		{key: "acpi", value: acpi},
+		{key: "usb", value: "off"},
+	}
+
+	// On non-x86_64 architectures with a known default RAM object, the guest's main RAM
+	// is defined as an explicit shared memory backend (see qemuCPU) so that vhost-user
+	// devices such as virtiofsd can map it.
+	// The backend is attached to the machine through the "memory-backend" property.
+	if opts.architecture != osarch.ARCH_64BIT_INTEL_X86 {
+		memoryBackend := qemuDefaultRAMObject(opts.architecture)
+		if memoryBackend != "" {
+			entries = append(entries, cfgEntry{key: "memory-backend", value: memoryBackend})
+		}
+	}
+
 	sections := []cfgSection{{
 		name:    "machine",
 		comment: "Machine",
-		entries: []cfgEntry{
-			{key: "graphics", value: "off"},
-			{key: "type", value: machineType},
-			{key: "gic-version", value: gicVersion},
-			{key: "cap-large-decr", value: capLargeDecr},
-			{key: "accel", value: "kvm"},
-			{key: "acpi", value: acpi},
-			{key: "usb", value: "off"},
-		},
+		entries: entries,
 	}}
 
 	if opts.architecture == osarch.ARCH_64BIT_INTEL_X86 {
@@ -484,7 +517,7 @@ type qemuNumaEntry struct {
 }
 
 type qemuCPUOpts struct {
-	architecture        string
+	architecture        int
 	cpuCount            int
 	cpuRequested        int
 	cpuSockets          int
@@ -567,8 +600,38 @@ func qemuCPU(opts *qemuCPUOpts, pinning bool) []cfgSection {
 		entries: entries,
 	}}
 
-	if opts.architecture != "x86_64" {
-		return sections
+	if opts.architecture != osarch.ARCH_64BIT_INTEL_X86 {
+		ramObjectName := qemuDefaultRAMObject(opts.architecture)
+		if ramObjectName == "" {
+			// Architecture without a known default RAM object; leave the guest
+			// memory as QEMU's implicit default.
+			return sections
+		}
+
+		// Define the guest's main RAM as a shared memory backend so that vhost-user
+		// devices such as virtiofsd can map it. It is attached to the machine through
+		// the "memory-backend" property set in qemuBase.
+		numaNodes := qemuCPUNumaHostNode(opts, 0)
+		if len(numaNodes) == 0 {
+			return sections
+		}
+
+		ramObject := numaNodes[0]
+		ramObject.name = fmt.Sprintf("object %q", ramObjectName)
+		ramObject.entries = append(ramObject.entries, cfgEntry{key: "share", value: "on"})
+
+		// Apply NUMA memory pinning if configured.
+		if len(opts.cpuNumaHostNodes) > 0 {
+			ramObject.entries = append(ramObject.entries, cfgEntry{key: "policy", value: "bind"})
+			for index, element := range opts.cpuNumaHostNodes {
+				ramObject.entries = append(ramObject.entries, cfgEntry{
+					key:   fmt.Sprintf("host-nodes.%d", index),
+					value: strconv.FormatUint(element, 10),
+				})
+			}
+		}
+
+		return append(sections, ramObject)
 	}
 
 	share := cfgEntry{key: "share", value: "on"}
