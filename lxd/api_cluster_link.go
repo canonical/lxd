@@ -677,8 +677,12 @@ func clusterLinkDelete(d *Daemon, r *http.Request) response.Response {
 type clusterLinkRequestMode int
 
 const (
+	// clusterLinkRequestPendingPublic creates a pending public cluster link and fetches the remote cluster's certificate for user verification.
+	clusterLinkRequestPendingPublic clusterLinkRequestMode = iota
+	// clusterLinkRequestConfirmPublic pins the previously fetched certificate onto a pending public cluster link, activating it.
+	clusterLinkRequestConfirmPublic
 	// clusterLinkRequestPending creates a pending cluster link and returns a trust token for the remote cluster.
-	clusterLinkRequestPending clusterLinkRequestMode = iota
+	clusterLinkRequestPending
 	// clusterLinkRequestUnidirectional creates a unidirectional cluster link using a trust token from the remote cluster.
 	clusterLinkRequestUnidirectional
 	// clusterLinkRequestBidirectional creates a bidirectional cluster link using a trust token from the remote cluster.
@@ -690,6 +694,34 @@ const (
 // validateClusterLinksPostRequest validates the field combinations of a cluster link creation request and
 // classifies which flow it is for. Returned errors carry the HTTP status code to respond with.
 func validateClusterLinksPostRequest(req api.ClusterLinksPost, clusterLinkType dbCluster.ClusterLinkType, addresses []string) (clusterLinkRequestMode, error) {
+	if clusterLinkType == dbCluster.ClusterLinkType(api.ClusterLinkTypePublic) {
+		if req.Name == "" {
+			return 0, api.StatusErrorf(http.StatusBadRequest, "Public cluster links require a name")
+		}
+
+		if req.TrustToken != "" {
+			return 0, api.StatusErrorf(http.StatusBadRequest, "Trust token cannot be set for public cluster links")
+		}
+
+		if len(req.AuthGroups) > 0 {
+			return 0, api.StatusErrorf(http.StatusBadRequest, "Auth groups cannot be set for public cluster links")
+		}
+
+		if req.RemoteAddress == "" {
+			return 0, api.StatusErrorf(http.StatusBadRequest, "Public cluster links require remote_address")
+		}
+
+		if req.ClusterCertificate == "" {
+			return clusterLinkRequestPendingPublic, nil
+		}
+
+		return clusterLinkRequestConfirmPublic, nil
+	}
+
+	if req.RemoteAddress != "" {
+		return 0, api.StatusErrorf(http.StatusBadRequest, "Remote address can only be set for public cluster links")
+	}
+
 	if req.Name != "" && req.TrustToken == "" {
 		return clusterLinkRequestPending, nil
 	}
@@ -736,6 +768,7 @@ func validateClusterLinksPostRequest(req api.ClusterLinksPost, clusterLinkType d
 //	  "200":
 //	    oneOf:
 //	      - $ref: "#/responses/CertificateAddToken"
+//	      - $ref: "#/responses/ClusterLinkCertificate"
 //	      - $ref: "#/responses/EmptySyncResponse"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
@@ -772,10 +805,20 @@ func clusterLinksPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor := request.CreateRequestor(r.Context())
+
+	// Public links create no identity, so they're dispatched before notify is set up.
+	if mode == clusterLinkRequestPendingPublic {
+		return clusterLinkCreatePendingPublic(s, r, req, requestor)
+	}
+
+	if mode == clusterLinkRequestConfirmPublic {
+		return clusterLinkConfirmPublic(s, r, req, requestor)
+	}
+
 	networkCert := s.Endpoints.NetworkCert()
 	serverCert := s.ServerCert()
 	notify := newIdentityNotificationFunc(s, r, networkCert, serverCert)
-	requestor := request.CreateRequestor(r.Context())
 
 	var trustToken *api.CertificateAddToken
 	if req.TrustToken != "" {
@@ -1463,7 +1506,13 @@ func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed loading cluster link %q: %w", name, err))
 	}
 
-	args := cluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
+	var args *lxd.ConnectionArgs
+	if clusterLink.Type == api.ClusterLinkTypePublic {
+		args = cluster.GetPublicClusterLinkConnectionArgs(targetCert)
+	} else {
+		args = cluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
+	}
+
 	args.SkipGetServer = true
 
 	// Determine cluster link member status by establishing a connection to each member's address.
@@ -1655,4 +1704,126 @@ func clusterLinkCreateUnidirectional(s *state.State, r *http.Request, req api.Cl
 	}
 
 	return response.SmartError(api.StatusErrorf(http.StatusBadGateway, "Failed activating unidirectional cluster link %q: %s", req.Name, strings.Join(errStrings, "; ")))
+}
+
+// clusterLinkCreatePendingPublic handles the first phase of public cluster link creation: it fetches the
+// remote cluster's certificate and creates a pending cluster link row with no certificate pinned. The
+// caller must present the returned fingerprint/certificate to the user and, if accepted, resubmit the
+// certificate via a confirm request (clusterLinkConfirmPublic) to pin it and activate the link.
+// No identity is created on either side.
+func clusterLinkCreatePendingPublic(s *state.State, r *http.Request, req api.ClusterLinksPost, requestor *api.EventLifecycleRequestor) response.Response {
+	// Check if the caller has permission to create cluster links.
+	err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanCreateClusterLinks)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	canonicalAddress := util.CanonicalNetworkAddress(req.RemoteAddress, shared.HTTPSDefaultPort)
+	cert, err := shared.GetRemoteCertificate(r.Context(), "https://"+canonicalAddress, version.UserAgent)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed retrieving certificate from %q: %w", req.RemoteAddress, err))
+	}
+
+	// Confirm the address is actually serving the LXD API before returning its certificate for pinning.
+	err = cluster.VerifyClusterLinkServer(r.Context(), canonicalAddress, cert, version.UserAgent)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed verifying %q is a LXD server: %w", req.RemoteAddress, err))
+	}
+
+	pemCert := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		clusterLinkID, err := dbCluster.CreateClusterLink(ctx, tx.Tx(), dbCluster.ClusterLinkRow{
+			IdentityID:  nil,
+			Name:        req.Name,
+			Description: req.Description,
+			Type:        dbCluster.ClusterLinkType(api.ClusterLinkTypePublic),
+		})
+		if err != nil {
+			return fmt.Errorf("Failed creating cluster link %q: %w", req.Name, err)
+		}
+
+		if req.Config == nil {
+			req.Config = map[string]string{}
+		}
+
+		err = clusterLinkValidateConfig(req.Config)
+		if err != nil {
+			return err
+		}
+
+		// volatile.addresses is intentionally not set yet: the link stays inert until confirmed.
+		return dbCluster.ClusterLinksConfigStore().Set(ctx, tx.Tx(), clusterLinkID, req.Config)
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(req.Name, requestor, nil))
+
+	return response.SyncResponse(true, api.ClusterLinkCertificate{
+		Fingerprint: shared.CertFingerprint(cert),
+		Certificate: pemCert,
+	})
+}
+
+// clusterLinkConfirmPublic handles the second phase of public cluster link creation: it pins the
+// certificate fetched by clusterLinkCreatePendingPublic onto the pending link and activates it. The
+// certificate is not re-fetched or re-verified here; it must match what the caller was shown to confirm.
+func clusterLinkConfirmPublic(s *state.State, r *http.Request, req api.ClusterLinksPost, requestor *api.EventLifecycleRequestor) response.Response {
+	// Check if the caller has permission to create cluster links.
+	err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanCreateClusterLinks)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	remoteCert, err := shared.ParseCert([]byte(req.ClusterCertificate))
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Failed parsing cluster certificate: %w", err))
+	}
+
+	fingerprint := shared.CertFingerprint(remoteCert)
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), req.Name)
+		if err != nil {
+			return fmt.Errorf("Failed loading pending cluster link %q: %w", req.Name, err)
+		}
+
+		if clusterLink.Type != dbCluster.ClusterLinkType(api.ClusterLinkTypePublic) {
+			return api.StatusErrorf(http.StatusBadRequest, "Cluster link %q is not a public cluster link", req.Name)
+		}
+
+		_, err = dbCluster.GetClusterLinkPEMCertificate(ctx, tx.Tx(), clusterLink.ID)
+		if err == nil {
+			return api.StatusErrorf(http.StatusConflict, "Cluster link %q has already been confirmed", req.Name)
+		} else if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		}
+
+		err = dbCluster.SetClusterLinkCertificate(ctx, tx.Tx(), clusterLink.ID, fingerprint, req.ClusterCertificate)
+		if err != nil {
+			return err
+		}
+
+		config, err := dbCluster.ClusterLinksConfigStore().GetByEntityIDs(ctx, tx.Tx(), clusterLink.ID)
+		if err != nil {
+			return err
+		}
+
+		if config[clusterLink.ID] == nil {
+			config[clusterLink.ID] = map[string]string{}
+		}
+
+		config[clusterLink.ID]["volatile.addresses"] = req.RemoteAddress
+
+		return dbCluster.ClusterLinksConfigStore().Set(ctx, tx.Tx(), clusterLink.ID, config[clusterLink.ID])
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkUpdated.Event(req.Name, requestor, nil))
+
+	return response.EmptySyncResponse
 }

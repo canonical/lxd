@@ -83,6 +83,15 @@ func CheckClusterLinkCertificate(ctx context.Context, addresses []string, finger
 				return nil
 			}
 
+			// Confirm the address is actually serving the LXD API before trusting its certificate.
+			err = VerifyClusterLinkServer(ctx, networkAddress, cert, userAgent)
+			if err != nil {
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("Failed verifying %q is a LXD server: %w", address, err))
+				mu.Unlock()
+				return nil
+			}
+
 			once.Do(func() {
 				firstResult = result{cert: cert, address: address}
 			})
@@ -100,6 +109,28 @@ func CheckClusterLinkCertificate(ctx context.Context, addresses []string, finger
 	}
 
 	return nil, "", fmt.Errorf("Failed retrieving cluster certificate from any address: %w", errors.Join(errs...))
+}
+
+// VerifyClusterLinkServer confirms that the given address is actually serving the LXD API by connecting
+// with the pinned certificate (without presenting a client certificate) and querying the /1.0 endpoint.
+// This guards against pinning the certificate of an arbitrary HTTPS server that isn't a LXD server.
+func VerifyClusterLinkServer(ctx context.Context, address string, cert *x509.Certificate, userAgent string) error {
+	certStr := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+
+	client, err := lxd.ConnectLXDWithContext(ctx, "https://"+address, &lxd.ConnectionArgs{
+		TLSServerCert: certStr,
+		UserAgent:     userAgent,
+	})
+	if err != nil {
+		return fmt.Errorf("Failed connecting to %q: %w", address, err)
+	}
+
+	_, _, err = client.GetServer()
+	if err != nil {
+		return fmt.Errorf("Failed querying /1.0 endpoint at %q: %w", address, err)
+	}
+
+	return nil
 }
 
 // GetClusterLinkConnectionArgs builds connection args for cluster-to-cluster communication.
@@ -163,6 +194,17 @@ func LoadClusterLinkAndCert(ctx context.Context, tx *sql.Tx, name string) (id in
 	return dbLink.ID, clusterLink, cert, nil
 }
 
+// GetPublicClusterLinkConnectionArgs builds connection args for public cluster links.
+// No client certificate is presented; only the server certificate is pinned.
+func GetPublicClusterLinkConnectionArgs(targetCert *x509.Certificate) *lxd.ConnectionArgs {
+	targetCertStr := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
+
+	return &lxd.ConnectionArgs{
+		TLSServerCert: targetCertStr,
+		UserAgent:     version.UserAgent,
+	}
+}
+
 // ConnectCluster connects to a linked cluster using the provided connection args, trying each address until one succeeds.
 func ConnectCluster(ctx context.Context, clusterLink api.ClusterLink, args *lxd.ConnectionArgs) (lxd.InstanceServer, error) {
 	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
@@ -205,9 +247,15 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 		return nil
 	}
 
-	clusterCert := s.Endpoints.NetworkCert()
+	var args *lxd.ConnectionArgs
+	if clusterLink.Type == api.ClusterLinkTypePublic {
+		args = GetPublicClusterLinkConnectionArgs(targetCert)
+	} else {
+		clusterCert := s.Endpoints.NetworkCert()
+		args = GetClusterLinkConnectionArgs(clusterCert, targetCert)
+	}
 
-	targetClient, err := ConnectCluster(ctx, *clusterLink, GetClusterLinkConnectionArgs(clusterCert, targetCert))
+	targetClient, err := ConnectCluster(ctx, *clusterLink, args)
 	if err != nil {
 		return fmt.Errorf("Failed connecting to target cluster link: %w", err)
 	}
