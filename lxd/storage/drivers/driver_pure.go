@@ -28,6 +28,9 @@ var pureSupportedConnectors = []string{
 	connectors.TypeNVMeTCP,
 }
 
+// pureDefaultMode represents the default Pure Storage mode.
+const pureDefaultMode = connectors.TypeNVMeTCP
+
 // pureMinVolumeSizeBytes defines the minimum size of a Pure Storage volume, which is 1MiB.
 const pureMinVolumeSizeBytes = 1024 * 1024
 
@@ -122,7 +125,7 @@ func (d *pure) Info() Info {
 func (d *pure) FillConfig() error {
 	// Use NVMe by default.
 	if d.config["pure.mode"] == "" {
-		d.config["pure.mode"] = connectors.TypeNVMeTCP
+		d.config["pure.mode"] = pureDefaultMode
 	}
 
 	return nil
@@ -183,6 +186,12 @@ func (d *pure) Validate(config map[string]string) error {
 	newMode := config["pure.mode"]
 	oldMode := d.config["pure.mode"]
 
+	// If mode is not provided, use default mode. This is needed for cluster pool creation to
+	// ensure required modules are available and loaded on all cluster members.
+	if newMode == "" {
+		newMode = pureDefaultMode
+	}
+
 	// Ensure pure.mode cannot be changed to avoid leaving volume mappings
 	// and prevent disturbing running instances.
 	if oldMode != "" && oldMode != newMode {
@@ -195,16 +204,14 @@ func (d *pure) Validate(config map[string]string) error {
 	// on the other cluster members too. This can be done here since Validate
 	// gets executed on every cluster member when receiving the cluster
 	// notification to finally create the pool.
-	if newMode != "" {
-		connector, err := connectors.NewConnector(newMode, "")
-		if err != nil {
-			return fmt.Errorf("Pure Storage mode %q is not supported: %w", newMode, err)
-		}
+	connector, err := connectors.NewConnector(newMode, "")
+	if err != nil {
+		return fmt.Errorf("Pure Storage mode %q is not supported: %w", newMode, err)
+	}
 
-		err = connector.LoadModules()
-		if err != nil {
-			return fmt.Errorf("Pure Storage mode %q is not supported due to missing kernel modules: %w", newMode, err)
-		}
+	err = connector.LoadModules()
+	if err != nil {
+		return fmt.Errorf("Pure Storage mode %q is not supported due to missing kernel modules: %w", newMode, err)
 	}
 
 	return nil

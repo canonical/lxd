@@ -25,6 +25,9 @@ var alletraSupportedConnectors = []string{
 	connectors.TypeISCSI,
 }
 
+// alletraDefaultMode represents the default HPE Alletra Storage mode.
+const alletraDefaultMode = connectors.TypeNVMeTCP
+
 type alletra struct {
 	common
 
@@ -120,7 +123,7 @@ func (d *alletra) Info() Info {
 func (d *alletra) FillConfig() error {
 	// Use NVMe by default.
 	if d.config["alletra.mode"] == "" {
-		d.config["alletra.mode"] = connectors.TypeNVMeTCP
+		d.config["alletra.mode"] = alletraDefaultMode
 	}
 
 	return nil
@@ -192,6 +195,12 @@ func (d *alletra) Validate(config map[string]string) error {
 	newMode := config["alletra.mode"]
 	oldMode := d.config["alletra.mode"]
 
+	// If mode is not provided, use default mode. This is needed for cluster pool creation to
+	// ensure required modules are available and loaded on all cluster members.
+	if newMode == "" {
+		newMode = alletraDefaultMode
+	}
+
 	// Ensure alletra.mode cannot be changed to avoid leaving volume mappings
 	// and prevent disturbing running instances.
 	if oldMode != "" && oldMode != newMode {
@@ -204,16 +213,14 @@ func (d *alletra) Validate(config map[string]string) error {
 	// on the other cluster members too. This can be done here since Validate
 	// gets executed on every cluster member when receiving the cluster
 	// notification to finally create the pool.
-	if newMode != "" {
-		connector, err := connectors.NewConnector(newMode, "")
-		if err != nil {
-			return fmt.Errorf("Alletra Storage mode %q is not supported: %w", newMode, err)
-		}
+	connector, err := connectors.NewConnector(newMode, "")
+	if err != nil {
+		return fmt.Errorf("Alletra Storage mode %q is not supported: %w", newMode, err)
+	}
 
-		err = connector.LoadModules()
-		if err != nil {
-			return fmt.Errorf("Alletra Storage mode %q is not supported due to missing kernel modules: %w", newMode, err)
-		}
+	err = connector.LoadModules()
+	if err != nil {
+		return fmt.Errorf("Alletra Storage mode %q is not supported due to missing kernel modules: %w", newMode, err)
 	}
 
 	return nil
