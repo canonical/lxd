@@ -29,7 +29,7 @@ else
 endif
 DQLITE_PATH=$(DEPS_PATH)/dqlite
 LIBLXC_PATH=$(DEPS_PATH)/liblxc
-LIBLXC_ROOTFS_MOUNT_PATH=$(GOPATH)/bin/liblxc/rootfs
+LIBLXC_ROOTFS_MOUNT_PATH=$(LIBLXC_PATH)/rootfs
 
 export CGO_CFLAGS ?= -I$(DQLITE_PATH)/include/ -I$(LIBLXC_PATH)/include/
 export CGO_LDFLAGS ?= -L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/
