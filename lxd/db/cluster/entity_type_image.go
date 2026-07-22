@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeImage implements entityTypeDBInfo for an Image.
@@ -24,8 +26,8 @@ func (e entityTypeImage) urlsByProjectQuery() string {
 	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
-func (e entityTypeImage) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE images.id = ?"
+func (e entityTypeImage) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE images.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeImage) idFromURLQuery() string {

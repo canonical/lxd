@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeClusterMember implements entityTypeDBInfo for a ClusterMember.
@@ -17,8 +19,8 @@ func (e entityTypeClusterMember) allURLsQuery() string {
 	return fmt.Sprintf(`SELECT %d, nodes.id, '', '', json_array(nodes.name) FROM nodes`, e.code())
 }
 
-func (e entityTypeClusterMember) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE nodes.id = ?"
+func (e entityTypeClusterMember) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE nodes.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeClusterMember) idFromURLQuery() string {

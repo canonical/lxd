@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeImageAlias implements entityTypeDBInfo for an ImageAlias.
@@ -24,8 +26,8 @@ func (e entityTypeImageAlias) urlsByProjectQuery() string {
 	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
-func (e entityTypeImageAlias) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE images_aliases.id = ?"
+func (e entityTypeImageAlias) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE images_aliases.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeImageAlias) idFromURLQuery() string {

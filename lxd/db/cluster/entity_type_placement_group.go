@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"strconv"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypePlacementGroup implements [entityTypeDBInfo] for an [api.PlacementGroup].
@@ -26,8 +28,8 @@ JOIN projects ON projects.id = placement_groups.project_id
 `
 }
 
-func (e entityTypePlacementGroup) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE placement_groups.id = ?"
+func (e entityTypePlacementGroup) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE placement_groups.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypePlacementGroup) urlsByProjectQuery() string {

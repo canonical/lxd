@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeNetwork implements entityTypeDBInfo for a Network.
@@ -24,8 +26,8 @@ func (e entityTypeNetwork) urlsByProjectQuery() string {
 	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
-func (e entityTypeNetwork) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE networks.id = ?"
+func (e entityTypeNetwork) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE networks.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeNetwork) idFromURLQuery() string {

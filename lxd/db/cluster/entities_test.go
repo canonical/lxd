@@ -26,7 +26,7 @@ func TestEntityStatementValidity(t *testing.T) {
 	}
 
 	for entityType, info := range entityTypes {
-		urlByIDQuery := info.urlByIDQuery()
+		urlByIDQuery := info.urlsByIDsQuery(1)
 		if urlByIDQuery == "" {
 			continue
 		}
@@ -52,7 +52,7 @@ func TestEntityStatementValidity(t *testing.T) {
 		}
 
 		for middleEntityType, middleEntityInfo := range entityTypes {
-			middleQuery := middleEntityInfo.urlByIDQuery()
+			middleQuery := middleEntityInfo.urlsByIDsQuery(1)
 			if middleQuery == "" {
 				continue
 			}

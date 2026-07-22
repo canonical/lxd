@@ -18,7 +18,7 @@ func (e entityTypeCommon) urlsByProjectQuery() string {
 }
 
 // urlByIDQuery returns empty because not all entityTypeDBInfo implementations have one (see entityTypeServer).
-func (e entityTypeCommon) urlByIDQuery() string {
+func (e entityTypeCommon) urlsByIDsQuery(...int64) string {
 	return ""
 }
 

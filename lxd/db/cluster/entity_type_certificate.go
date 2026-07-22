@@ -35,8 +35,8 @@ func (e entityTypeCertificate) allURLsQuery() string {
 		query.IntParams(certIdentityTypes()...))
 }
 
-func (e entityTypeCertificate) urlByIDQuery() string {
-	return e.allURLsQuery() + " AND identities.id = ?"
+func (e entityTypeCertificate) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " AND identities.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeCertificate) idFromURLQuery() string {

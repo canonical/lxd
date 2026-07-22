@@ -53,8 +53,8 @@ type entityTypeDBInfo interface {
 	allURLsQuery() string
 
 	// urlByIDQuery must return a SQL query that when executed, returns values identically to allURLsQuery. The query
-	// must accept a single integer bind argument for the ID of the resource.
-	urlByIDQuery() string
+	// must contain an "IN" clause containing the given ids. It does not accept any bind parameters.
+	urlsByIDsQuery(ids ...int64) string
 
 	// urlsByProjectQuery must return a SQL query that when executed, returns values identically to allURLsQuery. The
 	// query must accept a single string bind argument for the project name.
@@ -235,12 +235,12 @@ func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entit
 		return nil, fmt.Errorf("Could not get entity URL: Unknown entity type %q", entityType)
 	}
 
-	stmt := info.urlByIDQuery()
+	stmt := info.urlsByIDsQuery(int64(entityID))
 	if stmt == "" {
 		return nil, fmt.Errorf("Could not get entity URL: No statement found for entity type %q", entityType)
 	}
 
-	row := tx.QueryRowContext(ctx, stmt, entityID)
+	row := tx.QueryRowContext(ctx, stmt)
 	entityRef := &EntityRef{}
 	err := entityRef.scan(row.Scan)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -252,11 +252,11 @@ func GetEntityURL(ctx context.Context, tx *sql.Tx, entityType entity.Type, entit
 	return entityRef.URL(), nil
 }
 
-// GetEntityURLs accepts a project name and a variadic of entity types and returns a map of entity.Type to map of entity ID, to *api.URL.
+// GetEntityURLsByProjectAndType accepts a project name and a variadic of entity types and returns a map of entity.Type to map of entity ID, to *api.URL.
 // This method combines the above queries into a single query using the UNION operator. If no entity types are given, this function will
 // return URLs for all entity types. If no project name is given, this function will return URLs for all projects. This may result in
 // stupendously large queries, so use with caution!
-func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, filteringEntityTypes ...entity.Type) (map[entity.Type]map[int]*api.URL, error) {
+func GetEntityURLsByProjectAndType(ctx context.Context, tx *sql.Tx, projectName string, filteringEntityTypes ...entity.Type) (map[entity.Type]map[int]*api.URL, error) {
 	var stmts []string
 	var args []any
 	result := make(map[entity.Type]map[int]*api.URL)
@@ -356,6 +356,55 @@ func GetEntityURLs(ctx context.Context, tx *sql.Tx, projectName string, filterin
 		}
 
 		result[entity.Type(entityRef.EntityType)][entityRef.EntityID] = entityRef.URL()
+	}
+
+	return result, nil
+}
+
+// GetEntityURLsByEntityTypeAndID performs a single query to return entity URLs for many different entity types and IDs.
+// It effectively converts the input map of entity type to list of IDs to a map of entity type to map of ID to URL.
+func GetEntityURLsByEntityTypeAndID(ctx context.Context, tx *sql.Tx, entities map[entity.Type][]int64) (map[entity.Type]map[int64]*api.URL, error) {
+	result := make(map[entity.Type]map[int64]*api.URL)
+	stmts := make([]string, 0, len(entities))
+	for entityType, ids := range entities {
+		if entityType == entity.TypeServer {
+			result[entity.TypeServer] = map[int64]*api.URL{0: entity.ServerURL()}
+			continue
+		}
+
+		info, ok := entityTypes[entityType]
+		if !ok {
+			return nil, fmt.Errorf("Could not get entity URL: Unknown entity type %q", entityType)
+		}
+
+		stmt := info.urlsByIDsQuery(ids...)
+		if stmt == "" {
+			return nil, fmt.Errorf("Could not get entity URL: No statement found for entity type %q", entityType)
+		}
+
+		stmts = append(stmts, stmt)
+		result[entityType] = make(map[int64]*api.URL)
+	}
+
+	// If there were only server entities, then there's nothing left to do.
+	if len(stmts) == 0 {
+		return result, nil
+	}
+
+	// Join into a single statement with UNION and query.
+	stmt := strings.Join(stmts, " UNION ")
+	err := query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
+		entityRef := &EntityRef{}
+		err := entityRef.scan(scan)
+		if err != nil {
+			return fmt.Errorf("Failed scanning entity URL: %w", err)
+		}
+
+		result[entity.Type(entityRef.EntityType)][int64(entityRef.EntityID)] = entityRef.URL()
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed performing entity URL query: %w", err)
 	}
 
 	return result, nil

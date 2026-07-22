@@ -3,6 +3,7 @@ package cluster
 import (
 	"fmt"
 
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 )
 
@@ -28,8 +29,8 @@ func (e entityTypeContainer) urlsByProjectQuery() string {
 	return e.allURLsQuery() + " AND projects.name = ?"
 }
 
-func (e entityTypeContainer) urlByIDQuery() string {
-	return e.allURLsQuery() + " AND instances.id = ?"
+func (e entityTypeContainer) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " AND instances.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeContainer) idFromURLQuery() string {

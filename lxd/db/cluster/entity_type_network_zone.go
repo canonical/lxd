@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeNetworkZone implements entityTypeDBInfo for a NetworkZone.
@@ -24,8 +26,8 @@ func (e entityTypeNetworkZone) urlsByProjectQuery() string {
 	return e.allURLsQuery() + " WHERE projects.name = ?"
 }
 
-func (e entityTypeNetworkZone) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE networks_zones.id = ?"
+func (e entityTypeNetworkZone) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE networks_zones.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeNetworkZone) idFromURLQuery() string {

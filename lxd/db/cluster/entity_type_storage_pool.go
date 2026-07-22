@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeStoragePool implements entityTypeDBInfo for a StoragePool.
@@ -17,8 +19,8 @@ func (e entityTypeStoragePool) allURLsQuery() string {
 	return fmt.Sprintf(`SELECT %d, storage_pools.id, '', '', json_array(storage_pools.name) FROM storage_pools`, e.code())
 }
 
-func (e entityTypeStoragePool) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE storage_pools.id = ?"
+func (e entityTypeStoragePool) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE storage_pools.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeStoragePool) idFromURLQuery() string {

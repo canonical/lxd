@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/logger"
 )
 
 // OperationsRow is a row of the operations table.
@@ -89,12 +88,20 @@ type Operation struct {
 	IdentityIdentifier string `db:"coalesce(identities.identifier, '')"`
 }
 
-// OperationFilter specifies potential query parameter fields.
-type OperationFilter struct {
-	ID     *int64
-	NodeID *int64
-	UUID   *string
-	Parent *int64
+// Requestor returns the [request.RequestorAuditor] for the [Operation], if set.
+func (o Operation) Requestor() *request.RequestorAuditor {
+	// If no protocol is set, it was a server operation with no requestor.
+	if o.Row.RequestorProtocol == nil || *o.Row.RequestorProtocol == "" {
+		return nil
+	}
+
+	// Otherwise return a requestor auditor with the details.
+	// Note that the origin address is not saved.
+	return &request.RequestorAuditor{
+		IdentityID: o.Row.RequestorIdentityID,
+		Username:   o.IdentityIdentifier,
+		Protocol:   string(*o.Row.RequestorProtocol),
+	}
 }
 
 // RequestorProtocol is the database representation of the Requestor Protocol.
@@ -177,6 +184,45 @@ func (r *RequestorProtocol) Value() (driver.Value, error) {
 	return nil, fmt.Errorf("Invalid requestor protocol %q", *r)
 }
 
+// OperationsResourcesRow represents a row of the operations_resources table.
+// db:model operations_resources
+type OperationsResourcesRow struct {
+	// db:primary
+	OperationID int64 `db:"operation_id"`
+	// db:primary
+	EntityID int64 `db:"entity_id"`
+	// db:primary
+	EntityType EntityType `db:"entity_type"`
+}
+
+// APIName implements [query.APINamer] for [OperationsResourcesRow] for API friendly error messages.
+func (OperationsResourcesRow) APIName() string {
+	return "Operation resource"
+}
+
+// GetOperations returns slice of [Operation] based on given filters. If includeChildren is false, only operations that
+// do not reference parent operations are returned. If the project is non-nil, only operations in the given project are
+// returned.
+func GetOperations(ctx context.Context, tx *sql.Tx, includeChildren bool, project *string) ([]Operation, error) {
+	clauses := make([]string, 0, 2)
+	args := make([]any, 0, 1)
+	if !includeChildren {
+		clauses = append(clauses, "operations.parent IS NULL")
+	}
+
+	if project != nil {
+		clauses = append(clauses, "projects.name = ?")
+		args = append(args, *project)
+	}
+
+	clause := ""
+	if len(clauses) > 0 {
+		clause = "WHERE " + strings.Join(clauses, " AND ")
+	}
+
+	return query.Select[Operation](ctx, tx, clause, args...)
+}
+
 // UpdateOperation updates operation status, metadata and error (if set) in the cluster db.
 // This is used to keep DB in sync with the current status of the operation when the operation changes
 // its status, or when calls to commit metadata explicitly. The caller is expected to pass in the current node ID.
@@ -216,70 +262,6 @@ func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, nodeID int6
 	return nil
 }
 
-// GetOperationResources loads operation resources from the cluster db.
-// The entity type is used as the key of the map, as the actual key is not stored in the DB.
-func GetOperationResources(ctx context.Context, tx *sql.Tx, opID int64) (map[entity.Type][]api.URL, error) {
-	stmt := `SELECT entity_id, entity_type FROM operations_resources WHERE operation_id = ?`
-
-	// We cannot call GetEntityURL from within the scan function because it would start a new transaction.
-	// So first we read all the entity IDs and types into a slice, then we loop over that slice to get the URLs.
-	resources := []*struct {
-		EntityID   int
-		EntityType EntityType
-	}{}
-	err := query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
-		r := struct {
-			EntityID   int
-			EntityType EntityType
-		}{}
-
-		err := scan(&r.EntityID, &r.EntityType)
-		if err != nil {
-			return err
-		}
-
-		resources = append(resources, &r)
-
-		return nil
-	}, opID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed reading operation resources: %w", err)
-	}
-
-	var result map[entity.Type][]api.URL
-	for _, r := range resources {
-		entityURL, err := GetEntityURL(ctx, tx, entity.Type(r.EntityType), r.EntityID)
-		if err != nil {
-			// If a delete operation has already deleted its resources, it's possible that some of the resources will not be found.
-			// In that case, we just skip those resources and return the ones that are still there.
-			if api.StatusErrorCheck(err, http.StatusNotFound) {
-				logger.Debug("Failed loading resource URL for operation resource, skipping resource", logger.Ctx{"entity_type": r.EntityType, "entity_id": r.EntityID, "err": err})
-				continue
-			}
-
-			return nil, fmt.Errorf("Failed loading resource URL for operation resource: %w", err)
-		}
-
-		if result == nil {
-			result = map[entity.Type][]api.URL{}
-		}
-
-		_, ok := result[entity.Type(r.EntityType)]
-		if !ok {
-			result[entity.Type(r.EntityType)] = []api.URL{}
-		}
-
-		result[entity.Type(r.EntityType)] = append(result[entity.Type(r.EntityType)], *entityURL)
-	}
-
-	return result, nil
-}
-
-// GetParentOperations returns all parent operation, that is all operations that don't have a parent.
-func GetParentOperations(ctx context.Context, tx *sql.Tx) ([]Operation, error) {
-	return query.Select[Operation](ctx, tx, "WHERE operations.parent IS NULL")
-}
-
 // CreateOperationResources registers operation resources in the cluster db.
 func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resources map[entity.Type][]api.URL) error {
 	// No resources to register.
@@ -287,8 +269,7 @@ func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resou
 		return nil
 	}
 
-	sb := strings.Builder{}
-	sb.WriteString(`INSERT INTO operations_resources (operation_id, entity_id, entity_type) VALUES `)
+	var opResources []OperationsResourcesRow
 	for _, entityURLs := range resources {
 		for _, entityURL := range entityURLs {
 			entityReference, err := GetEntityReferenceFromURL(ctx, tx, &entityURL)
@@ -296,25 +277,15 @@ func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resou
 				return fmt.Errorf("Failed getting entity ID from resource URL %q: %w", entityURL.String(), err)
 			}
 
-			entityTypeCode, err := entityReference.EntityType.Value()
-			if err != nil {
-				return fmt.Errorf("Failed getting entity type code for entity type %q: %w", entityReference.EntityType, err)
-			}
-
-			fmt.Fprintf(&sb, "(%d, %d, %d),", opID, entityReference.EntityID, entityTypeCode)
+			opResources = append(opResources, OperationsResourcesRow{
+				OperationID: opID,
+				EntityID:    int64(entityReference.EntityID),
+				EntityType:  entityReference.EntityType,
+			})
 		}
 	}
 
-	// Get the final stmt and replace the trailing comma with a semicolon.
-	insertStmt := sb.String()
-	insertStmt = insertStmt[:len(insertStmt)-1] + ";"
-
-	_, err := tx.ExecContext(ctx, insertStmt)
-	if err != nil {
-		return fmt.Errorf("Failed inserting operation resources: %w", err)
-	}
-
-	return nil
+	return query.CreateMany(ctx, tx, opResources)
 }
 
 // deleteEphemeralOperationsFromNodes deletes ephemeral operations from nodes with the given list of IDs.

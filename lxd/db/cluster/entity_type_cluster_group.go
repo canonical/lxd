@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // entityTypeClusterGroup implements entityTypeDBInfo for a ClusterGroup.
@@ -17,8 +19,8 @@ func (e entityTypeClusterGroup) allURLsQuery() string {
 	return fmt.Sprintf(`SELECT %d, cluster_groups.id, '', '', json_array(cluster_groups.name) FROM cluster_groups`, e.code())
 }
 
-func (e entityTypeClusterGroup) urlByIDQuery() string {
-	return e.allURLsQuery() + " WHERE cluster_groups.id = ?"
+func (e entityTypeClusterGroup) urlsByIDsQuery(ids ...int64) string {
+	return e.allURLsQuery() + " WHERE cluster_groups.id IN " + query.IntParams(ids...)
 }
 
 func (e entityTypeClusterGroup) idFromURLQuery() string {
