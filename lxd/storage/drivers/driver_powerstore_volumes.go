@@ -597,6 +597,10 @@ func (d *powerstore) DeleteVolume(vol Volume, progressReporter ioprogress.Progre
 
 	volID, err := d.getVolumeID(vol)
 	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
 		return err
 	}
 
