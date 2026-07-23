@@ -7243,7 +7243,7 @@
 					{
 						"powerstore.mode": {
 							"defaultdesc": "`nvme/tcp`",
-							"longdesc": "The mode to use to map PowerStore volumes to the local server.\nSupported values are `iscsi`, `scsi/fc`, and `nvme/tcp`.",
+							"longdesc": "The mode to use to map PowerStore volumes to the local server.\nSupported values are `iscsi`, `scsi/fc`, `nvme/tcp`, and `nvme/fc`.",
 							"scope": "global",
 							"shortdesc": "How volumes are mapped to the local server",
 							"type": "string"
