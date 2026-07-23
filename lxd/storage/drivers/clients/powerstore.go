@@ -88,6 +88,21 @@ func (PowerStoreVolume) selector() string {
 	return "id,name,type,size,logical_used,wwn,nguid"
 }
 
+// PowerStoreFCPort represents a Fibre Channel port on a PowerStore appliance.
+type PowerStoreFCPort struct {
+	ID        string   `json:"id,omitempty"`
+	Name      string   `json:"name,omitempty"`
+	WWN       string   `json:"wwn,omitempty"`
+	WWNNode   string   `json:"wwn_node,omitempty"`
+	WWNNVMe   string   `json:"wwn_nvme,omitempty"`
+	IsLinkUp  bool     `json:"is_link_up,omitempty"`
+	Protocols []string `json:"protocols,omitempty"`
+}
+
+func (PowerStoreFCPort) selector() string {
+	return "id,name,wwn,wwn_node,wwn_nvme,is_link_up,protocols"
+}
+
 // PowerStoreApplianceMetrics represents metrics collected from a PowerStore appliance.
 type PowerStoreApplianceMetrics struct {
 	ID                     string `json:"id,omitempty"`
@@ -514,6 +529,23 @@ func parsePaginationOffset(headers http.Header) (newOffset uint64, hasMore bool,
 // DiscoveryAddresses retrieves list of discovery addresses used to discover storage targets for
 // the provided connector type.
 func (c *PowerStoreClient) DiscoveryAddresses(connectorType string) ([]string, error) {
+	switch connectorType {
+	case connectors.TypeNVMeFC, connectors.TypeSCSIFC:
+		// The FC transports discover targets through the array's FC ports.
+		return c.fcDiscoveryAddresses(connectorType)
+
+	case connectors.TypeISCSI, connectors.TypeNVMeTCP:
+		// The TCP/IP transports discover targets through the array's IP portals.
+		return c.tcpDiscoveryAddresses(connectorType)
+
+	default:
+		return nil, fmt.Errorf("Unsupported connector type: %q", connectorType)
+	}
+}
+
+// tcpDiscoveryAddresses retrieves the array's IP discovery portal addresses whose purpose
+// matches the given TCP/IP connector type (iSCSI or NVMe/TCP).
+func (c *PowerStoreClient) tcpDiscoveryAddresses(connectorType string) ([]string, error) {
 	var resp = []struct {
 		Address  string   `json:"address,omitempty"`
 		Purposes []string `json:"purposes,omitempty"`
@@ -551,6 +583,70 @@ func (c *PowerStoreClient) DiscoveryAddresses(connectorType string) ([]string, e
 		if slices.Contains(ip.Purposes, purpose) || slices.Contains(ip.Purposes, genericIPPurpose) {
 			addresses = append(addresses, ip.Address)
 		}
+	}
+
+	return addresses, nil
+}
+
+// fcDiscoveryAddresses retrieves the addresses of the array's Fibre Channel target ports.
+// For SCSI/FC it is the port's SCSI WWN, which differs from the NVMe one.
+// For NVMe/FC the address is the port's transport address ("nn-<wwnn>:pn-<wwpn>") built from
+// the node WWN and the port's dedicated NVMe WWN.
+func (c *PowerStoreClient) fcDiscoveryAddresses(connectorType string) ([]string, error) {
+	// Select the port protocol to match and how to build a single port's address.
+	// The builder returns false when the port does not expose the required WWN.
+	var protocol string
+	var buildAddress func(port PowerStoreFCPort) (string, bool)
+	switch connectorType {
+	case connectors.TypeNVMeFC:
+		protocol = "NVMe"
+		buildAddress = func(port PowerStoreFCPort) (string, bool) {
+			if port.WWNNode == "" || port.WWNNVMe == "" {
+				return "", false
+			}
+
+			return "nn-" + formatFCWWN(port.WWNNode) + ":pn-" + formatFCWWN(port.WWNNVMe), true
+		}
+
+	case connectors.TypeSCSIFC:
+		protocol = "SCSI"
+		buildAddress = func(port PowerStoreFCPort) (string, bool) {
+			if port.WWN == "" {
+				return "", false
+			}
+
+			return formatFCWWN(port.WWN), true
+		}
+
+	default:
+		return nil, fmt.Errorf("Unsupported FC connector type: %q", connectorType)
+	}
+
+	url := api.NewURL().Path("api", "rest", "fc_port")
+	url = url.WithQuery("select", PowerStoreFCPort{}.selector())
+
+	var fcPorts []PowerStoreFCPort
+	err := c.requestAuthenticated(http.MethodGet, url.URL, nil, &fcPorts, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed retrieving PowerStore FC ports: %w", err)
+	}
+
+	var addresses []string
+	for _, port := range fcPorts {
+		if !port.IsLinkUp || !slices.Contains(port.Protocols, protocol) {
+			continue
+		}
+
+		address, ok := buildAddress(port)
+		if !ok {
+			continue
+		}
+
+		if slices.Contains(addresses, address) {
+			continue
+		}
+
+		addresses = append(addresses, address)
 	}
 
 	return addresses, nil
@@ -1048,7 +1144,9 @@ func powerStoreConnectorToPortType(connectorType string) (string, error) {
 	switch connectorType {
 	case connectors.TypeISCSI:
 		return "iSCSI", nil
-	case connectors.TypeNVMeTCP:
+	case connectors.TypeNVMeTCP, connectors.TypeNVMeFC:
+		// PowerStore identifies NVMe initiators by their host NQN regardless of
+		// the underlying transport (TCP or Fibre Channel).
 		return "NVMe", nil
 	case connectors.TypeSCSIFC:
 		return "FC", nil
@@ -1081,4 +1179,15 @@ func formatQN(connectorType string, qn string) string {
 	}
 
 	return strings.Join(parts, ":")
+}
+
+// formatFCWWN normalizes a PowerStore WWN into the "0x"-prefixed lower case form
+// used by the NVMe/FC transport addresses. PowerStore reports WWNs in the
+// colon-separated byte format ("58:cc:f0:90:cb:20:03:46"), which is converted
+// into "0x58ccf090cb200346".
+func formatFCWWN(wwn string) string {
+	normalized := strings.ToLower(strings.TrimSpace(wwn))
+	normalized = strings.TrimPrefix(normalized, "0x")
+	normalized = strings.ReplaceAll(normalized, ":", "")
+	return "0x" + normalized
 }
