@@ -1575,7 +1575,7 @@ func (d *powerstore) getMappedDevicePath(vol Volume, mapVolume bool) (string, re
 	// (NGUID) rather than the WWN. Both encode the same volume and are reported by
 	// PowerStore in the form "<prefix>.<id>".
 	deviceID := psVol.WWN
-	if connector.Type() == connectors.TypeNVMeTCP {
+	if connectors.IsNVMe(connector.Type()) {
 		deviceID = psVol.NGUID
 	}
 
@@ -1668,7 +1668,11 @@ func (d *powerstore) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 	// Connect to the array.
 	for qualifiedName, addresses := range targets {
 		var connReverter revert.Hook
-		if connector.Transport() == connectors.TransportFC {
+		if connector.Type() == connectors.TypeSCSIFC {
+			// SCSI/FC has no discoverable target addresses. Instead, the array
+			// exposes the volume under an assigned LUN that is scanned in on the
+			// FC fabric. NVMe (over both TCP and FC) connects using the target's
+			// transport addresses.
 			connReverter, err = connector.Connect(d.state.ShutdownCtx, qualifiedName, strconv.Itoa(lun))
 		} else {
 			connReverter, err = connector.Connect(d.state.ShutdownCtx, qualifiedName, addresses...)
@@ -1754,7 +1758,7 @@ func (d *powerstore) unmapVolume(vol Volume) error {
 	//
 	// For NVMe the host-side device is removed asynchronously after the array detaches the
 	// volume. NVMe's [connectors.RemoveDiskDevice] is a no-op, so this is the only sync point.
-	if volumePath != "" && connector.Type() == connectors.TypeNVMeTCP && !block.WaitDiskDeviceGone(d.state.ShutdownCtx, volumePath) {
+	if volumePath != "" && connectors.IsNVMe(connector.Type()) && !block.WaitDiskDeviceGone(d.state.ShutdownCtx, volumePath) {
 		return fmt.Errorf("Timeout exceeded waiting for PowerStore volume %q to disappear on path %q", vol.name, volumePath)
 	}
 
