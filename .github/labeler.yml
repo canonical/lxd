@@ -51,7 +51,8 @@ d/build-test:
     - Makefile
     - doc/Makefile
     - lxd-qemu-snap/**/*
-    - lxd/Makefile
+    - go.mod
+    - go.sum
     - scripts/**/*
     - snap/**/*
     - snapcraft/**/*
