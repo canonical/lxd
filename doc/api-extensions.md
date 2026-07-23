@@ -3625,3 +3625,9 @@ In addition a new endpoint [`GET /1.0/networks/{networkName}/load-balancer-pools
 ## `operation_child_count`
 
 Adds a `child_count` field to the `Operation` struct, indicating the number of child operations. This allows clients to determine whether an operation has children without requiring `recursion=2`.
+
+(extension-storage-driver-powerstore-nvme)=
+## `storage_driver_powerstore_nvme`
+
+Adds NVMe/TCP support to the Dell PowerStore storage driver.
+NVMe/TCP is now the default PowerStore mode when `powerstore.mode` is not set.
