@@ -202,7 +202,8 @@ func (OperationsResourcesRow) APIName() string {
 
 // GetOperations returns slice of [Operation] based on given filters. If includeChildren is false, only operations that
 // do not reference parent operations are returned. If the project is non-nil, only operations in the given project are
-// returned.
+// returned if the project is not [api.ProjectDefaultName]. If the project is non-nil, and equal to [api.ProjectDefaultName]
+// then server-level operations are returned along with all operations in the default project. This is to match legacy behaviour.
 func GetOperations(ctx context.Context, tx *sql.Tx, includeChildren bool, project *string) ([]Operation, error) {
 	clauses := make([]string, 0, 2)
 	args := make([]any, 0, 1)
@@ -211,7 +212,16 @@ func GetOperations(ctx context.Context, tx *sql.Tx, includeChildren bool, projec
 	}
 
 	if project != nil {
-		clauses = append(clauses, "projects.name = ?")
+		// Unfortunately, since there is no way to request "no project" via the API (e.g. it always defaults to the default project)
+		// we need to include server-level operations when the requested project is default. Server level operations will always
+		// be included in requests for `all-projects`. They are filtered out in the API handler depending on what the caller is
+		// able to view.
+		projectClause := "projects.name = ?"
+		if *project == api.ProjectDefaultName {
+			projectClause = "(projects.name = ? OR operations.project_id IS NULL)"
+		}
+
+		clauses = append(clauses, projectClause)
 		args = append(args, *project)
 	}
 
