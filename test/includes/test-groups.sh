@@ -75,6 +75,7 @@ readonly test_group_replicator_storage=(
     "clustering_replicator_evacuated_member"
     "clustering_replicator_vm"
     "clustering_replicator_unclustered"
+    "clustering_replicator_volumes"
 )
 
 readonly test_group_instance=(
