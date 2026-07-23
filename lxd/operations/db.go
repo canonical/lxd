@@ -225,6 +225,7 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 	}
 
 	op := Operation{
+		dbID:              dbOp.Row.ID,
 		projectName:       dbOp.ProjectName,
 		id:                dbOp.Row.UUID,
 		class:             operationtype.Class(dbOp.Row.Class),
