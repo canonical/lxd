@@ -95,6 +95,7 @@ func deleteInternal(ids ...string) {
 
 // Operation represents an operation.
 type Operation struct {
+	dbID            int64
 	projectName     string
 	id              string
 	class           operationtype.Class
