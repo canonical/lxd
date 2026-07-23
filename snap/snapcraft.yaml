@@ -1637,6 +1637,7 @@ parts:
 
         # Remove unneeded bits
         rm doc/_build/objects.inv    # only objects.inv.txt is used
+        rm -f doc/_build/llms*.txt   # LLM-targeted docs are not needed in the snap
         # not needed once built
         rm doc/_build/.buildinfo
         rm -rf doc/_build/_sphinx_design_static/
