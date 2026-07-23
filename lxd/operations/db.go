@@ -108,16 +108,20 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			return err
 		}
 
+		op.dbID = parentOpID
+
 		// Create child operation records, if any.
 		for _, childOp := range op.children {
 			if childOp.projectName != op.projectName {
 				return errors.New("Child operations cannot have a different project to the parent operation")
 			}
 
-			_, err := registerSingleOperation(ctx, tx, childOp, &parentOpID, projectIDPtr)
+			childOpID, err := registerSingleOperation(ctx, tx, childOp, &parentOpID, projectIDPtr)
 			if err != nil {
 				return err
 			}
+
+			childOp.dbID = childOpID
 		}
 
 		return nil
@@ -225,6 +229,7 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 	}
 
 	op := Operation{
+		dbID:              dbOp.Row.ID,
 		projectName:       dbOp.ProjectName,
 		id:                dbOp.Row.UUID,
 		class:             operationtype.Class(dbOp.Row.Class),
