@@ -2980,6 +2980,9 @@ func (d *lxc) Restart(timeout time.Duration) error {
 
 // Rebuild rebuilds the instance using the supplied image fingerprint as source.
 func (d *lxc) Rebuild(img *api.Image, op *operations.Operation) error {
+	// Rebuild assumes instance is stopped.  But a stopped instance could still have a running
+	// forkfile.  So stop the forkfile.
+	d.stopForkfile(false)
 	return d.rebuildCommon(d, img, op)
 }
 
