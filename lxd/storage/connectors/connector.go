@@ -15,6 +15,9 @@ const (
 	// TypeNVMeTCP represents an NVMe/TCP storage connector.
 	TypeNVMeTCP string = "nvme/tcp"
 
+	// TypeNVMeFC represents an NVMe over Fibre Channel storage connector.
+	TypeNVMeFC string = "nvme/fc"
+
 	// TypeSDC represents Dell SDC storage connector.
 	TypeSDC string = "sdc"
 
@@ -24,6 +27,12 @@ const (
 	// TypeSCSIFC represents a Fibre Channel storage connector.
 	TypeSCSIFC string = "scsi/fc"
 )
+
+// IsNVMe returns true if the given connector type uses the NVMe protocol,
+// regardless of the underlying transport (TCP or Fibre Channel).
+func IsNVMe(connectorType string) bool {
+	return connectorType == TypeNVMeTCP || connectorType == TypeNVMeFC
+}
 
 // TransportType represents the transport type of the storage connector.
 type TransportType string
@@ -128,6 +137,11 @@ func NewConnector(connectorType string, serverUUID string) (Connector, error) {
 	switch connectorType {
 	case TypeNVMeTCP:
 		return &connectorNVMe{
+			common: common,
+		}, nil
+
+	case TypeNVMeFC:
+		return &connectorNVMeFC{
 			common: common,
 		}, nil
 
