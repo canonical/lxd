@@ -148,6 +148,10 @@ const (
 	ReplicatorRunInstanceRestore
 	ReplicatorFinalize
 	ReplicatorSnapshotInstance
+	ImageRegistryCreate
+	ImageRegistryUpdate
+	ImageRegistryDelete
+	ImageRegistryRename
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -405,6 +409,14 @@ func (t Type) Description() string {
 		return "Finalizing replicator"
 	case ReplicatorSnapshotInstance:
 		return "Snapshotting instance for replication"
+	case ImageRegistryCreate:
+		return "Creating image registry"
+	case ImageRegistryUpdate:
+		return "Updating image registry"
+	case ImageRegistryDelete:
+		return "Deleting image registry"
+	case ImageRegistryRename:
+		return "Renaming image registry"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -423,7 +435,7 @@ func (t Type) EntityType() entity.Type {
 		BackupsExpire, SnapshotsExpire, ClusterJoinToken, CertificateAddToken, RenewServerCertificate,
 		ClusterHeal, ImagesUpdate, VolumeSnapshotsCreateScheduled, SnapshotsCreateScheduled,
 		SynchronizeOperations, RefreshClusterLinkVolatileAddresses,
-		StoragePoolCreate, Wait:
+		StoragePoolCreate, Wait, ImageRegistryCreate:
 		return entity.TypeServer
 
 	// Project level operations.
@@ -464,6 +476,10 @@ func (t Type) EntityType() entity.Type {
 	// Image operations.
 	case ImageDelete, ImageRefresh, ImageDownloadToken, ImageUpload:
 		return entity.TypeImage
+
+	// Image registry operations.
+	case ImageRegistryUpdate, ImageRegistryDelete, ImageRegistryRename:
+		return entity.TypeImageRegistry
 
 	// Volume backup operations.
 	case CustomVolumeBackupRemove, CustomVolumeBackupRename:
