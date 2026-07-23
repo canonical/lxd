@@ -7242,8 +7242,8 @@
 					},
 					{
 						"powerstore.mode": {
-							"longdesc": "The mode to use to map PowerStore volumes to the local server.\nSupported values are `iscsi` and `scsi/fc`.",
-							"required": "true",
+							"defaultdesc": "`nvme/tcp`",
+							"longdesc": "The mode to use to map PowerStore volumes to the local server.\nSupported values are `iscsi`, `scsi/fc`, and `nvme/tcp`.",
 							"scope": "global",
 							"shortdesc": "How volumes are mapped to the local server",
 							"type": "string"

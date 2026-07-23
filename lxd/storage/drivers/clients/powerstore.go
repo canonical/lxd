@@ -81,10 +81,11 @@ type PowerStoreVolume struct {
 	Size        int64  `json:"size,omitempty"`
 	LogicalUsed int64  `json:"logical_used,omitempty"`
 	WWN         string `json:"wwn,omitempty"`
+	NGUID       string `json:"nguid,omitempty"`
 }
 
 func (PowerStoreVolume) selector() string {
-	return "id,name,type,size,logical_used,wwn"
+	return "id,name,type,size,logical_used,wwn,nguid"
 }
 
 // PowerStoreApplianceMetrics represents metrics collected from a PowerStore appliance.

@@ -597,6 +597,10 @@ func (d *powerstore) DeleteVolume(vol Volume, progressReporter ioprogress.Progre
 
 	volID, err := d.getVolumeID(vol)
 	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
 		return err
 	}
 
@@ -1566,14 +1570,30 @@ func (d *powerstore) getMappedDevicePath(vol Volume, mapVolume bool) (string, re
 		return "", nil, fmt.Errorf("Failed retrieving volume %q: %w", vol.name, err)
 	}
 
-	_, wwn, ok := strings.Cut(psVol.WWN, ".")
-	if !ok {
-		return "", nil, fmt.Errorf("Failed parsing WWN for volume %q: Invalid format %q", vol.name, psVol.WWN)
+	// The device is identified by a different identifier depending on the connector type.
+	// Over NVMe-oF the device is identified by the namespace globally unique identifier
+	// (NGUID) rather than the WWN. Both encode the same volume and are reported by
+	// PowerStore in the form "<prefix>.<id>".
+	deviceID := psVol.WWN
+	if connector.Type() == connectors.TypeNVMeTCP {
+		deviceID = psVol.NGUID
 	}
 
-	// Filters devices by matching the device path with the WWN.
+	_, diskSuffix, ok := strings.Cut(deviceID, ".")
+	if !ok {
+		return "", nil, fmt.Errorf("Failed parsing device identifier for volume %q: Invalid format %q", vol.name, deviceID)
+	}
+
+	// Ensure the identifier is exactly 32 characters long, as it uniquely identifies the device.
+	if len(diskSuffix) != 32 {
+		return "", nil, fmt.Errorf("Failed locating device for volume %q: Unexpected length of device identifier %q (%d)", vol.name, diskSuffix, len(diskSuffix))
+	}
+
+	// Filters devices by matching the device path with the lowercase disk suffix,
+	// as the device symlinks are always in lowercase.
+	diskSuffix = strings.ToLower(diskSuffix)
 	devicePathFilter := func(path string) bool {
-		return strings.Contains(path, wwn)
+		return strings.Contains(path, diskSuffix)
 	}
 
 	var devicePath string

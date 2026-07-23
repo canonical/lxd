@@ -27,10 +27,14 @@ var powerStoreVersion string
 var powerStoreSupportedConnectors = []string{
 	connectors.TypeISCSI,
 	connectors.TypeSCSIFC,
+	connectors.TypeNVMeTCP,
 }
 
 // powerStoreDefaultUser represents the default PowerStore user name.
 const powerStoreDefaultUser = "admin"
+
+// powerStoreDefaultMode represents the default PowerStore mode.
+const powerStoreDefaultMode = connectors.TypeNVMeTCP
 
 // Common prefix for resource names in PowerStore.
 const powerStoreResourcePrefix = "lxd-"
@@ -135,6 +139,10 @@ func (d *powerstore) FillConfig() error {
 		d.config["powerstore.user.name"] = powerStoreDefaultUser
 	}
 
+	if d.config["powerstore.mode"] == "" {
+		d.config["powerstore.mode"] = powerStoreDefaultMode
+	}
+
 	return nil
 }
 
@@ -173,12 +181,12 @@ func (d *powerstore) Validate(config map[string]string) error {
 		"powerstore.gateway.verify": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.mode)
 		// The mode to use to map PowerStore volumes to the local server.
-		// Supported values are `iscsi` and `scsi/fc`.
+		// Supported values are `iscsi`, `scsi/fc`, and `nvme/tcp`.
 		// ---
 		//  type: string
+		//  defaultdesc: `nvme/tcp`
 		//  shortdesc: How volumes are mapped to the local server
 		//  scope: global
-		//  required: true
 		"powerstore.mode": validate.Optional(validate.IsOneOf(powerStoreSupportedConnectors...)),
 		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.target)
 		// A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
@@ -205,6 +213,12 @@ func (d *powerstore) Validate(config map[string]string) error {
 	newMode := config["powerstore.mode"]
 	oldMode := d.config["powerstore.mode"]
 
+	// If mode is not provided, use default mode. This is needed for cluster pool creation to
+	// ensure required modules are available and loaded on all cluster members.
+	if newMode == "" {
+		newMode = powerStoreDefaultMode
+	}
+
 	// Ensure powerstore.mode cannot be changed to avoid leaving volume mappings
 	// and prevent disturbing running instances.
 	if oldMode != "" && oldMode != newMode {
@@ -216,16 +230,14 @@ func (d *powerstore) Validate(config map[string]string) error {
 	// host needs to be validated on the other cluster members as well. This can be done here
 	// since Validate gets executed on every cluster member when receiving the cluster
 	// notification to finally create the pool.
-	if newMode != "" {
-		connector, err := connectors.NewConnector(newMode, "")
-		if err != nil {
-			return fmt.Errorf("PowerStore mode %q is not supported: %w", newMode, err)
-		}
+	connector, err := connectors.NewConnector(newMode, "")
+	if err != nil {
+		return fmt.Errorf("PowerStore mode %q is not supported: %w", newMode, err)
+	}
 
-		err = connector.LoadModules()
-		if err != nil {
-			return fmt.Errorf("PowerStore mode %q is not supported due to missing kernel modules: %w", newMode, err)
-		}
+	err = connector.LoadModules()
+	if err != nil {
+		return fmt.Errorf("PowerStore mode %q is not supported due to missing kernel modules: %w", newMode, err)
 	}
 
 	return nil
@@ -257,10 +269,6 @@ func (d *powerstore) ValidateSource() error {
 
 	if d.config["powerstore.user.password"] == "" {
 		return errors.New("The powerstore.user.password cannot be empty")
-	}
-
-	if d.config["powerstore.mode"] == "" {
-		return errors.New("The powerstore.mode cannot be empty")
 	}
 
 	return nil
@@ -345,7 +353,7 @@ func (d *powerstore) targets() (map[string][]string, error) {
 		case connectors.TypeISCSI:
 			defaultPort = connectors.ISCSIDefaultPort
 		case connectors.TypeNVMeTCP:
-			defaultPort = connectors.NVMeDefaultDiscoveryPort
+			defaultPort = connectors.NVMeDefaultTransportPort
 		default:
 			return nil, fmt.Errorf("Unsupported PowerStore mode %q", mode)
 		}

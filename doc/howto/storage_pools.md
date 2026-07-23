@@ -241,17 +241,25 @@ Create a storage pool named `pool5` that explicitly uses the PowerFlex SDC:
 ````
 ````{group-tab} powerstore
 
-Create a storage pool named `pool1` that uses iSCSI to connect to PowerStore array:
+Create a storage pool named `pool1` that uses NVMe/TCP by default:
 
-    lxc storage create pool1 powerstore powerstore.mode=iscsi powerstore.gateway=https://powerstore powerstore.user.name=lxd powerstore.user.password=foo
+    lxc storage create pool1 powerstore powerstore.gateway=https://powerstore powerstore.user.name=lxd powerstore.user.password=foo
 
-Create a storage pool named `pool2` that uses SCSI/FC to connect to PowerStore array:
+Create a storage pool named `pool2` that uses a PowerStore gateway with a certificate that is not trusted:
 
-    lxc storage create pool2 powerstore powerstore.mode=scsi/fc powerstore.gateway=https://powerstore powerstore.user.name=lxd powerstore.user.password=foo
+    lxc storage create pool2 powerstore powerstore.gateway=https://powerstore powerstore.gateway.verify=false powerstore.user.name=lxd powerstore.user.password=foo
 
-Create a storage pool named `pool3` that uses a PowerStore gateway with a certificate that is not trusted:
+Create a storage pool named `pool3` that uses iSCSI to connect to PowerStore array:
 
-    lxc storage create pool3 powerstore powerstore.mode=iscsi powerstore.gateway=https://powerstore powerstore.gateway.verify=false powerstore.user.name=lxd powerstore.user.password=foo
+    lxc storage create pool3 powerstore powerstore.mode=iscsi powerstore.gateway=https://powerstore powerstore.user.name=lxd powerstore.user.password=foo
+
+Create a storage pool named `pool4` that uses SCSI/FC to connect to PowerStore array:
+
+    lxc storage create pool4 powerstore powerstore.mode=scsi/fc powerstore.gateway=https://powerstore powerstore.user.name=lxd powerstore.user.password=foo
+
+Create a storage pool named `pool5` that uses NVMe/TCP to connect to PowerStore array via specific target addresses:
+
+    lxc storage create pool5 powerstore powerstore.mode=nvme/tcp powerstore.gateway=https://powerstore powerstore.user.name=lxd powerstore.user.password=foo powerstore.target=<target_address_1>,<target_address_2>
 
 ````
 ````{group-tab} pure
