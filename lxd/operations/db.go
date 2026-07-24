@@ -83,6 +83,9 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			return 0, err
 		}
 
+		// Save the time at which the operation was persisted
+		op.persistedAt = op.updatedAt
+
 		err = cluster.CreateOperationResources(ctx, tx.Tx(), dbOpID, op.resources)
 		if err != nil {
 			return 0, err
@@ -141,6 +144,8 @@ func updateDBOperation(ctx context.Context, op *Operation) error {
 		return fmt.Errorf("Failed updating operation %q record: %w", op.id, err)
 	}
 
+	// Save the time at which the operation was persisted.
+	op.persistedAt = op.updatedAt
 	return nil
 }
 
@@ -231,6 +236,7 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 		class:             operationtype.Class(dbOp.Row.Class),
 		createdAt:         dbOp.Row.CreatedAt,
 		updatedAt:         dbOp.Row.UpdatedAt,
+		persistedAt:       dbOp.Row.UpdatedAt,
 		status:            api.StatusCode(dbOp.Row.StatusCode),
 		url:               api.NewURL().Path(version.APIVersion, "operations", dbOp.Row.UUID).String(),
 		description:       dbOp.Row.Type.Description(),

@@ -101,6 +101,7 @@ type Operation struct {
 	class           operationtype.Class
 	createdAt       time.Time
 	updatedAt       time.Time
+	persistedAt     time.Time
 	status          api.StatusCode
 	url             string
 	resources       map[entity.Type][]api.URL
