@@ -48,8 +48,14 @@ const (
 	// IdentityTypeBearerTokenDevLXD represents an identity that bears a LXD token that can be used to interact with the DevLXD API.
 	IdentityTypeBearerTokenDevLXD = "DevLXD token bearer"
 
+	// IdentityTypeBearerTokenDevLXDPending represents a DevLXD token bearer identity for which no token is currently issued, because none has been issued yet or the most recent one was revoked.
+	IdentityTypeBearerTokenDevLXDPending = "DevLXD token bearer (pending)"
+
 	// IdentityTypeBearerTokenClient represents an identity that bears a LXD token that can be used to interact with the LXD API.
 	IdentityTypeBearerTokenClient = "Client token bearer"
+
+	// IdentityTypeBearerTokenClientPending represents a client token bearer identity for which no token is currently issued, because none has been issued yet or the most recent one was revoked.
+	IdentityTypeBearerTokenClientPending = "Client token bearer (pending)"
 
 	// IdentityTypeBearerTokenInitialUI is the identity type used for initial connection to LXD via the UI when conventional authentication is not yet configured.
 	IdentityTypeBearerTokenInitialUI = "Initial UI token bearer"
