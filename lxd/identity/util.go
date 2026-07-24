@@ -16,3 +16,9 @@ func ValidateAuthenticationMethod(authenticationMethod string) error {
 
 	return nil
 }
+
+// IsInitialUIBearer returns true if the given identity type name represents an initial UI token
+// bearer, active or pending.
+func IsInitialUIBearer(identityTypeName string) bool {
+	return identityTypeName == api.IdentityTypeBearerTokenInitialUI || identityTypeName == api.IdentityTypeBearerTokenInitialUIPending
+}
