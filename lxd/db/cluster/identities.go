@@ -320,36 +320,30 @@ func (i IdentitiesRow) BearerMetadata() (*BearerMetadata, error) {
 	return &metadata, nil
 }
 
-// SetBearerIdentityTokenExpiry records the expiry of the issued token for a bearer identity.
-func SetBearerIdentityTokenExpiry(ctx context.Context, tx *sql.Tx, identityID int64, expiry *time.Time) error {
+// SetBearerTokenExpiry sets the expiry of the issued token in the identity metadata. A nil expiry records
+// that the identity has no usable token. The [AuthMethod] of the [IdentitiesRow] must be
+// [api.AuthenticationMethodBearer]. The change is persisted by [query.UpdateByPrimaryKey].
+func (i *IdentitiesRow) SetBearerTokenExpiry(expiry *time.Time) error {
+	metadata, err := i.BearerMetadata()
+	if err != nil {
+		return err
+	}
+
 	// A non-nil expiry is signed into the token as a JWT NumericDate, which has second
 	// precision, so we truncate to second precision before storing it to ensure the expiry
 	// reported for a listed identity is identical to the one the token itself carries.
-	var value any
+	metadata.TokenExpiry = nil
 	if expiry != nil {
-		value = expiry.UTC().Truncate(time.Second).Format(time.RFC3339Nano)
+		truncated := expiry.UTC().Truncate(time.Second)
+		metadata.TokenExpiry = &truncated
 	}
 
-	// Update token_expiry in place so any other metadata fields are preserved.
-	// A nil expiry is stored as JSON null, which unmarshals back to a nil TokenExpiry,
-	// representing "no active token".
-	q := `
-UPDATE identities
-SET metadata = json_set(CASE WHEN metadata = '' THEN '{}' ELSE metadata END, '$.token_expiry', ?)
-WHERE id = ? AND auth_method = ?`
-	res, err := tx.ExecContext(ctx, q, value, identityID, AuthMethod(api.AuthenticationMethodBearer))
+	b, err := json.Marshal(metadata)
 	if err != nil {
-		return fmt.Errorf("Failed setting bearer identity token expiry: %w", err)
+		return fmt.Errorf("Failed marshaling bearer metadata: %w", err)
 	}
 
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("Failed checking bearer identity token expiry update: %w", err)
-	}
-
-	if rowsAffected != 1 {
-		return fmt.Errorf("Failed setting bearer identity token expiry: Expected to update 1 row, updated %d", rowsAffected)
-	}
+	i.Metadata = string(b)
 
 	return nil
 }
