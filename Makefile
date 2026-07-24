@@ -29,7 +29,9 @@ else
 endif
 DQLITE_PATH=$(DEPS_PATH)/dqlite
 LIBLXC_PATH=$(DEPS_PATH)/liblxc
-LIBLXC_ROOTFS_MOUNT_PATH=$(GOPATH)/bin/liblxc/rootfs
+# Directory where the built dqlite/liblxc artifacts are staged for CI caching.
+DEPS_CACHE_PATH=$(GOPATH)/bin
+LIBLXC_ROOTFS_MOUNT_PATH=$(DEPS_CACHE_PATH)/liblxc/rootfs
 
 export CGO_CFLAGS ?= -I$(DQLITE_PATH)/include/ -I$(LIBLXC_PATH)/include/
 export CGO_LDFLAGS ?= -L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/
@@ -207,6 +209,20 @@ env:
 deps: dqlite liblxc
 	@echo ""; echo "# Please set the following in your environment (possibly ~/.bashrc)"
 	@$(MAKE) -s env
+
+# Stage the freshly built dqlite/liblxc artifacts into $(DEPS_CACHE_PATH) so they
+# can be cached and consumed by the CI jobs regardless of where they were built.
+.PHONY: deps-cache
+deps-cache: deps
+	rm -rf "$(DEPS_CACHE_PATH)/dqlite" "$(DEPS_CACHE_PATH)/liblxc"
+	mkdir -p "$(DEPS_CACHE_PATH)/dqlite"
+	mv "$(DQLITE_PATH)/include" "$(DEPS_CACHE_PATH)/dqlite/include"
+	mv "$(DQLITE_PATH)/.libs" "$(DEPS_CACHE_PATH)/dqlite/libs"
+	mkdir -p "$(DEPS_CACHE_PATH)/liblxc"
+	mv "$(LIBLXC_PATH)/include" "$(DEPS_CACHE_PATH)/liblxc/include"
+	mv "$(LIBLXC_PATH)/lib" "$(DEPS_CACHE_PATH)/liblxc/libs"
+	# liblxc requires a rootfs mount dir to exist.
+	mkdir -p "$(LIBLXC_ROOTFS_MOUNT_PATH)"
 
 # Spawns an interactive test shell for quick interactions with LXD and the test
 # suite.
