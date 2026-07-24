@@ -30,6 +30,9 @@ Any unknown storage pools (those that exist on disk but do not exist in the data
 are printed so they can be created manually using the `lxc storage create ... source.recover=true` command.
 Concrete examples for each storage driver can be found in {ref}`howto-storage-pools-recover`.
 
+To restrict recovery to a single project, run `lxd recover --project <project>`.
+The scan then only considers volumes belonging to that project and all other volumes are left untouched.
+
 After mounting the specified storage pools (if not already mounted), the tool scans them for unknown volumes that look like they are associated with LXD.
 LXD maintains a `backup.yaml` file in each instance's storage volume, which contains all necessary information to recover a given instance (including instance configuration, attached devices, storage volume, and pool configuration).
 This data can be used to rebuild the instance, storage volume, attached custom volumes, and storage pool database records.

@@ -50,7 +50,8 @@ func init() {
 
 // internalRecoverValidatePost is used to initiate a recovery validation scan.
 type internalRecoverValidatePost struct {
-	Pools []api.StoragePoolsPost `json:"pools" yaml:"pools"`
+	Pools   []api.StoragePoolsPost `json:"pools" yaml:"pools"`
+	Project string                 `json:"project" yaml:"project"` // Optional project to restrict the scan to.
 }
 
 // internalRecoverValidateVolume provides info about a missing volume that the recovery validation scan found.
@@ -70,7 +71,8 @@ type internalRecoverValidateResult struct {
 
 // internalRecoverImportPost is used to initiate a recovert import.
 type internalRecoverImportPost struct {
-	Pools []api.StoragePoolsPost `json:"pools" yaml:"pools"`
+	Pools   []api.StoragePoolsPost `json:"pools" yaml:"pools"`
+	Project string                 `json:"project" yaml:"project"` // Optional project to restrict the import to.
 }
 
 // volumeConfigIsLatest checks whether the given volumeConfig's volume is newer than the existingVolumeConfig's volume.
@@ -245,7 +247,8 @@ func identifyCustomVolumePool(s *state.State, volConfig *backupConfig.Config, ex
 }
 
 // internalRecoverScan provides the discovery and import functionality for both recovery validate and import steps.
-func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.StoragePoolsPost, validateOnly bool) response.Response {
+// If filterProjectName is non-empty, only volumes belonging to that project are considered.
+func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.StoragePoolsPost, filterProjectName string, validateOnly bool) response.Response {
 	var err error
 	var projects map[string]*api.Project
 	var projectProfiles map[string][]*api.Profile
@@ -381,6 +384,11 @@ func internalRecoverScan(ctx context.Context, s *state.State, userPools []api.St
 		// Some of the volumes might be actually located on another pool if they have been discovered from an instance on the current pool.
 		// Therefore we have to check each unknown volume separately.
 		for projectName, volConfigs := range poolProjectVols {
+			// Skip volumes from other projects if a project filter was requested.
+			if filterProjectName != "" && projectName != filterProjectName {
+				continue
+			}
+
 			for i, volConfig := range volConfigs {
 				if volConfig == nil {
 					return response.SmartError(fmt.Errorf("Invalid nil backup volume config in volumes list at index %d for project %q", i, projectName))
@@ -756,7 +764,7 @@ func internalRecoverValidate(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	return internalRecoverScan(r.Context(), d.State(), req.Pools, true)
+	return internalRecoverScan(r.Context(), d.State(), req.Pools, req.Project, true)
 }
 
 // internalRecoverImport performs the pool volume recovery.
@@ -768,5 +776,5 @@ func internalRecoverImport(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	return internalRecoverScan(r.Context(), d.State(), req.Pools, false)
+	return internalRecoverScan(r.Context(), d.State(), req.Pools, req.Project, false)
 }

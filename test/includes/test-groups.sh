@@ -276,6 +276,7 @@ readonly test_group_standalone_storage=(
     "snapshot_volume_db_recovery"
     "snapshot_fail"
     "snapshot_multi_volume"
+    "recover_project_filter"
     "storage_volume_recover"
     "storage_volume_recover_by_container"
     "storage"
