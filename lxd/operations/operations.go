@@ -411,20 +411,6 @@ func statusToMetricsResult(status api.StatusCode) metrics.RequestResult {
 	}
 }
 
-func updateStatus(op *Operation, newStatus api.StatusCode) {
-	oldStatus := op.status
-	// We cannot really use operation context as it was already cancelled.
-	err := op.updateStatus(context.TODO(), newStatus)
-	if err != nil {
-		op.logger.Warn("Failed updating operation status", logger.Ctx{
-			"operation": op.id,
-			"err":       err,
-			"oldStatus": oldStatus,
-			"newStatus": newStatus,
-		})
-	}
-}
-
 // start a pending operation.
 func (op *Operation) start() {
 	op.lock.Lock()
@@ -505,9 +491,9 @@ func (op *Operation) start() {
 
 				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
 				if errors.Is(err, context.Canceled) {
-					updateStatus(op, api.Cancelled)
+					op.persistWithNewStatus(api.Cancelled)
 				} else {
-					updateStatus(op, api.Failure)
+					op.persistWithNewStatus(api.Failure)
 				}
 
 				// Always call cancel. This is a no-op if already cancelled.
@@ -527,7 +513,7 @@ func (op *Operation) start() {
 			}
 
 			op.lock.Lock()
-			updateStatus(op, api.Success)
+			op.persistWithNewStatus(api.Success)
 			op.running.Cancel()
 			op.lock.Unlock()
 			op.done()
@@ -575,7 +561,7 @@ func (op *Operation) Cancel() {
 		// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
 		// If we're a parent operation with children, the start routine is waiting for the children to finish,
 		// and will set the final status, error and error code to cancelled.
-		updateStatus(op, api.Cancelling)
+		op.persistWithNewStatus(api.Cancelling)
 
 		// Signal the child operations to stop as well.
 		for _, childOp := range op.children {
@@ -586,7 +572,7 @@ func (op *Operation) Cancel() {
 		// We cannot use the operation context here because it has already been cancelled above.
 		op.err = context.Canceled.Error()
 		op.errCode = http.StatusInternalServerError
-		updateStatus(op, api.Cancelled)
+		op.persistWithNewStatus(api.Cancelled)
 	}
 
 	op.lock.Unlock()
@@ -771,10 +757,22 @@ func (op *Operation) EntityURL() *api.URL {
 	return op.entityURL
 }
 
-func (op *Operation) updateStatus(ctx context.Context, newStatus api.StatusCode) error {
+// persistWithNewStatus updates the Operation.status in-memory and sets the Operation.updatedAt to the current time,
+// then it persists the operation to the database. If persistence fails, a warning is logged but execution is allowed to
+// continue. Desynchronized operations will be fixed up via the Synchronize function and background task.
+func (op *Operation) persistWithNewStatus(newStatus api.StatusCode) {
+	oldStatus := op.status
 	op.status = newStatus
 	op.updatedAt = time.Now()
-	return updateDBOperation(ctx, op)
+	err := persistOperation(op.finished, op)
+	if err != nil {
+		op.logger.Warn("Failed updating operation status", logger.Ctx{
+			"operation": op.id,
+			"err":       err,
+			"oldStatus": oldStatus,
+			"newStatus": newStatus,
+		})
+	}
 }
 
 // UpdateMetadata updates the metadata of the operation. It returns an error if the operation has completed.
@@ -825,8 +823,8 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	return nil
 }
 
-// CommitMetadata commits the metadata and status of the operation to the database, and updates the updatedAt time.
-func (op *Operation) CommitMetadata() error {
+// Persist saves the current operation state to the database. The operation is locked while it is being saved.
+func (op *Operation) Persist() error {
 	op.lock.Lock()
 	defer op.lock.Unlock()
 
@@ -834,9 +832,8 @@ func (op *Operation) CommitMetadata() error {
 		return errors.New("Read-only operations cannot be updated")
 	}
 
-	op.updatedAt = time.Now()
-	// Use the operation context for the database update, so that if the operation is cancelled, the database update will be cancelled as well.
-	return updateDBOperation(context.Context(op.running), op)
+	// Use the operations running context for the database update, so that if the operation is cancelled, the database update will be cancelled as well.
+	return persistOperation(context.Context(op.running), op)
 }
 
 // ExtendMetadata updates the metadata of the operation with the additional data provided.
