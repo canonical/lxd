@@ -1955,6 +1955,7 @@ used to determine eligible cluster members during LXD scheduling events.
 :shortdesc: "AppArmor profile entries"
 :type: "blob"
 The specified entries are appended to the generated profile.
+This is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.
 ```
 
 ```{config:option} raw.idmap instance-raw
@@ -1969,7 +1970,8 @@ For example: `both 1000 1000`
 :liveupdate: "no"
 :shortdesc: "Raw LXC configuration to be appended to the generated one"
 :type: "blob"
-
+Additional LXC configuration is appended to the generated configuration.
+This is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.
 ```
 
 ```{config:option} raw.qemu instance-raw
@@ -1977,7 +1979,8 @@ For example: `both 1000 1000`
 :liveupdate: "no"
 :shortdesc: "Raw QEMU configuration to be appended to the generated command line"
 :type: "blob"
-
+Additional QEMU command line configuration is appended to the generated command line.
+This is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.
 ```
 
 ```{config:option} raw.qemu.conf instance-raw
@@ -1985,6 +1988,7 @@ For example: `both 1000 1000`
 :liveupdate: "no"
 :shortdesc: "Addition/override to the generated `qemu.conf` file"
 :type: "blob"
+This is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.
 See {ref}`instance-options-qemu` for more information.
 ```
 
@@ -1993,7 +1997,8 @@ See {ref}`instance-options-qemu` for more information.
 :liveupdate: "no"
 :shortdesc: "Raw Seccomp configuration"
 :type: "blob"
-
+Additional Seccomp configuration is appended to the generated policy.
+This is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.
 ```
 
 <!-- config group instance-raw end -->
@@ -3236,7 +3241,8 @@ Specify a comma-separated list of IPv6 CIDR subnets.
 :scope: "global"
 :shortdesc: "Additional `dnsmasq` configuration to append to the configuration file"
 :type: "string"
-
+Additional `dnsmasq` configuration is appended to the generated configuration file.
+This is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.
 ```
 
 ```{config:option} security.acls network-bridge-network-conf

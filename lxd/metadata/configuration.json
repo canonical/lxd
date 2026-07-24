@@ -2215,7 +2215,7 @@
 					{
 						"raw.apparmor": {
 							"liveupdate": "yes",
-							"longdesc": "The specified entries are appended to the generated profile.",
+							"longdesc": "The specified entries are appended to the generated profile.\nThis is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.",
 							"shortdesc": "AppArmor profile entries",
 							"type": "blob"
 						}
@@ -2232,7 +2232,7 @@
 						"raw.lxc": {
 							"condition": "container",
 							"liveupdate": "no",
-							"longdesc": "",
+							"longdesc": "Additional LXC configuration is appended to the generated configuration.\nThis is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.",
 							"shortdesc": "Raw LXC configuration to be appended to the generated one",
 							"type": "blob"
 						}
@@ -2241,7 +2241,7 @@
 						"raw.qemu": {
 							"condition": "virtual machine",
 							"liveupdate": "no",
-							"longdesc": "",
+							"longdesc": "Additional QEMU command line configuration is appended to the generated command line.\nThis is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.",
 							"shortdesc": "Raw QEMU configuration to be appended to the generated command line",
 							"type": "blob"
 						}
@@ -2250,7 +2250,7 @@
 						"raw.qemu.conf": {
 							"condition": "virtual machine",
 							"liveupdate": "no",
-							"longdesc": "See {ref}`instance-options-qemu` for more information.",
+							"longdesc": "This is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.\nSee {ref}`instance-options-qemu` for more information.",
 							"shortdesc": "Addition/override to the generated `qemu.conf` file",
 							"type": "blob"
 						}
@@ -2259,7 +2259,7 @@
 						"raw.seccomp": {
 							"condition": "container",
 							"liveupdate": "no",
-							"longdesc": "",
+							"longdesc": "Additional Seccomp configuration is appended to the generated policy.\nThis is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.",
 							"shortdesc": "Raw Seccomp configuration",
 							"type": "blob"
 						}
@@ -3596,7 +3596,7 @@
 					},
 					{
 						"raw.dnsmasq": {
-							"longdesc": "",
+							"longdesc": "Additional `dnsmasq` configuration is appended to the generated configuration file.\nThis is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.",
 							"scope": "global",
 							"shortdesc": "Additional `dnsmasq` configuration to append to the configuration file",
 							"type": "string"
