@@ -169,6 +169,7 @@ readonly test_group_standalone=(
     "filtering"
     "bulk_operation_children"
     "get_operations"
+    "operation_wait_failure"
     "operations_conflict_reference"
     "instances_selective_recursion"
     "kernel_limits"

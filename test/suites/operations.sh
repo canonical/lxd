@@ -93,3 +93,29 @@ test_operations_conflict_reference() {
   lxc query -X POST '/internal/testing/operation-wait' -d '{"duration": "5s", "op_class": 1, "op_type": 75, "conflict_reference": "'"${conflictRef}"'"}'
   ! lxc query -X POST '/internal/testing/operation-wait' -d '{"duration": "5s", "op_class": 1, "op_type": 75, "conflict_reference": "'"${conflictRef}"'"}' || false
 }
+
+test_operation_wait_failure() {
+  network_name="opwait$$"
+
+  (
+    set -e
+
+    lxc network create "${network_name}" ipv4.address=none ipv6.address=none
+    trap 'lxc network delete "${network_name}"' EXIT
+
+    op_id=$(lxc query -X POST /1.0/networks -d '{"name": "'"${network_name}"'", "config": {"ipv4.address": "none", "ipv6.address": "none"}}' | jq --exit-status --raw-output '.id')
+    wait_response=$(lxc query "/1.0/operations/${op_id}/wait?timeout=60")
+
+    jq --exit-status '
+      .status == "Failure" and
+      .status_code == 400 and
+      .err == "The network already exists" and
+      .err_code == 400
+    ' <<< "${wait_response}"
+
+    if lxc network create "${network_name}" ipv4.address=none ipv6.address=none; then
+      echo "ERROR: Duplicate network creation succeeded"
+      exit 1
+    fi
+  )
+}
