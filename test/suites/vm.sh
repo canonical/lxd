@@ -179,6 +179,25 @@ test_vm_pcie_bus() {
   lxc config device remove v1 v1block
   lxc storage volume delete "${pool}" v1block
 
+  sub_test "Check security.shifted volumes are not remapped by virtiofsd in VMs"
+  # VMs do not use user namespaces, so files on a security.shifted volume keep their real
+  # on-disk ownership inside the VM (matching containers). virtiofsd must ignore raw.idmap for
+  # such volumes, otherwise the file below would appear owned by nobody instead of 123:456.
+  lxc config set v1 raw.idmap="both 1000000 0"
+  lxc storage volume create "${pool}" v1shift --type=filesystem size=1MiB security.shifted=true
+  lxc config device add v1 v1shift disk source=v1shift pool="${pool}" path=/mnt
+  lxc start v1
+  waitInstanceReady v1
+  lxc exec v1 -- findmnt /mnt -t virtiofs
+  volPath="${LXD_DIR}/storage-pools/${pool}/custom/default_v1shift"
+  touch "${volPath}/shifted-file"
+  chown 123:456 "${volPath}/shifted-file"
+  [ "$(lxc exec v1 -- stat /mnt/shifted-file -c '%u:%g')" = "123:456" ]
+  lxc stop -f v1
+  lxc config device remove v1 v1shift
+  lxc storage volume delete "${pool}" v1shift
+  lxc config unset v1 raw.idmap
+
   lxc storage volume create "${pool}" v1dir --type=filesystem size=1MiB
   lxc start v1
   lxc config device add v1 mydir disk source=v1dir pool="${pool}" path=/mnt
