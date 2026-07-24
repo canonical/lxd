@@ -213,6 +213,10 @@ fine_grained: true"
   certExpiresAt="$(printf '%s\n' "${currentIdentity}" | sed -n 's/^expires_at: //p')"
   [[ "${certExpiresAt}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
 
+  # The certificate expiry is derived from the presented peer certificate for the current identity, but from the
+  # stored certificate when the identity is shown. Both describe the same certificate, so their expiry must match.
+  [ "$(date -u -d "$(lxc query "/1.0/auth/identities/tls/${tls_identity_fingerprint}" | jq --exit-status --raw-output '.expires_at')" +%s)" = "$(date -u -d "${certExpiresAt}" +%s)" ]
+
   expectedBearerInfo="authentication_method: bearer
 type: Client token bearer
 id: ${bearer_identity_id}
@@ -276,7 +280,24 @@ fine_grained: true"
   # Use curl instead of lxc to ensure API interaction is correct.
   lxc auth identity create bearer/tmp
   tmp_bearer_identity_id="$(lxc auth identity show bearer/tmp | grep "^id:" | cut -d' ' -f2)"
+
+  # A bearer identity with no issued token has no expiry to report.
+  lxc query "/1.0/auth/identities/bearer/${tmp_bearer_identity_id}" | jq --exit-status '.expires_at == null'
+
   tmp_bearer_identity_token="$(lxc auth identity token issue bearer/tmp --quiet)"
+
+  # Once a token is issued, the identity reports its expiry when shown, not only via the current identity endpoint.
+  # The reported expiry must match the "exp" claim of the issued token exactly, so that the identity and the token
+  # it was issued cannot describe different expiries.
+  tmp_bearer_token_payload="$(printf '%s' "${tmp_bearer_identity_token}" | cut -d. -f2 | base64 -d 2>/dev/null || true)"
+  tmp_bearer_token_exp="$(jq --exit-status --raw-output '.exp' <<< "${tmp_bearer_token_payload}")"
+  tmp_bearer_listed_expiry="$(lxc query "/1.0/auth/identities/bearer/${tmp_bearer_identity_id}" | jq --exit-status --raw-output '.expires_at')"
+  [ "$(date -u -d "${tmp_bearer_listed_expiry}" +%s)" = "${tmp_bearer_token_exp}" ]
+
+  # The expiry is also reported when listing identities recursively.
+  tmp_bearer_recursive_expiry="$(lxc query "/1.0/auth/identities/bearer?recursion=1" | jq --exit-status --raw-output --arg id "${tmp_bearer_identity_id}" '.[] | select(.id == $id) | .expires_at')"
+  [ "$(date -u -d "${tmp_bearer_recursive_expiry}" +%s)" = "${tmp_bearer_token_exp}" ]
+
   curl -s -k -H "Authorization: Bearer ${tmp_bearer_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
   curl -s -k -H "Authorization: Bearer ${tmp_bearer_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth_user_method == "bearer"'
   curl -s -k -H "Authorization: Bearer ${tmp_bearer_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status --arg id "${tmp_bearer_identity_id}" '.metadata.auth_user_name == $id'
@@ -284,6 +305,10 @@ fine_grained: true"
   # Check that bearer token revocation works.
   lxc auth identity token revoke bearer/tmp
   curl -s -k -H "Authorization: Bearer ${tmp_bearer_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.error_code == 403'
+
+  # Revoking the token clears the reported expiry, so that a revoked token is not advertised as still valid.
+  lxc query "/1.0/auth/identities/bearer/${tmp_bearer_identity_id}" | jq --exit-status '.expires_at == null'
+
   lxc auth identity delete bearer/tmp
 
   # Ensure DevLXD token cannot be to authenticate with main LXD API.

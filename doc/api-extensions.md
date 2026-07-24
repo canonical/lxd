@@ -3631,3 +3631,15 @@ Adds a `child_count` field to the `Operation` struct, indicating the number of c
 
 Adds NVMe/TCP support to the Dell PowerStore storage driver.
 NVMe/TCP is now the default PowerStore mode when `powerstore.mode` is not set.
+
+(extension-access-management-expiry)=
+## `access_management_expiry`
+
+Adds an `expires_at` field to the `Identity` struct, so that the expiry of an identity's credential is reported when identities are listed or individually retrieved, and not only for the current identity.
+
+For identities whose authentication method is `tls`, this is the expiry of the identity's certificate.
+For identities whose authentication method is `bearer`, this is the expiry of the issued token.
+For bearer tokens the expiry is recorded when a token is issued and cleared when a token is revoked.
+The field is omitted for identities whose credential has no expiry, that have no credential yet (pending identities), or whose token has been revoked.
+
+Note that bearer identities created prior to this extension will have an omitted `expires_at` field until a new token is issued.
