@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/metrics"
@@ -54,6 +56,10 @@ type OperationArgs struct {
 	// ConflictReference is used to prevent other operations with the same conflict reference from running.
 	// It is not valid to provide a conflict reference if the Type has [operationtype.ConflictActionNone].
 	ConflictReference string
+
+	// Stage defines ordering of child operations. It is not valid to set Stage > 0 on operations that are not children.
+	// Child stages must be consecutive, starting at zero. This is an uint16 to indicate that it is a low positive integer.
+	Stage uint16
 
 	// Children are sub-operations of a bulk operation. It is not valid to provide children if [operationtype.Type.IsBulk]
 	// returns false for the Type.
@@ -145,6 +151,12 @@ func (a OperationArgs) validate(isChild bool) error {
 		return fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", a.ConflictReference, a.Type.Description())
 	}
 
+	if !isChild && a.Stage > 0 {
+		return errors.New("Only child operations have stages")
+	}
+
+	// Create a set of stages for validation.
+	stageSet := make(map[uint16]struct{})
 	for i, child := range a.Children {
 		if child == nil {
 			return errors.New("Operation children cannot be nil")
@@ -157,6 +169,17 @@ func (a OperationArgs) validate(isChild bool) error {
 		err := child.validate(true)
 		if err != nil {
 			return fmt.Errorf(`Failed validating child operation "%d": %w`, i, err)
+		}
+
+		stageSet[child.Stage] = struct{}{}
+	}
+
+	// Get a sorted slice of stages. It must be [0, 1, 2, ...].
+	stages := slices.Collect(maps.Keys(stageSet))
+	slices.Sort(stages)
+	for i := range stages {
+		if stages[i] != uint16(i) {
+			return errors.New("Child operation stages must be consecutive, starting at 0")
 		}
 	}
 
