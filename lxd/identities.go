@@ -578,7 +578,7 @@ func identityBearerTokenPost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, api.IdentityBearerToken{Token: token})
 }
 
-// swagger:operation POST /1.0/auth/identities/bearer/{nameOrID}/token identities identity_delete_bearer_token
+// swagger:operation DELETE /1.0/auth/identities/bearer/{nameOrID}/token identities identity_delete_bearer_token
 //
 //	Revoke a bearer identity token.
 //

@@ -9027,7 +9027,7 @@ paths:
             tags:
                 - identities
     /1.0/auth/identities/bearer/{nameOrID}/token:
-        post:
+        delete:
             consumes:
                 - application/json
             description: Revokes any existing token for the identity.
@@ -9042,6 +9042,34 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Revoke a bearer identity token.
+            tags:
+                - identities
+        post:
+            consumes:
+                - application/json
+            description: Issues a new token for the bearer identity and revokes any existing token.
+            operationId: identity_post_bearer_token
+            parameters:
+                - description: Parameters of token creation
+                  in: body
+                  name: Token request
+                  required: true
+                  schema:
+                    $ref: '#/definitions/IdentityBearerTokenPost'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/IdentityBearerToken'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Issue a token for a bearer identity.
             tags:
                 - identities
     /1.0/auth/identities/bearer/{nameOrIdentifier}:
