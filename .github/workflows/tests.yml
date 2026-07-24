@@ -174,16 +174,8 @@ jobs:
       # In code-tests, this action warms the cache for the system-tests job
       - name: Build or restore dqlite/liblxc dependencies
         uses: ./.github/actions/cache-dqlite-liblxc
-
-      - name: Update env variables for deps
-        run: |
-          set -eux
-          LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
-
-          echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
-          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
-          echo "LD_RUN_PATH=${LD_RUN_PATH}:${LIBLXC_ARCH_LIBS}"         >> "${GITHUB_ENV}"
-          echo "PKG_CONFIG_PATH=${LIBLXC_ARCH_LIBS}/pkgconfig"          >> "${GITHUB_ENV}"
+        with:
+          export-env: true
 
       - name: Build binaries
         run: |
@@ -872,6 +864,8 @@ jobs:
       # Restore the cache warmed in code-tests job
       - name: Build or restore dqlite/liblxc dependencies
         uses: ./.github/actions/cache-dqlite-liblxc
+        with:
+          export-env: true
 
       - name: Download system test dependencies
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -879,17 +873,6 @@ jobs:
           name: system-test-deps
           merge-multiple: true
           path: /home/runner/go/bin
-
-      - name: Prepare for running LXD daemon
-        run: |
-          set -eux
-
-          # Update env variables for liblxc
-          LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
-          echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
-          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
-          echo "LD_RUN_PATH=${LD_RUN_PATH}:${LIBLXC_ARCH_LIBS}"         >> "${GITHUB_ENV}"
-          echo "PKG_CONFIG_PATH=${LIBLXC_ARCH_LIBS}/pkgconfig"          >> "${GITHUB_ENV}"
 
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps

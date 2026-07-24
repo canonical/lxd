@@ -97,26 +97,13 @@ jobs:
           # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
           # queries: security-extended,security-and-quality
 
-      # Create a symlink so the cache-dqlite-liblxc action can build from the checkout on a cache miss.
-      - name: Create deps build symlink
-        if: matrix.language == 'go'
-        run: ln -s "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}/../lxd-test"
-
-      # Build or restore dqlite/liblxc from the daily cache (Go only).
+      # Build or restore dqlite/liblxc from the daily cache (Go only). On a cache
+      # miss the action builds from the checked-out workspace.
       - name: Build or restore dqlite/liblxc dependencies
         if: matrix.language == 'go'
         uses: ./.github/actions/cache-dqlite-liblxc
-
-      - name: Update env variables for deps
-        if: matrix.language == 'go'
-        run: |
-          set -eux
-          LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
-
-          echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
-          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
-          echo "LD_RUN_PATH=${LD_RUN_PATH}:${LIBLXC_ARCH_LIBS}"         >> "${GITHUB_ENV}"
-          echo "PKG_CONFIG_PATH=${LIBLXC_ARCH_LIBS}/pkgconfig"          >> "${GITHUB_ENV}"
+        with:
+          export-env: true
 
       # Autobuild attempts to build any compiled languages (C/C++, C#, Go, Java, or Swift).
       - name: Autobuild
