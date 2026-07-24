@@ -121,8 +121,30 @@ func (i IdentityType) ActiveType() (IdentityType, error) {
 		return api.IdentityTypeCertificateClient, nil
 	case api.IdentityTypeCertificateClusterLinkPending:
 		return api.IdentityTypeCertificateClusterLink, nil
+	case api.IdentityTypeBearerTokenClientPending:
+		return api.IdentityTypeBearerTokenClient, nil
+	case api.IdentityTypeBearerTokenDevLXDPending:
+		return api.IdentityTypeBearerTokenDevLXD, nil
+	case api.IdentityTypeBearerTokenInitialUIPending:
+		return api.IdentityTypeBearerTokenInitialUI, nil
 	default:
 		return "", fmt.Errorf("Identities of type %q cannot be activated", i)
+	}
+}
+
+// PendingType returns the pending version of an active bearer identity type.
+// A bearer identity is demoted to its pending type when its token is revoked and no signing key remains.
+// It returns an error for types that cannot be demoted to a pending variant.
+func (i IdentityType) PendingType() (IdentityType, error) {
+	switch i {
+	case api.IdentityTypeBearerTokenClient:
+		return api.IdentityTypeBearerTokenClientPending, nil
+	case api.IdentityTypeBearerTokenDevLXD:
+		return api.IdentityTypeBearerTokenDevLXDPending, nil
+	case api.IdentityTypeBearerTokenInitialUI:
+		return api.IdentityTypeBearerTokenInitialUIPending, nil
+	default:
+		return "", fmt.Errorf("Identities of type %q cannot be made pending", i)
 	}
 }
 
@@ -253,6 +275,12 @@ func (i IdentitiesRow) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 
 	if !identityType.IsPending() {
 		return nil, api.StatusErrorf(http.StatusBadRequest, "Cannot extract pending %q TLS identity secret: Identity is not pending", i.Type)
+	}
+
+	// Pending identities of other authentication methods carry different metadata, so reject them rather than
+	// reporting an empty secret and expiry for them.
+	if identityType.AuthenticationMethod() != api.AuthenticationMethodTLS {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Cannot extract pending %q TLS identity secret: Identity does not authenticate with TLS", i.Type)
 	}
 
 	var metadata PendingTLSMetadata
@@ -461,9 +489,11 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 	return query.UpdateByPrimaryKey(ctx, tx, ident)
 }
 
-var pendingIdentityTypes = func() (result []int64) {
+// pendingTLSIdentityTypes returns the type codes of all pending identity types whose authentication method is TLS.
+// These are the only pending identities that carry a token secret in their metadata and can be activated with one.
+var pendingTLSIdentityTypes = func() (result []int64) {
 	for _, t := range identity.Types() {
-		if t.IsPending() {
+		if t.IsPending() && t.AuthenticationMethod() == api.AuthenticationMethodTLS {
 			result = append(result, t.Code())
 		}
 	}
@@ -475,7 +505,7 @@ var pendingIdentityTypes = func() (result []int64) {
 func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*IdentitiesRow, error) {
 	clause := fmt.Sprintf(`
 	WHERE identities.type IN %s
-	AND json_extract(identities.metadata, '$.secret') = ?`, query.IntParams(pendingIdentityTypes()...))
+	AND json_extract(identities.metadata, '$.secret') = ?`, query.IntParams(pendingTLSIdentityTypes()...))
 
 	ident, err := query.SelectOne[IdentitiesRow](ctx, tx, clause, secret)
 	if err != nil {
