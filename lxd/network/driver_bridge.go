@@ -596,7 +596,8 @@ func (n *bridge) Validate(config map[string]string) error {
 		//  scope: global
 		"dns.zone.reverse.ipv6": validate.IsAny,
 		// lxdmeta:generate(entities=network-bridge; group=network-conf; key=raw.dnsmasq)
-		//
+		// Additional `dnsmasq` configuration is appended to the generated configuration file.
+		// This is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.
 		// ---
 		//  type: string
 		//  shortdesc: Additional `dnsmasq` configuration to append to the configuration file

@@ -305,6 +305,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 
 	// lxdmeta:generate(entities=instance; group=raw; key=raw.apparmor)
 	// The specified entries are appended to the generated profile.
+	// This is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.
 	// ---
 	//  type: blob
 	//  liveupdate: yes
@@ -693,7 +694,8 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	// Caller is responsible for full validation of any raw.* value.
 
 	// lxdmeta:generate(entities=instance; group=raw; key=raw.lxc)
-	//
+	// Additional LXC configuration is appended to the generated configuration.
+	// This is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.
 	// ---
 	//  type: blob
 	//  liveupdate: no
@@ -702,7 +704,8 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"raw.lxc": validate.IsAny,
 
 	// lxdmeta:generate(entities=instance; group=raw; key=raw.seccomp)
-	//
+	// Additional Seccomp configuration is appended to the generated policy.
+	// This is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.
 	// ---
 	//  type: blob
 	//  liveupdate: no
@@ -1058,7 +1061,8 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	// Caller is responsible for full validation of any raw.* value.
 
 	// lxdmeta:generate(entities=instance; group=raw; key=raw.qemu)
-	//
+	// Additional QEMU command line configuration is appended to the generated command line.
+	// This is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.
 	// ---
 	//  type: blob
 	//  liveupdate: no
@@ -1067,6 +1071,7 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	"raw.qemu": validate.IsAny,
 
 	// lxdmeta:generate(entities=instance; group=raw; key=raw.qemu.conf)
+	// This is a low-level option and is not recommended for production use, as it allows for unsupported configurations that may cease to work in future versions.
 	// See {ref}`instance-options-qemu` for more information.
 	// ---
 	//  type: blob
