@@ -269,8 +269,8 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 		op.location = dbOp.NodeName
 	}
 
-	// If operation is already in final state, cancel both contexts, there's no point in running any hook.
-	if op.status.IsFinal() {
+	// If operation is already in final state or is cancelling, cancel both contexts, there's no point in running any hook.
+	if op.status.IsFinal() || op.status == api.Cancelling {
 		op.running.Cancel()
 		op.finished.Cancel()
 	}
