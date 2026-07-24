@@ -83,6 +83,9 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			return 0, err
 		}
 
+		// Save the time at which the operation was persisted
+		op.lastPersistenceAttempt = op.updatedAt
+
 		err = cluster.CreateOperationResources(ctx, tx.Tx(), dbOpID, op.resources)
 		if err != nil {
 			return 0, err
@@ -137,6 +140,10 @@ func updateDBOperation(ctx context.Context, op *Operation) error {
 	if op.state == nil {
 		return errors.New("Failed updating operation: No state available")
 	}
+
+	// Save the lastPersistenceAttempt field as the current updatedAt value.
+	// If persistence fails, the updated_at row in the database will be behind this value.
+	op.lastPersistenceAttempt = op.updatedAt
 
 	err := op.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, op.metadata, op.err, op.errCode)
@@ -229,24 +236,25 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 	}
 
 	op := Operation{
-		dbID:              dbOp.Row.ID,
-		projectName:       dbOp.ProjectName,
-		id:                dbOp.Row.UUID,
-		class:             operationtype.Class(dbOp.Row.Class),
-		createdAt:         dbOp.Row.CreatedAt,
-		updatedAt:         dbOp.Row.UpdatedAt,
-		status:            api.StatusCode(dbOp.Row.StatusCode),
-		url:               api.NewURL().Path(version.APIVersion, "operations", dbOp.Row.UUID).String(),
-		description:       dbOp.Row.Type.Description(),
-		dbOpType:          dbOp.Row.Type,
-		finished:          cancel.New(),
-		running:           cancel.New(),
-		state:             s,
-		location:          dbOp.NodeName,
-		err:               dbOp.Row.Error,
-		errCode:           dbOp.Row.ErrorCode,
-		conflictReference: dbOp.Row.ConflictReference,
-		requestor:         dbOp.Requestor(),
+		dbID:                   dbOp.Row.ID,
+		projectName:            dbOp.ProjectName,
+		id:                     dbOp.Row.UUID,
+		class:                  operationtype.Class(dbOp.Row.Class),
+		createdAt:              dbOp.Row.CreatedAt,
+		updatedAt:              dbOp.Row.UpdatedAt,
+		lastPersistenceAttempt: dbOp.Row.UpdatedAt,
+		status:                 api.StatusCode(dbOp.Row.StatusCode),
+		url:                    api.NewURL().Path(version.APIVersion, "operations", dbOp.Row.UUID).String(),
+		description:            dbOp.Row.Type.Description(),
+		dbOpType:               dbOp.Row.Type,
+		finished:               cancel.New(),
+		running:                cancel.New(),
+		state:                  s,
+		location:               dbOp.NodeName,
+		err:                    dbOp.Row.Error,
+		errCode:                dbOp.Row.ErrorCode,
+		conflictReference:      dbOp.Row.ConflictReference,
+		requestor:              dbOp.Requestor(),
 	}
 
 	// If server is not clustered, the DB contains 'none' as the node name. In that case we use the server name as the location.

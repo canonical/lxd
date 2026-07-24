@@ -145,6 +145,11 @@ type Operation struct {
 	// Locking for concurrent access to the Operation
 	lock sync.Mutex
 
+	// lastPersistenceAttempt contains the value of updatedAt on the last attempted write of the operation to the database.
+	// If the write fails, the value of lastPersistenceAttempt will be greater than the value of the `operations.updated_at`
+	// column for the row representing this operation. This is used for operation synchronization.
+	lastPersistenceAttempt time.Time
+
 	state  *state.State
 	events *events.Server
 
