@@ -56,8 +56,46 @@ func OperationGetInternal(id string) (*Operation, error) {
 	return op, nil
 }
 
+// deleteInternal deletes the operations with the given IDs from the operations map.
+func deleteInternal(ids ...string) {
+	if len(ids) == 0 {
+		return
+	}
+
+	// Get a list of operations to call "done" on. This is so that we hold operationsLock for as little time as possible.
+	// Can't pre-allocate here, as we don't know how many child operations there are.
+	var doneOps []*Operation
+
+	// Iterate over given IDs and check the local map.
+	operationsLock.Lock()
+	for _, id := range ids {
+		op, ok := operations[id]
+		if !ok {
+			continue
+		}
+
+		// Append the parent operation to our list and delete from the map.
+		doneOps = append(doneOps, op)
+		delete(operations, id)
+
+		// Do the same for all the children.
+		for _, child := range op.children {
+			doneOps = append(doneOps, child)
+			delete(operations, child.id)
+		}
+	}
+
+	operationsLock.Unlock()
+
+	// Call done on all operations we collected.
+	for _, op := range doneOps {
+		op.done()
+	}
+}
+
 // Operation represents an operation.
 type Operation struct {
+	dbID            int64
 	projectName     string
 	id              string
 	class           operationtype.Class
@@ -102,6 +140,9 @@ type Operation struct {
 
 	state  *state.State
 	events *events.Server
+
+	// done is a sync.OnceFunc that is instantiated when the operation is scheduled.
+	done func()
 }
 
 // OperationScheduler is a signature used in function arguments where the function is used to deduplicate operation
@@ -236,6 +277,21 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.onRun = args.RunHook
 		op.onConnect = args.ConnectHook
 
+		op.done = sync.OnceFunc(func() {
+			op.lock.Lock()
+			finalStatus := op.status
+			op.readonly = true
+			op.onRun = nil
+			op.onConnect = nil
+			op.running.Cancel()
+			op.finished.Cancel()
+			op.lock.Unlock()
+
+			if op.metricsCallback != nil {
+				op.metricsCallback(statusToMetricsResult(finalStatus))
+			}
+		})
+
 		return &op, nil
 	}
 
@@ -334,87 +390,6 @@ func statusToMetricsResult(status api.StatusCode) metrics.RequestResult {
 	default:
 		return metrics.ErrorServer
 	}
-}
-
-func (op *Operation) done() {
-	if op.metricsCallback != nil {
-		op.metricsCallback(statusToMetricsResult(op.status))
-	}
-
-	if op.readonly {
-		return
-	}
-
-	op.lock.Lock()
-	op.readonly = true
-	op.onRun = nil
-	op.onConnect = nil
-	op.finished.Cancel()
-	op.lock.Unlock()
-
-	// If we are a child operation, we're done. The parent operation will clean all the child entries when it finishes.
-	if op.parent != nil {
-		return
-	}
-
-	// If this is a parent operation of a bulk operation, we clear the entries from the internal map, but leave the database records in place.
-	// The database records will be cleared later by the pruneExpiredOperationsTask().
-	if len(op.children) > 0 {
-		operationsLock.Lock()
-		_, ok := operations[op.id]
-		if !ok {
-			operationsLock.Unlock()
-			return
-		}
-
-		delete(operations, op.id)
-
-		// Clear child operations
-		for _, childOp := range op.children {
-			_, ok := operations[childOp.id]
-			if ok {
-				delete(operations, childOp.id)
-			}
-		}
-
-		operationsLock.Unlock()
-		return
-	}
-
-	go func() {
-		shutdownCtx := context.Background()
-		if op.state != nil {
-			shutdownCtx = op.state.ShutdownCtx
-		}
-
-		select {
-		case <-shutdownCtx.Done():
-			return // Expect all operation records to be removed by daemon.Stop in one query.
-		case <-time.After(time.Second * 5): // Wait 5s before removing from internal map and database.
-		}
-
-		operationsLock.Lock()
-		_, ok := operations[op.id]
-		if !ok {
-			operationsLock.Unlock()
-			return
-		}
-
-		delete(operations, op.id)
-		operationsLock.Unlock()
-
-		if op.state == nil {
-			return
-		}
-
-		err := removeDBOperation(op)
-		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-			// Operations can be deleted from the database before the operation clean up go routine has
-			// run in cases where the project that the operation(s) are associated to is deleted first.
-			// So don't log warning if operation not found.
-			op.logger.Warn("Failed deleting operation", logger.Ctx{"status": op.status, "err": err})
-		}
-	}()
 }
 
 func updateStatus(op *Operation, newStatus api.StatusCode) {
@@ -835,6 +810,10 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 func (op *Operation) CommitMetadata() error {
 	op.lock.Lock()
 	defer op.lock.Unlock()
+
+	if op.readonly {
+		return errors.New("Read-only operations cannot be updated")
+	}
 
 	op.updatedAt = time.Now()
 	// Use the operation context for the database update, so that if the operation is cancelled, the database update will be cancelled as well.

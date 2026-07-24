@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"slices"
 	"strconv"
@@ -1120,34 +1121,59 @@ func (c *ClusterTx) GetCandidateMembers(ctx context.Context, allMembers []NodeIn
 // GetNodeWithLeastInstances returns the name of the member with the least number of instances that are either
 // already created or being created with an operation.
 func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, members []NodeInfo) (*NodeInfo, error) {
-	var member *NodeInfo
-	var lowestInstanceCount = -1
-
-	for i := range members {
-		// Fetch the number of instances already created on this member.
-		created, err := query.Count(ctx, c.tx, "instances", "node_id=?", members[i].ID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed getting instances count: %w", err)
-		}
-
-		// Fetch the number of instances currently being created on this member.
-		pending, err := query.Count(ctx, c.tx, "operations", "node_id=? AND type=?", members[i].ID, operationtype.InstanceCreate)
-		if err != nil {
-			return nil, fmt.Errorf("Failed getting pending instances count: %w", err)
-		}
-
-		memberInstanceCount := created + pending
-		if lowestInstanceCount == -1 || memberInstanceCount < lowestInstanceCount {
-			lowestInstanceCount = memberInstanceCount
-			member = &members[i]
-		}
-	}
-
-	if member == nil {
+	if len(members) == 0 {
 		return nil, api.StatusErrorf(http.StatusNotFound, "No suitable cluster member could be found")
 	}
 
-	return member, nil
+	// Initialize member instance counts and get a slice of member IDs for use in query.
+	memberIDs := make([]int64, 0, len(members))
+	counts := make(map[int64]int64)
+	for _, nodeInfo := range members {
+		memberIDs = append(memberIDs, nodeInfo.ID)
+		counts[nodeInfo.ID] = 0
+	}
+
+	// Create a union query for instances and running instance create operations.
+	var b strings.Builder
+	b.WriteString("SELECT instances.node_id, COUNT(*) FROM instances WHERE instances.node_id IN ")
+	b.WriteString(query.IntParams(memberIDs...))
+	b.WriteString(" GROUP BY instances.node_id ")
+	b.WriteString("UNION ALL ")
+	b.WriteString("SELECT operations.node_id, COUNT(*) FROM operations WHERE operations.node_id IN ")
+	b.WriteString(query.IntParams(memberIDs...))
+	b.WriteString(" AND operations.type = ? AND operations.status_code = ? GROUP BY operations.node_id")
+
+	// Query and populate instance counts.
+	err := query.Scan(ctx, c.tx, b.String(), func(scan func(dest ...any) error) error {
+		var nodeID, count int64
+		err := scan(&nodeID, &count)
+		if err != nil {
+			return err
+		}
+
+		counts[nodeID] = counts[nodeID] + count
+		return nil
+	}, operationtype.InstanceCreate, api.Running)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting instance count: %w", err)
+	}
+
+	// Iterate over the given members to find the one with the lowest instance (or pending instance) count.
+	lowest := int64(math.MaxInt64)
+	var nodeWithFewestInstances *NodeInfo
+	for _, member := range members {
+		count := counts[member.ID]
+		if count < lowest {
+			lowest = count
+			nodeWithFewestInstances = &member
+		}
+	}
+
+	if nodeWithFewestInstances == nil {
+		return nil, api.StatusErrorf(http.StatusNotFound, "No suitable cluster member could be found")
+	}
+
+	return nodeWithFewestInstances, nil
 }
 
 // SetNodeVersion updates the schema and API version of the node with the

@@ -357,9 +357,36 @@ func GetOperationsByProjectAndType(ctx context.Context, tx *sql.Tx, projectName 
 	return query.Select[Operation](ctx, tx, "WHERE coalesce(projects.name, '') = ? AND operations.type = ?", projectName, opType)
 }
 
-// DeleteOperation deletes an operation by UUID.
-func DeleteOperation(ctx context.Context, tx *sql.Tx, operationUUID string) error {
-	return query.DeleteOne[OperationsRow](ctx, tx, "WHERE operations.uuid = ?", operationUUID)
+// operationDeleteBatchSize is used to limit the number of bind arguments passed to SQLite when deleting operations
+// (see [DeleteOperations]).
+const operationDeleteBatchSize = 500
+
+// DeleteOperations deletes all operations with the given UUIDs.
+func DeleteOperations(ctx context.Context, tx *sql.Tx, operationUUIDs ...string) error {
+	// Operations are cleared in a background task that runs every minute.
+	// It's possible for the number of operations to be pruned to be larger than the SQLite max bind-parameter limit.
+	// Delete operations in batches to avoid this.
+	for len(operationUUIDs) > 0 {
+		batch := operationUUIDs
+		if len(batch) > operationDeleteBatchSize {
+			batch = batch[:operationDeleteBatchSize]
+		}
+
+		args := make([]any, len(batch))
+		for i, id := range batch {
+			args[i] = id
+		}
+
+		_, err := query.DeleteMany[OperationsRow](ctx, tx, "WHERE operations.uuid IN "+query.Params(len(args)), args...)
+		if err != nil {
+			return err
+		}
+
+		// Remove the batch from the list.
+		operationUUIDs = operationUUIDs[len(batch):]
+	}
+
+	return nil
 }
 
 // GetOperation gets an [Operation] by UUID.
