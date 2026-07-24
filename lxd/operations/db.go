@@ -132,7 +132,9 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 	return nil
 }
 
-func updateDBOperation(ctx context.Context, op *Operation) error {
+// persistOperation saves the operation to the database in its current state. The [cluster.OperationsRow.UpdatedAt]
+// column is only set to the value of Operation.updatedAt, not necessarily the current time.
+func persistOperation(ctx context.Context, op *Operation) error {
 	if op.state == nil {
 		return errors.New("Failed updating operation: No state available")
 	}
@@ -144,7 +146,7 @@ func updateDBOperation(ctx context.Context, op *Operation) error {
 		return fmt.Errorf("Failed updating operation %q record: %w", op.id, err)
 	}
 
-	// Save the time at which the operation was persisted.
+	// Save the time at which the last update of the operation was persisted.
 	op.persistedAt = op.updatedAt
 	return nil
 }
