@@ -132,6 +132,69 @@ var updates = map[int]schema.Update{
 	86: updateFromV85,
 	87: updateFromV86,
 	88: updateFromV87,
+	89: updateFromV88,
+}
+
+// updateFromV88 converts bearer identities that have no signing key to their pending type.
+//
+// A bearer identity has no usable token when it has no signing key and this is now reflected by
+// a distinct pending identity type. Identities that still hold a signing key keep their active type,
+// even if the issued token has already expired.
+func updateFromV88(ctx context.Context, tx *sql.Tx) error {
+	// Identity type codes:
+	// 9:  DevLXD token bearer
+	// 10: Client token bearer
+	// 11: Initial UI token bearer
+	// 14: Client token bearer (pending)
+	// 15: DevLXD token bearer (pending)
+	// 16: Initial UI token bearer (pending)
+	//
+	// Entity type codes:
+	// 24: Identity entities
+	//
+	// Secret type codes:
+	// 2:  Bearer signing keys
+	//
+	// There can only ever be one initial UI identity. The replacement index holds that invariant across both of its
+	// type codes by indexing a constant rather than the type, so that every covered row has the same key and a second
+	// one collides with the first whether or not the two share a type.
+	_, err := tx.ExecContext(ctx, `
+DROP INDEX identities_type_initial_ui;
+
+CREATE UNIQUE INDEX identities_type_initial_ui ON identities ((1)) WHERE type = 11 OR type = 16;
+
+UPDATE identities
+SET type = 15
+WHERE type = 9
+	AND NOT EXISTS (
+		SELECT 1 FROM secrets
+		WHERE secrets.entity_type = 24
+			AND secrets.entity_id = identities.id
+			AND secrets.type = 2
+	);
+
+UPDATE identities
+SET type = 14
+WHERE type = 10
+	AND NOT EXISTS (
+		SELECT 1 FROM secrets
+		WHERE secrets.entity_type = 24
+			AND secrets.entity_id = identities.id
+			AND secrets.type = 2
+	);
+
+UPDATE identities
+SET type = 16
+WHERE type = 11
+	AND NOT EXISTS (
+		SELECT 1 FROM secrets
+		WHERE secrets.entity_type = 24
+			AND secrets.entity_id = identities.id
+			AND secrets.type = 2
+	);
+`)
+
+	return err
 }
 
 func updateFromV87(ctx context.Context, tx *sql.Tx) error {
