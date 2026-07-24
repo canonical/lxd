@@ -171,7 +171,20 @@ test_clustering_waitready() {
   LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" true
 
   # The cluster member can now be evacuated.
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --yes
+  # Immediately after a member restart the cluster may still be electing a leader, so retry
+  # briefly rather than failing on a transient "failed getting the address of the cluster leader" error.
+  evacuated=false
+  for _ in $(seq 30); do
+    if evacuate_output="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate "node1" --yes 2>&1)"; then
+      evacuated=true
+      break
+    fi
+
+    sleep 1
+  done
+  echo "${evacuate_output}"
+  [ "${evacuated}" = "true" ]
+
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster restore "node1" --force
 
   # Cleanup.
