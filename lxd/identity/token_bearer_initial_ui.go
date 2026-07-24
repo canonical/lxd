@@ -40,3 +40,31 @@ func (TokenBearerInitialUI) IsAdmin() bool {
 func (TokenBearerInitialUI) IsCacheable() bool {
 	return true
 }
+
+// TokenBearerInitialUIPending represents an initial UI token bearer identity for which no token is currently issued.
+// An identity is pending before its first token is issued and again after its most recent token is revoked.
+// It is neither an administrator nor cacheable, as a pending identity cannot authenticate.
+// As with [TokenBearerInitialUI], there can only ever be one initial UI identity, whether active or pending.
+type TokenBearerInitialUIPending struct {
+	typeInfoCommon
+}
+
+// Name returns the name of the TokenBearerInitialUIPending identity type.
+func (TokenBearerInitialUIPending) Name() string {
+	return api.IdentityTypeBearerTokenInitialUIPending
+}
+
+// Code returns the database code for TokenBearerInitialUIPending.
+func (TokenBearerInitialUIPending) Code() int64 {
+	return identityTypeBearerInitialUIPending
+}
+
+// AuthenticationMethod indicates that identities of this type authenticate via bearer token.
+func (TokenBearerInitialUIPending) AuthenticationMethod() string {
+	return api.AuthenticationMethodBearer
+}
+
+// IsPending indicates that this identity is pending.
+func (TokenBearerInitialUIPending) IsPending() bool {
+	return true
+}
