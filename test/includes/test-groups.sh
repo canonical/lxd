@@ -110,6 +110,7 @@ readonly test_group_image=(
     "image_import_metadata_not_regular_file"
     "image_backup_confined"
     "image_metadata_confined"
+    "image_metadata_template_target_confined"
     "image_list_all_aliases"
     "image_list_all_projects"
     "image_list_remotes"
