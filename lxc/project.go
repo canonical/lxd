@@ -514,8 +514,12 @@ func (c *cmdProjectList) command() *cobra.Command {
 	cmd.Short = "List projects"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
+	// 'r' (REPLICA MODE) is only meaningful for projects taking part in a replication topology,
+	// so it is opt-in via --columns rather than shown by default.
+	defaultColumns := strings.ReplaceAll(cli.DefaultColumnString(c.columns()), "r", "")
+
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultColumns, cli.FormatStringFlagLabel("Columns"))
 
 	cmd.RunE = c.run
 
@@ -1137,9 +1141,12 @@ func (c *cmdProjectPromote) command() *cobra.Command {
 	cmd.Long = cli.FormatSection("Description",
 		`Promotes the project to leader mode for replication.
 
-This validates that all replicator targets are in standby mode unless --force is specified.`)
+The project must take part in a replication topology: one with no replica mode set requires at least
+one replicator, and one in standby mode requires either the replica.cluster config key or a replicator.
+This also validates that all replicator targets are in standby mode, and that the cluster the project
+replicates with is no longer in leader mode. Use --force to skip these checks.`)
 
-	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Skip validation of remote project states")
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Skip validation of the replication topology and remote project states")
 
 	cmd.RunE = c.run
 
