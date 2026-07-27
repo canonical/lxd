@@ -298,7 +298,8 @@ test_image_metadata_confined() {
   meta_path="${LXD_DIR}/containers/${ct_name}/metadata.yaml"
 
   # The full error the client receives from any confined os.Root operation on the escaping symlink.
-  err_msg="Error: openat metadata.yaml: path escapes from parent"
+  local err_msg="Error: openat metadata.yaml: path escapes from parent"
+  local start_err_msg="Error: Failed applying template: openat metadata.yaml: path escapes from parent"
 
   # Somewhere clearly outside of the instance root to point the symlink at.
   unconfined_target="/etc/hostname"
@@ -357,7 +358,7 @@ test_image_metadata_confined() {
 
     sub_test "Reject starting the VM whose metadata.yaml symlink escapes the instance root"
     ln -s "${unconfined_target}" "${vm_meta_path}"
-    [ "$(! "${_LXC}" start "${vm_name}" 2>&1 1>/dev/null || false)" = "${err_msg}
+    [ "$(! "${_LXC}" start "${vm_name}" 2>&1 1>/dev/null || false)" = "${start_err_msg}
 Try \`lxc info --show-log ${vm_name}\` for more info" ]
 
     lxc delete -f "${vm_name}"
