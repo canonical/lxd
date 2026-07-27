@@ -661,63 +661,6 @@ func IsSnapshot(name string) bool {
 	return strings.Contains(name, SnapshotDelimiter)
 }
 
-// MkdirAllOwner creates a directory named path, along with any necessary parents, and with specified
-// permissions. It sets the ownership of the created directories to the provided uid and gid.
-func MkdirAllOwner(path string, perm os.FileMode, uid int, gid int) error {
-	// This function is a slightly modified version of MkdirAll from the Go standard library.
-	// https://golang.org/src/os/path.go?s=488:535#L9
-
-	// Fast path: if we can tell whether path is a directory or file, stop with success or error.
-	dir, err := os.Stat(path)
-	if err == nil {
-		if dir.IsDir() {
-			return nil
-		}
-
-		return errors.New("path exists but isn't a directory")
-	}
-
-	// Slow path: make sure parent exists and then call Mkdir for path.
-	i := len(path)
-	for i > 0 && os.IsPathSeparator(path[i-1]) { // Skip trailing path separator.
-		i--
-	}
-
-	j := i
-	for j > 0 && !os.IsPathSeparator(path[j-1]) { // Scan backward over element.
-		j--
-	}
-
-	if j > 1 {
-		// Create parent
-		err = MkdirAllOwner(path[0:j-1], perm, uid, gid)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Parent now exists; invoke Mkdir and use its result.
-	err = os.Mkdir(path, perm)
-
-	errChown := os.Chown(path, uid, gid)
-	if errChown != nil {
-		return errChown
-	}
-
-	if err != nil {
-		// Handle arguments like "foo/." by
-		// double-checking that directory doesn't exist.
-		dir, err1 := os.Lstat(path)
-		if err1 == nil && dir.IsDir() {
-			return nil
-		}
-
-		return err
-	}
-
-	return nil
-}
-
 // HasKey returns true if map has key.
 func HasKey[K comparable, V any](key K, m map[K]V) bool {
 	_, found := m[key]
