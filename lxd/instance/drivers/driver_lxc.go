@@ -2626,7 +2626,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 		err = d.templateApplyNow(instance.TemplateTrigger(d.localConfig[key]))
 		if err != nil {
 			_ = apparmor.InstanceUnload(d.state.OS, d)
-			return err
+			return fmt.Errorf("Failed applying template: %w", err)
 		}
 
 		// Remove the volatile key from the DB
@@ -2640,7 +2640,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 	err = d.templateApplyNow("start")
 	if err != nil {
 		_ = apparmor.InstanceUnload(d.state.OS, d)
-		return err
+		return fmt.Errorf("Failed applying template: %w", err)
 	}
 
 	// Trigger a rebalance
