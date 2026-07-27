@@ -557,16 +557,20 @@ type InstanceSource struct {
 	// Example: {"os": "Ubuntu", "release": "jammy", "variant": "cloud"}
 	Properties map[string]string `json:"properties,omitempty" yaml:"properties,omitempty"`
 
-	// Remote server URL (for remote images)
+	// Remote server URL (for remote images, deprecated, use image_registry)
 	// Example: https://cloud-images.ubuntu.com/releases/
+	//
+	// Deprecated: Use ImageRegistry.
 	Server string `json:"server,omitempty" yaml:"server,omitempty"`
 
 	// Remote server secret (for remote private images)
 	// Example: RANDOM-STRING
 	Secret string `json:"secret,omitempty" yaml:"secret,omitempty"`
 
-	// Protocol name (for remote image)
+	// Protocol name (for remote image, deprecated, use image_registry)
 	// Example: simplestreams
+	//
+	// Deprecated: Use ImageRegistry.
 	Protocol string `json:"protocol,omitempty" yaml:"protocol,omitempty"`
 
 	// Base image fingerprint (for faster migration)
