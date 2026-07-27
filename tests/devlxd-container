@@ -25,6 +25,9 @@ lxc info c1
 
 echo "==> Checking devlxd is working"
 
+lxc exec c1 -- apt-get update
+lxc exec c1 -- apt-get install --no-install-recommends --yes curl
+
 # devlxd is enabled by default and should work
 lxc exec c1 -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
 if hasNeededAPIExtension cloud_init; then
