@@ -6767,17 +6767,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 
 	defer func() { _ = templatesRoot.Close() }()
 
-	securityChecks := func(path string, templateFile string) error {
-		// Ensure the path is within the container rootfs.
-		pathStat, err := rootfsRoot.Stat(path)
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("Could not stat target path %q in container rootfs: %w", path, err)
-		}
-
-		if err == nil && pathStat.IsDir() {
-			return fmt.Errorf("Template target path %q is a directory, not a regular file", path)
-		}
-
+	checkTemplateSource := func(templateFile string) error {
 		tplFileStat, err := templatesRoot.Lstat(templateFile)
 		if err != nil {
 			return fmt.Errorf("Could not access template file: %w", err)
@@ -6797,45 +6787,42 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 
 			// Check if the template should be applied now
 			found := slices.Contains(tpl.When, string(trigger))
-
 			if !found {
 				return nil
 			}
 
-			relPath := strings.TrimLeft(tplPath, "/")
-
-			// Perform some security checks.
-			err = securityChecks(relPath, tpl.Template)
+			// Perform security checks on the template source file.
+			err := checkTemplateSource(tpl.Template)
 			if err != nil {
 				return fmt.Errorf("Template security check failed for %q: %w", tplPath, err)
 			}
 
-			// Open the file to template, create if needed
-			fullpath := filepath.Join(rootfsRoot.Name(), relPath)
-			if shared.PathExists(fullpath) {
-				if tpl.CreateOnly {
-					return nil
-				}
+			// Convert to relative path and clean.
+			relPath := path.Clean(strings.TrimLeft(tplPath, "/"))
+			if relPath == "." {
+				return fmt.Errorf("Invalid template target path %q", tplPath)
+			}
 
-				// Open the existing file
-				w, err = os.Create(fullpath)
-				if err != nil {
-					return fmt.Errorf("Failed to create template file: %w", err)
-				}
-			} else {
-				// Create the directories leading to the file
-				err = shared.MkdirAllOwner(path.Dir(fullpath), 0755, int(rootUID), int(rootGID))
-				if err != nil {
-					return err
-				}
-
-				// Create the file itself
-				w, err = os.Create(fullpath)
+			// Atomically create the target file if it doesn't already exist. Using
+			// O_CREATE|O_EXCL lets us determine existence at open time without a
+			// separate stat, avoiding a time-of-check to time-of-use race. The
+			// enclosing *os.Root prevents the path from escaping the container rootfs.
+			w, err = rootfsRoot.OpenFile(relPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+			if errors.Is(err, fs.ErrNotExist) {
+				// A parent directory is missing, create the tree and retry.
+				err = filesystem.MkdirAllOwner(rootfsRoot, path.Dir(relPath), 0755, int(rootUID), int(rootGID))
 				if err != nil {
 					return err
 				}
 
-				// Fix ownership and mode
+				w, err = rootfsRoot.OpenFile(relPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+			}
+
+			switch {
+			case err == nil:
+				defer func() { _ = w.Close() }()
+
+				// The file was newly created, fix ownership and mode.
 				err = w.Chown(int(rootUID), int(rootGID))
 				if err != nil {
 					return err
@@ -6845,8 +6832,29 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 				if err != nil {
 					return err
 				}
+
+			case errors.Is(err, fs.ErrExist):
+				// The target already exists.
+				if tpl.CreateOnly {
+					return nil
+				}
+
+				// Open the existing file for writing, truncating it. Opening a
+				// directory for writing fails atomically with EISDIR.
+				w, err = rootfsRoot.OpenFile(relPath, os.O_WRONLY|os.O_TRUNC, 0)
+				if err != nil {
+					if errors.Is(err, syscall.EISDIR) {
+						return fmt.Errorf("Template target path %q is a directory, not a regular file", tplPath)
+					}
+
+					return fmt.Errorf("Failed opening template file %q: %w", tplPath, err)
+				}
+
+				defer func() { _ = w.Close() }()
+
+			default:
+				return fmt.Errorf("Failed creating template file %q: %w", tplPath, err)
 			}
-			defer func() { _ = w.Close() }()
 
 			// Read the template
 			tplString, err := templatesRoot.ReadFile(tpl.Template)
