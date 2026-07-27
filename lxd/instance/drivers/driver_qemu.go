@@ -3408,7 +3408,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 		// Run any template that needs running.
 		err = d.templateApplyNow(instance.TemplateTrigger(d.localConfig[key]), templateFilesPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed applying template: %w", err)
 		}
 
 		err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -3422,7 +3422,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 
 	err = d.templateApplyNow("start", templateFilesPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed applying template: %w", err)
 	}
 
 	// Copy the template metadata itself too.
@@ -3541,13 +3541,13 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 				return fmt.Errorf("Failed creating template file %q: %w", tpl.Template, err)
 			}
 
+			defer func() { _ = w.Close() }()
+
 			// Fix ownership and mode.
 			err = w.Chmod(0644)
 			if err != nil {
 				return err
 			}
-
-			defer func() { _ = w.Close() }()
 
 			// Read the template.
 			tplString, err := templatesRoot.ReadFile(tpl.Template)
