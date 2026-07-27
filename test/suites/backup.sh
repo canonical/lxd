@@ -262,6 +262,20 @@ test_backup_import_with_project() {
     lxc delete --force c1
   fi
 
+  # A crafted index.yaml name containing ../ must be rejected before it becomes the volume path.
+  mkdir "${LXD_DIR}/traversal"
+  tar -xzf "${LXD_DIR}/c1.tar.gz" -C "${LXD_DIR}/traversal"
+  sed -i 's|^name: .*|name: ../../../../lxd-traversal-poc|' "${LXD_DIR}/traversal/backup/index.yaml"
+  tar -czf "${LXD_DIR}/c1-traversal.tar.gz" -C "${LXD_DIR}/traversal" backup
+
+  OUTPUT="$(! lxc import "${LXD_DIR}/c1-traversal.tar.gz" 2>&1 || false)"
+  if ! echo "${OUTPUT}" | grep -qE "reserved for snapshots|Invalid instance name" ; then
+    echo "path-traversal instance name was not rejected on import"
+    false
+  fi
+
+  rm -rf "${LXD_DIR}/traversal" "${LXD_DIR}/c1-traversal.tar.gz"
+
   # with snapshots
 
   if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
