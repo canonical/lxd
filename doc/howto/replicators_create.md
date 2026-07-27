@@ -44,20 +44,24 @@ Then create the cluster links with that authentication group, as described in {r
 (howto-replicators-project-setup)=
 ## Configure projects for replication
 
-Both clusters need a project with the same name. Only the standby project requires the {config:option}`project-replica:replica.cluster` configuration key; the leader project does not need it because the replicator defines the target cluster.
+Both clusters need a project with the same name. The {config:option}`project-replica:replica.cluster` configuration key identifies the cluster link that is allowed to push replication data into a standby project. It is required on the standby project. Set it on the leader project as well, so that the leader can be promoted back to leader mode after a failover, when it has itself become a standby.
 
-1. On the leader cluster, create a project:
+1. On the leader cluster, create a project and point it at the standby cluster:
 
    `````{tabs}
    ````{group-tab} CLI
    ```bash
-   lxc project create <project_name>
+   lxc project create <project_name> -c replica.cluster=<standby_cluster_link_name>
    ```
    ````
    ````{group-tab} UI
    Expand the {guilabel}`Project` drop-down and select {guilabel}`+ Create project` at the bottom.
 
    Enter a name and optionally a description for the new project.
+
+   Go to the new project's configuration and select the {guilabel}`Replication` tab.
+
+   Under {guilabel}`Replica cluster`, select the cluster link established between the leader and the standby.
    ````
    `````
 
@@ -93,6 +97,8 @@ Both clusters need a project with the same name. Only the standby project requir
    ````
    `````
 
+1. On the leader cluster, {ref}`create a replicator <howto-replicators-create>` that targets the standby cluster. The replicator must exist before the project can be promoted, because it is what identifies the project as the source of a replication topology.
+
 1. On the leader cluster, promote the project to leader mode:
 
    `````{tabs}
@@ -111,15 +117,18 @@ Both clusters need a project with the same name. Only the standby project requir
 ```{admonition} Promote validation
 :class: note
 
-The `lxc project promote-replica` command validates that all target projects (on clusters referenced by the project's replicators) are in standby mode before allowing the promotion.
+The `lxc project promote-replica` command requires the project to have at least one replicator before it can be promoted from having no replica mode set.
+It then validates that all target projects (on clusters referenced by the project's replicators) are in standby mode before allowing the promotion.
 This ensures that new instances are not created on a standby cluster between replicator runs.
 If a target cluster is unreachable, promotion still proceeds to allow disaster recovery scenarios where the target may be offline.
+
+Use `--force` to skip these checks, for example when migrating a deployment that was set up before replicators were required for promotion.
 ```
 
 (howto-replicators-create)=
 ## Create a replicator
 
-After configuring the projects on both clusters, create a replicator on the leader cluster. The `cluster` configuration key is required and must be set to the name of an existing cluster link.
+Create a replicator on the leader cluster, before promoting the leader project as described in {ref}`howto-replicators-project-setup`. The `cluster` configuration key is required and must be set to the name of an existing cluster link.
 
 Each cluster link can be targeted by at most one replicator per project. Creating or updating a replicator to target a cluster link already used by another replicator in the same project fails with a conflict error.
 

@@ -143,7 +143,7 @@ Select the {guilabel}`Replication` tab, then, under {guilabel}`Replica mode`, cl
 ````
 `````
 
-Finally, promote the project on the original leader cluster back to leader mode:
+Finally, promote the project on the original leader cluster back to leader mode. The project is currently a standby, so LXD identifies the cluster it replicates with either from the {config:option}`project-replica:replica.cluster` key or from the replicators the project kept when it was demoted, and confirms that cluster has stepped down. If the project has neither, set `replica.cluster` to the cluster link pointing at the new leader before promoting:
 
 `````{tabs}
 ````{group-tab} CLI
