@@ -21,11 +21,13 @@ On the standby cluster, promote the replica project to become the leader:
 lxc project promote-replica <project_name>
 ```
 
-If the leader cluster is unreachable, promotion proceeds automatically without requiring validation. Use `--force` to skip validation when the leader cluster is still reachable but you want to promote anyway (for example, during a planned takeover before demoting the leader):
+If the leader cluster is unreachable, promotion proceeds automatically without requiring validation. Use `--force` only to promote while the leader cluster is still reachable and has not been demoted, which leaves both clusters writable:
 
 ```bash
 lxc project promote-replica <project_name> --force
 ```
+
+For a planned switchover rather than a failover, do not use `--force`: demote the leader first, then promote the standby, as described in {ref}`exp-replicators`.
 ````
 ````{group-tab} UI
 Select the project from the {guilabel}`Project` drop-down menu, then click {guilabel}`Configuration` in the navigation sidebar.
@@ -34,7 +36,7 @@ Select the {guilabel}`Replication` tab, then, under {guilabel}`Replica mode`, cl
 
 If the leader cluster is unreachable, promotion proceeds automatically without requiring validation. Click {guilabel}`Promote` in the confirmation modal.
 
-If the leader cluster is still reachable but you want to promote the replica project anyway (for example, during a planned takeover before demoting the leader), then check {guilabel}`Force` and click {guilabel}`Promote` to skip validation.
+If the leader cluster is still reachable and has not been demoted, checking {guilabel}`Force` before clicking {guilabel}`Promote` skips validation, but leaves both clusters writable. For a planned switchover, demote the leader first and then promote without {guilabel}`Force`.
 ````
 `````
 
@@ -87,7 +89,7 @@ Demote the project on the original leader cluster to standby mode:
 lxc project demote-replica <project_name>
 ```
 
-If the new leader cluster is unreachable, use `--force` to skip the validation:
+Demoting does not contact the new leader. It requires only that {config:option}`project-replica:replica.cluster` is set, so that the resulting standby knows which cluster is allowed to replicate into it. Use `--force` to demote without it:
 ```bash
 lxc project demote-replica <project_name> --force
 ```
@@ -97,8 +99,7 @@ Select the project from the {guilabel}`Project` drop-down menu, then click {guil
 
 Select the {guilabel}`Replication` tab, then, under {guilabel}`Replica mode`, click {guilabel}`Demote to standby`.
 
-If the new leader is reachable, click {guilabel}`Demote`.
-If the new leader is unreachable, check {guilabel}`Force` to skip the validation, then click {guilabel}`Demote`.
+Demoting does not contact the new leader. It requires only that {config:option}`project-replica:replica.cluster` is set, so that the resulting standby knows which cluster is allowed to replicate into it. If it is not set, check {guilabel}`Force` before clicking {guilabel}`Demote`.
 ````
 `````
 
@@ -143,7 +144,7 @@ Select the {guilabel}`Replication` tab, then, under {guilabel}`Replica mode`, cl
 ````
 `````
 
-Finally, promote the project on the original leader cluster back to leader mode:
+Finally, promote the project on the original leader cluster back to leader mode. The project is currently a standby, so LXD identifies the cluster it replicates with from the {config:option}`project-replica:replica.cluster` key and confirms that cluster has stepped down. If the project does not have the key set, set it to the cluster link pointing at the new leader before promoting:
 
 `````{tabs}
 ````{group-tab} CLI
