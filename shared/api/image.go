@@ -277,16 +277,22 @@ type ImageSource struct {
 	// Example: jammy
 	Alias string `json:"alias" yaml:"alias"`
 
-	// Source server certificate (if not trusted by system CA)
+	// Source server certificate (if not trusted by system CA, deprecated, use image_registry)
 	// Example: X509 PEM certificate
+	//
+	// Deprecated: Use ImageRegistry.
 	Certificate string `json:"certificate" yaml:"certificate"`
 
-	// Source server protocol
+	// Source server protocol (deprecated, use image_registry)
 	// Example: simplestreams
+	//
+	// Deprecated: Use ImageRegistry.
 	Protocol string `json:"protocol" yaml:"protocol"`
 
-	// URL of the source server
+	// URL of the source server (deprecated, use image_registry)
 	// Example: https://cloud-images.ubuntu.com/releases/
+	//
+	// Deprecated: Use ImageRegistry.
 	Server string `json:"server" yaml:"server"`
 
 	// Type of image (container or virtual-machine)
