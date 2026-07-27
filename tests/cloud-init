@@ -77,6 +77,9 @@ fi
 lxc start c1
 waitInstanceReady c1
 
+lxc exec c1 -- apt-get update
+lxc exec c1 -- apt-get install --no-install-recommends --yes curl
+
 echo "==> Test the cloud-init template is in effect in container"
 USERDATA=$(lxc exec c1 -- curl -s --unix-socket /dev/lxd/sock http://custom.socket/1.0/config/cloud-init.user-data)
 echo "${USERDATA}" | grep "## template"
