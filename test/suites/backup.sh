@@ -497,6 +497,25 @@ _backup_import_with_project() {
     lxc delete --force c1
   fi
 
+  # A backup's index.yaml carries the instance name. Anyone who can craft a tarball can set it.
+  # The import turns the name into the on-disk volume path so a value containing ../ must be
+  # rejected before any directory is created or any content is unpacked.
+  mkdir "${LXD_DIR}/traversal"
+  tar -xzf "${LXD_DIR}/c1.tar.gz" -C "${LXD_DIR}/traversal"
+
+  # Repack the backup with a path-traversal name in the index.yaml.
+  sed -i 's|^name: .*|name: ../../../../lxd-traversal-poc|' "${LXD_DIR}/traversal/backup/index.yaml"
+  tar -czf "${LXD_DIR}/c1-traversal.tar.gz" -C "${LXD_DIR}/traversal" backup
+
+  # The import must be refused by name validation.
+  OUTPUT="$(! lxc import "${LXD_DIR}/c1-traversal.tar.gz" 2>&1 || false)"
+  if ! echo "${OUTPUT}" | grep -F "Invalid instance name" ; then
+    echo "path-traversal instance name was not rejected on import"
+    false
+  fi
+
+  rm -rf "${LXD_DIR}/traversal" "${LXD_DIR}/c1-traversal.tar.gz"
+
   # with snapshots
 
   if storage_backend_optimized_backup "$lxd_backend"; then
