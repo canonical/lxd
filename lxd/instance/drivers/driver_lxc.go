@@ -2466,7 +2466,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 		err = d.templateApplyNow(instance.TemplateTrigger(d.localConfig[key]))
 		if err != nil {
 			_ = apparmor.InstanceUnload(d.state.OS, d)
-			return err
+			return fmt.Errorf("Failed applying template: %w", err)
 		}
 
 		err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -2482,7 +2482,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 	err = d.templateApplyNow("start")
 	if err != nil {
 		_ = apparmor.InstanceUnload(d.state.OS, d)
-		return err
+		return fmt.Errorf("Failed applying template: %w", err)
 	}
 
 	// Record last start state.
