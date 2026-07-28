@@ -256,13 +256,14 @@ test_image_import_metadata() {
 }
 
 test_image_metadata_confined() {
-  local ct_name err_msg vm_name
+  local ct_name err_msg start_err_msg vm_name
   local ct_meta_path vm_meta_path
 
   ct_name="c1"
 
   # The full error the client receives from any confined os.Root operation on the escaping symlink.
   err_msg="Error: openat metadata.yaml: path escapes from parent"
+  start_err_msg="Error: Failed applying template: openat metadata.yaml: path escapes from parent"
 
   ensure_import_testimage
 
@@ -318,7 +319,7 @@ test_image_metadata_confined() {
 
     # qemu.templateApplyNow (os.Root.Open) is only reachable when the VM is started.
     sub_test "Reject starting the VM whose metadata.yaml symlink escapes the instance root"
-    [ "$(! "${_LXC}" start "${vm_name}" 2>&1 1>/dev/null || false)" = "${err_msg}
+    [ "$(! "${_LXC}" start "${vm_name}" 2>&1 1>/dev/null || false)" = "${start_err_msg}
 Try \`lxc info --show-log ${vm_name}\` for more info" ]
 
     lxc delete -f "${vm_name}"
