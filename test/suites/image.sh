@@ -290,28 +290,24 @@ test_image_import_metadata() {
 }
 
 test_image_metadata_confined() {
-  local ct_name meta_path unconfined_target err_msg start_err_msg vm_name vm_meta_path
-
-  ensure_import_testimage
+  local ct_name err_msg start_err_msg vm_name
+  local ct_meta_path vm_meta_path
 
   ct_name="c1"
-  meta_path="${LXD_DIR}/containers/${ct_name}/metadata.yaml"
 
   # The full error the client receives from any confined os.Root operation on the escaping symlink.
   err_msg="Error: openat metadata.yaml: path escapes from parent"
   start_err_msg="Error: Failed applying template: openat metadata.yaml: path escapes from parent"
 
-  # Somewhere clearly outside of the instance root to point the symlink at.
-  unconfined_target="/etc/hostname"
+  ensure_import_testimage
 
+  # Plant an unconfined metadata.yaml file into the container's drive whilst it is mounted.
   lxc init testimage "${ct_name}"
-
-  # Replace metadata.yaml with a symlink pointing outside of the instance root.
-  # Every operation below is rejected by the confined os.Root at openat before it
-  # can read or modify the file, so the symlink stays in place for all of them and
-  # only needs to be planted once.
-  rm -f "${meta_path}"
-  ln -s "${unconfined_target}" "${meta_path}"
+  lxc start "${ct_name}"
+  ct_meta_path="$(realpath "${LXD_DIR}/containers/${ct_name}/metadata.yaml")"
+  rm -f "${ct_meta_path}"
+  ln -s /etc/hostname "${ct_meta_path}"
+  lxc stop -f "${ct_name}"
 
   # instanceMetadataGet (os.Root.Open): GET /1.0/instances/<name>/metadata.
   sub_test "Reject reading metadata.yaml symlink escaping the instance root on show"
@@ -339,25 +335,23 @@ test_image_metadata_confined() {
   lxc delete -f "${ct_name}"
 
   # Also check VMs.
-  vm_name="v1"
-  vm_meta_path="${LXD_DIR}/virtual-machines/${vm_name}/metadata.yaml"
-
-  lxc init --vm --empty "${vm_name}"
-
-  # qemu.Export (os.Root.Open): publishing the stopped VM reads its metadata.
-  sub_test "Reject reading metadata.yaml symlink escaping the VM root on publish"
-  ln -s "${unconfined_target}" "${vm_meta_path}"
-  [ "$(! "${_LXC}" publish "${vm_name}" 2>&1 1>/dev/null || false)" = "${err_msg}" ]
-
-  lxc delete -f "${vm_name}"
-
-  # qemu.templateApplyNow (os.Root.Open) is only reachable when the VM is started.
-  # Therefore gate it with LXD_VM_TESTS.
   if [ "${LXD_VM_TESTS}" != "0" ]; then
-    lxc init "${vm_name}" --vm --empty --config limits.memory=384MiB
+    vm_name="v1"
 
+    # Plant an unconfined metadata.yaml file into the VM's config drive whilst it is mounted.
+    lxc init "${vm_name}" --vm --empty --config limits.memory=384MiB
+    lxc start "${vm_name}"
+    vm_meta_path="$(realpath "${LXD_DIR}/virtual-machines/${vm_name}/metadata.yaml")"
+    rm -f "${vm_meta_path}"
+    ln -s /etc/hostname "${vm_meta_path}"
+    lxc stop -f "${vm_name}"
+
+    # qemu.Export (os.Root.Open): publishing the stopped VM reads its metadata.
+    sub_test "Reject reading metadata.yaml symlink escaping the VM root on publish"
+    [ "$(! "${_LXC}" publish "${vm_name}" 2>&1 1>/dev/null || false)" = "${err_msg}" ]
+
+    # qemu.templateApplyNow (os.Root.Open) is only reachable when the VM is started.
     sub_test "Reject starting the VM whose metadata.yaml symlink escapes the instance root"
-    ln -s "${unconfined_target}" "${vm_meta_path}"
     [ "$(! "${_LXC}" start "${vm_name}" 2>&1 1>/dev/null || false)" = "${start_err_msg}
 Try \`lxc info --show-log ${vm_name}\` for more info" ]
 
