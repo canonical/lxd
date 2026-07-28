@@ -846,8 +846,8 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 		image.Source = &api.ImagesPostSource{}
 		image.Source.Type = "url"
 		image.Source.Mode = "pull"
-		image.Source.Protocol = "direct"
-		image.Source.URL = imageFile //nolint:staticcheck
+		image.Source.Protocol = "direct" //nolint:staticcheck
+		image.Source.URL = imageFile     //nolint:staticcheck
 		createArgs = nil
 	} else {
 		var meta io.ReadCloser
