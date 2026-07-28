@@ -364,42 +364,94 @@ func (d *common) subPath(name string) (string, error) {
 	return path, nil
 }
 
-// templateFileSafePath joins the instance's templates directory with a template file name taken
-// from image metadata and returns the resulting path. It rejects names that use directory traversal
-// to escape the templates directory as well as template files that are symlinks.
-func templateFileSafePath(templatesPath string, templateName string) (string, error) {
-	// Resolve the templates directory to a symlink-free absolute path so that the containment
-	// checks below cannot be fooled by a symlink in the templates path itself.
-	realTemplatesPath, err := filepath.EvalSymlinks(templatesPath)
+// pathWithinBase verifies that a resolved path stays within the base directory.
+// Expects symlinks to be resolved by caller before comparison.
+func pathWithinBase(path string, basePath string) bool {
+	return path == basePath || strings.HasPrefix(path, basePath+string(os.PathSeparator))
+}
+
+// securePathJoin joins a base directory with an untrusted path component, validating that the result
+// stays within the base directory and is not affected by symlink-based escape attempts. It rejects
+// paths that use directory traversal. Symlink intermediate components are permitted provided they
+// do not enable escape from the base directory.
+// If requireRegular is true, the final path must exist as a regular file.
+func securePathJoin(basePath string, untrustedPath string, requireRegular bool) (string, error) {
+	// Resolve the base directory to a symlink-free absolute path so that containment
+	// checks cannot be fooled by a symlink in the base path itself.
+	realBasePath, err := filepath.EvalSymlinks(basePath)
 	if err != nil {
 		return "", err
 	}
 
-	fullPath := filepath.Join(realTemplatesPath, templateName)
+	// Trim leading slashes to make the path relative for joining.
+	fullPath := filepath.Join(realBasePath, strings.TrimLeft(untrustedPath, "/"))
 
-	if fullPath != realTemplatesPath && !strings.HasPrefix(fullPath, realTemplatesPath+string(os.PathSeparator)) {
-		return "", fmt.Errorf("Template file %q attempts to escape the templates directory", templateName)
+	// Check that the full path is within the base directory.
+	if !pathWithinBase(fullPath, realBasePath) {
+		return "", fmt.Errorf("Path %q attempts to escape the base directory", untrustedPath)
 	}
 
-	// Resolve the parent directory as well, so that a symlinked intermediate component (e.g.
-	// "templates/sub" pointing outside) cannot let the final read escape the templates directory.
-	realDir, err := filepath.EvalSymlinks(filepath.Dir(fullPath))
-	if err != nil {
-		return "", err
+	// To prevent symlink-based escape attempts, walk up the directory tree from the full path
+	// to an existing ancestor and verify that all resolved paths remain within the base directory.
+	// Non-existent directories cannot contain symlinks, so once we find an existing ancestor that
+	// resolves within the base, the path is guaranteed safe.
+	checkPath := filepath.Dir(fullPath)
+	for {
+		// Try to resolve this path (handles symlink resolution)
+		resolvedPath, err := filepath.EvalSymlinks(checkPath)
+		if err == nil {
+			// Path exists; verify the resolved path is within base to ensure symlinks cannot enable escape
+			if !pathWithinBase(resolvedPath, realBasePath) {
+				return "", fmt.Errorf("Path %q attempts to escape the base directory", untrustedPath)
+			}
+
+			// The ancestor path resolves within base, so symlinks in the full path cannot enable escape
+			break
+		}
+
+		// If the error is not "path doesn't exist", return it rather than silently continuing.
+		// Other errors like permission denied or symlink loops should not be treated as "doesn't exist".
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+
+		// Path doesn't exist yet; try parent
+		parent := filepath.Dir(checkPath)
+		if parent == checkPath {
+			// We've reached the filesystem root without finding an existing ancestor
+			// This indicates the path escaped the base directory
+			return "", fmt.Errorf("Path %q attempts to escape the base directory", untrustedPath)
+		}
+
+		checkPath = parent
 	}
 
-	if realDir != realTemplatesPath && !strings.HasPrefix(realDir, realTemplatesPath+string(os.PathSeparator)) {
-		return "", fmt.Errorf("Template file %q attempts to escape the templates directory", templateName)
-	}
-
-	// The template must be a regular file and not a symlink, device, directory, etc.
+	// Check if the target path exists as a symlink pointing outside the base directory.
+	// This prevents symlink-based escapes even when the target doesn't need to be a regular file.
 	fi, err := os.Lstat(fullPath)
-	if err != nil {
-		return "", err
-	}
+	if err == nil {
+		// Path exists
+		if fi.Mode()&os.ModeSymlink != 0 {
+			// It's a symlink; verify the resolved target stays within the base directory
+			resolvedTarget, err := filepath.EvalSymlinks(fullPath)
+			if err != nil {
+				// Symlink is broken or target can't be resolved; treat as escape attempt
+				return "", fmt.Errorf("Path %q is a symlink that cannot be safely resolved", untrustedPath)
+			}
 
-	if !fi.Mode().IsRegular() {
-		return "", fmt.Errorf("Template file %q is not a regular file", templateName)
+			// Verify the symlink target is within the base directory
+			if !pathWithinBase(resolvedTarget, realBasePath) {
+				return "", fmt.Errorf("Path %q is a symlink pointing outside the base directory", untrustedPath)
+			}
+		}
+
+		// If the path must be a regular file, verify it is
+		if requireRegular && !fi.Mode().IsRegular() {
+			return "", fmt.Errorf("Path %q is not a regular file", untrustedPath)
+		}
+	} else if requireRegular {
+		// Path doesn't exist and we require a regular file
+		return "", err
 	}
 
 	return fullPath, nil
