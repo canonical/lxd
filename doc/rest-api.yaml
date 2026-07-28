@@ -1871,14 +1871,22 @@ definitions:
                 type: string
                 x-go-name: ImageType
             protocol:
-                description: Source server protocol
+                description: |-
+                    Source server protocol (deprecated, use image_registry)
+
+                    Deprecated: Use ImageRegistry.
                 example: simplestreams
                 type: string
+                x-deprecated: true
                 x-go-name: Protocol
             server:
-                description: URL of the source server
+                description: |-
+                    URL of the source server (deprecated, use image_registry)
+
+                    Deprecated: Use ImageRegistry.
                 example: https://cloud-images.ubuntu.com/releases/
                 type: string
+                x-deprecated: true
                 x-go-name: Server
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
@@ -2015,9 +2023,13 @@ definitions:
                 type: string
                 x-go-name: Project
             protocol:
-                description: Source server protocol
+                description: |-
+                    Source server protocol (deprecated, use image_registry)
+
+                    Deprecated: Use ImageRegistry.
                 example: simplestreams
                 type: string
+                x-deprecated: true
                 x-go-name: Protocol
             secret:
                 description: Source image server secret token (when downloading private images)
@@ -2025,9 +2037,13 @@ definitions:
                 type: string
                 x-go-name: Secret
             server:
-                description: URL of the source server
+                description: |-
+                    URL of the source server (deprecated, use image_registry)
+
+                    Deprecated: Use ImageRegistry.
                 example: https://cloud-images.ubuntu.com/releases/
                 type: string
+                x-deprecated: true
                 x-go-name: Server
             type:
                 $ref: '#/definitions/SourceType'
@@ -3176,9 +3192,13 @@ definitions:
                 type: object
                 x-go-name: Properties
             protocol:
-                description: Protocol name (for remote image)
+                description: |-
+                    Protocol name (for remote image, deprecated, use image_registry)
+
+                    Deprecated: Use ImageRegistry.
                 example: simplestreams
                 type: string
+                x-deprecated: true
                 x-go-name: Protocol
             refresh:
                 description: Whether this is refreshing an existing instance (for migration and copy)
@@ -3200,9 +3220,13 @@ definitions:
                 type: object
                 x-go-name: Websockets
             server:
-                description: Remote server URL (for remote images)
+                description: |-
+                    Remote server URL (for remote images, deprecated, use image_registry)
+
+                    Deprecated: Use ImageRegistry.
                 example: https://cloud-images.ubuntu.com/releases/
                 type: string
+                x-deprecated: true
                 x-go-name: Server
             source:
                 description: Existing instance name or snapshot (for copy)
