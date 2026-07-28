@@ -528,6 +528,23 @@ type ClusterLinksPost struct {
 	RemoteAddress string `json:"remote_address,omitempty" yaml:"remote_address,omitempty"`
 }
 
+// ClusterLinkCertificate represents a remote cluster certificate fetched for user verification.
+// It is returned when creating a pending public cluster link, and must be submitted back as
+// ClusterLinksPost.ClusterCertificate to confirm and pin it.
+//
+// swagger:model
+//
+// API extension: cluster_links_public.
+type ClusterLinkCertificate struct {
+	// SHA-256 fingerprint of the certificate.
+	// Example: a1b2c3d4...
+	Fingerprint string `json:"fingerprint" yaml:"fingerprint"`
+
+	// PEM-encoded X.509 certificate.
+	// Example: -----BEGIN CERTIFICATE-----\n...
+	Certificate string `json:"certificate" yaml:"certificate"`
+}
+
 // ClusterLinkPost represents the fields available for renaming a cluster link.
 //
 // swagger:model
