@@ -366,6 +366,28 @@ respawn_lxd_cluster_member() {
   LXD_NETNS="${1}" respawn_lxd "${2}" true
 }
 
+# Wait until the cluster reports an elected database-leader as seen from the provided LXD_DIR.
+# `lxd waitready` only confirms the API is responsive; immediately after a member restart the
+# cluster may still be electing a leader, causing cluster operations to fail with
+# "Failed getting the address of the cluster leader".
+wait_for_cluster_leader() {
+  local lxdDir="${1}"
+  local i members
+
+  for i in $(seq "${MAX_WAIT_SECONDS:-120}"); do
+    # `lxc cluster list` itself resolves the leader address so it can fail while electing.
+    members="$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${lxdDir}" lxc cluster list --format json 2>/dev/null || true)"
+    if [ -n "${members}" ] && jq --exit-status 'any(.[]; any(.roles[]; . == "database-leader"))' <<< "${members}" > /dev/null; then
+      return 0
+    fi
+
+    sleep 1
+  done
+
+  echo "Cluster leader not elected after ${i}s"
+  return 1
+}
+
 is_uuid_v4() {
   # Case insensitive match for a v4 UUID. The third group must start with 4, and the fourth group must start with 8, 9,
   # a, or b. This accounts for the version and variant. See https://datatracker.ietf.org/doc/html/rfc9562#name-uuid-version-4.
