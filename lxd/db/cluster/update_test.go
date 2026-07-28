@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -1030,4 +1031,128 @@ INSERT INTO secrets (entity_type, entity_id, type, value) SELECT 24, id, 2, 'ini
 	err = db.QueryRowContext(t.Context(), `SELECT type FROM identities WHERE identifier = ?`, "019d6c4f-bf62-7bb8-a1d2-000000000008").Scan(&identityType)
 	require.NoError(t, err)
 	require.Equal(t, IdentityType(api.IdentityTypeBearerTokenInitialUI), identityType)
+}
+
+func TestUpdateFromV91(t *testing.T) {
+	// This migration moves the legacy images_source table (server/protocol/certificate) to reference
+	// an image registry via image_registry_id. Only SimpleStreams sources are migrated: they match an
+	// existing registry (including the built-ins seeded at the previous version) by normalized URL,
+	// otherwise a dedicated SimpleStreams registry is auto-created. Legacy "lxd" and deprecated
+	// "direct" sources are dropped, keeping the cached image but discarding its source record.
+	//
+	// Legacy images_source.protocol codes used in the fixture below: lxd = 0, direct = 1,
+	// simplestreams = 2.
+	schema := Schema()
+	db, err := schema.ExerciseUpdate(92, func(db *sql.DB) {
+		_, err := db.Exec(`
+INSERT INTO projects (name, description) VALUES ('migration-test', '');
+
+-- One cached image per source below.
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, project_id)
+	VALUES ('ss-builtin', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, project_id)
+	VALUES ('ss-builtin-slash', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, project_id)
+	VALUES ('ss-custom-1', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, project_id)
+	VALUES ('ss-custom-2', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, project_id)
+	VALUES ('lxd-source', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, project_id)
+	VALUES ('direct-source', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, (SELECT id FROM projects WHERE name='migration-test'));
+
+-- SimpleStreams source matching the built-in "images" registry URL exactly.
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='ss-builtin'), 'https://images.lxd.canonical.com', 2, '', 'jammy');
+-- SimpleStreams source matching the same built-in via a trailing slash (normalization).
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='ss-builtin-slash'), 'https://images.lxd.canonical.com/', 2, '', 'noble');
+-- Two SimpleStreams sources with the same custom URL should share a single auto-created registry.
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='ss-custom-1'), 'https://simplestreams.example.com', 2, '', 'custom');
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='ss-custom-2'), 'https://simplestreams.example.com', 2, '', 'custom2');
+-- LXD and deprecated direct sources should be dropped.
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='lxd-source'), 'https://lxd.example.com:8443', 0, 'CERTPEM', 'lxd-alias');
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='direct-source'), 'https://direct.example.com', 1, '', 'direct-alias');
+`)
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	ctx := t.Context()
+
+	// registryIDForImage returns the image_registry_id linked to the cached image with the given
+	// fingerprint, or -1 if the image has no source row after migration.
+	registryIDForImage := func(fingerprint string) int64 {
+		t.Helper()
+		var registryID int64
+		err := db.QueryRowContext(ctx, `
+SELECT images_source.image_registry_id
+FROM images_source
+JOIN images ON images.id = images_source.image_id
+WHERE images.fingerprint = ?`, fingerprint).Scan(&registryID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return -1
+		}
+
+		require.NoError(t, err)
+		return registryID
+	}
+
+	registryName := func(id int64) string {
+		t.Helper()
+		var name string
+		require.NoError(t, db.QueryRowContext(ctx, `SELECT name FROM image_registries WHERE id = ?`, id).Scan(&name))
+		return name
+	}
+
+	// The built-in "images" registry id, matched by its seeded URL.
+	var builtinImagesID int64
+	require.NoError(t, db.QueryRowContext(ctx, `
+SELECT r.id FROM image_registries r
+JOIN image_registries_config c ON c.image_registry_id = r.id AND c.key = 'url'
+WHERE c.value = 'https://images.lxd.canonical.com'`).Scan(&builtinImagesID))
+
+	// SimpleStreams sources matching a built-in URL (with or without a trailing slash) link to it.
+	require.Equal(t, builtinImagesID, registryIDForImage("ss-builtin"))
+	require.Equal(t, builtinImagesID, registryIDForImage("ss-builtin-slash"))
+
+	// The two custom SimpleStreams sources share a single auto-created registry.
+	customID := registryIDForImage("ss-custom-1")
+	require.Positive(t, customID)
+	require.Equal(t, customID, registryIDForImage("ss-custom-2"))
+	require.NotEqual(t, builtinImagesID, customID)
+
+	// The auto-created registry is a non-built-in SimpleStreams registry named "auto-migrated-001".
+	require.Equal(t, "auto-migrated-001", registryName(customID))
+
+	var protocol int64
+	var builtin int64
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT protocol, builtin FROM image_registries WHERE id = ?`, customID).Scan(&protocol, &builtin))
+	require.Equal(t, int64(0), protocol) // image_registries protocol encoding: simplestreams = 0.
+	require.Equal(t, int64(0), builtin)
+
+	// It has exactly one config key, "url", set to the source server, and no derived "public" or
+	// "source_project" keys.
+	configRows, err := db.QueryContext(ctx, `SELECT key, value FROM image_registries_config WHERE image_registry_id = ?`, customID)
+	require.NoError(t, err)
+
+	defer func() { _ = configRows.Close() }()
+
+	config := map[string]string{}
+	for configRows.Next() {
+		var key, value string
+		require.NoError(t, configRows.Scan(&key, &value))
+		config[key] = value
+	}
+
+	require.NoError(t, configRows.Err())
+	require.Equal(t, map[string]string{"url": "https://simplestreams.example.com"}, config)
+
+	// LXD and deprecated direct sources are dropped: their cached images remain but have no source.
+	require.Equal(t, int64(-1), registryIDForImage("lxd-source"))
+	require.Equal(t, int64(-1), registryIDForImage("direct-source"))
 }
