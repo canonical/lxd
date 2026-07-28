@@ -328,6 +328,103 @@ Try \`lxc info --show-log ${vm_name}\` for more info" ]
   lxc image delete testimage
 }
 
+test_image_metadata_template_target_confined() {
+  local ct_name target_dir target_file target_content escaping_path
+
+  ensure_import_testimage
+
+  ct_name="c1"
+
+  # A root-owned file living clearly outside of any instance root. If the
+  # confinement is bypassed, template application would overwrite it.
+  target_dir="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  target_file="${target_dir}/ROOT_OWNED_TARGET"
+  target_content="legitimate root-owned system file"
+  printf '%s\n' "${target_content}" > "${target_file}"
+  chown root:root "${target_file}"
+  chmod 0600 "${target_file}"
+
+  # The template target path uses a bogus first component followed by enough
+  # ".." segments to climb above the instance rootfs and land on the absolute
+  # path of the root-owned file. The confined os.Root must reject this before
+  # the escaping path can be opened.
+  escaping_path="/nonexistent/../../../../../../../../../../../../..${target_file}"
+
+  lxc init testimage "${ct_name}"
+
+  sub_test "Upload a template file to the instance via the metadata templates API"
+  printf '#!/bin/sh\n# OVERWRITTEN VIA LXD TEMPLATE ESCAPE\nexit 0\n' \
+    | curl --silent --fail --unix-socket "${LXD_DIR}/unix.socket" -X POST \
+      -H "Content-Type: application/octet-stream" --data-binary @- \
+      "lxd/1.0/instances/${ct_name}/metadata/templates?path=escape.tpl" \
+    | jq --exit-status '.status_code == 200'
+
+  sub_test "Register a template whose target path escapes the instance root"
+  "${_LXC}" query -X PUT -d "{\"architecture\": \"$(uname -m)\", \"creation_date\": 1, \"properties\": {}, \"templates\": {\"${escaping_path}\": {\"when\": [\"start\"], \"create_only\": false, \"template\": \"escape.tpl\", \"properties\": {}}}}" "/1.0/instances/${ct_name}/metadata"
+
+  # templateApplyNow (os.Root.OpenFile): starting the instance applies "start"
+  # templates. The escaping target must be rejected rather than followed out of
+  # the instance root. The container start hook surfaces only a generic failure
+  # to the client, so assert that start fails and check the instance start log
+  # for the confinement error before confirming the root-owned file was left
+  # untouched.
+  sub_test "Reject starting the instance whose template target escapes the instance root"
+  if lxc start "${ct_name}"; then
+    echo "ERROR: start must have been rejected"
+    exit 1
+  fi
+
+  sub_test "Confirm the daemon log reports the template confinement error"
+  # The daemon shares one logrus formatter between stderr and the logfile, and it enables colors
+  # whenever stderr is a terminal. That embeds ANSI escape codes around the field keys in lxd.log
+  # (e.g. instance=/project=), so strip them before matching the confinement error.
+  sed 's/\x1b\[[0-9;]*m//g' "${LXD_DIR}/lxd.log" | grep -F "ROOT_OWNED_TARGET: path escapes from parent\" instance=${ct_name} project=default" >/dev/null
+
+  sub_test "Confirm the root-owned file outside the instance root was not modified"
+  [ "$(cat "${target_file}")" = "${target_content}" ]
+
+  lxc delete -f "${ct_name}"
+
+  # Also check VMs. The QEMU driver renders each template to "<template>.out"
+  # inside the config drive, so the attacker-influenced value is the template
+  # source name rather than the map key. A root-owned target file ending in
+  # ".out" is planted so that the escaping source name resolves onto it.
+  # templateApplyNow (os.Root.OpenFile) is only reached when the VM is started,
+  # so gate it with LXD_VM_TESTS.
+  if [ "${LXD_VM_TESTS}" != "0" ]; then
+    local vm_name vm_target_file vm_target_content vm_escaping_template
+    vm_name="v1"
+    vm_target_file="${target_dir}/VM_ROOT_OWNED_TARGET.out"
+    vm_target_content="legitimate root-owned system file for VM"
+    printf '%s\n' "${vm_target_content}" > "${vm_target_file}"
+    chown root:root "${vm_target_file}"
+    chmod 0600 "${vm_target_file}"
+
+    # The QEMU driver appends ".out" to the template source name, so point the
+    # escaping source name at the target file with the ".out" suffix stripped.
+    vm_escaping_template="/nonexistent/../../../../../../../../../../../../..${target_dir}/VM_ROOT_OWNED_TARGET"
+
+    lxc init "${vm_name}" --vm --empty --config limits.memory=384MiB
+
+    sub_test "Register a VM template whose source name escapes the instance root"
+    "${_LXC}" query -X PUT -d "{\"architecture\": \"$(uname -m)\", \"creation_date\": 1, \"properties\": {}, \"templates\": {\"escape.tpl\": {\"when\": [\"start\"], \"create_only\": false, \"template\": \"${vm_escaping_template}\", \"properties\": {}}}}" "/1.0/instances/${vm_name}/metadata"
+
+    sub_test "Reject starting the VM whose template source escapes the instance root"
+    if lxc start "${vm_name}"; then
+      echo "ERROR: start must have been rejected"
+      exit 1
+    fi
+
+    sub_test "Confirm the root-owned file outside the VM root was not modified"
+    [ "$(cat "${vm_target_file}")" = "${vm_target_content}" ]
+
+    lxc delete -f "${vm_name}"
+  fi
+
+  lxc image delete testimage
+  rm -rf "${target_dir}"
+}
+
 test_image_backup_confined() {
   local ct_name ct_backup_path err_msg pool_driver pool_name
 
