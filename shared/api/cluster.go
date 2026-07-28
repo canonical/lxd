@@ -519,6 +519,13 @@ type ClusterLinksPost struct {
 	// The certificate (X509 PEM encoded) for the linked cluster. This is included in server-side POST requests to activate the pending cluster link on the linked cluster that generated the trust token.
 	// Example: X509 PEM certificate
 	ClusterCertificate string `json:"cluster_certificate" yaml:"cluster_certificate"`
+
+	// RemoteAddress is the address of the remote cluster, used for public links. It is the address
+	// contacted when creating a pending public cluster link. It remains required when confirming that
+	// link, but its value is ignored: the address pinned on confirmation is the one recorded when the
+	// pending link was created, so the link always points at the address that was verified.
+	// Example: 10.0.0.1:8443
+	RemoteAddress string `json:"remote_address,omitempty" yaml:"remote_address,omitempty"`
 }
 
 // ClusterLinkPost represents the fields available for renaming a cluster link.
