@@ -46,6 +46,11 @@ type session struct {
 
 	// addresses is a list of active addresses associated with the session.
 	addresses []string
+
+	// hostAddresses is a map of host addresses that already have an established path to the
+	// target, keyed by target address. It is populated only for NVMe/FC, where every local
+	// HBA that is zoned to a target port forms a path of its own.
+	hostAddresses map[string][]string
 }
 
 // Connector represents a storage connector that handles connections through

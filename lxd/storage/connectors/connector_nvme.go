@@ -269,8 +269,9 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 	}
 
 	session := &session{
-		id:       sessionID,
-		targetQN: targetQN,
+		id:            sessionID,
+		targetQN:      targetQN,
+		hostAddresses: make(map[string][]string),
 	}
 
 	basePath := "/sys/class/nvme"
@@ -310,8 +311,9 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 		}
 
 		// Extract the addresses from the file.
-		// The "address" file contains one line per connection,
-		// each in format "traddr=<ip>,trsvcid=<port>,...".
+		// The "address" file contains one line per connection.
+		// For TCP each line has the format "traddr=<ip>,trsvcid=<port>,...".
+		// For Fibre Channel it has the format "traddr=nn-<wwnn>:pn-<wwpn>,...".
 		for line := range bytes.SplitSeq(bytes.TrimSpace(fileBytes), []byte{'\n'}) {
 			// Each line is a comma separated list of "<key>=<value>" pairs.
 			fields := make(map[string]string)
@@ -327,14 +329,28 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 				continue
 			}
 
-			transportServiceID := fields["trsvcid"]
-			if transportServiceID == "" {
-				transportServiceID = NVMeDefaultTransportPort
-			}
+			if transport == TransportFC {
+				if !slices.Contains(session.addresses, transportAddr) {
+					session.addresses = append(session.addresses, transportAddr)
+				}
 
-			targetAddr := net.JoinHostPort(transportAddr, transportServiceID)
-			if !slices.Contains(session.addresses, targetAddr) {
-				session.addresses = append(session.addresses, targetAddr)
+				// Record which local HBA this path originates from, so that the
+				// paths of the remaining HBAs can still be established while this
+				// one is already connected.
+				hostAddr := fields["host_traddr"]
+				if hostAddr != "" && !slices.Contains(session.hostAddresses[transportAddr], hostAddr) {
+					session.hostAddresses[transportAddr] = append(session.hostAddresses[transportAddr], hostAddr)
+				}
+			} else {
+				transportServiceID := fields["trsvcid"]
+				if transportServiceID == "" {
+					transportServiceID = NVMeDefaultTransportPort
+				}
+
+				targetAddr := net.JoinHostPort(transportAddr, transportServiceID)
+				if !slices.Contains(session.addresses, targetAddr) {
+					session.addresses = append(session.addresses, targetAddr)
+				}
 			}
 		}
 	}
