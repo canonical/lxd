@@ -5526,10 +5526,13 @@ definitions:
                 x-go-name: Name
             replica_mode:
                 description: |-
-                    Replica mode for the project (leader, standby, or empty)
+                    Replica mode for the project (leader or standby)
                     This field is updated via PUT /1.0/projects/<name>/state
+                    It is omitted for projects that take no part in replication.
 
                     API extension: project_replica_mode
+
+                    API extension: project_replica_mode_optional
                 example: leader
                 readOnly: true
                 type: string
