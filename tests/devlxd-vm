@@ -26,7 +26,7 @@ else
   lxc launch "${IMAGE}" v1 --vm -s "${poolName}"
 fi
 
-waitInstanceReady v1
+waitInstanceBooted v1
 setup_instance_gocoverage v1
 lxc info v1
 
