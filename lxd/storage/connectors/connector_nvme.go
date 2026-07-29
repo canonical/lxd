@@ -85,10 +85,8 @@ func nvmeFilterDiscoveryLog(log *nvmeDiscoveryLog, transportType string) {
 	log.Records = filteredRecords
 }
 
-// nvmeNormalizeDiscoveryLog normalizes NVMe discovery log:
-//   - For entries with TCP transport type ensure all port numbers (transport
-//     service identifiers) are set. For non specified ports function uses
-//     the default transport port number.
+// nvmeNormalizeDiscoveryLog sets the default transport port on TCP discovery
+// entries that do not specify one.
 func nvmeNormalizeDiscoveryLog(log *nvmeDiscoveryLog) {
 	if len(log.Records) == 0 {
 		return
@@ -128,7 +126,6 @@ func (c *connectorNVMe) Version() (string, error) {
 }
 
 // LoadModules loads the NVMe/TCP kernel modules.
-// Returns true if the modules can be loaded.
 func (c *connectorNVMe) LoadModules() error {
 	err := util.LoadModule("nvme_fabrics")
 	if err != nil {
