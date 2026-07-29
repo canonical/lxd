@@ -3664,3 +3664,9 @@ Public cluster links cannot be used by {ref}`replicators <exp-replicators>` or a
 Introduces new operation class for durable operations.
 Durable operations are restarted on the DQLite raft leader if the member that is running the operation fails to respond to heartbeats.
 If the leader was running the operation and goes offline, the operation is restarted on the newly elected leader.
+
+(extension-project-replica-mode-optional)=
+## `project_replica_mode_optional`
+
+The `replica_mode` field is now omitted from project responses when the project takes no part in replication, instead of being returned as an empty string.
+The field is still returned for projects in `leader` or `standby` mode.
