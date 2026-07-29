@@ -272,8 +272,9 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 	}
 
 	session := &session{
-		id:       sessionID,
-		targetQN: targetQN,
+		id:            sessionID,
+		targetQN:      targetQN,
+		hostAddresses: make(map[string][]string),
 	}
 
 	basePath := "/sys/class/nvme"
@@ -313,8 +314,9 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 		}
 
 		// Extract the addresses from the file.
-		// The "address" file contains one line per connection,
-		// each in format "traddr=<ip>,trsvcid=<port>,...".
+		// The "address" file contains one line per connection.
+		// For TCP each line has the format "traddr=<ip>,trsvcid=<port>,...".
+		// For Fibre Channel it has the format "traddr=nn-<wwnn>:pn-<wwpn>,...".
 		for line := range bytes.SplitSeq(bytes.TrimSpace(fileBytes), []byte{'\n'}) {
 			parts := strings.Split(string(bytes.TrimSpace(line)), ",")
 
@@ -325,6 +327,24 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 					transportAddr = addr
 					break
 				}
+			}
+
+			if transport == TransportFC {
+				session.addresses = append(session.addresses, transportAddr)
+
+				// A target port is reached through a separate controller for every
+				// local HBA that is zoned to it. Record which local HBA this path
+				// originates from, so that the paths of the remaining HBAs can
+				// still be established while this one is already connected.
+				for _, part := range parts {
+					hostAddr, ok := strings.CutPrefix(part, "host_traddr=")
+					if ok {
+						session.hostAddresses[transportAddr] = append(session.hostAddresses[transportAddr], hostAddr)
+						break
+					}
+				}
+
+				continue
 			}
 
 			transportServiceID := NVMeDefaultTransportPort
