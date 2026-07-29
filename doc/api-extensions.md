@@ -3744,3 +3744,9 @@ Like SCSI/FC, Fibre Channel targets are discovered through the host bus adapter,
 This introduces the `ceph.replicator.<project>` configuration key on `ceph` storage pools.
 It records the peer Ceph site to which a project's volumes on the pool are mirrored.
 If a project with a replicator holds volumes on a Ceph pool configured with this key, then the replicator enrolls those volumes in RBD mirroring, triggers a mirror snapshot of each volume on every replication run, and completes the run only after the peer site confirms that it has received every snapshot.
+
+(extension-project-replica-mode-optional)=
+## `project_replica_mode_optional`
+
+The `replica_mode` field is now omitted from project responses when the project takes no part in replication, instead of being returned as an empty string.
+The field is still returned for projects in `leader` or `standby` mode.
