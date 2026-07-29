@@ -40,6 +40,22 @@
 							"shortdesc": "Cluster link member addresses.",
 							"type": "string"
 						}
+					},
+					{
+						"volatile.pending_address": {
+							"longdesc": "The address that was contacted and verified for a pending public cluster link, awaiting confirmation.",
+							"scope": "global",
+							"shortdesc": "Pending public cluster link address.",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.pending_certificate": {
+							"longdesc": "The PEM-encoded certificate fetched for a pending public cluster link, awaiting confirmation.",
+							"scope": "global",
+							"shortdesc": "Pending public cluster link certificate.",
+							"type": "string"
+						}
 					}
 				]
 			}

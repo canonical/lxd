@@ -32,6 +32,20 @@ User keys can be used in search.
 A comma-separated list of cluster link member addresses.
 ```
 
+```{config:option} volatile.pending_address cluster-link-volatile-conf
+:scope: "global"
+:shortdesc: "Pending public cluster link address."
+:type: "string"
+The address that was contacted and verified for a pending public cluster link, awaiting confirmation.
+```
+
+```{config:option} volatile.pending_certificate cluster-link-volatile-conf
+:scope: "global"
+:shortdesc: "Pending public cluster link certificate."
+:type: "string"
+The PEM-encoded certificate fetched for a pending public cluster link, awaiting confirmation.
+```
+
 <!-- config group cluster-link-volatile-conf end -->
 <!-- config group cluster-link-properties start -->
 ```{config:option} config cluster-link-properties
