@@ -75,8 +75,8 @@ if hasNeededAPIExtension "cloud_init_ssh_keys"; then
 fi
 
 lxc start c1
-waitInstanceReady c1
 
+waitInstanceBooted c1 # Need networking for apt-get
 lxc exec c1 -- apt-get update
 lxc exec c1 -- apt-get install --no-install-recommends --yes curl
 
