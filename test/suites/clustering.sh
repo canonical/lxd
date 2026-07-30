@@ -3282,6 +3282,14 @@ test_clustering_image_refresh() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --token "${token}"
   LXD_DIR="${LXD_ONE_DIR}" lxc image registry create cluster cluster=lxd_two source_project=default
 
+  sub_test "Image download via private LXD image registry"
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create registry-download
+  LXD_DIR="${LXD_ONE_DIR}" lxc image copy cluster:testimage local: --alias clustertest --target-project registry-download
+  cluster_fingerprint="$(LXD_DIR="${LXD_ONE_DIR}" lxc image info clustertest --project registry-download | awk '/^Fingerprint:/ {print $2}')"
+  stat --terse "${LXD_ONE_DIR}/images/${cluster_fingerprint}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete clustertest --project registry-download
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete registry-download
+
   LXD_DIR="${LXD_REMOTE_DIR}" lxc init testimage c1
 
   # Create additional projects
