@@ -161,6 +161,10 @@ func (c *cmdStorageVolumeBitmapDelete) command() *cobra.Command {
 			return c.global.cmpStoragePoolVolumes(args[0])
 		}
 
+		if len(args) == 2 {
+			return c.global.cmpStoragePoolVolumeBitmaps(args[0], args[1])
+		}
+
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
@@ -368,6 +372,10 @@ func (c *cmdStorageVolumeBitmapShow) command() *cobra.Command {
 
 		if len(args) == 1 {
 			return c.global.cmpStoragePoolVolumes(args[0])
+		}
+
+		if len(args) == 2 {
+			return c.global.cmpStoragePoolVolumeBitmaps(args[0], args[1])
 		}
 
 		return nil, cobra.ShellCompDirectiveNoFileComp
