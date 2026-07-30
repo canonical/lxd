@@ -8,10 +8,17 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
 )
+
+// HTTPServerReadTimeout bounds how long LXD's HTTP servers wait to read request
+// headers, and, on servers that set ReadTimeout, the full request. It also bounds
+// the STARTTLS peek on the local unix socket. Legitimate clients send their first
+// bytes immediately.
+const HTTPServerReadTimeout = 3 * time.Second
 
 // CanonicalNetworkAddress parses the given network address and returns a string of the form "host:port",
 // possibly filling it with the default port if it's missing. It will also wrap a bare IPv6 address with square
