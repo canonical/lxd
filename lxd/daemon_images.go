@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -48,9 +46,6 @@ type ImageDownloadArgs struct {
 	Budget            int64
 	SourceProjectName string
 	UserRequested     bool
-	// Proxy overrides the daemon-level proxy function when set.
-	// Use a no-op proxy function for intra-cluster connections to bypass the configured HTTP proxy.
-	Proxy func(req *http.Request) (*url.URL, error)
 }
 
 // imageOperationLock acquires a lock for operating on an image and returns the unlock function.
