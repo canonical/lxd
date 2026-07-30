@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/ucred"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -29,8 +30,8 @@ func devLXDServer(d *Daemon) *http.Server {
 	return &http.Server{
 		Handler:           devLXDAPI(d, containerAuthenticator{}),
 		IdleTimeout:       30 * time.Second,
-		ReadHeaderTimeout: 3 * time.Second,
-		ReadTimeout:       3 * time.Second,
+		ReadHeaderTimeout: util.HTTPServerReadTimeout,
+		ReadTimeout:       util.HTTPServerReadTimeout,
 		ConnState:         pidMapper.ConnStateHandler,
 		ConnContext:       request.SaveConnectionInContext,
 	}
