@@ -24,7 +24,7 @@ lxc launch "${IMAGE}" c1 -s "${poolName}" -c security.nesting=true
 lxc info c1
 
 echo "==> Checking devlxd is working"
-
+waitInstanceBooted c1 # Need networking for apt-get
 lxc exec c1 -- apt-get update
 lxc exec c1 -- apt-get install --no-install-recommends --yes curl
 

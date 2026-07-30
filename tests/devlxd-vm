@@ -26,7 +26,7 @@ else
   lxc launch "${IMAGE}" v1 --vm -s "${poolName}"
 fi
 
-waitInstanceBooted v1
+waitInstanceBooted v1 # Need ready for go coverage and networking for apt-get below
 setup_instance_gocoverage v1
 lxc info v1
 
