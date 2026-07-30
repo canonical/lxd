@@ -1,6 +1,15 @@
 name: Cache dqlite/liblxc dependencies
 description: Restore dqlite/liblxc from the daily cache or build them
 
+inputs:
+  export-env:
+    description: |
+      Whether to export the CGO/liblxc build variables (CGO_LDFLAGS, LD_LIBRARY_PATH,
+      LD_RUN_PATH, PKG_CONFIG_PATH) to GITHUB_ENV so LXD can be built against the deps.
+      Leave disabled for jobs that only run prebuilt binaries (e.g. system/snap tests).
+    default: "false"
+    required: false
+
 runs:
   using: composite
   steps:
@@ -36,46 +45,69 @@ runs:
         restore-keys: |
           ${{ steps.deps-cache-key.outputs.FALLBACK_KEY }}
 
-    - name: Build LXD dependencies
+    - name: Check if deps need building
+      id: check-build
       if: ${{ steps.cache-deps.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: |
+        # When a restore-key fallback is used, cache-hit is false even though the
+        # directories were restored. Check that the specific include/ and libs/
+        # subdirectories are present and non-empty to avoid a needless build.
+        # (Checking the parent dirs is insufficient: liblxc/ always contains rootfs/
+        # which would make a partial restore appear complete.)
+        if [ -d /home/runner/go/bin/dqlite/include ] && [ -d /home/runner/go/bin/dqlite/libs ] && \
+           [ -d /home/runner/go/bin/liblxc/include ] && [ -d /home/runner/go/bin/liblxc/libs ] && \
+           [ -n "$(ls -A /home/runner/go/bin/dqlite/include)" ] && [ -n "$(ls -A /home/runner/go/bin/dqlite/libs)" ] && \
+           [ -n "$(ls -A /home/runner/go/bin/liblxc/include)" ] && [ -n "$(ls -A /home/runner/go/bin/liblxc/libs)" ]; then
+          echo "==> SKIP building as dqlite and liblxc deps were restored from fallback key"
+          echo "needed=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "needed=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Install LXD build dependencies
+      if: ${{ steps.check-build.outputs.needed == 'true' }}
+      uses: ./.github/actions/install-lxd-builddeps
+
+    - name: Build LXD dependencies
+      if: ${{ steps.check-build.outputs.needed == 'true' }}
       shell: bash
       run: |
         set -eux
 
-        # It's possible to get here despite doing a cache-hit because when one
-        # of the restore-keys is used as fallback, the outputs.cache-hit is set
-        # to false. As such, check if the directories are present and if so,
-        # bail out early.
-        if [ -n "$(ls -A "/home/runner/go/bin/dqlite/")" ] && [ -n "$(ls -A "/home/runner/go/bin/liblxc/")" ]; then
-          echo "==> SKIP building as dqlite and liblxc deps were restored from fallback key"
-          exit 0
-        fi
+        # Build dqlite/liblxc and stage them into the cache dir. The Makefile owns
+        # the source/destination paths (see the deps-cache target), so this works
+        # from a plain workspace checkout in every job, including system-tests and
+        # snap-tests which do not run setup-go.
+        cd "${GITHUB_WORKSPACE}"
+        make deps-cache
 
-        # Build from unpacked dist tarball.
-        cd "${GITHUB_WORKSPACE}/../lxd-test"
-        make deps
-
-        # Include dqlite libs in dependencies for system tests.
-        mkdir -p /home/runner/go/bin/dqlite
-        mv "${GITHUB_WORKSPACE}/../lxd-test/vendor/dqlite/include" /home/runner/go/bin/dqlite/include
-        mv "${GITHUB_WORKSPACE}/../lxd-test/vendor/dqlite/.libs" /home/runner/go/bin/dqlite/libs
-
-        # Include liblxc libs in dependencies for system tests.
-        mkdir -p /home/runner/go/bin/liblxc
-        mv "${GITHUB_WORKSPACE}/../lxd-test/vendor/liblxc/include" /home/runner/go/bin/liblxc/include
-        mv "${GITHUB_WORKSPACE}/../lxd-test/vendor/liblxc/lib" /home/runner/go/bin/liblxc/libs
-
-        # liblxc requires a rootfs dir
-        mkdir -p /home/runner/go/bin/liblxc/rootfs
-
-    # Only save if there wasn't an exact cache hit, AND the code is running on the main repo (not an untrusted fork)
+    # Only save if deps were actually built (not restored), AND the code is running on the main repo (not an untrusted fork)
     - name: Save dqlite/liblxc deps
       uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       if: |
-        steps.cache-deps.outputs.cache-hit != 'true' &&
+        steps.check-build.outputs.needed == 'true' &&
         (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       with:
         path: |
           /home/runner/go/bin/dqlite
           /home/runner/go/bin/liblxc
         key: ${{ steps.deps-cache-key.outputs.KEY }}
+
+    # Export the liblxc arch-specific lib dir on top of the statically-known dqlite
+    # paths from the job env. Runs on both cache hit and miss (the deps are present
+    # either way), and only when the caller opts in via export-env.
+    - name: Update env variables for deps
+      if: ${{ inputs.export-env == 'true' }}
+      shell: bash
+      # The values written to GITHUB_ENV are a CI-controlled build-artifact path
+      # (the readlink'd liblxc lib dir) and the caller job's static CGO_* env vars,
+      # none of which are attacker-controllable, so github-env injection is not a risk.
+      run: | # zizmor: ignore[github-env]
+        set -eux
+        LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
+
+        echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
+        echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
+        echo "LD_RUN_PATH=${LD_RUN_PATH}:${LIBLXC_ARCH_LIBS}"         >> "${GITHUB_ENV}"
+        echo "PKG_CONFIG_PATH=${LIBLXC_ARCH_LIBS}/pkgconfig"          >> "${GITHUB_ENV}"
