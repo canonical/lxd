@@ -782,7 +782,7 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 	return &info, nil
 }
 
-func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, op *operations.Operation, profileProject string, imageProject string, budget int64, proxy func(req *http.Request) (*url.URL, error)) (*api.Image, error) {
+func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, op *operations.Operation, profileProject string, imageProject string, budget int64) (*api.Image, error) {
 	var err error
 	var hash string
 
@@ -805,7 +805,6 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 		Budget:            budget,
 		SourceProjectName: req.Source.Project,
 		UserRequested:     true,
-		Proxy:             proxy,
 	})
 	if err != nil {
 		return nil, err
@@ -1598,17 +1597,8 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 			switch req.Source.Type {
 			case api.SourceTypeImage:
-				// For intra-cluster image copies, bypass the configured HTTP proxy
-				// since cluster members communicate directly.
-				var proxy func(req *http.Request) (*url.URL, error)
-				if isClusterNotification {
-					proxy = func(req *http.Request) (*url.URL, error) {
-						return nil, nil
-					}
-				}
-
 				/* Processing image copy from remote */
-				info, err = imgPostRemoteInfo(ctx, s, req, op, profileProject, imageProject, budget, proxy)
+				info, err = imgPostRemoteInfo(ctx, s, req, op, profileProject, imageProject, budget)
 			default:
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
