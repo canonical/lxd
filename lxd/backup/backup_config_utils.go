@@ -201,9 +201,9 @@ func ConvertFormat(backupConf *config.Config, version uint32) (*config.Config, e
 	return copyBackupConf, nil
 }
 
-// ParseConfigYamlFile decodes the YAML file at path specified into a Config.
-func ParseConfigYamlFile(path string) (*config.Config, error) {
-	f, err := os.Open(path)
+// ParseConfigYamlFile reads and decodes the backup.yaml file within root into a Config.
+func ParseConfigYamlFile(root *os.Root) (*config.Config, error) {
+	f, err := root.Open("backup.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +212,7 @@ func ParseConfigYamlFile(path string) (*config.Config, error) {
 
 	backupConfInfo, err := f.Stat()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to stat %q: %w", path, err)
+		return nil, fmt.Errorf("Failed to stat %q: %w", f.Name(), err)
 	}
 
 	backupConf := config.NewConfig(backupConfInfo.ModTime())

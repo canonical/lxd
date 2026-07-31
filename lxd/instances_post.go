@@ -502,20 +502,85 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		return response.SmartError(err)
 	}
 
-	// For cross-project copies, validate that the instance and its snapshots satisfy the target
-	// project's restrictions before starting the copy operation. This check must run before any
-	// cluster-redirect early returns so that cross-cluster copies are also covered.
+	// Compute the merged config and devices to validate against the target project's
+	// restrictions and limits. The check must run before any cluster redirect early returns
+	// so that cross-cluster copies via the migration path are also covered. Request
+	// config/devices take precedence over the source instance's config/devices.
+	mergedConfig := make(map[string]string, len(req.Config))
+	for key, value := range req.Config {
+		mergedConfig[key] = value
+	}
+
+	for key, value := range source.LocalConfig() {
+		if !instancetype.InstanceIncludeWhenCopying(key, false) {
+			logger.Debug("Skipping key from copy source", logger.Ctx{"key": key, "sourceProject": source.Project().Name, "sourceInstance": source.Name(), "project": targetProject, "instance": req.Name})
+			continue
+		}
+
+		_, exists := mergedConfig[key]
+		if !exists {
+			mergedConfig[key] = value
+		}
+	}
+
+	mergedDevices := make(map[string]map[string]string, len(req.Devices))
+	for key, value := range req.Devices {
+		mergedDevices[key] = value
+	}
+
+	for key, value := range source.LocalDevices() {
+		_, exists := mergedDevices[key]
+		if !exists {
+			mergedDevices[key] = value
+		}
+	}
+
+	// For cross-project copies, validate that the merged instance and its snapshots satisfy the
+	// target project's restrictions and limits before starting the copy operation. This runs
+	// before the cluster-redirect early returns below so that cross-cluster copies are covered
+	// too.
 	if sourceProject != targetProject {
 		profileNames := make([]string, 0, len(profiles))
 		for _, p := range profiles {
 			profileNames = append(profileNames, p.Name)
 		}
 
-		rootDevKey, rootDev, _ := instancetype.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
+		// Resolve the effective target root disk device the same way instanceCreateAsCopy
+		// does: expand the merged devices with the target project's profiles. This yields
+		// the root disk device key that each snapshot's root disk will be aligned to
+		// (adjustSnapRootDiskPool), and the pool that the snapshots will actually be
+		// created on.
+		expandedDevices := instancetype.ExpandInstanceDevices(deviceConfig.NewDevices(mergedDevices), profiles)
+		rootDevKey, rootDev, err := instancetype.GetRootDiskDevice(expandedDevices.CloneNative())
+		if err != nil && !errors.Is(err, instancetype.ErrNoRootDisk) {
+			// The only other error is multiple root disks, a client/config error.
+			return response.BadRequest(err)
+		}
+
+		targetPool := rootDev["pool"]
+
+		// If no pool is set on the resolved root disk (neither the request nor the
+		// profiles specify one), fall back to the same single-pool resolution the copy
+		// relies on.
+		if targetPool == "" {
+			var resp response.Response
+			targetPool, _, _, _, resp = instanceFindStoragePool(s, targetProject, req)
+			if resp != nil {
+				return resp
+			}
+		}
+
+		// When neither the request nor the profiles define a root disk, the create path
+		// injects one with a generated name (see setupInstanceArgs). Mirror that name
+		// selection so snapshots are aligned to the same key rather than an empty device
+		// name.
+		if rootDevKey == "" {
+			rootDevKey = freeRootDiskDeviceName(deviceConfig.NewDevices(mergedDevices))
+		}
 
 		// We keep the ContainerOnly for backward compatibility.
-		copyInstanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
-		err = checkTargetProjectRestrictions(ctx, s, source, targetProject, sourceProject, req.Name, req.Config, req.Devices, profileNames, copyInstanceOnly, req.Source.OverrideSnapshotProfiles, rootDevKey, rootDev["pool"])
+		copyInstanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck
+		err = checkTargetProjectRestrictions(ctx, s, source, targetProject, sourceProject, req.Name, mergedConfig, mergedDevices, profileNames, copyInstanceOnly, req.Source.OverrideSnapshotProfiles, rootDevKey, targetPool)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -559,41 +624,11 @@ func createFromCopy(ctx context.Context, s *state.State, projectName string, pro
 		}
 	}
 
-	// Config override
-	sourceConfig := source.LocalConfig()
-	if req.Config == nil {
-		req.Config = make(map[string]string)
-	}
-
-	for key, value := range sourceConfig {
-		if !instancetype.InstanceIncludeWhenCopying(key, false) {
-			logger.Debug("Skipping key from copy source", logger.Ctx{"key": key, "sourceProject": source.Project().Name, "sourceInstance": source.Name(), "project": targetProject, "instance": req.Name})
-			continue
-		}
-
-		_, exists := req.Config[key]
-		if exists {
-			continue
-		}
-
-		req.Config[key] = value
-	}
-
-	// Devices override
-	sourceDevices := source.LocalDevices()
-
-	if req.Devices == nil {
-		req.Devices = make(map[string]map[string]string)
-	}
-
-	for key, value := range sourceDevices {
-		_, exists := req.Devices[key]
-		if exists {
-			continue
-		}
-
-		req.Devices[key] = value
-	}
+	// Apply the merged config and devices computed earlier to the request, now that the
+	// cluster-redirect checks (which rely on the unmerged request devices to detect the
+	// destination pool) are done.
+	req.Config = mergedConfig
+	req.Devices = mergedDevices
 
 	if req.Stateful {
 		sourceName, _, _ := api.GetParentAndSnapshotName(source.Name())
@@ -799,6 +834,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	// Check project permissions.
 	var restrictions *limits.ProjectInfo
 	err = s.DB.Cluster.Transaction(s.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
 		restrictions, err = limits.FetchProject(ctx, tx, projectName, true)
 		return err
 	})
@@ -990,6 +1026,22 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	return operations.OperationResponse(op)
 }
 
+// freeRootDiskDeviceName returns a name for an injected root disk device that does not
+// collide with an existing device in devices, trying "root" first and then "root0",
+// "root1" and so on.
+func freeRootDiskDeviceName(devices deviceConfig.Devices) string {
+	name := "root"
+	for i := range 100 {
+		if devices[name] == nil {
+			break
+		}
+
+		name = "root" + strconv.Itoa(i)
+	}
+
+	return name
+}
+
 // setupInstanceArgs sets the database instance arguments and determines the storage pool to use.
 func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName string, profiles []api.Profile, req *api.InstancesPost) (storagePool string, instArgs *db.InstanceArgs, resp response.Response) {
 	// Parse the architecture name
@@ -1034,15 +1086,7 @@ func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName s
 
 		// Make sure that we do not overwrite a device the user is currently using
 		// under the name "root".
-		rootDevName := "root"
-		for i := range 100 {
-			if args.Devices[rootDevName] == nil {
-				break
-			}
-
-			rootDevName = "root" + strconv.Itoa(i)
-			continue
-		}
+		rootDevName := freeRootDiskDeviceName(args.Devices)
 
 		args.Devices[rootDevName] = rootDev
 	} else if localRootDiskDeviceKey != "" && localRootDiskDevice["pool"] == "" {

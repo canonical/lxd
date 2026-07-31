@@ -126,7 +126,9 @@ func CompressedTarReader(s *state.State, ctx context.Context, r io.ReadSeeker, u
 	return tr, cancelFunc, nil
 }
 
-func doUnpack(s *state.State, file string, path string, blockBackend bool, excludeDevices bool, tracker *ioprogress.ProgressTracker) error {
+// doUnpack unpacks the specified file to the given path.
+// When protected is set to true, devices will be excluded and instance specific metadata files will be checked to ensure they are not symlinks.
+func doUnpack(s *state.State, file string, path string, blockBackend bool, protected bool, tracker *ioprogress.ProgressTracker) error {
 	extractArgs, extension, unpacker, err := shared.DetectCompression(file)
 	if err != nil {
 		return err
@@ -138,7 +140,7 @@ func doUnpack(s *state.State, file string, path string, blockBackend bool, exclu
 	var reader io.Reader
 	if strings.HasPrefix(extension, ".tar") {
 		command = "tar"
-		if excludeDevices && s.OS.RunningInUserNS {
+		if protected && s.OS.RunningInUserNS {
 			// We can't create char/block devices so avoid extracting them.
 			args = append(args, "--anchored")
 			args = append(args, "--wildcards")
@@ -275,6 +277,15 @@ func doUnpack(s *state.State, file string, path string, blockBackend bool, exclu
 		return fmt.Errorf("Unpack failed: %w", err)
 	}
 
+	// Check if none of the metadata files are symlinks.
+	// This blocks using images which reference external files.
+	if protected {
+		err := CheckMetadataFilesAreRegular(path)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -286,4 +297,34 @@ func UnpackImage(s *state.State, file string, path string, blockBackend bool, tr
 // UnpackRaw extracts all content from archive.
 func UnpackRaw(s *state.State, file string, path string, blockBackend bool, tracker *ioprogress.ProgressTracker) error {
 	return doUnpack(s, file, path, blockBackend, false, tracker)
+}
+
+// CheckMetadataFilesAreRegular verifies that the metadata files inside root are regular files and not symlinks.
+// Missing files are allowed.
+func CheckMetadataFilesAreRegular(root string) error {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return fmt.Errorf("Failed opening directory %q: %w", root, err)
+	}
+
+	defer func() { _ = r.Close() }()
+
+	// Some metadata files (e.g. backup.yaml) are not present right after unpack.
+	// Therefore accept if they are missing.
+	for _, name := range []string{"metadata.yaml", "backup.yaml"} {
+		info, err := r.Lstat(name)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return err
+		}
+
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("Metadata file %q is not a regular file", name)
+		}
+	}
+
+	return nil
 }
