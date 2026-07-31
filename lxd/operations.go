@@ -827,6 +827,9 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Wait for the operation.
+			// We intentionally ignore the error from op.Wait() here because we want
+			// to fetch and render the actual final state of the operation (which
+			// contains the Failure payload) rather than sending a secondary HTTP error.
 			_ = op.Wait(ctx)
 
 			_, body := op.Render()
