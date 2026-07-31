@@ -439,6 +439,16 @@ func (d *common) OpenTemplates() (*os.Root, error) {
 	return d.openOrCreateSubPath("templates", 0700)
 }
 
+// OpenRoot opens the instance's root directory as a confined *os.Root.
+func (d *common) OpenRoot() (*os.Root, error) {
+	root, err := os.OpenRoot(d.Path())
+	if err != nil {
+		return nil, err
+	}
+
+	return root, nil
+}
+
 // ShmountsPath returns the instance's shared mounts path.
 func (d *common) ShmountsPath() string {
 	name := project.Instance(d.project.Name, d.name)

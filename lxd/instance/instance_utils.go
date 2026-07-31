@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -418,10 +417,16 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 func LoadFromBackup(s *state.State, projectName string, instancePath string, applyProfiles bool) (Instance, error) {
 	var inst Instance
 
-	backupYamlPath := filepath.Join(instancePath, "backup.yaml")
-	backupConf, err := backup.ParseConfigYamlFile(backupYamlPath)
+	instRoot, err := os.OpenRoot(instancePath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed parsing instance backup file from %q: %w", backupYamlPath, err)
+		return nil, fmt.Errorf("Failed opening instance directory %q: %w", instancePath, err)
+	}
+
+	defer func() { _ = instRoot.Close() }()
+
+	backupConf, err := backup.ParseConfigYamlFile(instRoot)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing instance backup file from %q: %w", instancePath, err)
 	}
 
 	instDBArgs, err := backup.ConfigToInstanceDBArgs(s, backupConf, projectName, applyProfiles)
@@ -456,7 +461,7 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string, app
 
 	inst, err = Load(s, *instDBArgs, *p)
 	if err != nil {
-		return nil, fmt.Errorf("Failed loading instance from backup file %q: %w", backupYamlPath, err)
+		return nil, fmt.Errorf("Failed loading instance from backup file in %q: %w", instancePath, err)
 	}
 
 	return inst, nil

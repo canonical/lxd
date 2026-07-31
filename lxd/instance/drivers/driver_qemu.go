@@ -2634,22 +2634,28 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 }
 
 func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) error {
-	// If there's no metadata, just return.
-	fname := filepath.Join(d.Path(), "metadata.yaml")
-	if !shared.PathExists(fname) {
-		return nil
+	instanceRoot, err := d.OpenRoot()
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = instanceRoot.Close() }()
+
+	metadataFile, err := instanceRoot.ReadFile("metadata.yaml")
+	if err != nil {
+		// If there's no metadata, just return.
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+
+		return err
 	}
 
 	// Parse the metadata.
-	content, err := os.ReadFile(fname)
-	if err != nil {
-		return fmt.Errorf("Failed to read metadata: %w", err)
-	}
-
 	metadata := new(api.ImageMetadata)
-	err = yaml.Unmarshal(content, &metadata)
+	err = yaml.Unmarshal(metadataFile, &metadata)
 	if err != nil {
-		return fmt.Errorf("Could not parse %s: %w", fname, err)
+		return fmt.Errorf("Could not parse metadata.yaml: %w", err)
 	}
 
 	// Figure out the instance architecture.
@@ -5676,9 +5682,47 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		return nil
 	}
 
-	// Look for metadata.yaml.
-	fnam := filepath.Join(cDir, "metadata.yaml")
-	if !shared.PathExists(fnam) {
+	instanceRoot, err := d.OpenRoot()
+	if err != nil {
+		_ = tarWriter.Close()
+		d.logger.Error("Failed exporting instance", ctxMap)
+		return meta, err
+	}
+
+	defer func() { _ = instanceRoot.Close() }()
+
+	metadataFile, err := instanceRoot.Open("metadata.yaml")
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		_ = tarWriter.Close()
+		d.logger.Error("Failed exporting instance", ctxMap)
+		return meta, err
+	}
+
+	var fnam string
+	var existingMetadata *api.ImageMetadata
+
+	if metadataFile != nil {
+		defer func() { _ = metadataFile.Close() }()
+
+		metadataFileContents, err := io.ReadAll(metadataFile)
+		if err != nil {
+			_ = tarWriter.Close()
+			d.logger.Error("Failed exporting instance", ctxMap)
+			return meta, err
+		}
+
+		// Parse the metadata file.
+		err = yaml.Unmarshal(metadataFileContents, &existingMetadata)
+		if err != nil {
+			_ = tarWriter.Close()
+			d.logger.Error("Failed exporting instance", ctxMap)
+			return meta, err
+		}
+
+		fnam = filepath.Join(instanceRoot.Name(), "metadata.yaml")
+	}
+
+	if existingMetadata == nil {
 		// Generate a new metadata.yaml.
 		tempDir, err := os.MkdirTemp("", "lxd_lxd_metadata_")
 		if err != nil {
@@ -5744,28 +5788,14 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 			return meta, err
 		}
 
-		tmpOffset := len(filepath.Dir(fnam)) + 1
-		err = tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false)
+		err = tarWriter.WriteFile("metadata.yaml", fnam, fi, false)
 		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 	} else {
-		// Parse the metadata.
-		content, err := os.ReadFile(fnam)
-		if err != nil {
-			_ = tarWriter.Close()
-			d.logger.Error("Failed exporting instance", ctxMap)
-			return meta, err
-		}
-
-		err = yaml.Unmarshal(content, &meta)
-		if err != nil {
-			_ = tarWriter.Close()
-			d.logger.Error("Failed exporting instance", ctxMap)
-			return meta, err
-		}
+		meta = *existingMetadata
 
 		if !expiration.IsZero() {
 			meta.ExpiryDate = expiration.UTC().Unix()
@@ -5804,7 +5834,13 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		}
 
 		// Include metadata.yaml in the tarball.
-		fi, err := os.Lstat(fnam)
+		var fi fs.FileInfo
+		if properties != nil || !expiration.IsZero() {
+			fi, err = os.Lstat(fnam)
+		} else {
+			fi, err = metadataFile.Stat()
+		}
+
 		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Debug("Error statting during export", logger.Ctx{"fileName": fnam})
@@ -5812,13 +5848,8 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 			return meta, err
 		}
 
-		if properties != nil || !expiration.IsZero() {
-			tmpOffset := len(filepath.Dir(fnam)) + 1
-			err = tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false)
-		} else {
-			err = tarWriter.WriteFile(fnam[offset:], fnam, fi, false)
-		}
-
+		// In both sub-cases the desired tar entry name is always "metadata.yaml".
+		err = tarWriter.WriteFile("metadata.yaml", fnam, fi, false)
 		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Debug("Error writing to tarfile", logger.Ctx{"err": err})

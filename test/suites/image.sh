@@ -134,6 +134,152 @@ test_image_import_existing_alias() {
     lxc image delete newimage image2
 }
 
+test_image_import_metadata() {
+  local tmpDir imgDir imgTar out
+
+  sub_test "Reject metadata.yaml that is a symlink pointing outside the archive"
+
+  tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+  imgDir="${tmpDir}/image"
+  imgTar="${tmpDir}/image.tar"
+
+  mkdir -p "${imgDir}/rootfs"
+
+  # Create metadata.yaml as a symlink pointing outside the archive.
+  ln -s "/etc/hostname" "${imgDir}/metadata.yaml"
+
+  tar -cf "${imgTar}" -C "${imgDir}" .
+
+  out="$(! lxc image import "${imgTar}" --alias image-invalid-metadata 2>&1 || false)"
+  echo "${out}" | grep -F 'Error: Cannot read non-regular file "./metadata.yaml"'
+
+  # Check the rejected image was not imported.
+  ! lxc image list -f csv -c l | grep -qF "image-invalid-metadata" || false
+
+  rm -rf "${tmpDir}"
+}
+
+test_image_metadata_confined() {
+  local ct_name err_msg
+  local ct_meta_path
+
+  ct_name="c1"
+
+  # The full error the client receives from any confined os.Root operation on the escaping symlink.
+  err_msg="Error: openat metadata.yaml: path escapes from parent"
+
+  ensure_import_testimage
+
+  # Plant an unconfined metadata.yaml file into the container's drive whilst it is mounted.
+  lxc init testimage "${ct_name}"
+  lxc start "${ct_name}"
+  # shellcheck disable=SC2153
+  ct_meta_path="$(realpath "${LXD_DIR}/containers/${ct_name}/metadata.yaml")"
+  rm -f "${ct_meta_path}"
+  ln -s /etc/hostname "${ct_meta_path}"
+  lxc stop -f "${ct_name}"
+
+  # instanceMetadataGet (os.Root.Open): GET /1.0/instances/<name>/metadata.
+  sub_test "Reject reading metadata.yaml symlink escaping the instance root on show"
+  out="$(! lxc config metadata show "${ct_name}" 2>&1 || false)"
+  echo "${out}" | grep -F "${err_msg}"
+
+  # instanceMetadataPatch (os.Root.Open): PATCH /1.0/instances/<name>/metadata.
+  sub_test "Reject reading metadata.yaml symlink escaping the instance root on patch"
+  out="$(! lxc query -X PATCH -d '{"properties": {"os": "test"}}' "/1.0/instances/${ct_name}/metadata" 2>&1 || false)"
+  echo "${out}" | grep -F "${err_msg}"
+
+  # doInstanceMetadataUpdate (os.Root.WriteFile): PUT /1.0/instances/<name>/metadata.
+  sub_test "Reject writing metadata.yaml symlink escaping the instance root on update"
+  out="$(! lxc query -X PUT -d '{}' "/1.0/instances/${ct_name}/metadata" 2>&1 || false)"
+  echo "${out}" | grep -F "${err_msg}"
+
+  # lxc.Export (os.Root.Open): publishing the instance as an image reads its metadata.
+  sub_test "Reject reading metadata.yaml symlink escaping the container root on publish"
+  out="$(! lxc publish "${ct_name}" 2>&1 || false)"
+  echo "${out}" | grep -F "${err_msg}"
+
+  # lxc.templateApplyNow (os.Root.Open): starting the instance triggers templating which should be rejected.
+  sub_test "Reject starting the instance whose metadata.yaml symlink escapes the instance root"
+  if lxc start "${ct_name}"; then
+    echo "ERROR: start must have been rejected"
+    exit 1
+  fi
+
+  lxc delete -f "${ct_name}"
+  lxc image delete testimage
+}
+
+test_image_backup_confined() {
+  local ct_name ct_backup_path err_msg pool_driver pool_name
+
+  ct_name="c1"
+  err_msg="openat backup.yaml: path escapes from parent"
+
+  ensure_import_testimage
+
+  # Plant an unconfined backup.yaml file into the container's drive whilst it is mounted.
+  lxc init testimage "${ct_name}"
+  lxc start "${ct_name}"
+  # shellcheck disable=SC2153
+  ct_backup_path="$(realpath "${LXD_DIR}/containers/${ct_name}/backup.yaml")"
+  mv "${ct_backup_path}" "${ct_backup_path}.backup"
+  ln -s /etc/hostname "${ct_backup_path}"
+  lxc stop -f "${ct_name}"
+
+  # UpdateInstanceBackupFile (os.Root.WriteFile): starting the instance rewrites backup.yaml just
+  # before the instance process starts, so a symlinked backup.yaml must not be followed outside
+  # the instance's storage volume.
+  sub_test "Reject writing backup.yaml symlink escaping the instance root on start"
+  [[ "$(lxc start "${ct_name}" 2>&1 || false)" == *"${err_msg}"* ]]
+
+  # UpdateInstanceBackupFile (os.Root.WriteFile): creating a snapshot also rewrites backup.yaml.
+  sub_test "Reject writing backup.yaml symlink escaping the instance root on snapshot create"
+  [[ "$(lxc snapshot "${ct_name}" snap0 2>&1 || false)" == *"${err_msg}"* ]]
+
+  # Only test with the dir driver as we can easily cleanup after corrupting the container.
+  pool_name="$(lxc profile device get default root pool)"
+  pool_driver="$(lxc storage show "${pool_name}" | awk '/^driver:/ {print $2}')"
+  if [ "${pool_driver}" = "dir" ]; then
+    # Remove the instance and its storage volume DB records so recovery treats the volume as
+    # unknown and attempts to parse its (symlinked) backup.yaml.
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='c1'"
+
+    # detectUnknownInstanceVolume/ParseConfigYamlFile (os.Root.ReadFile): recovery reads
+    # backup.yaml from within the volume's mount path. A symlink escaping the volume must be
+    # rejected rather than followed, and recovery of this instance must fail rather than
+    # silently leaking the symlink target's contents into a recovered instance record.
+    if out=$(cat <<EOF | lxd recover 2>&1
+no
+yes
+yes
+EOF
+    ); then
+      echo "ERROR: lxd recover unexpectedly succeeded despite backup.yaml escaping the volume" >&2
+      exit 1
+    fi
+
+    [[ "${out}" == *"${err_msg}"* ]]
+
+    # At this stage the container is broken.
+    # Fix the backup.yaml manually.
+    # shellcheck disable=SC2153
+    rm -rf "${LXD_DIR}/storage-pools/${pool_name}/containers/${ct_name}/backup.yaml"
+    mv "${ct_backup_path}.backup" "${ct_backup_path}"
+
+    # Now recover the container.
+    cat <<EOF | lxd recover
+no
+yes
+yes
+EOF
+  fi
+
+  lxc delete -f "${ct_name}"
+  lxc image delete testimage
+}
+
 test_image_refresh() {
   # shellcheck disable=2039,3043
   local LXD2_DIR LXD2_ADDR
@@ -328,4 +474,45 @@ create_image_with_templates_symlink() {
 
   rm -rf "${imgDir}"
   echo "${tmpDir}"
+}
+
+test_image_import_metadata_not_regular_file() {
+  local tmpDir imgDir imgTar out
+
+  sub_test "Reject metadata that is overridden with a non-regular file when unpacking into an instance volume"
+
+  for m in metadata.yaml backup.yaml; do
+    tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+    imgDir="${tmpDir}/image"
+    imgTar="${tmpDir}/image.tar"
+
+    # Build an image tarball with a valid metadata.yaml.
+    # The metadata.yaml always has to be present.
+    mkdir -p "${imgDir}/rootfs"
+    printf '%s\n' "architecture: $(uname -m)" "creation_date: 1" > "${imgDir}/metadata.yaml"
+    tar -cf "${imgTar}" -C "${imgDir}" .
+
+    # Append the non-regular metadata file to the archive.
+    # In case of the metadata.yaml, this will allow importing the image as the first regular metadata.yaml passes the checks.
+    # But the second metadata.yaml will persist on the filesystem after unpacking the image which will trigger the error below.
+    if [ ! "${m}" = "backup.yaml" ]; then
+        # As the metadata.yaml is always present, remove it before creating the symlink with the same name.
+        rm "${imgDir}/${m}"
+    fi
+    ln -s "/etc/hostname" "${imgDir}/${m}"
+    tar -f "${imgTar}" --append -C "${imgDir}" "./${m}"
+
+    lxc image import "${imgTar}" --alias image-invalid-metadata
+
+    # Unpacking the image into the instance's storage volume must reject the non-regular metadata file.
+    if out=$(lxc init image-invalid-metadata c1 2>&1); then
+        echo "ERROR: Initializing an instance from an image with a non-regular metadata file unexpectedly succeeded" >&2
+        exit 1
+    fi
+
+    echo "${out}" | grep -qF "is not a regular file"
+
+    lxc image delete image-invalid-metadata
+    rm -rf "${tmpDir}"
+  done
 }

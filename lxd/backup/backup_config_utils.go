@@ -68,9 +68,9 @@ func ConfigToInstanceDBArgs(state *state.State, c *config.Config, projectName st
 	return inst, nil
 }
 
-// ParseConfigYamlFile decodes the YAML file at path specified into a Config.
-func ParseConfigYamlFile(path string) (*config.Config, error) {
-	data, err := os.ReadFile(path)
+// ParseConfigYamlFile reads and decodes the backup.yaml file within root into a Config.
+func ParseConfigYamlFile(root *os.Root) (*config.Config, error) {
+	data, err := root.ReadFile("backup.yaml")
 	if err != nil {
 		return nil, err
 	}

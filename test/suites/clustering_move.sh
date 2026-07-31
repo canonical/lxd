@@ -125,6 +125,18 @@ test_clustering_move() {
   LXD_DIR="${LXD_ONE_DIR}" lxc move c2 --target @foobar1
   LXD_DIR="${LXD_ONE_DIR}" lxc move c3 --target node1
 
+  sub_test "Same-project cross-member move does not apply config overrides"
+  # On stable-5.0, moving an instance to another cluster member within the same project via --target
+  # does not carry user-supplied config overrides. The cluster migration path (migrateInstance)
+  # transfers the instance as-is and never applies req.Config. Such overrides are therefore a no-op
+  # on this path and cannot be used to override security-critical keys (such as security.privileged)
+  # past the project's restrictions. Confirm the move succeeds but the override is not applied.
+  LXD_DIR="${LXD_ONE_DIR}" lxc move c3 --target node2 -c security.privileged=true
+  # The instance moved to the target member.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list --format csv --columns L c3)" = "node2" ]
+  # The forbidden override was not applied.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c3 security.privileged || echo fail)" = "" ]
+
   # Cleanup
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 c2 c3
 

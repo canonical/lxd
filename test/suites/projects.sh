@@ -191,8 +191,18 @@ test_projects_copy() {
   lxc --project foo storage volume create "${pool}" vol1
   lxc --project foo --target-project bar storage volume move "${pool}"/vol1 "${pool}"/vol1
 
+  # Moving a volume into a project must respect that project's limits.disk quota.
+  lxc project set bar limits.disk=1MiB
+  lxc --project foo storage volume create "${pool}" vol2 size=2MiB
+  err="$(! lxc --project foo --target-project bar storage volume move "${pool}"/vol2 "${pool}"/vol2 2>&1 || echo fail)"
+  [ "$(tail -1 <<< "${err}")" = 'Error: Failed checking if volume move allowed: Reached maximum aggregate value "1MiB" for "limits.disk" in project "bar"' ]
+  lxc --project foo storage volume show "${pool}" vol2 > /dev/null
+  lxc project unset bar limits.disk
+  lxc --project foo --target-project bar storage volume move "${pool}"/vol2 "${pool}"/vol2
+
   # Clean things up
   lxc --project bar storage volume delete "${pool}" vol1
+  lxc --project bar storage volume delete "${pool}" vol2
   lxc project delete foo
   lxc project delete bar
 }
@@ -1010,6 +1020,69 @@ test_projects_restrictions() {
   lxc delete c1
   lxc project set local:p1 restricted.containers.lowlevel="" restricted.snapshots=""
 
+  # An instance (or one of its snapshots) created with a forbidden low-level key in an
+  # unrestricted project must not be usable to bypass restricted.containers.lowlevel=block by
+  # being moved into the restricted project. The move itself must validate the resulting
+  # config, the same way direct config changes and snapshot restores already are, otherwise
+  # simply starting the moved instance would apply the forbidden config without ever going
+  # through a check. Use a second, unrestricted project to build the instances.
+  lxc project create p2 -c features.storage.volumes=false
+  lxc profile device add default root disk path="/" pool="${pool}" --project p2
+
+  lxc init --empty c1 -c "raw.idmap=both 0 0" --project p2
+  ! lxc move c1 --target-project p1 --project p2 || false
+  # The instance must be left untouched in its original project.
+  lxc config get c1 raw.idmap --project p2 | grep -wF "both 0 0"
+  ! lxc info c1 --project p1 || false
+  lxc delete c1 --project p2
+
+  # A snapshot carrying the forbidden key must also be checked at move time, even when the
+  # live instance's config no longer has the key set (e.g. it was unset after the snapshot
+  # was taken).
+  lxc init --empty c1 -c "raw.idmap=both 0 0" --project p2
+  lxc snapshot c1 snap0 --project p2
+  lxc config unset c1 raw.idmap --project p2
+  ! lxc move c1 --target-project p1 --project p2 || false
+  ! lxc info c1 --project p1 || false
+  lxc delete c1 --project p2
+
+  # restricted.snapshots=block must also be enforced at move time: an instance carrying a
+  # snapshot must not be movable into a project that disallows snapshots outright, even if
+  # nothing about the snapshot's config violates restricted.containers.lowlevel.
+  lxc project set p1 restricted.containers.lowlevel=allow restricted.snapshots=block
+  lxc init --empty c1 --project p2
+  lxc snapshot c1 snap0 --project p2
+  ! lxc move c1 --target-project p1 --project p2 || false
+  ! lxc info c1 --project p1 || false
+  lxc delete c1 --project p2
+  lxc project set p1 restricted.containers.lowlevel="" restricted.snapshots=""
+
+  # When copying an instance, the server merges the source instance's config with the
+  # config from the request, with the request config taking precedence. The merged result
+  # must be validated against the target project's restrictions. Ensure the config merged
+  # from the source instance is properly validated.
+  lxc init --empty c1 -c security.privileged=true --project p2
+  out="$(! lxc query --wait -X POST -d '{\"name\":\"c1\",\"source\":{\"type\":\"copy\",\"source\":\"c1\",\"project\":\"p2\"}}' "/1.0/instances?project=p1" 2>&1 || false)"
+  echo "${out}" | grep -F "Privileged containers are forbidden"
+  ! lxc info c1 --project p1 || false
+  lxc delete c1 --project p2
+
+  # The same applies to devices merged from the source instance. With restricted.devices.disk=block
+  # a non-root disk device is forbidden, and must be rejected even when it is not named in the copy
+  # request (here it is inherited from the source instance rather than supplied by the caller).
+  lxc project set p1 restricted.devices.disk=block
+  lxc init --empty c1 --project p2
+  lxc config device add c1 hostroot disk source=/ path=/mnt/host --project p2
+  exit_code=0
+  err_msg="$(lxc query --wait -X POST -d '{\"name\":\"c1\",\"source\":{\"type\":\"copy\",\"source\":\"c1\",\"project\":\"p2\"}}' "/1.0/instances?project=p1" 2>&1)" || exit_code=$?
+  [[ "${exit_code}" -ne 0 ]]
+  [[ "${err_msg}" == *'device "hostroot"'*"Disk devices are forbidden"* ]]
+  ! lxc info c1 --project p1 || false
+  lxc delete c1 --project p2
+  lxc project unset p1 restricted.devices.disk
+
+  lxc project delete p2
+
   # Setting restricted.containers.privilege to 'allow' makes it possible to create
   # privileged containers.
   lxc project set p1 restricted.containers.privilege=allow
@@ -1030,6 +1103,25 @@ test_projects_restrictions() {
   ! lxc config set c1 security.syscalls.intercept.mount.allow=ext4 || false
 
   lxc delete c1
+
+  sub_test "restricted.containers.privilege=isolated cannot be bypassed by omitting security.idmap.isolated"
+  lxc project set p1 restricted.containers.privilege=isolated
+
+  # Omitting security.idmap.isolated must be rejected (it defaults to non-isolated).
+  ! lxc init testimage c1 || false
+
+  # Explicitly setting security.idmap.isolated=false must be rejected.
+  ! lxc init testimage c1 -c security.idmap.isolated=false || false
+
+  # Explicitly setting security.idmap.isolated="" must be rejected.
+  ! lxc init testimage c1 -c security.idmap.isolated="" || false
+
+  # Only isolated containers are allowed.
+  lxc init testimage c1 -c security.idmap.isolated=true
+  lxc delete c1
+
+  # Reset the restriction.
+  lxc project set p1 restricted.containers.privilege=unprivileged
 
   lxc image delete testimage
 

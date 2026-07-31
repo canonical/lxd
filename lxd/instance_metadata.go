@@ -2,12 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
@@ -111,16 +112,21 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 
 	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
 
-	// If missing, just return empty result
-	metadataPath := filepath.Join(c.Path(), "metadata.yaml")
-	if !shared.PathExists(metadataPath) {
-		return response.SyncResponse(true, api.ImageMetadata{})
+	instanceRoot, err := c.OpenRoot()
+	if err != nil {
+		return response.SmartError(err)
 	}
 
-	// Read the metadata
-	metadataFile, err := os.Open(metadataPath)
+	defer func() { _ = instanceRoot.Close() }()
+
+	metadataFile, err := instanceRoot.Open("metadata.yaml")
 	if err != nil {
-		return response.InternalError(err)
+		// If missing, just return empty result
+		if errors.Is(err, fs.ErrNotExist) {
+			return response.SyncResponse(true, api.ImageMetadata{})
+		}
+
+		return response.SmartError(err)
 	}
 
 	defer func() { _ = metadataFile.Close() }()
@@ -223,17 +229,24 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 
 	defer func() { _ = storagePools.InstanceUnmount(pool, inst, nil) }()
 
-	// Read the existing data.
-	metadataPath := filepath.Join(inst.Path(), "metadata.yaml")
 	metadata := api.ImageMetadata{}
-	if shared.PathExists(metadataPath) {
-		metadataFile, err := os.Open(metadataPath)
-		if err != nil {
-			return response.InternalError(err)
-		}
 
+	instanceRoot, err := inst.OpenRoot()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	defer func() { _ = instanceRoot.Close() }()
+
+	metadataFile, err := instanceRoot.Open("metadata.yaml")
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return response.SmartError(err)
+	}
+
+	if metadataFile != nil {
 		defer func() { _ = metadataFile.Close() }()
 
+		// Read the existing data.
 		data, err := io.ReadAll(metadataFile)
 		if err != nil {
 			return response.InternalError(err)
@@ -360,11 +373,17 @@ func doInstanceMetadataUpdate(s *state.State, inst instance.Instance, metadata a
 		return response.BadRequest(err)
 	}
 
-	// Update the metadata.
-	metadataPath := filepath.Join(inst.Path(), "metadata.yaml")
-	err = os.WriteFile(metadataPath, data, 0644)
+	instanceRoot, err := inst.OpenRoot()
 	if err != nil {
-		return response.InternalError(err)
+		return response.SmartError(err)
+	}
+
+	defer func() { _ = instanceRoot.Close() }()
+
+	// Update the metadata.
+	err = instanceRoot.WriteFile("metadata.yaml", data, 0600)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceMetadataUpdated.Event(inst, request.CreateRequestor(r), nil))
