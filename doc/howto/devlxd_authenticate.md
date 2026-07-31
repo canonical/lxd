@@ -14,7 +14,10 @@ To authenticate over the DevLXD API, first create a `DevLXD token bearer` identi
 lxc auth identity create devlxd/<name> [[--group <group> ]]
 ```
 
-Next, issue a token for the identity:
+The new identity initially has type `DevLXD token bearer (pending)`.
+A pending identity cannot authenticate but can be added to groups.
+
+Next, issue a token for the identity (this changes its type to `DevLXD token bearer`):
 ```bash
 lxc auth identity token issue devlxd/<name> [--expiry <expiry> ]
 ```

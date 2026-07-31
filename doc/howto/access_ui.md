@@ -71,6 +71,9 @@ For convenience, the `--ui-initial-access-link` flag can be used to non-interact
 lxd init --ui-initial-access-link
 ```
 
+The `ui-admin-initial` identity has the type `Initial UI token bearer` while a token is issued for it.
+Revoking the token changes its type to `Initial UI token bearer (pending)`, and issuing a new token changes it back.
+
 (access-ui-setup-certificate)=
 ### Permanent UI access using browser certificate
 
