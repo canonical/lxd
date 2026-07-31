@@ -55,6 +55,21 @@ If you are building LXD from source instead of using a package manager, the mini
 - Dropped the now unused `qemu-ovmf-secureboot` part and the standalone `nasm` part (and its patch).
 - Dropped unused EDK2 patches.
 
+(ref-release-notes-5.0.8-bugfixes)=
+## Bug fixes
+
+The following bug fixes are included in this release.
+
+- [{spellexception}`Arbitrary file read and write via image metadata.yaml symlink (GHSA-j825-cg34-5fr5)`](https://github.com/canonical/lxd/security/advisories/GHSA-j825-cg34-5fr5)
+- [{spellexception}`Root command execution via image backup.yaml symlink (GHSA-fv82-v4fj-mm4m)`](https://github.com/canonical/lxd/security/advisories/GHSA-fv82-v4fj-mm4m)
+- [{spellexception}`NVIDIA configuration validation bypass for nvidia.driver.capabilities (GHSA-vfh7-q59q-54v2)`](https://github.com/canonical/lxd/security/advisories/GHSA-vfh7-q59q-54v2)
+- [{spellexception}`Restricted project bypass for security.idmap.isolated defaults (GHSA-7vp9-3vmp-c5jm)`](https://github.com/canonical/lxd/security/advisories/GHSA-7vp9-3vmp-c5jm)
+- [{spellexception}`Project restriction bypass via instance migration config override (GHSA-gcr9-5q6r-w625)`](https://github.com/canonical/lxd/security/advisories/GHSA-gcr9-5q6r-w625)
+- [{spellexception}`Cross-project instance copy bypass via config merge timing (GHSA-v989-qw7w-xvg4)`](https://github.com/canonical/lxd/security/advisories/GHSA-v989-qw7w-xvg4)
+- [{spellexception}`Storage volume cross-project move and restore bypass project disk limits (GHSA-5h78-p252-989h)`](https://github.com/canonical/lxd/security/advisories/GHSA-5h78-p252-989h)
+- [{spellexception}`Cross-project cluster migration bypasses project restrictions (GHSA-v9wr-9r7q-fh4g)`](https://github.com/canonical/lxd/security/advisories/GHSA-v9wr-9r7q-fh4g)
+- [{spellexception}`Cross-project instance move bypasses project restrictions (GHSA-5g5r-wh97-qcq2)`](https://github.com/canonical/lxd/security/advisories/GHSA-5g5r-wh97-qcq2)
+
 (ref-release-notes-5.0.8-changelog)=
 ## Change log
 
