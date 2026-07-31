@@ -269,6 +269,7 @@ test_image_metadata_confined() {
   # Plant an unconfined metadata.yaml file into the container's drive whilst it is mounted.
   lxc init testimage "${ct_name}"
   lxc start "${ct_name}"
+  # shellcheck disable=2153
   ct_meta_path="$(realpath "${LXD_DIR}/containers/${ct_name}/metadata.yaml")"
   rm -f "${ct_meta_path}"
   ln -s /etc/hostname "${ct_meta_path}"
