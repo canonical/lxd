@@ -183,10 +183,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(err)
 	}
 
-	err = op.Wait(ctx)
-	if err != nil {
-		return response.SmartError(err)
-	}
+	_ = op.Wait(ctx)
 
 	_, opAPI := op.Render()
 	return response.SyncResponse(true, opAPI)
