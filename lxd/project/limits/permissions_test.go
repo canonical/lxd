@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,6 +21,12 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
+
+func init() {
+	db.StorageRemoteDriverNames = func() []string {
+		return []string{"ceph", "cephfs"}
+	}
+}
 
 // If there's no limit configured on the project, the check passes.
 func TestAllowInstanceCreation_NotConfigured(t *testing.T) {
@@ -296,4 +303,166 @@ func TestCheckClusterTargetRestriction_RestrictedFalse(t *testing.T) {
 
 	err = limits.CheckClusterTargetRestriction(req.Context(), authorizer, p, "n1")
 	assert.NoError(t, err)
+}
+
+// A nil req.Config (as used when restoring a volume snapshot) must fall back to the
+// volume's current config, rather than dropping its "size" contribution to the aggregate.
+func TestAllowVolumeUpdate_NilConfigFallsBackToCurrentConfig(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	id, err := cluster.CreateProject(ctx, tx.Tx(), cluster.Project{Name: "p1"})
+	require.NoError(t, err)
+
+	err = cluster.CreateProjectConfig(ctx, tx.Tx(), id, map[string]string{"limits.disk": "10MiB"})
+	require.NoError(t, err)
+
+	poolID, err := tx.CreateStoragePool(ctx, "pool1", "", "dir", nil)
+	require.NoError(t, err)
+
+	currentConfig := map[string]string{"size": "5MiB"}
+	_, err = tx.CreateStoragePoolVolume(ctx, "p1", "vol1", "", cluster.StoragePoolVolumeTypeCustom, poolID, currentConfig, cluster.StoragePoolVolumeContentTypeFS, time.Now())
+	require.NoError(t, err)
+
+	err = limits.AllowVolumeUpdate(ctx, nil, tx, "p1", "vol1", api.StorageVolumePut{}, currentConfig)
+	assert.NoError(t, err)
+}
+
+// A nil req.Config must still enforce limits.disk using the volume's current config,
+// rather than silently skipping the volume's own contribution to the aggregate.
+func TestAllowVolumeUpdate_NilConfigStillEnforcesLimit(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	id, err := cluster.CreateProject(ctx, tx.Tx(), cluster.Project{Name: "p1"})
+	require.NoError(t, err)
+
+	err = cluster.CreateProjectConfig(ctx, tx.Tx(), id, map[string]string{"limits.disk": "10MiB"})
+	require.NoError(t, err)
+
+	poolID, err := tx.CreateStoragePool(ctx, "pool1", "", "dir", nil)
+	require.NoError(t, err)
+
+	currentConfig := map[string]string{"size": "8MiB"}
+	_, err = tx.CreateStoragePoolVolume(ctx, "p1", "vol1", "", cluster.StoragePoolVolumeTypeCustom, poolID, currentConfig, cluster.StoragePoolVolumeContentTypeFS, time.Now())
+	require.NoError(t, err)
+
+	_, err = tx.CreateStoragePoolVolume(ctx, "p1", "vol2", "", cluster.StoragePoolVolumeTypeCustom, poolID, map[string]string{"size": "8MiB"}, cluster.StoragePoolVolumeContentTypeFS, time.Now())
+	require.NoError(t, err)
+
+	err = limits.AllowVolumeUpdate(ctx, nil, tx, "p1", "vol1", api.StorageVolumePut{}, currentConfig)
+	assert.EqualError(t, err, `Failed checking if volume update allowed: Reached maximum aggregate value "10MiB" for "limits.disk" in project "p1"`)
+}
+
+// A project with only a pool-specific "limits.disk.pool.<name>" quota (and no bare
+// "limits.disk") must still have that quota enforced on volume creation.
+func TestAllowVolumeCreation_PoolOnlyLimitEnforced(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	id, err := cluster.CreateProject(ctx, tx.Tx(), cluster.Project{Name: "p1"})
+	require.NoError(t, err)
+
+	err = cluster.CreateProjectConfig(ctx, tx.Tx(), id, map[string]string{"limits.disk.pool.pool1": "10MiB"})
+	require.NoError(t, err)
+
+	poolID, err := tx.CreateStoragePool(ctx, "pool1", "", "dir", nil)
+	require.NoError(t, err)
+
+	_, err = tx.CreateStoragePoolVolume(ctx, "p1", "vol1", "", cluster.StoragePoolVolumeTypeCustom, poolID, map[string]string{"size": "8MiB"}, cluster.StoragePoolVolumeContentTypeFS, time.Now())
+	require.NoError(t, err)
+
+	req := api.StorageVolumesPost{
+		StorageVolumePut: api.StorageVolumePut{
+			Config: map[string]string{"size": "8MiB"},
+		},
+		Name: "vol2",
+	}
+
+	err = limits.AllowVolumeCreation(ctx, nil, tx, "p1", "pool1", req)
+	assert.EqualError(t, err, `Failed checking if volume creation allowed: Reached maximum aggregate value "10MiB" for "limits.disk.pool.pool1" in project "p1"`)
+}
+
+// A same-project move to a different pool must not double-count the volume being moved:
+// relocating its pre-move (pool, name) entry replaces its aggregate contribution instead
+// of adding a second entry for it.
+func TestAllowVolumeMove_SameProjectAvoidsDoubleCounting(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	id, err := cluster.CreateProject(ctx, tx.Tx(), cluster.Project{Name: "p1"})
+	require.NoError(t, err)
+
+	err = cluster.CreateProjectConfig(ctx, tx.Tx(), id, map[string]string{"limits.disk": "10MiB"})
+	require.NoError(t, err)
+
+	srcPoolID, err := tx.CreateStoragePool(ctx, "src", "", "dir", nil)
+	require.NoError(t, err)
+
+	_, err = tx.CreateStoragePool(ctx, "dst", "", "dir", nil)
+	require.NoError(t, err)
+
+	_, err = tx.CreateStoragePoolVolume(ctx, "p1", "vol1", "", cluster.StoragePoolVolumeTypeCustom, srcPoolID, map[string]string{"size": "10MiB"}, cluster.StoragePoolVolumeContentTypeFS, time.Now())
+	require.NoError(t, err)
+
+	req := api.StorageVolumesPost{
+		StorageVolumePut: api.StorageVolumePut{
+			Config: map[string]string{"size": "10MiB"},
+		},
+		Name: "vol1",
+	}
+
+	// Relocating the volume's pre-move (pool, name) entry rather than duplicating it
+	// keeps the project's total usage unchanged, so the same-project move is allowed
+	// even though the pre-move and post-move sizes together would exceed the quota.
+	err = limits.AllowVolumeMove(ctx, nil, tx, "p1", "src", "vol1", "p1", "dst", req)
+	assert.NoError(t, err)
+}
+
+// A cross-project move must be checked as a plain creation in the target project and
+// must not have its aggregate contribution cancelled out by a coincidentally
+// same-named volume already present in the target project (regression test for a
+// quota bypass via name collision).
+func TestAllowVolumeMove_CrossProjectDoesNotCancelTargetVolume(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	_, err := cluster.CreateProject(ctx, tx.Tx(), cluster.Project{Name: "src-proj"})
+	require.NoError(t, err)
+
+	dstID, err := cluster.CreateProject(ctx, tx.Tx(), cluster.Project{Name: "dst-proj"})
+	require.NoError(t, err)
+
+	err = cluster.CreateProjectConfig(ctx, tx.Tx(), dstID, map[string]string{"limits.disk": "100MiB"})
+	require.NoError(t, err)
+
+	poolID, err := tx.CreateStoragePool(ctx, "pool1", "", "dir", nil)
+	require.NoError(t, err)
+
+	// Source volume "vol" in src-proj, and a coincidentally same-named "vol" already
+	// in dst-proj that consumes most of the target project's quota.
+	_, err = tx.CreateStoragePoolVolume(ctx, "src-proj", "vol", "", cluster.StoragePoolVolumeTypeCustom, poolID, map[string]string{"size": "50MiB"}, cluster.StoragePoolVolumeContentTypeFS, time.Now())
+	require.NoError(t, err)
+
+	_, err = tx.CreateStoragePoolVolume(ctx, "dst-proj", "vol", "", cluster.StoragePoolVolumeTypeCustom, poolID, map[string]string{"size": "90MiB"}, cluster.StoragePoolVolumeContentTypeFS, time.Now())
+	require.NoError(t, err)
+
+	// Move src-proj:pool1/vol to dst-proj:pool1/vol2 (renamed so it doesn't collide with
+	// dst-proj's existing "vol"). The target project would end up with 90MiB + 50MiB, which
+	// exceeds its 100MiB quota, so the move must be rejected. The source volume's (pool, name)
+	// identity must NOT cancel out dst-proj's own same-named volume.
+	req := api.StorageVolumesPost{
+		StorageVolumePut: api.StorageVolumePut{
+			Config: map[string]string{"size": "50MiB"},
+		},
+		Name: "vol2",
+	}
+
+	err = limits.AllowVolumeMove(ctx, nil, tx, "src-proj", "pool1", "vol", "dst-proj", "pool1", req)
+	assert.EqualError(t, err, `Failed checking if volume move allowed: Reached maximum aggregate value "100MiB" for "limits.disk" in project "dst-proj"`)
 }

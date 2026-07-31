@@ -1979,6 +1979,28 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, details stor
 		revert := revert.New()
 		defer revert.Fail()
 
+		// Check that moving the volume into the target pool/project doesn't exceed its limits.
+		// This also covers same-project moves to a different pool, since projects can set
+		// per-pool disk quotas via "limits.disk.pool.<poolName>". AllowVolumeMove relocates
+		// the source volume's existing entry for same-project moves so its size isn't
+		// double-counted against the target project's aggregate limits, and treats a
+		// cross-project move as a plain creation in the target project.
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			limitsReq := api.StorageVolumesPost{
+				StorageVolumePut: api.StorageVolumePut{
+					Description: vol.Description,
+					Config:      vol.Config,
+				},
+				Name: newVol.Name,
+				Type: vol.Type,
+			}
+
+			return limits.AllowVolumeMove(ctx, s.GlobalConfig, tx, effectiveProjectName, details.pool.Name(), vol.Name, targetProjectName, newPool.Name(), limitsReq)
+		})
+		if err != nil {
+			return err
+		}
+
 		// Update devices using the volume in instances and profiles.
 		cleanup, err := storagePoolVolumeUpdateUsers(ctx, s, effectiveProjectName, details.pool.Name(), vol, newPool.Name(), &newVol)
 		if err != nil {
@@ -2226,12 +2248,32 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
+		// Checks that applying putReq to the volume doesn't exceed project limits.
+		checkVolumeUpdateLimits := func(putReq api.StorageVolumePut) error {
+			return s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				return limits.AllowVolumeUpdate(ctx, s.GlobalConfig, tx, effectiveProjectName, details.volumeName, putReq, dbVolume.Config)
+			})
+		}
+
 		switch details.volumeType {
 		case cluster.StoragePoolVolumeTypeCustom:
 			// Restore custom volume from snapshot if requested. This should occur first
 			// before applying config changes so that changes are applied to the
 			// restored volume.
 			if req.Restore != "" {
+				// Check that restoring the snapshot doesn't exceed project limits. Restoring
+				// doesn't change the volume's own config row, so checking against the volume's
+				// current config (via a nil req.Config) reflects the state after restore
+				// accurately. Skip this when a config change is also requested below, since
+				// that check already validates the final config and re-running this one against
+				// the stale pre-restore config would just repeat the same project-wide scan.
+				if req.Config == nil {
+					err = checkVolumeUpdateLimits(api.StorageVolumePut{})
+					if err != nil {
+						return err
+					}
+				}
+
 				err = details.pool.RestoreCustomVolume(ctx, effectiveProjectName, dbVolume.Name, req.Restore, op)
 				if err != nil {
 					return err
@@ -2243,9 +2285,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 			// the volume's config if only restoring snapshot.
 			if req.Config != nil || req.Restore == "" {
 				// Possibly check if project limits are honored.
-				err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-					return limits.AllowVolumeUpdate(ctx, s.GlobalConfig, tx, effectiveProjectName, details.volumeName, req, dbVolume.Config)
-				})
+				err = checkVolumeUpdateLimits(req)
 				if err != nil {
 					return err
 				}

@@ -708,7 +708,7 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	//  liveupdate: no
 	//  condition: container
 	//  shortdesc: What driver capabilities the instance needs
-	"nvidia.driver.capabilities": validate.IsAny,
+	"nvidia.driver.capabilities": validate.IsNvidiaConfigValue,
 
 	// lxdmeta:generate(entities=instance; group=nvidia; key=nvidia.require.cuda)
 	// The specified version expression is used to set `libnvidia-container NVIDIA_REQUIRE_CUDA`.
@@ -717,7 +717,7 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	//  liveupdate: no
 	//  condition: container
 	//  shortdesc: Required CUDA version
-	"nvidia.require.cuda": validate.IsAny,
+	"nvidia.require.cuda": validate.IsNvidiaConfigValue,
 
 	// lxdmeta:generate(entities=instance; group=nvidia; key=nvidia.require.driver)
 	// The specified version expression is used to set `libnvidia-container NVIDIA_REQUIRE_DRIVER`.
@@ -726,7 +726,7 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	//  liveupdate: no
 	//  condition: container
 	//  shortdesc: Required driver version
-	"nvidia.require.driver": validate.IsAny,
+	"nvidia.require.driver": validate.IsNvidiaConfigValue,
 
 	// Caller is responsible for full validation of any raw.* value.
 

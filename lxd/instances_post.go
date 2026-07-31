@@ -584,6 +584,55 @@ func createFromCopy(r *http.Request, s *state.State, projectName string, profile
 		return response.SmartError(err)
 	}
 
+	// For cross-project copies, validate that the instance and its snapshots satisfy the target
+	// project's restrictions before starting the copy operation. This check must run before any
+	// cluster-redirect early returns so that cross-cluster copies are also covered.
+	if sourceProject != targetProject {
+		profileNames := make([]string, 0, len(profiles))
+		for _, p := range profiles {
+			profileNames = append(profileNames, p.Name)
+		}
+
+		// Resolve the effective target root disk device the same way instanceCreateAsCopy
+		// does: expand the request's devices with the target project's profiles. This
+		// yields the root disk device key that each snapshot's root disk will be aligned
+		// to (adjustSnapRootDiskPool), and the pool that the snapshots will actually be
+		// created on.
+		targetDevices := instancetype.ExpandInstanceDevices(deviceConfig.NewDevices(req.Devices), profiles)
+		rootDevKey, rootDev, err := api.GetRootDiskDevice(targetDevices.CloneNative())
+		if err != nil && !errors.Is(err, api.ErrNoRootDisk) {
+			// The only other error is ErrMultipleRootDisks, a client/config error.
+			return response.BadRequest(err)
+		}
+
+		targetPool := rootDev["pool"]
+
+		// If no pool is set on the resolved root disk (neither the request nor the
+		// profiles specify one), fall back to the same single-pool resolution the copy
+		// relies on.
+		if targetPool == "" {
+			targetPool, _, _, _, err = instanceFindStoragePool(s, targetProject, req)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
+		// When neither the request nor the profiles define a root disk, the create path
+		// injects one with a generated name (see setupInstanceArgs). Mirror that name
+		// selection so snapshots are aligned to the same key rather than an empty device
+		// name.
+		if rootDevKey == "" {
+			rootDevKey = freeRootDiskDeviceName(deviceConfig.NewDevices(req.Devices))
+		}
+
+		// We keep the ContainerOnly for backward compatibility.
+		copyInstanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
+		err = checkTargetProjectRestrictions(r.Context(), s, source, targetProject, sourceProject, req.Name, req.Config, req.Devices, profileNames, copyInstanceOnly, req.Source.OverrideSnapshotProfiles, rootDevKey, targetPool)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
 	// When clustered, use the node name, otherwise use the hostname.
 	if s.ServerClustered {
 		serverName := s.ServerName
@@ -926,6 +975,14 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			return response.SmartError(err)
 		}
 
+		// Verify snapshot creation is permitted before iterating over individual snapshots.
+		if len(bInfo.Config.Snapshots) > 0 {
+			err = limits.AllowSnapshotCreation(&restrictions.Project)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
 		for i, snapshot := range bInfo.Config.Snapshots {
 			if snapshot == nil {
 				return response.SmartError(fmt.Errorf("Nil instance snapshot definition found at index %d", i))
@@ -1150,6 +1207,22 @@ func instanceProfilesFromNames(ctx context.Context, tx *db.ClusterTx, projectNam
 	return profiles, nil
 }
 
+// freeRootDiskDeviceName returns a name for an injected root disk device that does not
+// collide with an existing device in devices, trying "root" first and then "root0",
+// "root1" and so on.
+func freeRootDiskDeviceName(devices deviceConfig.Devices) string {
+	name := "root"
+	for i := range 100 {
+		if devices[name] == nil {
+			break
+		}
+
+		name = "root" + strconv.Itoa(i)
+	}
+
+	return name
+}
+
 // setupInstanceArgs sets the database instance arguments and determines the storage pool to use.
 func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName string, profiles []api.Profile, req *api.InstancesPost) (storagePool string, instArgs *db.InstanceArgs, err error) {
 	// Parse the architecture name
@@ -1194,15 +1267,7 @@ func setupInstanceArgs(s *state.State, instType instancetype.Type, projectName s
 
 		// Make sure that we do not overwrite a device the user is currently using
 		// under the name "root".
-		rootDevName := "root"
-		for i := range 100 {
-			if args.Devices[rootDevName] == nil {
-				break
-			}
-
-			rootDevName = "root" + strconv.Itoa(i)
-			continue
-		}
+		rootDevName := freeRootDiskDeviceName(args.Devices)
 
 		args.Devices[rootDevName] = rootDev
 	} else if localRootDiskDeviceKey != "" && localRootDiskDevice["pool"] == "" {

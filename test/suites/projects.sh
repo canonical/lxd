@@ -204,8 +204,18 @@ test_projects_copy() {
   lxc --project foo storage volume create "${pool}" vol1 size=1MiB
   lxc --project foo --target-project bar storage volume move "${pool}"/vol1 "${pool}"/vol1
 
+  # Moving a volume into a project must respect that project's limits.disk quota.
+  lxc project set bar limits.disk=1MiB
+  lxc --project foo storage volume create "${pool}" vol2 size=2MiB
+  err="$(! lxc --project foo --target-project bar storage volume move "${pool}"/vol2 "${pool}"/vol2 2>&1 || echo fail)"
+  [ "$(tail -1 <<< "${err}")" = 'Error: Failed checking if volume move allowed: Reached maximum aggregate value "1MiB" for "limits.disk" in project "bar"' ]
+  lxc --project foo storage volume show "${pool}" vol2 > /dev/null
+  lxc project unset bar limits.disk
+  lxc --project foo --target-project bar storage volume move "${pool}"/vol2 "${pool}"/vol2
+
   # Clean things up
   lxc --project bar storage volume delete "${pool}" vol1
+  lxc --project bar storage volume delete "${pool}" vol2
   lxc project delete foo
   lxc project delete bar
 }
@@ -295,6 +305,35 @@ test_projects_snapshots() {
   lxc storage volume detach "${pool}" testvol c1
   lxc storage volume delete "${pool}" testvol
   lxc project delete bar -f
+
+  # Restoring an instance snapshot with an attached exclusive volume snapshot must still
+  # be checked against the project's "limits.disk" quota.
+  # Restoring doesn't change the attached volume's own config, so a quota that
+  # already accounts for current usage must keep working.
+  echo "Create a project with storage volumes enabled and switch to it"
+  lxc project create baz -c features.storage.volumes=true
+  lxc project switch baz
+
+  ensure_import_testimage baz
+  lxc profile device add default root disk path="/" pool="${pool}"
+
+  echo "Create a container with an exclusively-attached storage volume and snapshot it"
+  lxc init testimage c2 -d "${SMALL_ROOT_DISK}"
+  lxc storage volume create "${pool}" exclusivevol size=10MiB
+  lxc storage volume attach "${pool}" exclusivevol c2 /mnt
+  lxc snapshot c2 snap0 --disk-volumes=all-exclusive
+
+  echo "Check restore still succeeds under a quota that already accounts for current usage"
+  lxc project set baz limits.disk=100MiB
+  lxc restore c2 snap0 --disk-volumes=all-exclusive
+
+  echo "Cleanup"
+  lxc project unset baz limits.disk
+  lxc storage volume detach "${pool}" exclusivevol c2
+  lxc delete c2
+  lxc storage volume delete "${pool}" exclusivevol
+  lxc image delete testimage
+  lxc project delete baz
 }
 
 # Use backups in a project.
@@ -745,6 +784,22 @@ test_projects_limits() {
   lxc storage volume create limit2 foo size=10MiB
   ! lxc storage volume create limit2 bar size=10MiB || false
 
+  # Moving a volume into a pool must respect that pool's
+  # limits.disk.pool.<name> quota.
+  lxc storage volume create "${pool}" bar size=10MiB
+  err="$(! lxc storage volume move "${pool}/bar" limit1/bar 2>&1 || echo fail)"
+  [ "$(tail -1 <<< "${err}")" = 'Error: Failed checking if volume move allowed: Reached maximum aggregate value "10MiB" for "limits.disk.pool.limit1" in project "p1"' ]
+  ! lxc storage volume list limit1 -f csv -c n | grep -xF bar || false
+  lxc storage volume show "${pool}" bar > /dev/null
+  lxc storage volume delete "${pool}" bar
+
+  # Restoring a snapshot must still be checked against limits.disk without
+  # spuriously failing (the volume's own config is unaffected by restore).
+  lxc storage volume create "${pool}" baz size=10MiB
+  lxc storage volume snapshot "${pool}" baz snap0
+  lxc storage volume restore "${pool}" baz snap0
+  lxc storage volume delete "${pool}" baz
+
   ! lxc storage volume create "${pool}" foo size=40MiB || false
   lxc storage volume delete limit1 foo
   lxc storage volume delete limit2 foo
@@ -754,8 +809,95 @@ test_projects_limits() {
   lxc project unset p1 limits.disk.pool.limit1
   lxc project unset p1 limits.disk.pool.limit2
   lxc project unset p1 limits.disk
+
+  # A same-project move to a different pool must not double-count the volume being
+  # moved against the project's overall limits.disk quota (regression test for a bug
+  # where the pre-move and post-move entries were both counted, wrongly rejecting a
+  # move that doesn't change the project's total usage).
+  lxc project set p1 limits.disk=10MiB
+  lxc storage volume create "${pool}" qux size=10MiB
+  lxc storage volume move "${pool}/qux" limit1/qux
+  lxc storage volume delete limit1 qux
+  lxc project unset p1 limits.disk
+
   lxc storage delete limit1
   lxc storage delete limit2
+
+  # Cross-project copy: a snapshot's root disk pool must be validated against the
+  # target instance's effective pool (as derived from the copy request), not the
+  # source instance's pool. When a copy overrides the root disk pool, each
+  # snapshot's root disk is rewritten to the target pool as it is persisted, so
+  # the project-restriction preflight must validate snapshots against that pool.
+  lxc storage create poolb dir
+
+  lxc project create copysrc
+  lxc project create copydst
+
+  lxc profile device add default root disk path="/" pool="${pool}" --project copysrc
+  lxc profile device add default root disk path="/" pool="${pool}" --project copydst
+
+  # Give the target project a small budget on poolb.
+  lxc project set copydst limits.disk.pool.poolb=20MiB
+
+  # Source instance with a snapshot whose root disk is 30MiB, then shrink the
+  # live root disk to 15MiB so only the snapshot exceeds the target budget. The
+  # live size stays above the ext4 minimum so the shrink succeeds on lvm.
+  lxc init --empty c1 --project copysrc -d root,size=30MiB
+  lxc snapshot c1 --project copysrc
+  lxc config device set c1 root size=15MiB --project copysrc
+
+  # Copying into the target project while overriding the root disk pool to poolb
+  # must be rejected. The 30MiB snapshot root disk, once rewritten to poolb,
+  # exceeds the 20MiB budget.
+  exit_code=0
+  err_msg="$(lxc copy c1 c1 --project copysrc --target-project copydst -d root,pool=poolb 2>&1)" || exit_code=$?
+  [[ "${exit_code}" -ne 0 ]]
+  [[ "${err_msg}" == *'Snapshot "c1/snap0" cannot be placed'*"Reached maximum aggregate value"*"limits.disk.pool.poolb"* ]]
+  ! lxc info c1 --project copydst || false
+
+  # The live instance's 15MiB root disk is within budget, so an instance-only copy
+  # (which omits the oversized snapshot) is accepted.
+  lxc copy c1 c1 --project copysrc --target-project copydst --instance-only -d root,pool=poolb
+  lxc delete c1 --project copydst
+
+  lxc delete c1 --project copysrc
+  lxc project delete copysrc
+  lxc project delete copydst
+  lxc storage delete poolb
+
+  # Cross-project move: the same pool-scoped validation must apply on the move
+  # path. A move that changes the storage pool (--storage) has each snapshot's
+  # root disk rewritten to the target pool, so the restriction preflight must
+  # validate snapshots against that pool.
+  lxc storage create poolm dir
+
+  lxc project create movesrc
+  lxc project create movedst
+
+  lxc profile device add default root disk path="/" pool="${pool}" --project movesrc
+  lxc profile device add default root disk path="/" pool="${pool}" --project movedst
+
+  lxc project set movedst limits.disk.pool.poolm=20MiB
+
+  lxc init --empty c1 --project movesrc -d root,size=30MiB
+  lxc snapshot c1 --project movesrc
+  lxc config device set c1 root size=15MiB --project movesrc
+
+  # Moving into the target project while changing the storage pool to poolm must
+  # be rejected: the 30MiB snapshot root disk, once rewritten to poolm, exceeds
+  # the 20MiB budget.
+  exit_code=0
+  err_msg="$(lxc move c1 c1 --project movesrc --target-project movedst --storage poolm 2>&1)" || exit_code=$?
+  [[ "${exit_code}" -ne 0 ]]
+  [[ "${err_msg}" == *'Snapshot "c1/snap0" cannot be placed'*"Reached maximum aggregate value"*"limits.disk.pool.poolm"* ]]
+  # The source instance must be left untouched and nothing created in the target.
+  lxc info c1 --project movesrc >/dev/null
+  ! lxc info c1 --project movedst || false
+
+  lxc delete c1 --project movesrc
+  lxc project delete movesrc
+  lxc project delete movedst
+  lxc storage delete poolm
 
   # Create a couple of containers in the project.
   lxc init --empty c1
@@ -1060,20 +1202,28 @@ run_projects_restrictions() {
   # Create a project
   lxc project create local:p1 -c features.storage.volumes=false
 
-  # Grant access to the project.
+  # A second, unrestricted project used to construct instances with config that would be
+  # forbidden in "p1", so that moving them into "p1" can be checked.
+  lxc project create local:p2 -c features.storage.volumes=false -c features.profiles=false
+
+  # Grant access to the projects.
   if [ "${remote}" = "restricted" ]; then
-    # For the restricted client we need to grant access to the project first.
+    # For the restricted client we need to grant access to the projects first.
     # shellcheck disable=SC2153
     fingerprint="$(cert_fingerprint "${LXD_CONF}/client.crt")"
-    lxc config trust show "${fingerprint}" | sed -e 's/projects: \[\]/projects: ["p1"]/' | lxc config trust edit "local:${fingerprint}"
+    lxc config trust show "${fingerprint}" | sed -e 's/projects: \[\]/projects: ["p1", "p2"]/' | lxc config trust edit "local:${fingerprint}"
   elif [ "${remote}" = "fine-grained" ]; then
     # For the fine grained client we'll grant (almost) equivalent access to the restricted certificate, with the exception
     # that networks in the default project can never be modified by this user via the "punching through" that the feature flags allow
     # with restricted certs.
     lxc auth group permission add local:test-group project p1 operator
+    lxc auth group permission add local:test-group project p2 operator
     lxc auth group permission add local:test-group project default can_view
     lxc auth group permission add local:test-group project default can_view_networks
     lxc auth group permission add local:test-group server can_view_unmanaged_networks
+    # p2 has features.profiles=false, so it borrows the default project's profiles. Project-level
+    # can_view does not cascade to viewing individual profiles, so grant that explicitly.
+    lxc auth group permission add local:test-group profile default can_view project=default
   fi
 
   # Switch to the project. Also switch the local remote if not already set.
@@ -1313,6 +1463,40 @@ run_projects_restrictions() {
   lxc delete c1
   lxc project set local:p1 restricted.containers.lowlevel="" restricted.snapshots=""
 
+  # An instance (or one of its snapshots) created with a forbidden low-level key in an
+  # unrestricted project must not be usable to bypass restricted.containers.lowlevel=block by
+  # being moved into the restricted project. The move itself must validate the resulting
+  # config, the same way direct config changes and snapshot restores already are, otherwise
+  # simply starting the moved instance would apply the forbidden config without ever going
+  # through a check.
+  lxc --project p2 init --empty c1 -c "raw.idmap=both 0 0" -d "${SMALL_ROOT_DISK}"
+  ! lxc --project p2 move c1 --target-project p1 || false
+  # The instance must be left untouched in its original project.
+  lxc --project p2 config get c1 raw.idmap | grep -wF "both 0 0"
+  ! lxc --project p1 info c1 || false
+  lxc --project p2 delete c1
+
+  # A snapshot carrying the forbidden key must also be checked at move time, even when the
+  # live instance's config no longer has the key set (e.g. it was unset after the snapshot
+  # was taken).
+  lxc --project p2 init --empty c1 -c "raw.idmap=both 0 0" -d "${SMALL_ROOT_DISK}"
+  lxc --project p2 snapshot c1 snap0
+  lxc --project p2 config unset c1 raw.idmap
+  ! lxc --project p2 move c1 --target-project p1 || false
+  ! lxc --project p1 info c1 || false
+  lxc --project p2 delete c1
+
+  # restricted.snapshots=block must also be enforced at move time: an instance carrying a
+  # snapshot must not be movable into a project that disallows snapshots outright, even if
+  # nothing about the snapshot's config violates restricted.containers.lowlevel.
+  lxc project set local:p1 restricted.containers.lowlevel=allow restricted.snapshots=block
+  lxc --project p2 init --empty c1 -d "${SMALL_ROOT_DISK}"
+  lxc --project p2 snapshot c1 snap0
+  ! lxc --project p2 move c1 --target-project p1 || false
+  ! lxc --project p1 info c1 || false
+  lxc --project p2 delete c1
+  lxc project set local:p1 restricted.containers.lowlevel="" restricted.snapshots=""
+
   # Setting restricted.containers.privilege to 'allow' makes it possible to create
   # privileged containers.
   lxc project set local:p1 restricted.containers.privilege=allow
@@ -1333,6 +1517,25 @@ run_projects_restrictions() {
   ! lxc config set local:c1 security.syscalls.intercept.mount.allow=ext4 || false
 
   lxc delete c1
+
+  sub_test "restricted.containers.privilege=isolated cannot be bypassed by omitting security.idmap.isolated"
+  lxc project set local:p1 restricted.containers.privilege=isolated
+
+  # Omitting security.idmap.isolated must be rejected (it defaults to non-isolated).
+  ! lxc init --empty c1 -d "${SMALL_ROOT_DISK}" || false
+
+  # Explicitly setting security.idmap.isolated=false must be rejected.
+  ! lxc init --empty c1 -c security.idmap.isolated=false -d "${SMALL_ROOT_DISK}" || false
+
+  # Explicitly setting security.idmap.isolated="" must be rejected.
+  ! lxc init --empty c1 -c security.idmap.isolated="" -d "${SMALL_ROOT_DISK}" || false
+
+  # Only isolated containers are allowed.
+  lxc init --empty c1 -c security.idmap.isolated=true -d "${SMALL_ROOT_DISK}"
+  lxc delete c1
+
+  # Reset the restriction.
+  lxc project set local:p1 restricted.containers.privilege=unprivileged
 
   # It is not possible to use forbidden VM low-level options (raw.apparmor, raw.qemu.conf)
   # when restricted.virtual-machines.lowlevel is blocked.
@@ -1387,6 +1590,7 @@ run_projects_restrictions() {
   lxc remote switch local
   lxc project switch default
   lxc project delete p1
+  lxc project delete p2
 
   lxc network delete "${netManaged}"
   lxc storage volume delete "${pool}" "v-proj$$"

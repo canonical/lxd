@@ -32,6 +32,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
@@ -450,6 +451,16 @@ func (d *common) OpenExecOutput() (*os.Root, error) {
 // Caller must close the returned Root.
 func (d *common) OpenTemplates() (*os.Root, error) {
 	return d.openOrCreateSubPath("templates", 0700)
+}
+
+// OpenRoot opens the instance's root directory as a confined *os.Root.
+func (d *common) OpenRoot() (*os.Root, error) {
+	root, err := os.OpenRoot(d.Path())
+	if err != nil {
+		return nil, err
+	}
+
+	return root, nil
 }
 
 // ShmountsPath returns the instance's shared mounts path.
@@ -1307,6 +1318,19 @@ func (d *common) restoreCommon(ctx context.Context, inst instance.Instance, sour
 			pool, err := storageCache.GetPool(volume.Pool)
 			if err != nil {
 				return false, nil, fmt.Errorf("Failed loading storage pool %q: %w", volume.Pool, err)
+			}
+
+			// Check that restoring the volume snapshot doesn't exceed project limits.
+			err = d.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				dbVolume, err := tx.GetStoragePoolVolume(ctx, pool.ID(), volume.Project, dbCluster.StoragePoolVolumeTypeCustom, volName, true)
+				if err != nil {
+					return err
+				}
+
+				return limits.AllowVolumeUpdate(ctx, d.state.GlobalConfig, tx, volume.Project, volName, api.StorageVolumePut{}, dbVolume.Config)
+			})
+			if err != nil {
+				return false, nil, fmt.Errorf("Failed checking if volume %q snapshot %q restore is allowed in storage pool %q: %w", volName, snapName, volume.Pool, err)
 			}
 
 			err = pool.RestoreCustomVolume(ctx, volume.Project, volName, snapName, progressReporter)
