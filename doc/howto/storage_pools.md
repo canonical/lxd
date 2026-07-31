@@ -257,9 +257,13 @@ Create a storage pool named `pool4` that uses SCSI/FC to connect to PowerStore a
 
     lxc storage create pool4 powerstore powerstore.mode=scsi/fc powerstore.gateway=https://powerstore powerstore.user.name=lxd powerstore.user.password=foo
 
-Create a storage pool named `pool5` that uses NVMe/TCP to connect to PowerStore array via specific target addresses:
+Create a storage pool named `pool5` that uses NVMe/FC to connect to PowerStore array:
 
-    lxc storage create pool5 powerstore powerstore.mode=nvme/tcp powerstore.gateway=https://powerstore powerstore.user.name=lxd powerstore.user.password=foo powerstore.target=<target_address_1>,<target_address_2>
+    lxc storage create pool5 powerstore powerstore.mode=nvme/fc powerstore.gateway=https://powerstore powerstore.user.name=lxd powerstore.user.password=foo
+
+Create a storage pool named `pool6` that uses NVMe/TCP to connect to PowerStore array via specific target addresses:
+
+    lxc storage create pool6 powerstore powerstore.mode=nvme/tcp powerstore.gateway=https://powerstore powerstore.user.name=lxd powerstore.user.password=foo powerstore.target=<target_address_1>,<target_address_2>
 
 ````
 ````{group-tab} pure

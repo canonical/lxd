@@ -28,6 +28,7 @@ var powerStoreSupportedConnectors = []string{
 	connectors.TypeISCSI,
 	connectors.TypeSCSIFC,
 	connectors.TypeNVMeTCP,
+	connectors.TypeNVMeFC,
 }
 
 // powerStoreDefaultUser represents the default PowerStore user name.
@@ -181,7 +182,7 @@ func (d *powerstore) Validate(config map[string]string) error {
 		"powerstore.gateway.verify": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.mode)
 		// The mode to use to map PowerStore volumes to the local server.
-		// Supported values are `iscsi`, `scsi/fc`, and `nvme/tcp`.
+		// Supported values are `iscsi`, `scsi/fc`, `nvme/tcp`, and `nvme/fc`.
 		// ---
 		//  type: string
 		//  defaultdesc: `nvme/tcp`
@@ -322,19 +323,19 @@ func (d *powerstore) targets() (map[string][]string, error) {
 	var discoveryLogRecords []any
 	var filterAddresses []string
 
+	// Fetch discovery addresses from PowerStore for the selected connector type.
+	discoveryAddresses, err := d.client().DiscoveryAddresses(connector.Type())
+	if err != nil {
+		return nil, err
+	}
+
 	if connector.Transport() == connectors.TransportFC {
 		// Fiber channel targets are visible through the HBA.
-		discoveryLogRecords, err = connector.Discover(d.state.ShutdownCtx)
+		discoveryLogRecords, err = connector.Discover(d.state.ShutdownCtx, discoveryAddresses...)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		// Fetch discovery addresses from PowerStore for the selected connector type.
-		discoveryAddresses, err := d.client().DiscoveryAddresses(connector.Type())
-		if err != nil {
-			return nil, err
-		}
-
 		for _, addr := range discoveryAddresses {
 			discovered, err := connector.Discover(d.state.ShutdownCtx, addr)
 			if err != nil {
@@ -378,7 +379,12 @@ func (d *powerstore) targets() (map[string][]string, error) {
 			address = r.Address
 			qn = r.IQN
 		case connectors.NVMeDiscoveryLogRecord:
-			address = net.JoinHostPort(r.TransportAddress, r.TransportServiceIdentifier)
+			if connector.Transport() == connectors.TransportFC {
+				address = r.TransportAddress
+			} else {
+				address = net.JoinHostPort(r.TransportAddress, r.TransportServiceIdentifier)
+			}
+
 			qn = r.SubNQN
 		case connectors.FCDiscoveryRecord:
 			// FC targets are identified only by WWPN, so use it for both fields.

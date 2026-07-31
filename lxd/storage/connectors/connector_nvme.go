@@ -53,6 +53,7 @@ const (
 // Transport type definitions (from https://github.com/linux-nvme/libnvme/blob/97886cb68d238ccbbed804a275851f63e490b22f/src/nvme/fabrics.c#L73).
 const (
 	nvmeTransportTypeTCP = "tcp"
+	nvmeTransportTypeFC  = "fc"
 )
 
 // SubtypeNVMESubsys defines an NVMe subsystem type (from https://github.com/linux-nvme/libnvme/blob/97886cb68d238ccbbed804a275851f63e490b22f/src/nvme/fabrics.c#L99).
@@ -85,10 +86,8 @@ func nvmeFilterDiscoveryLog(log *nvmeDiscoveryLog, transportType string) {
 	log.Records = filteredRecords
 }
 
-// nvmeNormalizeDiscoveryLog normalizes NVMe discovery log:
-//   - For entries with TCP transport type ensure all port numbers (transport
-//     service identifiers) are set. For non specified ports function uses
-//     the default transport port number.
+// nvmeNormalizeDiscoveryLog sets the default transport port on TCP discovery
+// entries that do not specify one.
 func nvmeNormalizeDiscoveryLog(log *nvmeDiscoveryLog) {
 	if len(log.Records) == 0 {
 		return
@@ -113,6 +112,11 @@ func (c *connectorNVMe) Transport() TransportType {
 
 // Version returns the version of the NVMe CLI.
 func (c *connectorNVMe) Version() (string, error) {
+	return nvmeVersion()
+}
+
+// nvmeVersion returns the version of the NVMe CLI.
+func nvmeVersion() (string, error) {
 	// Detect and record the version of the NVMe CLI.
 	out, err := shared.RunCommand(context.Background(), "nvme", "version")
 	if err != nil {
@@ -128,7 +132,6 @@ func (c *connectorNVMe) Version() (string, error) {
 }
 
 // LoadModules loads the NVMe/TCP kernel modules.
-// Returns true if the modules can be loaded.
 func (c *connectorNVMe) LoadModules() error {
 	err := util.LoadModule("nvme_fabrics")
 	if err != nil {
@@ -139,10 +142,15 @@ func (c *connectorNVMe) LoadModules() error {
 }
 
 // QualifiedName returns a custom NQN generated from the server UUID.
+func (c *connectorNVMe) QualifiedName() (string, error) {
+	return nvmeQualifiedName(c.serverUUID)
+}
+
+// nvmeQualifiedName returns a custom host NQN generated from the server UUID.
 // Getting the NQN from /etc/nvme/hostnqn would require the nvme-cli
 // package to be installed on the host.
-func (c *connectorNVMe) QualifiedName() (string, error) {
-	return "nqn.2014-08.org.nvmexpress:uuid:" + c.serverUUID, nil
+func nvmeQualifiedName(serverUUID string) (string, error) {
+	return "nqn.2014-08.org.nvmexpress:uuid:" + serverUUID, nil
 }
 
 // Connect establishes a connection with the target on the given address.
@@ -178,6 +186,11 @@ func (c *connectorNVMe) Connect(ctx context.Context, targetQN string, targetAddr
 
 // Disconnect terminates a connection with the target.
 func (c *connectorNVMe) Disconnect(targetQN string) error {
+	return nvmeDisconnect(c, targetQN)
+}
+
+// nvmeDisconnect terminates a connection with the target.
+func nvmeDisconnect(c Connector, targetQN string) error {
 	// Find an existing NVMe session.
 	session, err := c.findSession(targetQN)
 	if err != nil {
@@ -216,6 +229,11 @@ func (c *connectorNVMe) Disconnect(targetQN string) error {
 // found the function determines addresses of the active connections by checking
 // "/sys/class/nvme", and returns a non-nil result (except if an error occurs).
 func (c *connectorNVMe) findSession(targetQN string) (*session, error) {
+	return nvmeFindSession(targetQN, c.Transport())
+}
+
+// nvmeFindSession implements the session lookup shared by all NVMe connectors.
+func nvmeFindSession(targetQN string, transport TransportType) (*session, error) {
 	// Base path for NVMe sessions/subsystems.
 	subsysBasePath := "/sys/class/nvme-subsystem"
 
@@ -254,8 +272,9 @@ func (c *connectorNVMe) findSession(targetQN string) (*session, error) {
 	}
 
 	session := &session{
-		id:       sessionID,
-		targetQN: targetQN,
+		id:            sessionID,
+		targetQN:      targetQN,
+		hostAddresses: make(map[string][]string),
 	}
 
 	basePath := "/sys/class/nvme"
@@ -295,8 +314,9 @@ func (c *connectorNVMe) findSession(targetQN string) (*session, error) {
 		}
 
 		// Extract the addresses from the file.
-		// The "address" file contains one line per connection,
-		// each in format "traddr=<ip>,trsvcid=<port>,...".
+		// The "address" file contains one line per connection.
+		// For TCP each line has the format "traddr=<ip>,trsvcid=<port>,...".
+		// For Fibre Channel it has the format "traddr=nn-<wwnn>:pn-<wwpn>,...".
 		for line := range bytes.SplitSeq(bytes.TrimSpace(fileBytes), []byte{'\n'}) {
 			parts := strings.Split(string(bytes.TrimSpace(line)), ",")
 
@@ -307,6 +327,24 @@ func (c *connectorNVMe) findSession(targetQN string) (*session, error) {
 					transportAddr = addr
 					break
 				}
+			}
+
+			if transport == TransportFC {
+				session.addresses = append(session.addresses, transportAddr)
+
+				// A target port is reached through a separate controller for every
+				// local HBA that is zoned to it. Record which local HBA this path
+				// originates from, so that the paths of the remaining HBAs can
+				// still be established while this one is already connected.
+				for _, part := range parts {
+					hostAddr, ok := strings.CutPrefix(part, "host_traddr=")
+					if ok {
+						session.hostAddresses[transportAddr] = append(session.hostAddresses[transportAddr], hostAddr)
+						break
+					}
+				}
+
+				continue
 			}
 
 			transportServiceID := NVMeDefaultTransportPort
