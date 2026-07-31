@@ -627,6 +627,19 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	logger.Debug("CreateInstanceFromBackup started")
 	defer logger.Debug("CreateInstanceFromBackup finished")
 
+	// Validate the names in the backup index as these could be malicious.
+	err := instance.ValidName(srcBackup.Name, false)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, snapName := range srcBackup.Snapshots {
+		err = instance.ValidName(snapName, true)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	// Get the volume name on storage.
 	volStorageName := project.Instance(srcBackup.Project, srcBackup.Name)
 

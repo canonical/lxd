@@ -364,6 +364,47 @@ func (d *common) subPath(name string) (string, error) {
 	return path, nil
 }
 
+// templateFileSafePath joins the instance's templates directory with a template file name taken
+// from image metadata and returns the resulting path. It rejects names that use directory traversal
+// to escape the templates directory as well as template files that are symlinks.
+func templateFileSafePath(templatesPath string, templateName string) (string, error) {
+	// Resolve the templates directory to a symlink-free absolute path so that the containment
+	// checks below cannot be fooled by a symlink in the templates path itself.
+	realTemplatesPath, err := filepath.EvalSymlinks(templatesPath)
+	if err != nil {
+		return "", err
+	}
+
+	fullPath := filepath.Join(realTemplatesPath, templateName)
+
+	if fullPath != realTemplatesPath && !strings.HasPrefix(fullPath, realTemplatesPath+string(os.PathSeparator)) {
+		return "", fmt.Errorf("Template file %q attempts to escape the templates directory", templateName)
+	}
+
+	// Resolve the parent directory as well, so that a symlinked intermediate component (e.g.
+	// "templates/sub" pointing outside) cannot let the final read escape the templates directory.
+	realDir, err := filepath.EvalSymlinks(filepath.Dir(fullPath))
+	if err != nil {
+		return "", err
+	}
+
+	if realDir != realTemplatesPath && !strings.HasPrefix(realDir, realTemplatesPath+string(os.PathSeparator)) {
+		return "", fmt.Errorf("Template file %q attempts to escape the templates directory", templateName)
+	}
+
+	// The template must be a regular file and not a symlink, device, directory, etc.
+	fi, err := os.Lstat(fullPath)
+	if err != nil {
+		return "", err
+	}
+
+	if !fi.Mode().IsRegular() {
+		return "", fmt.Errorf("Template file %q is not a regular file", templateName)
+	}
+
+	return fullPath, nil
+}
+
 //
 // SECTION: internal functions
 //

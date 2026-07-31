@@ -503,6 +503,23 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 
 		isContainerOrProfile := instType == instancetype.Container || instType == instancetype.Any
 		isVMOrProfile := instType == instancetype.VM || instType == instancetype.Any
+
+		if config == nil {
+			config = map[string]string{}
+		}
+
+		// Apply the default value for "security.idmap.isolated" when it is not set
+		// explicitly in the instance's expanded config, so that project restrictions
+		// checking this key (such as "restricted.containers.privilege=isolated") cannot
+		// be bypassed by simply omitting it. An unset "security.idmap.isolated" defaults
+		// to non-isolated (shared host idmap).
+		if instType == instancetype.Container {
+			_, ok := config["security.idmap.isolated"]
+			if !ok {
+				config["security.idmap.isolated"] = "false"
+			}
+		}
+
 		for key, value := range config {
 			// First check if the key is a forbidden low-level one.
 			if isContainerOrProfile && !allowContainerLowLevel && isContainerLowLevelOptionForbidden(key) {

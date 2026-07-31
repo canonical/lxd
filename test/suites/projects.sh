@@ -862,6 +862,25 @@ test_projects_restrictions() {
 
   lxc delete c1
 
+  # restricted.containers.privilege=isolated cannot be bypassed by omitting security.idmap.isolated.
+  lxc project set p1 restricted.containers.privilege=isolated
+
+  # Omitting security.idmap.isolated must be rejected (it defaults to non-isolated).
+  ! lxc init testimage c1 || false
+
+  # Explicitly setting security.idmap.isolated=false must be rejected.
+  ! lxc init testimage c1 -c security.idmap.isolated=false || false
+
+  # Explicitly setting security.idmap.isolated="" must be rejected.
+  ! lxc init testimage c1 -c security.idmap.isolated="" || false
+
+  # Only isolated containers are allowed.
+  lxc init testimage c1 -c security.idmap.isolated=true
+  lxc delete c1
+
+  # Reset the restriction.
+  lxc project set p1 restricted.containers.privilege=unprivileged
+
   lxc image delete testimage
 
   lxc project switch default

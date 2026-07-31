@@ -686,6 +686,15 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 			if err != nil {
 				return errors.Wrapf(err, "Error starting unpack")
 			}
+
+			if vol.Type() != VolumeTypeCustom {
+				// Check if none of the metadata files are symlinks.
+				// This blocks using backups which reference external files.
+				err = shared.CheckMetadataFilesAreRegular(mountPath)
+				if err != nil {
+					return err
+				}
+			}
 		}
 
 		// Extract block file to block volume.

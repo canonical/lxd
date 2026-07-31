@@ -158,6 +158,49 @@ test_image_with_templates_symlink() {
     rm -rf "${tmpDir}"
 }
 
+test_image_with_template_escape() {
+    # shellcheck disable=SC2039,SC3043
+    local tmpDir imgDir imgTar
+
+    tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+    imgDir="${tmpDir}/image"
+    imgTar="${tmpDir}/image.tar"
+
+    # Build an image whose metadata references a template file outside of the templates directory.
+    mkdir -p "${imgDir}/rootfs"
+    mkdir -p "${imgDir}/templates"
+
+    echo "This is rootfs" > "${imgDir}/rootfs/rootfs.txt"
+    cat > "${imgDir}/metadata.yaml" <<EOF
+architecture: $(uname -m)
+creation_date: 1
+templates:
+  /test:
+    when:
+    - create
+    template: ../../../../../../../../etc/passwd
+EOF
+    tar -cf "${imgTar}" -C "${imgDir}" .
+
+    lxc image import "${imgTar}" --alias image-template-escape
+    lxc init image-template-escape c-template-escape
+
+    # Templates with the "create" trigger are applied on first start, so starting the instance
+    # must fail on the template path escape check.
+    if lxc start c-template-escape; then
+        echo "ERROR: Starting a container whose template path escapes the templates directory unexpectedly succeeded" >&2
+        exit 1
+    fi
+
+    # The CLI only reports the forkstart exit status, so verify the rejection reason in the daemon log.
+    # shellcheck disable=SC2153
+    grep -q "attempts to escape the templates directory" "${LXD_DIR}/lxd.log"
+
+    lxc delete -f c-template-escape
+    lxc image delete image-template-escape
+    rm -rf "${tmpDir}"
+}
+
 test_image_import_existing_alias() {
     ensure_import_testimage
     lxc init testimage c
@@ -168,4 +211,72 @@ test_image_import_existing_alias() {
     # the image can be imported with an existing alias
     lxc image import testimage.file --alias newimage
     lxc image delete newimage image2
+}
+
+test_image_import_metadata() {
+  # shellcheck disable=SC2039,SC3043
+  local tmpDir imgDir imgTar out
+
+  echo "Reject metadata.yaml that is a symlink pointing outside the archive"
+
+  tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+  imgDir="${tmpDir}/image"
+  imgTar="${tmpDir}/image.tar"
+
+  mkdir -p "${imgDir}/rootfs"
+
+  # Create metadata.yaml as a symlink pointing outside the archive.
+  ln -s "/etc/hostname" "${imgDir}/metadata.yaml"
+
+  tar -cf "${imgTar}" -C "${imgDir}" .
+
+  out="$(! lxc image import "${imgTar}" --alias image-invalid-metadata 2>&1 || false)"
+  echo "${out}" | grep -F 'Error: Cannot read non-regular file "./metadata.yaml"'
+
+  # Check the rejected image was not imported.
+  ! lxc image list -f csv -c l | grep -qF "image-invalid-metadata" || false
+
+  rm -rf "${tmpDir}"
+}
+
+test_image_import_metadata_not_regular_file() {
+  # shellcheck disable=SC2039,SC3043
+  local tmpDir imgDir imgTar out
+
+  echo "Reject metadata that is overridden with a non-regular file when unpacking into an instance volume"
+
+  for m in metadata.yaml backup.yaml; do
+    tmpDir=$(mktemp -d -p "${TEST_DIR}" XXX)
+    imgDir="${tmpDir}/image"
+    imgTar="${tmpDir}/image.tar"
+
+    # Build an image tarball with a valid metadata.yaml.
+    # The metadata.yaml always has to be present.
+    mkdir -p "${imgDir}/rootfs"
+    printf '%s\n' "architecture: $(uname -m)" "creation_date: 1" > "${imgDir}/metadata.yaml"
+    tar -cf "${imgTar}" -C "${imgDir}" .
+
+    # Append the non-regular metadata file to the archive.
+    # In case of the metadata.yaml, this will allow importing the image as the first regular metadata.yaml passes the checks.
+    # But the second metadata.yaml will persist on the filesystem after unpacking the image which will trigger the error below.
+    if [ ! "${m}" = "backup.yaml" ]; then
+        # As the metadata.yaml is always present, remove it before creating the symlink with the same name.
+        rm "${imgDir}/${m}"
+    fi
+    ln -s "/etc/hostname" "${imgDir}/${m}"
+    tar -f "${imgTar}" --append -C "${imgDir}" "./${m}"
+
+    lxc image import "${imgTar}" --alias image-invalid-metadata
+
+    # Unpacking the image into the instance's storage volume must reject the non-regular metadata file.
+    if out=$(lxc init image-invalid-metadata c1 2>&1); then
+        echo "ERROR: Initializing an instance from an image with a non-regular metadata file unexpectedly succeeded" >&2
+        exit 1
+    fi
+
+    echo "${out}" | grep -qF "is not a regular file"
+
+    lxc image delete image-invalid-metadata
+    rm -rf "${tmpDir}"
+  done
 }
