@@ -389,7 +389,7 @@ createPowerFlexPool() (
     powerflex.gateway.verify="${POWERFLEX_GATEWAY_VERIFY:-true}" \
     powerflex.user.name="${POWERFLEX_USER}" \
     powerflex.user.password="${POWERFLEX_PASSWORD}" \
-    powerflex.mode="${POWERFLEX_MODE:-nvme}"
+    powerflex.mode="${POWERFLEX_MODE:-nvme/tcp}"
 
   if [ -n "${POWERFLEX_SNAPSHOT_COPY:-}" ]; then
     lxc storage set "${1}" powerflex.snapshot_copy=true
@@ -403,7 +403,7 @@ createPowerStorePool() (
     powerstore.gateway.verify="${POWERSTORE_GATEWAY_VERIFY:-true}" \
     powerstore.user.name="${POWERSTORE_USER}" \
     powerstore.user.password="${POWERSTORE_PASSWORD}" \
-    powerstore.mode="${POWERSTORE_MODE:-nvme}"
+    powerstore.mode="${POWERSTORE_MODE:-nvme/tcp}"
 )
 
 # createPureStoragePool: creates a new storage pool using the Pure Storage driver.
@@ -412,7 +412,7 @@ createPureStoragePool() (
     pure.gateway="${PURE_GATEWAY}" \
     pure.gateway.verify="${PURE_GATEWAY_VERIFY:-true}" \
     pure.api.token="${PURE_API_TOKEN}" \
-    pure.mode="${PURE_MODE:-nvme}"
+    pure.mode="${PURE_MODE:-nvme/tcp}"
 )
 
 # createAlletraStoragePool: creates a new storage pool using the HPE Alletra Storage driver.
@@ -423,7 +423,7 @@ createAlletraStoragePool() (
     alletra.user.password="${ALLETRA_PASSWORD}" \
     alletra.wsapi.verify="${ALLETRA_WSAPI_VERIFY:-true}" \
     alletra.cpg="${ALLETRA_CPG}" \
-    alletra.mode="${ALLETRA_MODE:-nvme}"
+    alletra.mode="${ALLETRA_MODE:-nvme/tcp}"
 )
 
 # createCertificateAndKey: creates a new key pair.

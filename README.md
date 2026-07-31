@@ -141,7 +141,7 @@ To run the VM storage tests on the Dell PowerFlex driver, provide the following 
 * `POWERFLEX_GATEWAY_VERIFY`: Whether to verify the HTTP gateway's certificate. The default is `true`.
 * `POWERFLEX_USER`: Name of the PowerFlex user
 * `POWERFLEX_PASSWORD`: Password of the PowerFlex user
-* `POWERFLEX_MODE`: Operation mode for the consumption of storage volumes. The default is `nvme`.
+* `POWERFLEX_MODE`: Operation mode for the consumption of storage volumes. The default is `nvme/tcp`.
 * `POWERFLEX_SNAPSHOT_COPY`: If enabled, the driver uses PowerFlex snapshots for optimized copy
 
 Use a PowerFlex storage pool (`POWERFLEX_POOL`) which has zero-padding enabled.
@@ -155,7 +155,7 @@ To run the VM storage tests using Dell PowerStore driver, provide the following 
 * `POWERSTORE_GATEWAY_VERIFY`: Whether to verify the HTTP gateway's certificate. The default is `true`.
 * `POWERSTORE_USER`: Name of the PowerStore user.
 * `POWERSTORE_PASSWORD`: Password for PowerStore user.
-* `POWERSTORE_MODE`: Operation mode for the consumption of storage volumes. The default is `nvme`.
+* `POWERSTORE_MODE`: Operation mode for the consumption of storage volumes. The default is `nvme/tcp`.
 
 # Running Pure Storage VM storage tests
 
@@ -164,7 +164,7 @@ To run the VM storage tests using Pure Storage driver, provide the following env
 * `PURE_GATEWAY`: Address of the Pure Storage HTTP gateway
 * `PURE_GATEWAY_VERIFY`: Whether to verify the HTTP gateway's certificate. The default is `true`.
 * `PURE_API_KEY`: Pure Storage API key.
-* `PURE_MODE`: Operation mode for the consumption of storage volumes. The default is `nvme`.
+* `PURE_MODE`: Operation mode for the consumption of storage volumes. The default is `nvme/tcp`.
 
 # Running HPE Alletra Storage VM storage tests
 
@@ -175,7 +175,7 @@ To run the VM storage tests using HPE Alletra Storage driver, provide the follow
 * `ALLETRA_USERNAME`: Name of the user
 * `ALLETRA_PASSWORD`: Password of the user
 * `ALLETRA_CPG`: Common Provisioning Group (CPG) name
-* `ALLETRA_MODE`: Operation mode for the consumption of storage volumes. The default is `nvme`.
+* `ALLETRA_MODE`: Operation mode for the consumption of storage volumes. The default is `nvme/tcp`.
 
 # Infrastructure managed by IS
 
