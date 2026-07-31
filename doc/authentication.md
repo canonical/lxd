@@ -291,6 +291,10 @@ LXD supports authenticating to the LXD API using bearer tokens. Bearer tokens pr
 
 Bearer tokens can be issued for identities of type `bearer`. The permissions associated with a token are derived from the identity it belongs to and are enforced through {ref}`fine-grained-authorization`.
 
+A bearer identity is created in a pending state, since no token has been issued for it yet.
+Its type is reported as `Client token bearer (pending)` or `DevLXD token bearer (pending)` for as long as it stays in that state.
+Issuing a token makes the identity active and revoking the token returns it to the pending state.
+
 To authenticate an API request using a bearer token, include it in the `Authorization` header
 as `Authorization: Bearer <token>`, where `<token>` represents an actual token value.
 
