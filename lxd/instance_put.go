@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -218,8 +219,15 @@ func instanceSnapRestore(ctx context.Context, s *state.State, projectName string
 		snapProfileNames = append(snapProfileNames, profile.Name)
 	}
 
+	// Copy the snapshot's config rather than using it directly, and strip
+	// "volatile.attached_volumes": it's set by LXD on the snapshot itself for
+	// multi-volume restores and is never present on the live instance, so comparing
+	// it as-is would always be rejected as an unexpected volatile key change.
+	snapConfigMap := maps.Clone(source.LocalConfig())
+	delete(snapConfigMap, "volatile.attached_volumes")
+
 	snapConfig := api.InstancePut{
-		Config:   source.LocalConfig(),
+		Config:   snapConfigMap,
 		Devices:  source.LocalDevices().CloneNative(),
 		Profiles: snapProfileNames,
 	}

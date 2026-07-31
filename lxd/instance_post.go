@@ -1181,13 +1181,26 @@ func migrateInstance(ctx context.Context, s *state.State, inst instance.Instance
 
 // checkTargetProjectRestrictions verifies that inst (with the given target config, devices, and
 // profiles) can be placed in targetProject without violating that project's limits or
-// restrictions. Snapshots are validated when instanceOnly is false. It is a no-op when
-// targetProject and sourceProject are the same. rootDevKey and rootDevPool describe the target
-// instance's root disk, used to adjust snapshot device pools before validation (mirroring what
-// instanceCreateAsCopy persists).
+// restrictions. A cross-project move is validated as an instance creation (snapshots are validated
+// too when instanceOnly is false). A same-project move applies the merged config, devices, and
+// profiles to the instance and is therefore validated as an instance update. rootDevKey and
+// rootDevPool describe the target instance's root disk, used to adjust snapshot device pools before
+// validation (mirroring what instanceCreateAsCopy persists).
 func checkTargetProjectRestrictions(ctx context.Context, s *state.State, inst instance.Instance, targetProject string, sourceProject string, targetName string, instConfig map[string]string, instDevices map[string]map[string]string, instProfiles []string, instanceOnly bool, overrideSnapshotProfiles bool, rootDevKey string, rootDevPool string) error {
+	// A same-project move is equivalent to an instance update, so it must be validated
+	// to prevent user-supplied overrides (such as security.privileged) from bypassing
+	// the project's restrictions. Cross-project moves are validated as instance
+	// creations by the remainder of this function.
 	if targetProject == sourceProject {
-		return nil
+		updateReq := api.InstancePut{
+			Config:   instConfig,
+			Devices:  instDevices,
+			Profiles: instProfiles,
+		}
+
+		return s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			return limits.AllowInstanceUpdate(ctx, s.GlobalConfig, tx, sourceProject, inst.Name(), updateReq, inst.LocalConfig())
+		})
 	}
 
 	var restrictions *limits.ProjectInfo

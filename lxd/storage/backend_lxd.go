@@ -6968,29 +6968,31 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 
 	// Update pool information in the backup.yaml file.
 	err = vol.MountTask(func(_ string, _ ioprogress.ProgressReporter) error {
-		// Write the YAML
-		path := filepath.Join(inst.Path(), "backup.yaml")
-		f, err := os.Create(path)
+		instRoot, err := inst.OpenRoot()
 		if err != nil {
-			return fmt.Errorf("Failed creating file %q: %w", path, err)
+			return fmt.Errorf("Failed opening instance root: %w", err)
 		}
 
-		err = f.Chmod(0400)
-		if err != nil {
-			return err
-		}
+		defer func() { _ = instRoot.Close() }()
 
 		data, err := yaml.Marshal(config)
 		if err != nil {
 			return err
 		}
 
-		err = shared.WriteAll(f, data)
+		// Write the YAML.
+		err = instRoot.WriteFile("backup.yaml", data, 0400)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed writing backup.yaml: %w", err)
 		}
 
-		return f.Close()
+		// WriteFile only sets the right permission if the file didn't exist before.
+		err = instRoot.Chmod("backup.yaml", 0400)
+		if err != nil {
+			return fmt.Errorf("Failed setting backup.yaml permissions: %w", err)
+		}
+
+		return nil
 	}, progressReporter)
 
 	return err
@@ -7240,9 +7242,26 @@ func (b *lxdBackend) cleanupUnknownVolumeMountPath(poolVol *drivers.Volume) erro
 // If any custom volumes were found, they are each put into their own backup config and removed from the instance's backup config.
 // This follows the same process applied by detectUnknownCustomVolume.
 func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, projectVols map[string][]*backupConfig.Config, progressReporter ioprogress.ProgressReporter) error {
-	backupYamlPath := filepath.Join(vol.MountPath(), "backup.yaml")
 	var backupConf *backupConfig.Config
 	var err error
+
+	mountPath := vol.MountPath()
+
+	volRoot, err := os.OpenRoot(mountPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Failed opening volume mount path %q: %w", mountPath, err)
+	}
+
+	var backupFile os.FileInfo
+
+	if volRoot != nil {
+		defer func() { _ = volRoot.Close() }()
+
+		backupFile, err = volRoot.Lstat("backup.yaml")
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed getting info for backup.yaml in volume mount path %q: %w", mountPath, err)
+		}
+	}
 
 	// If the instance is running, it should already be mounted, so check if the backup file
 	// is already accessible, and if so parse it directly, without disturbing the mount count.
@@ -7252,19 +7271,27 @@ func (b *lxdBackend) detectUnknownInstanceAndCustomVolumes(vol *drivers.Volume, 
 	// That means when running MountTask, it won't interfere with the running instance, but as there
 	// aren't anymore traces of the original mount, it will try to unmount the volume as the ref counter
 	// will be zero at the end of MountTask.
-	if shared.PathExists(backupYamlPath) {
-		backupConf, err = backup.ParseConfigYamlFile(backupYamlPath)
+	if backupFile != nil {
+		backupConf, err = backup.ParseConfigYamlFile(volRoot)
 		if err != nil {
-			return fmt.Errorf("Failed parsing backup file %q: %w", backupYamlPath, err)
+			return fmt.Errorf("Failed parsing backup.yaml file: %w", err)
 		}
 	} else {
 		// If backup file not accessible, we take this to mean the instance isn't running
 		// and so we need to mount the volume to access the backup file and then unmount.
 		// This will also create the mount path if needed.
 		err = vol.MountTask(func(_ string, _ ioprogress.ProgressReporter) error {
-			backupConf, err = backup.ParseConfigYamlFile(backupYamlPath)
+			// Open up the root again after mounting the volume.
+			volRoot, err := os.OpenRoot(mountPath)
 			if err != nil {
-				return fmt.Errorf("Failed parsing backup file %q: %w", backupYamlPath, err)
+				return fmt.Errorf("Failed opening volume mount path %q: %w", mountPath, err)
+			}
+
+			defer func() { _ = volRoot.Close() }()
+
+			backupConf, err = backup.ParseConfigYamlFile(volRoot)
+			if err != nil {
+				return fmt.Errorf("Failed parsing backup.yaml file: %w", err)
 			}
 
 			return nil
