@@ -15,6 +15,7 @@ import (
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/logger"
@@ -69,7 +70,7 @@ func restServer(d *Daemon) *http.Server {
 		Handler:           &lxdHTTPServer{r: mux, d: d},
 		ConnContext:       request.SaveConnectionInContext,
 		IdleTimeout:       30 * time.Second,
-		ReadHeaderTimeout: 3 * time.Second,
+		ReadHeaderTimeout: util.HTTPServerReadTimeout,
 	}
 }
 
@@ -107,8 +108,8 @@ func metricsServer(d *Daemon) *http.Server {
 	return &http.Server{
 		Handler:           &lxdHTTPServer{r: mux, d: d},
 		IdleTimeout:       30 * time.Second,
-		ReadHeaderTimeout: 3 * time.Second,
-		ReadTimeout:       3 * time.Second,
+		ReadHeaderTimeout: util.HTTPServerReadTimeout,
+		ReadTimeout:       util.HTTPServerReadTimeout,
 		WriteTimeout:      30 * time.Second,
 	}
 }
