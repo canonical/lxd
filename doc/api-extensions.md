@@ -3643,3 +3643,10 @@ For bearer tokens the expiry is recorded when a token is issued and cleared when
 The field is omitted for identities whose credential has no expiry, that have no credential yet (pending identities), or whose token has been revoked.
 
 Note that bearer identities created prior to this extension will have an omitted `expires_at` field until a new token is issued.
+
+(extension-access-management-bearer-pending)=
+## `access_management_bearer_pending`
+
+Adds two identity types, `Client token bearer (pending)` and `DevLXD token bearer (pending)`, that represent a bearer identity for which no token is currently issued.
+
+A client or DevLXD bearer identity is created in the pending state because no token has been issued for it yet. Issuing a token promotes the identity to its active type of `Client token bearer` or `DevLXD token bearer`, and revoking the token demotes it back to the pending type. A token that has expired but has not been revoked leaves the identity active.

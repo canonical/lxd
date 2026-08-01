@@ -759,6 +759,26 @@ func resolveIdentityTypeShorthand(identityArg string) (method string, identityTy
 	return "", "", "", fmt.Errorf("Unrecognized identity type shorthand %q", shorthandType)
 }
 
+// identityTypeMatches reports whether the identity type reported by the server satisfies the type requested via an
+// identity argument shorthand. A shorthand names an active identity type, which also matches its pending counterpart,
+// since a pending identity is the same identity awaiting a token.
+func identityTypeMatches(requestedType string, actualType string) bool {
+	if requestedType == "" || requestedType == actualType {
+		return true
+	}
+
+	switch requestedType {
+	case api.IdentityTypeBearerTokenClient:
+		return actualType == api.IdentityTypeBearerTokenClientPending
+	case api.IdentityTypeBearerTokenDevLXD:
+		return actualType == api.IdentityTypeBearerTokenDevLXDPending
+	case api.IdentityTypeCertificateClusterLink:
+		return actualType == api.IdentityTypeCertificateClusterLinkPending
+	}
+
+	return false
+}
+
 // resolveIdentityTypeShorthand takes an identity argument of the form [<remote>:]<type>/<name> and returns the remote
 // name, an authentication method, an identity type, and a name (or an error).
 // If the shorthand <type> resolves to more than one identity type, it returns an empty string for the identity type.
@@ -1215,7 +1235,7 @@ func (c *cmdIdentityShow) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if idType != "" && identity.Type != idType {
+	if !identityTypeMatches(idType, identity.Type) {
 		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 
@@ -1350,7 +1370,7 @@ func (c *cmdIdentityEdit) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if idType != "" && identity.Type != idType {
+	if !identityTypeMatches(idType, identity.Type) {
 		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 
@@ -1463,7 +1483,7 @@ func (c *cmdIdentityDelete) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if idType != "" && id.Type != idType {
+	if !identityTypeMatches(idType, id.Type) {
 		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, id.Type)
 	}
 
@@ -1531,7 +1551,7 @@ func (c *cmdIdentityGroupAdd) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if idType != "" && identity.Type != idType {
+	if !identityTypeMatches(idType, identity.Type) {
 		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 
@@ -1582,7 +1602,7 @@ func (c *cmdIdentityGroupRemove) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if idType != "" && identity.Type != idType {
+	if !identityTypeMatches(idType, identity.Type) {
 		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 
@@ -1665,7 +1685,7 @@ func (c *cmdIdentityTokenIssue) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if idType != "" && identity.Type != idType {
+	if !identityTypeMatches(idType, identity.Type) {
 		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 
@@ -1723,7 +1743,7 @@ func (c *cmdIdentityTokenRevoke) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if idType != "" && identity.Type != idType {
+	if !identityTypeMatches(idType, identity.Type) {
 		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
 	}
 

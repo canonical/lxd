@@ -18,6 +18,9 @@ To authenticate to the LXD API using a bearer token, first create an identity of
 ```
 `````
 
+The new identity is reported with the type `Client token bearer (pending)`, which means that no token has been issued for it yet.
+Such an identity cannot authenticate, although it can already be added to groups.
+
 Next, issue a token for the identity:
 
 `````{tabs}
@@ -50,3 +53,17 @@ $ curl -k -H "Authorization: Bearer ${TOKEN}" https://<lxd_address>/1.0
   }
 }
 ```
+
+Finally, a token that is no longer needed can be revoked:
+
+`````{tabs}
+```{group-tab} CLI
+    lxc auth identity token revoke bearer/<name>
+```
+```{group-tab} API
+    lxc query --request DELETE /1.0/auth/identities/bearer/<name>/token
+```
+`````
+
+Revoking the token invalidates it immediately and returns the identity to the pending state, where it stays until a new token is issued for it.
+Any groups the identity belongs to are retained, so a newly issued token grants the same permissions as the revoked one.
