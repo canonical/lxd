@@ -160,10 +160,10 @@ lxc profile set lxd-test limits.memory=4GiB
 lxc profile device set lxd-test root size=8GiB
 ```
 
-This profile can then be used to launch an Ubuntu Noble VM and start using it:
+This profile can then be used to launch an Ubuntu VM and start using it:
 
 ```sh
-lxc launch ubuntu-minimal-daily:24.04 v1 --vm -p lxd-test
+lxc launch ubuntu-minimal-daily:26.04 v1 --vm -p lxd-test
 sleep 30
 # this may take a while as many packages need to be installed
 lxc exec v1 -- cloud-init status --wait --long
