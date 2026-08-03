@@ -1142,20 +1142,21 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 					api.MetadataEntityURL: entity.InstanceURL(projectName, inst.Name()).String(),
 				},
 				RunHook: copyFunc,
+				Stage:   0, // Set the stage to zero explicitly to indicate we're using them.
 			})
 		}
 
-		return operations.OperationArgs{
-			ProjectName:       projectName,
-			EntityURL:         replicatorURL,
-			Type:              operationtype.ReplicatorRun,
-			Class:             operationtype.OperationClassTask,
-			ConflictReference: replicatorURL.String(), // Prevents concurrent runs; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
-			Children:          childArgs,
+		childArgs = append(childArgs, &operations.OperationArgs{
+			ProjectName: projectName,
+			Type:        operationtype.ReplicatorFinalize,
+			Class:       operationtype.OperationClassTask,
+			EntityURL:   replicatorURL,
 			RunHook: func(_ context.Context, op *operations.Operation) error {
+				// Iterate over all operations for the bulk replicator run.
+				// If any operations (that are not this one) have failed, then the replicator run has failed overall.
 				runStatus := api.ReplicatorStatusCompleted
-				for _, child := range op.Children() {
-					if child.Status() != api.Success {
+				for _, child := range op.Parent().Children() {
+					if child.ID() != op.ID() && child.Status() != api.Success {
 						runStatus = api.ReplicatorStatusFailed
 						break
 					}
@@ -1167,6 +1168,16 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 					return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), replicatorID, runStatus)
 				})
 			},
+			Stage: 1,
+		})
+
+		return operations.OperationArgs{
+			ProjectName:       projectName,
+			EntityURL:         replicatorURL,
+			Type:              operationtype.ReplicatorRun,
+			Class:             operationtype.OperationClassTask,
+			ConflictReference: replicatorURL.String(), // Prevents concurrent runs; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
+			Children:          childArgs,
 		}, nil
 	}
 
@@ -1398,20 +1409,21 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				api.MetadataEntityURL: entity.InstanceURL(projectName, instName).String(),
 			},
 			RunHook: copyFunc,
+			Stage:   0, // Set the stage explicitly to indicate we're using them.
 		})
 	}
 
-	return operations.OperationArgs{
-		ProjectName:       projectName,
-		EntityURL:         replicatorURL,
-		Type:              operationtype.ReplicatorRun,
-		Class:             operationtype.OperationClassTask,
-		ConflictReference: replicatorURL.String(), // Prevents concurrent runs; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
-		Children:          childArgs,
-		RunHook: func(_ context.Context, op *operations.Operation) error {
+	childArgs = append(childArgs, &operations.OperationArgs{
+		ProjectName: projectName,
+		Type:        operationtype.ReplicatorFinalize,
+		Class:       operationtype.OperationClassTask,
+		EntityURL:   replicatorURL,
+		RunHook: func(ctx context.Context, op *operations.Operation) error {
+			// Iterate over all operations for the bulk replicator run.
+			// If any operations (that are not this one) have failed, then the replicator run has failed overall.
 			runStatus := api.ReplicatorStatusCompleted
-			for _, child := range op.Children() {
-				if child.Status() != api.Success {
+			for _, child := range op.Parent().Children() {
+				if child.ID() != op.ID() && child.Status() != api.Success {
 					runStatus = api.ReplicatorStatusFailed
 					break
 				}
@@ -1423,6 +1435,16 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), replicatorID, runStatus)
 			})
 		},
+		Stage: 1,
+	})
+
+	return operations.OperationArgs{
+		ProjectName:       projectName,
+		EntityURL:         replicatorURL,
+		Type:              operationtype.ReplicatorRun,
+		Class:             operationtype.OperationClassTask,
+		ConflictReference: replicatorURL.String(), // Prevents concurrent runs; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
+		Children:          childArgs,
 	}, nil
 }
 
