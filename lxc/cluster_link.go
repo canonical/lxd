@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net/http"
 	"net/url"
 	"os"
 	"sort"
@@ -90,6 +91,8 @@ type cmdClusterLinkCreate struct {
 	flagAuthGroups     []string
 	flagDescription    string
 	flagUnidirectional bool
+	flagPublic         bool
+	flagRemoteAddress  string
 }
 
 func (c *cmdClusterLinkCreate) command() *cobra.Command {
@@ -99,7 +102,9 @@ func (c *cmdClusterLinkCreate) command() *cobra.Command {
 	cmd.Long = cli.FormatSection("Description", `Create cluster links
 
 Bidirectional (default): run without --token on cluster A to get a token, then run with --token on cluster B.
-Unidirectional: run "lxc auth identity create cluster-link/<name>" on B to get a token, then run with --token --unidirectional on A.`)
+Unidirectional: run "lxc auth identity create cluster-link/<name>" on B to get a token, then run with --token --unidirectional on A.
+Public: run with --public --remote-address on A; the certificate fingerprint is shown for confirmation before the link is created.
+       Stdin is the confirmation channel for public links, so configuration must be given as key=value arguments rather than piped YAML.`)
 	cmd.Example = cli.FormatSection("", `lxc cluster link create backup-cluster --auth-group backups
     Create a pending bidirectional cluster link called "backup-cluster".
 
@@ -107,13 +112,22 @@ lxc cluster link create main-cluster --token <token> --auth-group backups
     Create an active bidirectional cluster link called "main-cluster" using a token from "backup-cluster".
 
 lxc cluster link create image-host --token <token> --unidirectional
-    Create a unidirectional cluster link called "image-host" using a token issued by the remote cluster.`)
+    Create a unidirectional cluster link called "image-host" using a token issued by the remote cluster.
+
+lxc cluster link create image-host --public --remote-address 10.0.0.1:8443
+    Create a public cluster link called "image-host" by pinning the remote certificate.`)
 	cmd.Flags().StringVarP(&c.flagToken, "token", "t", "", cli.FormatStringFlagLabel("Trust token to use when creating cluster link"))
 	cmd.Flags().StringSliceVarP(&c.flagAuthGroups, "auth-group", "g", []string{}, cli.FormatStringFlagLabel("Authentication groups to add the newly created cluster link identity to"))
 	cmd.Flags().StringVarP(&c.flagDescription, "description", "d", "", cli.FormatStringFlagLabel("Cluster link description"))
 	cmd.Flags().BoolVar(&c.flagUnidirectional, "unidirectional", false, cli.FormatStringFlagLabel("Create a unidirectional cluster link (requires --token)"))
+	cmd.Flags().BoolVar(&c.flagPublic, "public", false, cli.FormatStringFlagLabel("Create a link without presenting a client certificate (requires --remote-address)"))
+	cmd.Flags().StringVar(&c.flagRemoteAddress, "remote-address", "", cli.FormatStringFlagLabel("Address of the remote cluster for public links"))
 
 	cmd.MarkFlagsMutuallyExclusive("unidirectional", "auth-group")
+	cmd.MarkFlagsMutuallyExclusive("unidirectional", "public")
+	cmd.MarkFlagsMutuallyExclusive("public", "auth-group")
+	cmd.MarkFlagsMutuallyExclusive("public", "token")
+	cmd.MarkFlagsRequiredTogether("public", "remote-address")
 
 	cmd.RunE = c.run
 
@@ -137,8 +151,11 @@ func (c *cmdClusterLinkCreate) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// If stdin isn't a terminal, read text from it
-	if !termios.IsTerminal(getStdinFd()) {
+	// If stdin isn't a terminal, read text from it.
+	// Skip this for public links: stdin is the certificate confirmation channel for them, whether
+	// typed interactively or piped by a script, so it cannot also carry a YAML configuration.
+	// Configuration for a public link must be passed as key=value arguments instead.
+	if !termios.IsTerminal(getStdinFd()) && !c.flagPublic {
 		contents, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return err
@@ -162,6 +179,8 @@ func (c *cmdClusterLinkCreate) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// The remaining flag combinations are enforced by cobra in command(). This one cannot be:
+	// --token is also valid on its own for bidirectional links, so the requirement only runs one way.
 	if c.flagUnidirectional && c.flagToken == "" {
 		return errors.New("--unidirectional requires --token")
 	}
@@ -194,7 +213,77 @@ func (c *cmdClusterLinkCreate) run(cmd *cobra.Command, args []string) error {
 		clusterLink.AuthGroups = c.flagAuthGroups
 	}
 
-	// B saves A's certificate and trusts it for future communication.
+	// Public: create a pending link (server fetches the cert), prompt user, then confirm/pin.
+	if c.flagPublic {
+		clusterLink.Type = api.ClusterLinkTypePublic
+		clusterLink.RemoteAddress = c.flagRemoteAddress
+
+		certResp, err := client.CreateClusterLinkPendingPublic(clusterLink)
+		if err != nil {
+			return fmt.Errorf("Failed creating pending cluster link: %w", err)
+		}
+
+		// Any exit before the link is confirmed leaves an inert pending link behind, so remove it.
+		// Wraps the original error, since failing to clean up must not mask why we are bailing out.
+		abort := func(cause error) error {
+			deleteErr := client.DeleteClusterLink(clusterLinkName)
+			if deleteErr != nil {
+				return fmt.Errorf("%w (cleaning up the pending cluster link also failed: %w)", cause, deleteErr)
+			}
+
+			return cause
+		}
+
+		fmt.Printf("Certificate fingerprint: %s\n", certResp.Fingerprint)
+		fmt.Print("ok (y/n/[fingerprint])? ")
+		for {
+			line, err := shared.ReadStdin()
+			if err != nil {
+				return abort(err)
+			}
+
+			// Check length before accessing line to prevent runtime panic.
+			// Continue with creating the link if the fingerprint matches, or the user confirmed.
+			if string(line) == certResp.Fingerprint || (len(line) > 0 && strings.ToLower(string(line[0])) == "y") {
+				break
+			}
+
+			// If the input length matches the fingerprint length but the fingerprints do not match,
+			// return an error. This ensures scripts do not hang if an incorrect fingerprint is given.
+			if len(line) == len(certResp.Fingerprint) {
+				return abort(errors.New("The provided fingerprint does not match the remote cluster certificate fingerprint"))
+			}
+
+			// Error out if the user didn't confirm the fingerprint.
+			if len(line) == 0 || strings.ToLower(string(line[0])) == "n" {
+				return abort(errors.New("Remote cluster certificate NACKed by user"))
+			}
+
+			// Ask again for any other invalid input.
+			fmt.Print("Please type 'y', 'n' or the fingerprint: ")
+		}
+
+		clusterLink.ClusterCertificate = certResp.Certificate
+		err = client.CreateClusterLink(clusterLink)
+		if err != nil {
+			// A conflict means the link is already confirmed, so it is not ours to clean up:
+			// deleting here would destroy a working link (for example when a retry follows a
+			// response that was lost in transit). Any other failure leaves the link pending.
+			if api.StatusErrorCheck(err, http.StatusConflict) {
+				return err
+			}
+
+			return abort(err)
+		}
+
+		if !c.global.flagQuiet {
+			fmt.Printf("Cluster link %s created\n", clusterLinkName)
+		}
+
+		return nil
+	}
+
+	// Unidirectional: consume B's token, pin B's cert on A, activate B's identity.
 	if c.flagUnidirectional {
 		clusterLink.Type = api.ClusterLinkTypeUnidirectional
 		clusterLink.TrustToken = c.flagToken

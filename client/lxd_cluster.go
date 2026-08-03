@@ -420,6 +420,13 @@ func (r *ProtocolLXD) CreateClusterLink(clusterLink api.ClusterLinksPost) error 
 		return err
 	}
 
+	if clusterLink.Type == api.ClusterLinkTypePublic {
+		err = r.CheckExtension("cluster_links_public")
+		if err != nil {
+			return err
+		}
+	}
+
 	_, _, err = r.query(http.MethodPost, api.NewURL().Path("cluster", "links").String(), clusterLink, "")
 	if err != nil {
 		return err
@@ -442,6 +449,24 @@ func (r *ProtocolLXD) CreateIdentityClusterLinkToken(clusterLink api.ClusterLink
 	}
 
 	return &token, nil
+}
+
+// CreateClusterLinkPendingPublic creates a pending public cluster link and returns the remote cluster's
+// certificate fingerprint and PEM-encoded certificate for user verification. The certificate must be
+// resubmitted via CreateClusterLink to confirm and pin it, activating the link.
+func (r *ProtocolLXD) CreateClusterLinkPendingPublic(clusterLink api.ClusterLinksPost) (*api.ClusterLinkCertificate, error) {
+	err := r.CheckExtension("cluster_links_public")
+	if err != nil {
+		return nil, err
+	}
+
+	var cert api.ClusterLinkCertificate
+	_, err = r.queryStruct(http.MethodPost, api.NewURL().Path("cluster", "links").String(), clusterLink, "", &cert)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cert, nil
 }
 
 // UpdateClusterLink updates a cluster link.
