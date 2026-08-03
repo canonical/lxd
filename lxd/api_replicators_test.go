@@ -7,8 +7,74 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
 )
+
+func TestClassifyVolumeSnapshot(t *testing.T) {
+	tests := []struct {
+		name                   string
+		contentType            string
+		volSnapshotSchedule    string
+		usedByCount            int
+		ownerSnapshotScheduled bool
+		wantSnapshottable      bool
+		wantNeedsOwnSnapshot   bool
+	}{
+		{
+			name:                 "standalone volume takes its own snapshot",
+			contentType:          dbCluster.StoragePoolVolumeContentTypeNameFS,
+			usedByCount:          0,
+			wantSnapshottable:    true,
+			wantNeedsOwnSnapshot: true,
+		},
+		{
+			name:                 "exclusive volume rides its instance snapshot",
+			contentType:          dbCluster.StoragePoolVolumeContentTypeNameFS,
+			usedByCount:          1,
+			wantSnapshottable:    true,
+			wantNeedsOwnSnapshot: false,
+		},
+		{
+			name:                   "exclusive volume takes its own snapshot when the instance is scheduled",
+			contentType:            dbCluster.StoragePoolVolumeContentTypeNameFS,
+			usedByCount:            1,
+			ownerSnapshotScheduled: true,
+			wantSnapshottable:      true,
+			wantNeedsOwnSnapshot:   true,
+		},
+		{
+			name:                 "shared volume takes its own snapshot",
+			contentType:          dbCluster.StoragePoolVolumeContentTypeNameFS,
+			usedByCount:          2,
+			wantSnapshottable:    true,
+			wantNeedsOwnSnapshot: true,
+		},
+		{
+			name:                 "ISO content volume is never snapshottable",
+			contentType:          dbCluster.StoragePoolVolumeContentTypeNameISO,
+			usedByCount:          1,
+			wantSnapshottable:    false,
+			wantNeedsOwnSnapshot: false,
+		},
+		{
+			name:                 "volume with its own schedule is not snapshotted here",
+			contentType:          dbCluster.StoragePoolVolumeContentTypeNameFS,
+			volSnapshotSchedule:  "@daily",
+			usedByCount:          1,
+			wantSnapshottable:    false,
+			wantNeedsOwnSnapshot: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			snapshottable, needsOwnSnapshot := classifyVolumeSnapshot(tt.contentType, tt.volSnapshotSchedule, tt.usedByCount, tt.ownerSnapshotScheduled)
+			assert.Equal(t, tt.wantSnapshottable, snapshottable)
+			assert.Equal(t, tt.wantNeedsOwnSnapshot, needsOwnSnapshot)
+		})
+	}
+}
 
 // nameOnlyInstance is a minimal instance.Instance stub for tests that only need Name(). The
 // embedded nil interface satisfies the rest of the interface; calling any other method panics.
