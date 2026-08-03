@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/instance"
 )
 
 func TestClassifyVolumeSnapshot(t *testing.T) {
@@ -74,6 +75,32 @@ func TestClassifyVolumeSnapshot(t *testing.T) {
 		})
 	}
 }
+
+// nameOnlyInstance is a minimal instance.Instance stub for tests that only need Name(). The
+// embedded nil interface satisfies the rest of the interface; calling any other method panics.
+type nameOnlyInstance struct {
+	instance.Instance
+	name string
+}
+
+func (i nameOnlyInstance) Name() string { return i.name }
+
+func TestInstancesByName(t *testing.T) {
+	byName := instancesByName([]instance.Instance{
+		nameOnlyInstance{name: "c1"},
+		nameOnlyInstance{name: "c2"},
+	})
+
+	assert.Len(t, byName, 2)
+	assert.Equal(t, "c1", byName["c1"].Name())
+	assert.Equal(t, "c2", byName["c2"].Name())
+
+	// No instances yields an empty, non-nil map.
+	empty := instancesByName(nil)
+	assert.NotNil(t, empty)
+	assert.Empty(t, empty)
+}
+
 func TestReplicatorIsScheduledNow(t *testing.T) {
 	// Use a fixed reference time to avoid flakiness around minute boundaries.
 	defaultNow := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
