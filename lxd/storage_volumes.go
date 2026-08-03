@@ -998,6 +998,26 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	// A standby replica project's custom volumes may be created only by the replicator:
+	// the configured cluster-link identity, or an internal cluster notification forwarded
+	// within the standby. Placed before the binary-content branch below so it also covers
+	// imports. Update, delete and snapshot of an existing volume are unaffected.
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// The guard keys off the effective storage project. A project without
+	// features.storage.volumes keeps its custom volumes in the default project, which the
+	// replicator never replicates, so volume creation there must stay unrestricted even
+	// when the request project itself is a standby replica.
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return checkStandbyReplicaProjectWriteGuard(ctx, tx, projectName, requestor, "storage volumes")
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// If we're getting binary content, process separately.
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
 		switch r.Header.Get("X-LXD-type") {
@@ -1618,6 +1638,23 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	// This is a migration request so send back requested secrets.
 	if req.Migration {
 		return storagePoolVolumeTypePostMigration(s, r, requestProjectName, effectiveProjectName, details, req)
+	}
+
+	// A standby replica project's custom volumes may be renamed or moved into place only by
+	// the replicator. A move materialises a volume in the target project and a rename creates
+	// a volume entry under a new name, either of which the next replicator run would clobber
+	// or diverge from, so both are guarded like volume creation. The guard keys off the
+	// effective storage project of the destination.
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return checkStandbyReplicaProjectWriteGuard(ctx, tx, targetProjectName, requestor, "storage volumes")
+	})
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).

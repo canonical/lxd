@@ -27,7 +27,7 @@ The leader project pushes its instances to the standby project over the cluster 
 (exp-replicators-how)=
 ## How replication works
 
-When a replicator runs, LXD performs an incremental refresh of every instance in the leader project to the standby project. Instances that do not yet exist on the standby are created; existing instances are updated to match the leader's current state.
+When a replicator runs, LXD performs an incremental refresh of every instance and custom volume in the leader project to the standby project. LXD updates instances and volumes on the standby to match the leader's current state and creates any missing instances or volumes. Custom volumes are only replicated when the project has `features.storage.volumes=true`. Projects that inherit volumes from the default project have no project-local custom volumes to replicate.
 
 Before each refresh, LXD creates a point-in-time snapshot of each instance on the leader. This provides a consistent rollback point on the source cluster in case anything goes wrong during replication. The exception is instances that already have a {config:option}`instance-snapshots:snapshots.schedule` configured: their scheduled snapshots already provide point-in-time history, so LXD skips the extra snapshot to avoid redundancy.
 

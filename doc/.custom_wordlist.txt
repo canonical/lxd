@@ -311,6 +311,7 @@ SLES
 SMTP
 Snapcraft
 snapshotter
+snapshotting
 SoC
 Solaris
 SPAs
