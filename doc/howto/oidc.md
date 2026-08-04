@@ -1,7 +1,7 @@
 ---
 myst:
   html_meta:
-    description: An index of how-to guides for LXD single sign-on (SSO) with OpenID Connect (OIDC), including Auth0, Ory Hydra, Keycloak, Entra ID, and Pocket ID.
+    description: An index of how-to guides for LXD single sign-on (SSO) with OpenID Connect (OIDC), including Auth0, Ory Hydra, Keycloak, Entra ID, Pocket ID, and authentik.
 ---
 
 (howto-oidc)=
@@ -20,6 +20,7 @@ Configure Ory Hydra </howto/oidc_ory>
 Configure Keycloak </howto/oidc_keycloak>
 Configure Entra ID </howto/oidc_entra_id>
 Configure Pocket ID </howto/oidc_pocket_id>
+Configure authentik </howto/oidc_authentik>
 ```
 
 ## Related topics
