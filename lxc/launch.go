@@ -18,9 +18,12 @@ type cmdLaunch struct {
 
 func (c *cmdLaunch) command() *cobra.Command {
 	cmd := c.init.command()
-	cmd.Use = usage("launch", "[<remote>:]<image> [<remote>:][<name>]")
+	cmd.Use = usage("launch", "[<registry|remote>:]<image> [<remote>:][<name>]")
 	cmd.Short = "Create and start instances from images"
-	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Long = cli.FormatSection("Description", cmd.Short+`
+
+If the destination LXD remote supports image registries, the source image
+must be from an image registry or available locally on the destination remote.`)
 	cmd.Example = cli.FormatSection("", `lxc launch ubuntu:24.04 u1
     Create and start a container
 
