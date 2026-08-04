@@ -264,6 +264,68 @@ EOF
   lxc storage delete "${poolName3}"
 }
 
+test_recover_project_filter() {
+  local poolName poolDriver
+  poolName="lxdtest-$(basename "${LXD_DIR}")"
+  poolDriver="$(storage_backend "${LXD_DIR}")"
+
+  if [ "${poolDriver}" = "pure" ]; then
+    export TEST_UNMET_REQUIREMENT="pure driver does not support recovery"
+    return 0
+  fi
+
+  # Use the default project's profiles so instances get the default root disk.
+  lxc project create proj-a --config features.images=false --config features.profiles=false
+  lxc project create proj-b --config features.images=false --config features.profiles=false
+
+  # Create an instance and a custom volume in each project.
+  lxc init --empty c1 --project proj-a --device "${SMALL_ROOT_DISK}"
+  lxc init --empty c2 --project proj-b --device "${SMALL_ROOT_DISK}"
+  lxc storage volume create "${poolName}" vola --project proj-a size=1MiB
+  lxc storage volume create "${poolName}" volb --project proj-b size=1MiB
+
+  # Delete the database records so recovery treats everything as unknown.
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c2'"
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name IN ('c1','c2','vola','volb')"
+
+  ! lxc info c1 --project proj-a || false
+  ! lxc info c2 --project proj-b || false
+  ! lxc storage volume show "${poolName}" vola --project proj-a || false
+  ! lxc storage volume show "${poolName}" volb --project proj-b || false
+
+  # Recover proj-a only.
+  lxd recover --project proj-a <<EOF
+yes
+yes
+EOF
+
+  # Ensure proj-a was recovered.
+  lxc info c1 --project proj-a
+  lxc storage volume show "${poolName}" vola --project proj-a
+
+  # Ensure proj-b was left untouched.
+  ! lxc info c2 --project proj-b || false
+  ! lxc storage volume show "${poolName}" volb --project proj-b || false
+
+  # Ensure a recover without the filter still picks up the rest.
+  lxd recover <<EOF
+yes
+yes
+EOF
+
+  lxc info c2 --project proj-b
+  lxc storage volume show "${poolName}" volb --project proj-b
+
+  # Cleanup.
+  lxc delete c1 --project proj-a
+  lxc delete c2 --project proj-b
+  lxc storage volume delete "${poolName}" vola --project proj-a
+  lxc storage volume delete "${poolName}" volb --project proj-b
+  lxc project delete proj-a
+  lxc project delete proj-b
+}
+
 test_container_recover() {
   local LXD_IMPORT_DIR
   LXD_IMPORT_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
