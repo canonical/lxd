@@ -82,7 +82,7 @@ lxc cluster link create <cluster-link-name> --auth-group <group name>
 For unidirectional links, `--auth-group` is not supported on the initiating cluster (Cluster A has no identity for B). Specify the auth group on the target cluster (Cluster B) when issuing the identity token:
 
 ```bash
-lxc auth identity create cluster-link/<name-for-cluster-a> --auth-group <group name>
+lxc auth identity create cluster-link/<name-for-cluster-a> --group <group name>
 ```
 
 (howto-cluster-links-configure)=
