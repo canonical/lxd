@@ -11,4 +11,5 @@ redirects = {
     'reference/release-notes/release-notes-6.7': '../6/release-notes-6.7',
     'reference/release-notes/release-notes-6.8': '../6/release-notes-6.8',
     'reference/release-notes/release-notes-6.9': '../6/release-notes-6.9',
+    'reference/release-notes/6-feature/release-notes-6.9': '../../6/release-notes-6.9',
 }
