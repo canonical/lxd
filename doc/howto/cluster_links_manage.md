@@ -79,10 +79,10 @@ Alternatively, for bidirectional links you can specify an authentication group w
 lxc cluster link create <cluster-link-name> --auth-group <group name>
 ```
 
-For unidirectional links, `--auth-group` is not supported on the initiating cluster (Cluster A has no identity for B). Specify the auth group on the target cluster (Cluster B) when issuing the identity token:
+For unidirectional links, `--auth-group` is not supported on the initiating cluster (Cluster A has no identity for B) when running `lxc cluster link create`. Instead, specify the authentication group on the target cluster (Cluster B) with `--group` when issuing the identity token with `lxc auth identity create`:
 
 ```bash
-lxc auth identity create cluster-link/<name-for-cluster-a> --auth-group <group name>
+lxc auth identity create cluster-link/<name-for-cluster-a> --group <group name>
 ```
 
 (howto-cluster-links-configure)=
