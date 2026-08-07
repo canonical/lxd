@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -53,7 +54,7 @@ func TestOperation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "abcd", ops[0].Row.UUID)
 
-	err = cluster.DeleteOperation(context.TODO(), tx.Tx(), "abcd")
+	err = cluster.DeleteOperations(context.TODO(), tx.Tx(), "abcd")
 	require.NoError(t, err)
 
 	operation, err = cluster.GetOperation(context.TODO(), tx.Tx(), uuid)
@@ -61,6 +62,36 @@ func TestOperation(t *testing.T) {
 	var target api.StatusError
 	require.ErrorAs(t, err, &target)
 	require.Equal(t, http.StatusNotFound, target.Status())
+}
+
+func TestOperationBulkDelete(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	testOps := make([]cluster.OperationsRow, 2002)
+	testOpIDs := make([]string, 0, 2002)
+	for i := range testOps {
+		id := uuid.NewString()
+		testOpIDs = append(testOpIDs, id)
+		testOps[i] = cluster.OperationsRow{
+			NodeID:     tx.GetNodeID(),
+			UUID:       id,
+			Metadata:   "{}",
+			Class:      1,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+			Inputs:     "{}",
+			StatusCode: int64(api.Running),
+		}
+	}
+
+	for _, op := range testOps {
+		_, err := query.Create(t.Context(), tx.Tx(), op)
+		require.NoError(t, err)
+	}
+
+	err := cluster.DeleteOperations(t.Context(), tx.Tx(), testOpIDs...)
+	require.NoError(t, err)
 }
 
 // Add, get and remove an operation not associated with any project.
@@ -95,7 +126,7 @@ func TestOperationNoProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "abcd", ops[0].Row.UUID)
 
-	err = cluster.DeleteOperation(context.TODO(), tx.Tx(), "abcd")
+	err = cluster.DeleteOperations(context.TODO(), tx.Tx(), "abcd")
 	require.NoError(t, err)
 
 	operation, err = cluster.GetOperation(context.TODO(), tx.Tx(), uuid)
@@ -141,6 +172,6 @@ func TestOperationUpdate(t *testing.T) {
 	assert.ErrorAs(t, err, &statusErr)
 	assert.Equal(t, http.StatusConflict, statusErr.Status())
 
-	err = cluster.DeleteOperation(context.TODO(), tx.Tx(), "abcd")
+	err = cluster.DeleteOperations(context.TODO(), tx.Tx(), "abcd")
 	require.NoError(t, err)
 }

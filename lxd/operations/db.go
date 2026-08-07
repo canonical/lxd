@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -83,6 +85,9 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			return 0, err
 		}
 
+		// Save the time at which the operation was persisted
+		op.persistedAt = op.updatedAt
+
 		err = cluster.CreateOperationResources(ctx, tx.Tx(), dbOpID, op.resources)
 		if err != nil {
 			return 0, err
@@ -108,16 +113,20 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			return err
 		}
 
+		op.dbID = parentOpID
+
 		// Create child operation records, if any.
 		for _, childOp := range op.children {
 			if childOp.projectName != op.projectName {
 				return errors.New("Child operations cannot have a different project to the parent operation")
 			}
 
-			_, err := registerSingleOperation(ctx, tx, childOp, &parentOpID, projectIDPtr)
+			childOpID, err := registerSingleOperation(ctx, tx, childOp, &parentOpID, projectIDPtr)
 			if err != nil {
 				return err
 			}
+
+			childOp.dbID = childOpID
 		}
 
 		return nil
@@ -129,7 +138,9 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 	return nil
 }
 
-func updateDBOperation(ctx context.Context, op *Operation) error {
+// persistOperation saves the operation to the database in its current state. The [cluster.OperationsRow.UpdatedAt]
+// column is only set to the value of Operation.updatedAt, not necessarily the current time.
+func persistOperation(ctx context.Context, op *Operation) error {
 	if op.state == nil {
 		return errors.New("Failed updating operation: No state available")
 	}
@@ -141,19 +152,9 @@ func updateDBOperation(ctx context.Context, op *Operation) error {
 		return fmt.Errorf("Failed updating operation %q record: %w", op.id, err)
 	}
 
+	// Save the time at which the last update of the operation was persisted.
+	op.persistedAt = op.updatedAt
 	return nil
-}
-
-func removeDBOperation(op *Operation) error {
-	if op.state == nil {
-		return errors.New("Failed deleting operation: No state available")
-	}
-
-	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return cluster.DeleteOperation(ctx, tx.Tx(), op.id)
-	})
-
-	return err
 }
 
 // ConstructOperationsFromDB is a constructs a list of Operation objects based on their database representation.
@@ -237,11 +238,13 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 	}
 
 	op := Operation{
+		dbID:              dbOp.Row.ID,
 		projectName:       dbOp.ProjectName,
 		id:                dbOp.Row.UUID,
 		class:             operationtype.Class(dbOp.Row.Class),
 		createdAt:         dbOp.Row.CreatedAt,
 		updatedAt:         dbOp.Row.UpdatedAt,
+		persistedAt:       dbOp.Row.UpdatedAt,
 		status:            api.StatusCode(dbOp.Row.StatusCode),
 		url:               api.NewURL().Path(version.APIVersion, "operations", dbOp.Row.UUID).String(),
 		description:       dbOp.Row.Type.Description(),
@@ -254,6 +257,9 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 		errCode:           dbOp.Row.ErrorCode,
 		conflictReference: dbOp.Row.ConflictReference,
 		requestor:         dbOp.Requestor(),
+
+		// Reconstructed operations are readonly.
+		readonly: true,
 	}
 
 	// If server is not clustered, the DB contains 'none' as the node name. In that case we use the server name as the location.
@@ -263,8 +269,8 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 		op.location = dbOp.NodeName
 	}
 
-	// If operation is already in final state, cancel both contexts, there's no point in running any hook.
-	if op.status.IsFinal() {
+	// If operation is already in final state or is cancelling, cancel both contexts, there's no point in running any hook.
+	if op.status.IsFinal() || op.status == api.Cancelling {
 		op.running.Cancel()
 		op.finished.Cancel()
 	}
@@ -308,47 +314,226 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 	return &op, nil
 }
 
-// PruneExpiredOperations deletes database entries of all operations which finished more than 24 hours ago.
-// Normally, operations are cleared 5 seconds after they finish. However, more complex operations, such as bulk operations,
-// are only cleared by this task, to allow more time to inspect their results.
-func PruneExpiredOperations(ctx context.Context, s *state.State) error {
-	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		dbOps, err := query.Select[cluster.OperationsRow](ctx, tx.Tx(), "")
-		if err != nil {
-			return fmt.Errorf("Failed loading operations: %w", err)
+// Synchronize is run on database start up and shutdown, and as a recurring task every minute.
+// It first checks the local map for any operations that need to be retained. These are:
+// - Bulk operations that less than 24 hours ago.
+// - Other operations that completed less than 5 seconds ago.
+// It then checks all operations registered to this cluster member in the database:
+// - Any bulk operations that completed less than 24 hours ago are retained.
+// - Any other operations that completed less than 5 seconds ago are retained.
+// Retained operations that are present in the database and not present in the local map are reconstructed and added to
+// the local map. All other operations in the local map and registered to this member in the database are deleted.
+// Finally, all retained operations are checked for consistency between the local map and the database:
+//   - If an operation was reconstructed but its status is not final, then it was not properly cleaned up. The status is
+//     set to an internal error.
+//   - If an operations "updated_at" timestamp in the database does not match the local operation. This indicates that the
+//     operation failed to store its state. It is updated to match what is present in the local map.
+func Synchronize(ctx context.Context, s *state.State) error {
+	now := time.Now()
+	ops := Clone()
+
+	opsToRetain := make(map[int64]struct{}, len(ops))
+	opsToDeleteInternal := make([]string, 0, len(ops))
+	for _, op := range ops {
+		// Retain all children, because we will delete them by foreign key in the database, and they will be equivalently
+		// deleted from the internal map via deleteInternal.
+		if op.parent != nil {
+			opsToRetain[op.dbID] = struct{}{}
+			continue
 		}
 
-		for _, dbOp := range dbOps {
-			// Don't prune operations which are still running.
-			if !api.StatusCode(dbOp.StatusCode).IsFinal() {
+		// Retain operations that have not completed.
+		if op.finished.Err() == nil {
+			opsToRetain[op.dbID] = struct{}{}
+			continue
+		}
+
+		// Retain any operations that completed less than 5 seconds ago.
+		if now.Before(op.updatedAt.Add(5 * time.Second)) {
+			opsToRetain[op.dbID] = struct{}{}
+			continue
+		}
+
+		// Retain bulk operations that completed less than 24 hours ago.
+		if len(op.children) > 0 && now.Before(op.updatedAt.Add(24*time.Hour)) {
+			opsToRetain[op.dbID] = struct{}{}
+			continue
+		}
+
+		// Delete all other operations from the local map.
+		opsToDeleteInternal = append(opsToDeleteInternal, op.id)
+	}
+
+	// Delete from the internal map. These operations should no longer be present. If the upcoming transaction fails,
+	// all operations that are not present in the map will still be deleted on the next task run.
+	deleteInternal(opsToDeleteInternal...)
+
+	var reconstructedOps []*Operation
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Collect:
+		// - A list of all operations registered to this member (for later synchronization).
+		// - A map of parent operations, this is interim for calculating operations to reconstruct.
+		// - A list of operations to reconstruct.
+		var allMemberOperations []cluster.Operation
+		parents := make(map[int64]cluster.Operation)
+		var operationsToReconstruct []cluster.Operation
+
+		// Anonymous function to append to our list of operations to reconstruct.
+		// We don't want to reconstruct operations that are already present (the local map is the source of truth, so
+		// overwriting it with an operation reconstructed from the database is incorrect).
+		addReconstructCandidate := func(dbOp cluster.Operation) {
+			_, ok := ops[dbOp.Row.UUID]
+			if ok {
+				return
+			}
+
+			operationsToReconstruct = append(operationsToReconstruct, dbOp)
+		}
+
+		// Order by parent in ascending order with nulls first so that parent operations are scanned first.
+		selectClause := "WHERE operations.node_id = ? ORDER BY operations.parent ASC NULLS FIRST"
+		err := query.SelectFunc[cluster.Operation](ctx, tx.Tx(), selectClause, func(operation cluster.Operation) error {
+			allMemberOperations = append(allMemberOperations, operation)
+
+			// Process parent operations.
+			if operation.Row.Parent == nil {
+				// Retain and reconstruct parent operations that completed less than 5 seconds ago.
+				if now.Before(operation.Row.UpdatedAt.Add(5 * time.Second)) {
+					opsToRetain[operation.Row.ID] = struct{}{}
+					addReconstructCandidate(operation)
+				}
+
+				parents[operation.Row.ID] = operation
+				return nil
+			}
+
+			// Retain all children as they will be deleted by foreign key.
+			opsToRetain[operation.Row.ID] = struct{}{}
+
+			// Check if the parent of this child completed more than 24 hours ago.
+			if now.After(parents[*operation.Row.Parent].Row.UpdatedAt.Add(24 * time.Hour)) {
+				// If so, there is nothing to retain or reconstruct, so return.
+				return nil
+			}
+
+			// If the parent is already retained, a previous child has already added it.
+			// Just add the child to the list of operations to reconstruct.
+			_, ok := opsToRetain[*operation.Row.Parent]
+			if ok {
+				addReconstructCandidate(operation)
+				return nil
+			}
+
+			// Retain the parent and add both the parent and child to the list of operations to reconstruct.
+			opsToRetain[*operation.Row.Parent] = struct{}{}
+			addReconstructCandidate(parents[*operation.Row.Parent])
+			addReconstructCandidate(operation)
+
+			return nil
+		}, tx.GetNodeID())
+		if err != nil {
+			return fmt.Errorf("Failed getting operations to synchronize: %w", err)
+		}
+
+		// We now have a complete list of operations to retain. Delete any operations that are registered to this cluster member
+		// and are not in this set.
+		deleteClause := "WHERE node_id = ? AND id NOT IN " + query.IntParams(slices.Collect(maps.Keys(opsToRetain))...)
+		nDeleted, err := query.DeleteMany[cluster.OperationsRow](ctx, tx.Tx(), deleteClause, tx.GetNodeID())
+		if err != nil {
+			return fmt.Errorf("Failed pruning expired operations: %w", err)
+		}
+
+		logger.Info("Pruned expired operations", logger.Ctx{"count": nDeleted})
+
+		// Inspect operations that are to be reconstructed.
+		// If their status is not final, something went wrong. Their status needs to be changed now as their run hook will
+		// not be re-run.
+		unfinishedReconstructedOperationIDs := make([]int64, 0, len(operationsToReconstruct))
+		for _, operation := range operationsToReconstruct {
+			if api.StatusCode(operation.Row.StatusCode).IsFinal() {
 				continue
 			}
 
-			// Don't delete child operations. These will be deleted by the foreign key constraint when the parent operation is deleted.
-			if dbOp.Parent != nil {
-				continue
-			}
+			// Update the row so that it is reconstructed correctly.
+			operation.Row.StatusCode = int64(api.Failure)
+			operation.Row.Error = "Operation exited uncleanly or was unable to report its status"
+			operation.Row.ErrorCode = int64(http.StatusInternalServerError)
+			operation.Row.UpdatedAt = now
 
-			// Prune operations which were last updated more than 24 hours ago.
-			if dbOp.UpdatedAt.Add(24 * time.Hour).After(time.Now()) {
-				continue
-			}
+			// Append the operation ID so that we can update all rows in one query.
+			unfinishedReconstructedOperationIDs = append(unfinishedReconstructedOperationIDs, operation.Row.ID)
+		}
 
-			err = cluster.DeleteOperation(ctx, tx.Tx(), dbOp.UUID)
+		if len(unfinishedReconstructedOperationIDs) > 0 {
+			stmt := "UPDATE operations SET status_code = ?, error = ?, error_code = ?, updated_at = ? WHERE id IN " + query.IntParams(unfinishedReconstructedOperationIDs...)
+			res, err := tx.Tx().ExecContext(ctx, stmt, api.Failure, "Operation exited uncleanly or was unable to report its status", http.StatusInternalServerError, now)
 			if err != nil {
-				return fmt.Errorf("Failed deleting expired operation: %w", err)
+				return fmt.Errorf("Failed writing error status for unfinished orphaned operations: %w", err)
 			}
 
-			logger.Info("Pruned expired operation", logger.Ctx{"operation": dbOp.UUID})
+			nAffected, err := res.RowsAffected()
+			if err != nil {
+				return fmt.Errorf("Failed validating write for unfinished orphaned operations: %w", err)
+			}
+
+			if int(nAffected) != len(unfinishedReconstructedOperationIDs) {
+				return fmt.Errorf("Failed validating write for unfinished orphaned operations: Expected %d writes, got %d", len(unfinishedReconstructedOperationIDs), nAffected)
+			}
+		}
+
+		// Reconstruct the operations.
+		reconstructedOps, err = ConstructOperationsFromDB(ctx, tx.Tx(), s, operationsToReconstruct)
+		if err != nil {
+			return fmt.Errorf("Failed reconstructing operations on synchronization: %w", err)
+		}
+
+		// At this point, all operations in the retained operations map are either present locally, or are bulk operations that are not present locally
+		// but are in the database and finished less than 24 hours ago. Range over all database operations and check they correspond.
+		for _, dbOp := range allMemberOperations {
+			// Skip the ones we've just deleted.
+			_, ok := opsToRetain[dbOp.Row.ID]
+			if !ok {
+				continue
+			}
+
+			op, ok := ops[dbOp.Row.UUID]
+			if !ok {
+				// If the row is retained but is not present in the local map, it is one of the reconstructed operations.
+				continue
+			}
+
+			// If the updated_at timestamp is identical, consider the operation synchronized.
+			if op.persistedAt.UnixMilli() == dbOp.Row.UpdatedAt.UnixMilli() {
+				continue
+			}
+
+			// Otherwise, synchronize the operation.
+			op.logger.Info("Resynchronizing operation")
+			err = cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, op.metadata, op.err, op.errCode)
+			if err != nil {
+				op.logger.Warn("Failed synchronizing operation with database", logger.Ctx{"err": err})
+			}
 		}
 
 		return nil
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed synchonizing operations: %w", err)
 	}
 
-	logger.Debug("Done pruning expired operations")
+	// Add the reconstructed operations back to the local map.
+	// Only lock if necessary.
+	if len(reconstructedOps) > 0 {
+		operationsLock.Lock()
+		for _, reconstructedOp := range reconstructedOps {
+			operations[reconstructedOp.id] = reconstructedOp
+			for _, child := range reconstructedOp.children {
+				operations[child.id] = child
+			}
+		}
+
+		operationsLock.Unlock()
+	}
 
 	return nil
 }
