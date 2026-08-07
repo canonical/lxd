@@ -9,31 +9,45 @@ However, advanced use cases may require the caller to be authenticated.
 To authenticate over the DevLXD API, first create a `DevLXD token bearer` identity:
 
 `````{tabs}
-```{group-tab} CLI
-    lxc auth identity create devlxd/<name> [[--group <group> ]]
+````{group-tab} CLI
+```bash
+lxc auth identity create devlxd/<name> [[--group <group> ]]
 ```
-```{group-tab} API
-    lxc query --request POST /1.0/auth/identities/bearer --data '{
-      "name": "<name>",
-      "type": "DevLXD token bearer"
-      "groups": [
-        "<group>"
-      ]
-    }'
-```
-`````
 
 Next, issue a token for the identity:
+```bash
+lxc auth identity token issue devlxd/<name> [--expiry <expiry> ]
+```
+````
 
-`````{tabs}
-```{group-tab} CLI
-    lxc auth identity token issue devlxd/<name> [--expiry <expiry> ]
+````{group-tab} API
+```bash
+lxc query --request POST /1.0/auth/identities/bearer --data '{
+  "name": "<name>",
+  "type": "DevLXD token bearer",
+  "groups": [
+    "<group>"
+  ]
+}'
 ```
-```{group-tab} API
-    lxc query --request POST /1.0/auth/identities/bearer/<name>/token --data '{
-      "expiry": "<expiry>"
-    }'
+
+Next, issue a token for the identity:
+```bash
+lxc query --request POST /1.0/auth/identities/bearer/<name>/token --data '{
+  "expiry": "<expiry>"
+}'
 ```
+````
+
+````{group-tab} UI
+Click {guilabel}`Permissions` in the navigation sidebar, then select {guilabel}`Identities` from the expanded drop-down list.
+
+Click on the {guilabel}`+ Create identity` button to open the side panel.
+
+Select {guilabel}`Bearer token (DevLXD)`. Enter a name and optionally a token expiry for the new identity. Select relevant authentication group(s), then click {guilabel}`Create identity`.
+
+In the modal, click the copy button {{copy_button}} to copy the token.
+````
 `````
 
 The returned token can be used to authenticate with LXD over the DevLXD socket.

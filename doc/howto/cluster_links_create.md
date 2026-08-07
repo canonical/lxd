@@ -76,8 +76,7 @@ To create a bidirectional cluster link between two clusters (Cluster A and Clust
    Enter a name and optionally a description for the new cluster link.
    Leave {guilabel}`Generate token` checked, select relevant authentication group(s), and click {guilabel}`Create link`.
 
-   In the modal, copy the trust token by clicking the {guilabel}`Copy token` button next to the token. You'll need it for the next step.
-
+   In the modal, click the copy button {{copy_button}} to copy the token.
    ````
    `````
 
