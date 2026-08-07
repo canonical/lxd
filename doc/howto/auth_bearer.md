@@ -4,31 +4,45 @@
 To authenticate to the LXD API using a bearer token, first create an identity of type `bearer`:
 
 `````{tabs}
-```{group-tab} CLI
-    lxc auth identity create bearer/<name> [[--group <group> ]]
+````{group-tab} CLI
+```bash
+lxc auth identity create bearer/<name> [[--group <group> ]]
 ```
-```{group-tab} API
-    lxc query --request POST /1.0/auth/identities/bearer --data '{
-      "name": "<name>",
-      "type": "bearer",
-      "groups": [
-        "<group>"
-      ]
-    }'
-```
-`````
 
 Next, issue a token for the identity:
+```bash
+lxc auth identity token issue bearer/<name> [--expiry <expiry> ]
+```
+````
 
-`````{tabs}
-```{group-tab} CLI
-    lxc auth identity token issue bearer/<name> [--expiry <expiry> ]
+````{group-tab} API
+```bash
+lxc query --request POST /1.0/auth/identities/bearer --data '{
+  "name": "<name>",
+  "type": "bearer",
+  "groups": [
+    "<group>"
+  ]
+}'
 ```
-```{group-tab} API
-    lxc query --request POST /1.0/auth/identities/bearer/<name>/token --data '{
-      "expiry": "<expiry>"
-    }'
+
+Next, issue a token for the identity:
+```bash
+lxc query --request POST /1.0/auth/identities/bearer/<name>/token --data '{
+  "expiry": "<expiry>"
+}'
 ```
+````
+
+````{group-tab} UI
+Click {guilabel}`Permissions` in the navigation sidebar, then select {guilabel}`Identities` from the expanded drop-down list.
+
+Click on the {guilabel}`+ Create identity` button to open the side panel.
+
+Select {guilabel}`Bearer token (Main API)`. Enter a name and optionally a token expiry for the new identity. Select relevant authentication group(s), then click {guilabel}`Create identity`.
+
+In the modal, copy the trust token by clicking the {guilabel}`Copy token` button next to the token. You'll need it.
+````
 `````
 
 The `expiry` field accepts multiple space-separated values of the form `<number><unit>`, such as `1d 3H 5M` (1 day, 3 hours, and 5 minutes).
