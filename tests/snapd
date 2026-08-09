@@ -37,7 +37,7 @@ test_lxc() {
 test_lxc
 
 # Set preseed via snap
-snap set lxd daemon.preseed='{"config": {"core.https_address": "[::]:8443"}}'
+snap set -s lxd daemon.preseed='{"config": {"core.https_address": "[::]:8443"}}'
 
 lxd waitready --timeout=300
 
