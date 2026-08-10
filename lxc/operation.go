@@ -218,7 +218,7 @@ func (c *cmdOperationList) cancelableColumnData(op api.Operation) string {
 }
 
 func (c *cmdOperationList) createdColumnData(op api.Operation) string {
-	return op.CreatedAt.UTC().Format("2006/01/02 15:04 UTC")
+	return formatTime(&op.CreatedAt)
 }
 
 func (c *cmdOperationList) locationColumnData(op api.Operation) string {

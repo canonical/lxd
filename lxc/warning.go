@@ -198,11 +198,11 @@ func (c *cmdWarningList) countColumnData(warning api.Warning) string {
 }
 
 func (c *cmdWarningList) firstSeenColumnData(warning api.Warning) string {
-	return warning.FirstSeenAt.UTC().Format("Jan 2, 2006 at 3:04pm (MST)")
+	return formatTime(&warning.FirstSeenAt)
 }
 
 func (c *cmdWarningList) lastSeenColumnData(warning api.Warning) string {
-	return warning.LastSeenAt.UTC().Format("Jan 2, 2006 at 3:04pm (MST)")
+	return formatTime(&warning.LastSeenAt)
 }
 
 func (c *cmdWarningList) locationColumnData(warning api.Warning) string {

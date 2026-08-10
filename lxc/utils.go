@@ -13,12 +13,19 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/termios"
+)
+
+const (
+	// timeLayout is the layout for all [time.Time] values displayed by the CLI when using the table output or other
+	// custom outputs that are not raw JSON/Yaml.
+	timeLayout = "2006/01/02 15:04 MST"
 )
 
 // Batch operations.
@@ -566,4 +573,15 @@ func entityNameFromURL(urlStr string) (string, error) {
 	}
 
 	return name, nil
+}
+
+// formatTime returns the given time formatted such that displayed times are consistent across the CLI.
+func formatTime(t *time.Time) string {
+	// Times are only displayed if available and set.
+	if t == nil || !shared.TimeIsSet(*t) {
+		return " "
+	}
+
+	// Always use the local time.
+	return t.Local().Format(timeLayout)
 }
