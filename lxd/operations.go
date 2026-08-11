@@ -836,10 +836,6 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 			_, body := op.Render()
 			_ = response.SyncResponse(true, body).Render(w, r)
 			return nil
-
-			_, body := op.Render()
-			_ = response.SyncResponse(true, body).Render(w, r)
-			return nil
 		}
 
 		return response.ManualResponse(waitResponse)
