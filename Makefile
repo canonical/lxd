@@ -136,10 +136,12 @@ dqlite:
 		git -C "$(DQLITE_PATH)" checkout -B "${DQLITE_BRANCH}" FETCH_HEAD; \
 	fi
 
-	cd "$(DQLITE_PATH)" && \
-		autoreconf -i && \
-		./configure --enable-build-raft && \
-		make -j
+	@if [ ! -f "$(DQLITE_PATH)/Makefile" ]; then \
+		cd "$(DQLITE_PATH)" && \
+			autoreconf -i && \
+			./configure --enable-build-raft; \
+	fi
+	cd "$(DQLITE_PATH)" && make -j
 
 ifneq ($(shell command -v ldd),)
 	# verify that libdqlite.so is linked against some critically important libs
