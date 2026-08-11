@@ -39,8 +39,8 @@ runs:
       id: cache-deps
       with:
         path: |
-          /home/runner/go/bin/dqlite
-          /home/runner/go/bin/liblxc
+          /home/runner/go/deps/dqlite
+          /home/runner/go/deps/liblxc
         key: ${{ steps.deps-cache-key.outputs.KEY }}
         restore-keys: |
           ${{ steps.deps-cache-key.outputs.FALLBACK_KEY }}
@@ -51,14 +51,10 @@ runs:
       shell: bash
       run: |
         # When a restore-key fallback is used, cache-hit is false even though the
-        # directories were restored. Check that the specific include/ and libs/
-        # subdirectories are present and non-empty to avoid a needless build.
-        # (Checking the parent dirs is insufficient: liblxc/ always contains rootfs/
-        # which would make a partial restore appear complete.)
-        if [ -d /home/runner/go/bin/dqlite/include ] && [ -d /home/runner/go/bin/dqlite/libs ] && \
-           [ -d /home/runner/go/bin/liblxc/include ] && [ -d /home/runner/go/bin/liblxc/libs ] && \
-           [ -n "$(ls -A /home/runner/go/bin/dqlite/include)" ] && [ -n "$(ls -A /home/runner/go/bin/dqlite/libs)" ] && \
-           [ -n "$(ls -A /home/runner/go/bin/liblxc/include)" ] && [ -n "$(ls -A /home/runner/go/bin/liblxc/libs)" ]; then
+        # directories were restored. Check that the compiled libraries exist to
+        # avoid a needless build.
+        if [ -f /home/runner/go/deps/dqlite/.libs/libdqlite.so ] && \
+           [ -n "$(find /home/runner/go/deps/liblxc/lib -name liblxc.so 2>/dev/null)" ]; then
           echo "==> SKIP building as dqlite and liblxc deps were restored from fallback key"
           echo "needed=false" >> "$GITHUB_OUTPUT"
         else
@@ -75,12 +71,9 @@ runs:
       run: |
         set -eux
 
-        # Build dqlite/liblxc and stage them into the cache dir. The Makefile owns
-        # the source/destination paths (see the deps-cache target), so this works
-        # from a plain workspace checkout in every job, including system-tests and
-        # snap-tests which do not run setup-go.
+        # Build dqlite/liblxc in place.
         cd "${GITHUB_WORKSPACE}"
-        make deps-cache
+        make deps
 
     # Only save if deps were actually built (not restored), AND the code is running on the main repo (not an untrusted fork)
     - name: Save dqlite/liblxc deps
@@ -90,8 +83,8 @@ runs:
         (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       with:
         path: |
-          /home/runner/go/bin/dqlite
-          /home/runner/go/bin/liblxc
+          /home/runner/go/deps/dqlite
+          /home/runner/go/deps/liblxc
         key: ${{ steps.deps-cache-key.outputs.KEY }}
 
     # Export the liblxc arch-specific lib dir on top of the statically-known dqlite
@@ -105,9 +98,10 @@ runs:
       # none of which are attacker-controllable, so github-env injection is not a risk.
       run: | # zizmor: ignore[github-env]
         set -eux
-        LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
+        LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/deps/liblxc/lib/*-linux-gnu)"
 
-        echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
-        echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
-        echo "LD_RUN_PATH=${LD_RUN_PATH}:${LIBLXC_ARCH_LIBS}"         >> "${GITHUB_ENV}"
-        echo "PKG_CONFIG_PATH=${LIBLXC_ARCH_LIBS}/pkgconfig"          >> "${GITHUB_ENV}"
+        echo "CGO_CFLAGS=-I/home/runner/go/deps/dqlite/include/ -I/home/runner/go/deps/liblxc/include/"    >> "${GITHUB_ENV}"
+        echo "CGO_LDFLAGS=${CGO_LDFLAGS:-} -L/home/runner/go/deps/dqlite/.libs/ -L${LIBLXC_ARCH_LIBS}"     >> "${GITHUB_ENV}"
+        echo "LD_LIBRARY_PATH=/home/runner/go/deps/dqlite/.libs/:${LIBLXC_ARCH_LIBS}:${LD_LIBRARY_PATH:-}" >> "${GITHUB_ENV}"
+        echo "LD_RUN_PATH=/home/runner/go/deps/dqlite/.libs/:${LIBLXC_ARCH_LIBS}:${LD_RUN_PATH:-}"         >> "${GITHUB_ENV}"
+        echo "PKG_CONFIG_PATH=${LIBLXC_ARCH_LIBS}/pkgconfig"                                               >> "${GITHUB_ENV}"
