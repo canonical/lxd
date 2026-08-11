@@ -162,33 +162,32 @@ liblxc:
 		git -C "$(LIBLXC_PATH)" checkout -B "$(LIBLXC_BRANCH)" FETCH_HEAD; \
 	fi
 
-	# XXX: the rootfs-mount-path must not depend on LIBLXC_PATH to allow
-	# building in "vendor" mode but move the resulting binaries elsewhere for
-	# caching purposes
-	cd "$(LIBLXC_PATH)" && \
-		meson setup \
-			--buildtype=release \
-			-Dapparmor=true \
-			-Dcapabilities=true \
-			-Dcommands=false \
-			-Ddbus=false \
-			-Dexamples=false \
-			-Dinstall-init-files=false \
-			-Dinstall-state-dirs=false \
-			-Dlibdir="lib/$(ARCH)-linux-gnu" \
-			-Dman=false \
-			-Dmemfd-rexec=false \
-			-Dopenssl=false \
-			-Dprefix="$(LIBLXC_PATH)" \
-			-Drootfs-mount-path="$(LIBLXC_ROOTFS_MOUNT_PATH)" \
-			-Dseccomp=true \
-			-Dselinux=false \
-			-Dspecfile=false \
-			-Dtests=false \
-			-Dtools=false \
-			build && \
-		meson compile -C build && \
-		ninja -C build install
+	@mkdir -p "$(LIBLXC_ROOTFS_MOUNT_PATH)"
+	@if [ ! -d "$(LIBLXC_PATH)/build" ]; then \
+		cd "$(LIBLXC_PATH)" && \
+			meson setup \
+				--buildtype=release \
+				-Dapparmor=true \
+				-Dcapabilities=true \
+				-Dcommands=false \
+				-Ddbus=false \
+				-Dexamples=false \
+				-Dinstall-init-files=false \
+				-Dinstall-state-dirs=false \
+				-Dlibdir="lib/$(ARCH)-linux-gnu" \
+				-Dman=false \
+				-Dmemfd-rexec=false \
+				-Dopenssl=false \
+				-Dprefix="$(LIBLXC_PATH)" \
+				-Drootfs-mount-path="$(LIBLXC_ROOTFS_MOUNT_PATH)" \
+				-Dseccomp=true \
+				-Dselinux=false \
+				-Dspecfile=false \
+				-Dtests=false \
+				-Dtools=false \
+				build; \
+	fi
+	cd "$(LIBLXC_PATH)" && ninja -C build install
 
 ifneq ($(shell command -v ldd),)
 	# verify that liblxc.so is linked against some critically important libs
