@@ -207,6 +207,7 @@ int setup_ns() {
 int main() {
 	bool setup = true;
 	bool run_media = false;
+	const char *tmpmount;
 	int fd = -1;
 	int nsfd_current = -1, nsfd_old = -1, nsfd_host = -1, nsfd_shmounts = -1;
 	FILE *mounts;
@@ -267,30 +268,31 @@ int main() {
 		run_media = true;
 	}
 
+	// Pick the temporary mountpoint. This has to be a path that snapd
+	// exposes to the snap mntns with propagation from the host mntns, as
+	// the bind-mount we create below is made in the host mntns but has to
+	// be visible from the snap mntns so that it can be bind-mounted onto
+	// its final destination there. Both /media and /run/media qualify:
+	// /media is bind-mounted from the host and /run is a slave of the
+	// host's /run at the point where daemon.start calls us.
+	//
+	// The same path must be used on both sides. Using /run/media on one
+	// side and /media on the other made this fail with ENOENT on every
+	// host that has a /run/media directory (any host with udisks2
+	// installed), which silently disabled shmounts persistence and left a
+	// stacked bind-mount behind on every daemon start.
+	tmpmount = run_media ? "/run/media/.lxd-shmounts" : "/media/.lxd-shmounts";
+
 	// Create temporary mountpoint
-	if (run_media) {
-		if (mkdir("/run/media/.lxd-shmounts", 0700) < 0 && errno != EEXIST) {
-			fprintf(stderr, "Failed to create /run/media/.lxd-shmounts: %s\n", strerror(errno));
-			return -1;
-		}
-	} else {
-		if (mkdir("/media/.lxd-shmounts", 0700) < 0 && errno != EEXIST) {
-			fprintf(stderr, "Failed to create /media/.lxd-shmounts: %s\n", strerror(errno));
-			return -1;
-		}
+	if (mkdir(tmpmount, 0700) < 0 && errno != EEXIST) {
+		fprintf(stderr, "Failed to create %s: %s\n", tmpmount, strerror(errno));
+		return -1;
 	}
 
 	// Bind-mount onto temporary mountpoint
-	if (run_media) {
-		if (mount("/var/snap/lxd/common/shmounts", "/run/media/.lxd-shmounts", NULL, MS_BIND|MS_REC, NULL) < 0) {
-			fprintf(stderr, "Failed to bind-mount /var/snap/lxd/common/shmounts to /run/media/.lxd-shmounts: %s\n", strerror(errno));
-			return -1;
-		}
-	} else {
-		if (mount("/var/snap/lxd/common/shmounts", "/media/.lxd-shmounts", NULL, MS_BIND|MS_REC, NULL) < 0) {
-			fprintf(stderr, "Failed to bind-mount /var/snap/lxd/common/shmounts to /media/.lxd-shmounts: %s\n", strerror(errno));
-			return -1;
-		}
+	if (mount("/var/snap/lxd/common/shmounts", tmpmount, NULL, MS_BIND|MS_REC, NULL) < 0) {
+		fprintf(stderr, "Failed to bind-mount /var/snap/lxd/common/shmounts to %s: %s\n", tmpmount, strerror(errno));
+		return -1;
 	}
 
 	// Attach to the snapd mntns
@@ -300,20 +302,20 @@ int main() {
 	}
 
 	// Bind-mount onto final destination
-	if (mount("/media/.lxd-shmounts", "/var/snap/lxd/common/shmounts", NULL, MS_BIND|MS_REC, NULL) < 0) {
-		fprintf(stderr, "Failed to bind-mount /media/.lxd-shmounts to /var/snap/lxd/common/shmounts: %s\n", strerror(errno));
+	if (mount(tmpmount, "/var/snap/lxd/common/shmounts", NULL, MS_BIND|MS_REC, NULL) < 0) {
+		fprintf(stderr, "Failed to bind-mount %s to /var/snap/lxd/common/shmounts: %s\n", tmpmount, strerror(errno));
 		return -1;
 	}
 
 	// Mark temporary mountpoint private
-	if (mount("none", "/media/.lxd-shmounts", NULL, MS_REC|MS_PRIVATE, NULL) < 0) {
-		fprintf(stderr, "Failed to mark /media/.lxd-shmounts as private: %s\n", strerror(errno));
+	if (mount("none", tmpmount, NULL, MS_REC|MS_PRIVATE, NULL) < 0) {
+		fprintf(stderr, "Failed to mark %s as private: %s\n", tmpmount, strerror(errno));
 		return -1;
 	}
 
 	// Get rid of the temporary mountpoint from snapd mntns
-	if (umount2("/media/.lxd-shmounts", MNT_DETACH) < 0) {
-		fprintf(stderr, "Failed to unmount /media/.lxd-shmounts: %s\n", strerror(errno));
+	if (umount2(tmpmount, MNT_DETACH) < 0) {
+		fprintf(stderr, "Failed to unmount %s: %s\n", tmpmount, strerror(errno));
 		return -1;
 	}
 
@@ -324,20 +326,11 @@ int main() {
 	}
 
 	// Attempt to cleanup mount there too (may be gone or may be there)
-	if (run_media) {
-		mount("none", "/run/media/.lxd-shmounts", NULL, MS_REC|MS_PRIVATE, NULL);
-		umount2("/run/media/.lxd-shmounts", MNT_DETACH);
-	} else {
-		mount("none", "/media/.lxd-shmounts", NULL, MS_REC|MS_PRIVATE, NULL);
-		umount2("/media/.lxd-shmounts", MNT_DETACH);
-	}
+	mount("none", tmpmount, NULL, MS_REC|MS_PRIVATE, NULL);
+	umount2(tmpmount, MNT_DETACH);
 
 	// Attempt to remove the temporary mountpoint
-	if (run_media) {
-		rmdir("/run/media/.lxd-shmounts");
-	} else {
-		rmdir("/media/.lxd-shmounts");
-	}
+	rmdir(tmpmount);
 
 	// Attempt to attach to previous LXD mntns
 	nsfd_old = open("/var/snap/lxd/common/ns/mntns", O_RDONLY);
