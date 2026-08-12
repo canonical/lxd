@@ -79,8 +79,8 @@ EOF
 
 setup_testflinger() {
     # Test connectivity
-    if ! wget --method HEAD -qO /dev/null https://testflinger.canonical.com/agents; then
-        echo "Failed to connect to testflinger.canonical.com, make sure you are connected to the VPN" >&2
+    if ! wget --method HEAD -qO /dev/null https://testflinger.canonical.com/; then
+        echo "Failed to connect to testflinger.canonical.com" >&2
         exit 1
     fi
 
