@@ -359,11 +359,15 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 // - Any other operations that completed less than 5 seconds ago are retained.
 // Retained operations that are present in the database and not present in the local map are reconstructed and added to
 // the local map. All other operations in the local map and registered to this member in the database are deleted.
-// Finally, all retained operations are checked for consistency between the local map and the database:
+// All retained operations are checked for consistency between the local map and the database:
 //   - If an operation was reconstructed but its status is not final, then it was not properly cleaned up. The status is
 //     set to an internal error.
 //   - If an operations "updated_at" timestamp in the database does not match the local operation. This indicates that the
 //     operation failed to store its state. It is updated to match what is present in the local map.
+//
+// Finally, any durable operations that running on this member but are not registered to this member in the database are
+// internally cancelled, and any durable operations that are registered to this member but are not present in the local
+// map are reconstructed and restarted.
 func Synchronize(ctx context.Context, s *state.State) error {
 	// Get a set of operation database IDs to retain and a list of operation UUIDs to delete.
 	syncStartedAt, maxID, localOps, operationIDRetentionSet, operationUUIDsToInternallyDelete := sortLocalOperationsForSynchronization()
@@ -373,10 +377,15 @@ func Synchronize(ctx context.Context, s *state.State) error {
 	deleteInternal(operationUUIDsToInternallyDelete...)
 
 	var reconstructedOps []*Operation
+	var durableOperationUUIDsToRestart, durableOperationUUIDsToInternallyCancel map[string]struct{}
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		var allLocallyRegisteredDBOps []cluster.Operation
+		var operationsToReconstruct map[string]cluster.Operation
+
 		// Query for all operations on this member and find operations that should be in the local map but are not
 		// (e.g. bulk operations that are less than 24 hours old that need to be persisted on daemon restart).
-		allLocallyRegisteredDBOps, operationsToReconstruct, err := loadOperationsToSynchronize(ctx, tx, maxID, syncStartedAt, localOps, operationIDRetentionSet)
+		allLocallyRegisteredDBOps, operationsToReconstruct, durableOperationUUIDsToRestart, durableOperationUUIDsToInternallyCancel, err = loadOperationsToSynchronize(ctx, tx, maxID, syncStartedAt, localOps, operationIDRetentionSet)
 		if err != nil {
 			return fmt.Errorf("Failed querying for locally registered operations: %w", err)
 		}
@@ -391,7 +400,7 @@ func Synchronize(ctx context.Context, s *state.State) error {
 
 		// If the daemon is killed while an operation is running, it should not be reconstructed in a running state.
 		// Ensure that any such operations are updated with an appropriate error status.
-		err = finalizeUnfinishedDBOperations(ctx, tx, syncStartedAt, operationsToReconstruct, operationIDRetentionSet)
+		err = finalizeUnfinishedDBOperations(ctx, tx, syncStartedAt, operationsToReconstruct, operationIDRetentionSet, durableOperationUUIDsToRestart)
 		if err != nil {
 			return fmt.Errorf("Failed finalizing dangling operations: %w", err)
 		}
@@ -414,15 +423,42 @@ func Synchronize(ctx context.Context, s *state.State) error {
 		return fmt.Errorf("Failed synchronizing operations: %w", err)
 	}
 
-	// Add the reconstructed operations back to the local map.
+	// Add the reconstructed operations back to the local map. Restart any durable operations that need to be restarted,
+	// and internally cancel any durable operations that need to be cancelled.
 	// Only lock if necessary.
-	if len(reconstructedOps) > 0 {
+	if len(reconstructedOps) > 0 || len(durableOperationUUIDsToRestart) > 0 || len(durableOperationUUIDsToInternallyCancel) > 0 {
 		operationsLock.Lock()
 		for _, reconstructedOp := range reconstructedOps {
 			operations[reconstructedOp.id] = reconstructedOp
 			for _, child := range reconstructedOp.children {
 				operations[child.id] = child
 			}
+		}
+
+		for opUUIDToCancelInternal := range durableOperationUUIDsToInternallyCancel {
+			op, ok := operations[opUUIDToCancelInternal]
+			if !ok {
+				// Should never get here. Operations are only ever deleted from the internal map within this function
+				// and the operation UUID was present when the map was cloned. Log a warning in case a regression causes
+				// this logic to break.
+				logger.Warn("Found a durable operation to cancel but it is no longer present in the internal map", logger.Ctx{"uuid": opUUIDToCancelInternal})
+				continue
+			}
+
+			cancelInternal(op)
+		}
+
+		for opUUIDToRestart := range durableOperationUUIDsToRestart {
+			op, ok := operations[opUUIDToRestart]
+			if !ok {
+				// Should never get here. The durable operation should have been reconstructed because it is registered
+				// to this member and is not finished. We've just added any reconstructed operations to the local map, so
+				// if it is not present there is a logic mismatch when calculating the restartable operations list.
+				logger.Warn("Found a durable operation to restart but it was not reconstructed", logger.Ctx{"uuid": opUUIDToRestart})
+				continue
+			}
+
+			restartOperation(op)
 		}
 
 		operationsLock.Unlock()
@@ -483,9 +519,10 @@ func ensureLocalOperationsAreSynchronized(ctx context.Context, tx *db.ClusterTx,
 
 // finalizeUnfinishedDBOperations accepts a list of operations that are not in the local map but should be.
 // If any operation statuses are not final, something went wrong before the operations were able to persist their final status.
-// This function writes an error status for those operations.
-func finalizeUnfinishedDBOperations(ctx context.Context, tx *db.ClusterTx, syncStartedAt time.Time, operationsToReconstruct map[string]cluster.Operation, operationIDRetentionSet map[int64]struct{}) error {
-	unfinishedReconstructedOperationIDs := filterReconstructCandidatesForFinalization(syncStartedAt, operationsToReconstruct, operationIDRetentionSet)
+// This function writes an error status for those operations. Note that durable operations that are to be restarted are skipped,
+// because they will be finalized when the restarted operation completes.
+func finalizeUnfinishedDBOperations(ctx context.Context, tx *db.ClusterTx, syncStartedAt time.Time, operationsToReconstruct map[string]cluster.Operation, operationIDRetentionSet map[int64]struct{}, durableOperationUUIDsToRestart map[string]struct{}) error {
+	unfinishedReconstructedOperationIDs := filterReconstructCandidatesForFinalization(syncStartedAt, operationsToReconstruct, operationIDRetentionSet, durableOperationUUIDsToRestart)
 	if len(unfinishedReconstructedOperationIDs) == 0 {
 		return nil
 	}
@@ -511,7 +548,7 @@ func finalizeUnfinishedDBOperations(ctx context.Context, tx *db.ClusterTx, syncS
 // filterReconstructCandidatesForFinalization inspects the operations that are to be reconstructed.
 // If their status is not final, something went wrong. Their status needs to be changed now as their run hook will not be re-run.
 // The input map is modified to reflect this (so that any operations that are reconstructed are up-to-date) and IDs the operations to finalize are returned for update in a single query.
-func filterReconstructCandidatesForFinalization(syncStartedAt time.Time, operationsToReconstruct map[string]cluster.Operation, operationIDRetentionSet map[int64]struct{}) []int64 {
+func filterReconstructCandidatesForFinalization(syncStartedAt time.Time, operationsToReconstruct map[string]cluster.Operation, operationIDRetentionSet map[int64]struct{}, durableOperationUUIDsToRestart map[string]struct{}) []int64 {
 	unfinishedReconstructedOperationIDs := make([]int64, 0, len(operationsToReconstruct))
 	for opUUID, operation := range operationsToReconstruct {
 		if api.StatusCode(operation.Row.StatusCode).IsFinal() {
@@ -529,6 +566,12 @@ func filterReconstructCandidatesForFinalization(syncStartedAt time.Time, operati
 
 			// Also we don't want to reconstruct it because the parent has gone, so we need to delete it from the reconstruction set.
 			delete(operationsToReconstruct, operation.Row.UUID)
+		}
+
+		// Don't set status on durable operations that are to be restarted.
+		_, ok := durableOperationUUIDsToRestart[operation.Row.UUID]
+		if ok {
+			continue
 		}
 
 		// Overwrite the value in the reconstructed operations map so that the operation is reconstructed with a finalized status.
@@ -563,11 +606,17 @@ func deleteLocallyRegisteredOperationsNotInSet(ctx context.Context, tx *db.Clust
 	return nDeleted, nil
 }
 
-// loadOperationsToSynchronize returns a list of all locally registered operations, and a list of operations that are candidates for reconstruction.
-// The local map is passed in so that we don't overwrite operations already present.
+// loadOperationsToSynchronize returns a list of all locally registered operations, a list of
+// operations that are candidates for reconstruction, a list of durable operation UUIDs that need to be restarted, and a
+// list of durable operation UUIDs that need to be internally cancelled. The lists for durable operations are obtained by
+// comparing durable operations in the local map against database contents. This is fallback behaviour for scenarios in
+// which a non-leader receives a heartbeat, but the leader does not receive the reply. The leader will take ownership of
+// the operation, but it will be left running on this member, so synchronization here will cancel it.
 // Any operations that are to be reconstructed also need to be retained, so the operationIDRetentionSet is passed in and modified.
-func loadOperationsToSynchronize(ctx context.Context, tx *db.ClusterTx, maxID int64, syncStartedAt time.Time, localOps map[string]*Operation, operationIDRetentionSet map[int64]struct{}) (allMemberOperations []cluster.Operation, operationsToReconstruct map[string]cluster.Operation, err error) {
+func loadOperationsToSynchronize(ctx context.Context, tx *db.ClusterTx, maxID int64, syncStartedAt time.Time, localOps map[string]*Operation, operationIDRetentionSet map[int64]struct{}) (allMemberOperations []cluster.Operation, operationsToReconstruct map[string]cluster.Operation, durableOperationUUIDsToRestart map[string]struct{}, durableOperationUUIDsToInternallyCancel map[string]struct{}, err error) {
 	operationsToReconstruct = make(map[string]cluster.Operation)
+	durableOperationUUIDsToRestart = make(map[string]struct{})
+
 	// Anonymous function to append to our list of operations to reconstruct.
 	// We don't want to reconstruct operations that are already present (the local map is the source of truth, so
 	// overwriting it with an operation reconstructed from the database is incorrect).
@@ -584,13 +633,22 @@ func loadOperationsToSynchronize(ctx context.Context, tx *db.ClusterTx, maxID in
 		}
 
 		operationsToReconstruct[dbOp.Row.UUID] = dbOp
+
+		// If the operation is durable and is not finalized, and is not present in the local map, we need to restart it once reconstructed.
+		if operationtype.Class(dbOp.Row.Class) == operationtype.OperationClassDurable && !api.StatusCode(dbOp.Row.StatusCode).IsFinal() {
+			durableOperationUUIDsToRestart[dbOp.Row.UUID] = struct{}{}
+		}
 	}
 
 	// Order by parent in ascending order with nulls last so that child operations are scanned first.
 	selectClause := "WHERE operations.node_id = ? ORDER BY operations.parent ASC NULLS LAST"
 	parentIDs := make(map[int64]struct{})
+	durableOperationUUIDs := make(map[string]struct{})
 	err = query.SelectFunc[cluster.Operation](ctx, tx.Tx(), selectClause, func(operation cluster.Operation) error {
 		allMemberOperations = append(allMemberOperations, operation)
+		if operation.Row.Class == int64(operationtype.OperationClassDurable) {
+			durableOperationUUIDs[operation.Row.UUID] = struct{}{}
+		}
 
 		// Figure out if the operation is parent operation. Child operations are scanned first, so this populates the
 		// parentIDs map before parents are scanned.
@@ -610,10 +668,32 @@ func loadOperationsToSynchronize(ctx context.Context, tx *db.ClusterTx, maxID in
 		return nil
 	}, tx.GetNodeID())
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed getting operations to synchronize: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("Failed getting operations to synchronize: %w", err)
 	}
 
-	return allMemberOperations, operationsToReconstruct, nil
+	// If any durable operations in the local map are not in the database, they need to be internally cancelled.
+	durableOperationUUIDsToInternallyCancel = make(map[string]struct{})
+	for _, op := range localOps {
+		if op.class != operationtype.OperationClassDurable {
+			continue
+		}
+
+		if !op.IsRunning() {
+			// Operation is in a final state, no need to cancel it.
+			continue
+		}
+
+		// We expect the local operation to be written to the database.
+		_, ok := durableOperationUUIDs[op.id]
+		if ok {
+			continue
+		}
+
+		// If it is not present in the database, internally cancel it. It has been rescheduled by another member.
+		durableOperationUUIDsToInternallyCancel[op.id] = struct{}{}
+	}
+
+	return allMemberOperations, operationsToReconstruct, durableOperationUUIDsToRestart, durableOperationUUIDsToInternallyCancel, nil
 }
 
 // sortLocalOperationsForSynchronization inspects the local operations map and returns:
