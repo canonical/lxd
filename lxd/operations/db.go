@@ -334,10 +334,12 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 	// Set the finalization function.
 	setDoneFunc(&op)
 
-	// Immediately cancel the run context and call done.
-	// We have just reconstructed the operation from the database, so it is for inspection only.
-	op.running.Cancel()
-	op.done()
+	// We have just reconstructed the operation from the database, generally this is for inspection only, so call done and cancel running context.
+	// However, durable operations may be reloaded and re-run, only finalize these operations if they have a final or cancelling status.
+	if op.class != operationtype.OperationClassDurable || op.status.IsFinal() || op.status == api.Cancelling {
+		op.running.Cancel()
+		op.done()
+	}
 
 	return &op, nil
 }
