@@ -45,7 +45,7 @@ env:
 
 jobs:
   uc-nvidia-cdi:
-    runs-on: [self-hosted, self-hosted-linux-amd64-jammy-private-endpoint-medium]
+    runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
     strategy:
       matrix:
         track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
@@ -79,7 +79,7 @@ jobs:
           secret-key: ${{ secrets.TESTFLINGER_SECRET_KEY }}
 
   nvidia:
-    runs-on: [self-hosted, self-hosted-linux-amd64-jammy-private-endpoint-medium]
+    runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
     strategy:
       matrix:
         track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
@@ -112,7 +112,7 @@ jobs:
           secret-key: ${{ secrets.TESTFLINGER_SECRET_KEY }}
 
   nvidia-mig:
-    runs-on: [self-hosted, self-hosted-linux-amd64-jammy-private-endpoint-medium]
+    runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
     strategy:
       matrix:
         track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
@@ -145,7 +145,7 @@ jobs:
           secret-key: ${{ secrets.TESTFLINGER_SECRET_KEY }}
 
   amd-cdi:
-    runs-on: [self-hosted, self-hosted-linux-amd64-jammy-private-endpoint-medium]
+    runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
     strategy:
       matrix:
         track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
