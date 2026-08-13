@@ -113,7 +113,7 @@ lxc replicator run <replicator_name> --restore
 ````{group-tab} UI
 Click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Replicators` from the expanded drop-down list.
 
-Click on the "run" button at the end of the replicator's row.
+Click on the run button {{run_button}} at the end of the replicator's row.
 
 Alternatively, click on a replicator name to view its detail page, then click on the {guilabel}`Restore` button in the header.
 

@@ -244,7 +244,7 @@ By default, instance snapshot restores include a snapshot of the instance's root
 See [`PUT /1.0/instances/{name}`](swagger:/instances/instance_put) for more information.
 ```
 ```{group-tab} UI
-To restore an instance to a snapshot, click the {guilabel}`Restore snapshot` button ({{restore_button}}) next to the snapshot that you want to restore.
+To restore an instance to a snapshot, click the restore button {{restore_button}} next to the snapshot that you want to restore.
 
 If the snapshot is stateful (which means that it contains information about the running state of the instance), select {guilabel}`Restore the instance state` if you want to restore the state.
 ```

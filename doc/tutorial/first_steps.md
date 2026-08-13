@@ -685,11 +685,11 @@ Refresh the page, and you'll see the following error:
 
 The UI cannot open a terminal for your container anymore, because you deleted the `bash` command. Luckily, we have a snapshot we can use to restore the container to a previous state.
 
-Return to the {guilabel}`Snapshots` tab. From there, restore the container to the state of the `clean` snapshot by clicking the {guilabel}`Restore snapshot` button ({{restore_button}}) next to it.
+Return to the {guilabel}`Snapshots` tab. From there, restore the container to the state of the `clean` snapshot by clicking the restore button {{restore_button}} next to it.
 
 Confirm that the container was reverted to its previous unbroken state by returning to the {guilabel}`Terminal` tab. The terminal should now load.
 
-When you no longer need a snapshot, you can delete it. In the {guilabel}`Snapshots` tab, delete the snapshot by clicking the {guilabel}`Delete snapshot` button ({{delete_button}}) next to it.
+When you no longer need a snapshot, you can delete it. In the {guilabel}`Snapshots` tab, delete the snapshot by clicking the delete button {{delete_button}} next to it.
 
 To learn more about instance snapshots, see: {ref}`instances-snapshots`.
 
