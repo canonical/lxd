@@ -24,6 +24,10 @@ export LXD_CONF="${SNAP_USER_COMMON}/config"
 [ -d "${LXD_CONF}" ] || mkdir -p "${LXD_CONF}"
 export LXD_GLOBAL_CONF="${LXD_GLOBAL_CONF:-"${SNAP_COMMON}/global-conf/"}"
 
+# Export available feature previews
+LXD_FEATURES="$(snapctl get features)"
+export LXD_FEATURES
+
 # Use editor wrapper
 export EDITOR="${SNAP}/bin/editor ${EDITOR:-}"
 export VISUAL="${EDITOR}"
