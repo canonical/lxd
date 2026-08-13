@@ -23,6 +23,8 @@ To authenticate over the DevLXD API, first create a `DevLXD token bearer` identi
 ```
 `````
 
+The new identity is reported with the type `DevLXD token bearer (pending)` until a token is issued for it.
+
 Next, issue a token for the identity:
 
 `````{tabs}
