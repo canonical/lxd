@@ -355,6 +355,7 @@ parts:
         - nasm
         - python3
         - python3-pexpect
+        - python3-virt-firmware
         - quilt
         - uuid-dev
         - xorriso
@@ -369,6 +370,7 @@ parts:
         - nasm
         - python3
         - python3-pexpect
+        - python3-virt-firmware
         - quilt
         - uuid-dev
         - xorriso
@@ -391,12 +393,44 @@ parts:
       # Apply patches from Ubuntu sources.
       QUILT_PATCHES=debian/patches quilt push -a
 
-      # Enable KVM if available
-      if [ -c /dev/kvm ] && [ -w /dev/kvm ]; then
-          sed -i 's/accel=tcg/accel=kvm:tcg/' debian/python/UEFI/Qemu.py
-      fi
-      # Ensure fast RNG in the build VM to speed up secure boot vars generation.
-      sed -i "s/'-serial', 'stdio',/'-serial', 'stdio', '-device', 'virtio-rng-pci',/" debian/python/UEFI/Qemu.py
+      # Replace QEMU-based edk2-vars-generator.py with virt-fw-vars wrapper
+      cat << 'EOF' > debian/edk2-vars-generator.py
+      #!/usr/bin/env python3
+      import argparse
+      import subprocess
+      import sys
+
+      parser = argparse.ArgumentParser()
+      parser.add_argument("-f", "--flavor")
+      parser.add_argument("-e", "--enrolldefaultkeys")
+      parser.add_argument("-s", "--shell")
+      parser.add_argument("-C", "--certificate")
+      parser.add_argument("-c", "--code")
+      parser.add_argument("--no-default", action="store_true")
+      parser.add_argument("-V", "--vars-template", required=True)
+      parser.add_argument("-o", "--out-file", required=True)
+      parser.add_argument("-d", "--debug", action="store_true")
+      args, _ = parser.parse_known_args()
+
+      if args.certificate:
+          cert_file = args.certificate
+      elif args.no_default:
+          cert_file = "debian/PkKek-1-snakeoil.pem"
+      else:
+          cert_file = "debian/PkKek-1-vendor.pem"
+
+      cmd = [
+          "virt-fw-vars",
+          "--input", args.vars_template,
+          "--output", args.out_file,
+          "--enroll-cert", cert_file,
+      ]
+
+      print(f"Running: {' '.join(cmd)}")
+      res = subprocess.run(cmd)
+      sys.exit(res.returncode)
+      EOF
+      chmod +x debian/edk2-vars-generator.py
 
       # Apply patches
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/edk2-0001-force-DUID-LLT.patch"
