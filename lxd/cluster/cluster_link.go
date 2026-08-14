@@ -28,7 +28,7 @@ import (
 // If a valid, consistent cluster certificate is found, it is returned with the first address at which it was found. Unreachable addresses are tolerated
 // so long as at least one address is reachable and no reachable address presents a different certificate.
 func CheckClusterLinkCertificate(ctx context.Context, addresses []string, fingerprint string, userAgent string) (*x509.Certificate, string, error) {
-	type result struct {
+	type certificateResult struct {
 		cert    *x509.Certificate
 		address string
 	}
@@ -40,17 +40,21 @@ func CheckClusterLinkCertificate(ctx context.Context, addresses []string, finger
 	_, ok := ctx.Deadline()
 	if !ok {
 		// Set default timeout of 30s if no deadline context provided.
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(30*time.Second))
-		defer cancel()
+		var timeoutCancel context.CancelFunc
+		ctx, timeoutCancel = context.WithTimeout(ctx, 30*time.Second)
+		defer timeoutCancel()
 	}
+
+	// Allow early cancellation once a valid certificate has been found.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	// Pass context to the goroutines.
 	g, ctx := errgroup.WithContext(ctx)
 
 	var mu sync.Mutex
 	var once sync.Once
-	var firstResult result
+	var firstResult certificateResult
 	var errs []error
 	for _, address := range addresses {
 		networkAddress := util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
@@ -84,7 +88,8 @@ func CheckClusterLinkCertificate(ctx context.Context, addresses []string, finger
 			}
 
 			once.Do(func() {
-				firstResult = result{cert: cert, address: address}
+				firstResult = certificateResult{cert: cert, address: address}
+				cancel() // Short-circuit: abort remaining certificate checks.
 			})
 			return nil
 		})
@@ -163,18 +168,42 @@ func LoadClusterLinkAndCert(ctx context.Context, tx *sql.Tx, name string) (id in
 	return dbLink.ID, clusterLink, cert, nil
 }
 
-// ConnectCluster connects to a linked cluster using the provided connection args, trying each address until one succeeds.
+// ConnectCluster connects to a linked cluster using the provided connection args, trying all addresses in parallel and returning the first successful connection.
 func ConnectCluster(ctx context.Context, clusterLink api.ClusterLink, args *lxd.ConnectionArgs) (lxd.InstanceServer, error) {
 	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
-	var errs []error
+	if len(addresses) == 0 {
+		return nil, fmt.Errorf("Failed connecting to any address of cluster link %q: no addresses available", clusterLink.Name)
+	}
+
+	type connectionResult struct {
+		client lxd.InstanceServer
+		err    error
+	}
+
+	// Start a connection attempt to every address concurrently.
+	resultCh := make(chan connectionResult, len(addresses))
 	for _, address := range addresses {
-		client, err := lxd.ConnectLXD("https://"+address, args)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("Failed connecting to %q: %w", address, err))
-			continue
+		go func(addr string) {
+			client, err := lxd.ConnectLXD("https://"+addr, args)
+			if err != nil {
+				resultCh <- connectionResult{err: fmt.Errorf("Failed connecting to %q: %w", addr, err)}
+				return
+			}
+
+			resultCh <- connectionResult{client: client}
+		}(address)
+	}
+
+	// Return the first successful connection. Remaining goroutines write to the
+	// buffered channel and terminate without blocking even if we return early.
+	var errs []error
+	for range len(addresses) {
+		r := <-resultCh
+		if r.err == nil {
+			return r.client, nil
 		}
 
-		return client, nil
+		errs = append(errs, r.err)
 	}
 
 	return nil, fmt.Errorf("Failed connecting to any address of cluster link %q: %w", clusterLink.Name, errors.Join(errs...))
