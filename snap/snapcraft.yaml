@@ -962,24 +962,6 @@ parts:
       sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
       sed -i 's#libseccomp_minver=".*#libseccomp_minver="0.0"#g' configure
 
-      # TCG is not used (nor supported) at runtime however it may be needed at
-      # build time by the `edk2` part if KVM acceleration is not available.
-      # `edk2` is only built for `amd64` and `arm64` and Launchpad `amd64`
-      # builders support KVM acceleration so TCG is only needed on `arm64`.
-      if [ "${QEMUARCH}" = "aarch64" ]; then
-          # `set -- "$@"`: preserve arguments passed to `configure` and append
-          # `--enable-tcg` at the end to override the previous `--disable-tcg`.
-          sed -i '1 a set -- "$@" --enable-tcg' configure
-      elif [ "${QEMUARCH}" = "x86_64" ]; then
-          # Contrary to LP builders, local snapcraft build containers are lacking `/dev/kvm` device node by default.
-          # Since it's a requirement for building `edk2` on `amd64`, we need to check for it and fail the build if it's not available.
-          if  ! { [ -c /dev/kvm ] && [ -w /dev/kvm ]; }; then
-            echo "KVM acceleration is required to build on ${QEMUARCH}."
-            echo "Hint: lxc config --project snapcraft device add snapcraft-lxd-amd64-<ID> kvm unix-char source=/dev/kvm"
-            exit 1
-          fi
-      fi
-
       # Extract efi-virtio.rom from ipxe-qemu.
       # This doesn't work in the organize section below.
       mkdir -p "${CRAFT_PART_INSTALL}"/share/qemu
