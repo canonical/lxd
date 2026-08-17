@@ -29,7 +29,8 @@ type Process struct {
 	Name     string   `yaml:"name"`
 	Args     []string `yaml:"args,flow"`
 	Apparmor string   `yaml:"apparmor"`
-	PID      int64    `yaml:"pid"`
+	PID      int      `yaml:"pid"`
+	BootID   string   `yaml:"boot_id"`
 	stdin    io.ReadCloser
 	stdout   io.WriteCloser
 	stderr   io.WriteCloser
@@ -37,6 +38,7 @@ type Process struct {
 	UID       uint32 `yaml:"uid"`
 	GID       uint32 `yaml:"gid"`
 	SetGroups bool   `yaml:"set_groups"`
+	StartTime int64  `yaml:"start_time"`
 
 	SysProcAttr *syscall.SysProcAttr
 }
@@ -162,9 +164,20 @@ func (p *Process) start(ctx context.Context, fds []*os.File) error {
 		return fmt.Errorf("Unable to start process: %w", err)
 	}
 
+	p.BootID = ""
+	p.StartTime = 0
 	p.proc = cmd.Process
-	p.PID = int64(cmd.Process.Pid)
+	p.PID = cmd.Process.Pid
 
+	starttime, err := processStartTime(p.PID)
+	if err == nil {
+		p.StartTime = starttime
+	}
+
+	bootID, err := currentBootID()
+	if err == nil {
+		p.BootID = bootID
+	}
 	// Reset exitCode/exitErr
 	p.exitCode = 0
 	p.exitErr = nil

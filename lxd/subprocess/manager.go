@@ -67,6 +67,32 @@ func ImportProcess(path string) (*Process, error) {
 		return nil, fmt.Errorf("Unable to parse YAML in PID file %q: %w", path, err)
 	}
 
-	proc.proc, _ = os.FindProcess(int(proc.PID))
+	if proc.PID <= 0 {
+		return nil, fmt.Errorf("%w %d in PID file %q", ErrBadPID, proc.PID, path)
+	}
+
+	if proc.BootID != "" {
+		bootID, err := currentBootID()
+		if err == nil {
+			if bootID != proc.BootID {
+				return &proc, nil
+			}
+		}
+	}
+
+	// On unix, FindProcess always returns successfully (with a 'done' process if pidfd_open
+	// returned with ESRCH).
+	proc.proc, _ = os.FindProcess(proc.PID)
+	if proc.StartTime != 0 {
+		starttime, err := processStartTime(proc.PID)
+		if err == nil {
+			if proc.StartTime != starttime {
+				_ = proc.proc.Release()
+				proc.proc = nil
+				return &proc, nil
+			}
+		}
+	}
+
 	return &proc, nil
 }
