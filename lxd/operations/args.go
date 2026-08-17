@@ -217,15 +217,24 @@ func (a OperationArgs) validate(isChild bool) error {
 // SetInputValue sets the given value on the operation inputs. This enforces that the value can be serialized.
 // Values can be retrieved via [GetOperationInputValue].
 func (a *OperationArgs) SetInputValue(key InputKey, value any) error {
+	return a.SetInputValues(map[InputKey]any{key: value})
+}
+
+// SetInputValues sets the given values on the operation inputs. This enforces that the values can be serialized.
+// Values can be retrieved via [GetOperationInputValue].
+func (a *OperationArgs) SetInputValues(values map[InputKey]any) error {
 	if a.inputs == nil {
 		a.inputs = map[InputKey]json.RawMessage{}
 	}
 
-	b, err := json.Marshal(value)
-	if err != nil {
-		return fmt.Errorf("Failed setting operation input value: %w", err)
+	for k, v := range values {
+		b, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Errorf("Failed setting operation input value for key %q: %w", k, err)
+		}
+
+		a.inputs[k] = b
 	}
 
-	a.inputs[key] = b
 	return nil
 }
