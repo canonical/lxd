@@ -53,7 +53,7 @@ func TestOperation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "abcd", ops[0].Row.UUID)
 
-	err = cluster.DeleteOperation(context.TODO(), tx.Tx(), "abcd")
+	err = query.DeleteOne[cluster.OperationsRow](context.TODO(), tx.Tx(), "WHERE uuid = ?", "abcd")
 	require.NoError(t, err)
 
 	operation, err = cluster.GetOperation(context.TODO(), tx.Tx(), uuid)
@@ -95,7 +95,7 @@ func TestOperationNoProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "abcd", ops[0].Row.UUID)
 
-	err = cluster.DeleteOperation(context.TODO(), tx.Tx(), "abcd")
+	err = query.DeleteOne[cluster.OperationsRow](context.TODO(), tx.Tx(), "WHERE uuid = ?", "abcd")
 	require.NoError(t, err)
 
 	operation, err = cluster.GetOperation(context.TODO(), tx.Tx(), uuid)
@@ -141,6 +141,6 @@ func TestOperationUpdate(t *testing.T) {
 	assert.ErrorAs(t, err, &statusErr)
 	assert.Equal(t, http.StatusConflict, statusErr.Status())
 
-	err = cluster.DeleteOperation(context.TODO(), tx.Tx(), "abcd")
+	err = query.DeleteOne[cluster.OperationsRow](context.TODO(), tx.Tx(), "WHERE uuid = ?", "abcd")
 	require.NoError(t, err)
 }
