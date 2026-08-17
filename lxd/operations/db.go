@@ -191,7 +191,14 @@ func persistOperation(ctx context.Context, op *Operation) error {
 }
 
 // ConstructOperationsFromDB is a constructs a list of Operation objects based on their database representation.
+// The exported function allows readonly inspection of the operations only.
 func ConstructOperationsFromDB(ctx context.Context, tx *sql.Tx, s *state.State, dbOps []cluster.Operation) ([]*Operation, error) {
+	return constructOperationsFromDB(ctx, tx, s, dbOps, true)
+}
+
+// constructOperationsFromDB is a constructs a list of Operation objects based on their database representation.
+// If the inspectionOnly flag is true, the operation run hook will not be set (regardless of whether the operation is durable).
+func constructOperationsFromDB(ctx context.Context, tx *sql.Tx, s *state.State, dbOps []cluster.Operation, inspectionOnly bool) ([]*Operation, error) {
 	if len(dbOps) == 0 {
 		return []*Operation{}, nil
 	}
@@ -240,13 +247,20 @@ func ConstructOperationsFromDB(ctx context.Context, tx *sql.Tx, s *state.State, 
 
 	ops := make([]*Operation, 0, len(dbOps))
 	for _, parent := range parents {
-		op, err := constructSingleOperation(s, parent, resources, entityURLs)
+		// The parent operation requires a run hook if
+		// - It is not being loaded for inspection only
+		// - It is a durable operation
+		// - It has no children.
+		requiresRunHook := !inspectionOnly && operationtype.Class(parent.Row.Class) == operationtype.OperationClassDurable && len(children[parent.Row.ID]) == 0
+		op, err := constructSingleOperation(s, parent, resources, entityURLs, requiresRunHook)
 		if err != nil {
 			return nil, fmt.Errorf("Failed constructing operation: %w", err)
 		}
 
 		for _, child := range children[parent.Row.ID] {
-			childOp, err := constructSingleOperation(s, child, resources, entityURLs)
+			// A child operation requires a run hook if it is durable and not for inspection only.
+			childRequiresRunHook := !inspectionOnly && operationtype.Class(parent.Row.Class) == operationtype.OperationClassDurable
+			childOp, err := constructSingleOperation(s, child, resources, entityURLs, childRequiresRunHook)
 			if err != nil {
 				return nil, fmt.Errorf("Failed constructing child operation: %w", err)
 			}
@@ -260,7 +274,7 @@ func ConstructOperationsFromDB(ctx context.Context, tx *sql.Tx, s *state.State, 
 	return ops, nil
 }
 
-func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources map[int64][]cluster.OperationsResourcesRow, entityURLs map[entity.Type]map[int64]*api.URL) (*Operation, error) {
+func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources map[int64][]cluster.OperationsResourcesRow, entityURLs map[entity.Type]map[int64]*api.URL, requiresRunHook bool) (*Operation, error) {
 	getURL := func(p entity.Type, id int64) *api.URL {
 		urlsOfType, ok := entityURLs[p]
 		if !ok {
@@ -344,8 +358,8 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 
 	op.inputs = inputs
 
-	// If the operation is durable, load the run hook.
-	if op.class == operationtype.OperationClassDurable {
+	// Set the run hook if required.
+	if requiresRunHook {
 		runHook, ok := getDurableOperationRunHook(op.dbOpType)
 		if !ok {
 			return nil, fmt.Errorf("No run hook is defined for durable operation %q", op.dbOpType.Description())
@@ -423,7 +437,7 @@ func Synchronize(ctx context.Context, s *state.State) error {
 		}
 
 		// Reconstruct the operations.
-		reconstructedOps, err = ConstructOperationsFromDB(ctx, tx.Tx(), s, slices.Collect(maps.Values(operationsToReconstruct)))
+		reconstructedOps, err = constructOperationsFromDB(ctx, tx.Tx(), s, slices.Collect(maps.Values(operationsToReconstruct)), false)
 		if err != nil {
 			return fmt.Errorf("Failed reconstructing operations during synchronization: %w", err)
 		}
@@ -814,7 +828,7 @@ func loadAndConstructOperationFromDB(ctx context.Context, s *state.State, opID s
 			return fmt.Errorf("Failed getting operation records: %w", err)
 		}
 
-		ops, err = ConstructOperationsFromDB(ctx, tx.Tx(), s, dbOps)
+		ops, err = constructOperationsFromDB(ctx, tx.Tx(), s, dbOps, false)
 		if err != nil {
 			return fmt.Errorf("Failed constructing operation: %w", err)
 		}
@@ -946,7 +960,7 @@ func relocateAndReconstructRunningDurableOperationsFromNodes(ctx context.Context
 
 		// Reconstruct all durable operations. Even those that have finished.
 		// This is so that bulk operations still have access to their completed children.
-		ops, err = ConstructOperationsFromDB(ctx, tx.Tx(), s, dbOps)
+		ops, err = constructOperationsFromDB(ctx, tx.Tx(), s, dbOps, false)
 		if err != nil {
 			return fmt.Errorf("Failed reconstructing durable operations: %w", err)
 		}
