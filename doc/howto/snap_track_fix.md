@@ -1,15 +1,13 @@
----
-relatedlinks: "[lxd-pkg-snap&#32;GitHub](https://github.com/canonical/lxd-pkg-snap)"
----
-
 (snap-track-bugfix)=
 # Track a bugfix in the LXD snap
 
 Given a bug report that has been fixed in LXD, we can determine which snap channels have the fix and which ones don't.
 
+For more information about managing the LXD snap, see {ref}`howto-snap` and {ref}`ref-releases-snap`.
+
 The strategy used to track the fix will depend on both the snap's {ref}`risk level <ref-snap-risk>` (`edge` vs `candidate`/`stable`) and its {ref}`release type <ref-releases>`.
 
-The LXD snap packaging is maintained in a separate git repository ([canonical/lxd-pkg-snap](https://github.com/canonical/lxd-pkg-snap)) from LXD itself ([canonical/lxd](https://github.com/canonical/lxd)); tracking fixes for `candidate` and `stable` risk levels requires information from both repositories.
+The LXD snap packaging is maintained directly in the LXD repository ([canonical/lxd](https://github.com/canonical/lxd)) under the `snap/` and `snapcraft/` directories. (Packaging files used to be maintained separately, until the `canonical/lxd-pkg-snap` repository was merged with the LXD repository.)
 
 As an example, consider the issue [canonical/lxd#18023](https://github.com/canonical/lxd/issues/18023); this bug was [introduced in LXD 3.0](https://github.com/canonical/lxd/commit/d840004886b702b3bea15d4a1d6e4f32717a6b62). The linked pull request points to commit [`c1e8ab4`](https://github.com/canonical/lxd/commit/c1e8ab4c33c217a200e59f27916fd8e1d49241e2) as the fix.
 
@@ -26,12 +24,12 @@ channels:
   5.21/candidate:   5.21.4-4189d16 2026-05-05 (39296)  123MB -
   5.21/beta:        ↑
   5.21/edge:        git-658877c    2026-05-07 (39329)  120MB -
-  latest/stable:    6.7-d814d89    2026-04-03 (38768)  121MB -
-  latest/candidate: 6.8-5a1a287    2026-05-06 (39313)  121MB -
+  latest/stable:    6.7-736f34a    2026-04-03 (38768)  121MB -
+  latest/candidate: 6.8-8470555    2026-05-06 (39313)  121MB -
   latest/beta:      ↑
   latest/edge:      git-3c2c6c6    2026-05-08 (39363)  119MB -
-  6/stable:         6.7-d814d89    2026-04-03 (38768)  121MB -
-  6/candidate:      6.8-5a1a287    2026-05-06 (39313)  121MB -
+  6/stable:         6.7-736f34a    2026-04-03 (38768)  121MB -
+  6/candidate:      6.8-8470555    2026-05-06 (39313)  121MB -
   6/beta:           ↑
   6/edge:           git-3c2c6c6    2026-05-08 (39363)  119MB -
 ```
@@ -60,29 +58,9 @@ This means that the fix is present in the `latest/edge` channel.
 (ref-troubleshoot-snap-track-stable)=
 ### `latest/candidate` and `latest/stable` channels
 
-The commit hash shown for all `candidate` and `stable` risk levels comes from [canonical/lxd-pkg-snap](https://github.com/canonical/lxd-pkg-snap), so they can't be compared with the original fix commit.
+The commit hash shown in the snap version string for `candidate` and `stable` risk levels corresponds to the Git commit of the repository at build time. For current releases, this is a commit in [canonical/lxd](https://github.com/canonical/lxd). (For older revisions built before the snap packaging repository was merged, the hash refers to a commit that was originally in `canonical/lxd-pkg-snap`.)
 
-Clone [canonical/lxd-pkg-snap](https://github.com/canonical/lxd-pkg-snap) and switch to the commit in the `latest/candidate` version string (`6.8-5a1a287`):
-
-```{terminal}
-:user: ubuntu
-:host: ubuntu
-
-git switch --detach 5a1a287
-```
-
-The `source-commit` field of the `lxd` [part](https://documentation.ubuntu.com/snapcraft/stable/explanation/parts/) in `snapcraft.yaml` gives the commit in [canonical/lxd](https://github.com/canonical/lxd) that corresponds to the snap revision (you may need to `sudo apt install yq`):
-
-```{terminal}
-:user: ubuntu
-:host: ubuntu
-
-yq '.parts["lxd"]["source-commit"]' snapcraft.yaml
-
-"84705553d17aeb8e15032611c321127a06c2f2ff"
-```
-
-Then in [canonical/lxd](https://github.com/canonical/lxd), use `git merge-base` to check if the fix is reachable:
+In [canonical/lxd](https://github.com/canonical/lxd), check if the fix commit (`c1e8ab4`) is an ancestor of the commit in the `latest/candidate` version string (`6.8-8470555`):
 
 ```{terminal}
 :user: ubuntu
@@ -93,10 +71,10 @@ git merge-base --is-ancestor c1e8ab4 8470555 && echo "c1e8ab4 reachable from 847
 c1e8ab4 reachable from 8470555
 ```
 
-This means that the fix is present in the `latest/candidate` channel. To check if the fix is present in `latest/stable`, follow the same procedure as above using the corresponding version string (`6.7-d814d89`).
+This means that the fix is present in the `latest/candidate` channel. To check if the fix is present in `latest/stable`, follow the same procedure as above using the corresponding version string (`6.7-736f34a`).
 
-```{important}
-Critical fixes may be cherry-picked at build time by `git` commands executed during the snap build process. Use `yq '.parts["lxd"]["override-build"]' snapcraft.yaml` in [canonical/lxd-pkg-snap](https://github.com/canonical/lxd-pkg-snap) to check if the fix was cherry-picked.
+```{note}
+For older snap revisions built before `canonical/lxd-pkg-snap` was merged into `canonical/lxd`, critical fixes may have been cherry-picked at build time by `git` commands executed during the snap build process. Check `yq '.parts["lxd"]["override-build"]' snapcraft.yaml` in [canonical/lxd-pkg-snap](https://github.com/canonical/lxd-pkg-snap) to see if a fix was cherry-picked.
 ```
 
 ## LTS releases

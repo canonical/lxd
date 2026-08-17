@@ -2,7 +2,7 @@
 
 LXD is a modern, secure and powerful system container and virtual machine manager.
 
-This is the snap packaging repository that is used to build the [LXD snap](https://snapcraft.io/lxd). The LXD repository is available [here](https://github.com/canonical/lxd).
+This directory contains the snap packaging used to build the [LXD snap](https://snapcraft.io/lxd). Additional snap resources are located in the [snapcraft](../snapcraft) directory.
 
 ## Build the LXD snap locally
 
@@ -63,7 +63,7 @@ jobs:
 
       # XXX: from this point onwards in this **specific job**, the private SSH key is
       #      available through the SSH_AUTH_SOCK environment variable.
-      - uses: canonical/lxd-pkg-snap/.github/actions/lp-snap-build@latest-edge # zizmor: ignore[unpinned-uses]
+      - uses: canonical/lxd/.github/actions/lp-snap-build@latest-edge # zizmor: ignore[unpinned-uses]
         with:
           ssh-key: ${{ secrets.LAUNCHPAD_LXD_BOT_KEY }} # zizmor: ignore[secrets-outside-env]
 
