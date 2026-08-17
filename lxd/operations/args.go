@@ -66,7 +66,7 @@ type OperationArgs struct {
 
 	// inputs are used by durable operations to give the statically defined RunHook access to caller context.
 	// These values are saved to the database should the operation be relocated.
-	// Values must be set via [OperationArgs.SetInputValue].
+	// Values must be set via [OperationArgs.SetInputValues].
 	inputs map[InputKey]json.RawMessage
 
 	// Children are sub-operations of a bulk operation. It is not valid to provide children if [operationtype.Type.IsBulk]
@@ -214,18 +214,21 @@ func (a OperationArgs) validate(isChild bool) error {
 	return nil
 }
 
-// SetInputValue sets the given value on the operation inputs. This enforces that the value can be serialized.
+// SetInputValues sets the given values on the operation inputs. This enforces that the values can be serialized.
 // Values can be retrieved via [GetOperationInputValue].
-func (a *OperationArgs) SetInputValue(key InputKey, value any) error {
+func (a *OperationArgs) SetInputValues(values map[InputKey]any) error {
 	if a.inputs == nil {
 		a.inputs = map[InputKey]json.RawMessage{}
 	}
 
-	b, err := json.Marshal(value)
-	if err != nil {
-		return fmt.Errorf("Failed setting operation input value: %w", err)
+	for k, v := range values {
+		b, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Errorf("Failed setting operation input value for key %q: %w", k, err)
+		}
+
+		a.inputs[k] = b
 	}
 
-	a.inputs[key] = b
 	return nil
 }
