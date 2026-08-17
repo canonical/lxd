@@ -22,7 +22,6 @@ jobs:
       fail-fast: false
       matrix:
         release:
-          - chimaera   # EOL: 2026-08-15
           - daedalus   # EOL: 2028-06-10
           - excalibur  # EOL: 2030-06-30
         variant:
