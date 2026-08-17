@@ -24,6 +24,7 @@ type Process struct {
 	chExit     chan struct{}
 	hasMonitor bool
 	closeFds   bool
+	proc       *os.Process
 
 	Name     string   `yaml:"name"`
 	Args     []string `yaml:"args,flow"`
@@ -53,29 +54,6 @@ func (p *Process) hasApparmor() bool {
 	return err == nil
 }
 
-// GetPid returns the pid for the given process object.
-func (p *Process) GetPid() (int64, error) {
-	pr, err := os.FindProcess(int(p.PID))
-	if err != nil {
-		if err == os.ErrProcessDone {
-			return 0, ErrNotRunning
-		}
-
-		return 0, err
-	}
-
-	err = pr.Signal(syscall.Signal(0))
-	if err != nil {
-		if err == os.ErrProcessDone {
-			return 0, ErrNotRunning
-		}
-
-		return 0, err
-	}
-
-	return p.PID, nil
-}
-
 // SetApparmor allows setting the AppArmor profile.
 func (p *Process) SetApparmor(profile string) {
 	p.Apparmor = profile
@@ -87,39 +65,39 @@ func (p *Process) SetCreds(uid uint32, gid uint32) {
 	p.GID = gid
 }
 
+func (p *Process) release() {
+	if p.proc == nil {
+		return
+	}
+
+	_ = p.proc.Release()
+	p.proc = nil
+}
+
+func (p *Process) finish() {
+	if p.hasMonitor {
+		<-p.chExit
+		return
+	}
+
+	p.release()
+}
+
 // Stop will stop the given process object.
 func (p *Process) Stop() error {
-	pr, err := os.FindProcess(int(p.PID))
-	if err != nil {
-		if err == os.ErrProcessDone {
-			if p.hasMonitor {
-				<-p.chExit
-			}
-
-			return ErrNotRunning
-		}
-
-		return err
+	if p.proc == nil {
+		return ErrNotRunning
 	}
 
-	// Check if process exists.
-	err = pr.Signal(syscall.Signal(0))
+	err := p.proc.Signal(syscall.SIGKILL)
 	if err == nil {
-		err = pr.Kill()
-		if err == nil {
-			if p.hasMonitor {
-				<-p.chExit
-			}
+		p.finish()
 
-			return nil // Killed successfully.
-		}
+		return nil
 	}
 
-	// Check if either the existence check or the kill resulted in an already finished error.
-	if err == os.ErrProcessDone {
-		if p.hasMonitor {
-			<-p.chExit
-		}
+	if errors.Is(err, os.ErrProcessDone) {
+		p.finish()
 
 		return ErrNotRunning
 	}
@@ -180,6 +158,7 @@ func (p *Process) start(ctx context.Context, fds []*os.File) error {
 		return fmt.Errorf("Cannot start process: %w", err)
 	}
 
+	p.proc = cmd.Process
 	p.PID = int64(cmd.Process.Pid)
 
 	// Reset exitCode/exitErr
@@ -231,29 +210,21 @@ func (p *Process) Restart(ctx context.Context) error {
 
 // Reload sends the SIGHUP signal to the given process object.
 func (p *Process) Reload() error {
-	pr, err := os.FindProcess(int(p.PID))
+	if p.proc == nil {
+		return ErrNotRunning
+	}
+
+	err := p.proc.Signal(syscall.SIGHUP)
 	if err != nil {
-		if err == os.ErrProcessDone {
+		if errors.Is(err, os.ErrProcessDone) {
+			p.finish()
 			return ErrNotRunning
 		}
 
 		return fmt.Errorf("Could not reload process: %w", err)
 	}
 
-	err = pr.Signal(syscall.Signal(0))
-	switch err {
-	case nil:
-		err = pr.Signal(syscall.SIGHUP)
-		if err != nil {
-			return fmt.Errorf("Could not reload process: %w", err)
-		}
-
-		return nil
-	case os.ErrProcessDone:
-		return ErrNotRunning
-	}
-
-	return fmt.Errorf("Could not reload process: %w", err)
+	return nil
 }
 
 // Save will save the given process object to a YAML file. Can be imported at a later point.
@@ -273,29 +244,21 @@ func (p *Process) Save(path string) error {
 
 // Signal will send a signal to the given process object given a signal value.
 func (p *Process) Signal(signal int64) error {
-	pr, err := os.FindProcess(int(p.PID))
-	if err != nil {
-		if err == os.ErrProcessDone {
-			return ErrNotRunning
-		}
-
-		return err
-	}
-
-	err = pr.Signal(syscall.Signal(0))
-	switch err {
-	case nil:
-		err = pr.Signal(syscall.Signal(signal))
-		if err != nil {
-			return fmt.Errorf("Could not signal process: %w", err)
-		}
-
-		return nil
-	case os.ErrProcessDone:
+	if p.proc == nil {
 		return ErrNotRunning
 	}
 
-	return fmt.Errorf("Could not signal process: %w", err)
+	err := p.proc.Signal(syscall.Signal(signal))
+	if err != nil {
+		if errors.Is(err, os.ErrProcessDone) {
+			p.finish()
+			return ErrNotRunning
+		}
+
+		return fmt.Errorf("Could not signal process: %w", err)
+	}
+
+	return nil
 }
 
 // Wait will wait for the given process object exit code.

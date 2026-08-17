@@ -67,5 +67,6 @@ func ImportProcess(path string) (*Process, error) {
 		return nil, fmt.Errorf("Cannot parse YAML in PID file %q: %w", path, err)
 	}
 
+	proc.proc, _ = os.FindProcess(int(proc.PID))
 	return &proc, nil
 }
