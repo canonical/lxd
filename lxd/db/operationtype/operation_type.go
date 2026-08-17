@@ -147,6 +147,7 @@ const (
 	ProjectReplicaModeUpdate
 	ReplicatorRunInstanceRestore
 	ReplicatorFinalize
+	ReplicatorSnapshotInstance
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -402,6 +403,8 @@ func (t Type) Description() string {
 		return "Updating project replica mode"
 	case ReplicatorFinalize:
 		return "Finalizing replicator"
+	case ReplicatorSnapshotInstance:
+		return "Snapshotting instance for replication"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -447,7 +450,7 @@ func (t Type) EntityType() entity.Type {
 	case BackupCreate, ConsoleShow, InstanceFreeze, InstanceUpdate, InstanceUnfreeze,
 		InstanceStart, InstanceStop, InstanceRestart, InstanceRename, InstanceMigrate, InstanceLiveMigrate,
 		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate, InstanceCopy,
-		ReplicatorRunInstanceForward:
+		ReplicatorRunInstanceForward, ReplicatorSnapshotInstance:
 		return entity.TypeInstance
 
 	// Instance backup operations.
