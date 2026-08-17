@@ -172,6 +172,12 @@ type Operation struct {
 	done func()
 }
 
+// State returns the operations [state.State]. This is typically available via API handler or daemon scope but must
+// be made available for durable operation run hooks which are statically defined.
+func (op *Operation) State() *state.State {
+	return op.state
+}
+
 // OperationScheduler is a signature used in function arguments where the function is used to deduplicate operation
 // argument initialisation logic where the operation can be scheduled within an HTTP request or within an operation.
 type OperationScheduler func(s *state.State, args OperationArgs) (*Operation, error)
