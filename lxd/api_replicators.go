@@ -676,7 +676,7 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Replicator %q has no cluster link configured", name))
 	}
 
-	opArgs, err := prepareReplicatorRunOperation(r.Context(), s, projectName, name, clusterLinkName, restore, dbReplicator.Row.ID)
+	opArgs, err := prepareReplicatorRunOperationArgs(r.Context(), s, projectName, name, clusterLinkName, restore, dbReplicator.Row.ID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -693,7 +693,7 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 		logger.Warn("Failed updating replicator last run status to running", logger.Ctx{"name": name, "project": projectName, "err": err})
 	}
 
-	op, err := operations.ScheduleUserOperationFromRequest(s, r, opArgs)
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, *opArgs)
 	if err != nil {
 		// Revert Running to Failed so the status doesn't get stuck.
 		_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1011,8 +1011,356 @@ func runScheduledReplicatorsTask(stateFunc func() *state.State) (task.Func, task
 	return f, schedule
 }
 
-// prepareReplicatorRunOperation builds the operation used to run a replicator.
-func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectName string, name string, clusterLinkName string, restore bool, replicatorID int64) (operations.OperationArgs, error) {
+const (
+	// Parent operation inputs, shared across all child operations.
+	durableOperationInputKeyReplicatorClusterLinkName   operations.InputKey = "replicator_cluster_link_name"
+	durableOperationInputKeyReplicatorTargetProjectName operations.InputKey = "replicator_target_project_name"
+
+	// Child operation inputs. ID is used for forward replication. Name is used for restore (because the instance may not exist).
+	durableOperationInputKeyReplicatorInstanceID   operations.InputKey = "replicator_instance_id"
+	durableOperationInputKeyReplicatorInstanceName operations.InputKey = "replicator_instance_name"
+
+	// Finalization operation input. This updates the replicator row with the run status.
+	durableOperationInputKeyReplicatorID operations.InputKey = "replicator_id"
+)
+
+func init() {
+	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorFinalize, replicatorFinalizeDurableOperationRunHook)
+	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorRunInstanceForward, replicatorRunInstanceForwardDurableOperationHook)
+	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorRunInstanceRestore, replicatorRunInstanceRestoreDurableOperationHook)
+}
+
+// loadSharedReplicatorDetails loads the target project, cluster link, target cluster certificate, and a map of cluster member name to address.
+// These are common details shared by all children, so the project and cluster link name inputs are on the parent operation.
+func loadSharedReplicatorDetails(ctx context.Context, op *operations.Operation) (string, *api.ClusterLink, *x509.Certificate, map[string]string, error) {
+	parentOp := op
+	if parentOp.Parent() != nil {
+		parentOp = parentOp.Parent()
+	}
+
+	clusterLinkName, err := operations.GetOperationInputValue[string](parentOp, durableOperationInputKeyReplicatorClusterLinkName)
+	if err != nil {
+		return "", nil, nil, nil, fmt.Errorf("Failed loading cluster link name from operation inputs: %w", err)
+	}
+
+	projectName, err := operations.GetOperationInputValue[string](parentOp, durableOperationInputKeyReplicatorTargetProjectName)
+	if err != nil {
+		return "", nil, nil, nil, fmt.Errorf("Failed loading project name from operation inputs: %w", err)
+	}
+
+	s := parentOp.State()
+
+	// Load all DB state in a single transaction before any network I/O.
+	var clusterLink *api.ClusterLink
+	var targetCert *x509.Certificate
+	var nodeAddressByName map[string]string
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		_, clusterLink, targetCert, err = lxdCluster.LoadClusterLinkAndCert(ctx, tx.Tx(), clusterLinkName)
+		if err != nil {
+			return err
+		}
+
+		// Pre-load node addresses for forwarding to other cluster members.
+		nodes, err := tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed listing cluster members: %w", err)
+		}
+
+		nodeAddressByName = make(map[string]string, len(nodes))
+		for _, node := range nodes {
+			nodeAddressByName[node.Name] = node.Address
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", nil, nil, nil, fmt.Errorf("Failed loading replicator details: %w", err)
+	}
+
+	return projectName, clusterLink, targetCert, nodeAddressByName, nil
+}
+
+func replicatorFinalizeDurableOperationRunHook(_ context.Context, op *operations.Operation) error {
+	replicatorID, err := operations.GetOperationInputValue[int64](op, durableOperationInputKeyReplicatorID)
+	if err != nil {
+		return fmt.Errorf("Failed getting replicator ID from operation inputs: %w", err)
+	}
+
+	// Iterate over all operations for the bulk replicator run.
+	// If any operations (that are not this one) have failed, then the replicator run has failed overall.
+	runStatus := api.ReplicatorStatusCompleted
+	for _, child := range op.Parent().Children() {
+		if child.ID() != op.ID() && child.Status() != api.Success {
+			runStatus = api.ReplicatorStatusFailed
+			break
+		}
+	}
+
+	// Use a fresh context so the status write always completes, even if the operation context was cancelled.
+	// Only the status is updated here; last_run_date was already set when the operation started.
+	return op.State().DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), replicatorID, runStatus)
+	})
+}
+
+func replicatorRunInstanceForwardDurableOperationHook(ctx context.Context, op *operations.Operation) error {
+	targetProject, clusterLink, targetCert, memberAddresses, err := loadSharedReplicatorDetails(ctx, op)
+	if err != nil {
+		return fmt.Errorf("Failed loading replicator details: %w", err)
+	}
+
+	instanceID, err := operations.GetOperationInputValue[int64](op, durableOperationInputKeyReplicatorInstanceID)
+	if err != nil {
+		return fmt.Errorf("Failed getting instance ID from operation inputs: %w", err)
+	}
+
+	s := op.State()
+	clusterCert := s.Endpoints.NetworkCert()
+	dstClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+	if err != nil {
+		return fmt.Errorf("Failed connecting to target cluster: %w", err)
+	}
+
+	dstClient = dstClient.UseProject(targetProject)
+
+	return replicateInstance(ctx, s, op, instanceID, dstClient, targetCert, memberAddresses)
+}
+
+func replicatorRunInstanceRestoreDurableOperationHook(ctx context.Context, op *operations.Operation) error {
+	targetProject, clusterLink, targetCert, memberAddresses, err := loadSharedReplicatorDetails(ctx, op)
+	if err != nil {
+		return fmt.Errorf("Failed loading replicator details: %w", err)
+	}
+
+	instName, err := operations.GetOperationInputValue[string](op, durableOperationInputKeyReplicatorInstanceName)
+	if err != nil {
+		return fmt.Errorf("Failed getting instance name from operation inputs: %w", err)
+	}
+
+	s := op.State()
+
+	clusterCert := s.Endpoints.NetworkCert()
+	dstClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+	if err != nil {
+		return fmt.Errorf("Failed connecting to target cluster: %w", err)
+	}
+
+	dstClient = dstClient.UseProject(targetProject)
+
+	// In restore mode the local copy is stale; fetch current metadata from
+	// the current leader cluster so the restore uses up-to-date config/state.
+	freshInst, _, err := dstClient.GetInstance(instName)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			// Instance was deleted on the current leader cluster after failover; skip it rather
+			// than failing the whole run, since the deletion is intentional.
+			logger.Warn("Skipping restore of instance deleted on current leader cluster", logger.Ctx{"instance": instName})
+			return nil
+		}
+
+		return fmt.Errorf("Failed getting instance %q from current leader cluster: %w", instName, err)
+	}
+
+	// Use our cluster certificate so the leader can verify TLS when
+	// pushing data back to us.
+	localCertPEM := string(clusterCert.PublicKey())
+
+	var instanceLocation string
+	inst, err := instance.LoadByProjectAndName(s, targetProject, instName)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed checking if instance exists: %w", err)
+	}
+
+	if inst != nil {
+		instanceLocation = inst.Location()
+	}
+
+	// If the instance lives on a remote cluster member, forward the restore
+	// migration to that member so the refresh runs where the storage volume is.
+	// Instances on the local member (including unclustered servers) are handled
+	// directly below. This mirrors the logic in replicateInstance.
+	if instanceLocation != "" && instanceLocation != s.ServerName {
+		memberAddress, ok := memberAddresses[instanceLocation]
+		if !ok {
+			return fmt.Errorf("Failed resolving cluster member address for instance %q", instName)
+		}
+
+		memberClient, err := lxdCluster.Connect(ctx, memberAddress, clusterCert, s.ServerCert(), true)
+		if err != nil {
+			return fmt.Errorf("Failed connecting to hosting cluster member for instance %q: %w", instName, err)
+		}
+
+		memberClient = memberClient.UseProject(targetProject)
+
+		// Set up a push-mode migration sink on the hosting cluster member.
+		restoreOp, err := memberClient.CreateInstance(api.InstancesPost{
+			Name:        instName,
+			InstancePut: freshInst.Writable(),
+			Type:        api.InstanceType(freshInst.Type),
+			Source: api.InstanceSource{
+				Type:    api.SourceTypeMigration,
+				Mode:    "push",
+				Refresh: true,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("Failed requesting restore on hosting cluster member for instance %q: %w", instName, err)
+		}
+
+		restoreOpCancelled := false
+		defer func() {
+			if !restoreOpCancelled {
+				_ = restoreOp.Cancel()
+			}
+		}()
+
+		restoreOpAPI := restoreOp.Get()
+		restoreSecrets, err := restoreOpAPI.WebsocketSecrets()
+		if err != nil {
+			return fmt.Errorf("Failed getting websocket secrets from hosting cluster member for instance %q: %w", instName, err)
+		}
+
+		// Tell the current leader cluster to push-migrate the instance to the hosting cluster member's sink.
+		remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{
+			Migration: true,
+			Target: &api.InstancePostTarget{
+				Operation:   restoreOp.URL().String(),
+				Websockets:  restoreSecrets,
+				Certificate: localCertPEM,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("Failed starting push migration on current leader cluster for instance %q: %w", instName, err)
+		}
+
+		restoreOpCancelled = true
+
+		err = remoteMigrateOp.Wait()
+		if err != nil {
+			return fmt.Errorf("Restore of instance %q failed on current leader cluster: %w", instName, err)
+		}
+
+		return restoreOp.Wait()
+	}
+
+	// Load profiles for the instance to pass to the migration sink.
+	var profiles []api.Profile
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		profiles, err = instanceProfilesFromNames(ctx, tx, targetProject, freshInst.Profiles)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed loading profiles for instance %q: %w", instName, err)
+	}
+
+	// Set up a push-mode migration sink locally so the leader pushes data to us.
+	migrateReq := &api.InstancesPost{
+		InstancePut: api.InstancePut{
+			Architecture: freshInst.Architecture,
+			Config:       freshInst.Config,
+			Devices:      freshInst.Devices,
+			Description:  freshInst.Description,
+			Ephemeral:    freshInst.Ephemeral,
+			Profiles:     freshInst.Profiles,
+			Stateful:     freshInst.Stateful,
+		},
+		Name: instName,
+		Type: api.InstanceType(freshInst.Type),
+		Source: api.InstanceSource{
+			Type:    api.SourceTypeMigration,
+			Mode:    "push",
+			Refresh: true,
+		},
+	}
+
+	result, err := prepareInstanceMigrationSink(ctx, s, targetProject, profiles, migrateReq, "")
+	if err != nil {
+		return fmt.Errorf("Failed preparing migration sink for instance %q: %w", instName, err)
+	}
+
+	defer result.revert.Fail()
+
+	// Schedule the sink operation so it gets an ID and can accept websocket connections.
+	sinkOpArgs := operations.OperationArgs{
+		ProjectName: targetProject,
+		EntityURL:   api.NewURL().Path(version.APIVersion, "projects", targetProject),
+		Type:        operationtype.InstanceCreate,
+		Class:       operationtype.OperationClassWebsocket,
+		Metadata:    result.sink.Metadata(),
+		ConnectHook: result.sink.Connect,
+		RunHook:     result.run,
+	}
+
+	var sinkOp *operations.Operation
+	if op.Requestor() != nil {
+		sinkOp, err = operations.ScheduleUserOperationFromOperation(s, op, sinkOpArgs)
+	} else {
+		sinkOp, err = operations.ScheduleServerOperation(s, sinkOpArgs)
+	}
+
+	if err != nil {
+		return fmt.Errorf("Failed scheduling migration sink operation for instance %q: %w", instName, err)
+	}
+
+	_, sinkOpAPI := sinkOp.Render()
+	sinkSecrets, err := sinkOpAPI.WebsocketSecrets()
+	if err != nil {
+		return fmt.Errorf("Failed getting websocket secrets from local sink for instance %q: %w", instName, err)
+	}
+
+	// Build the operation URL using a reachable address for this server.
+	// For clustered members the address from the nodes table is already a
+	// concrete, registered address. For unclustered servers the nodes table
+	// stores the sentinel "0.0.0.0", so fall back to the configured HTTPS
+	// address. Return an error if we still cannot determine a concrete address,
+	// because the leader would not be able to reach us.
+	localAddress := memberAddresses[s.ServerName]
+	if util.IsWildCardAddress(localAddress) {
+		localAddress = s.LocalConfig.ClusterAddress()
+		if localAddress == "" {
+			localAddress = s.LocalConfig.HTTPSAddress()
+		}
+
+		if util.IsWildCardAddress(localAddress) || localAddress == "" {
+			_ = sinkOp.Cancel()
+			return errors.New("Cannot restore to this server: configure a concrete address using cluster.https_address or core.https_address")
+		}
+	}
+
+	sinkOpURL := "https://" + localAddress + sinkOp.URL()
+
+	// Tell the current leader cluster to push-migrate the instance to our local sink.
+	remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{
+		Migration: true,
+		Target: &api.InstancePostTarget{
+			Operation:   sinkOpURL,
+			Websockets:  sinkSecrets,
+			Certificate: localCertPEM,
+		},
+	})
+	if err != nil {
+		_ = sinkOp.Cancel()
+		return fmt.Errorf("Failed starting push migration on current leader cluster for instance %q: %w", instName, err)
+	}
+
+	remoteErr := remoteMigrateOp.Wait()
+	if remoteErr != nil {
+		_ = sinkOp.Cancel()
+		return fmt.Errorf("Restore of instance %q failed on current leader cluster: %w", instName, remoteErr)
+	}
+
+	sinkErr := sinkOp.Wait(context.Background())
+	if sinkErr != nil {
+		return fmt.Errorf("Restore of instance %q failed: %w", instName, sinkErr)
+	}
+
+	result.revert.Success()
+	return nil
+}
+
+// prepareReplicatorRunOperationArgs builds the operation used to run a replicator.
+func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, projectName string, name string, clusterLinkName string, restore bool, replicatorID int64) (*operations.OperationArgs, error) {
 	// Load all DB state in a single transaction before any network I/O.
 	var clusterLink *api.ClusterLink
 	var targetCert *x509.Certificate
@@ -1066,7 +1414,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 		return nil
 	})
 	if err != nil {
-		return operations.OperationArgs{}, fmt.Errorf("Failed loading replicator state: %w", err)
+		return nil, fmt.Errorf("Failed loading replicator state: %w", err)
 	}
 
 	clusterCert := s.Endpoints.NetworkCert()
@@ -1076,22 +1424,20 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	connArgs := lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
 	targetClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, connArgs)
 	if err != nil {
-		return operations.OperationArgs{}, fmt.Errorf("Failed connecting to target cluster: %w", err)
+		return nil, fmt.Errorf("Failed connecting to target cluster: %w", err)
 	}
 
 	targetClient = targetClient.UseProject(projectName)
 
 	targetProject, _, err := targetClient.GetProject(projectName)
 	if err != nil {
-		return operations.OperationArgs{}, fmt.Errorf("Failed getting target project: %w", err)
+		return nil, fmt.Errorf("Failed getting target project: %w", err)
 	}
 
 	err = validateReplicatorModes(sourceProject.ReplicaMode, targetProject.ReplicaMode, restore)
 	if err != nil {
-		return operations.OperationArgs{}, api.StatusErrorf(http.StatusBadRequest, "%s", err)
+		return nil, api.StatusErrorf(http.StatusBadRequest, "%s", err)
 	}
-
-	targetCertPEM := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
 
 	// In restore mode, all project instances across all cluster members must be stopped
 	// before proceeding. The restore operation refreshes each existing instance from the
@@ -1101,7 +1447,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	if restore {
 		err = replicatorCheckInstancesStopped(allInsts)
 		if err != nil {
-			return operations.OperationArgs{}, err
+			return nil, err
 		}
 	}
 
@@ -1112,7 +1458,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	if restore {
 		remoteInsts, err := targetClient.GetInstances(lxd.GetInstancesArgs{InstanceType: api.InstanceTypeAny})
 		if err != nil {
-			return operations.OperationArgs{}, fmt.Errorf("Failed listing instances on target: %w", err)
+			return nil, fmt.Errorf("Failed listing instances on target: %w", err)
 		}
 
 		iterNames = make([]string, 0, len(remoteInsts))
@@ -1122,324 +1468,84 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	}
 
 	replicatorURL := entity.ReplicatorURL(projectName, name)
-	projectURL := entity.ProjectURL(projectName)
-
-	// Forward replication: iterate over all loaded instances directly.
-	if !restore {
-		childArgs := make([]*operations.OperationArgs, 0, len(allInsts))
-
-		var stage uint16
-		for _, inst := range allInsts {
-			memberAddress := nodeAddressByName[inst.Location()]
-
-			copyFunc := func(ctx context.Context, op *operations.Operation) error {
-				dstClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
-				if err != nil {
-					return fmt.Errorf("Failed connecting to target cluster: %w", err)
-				}
-
-				dstClient = dstClient.UseProject(projectName)
-
-				return replicateInstance(ctx, s, op, inst, memberAddress, dstClient, targetCertPEM)
-			}
-
-			childArgs = append(childArgs, &operations.OperationArgs{
-				ProjectName: projectName,
-				EntityURL:   entity.InstanceURL(projectName, inst.Name()),
-				Type:        operationtype.ReplicatorRunInstanceForward,
-				Class:       operationtype.OperationClassTask,
-				RunHook:     copyFunc,
-				Stage:       stage,
-			})
-		}
-
-		stage++
-		childArgs = append(childArgs, replicatorFinalizeOperationArgs(s, projectName, replicatorURL, replicatorID, stage))
-
-		return operations.OperationArgs{
-			ProjectName:       projectName,
-			EntityURL:         replicatorURL,
-			Type:              operationtype.ReplicatorRun,
-			Class:             operationtype.OperationClassTask,
-			ConflictReference: replicatorURL.String(), // Prevents concurrent runs; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
-			Children:          childArgs,
-		}, nil
-	}
-
-	// Restore mode: iterate over the current leader cluster's instance list.
-	childArgs := make([]*operations.OperationArgs, 0, len(iterNames))
-
-	// Use our cluster certificate so the leader can verify TLS when
-	// pushing data back to us.
-	localCertPEM := string(clusterCert.PublicKey())
-
-	var stage uint16
-	for _, instName := range iterNames {
-		copyFunc := func(ctx context.Context, op *operations.Operation) error {
-			dstClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
-			if err != nil {
-				return fmt.Errorf("Failed connecting to target cluster: %w", err)
-			}
-
-			dstClient = dstClient.UseProject(projectName)
-
-			// In restore mode the local copy is stale; fetch current metadata from
-			// the current leader cluster so the restore uses up-to-date config/state.
-			freshInst, _, err := dstClient.GetInstance(instName)
-			if err != nil {
-				if api.StatusErrorCheck(err, http.StatusNotFound) {
-					// Instance was deleted on the current leader cluster after failover; skip it rather
-					// than failing the whole run, since the deletion is intentional.
-					logger.Warn("Skipping restore of instance deleted on current leader cluster", logger.Ctx{"instance": instName})
-					return nil
-				}
-
-				return fmt.Errorf("Failed getting instance %q from current leader cluster: %w", instName, err)
-			}
-
-			// If the instance lives on a remote cluster member, forward the restore
-			// migration to that member so the refresh runs where the storage volume is.
-			// Instances on the local member (including unclustered servers) are handled
-			// directly below. This mirrors the logic in replicateInstance.
-			var memberAddress string
-			for _, inst := range allInsts {
-				if inst.Name() == instName {
-					if inst.Location() != s.ServerName {
-						memberAddress = nodeAddressByName[inst.Location()]
-					}
-
-					break
-				}
-			}
-
-			if memberAddress != "" {
-				memberClient, err := lxdCluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), true)
-				if err != nil {
-					return fmt.Errorf("Failed connecting to hosting cluster member for instance %q: %w", instName, err)
-				}
-
-				memberClient = memberClient.UseProject(projectName)
-
-				// Set up a push-mode migration sink on the hosting cluster member.
-				restoreOp, err := memberClient.CreateInstance(api.InstancesPost{
-					Name:        instName,
-					InstancePut: freshInst.Writable(),
-					Type:        api.InstanceType(freshInst.Type),
-					Source: api.InstanceSource{
-						Type:    api.SourceTypeMigration,
-						Mode:    "push",
-						Refresh: true,
-					},
-				})
-				if err != nil {
-					return fmt.Errorf("Failed requesting restore on hosting cluster member for instance %q: %w", instName, err)
-				}
-
-				restoreOpCancelled := false
-				defer func() {
-					if !restoreOpCancelled {
-						_ = restoreOp.Cancel()
-					}
-				}()
-
-				restoreOpAPI := restoreOp.Get()
-				restoreSecrets, err := restoreOpAPI.WebsocketSecrets()
-				if err != nil {
-					return fmt.Errorf("Failed getting websocket secrets from hosting cluster member for instance %q: %w", instName, err)
-				}
-
-				// Tell the current leader cluster to push-migrate the instance to the hosting cluster member's sink.
-				remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{
-					Migration: true,
-					Target: &api.InstancePostTarget{
-						Operation:   restoreOp.URL().String(),
-						Websockets:  restoreSecrets,
-						Certificate: localCertPEM,
-					},
-				})
-				if err != nil {
-					return fmt.Errorf("Failed starting push migration on current leader cluster for instance %q: %w", instName, err)
-				}
-
-				restoreOpCancelled = true
-
-				err = remoteMigrateOp.Wait()
-				if err != nil {
-					return fmt.Errorf("Restore of instance %q failed on current leader cluster: %w", instName, err)
-				}
-
-				return restoreOp.Wait()
-			}
-
-			// Load profiles for the instance to pass to the migration sink.
-			var profiles []api.Profile
-			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-				profiles, err = instanceProfilesFromNames(ctx, tx, projectName, freshInst.Profiles)
-				return err
-			})
-			if err != nil {
-				return fmt.Errorf("Failed loading profiles for instance %q: %w", instName, err)
-			}
-
-			// Set up a push-mode migration sink locally so the leader pushes data to us.
-			migrateReq := &api.InstancesPost{
-				InstancePut: api.InstancePut{
-					Architecture: freshInst.Architecture,
-					Config:       freshInst.Config,
-					Devices:      freshInst.Devices,
-					Description:  freshInst.Description,
-					Ephemeral:    freshInst.Ephemeral,
-					Profiles:     freshInst.Profiles,
-					Stateful:     freshInst.Stateful,
-				},
-				Name: instName,
-				Type: api.InstanceType(freshInst.Type),
-				Source: api.InstanceSource{
-					Type:    api.SourceTypeMigration,
-					Mode:    "push",
-					Refresh: true,
-				},
-			}
-
-			result, err := prepareInstanceMigrationSink(ctx, s, projectName, profiles, migrateReq, "")
-			if err != nil {
-				return fmt.Errorf("Failed preparing migration sink for instance %q: %w", instName, err)
-			}
-
-			defer result.revert.Fail()
-
-			// Schedule the sink operation so it gets an ID and can accept websocket connections.
-			sinkOpArgs := operations.OperationArgs{
-				ProjectName: projectName,
-				EntityURL:   api.NewURL().Path(version.APIVersion, "projects", projectName),
-				Type:        operationtype.InstanceCreate,
-				Class:       operationtype.OperationClassWebsocket,
-				Metadata:    result.sink.Metadata(),
-				ConnectHook: result.sink.Connect,
-				RunHook:     result.run,
-			}
-
-			var sinkOp *operations.Operation
-			if op.Requestor() != nil {
-				sinkOp, err = operations.ScheduleUserOperationFromOperation(s, op, sinkOpArgs)
-			} else {
-				sinkOp, err = operations.ScheduleServerOperation(s, sinkOpArgs)
-			}
-
-			if err != nil {
-				return fmt.Errorf("Failed scheduling migration sink operation for instance %q: %w", instName, err)
-			}
-
-			_, sinkOpAPI := sinkOp.Render()
-			sinkSecrets, err := sinkOpAPI.WebsocketSecrets()
-			if err != nil {
-				return fmt.Errorf("Failed getting websocket secrets from local sink for instance %q: %w", instName, err)
-			}
-
-			// Build the operation URL using a reachable address for this server.
-			// For clustered members the address from the nodes table is already a
-			// concrete, registered address. For unclustered servers the nodes table
-			// stores the sentinel "0.0.0.0", so fall back to the configured HTTPS
-			// address. Return an error if we still cannot determine a concrete address,
-			// because the leader would not be able to reach us.
-			localAddress := nodeAddressByName[s.ServerName]
-			if util.IsWildCardAddress(localAddress) {
-				localAddress = s.LocalConfig.ClusterAddress()
-				if localAddress == "" {
-					localAddress = s.LocalConfig.HTTPSAddress()
-				}
-
-				if util.IsWildCardAddress(localAddress) || localAddress == "" {
-					_ = sinkOp.Cancel()
-					return errors.New("Cannot restore to this server: configure a concrete address using cluster.https_address or core.https_address")
-				}
-			}
-
-			sinkOpURL := "https://" + localAddress + sinkOp.URL()
-
-			// Tell the current leader cluster to push-migrate the instance to our local sink.
-			remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{
-				Migration: true,
-				Target: &api.InstancePostTarget{
-					Operation:   sinkOpURL,
-					Websockets:  sinkSecrets,
-					Certificate: localCertPEM,
-				},
-			})
-			if err != nil {
-				_ = sinkOp.Cancel()
-				return fmt.Errorf("Failed starting push migration on current leader cluster for instance %q: %w", instName, err)
-			}
-
-			remoteErr := remoteMigrateOp.Wait()
-			if remoteErr != nil {
-				_ = sinkOp.Cancel()
-				return fmt.Errorf("Restore of instance %q failed on current leader cluster: %w", instName, remoteErr)
-			}
-
-			sinkErr := sinkOp.Wait(context.Background())
-			if sinkErr != nil {
-				return fmt.Errorf("Restore of instance %q failed: %w", instName, sinkErr)
-			}
-
-			result.revert.Success()
-			return nil
-		}
-
-		// The instance may exist only on the current leader cluster, in which case this operation creates it
-		// locally and there is nothing to name yet. The project is the primary entity here, and the instance
-		// URL reaches clients through the metadata.
-		childArgs = append(childArgs, &operations.OperationArgs{
-			ProjectName: projectName,
-			EntityURL:   projectURL,
-			Type:        operationtype.ReplicatorRunInstanceRestore,
-			Class:       operationtype.OperationClassTask,
-			Metadata: map[string]any{
-				api.MetadataEntityURL: entity.InstanceURL(projectName, instName).String(),
-			},
-			RunHook: copyFunc,
-			Stage:   stage,
-		})
-	}
-
-	stage++
-	childArgs = append(childArgs, replicatorFinalizeOperationArgs(s, projectName, replicatorURL, replicatorID, stage))
-
-	return operations.OperationArgs{
+	parentArgs := operations.OperationArgs{
 		ProjectName:       projectName,
 		EntityURL:         replicatorURL,
 		Type:              operationtype.ReplicatorRun,
-		Class:             operationtype.OperationClassTask,
+		Class:             operationtype.OperationClassDurable,
 		ConflictReference: replicatorURL.String(), // Prevents concurrent runs; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
-		Children:          childArgs,
-	}, nil
+	}
+
+	err = parentArgs.SetInputValues(map[operations.InputKey]any{
+		durableOperationInputKeyReplicatorTargetProjectName: projectName,
+		durableOperationInputKeyReplicatorClusterLinkName:   clusterLinkName,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed preparing replicator run operation: %w", err)
+	}
+
+	builder := operations.NewBulkArgBuilder(parentArgs)
+
+	// Forward replication: iterate over all loaded instances directly.
+	if !restore {
+		for _, inst := range allInsts {
+			err = builder.AddChildArgs(operations.OperationArgs{
+				ProjectName: projectName,
+				EntityURL:   entity.InstanceURL(projectName, inst.Name()),
+				Type:        operationtype.ReplicatorRunInstanceForward,
+				Class:       operationtype.OperationClassDurable,
+			}, map[operations.InputKey]any{
+				durableOperationInputKeyReplicatorInstanceID: inst.ID(),
+			})
+			if err != nil {
+				return nil, fmt.Errorf("Failed preparing instance forward replication operation: %w", err)
+			}
+		}
+
+		return finalizeReplicatorRunOperationArgs(builder, projectName, replicatorURL, replicatorID)
+	}
+
+	// For restore operations the project URL is used as the primary entity URL because the instance may exist on the
+	// current leader cluster, but not on the standby. In this case the restore effectively becomes an instance create
+	// operation, for which we use the parent entity as the primary entity URL.
+	projectURL := entity.ProjectURL(projectName)
+	for _, instName := range iterNames {
+		err = builder.AddChildArgs(operations.OperationArgs{
+			ProjectName: projectName,
+			EntityURL:   projectURL,
+			Type:        operationtype.ReplicatorRunInstanceRestore,
+			Class:       operationtype.OperationClassDurable,
+			// Include the instance name in the operation metadata to offer a link after the instance is created.
+			Metadata: map[string]any{
+				api.MetadataEntityURL: entity.InstanceURL(projectName, instName).String(),
+			},
+		}, map[operations.InputKey]any{
+			durableOperationInputKeyReplicatorInstanceName: instName,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return finalizeReplicatorRunOperationArgs(builder, projectName, replicatorURL, replicatorID)
 }
 
-func replicatorFinalizeOperationArgs(s *state.State, projectName string, replicatorURL *api.URL, replicatorID int64, stage uint16) *operations.OperationArgs {
-	return &operations.OperationArgs{
+func finalizeReplicatorRunOperationArgs(builder *operations.BulkArgBuilder, projectName string, replicatorURL *api.URL, replicatorID int64) (*operations.OperationArgs, error) {
+	builder.IncrementStage()
+	err := builder.AddChildArgs(operations.OperationArgs{
 		ProjectName: projectName,
 		Type:        operationtype.ReplicatorFinalize,
-		Class:       operationtype.OperationClassTask,
+		Class:       operationtype.OperationClassDurable,
 		EntityURL:   replicatorURL,
-		RunHook: func(_ context.Context, op *operations.Operation) error {
-			// Iterate over all operations for the bulk replicator run.
-			// If any operations (that are not this one) have failed, then the replicator run has failed overall.
-			runStatus := api.ReplicatorStatusCompleted
-			for _, child := range op.Parent().Children() {
-				if child.ID() != op.ID() && child.Status() != api.Success {
-					runStatus = api.ReplicatorStatusFailed
-					break
-				}
-			}
-
-			// Use a fresh context so the status write always completes, even if the operation context was cancelled.
-			// Only the status is updated here; last_run_date was already set when the operation started.
-			return s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), replicatorID, runStatus)
-			})
-		},
-		Stage: stage,
+	}, map[operations.InputKey]any{
+		durableOperationInputKeyReplicatorID: replicatorID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed preparing replicator finalization operation: %w", err)
 	}
+
+	args := builder.Args()
+	return &args, nil
 }
 
 // replicatorCheckInstancesStopped verifies that all project instances across all
@@ -1458,7 +1564,14 @@ func replicatorCheckInstancesStopped(allInsts []instance.Instance) error {
 // replicateInstance handles forward replication of a single instance to the
 // destination cluster. It handles both instances on the local cluster member
 // and instances on other cluster members.
-func replicateInstance(ctx context.Context, s *state.State, op *operations.Operation, inst instance.Instance, memberAddress string, dstClient lxd.InstanceServer, targetCertPEM string) error {
+func replicateInstance(ctx context.Context, s *state.State, op *operations.Operation, instanceID int64, dstClient lxd.InstanceServer, targetCert *x509.Certificate, memberAddresses map[string]string) error {
+	inst, err := instance.LoadByID(s, int(instanceID))
+	if err != nil {
+		return err
+	}
+
+	targetCertPEM := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
+
 	instName := inst.Name()
 	projectName := inst.Project().Name
 	// Snapshotting is unconditional; the only exception is when the instance already has a
@@ -1469,8 +1582,10 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 	// Instance on another cluster member: connect to the hosting cluster member and
 	// drive the snapshot (if needed) and push migration through its API so the
 	// migration source has direct access to the instance's storage.
-	if inst.Location() != s.ServerName {
-		if memberAddress == "" {
+	instanceLocation := inst.Location()
+	if instanceLocation != s.ServerName {
+		memberAddress, ok := memberAddresses[instanceLocation]
+		if !ok {
 			return fmt.Errorf("Failed resolving cluster member address for instance %q", instName)
 		}
 
@@ -1775,7 +1890,7 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 		return fmt.Errorf("Replicator %q has no cluster link configured", replicator.Name)
 	}
 
-	opArgs, err := prepareReplicatorRunOperation(ctx, s, replicator.Project, replicator.Name, clusterLinkName, false, row.Row.ID)
+	opArgs, err := prepareReplicatorRunOperationArgs(ctx, s, replicator.Project, replicator.Name, clusterLinkName, false, row.Row.ID)
 	if err != nil {
 		return err
 	}
@@ -1792,7 +1907,7 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 		logger.Warn("Failed updating replicator last run status to running", logger.Ctx{"replicator": replicator.Name, "project": replicator.Project, "err": err})
 	}
 
-	op, err := operations.ScheduleServerOperation(s, opArgs)
+	op, err := operations.ScheduleServerOperation(s, *opArgs)
 	if err != nil {
 		if api.StatusErrorCheck(err, http.StatusConflict) {
 			logger.Warn("Skipping scheduled replicator, a run is already in progress", logger.Ctx{"replicator": replicator.Name, "project": replicator.Project})
