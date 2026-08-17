@@ -816,7 +816,7 @@ parts:
       - libatomic
       - spice-server
     source: https://git.launchpad.net/ubuntu/+source/qemu
-    source-commit: c003da9fa7abc4bdbfa7bfffccd1339f608dbd0f # import/1%8.2.2+ds-0ubuntu1.17
+    source-commit: c509d34e5d97b1949b8daafbb53afdd036c2195d # import/1%8.2.2+ds-0ubuntu1.18
     source-depth: 1
     source-type: git
     plugin: autotools
