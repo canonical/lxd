@@ -136,9 +136,8 @@ lxc exec c1 -- lxd init --auto
 lxc monitor --type lifecycle --format json > monitor.json 2>&1 &
 monitorPID="${!}"
 
-# Launch an image we know is on the host.
-lxc exec c1 -- /snap/bin/lxc launch "${IMAGE}" c1c1
-lxc exec c1 -- /snap/bin/lxc info c1c1 | grep -F RUNNING
+# Use an image we know is on the host.
+lxc exec c1 -- /snap/bin/lxc init "${IMAGE}" c1c1
 
 kill "${monitorPID}"
 
