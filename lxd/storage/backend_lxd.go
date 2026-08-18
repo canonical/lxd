@@ -6259,7 +6259,13 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 // A new UUID is generated for the snapshot and returned upon success.
 // The UUID is used to fill "volatile.attached_volumes" for multi-volume snapshot and restore functionality.
 func (b *lxdBackend) CreateCustomVolumeSnapshot(ctx context.Context, projectName string, volName string, newSnapshotName string, newDescription string, newExpiryDate *time.Time, progressReporter ioprogress.ProgressReporter) (*uuid.UUID, error) {
-	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName, "newDescription": newDescription, "newExpiryDate": newExpiryDate})
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName, "newDescription": newDescription})
+
+	// Avoid logging a nil *time.Time, whose String method panics on a nil receiver.
+	if newExpiryDate != nil {
+		l = l.AddContext(logger.Ctx{"newExpiryDate": *newExpiryDate})
+	}
+
 	l.Debug("CreateCustomVolumeSnapshot started")
 	defer l.Debug("CreateCustomVolumeSnapshot finished")
 
