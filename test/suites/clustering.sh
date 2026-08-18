@@ -963,7 +963,6 @@ test_clustering_storage() {
 
     # Copy the container without specifying a target, it will be placed on node2
     # since it's the one with the least number of containers (0 vs 1)
-    sleep 6 # Wait for pending operations to be removed from the database
     LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar
     [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c L bar)" = "node2" ]
 
@@ -3475,15 +3474,19 @@ test_clustering_evacuation() {
     delay=0.2
     max_attempts=60
 
+    # Check if the operation is still running in a loop. The jq command is a little complex because the response from
+    # /1.0/operations?recursion=1 is an object where each key is the lowercased operation status, and each value is an
+    # array of operations whose status matches the key. The command flattens this into a single array, then unwraps the
+    # array to get a list of objects, then selects only the evacuation operation by its description, and checks the status code.
     for i in $(seq "${max_attempts}"); do
-      if ! LXD_DIR="${lxd_dir}" lxc operation list --format csv | grep -F "Evacuating cluster member" >/dev/null; then
+      if LXD_DIR="${lxd_dir}" lxc query /1.0/operations?recursion=1 | jq --exit-status '[.[]] | flatten | .[] | select(.description == "Evacuating cluster member") | .status_code >= 200'; then
         return 0
       fi
 
       sleep "${delay}"
     done
 
-    echo "Evacuation operation still present after ${i} attempts (~${delay}s interval)"
+    echo "Evacuation operation still running after ${i} attempts (~${delay}s interval)"
     return 1
   }
   echo "Create cluster with 3 nodes"
@@ -5915,7 +5918,7 @@ test_clustering_replicator_basic() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '.. | objects | select(.description == "Running replicator")')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 5 and .status == "Success" and .child_count == 4 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c3,STOPPED'
@@ -5937,7 +5940,7 @@ test_clustering_replicator_basic() {
   # (delete + recreate) existing instances and complete successfully.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 5 and .status == "Success" and .child_count == 4 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c3,STOPPED'
@@ -5950,7 +5953,7 @@ test_clustering_replicator_basic() {
   LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 c2 c3 --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 5 and .status == "Success" and .child_count == 4 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc project unset replicator-project restricted
 
   sub_test "Verify concurrent replicator runs are rejected"
@@ -6056,7 +6059,7 @@ test_clustering_replicator_scheduled() {
 
   local scheduled_op
   scheduled_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 2 and .status == "Success" and ((.children // []) | length) == 1 and (all(.children[]; .status == "Success"))' <<< "${scheduled_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and .child_count == 2 and (all(.children[]; .status == "Success"))' <<< "${scheduled_op}"
 
   sub_test "Verify scheduler skips replicator when source project is not in leader mode"
 
@@ -6130,7 +6133,7 @@ test_clustering_replicator_dr() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 --project replicator-project -d "${SMALL_ROOT_DISK}"
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
 
@@ -6205,7 +6208,7 @@ test_clustering_replicator_dr() {
   LXD_DIR="${LXD_ONE_DIR}" lxc stop c1 --force --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 5 and .status == "Success" and .child_count == 4 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   # c1 and c2 are restored from LXD_TWO's current state; c3 (created on LXD_TWO during failover) is created from scratch.
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
@@ -6224,7 +6227,7 @@ test_clustering_replicator_dr() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 5 and .status == "Success" and .child_count == 4 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c3,STOPPED'
@@ -6378,7 +6381,7 @@ test_clustering_replicator_multi_member() {
 
   # The replicator operation must report success with two child operations.
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   sub_test "Verify snapshotting works for instances on other cluster members"
 
@@ -6398,7 +6401,7 @@ test_clustering_replicator_multi_member() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   # Snapshot count must have incremented on both source instances after the third run.
   LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 3'
@@ -6430,7 +6433,7 @@ test_clustering_replicator_multi_member() {
 
   # Restore operation must succeed with both instances.
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '.status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '.status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   # Both instances must be present on the source cluster with their snapshots.
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c1,STOPPED,3'
@@ -6534,7 +6537,7 @@ test_clustering_replicator_evacuated_member() {
 
   # Replicator operation must succeed with two child operations.
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '.status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '.status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   sub_test "Restore with evacuated member"
 
@@ -6680,7 +6683,7 @@ test_clustering_replicator_vm() {
 
   # Operation must succeed.
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '.status == "Success" and ((.children // []) | length) == 1 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '.status == "Success" and .child_count == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   # Each run adds a snapshot; source now has three.
   LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/v1/snapshots?project=replicator-project" | jq --exit-status 'length == 3'
@@ -6771,7 +6774,7 @@ test_clustering_replicator_unclustered() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 --project replicator-project -d "${SMALL_ROOT_DISK}"
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and ((.children // []) | length) == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
 
@@ -6832,7 +6835,7 @@ test_clustering_replicator_unclustered() {
   # must fall back to core.https_address rather than the sentinel address.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and ((.children // []) | length) == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 5 and .status == "Success" and .child_count == 4 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   # c1 and c2 are restored from LXD_TWO; c3 was created during failover and is also restored.
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
@@ -7027,4 +7030,236 @@ test_clustering_acme() {
   kill_lxd "${LXD_ONE_DIR}"
 
   kill_acme
+}
+
+test_clustering_durable_operations() {
+  spawn_lxd_and_bootstrap_cluster
+  echo "Launched member 1"
+
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+
+  # Spawn a second node
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}"
+
+  echo "Launched member 2"
+
+  # Spawn a third node
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}"
+
+  echo "Launched member 3"
+
+  # Spawn a fourth node, this will be a non-voter, stand-by node.
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+
+  echo "Launched member 4"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -wFc "database-standby")" = "1" ]
+
+  # Set the offline threshold to the minimum allowed value
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold=11
+
+  sub_test "Durable operation moves to leader when member is killed"
+
+  # Spawn a durable operation on node 2 and sleep to ensure it starts.
+  # At the moment we know that node1 is the leader because it is the member that was bootstrapped.
+  operation_id="$(LXD_DIR="${LXD_TWO_DIR}" lxd_durable_wait_operation "12s")"
+  sleep 1
+
+  # Kill the second node.
+  kill_go_proc "$(< "${LXD_TWO_DIR}/lxd.pid")"
+  echo "Stopped member 2"
+
+  # Wait for the operation to succeed. In this time it will have moved to the leader.
+  succeeded=0
+  for i in $(seq 60); do
+    if LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/operations/${operation_id}" | jq --exit-status '.status == "Success" and .location == "node1"'; then
+      succeeded=1
+      break
+    fi
+
+    sleep 1
+  done
+
+  if [ "${succeeded}" = 0 ]; then
+    echo "Durable operation did not move to the leader"
+    false
+  fi
+
+  # Respawn the second node.
+  echo "Respawning cluster member 2..."
+  respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
+
+  echo "Started member 2"
+
+  # Wait for node2 to be detected as back online.
+  for _ in $(seq 20); do
+    if [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc query /1.0/cluster/members/node2 | jq --exit-status -r '.status')" = 'Online' ]; then
+      break
+    fi
+
+    sleep 1
+  done
+
+  echo "Member 2 is online"
+
+  sub_test "Durable operation restarts on new leader when current leader is killed"
+
+  # Spawn a durable operation on the leader and sleep to ensure it starts
+  operation_id="$(LXD_DIR="${LXD_ONE_DIR}" lxd_durable_wait_operation "12s")"
+  sleep 1
+
+  # Shutdown the leader.
+  kill_go_proc "$(< "${LXD_ONE_DIR}/lxd.pid")"
+  echo "Stopped leader (member 1)"
+
+  # Wait for the operation to succeed. In this time leader election should occur and the operation should restart on the new leader.
+  succeeded=0
+  for i in $(seq 60); do
+    leader="$(lxd_leader_name "${LXD_TWO_DIR}")"
+    if LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/operations/${operation_id}" | jq --exit-status '.status == "Success" and .location == "'"${leader}"'"'; then
+      succeeded=1
+      break
+    fi
+
+    sleep 1
+  done
+
+  if [ "${succeeded}" = 0 ]; then
+    echo "Durable operation was not restarted on the newly elected leader"
+    false
+  fi
+
+  echo "Respawning member 1"
+  respawn_lxd_cluster_member "${ns1}" "${LXD_ONE_DIR}"
+  echo "Started member 1"
+
+  # Wait for previous leader to be detected as back online.
+  for _ in $(seq 20); do
+    if [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc query /1.0/cluster/members/node1 | jq --exit-status -r '.status')" = 'Online' ]; then
+      break
+    fi
+
+    sleep 1
+  done
+
+  echo "Member 1 is now online"
+
+  sub_test "Durable operation moves to leader when non-leader member is network partitioned"
+
+  # Spawn a durable operation on a non-leader node.
+  # We know that node1 is not the leader because it has just respawned and rejoined.
+  operation_id="$(LXD_DIR="${LXD_ONE_DIR}" lxd_durable_wait_operation "12s")"
+  sleep 1
+
+  # Partition the node from the network by blocking traffic on port 8443 (cluster HTTPS port)
+  echo "Partitioning node1 from network"
+  ip netns exec "${ns1}" iptables -A INPUT -p tcp --dport 8443 -j DROP
+  ip netns exec "${ns1}" iptables -A OUTPUT -p tcp --sport 8443 -j DROP
+
+  # Wait for the operation to succeed on the leader
+  succeeded=0
+  for i in $(seq 60); do
+    leader="$(lxd_leader_name "${LXD_ONE_DIR}")"
+    # Query from a non-partitioned node
+    if LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/operations/${operation_id}" | jq --exit-status '.status == "Success" and .location == "'"${leader}"'"'; then
+      succeeded=1
+      break
+    fi
+
+    sleep 1
+  done
+
+  if [ "${succeeded}" = 0 ]; then
+    echo "Durable operation did not move to the leader after network partition"
+    # Clean up partition before failing
+    ip netns exec "${ns1}" iptables -F || true
+    false
+  fi
+
+  # Verify the operation was cancelled on the partitioned node by checking it's not in the local operations list
+  # Note: We cannot query the partitioned node's API due to the partition, so we'll verify after removing partition
+
+  # Remove the network partition
+  echo "Removing network partition"
+  ip netns exec "${ns1}" iptables -F
+
+  # Wait for partitioned member to be detected as back online.
+  for _ in $(seq 20); do
+    if [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc query /1.0/cluster/members/node1 | jq --exit-status -r '.status')" = 'Online' ]; then
+      break
+    fi
+
+    sleep 1
+  done
+
+  sub_test "Durable operation restarts on new leader when current leader is partitioned from the network"
+
+  # Spawn a durable operation on the current leader.
+  # We don't know who the leader is, so find it first.
+  leader_name="$(lxd_leader_name "${LXD_ONE_DIR}")"
+  leader_dir="$(lxd_dir_from_name "${leader_name}")"
+  leader_ns="${bridge}${leader_name#node}"
+  operation_id="$(LXD_DIR="${leader_dir}" lxd_durable_wait_operation "12s")"
+  sleep 1
+
+  # Partition the node from the network by blocking traffic on port 8443 (cluster HTTPS port)
+  echo "Partitioning ${leader_name} from network"
+  ip netns exec "${leader_ns}" iptables -A INPUT -p tcp --dport 8443 -j DROP
+  ip netns exec "${leader_ns}" iptables -A OUTPUT -p tcp --sport 8443 -j DROP
+
+  # Wait for the operation to succeed on the leader
+  succeeded=0
+  for i in $(seq 60); do
+    leader="$(lxd_leader_name "${LXD_ONE_DIR}")"
+    # Query from a non-partitioned node
+    if LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/operations/${operation_id}" | jq --exit-status '.status == "Success" and .location == "'"${leader}"'"'; then
+      succeeded=1
+      break
+    fi
+
+    sleep 1
+  done
+
+  if [ "${succeeded}" = 0 ]; then
+    echo "Durable operation did not move to the leader after network partition"
+    # Clean up partition before failing
+    ip netns exec "${leader_ns}" iptables -F || true
+    false
+  fi
+
+  # Verify the operation was cancelled on the partitioned node by checking it's not in the local operations list
+  # Note: We cannot query the partitioned node's API due to the partition, so we'll verify after removing partition
+
+  # Remove the network partition
+  echo "Removing network partition"
+  ip netns exec "${leader_ns}" iptables -F
+
+  # Wait for partitioned member to be detected as back online.
+  for _ in $(seq 20); do
+    if [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/cluster/members/${leader_name}" | jq --exit-status -r '.status')" = 'Online' ]; then
+      break
+    fi
+
+    sleep 1
+  done
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
 }

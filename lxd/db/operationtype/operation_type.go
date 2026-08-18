@@ -105,7 +105,7 @@ const (
 	ProjectDelete
 	Wait
 	SnapshotsCreateScheduled
-	PruneExpiredOperations
+	SynchronizeOperations
 	StoragePoolCreate
 	StoragePoolUpdate
 	StoragePoolDelete
@@ -143,8 +143,10 @@ const (
 	NetworkZoneRecordUpdate
 	NetworkZoneRecordDelete
 	ReplicatorRun
-	ReplicatorRunInstance
+	ReplicatorRunInstanceForward
 	ProjectReplicaModeUpdate
+	ReplicatorFinalize
+	ReplicatorRunInstanceRestore
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -316,8 +318,8 @@ func (t Type) Description() string {
 		return "Just chilling"
 	case SnapshotsCreateScheduled:
 		return "Creating scheduled instance snapshots"
-	case PruneExpiredOperations:
-		return "Pruning expired operations"
+	case SynchronizeOperations:
+		return "Synchronizing operations"
 	case StoragePoolCreate:
 		return "Creating storage pool"
 	case StoragePoolUpdate:
@@ -392,10 +394,14 @@ func (t Type) Description() string {
 		return "Deleting network zone record"
 	case ReplicatorRun:
 		return "Running replicator"
-	case ReplicatorRunInstance:
+	case ReplicatorRunInstanceForward:
 		return "Replicating instance"
+	case ReplicatorRunInstanceRestore:
+		return "Restoring replicated instance"
 	case ProjectReplicaModeUpdate:
 		return "Updating project replica mode"
+	case ReplicatorFinalize:
+		return "Finalizing replicator"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -413,7 +419,7 @@ func (t Type) EntityType() entity.Type {
 		WarningsPruneResolved, ClusterMemberEvacuate, ClusterMemberRestore, LogsExpire, InstanceTypesUpdate,
 		BackupsExpire, SnapshotsExpire, ClusterJoinToken, CertificateAddToken, RenewServerCertificate,
 		ClusterHeal, ImagesUpdate, VolumeSnapshotsCreateScheduled, SnapshotsCreateScheduled,
-		PruneExpiredOperations, RefreshClusterLinkVolatileAddresses,
+		SynchronizeOperations, RefreshClusterLinkVolatileAddresses,
 		StoragePoolCreate, Wait:
 		return entity.TypeServer
 
@@ -422,7 +428,7 @@ func (t Type) EntityType() entity.Type {
 	// (the entity being created is not yet referenceable).
 	case VolumeCreate, ProjectRename, InstanceCreate, ImageDownload, ImageUploadToken, CustomVolumeBackupRestore,
 		InstanceStateUpdateBulk, BackupRestore, ProjectDelete, NetworkCreate, NetworkACLCreate, StorageBucketCreate,
-		NetworkZoneCreate, ReplicatorRunInstance, ProjectReplicaModeUpdate:
+		NetworkZoneCreate, ReplicatorRunInstanceForward, ProjectReplicaModeUpdate, ReplicatorRunInstanceRestore:
 		return entity.TypeProject
 
 	// Storage bucket operations.
@@ -491,7 +497,7 @@ func (t Type) EntityType() entity.Type {
 	case NetworkZoneUpdate, NetworkZoneDelete, NetworkZoneRecordCreate, NetworkZoneRecordUpdate, NetworkZoneRecordDelete:
 		return entity.TypeNetworkZone
 	// Replicator operations.
-	case ReplicatorRun:
+	case ReplicatorRun, ReplicatorFinalize:
 		return entity.TypeReplicator
 
 	// It should never be possible to reach the default clause.
@@ -533,4 +539,14 @@ func (t Type) ConflictAction() ConflictAction {
 	}
 
 	return ConflictActionNone
+}
+
+// MustRun returns true if operations with this type must run regardless of previous stage failures.
+func (t Type) MustRun() bool {
+	switch t {
+	case ReplicatorFinalize:
+		return true
+	default:
+		return false
+	}
 }

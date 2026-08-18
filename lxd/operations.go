@@ -646,9 +646,15 @@ func operationsGetByType(ctx context.Context, s *state.State, projectName string
 		}
 	}
 
+	now := time.Now()
 	apiOps := make([]*api.Operation, 0, len(ops))
 	for _, op := range ops {
 		if s.ServerClustered && excludeOffline && !online[op.NodeAddress] {
+			continue
+		}
+
+		// Skip operations that finished more than 5 seconds ago.
+		if api.StatusCode(op.Row.StatusCode).IsFinal() && now.Sub(op.Row.UpdatedAt) > 5*time.Second {
 			continue
 		}
 
@@ -1094,46 +1100,34 @@ func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 	return nil
 }
 
-// PruneExpiredOperationsTask returns a task function and schedule that is used to prune expired operations from the database.
-func pruneExpiredOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
+// synchronizeOperationsTask returns a task function and schedule that is used to synchronize and prune expired operations from the database.
+func synchronizeOperationsTask(stateFunc func() *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := stateFunc()
-
-		leaderInfo, err := s.LeaderInfo()
-		if err != nil {
-			logger.Error("Failed getting leader cluster member address", logger.Ctx{"err": err})
-			return
-		}
-
-		if !leaderInfo.Leader {
-			logger.Debug("Skipping pruning expired operations since we're not leader")
-			return
-		}
-
 		opRun := func(ctx context.Context, op *operations.Operation) error {
-			return operations.PruneExpiredOperations(ctx, s)
+			return operations.Synchronize(ctx, s)
 		}
 
 		args := operations.OperationArgs{
-			Type:    operationtype.PruneExpiredOperations,
+			Type:    operationtype.SynchronizeOperations,
 			Class:   operationtype.OperationClassTask,
 			RunHook: opRun,
 		}
 
 		op, err := operations.ScheduleServerOperation(s, args)
 		if err != nil {
-			logger.Error("Failed creating prune expired operations operation", logger.Ctx{"err": err})
+			logger.Error("Failed creating operation synchronization operation", logger.Ctx{"err": err})
 			return
 		}
 
 		err = op.Wait(ctx)
 		if err != nil {
-			logger.Error("Failed pruning expired operations", logger.Ctx{"err": err})
+			logger.Error("Failed synchronizing operations", logger.Ctx{"err": err})
 			return
 		}
 	}
 
-	return f, task.Hourly()
+	return f, task.Every(time.Minute)
 }
 
 // operationWaitPost represents the fields of a request to register a dummy operation.
@@ -1145,6 +1139,74 @@ type operationWaitPost struct {
 	ConflictReference string              `json:"conflict_reference" yaml:"conflict_reference"`
 }
 
+func init() {
+	operations.RegisterDurableOperationRunHook(operationtype.Wait, waitHandlerOperationRunHook)
+}
+
+const operationInputKeyWaitHandlerDuration operations.InputKey = "duration"
+
+func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) error {
+	inputDuration, err := operations.GetOperationInputValue[string](op, operationInputKeyWaitHandlerDuration)
+	if err != nil {
+		return err
+	}
+
+	duration, err := time.ParseDuration(inputDuration)
+	if err != nil {
+		return fmt.Errorf("Invalid duration: %w", err)
+	}
+
+	logger.Warnf("Starting wait handler operation for %s", duration.String())
+
+	// Initialize metadata map if needed.
+	metadata := op.Metadata()
+	if metadata == nil {
+		metadata = make(map[string]any)
+		err = op.UpdateMetadata(metadata)
+		if err != nil {
+			return fmt.Errorf("Failed initializing operation metadata: %w", err)
+		}
+	}
+
+	// See if some waiting was already done.
+	elapsed := time.Duration(0)
+	elapsedMetadata, ok := metadata["elapsed"]
+	if ok {
+		elapsed, err = time.ParseDuration(elapsedMetadata.(string))
+		if err != nil {
+			return fmt.Errorf("Failed parsing elapsed metadata: %w", err)
+		}
+
+		logger.Warnf("Resuming wait handler operation, already waited for %s", elapsed.String())
+	}
+
+	for duration > elapsed {
+		// Sleep for one second, or until the run context is cancelled.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Second):
+		}
+
+		elapsed = elapsed + time.Second
+		logger.Warnf("Wait handler operation running for %d seconds...", elapsed/time.Second)
+		metadata["elapsed"] = elapsed.String()
+		err = op.UpdateMetadata(metadata)
+		if err != nil {
+			return fmt.Errorf("Failed updating operation metadata: %w", err)
+		}
+
+		err = op.Persist()
+		if err != nil {
+			return fmt.Errorf("Failed persisting operation: %w", err)
+		}
+	}
+
+	logger.Warn("Wait handler operation completed")
+
+	return nil
+}
+
 // operationWaitHandler creates a dummy operation that waits for a specified duration.
 func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	// Extract the entity URL and duration from the request.
@@ -1154,28 +1216,9 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Parse the duration.
-	duration, err := time.ParseDuration(req.Duration)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
 	err = operationtype.Validate(req.OpType)
 	if err != nil {
 		return response.BadRequest(fmt.Errorf("Invalid operation type code %d", req.OpType))
-	}
-
-	run := func(ctx context.Context, op *operations.Operation) error {
-		// Sleep for the duration, or until the run context is cancelled.
-		timer := time.NewTimer(duration)
-		defer timer.Stop()
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-timer.C:
-		}
-
-		return nil
 	}
 
 	var entityURL *api.URL
@@ -1196,17 +1239,27 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	args := operations.OperationArgs{
+	args := &operations.OperationArgs{
 		ProjectName:       request.QueryParam(r, "project"),
 		Type:              req.OpType,
 		Class:             req.OpClass,
-		RunHook:           run,
+		RunHook:           waitHandlerOperationRunHook,
 		ConnectHook:       onConnect,
 		EntityURL:         entityURL,
 		ConflictReference: req.ConflictReference,
 	}
 
-	op, err := operations.ScheduleServerOperation(d.State(), args)
+	err = args.SetInputValue(operationInputKeyWaitHandlerDuration, req.Duration)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Can't set the run hook for durable operations.
+	if args.Class == operationtype.OperationClassDurable {
+		args.RunHook = nil
+	}
+
+	op, err := operations.ScheduleServerOperation(d.State(), *args)
 	if err != nil {
 		return response.InternalError(err)
 	}

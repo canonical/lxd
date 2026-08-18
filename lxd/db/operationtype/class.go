@@ -2,6 +2,7 @@ package operationtype
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/canonical/lxd/shared/api"
 )
@@ -16,6 +17,8 @@ const (
 	OperationClassWebsocket Class = 2
 	// OperationClassToken represents the Token Class.
 	OperationClassToken Class = 3
+	// OperationClassDurable represents the Durable Class.
+	OperationClassDurable Class = 4
 )
 
 // String implements [fmt.Stringer] for [Class].
@@ -24,6 +27,7 @@ func (t Class) String() string {
 		OperationClassTask:      api.OperationClassTask,
 		OperationClassWebsocket: api.OperationClassWebsocket,
 		OperationClassToken:     api.OperationClassToken,
+		OperationClassDurable:   api.OperationClassDurable,
 	}[t]
 }
 
@@ -34,4 +38,9 @@ func (t Class) Validate() error {
 	}
 
 	return nil
+}
+
+// SupportsBulkOperations returns true if operations of this class may be a parent or child operation.
+func (t Class) SupportsBulkOperations() bool {
+	return slices.Contains([]Class{OperationClassTask, OperationClassDurable}, t)
 }

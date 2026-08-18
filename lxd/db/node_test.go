@@ -374,8 +374,8 @@ func TestGetNodeWithLeastInstances_Pending(t *testing.T) {
 
 	// Add a pending instance to the default node (ID 1)
 	_, err = tx.Tx().Exec(`
-INSERT INTO operations (id, uuid, node_id, type, project_id, class, metadata, inputs, error, conflict_reference) VALUES (1, 'abc', 1, ?, 1, 1, '', '', '', '')
-`, operationtype.InstanceCreate)
+INSERT INTO operations (id, uuid, node_id, type, project_id, class, metadata, inputs, error, conflict_reference, status_code) VALUES (1, 'abc', 1, ?, 1, 1, '', '', '', '', ?)
+`, operationtype.InstanceCreate, api.Running)
 	require.NoError(t, err)
 
 	allMembers, err := tx.GetNodes(context.Background())

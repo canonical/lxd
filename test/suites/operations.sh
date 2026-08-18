@@ -30,7 +30,7 @@ test_get_operations() {
     test "${proj1_count}" -eq 1
     proj2_count=$(jq --exit-status '[.success[] | select(.description == "Executing command")] | length' <<< "${proj2_full_ops_json}")
     test "${proj2_count}" -eq 1
-    all_count=$(jq --exit-status '[.success[] | select(.description == "Executing command")] | length' <<< "${all_full_ops_json}")
+    all_count=$(jq --exit-status '[.success[] | select(.description == "Executing command" and (.metadata.entity_url | test("project=op-proj\\d$")?))] | length' <<< "${all_full_ops_json}")
     test "${all_count}" -eq 2
 
     proj1_op_id=$(jq --exit-status -r '.success[] | select(.description == "Executing command") | .id' <<< "${proj1_full_ops_json}")

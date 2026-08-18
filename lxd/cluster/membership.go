@@ -733,7 +733,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	}
 
 	// Setup a full-state notification heartbeat.
-	hbState.Update(true, raftNodes, members, gateway.HeartbeatOfflineThreshold)
+	hbState.Update(true, raftNodes, members, gateway.offlineThreshold())
 
 	var wg sync.WaitGroup
 

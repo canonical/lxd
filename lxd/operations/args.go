@@ -1,10 +1,12 @@
 package operations
 
 import (
-	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/metrics"
@@ -12,6 +14,9 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
+
+// InputKey is used to get and set operation inputs. It is a string alias type to encourage const usage (like for context keys).
+type InputKey string
 
 // OperationArgs contains all the arguments for operation creation.
 type OperationArgs struct {
@@ -45,7 +50,7 @@ type OperationArgs struct {
 	Metadata map[string]any
 
 	// RunHook is the function that runs when the operation is scheduled. Token operations may not have a RunHook.
-	RunHook func(ctx context.Context, op *Operation) error
+	RunHook RunHook
 
 	// ConnectHook is the function that runs when a client calls /1.0/operations/{id}/websocket. It is used for instance
 	// exec and migrations. Only websocket operations can have a ConnectHook.
@@ -54,6 +59,15 @@ type OperationArgs struct {
 	// ConflictReference is used to prevent other operations with the same conflict reference from running.
 	// It is not valid to provide a conflict reference if the Type has [operationtype.ConflictActionNone].
 	ConflictReference string
+
+	// Stage defines ordering of child operations. It is not valid to set Stage > 0 on operations that are not children.
+	// Child stages must be consecutive, starting at zero. This is an uint16 to indicate that it is a low positive integer.
+	Stage uint16
+
+	// inputs are used by durable operations to give the statically defined RunHook access to caller context.
+	// These values are saved to the database should the operation be relocated.
+	// Values must be set via [OperationArgs.SetInputValue].
+	inputs map[InputKey]json.RawMessage
 
 	// Children are sub-operations of a bulk operation. It is not valid to provide children if [operationtype.Type.IsBulk]
 	// returns false for the Type.
@@ -127,24 +141,35 @@ func (a OperationArgs) validate(isChild bool) error {
 		if a.RunHook != nil {
 			return errors.New("Token operations cannot have a Run hook")
 		}
+
+	case operationtype.OperationClassDurable:
+		if a.RunHook != nil {
+			return errors.New("Durable operation Run hooks are statically defined")
+		}
 	}
 
 	if a.Class != operationtype.OperationClassWebsocket && a.ConnectHook != nil {
 		return errors.New("Only websocket operations can have a Connect hook")
 	}
 
-	if a.Class != operationtype.OperationClassTask && isBulkOperation {
-		return errors.New("Only task operations can have children")
+	if !a.Class.SupportsBulkOperations() && isBulkOperation {
+		return fmt.Errorf("Operations of class %q cannot have children", a.Class.String())
 	}
 
-	if a.Class != operationtype.OperationClassTask && isChild {
-		return errors.New("Only task operations can be child operations")
+	if !a.Class.SupportsBulkOperations() && isChild {
+		return fmt.Errorf("Operations of class %q cannot have a parent operation", a.Class.String())
 	}
 
 	if a.ConflictReference != "" && a.Type.ConflictAction() == operationtype.ConflictActionNone {
 		return fmt.Errorf("Conflict reference %q provided for operation type %q that does not support conflicts", a.ConflictReference, a.Type.Description())
 	}
 
+	if !isChild && a.Stage > 0 {
+		return errors.New("Only child operations have stages")
+	}
+
+	// Sort the children into stages.
+	childrenByStage := make(map[uint16][]*OperationArgs)
 	for i, child := range a.Children {
 		if child == nil {
 			return errors.New("Operation children cannot be nil")
@@ -158,7 +183,94 @@ func (a OperationArgs) validate(isChild bool) error {
 		if err != nil {
 			return fmt.Errorf(`Failed validating child operation "%d": %w`, i, err)
 		}
+
+		childrenByStage[child.Stage] = append(childrenByStage[child.Stage], child)
 	}
 
+	// Get a sorted slice of stages. It must be [0, 1, 2, ...].
+	stages := slices.Collect(maps.Keys(childrenByStage))
+	slices.Sort(stages)
+	for i, stage := range stages {
+		if stage != uint16(i) {
+			return errors.New("Child operation stages must be consecutive, starting at 0")
+		}
+
+		// All children in a stage must be the same type.
+		// There is always at least one child in each stage.
+		stageType := childrenByStage[stage][0].Type
+		for _, childInStage := range childrenByStage[stage][1:] {
+			if childInStage.Type != stageType {
+				return errors.New("All children in a stage must have the same operation type")
+			}
+		}
+	}
+
+	return nil
+}
+
+// SetInputValue sets the given value on the operation inputs. This enforces that the value can be serialized.
+// Values can be retrieved via [GetOperationInputValue].
+func (a *OperationArgs) SetInputValue(key InputKey, value any) error {
+	return a.SetInputValues(map[InputKey]any{key: value})
+}
+
+// SetInputValues sets the given values on the operation inputs. This enforces that the values can be serialized.
+// Values can be retrieved via [GetOperationInputValue].
+func (a *OperationArgs) SetInputValues(values map[InputKey]any) error {
+	if a.inputs == nil {
+		a.inputs = map[InputKey]json.RawMessage{}
+	}
+
+	for k, v := range values {
+		b, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Errorf("Failed setting operation input value for key %q: %w", k, err)
+		}
+
+		a.inputs[k] = b
+	}
+
+	return nil
+}
+
+// bulkArgBuilder is a convenience wrapper for creating OperationArgs with multiple stages and/or input values.
+type bulkArgBuilder struct {
+	stage uint16
+	args  *OperationArgs
+}
+
+// NewBulkArgBuilder returns a [bulkArgBuilder]. The parent OperationArgs are required.
+func NewBulkArgBuilder(parentArgs OperationArgs) *bulkArgBuilder {
+	return &bulkArgBuilder{
+		args: &parentArgs,
+	}
+}
+
+// Args returns the result of the builder.
+func (a *bulkArgBuilder) Args() OperationArgs {
+	return *a.args
+}
+
+// IncrementStage increments the stage of the builder. To ensure that bulkArgBuilder always returns valid OperationArgs,
+// the stage is not incremented if there are no child operations or if no children were added to the current stage
+// (stages must be consecutive, starting at zero).
+func (a *bulkArgBuilder) IncrementStage() {
+	if len(a.args.Children) == 0 || a.args.Children[len(a.args.Children)-1].Stage != a.stage {
+		return
+	}
+
+	a.stage++
+}
+
+// AddChildArgs adds a child OperationArgs with the current stage and any given inputs.
+func (a *bulkArgBuilder) AddChildArgs(args OperationArgs, inputs map[InputKey]any) error {
+	childArgs := &args
+	err := childArgs.SetInputValues(inputs)
+	if err != nil {
+		return err
+	}
+
+	childArgs.Stage = a.stage
+	a.args.Children = append(a.args.Children, childArgs)
 	return nil
 }
