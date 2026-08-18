@@ -69,9 +69,9 @@ if [ "${needsMinio}" = "true" ]; then
   curl -sSfL "https://dl.min.io/client/mc/release/linux-${arch}/mc" --output "/opt/minio/mc"
   chmod +x "/opt/minio/mc"
 
-  # Set the snap config key for minio and reload LXD to have it take effect.
+  # Set the snap config key for minio and restart LXD to have it take effect.
   snap set lxd minio.path=/opt/minio
-  systemctl reload snap.lxd.daemon
+  systemctl restart snap.lxd.daemon.service
   lxd waitready --timeout=300
 fi
 
