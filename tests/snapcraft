@@ -1,0 +1,63 @@
+#!/bin/bash
+set -eux
+
+# Install and setup LXD.
+install_lxd
+lxd init --auto
+
+# Install snapcraft (use latest/candidate to help catch regressions in LXD/snapcraft earlier).
+snap install snapcraft --classic --channel=latest/candidate
+
+tmpdir="$(mktemp -d)"
+cd "${tmpdir}"
+
+mkdir -p "${tmpdir}/snap"
+mkdir -p "${tmpdir}/src"
+
+# Create the app to pack.
+cat << 'EOF' > "${tmpdir}/src/example.sh"
+#!/bin/bash
+echo "Example snap."
+EOF
+
+chmod +x "${tmpdir}/src/example.sh"
+
+# Create the snapcraft.yaml file.
+cat << 'EOF' > "${tmpdir}/snap/snapcraft.yaml"
+name: snap-example
+version: '0.1'
+summary: A simple snap
+description: |
+  This is a basic snap.
+
+base: core24
+confinement: strict
+grade: devel
+
+apps:
+  snap-example:
+    command: bin/example.sh
+
+parts:
+  example-script:
+    plugin: dump
+    source: src/
+    organize:
+      example.sh: bin/example.sh
+EOF
+
+# Produce the snap file.
+snapcraft pack -v
+
+# Verify the snap artifact was produced (arch suffix varies, so glob it).
+ls snap-example_0.1_*.snap
+
+# Confirm snapcraft used the LXD backend.
+lxc list --project snapcraft
+
+# Clean up the temporary working directory.
+cd - > /dev/null
+rm -rf "${tmpdir}"
+
+# shellcheck disable=SC2034
+FAIL=0
