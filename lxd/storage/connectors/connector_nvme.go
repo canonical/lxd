@@ -63,15 +63,11 @@ type nvmeDiscoveryLog struct {
 	Records []NVMeDiscoveryLogRecord `json:"records"`
 }
 
-// nvmeFilterDiscoveryLog filters out entries from the provided discovery log
-// that do not describe NVMe targets with specified transport type.
-func nvmeFilterDiscoveryLog(log *nvmeDiscoveryLog, transportType string) {
-	if len(log.Records) == 0 {
-		return
-	}
-
-	filteredRecords := make([]NVMeDiscoveryLogRecord, 0, len(log.Records))
-	for _, record := range log.Records {
+// nvmeFilterDiscoveryLog filters out the discovery log records that do not
+// describe NVMe targets with specified transport type.
+func nvmeFilterDiscoveryLog(records []NVMeDiscoveryLogRecord, transportType string) []NVMeDiscoveryLogRecord {
+	filtered := make([]NVMeDiscoveryLogRecord, 0, len(records))
+	for _, record := range records {
 		if record.SubType != SubtypeNVMESubsys {
 			continue
 		}
@@ -80,24 +76,25 @@ func nvmeFilterDiscoveryLog(log *nvmeDiscoveryLog, transportType string) {
 			continue
 		}
 
-		filteredRecords = append(filteredRecords, record)
+		filtered = append(filtered, record)
 	}
 
-	log.Records = filteredRecords
+	return filtered
 }
 
 // nvmeNormalizeDiscoveryLog sets the default transport port on TCP discovery
-// entries that do not specify one.
-func nvmeNormalizeDiscoveryLog(log *nvmeDiscoveryLog) {
-	if len(log.Records) == 0 {
-		return
+// records that do not specify one.
+func nvmeNormalizeDiscoveryLog(records []NVMeDiscoveryLogRecord) []NVMeDiscoveryLogRecord {
+	normalized := make([]NVMeDiscoveryLogRecord, 0, len(records))
+	for _, record := range records {
+		if record.TransportType == nvmeTransportTypeTCP && record.TransportServiceIdentifier == "" {
+			record.TransportServiceIdentifier = NVMeDefaultTransportPort
+		}
+
+		normalized = append(normalized, record)
 	}
 
-	for i := range log.Records {
-		if log.Records[i].TransportType == nvmeTransportTypeTCP && log.Records[i].TransportServiceIdentifier == "" {
-			log.Records[i].TransportServiceIdentifier = NVMeDefaultTransportPort
-		}
-	}
+	return normalized
 }
 
 // Type returns the type of the connector.
@@ -387,8 +384,8 @@ func (c *connectorNVMe) Discover(ctx context.Context, targetAddresses ...string)
 			return nil, fmt.Errorf("Failed unmarshaling the returned discovery log entries from %q: %w", targetAddr, err)
 		}
 
-		nvmeFilterDiscoveryLog(&discoveryLog, nvmeTransportTypeTCP)
-		nvmeNormalizeDiscoveryLog(&discoveryLog)
+		discoveryLog.Records = nvmeFilterDiscoveryLog(discoveryLog.Records, nvmeTransportTypeTCP)
+		discoveryLog.Records = nvmeNormalizeDiscoveryLog(discoveryLog.Records)
 
 		// Unmarshaling the response from the discovery succeeded, break the loop.
 		break
