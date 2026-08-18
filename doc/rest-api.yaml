@@ -9075,7 +9075,25 @@ paths:
                 - application/json
             responses:
                 "200":
-                    $ref: '#/responses/IdentityBearerToken'
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/IdentityBearerToken'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
                 "400":
                     $ref: '#/responses/BadRequest'
                 "403":

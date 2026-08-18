@@ -473,7 +473,25 @@ func identitiesBearerPost(d *Daemon, r *http.Request) response.Response {
 //	      $ref: "#/definitions/IdentityBearerTokenPost"
 //	responses:
 //	  "200":
-//	    $ref: "#/responses/IdentityBearerToken"
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/IdentityBearerToken"
 //	  "400":
 //	    $ref: "#/responses/BadRequest"
 //	  "403":
