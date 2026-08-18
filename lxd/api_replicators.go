@@ -1135,13 +1135,10 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 
 			childArgs = append(childArgs, &operations.OperationArgs{
 				ProjectName: projectName,
-				EntityURL:   projectURL,
-				Type:        operationtype.ReplicatorRunInstance,
+				EntityURL:   entity.InstanceURL(projectName, inst.Name()),
+				Type:        operationtype.ReplicatorRunInstanceForward,
 				Class:       operationtype.OperationClassTask,
-				Metadata: map[string]any{
-					api.MetadataEntityURL: entity.InstanceURL(projectName, inst.Name()).String(),
-				},
-				RunHook: copyFunc,
+				RunHook:     copyFunc,
 			})
 		}
 
@@ -1389,10 +1386,13 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 			return nil
 		}
 
+		// The instance may exist only on the current leader cluster, in which case this operation creates it
+		// locally and there is nothing to name yet. The project is the primary entity here, and the instance
+		// URL reaches clients through the metadata.
 		childArgs = append(childArgs, &operations.OperationArgs{
 			ProjectName: projectName,
 			EntityURL:   projectURL,
-			Type:        operationtype.ReplicatorRunInstance,
+			Type:        operationtype.ReplicatorRunInstanceRestore,
 			Class:       operationtype.OperationClassTask,
 			Metadata: map[string]any{
 				api.MetadataEntityURL: entity.InstanceURL(projectName, instName).String(),
