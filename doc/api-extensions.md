@@ -3643,3 +3643,9 @@ For bearer tokens the expiry is recorded when a token is issued and cleared when
 The field is omitted for identities whose credential has no expiry, that have no credential yet (pending identities), or whose token has been revoked.
 
 Note that bearer identities created prior to this extension will have an omitted `expires_at` field until a new token is issued.
+
+(extension-project-replica-mode-optional)=
+## `project_replica_mode_optional`
+
+The `replica_mode` field is now omitted from project responses when the project takes no part in replication, instead of being returned as an empty string.
+The field is still returned for projects in `leader` or `standby` mode.

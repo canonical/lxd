@@ -180,6 +180,34 @@ func ConnectCluster(ctx context.Context, clusterLink api.ClusterLink, args *lxd.
 	return nil, fmt.Errorf("Failed connecting to any address of cluster link %q: %w", clusterLink.Name, errors.Join(errs...))
 }
 
+// ErrClusterLinkUnreachable is returned by [ConnectClusterLinkByName] when the cluster link was
+// loaded successfully but none of its addresses could be reached. Callers that tolerate offline
+// clusters (such as disaster recovery paths) can check for it with [errors.Is].
+var ErrClusterLinkUnreachable = errors.New("Cluster link is unreachable")
+
+// ConnectClusterLinkByName loads the cluster link with the given name and connects to it.
+// If the link cannot be loaded the returned error describes the failure; if the link is loaded but
+// no address responds, the returned error wraps [ErrClusterLinkUnreachable].
+func ConnectClusterLinkByName(ctx context.Context, s *state.State, name string) (lxd.InstanceServer, error) {
+	var clusterLink *api.ClusterLink
+	var targetCert *x509.Certificate
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		_, clusterLink, targetCert, err = LoadClusterLinkAndCert(ctx, tx.Tx(), name)
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading cluster link %q: %w", name, err)
+	}
+
+	client, err := ConnectCluster(ctx, *clusterLink, GetClusterLinkConnectionArgs(s.Endpoints.NetworkCert(), targetCert))
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrClusterLinkUnreachable, err)
+	}
+
+	return client, nil
+}
+
 // RefreshClusterLinkVolatileAddresses refreshes the volatile addresses of a cluster link.
 // It connects to the linked cluster and retrieves its current cluster members. If the addresses
 // have changed, [CheckClusterLinkCertificate] is called to ensure the cluster certificate remains valid.
