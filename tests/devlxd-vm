@@ -141,9 +141,7 @@ if hasNeededAPIExtension devlxd_images_vm; then
   monitorPID="${!}"
 fi
 
-lxc exec v1 -- /snap/bin/lxc launch "${IMAGE}" v1v1 --vm
-sleep 30
-lxc exec v1 -- /snap/bin/lxc info v1v1 | grep -F RUNNING
+lxc exec v1 -- /snap/bin/lxc init "${IMAGE}" v1v1 --vm
 
 if hasNeededAPIExtension devlxd_images_vm; then
   kill "${monitorPID}"
