@@ -394,8 +394,11 @@ parts:
       cat << 'EOF' > debian/edk2-vars-generator.py
       #!/usr/bin/env python3
       import argparse
+      import os
       import subprocess
       import sys
+      import tempfile
+      import textwrap
 
       parser = argparse.ArgumentParser()
       parser.add_argument("-f", "--flavor")
@@ -409,8 +412,19 @@ parts:
       parser.add_argument("-d", "--debug", action="store_true")
       args, _ = parser.parse_known_args()
 
-      if args.certificate:
+      tmp_cert = None
+      cert_file = None
+
+      if args.certificate and os.path.isfile(args.certificate):
           cert_file = args.certificate
+      elif args.certificate:
+          b64_data = args.certificate.split(":", 1)[1] if ":" in args.certificate else args.certificate
+          formatted_b64 = textwrap.fill(b64_data.strip(), 64)
+          pem_content = f"-----BEGIN CERTIFICATE-----\n{formatted_b64}\n-----END CERTIFICATE-----\n"
+          tmp_cert = tempfile.NamedTemporaryFile("w", suffix=".pem", delete=False)
+          tmp_cert.write(pem_content)
+          tmp_cert.close()
+          cert_file = tmp_cert.name
       elif args.no_default:
           cert_file = "debian/PkKek-1-snakeoil.pem"
       else:
@@ -424,7 +438,15 @@ parts:
       ]
 
       print(f"Running: {' '.join(cmd)}")
-      res = subprocess.run(cmd)
+      try:
+          res = subprocess.run(cmd)
+      finally:
+          if tmp_cert:
+              try:
+                  os.unlink(tmp_cert.name)
+              except OSError:
+                  pass
+
       sys.exit(res.returncode)
       EOF
       chmod +x debian/edk2-vars-generator.py
