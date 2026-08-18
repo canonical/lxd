@@ -26,10 +26,10 @@ jobs:
     runs-on: ubuntu-24.04
 
     env:
-      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
-      CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
-      LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
-      LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
+      CGO_CFLAGS: "-I/home/runner/go/deps/dqlite/include/ -I/home/runner/go/deps/liblxc/include/"
+      CGO_LDFLAGS: "-L/home/runner/go/deps/dqlite/.libs/"
+      LD_LIBRARY_PATH: "/home/runner/go/deps/dqlite/.libs/"
+      LD_RUN_PATH: "/home/runner/go/deps/dqlite/.libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
 
     steps:
@@ -46,28 +46,10 @@ jobs:
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps
 
-      - name: Make LXD tarball and unpack it
-        env:
-          CUSTOM_VERSION: "test"
-        run: |
-          set -eux
-          make dist-dir
-
-          # Move the dist directory outside the workspace.
-          mv lxd-test ../
-
       - name: Build or restore dqlite/liblxc dependencies
         uses: ./.github/actions/cache-dqlite-liblxc
-
-      - name: Update env variables for deps
-        run: |
-          set -eux
-          LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
-
-          echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
-          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
-          echo "LD_RUN_PATH=${LD_RUN_PATH}:${LIBLXC_ARCH_LIBS}"         >> "${GITHUB_ENV}"
-          echo "PKG_CONFIG_PATH=${LIBLXC_ARCH_LIBS}/pkgconfig"          >> "${GITHUB_ENV}"
+        with:
+          export-env: true
 
       - name: Download go dependencies
         run: |

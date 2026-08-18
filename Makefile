@@ -29,7 +29,7 @@ else
 endif
 DQLITE_PATH=$(DEPS_PATH)/dqlite
 LIBLXC_PATH=$(DEPS_PATH)/liblxc
-LIBLXC_ROOTFS_MOUNT_PATH=$(GOPATH)/bin/liblxc/rootfs
+LIBLXC_ROOTFS_MOUNT_PATH=$(LIBLXC_PATH)/rootfs
 
 export CGO_CFLAGS ?= -I$(DQLITE_PATH)/include/ -I$(LIBLXC_PATH)/include/
 export CGO_LDFLAGS ?= -L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/
@@ -136,10 +136,12 @@ dqlite:
 		git -C "$(DQLITE_PATH)" checkout -B "${DQLITE_BRANCH}" FETCH_HEAD; \
 	fi
 
-	cd "$(DQLITE_PATH)" && \
-		autoreconf -i && \
-		./configure --enable-build-raft && \
-		make -j
+	@if [ ! -f "$(DQLITE_PATH)/Makefile" ]; then \
+		cd "$(DQLITE_PATH)" && \
+			autoreconf -i && \
+			./configure --enable-build-raft; \
+	fi
+	cd "$(DQLITE_PATH)" && make -j
 
 ifneq ($(shell command -v ldd),)
 	# verify that libdqlite.so is linked against some critically important libs
@@ -160,33 +162,32 @@ liblxc:
 		git -C "$(LIBLXC_PATH)" checkout -B "$(LIBLXC_BRANCH)" FETCH_HEAD; \
 	fi
 
-	# XXX: the rootfs-mount-path must not depend on LIBLXC_PATH to allow
-	# building in "vendor" mode but move the resulting binaries elsewhere for
-	# caching purposes
-	cd "$(LIBLXC_PATH)" && \
-		meson setup \
-			--buildtype=release \
-			-Dapparmor=true \
-			-Dcapabilities=true \
-			-Dcommands=false \
-			-Ddbus=false \
-			-Dexamples=false \
-			-Dinstall-init-files=false \
-			-Dinstall-state-dirs=false \
-			-Dlibdir="lib/$(ARCH)-linux-gnu" \
-			-Dman=false \
-			-Dmemfd-rexec=false \
-			-Dopenssl=false \
-			-Dprefix="$(LIBLXC_PATH)" \
-			-Drootfs-mount-path="$(LIBLXC_ROOTFS_MOUNT_PATH)" \
-			-Dseccomp=true \
-			-Dselinux=false \
-			-Dspecfile=false \
-			-Dtests=false \
-			-Dtools=false \
-			build && \
-		meson compile -C build && \
-		ninja -C build install
+	@mkdir -p "$(LIBLXC_ROOTFS_MOUNT_PATH)"
+	@if [ ! -d "$(LIBLXC_PATH)/build" ]; then \
+		cd "$(LIBLXC_PATH)" && \
+			meson setup \
+				--buildtype=release \
+				-Dapparmor=true \
+				-Dcapabilities=true \
+				-Dcommands=false \
+				-Ddbus=false \
+				-Dexamples=false \
+				-Dinstall-init-files=false \
+				-Dinstall-state-dirs=false \
+				-Dlibdir="lib/$(ARCH)-linux-gnu" \
+				-Dman=false \
+				-Dmemfd-rexec=false \
+				-Dopenssl=false \
+				-Dprefix="$(LIBLXC_PATH)" \
+				-Drootfs-mount-path="$(LIBLXC_ROOTFS_MOUNT_PATH)" \
+				-Dseccomp=true \
+				-Dselinux=false \
+				-Dspecfile=false \
+				-Dtests=false \
+				-Dtools=false \
+				build; \
+	fi
+	cd "$(LIBLXC_PATH)" && ninja -C build install
 
 ifneq ($(shell command -v ldd),)
 	# verify that liblxc.so is linked against some critically important libs

@@ -78,10 +78,10 @@ jobs:
     outputs:
       fast-backend: ${{ steps.pick-fast-backend.outputs.fast-backend }}
     env:
-      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
-      CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
-      LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
-      LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
+      CGO_CFLAGS: "-I/home/runner/go/deps/dqlite/include/ -I/home/runner/go/deps/liblxc/include/"
+      CGO_LDFLAGS: "-L/home/runner/go/deps/dqlite/.libs/"
+      LD_LIBRARY_PATH: "/home/runner/go/deps/dqlite/.libs/"
+      LD_RUN_PATH: "/home/runner/go/deps/dqlite/.libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
       SUDO_PRESERVE_ENV: "CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,PKG_CONFIG_PATH,LD_LIBRARY_PATH,PATH"
     if: ${{ github.event_name != 'schedule' || github.repository_owner == 'canonical' }}
@@ -174,16 +174,8 @@ jobs:
       # In code-tests, this action warms the cache for the system-tests job
       - name: Build or restore dqlite/liblxc dependencies
         uses: ./.github/actions/cache-dqlite-liblxc
-
-      - name: Update env variables for deps
-        run: |
-          set -eux
-          LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
-
-          echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
-          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
-          echo "LD_RUN_PATH=${LD_RUN_PATH}:${LIBLXC_ARCH_LIBS}"         >> "${GITHUB_ENV}"
-          echo "PKG_CONFIG_PATH=${LIBLXC_ARCH_LIBS}/pkgconfig"          >> "${GITHUB_ENV}"
+        with:
+          export-env: true
 
       - name: Build binaries
         run: |
@@ -828,10 +820,10 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [client, system-tests, snap-tests, ui-e2e-tests]
     env:
-      CGO_CFLAGS: "-I/home/runner/go/bin/dqlite/include/ -I/home/runner/go/bin/liblxc/include/"
-      CGO_LDFLAGS: "-L/home/runner/go/bin/dqlite/libs/"
-      LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
-      LD_RUN_PATH: "/home/runner/go/bin/dqlite/libs/"
+      CGO_CFLAGS: "-I/home/runner/go/deps/dqlite/include/ -I/home/runner/go/deps/liblxc/include/"
+      CGO_LDFLAGS: "-L/home/runner/go/deps/dqlite/.libs/"
+      LD_LIBRARY_PATH: "/home/runner/go/deps/dqlite/.libs/"
+      LD_RUN_PATH: "/home/runner/go/deps/dqlite/.libs/"
       CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     steps:
@@ -872,6 +864,8 @@ jobs:
       # Restore the cache warmed in code-tests job
       - name: Build or restore dqlite/liblxc dependencies
         uses: ./.github/actions/cache-dqlite-liblxc
+        with:
+          export-env: true
 
       - name: Download system test dependencies
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -879,17 +873,6 @@ jobs:
           name: system-test-deps
           merge-multiple: true
           path: /home/runner/go/bin
-
-      - name: Prepare for running LXD daemon
-        run: |
-          set -eux
-
-          # Update env variables for liblxc
-          LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
-          echo "CGO_LDFLAGS=${CGO_LDFLAGS} -L${LIBLXC_ARCH_LIBS}"       >> "${GITHUB_ENV}"
-          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
-          echo "LD_RUN_PATH=${LD_RUN_PATH}:${LIBLXC_ARCH_LIBS}"         >> "${GITHUB_ENV}"
-          echo "PKG_CONFIG_PATH=${LIBLXC_ARCH_LIBS}/pkgconfig"          >> "${GITHUB_ENV}"
 
       - name: Install build dependencies
         uses: ./.github/actions/install-lxd-builddeps
@@ -1119,7 +1102,7 @@ jobs:
     needs: [code-tests, documentation]
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' ) && github.ref_name == 'main' && github.repository_owner == 'canonical' }}
     env:
-      LD_LIBRARY_PATH: "/home/runner/go/bin/dqlite/libs/"
+      LD_LIBRARY_PATH: "/home/runner/go/deps/dqlite/.libs/"
       LXD_DIR: "/var/lib/lxd"
       LXD_OIDC_CLIENT_ID: "${{ secrets.LXD_UI_OIDC_TEST_CLIENT_ID }}"         # zizmor: ignore[secrets-outside-env]
       LXD_OIDC_CLIENT_SECRET: "${{ secrets.LXD_UI_OIDC_TEST_CLIENT_SECRET }}" # zizmor: ignore[secrets-outside-env]
@@ -1174,6 +1157,8 @@ jobs:
       # Restore the cache warmed in code-tests job
       - name: Build or restore dqlite/liblxc dependencies
         uses: ./.github/actions/cache-dqlite-liblxc
+        with:
+          export-env: true
 
       - name: Download system test dependencies
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1187,14 +1172,6 @@ jobs:
 
       - name: Setup MicroOVN
         uses: ./.github/actions/setup-microovn
-
-      - name: Prepare for running LXD daemon
-        run: |
-          set -eux
-
-          # Update env variables for liblxc
-          LIBLXC_ARCH_LIBS="$(readlink -e /home/runner/go/bin/liblxc/libs/*-linux-gnu)"
-          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${LIBLXC_ARCH_LIBS}" >> "${GITHUB_ENV}"
 
       - name: Set exec perms on LXD binaries
         run: |
