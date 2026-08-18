@@ -505,6 +505,7 @@ var APIExtensions = []string{
 	"access_management_bearer_pending",
 	"replicator_custom_volumes",
 	"metrics_replicators",
+	"access_management_identity_effective_groups",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
