@@ -175,9 +175,13 @@ func (c *connectorSCSIFC) findSession(targetQN string) (*session, error) {
 	return nil, nil
 }
 
-// Discover returns the FC target ports visible on the fabric.
-// If WWPNs are provided they act as an allowlist.
+// Discover returns the FC target ports that are visible on the fabric and whose
+// port name matches one of the allowed WWPNs.
 func (c *connectorSCSIFC) Discover(ctx context.Context, wwpns ...string) ([]any, error) {
+	if len(wwpns) == 0 {
+		return nil, errors.New("No FC target WWPNs provided")
+	}
+
 	remotePorts, err := fcRemotePorts()
 	if err != nil {
 		return nil, err
@@ -187,11 +191,12 @@ func (c *connectorSCSIFC) Discover(ctx context.Context, wwpns ...string) ([]any,
 	for _, port := range remotePorts {
 		portName := block.NormalizeWWN(port.portName)
 
-		found := slices.ContainsFunc(wwpns, func(wwpn string) bool {
+		portFound := slices.ContainsFunc(wwpns, func(wwpn string) bool {
 			return portName == block.NormalizeWWN(wwpn)
 		})
 
-		if !found {
+		if !portFound {
+			// Skip ports that are not in the list of WWPNs that should be scanned.
 			continue
 		}
 
