@@ -160,3 +160,49 @@ func GetDistinctAuthGroupNamesFromIDPGroupNames(ctx context.Context, tx *sql.Tx,
 
 	return mappedGroups, nil
 }
+
+// GetAuthGroupNamesByIDPGroupNames returns a map of identity provider group name to mapped authorization group names.
+func GetAuthGroupNamesByIDPGroupNames(ctx context.Context, tx *sql.Tx, idpGroupNames []string) (map[string][]string, error) {
+	if len(idpGroupNames) == 0 {
+		return map[string][]string{}, nil
+	}
+
+	args := make([]any, 0, len(idpGroupNames))
+	seen := make(map[string]struct{}, len(idpGroupNames))
+	for _, idpGroupName := range idpGroupNames {
+		_, ok := seen[idpGroupName]
+		if ok {
+			continue
+		}
+
+		seen[idpGroupName] = struct{}{}
+		args = append(args, idpGroupName)
+	}
+
+	q := fmt.Sprintf(`
+SELECT identity_provider_groups.name, auth_groups.name
+FROM auth_groups
+JOIN auth_groups_identity_provider_groups ON auth_groups.id = auth_groups_identity_provider_groups.auth_group_id
+JOIN identity_provider_groups ON auth_groups_identity_provider_groups.identity_provider_group_id = identity_provider_groups.id
+WHERE identity_provider_groups.name IN %s
+`, query.Params(len(args)))
+
+	mappedGroupsByIDPGroupName := make(map[string][]string, len(args))
+	err := query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
+		var idpGroupName string
+		var mappedGroupName string
+
+		err := scan(&idpGroupName, &mappedGroupName)
+		if err != nil {
+			return err
+		}
+
+		mappedGroupsByIDPGroupName[idpGroupName] = append(mappedGroupsByIDPGroupName[idpGroupName], mappedGroupName)
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting groups from identity provider groups: %w", err)
+	}
+
+	return mappedGroupsByIDPGroupName, nil
+}
