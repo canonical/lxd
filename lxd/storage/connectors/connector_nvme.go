@@ -313,27 +313,29 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 		// The "address" file contains one line per connection,
 		// each in format "traddr=<ip>,trsvcid=<port>,...".
 		for line := range bytes.SplitSeq(bytes.TrimSpace(fileBytes), []byte{'\n'}) {
-			parts := strings.Split(string(bytes.TrimSpace(line)), ",")
-
-			transportAddr := ""
-			for _, part := range parts {
-				addr, ok := strings.CutPrefix(part, "traddr=")
-				if ok {
-					transportAddr = addr
-					break
+			// Each line is a comma separated list of "<key>=<value>" pairs.
+			fields := make(map[string]string)
+			for part := range strings.SplitSeq(string(bytes.TrimSpace(line)), ",") {
+				key, value, found := strings.Cut(part, "=")
+				if found {
+					fields[key] = value
 				}
 			}
 
-			transportServiceID := NVMeDefaultTransportPort
-			for _, part := range parts {
-				port, ok := strings.CutPrefix(part, "trsvcid=")
-				if ok {
-					transportServiceID = port
-					break
-				}
+			transportAddr := fields["traddr"]
+			if transportAddr == "" {
+				continue
 			}
 
-			session.addresses = append(session.addresses, net.JoinHostPort(transportAddr, transportServiceID))
+			transportServiceID := fields["trsvcid"]
+			if transportServiceID == "" {
+				transportServiceID = NVMeDefaultTransportPort
+			}
+
+			targetAddr := net.JoinHostPort(transportAddr, transportServiceID)
+			if !slices.Contains(session.addresses, targetAddr) {
+				session.addresses = append(session.addresses, targetAddr)
+			}
 		}
 	}
 
