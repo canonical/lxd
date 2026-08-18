@@ -175,6 +175,7 @@ firewallTests() {
             # Check if multicast traffic is returned too and not mangled.
             # Launch a server in the same network that responds on datagrams under a specific multicast group with its hostname.
             lxc launch "${IMAGE}" c3 -n lxdbr1
+            lxc exec c2 -- apt-get update
             lxc exec c2 -- apt-get install --no-install-recommends --yes socat
             lxc exec c2 -- socat udp4-recvfrom:1234,ip-add-membership=239.0.0.1:192.0.3.254,fork exec:hostname &
             server_process="$!"
@@ -182,6 +183,7 @@ firewallTests() {
 
             # Check if multicast traffic passes within the same network.
             waitInstanceReady c3
+            lxc exec c3 -- apt-get update
             lxc exec c3 -- apt-get install --no-install-recommends --yes socat
             [ "$(lxc exec c3 -- socat stdio udp4-datagram:239.0.0.1:1234 <<< "")" = "c2" ]
             kill "${server_process}"
