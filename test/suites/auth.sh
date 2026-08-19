@@ -107,7 +107,7 @@ test_authorization() {
   lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/" "oidc.client.id=device"
 
   set_oidc test-user test-user@example.com
-  BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc
+  lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc
 
   ! lxc auth identity group add oidc/test-user@example.com not-found || false # Group not found
   [ "$(my_curl -X PUT -H 'Content-Type: application/json' --data '{"groups":["test-group","not-found1","not-found2"]}' "https://${LXD_ADDR}/1.0/auth/identities/oidc/test-user@example.com" | jq --exit-status --raw-output '.error')" = 'One or more groups were not found: "not-found1", "not-found2"' ] # Groups not found error (only contains the groups that were not found).
