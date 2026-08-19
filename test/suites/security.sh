@@ -525,7 +525,7 @@ test_security_user_events_oidc() {
   kill -0 "${mon_pid}"
 
   sub_test "Verify user_created fires on OIDC first login"
-  BROWSER=curl lxc remote add --accept-certificate oidc-security "${LXD_ADDR}" --auth-type oidc
+  lxc remote add --accept-certificate oidc-security "${LXD_ADDR}" --auth-type oidc
 
   lxc query oidc-security:/1.0 | jq --exit-status '.auth == "trusted"'
 
@@ -562,7 +562,7 @@ test_security_user_events_oidc() {
   local before_count
   before_count="$(jq --slurp --exit-status 'map(select(.type == "security" and (.metadata.name | startswith("user_created:oidc:")))) | length' "${monfile}")"
 
-  BROWSER=curl lxc query oidc-security:/1.0 | jq --exit-status '.auth == "trusted"'
+  lxc query oidc-security:/1.0 | jq --exit-status '.auth == "trusted"'
 
   # Allow a short window for any (unwanted) duplicate event to land.
   sleep 2
