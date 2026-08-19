@@ -542,6 +542,11 @@ func (op *Operation) IsRunning() bool {
 	return op.running.Err() == nil
 }
 
+// IsFinished returns true if the operation is finalized.
+func (op *Operation) IsFinished() bool {
+	return op.finished.Err() != nil
+}
+
 // Cancel cancels a running operation. If the operation cannot be cancelled, it
 // returns an error.
 func (op *Operation) Cancel() {
@@ -921,6 +926,11 @@ func (op *Operation) Status() api.StatusCode {
 	return op.status
 }
 
+// UpdatedAt returns the last update time of the operation.
+func (op *Operation) UpdatedAt() time.Time {
+	return op.updatedAt
+}
+
 // Class returns the operation class.
 func (op *Operation) Class() operationtype.Class {
 	return op.class
@@ -939,6 +949,11 @@ func (op *Operation) Parent() *Operation {
 // Children returns the child operations if this operation is a parent operation, or an empty slice if this operation is not a parent operation.
 func (op *Operation) Children() []*Operation {
 	return op.children
+}
+
+// IsChild returns true if the Operation is a child operation.
+func (op *Operation) IsChild() bool {
+	return op.parent != nil
 }
 
 // validateMetadata returns an error if the metadata contains a known key with an invalid value (such as
