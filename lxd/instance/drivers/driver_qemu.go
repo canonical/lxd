@@ -1522,6 +1522,31 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		return err
 	}
 
+	// Determine the vCPU hotplug limit (SMP "maxcpus").
+	// QEMU requires an identical SMP topology on both ends of a live migration, so on
+	// stateful start (stateful resume or live migration target) reuse the value
+	// recorded when the VM booted rather than recomputing it from the local host's
+	// CPU count.
+	maxCPUs := 0
+	if stateful {
+		maxCPUs, _ = strconv.Atoi(d.localConfig["volatile.cpu.maxcpus"])
+	}
+
+	if maxCPUs == 0 {
+		maxCPUs, err = d.maxCPUs(cpuInfo)
+		if err != nil {
+			return err
+		}
+	}
+
+	newMaxCPUs := strconv.Itoa(maxCPUs)
+	if d.localConfig["volatile.cpu.maxcpus"] != newMaxCPUs {
+		err = d.VolatileSet(map[string]string{"volatile.cpu.maxcpus": newMaxCPUs})
+		if err != nil {
+			return err
+		}
+	}
+
 	// Determine additional CPU flags.
 	cpuExtensions := []string{}
 
@@ -1546,7 +1571,7 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 	}
 
 	// Generate the QEMU configuration.
-	confFile, monHooks, err := d.generateQemuConfigFile(cpuInfo, mountInfo, qemuBus, vsockFD, devConfs, &fdFiles)
+	confFile, monHooks, err := d.generateQemuConfigFile(cpuInfo, maxCPUs, mountInfo, qemuBus, vsockFD, devConfs, &fdFiles)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -3619,12 +3644,12 @@ func (d *qemu) deviceBootPriorities(base int) (map[string]int, error) {
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePools.MountInfo, busName string, vsockFD int, devConfs []*deviceConfig.RunConfig, fdFiles *[]*os.File) (string, []monitorHook, error) {
+func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, maxCPUs int, mountInfo *storagePools.MountInfo, busName string, vsockFD int, devConfs []*deviceConfig.RunConfig, fdFiles *[]*os.File) (string, []monitorHook, error) {
 	var monHooks []monitorHook
 
 	cfg := qemuBase(&qemuBaseOpts{d.Architecture()})
 
-	err := d.addCPUMemoryConfig(&cfg, cpuInfo)
+	err := d.addCPUMemoryConfig(&cfg, cpuInfo, maxCPUs)
 	if err != nil {
 		return "", nil, err
 	}
@@ -4109,9 +4134,10 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
 // If sb is nil then no config is written.
-func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error {
+func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology, maxCPUs int) error {
 	cpuOpts := qemuCPUOpts{
 		architecture:        d.architecture,
+		cpuMaxCPUs:          maxCPUs,
 		qemuMemObjectFormat: "indexed", // Supported by QEMU 6.0+
 	}
 
@@ -4124,9 +4150,6 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error
 		if d.architectureSupportsCPUHotplug() {
 			cpuOpts.cpuCount = 1
 			cpuOpts.cpuCores = 1
-
-			// Expose the total requested by the user already so the hotplug limit can be set higher if needed.
-			cpuOpts.cpuRequested = cpuInfo.cores
 		} else {
 			cpuOpts.cpuCount = cpuInfo.cores
 			cpuOpts.cpuCores = cpuInfo.cores
@@ -8999,6 +9022,25 @@ type cpuTopology struct {
 	threads int
 	vcpus   map[uint64]uint64
 	nodes   map[uint64][]uint64
+}
+
+// maxCPUs returns the maximum number of vCPUs to expose to the VM, used as the vCPU
+// hotplug limit ("maxcpus") for non-pinned topologies.
+func (d *qemu) maxCPUs(cpuInfo *cpuTopology) (int, error) {
+	cpu, err := resources.GetCPU()
+	if err != nil {
+		return 0, err
+	}
+
+	// Cap the max number of CPUs to 64 unless directly assigned more.
+	maxCPUs := 64
+	if int(cpu.Total) < maxCPUs {
+		maxCPUs = int(cpu.Total)
+	} else if cpuInfo.cores > maxCPUs {
+		maxCPUs = cpuInfo.cores
+	}
+
+	return maxCPUs, nil
 }
 
 // cpuTopology takes the CPU limit and computes the QEMU CPU topology.
