@@ -190,13 +190,13 @@ func (o *Verifier) authenticateBearerToken(r *http.Request, w http.ResponseWrite
 // expiry of the existing session.
 func (o *Verifier) verifySession(r *http.Request, w http.ResponseWriter, sessionToken string) (*AuthenticationResult, error) {
 	// Verify the token.
-	sessionID, startNewSession, err := o.verifySessionToken(r.Context(), sessionToken)
+	sessionID, startNewSession, sessionExpired, err := o.verifySessionTokenSignature(r.Context(), sessionToken)
 	if err != nil {
-		if !errors.Is(err, jwt.ErrTokenExpired) {
-			// For any error other than expiry, the token is invalid (e.g. tampered with).
-			return nil, fmt.Errorf("Session token invalid: %w", err)
-		}
+		return nil, fmt.Errorf("Session token invalid: %w", err)
+	}
 
+	// Handle session expiry
+	if sessionExpired {
 		return o.handleExpiredSession(r, w, *sessionID)
 	}
 
@@ -322,29 +322,35 @@ func (o *Verifier) handleExpiredSession(r *http.Request, w http.ResponseWriter, 
 	return res, err
 }
 
-// verifySessionToken verifies the given session token. If the token is valid, it returns the session ID and a boolean
-// indicating whether the token was signed by a key derived from an out-of-date cluster secret.
-func (o *Verifier) verifySessionToken(ctx context.Context, sessionToken string) (sessionID *uuid.UUID, staleSigningKey bool, err error) {
+// verifySessionTokenSignature returns an error if the token signature is invalid or has invalid claims (except for expiry).
+// It returns the session ID, a boolean indicating whether the token was signed by a key derived from an out-of-date cluster
+// secret, and a boolean indicating if the session has expired.
+func (o *Verifier) verifySessionTokenSignature(ctx context.Context, sessionToken string) (sessionID *uuid.UUID, staleSigningKey bool, sessionExpired bool, err error) {
 	// Check the cookie contents are as expected. We need to do this to get the session ID, this gives us a session
 	// creation date from which we can determine which cluster secret was used to create the token signing key.
 	sessionID, issuedAt, err := bearer.IsSessionToken(sessionToken, o.clusterUUID)
 	if err != nil {
-		return nil, false, fmt.Errorf("Invalid session token: %w", err)
+		return nil, false, false, fmt.Errorf("Invalid session token: %w", err)
 	}
 
 	// Find the secret that was used to obtain the signing key.
 	secret, staleSigningKey, err := o.getSecretFromUsedAtTime(ctx, issuedAt.Unix())
 	if err != nil {
-		return nil, false, fmt.Errorf("Failed getting session token signing key: %w", err)
+		return nil, false, false, fmt.Errorf("Failed getting session token signing key: %w", err)
 	}
 
 	// Verify the token.
 	err = bearer.VerifySessionToken(sessionToken, secret.Value, *sessionID)
 	if err != nil {
-		return nil, false, fmt.Errorf("Session token is not valid: %w", err)
+		if !errors.Is(err, jwt.ErrTokenExpired) {
+			// For any error other than expiry, the token is invalid (e.g. tampered with or used before issued at time).
+			return nil, false, false, fmt.Errorf("Session token invalid: %w", err)
+		}
+
+		return sessionID, false, true, nil
 	}
 
-	return sessionID, staleSigningKey, nil
+	return sessionID, staleSigningKey, false, nil
 }
 
 // getResultFromClaims gets an AuthenticationResult from the given rp.SubjectGetter and claim map.
@@ -489,7 +495,7 @@ func (o *Verifier) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID, _, err := o.verifySessionToken(r.Context(), sessionCookie.Value)
+	sessionID, _, _, err := o.verifySessionTokenSignature(r.Context(), sessionCookie.Value)
 	if err != nil {
 		// Not logged in.
 		return
