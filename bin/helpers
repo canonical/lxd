@@ -293,8 +293,10 @@ install_lxd() (
     [ -x /usr/sbin/lxc ] && chmod -x /usr/sbin/lxc
 
     if [ -n "${KEEP_LXD:-}" ]; then
-        # Make sure LXD is started at least
-        systemctl start snap.lxd.daemon.service
+        if [ "${start_daemon}" = "true" ]; then
+            # Make sure LXD is started at least
+            systemctl start snap.lxd.daemon.service
+        fi
     else
         waitSnapdSeed
 

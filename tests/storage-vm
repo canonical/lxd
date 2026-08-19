@@ -6,8 +6,8 @@ set -eux
 # Install dependencies
 install_deps jq
 
-# Install LXD
-install_lxd
+# Install LXD without starting the daemon so snap options can be configured first
+install_lxd false
 
 IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
 
@@ -17,11 +17,9 @@ if echo "${poolDriverList}" | grep -qwF "lvm-thin"; then
     # For LVM thin use external LVM tools to avoid errors like:
     # Failed to run: lvcreate --yes --wipesignatures y --thinpool --extents 100%FREE: Device or resource busy
     snap set lxd lvm.external=true
-    if systemctl is-active --quiet snap.lxd.daemon.service; then
-        systemctl reload snap.lxd.daemon.service
-    fi
-    lxd waitready --timeout=300
+    systemctl restart snap.lxd.daemon.service
 fi
+lxd waitready --timeout=300
 
 # Configure LXD
 lxc network create lxdbr0

@@ -16,17 +16,15 @@ else
       install_deps file jq rsync unzip
 fi
 
-# Install LXD
-install_lxd
+# Install LXD without starting the daemon so snap options can be configured first
+install_lxd false
 
 set -x
 
 # For LVM thin use external LVM tools to avoid errors like:
 # Failed to run: lvcreate --yes --wipesignatures y --thinpool --extents 100%FREE: Device or resource busy
 snap set lxd lvm.external=true
-if systemctl is-active --quiet snap.lxd.daemon.service; then
-    systemctl reload snap.lxd.daemon.service
-fi
+systemctl restart snap.lxd.daemon.service
 lxd waitready --timeout=300
 
 if ! command -v go; then
