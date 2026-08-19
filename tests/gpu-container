@@ -191,6 +191,27 @@ if hasNeededAPIExtension "gpu_cdi"; then
         lxc exec c1 -- nvidia-smi
     fi
 
+    # Check that user-supplied uid/gid/mode on a CDI GPU device are honored.
+    echo "==> Testing user-supplied uid/gid/mode on a CDI GPU device"
+    lxc stop --force c1
+    lxc config device remove c1 gpu0
+    lxc config device add c1 gpu0 gpu id="nvidia.com/gpu=0" uid=1000 gid=1000 mode=0640
+    lxc start c1
+    waitInstanceReady c1
+    [ "$(lxc exec c1 -- stat -c '%u %g %a' /dev/nvidia0)" = "1000 1000 640" ]
+    [ "$(lxc exec c1 -- stat -c '%u %g %a' /dev/nvidiactl)" = "1000 1000 640" ]
+
+    # Also verify DRM card and render nodes exposed by CDI got the same overrides.
+    # shellcheck disable=SC2016
+    lxc exec c1 -- sh -c 'for d in /dev/dri/card* /dev/dri/renderD*; do [ "$(stat -c "%u %g %a" "$d")" = "1000 1000 640" ]; done'
+
+    # Restore plain gpu0 for the Docker test below.
+    lxc stop --force c1
+    lxc config device remove c1 gpu0
+    lxc config device add c1 gpu0 gpu id="nvidia.com/gpu=0"
+    lxc start c1
+    waitInstanceReady c1
+
     echo "==> Testing running nested Docker container with nvidia runtime"
 
     lxc stop --force c1
