@@ -104,6 +104,21 @@ func (o Operation) Requestor() *request.RequestorAuditor {
 	}
 }
 
+// IsFinished returns true if the operation status is final.
+func (o Operation) IsFinished() bool {
+	return api.StatusCode(o.Row.StatusCode).IsFinal()
+}
+
+// UpdatedAt returns the last update timestamp for the operation.
+func (o Operation) UpdatedAt() time.Time {
+	return o.Row.UpdatedAt
+}
+
+// IsChild returns true if the operation references a parent.
+func (o Operation) IsChild() bool {
+	return o.Row.Parent != nil
+}
+
 // RequestorProtocol is the database representation of the Requestor Protocol.
 //
 // RequestorProtocol is defined on string so that constants can be converted by casting. The [sql.Scanner] and
@@ -355,11 +370,6 @@ func ClearStaleOperationsFromNodes(ctx context.Context, tx *sql.Tx, nodeIDs ...i
 // GetOperationsByProjectAndType returns a slice of [Operation] with the given project and type.
 func GetOperationsByProjectAndType(ctx context.Context, tx *sql.Tx, projectName string, opType operationtype.Type) ([]Operation, error) {
 	return query.Select[Operation](ctx, tx, "WHERE coalesce(projects.name, '') = ? AND operations.type = ?", projectName, opType)
-}
-
-// DeleteOperation deletes an operation by UUID.
-func DeleteOperation(ctx context.Context, tx *sql.Tx, operationUUID string) error {
-	return query.DeleteOne[OperationsRow](ctx, tx, "WHERE operations.uuid = ?", operationUUID)
 }
 
 // GetOperation gets an [Operation] by UUID.

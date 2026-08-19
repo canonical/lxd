@@ -105,7 +105,7 @@ const (
 	ProjectDelete
 	Wait
 	SnapshotsCreateScheduled
-	PruneExpiredOperations
+	SynchronizeOperations
 	StoragePoolCreate
 	StoragePoolUpdate
 	StoragePoolDelete
@@ -317,8 +317,8 @@ func (t Type) Description() string {
 		return "Just chilling"
 	case SnapshotsCreateScheduled:
 		return "Creating scheduled instance snapshots"
-	case PruneExpiredOperations:
-		return "Pruning expired operations"
+	case SynchronizeOperations:
+		return "Synchronizing operations"
 	case StoragePoolCreate:
 		return "Creating storage pool"
 	case StoragePoolUpdate:
@@ -416,7 +416,7 @@ func (t Type) EntityType() entity.Type {
 		WarningsPruneResolved, ClusterMemberEvacuate, ClusterMemberRestore, LogsExpire, InstanceTypesUpdate,
 		BackupsExpire, SnapshotsExpire, ClusterJoinToken, CertificateAddToken, RenewServerCertificate,
 		ClusterHeal, ImagesUpdate, VolumeSnapshotsCreateScheduled, SnapshotsCreateScheduled,
-		PruneExpiredOperations, RefreshClusterLinkVolatileAddresses,
+		SynchronizeOperations, RefreshClusterLinkVolatileAddresses,
 		StoragePoolCreate, Wait:
 		return entity.TypeServer
 

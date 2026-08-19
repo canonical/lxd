@@ -56,8 +56,53 @@ func OperationGetInternal(id string) (*Operation, error) {
 	return op, nil
 }
 
+// deleteInternal deletes the operations with the given IDs from the operations map.
+// If a given operation UUID is a parent operation, the children are also deleted. This is to match database behaviour,
+// where child operations are deleted via foreign key on the parent.
+func deleteInternal(operationUUIDs ...string) {
+	if len(operationUUIDs) == 0 {
+		return
+	}
+
+	// Get a list of operations to call "done" on. This is so that we hold operationsLock for as little time as possible.
+	// Can't pre-allocate here, as we don't know how many child operations there are.
+	var doneOps []*Operation
+
+	// Iterate over given IDs and check the local map.
+	operationsLock.Lock()
+	for _, id := range operationUUIDs {
+		op, ok := operations[id]
+		if !ok {
+			continue
+		}
+
+		// Skip child operations. These are only deleted when the parent is deleted.
+		if op.parent != nil {
+			continue
+		}
+
+		// Append the parent operation to our list and delete from the map.
+		doneOps = append(doneOps, op)
+		delete(operations, id)
+
+		// Do the same for all the children.
+		for _, child := range op.children {
+			doneOps = append(doneOps, child)
+			delete(operations, child.id)
+		}
+	}
+
+	operationsLock.Unlock()
+
+	// Call done on all operations we collected.
+	for _, op := range doneOps {
+		op.done()
+	}
+}
+
 // Operation represents an operation.
 type Operation struct {
+	dbID            int64
 	projectName     string
 	id              string
 	class           operationtype.Class
@@ -100,8 +145,16 @@ type Operation struct {
 	// Locking for concurrent access to the Operation
 	lock sync.Mutex
 
+	// lastPersistenceAttempt contains the value of updatedAt on the last attempted write of the operation to the database.
+	// If the write fails, the value of lastPersistenceAttempt will be greater than the value of the `operations.updated_at`
+	// column for the row representing this operation. This is used for operation synchronization.
+	lastPersistenceAttempt time.Time
+
 	state  *state.State
 	events *events.Server
+
+	// done is a sync.OnceFunc that is instantiated when the operation is scheduled.
+	done func()
 }
 
 // OperationScheduler is a signature used in function arguments where the function is used to deduplicate operation
@@ -236,6 +289,9 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.onRun = args.RunHook
 		op.onConnect = args.ConnectHook
 
+		// Set the finalization function.
+		setDoneFunc(&op)
+
 		return &op, nil
 	}
 
@@ -281,6 +337,25 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 
 	op.start()
 	return op, nil
+}
+
+// setDoneFunc is used to set a [sync.OnceFunc] finalizer on the operation. This is used both when the operation is
+// initially scheduled and when an operation is reconstructed from the database.
+func setDoneFunc(op *Operation) {
+	op.done = sync.OnceFunc(func() {
+		op.lock.Lock()
+
+		finalStatus := op.status
+		op.readonly = true
+		op.onRun = nil
+		op.onConnect = nil
+		op.finished.Cancel()
+		op.lock.Unlock()
+
+		if op.metricsCallback != nil {
+			op.metricsCallback(statusToMetricsResult(finalStatus))
+		}
+	})
 }
 
 // addChild adds a child operation to the parent operation. It also sets the parent of the child operation to the parent operation.
@@ -333,101 +408,6 @@ func statusToMetricsResult(status api.StatusCode) metrics.RequestResult {
 		return metrics.Success
 	default:
 		return metrics.ErrorServer
-	}
-}
-
-func (op *Operation) done() {
-	if op.metricsCallback != nil {
-		op.metricsCallback(statusToMetricsResult(op.status))
-	}
-
-	if op.readonly {
-		return
-	}
-
-	op.lock.Lock()
-	op.readonly = true
-	op.onRun = nil
-	op.onConnect = nil
-	op.finished.Cancel()
-	op.lock.Unlock()
-
-	// If we are a child operation, we're done. The parent operation will clean all the child entries when it finishes.
-	if op.parent != nil {
-		return
-	}
-
-	// If this is a parent operation of a bulk operation, we clear the entries from the internal map, but leave the database records in place.
-	// The database records will be cleared later by the pruneExpiredOperationsTask().
-	if len(op.children) > 0 {
-		operationsLock.Lock()
-		_, ok := operations[op.id]
-		if !ok {
-			operationsLock.Unlock()
-			return
-		}
-
-		delete(operations, op.id)
-
-		// Clear child operations
-		for _, childOp := range op.children {
-			_, ok := operations[childOp.id]
-			if ok {
-				delete(operations, childOp.id)
-			}
-		}
-
-		operationsLock.Unlock()
-		return
-	}
-
-	go func() {
-		shutdownCtx := context.Background()
-		if op.state != nil {
-			shutdownCtx = op.state.ShutdownCtx
-		}
-
-		select {
-		case <-shutdownCtx.Done():
-			return // Expect all operation records to be removed by daemon.Stop in one query.
-		case <-time.After(time.Second * 5): // Wait 5s before removing from internal map and database.
-		}
-
-		operationsLock.Lock()
-		_, ok := operations[op.id]
-		if !ok {
-			operationsLock.Unlock()
-			return
-		}
-
-		delete(operations, op.id)
-		operationsLock.Unlock()
-
-		if op.state == nil {
-			return
-		}
-
-		err := removeDBOperation(op)
-		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-			// Operations can be deleted from the database before the operation clean up go routine has
-			// run in cases where the project that the operation(s) are associated to is deleted first.
-			// So don't log warning if operation not found.
-			op.logger.Warn("Failed deleting operation", logger.Ctx{"status": op.status, "err": err})
-		}
-	}()
-}
-
-func updateStatus(op *Operation, newStatus api.StatusCode) {
-	oldStatus := op.status
-	// We cannot really use operation context as it was already cancelled.
-	err := op.updateStatus(context.TODO(), newStatus)
-	if err != nil {
-		op.logger.Warn("Failed updating operation status", logger.Ctx{
-			"operation": op.id,
-			"err":       err,
-			"oldStatus": oldStatus,
-			"newStatus": newStatus,
-		})
 	}
 }
 
@@ -511,9 +491,9 @@ func (op *Operation) start() {
 
 				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
 				if errors.Is(err, context.Canceled) {
-					updateStatus(op, api.Cancelled)
+					op.persistWithNewStatus(api.Cancelled)
 				} else {
-					updateStatus(op, api.Failure)
+					op.persistWithNewStatus(api.Failure)
 				}
 
 				// Always call cancel. This is a no-op if already cancelled.
@@ -533,7 +513,7 @@ func (op *Operation) start() {
 			}
 
 			op.lock.Lock()
-			updateStatus(op, api.Success)
+			op.persistWithNewStatus(api.Success)
 			op.running.Cancel()
 			op.lock.Unlock()
 			op.done()
@@ -562,6 +542,11 @@ func (op *Operation) IsRunning() bool {
 	return op.running.Err() == nil
 }
 
+// IsFinished returns true if the operation is finalized.
+func (op *Operation) IsFinished() bool {
+	return op.finished.Err() != nil
+}
+
 // Cancel cancels a running operation. If the operation cannot be cancelled, it
 // returns an error.
 func (op *Operation) Cancel() {
@@ -581,7 +566,7 @@ func (op *Operation) Cancel() {
 		// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
 		// If we're a parent operation with children, the start routine is waiting for the children to finish,
 		// and will set the final status, error and error code to cancelled.
-		updateStatus(op, api.Cancelling)
+		op.persistWithNewStatus(api.Cancelling)
 
 		// Signal the child operations to stop as well.
 		for _, childOp := range op.children {
@@ -592,7 +577,7 @@ func (op *Operation) Cancel() {
 		// We cannot use the operation context here because it has already been cancelled above.
 		op.err = context.Canceled.Error()
 		op.errCode = http.StatusInternalServerError
-		updateStatus(op, api.Cancelled)
+		op.persistWithNewStatus(api.Cancelled)
 	}
 
 	op.lock.Unlock()
@@ -777,10 +762,22 @@ func (op *Operation) EntityURL() *api.URL {
 	return op.entityURL
 }
 
-func (op *Operation) updateStatus(ctx context.Context, newStatus api.StatusCode) error {
+// persistWithNewStatus updates the Operation.status in-memory and sets the Operation.updatedAt to the current time,
+// then it persists the operation to the database. If persistence fails, a warning is logged but execution is allowed to
+// continue. Desynchronized operations will be fixed up via the Synchronize function and background task.
+func (op *Operation) persistWithNewStatus(newStatus api.StatusCode) {
+	oldStatus := op.status
 	op.status = newStatus
 	op.updatedAt = time.Now()
-	return updateDBOperation(ctx, op)
+	err := persistOperation(op.finished, op)
+	if err != nil {
+		op.logger.Warn("Failed updating operation status", logger.Ctx{
+			"operation": op.id,
+			"err":       err,
+			"oldStatus": oldStatus,
+			"newStatus": newStatus,
+		})
+	}
 }
 
 // UpdateMetadata updates the metadata of the operation. It returns an error if the operation has completed.
@@ -831,14 +828,17 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 	return nil
 }
 
-// CommitMetadata commits the metadata and status of the operation to the database, and updates the updatedAt time.
-func (op *Operation) CommitMetadata() error {
+// Persist saves the current operation state to the database. The operation is locked while it is being saved.
+func (op *Operation) Persist() error {
 	op.lock.Lock()
 	defer op.lock.Unlock()
 
-	op.updatedAt = time.Now()
-	// Use the operation context for the database update, so that if the operation is cancelled, the database update will be cancelled as well.
-	return updateDBOperation(context.Context(op.running), op)
+	if op.readonly {
+		return errors.New("Read-only operations cannot be updated")
+	}
+
+	// Use the operations running context for the database update, so that if the operation is cancelled, the database update will be cancelled as well.
+	return persistOperation(context.Context(op.running), op)
 }
 
 // ExtendMetadata updates the metadata of the operation with the additional data provided.
@@ -926,6 +926,11 @@ func (op *Operation) Status() api.StatusCode {
 	return op.status
 }
 
+// UpdatedAt returns the last update time of the operation.
+func (op *Operation) UpdatedAt() time.Time {
+	return op.updatedAt
+}
+
 // Class returns the operation class.
 func (op *Operation) Class() operationtype.Class {
 	return op.class
@@ -944,6 +949,11 @@ func (op *Operation) Parent() *Operation {
 // Children returns the child operations if this operation is a parent operation, or an empty slice if this operation is not a parent operation.
 func (op *Operation) Children() []*Operation {
 	return op.children
+}
+
+// IsChild returns true if the Operation is a child operation.
+func (op *Operation) IsChild() bool {
+	return op.parent != nil
 }
 
 // validateMetadata returns an error if the metadata contains a known key with an invalid value (such as
