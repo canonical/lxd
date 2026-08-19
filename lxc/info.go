@@ -465,8 +465,6 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 		return err
 	}
 
-	const layout = "2006/01/02 15:04 MST"
-
 	fmt.Printf("Name: %s\n", inst.Name)
 
 	fmt.Printf("Status: %s\n", strings.ToUpper(inst.Status))
@@ -492,11 +490,11 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 	}
 
 	if shared.TimeIsSet(inst.CreatedAt) {
-		fmt.Printf("Created: %s\n", inst.CreatedAt.Local().Format(layout))
+		fmt.Printf("Created: %s\n", formatTime(&inst.CreatedAt))
 	}
 
 	if shared.TimeIsSet(inst.LastUsedAt) {
-		fmt.Printf("Last Used: %s\n", inst.LastUsedAt.Local().Format(layout))
+		fmt.Printf("Last Used: %s\n", formatTime(&inst.LastUsedAt))
 	}
 
 	if inst.State.Pid != 0 {
@@ -626,19 +624,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 			var row []string
 
 			fields := strings.Split(snap.Name, shared.SnapshotDelimiter)
-			row = append(row, fields[len(fields)-1])
-
-			if shared.TimeIsSet(snap.CreatedAt) {
-				row = append(row, snap.CreatedAt.Local().Format(layout))
-			} else {
-				row = append(row, " ")
-			}
-
-			if shared.TimeIsSet(snap.ExpiresAt) {
-				row = append(row, snap.ExpiresAt.Local().Format(layout))
-			} else {
-				row = append(row, " ")
-			}
+			row = append(row, fields[len(fields)-1], formatTime(&snap.CreatedAt), formatTime(&snap.ExpiresAt))
 
 			if snap.Stateful {
 				row = append(row, "YES")
@@ -722,19 +708,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 			}
 
 			var row []string
-			row = append(row, backup.Name)
-
-			if shared.TimeIsSet(backup.CreatedAt) {
-				row = append(row, backup.CreatedAt.Local().Format(layout))
-			} else {
-				row = append(row, " ")
-			}
-
-			if shared.TimeIsSet(backup.ExpiresAt) {
-				row = append(row, backup.ExpiresAt.Local().Format(layout))
-			} else {
-				row = append(row, " ")
-			}
+			row = append(row, backup.Name, formatTime(&backup.CreatedAt), formatTime(&backup.ExpiresAt))
 
 			if backup.InstanceOnly {
 				row = append(row, "YES")

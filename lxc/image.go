@@ -983,21 +983,20 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Public: %s\n", public)
 	fmt.Print("Timestamps:\n")
 
-	const layout = "2006/01/02 15:04 UTC"
 	if shared.TimeIsSet(info.CreatedAt) {
-		fmt.Printf("    Created: %s\n", info.CreatedAt.UTC().Format(layout))
+		fmt.Printf("    Created: %s\n", formatTime(&info.CreatedAt))
 	}
 
-	fmt.Printf("    Uploaded: %s\n", info.UploadedAt.UTC().Format(layout))
+	fmt.Printf("    Uploaded: %s\n", formatTime(&info.UploadedAt))
 
 	if shared.TimeIsSet(info.ExpiresAt) {
-		fmt.Printf("    Expires: %s\n", info.ExpiresAt.UTC().Format(layout))
+		fmt.Printf("    Expires: %s\n", formatTime(&info.ExpiresAt))
 	} else {
 		fmt.Print("    Expires: never\n")
 	}
 
 	if shared.TimeIsSet(info.LastUsedAt) {
-		fmt.Printf("    Last used: %s\n", info.LastUsedAt.UTC().Format(layout))
+		fmt.Printf("    Last used: %s\n", formatTime(&info.LastUsedAt))
 	} else {
 		fmt.Print("    Last used: never\n")
 	}
@@ -1167,7 +1166,7 @@ func (c *cmdImageList) typeColumnData(image api.Image) string {
 }
 
 func (c *cmdImageList) uploadDateColumnData(image api.Image) string {
-	return image.UploadedAt.UTC().Format("Jan 2, 2006 at 3:04pm (MST)")
+	return formatTime(&image.UploadedAt)
 }
 
 func (c *cmdImageList) shortestAlias(list []api.ImageAlias) string {
