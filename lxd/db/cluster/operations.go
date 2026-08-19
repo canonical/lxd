@@ -104,6 +104,21 @@ func (o Operation) Requestor() *request.RequestorAuditor {
 	}
 }
 
+// IsFinished returns true if the operation status is final.
+func (o Operation) IsFinished() bool {
+	return api.StatusCode(o.Row.StatusCode).IsFinal()
+}
+
+// UpdatedAt returns the last update timestamp for the operation.
+func (o Operation) UpdatedAt() time.Time {
+	return o.Row.UpdatedAt
+}
+
+// IsChild returns true if the operation references a parent.
+func (o Operation) IsChild() bool {
+	return o.Row.Parent != nil
+}
+
 // RequestorProtocol is the database representation of the Requestor Protocol.
 //
 // RequestorProtocol is defined on string so that constants can be converted by casting. The [sql.Scanner] and
