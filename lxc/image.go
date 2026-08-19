@@ -98,6 +98,10 @@ hash or alias name (if one is set).`)
 	imageUnsetPropCmd := cmdImageUnsetProp{global: c.global, image: c, imageSetProp: &imageSetPropCmd}
 	cmd.AddCommand(imageUnsetPropCmd.command())
 
+	// Registry
+	imageRegistryCmd := cmdImageRegistry{global: c.global}
+	cmd.AddCommand(imageRegistryCmd.command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
@@ -147,13 +151,16 @@ type cmdImageCopy struct {
 
 func (c *cmdImageCopy) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("copy", "[<remote>:]<image> <remote>:")
+	cmd.Use = usage("copy", "[<registry|remote>:]<image> <remote>:")
 	cmd.Aliases = []string{"cp"}
 	cmd.Short = "Copy image between servers"
 	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 The auto-update flag instructs the server to keep this image up to date.
-It requires the source to be an alias and for it to be public.`)
+It requires the source to be an alias and for it to be public.
+
+If the destination LXD remote supports image registries, the source image
+must be from an image registry or available locally on the destination remote.`)
 
 	cmd.Flags().BoolVar(&c.flagPublic, "public", false, "Make image public")
 	cmd.Flags().BoolVar(&c.flagCopyAliases, "copy-aliases", false, "Copy aliases from source")
@@ -191,17 +198,6 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 		return errors.New("Auto update is only available in pull mode")
 	}
 
-	// Parse source remote
-	remoteName, name, err := c.global.conf.ParseRemote(args[0])
-	if err != nil {
-		return err
-	}
-
-	sourceServer, err := c.global.conf.GetImageServer(remoteName)
-	if err != nil {
-		return err
-	}
-
 	// Parse destination remote
 	resources, err := c.global.ParseServers(args[1])
 	if err != nil {
@@ -209,6 +205,40 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	}
 
 	destinationServer := resources[0].server
+	destRemote := resources[0].remote
+
+	var sourceServer lxd.ImageServer
+	var imgInfo *api.Image
+	var registryName string
+	var image string
+
+	if destinationServer.HasExtension("image_registries") {
+		// Parse source remote without validating its existence in the local config.
+		// The remote name may refer to an image registry that only the server knows about.
+		var remoteName string
+		remoteName, image = c.global.conf.ParseRemoteUnchecked(args[0])
+
+		// If the destination server supports image registries, we can use server-side image
+		// resolution and download (pull mode).
+		if c.flagMode != "pull" {
+			return errors.New("Only pull mode is supported for image registries")
+		}
+
+		imgInfo, registryName = resolveRegistryImageSource(c.global.conf.Remotes, remoteName, image, destRemote, c.global.conf.ProjectOverride)
+		sourceServer = nil
+	} else {
+		// Legacy remote lookup with validation.
+		var remoteName string
+		remoteName, image, err = c.global.conf.ParseRemote(args[0])
+		if err != nil {
+			return err
+		}
+
+		sourceServer, err = c.global.conf.GetImageServer(remoteName)
+		if err != nil {
+			return err
+		}
+	}
 
 	if resources[0].name != "" {
 		return errors.New("Cannot provide a name for the target image")
@@ -225,29 +255,41 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Copy the image
-	var imgInfo *api.Image
 	var fp string
 
-	// Resolve any alias and then grab the image information from the source
-	imgInfo, _, err = c.image.dereferenceAlias(sourceServer, imageType, name)
-	if err != nil {
-		return err
+	if sourceServer != nil {
+		// Resolve any alias and then grab the image information from the source
+		imgInfo, _, err = c.image.dereferenceAlias(sourceServer, imageType, image)
+		if err != nil {
+			return err
+		}
+	} else if imgInfo != nil {
+		imgInfo.Type = imageType
 	}
 
 	// Store the fingerprint for use when creating aliases later (as imgInfo.Fingerprint may be overridden)
 	fp = imgInfo.Fingerprint
 
-	if imgInfo.Public && imgInfo.Fingerprint != name && !strings.HasPrefix(imgInfo.Fingerprint, name) {
+	if imgInfo.Public && imgInfo.Fingerprint != image && !strings.HasPrefix(imgInfo.Fingerprint, image) {
 		// If dealing with an alias, set the imgInfo fingerprint to match the provided alias (needed for auto-update)
-		imgInfo.Fingerprint = name
+		imgInfo.Fingerprint = image
 	}
 
 	copyArgs := lxd.ImageCopyArgs{
-		AutoUpdate: c.flagAutoUpdate,
-		Public:     c.flagPublic,
-		Type:       imageType,
-		Mode:       c.flagMode,
-		Profiles:   c.flagProfile,
+		AutoUpdate:  c.flagAutoUpdate,
+		CopyAliases: c.flagCopyAliases,
+		Public:      c.flagPublic,
+		Type:        imageType,
+		Mode:        c.flagMode,
+		Profiles:    c.flagProfile,
+	}
+
+	for _, entry := range c.flagAliases {
+		copyArgs.Aliases = append(copyArgs.Aliases, api.ImageAlias{Name: entry})
+	}
+
+	if registryName != "" {
+		copyArgs.ImageRegistry = registryName
 	}
 
 	// Do the copy
@@ -276,6 +318,11 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 	}
 
 	progress.Done("Image copied successfully!")
+
+	// If using an image registry, the aliases are handled server-side.
+	if sourceServer == nil {
+		return nil
+	}
 
 	// Ensure aliases
 	aliases := make([]api.ImageAlias, len(c.flagAliases))
@@ -799,8 +846,8 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 		image.Source = &api.ImagesPostSource{}
 		image.Source.Type = "url"
 		image.Source.Mode = "pull"
-		image.Source.Protocol = "direct"
-		image.Source.URL = imageFile //nolint:staticcheck
+		image.Source.Protocol = "direct" //nolint:staticcheck
+		image.Source.URL = imageFile     //nolint:staticcheck
 		createArgs = nil
 	} else {
 		var meta io.ReadCloser
@@ -1021,8 +1068,14 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 
 	if info.UpdateSource != nil {
 		fmt.Println("Source:")
-		fmt.Printf("    Server: %s\n", info.UpdateSource.Server)
-		fmt.Printf("    Protocol: %s\n", info.UpdateSource.Protocol)
+
+		if info.UpdateSource.ImageRegistry != "" {
+			fmt.Printf("    Image registry: %s\n", info.UpdateSource.ImageRegistry)
+		} else {
+			fmt.Printf("    Server: %s\n", info.UpdateSource.Server)     //nolint:staticcheck
+			fmt.Printf("    Protocol: %s\n", info.UpdateSource.Protocol) //nolint:staticcheck
+		}
+
 		fmt.Printf("    Alias: %s\n", info.UpdateSource.Alias)
 	}
 
@@ -1045,6 +1098,7 @@ type cmdImageList struct {
 
 	flagFormat      string
 	flagColumns     string
+	flagRegistry    string
 	flagAllProjects bool
 }
 
@@ -1080,6 +1134,7 @@ Column shorthand chars:
 
 	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", cli.DefaultColumnString(c.columns()), cli.FormatStringFlagLabel("Columns"))
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+	cmd.Flags().StringVar(&c.flagRegistry, "registry", "", "Display images provided by image registry")
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, "Display images from all projects")
 	cmd.RunE = c.run
 
@@ -1265,6 +1320,31 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 	return true
 }
 
+// renderImages applies the given filters and renders the table with images using given columns.
+func (c *cmdImageList) renderImages(filters []string, allImages []api.Image, columns []cli.TypedColumn[api.Image]) error {
+	images := make([]api.Image, 0, len(allImages))
+	for _, image := range allImages {
+		if !c.imageShouldShow(filters, &image) {
+			continue
+		}
+
+		images = append(images, image)
+	}
+
+	data := cli.ColumnData(columns, images)
+	sort.Sort(cli.StringList(data))
+
+	rawData := make([]*api.Image, len(images))
+	for i := range images {
+		rawData[i] = &images[i]
+	}
+
+	headers := cli.ColumnHeaders(columns)
+
+	// Render the table.
+	return cli.RenderTable(c.flagFormat, headers, data, rawData)
+}
+
 func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, -1)
@@ -1323,6 +1403,28 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 	serverFilters, clientFilters := getServerSupportedFilters(filters, api.Image{})
 
 	var allImages []api.Image
+
+	// Handle listing images provided by the image registry.
+	if c.flagRegistry != "" {
+		instanceServer, ok := remoteServer.(lxd.InstanceServer)
+		if !ok {
+			return errors.New("--registry flag is not supported for this server")
+		}
+
+		if !instanceServer.HasExtension("image_registries") {
+			return errors.New("This server does not support image registries")
+		}
+
+		// Get the images provided by image registry.
+		allImages, err = instanceServer.GetImageRegistryImages(c.flagRegistry)
+		if err != nil {
+			return err
+		}
+
+		// Render the table with images.
+		return c.renderImages(filters, allImages, columns)
+	}
+
 	if c.flagAllProjects {
 		instanceServer, ok := remoteServer.(lxd.InstanceServer)
 		if !ok {
@@ -1350,27 +1452,8 @@ func (c *cmdImageList) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	images := make([]api.Image, 0, len(allImages))
-	for _, image := range allImages {
-		if !c.imageShouldShow(clientFilters, &image) {
-			continue
-		}
-
-		images = append(images, image)
-	}
-
-	// Render the table
-	data := cli.ColumnData(columns, images)
-	sort.Sort(cli.StringList(data))
-
-	rawData := make([]*api.Image, len(images))
-	for i := range images {
-		rawData[i] = &images[i]
-	}
-
-	headers := cli.ColumnHeaders(columns)
-
-	return cli.RenderTable(c.flagFormat, headers, data, rawData)
+	// Render the table with images.
+	return c.renderImages(clientFilters, allImages, columns)
 }
 
 // Refresh.

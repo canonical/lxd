@@ -3643,3 +3643,23 @@ For bearer tokens the expiry is recorded when a token is issued and cleared when
 The field is omitted for identities whose credential has no expiry, that have no credential yet (pending identities), or whose token has been revoked.
 
 Note that bearer identities created prior to this extension will have an omitted `expires_at` field until a new token is issued.
+
+(extension-image-registries)=
+## `image_registries`
+
+This introduces the image registries API.
+
+This includes the following new endpoints (see {ref}`rest-api` for details):
+
+* [`GET /1.0/image-registries`](swagger:/image-registries/image_registries_get)
+* [`GET /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_get)
+* [`GET /1.0/image-registries/<name>/images`](swagger:/image-registries/image_registry_images_get)
+* [`POST /1.0/image-registries`](swagger:/image-registries/image_registries_post)
+* [`POST /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_post)
+* [`PUT /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_put)
+* [`PATCH /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_patch)
+* [`DELETE /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_delete)
+
+This also adds a new project-level configuration key:
+
+* {config:option}`project-restricted:restricted.registries` - Comma separated list of allowed image registries for use in a project.

@@ -101,6 +101,12 @@ type ImagesPostSource struct {
 	//
 	// API extension: image_source_project
 	Project string `json:"project" yaml:"project"`
+
+	// Whether to copy aliases from the source image
+	// Example: true
+	//
+	// API extension: image_registries
+	CopyAliases bool `json:"copy_aliases" yaml:"copy_aliases"`
 }
 
 // ImagePut represents the modifiable fields of a LXD image
@@ -275,12 +281,16 @@ type ImageSource struct {
 	// Example: X509 PEM certificate
 	Certificate string `json:"certificate" yaml:"certificate"`
 
-	// Source server protocol
+	// Source server protocol (deprecated, use image_registry)
 	// Example: simplestreams
+	//
+	// Deprecated: Use ImageRegistry.
 	Protocol string `json:"protocol" yaml:"protocol"`
 
-	// URL of the source server
+	// URL of the source server (deprecated, use image_registry)
 	// Example: https://cloud-images.ubuntu.com/releases/
+	//
+	// Deprecated: Use ImageRegistry.
 	Server string `json:"server" yaml:"server"`
 
 	// Type of image (container or virtual-machine)
@@ -288,6 +298,12 @@ type ImageSource struct {
 	//
 	// API extension: image_types
 	ImageType string `json:"image_type" yaml:"image_type"`
+
+	// Image registry name
+	// Example: ubuntu
+	//
+	// API extension: image_registries
+	ImageRegistry string `json:"image_registry" yaml:"image_registry"`
 }
 
 // ImageAliasesPost represents a new LXD image alias
