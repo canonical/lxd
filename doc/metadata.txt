@@ -2675,6 +2675,15 @@ Set to `persistent` when persistent bus allocation mode is enabled.
 The target cluster group at instance creation or migration time. This is used during scheduling events such as evacuation to ensure the instance is placed correctly.
 ```
 
+```{config:option} volatile.cpu.maxcpus instance-volatile
+:shortdesc: "vCPU hotplug limit used as of last boot"
+:type: "string"
+The vCPU hotplug limit (SMP `maxcpus`) recorded when the VM booted.
+It is reused on stateful start (stateful resume or live migration) so that the
+QEMU SMP topology matches on both ends of a live migration regardless of the
+hosts' CPU counts.
+```
+
 ```{config:option} volatile.evacuate.origin instance-volatile
 :shortdesc: "The origin of the evacuated instance"
 :type: "string"
