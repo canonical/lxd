@@ -32,7 +32,6 @@ github.com/pkg/xattr
 github.com/sirupsen/logrus
 github.com/sirupsen/logrus/hooks/syslog
 github.com/sirupsen/logrus/hooks/writer
-github.com/zitadel/logging
 github.com/zitadel/oidc/v3/internal/otel
 github.com/zitadel/oidc/v3/pkg/client
 github.com/zitadel/oidc/v3/pkg/client/rp
