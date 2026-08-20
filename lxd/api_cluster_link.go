@@ -1000,8 +1000,6 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 		return response.InternalError(err)
 	}
 
-	activationErrs := make([]error, 0, len(trustToken.Addresses))
-
 	clusterLinksPost := api.ClusterLinksPost{
 		TrustToken:         trustToken.String(),
 		Type:               req.Type,
@@ -1011,26 +1009,27 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 		},
 	}
 
-	// Send POST to remote /1.0/cluster/links to activate pending cluster link using token.
-	for _, address := range trustToken.Addresses {
-		args := &lxd.ConnectionArgs{
-			TLSServerCert: clusterCert,
-			UserAgent:     version.UserAgent,
-		}
+	args := &lxd.ConnectionArgs{
+		TLSServerCert: clusterCert,
+		UserAgent:     version.UserAgent,
+	}
 
+	activationErrs := tryClusterLinkAddresses(trustToken.Addresses, func(address string) error {
 		clusterAddress := util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
 		client, err := lxd.ConnectLXD("https://"+clusterAddress, args)
 		if err != nil {
-			activationErrs = append(activationErrs, fmt.Errorf("Failed connecting to remote cluster address %q: %w", clusterAddress, err))
-			continue
+			return fmt.Errorf("Failed connecting to remote cluster address %q: %w", clusterAddress, err)
 		}
 
 		err = client.CreateClusterLink(clusterLinksPost)
 		if err != nil {
-			activationErrs = append(activationErrs, fmt.Errorf("Remote cluster address %q: %w", clusterAddress, err))
-			continue
+			return fmt.Errorf("Remote cluster address %q: %w", clusterAddress, err)
 		}
 
+		return nil
+	})
+
+	if activationErrs == nil {
 		// Send cluster link lifecycle event.
 		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(req.Name, requestor, nil))
 
@@ -1595,33 +1594,33 @@ func clusterLinkCreateUnidirectional(s *state.State, r *http.Request, req api.Cl
 	// Call B to activate B's pending identity for A using the identity API.
 	// Present A's cluster certificate as a TLS client cert so B can extract it
 	// from the TLS handshake and associate it with the activated identity.
-	activationErrs := make([]error, 0, len(trustToken.Addresses))
-
 	identityReq := api.IdentitiesTLSPost{
 		TrustToken: trustToken.String(),
 	}
 
-	for _, address := range trustToken.Addresses {
-		args := &lxd.ConnectionArgs{
-			TLSServerCert: remotePEM,
-			TLSClientCert: string(networkCert.PublicKey()),
-			TLSClientKey:  string(networkCert.PrivateKey()),
-			UserAgent:     version.UserAgent,
-		}
+	args := &lxd.ConnectionArgs{
+		TLSServerCert: remotePEM,
+		TLSClientCert: string(networkCert.PublicKey()),
+		TLSClientKey:  string(networkCert.PrivateKey()),
+		UserAgent:     version.UserAgent,
+	}
 
+	activationErrs := tryClusterLinkAddresses(trustToken.Addresses, func(address string) error {
 		clusterAddress := util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
 		client, err := lxd.ConnectLXD("https://"+clusterAddress, args)
 		if err != nil {
-			activationErrs = append(activationErrs, fmt.Errorf("Failed connecting to remote cluster address %q: %w", clusterAddress, err))
-			continue
+			return fmt.Errorf("Failed connecting to remote cluster address %q: %w", clusterAddress, err)
 		}
 
 		err = client.CreateIdentityTLS(identityReq)
 		if err != nil {
-			activationErrs = append(activationErrs, fmt.Errorf("Remote cluster address %q: %w", clusterAddress, err))
-			continue
+			return fmt.Errorf("Remote cluster address %q: %w", clusterAddress, err)
 		}
 
+		return nil
+	})
+
+	if activationErrs == nil {
 		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(req.Name, requestor, nil))
 
 		err = cluster.RefreshClusterLinkVolatileAddresses(r.Context(), s, req.Name)
@@ -1655,4 +1654,30 @@ func clusterLinkCreateUnidirectional(s *state.State, r *http.Request, req api.Cl
 	}
 
 	return response.SmartError(api.StatusErrorf(http.StatusBadGateway, "Failed activating unidirectional cluster link %q: %s", req.Name, strings.Join(errStrings, "; ")))
+}
+
+// tryClusterLinkAddresses tries all addresses in parallel and returns nil on the first successful attempt.
+func tryClusterLinkAddresses(addresses []string, attempt func(address string) error) []error {
+	type result struct {
+		err error
+	}
+
+	results := make(chan result, len(addresses))
+	for _, address := range addresses {
+		go func(addr string) {
+			results <- result{err: attempt(addr)}
+		}(address)
+	}
+
+	errs := make([]error, 0, len(addresses))
+	for range len(addresses) {
+		result := <-results
+		if result.err == nil {
+			return nil
+		}
+
+		errs = append(errs, result.err)
+	}
+
+	return errs
 }
