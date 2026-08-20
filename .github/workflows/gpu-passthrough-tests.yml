@@ -31,6 +31,9 @@ on:
           - '["5.21/edge"]'
           - '["5.21/candidate"]'
           - '["5.21/stable"]'
+          - '["5.0/edge"]'
+          - '["5.0/candidate"]'
+          - '["5.0/stable"]'
 
 permissions:
   contents: read
