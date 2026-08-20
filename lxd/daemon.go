@@ -2184,7 +2184,7 @@ func (d *Daemon) numRunningInstances(instances []instance.Instance) int {
 func cancelCancelableOps(ctx context.Context) error {
 	ops := operations.Clone()
 	for _, op := range ops {
-		op.Cancel()
+		_ = op.Cancel()
 		_ = op.Wait(ctx)
 	}
 

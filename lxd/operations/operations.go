@@ -122,6 +122,7 @@ type Operation struct {
 	metricsCallback func(metrics.RequestResult)
 	logger          logger.Logger
 	location        string
+	stage           uint16
 
 	// Those functions are called at various points in the Operation lifecycle
 	onRun     func(context.Context, *Operation) error
@@ -243,6 +244,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.conflictReference = args.ConflictReference
 		op.events = s.Events
 		op.location = s.ServerName
+		op.stage = args.Stage
 
 		// The call to args.validate already validated the entity URL. If it is nil, then it should be set to the
 		// server URL (/1.0).
@@ -284,6 +286,14 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		}
 
 		op.metadata = metadata
+
+		// Only operations in stage zero are initially running.
+		// OperationArgs validation ensures that parent operations are in stage zero.
+		// If all children have stage zero, then they are all spawned at once.
+		op.status = api.Running
+		if op.stage > 0 {
+			op.status = api.Pending
+		}
 
 		// Callback functions
 		op.onRun = args.RunHook
@@ -415,6 +425,25 @@ func statusToMetricsResult(status api.StatusCode) metrics.RequestResult {
 func (op *Operation) start() {
 	op.lock.Lock()
 
+	// Operations that have already been cancelled should not be started.
+	if op.running.Err() != nil {
+		// Ensure the operation is finalized.
+		if !op.status.IsFinal() {
+			op.cancelImmediate()
+			op.lock.Unlock()
+			op.done()
+			return
+		}
+
+		op.lock.Unlock()
+		return
+	}
+
+	// Pending operations have their status set to [api.Running] before invoking the run hook.
+	if op.status == api.Pending {
+		op.persistWithNewStatus(api.Running)
+	}
+
 	// If there's a run hook, we need to run it and get the final status from it.
 	// If there are child operations, we need to start and wait for them to finish before we can get the final status of the parent operation.
 	if op.onRun != nil || len(op.children) > 0 {
@@ -429,49 +458,8 @@ func (op *Operation) start() {
 
 		go func(ctx context.Context, op *Operation) {
 			var err error
-
-			// Parent operation with children: start all children, wait for them to finish, then
-			// run the optional RunHook. This ensures the parent remains visible in the API until
-			// all child operations have completed so that the user can see the overall progress.
 			if op.parent == nil && len(op.children) > 0 {
-				// Start child operations
-				for _, childOp := range op.children {
-					childOp.start()
-				}
-
-				var childFailed bool
-				var childCancelled bool
-				for _, childOp := range op.children {
-					// Use context.Background() so that the parent waits for every child
-					// to finish even if the parent's context has been cancelled. The
-					// parent must collect all child outcomes before reporting its own result.
-					childErr := childOp.Wait(context.Background())
-					if childErr != nil {
-						if errors.Is(childErr, context.Canceled) {
-							childCancelled = true
-						} else {
-							childFailed = true
-						}
-					}
-				}
-
-				// Parent operation inherits the error from its children if these failed or were cancelled.
-				if childFailed {
-					err = errors.New("One or more child operations failed")
-				} else if childCancelled {
-					err = context.Canceled
-				}
-
-				// Run the hook after all children complete if one is configured.
-				// If children already failed, log the hook error rather than overwriting the primary failure.
-				if op.onRun != nil {
-					hookErr := op.onRun(ctx, op)
-					if err == nil {
-						err = hookErr
-					} else if hookErr != nil {
-						op.logger.Warn("Run hook failed", logger.Ctx{"err": hookErr})
-					}
-				}
+				err = runBulkOperation(op)
 			} else if op.onRun != nil {
 				// Single-task operation: just run the hook.
 				err = op.onRun(ctx, op)
@@ -537,6 +525,88 @@ func (op *Operation) start() {
 	op.lock.Unlock()
 }
 
+// runBulkOperation runs a bulk operation. It sorts child operations into stages and runs each stage, waiting for it to
+// complete before starting the next stage. If a stage fails, operations in subsequent stages are cancelled unless their
+// type requires running regardless of previous failures (see [operationtype.Type.MustRun]). The run context is not
+// passed in here because there is no run hook on the parent to pass it to. Cancellation of the parent is propagated to
+// children via [Operation.Cancel].
+func runBulkOperation(op *Operation) error {
+	// Get a shallow clone of the child operations.
+	op.lock.Lock()
+	children := slices.Clone(op.children)
+	op.lock.Unlock()
+
+	// Sort the list of children
+	slices.SortFunc(children, func(a, b *Operation) int {
+		return int(a.stage) - int(b.stage)
+	})
+
+	// Categorize into batches. There will just be one batch if no stages are set.
+	var batches [][]*Operation
+	var stage uint16
+	for i, childOp := range children {
+		// On the first iteration we always create the first batch.
+		// Subsequently, we only change batch if the stage changes.
+		if i == 0 || childOp.stage != stage {
+			batches = append(batches, []*Operation{childOp})
+			stage = childOp.stage
+			continue
+		}
+
+		batches[len(batches)-1] = append(batches[len(batches)-1], childOp)
+	}
+
+	// Track the first error returned by one of the children
+	var firstChildError error
+
+	// Function to run or cancel a child operation.
+	runChildOp := func(op *Operation) {
+		// Start if there are no previous errors.
+		if firstChildError == nil {
+			op.start()
+			return
+		}
+
+		// Start if the operation type must run regardless of previous errors.
+		if op.dbOpType.MustRun() {
+			op.start()
+			return
+		}
+
+		// Otherwise cancel.
+		_ = op.Cancel()
+	}
+
+	// Process each batch.
+	for _, batch := range batches {
+		for _, childOp := range batch {
+			runChildOp(childOp)
+		}
+
+		// Wait on any operations that have been started or cancelled in this batch.
+		for _, childOp := range batch {
+			// Use the parents' finished context so that the parent waits for every child
+			// to finish even if the parent's context has been cancelled. The
+			// parent must observe all child outcomes before reporting its own result.
+			err := childOp.Wait(op.finished)
+			if err != nil && firstChildError == nil {
+				// Capture the first child error.
+				firstChildError = err
+			}
+		}
+	}
+
+	if firstChildError != nil {
+		if errors.Is(firstChildError, context.Canceled) {
+			return context.Canceled
+		}
+
+		return errors.New("One or more child operations failed")
+	}
+
+	return nil
+}
+
 // IsRunning returns true if the operation run hook is still in progress.
 func (op *Operation) IsRunning() bool {
 	return op.running.Err() == nil
@@ -547,20 +617,38 @@ func (op *Operation) IsFinished() bool {
 	return op.finished.Err() != nil
 }
 
-// Cancel cancels a running operation. If the operation cannot be cancelled, it
-// returns an error.
-func (op *Operation) Cancel() {
+// Cancel cancels an operation.
+//   - All operations whose run context has not yet been cancelled have their run context cancelled.
+//   - Operations with the [api.Pending] status are set to [api.Cancelled] immediately.
+//   - Operations without a run hook or any children (e.g. tokens) are set to [api.Cancelled] immediately.
+//   - Operations with a run hook or children have their status set to [api.Cancelling] (including all children).
+//     The go routine that is running the run hook will detect a [context.Canceled] error when the run hook exits and set
+//     the status to [api.Cancelled].
+func (op *Operation) Cancel() error {
 	op.lock.Lock()
 	if op.running.Err() != nil {
 		// Already cancelled, nothing to do.
 		op.lock.Unlock()
-		return
+		return nil
+	}
+
+	// If this is a pending child operation whose operation type dictates that it must run, then it cannot be cancelled.
+	if !op.isCancellable() {
+		op.lock.Unlock()
+		return api.StatusErrorf(http.StatusBadRequest, "This operation cannot be cancelled")
 	}
 
 	// Signal the operation to stop.
 	op.running.Cancel()
 
-	if op.onRun != nil || len(op.children) > 0 {
+	// Determine if the operation run hook is in progress. If it is, set the status to cancelling and let the operation
+	// clean itself up when the run hook exits. Otherwise, immediately set the status to cancelled with an error.
+	// If an operation is not in stage zero, it's initial status is pending (which is then updated to running when it is
+	// started). While it is pending, the run hook has not yet been executed, and will never be executed because we have
+	// just cancelled the running context, so we need to cancel immediately.
+	isInProgress := (op.onRun != nil || len(op.children) > 0) && op.status != api.Pending
+
+	if isInProgress {
 		// If the operation has a run hook, or this is a parent operation waiting for children, set the status to cancelling.
 		// If there's a run hook, the status, error and error code will be set to cancelled by the start routine because the run context is cancelled.
 		// The allows an operation to emit a cancelling status if it is in the middle of something that could take a while to clean up.
@@ -570,14 +658,12 @@ func (op *Operation) Cancel() {
 
 		// Signal the child operations to stop as well.
 		for _, childOp := range op.children {
-			childOp.Cancel()
+			// Ignore errors here, if a child operation cannot be cancelled then the parent will still run it.
+			_ = childOp.Cancel()
 		}
 	} else {
-		// If the operation does not have any children or a run hook, set the status and error to cancelled because there is nothing to clean up.
-		// We cannot use the operation context here because it has already been cancelled above.
-		op.err = context.Canceled.Error()
-		op.errCode = http.StatusInternalServerError
-		op.persistWithNewStatus(api.Cancelled)
+		// If the operation does not have any children or a run hook, cancel immediately.
+		op.cancelImmediate()
 	}
 
 	op.lock.Unlock()
@@ -589,11 +675,21 @@ func (op *Operation) Cancel() {
 	op.sendEvent(md)
 	op.lock.Unlock()
 
-	// If the operation does not have a run hook (e.g. a token operation) we need to call op.done(), because it won't be
-	// called automatically when the run hook completes.
-	if op.onRun == nil {
+	// If the operation was immediately cancelled, either its run hook was never executed or it doesn't have a run hook.
+	// In this case we need to call op.done to clean it up. Other operations will be cleaned up when their run hook exits.
+	if !isInProgress {
 		op.done()
 	}
+
+	return nil
+}
+
+// cancelImmediate sets the operation statuses to cancelled and persists the cancellation to the database.
+// This function should only be called under lock when the running context is cancelled and the run hook is not executing.
+func (op *Operation) cancelImmediate() {
+	op.err = context.Canceled.Error()
+	op.errCode = http.StatusInternalServerError
+	op.persistWithNewStatus(api.Cancelled)
 }
 
 // Connect connects a websocket operation. If the operation is not a websocket
@@ -673,7 +769,7 @@ func (op *Operation) Render() (string, *api.Operation) {
 		StatusCode:  op.status,
 		Resources:   renderedResources,
 		Metadata:    metadata,
-		MayCancel:   true,
+		MayCancel:   op.isCancellable(),
 		Location:    op.location,
 		Err:         op.err,
 		ErrCode:     op.errCode,
@@ -688,6 +784,13 @@ func (op *Operation) Render() (string, *api.Operation) {
 	op.lock.Unlock()
 
 	return op.url, retOp
+}
+
+// isCancellable returns true if the operation can be cancelled. Most operations can be cancelled.
+// The exception is a pending child operation whose operation type specifies that it must run.
+// This private function should only be called under lock.
+func (op *Operation) isCancellable() bool {
+	return op.parent == nil || op.status != api.Pending || !op.dbOpType.MustRun()
 }
 
 // RenderWithoutProgress renders the operation structure without progress metadata.

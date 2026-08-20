@@ -61,7 +61,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 
 	opRun := func(ctx context.Context, op *operations.Operation) error {
 		for _, op := range expiredTokenOps {
-			op.Cancel()
+			_ = op.Cancel()
 			_ = op.Wait(ctx)
 		}
 

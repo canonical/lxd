@@ -209,6 +209,18 @@ func (s *argsSuite) TestValidate() {
 			expectErr: true,
 			errMsg:    `Conflict reference "foo" provided for operation type "Creating instance" that does not support conflicts`,
 		},
+		// Unhappy paths - stage on parent
+		{
+			name: "stage on parent",
+			args: func() OperationArgs {
+				args := validTaskOperationArgs()
+				args.Stage = 1
+				return args
+			}(),
+			isChild:   false,
+			expectErr: true,
+			errMsg:    "Only child operations have stages",
+		},
 		// Unhappy paths - nested bulk operations
 		{
 			name: "nested bulk operations",
@@ -243,6 +255,33 @@ func (s *argsSuite) TestValidate() {
 			isChild:   false,
 			expectErr: true,
 			errMsg:    "Bulk operations must have children",
+		},
+		{
+			name: "bulk operation with a run hook",
+			args: func() OperationArgs {
+				args := validTaskOperationArgs()
+				args.Type = operationtype.InstanceStateUpdateBulk
+				args.RunHook = func(ctx context.Context, op *Operation) error {
+					return nil
+				}
+
+				args.Children = []*OperationArgs{
+					{
+						ProjectName: "default",
+						Type:        operationtype.InstanceStop,
+						Class:       operationtype.OperationClassTask,
+						EntityURL:   entity.InstanceURL("default", "c1"),
+						RunHook: func(ctx context.Context, op *Operation) error {
+							return nil
+						},
+					},
+				}
+
+				return args
+			}(),
+			isChild:   false,
+			expectErr: true,
+			errMsg:    "Bulk operations cannot have a Run hook",
 		},
 		{
 			name: "bulk operation as a child",
@@ -360,6 +399,7 @@ func (s *argsSuite) TestValidate() {
 			name: "nil child",
 			args: func() OperationArgs {
 				args := validTaskOperationArgs()
+				args.RunHook = nil
 				args.Type = operationtype.InstanceStateUpdateBulk
 				args.Children = append(args.Children, nil)
 				return args
@@ -369,10 +409,11 @@ func (s *argsSuite) TestValidate() {
 			errMsg:    "Operation children cannot be nil",
 		},
 		{
-			name: "child with different to parent",
+			name: "child with different project to parent",
 			args: func() OperationArgs {
 				args := validTaskOperationArgs()
 				args.Type = operationtype.InstanceStateUpdateBulk
+				args.RunHook = nil
 				args.Children = []*OperationArgs{
 					{
 						ProjectName: "foo",
@@ -390,6 +431,112 @@ func (s *argsSuite) TestValidate() {
 			isChild:   false,
 			expectErr: true,
 			errMsg:    "Child operations cannot have a different project to the parent operation",
+		},
+		// Unhappy paths - children with invalid stages
+		{
+			name: "children with non-consecutive stages",
+			args: func() OperationArgs {
+				args := validTaskOperationArgs()
+				args.Type = operationtype.InstanceStateUpdateBulk
+				args.RunHook = nil
+				args.Children = []*OperationArgs{
+					{
+						ProjectName: "default",
+						Type:        operationtype.InstanceCreate,
+						Class:       operationtype.OperationClassTask,
+						EntityURL:   entity.ProjectURL("default"),
+						RunHook: func(ctx context.Context, op *Operation) error {
+							return nil
+						},
+						Stage: 0,
+					},
+					{
+						ProjectName: "default",
+						Type:        operationtype.InstanceCreate,
+						Class:       operationtype.OperationClassTask,
+						EntityURL:   entity.ProjectURL("default"),
+						RunHook: func(ctx context.Context, op *Operation) error {
+							return nil
+						},
+						Stage: 2,
+					},
+				}
+
+				return args
+			}(),
+			isChild:   false,
+			expectErr: true,
+			errMsg:    "Child operation stages must be consecutive, starting at 0",
+		},
+		{
+			name: "children with stages not starting at zero",
+			args: func() OperationArgs {
+				args := validTaskOperationArgs()
+				args.Type = operationtype.InstanceStateUpdateBulk
+				args.RunHook = nil
+				args.Children = []*OperationArgs{
+					{
+						ProjectName: "default",
+						Type:        operationtype.InstanceCreate,
+						Class:       operationtype.OperationClassTask,
+						EntityURL:   entity.ProjectURL("default"),
+						RunHook: func(ctx context.Context, op *Operation) error {
+							return nil
+						},
+						Stage: 1,
+					},
+					{
+						ProjectName: "default",
+						Type:        operationtype.InstanceCreate,
+						Class:       operationtype.OperationClassTask,
+						EntityURL:   entity.ProjectURL("default"),
+						RunHook: func(ctx context.Context, op *Operation) error {
+							return nil
+						},
+						Stage: 2,
+					},
+				}
+
+				return args
+			}(),
+			isChild:   false,
+			expectErr: true,
+			errMsg:    "Child operation stages must be consecutive, starting at 0",
+		},
+		{
+			name: "children with stages containing operations with different types",
+			args: func() OperationArgs {
+				args := validTaskOperationArgs()
+				args.Type = operationtype.InstanceStateUpdateBulk
+				args.RunHook = nil
+				args.Children = []*OperationArgs{
+					{
+						ProjectName: "default",
+						Type:        operationtype.InstanceCreate,
+						Class:       operationtype.OperationClassTask,
+						EntityURL:   entity.ProjectURL("default"),
+						RunHook: func(ctx context.Context, op *Operation) error {
+							return nil
+						},
+						Stage: 0,
+					},
+					{
+						ProjectName: "default",
+						Type:        operationtype.NetworkCreate,
+						Class:       operationtype.OperationClassTask,
+						EntityURL:   entity.ProjectURL("default"),
+						RunHook: func(ctx context.Context, op *Operation) error {
+							return nil
+						},
+						Stage: 0,
+					},
+				}
+
+				return args
+			}(),
+			isChild:   false,
+			expectErr: true,
+			errMsg:    "All children in a stage must have the same operation type",
 		},
 		// Unhappy paths - child validation failure propagation
 		{
