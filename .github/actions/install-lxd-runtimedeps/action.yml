@@ -16,7 +16,7 @@ runs:
         OPTIONAL: ${{ inputs.optional }}
       run: |
         set -eux
-        sudo apt-get update
+        sudo timeout 10m apt-get update
 
         if [ "${OPTIONAL}" != "false" ]; then
           echo "Installing optional runtime dependencies"
@@ -26,13 +26,13 @@ runs:
           . test/includes/setup.sh
           install_instance_drivers
 
-          sudo apt-get install --no-install-recommends -y \
+          sudo timeout 10m apt-get install --no-install-recommends -y \
             lvm2 \
             zfsutils-linux
         fi
 
         # XXX: storage driver tools (lvm2, zfsutils-linux, etc) are installed on-demand by `test/main.sh`.
-        sudo apt-get install --no-install-recommends -y \
+        sudo timeout 10m apt-get install --no-install-recommends -y \
           acl \
           attr \
           bind9-dnsutils \
@@ -68,16 +68,16 @@ runs:
           # shellcheck disable=SC1091
           . /etc/os-release
           if dpkg --compare-versions "${VERSION_ID}" ge 24.04; then
-              sudo apt-get install --no-install-recommends -y yq
+              sudo timeout 10m apt-get install --no-install-recommends -y yq
           else
-              sudo snap install yq
+              sudo timeout 10m snap install yq
           fi
         fi
 
         # unbuffer allows to simulate a TTY which is not available in GH action
         # runners but required by some tests
         if ! command -v unbuffer >/dev/null; then
-          sudo apt-get install --no-install-recommends -y expect
+          sudo timeout 10m apt-get install --no-install-recommends -y expect
         fi
 
         # reclaim some space

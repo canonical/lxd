@@ -217,7 +217,7 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.unit-tests }}
         run: |
           set -eux
-          sudo apt-get install -y xdelta3 # Required for SimpleStreams client tests.
+          sudo timeout 10m apt-get install -y xdelta3 # Required for SimpleStreams client tests.
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           make check-unit
@@ -888,7 +888,7 @@ jobs:
           # TiCS requires pylint to be installed on the system to run Python checks
           if ! command -v pylint; then
             # no need to `apt-get update` first as it was done in prior steps.
-            sudo apt-get install --no-install-recommends -y pylint
+            sudo timeout 10m apt-get install --no-install-recommends -y pylint
           fi
 
       - name: Convert coverage files
@@ -993,7 +993,7 @@ jobs:
           set -eux
           if [ "${{ runner.os }}" = "Linux" ]; then
             # Required for SimpleStreams client tests.
-            sudo apt-get install -y xdelta3
+            sudo timeout 10m apt-get install -y xdelta3
           fi
           [ -n "${COVER}" ] && COVER="${COVER} -test.gocoverdir=${GOCOVERDIR}"
           go test -mod=readonly -v ./client/... ${COVER}

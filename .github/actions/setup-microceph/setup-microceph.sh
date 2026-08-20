@@ -12,7 +12,7 @@ install_microceph() {
       install_snap core24 latest/candidate
       install_snap microceph "${channel}"
   else
-    snap install microceph --channel="${channel}"
+    timeout 20m snap install microceph --channel="${channel}"
   fi
 }
 
@@ -133,8 +133,8 @@ configure_microceph() {
 
 # install_ceph_common: install ceph-common package for ceph CLI tools
 install_ceph_common() {
-  apt-get update
-  apt-get install --no-install-recommends -y ceph-common
+  timeout 10m apt-get update
+  timeout 20m apt-get install --no-install-recommends -y ceph-common
   # reclaim some space
   apt-get clean
 }

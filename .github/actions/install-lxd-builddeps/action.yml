@@ -8,9 +8,9 @@ runs:
       shell: bash
       run: |
         set -eux
-        sudo apt-get update
+        sudo timeout 10m apt-get update
 
-        sudo apt-get install --no-install-recommends -y \
+        sudo timeout 10m apt-get install --no-install-recommends -y \
           autoconf \
           automake \
           build-essential \

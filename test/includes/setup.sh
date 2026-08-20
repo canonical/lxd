@@ -115,7 +115,7 @@ install_packages() {
         exit 1
     fi
 
-    sudo apt-get install --no-install-recommends -y "$@"
+    sudo timeout 20m apt-get install --no-install-recommends -y "$@"
 }
 
 install_tools() {
