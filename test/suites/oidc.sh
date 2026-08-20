@@ -15,20 +15,20 @@ test_oidc() {
   lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/" "oidc.client.id=device"
 
   # Expect this to fail. No user set.
-  ! BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc || false
+  ! lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc || false
 
   # Set a user with no email address
   set_oidc test-user
 
   # Expect this to fail. mini-oidc will issue a token but adding the remote will fail because no email address will be
   # returned from /userinfo
-  ! BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc || false
+  ! lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc || false
 
   # Set a user with an email address
   set_oidc test-user test-user@example.com
 
   # This should succeed.
-  BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc
+  lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc
 
   # The user should now be logged in and their email should show in the "auth_user_name" field.
   lxc query oidc:/1.0 | jq --exit-status '.auth == "trusted"'
