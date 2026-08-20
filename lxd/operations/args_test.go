@@ -257,6 +257,33 @@ func (s *argsSuite) TestValidate() {
 			errMsg:    "Bulk operations must have children",
 		},
 		{
+			name: "bulk operation with a run hook",
+			args: func() OperationArgs {
+				args := validTaskOperationArgs()
+				args.Type = operationtype.InstanceStateUpdateBulk
+				args.RunHook = func(ctx context.Context, op *Operation) error {
+					return nil
+				}
+
+				args.Children = []*OperationArgs{
+					{
+						ProjectName: "default",
+						Type:        operationtype.InstanceStop,
+						Class:       operationtype.OperationClassTask,
+						EntityURL:   entity.InstanceURL("default", "c1"),
+						RunHook: func(ctx context.Context, op *Operation) error {
+							return nil
+						},
+					},
+				}
+
+				return args
+			}(),
+			isChild:   false,
+			expectErr: true,
+			errMsg:    "Bulk operations cannot have a Run hook",
+		},
+		{
 			name: "bulk operation as a child",
 			args: func() OperationArgs {
 				args := validTaskOperationArgs()

@@ -113,6 +113,10 @@ func (a OperationArgs) validate(isChild bool) error {
 		return errors.New("Bulk operations must have children")
 	}
 
+	if isBulkOperation && a.RunHook != nil {
+		return errors.New("Bulk operations cannot have a Run hook")
+	}
+
 	if !isBulkOperation && len(a.Children) > 0 {
 		return fmt.Errorf("Child operations not allowed for operation type %q", a.Type.Description())
 	}
