@@ -202,6 +202,8 @@ type Container interface {
 	FileSFTPNoLock() (*sftp.Client, error)
 	IdmappedStorage(path string, fstype string) idmap.IdmapStorageType
 	StopForkFile(force bool)
+	MoveMount(source string, target string, fstype string, flags int, idmapType idmap.IdmapStorageType) error
+	RemoveMount(mount string) error
 }
 
 // VM interface is for VM specific functions.
