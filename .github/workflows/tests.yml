@@ -110,6 +110,7 @@ jobs:
         os: ${{ fromJSON(inputs.ubuntu-releases || '["22.04", "24.04", "26.04"]') }}
         track: ${{ fromJSON(inputs.snap-track || '["6/edge", "5.21/edge", "5.0/edge"]') }}
         test:
+          - bgp
           - cgroup
           - cloud-init
           - cluster
@@ -167,6 +168,8 @@ jobs:
           - test: csi
             os: 22.04
           # not compatible with 4.0/*
+          - test: bgp
+            track: "4.0/candidate"
           - test: cloud-init
             track: "4.0/candidate"
           - test: container-copy
@@ -221,6 +224,8 @@ jobs:
             track: "4.0/candidate"
           - test: vm-migration
             track: "4.0/candidate"
+          - test: bgp
+            track: "4.0/edge"
           - test: cloud-init
             track: "4.0/edge"
           - test: container-copy
@@ -320,6 +325,8 @@ jobs:
           - test: snapcraft
             track: "5.21/edge"
           # some tests are not worth testing on specific OSes
+          - os: 22.04
+            test: bgp
           - os: 22.04
             test: lxd-installer
           - os: 22.04
