@@ -39,7 +39,7 @@ runs:
               install_snap microovn \"${SNAP_CHANNEL}\"; \
             "
           else
-            sudo snap install microovn --channel "${SNAP_CHANNEL}"
+            sudo timeout 10m snap install microovn --channel "${SNAP_CHANNEL}"
           fi
 
     - name: Configure MicroOVN snap

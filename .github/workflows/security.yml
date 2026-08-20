@@ -100,7 +100,7 @@ jobs:
         env:
           SNAP_NAME: ${{ github.event.repository.name }}
         run: |
-          snap download "${SNAP_NAME}" --channel=${{ matrix.track }}/stable --cohort="+"
+          timeout 10m snap download "${SNAP_NAME}" --channel=${{ matrix.track }}/stable --cohort="+"
           unsquashfs ./${SNAP_NAME}*.snap
 
       - name: Run Trivy vulnerability scanner
