@@ -11,7 +11,7 @@ import (
 	"sync"
 )
 
-var bootID func() (string, error) = sync.OnceValues(func() (string, error) {
+var bootID = sync.OnceValues(func() (string, error) {
 	data, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
 	if err != nil {
 		return "", err
