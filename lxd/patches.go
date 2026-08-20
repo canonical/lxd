@@ -39,6 +39,7 @@ const (
 	patchPreDaemonStorage
 	patchPostDaemonStorage
 	patchPostNetworks
+	patchPostInstancesLoaded
 )
 
 /*
