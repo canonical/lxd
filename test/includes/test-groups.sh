@@ -53,6 +53,7 @@ readonly test_group_cluster=(
     "clustering_link_info"
     "clustering_image_proxy_bypass"
     "clustering_link_unidirectional"
+    "clustering_link_public"
     "clustering_acme"
 )
 

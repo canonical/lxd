@@ -3643,3 +3643,17 @@ For bearer tokens the expiry is recorded when a token is issued and cleared when
 The field is omitted for identities whose credential has no expiry, that have no credential yet (pending identities), or whose token has been revoked.
 
 Note that bearer identities created prior to this extension will have an omitted `expires_at` field until a new token is issued.
+
+(extension-cluster-links-public)=
+## `cluster_links_public`
+
+This extends the {ref}`cluster links <exp-cluster-links>` API with support for public cluster links. The initiating cluster (A) connects to the remote cluster (B) without presenting a client certificate, relying solely on TLS certificate pinning for server authentication. B is completely unaware of the link; no identity is created on either side. This is useful when B exposes resources publicly or when anonymous-style read access to B is sufficient.
+
+Creating a public cluster link is a two-phase process:
+
+1. A `POST` request with a name and `remote_address` (no `cluster_certificate`) creates a pending link. A fetches B's TLS certificate and confirms B is serving the LXD API, then returns the certificate's fingerprint and PEM encoding for user verification. The certificate is held in `volatile.pending_certificate` and the verified address in `volatile.pending_address`, but neither is pinned yet; the link remains inert (unreachable) until confirmed. Repeating this request for a link that is still pending refreshes it rather than conflicting, so an interrupted creation can be retried.
+2. A second `POST` request with the same name, this time including the `cluster_certificate` returned by the first request, pins the certificate and activates the link. The resubmitted certificate must match the one fetched in the first request; a mismatch is rejected. `remote_address` is still required on this request but its value is not used: the address pinned into `volatile.addresses` is the canonical one (with an explicit port) recorded in `volatile.pending_address`, so the link always points at the address that was actually verified.
+
+A new `ClusterLinkCertificate` response type is introduced, containing the certificate fingerprint and PEM-encoded certificate returned by the first request.
+
+Public cluster links cannot be used by {ref}`replicators <exp-replicators>` or as a project's `replica.cluster`, since replication requires the remote cluster to authenticate the connection. Both reject a public link at configuration time.
