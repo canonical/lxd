@@ -49,6 +49,8 @@ env:
 jobs:
   uc-nvidia-cdi:
     runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
+    # LXD 5.0 does not support CDI, only `nvidia.runtime`.
+    if: ${{ !contains(inputs.snap-track, '5.0/') }}
     strategy:
       matrix:
         track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
@@ -149,6 +151,8 @@ jobs:
 
   amd-cdi:
     runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
+    # AMD CDI is not supported on LXD 5.0.
+    if: ${{ !contains(inputs.snap-track, '5.0/') }}
     strategy:
       matrix:
         track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
