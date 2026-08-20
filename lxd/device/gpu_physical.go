@@ -188,6 +188,16 @@ func (d *gpuPhysical) startCDIDevices(configDevices cdi.ConfigDevices, runConf *
 			return fmt.Errorf("Failed to parse minor number %q when starting CDI device: %w", conf["minor"], err)
 		}
 
+		// User-provided uid/gid/mode on the LXD device take priority over the values
+		// declared by the CDI spec. This lets unprivileged in-container runtimes (e.g.
+		// Anbox) request device node ownership matching their process uid/gid, while
+		// still falling back to the CDI spec's values when the user hasn't set any.
+		for _, field := range []string{"uid", "gid", "mode"} {
+			if d.config[field] != "" {
+				conf[field] = d.config[field]
+			}
+		}
+
 		// Here putting a `cdi.CDIUnixPrefix` prefix with 'd.name' as a device name will create an directory entry like:
 		// <lxd_var_path>/devices/<instance_name>/<cdi.CDIUnixPrefix>.<gpu_device_name>.<path_encoded_relative_dest_path>
 		// 'unixDeviceSetupCharNum' is already checking for dupe entries so we have no validation to do here.
