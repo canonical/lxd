@@ -1,0 +1,280 @@
+#!/bin/bash
+set -eu
+
+# Install LXD
+install_lxd
+
+if ! hasNeededAPIExtension network_bgp; then
+  echo "Skipping test as not supported"
+  # shellcheck disable=SC2034
+  FAIL=0
+  exit 0
+fi
+
+# Install dependencies
+install_deps frr jq
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+# LXD acts as the BGP server and FRR as the external router peering with it. Both
+# ends live on a dummy interface so the test needs no external connectivity.
+LXD_ASN="65536"
+LXD_ADDR="10.10.10.1"
+LXD_ADDR6="fd00:beef::1"
+FRR_ASN="65535"
+FRR_ADDR="10.10.10.2"
+BGP_PASSWORD="lxd-ci-bgp"
+
+# FRR shares the host network namespace with LXD, so it treats every address
+# configured on the host as its own and drops advertisements carrying one as a
+# martian/self next-hop. The advertised next-hops therefore have to be addresses
+# of the transit subnets that are left unassigned, which zebra still resolves
+# through the connected route.
+NEXTHOP4="10.10.10.10"
+NEXTHOP6="fd00:beef::10"
+ALT_NEXTHOP4="10.10.10.20"
+ALT_NEXTHOP6="fd00:beef::20"
+
+# Prefixes LXD is expected to advertise.
+BGP_NET="bgptest"
+NET_ADDR4="198.51.100.1/24"
+NET_ADDR6="2001:db8:bbbb::1/64"
+NET_SUBNET4="198.51.100.0/24"
+NET_SUBNET6="2001:db8:bbbb::/64"
+NIC_ROUTE4="203.0.113.16/28"
+NIC_ROUTE6="2001:db8:cccc:1::/64"
+FORWARD_ADDR="203.0.113.200"
+
+# frrPrefixNexthops: print the next-hops FRR received for a prefix (nothing if not received).
+# Usage: frrPrefixNexthops <4|6> <prefix>
+frrPrefixNexthops() (
+    { set +x; } 2>/dev/null
+    # join() emits a single value so an absent prefix is an empty string rather than no
+    # output at all, leaving --exit-status to only catch unusable vtysh output.
+    vtysh -c "show bgp ipv${1} unicast json" | jq --exit-status --raw-output --arg prefix "${2}" '[.routes[$prefix]?[]?.nexthops[]?.ip] | unique | join("\n")'
+)
+
+# waitFRRPrefix: wait until FRR received (or no longer has) a prefix, optionally via a given next-hop.
+# Usage: waitFRRPrefix <4|6> <prefix> <present|absent> [next-hop]
+waitFRRPrefix() (
+    { set +x; } 2>/dev/null
+    local family="${1}"
+    local prefix="${2}"
+    local wanted="${3}"
+    local nexthop="${4:-}"
+    local maxWait="${MAX_WAIT_SECONDS:-60}"
+    local nexthops=""
+
+    for _ in $(seq "${maxWait}"); do
+        nexthops="$(frrPrefixNexthops "${family}" "${prefix}")"
+        if [ "${wanted}" = "absent" ]; then
+            if [ -z "${nexthops}" ]; then
+                return 0 # Success.
+            fi
+        elif [ -n "${nexthops}" ]; then
+            if [ -z "${nexthop}" ] || grep -qxF "${nexthop}" <<< "${nexthops}"; then
+                return 0 # Success.
+            fi
+        fi
+        sleep 1
+    done
+
+    echo "IPv${family} prefix ${prefix} expected ${wanted}${nexthop:+ via ${nexthop}} after ${maxWait}s, got next-hops: ${nexthops:-none}"
+    vtysh -c "show bgp ipv${family} unicast"
+    # Tells apart a prefix LXD never sent from one FRR received and then dropped.
+    vtysh -c "show bgp ipv${family} unicast neighbors ${LXD_ADDR} received-routes"
+    return 1 # Failed.
+)
+
+# waitFRRSession: wait for the BGP session with LXD to be up or down.
+# Usage: waitFRRSession <up|down>
+waitFRRSession() (
+    { set +x; } 2>/dev/null
+    local wanted="${1}"
+    local maxWait="${MAX_WAIT_SECONDS:-120}"
+    local state=""
+
+    for _ in $(seq "${maxWait}"); do
+        state="$(vtysh -c "show bgp neighbors ${LXD_ADDR} json" | jq --exit-status --raw-output --arg peer "${LXD_ADDR}" '.[$peer].bgpState // "Unknown"')"
+        if [ "${wanted}" = "up" ]; then
+            if [ "${state}" = "Established" ]; then
+                return 0 # Success.
+            fi
+        elif [ "${state}" != "Established" ]; then
+            return 0 # Success.
+        fi
+        sleep 1
+    done
+
+    echo "BGP session with ${LXD_ADDR} is ${state}, expected to be ${wanted} after ${maxWait}s"
+    vtysh -c "show bgp summary"
+    return 1 # Failed.
+)
+
+# Test
+set -x
+
+echo "==> Setting up the transit link between LXD and FRR"
+ip link add bgp0 type dummy
+ip link set bgp0 up
+ip addr add "${LXD_ADDR}/24" dev bgp0
+ip addr add "${FRR_ADDR}/24" dev bgp0
+ip addr add "${LXD_ADDR6}/64" dev bgp0 nodad
+
+echo "==> Configuring FRR as the peering router"
+# `-l` keeps bgpd off the wildcard address so it doesn't clash with LXD's listener.
+cat >> /etc/frr/daemons << EOF
+bgpd=yes
+bgpd_options="-A 127.0.0.1 -l ${FRR_ADDR}"
+EOF
+
+# The deny route-map prevents zebra from pushing the learned prefixes into the host
+# routing table where they would fight with the routes LXD manages itself.
+cat > /etc/frr/frr.conf << EOF
+frr defaults traditional
+!
+router bgp ${FRR_ASN}
+ bgp router-id ${FRR_ADDR}
+ no bgp ebgp-requires-policy
+ neighbor ${LXD_ADDR} remote-as ${LXD_ASN}
+ neighbor ${LXD_ADDR} password ${BGP_PASSWORD}
+ neighbor ${LXD_ADDR} update-source ${FRR_ADDR}
+ !
+ address-family ipv4 unicast
+  neighbor ${LXD_ADDR} activate
+  neighbor ${LXD_ADDR} soft-reconfiguration inbound
+ exit-address-family
+ !
+ address-family ipv6 unicast
+  neighbor ${LXD_ADDR} activate
+  neighbor ${LXD_ADDR} soft-reconfiguration inbound
+ exit-address-family
+!
+route-map RM_NO_KERNEL deny 10
+!
+ip protocol bgp route-map RM_NO_KERNEL
+ipv6 protocol bgp route-map RM_NO_KERNEL
+!
+EOF
+chown frr:frr /etc/frr/frr.conf
+chmod 0640 /etc/frr/frr.conf
+systemctl restart frr
+vtysh -c "show running-config"
+
+# Older FRR releases silently drop the config, which would only show up much later
+# as a session that never comes up.
+if ! vtysh -c "show running-config" | grep -qF "neighbor ${LXD_ADDR} remote-as ${LXD_ASN}"; then
+    echo "FRR did not load the BGP peer configuration"
+    exit 1
+fi
+
+echo "==> Configuring LXD as a BGP server"
+lxc storage create default dir
+lxc config set core.bgp_address="${LXD_ADDR}:179" core.bgp_asn="${LXD_ASN}" core.bgp_routerid="${LXD_ADDR}"
+
+echo "==> Creating a network peering with FRR and check the session comes up"
+# The next-hops must be set explicitly: for bridges LXD otherwise advertises the
+# wildcard address, which peers reject as a martian next-hop.
+peer_holdtime=""
+peer_holdtime_clear=""
+if hasNeededAPIExtension network_bgp_holdtime; then
+    peer_holdtime="bgp.peers.frr.holdtime=30"
+    peer_holdtime_clear="bgp.peers.frr.holdtime="
+fi
+
+# The peer is only registered once both address and ASN are set, so to avoid
+# bouncing the BGP session with multiple 'lxc network set', it's advisable to
+# set the address last or provide all the configuration in a single command.
+lxc network create "${BGP_NET}" \
+    ipv4.address="${NET_ADDR4}" ipv4.nat=false \
+    ipv6.address="${NET_ADDR6}" ipv6.nat=false \
+    ipv4.routes="203.0.113.0/24" \
+    ipv6.routes="2001:db8:cccc::/48" \
+    bgp.ipv4.nexthop="${NEXTHOP4}" \
+    bgp.ipv6.nexthop="${NEXTHOP6}" \
+    bgp.peers.frr.address="${FRR_ADDR}" \
+    bgp.peers.frr.asn="${FRR_ASN}" \
+    bgp.peers.frr.password="${BGP_PASSWORD}" \
+    ${peer_holdtime} # Don't quote to omit the empty arg.
+
+waitFRRSession up
+
+echo "==> Checking the network subnets are advertised"
+waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
+waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
+
+echo "==> Checking next-hop changes are re-advertised"
+lxc network set "${BGP_NET}" bgp.ipv4.nexthop="${ALT_NEXTHOP4}" bgp.ipv6.nexthop="${ALT_NEXTHOP6}"
+waitFRRPrefix 4 "${NET_SUBNET4}" present "${ALT_NEXTHOP4}"
+waitFRRPrefix 6 "${NET_SUBNET6}" present "${ALT_NEXTHOP6}"
+
+lxc network set "${BGP_NET}" bgp.ipv4.nexthop="${NEXTHOP4}" bgp.ipv6.nexthop="${NEXTHOP6}"
+waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
+waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
+
+echo "==> Checking external routes of a running instance are advertised"
+lxc init "${IMAGE}" c1 -s default -c limits.memory=512MiB
+lxc config device add c1 eth0 nic \
+    network="${BGP_NET}" \
+    ipv4.routes.external="${NIC_ROUTE4}" \
+    ipv6.routes.external="${NIC_ROUTE6}"
+waitFRRPrefix 4 "${NIC_ROUTE4}" absent
+waitFRRPrefix 6 "${NIC_ROUTE6}" absent
+
+lxc start c1
+waitFRRPrefix 4 "${NIC_ROUTE4}" present "${NEXTHOP4}"
+waitFRRPrefix 6 "${NIC_ROUTE6}" present "${NEXTHOP6}"
+
+echo "==> Checking external routes are withdrawn when the instance stops"
+lxc delete -f c1
+waitFRRPrefix 4 "${NIC_ROUTE4}" absent
+waitFRRPrefix 6 "${NIC_ROUTE6}" absent
+
+if hasNeededAPIExtension network_forward; then
+    echo "==> Checking network forward addresses are advertised"
+    lxc network forward create "${BGP_NET}" "${FORWARD_ADDR}" target_address=198.51.100.10
+    waitFRRPrefix 4 "${FORWARD_ADDR}/32" present "${NEXTHOP4}"
+
+    lxc network forward delete "${BGP_NET}" "${FORWARD_ADDR}"
+    waitFRRPrefix 4 "${FORWARD_ADDR}/32" absent
+fi
+
+echo "==> Checking NATed subnets are no longer advertised"
+lxc network set "${BGP_NET}" ipv4.nat=true ipv6.nat=true
+waitFRRPrefix 4 "${NET_SUBNET4}" absent
+waitFRRPrefix 6 "${NET_SUBNET6}" absent
+
+lxc network set "${BGP_NET}" ipv4.nat=false ipv6.nat=false
+waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
+waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
+
+echo "==> Checking the session follows the peer being removed and re-added"
+lxc network set "${BGP_NET}" \
+    bgp.peers.frr.address="" \
+    bgp.peers.frr.asn="" \
+    bgp.peers.frr.password="" \
+    ${peer_holdtime_clear} # Don't quote to omit the empty arg.
+waitFRRSession down
+
+lxc network set "${BGP_NET}" \
+    bgp.peers.frr.address="${FRR_ADDR}" \
+    bgp.peers.frr.asn="${FRR_ASN}" \
+    bgp.peers.frr.password="${BGP_PASSWORD}" \
+    ${peer_holdtime} # Don't quote to omit the empty arg.
+waitFRRSession up
+waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
+waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
+
+echo "==> Checking the session goes down when the listener is unconfigured"
+lxc config unset core.bgp_address
+waitFRRSession down
+
+# Cleanup.
+lxc network delete "${BGP_NET}"
+lxc config set core.bgp_asn="" core.bgp_routerid=""
+lxc storage delete default
+systemctl stop frr
+ip link delete bgp0
+
+# shellcheck disable=SC2034
+FAIL=0
