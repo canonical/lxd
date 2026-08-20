@@ -120,6 +120,12 @@ gpu_run_nvidia_tests() {
   lxc config device add "${ctName}" gpu-cdi-all gpu id=nvidia.com/gpu=all
   gpu_verify_nvidia_mounts "${ctName}"
   lxc config device remove "${ctName}" gpu-cdi-all
+
+  # Verify user-supplied uid/gid/mode are honored on NVIDIA CDI GPU devices.
+  lxc config device add "${ctName}" gpu-cdi-perms gpu id=nvidia.com/gpu=0 uid=1000 gid=1000 mode=0640
+  [ "$(lxc exec "${ctName}" -- stat -c '%u %g %a' /dev/nvidia0)" = "1000 1000 640" ]
+  [ "$(lxc exec "${ctName}" -- stat -c '%u %g %a' /dev/nvidiactl)" = "1000 1000 640" ]
+  lxc config device remove "${ctName}" gpu-cdi-perms
 }
 
 gpu_run_amd_tests() {
@@ -179,6 +185,12 @@ gpu_run_amd_tests() {
   lxc exec "${ctName}" -- mount | grep -wF "${amdDeviceName}"
 
   lxc config device remove "${ctName}" gpu-amd-all
+
+  # Verify user-supplied uid/gid/mode are honored on AMD CDI GPU devices.
+  lxc config device add "${ctName}" gpu-amd-perms gpu id=amd.com/gpu=0 uid=2000 gid=2000 mode=0640
+  [ "$(lxc exec "${ctName}" -- stat -c '%u %g %a' /dev/kfd)" = "2000 2000 640" ]
+  [ "$(lxc exec "${ctName}" -- stat -c '%u %g %a' /dev/dri/"${amdDeviceName}")" = "2000 2000 640" ]
+  lxc config device remove "${ctName}" gpu-amd-perms
 }
 
 test_container_devices_gpu() {

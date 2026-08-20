@@ -92,14 +92,14 @@ func startCDIDevices(d *deviceCommon, configDevices cdi.ConfigDevices, runConf *
 			return fmt.Errorf("Failed parsing minor number %q when starting CDI device: %w", conf["minor"], err)
 		}
 
-		uid := conf["uid"]
-		if uid != "" {
-			d.config["uid"] = uid
-		}
-
-		gid := conf["gid"]
-		if gid != "" {
-			d.config["gid"] = gid
+		// User-provided uid/gid/mode on the LXD device take priority over the values
+		// declared by the CDI spec. This lets unprivileged in-container runtimes (e.g.
+		// Anbox) request device node ownership matching their process uid/gid, while
+		// still falling back to the CDI spec's values when the user hasn't set any.
+		for _, field := range []string{"uid", "gid", "mode"} {
+			if d.config[field] != "" {
+				conf[field] = d.config[field]
+			}
 		}
 
 		// Here putting a `cdi.CDIUnixPrefix` prefix with 'd.name' as a device name will create an directory entry like:
