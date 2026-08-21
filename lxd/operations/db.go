@@ -906,7 +906,7 @@ func restartOperation(op *Operation) {
 
 	operationsLock.Unlock()
 
-	op.logger.Debug("Restarting operation", logger.Ctx{"id": op.id})
+	op.logger.Info("Restarting operation", logger.Ctx{"id": op.id})
 	op.start()
 }
 
