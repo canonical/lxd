@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -100,6 +102,10 @@ func deleteInternal(operationUUIDs ...string) {
 	}
 }
 
+// RunHook is the function signature of an operation run hook.
+// This is a convenience for passing run hooks as arguments.
+type RunHook func(context.Context, *Operation) error
+
 // Operation represents an operation.
 type Operation struct {
 	dbID            int64
@@ -113,6 +119,7 @@ type Operation struct {
 	resources       map[entity.Type][]api.URL
 	entityURL       *api.URL
 	metadata        map[string]any
+	inputs          map[InputKey]json.RawMessage
 	err             string
 	errCode         int64
 	readonly        bool
@@ -125,7 +132,7 @@ type Operation struct {
 	stage           uint16
 
 	// Those functions are called at various points in the Operation lifecycle
-	onRun     func(context.Context, *Operation) error
+	onRun     RunHook
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 
 	// Operations which conflict with each other share the same conflict reference.
@@ -142,6 +149,13 @@ type Operation struct {
 	// running is the basis of the [context.Context] passed into the onRun hook.
 	// It is cancelled when the onRun hook completes or when Cancel is called (on operation deletion).
 	running cancel.Canceller
+
+	// internallyCancelled can only be set to true for durable operations. It is set when a heartbeat is not received on
+	// this node within the offline threshold, or when the operation is updated by a member that is no longer assigned
+	// to the operation in the database.
+	//
+	// When this is true, we skip deleting the database record and instead just remove the operation from the in-memory map.
+	internallyCancelled atomic.Bool
 
 	// Locking for concurrent access to the Operation
 	lock sync.Mutex
@@ -295,6 +309,14 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 			op.status = api.Pending
 		}
 
+		// Ensure inputs are non-nil if empty.
+		inputs := args.inputs
+		if inputs == nil {
+			inputs = make(map[InputKey]json.RawMessage)
+		}
+
+		op.inputs = inputs
+
 		// Callback functions
 		op.onRun = args.RunHook
 		op.onConnect = args.ConnectHook
@@ -333,6 +355,21 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 	err = registerDBOperation(shutdownCtx, op)
 	if err != nil {
 		return nil, err
+	}
+
+	// Durable operations need to be able to be reloaded from the database.
+	// To ease debugging in case of issues, we want to ensure the reloaded operation will be identical to the one originally created.
+	// Therefore, reload the operation from the database here to ensure everything is properly persisted and can be reloaded correctly.
+	// Notably, when unix socket is used for auth, the op.requestor.OriginAddress is set to '@'. This is not persisted in the database,
+	// so reloading the operation ensures we work with empty ("") OriginAddress instead of "@".
+	if op.class == operationtype.OperationClassDurable {
+		op.logger.Debug("Reloading durable operation from database")
+		reconstructedOp, err := loadAndConstructOperationFromDB(shutdownCtx, s, op.id)
+		if err != nil {
+			return nil, fmt.Errorf("Failed reconstructing durable operation: %w", err)
+		}
+
+		op = reconstructedOp
 	}
 
 	op.logger.Debug("New operation")
@@ -475,6 +512,19 @@ func (op *Operation) start() {
 					op.errCode = int64(statusCode)
 				} else {
 					op.errCode = http.StatusInternalServerError
+				}
+
+				// If the durable operation was cancelled locally because of missed heartbeat, only set its local status
+				// to cancelled without persisting it (otherwise it will be persisted in a final state and not restarted).
+				// We also don't want to send any events relating to the change. These will continue on the leader.
+				if op.internallyCancelled.Load() {
+					// Cancel the running context and call done, but don't finalize the operation in the database.
+					// We keep the api.Running status because it is still running, it is being moved to another cluster
+					// member to be restarted.
+					op.running.Cancel()
+					op.lock.Unlock()
+					op.done()
+					return
 				}
 
 				// If the run context was cancelled, the previous state should be "cancelling", and the final state should be "cancelled".
@@ -690,6 +740,50 @@ func (op *Operation) cancelImmediate() {
 	op.err = context.Canceled.Error()
 	op.errCode = http.StatusInternalServerError
 	op.persistWithNewStatus(api.Cancelled)
+}
+
+// cancelInternal sets the Operation.internallyCancelled flag to true and cancels the run context for the operation and
+// all of its children. The result is that the operation should stop running via context cancellation but will not be
+// marked as cancelled in the database.
+func cancelInternal(op *Operation) {
+	// Note that on purpose we don't lock the operation lock here.
+	// We don't want to wait on the lock while the operation is updating its status.
+	// This is because internal cancellation only occurs when heartbeats fail, or when the operation has already been
+	// relocated to the leader. We don't want to wait for e.g. a database connection if the cluster is unhealthy.
+	// Setting internallyCancelled and cancelling the operation run context are atomic operations, so this is safe.
+
+	// Mark this operation as having missed the heartbeat.
+	// It will tell the end routines not to clear the database record.
+	op.internallyCancelled.Store(true)
+
+	// Signal the operation to stop.
+	// The operation will be marked as finished and removed from the local operations map
+	// by the rest of the Start() routine after it actually stops.
+	op.running.Cancel()
+	for _, child := range op.children {
+		cancelInternal(child)
+	}
+}
+
+// CancelLocalDurableOperations stops all durable operations running on this node.
+// These operations are only removed from the local operations map, the database records are left intact.
+// The cluster leader will later restart these operations.
+func CancelLocalDurableOperations() {
+	operationsLock.Lock()
+	for _, op := range operations {
+		if op.class != operationtype.OperationClassDurable {
+			continue
+		}
+
+		// Child operations are cancelled when the parent is cancelled.
+		if op.parent != nil {
+			continue
+		}
+
+		cancelInternal(op)
+	}
+
+	operationsLock.Unlock()
 }
 
 // Connect connects a websocket operation. If the operation is not a websocket
@@ -1138,4 +1232,24 @@ func (op *Operation) sendEvent(eventMessage any) {
 	}
 
 	_ = op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
+}
+
+// GetOperationInputValue returns the input value associated with the given key. It returns an [http.StatusNotFound]
+// error if not present, or an error if value cannot be unmarshalled into the given type.
+func GetOperationInputValue[T any](op *Operation, key InputKey) (T, error) {
+	op.lock.Lock()
+	defer op.lock.Unlock()
+
+	var t T
+	rawJSON, ok := op.inputs[key]
+	if !ok {
+		return t, api.StatusErrorf(http.StatusNotFound, "No value for input key %q", key)
+	}
+
+	err := json.Unmarshal(rawJSON, &t)
+	if err != nil {
+		return t, fmt.Errorf("Failed unmarshalling input value: %w", err)
+	}
+
+	return t, nil
 }

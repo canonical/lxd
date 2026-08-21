@@ -248,6 +248,12 @@ func GetOperations(ctx context.Context, tx *sql.Tx, includeChildren bool, projec
 	return query.Select[Operation](ctx, tx, clause, args...)
 }
 
+// GetOperationWithChildren gets a single operation and all of its children (if it has any).
+func GetOperationWithChildren(ctx context.Context, tx *sql.Tx, operationUUID string) ([]Operation, error) {
+	clause := "WHERE operations.uuid = ? OR operations.parent = (SELECT operations.id FROM operations WHERE operations.uuid = ?)"
+	return query.Select[Operation](ctx, tx, clause, operationUUID, operationUUID)
+}
+
 // UpdateOperation updates operation status, metadata and error (if set) in the cluster db.
 // This is used to keep DB in sync with the current status of the operation when the operation changes
 // its status, or when calls to commit metadata explicitly. The caller is expected to pass in the current node ID.
@@ -429,4 +435,9 @@ func CountOperationChildren(ctx context.Context, tx *sql.Tx, parentID int64) (in
 	}
 
 	return count, nil
+}
+
+// GetOperationsByNodeIDAndClass gets all operations on the given node ID and operation class.
+func GetOperationsByNodeIDAndClass(ctx context.Context, tx *sql.Tx, nodeID int64, class operationtype.Class) ([]Operation, error) {
+	return query.Select[Operation](ctx, tx, "WHERE operations.node_id = ? AND operations.class = ?", nodeID, class)
 }

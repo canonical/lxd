@@ -501,6 +501,7 @@ var APIExtensions = []string{
 	"storage_driver_powerstore_nvme",
 	"access_management_expiry",
 	"cluster_links_public",
+	"durable_operations",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
