@@ -365,7 +365,7 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 	return &op, nil
 }
 
-// Synchronize is run on database start up and shutdown, and as a recurring task every minute.
+// Synchronize is run on Daemon start and every minute thereafter.
 // It first checks the local map for any operations that need to be retained. These are:
 // - Bulk operations that completed less than 24 hours ago.
 // - Other operations that completed less than 5 seconds ago.
