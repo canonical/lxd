@@ -430,6 +430,15 @@ func snapshotInstance(ctx context.Context, s *state.State, inst instance.Instanc
 
 	instName := inst.Name()
 
+	// All-exclusive mode captures the root disk and the instance's exclusively attached custom
+	// volumes at the same moment, so the replicated set is crash consistent. Projects that
+	// inherit volumes from the default project have no project-local volumes to capture and the
+	// API rejects the mode for them, so those fall back to the root disk alone.
+	diskVolumesMode := api.DiskVolumesModeAllExclusive
+	if shared.IsFalse(inst.Project().Config["features.storage.volumes"]) {
+		diskVolumesMode = api.DiskVolumesModeRoot
+	}
+
 	// Instances hosted elsewhere are snapshotted through the hosting member's API, since only
 	// that member has direct access to the instance's storage.
 	if inst.Location() != s.ServerName {
@@ -444,7 +453,7 @@ func snapshotInstance(ctx context.Context, s *state.State, inst instance.Instanc
 
 		memberClient = memberClient.UseProject(inst.Project().Name)
 
-		snapOp, err := memberClient.CreateInstanceSnapshot(instName, api.InstanceSnapshotsPost{})
+		snapOp, err := memberClient.CreateInstanceSnapshot(instName, api.InstanceSnapshotsPost{DiskVolumesMode: diskVolumesMode})
 		if err != nil {
 			return fmt.Errorf("Failed creating snapshot of instance %q on hosting cluster member: %w", instName, err)
 		}
@@ -462,7 +471,7 @@ func snapshotInstance(ctx context.Context, s *state.State, inst instance.Instanc
 		return fmt.Errorf("Failed generating snapshot name for instance %q: %w", instName, err)
 	}
 
-	err = inst.Snapshot(ctx, snapName, nil, false, api.DiskVolumesModeRoot, nil)
+	err = inst.Snapshot(ctx, snapName, nil, false, diskVolumesMode, nil)
 	if err != nil {
 		return fmt.Errorf("Failed creating snapshot of instance %q: %w", instName, err)
 	}
