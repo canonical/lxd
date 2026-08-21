@@ -1160,7 +1160,9 @@ func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) 
 		return fmt.Errorf("Invalid duration: %w", err)
 	}
 
-	logger.Warnf("Starting wait handler operation for %s", duration.String())
+	s := op.State()
+
+	l := logger.AddContext(logger.Ctx{"total_duration": inputDuration, "member_name": s.ServerName})
 
 	// Initialize metadata map if needed.
 	metadata := op.Metadata()
@@ -1181,7 +1183,9 @@ func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) 
 			return fmt.Errorf("Failed parsing elapsed metadata: %w", err)
 		}
 
-		logger.Warnf("Resuming wait handler operation, already waited for %s", elapsed.String())
+		l.Warn("Resuming wait handler operation", logger.Ctx{"elapsed": elapsed.String()})
+	} else {
+		l.Warn("Starting wait handler operation")
 	}
 
 	for duration > elapsed {
@@ -1193,7 +1197,7 @@ func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) 
 		}
 
 		elapsed = elapsed + time.Second
-		logger.Warnf("Wait handler operation running for %d seconds...", elapsed/time.Second)
+		l.Warn("Running wait handler operation", logger.Ctx{"elapsed": elapsed.String()})
 		metadata["elapsed"] = elapsed.String()
 		err = op.UpdateMetadata(metadata)
 		if err != nil {
@@ -1206,7 +1210,7 @@ func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) 
 		}
 	}
 
-	logger.Warn("Wait handler operation completed")
+	l.Warn("Wait handler operation completed")
 
 	return nil
 }
