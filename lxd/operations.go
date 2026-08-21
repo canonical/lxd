@@ -1144,12 +1144,16 @@ type operationWaitPost struct {
 }
 
 func init() {
-	operations.RegisterDurableOperationRunHook(operationtype.Wait, waitHandlerOperationRunHook)
+	operations.RegisterDurableOperationRunHook(operationtype.Wait, internalTestingWaitHandlerOperationRunHook)
 }
 
 const operationInputKeyWaitHandlerDuration operations.InputKey = "duration"
 
-func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) error {
+// internalTestingWaitHandlerOperationRunHook is a durable operation run hook used for testing. It accepts a "duration"
+// input value and logs a warning every second until the duration is complete. The elapsed duration is saved to the
+// operation metadata on each tick, so that if the member running this operation goes offline, the operation is restarted
+// on the leader and continues from the current elapsed duration.
+func internalTestingWaitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) error {
 	inputDuration, err := operations.GetOperationInputValue[string](op, operationInputKeyWaitHandlerDuration)
 	if err != nil {
 		return err
@@ -1251,7 +1255,7 @@ func internalTestingOperationWaitHandler(d *Daemon, r *http.Request) response.Re
 		ProjectName:       request.QueryParam(r, "project"),
 		Type:              req.OpType,
 		Class:             req.OpClass,
-		RunHook:           waitHandlerOperationRunHook,
+		RunHook:           internalTestingWaitHandlerOperationRunHook,
 		ConnectHook:       onConnect,
 		EntityURL:         entityURL,
 		ConflictReference: req.ConflictReference,
