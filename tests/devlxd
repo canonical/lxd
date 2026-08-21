@@ -215,9 +215,9 @@ runcmd:
         local nestedName="${instName}1"
         lxc exec "${instName}" -- /snap/bin/lxc launch "${IMAGE}" "${nestedName}" "${nestedArgs[@]}"
         if [ "${instType}" = "vm" ]; then
-            sleep 30
+            sleep 10
         fi
-        lxc exec "${instName}" -- /snap/bin/lxc info "${nestedName}" | grep -F RUNNING
+        [ "$(lxc exec "${instName}" -- /snap/bin/lxc list "${nestedName}" -f csv -c s)" = "RUNNING" ]
 
         if [ "${checkEvent}" = "true" ]; then
             kill "${monitorPID}"
