@@ -1094,6 +1094,13 @@ func (op *Operation) ExtendMetadata(metadata map[string]any) error {
 	return nil
 }
 
+// State returns the operation's [state.State]. The state is usually in the operation run hook scope via the Daemon for
+// server or user requested operations, but durable operations must be statically defined. This function makes state
+// available for those operations.
+func (op *Operation) State() *state.State {
+	return op.state
+}
+
 // ID returns the operation ID.
 func (op *Operation) ID() string {
 	return op.id
