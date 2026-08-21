@@ -128,53 +128,53 @@ var internalRAFTSnapshotCmd = APIEndpoint{
 var internalImageRefreshCmd = APIEndpoint{
 	Path: "testing/image-refresh",
 
-	Get: APIEndpointAction{Handler: internalRefreshImage, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Get: APIEndpointAction{Handler: internalTestingRefreshImage, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterHealCmd = APIEndpoint{
 	Path: "testing/cluster/heal",
 
-	Post: APIEndpointAction{Handler: internalHealCluster, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalTestingHealCluster, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterLinkRefreshVolatileAddressesCmd = APIEndpoint{
 	Path: "testing/cluster/link/refresh-volatile-addresses",
 
-	Post: APIEndpointAction{Handler: internalRefreshClusterLinkVolatileAddresses, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalTestingRefreshClusterLinkVolatileAddresses, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalReplicatorRunSchedulerCmd = APIEndpoint{
 	Path: "testing/replicator/run-scheduler",
 
-	Post: APIEndpointAction{Handler: internalRunReplicatorScheduler, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalTestingRunReplicatorScheduler, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalImageOptimizeCmd = APIEndpoint{
 	Path: "image-optimize",
 
-	Post: APIEndpointAction{Handler: internalOptimizeImage, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalTestingOptimizeImage, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalWarningCreateCmd = APIEndpoint{
 	Path: "testing/warnings",
 
-	Post: APIEndpointAction{Handler: internalCreateWarning, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalTestingCreateWarning, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalBGPStateCmd = APIEndpoint{
 	Path: "testing/bgp",
 
-	Get: APIEndpointAction{Handler: internalBGPState, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Get: APIEndpointAction{Handler: internalTestingBGPState, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalPruneTokenCmd = APIEndpoint{
 	Path: "testing/prune-tokens",
-	Post: APIEndpointAction{Handler: removeTokenHandler, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalTestingPruneTokensHandler, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalOperationWaitCmd = APIEndpoint{
 	Path: "testing/operation-wait",
-	Post: APIEndpointAction{Handler: operationWaitHandler, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalTestingOperationWaitHandler, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalIdentityCacheRefreshCmd = APIEndpoint{
@@ -186,7 +186,7 @@ var internalIdentityCacheRefreshCmd = APIEndpoint{
 var internalSnapshotScheduledTaskCmd = APIEndpoint{
 	Path: "testing/snapshot-scheduled-task",
 
-	Post: APIEndpointAction{Handler: internalSnapshotScheduledTask, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+	Post: APIEndpointAction{Handler: internalTestingSnapshotScheduledTask, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 type internalImageOptimizePost struct {
@@ -204,8 +204,8 @@ type internalWarningCreatePost struct {
 	Message    string      `json:"message"     yaml:"message"`
 }
 
-// internalCreateWarning creates a warning, and is used for testing only.
-func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
+// internalTestingCreateWarning creates a warning, and is used for testing only.
+func internalTestingCreateWarning(d *Daemon, r *http.Request) response.Response {
 	req := internalWarningCreatePost{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -230,7 +230,7 @@ func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
+func internalTestingOptimizeImage(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	req := &internalImageOptimizePost{}
@@ -249,7 +249,7 @@ func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func internalRefreshImage(d *Daemon, _ *http.Request) response.Response {
+func internalTestingRefreshImage(d *Daemon, _ *http.Request) response.Response {
 	s := d.State()
 
 	err := autoUpdateImages(s.ShutdownCtx, s)
@@ -260,7 +260,7 @@ func internalRefreshImage(d *Daemon, _ *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func internalHealCluster(d *Daemon, r *http.Request) response.Response {
+func internalTestingHealCluster(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	op, err := autoHealCluster(s.ShutdownCtx, s, d.gateway)
@@ -271,7 +271,7 @@ func internalHealCluster(d *Daemon, r *http.Request) response.Response {
 	return response.OperationResponse(op)
 }
 
-func internalRefreshClusterLinkVolatileAddresses(d *Daemon, r *http.Request) response.Response {
+func internalTestingRefreshClusterLinkVolatileAddresses(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	err := autoRefreshClusterLinkVolatileAddresses(r.Context(), s)
@@ -282,9 +282,9 @@ func internalRefreshClusterLinkVolatileAddresses(d *Daemon, r *http.Request) res
 	return response.EmptySyncResponse
 }
 
-// internalRunReplicatorScheduler triggers the replicator scheduler task immediately.
+// internalTestingRunReplicatorScheduler triggers the replicator scheduler task immediately.
 // It is used by tests to avoid waiting for the scheduler's one-minute tick.
-func internalRunReplicatorScheduler(d *Daemon, r *http.Request) response.Response {
+func internalTestingRunReplicatorScheduler(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	err := runScheduledReplicators(r.Context(), s)
@@ -1170,7 +1170,7 @@ func internalRAFTSnapshot(_ *Daemon, _ *http.Request) response.Response {
 	return response.InternalError(errors.New("Not supported"))
 }
 
-func internalBGPState(d *Daemon, _ *http.Request) response.Response {
+func internalTestingBGPState(d *Daemon, _ *http.Request) response.Response {
 	s := d.State()
 
 	return response.SyncResponse(true, s.BGP.Debug())
@@ -1182,7 +1182,7 @@ func internalIdentityCacheRefresh(d *Daemon, _ *http.Request) response.Response 
 	return response.EmptySyncResponse
 }
 
-func internalSnapshotScheduledTask(d *Daemon, r *http.Request) response.Response {
+func internalTestingSnapshotScheduledTask(d *Daemon, r *http.Request) response.Response {
 	err := pruneExpiredAndAutoCreateInstanceSnapshots(r.Context(), d.State())
 	if err != nil {
 		return response.SmartError(err)
