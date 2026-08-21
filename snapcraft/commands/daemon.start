@@ -605,6 +605,33 @@ else
     ln -s /var/lib/snapd/hostfs/run/openvswitch /run/openvswitch
 fi
 
+# Remember the LXCFS that was running before this start, if any.
+#
+# On a snap refresh daemon.stop only stops LXD, leaving LXCFS running on
+# purpose so containers keep their /proc overlays. That surviving LXCFS keeps
+# the *previous* revision's mount namespace alive, along with everything that
+# was mounted in it -- including instance storage volumes. Those have to be
+# unmounted from that namespace further down, otherwise the kernel keeps a
+# reference on the underlying dataset and deleting the instance later fails
+# with e.g. "cannot destroy '<pool>/virtual-machines/<name>': dataset is busy"
+#
+# The LXCFS section below may spawn a replacement LXCFS, which overwrites
+# lxcfs.pid with its own pid, so capture the old pid here while it is still
+# the previous revision's one.
+PREV_LXCFS_PID=""
+if [ -e "${SNAP_COMMON}/lxcfs.pid" ]; then
+    read -r PREV_LXCFS_PID < "${SNAP_COMMON}/lxcfs.pid" || true
+
+    # The pidfile is only removed on a clean stop, so it can outlive an unclean
+    # shutdown and name a PID that has since been reused. Confirm it is still
+    # LXCFS before its namespace gets entered further down. /proc/<pid>/comm is
+    # used rather than the exe path because the latter becomes unresolvable once
+    # snapd garbage-collects the revision the process was started from.
+    if [ "$(cat "/proc/${PREV_LXCFS_PID}/comm" 2>/dev/null)" != "lxcfs" ]; then
+        PREV_LXCFS_PID=""
+    fi
+fi
+
 # LXCFS
 if [ -e "${SNAP_COMMON}/var/lib/lxcfs/cgroup" ]; then
     echo "=> Re-using existing LXCFS"
@@ -678,9 +705,22 @@ else
     )
 fi
 
-PID=""
-[ -e "${SNAP_COMMON}/lxcfs.pid" ] && read -r PID < "${SNAP_COMMON}/lxcfs.pid"
-if [ -n "${PID}" ] && [ "$(readlink "/proc/self/ns/mnt")" != "$(readlink "/proc/${PID}/ns/mnt")" ]; then
+# Use the pid captured before the LXCFS section above: by this point
+# lxcfs.pid may already have been replaced by a freshly spawned LXCFS living
+# in *our* namespace, in which case the comparison below would never match
+# and the previous revision's namespace would be leaked (issue #18470).
+PID="${PREV_LXCFS_PID}"
+
+# Resolving the namespace doubles as the liveness check: an empty result means
+# the old LXCFS is already gone and there is nothing left to clean up. It can
+# also exit at any point after this, so the rest of the block tolerates its
+# /proc entries disappearing rather than aborting daemon.start (set -e).
+PREV_MNT_NS=""
+if [ -n "${PID}" ]; then
+    PREV_MNT_NS="$(readlink "/proc/${PID}/ns/mnt" 2>/dev/null || true)"
+fi
+
+if [ -n "${PREV_MNT_NS}" ] && [ "$(readlink "/proc/self/ns/mnt")" != "${PREV_MNT_NS}" ]; then
     echo "==> Cleaning up existing LXCFS namespace"
 
     cut -d' ' -f5 "/proc/${PID}/mountinfo" | while read -r line; do
@@ -691,7 +731,7 @@ if [ -n "${PID}" ] && [ "$(readlink "/proc/self/ns/mnt")" != "$(readlink "/proc/
         if echo "${line}" | grep -q "^${SNAP_COMMON}/lxd/storage-pools/"; then
             nsenter -t "${PID}" -m umount -l "${line}" || true
         fi
-    done
+    done || true
 fi
 
 # LXD
