@@ -500,6 +500,7 @@ var APIExtensions = []string{
 	"operation_child_count",
 	"storage_driver_powerstore_nvme",
 	"access_management_expiry",
+	"access_management_identity_effective_groups",
 	"cluster_links_public",
 	"durable_operations",
 }

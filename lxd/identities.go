@@ -1014,7 +1014,7 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 //	          type: array
 //	          description: List of identities
 //	          items:
-//	            $ref: "#/definitions/Identity"
+//	            $ref: "#/definitions/IdentityInfo"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
@@ -1181,7 +1181,7 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 //	          type: array
 //	          description: List of identities
 //	          items:
-//	            $ref: "#/definitions/Identity"
+//	            $ref: "#/definitions/IdentityInfo"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
@@ -1219,7 +1219,7 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 //	          type: array
 //	          description: List of identities
 //	          items:
-//	            $ref: "#/definitions/Identity"
+//	            $ref: "#/definitions/IdentityInfo"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
@@ -1257,7 +1257,7 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 //	          type: array
 //	          description: List of identities
 //	          items:
-//	            $ref: "#/definitions/Identity"
+//	            $ref: "#/definitions/IdentityInfo"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
@@ -1305,6 +1305,7 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 		var identities []dbCluster.IdentitiesRow
 		var identityURLs []string
 		var groupsByIdentityID map[int64][]string
+		var effectiveGroupsByIdentityID map[int64][]string
 		var certificatesByIdentityID map[int64][]string
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var authMethodFilter *string
@@ -1340,6 +1341,64 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 				return err
 			}
 
+			if recursion < 2 {
+				return nil
+			}
+
+			idpGroupsByIdentityID := make(map[int64][]string, len(identities))
+			allIDPGroupNames := make([]string, 0)
+			for _, idRow := range identities {
+				if idRow.AuthMethod != api.AuthenticationMethodOIDC {
+					continue
+				}
+
+				metadata, err := idRow.OIDCMetadata()
+				if err != nil {
+					return fmt.Errorf("Failed reading OIDC identity metadata for %q: %w", idRow.Identifier, err)
+				}
+
+				idpGroupsByIdentityID[idRow.ID] = metadata.IdentityProviderGroups
+				allIDPGroupNames = append(allIDPGroupNames, metadata.IdentityProviderGroups...)
+			}
+
+			mappedGroupsByIDPGroupName, err := dbCluster.GetAuthGroupNamesByIDPGroupNames(ctx, tx.Tx(), allIDPGroupNames)
+			if err != nil {
+				return fmt.Errorf("Failed getting mapped groups from identity provider groups: %w", err)
+			}
+
+			effectiveGroupsByIdentityID = make(map[int64][]string, len(identities))
+			for _, idRow := range identities {
+				effectiveGroups := slices.Clone(groupsByIdentityID[idRow.ID])
+				if effectiveGroups == nil {
+					effectiveGroups = []string{}
+				}
+
+				effectiveGroupSet := make(map[string]struct{}, len(effectiveGroups))
+				for _, effectiveGroup := range effectiveGroups {
+					effectiveGroupSet[effectiveGroup] = struct{}{}
+				}
+
+				if idRow.AuthMethod == api.AuthenticationMethodOIDC {
+					for _, idpGroupName := range idpGroupsByIdentityID[idRow.ID] {
+						for _, mappedGroupName := range mappedGroupsByIDPGroupName[idpGroupName] {
+							if !canViewGroup(entity.AuthGroupURL(mappedGroupName)) {
+								continue
+							}
+
+							_, ok := effectiveGroupSet[mappedGroupName]
+							if ok {
+								continue
+							}
+
+							effectiveGroups = append(effectiveGroups, mappedGroupName)
+							effectiveGroupSet[mappedGroupName] = struct{}{}
+						}
+					}
+				}
+
+				effectiveGroupsByIdentityID[idRow.ID] = effectiveGroups
+			}
+
 			return nil
 		})
 		if err != nil {
@@ -1351,7 +1410,7 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 			return response.SyncResponse(true, identityURLs)
 		}
 
-		apiIdentities := make([]*api.Identity, 0, len(identities))
+		apiIdentities := make([]*api.IdentityInfo, 0, len(identities))
 		urlToIdentity := make(map[*api.URL]auth.EntitlementReporter, len(identities))
 		for _, id := range identities {
 			apiIdentity, err := id.ToAPI(groupsByIdentityID, certificatesByIdentityID)
@@ -1359,8 +1418,13 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 				return response.SmartError(err)
 			}
 
-			apiIdentities = append(apiIdentities, apiIdentity)
-			urlToIdentity[entity.IdentityURL(string(id.AuthMethod), id.Identifier)] = apiIdentity
+			apiIdentityInfo := &api.IdentityInfo{
+				Identity:        *apiIdentity,
+				EffectiveGroups: effectiveGroupsByIdentityID[id.ID],
+			}
+
+			apiIdentities = append(apiIdentities, apiIdentityInfo)
+			urlToIdentity[entity.IdentityURL(string(id.AuthMethod), id.Identifier)] = apiIdentityInfo
 		}
 
 		if len(withEntitlements) > 0 {

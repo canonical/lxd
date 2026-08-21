@@ -3644,6 +3644,18 @@ The field is omitted for identities whose credential has no expiry, that have no
 
 Note that bearer identities created prior to this extension will have an omitted `expires_at` field until a new token is issued.
 
+(extension-access-management-identity-effective-groups)=
+## `access_management_identity_effective_groups`
+
+Recursive identity list responses return the `IdentityInfo` instead of `Identity` struct.
+
+When identities are listed recursively via `GET /1.0/auth/identities?recursion=1` (including method-specific identity list endpoints), `effective_groups` reports the deduplicated union of:
+
+- Direct authorization groups from `identities_auth_groups`
+- Authorization groups mapped from the identity's OIDC `identity_provider_groups` metadata through identity provider group mappings
+
+For non-OIDC identities, `effective_groups` is equal to direct group membership.
+
 (extension-cluster-links-public)=
 ## `cluster_links_public`
 

@@ -9393,7 +9393,7 @@ paths:
                             metadata:
                                 description: List of identities
                                 items:
-                                    $ref: '#/definitions/Identity'
+                                    $ref: '#/definitions/IdentityInfo'
                                 type: array
                             status:
                                 description: Status description
@@ -9617,7 +9617,7 @@ paths:
                             metadata:
                                 description: List of identities
                                 items:
-                                    $ref: '#/definitions/Identity'
+                                    $ref: '#/definitions/IdentityInfo'
                                 type: array
                             status:
                                 description: Status description
@@ -9869,7 +9869,7 @@ paths:
                             metadata:
                                 description: List of identities
                                 items:
-                                    $ref: '#/definitions/Identity'
+                                    $ref: '#/definitions/IdentityInfo'
                                 type: array
                             status:
                                 description: Status description
@@ -9906,7 +9906,7 @@ paths:
                             metadata:
                                 description: List of identities
                                 items:
-                                    $ref: '#/definitions/Identity'
+                                    $ref: '#/definitions/IdentityInfo'
                                 type: array
                             status:
                                 description: Status description

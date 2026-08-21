@@ -324,6 +324,16 @@ fine_grained: true"
   lxc auth identity-provider-group group remove test-idp-group test-group
   ! lxc auth identity-provider-group group remove test-idp-group test-group || false # Group not mapped
 
+  # Check effective groups in recursive identity listing include IdP-mapped groups.
+  lxc auth group create test-idp-mapped-group
+  lxc auth identity-provider-group group add test-idp-group test-idp-mapped-group
+  lxd sql global "UPDATE identities SET metadata = json_set(metadata, '\$.identity_provider_groups', json('[\"test-idp-group\"]')) WHERE auth_method = 2 AND identifier = 'test-user@example.com'"
+  lxc query /1.0/auth/identities?recursion=2 | jq --exit-status '
+    any(.[]; .authentication_method == "oidc" and .id == "test-user@example.com" and (.effective_groups | sort) == ["test-group", "test-idp-mapped-group"])
+  '
+  lxc auth identity-provider-group group remove test-idp-group test-idp-mapped-group
+  lxc auth group delete test-idp-mapped-group
+
   ### PERMISSION INSPECTION ###
   list_output="$(lxc auth permission list --format csv)"
 
