@@ -503,6 +503,12 @@ func ensureLocalOperationsAreSynchronized(ctx context.Context, tx *db.ClusterTx,
 			continue
 		}
 
+		if op.internallyCancelled.Load() {
+			// If the operation has been internally cancelled, it should not be synchronized.
+			// The leader will restart the operation from its current state in the database.
+			continue
+		}
+
 		// If Operation.lastPersistenceAttempt is equal to operations.updated_at, then the operation is in sync with the database.
 		lastPersistenceAttemptUnixMillis := op.lastPersistenceAttempt.UnixMilli()
 		dbUpdatedAtUnixMillis := dbOp.Row.UpdatedAt.UnixMilli()
