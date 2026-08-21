@@ -365,7 +365,7 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 	return &op, nil
 }
 
-// Synchronize is run on database start up and shutdown, and as a recurring task every minute.
+// Synchronize is run on Daemon start and every minute thereafter.
 // It first checks the local map for any operations that need to be retained. These are:
 // - Bulk operations that completed less than 24 hours ago.
 // - Other operations that completed less than 5 seconds ago.
@@ -503,6 +503,12 @@ func ensureLocalOperationsAreSynchronized(ctx context.Context, tx *db.ClusterTx,
 			continue
 		}
 
+		if op.internallyCancelled.Load() {
+			// If the operation has been internally cancelled, it should not be synchronized.
+			// The leader will restart the operation from its current state in the database.
+			continue
+		}
+
 		// If Operation.lastPersistenceAttempt is equal to operations.updated_at, then the operation is in sync with the database.
 		lastPersistenceAttemptUnixMillis := op.lastPersistenceAttempt.UnixMilli()
 		dbUpdatedAtUnixMillis := dbOp.Row.UpdatedAt.UnixMilli()
@@ -510,9 +516,11 @@ func ensureLocalOperationsAreSynchronized(ctx context.Context, tx *db.ClusterTx,
 			// The lastPersistenceAttempt should never be behind operations.updated_at.
 			// If it is, update it to the current database value and log a warning.
 			if lastPersistenceAttemptUnixMillis < dbUpdatedAtUnixMillis {
+				op.lock.Lock()
 				op.lastPersistenceAttempt = dbOp.Row.UpdatedAt
 				op.updatedAt = dbOp.Row.UpdatedAt
-				logger.Warn("Operation persistence tracking mismatch", logger.Ctx{"uuid": op.id})
+				op.lock.Unlock()
+				logger.Warn("Operation persistence tracking mismatch", logger.Ctx{"uuid": op.id, "skew_ms": dbUpdatedAtUnixMillis - lastPersistenceAttemptUnixMillis})
 			}
 
 			continue
@@ -521,12 +529,15 @@ func ensureLocalOperationsAreSynchronized(ctx context.Context, tx *db.ClusterTx,
 		// If the operation is not in sync, it could be due to a misbehaving database when the operation attempted to persist its data.
 		// Synchronize the operation now.
 		op.logger.Info("Resynchronizing operation")
+		op.lock.Lock()
 		op.lastPersistenceAttempt = op.updatedAt
 		err := cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, op.metadata, op.err, op.errCode)
 		if err != nil {
 			errs = append(errs, err)
 			op.logger.Warn("Failed synchronizing operation with database", logger.Ctx{"err": err})
 		}
+
+		op.lock.Unlock()
 	}
 
 	return errors.Join(errs...)
@@ -901,7 +912,7 @@ func restartOperation(op *Operation) {
 
 	operationsLock.Unlock()
 
-	op.logger.Debug("Restarting operation", logger.Ctx{"id": op.id})
+	op.logger.Info("Restarting operation", logger.Ctx{"id": op.id})
 	op.start()
 }
 
