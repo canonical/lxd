@@ -228,6 +228,8 @@ runcmd:
             grep -wF 'image-retrieved' monitor.json | jq --exit-status '.metadata.requestor | (.address == "@devlxd" or .protocol == "devlxd")'
             rm -f monitor.json
         fi
+
+        lxc exec "${instName}" -- /snap/bin/lxc delete -f "${nestedName}"
     fi
 
     echo "==> Deleting ${instType}"
