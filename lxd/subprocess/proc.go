@@ -13,6 +13,7 @@ import (
 
 	"go.yaml.in/yaml/v2"
 
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 )
 
@@ -165,12 +166,12 @@ func (p *Process) start(ctx context.Context, fds []*os.File) error {
 	p.proc = cmd.Process
 	p.PID = cmd.Process.Pid
 
-	starttime, err := processStartTime(p.PID)
+	starttime, err := util.ProcessStartTime(p.PID)
 	if err == nil {
 		p.StartTime = starttime
 	}
 
-	bootID, err := currentBootID()
+	bootID, err := util.CurrentBootID()
 	if err == nil {
 		p.BootID = bootID
 	}
