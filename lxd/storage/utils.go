@@ -1058,6 +1058,54 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 	return nil
 }
 
+// VolumesUsedBy scans the instance list once for the whole set of custom volumes and reports the instances
+// attaching each one through their expanded devices, keyed as pool/name. Volumes nothing attaches have no
+// entry. A volume reachable through a profile is reported under every instance using that profile, which is
+// what decides whether a volume is exclusive to one instance.
+func VolumesUsedBy(ctx context.Context, tx *db.ClusterTx, projectName string, vols []*db.StorageVolume) (map[string][]db.InstanceArgs, error) {
+	usedBy := make(map[string][]db.InstanceArgs)
+
+	// With no volumes to match there is nothing to find, so skip the scans entirely.
+	if len(vols) == 0 {
+		return usedBy, nil
+	}
+
+	err := tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
+		instStorageProject := project.StorageVolumeProjectFromRecord(&p, cluster.StoragePoolVolumeTypeCustom)
+		if projectName != instStorageProject {
+			return nil
+		}
+
+		devices := instancetype.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
+		for _, vol := range vols {
+			// A member-pinned volume cannot be in use by an instance on another member.
+			if vol.Location != "" && inst.Node != vol.Location {
+				continue
+			}
+
+			for _, dev := range devices {
+				usesVol, err := volumeIsUsedByDevice(vol.StorageVolume, inst.Type, inst.Name, dev)
+				if err != nil {
+					return fmt.Errorf("Failed checking use of volume %q in pool %q: %w", vol.Name, vol.Pool, err)
+				}
+
+				if usesVol {
+					volKey := vol.Pool + "/" + vol.Name
+					usedBy[volKey] = append(usedBy[volKey], inst)
+					break
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return usedBy, nil
+}
+
 // VolumeUsedByInstanceDevices finds instances using a volume (either directly or via their expanded profiles if
 // expandDevices is true) and passes them to instanceFunc for evaluation. If instanceFunc returns an error then it
 // is returned immediately. The instanceFunc is executed during a DB transaction, so DB queries are not permitted.
