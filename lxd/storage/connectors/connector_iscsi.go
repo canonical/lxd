@@ -330,10 +330,6 @@ func (c *connectorISCSI) Discover(ctx context.Context, targetAddresses ...string
 			// Make sure addr has a port number for stable output.
 			addr = shared.EnsurePort(addr, ISCSIDefaultPort)
 
-			if addr != targetAddr {
-				continue
-			}
-
 			result = append(result, ISCSIDiscoveryLogRecord{
 				Address:        addr,
 				PortalGroupTag: tag,
@@ -342,7 +338,8 @@ func (c *connectorISCSI) Discover(ctx context.Context, targetAddresses ...string
 		}
 
 		if len(result) != 0 {
-			// We have already found something.
+			// The successful response lists every portal, so there is no need to query
+			// the remaining addresses.
 			break
 		}
 	}

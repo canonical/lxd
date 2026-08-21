@@ -6584,7 +6584,7 @@ Specify either a cron expression (`<minute> <hour> <dom> <month> <dow>`), a comm
 :shortdesc: "How volumes are mapped to the local server"
 :type: "string"
 The mode to use to map PowerStore volumes to the local server.
-Supported values are `iscsi`, `scsi/fc`, and `nvme/tcp`.
+Supported values are `iscsi`, `scsi/fc`, `nvme/tcp`, and `nvme/fc`.
 ```
 
 ```{config:option} powerstore.target storage-powerstore-pool-conf
