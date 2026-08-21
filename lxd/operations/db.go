@@ -520,7 +520,7 @@ func ensureLocalOperationsAreSynchronized(ctx context.Context, tx *db.ClusterTx,
 				op.lastPersistenceAttempt = dbOp.Row.UpdatedAt
 				op.updatedAt = dbOp.Row.UpdatedAt
 				op.lock.Unlock()
-				logger.Warn("Operation persistence tracking mismatch", logger.Ctx{"uuid": op.id})
+				logger.Warn("Operation persistence tracking mismatch", logger.Ctx{"uuid": op.id, "skew_ms": dbUpdatedAtUnixMillis - lastPersistenceAttemptUnixMillis})
 			}
 
 			continue
