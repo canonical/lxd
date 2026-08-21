@@ -119,8 +119,7 @@ jobs:
           - container-nesting
           - conversion
           - cpu-vm
-          - devlxd-container
-          - devlxd-vm
+          - devlxd
           - docker
           - efi-vm
           - lxd-installer
@@ -178,8 +177,6 @@ jobs:
             track: "4.0/candidate"
           - test: cpu-vm
             track: "4.0/candidate"
-          - test: devlxd-vm
-            track: "4.0/candidate"
           - test: docker
             track: "4.0/edge"
           - test: docker
@@ -233,8 +230,6 @@ jobs:
           - test: conversion
             track: "4.0/edge"
           - test: cpu-vm
-            track: "4.0/edge"
-          - test: devlxd-vm
             track: "4.0/edge"
           - test: lxd-installer
             track: "4.0/edge"
