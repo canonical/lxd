@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -70,8 +71,15 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 }
 
 func main() {
+	// Load feature previews from the environment
+	err := features.LoadFromEnv(features.EnvVar)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Process aliases
-	err := execIfAliases()
+	err = execIfAliases()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)

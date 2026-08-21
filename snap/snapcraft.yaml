@@ -42,6 +42,7 @@ description: |-
    - daemon.syslog: Send LXD log events to syslog [default=false]
    - daemon.verbose: Increase logging to verbose level [default=false]
    - db.trace: Enable dqlite trace logging (very verbose) [default=false]
+   - features: Enable feature previews that are still work-in-progress. Never use in production [default=none]
    - lvm.external: Use the system's LVM tools [default=false]
    - lxcfs.loadavg: Start tracking per-container load average [default=false]
    - lxcfs.cfs: Consider CPU shares for CPU usage [default=false]

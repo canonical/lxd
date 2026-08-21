@@ -82,6 +82,9 @@ echo "==> Loading snap configuration"
 # shellcheck disable=SC1091
 . "${SNAP_COMMON}/config"
 
+# Export available features previews
+export LXD_FEATURES="${features:-}"
+
 daemon_group="${daemon_group:-"lxd"}"
 
 # Create the main directory

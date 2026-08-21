@@ -12,6 +12,10 @@ fi
 # shellcheck disable=SC2155
 export SNAP_CURRENT="$(realpath "${SNAP}/..")/current"
 
+# Export available feature previews
+LXD_FEATURES="$(snapctl get features)"
+export LXD_FEATURES
+
 # Turn `/snap/lxd/28637/lib/x86_64-linux-gnu` into `x86_64-linux-gnu`
 # Similar to `basename` but using variable substitution instead of external executable
 LIB_ARCH="$(readlink -f "${SNAP_CURRENT}"/lib/*-linux-gnu*/)"
