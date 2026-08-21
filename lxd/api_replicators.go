@@ -1137,12 +1137,17 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	}
 
 	// Restore mode: iterate over the current leader cluster's instance list.
+	childArgs, err := buildRestoreChildOps(ctx, s, projectName, projectURL, replicatorURL, replicatorID, iterNames, allInsts, nodeAddressByName, clusterLink, clusterCert, targetCert)
+	if err != nil {
+		return operations.OperationArgs{}, err
+	}
+
 	return operations.OperationArgs{
 		ProjectName:       projectName,
 		EntityURL:         replicatorURL,
 		Type:              operationtype.ReplicatorRun,
 		Class:             operationtype.OperationClassTask,
 		ConflictReference: replicatorURL.String(), // Prevents concurrent runs; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
-		Children:          buildRestoreChildOps(s, projectName, projectURL, replicatorURL, replicatorID, iterNames, allInsts, nodeAddressByName, clusterLink, clusterCert, targetCert),
+		Children:          childArgs,
 	}, nil
 }

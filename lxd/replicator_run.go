@@ -850,17 +850,130 @@ func restoreInstance(ctx context.Context, s *state.State, op *operations.Operati
 	return nil
 }
 
-// buildRestoreChildOps builds the child operations for a restore replicator run: one per instance
-// on the current leader cluster at stage 0, followed by the finalize operation at stage 1.
-func buildRestoreChildOps(s *state.State, projectName string, projectURL *api.URL, replicatorURL *api.URL, replicatorID int64, iterNames []string, allInsts []instance.Instance, nodeAddressByName map[string]string, clusterLink *api.ClusterLink, clusterCert *shared.CertInfo, targetCert *x509.Certificate) []*operations.OperationArgs {
+// buildRestoreChildOps builds the restore children as consecutive stages: volume restores, then
+// instance restores, then the finalize child that records the run status. The operations framework
+// runs each stage to completion before starting the next, so an instance is only refreshed once the
+// volumes it attaches exist locally.
+func buildRestoreChildOps(ctx context.Context, s *state.State, projectName string, projectURL *api.URL, replicatorURL *api.URL, replicatorID int64, iterNames []string, allInsts []instance.Instance, nodeAddressByName map[string]string, clusterLink *api.ClusterLink, clusterCert *shared.CertInfo, targetCert *x509.Certificate) ([]*operations.OperationArgs, error) {
+	// Fetch volumes from the source cluster instead of the local database, since during restore,
+	// the local database may be missing volumes that were created after failover on the leader.
+	srcClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+	if err != nil {
+		return nil, fmt.Errorf("Failed connecting to source cluster for volume list: %w", err)
+	}
+
+	srcClient = srcClient.UseProject(projectName)
+	srcVolumes, err := srcClient.GetVolumesWithFilter([]string{"type=" + dbCluster.StoragePoolVolumeTypeNameCustom})
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting storage volumes from source cluster: %w", err)
+	}
+
+	// GetVolumesWithFilter returns snapshots alongside parent volumes; strip them here.
+	// No snapshot classification is needed during restore, so the plain API volumes are
+	// used directly rather than the forward path's work-list entries.
+	volumeWork := make([]api.StorageVolume, 0, len(srcVolumes))
+	for _, vol := range srcVolumes {
+		if shared.IsSnapshot(vol.Name) {
+			continue
+		}
+
+		// The volume listing resolves a project without features.storage.volumes to the
+		// default project. Those volumes belong to every project that inherits from
+		// default and the forward path never replicates them, so restoring them here
+		// would overwrite volumes this replicator does not own.
+		if vol.Project != projectName {
+			continue
+		}
+
+		volumeWork = append(volumeWork, vol)
+	}
+
 	// Use our cluster certificate so the leader can verify TLS when
 	// pushing data back to us.
 	localCertPEM := string(clusterCert.PublicKey())
 
 	instByName := instancesByName(allInsts)
 
-	childArgs := make([]*operations.OperationArgs, 0, len(iterNames)+1)
+	// Classify each source volume by local attachment so an exclusively-attached volume can be
+	// co-placed on the member its owning instance restores to, mirroring the forward path. The
+	// owner's current location is stable across restore (an instance refreshes in place), so its
+	// volume already lives there or is created there. Instances that exist only on the leader are
+	// absent from the local list and get no pin, falling back to scheduler placement.
+	// Each instance counts once per volume, matching the per-instance classification of the
+	// forward path, so attaching the same volume through several devices keeps it exclusive.
+	volUserCount := make(map[string]int)
+	volOwnerMember := make(map[string]string)
+	for _, inst := range allInsts {
+		for _, vol := range volumeWork {
+			attached := false
+			for _, dev := range inst.ExpandedDevices() {
+				usesVol, err := storagePools.VolumeIsUsedByDevice(vol, inst.Type(), inst.Name(), dev)
+				if err != nil {
+					return nil, err
+				}
 
+				if usesVol {
+					attached = true
+					break
+				}
+			}
+
+			if !attached {
+				continue
+			}
+
+			key := vol.Pool + "/" + vol.Name
+			volUserCount[key]++
+			volOwnerMember[key] = inst.Location()
+		}
+	}
+
+	childArgs := make([]*operations.OperationArgs, 0, len(volumeWork)+len(iterNames)+1)
+
+	// Stage numbers must be consecutive from zero, so the counter only advances once the stage it
+	// labels has received children. A project with no volumes or no instances still yields a valid
+	// sequence.
+	var stage uint16
+
+	// Volume restore stage. Volumes must exist locally before the instances that attach them are
+	// refreshed.
+	for _, vol := range volumeWork {
+		// Pin co-placement only when exactly one local instance attaches the volume.
+		dstMember := ""
+		if volUserCount[vol.Pool+"/"+vol.Name] == 1 {
+			dstMember = volOwnerMember[vol.Pool+"/"+vol.Name]
+		}
+
+		// The volume may exist only on the current leader cluster, in which case this operation
+		// creates it locally and there is nothing to name yet. The project is the primary entity
+		// here, and the volume URL reaches clients through the metadata.
+		childArgs = append(childArgs, &operations.OperationArgs{
+			ProjectName: projectName,
+			EntityURL:   projectURL,
+			Type:        operationtype.ReplicatorRunVolumeRestore,
+			Class:       operationtype.OperationClassTask,
+			Stage:       stage,
+			Metadata: map[string]any{
+				api.MetadataEntityURL: entity.StorageVolumeURL(projectName, "", vol.Pool, dbCluster.StoragePoolVolumeTypeNameCustom, vol.Name).String(),
+			},
+			RunHook: func(ctx context.Context, _ *operations.Operation) error {
+				// Connect from inside the hook so the connection is made when the operation
+				// runs rather than when it is queued.
+				srcClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+				if err != nil {
+					return fmt.Errorf("Failed connecting to target cluster: %w", err)
+				}
+
+				return restoreVolume(ctx, s, vol, projectName, nodeAddressByName[s.ServerName], dstMember, srcClient)
+			},
+		})
+	}
+
+	if len(volumeWork) > 0 {
+		stage++
+	}
+
+	// Instance restore stage.
 	for _, instName := range iterNames {
 		var memberAddress string
 		inst, ok := instByName[instName]
@@ -876,7 +989,7 @@ func buildRestoreChildOps(s *state.State, projectName string, projectURL *api.UR
 			EntityURL:   projectURL,
 			Type:        operationtype.ReplicatorRunInstanceRestore,
 			Class:       operationtype.OperationClassTask,
-			Stage:       0,
+			Stage:       stage,
 			Metadata: map[string]any{
 				api.MetadataEntityURL: entity.InstanceURL(projectName, instName).String(),
 			},
@@ -886,7 +999,13 @@ func buildRestoreChildOps(s *state.State, projectName string, projectURL *api.UR
 		})
 	}
 
-	return append(childArgs, replicatorFinalizeOperationArgs(s, projectName, replicatorURL, replicatorID, 1))
+	if len(iterNames) > 0 {
+		stage++
+	}
+
+	childArgs = append(childArgs, replicatorFinalizeOperationArgs(s, projectName, replicatorURL, replicatorID, stage))
+
+	return childArgs, nil
 }
 
 // replicatorVolume wraps a custom volume with its attachment classification for a replicator run.
