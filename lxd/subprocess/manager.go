@@ -9,6 +9,7 @@ import (
 
 	"go.yaml.in/yaml/v2"
 
+	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/util"
 )
 
@@ -72,7 +73,7 @@ func ImportProcess(path string) (*Process, error) {
 	}
 
 	if proc.BootID != "" {
-		bootID, err := currentBootID()
+		bootID, err := linux.CurrentBootID()
 		if err == nil {
 			if bootID != proc.BootID {
 				return &proc, nil
@@ -84,7 +85,7 @@ func ImportProcess(path string) (*Process, error) {
 	// returned with ESRCH).
 	proc.proc, _ = os.FindProcess(proc.PID)
 	if proc.StartTime != 0 {
-		starttime, err := processStartTime(proc.PID)
+		starttime, err := linux.ProcessStartTime(proc.PID)
 		if err == nil {
 			if proc.StartTime != starttime {
 				_ = proc.proc.Release()
