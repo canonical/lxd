@@ -1853,18 +1853,9 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 	}
 
 	// Get instance uptime.
-	pidStat, err := os.ReadFile("/proc/" + strconv.Itoa(initPID) + "/stat")
+	tickValue, err := util.ProcessStartTime(initPID)
 	if err != nil {
-		l.Warn("Failed getting init process info", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
-		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
-
-		return 0
-	}
-
-	fields := strings.Fields(string(pidStat))
-	tickValue, err := strconv.ParseInt(fields[21], 10, 64)
-	if err != nil {
-		l.Warn("Failed parsing init process info", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
+		l.Warn("Failed getting init process start time", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
 
 		return 0
