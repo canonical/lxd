@@ -44,8 +44,8 @@ run_test jammy default tests/cluster "${lxd_snap_channel}" 3 "${cluster_snap_src
 # cpu-vm
 run_test jammy default tests/cpu-vm "${lxd_snap_channel}"
 
-# devlxd-vm
-run_test jammy default tests/devlxd-vm "${lxd_snap_channel}"
+# devlxd
+run_test jammy default tests/devlxd "${lxd_snap_channel}"
 
 # efi-vm
 run_test jammy default tests/efi-vm "${lxd_snap_channel}"
