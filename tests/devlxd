@@ -1,0 +1,279 @@
+#!/bin/bash
+set -eux
+
+# Install dependencies
+install_deps jq
+
+# Install LXD
+install_lxd
+
+# Configure LXD
+lxc network create lxdbr0
+lxc profile device add default eth0 nic network=lxdbr0
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:26.04}"
+
+poolName="devlxdpool$$"
+poolDriver=dir
+
+echo "==> Create storage pool using driver ${poolDriver}"
+lxc storage create "${poolName}" "${poolDriver}"
+
+test_devlxd() {
+    local instType="${1}"
+    local instName="${2:-d1}"
+
+    echo "==> Running devlxd test for ${instType} (${instName})"
+
+    # Create instance and boot
+    if [ "${instType}" = "vm" ]; then
+        if hasNeededAPIExtension devlxd_images_vm; then
+            lxc launch "${IMAGE}" "${instName}" --vm -s "${poolName}" -c security.devlxd.images=true
+        else
+            lxc launch "${IMAGE}" "${instName}" --vm -s "${poolName}"
+        fi
+        waitInstanceBooted "${instName}"
+        setup_instance_gocoverage "${instName}"
+    else
+        lxc launch "${IMAGE}" "${instName}" -s "${poolName}" -c security.nesting=true
+        waitInstanceBooted "${instName}"
+    fi
+    lxc info "${instName}"
+
+    echo "==> Checking devlxd is working"
+    lxc exec "${instName}" -- apt-get update
+    lxc exec "${instName}" -- apt-get install --no-install-recommends --yes curl
+
+    # devlxd is enabled by default and should work
+    lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
+    if hasNeededAPIExtension cloud_init; then
+        lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
+    fi
+    lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
+
+    local meta_data
+    meta_data="$(lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data)"
+    grep -xE 'instance-id: [^ ]{36}' <<< "${meta_data}" || grep -Fq 'instance-id:' <<< "${meta_data}"
+    grep -xF "local-hostname: ${instName}" <<< "${meta_data}"
+
+    # Check devlxd instance name validation works on containers (5.21 onwards).
+    if [ "${instType}" = "container" ] && [[ ! "${LXD_SNAP_CHANNEL}" =~ ^[45]\.0/ ]]; then
+        local peerName="${instName}-peer"
+        lxc launch "${IMAGE}" "${peerName}" -s "${poolName}"
+
+        # First check the first discovery method (where curl process isn't under the lxc monitor process tree).
+        # Explanation of command:
+        # Running `bash -c "exec -a '[lxc monitor]' sleep 100"` results in a process name of "[lxc monitor] 100".
+        # LXD looks for the project name and instance name at the end of the process name in the format " <project_name>_<instance_name>".
+        # So use the curl `--proxy` option to allow adding " <project_name>_<instance_name>" to the end of the process name.
+        # This works because `--proxy` is not used in combination with `--unix-socket`.
+        lxc exec "${instName}" -- bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' default_${peerName}'" | grep -Fq "local-hostname: ${instName}"
+        lxc exec "${instName}" -- bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' default_missing'" | grep -Fq "local-hostname: ${instName}"
+        lxc exec "${instName}" -- bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' missing_missing'" | grep -Fq "local-hostname: ${instName}"
+
+        # Next check the second discovery method (where the curl process is under the lxc monitor process tree).
+        # systemd-run requires D-Bus, so wait until instance is fully booted before proceeding.
+        waitInstanceBooted "${instName}"
+        lxc exec "${instName}" -- systemd-run --pipe --wait --quiet bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' default_${peerName}'" | grep -Fq "local-hostname: ${instName}"
+        lxc exec "${instName}" -- systemd-run --pipe --wait --quiet bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' default_missing'" | grep -Fq "local-hostname: ${instName}"
+        lxc exec "${instName}" -- systemd-run --pipe --wait --quiet bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' missing_missing'" | grep -Fq "local-hostname: ${instName}"
+
+        lxc delete -f "${peerName}"
+    fi
+
+    # Restart the instance
+    if [ "${instType}" = "vm" ]; then
+        # Run sync before forcefully restarting the VM otherwise the filesystem will be corrupted.
+        lxc exec "${instName}" -- sync
+        prepare_vm_for_hard_stop "${instName}"
+    fi
+    lxc restart -f "${instName}"
+    waitInstanceReady "${instName}"
+
+    # devlxd should be running after restart
+    lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
+    if hasNeededAPIExtension cloud_init; then
+        lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
+    fi
+    lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
+    meta_data="$(lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data)"
+    grep -Fq 'instance-id:' <<< "${meta_data}"
+    grep -Fq "local-hostname: ${instName}" <<< "${meta_data}"
+
+    # Disable devlxd
+    lxc config set "${instName}" security.devlxd false
+
+    echo "==> Checking devlxd is not working"
+    ! lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0 || false
+
+    if [ "${instType}" = "vm" ]; then
+        lxc exec "${instName}" -- sync
+        prepare_vm_for_hard_stop "${instName}"
+    fi
+    lxc restart -f "${instName}"
+    waitInstanceReady "${instName}"
+
+    # devlxd should not be running after restart
+    ! lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0 || false
+
+    echo "==> Checking devlxd can be enabled live"
+
+    # Enable devlxd
+    lxc config set "${instName}" security.devlxd true
+    if [ "${instType}" = "container" ]; then
+        lxc config set "${instName}" security.devlxd.images true
+    fi
+
+    # devlxd should be running after the config is enabled
+    lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0 | jq
+    if hasNeededAPIExtension cloud_init; then
+        lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/devices | jq
+    fi
+    lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
+
+    # Ensure that the outputted metadata is in correct format.
+    meta_data="$(lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data)"
+    grep -xE 'instance-id: [^ ]{36}' <<< "${meta_data}" || grep -Fq 'instance-id:' <<< "${meta_data}"
+    grep -xF "local-hostname: ${instName}" <<< "${meta_data}"
+
+    # Test cloud-init user-data.
+    # Ensure the header is preserved and the outputted value is not escaped.
+    local cloudInitUserData="#cloud-config
+package_update: false
+package_upgrade: false
+runcmd:
+- echo test"
+
+    lxc config set "${instName}" cloud-init.user-data "${cloudInitUserData}"
+    local out
+    out="$(lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock lxd/1.0/config/cloud-init.user-data)"
+    [ "${out}" = "${cloudInitUserData}" ]
+    lxc config unset "${instName}" cloud-init.user-data
+
+    if hasNeededAPIExtension instance_ready_state; then
+        # test instance Ready state
+        lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Ready"}' http://custom.socket/1.0
+        [ "$(lxc config get "${instName}" volatile.last_state.ready)" = "true" ]
+
+        lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Started"}' http://custom.socket/1.0
+        [ "$(lxc config get "${instName}" volatile.last_state.ready)" = "false" ]
+
+        lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock -X PATCH -d '{"state":"Ready"}' http://custom.socket/1.0
+        [ "$(lxc config get "${instName}" volatile.last_state.ready)" = "true" ]
+
+        if [ "${instType}" = "vm" ]; then
+            prepare_vm_for_hard_stop "${instName}"
+        fi
+        lxc stop -f "${instName}"
+        sleep 5
+        [ "$(lxc config get "${instName}" volatile.last_state.ready)" = "false" ]
+
+        lxc start "${instName}"
+        waitInstanceBooted "${instName}"
+    else
+        echo "Skipping instance Ready state tests, not supported"
+    fi
+
+    # Image export / nested instance tests
+    local testImageExport=true
+    if [ "${instType}" = "container" ] && [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\.0/ ]]; then
+        echo "Skipping devlxd image export tests on ${LXD_SNAP_CHANNEL}, not supported"
+        testImageExport=false
+    fi
+
+    if [ "${testImageExport}" = "true" ]; then
+        waitInstanceBooted "${instName}"
+        lxc exec "${instName}" -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
+        lxc exec "${instName}" -- snap install lxd --channel="${LXD_SNAP_CHANNEL}" --cohort=+
+        lxc exec "${instName}" -- lxd init --auto
+
+        if [ "${instType}" = "vm" ]; then
+            if [ -n "${LXD_SIDELOAD_PATH:-}" ]; then
+                lxc file push "${LXD_SIDELOAD_PATH}" "${instName}/var/snap/lxd/common/lxd.debug"
+                lxc exec "${instName}" -- systemctl restart snap.lxd.daemon
+            fi
+            if [ -n "${LXD_AGENT_SIDELOAD_PATH:-}" ]; then
+                lxc file push "${LXD_AGENT_SIDELOAD_PATH}" "${instName}/root/$(basename "${LXD_AGENT_SIDELOAD_PATH}")"
+                lxc exec "${instName}" -- mount --bind "$(basename "${LXD_AGENT_SIDELOAD_PATH}")" /snap/lxd/current/bin/lxd-agent
+                lxc exec "${instName}" -- systemctl restart snap.lxd.daemon
+            fi
+        fi
+
+        local monitorPID=""
+        local checkEvent=false
+        if [ "${instType}" = "container" ] || hasNeededAPIExtension devlxd_images_vm; then
+            lxc monitor --type lifecycle --format json > monitor.json 2>&1 &
+            monitorPID="${!}"
+            checkEvent=true
+        fi
+
+        local nestedArgs=()
+        if [ "${instType}" = "vm" ]; then
+            nestedArgs+=(--vm)
+        fi
+
+        local nestedName="${instName}1"
+        lxc exec "${instName}" -- /snap/bin/lxc launch "${IMAGE}" "${nestedName}" "${nestedArgs[@]}"
+        if [ "${instType}" = "vm" ]; then
+            sleep 30
+        fi
+        lxc exec "${instName}" -- /snap/bin/lxc info "${nestedName}" | grep -F RUNNING
+
+        if [ "${checkEvent}" = "true" ]; then
+            kill "${monitorPID}"
+
+            # If the guest retrieved the image from the host, the host should emit an "image-retrieved" lifecycle event. The
+            # requestor address tells us that this was definitely the guest.
+            # Newer LXD versions use the protocol instead of the requestor address to distinguish devlxd requests
+            grep -wF 'image-retrieved' monitor.json | jq --exit-status '.metadata.requestor | (.address == "@devlxd" or .protocol == "devlxd")'
+            rm -f monitor.json
+        fi
+    fi
+
+    echo "==> Deleting ${instType}"
+    if [ "${instType}" = "vm" ]; then
+        prepare_vm_for_hard_stop "${instName}"
+    fi
+    lxc delete -f "${instName}"
+}
+
+test_devlxd_container() {
+    test_devlxd "container" "c1"
+}
+
+test_devlxd_vm() {
+    if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
+        echo "Skipping devlxd VM tests on ${LXD_SNAP_CHANNEL}, not supported"
+        return 0
+    fi
+    test_devlxd "vm" "v1"
+}
+
+# Allow for running a specific set of tests.
+if [ "$#" -gt 0 ]; then
+    for test_name in "$@"; do
+        case "${test_name}" in
+            container|devlxd-container|test_container|test_devlxd_container)
+                test_devlxd_container
+                ;;
+            vm|devlxd-vm|test_vm|test_devlxd_vm)
+                test_devlxd_vm
+                ;;
+            *)
+                echo "Unknown test: ${test_name}" >&2
+                exit 1
+                ;;
+        esac
+    done
+else
+    test_devlxd_container
+    test_devlxd_vm
+fi
+
+echo "==> Cleaning up environment"
+lxc profile device remove default eth0
+lxc storage delete "${poolName}"
+lxc network delete lxdbr0
+
+# shellcheck disable=SC2034
+FAIL=0
