@@ -20,8 +20,8 @@ func vSockServer(d *Daemon) *http.Server {
 	return &http.Server{
 		Handler:           devLXDAPI(d, vSockAuthenticator{}),
 		IdleTimeout:       30 * time.Second,
-		ReadHeaderTimeout: 3 * time.Second,
-		ReadTimeout:       3 * time.Second,
+		ReadHeaderTimeout: util.HTTPServerReadTimeout,
+		ReadTimeout:       util.HTTPServerReadTimeout,
 	}
 }
 
