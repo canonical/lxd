@@ -1215,8 +1215,8 @@ func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) 
 	return nil
 }
 
-// operationWaitHandler creates a dummy operation that waits for a specified duration.
-func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
+// internalTestingOperationWaitHandler creates a dummy operation that waits for a specified duration.
+func internalTestingOperationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	// Extract the entity URL and duration from the request.
 	req := operationWaitPost{}
 	err := json.NewDecoder(r.Body).Decode(&req)
