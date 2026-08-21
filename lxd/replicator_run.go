@@ -707,3 +707,42 @@ func restoreInstance(ctx context.Context, s *state.State, op *operations.Operati
 	result.revert.Success()
 	return nil
 }
+
+// buildRestoreChildOps builds the child operations for a restore replicator run: one per instance
+// on the current leader cluster at stage 0, followed by the finalize operation at stage 1.
+func buildRestoreChildOps(s *state.State, projectName string, projectURL *api.URL, replicatorURL *api.URL, replicatorID int64, iterNames []string, allInsts []instance.Instance, nodeAddressByName map[string]string, clusterLink *api.ClusterLink, clusterCert *shared.CertInfo, targetCert *x509.Certificate) []*operations.OperationArgs {
+	// Use our cluster certificate so the leader can verify TLS when
+	// pushing data back to us.
+	localCertPEM := string(clusterCert.PublicKey())
+
+	instByName := instancesByName(allInsts)
+
+	childArgs := make([]*operations.OperationArgs, 0, len(iterNames)+1)
+
+	for _, instName := range iterNames {
+		var memberAddress string
+		inst, ok := instByName[instName]
+		if ok && inst.Location() != s.ServerName {
+			memberAddress = nodeAddressByName[inst.Location()]
+		}
+
+		// The instance may exist only on the current leader cluster, in which case this operation creates it
+		// locally and there is nothing to name yet. The project is the primary entity here, and the instance
+		// URL reaches clients through the metadata.
+		childArgs = append(childArgs, &operations.OperationArgs{
+			ProjectName: projectName,
+			EntityURL:   projectURL,
+			Type:        operationtype.ReplicatorRunInstanceRestore,
+			Class:       operationtype.OperationClassTask,
+			Stage:       0,
+			Metadata: map[string]any{
+				api.MetadataEntityURL: entity.InstanceURL(projectName, instName).String(),
+			},
+			RunHook: func(ctx context.Context, op *operations.Operation) error {
+				return restoreInstance(ctx, s, op, instName, projectName, memberAddress, nodeAddressByName[s.ServerName], localCertPEM, clusterLink, clusterCert, targetCert)
+			},
+		})
+	}
+
+	return append(childArgs, replicatorFinalizeOperationArgs(s, projectName, replicatorURL, replicatorID, 1))
+}
