@@ -489,20 +489,131 @@ func instancesByName(insts []instance.Instance) map[string]instance.Instance {
 	return byName
 }
 
-// buildForwardChildOps builds the child operations for a forward replicator run: one per instance
-// at stage 0, followed by the finalize operation at stage 1.
-func buildForwardChildOps(s *state.State, projectName string, replicatorURL *api.URL, replicatorID int64, allInsts []instance.Instance, nodeAddressByName map[string]string, clusterLink *api.ClusterLink, clusterCert *shared.CertInfo, targetCert *x509.Certificate, targetCertPEM string) []*operations.OperationArgs {
-	childArgs := make([]*operations.OperationArgs, 0, len(allInsts)+1)
+// buildForwardChildOps builds the forward replication children as consecutive stages: volume
+// transfers, then instance transfers, then the finalize child that records the run status. The
+// operations framework runs each stage to completion before starting the next, so an instance only
+// replicates once the volumes it attaches have transferred.
+//
+// A volume captured by its owner's snapshot has no child of its own. It transfers inside that
+// instance's child, after the snapshot and before the migration, so that one unreachable cluster
+// member only fails the instances it hosts instead of the whole run.
+func buildForwardChildOps(ctx context.Context, s *state.State, projectName string, projectURL *api.URL, replicatorURL *api.URL, replicatorID int64, allInsts []instance.Instance, nodeAddressByName map[string]string, clusterLink *api.ClusterLink, clusterCert *shared.CertInfo, targetCert *x509.Certificate, targetCertPEM string) ([]*operations.OperationArgs, error) {
+	instByName := instancesByName(allInsts)
 
+	volumeWork, err := buildVolumeWorkList(ctx, s, projectName, instByName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Query destination members once; UseTarget is skipped when the source member name is absent on
+	// the destination, so asymmetric topologies fall back to the scheduler.
+	dstMemberSet := make(map[string]bool)
+	tmpDst, dstConnErr := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+	if dstConnErr != nil {
+		logger.Warn("Failed connecting to destination cluster for member discovery; volume co-placement hints will be skipped", logger.Ctx{"err": dstConnErr})
+	} else {
+		// One member listing per run is enough: the result is only used to decide whether a
+		// UseTarget co-placement hint names a member that exists on the destination. The cost
+		// scales with replicator frequency, which is acceptable, and any failure degrades to
+		// scheduler placement rather than aborting the run.
+		dstMembers, dstMembersErr := tmpDst.GetClusterMembers()
+		if dstMembersErr != nil {
+			logger.Warn("Failed listing destination cluster members; volume co-placement hints will be skipped", logger.Ctx{"err": dstMembersErr})
+		} else {
+			for _, m := range dstMembers {
+				dstMemberSet[m.ServerName] = true
+			}
+		}
+	}
+
+	// A snapshottable volume that needs no snapshot of its own is attached to exactly one
+	// instance and is covered by that instance's snapshot, so index it by its owner. It is
+	// replicated inside that instance's child operation.
+	ridingVolumes := make(map[string][]replicatorVolume)
+	for _, vol := range volumeWork {
+		if vol.snapshottable && !vol.needsOwnSnapshot {
+			ridingVolumes[vol.usedBy[0]] = append(ridingVolumes[vol.usedBy[0]], vol)
+		}
+	}
+
+	childArgs := make([]*operations.OperationArgs, 0, len(volumeWork)+len(allInsts)+1)
+
+	// Stage numbers must be consecutive from zero, so the counter only advances once the stage it
+	// labels has received children. A project with no volumes or no instances still yields a valid
+	// sequence.
+	var stage uint16
+
+	// Volume stage: every volume that does not ride an instance snapshot. These must exist on the
+	// target before any instance transfers, because more than one instance may attach them.
+	for _, vol := range volumeWork {
+		if vol.snapshottable && !vol.needsOwnSnapshot {
+			continue
+		}
+
+		memberAddress := nodeAddressByName[vol.volume.Location]
+		if vol.volume.Location == "" {
+			// A remote or shared volume has no hosting member; reach it from the local member.
+			memberAddress = nodeAddressByName[s.ServerName]
+		}
+
+		// Pin an exclusive volume's co-placement with its instance's destination member;
+		// UseTarget is skipped when the member name is absent on the destination.
+		dstMember := ""
+		if len(vol.usedBy) == 1 {
+			owner, ok := instByName[vol.usedBy[0]]
+			if ok && dstMemberSet[owner.Location()] {
+				dstMember = owner.Location()
+			}
+		}
+
+		childArgs = append(childArgs, &operations.OperationArgs{
+			ProjectName: projectName,
+			EntityURL:   projectURL,
+			Type:        operationtype.ReplicatorRunVolume,
+			Class:       operationtype.OperationClassTask,
+			Stage:       stage,
+			Metadata: map[string]any{
+				api.MetadataEntityURL: entity.StorageVolumeURL(projectName, vol.volume.Location, vol.volume.Pool, dbCluster.StoragePoolVolumeTypeNameCustom, vol.volume.Name).String(),
+			},
+			RunHook: func(ctx context.Context, _ *operations.Operation) error {
+				if vol.needsOwnSnapshot {
+					err := snapshotVolume(ctx, s, vol, memberAddress)
+					if err != nil {
+						return err
+					}
+				}
+
+				// Connect from inside the hook so the connection is made when the operation
+				// runs rather than when it is queued.
+				dstClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+				if err != nil {
+					return fmt.Errorf("Failed connecting to target cluster: %w", err)
+				}
+
+				if dstMember != "" {
+					dstClient = dstClient.UseTarget(dstMember)
+				}
+
+				return replicateVolume(ctx, s, vol, memberAddress, dstClient)
+			},
+		})
+	}
+
+	if len(childArgs) > 0 {
+		stage++
+	}
+
+	// Instance stage.
 	for _, inst := range allInsts {
 		memberAddress := nodeAddressByName[inst.Location()]
+		ridingVols := ridingVolumes[inst.Name()]
 
 		childArgs = append(childArgs, &operations.OperationArgs{
 			ProjectName: projectName,
 			EntityURL:   entity.InstanceURL(projectName, inst.Name()),
 			Type:        operationtype.ReplicatorRunInstanceForward,
 			Class:       operationtype.OperationClassTask,
-			Stage:       0,
+			Stage:       stage,
 			RunHook: func(ctx context.Context, op *operations.Operation) error {
 				err := snapshotInstance(ctx, s, inst, memberAddress)
 				if err != nil {
@@ -518,12 +629,33 @@ func buildForwardChildOps(s *state.State, projectName string, replicatorURL *api
 
 				dstClient = dstClient.UseProject(projectName)
 
+				if dstMemberSet[inst.Location()] {
+					dstClient = dstClient.UseTarget(inst.Location())
+				}
+
+				// A riding volume is pinned to its owner's member, so the same address and
+				// destination target apply to both. The attachment was read when the work list
+				// was built; a volume attached elsewhere since then transfers once without a
+				// fresh snapshot and is reclassified on the next run.
+				for _, vol := range ridingVols {
+					err := replicateVolume(ctx, s, vol, memberAddress, dstClient)
+					if err != nil {
+						return err
+					}
+				}
+
 				return replicateInstance(ctx, s, op, inst, memberAddress, dstClient, targetCertPEM)
 			},
 		})
 	}
 
-	return append(childArgs, replicatorFinalizeOperationArgs(s, projectName, replicatorURL, replicatorID, 1))
+	if len(allInsts) > 0 {
+		stage++
+	}
+
+	childArgs = append(childArgs, replicatorFinalizeOperationArgs(s, projectName, replicatorURL, replicatorID, stage))
+
+	return childArgs, nil
 }
 
 // restoreInstance refreshes one instance from the promoted leader cluster; empty memberAddress means local.

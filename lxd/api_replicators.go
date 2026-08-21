@@ -1119,15 +1119,20 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	replicatorURL := entity.ReplicatorURL(projectName, name)
 	projectURL := entity.ProjectURL(projectName)
 
-	// Forward replication: iterate over all loaded instances directly.
+	// Forward replication: replicate all loaded instances and the project custom volumes.
 	if !restore {
+		childArgs, err := buildForwardChildOps(ctx, s, projectName, projectURL, replicatorURL, replicatorID, allInsts, nodeAddressByName, clusterLink, clusterCert, targetCert, targetCertPEM)
+		if err != nil {
+			return operations.OperationArgs{}, err
+		}
+
 		return operations.OperationArgs{
 			ProjectName:       projectName,
 			EntityURL:         replicatorURL,
 			Type:              operationtype.ReplicatorRun,
 			Class:             operationtype.OperationClassTask,
 			ConflictReference: replicatorURL.String(), // Prevents concurrent runs; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
-			Children:          buildForwardChildOps(s, projectName, replicatorURL, replicatorID, allInsts, nodeAddressByName, clusterLink, clusterCert, targetCert, targetCertPEM),
+			Children:          childArgs,
 		}, nil
 	}
 
