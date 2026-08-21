@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net/http"
@@ -503,4 +504,41 @@ func instancesByName(insts []instance.Instance) map[string]instance.Instance {
 	}
 
 	return byName
+}
+
+// buildForwardChildOps builds the child operations for a forward replicator run: one per instance
+// at stage 0, followed by the finalize operation at stage 1.
+func buildForwardChildOps(s *state.State, projectName string, replicatorURL *api.URL, replicatorID int64, allInsts []instance.Instance, nodeAddressByName map[string]string, clusterLink *api.ClusterLink, clusterCert *shared.CertInfo, targetCert *x509.Certificate, targetCertPEM string) []*operations.OperationArgs {
+	childArgs := make([]*operations.OperationArgs, 0, len(allInsts)+1)
+
+	for _, inst := range allInsts {
+		memberAddress := nodeAddressByName[inst.Location()]
+
+		childArgs = append(childArgs, &operations.OperationArgs{
+			ProjectName: projectName,
+			EntityURL:   entity.InstanceURL(projectName, inst.Name()),
+			Type:        operationtype.ReplicatorRunInstanceForward,
+			Class:       operationtype.OperationClassTask,
+			Stage:       0,
+			RunHook: func(ctx context.Context, op *operations.Operation) error {
+				err := snapshotInstance(ctx, s, inst, memberAddress)
+				if err != nil {
+					return err
+				}
+
+				// Connect from inside the hook so the connection is made when the operation
+				// runs rather than when it is queued.
+				dstClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
+				if err != nil {
+					return fmt.Errorf("Failed connecting to target cluster: %w", err)
+				}
+
+				dstClient = dstClient.UseProject(projectName)
+
+				return replicateInstance(ctx, s, op, inst, memberAddress, dstClient, targetCertPEM)
+			},
+		})
+	}
+
+	return append(childArgs, replicatorFinalizeOperationArgs(s, projectName, replicatorURL, replicatorID, 1))
 }
