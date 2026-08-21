@@ -516,8 +516,10 @@ func ensureLocalOperationsAreSynchronized(ctx context.Context, tx *db.ClusterTx,
 			// The lastPersistenceAttempt should never be behind operations.updated_at.
 			// If it is, update it to the current database value and log a warning.
 			if lastPersistenceAttemptUnixMillis < dbUpdatedAtUnixMillis {
+				op.lock.Lock()
 				op.lastPersistenceAttempt = dbOp.Row.UpdatedAt
 				op.updatedAt = dbOp.Row.UpdatedAt
+				op.lock.Unlock()
 				logger.Warn("Operation persistence tracking mismatch", logger.Ctx{"uuid": op.id})
 			}
 
@@ -527,12 +529,15 @@ func ensureLocalOperationsAreSynchronized(ctx context.Context, tx *db.ClusterTx,
 		// If the operation is not in sync, it could be due to a misbehaving database when the operation attempted to persist its data.
 		// Synchronize the operation now.
 		op.logger.Info("Resynchronizing operation")
+		op.lock.Lock()
 		op.lastPersistenceAttempt = op.updatedAt
 		err := cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, op.metadata, op.err, op.errCode)
 		if err != nil {
 			errs = append(errs, err)
 			op.logger.Warn("Failed synchronizing operation with database", logger.Ctx{"err": err})
 		}
+
+		op.lock.Unlock()
 	}
 
 	return errors.Join(errs...)
