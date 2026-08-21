@@ -49,14 +49,11 @@ env:
 jobs:
   uc-nvidia-cdi:
     runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
+    # LXD 5.0 does not support CDI, only `nvidia.runtime`.
+    if: ${{ !contains(inputs.snap-track, '5.0/') }}
     strategy:
       matrix:
         track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
-        # LXD 5.0 does not support CDI, only `nvidia.runtime`.
-        exclude:
-          - track: '5.0/edge'
-          - track: '5.0/candidate'
-          - track: '5.0/stable'
     env:
       SNAP_CHANNEL: ${{ matrix.track }}
       TFWORKFLOW: uc-nvidia-cdi-job
@@ -154,18 +151,12 @@ jobs:
 
   amd-cdi:
     runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
+    # AMD CDI is not supported on LXD 5.0 or 5.21.
+    if: ${{ !contains(inputs.snap-track, '5.0/') && !contains(inputs.snap-track, '5.21/') }}
     strategy:
       matrix:
         track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
         os: ${{ fromJSON(inputs.ubuntu-releases || '["noble"]') }}
-        # AMD CDI is not supported on LXD 5.0 or 5.21.
-        exclude:
-          - track: '5.0/edge'
-          - track: '5.0/candidate'
-          - track: '5.0/stable'
-          - track: '5.21/edge'
-          - track: '5.21/candidate'
-          - track: '5.21/stable'
     env:
       SNAP_CHANNEL: ${{ matrix.track }}
       TFWORKFLOW: amd-cdi-job
