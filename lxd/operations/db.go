@@ -582,11 +582,10 @@ func filterReconstructCandidatesForFinalization(syncStartedAt time.Time, operati
 		if operation.Row.Parent != nil {
 			_, ok := operationIDRetentionSet[*operation.Row.Parent]
 			if !ok {
+				// Also we don't want to reconstruct it because the parent has gone, so we need to delete it from the reconstruction set.
+				delete(operationsToReconstruct, operation.Row.UUID)
 				continue
 			}
-
-			// Also we don't want to reconstruct it because the parent has gone, so we need to delete it from the reconstruction set.
-			delete(operationsToReconstruct, operation.Row.UUID)
 		}
 
 		// Don't set status on durable operations that are to be restarted.
