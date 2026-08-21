@@ -1058,6 +1058,54 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 	return nil
 }
 
+// VolumesUsedByInstanceDevices finds instances using any of the given custom volumes via their expanded
+// devices, scanning the instance list once for the whole set rather than once per volume. The result maps
+// each volume, keyed as pool/name, to the instances that attach it; volumes attached by no instance have
+// no entry.
+func VolumesUsedByInstanceDevices(ctx context.Context, tx *db.ClusterTx, projectName string, vols []*db.StorageVolume) (map[string][]db.InstanceArgs, error) {
+	usedBy := make(map[string][]db.InstanceArgs)
+
+	// With no volumes to match there is nothing to find, so skip the instance list entirely.
+	if len(vols) == 0 {
+		return usedBy, nil
+	}
+
+	err := tx.InstanceList(ctx, func(inst db.InstanceArgs, p api.Project) error {
+		instStorageProject := project.StorageVolumeProjectFromRecord(&p, cluster.StoragePoolVolumeTypeCustom)
+		if projectName != instStorageProject {
+			return nil
+		}
+
+		devices := instancetype.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
+		for _, vol := range vols {
+			// A member-pinned volume cannot be in use by an instance on another member.
+			if vol.Location != "" && inst.Node != vol.Location {
+				continue
+			}
+
+			for _, dev := range devices {
+				usesVol, err := VolumeIsUsedByDevice(vol.StorageVolume, inst.Type, inst.Name, dev)
+				if err != nil {
+					return fmt.Errorf("Failed checking use of volume %q in pool %q: %w", vol.Name, vol.Pool, err)
+				}
+
+				if usesVol {
+					volKey := vol.Pool + "/" + vol.Name
+					usedBy[volKey] = append(usedBy[volKey], inst)
+					break
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return usedBy, nil
+}
+
 // VolumeUsedByInstanceDevices finds instances using a volume (either directly or via their expanded profiles if
 // expandDevices is true) and passes them to instanceFunc for evaluation. If instanceFunc returns an error then it
 // is returned immediately. The instanceFunc is executed during a DB transaction, so DB queries are not permitted.
