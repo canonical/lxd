@@ -544,8 +544,7 @@ jobs:
           - container-nesting
           - conversion
           - cpu-vm
-          - devlxd-container
-          - devlxd-vm
+          - devlxd
           - docker
           - efi-vm
           - lxd-installer
