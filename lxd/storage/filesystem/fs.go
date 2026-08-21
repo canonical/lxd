@@ -258,3 +258,129 @@ func GetMountinfo(path string) ([]string, error) {
 
 	return nil, errors.New("No mountinfo entry found")
 }
+
+// StatDeviceID stats path and returns the device ID (major:minor) of the
+// filesystem it lives on, in the same form as the third field of a mountinfo
+// entry. Other helpers that derive information from a path by stat'ing it should
+// follow the same StatXxx naming.
+func StatDeviceID(path string) (string, error) {
+	var st unix.Stat_t
+
+	err := unix.Stat(path, &st)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%d:%d", unix.Major(uint64(st.Dev)), unix.Minor(uint64(st.Dev))), nil
+}
+
+// ErrNoMountInfoEntry is returned (possibly wrapped) by extractFromMountInfo and
+// GetDeviceIDFromMountInfo when no line matched. Callers that need to tell "not
+// mounted" apart from a real failure to read or parse the mountinfo file (e.g. to
+// avoid treating the latter as "not a mount any more") should check for it with
+// errors.Is rather than treating every returned error the same way.
+var ErrNoMountInfoEntry = errors.New("No matching mountinfo entry")
+
+// extractFromMountInfo scans a mountinfo file and, for every line with at least 5
+// whitespace-separated fields for which match returns true, records extract's
+// result. It returns the recording from the last matching line, which is what a
+// process in that mount namespace would actually see (later entries shadow
+// earlier ones mounted at the same point). It returns ErrNoMountInfoEntry if no
+// line matched.
+func extractFromMountInfo(mountinfoPath string, match func(fields []string) bool, extract func(fields []string) []string) ([]string, error) {
+	f, err := os.Open(mountinfoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = f.Close() }()
+
+	var found []string
+
+	scanner := bufio.NewScanner(f)
+
+	// bufio.Scanner's default 64 KiB max line length can be too small for a
+	// real mountinfo line: overlayfs mounts concatenate their lowerdir list
+	// into the superblock options field, which grows with the number of image
+	// layers and can exceed that easily. Without this, one such line anywhere
+	// in the file - even for an unrelated mount - would make Scan() stop and
+	// report ErrTooLong before ever reaching the line being looked for.
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+
+	for scanner.Scan() {
+		// Fields are: mountID parentID major:minor root mountPoint ...
+		fields := strings.Fields(scanner.Text())
+		if len(fields) < 5 {
+			continue
+		}
+
+		if match(fields) {
+			found = extract(fields)
+		}
+	}
+
+	err = scanner.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	if found == nil {
+		return nil, ErrNoMountInfoEntry
+	}
+
+	return found, nil
+}
+
+// mountInfoEscaper replaces the characters the kernel octal-escapes in
+// mountinfo path fields (fs/proc_namespace.c's mangle(), the same convention
+// /etc/mtab uses): space, tab, newline and backslash become \040, \011, \012
+// and \134 respectively. Backslash must be replaced first, or the backslashes
+// introduced by the other replacements would themselves get escaped.
+var mountInfoEscaper = strings.NewReplacer(
+	`\`, `\134`,
+	" ", `\040`,
+	"\t", `\011`,
+	"\n", `\012`,
+)
+
+// escapeMountInfoField encodes path the way the kernel encodes mountinfo path
+// fields, so it can be compared against an already-escaped field like fields[4].
+func escapeMountInfoField(path string) string {
+	return mountInfoEscaper.Replace(path)
+}
+
+// GetDeviceIDFromMountInfo returns the device ID (major:minor) of the filesystem
+// mounted at mountPoint, as seen through the given mountinfo file.
+//
+// Unlike GetMountinfo, this matches by the mount point's path rather than by
+// stat'ing it and matching on mount ID, so it works against a mountinfo file
+// belonging to a different mount namespace than the caller's own (e.g.
+// /proc/<pid>/mountinfo for another process), where the path can't be stat'd
+// directly.
+func GetDeviceIDFromMountInfo(mountinfoPath string, mountPoint string) (string, error) {
+	// A mountinfo line looks like:
+	//
+	//   66 25 0:58 / /dev/lxd rw,relatime shared:32 - tmpfs tmpfs rw,size=1024k,mode=711
+	//
+	// Whitespace-split into fields, that's index 0: mount ID ("66"), 1: parent
+	// mount ID ("25"), 2: device ID ("0:58"), 3: root ("/"), 4: mount point
+	// ("/dev/lxd"), and more after that we don't care about here. So fields[2]
+	// below is the device ID and fields[4] is the mount point.
+	//
+	// The kernel escapes space/tab/newline/backslash in path fields (e.g. a
+	// mount point named "a b" appears as "a\040b"), so mountPoint needs the same
+	// encoding before comparing it against fields[4].
+	escapedMountPoint := escapeMountInfoField(mountPoint)
+	fields, err := extractFromMountInfo(mountinfoPath,
+		func(fields []string) bool { return fields[4] == escapedMountPoint },
+		func(fields []string) []string { return fields[2:3] })
+	if errors.Is(err, ErrNoMountInfoEntry) {
+		return "", fmt.Errorf("No %q mount entry in %q: %w", mountPoint, mountinfoPath, ErrNoMountInfoEntry)
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	return fields[0], nil
+}
