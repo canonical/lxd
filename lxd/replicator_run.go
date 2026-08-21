@@ -15,6 +15,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/state"
@@ -668,10 +669,28 @@ func snapshotInstance(ctx context.Context, s *state.State, instanceID int64, mem
 
 	instName := inst.Name()
 	projectName := inst.Project().Name
+
+	// All-exclusive mode captures the root disk and the instance's exclusively attached custom
+	// volumes at the same moment, so the replicated set is crash consistent. Projects that inherit
+	// volumes from the default project have no project-local volumes to capture, so those fall back
+	// to the root disk alone. Migration leaves their volumes alone too, so nothing is replicated
+	// without a snapshot behind it.
+	diskVolumesMode := api.DiskVolumesModeAllExclusive
+	if shared.IsFalseOrEmpty(inst.Project().Config["features.storage.volumes"]) {
+		diskVolumesMode = api.DiskVolumesModeRoot
+	}
+
 	// Snapshotting is unconditional; the only exception is when the instance already has a
 	// snapshot schedule defined, since scheduled snapshots provide point-in-time history so
 	// an extra one here would be redundant.
 	createSnapshot := inst.ExpandedConfig()["snapshots.schedule"] == ""
+
+	// Scheduled snapshots only capture the root disk, so an instance whose custom volumes travel
+	// with it still needs one here to put the whole replicated set at the same point in time.
+	if !createSnapshot && diskVolumesMode == api.DiskVolumesModeAllExclusive {
+		createSnapshot = len(inst.ExpandedDevices().Filter(filters.IsCustomVolumeDisk)) > 0
+	}
+
 	if !createSnapshot {
 		return nil
 	}
@@ -692,7 +711,7 @@ func snapshotInstance(ctx context.Context, s *state.State, instanceID int64, mem
 		memberClient = memberClient.UseProject(projectName)
 
 		// Create a snapshot on the hosting cluster member if needed.
-		snapOp, err := memberClient.CreateInstanceSnapshot(instName, api.InstanceSnapshotsPost{})
+		snapOp, err := memberClient.CreateInstanceSnapshot(instName, api.InstanceSnapshotsPost{DiskVolumesMode: diskVolumesMode})
 		if err != nil {
 			return fmt.Errorf("Failed creating snapshot of instance %q on hosting cluster member: %w", instName, err)
 		}
@@ -710,7 +729,7 @@ func snapshotInstance(ctx context.Context, s *state.State, instanceID int64, mem
 		return fmt.Errorf("Failed generating snapshot name for instance %q: %w", instName, err)
 	}
 
-	err = inst.Snapshot(ctx, snapName, nil, false, api.DiskVolumesModeRoot, nil)
+	err = inst.Snapshot(ctx, snapName, nil, false, diskVolumesMode, nil)
 	if err != nil {
 		return fmt.Errorf("Failed creating snapshot of instance %q: %w", instName, err)
 	}
