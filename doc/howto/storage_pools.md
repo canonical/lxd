@@ -565,7 +565,7 @@ The `config` options vary by driver type. Keep this record in a safe place, and 
 
 ### For pools in a cluster
 
-For {ref}`local storage pools <storage-drivers-features-local>` in a cluster, the `source` value is member-specific and must be obtained from each cluster member. For {ref}`non-local storage pools <storage-drivers-features-nonlocal>` with the `source` config option, its value is shared across all cluster members.
+For {ref}`local storage pools <storage-drivers-local>` in a cluster, the `source` value is member-specific and must be obtained from each cluster member. For {ref}`non-local storage pools <storage-drivers-nonlocal>` with the `source` config option, its value is shared across all cluster members.
 
 (howto-storage-pools-recover)=
 ## Recover a storage pool
