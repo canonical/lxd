@@ -3664,3 +3664,8 @@ Public cluster links cannot be used by {ref}`replicators <exp-replicators>` or a
 Introduces new operation class for durable operations.
 Durable operations are restarted on the DQLite raft leader if the member that is running the operation fails to respond to heartbeats.
 If the leader was running the operation and goes offline, the operation is restarted on the newly elected leader.
+
+(extension-replicator-custom-volumes)=
+## `replicator_custom_volumes`
+
+Replicators now replicate and restore a project's custom storage volumes alongside its instances, so a standby replica project is suitable for failover when its instances depend on project volumes.
