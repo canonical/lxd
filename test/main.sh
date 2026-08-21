@@ -57,6 +57,12 @@ if [ -n "${GOPATH:-}" ] && [[ "${PATH}" != *"${GOPATH}/bin"* ]]; then
 fi
 export PATH
 
+# The browser environment variable is used for opening a browser in OIDC tests.
+# `mini-oidc` just expects a curl request to the device authorization endpoint.
+# We never want to actually open a browser.
+export BROWSER="curl"
+
+
 # Don't translate lxc output for parsing in it in tests.
 export LC_ALL="C"
 

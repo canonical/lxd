@@ -36,20 +36,20 @@ test_oidc() {
     jq --exit-status '.error_code == 400 and .error == "\"oidc.device.client.id\" cannot be set if \"oidc.client.id\" is unset"' # Can't remove client ID without removing device client ID first.
 
   # Expect this to fail. No user set.
-  ! BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc || false
+  ! lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc || false
 
   # Set a user with no email address
   set_oidc test-user
 
   # Expect this to fail. mini-oidc will issue a token but adding the remote will fail because no email address will be
   # returned from /userinfo
-  ! BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc || false
+  ! lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc || false
 
   # Set a user with an email address
   set_oidc test-user test-user@example.com
 
   # This should succeed.
-  BROWSER=curl lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc
+  lxc remote add --accept-certificate oidc "${LXD_ADDR}" --auth-type oidc
 
   # The user should now be logged in and their email should show in the "auth_user_name" field.
   lxc query oidc:/1.0 | jq --exit-status '.auth == "trusted"'
