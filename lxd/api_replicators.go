@@ -1123,43 +1123,13 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 
 	// Forward replication: iterate over all loaded instances directly.
 	if !restore {
-		childArgs := make([]*operations.OperationArgs, 0, len(allInsts))
-
-		var stage uint16
-		for _, inst := range allInsts {
-			memberAddress := nodeAddressByName[inst.Location()]
-
-			copyFunc := func(ctx context.Context, op *operations.Operation) error {
-				dstClient, err := lxdCluster.ConnectCluster(ctx, *clusterLink, lxdCluster.GetClusterLinkConnectionArgs(clusterCert, targetCert))
-				if err != nil {
-					return fmt.Errorf("Failed connecting to target cluster: %w", err)
-				}
-
-				dstClient = dstClient.UseProject(projectName)
-
-				return replicateInstance(ctx, s, op, inst, memberAddress, dstClient, targetCertPEM)
-			}
-
-			childArgs = append(childArgs, &operations.OperationArgs{
-				ProjectName: projectName,
-				EntityURL:   entity.InstanceURL(projectName, inst.Name()),
-				Type:        operationtype.ReplicatorRunInstanceForward,
-				Class:       operationtype.OperationClassTask,
-				RunHook:     copyFunc,
-				Stage:       stage,
-			})
-		}
-
-		stage++
-		childArgs = append(childArgs, replicatorFinalizeOperationArgs(s, projectName, replicatorURL, replicatorID, stage))
-
 		return operations.OperationArgs{
 			ProjectName:       projectName,
 			EntityURL:         replicatorURL,
 			Type:              operationtype.ReplicatorRun,
 			Class:             operationtype.OperationClassTask,
 			ConflictReference: replicatorURL.String(), // Prevents concurrent runs; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
-			Children:          childArgs,
+			Children:          buildForwardChildOps(s, projectName, replicatorURL, replicatorID, allInsts, nodeAddressByName, clusterLink, clusterCert, targetCert, targetCertPEM),
 		}, nil
 	}
 
