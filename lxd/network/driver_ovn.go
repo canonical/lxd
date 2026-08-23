@@ -3529,6 +3529,24 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 				return nil // No need to update a port that isn't started yet.
 			}
 
+			// Update DNS records if dns.domain changed.
+			if slices.Contains(changedKeys, "dns.domain") {
+				dnsUUID, dnsIPs, err := client.LogicalSwitchPortGetDNS(instancePortName)
+				if err != nil {
+					return fmt.Errorf("Failed getting DNS records for %q: %w", instancePortName, err)
+				}
+
+				if dnsUUID != "" && len(dnsIPs) > 0 {
+					dnsName := fmt.Sprintf("%s.%s", inst.Name, n.getDomainName())
+					_, err = client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, dnsName, dnsIPs)
+					if err != nil {
+						return fmt.Errorf("Failed updating DNS record for %q: %w", dnsName, err)
+					}
+
+					n.logger.Debug("Updated instance DNS record", logger.Ctx{"port": instancePortName, "dnsName": dnsName, "ips": dnsIPs})
+				}
+			}
+
 			// Apply security ACL and default rule changes.
 			if aclConfigChanged {
 				// Check whether we need to add any of the new ACLs to the NIC.
