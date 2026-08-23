@@ -528,15 +528,24 @@ Environment="GOCOVERDIR=${GOCOVERDIR}"
 EOF
   lxc exec "${instance}" --project "${project}" -- systemctl daemon-reload
 
+  local start_time_orig start_time_new rc
+  start_time_orig=$(lxc exec "${instance}" --project "${project}" -- systemctl show -p ExecMainStartTimestampMonotonic --value lxd-agent.service)
+
   # Restarting lxd-agent is expected to abruptly terminate the lxc exec session,
   # so a failure is possible and harmless.
   lxc exec "${instance}" --project "${project}" -- systemctl restart --no-block lxd-agent.service || true
 
-  # Restarting the lxd-agent isn't instantaneous, so wait for it to be ready again.
-  waitInstanceReady "${instance}" "${project}"
+  for _ in $(seq 60); do
+      rc=0
+      start_time_new=$(lxc exec "${instance}" --project "${project}" -- systemctl show -p ExecMainStartTimestampMonotonic --value lxd-agent.service) || rc=$?
+      if [ "${rc}" -eq 0 ] && [ -n "${start_time_new}" ] && [ "${start_time_new}" != "${start_time_orig}" ]; then
+        return 0
+      fi
+      sleep 1
+  done
 
-  # Give lxd-agent a moment to start up properly.
-  sleep 1
+  echo "lxd-agent inside the ${instance} (${project:-"-"}) instance did not restart within 60s"
+  return 1
 }
 
 # count_gpu_devices: returns the number of GPU devices in the instance.
