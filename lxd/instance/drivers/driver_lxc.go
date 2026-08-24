@@ -5274,7 +5274,11 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			}
 
 			// Open the file to template, create if needed
-			fullpath := filepath.Join(rootfsPath, strings.TrimLeft(tplPath, "/"))
+			fullpath, err := securePathJoin(rootfsPath, tplPath, false)
+			if err != nil {
+				return fmt.Errorf("Invalid template output path: %w", err)
+			}
+
 			if shared.PathExists(fullpath) {
 				if tpl.CreateOnly {
 					return nil
@@ -5302,9 +5306,9 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			defer w.Close()
 
 			// Read the template, ensuring the template file cannot escape the templates directory.
-			tplFullPath, err := templateFileSafePath(templatesPath, tpl.Template)
+			tplFullPath, err := securePathJoin(templatesPath, tpl.Template, true)
 			if err != nil {
-				return err
+				return fmt.Errorf("Invalid template file path: %w", err)
 			}
 
 			tplString, err := ioutil.ReadFile(tplFullPath)

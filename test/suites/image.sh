@@ -194,7 +194,21 @@ EOF
 
     # The CLI only reports the forkstart exit status, so verify the rejection reason in the daemon log.
     # shellcheck disable=SC2153
-    grep -q "attempts to escape the templates directory" "${LXD_DIR}/lxd.log"
+    grep -q "Invalid template file path:.*attempts to escape the base directory" "${LXD_DIR}/lxd.log"
+
+    # Now update the instance metadata in-place to test that a malicious template output path
+    # (targeting the rootfs escape) is also rejected.
+    # Update the metadata to reference a valid template file with an escaping output path.
+    lxc query -X PATCH -d "{\\\"templates\\\":{\\\"/nonexistent/../../../../../../../../../../../../../tmp/ROOT_OWNED_TARGET\\\":{\\\"when\\\":[\\\"create\\\"],\\\"template\\\":\\\"hostname.tpl\\\"}}}" \
+        "/1.0/instances/c-template-escape/metadata"
+
+    if lxc start c-template-escape; then
+        echo "ERROR: Starting a container whose template output path escapes the rootfs unexpectedly succeeded" >&2
+        exit 1
+    fi
+
+    # shellcheck disable=SC2153
+    grep -q "Invalid template output path:.*attempts to escape the base directory" "${LXD_DIR}/lxd.log"
 
     lxc delete -f c-template-escape
     lxc image delete image-template-escape
