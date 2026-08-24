@@ -207,17 +207,8 @@ test_security_events() {
   # No security events are emitted yet (emission sites are a later subtask),
   # so only the connection establishment is verified here.
   local monfile="${TEST_DIR}/security-events.jsonl"
-  lxc monitor --type=security --format=json > "${monfile}" &
-  local mon_pid=$!
-
-  # The monitor process exits immediately on connection error. Retry kill -0
-  # for up to 10 seconds; once it succeeds we know the connection is live.
-  for _ in $(seq 10); do
-    kill -0 "${mon_pid}" && break
-    sleep 1
-  done
-
-  kill -0 "${mon_pid}"
+  lxc_monitor_start "${monfile}" --type=security --format=json
+  local mon_pid="${LXC_MONITOR_PID}"
 
   kill_go_proc "${mon_pid}" || true
   rm -f "${monfile}"
@@ -225,9 +216,8 @@ test_security_events() {
   sub_test "Verify existing lifecycle events are unaffected by the security event type"
   ensure_import_testimage
   local monfile_lifecycle="${TEST_DIR}/lifecycle-events.jsonl"
-  lxc monitor --type=lifecycle --format=json > "${monfile_lifecycle}" &
-  local mon_lifecycle_pid=$!
-  sleep 0.1
+  lxc_monitor_start "${monfile_lifecycle}" --type=lifecycle --format=json
+  local mon_lifecycle_pid="${LXC_MONITOR_PID}"
 
   lxc init --empty c-security-event-test
   lxc delete c-security-event-test --force
@@ -279,13 +269,8 @@ test_security_sys_events() {
   # is torn down. A pre-subscribed lxc monitor reliably captures it
   # because the WebSocket flushes pending frames before close.
   local monfile="${TEST_DIR}/security-sys-shutdown.jsonl"
-  LXD_DIR="${LXD_SYS_DIR}" lxc monitor --type=security --format=json > "${monfile}" &
-  local mon_pid=$!
-  for _ in $(seq 10); do
-    kill -0 "${mon_pid}" && break
-    sleep 1
-  done
-  kill -0 "${mon_pid}"
+  LXD_DIR="${LXD_SYS_DIR}" lxc_monitor_start "${monfile}" --type=security --format=json
+  local mon_pid="${LXC_MONITOR_PID}"
 
   shutdown_lxd "${LXD_SYS_DIR}"
 
@@ -303,22 +288,12 @@ test_security_user_events() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   local monfile="${TEST_DIR}/security-user-events.jsonl"
-  lxc monitor --type=security --format=json > "${monfile}" &
-  local mon_pid=$!
-  for _ in $(seq 10); do
-    kill -0 "${mon_pid}" && break
-    sleep 1
-  done
-  kill -0 "${mon_pid}"
+  lxc_monitor_start "${monfile}" --type=security --format=json
+  local mon_pid="${LXC_MONITOR_PID}"
 
   local lifecycle_monfile="${TEST_DIR}/security-user-events-lifecycle.jsonl"
-  lxc monitor --type=lifecycle --format=json > "${lifecycle_monfile}" &
-  local lifecycle_mon_pid=$!
-  for _ in $(seq 10); do
-    kill -0 "${lifecycle_mon_pid}" && break
-    sleep 1
-  done
-  kill -0 "${lifecycle_mon_pid}"
+  lxc_monitor_start "${lifecycle_monfile}" --type=lifecycle --format=json
+  local lifecycle_mon_pid="${LXC_MONITOR_PID}"
 
   sub_test "Verify user_created fires when a bearer identity is created"
   lxc auth identity create bearer/security-user-events-bearer
@@ -440,13 +415,8 @@ test_security_user_events_cluster_link() {
   LXD_DIR="${LXD_LINK_DIR}" lxc cluster enable security-user-events-node
 
   local monfile="${TEST_DIR}/security-cluster-link-user-events.jsonl"
-  LXD_DIR="${LXD_LINK_DIR}" lxc monitor --type=security --format=json > "${monfile}" &
-  local mon_pid=$!
-  for _ in $(seq 10); do
-    kill -0 "${mon_pid}" && break
-    sleep 1
-  done
-  kill -0 "${mon_pid}"
+  LXD_DIR="${LXD_LINK_DIR}" lxc_monitor_start "${monfile}" --type=security --format=json
+  local mon_pid="${LXC_MONITOR_PID}"
 
   sub_test "Verify user_created fires when a pending cluster link is created"
   LXD_DIR="${LXD_LINK_DIR}" lxc cluster link create security-user-events-link --quiet
@@ -481,13 +451,8 @@ test_security_user_events_cluster_link() {
 
   local activation_monfile="${TEST_DIR}/security-cluster-link-user-events-activation.jsonl"
   # Activation updates the pending identity on the token-issuing daemon.
-  LXD_DIR="${LXD_LINK_DIR}" lxc monitor --type=security --format=json > "${activation_monfile}" &
-  local activation_mon_pid=$!
-  for _ in $(seq 10); do
-    kill -0 "${activation_mon_pid}" && break
-    sleep 1
-  done
-  kill -0 "${activation_mon_pid}"
+  LXD_DIR="${LXD_LINK_DIR}" lxc_monitor_start "${activation_monfile}" --type=security --format=json
+  local activation_mon_pid="${LXC_MONITOR_PID}"
 
   local cluster_link_trust_token
   cluster_link_trust_token="$(LXD_DIR="${LXD_LINK_DIR}" lxc cluster link create security-user-events-link-remote --quiet)"
@@ -516,13 +481,8 @@ test_security_user_events_oidc() {
   lxc config set "oidc.issuer=http://127.0.0.1:$(< "${TEST_DIR}/oidc.port")/" "oidc.client.id=device"
 
   local monfile="${TEST_DIR}/security-oidc-user-events.jsonl"
-  lxc monitor --type=security --format=json > "${monfile}" &
-  local mon_pid=$!
-  for _ in $(seq 10); do
-    kill -0 "${mon_pid}" && break
-    sleep 1
-  done
-  kill -0 "${mon_pid}"
+  lxc_monitor_start "${monfile}" --type=security --format=json
+  local mon_pid="${LXC_MONITOR_PID}"
 
   sub_test "Verify user_created fires on OIDC first login"
   lxc remote add --accept-certificate oidc-security "${LXD_ADDR}" --auth-type oidc
@@ -594,13 +554,8 @@ test_security_events_bearer_authn() {
   # Subscribe to the security stream before any auth attempt so the revocation
   # path's authn_token_reuse event lands in the file.
   local monfile="${TEST_DIR}/security-events-bearer.jsonl"
-  lxc monitor --type=security --format=json > "${monfile}" &
-  local mon_pid=$!
-  for _ in $(seq 10); do
-    kill -0 "${mon_pid}" && break
-    sleep 1
-  done
-  kill -0 "${mon_pid}"
+  lxc_monitor_start "${monfile}" --type=security --format=json
+  local mon_pid="${LXC_MONITOR_PID}"
 
   sub_test "Verify a fresh bearer token authenticates successfully"
   curl --silent --insecure --header "Authorization: Bearer ${bearer_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
@@ -637,9 +592,8 @@ test_authn_events() {
 
   sub_test "Verify authn_login_fail does not fire on public unauthenticated endpoints"
   local monfile="${TEST_DIR}/authn-no-event.jsonl"
-  lxc monitor --type=security --format=json > "${monfile}" &
-  local mon_pid=$!
-  sleep 0.2
+  lxc_monitor_start "${monfile}" --type=security --format=json
+  local mon_pid="${LXC_MONITOR_PID}"
 
   # GET /1.0 has AllowUntrusted=true so daemon.Authenticate is not reached
   # with a failing auth method.
@@ -657,9 +611,8 @@ test_authn_events() {
   gen_cert_and_key "authn-untrusted-cert"
 
   monfile="${TEST_DIR}/authn-login-fail-tls.jsonl"
-  lxc monitor --type=security --format=json > "${monfile}" &
-  mon_pid=$!
-  sleep 0.2
+  lxc_monitor_start "${monfile}" --type=security --format=json
+  mon_pid="${LXC_MONITOR_PID}"
 
   curl --insecure --silent \
     --cert "${LXD_CONF}/authn-untrusted-cert.crt" \
@@ -677,9 +630,8 @@ test_authn_events() {
   bearer_id="$(lxc auth identity list bearer --format json | jq --raw-output --exit-status '.[] | select(.name == "authn-bearer-test") | .id')"
 
   monfile="${TEST_DIR}/authn-token-created.jsonl"
-  lxc monitor --type=security --format=json > "${monfile}" &
-  mon_pid=$!
-  sleep 0.2
+  lxc_monitor_start "${monfile}" --type=security --format=json
+  mon_pid="${LXC_MONITOR_PID}"
 
   local issued_token
   issued_token="$(lxc auth identity token issue bearer/authn-bearer-test --quiet)"
@@ -697,9 +649,8 @@ test_authn_events() {
 
   sub_test "Verify authn_token_revoked fires when a bearer token is revoked"
   monfile="${TEST_DIR}/authn-token-revoked.jsonl"
-  lxc monitor --type=security --format=json > "${monfile}" &
-  mon_pid=$!
-  sleep 0.2
+  lxc_monitor_start "${monfile}" --type=security --format=json
+  mon_pid="${LXC_MONITOR_PID}"
 
   lxc auth identity token revoke bearer/authn-bearer-test
 
@@ -721,9 +672,8 @@ test_authn_events() {
   gen_cert_and_key "authn-new-cert"
 
   monfile="${TEST_DIR}/authn-cert-change.jsonl"
-  lxc monitor --type=security --format=json > "${monfile}" &
-  mon_pid=$!
-  sleep 0.2
+  lxc_monitor_start "${monfile}" --type=security --format=json
+  mon_pid="${LXC_MONITOR_PID}"
 
   lxc query --request PUT \
     --data "$(jq --null-input --exit-status \
@@ -754,9 +704,8 @@ test_authn_events() {
   gen_cert_and_key "authn-self-new-cert"
 
   monfile="${TEST_DIR}/authn-cert-selfchange.jsonl"
-  lxc monitor --type=security --format=json > "${monfile}" &
-  mon_pid=$!
-  sleep 0.2
+  lxc_monitor_start "${monfile}" --type=security --format=json
+  mon_pid="${LXC_MONITOR_PID}"
 
   CERTNAME="authn-self-cert" my_curl --request PUT \
     --data "$(jq --null-input --exit-status \
@@ -850,15 +799,8 @@ test_security_authz_events() {
   local monfile="${TEST_DIR}/authz-events.jsonl"
   rm -f "${monfile}"
 
-  lxc monitor --type=security --format=json > "${monfile}" &
-  local mon_pid=$!
-
-  # Wait until the monitor connection is live.
-  for _ in $(seq 10); do
-    kill -0 "${mon_pid}" && break
-    sleep 1
-  done
-  kill -0 "${mon_pid}"
+  lxc_monitor_start "${monfile}" --type=security --format=json
+  local mon_pid="${LXC_MONITOR_PID}"
 
   sub_test "authz_admin: group_create fires on auth group create"
   lxc auth group create authz-evt-g1
@@ -964,12 +906,8 @@ test_security_authz_events() {
   local old_mon_pid="${mon_pid}"
   kill_go_proc "${old_mon_pid}" || true
   wait "${old_mon_pid}" || true
-  lxc monitor --type=security --type=lifecycle --format=json > "${monfile}" &
-  mon_pid=$!
-  for _ in $(seq 10); do
-    kill -0 "${mon_pid}" && break
-    sleep 1
-  done
+  lxc_monitor_start "${monfile}" --type=security --type=lifecycle --format=json
+  mon_pid="${LXC_MONITOR_PID}"
 
   local coexist_lifecycle_jq='.type == "lifecycle" and .metadata.action == "auth-group-created" and .metadata.source == "/1.0/auth/groups/authz-evt-coexist"'
   local coexist_security_jq='.type == "security" and .metadata.name == "authz_admin:group_create:authz-evt-coexist"'

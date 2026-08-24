@@ -464,7 +464,7 @@ lxd_shutdown_restart() {
 
     local logfile="${scenario}.log"
     echo "Starting LXD log capture in $logfile using lxc monitor..."
-    lxd_monitor_start "$logfile" --pretty
+    lxc_monitor_start "$logfile" --pretty
     local monitor_pid="${LXC_MONITOR_PID}"
     echo "Monitor PID: $monitor_pid"
     echo "LXD daemon PID: $LXD_PID"

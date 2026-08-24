@@ -148,8 +148,8 @@ EOF
   kill_go_proc "${client_websocket}"
   kill_go_proc "${client_stream}"
 
-  lxc monitor --type=lifecycle > "${TEST_DIR}/devlxd.log" &
-  monitorDevlxdPID=$!
+  lxc_monitor_start "${TEST_DIR}/devlxd.log" --type=lifecycle
+  monitorDevlxdPID="${LXC_MONITOR_PID}"
 
   # Test instance Ready state
   [ "$(lxc list -f csv -c s devlxd)" = "RUNNING" ]
@@ -178,8 +178,8 @@ EOF
   # volatile.last_state.ready should be unset during daemon init
   [ -z "$(lxc config get devlxd volatile.last_state.ready || echo fail)" ]
 
-  lxc monitor --type=lifecycle > "${TEST_DIR}/devlxd.log" &
-  monitorDevlxdPID=$!
+  lxc_monitor_start "${TEST_DIR}/devlxd.log" --type=lifecycle
+  monitorDevlxdPID="${LXC_MONITOR_PID}"
 
   lxc exec devlxd -- devlxd-client ready-state true
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]

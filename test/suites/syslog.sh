@@ -1,9 +1,8 @@
 test_syslog_socket() {
   lxc config set core.syslog_socket=true
-  lxc monitor --type=ovn > "${TEST_DIR}/ovn.log" &
-  monitorOVNPID=$!
+  lxc_monitor_start "${TEST_DIR}/ovn.log" --type=ovn
+  monitorOVNPID="${LXC_MONITOR_PID}"
 
-  sleep 0.1
   echo "<29> ovs|ovn-controller|00017|rconn|INFO|unix:/var/run/openvswitch/br-int.mgmt: connected" | socat - unix-sendto:"${LXD_DIR}/syslog.socket"
   sleep 0.1
 
