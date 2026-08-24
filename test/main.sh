@@ -578,6 +578,7 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     run_test test_image_import_metadata "import image with invalid metadata"
     run_test test_image_import_metadata_not_regular_file "import image with non-regular metadata file"
     run_test test_image_metadata_confined "import image with unconfined metadata"
+    run_test test_image_metadata_template_target_confined "import image with confined template target"
     run_test test_image_backup_confined "import image with unconfined backup metadata"
     run_test test_image_refresh "image refresh"
     run_test test_image_acl "image acl"
