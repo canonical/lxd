@@ -254,3 +254,60 @@ func GetMountinfo(path string) ([]string, error) {
 
 	return nil, fmt.Errorf("No mountinfo entry found")
 }
+
+// MkdirAllOwner creates a directory named path, along with any necessary parents, in root.
+// It sets the ownership of the created directories to the provided uid and gid.
+func MkdirAllOwner(root *os.Root, path string, perm os.FileMode, uid int, gid int) error {
+	// This function is a slightly modified version of MkdirAll from the Go standard library.
+	// https://golang.org/src/os/path.go?s=488:535#L9
+
+	// Fast path: if we can tell whether path is a directory or file, stop with success or error.
+	dir, err := root.Stat(path)
+	if err == nil {
+		if dir.IsDir() {
+			return nil
+		}
+
+		return &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
+	}
+
+	// Slow path: make sure parent exists and then call Mkdir for path.
+	i := len(path)
+	for i > 0 && os.IsPathSeparator(path[i-1]) { // Skip trailing path separator.
+		i--
+	}
+
+	j := i
+	for j > 0 && !os.IsPathSeparator(path[j-1]) { // Scan backward over element.
+		j--
+	}
+
+	if j > 1 {
+		// Create parent.
+		err = MkdirAllOwner(root, path[0:j-1], perm, uid, gid)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Parent now exists; invoke Mkdir and use its result.
+	err = root.Mkdir(path, perm)
+	if err != nil {
+		// Handle arguments like "foo/." by
+		// double-checking that directory doesn't exist.
+		dir, err1 := root.Lstat(path)
+		if err1 == nil && dir.IsDir() {
+			return nil
+		}
+
+		return err
+	}
+
+	// Only set ownership on the directory we just created.
+	err = root.Chown(path, uid, gid)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

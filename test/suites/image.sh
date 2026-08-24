@@ -210,6 +210,60 @@ test_image_metadata_confined() {
   lxc image delete testimage
 }
 
+test_image_metadata_template_target_confined() {
+  local ct_name target_dir target_file target_content escaping_path
+
+  ensure_import_testimage
+
+  ct_name="c1"
+
+  # A root-owned file living clearly outside of any instance root. If the
+  # confinement is bypassed, template application would overwrite it.
+  target_dir="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  target_file="${target_dir}/ROOT_OWNED_TARGET"
+  target_content="legitimate root-owned system file"
+  printf '%s\n' "${target_content}" > "${target_file}"
+  chown root:root "${target_file}"
+  chmod 0600 "${target_file}"
+
+  # The template target path uses a bogus first component followed by enough
+  # ".." segments to climb above the instance rootfs and land on the absolute
+  # path of the root-owned file. The confined os.Root must reject this before
+  # the escaping path can be opened.
+  escaping_path="/nonexistent/../../../../../../../../../../../../..${target_file}"
+
+  lxc init testimage "${ct_name}"
+
+  sub_test "Upload a template file to the instance via the metadata templates API"
+  printf '#!/bin/sh\n# OVERWRITTEN VIA LXD TEMPLATE ESCAPE\nexit 0\n' \
+    | curl --silent --fail --unix-socket "${LXD_DIR}/unix.socket" -X POST \
+      -H "Content-Type: application/octet-stream" --data-binary @- \
+      "lxd/1.0/instances/${ct_name}/metadata/templates?path=escape.tpl" \
+    | jq --exit-status '.status_code == 200'
+
+  sub_test "Register a template whose target path escapes the instance root"
+  lxc query -X PUT -d "{\\\"architecture\\\": \\\"$(uname -m)\\\", \\\"creation_date\\\": 1, \\\"properties\\\": {}, \\\"templates\\\": {\\\"${escaping_path}\\\": {\\\"when\\\": [\\\"start\\\"], \\\"create_only\\\": false, \\\"template\\\": \\\"escape.tpl\\\", \\\"properties\\\": {}}}}" "/1.0/instances/${ct_name}/metadata"
+
+  # templateApplyNow (os.Root.OpenFile): starting the instance applies "start"
+  # templates. The escaping target must be rejected rather than followed out of
+  # the instance root. The container start hook surfaces only a generic failure
+  # to the client, so assert that start fails and check the instance start log
+  # for the confinement error before confirming the root-owned file was left
+  # untouched.
+  sub_test "Reject starting the instance whose template target escapes the instance root"
+  if lxc start "${ct_name}"; then
+    echo "ERROR: start must have been rejected"
+    exit 1
+  fi
+
+  sub_test "Confirm the root-owned file outside the instance root was not modified"
+  [ "$(cat "${target_file}")" = "${target_content}" ]
+
+  lxc delete -f "${ct_name}"
+  lxc image delete testimage
+  rm -rf "${target_dir}"
+}
+
 test_image_backup_confined() {
   local ct_name ct_backup_path err_msg pool_driver pool_name
 
