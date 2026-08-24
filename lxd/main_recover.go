@@ -21,13 +21,21 @@ type cmdRecover struct {
 func (c *cmdRecover) command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "recover"
-	cmd.Short = "Recover missing instances and volumes from existing and unknown storage pools"
+	cmd.Short = "Recover LXD database records after a disaster"
 	cmd.Long = `Description:
-	Recover missing instances and volumes from existing and unknown storage pools
+	Recover LXD database records after a disaster
 
-  This command is mostly used for disaster recovery. It will ask you about unknown storage pools and attempt to
-  access them, along with existing storage pools, and identify any missing instances and volumes that exist on the
-  pools but are not in the LXD database. It will then offer to recreate these database records.
+  Use this interactive tool to re-create a LXD database after a disaster.
+
+  You must re-create storage pools before running this command. When you run
+  this command, the recovery tool scans known storage pools and identifies
+  resources missing from the LXD database. The tool can automatically re-create
+  database records for instances, custom volumes, and buckets discovered in the
+  storage pools. Before doing so, the tool will prompt you to manually re-create
+  any other missing entities that it discovers.
+
+  Note that the recovery tool is unable to recover profiles and other
+  configurations, and you must restore such configurations separately.
 `
 	cmd.RunE = c.run
 
