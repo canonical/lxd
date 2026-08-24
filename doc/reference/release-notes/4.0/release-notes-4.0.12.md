@@ -39,12 +39,12 @@ Validation for NVIDIA-related instance configuration was tightened and applied c
 
 The following bug fixes are included in this release.
 
-- [{spellexception}`Arbitrary file read and write via image metadata.yaml symlink (GHSA-j825-cg34-5fr5)`](https://github.com/canonical/lxd/security/advisories/GHSA-j825-cg34-5fr5)
-- [{spellexception}`NVIDIA configuration validation bypass for nvidia.require.* and nvidia.driver.capabilities (GHSA-vfh7-q59q-54v2)`](https://github.com/canonical/lxd/security/advisories/GHSA-vfh7-q59q-54v2)
-- [{spellexception}`Restricted project bypass for security.idmap.isolated defaults (GHSA-7vp9-3vmp-c5jm)`](https://github.com/canonical/lxd/security/advisories/GHSA-7vp9-3vmp-c5jm)
-- [{spellexception}`Unconfined backup.yaml accepted after unpack in crafted backups (GHSA-fv82-v4fj-mm4m)`](https://github.com/canonical/lxd/security/advisories/GHSA-fv82-v4fj-mm4m)
-- [{spellexception}`Prevent image metadata templates from escaping the instance directory (GHSA-9hcm-hxh5-7xxh)`](https://github.com/canonical/lxd/security/advisories/GHSA-9hcm-hxh5-7xxh)
-- [{spellexception}`Validate backup import names to prevent path traversal during restore (GHSA-m857-c7gc-c984)`](https://github.com/canonical/lxd/security/advisories/GHSA-m857-c7gc-c984)
+- [{spellexception}`Arbitrary file read and write via image metadata.yaml symlink (CVE-2026-63293)`](https://github.com/canonical/lxd/security/advisories/GHSA-j825-cg34-5fr5)
+- [{spellexception}`NVIDIA configuration validation bypass for nvidia.require.* and nvidia.driver.capabilities (CVE-2026-63298)`](https://github.com/canonical/lxd/security/advisories/GHSA-vfh7-q59q-54v2)
+- [{spellexception}`Restricted project bypass for security.idmap.isolated defaults (CVE-2026-63295)`](https://github.com/canonical/lxd/security/advisories/GHSA-7vp9-3vmp-c5jm)
+- [{spellexception}`Unconfined backup.yaml accepted after unpack in crafted backups (CVE-2026-63294)`](https://github.com/canonical/lxd/security/advisories/GHSA-fv82-v4fj-mm4m)
+- [{spellexception}`Prevent image metadata templates from escaping the instance directory (CVE-2026-16033)`](https://github.com/canonical/lxd/security/advisories/GHSA-9hcm-hxh5-7xxh)
+- [{spellexception}`Validate backup import names to prevent path traversal during restore (CVE-2026-66898)`](https://github.com/canonical/lxd/security/advisories/GHSA-m857-c7gc-c984)
 
 (ref-release-notes-4.0.12-changelog)=
 ## Change log
