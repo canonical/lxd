@@ -7458,7 +7458,7 @@ test_clustering_durable_operations() {
   done
 
   if [ "${succeeded}" = 0 ]; then
-    echo "Durable operation did not move to the leader after network partition"
+    echo "Durable operation did not move to the new leader after the previous leader was partitioned from the network"
     # Clean up partition before failing
     ip netns exec "${leader_ns}" iptables -F || true
     false
