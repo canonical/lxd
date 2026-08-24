@@ -21,6 +21,7 @@ This is a maintenance release for the 4.0 LTS series.
 
 The following bug fixes are included in this release.
 
+- [{spellexception}`Instance template path traversal allows arbitrary host file write as root (CVE-2026-66897)`](https://github.com/canonical/lxd/security/advisories/GHSA-q39m-8fx9-42fv)
 - [{spellexception}`Fix inverted conditions in NVIDIA environment variable application`](https://github.com/canonical/lxd/commit/f38136df8a0982bb1a3e338bd8c4a7037c16849a)
 
 (ref-release-notes-4.0.13-changelog)=

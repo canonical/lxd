@@ -21,6 +21,7 @@ This is a maintenance release for the 5.0 LTS series. It includes QEMU, NVIDIA p
 
 The following bug fixes are included in this release.
 
+- [{spellexception}`Instance template path traversal allows arbitrary host file write as root (CVE-2026-66897)`](https://github.com/canonical/lxd/security/advisories/GHSA-q39m-8fx9-42fv)
 - [{spellexception}`NVIDIA requirement expressions were not applied when configured`](https://github.com/canonical/lxd/commit/887172b10ee3092e768a47b0caabd9514c2373af)
 
 (ref-release-notes-5.0.9-snap)=
