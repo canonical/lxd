@@ -32,6 +32,7 @@ An automated Sphinx extension (`sphinx-llm`) has been added to generate `llms.tx
 
 The following bug fixes are included in this release.
 
+- [{spellexception}`Instance template path traversal allows arbitrary host file write as root (CVE-2026-66897)`](https://github.com/canonical/lxd/security/advisories/GHSA-q39m-8fx9-42fv)
 - [{spellexception}`Prevent a panic when creating a custom volume snapshot without an expiry date`](https://github.com/canonical/lxd/commit/625e859869a14642fcc33534ae9c4372aa125909)
 
 (ref-release-notes-5.21.7-snap)=
