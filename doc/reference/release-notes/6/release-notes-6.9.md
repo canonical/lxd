@@ -231,6 +231,7 @@ The following bug fixes are included in this release.
 
 The following security issues were fixed in the interim snap release `6.9-ab8fad2`:
 
+- [{spellexception}`Instance template path traversal allows arbitrary host file write as root (CVE-2026-66897)`](https://github.com/canonical/lxd/security/advisories/GHSA-q39m-8fx9-42fv)
 - [{spellexception}`Arbitrary file read and write via image metadata.yaml symlink (GHSA-j825-cg34-5fr5)`](https://github.com/canonical/lxd/security/advisories/GHSA-j825-cg34-5fr5)
 - [{spellexception}`Root command execution via image backup.yaml symlink (GHSA-fv82-v4fj-mm4m)`](https://github.com/canonical/lxd/security/advisories/GHSA-fv82-v4fj-mm4m)
 - [{spellexception}`NVIDIA configuration validation bypass for nvidia.driver.capabilities (GHSA-vfh7-q59q-54v2)`](https://github.com/canonical/lxd/security/advisories/GHSA-vfh7-q59q-54v2)
