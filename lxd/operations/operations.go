@@ -483,7 +483,8 @@ func (op *Operation) start() {
 
 	// If there's a run hook, we need to run it and get the final status from it.
 	// If there are child operations, we need to start and wait for them to finish before we can get the final status of the parent operation.
-	if op.onRun != nil || len(op.children) > 0 {
+	hasWork := op.onRun != nil || len(op.children) > 0
+	if hasWork {
 		// The operation context is the "running" context plus the requestor.
 		// The requestor is available directly on the operation, but we should still put it in the context.
 		// This is so that, if an operation queries another cluster member, the requestor information will be set
@@ -568,6 +569,39 @@ func (op *Operation) start() {
 	op.lock.Unlock()
 
 	op.logger.Debug("Started operation")
+	_, md := op.Render()
+
+	op.lock.Lock()
+	op.sendEvent(md)
+	op.lock.Unlock()
+
+	if !hasWork {
+		// There is no run hook and no children to wait on (e.g. a bulk operation that matched no
+		// resources), so there is nothing that would ever mark the operation as finished. Do so
+		// here, otherwise the operation would stay in the "Running" state forever and callers
+		// waiting on it (such as `lxc start --all` against a project with no instances) would hang.
+		op.finishNoWorkOperation()
+	}
+}
+
+// finishNoWorkOperation marks an operation with no run hook and no children as successful, unless
+// it was concurrently cancelled (e.g. deleted by the caller) between start() releasing the lock
+// above and this method re-acquiring it, in which case Cancel() has already finalized it and that
+// outcome must not be clobbered.
+func (op *Operation) finishNoWorkOperation() {
+	op.lock.Lock()
+
+	if op.running.Err() != nil {
+		op.lock.Unlock()
+		return
+	}
+
+	op.persistWithNewStatus(api.Success)
+	op.running.Cancel()
+	op.lock.Unlock()
+	op.done()
+
+	op.logger.Debug("Success for operation")
 	_, md := op.Render()
 
 	op.lock.Lock()

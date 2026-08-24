@@ -147,3 +147,37 @@ func (s *operationsSuite) Test_deleteInternalParentWithChildren() {
 	s.False(op2.readonly)
 	s.NoError(op2.finished.Err())
 }
+
+// A parent operation with no run hook and no children (e.g. a bulk state change against a
+// project with no matching instances) has nothing that would ever mark it as finished, so
+// start() must finish it immediately instead of leaving it stuck in "Running" forever.
+func (s *operationsSuite) Test_startNoRunHookNoChildrenFinishesImmediately() {
+	op := newTestOp(s.Require())
+
+	op.start()
+
+	select {
+	case <-op.finished.Done():
+	case <-time.After(5 * time.Second):
+		s.Require().FailNow("operation never finished")
+	}
+
+	s.Equal(api.Success, op.status)
+	s.True(op.readonly)
+	s.ErrorIs(op.running.Err(), context.Canceled)
+}
+
+// If the operation is cancelled (e.g. deleted by the caller) in the window between start()
+// releasing the lock and finishNoWorkOperation() re-acquiring it, the latter must not clobber the
+// cancellation and report success instead.
+func (s *operationsSuite) Test_finishNoWorkOperationDoesNotClobberConcurrentCancel() {
+	op := newTestOp(s.Require())
+
+	err := op.Cancel()
+	s.Require().NoError(err)
+	s.Equal(api.Cancelled, op.status)
+
+	op.finishNoWorkOperation()
+
+	s.Equal(api.Cancelled, op.status)
+}
