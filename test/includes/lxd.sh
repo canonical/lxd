@@ -434,6 +434,27 @@ cleanup_lxds() {
     umount_loops "$test_dir"
 }
 
+lxc_monitor_start() {
+    local output="${1}"; shift
+    local ready="${TEST_DIR}/monitor.$$.${RANDOM}.ready"
+
+    lxc monitor --verbose "$@" > "${output}" 2> "${ready}" &
+    LXC_MONITOR_PID=$!
+    for i in $(seq 200); do
+        if grep -qF "Monitoring events" "${ready}"; then
+            rm -f "${ready}"
+            return 0
+        fi
+
+        sleep 0.1
+    done
+    echo "lxc monitor $* (${LXC_MONITOR_PID}) failed liveness check"
+    cat "${ready}"
+    rm -f "${ready}"
+    kill_go_proc "${LXC_MONITOR_PID}"
+    return 1
+}
+
 lxd_shutdown_restart() {
     local scenario="${1}"
     local LXD_PID
@@ -443,11 +464,8 @@ lxd_shutdown_restart() {
 
     local logfile="${scenario}.log"
     echo "Starting LXD log capture in $logfile using lxc monitor..."
-    lxc monitor --pretty > "$logfile" 2>&1 &
-    local monitor_pid=$!
-
-    # Give monitor a moment to connect
-    sleep 0.1
+    lxd_monitor_start "$logfile" --pretty
+    local monitor_pid="${LXC_MONITOR_PID}"
     echo "Monitor PID: $monitor_pid"
     echo "LXD daemon PID: $LXD_PID"
     echo "Starting LXD shutdown sequence..."
