@@ -3301,7 +3301,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 		// Run any template that needs running.
 		err = d.templateApplyNow(instance.TemplateTrigger(d.localConfig[key]), templateFilesPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed applying template: %w", err)
 		}
 
 		err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -3315,7 +3315,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 
 	err = d.templateApplyNow("start", templateFilesPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed applying template: %w", err)
 	}
 
 	// Copy the template metadata itself too.
@@ -3403,6 +3403,16 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 
 	defer func() { _ = templatesRoot.Close() }()
 
+	// Open the output directory as a confined *os.Root so that a template's
+	// attacker-influenced source name cannot be used to escape the config
+	// drive's files directory when computing the ".out" target path.
+	outputRoot, err := os.OpenRoot(path)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = outputRoot.Close() }()
+
 	// Go through the templates.
 	for tplPath, tpl := range metadata.Templates {
 		err = func(tplPath string, tpl *api.ImageMetadataTemplate) error {
@@ -3415,19 +3425,22 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 				return nil
 			}
 
-			// Create the file itself.
-			w, err = os.Create(filepath.Join(path, tpl.Template+".out"))
+			// Create the file itself. The confined *os.Root prevents the target
+			// path from escaping the output directory.
+			relPath := filepath.Clean(tpl.Template + ".out")
+
+			w, err = outputRoot.OpenFile(relPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed creating template file %q: %w", tpl.Template, err)
 			}
+
+			defer func() { _ = w.Close() }()
 
 			// Fix ownership and mode.
 			err = w.Chmod(0644)
 			if err != nil {
 				return err
 			}
-
-			defer func() { _ = w.Close() }()
 
 			// Read the template.
 			tplString, err := templatesRoot.ReadFile(tpl.Template)
