@@ -85,6 +85,44 @@ func (p *Process) finish() {
 	p.release()
 }
 
+// startMonitor spawns a goroutine that waits for the process to exit using the supplied wait
+// function, records the resulting exit code and error, and closes chExit. It is shared by spawned
+// processes (which reap via the child handle) and imported processes (which wait via a pidfd).
+func (p *Process) startMonitor(wait func() (int64, error)) {
+	p.exitCode = -1
+	p.exitErr = nil
+	chExit := make(chan struct{})
+	p.chExit = chExit
+	p.hasMonitor = true
+
+	go func() {
+		defer close(chExit)
+
+		p.exitCode, p.exitErr = wait()
+	}()
+}
+
+// monitorImported starts a monitor for an imported (non-child) process, waiting on it via a pidfd.
+// On kernels that support PIDFD_GET_INFO the exit code is recorded, otherwise it is unknown.
+func (p *Process) monitorImported() {
+	// Capture the identity locally so the wait does not touch p, which may be reused (e.g. via
+	// Start or Restart) while this monitor is still running.
+	pid := p.PID
+	startTime := p.StartTime
+	p.startMonitor(func() (int64, error) {
+		code, err := waitProcess(context.Background(), pid, startTime)
+		if err != nil {
+			return -1, nil
+		}
+
+		if code > 0 {
+			return code, fmt.Errorf("Process exited with non-zero value %d", code)
+		}
+
+		return code, nil
+	})
+}
+
 // Stop will stop the given process object.
 func (p *Process) Stop() error {
 	if p.proc == nil {
@@ -174,34 +212,25 @@ func (p *Process) start(ctx context.Context, fds []*os.File) error {
 	if err == nil {
 		p.BootID = bootID
 	}
-	// Reset exitCode/exitErr
-	p.exitCode = 0
-	p.exitErr = nil
 
-	// Spawn a goroutine waiting for it to exit.
-	p.chExit = make(chan struct{})
-	p.hasMonitor = true
-	go func() {
-		defer close(p.chExit)
-
+	p.startMonitor(func() (int64, error) {
 		err := cmd.Wait()
 
+		code := int64(-1)
 		if cmd.ProcessState != nil {
-			p.exitCode = int64(cmd.ProcessState.ExitCode())
-		} else {
-			p.exitCode = -1
+			code = int64(cmd.ProcessState.ExitCode())
 		}
 
 		if err != nil {
-			p.exitErr = err
-
-			return
+			return code, err
 		}
 
-		if p.exitCode != 0 {
-			p.exitErr = fmt.Errorf("Process exited with non-zero value %d", p.exitCode)
+		if code != 0 {
+			return code, fmt.Errorf("Process exited with non-zero value %d", code)
 		}
-	}()
+
+		return code, nil
+	})
 
 	return nil
 }

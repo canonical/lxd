@@ -94,5 +94,12 @@ func ImportProcess(path string) (*Process, error) {
 		}
 	}
 
+	// Spawn a monitor goroutine so a running imported process can be waited on like a spawned
+	// one. Only do so when the process is actually alive; the monitor records the exit code and
+	// starting it for an already-exited process would race with any later reuse of the object.
+	if proc.Signal(0) == nil {
+		proc.monitorImported()
+	}
+
 	return &proc, nil
 }
