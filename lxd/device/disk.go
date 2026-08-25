@@ -239,12 +239,12 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		//  shortdesc: Whether to recursively mount the source path
 		"recursive": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=device-disk; group=device-conf; key=shift)
-		// If enabled, this option sets up a shifting overlay to translate the source UID/GID to match the container instance.
+		// For containers, if enabled, this option sets up a shifting overlay to translate the source UID/GID to match the instance.
+		// For virtual machines, the source UID/GID is passed through unchanged, even if the instance `raw.idmap` is set.
 		// ---
 		//  type: bool
 		//  defaultdesc: `false`
 		//  required: no
-		//  condition: container
 		//  shortdesc: Whether to set up a UID/GID shifting overlay
 		"shift": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=device-disk; group=device-conf; key=source)
