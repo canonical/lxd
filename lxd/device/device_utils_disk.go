@@ -400,7 +400,7 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 		return nil, err
 	}
 
-	proc.SetUserns(&idmap.IdmapSet{Idmap: effectiveIDMaps})
+	proc.SetUserns(&idmap.IdmapSet{Idmap: effectiveIDMaps}, true)
 
 	err = proc.StartWithFiles(context.Background(), []*os.File{unixFile})
 	if err != nil {
