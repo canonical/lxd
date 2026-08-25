@@ -256,11 +256,11 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 	}
 
 	var args *lxd.ConnectionArgs
-	if clusterLink.Type == api.ClusterLinkTypePublic {
-		args = GetPublicClusterLinkConnectionArgs(targetCert)
-	} else {
+	if api.ClusterLinkTypePresentsClientCertificate(clusterLink.Type) {
 		clusterCert := s.Endpoints.NetworkCert()
 		args = GetClusterLinkConnectionArgs(clusterCert, targetCert)
+	} else {
+		args = GetPublicClusterLinkConnectionArgs(targetCert)
 	}
 
 	targetClient, err := ConnectCluster(ctx, *clusterLink, args)
