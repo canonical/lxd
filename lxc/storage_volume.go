@@ -1476,8 +1476,6 @@ func (c *cmdStorageVolumeInfo) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Render the overview.
-	const layout = "2006/01/02 15:04 MST"
-
 	fmt.Printf("Name: %s\n", vol.Name)
 	if vol.Description != "" {
 		fmt.Printf("Description: %s\n", vol.Description)
@@ -1509,9 +1507,7 @@ func (c *cmdStorageVolumeInfo) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if shared.TimeIsSet(vol.CreatedAt) {
-		fmt.Printf("Created: %s\n", vol.CreatedAt.Local().Format(layout))
-	}
+	printTimeIfSet(os.Stdout, "Created:", &vol.CreatedAt, nil)
 
 	// List snapshots
 	firstSnapshot := true
@@ -1523,16 +1519,8 @@ func (c *cmdStorageVolumeInfo) run(cmd *cobra.Command, args []string) error {
 				fmt.Println("\nSnapshots:")
 			}
 
-			var row []string
-
 			fields := strings.Split(snap.Name, shared.SnapshotDelimiter)
-			row = append(row, fields[len(fields)-1], snap.Description)
-
-			if snap.ExpiresAt != nil {
-				row = append(row, snap.ExpiresAt.Local().Format(layout))
-			} else {
-				row = append(row, " ")
-			}
+			row := []string{fields[len(fields)-1], snap.Description, formatTime(snap.ExpiresAt)}
 
 			firstSnapshot = false
 			snapData = append(snapData, row)
@@ -1559,19 +1547,7 @@ func (c *cmdStorageVolumeInfo) run(cmd *cobra.Command, args []string) error {
 			}
 
 			var row []string
-			row = append(row, backup.Name)
-
-			if shared.TimeIsSet(backup.CreatedAt) {
-				row = append(row, backup.CreatedAt.Local().Format(layout))
-			} else {
-				row = append(row, " ")
-			}
-
-			if shared.TimeIsSet(backup.ExpiresAt) {
-				row = append(row, backup.ExpiresAt.Local().Format(layout))
-			} else {
-				row = append(row, " ")
-			}
+			row = append(row, backup.Name, formatTime(&backup.CreatedAt), formatTime(&backup.ExpiresAt))
 
 			if backup.VolumeOnly {
 				row = append(row, "YES")

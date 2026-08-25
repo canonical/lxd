@@ -15,7 +15,6 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/units"
@@ -930,23 +929,11 @@ func (c *cmdList) profilesColumnData(cInfo api.InstanceFull) string {
 }
 
 func (c *cmdList) createdColumnData(cInfo api.InstanceFull) string {
-	layout := "2006/01/02 15:04 UTC"
-
-	if shared.TimeIsSet(cInfo.CreatedAt) {
-		return cInfo.CreatedAt.UTC().Format(layout)
-	}
-
-	return ""
+	return formatTime(&cInfo.CreatedAt)
 }
 
 func (c *cmdList) lastUsedColumnData(cInfo api.InstanceFull) string {
-	layout := "2006/01/02 15:04 UTC"
-
-	if !cInfo.LastUsedAt.IsZero() && shared.TimeIsSet(cInfo.LastUsedAt) {
-		return cInfo.LastUsedAt.UTC().Format(layout)
-	}
-
-	return ""
+	return formatTime(&cInfo.LastUsedAt)
 }
 
 func (c *cmdList) numberOfProcessesColumnData(cInfo api.InstanceFull) string {
