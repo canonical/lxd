@@ -257,6 +257,18 @@ func (s *argsSuite) TestValidate() {
 			errMsg:    "Bulk operations must have children",
 		},
 		{
+			name: "bulk operation with zero children (but with initialized slice)",
+			args: func() OperationArgs {
+				args := validTaskOperationArgs()
+				args.Type = operationtype.InstanceStateUpdateBulk
+				args.Children = []*OperationArgs{}
+				args.RunHook = nil
+				return args
+			}(),
+			isChild:   false,
+			expectErr: false,
+		},
+		{
 			name: "bulk operation with a run hook",
 			args: func() OperationArgs {
 				args := validTaskOperationArgs()
