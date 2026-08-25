@@ -155,7 +155,7 @@ After these steps, Cluster A has a link with `type: unidirectional` and no assoc
 (howto-cluster-links-create-public)=
 ## Create a public cluster link
 
-A public link lets Cluster A connect to Cluster B without any token exchange. A fetches and pins B's TLS certificate, but B is completely unaware of the link; no identity is created on either side. Use this type when B exposes resources publicly or when you want anonymous-style read access.
+A public link lets Cluster A connect to Cluster B without any token exchange. Cluster A fetches and pins Cluster B's TLS certificate, but Cluster B has no record of the connection. Neither cluster creates an identity for the other. Use this type when Cluster B exposes resources publicly or when you want anonymous read access.
 
 No authentication groups are required for public links.
 
@@ -179,7 +179,7 @@ Example:
 lxc cluster link create cluster_b --public --remote-address 10.0.0.2:8443
 ```
 
-After these steps, Cluster A has a link with `type: public` and no associated identity. Cluster B has no link or identity for A.
+After these steps, Cluster A has a link with `type: public` and no associated identity. Cluster B has no link or identity for Cluster A.
 
 (howto-cluster-links-identities)=
 ## View the underlying identities
