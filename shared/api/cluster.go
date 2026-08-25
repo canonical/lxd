@@ -21,6 +21,19 @@ const (
 	ClusterLinkTypePublic = "public"
 )
 
+// ClusterLinkTypePresentsClientCertificate reports whether a cluster link of the given type presents
+// a client certificate when connecting to the remote cluster, which is what allows the remote to
+// authenticate the connection. Types are matched explicitly so that an unrecognised type is reported
+// as not presenting one rather than being assumed to.
+func ClusterLinkTypePresentsClientCertificate(clusterLinkType string) bool {
+	switch clusterLinkType {
+	case ClusterLinkTypeBidirectional, ClusterLinkTypeUnidirectional:
+		return true
+	}
+
+	return false
+}
+
 // Cluster represents high-level information about a LXD cluster.
 //
 // swagger:model
