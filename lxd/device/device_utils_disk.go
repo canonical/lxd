@@ -241,6 +241,57 @@ func diskAddRootUserNSEntry(idmaps []idmap.IdmapEntry, hostRootID int64) []idmap
 	return idmaps
 }
 
+// diskVMVirtiofsdResolveIDMaps returns explicit idmaps if provided, or the current namespace mappings otherwise.
+func diskVMVirtiofsdResolveIDMaps(idmaps []idmap.IdmapEntry, currentIdmapSetFunc func() (*idmap.IdmapSet, error)) ([]idmap.IdmapEntry, error) {
+	if len(idmaps) > 0 {
+		return idmaps, nil
+	}
+
+	if currentIdmapSetFunc == nil {
+		return nil, errors.New("Current idmap set function is nil")
+	}
+
+	currentIdmapSet, err := currentIdmapSetFunc()
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting current idmap set: %w", err)
+	}
+
+	if currentIdmapSet == nil || len(currentIdmapSet.Idmap) == 0 {
+		return nil, errors.New("Current idmap set cannot be empty")
+	}
+
+	// The current idmap set maps IDs in the current namespace (Nsid) to IDs in its parent (Hostid).
+	// virtiofsd runs in a child namespace of the current one, so build an identity map over each
+	// current Nsid range (Hostid = Nsid) to pass the host's ID range through unchanged. Reusing the
+	// parent Hostid values directly would be incorrect when LXD itself is nested.
+	effectiveIDMaps := make([]idmap.IdmapEntry, 0, len(currentIdmapSet.Idmap))
+	hasUIDMap := false
+	hasGIDMap := false
+	for _, idmapEntry := range currentIdmapSet.Idmap {
+		effectiveIDMaps = append(effectiveIDMaps, idmap.IdmapEntry{
+			Hostid:   idmapEntry.Nsid,
+			Isuid:    idmapEntry.Isuid,
+			Isgid:    idmapEntry.Isgid,
+			Nsid:     idmapEntry.Nsid,
+			Maprange: idmapEntry.Maprange,
+		})
+
+		if idmapEntry.Isuid {
+			hasUIDMap = true
+		}
+
+		if idmapEntry.Isgid {
+			hasGIDMap = true
+		}
+	}
+
+	if !hasUIDMap || !hasGIDMap {
+		return nil, errors.New("Current idmap set must contain both UID and GID mappings")
+	}
+
+	return effectiveIDMaps, nil
+}
+
 // DiskVMVirtiofsdStart starts a new virtiofsd process with a socket present at the supplied path.
 // If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
 // Returns UnsupportedError error if the host system or instance does not support virtiofsd, returns normal error
