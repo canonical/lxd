@@ -1243,6 +1243,10 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, errors.New(`Missing mount "path" setting`)
 				}
 
+				if shared.IsTrue(d.config["shift"]) {
+					mount.OwnerShift = deviceConfig.MountOwnerShiftDynamic
+				}
+
 				// Mount the source in the instance devices directory.
 				// This will ensure that if the exported directory configured as readonly that this
 				// takes effect event if using virtio-fs (which doesn't support read only mode) by
