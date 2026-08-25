@@ -7893,7 +7893,9 @@ func (d *lxc) moveMount(source, target, fstype string, flags int, idmapType idma
 }
 
 func (d *lxc) insertMount(source, target, fstype string, flags int, idmapType idmap.IdmapStorageType) error {
-	if d.state.OS.IdmappedMounts && idmapType == idmap.IdmapStorageIdmapped {
+	// Prefer open_tree()/move_mount() whenever the kernel supports it (which
+	// d.state.OS.IdmappedMounts establishes)
+	if d.state.OS.IdmappedMounts {
 		return d.moveMount(source, target, fstype, flags, idmapType)
 	}
 
