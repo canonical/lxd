@@ -179,24 +179,39 @@ test_vm_pcie_bus() {
   lxc config device remove v1 v1block
   lxc storage volume delete "${pool}" v1block
 
-  sub_test "Check security.shifted volumes are not remapped by virtiofsd in VMs"
-  # VMs do not use user namespaces, so files on a security.shifted volume keep their real
-  # on-disk ownership inside the VM (matching containers). virtiofsd must ignore raw.idmap for
-  # such volumes, otherwise the file below would appear owned by nobody instead of 123:456.
+  sub_test "Check security.shifted volumes and shift=true directory shares are not remapped by virtiofsd in VMs"
+  # VMs do not use user namespaces, so files on a security.shifted volume or a shift=true
+  # directory share keep their real on-disk ownership inside the VM (matching containers).
+  # virtiofsd must ignore raw.idmap for both, otherwise the files below would appear owned by
+  # nobody instead of 123:456. Both disk types are attached to a single boot to exercise them
+  # together.
   lxc config set v1 raw.idmap="both 1000000 0"
+
   lxc storage volume create "${pool}" v1shift --type=filesystem size=1MiB security.shifted=true
   lxc config device add v1 v1shift disk source=v1shift pool="${pool}" path=/mnt
+
+  mkdir -p "${TEST_DIR}/vm-shift-source"
+  touch "${TEST_DIR}/vm-shift-source/shifted-file"
+  chown 123:456 "${TEST_DIR}/vm-shift-source/shifted-file"
+  lxc config device add v1 v1shiftdir disk source="${TEST_DIR}/vm-shift-source" path=/mnt-dir shift=true
+
   lxc start v1
   waitInstanceReady v1
+
   lxc exec v1 -- findmnt /mnt -t virtiofs
+  lxc exec v1 -- findmnt /mnt-dir -t virtiofs
   volPath="${LXD_DIR}/storage-pools/${pool}/custom/default_v1shift"
   touch "${volPath}/shifted-file"
   chown 123:456 "${volPath}/shifted-file"
   [ "$(lxc exec v1 -- stat /mnt/shifted-file -c '%u:%g')" = "123:456" ]
+  [ "$(lxc exec v1 -- stat /mnt-dir/shifted-file -c '%u:%g')" = "123:456" ]
+
   lxc stop -f v1
   lxc config device remove v1 v1shift
+  lxc config device remove v1 v1shiftdir
   lxc storage volume delete "${pool}" v1shift
   lxc config unset v1 raw.idmap
+  rm -rf "${TEST_DIR}/vm-shift-source"
 
   lxc storage volume create "${pool}" v1dir --type=filesystem size=1MiB
   lxc start v1
