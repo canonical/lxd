@@ -134,7 +134,7 @@ func VerifyClusterLinkServer(ctx context.Context, address string, cert *x509.Cer
 
 	_, _, err = client.GetServer()
 	if err != nil {
-		return fmt.Errorf("Failed querying /1.0 endpoint at %q: %w", address, err)
+		return fmt.Errorf("Failed retrieving server information from %q: %w", address, err)
 	}
 
 	return nil
