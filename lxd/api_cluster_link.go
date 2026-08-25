@@ -735,12 +735,21 @@ func validateClusterLinksPostRequest(req api.ClusterLinksPost, clusterLinkType d
 			return 0, api.StatusErrorf(http.StatusBadRequest, "Auth groups cannot be set for public cluster links")
 		}
 
-		if req.RemoteAddress == "" {
-			return 0, api.StatusErrorf(http.StatusBadRequest, "Public cluster links require remote_address")
+		if req.ClusterCertificate == "" {
+			// The pending phase is the only one that contacts the remote, so it is the only one
+			// that needs an address to contact.
+			if req.RemoteAddress == "" {
+				return 0, api.StatusErrorf(http.StatusBadRequest, "Public cluster links require remote_address")
+			}
+
+			return clusterLinkRequestPendingPublic, nil
 		}
 
-		if req.ClusterCertificate == "" {
-			return clusterLinkRequestPendingPublic, nil
+		// Confirming pins the address recorded when the pending link was created, so an address sent
+		// here would be silently ignored. Reject it rather than letting a caller believe they chose
+		// the address that gets pinned.
+		if req.RemoteAddress != "" {
+			return 0, api.StatusErrorf(http.StatusBadRequest, "Remote address cannot be set when confirming a pending public cluster link")
 		}
 
 		return clusterLinkRequestConfirmPublic, nil
