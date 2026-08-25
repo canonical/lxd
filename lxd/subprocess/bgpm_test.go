@@ -405,3 +405,61 @@ func TestImportOldFormat(t *testing.T) {
 		t.Error("Failed stopping process imported from old-format file: ", err)
 	}
 }
+
+// TestImportWaitExitCode checks that a live process imported from a pid file is waited on via a
+// pidfd (rather than as a child), that Wait blocks until it exits, and that its exit code is
+// reported when the kernel supports PIDFD_GET_INFO.
+func TestImportWaitExitCode(t *testing.T) {
+	// Start a process that stays alive briefly then exits with a known non-zero code.
+	p, err := NewProcess("sh", []string{"-c", "sleep 0.5; exit 42"}, "", "")
+	if err != nil {
+		t.Fatal("Failed process creation: ", err)
+	}
+
+	err = p.Start(context.Background())
+	if err != nil {
+		t.Fatal("Failed starting process: ", err)
+	}
+
+	t.Cleanup(func() { _ = p.Stop() })
+
+	path := savePidFile(t, p, nil)
+
+	// Import while the process is still running so a pidfd-based monitor is started.
+	imp, err := ImportProcess(path)
+	if err != nil {
+		t.Fatal("Failed importing process: ", err)
+	}
+
+	if !imp.hasMonitor {
+		t.Fatal("Imported live process should have a monitor to be waited on")
+	}
+
+	// Wait must block on the pidfd until the process exits, then report its exit code.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	started := time.Now()
+	code, err := imp.Wait(ctx)
+	if errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal("Wait on imported process timed out")
+	}
+
+	if time.Since(started) < 300*time.Millisecond {
+		t.Error("Wait returned before the process exited; it did not block on the pidfd")
+	}
+
+	if code == -1 {
+		// The kernel lacks PIDFD_GET_INFO exit support; the wait still completed on exit.
+		t.Log("Kernel does not support PIDFD_GET_INFO; exit code unavailable")
+		return
+	}
+
+	if code != 42 {
+		t.Errorf("Expected exit code 42 but got %d", code)
+	}
+
+	if err == nil {
+		t.Error("Expected a non-nil error for a non-zero exit code")
+	}
+}
