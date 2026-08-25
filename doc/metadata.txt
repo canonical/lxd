@@ -5561,6 +5561,15 @@ This option specifies whether to use RBD `du` to obtain disk usage data for stop
 
 ```
 
+```{config:option} ceph.replicator.<project> storage-ceph-pool-conf
+:scope: "global"
+:shortdesc: "Name of the peer Ceph site to mirror a project to"
+:type: "string"
+This option specifies the peer site, as registered in Ceph, that the volumes of the
+given project are mirrored to. One OSD pool can back several projects, each replicating
+to a different peer.
+```
+
 ```{config:option} ceph.user.name storage-ceph-pool-conf
 :defaultdesc: "`admin`"
 :scope: "global"
