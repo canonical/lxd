@@ -238,14 +238,9 @@ func savePidFile(t *testing.T, p *Process, mutate func(*Process)) string {
 
 	mutate(saved)
 
-	dat, err = yaml.Marshal(saved)
+	err = saved.Save(path)
 	if err != nil {
-		t.Fatal("Failed serializing pid file: ", err)
-	}
-
-	err = os.WriteFile(path, dat, 0600)
-	if err != nil {
-		t.Fatal("Failed writing pid file: ", err)
+		t.Fatal("Failed saving mutated pid file: ", err)
 	}
 
 	return path
