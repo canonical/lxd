@@ -254,9 +254,8 @@
 					},
 					{
 						"shift": {
-							"condition": "container",
 							"defaultdesc": "`false`",
-							"longdesc": "If enabled, this option sets up a shifting overlay to translate the source UID/GID to match the container instance.",
+							"longdesc": "For containers, if enabled, this option sets up a shifting overlay to translate the source UID/GID to match the instance.\nFor virtual machines, the source UID/GID is passed through unchanged, even if the instance `raw.idmap` is set.",
 							"required": "no",
 							"shortdesc": "Whether to set up a UID/GID shifting overlay",
 							"type": "bool"
