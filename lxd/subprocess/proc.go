@@ -271,7 +271,23 @@ func (p *Process) Reload() error {
 
 // Save will save the given process object to a YAML file. Can be imported at a later point.
 func (p *Process) Save(path string) error {
-	dat, err := yaml.Marshal(p)
+	// Marshal a copy of only the persisted fields. Marshalling the live process would have yaml
+	// read the whole struct (via reflect) and race with the monitor goroutine updating the
+	// exit state. The excluded fields are not persisted anyway.
+	saved := Process{
+		Name:        p.Name,
+		Args:        p.Args,
+		Apparmor:    p.Apparmor,
+		PID:         p.PID,
+		BootID:      p.BootID,
+		UID:         p.UID,
+		GID:         p.GID,
+		SetGroups:   p.SetGroups,
+		StartTime:   p.StartTime,
+		SysProcAttr: p.SysProcAttr,
+	}
+
+	dat, err := yaml.Marshal(&saved)
 	if err != nil {
 		return fmt.Errorf("Cannot serialize process struct to YAML: %w", err)
 	}
