@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"net"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 
@@ -224,4 +226,185 @@ func (s *utilsTestSuite) TestNBDRemoveStaleSocket() {
 		s.NoError(nbdRemoveStaleSocket(path))
 		s.FileExists(path)
 	})
+}
+
+func (s *utilsTestSuite) TestFormatTime() {
+	// Create a fixed time for testing: 2026-08-10 12:30:45 UTC.
+	fixedTime := time.Date(2026, 8, 10, 12, 30, 45, 0, time.UTC)
+
+	// Create timezone locations.
+	estLocation, err := time.LoadLocation("America/New_York")
+	s.NoError(err)
+
+	pstLocation, err := time.LoadLocation("America/Los_Angeles")
+	s.NoError(err)
+
+	// Create a zero time (Unix timestamp 0).
+	zeroTime := time.Unix(0, 0)
+
+	// Create an unset time (negative Unix timestamp).
+	unsetTime := time.Unix(-1, 0)
+
+	tests := []struct {
+		name     string
+		t        *time.Time
+		location *time.Location
+		want     string
+	}{
+		{
+			name: "Nil time pointer",
+			t:    nil,
+			want: "",
+		},
+		{
+			name: "Zero time",
+			t:    &zeroTime,
+			want: "",
+		},
+		{
+			name: "Unset time (negative Unix timestamp)",
+			t:    &unsetTime,
+			want: "",
+		},
+		{
+			name:     "Valid time in UTC",
+			t:        &fixedTime,
+			location: time.UTC,
+			want:     "2026/08/10 12:30 UTC",
+		},
+		{
+			name:     "Valid time in EST",
+			t:        &fixedTime,
+			location: estLocation,
+			want:     "2026/08/10 08:30 EDT",
+		},
+		{
+			name:     "Valid time in PST",
+			t:        &fixedTime,
+			location: pstLocation,
+			want:     "2026/08/10 05:30 PDT",
+		},
+	}
+
+	localTimeLocation := time.Local
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			if tc.location != nil {
+				time.Local = tc.location
+				defer func() {
+					time.Local = localTimeLocation
+				}()
+			}
+
+			got := formatTime(tc.t)
+			s.Equal(tc.want, got)
+		})
+	}
+}
+
+func (s *utilsTestSuite) TestPrintTimeIfSet() {
+	// Create a fixed time for testing: 2026-08-10 12:30:45 UTC.
+	fixedTime := time.Date(2026, 8, 10, 12, 30, 45, 0, time.UTC)
+
+	// Create a zero time (Unix timestamp 0).
+	zeroTime := time.Unix(0, 0)
+
+	// Create timezone locations.
+	estLocation, err := time.LoadLocation("America/New_York")
+	s.NoError(err)
+
+	// Helper to create string pointers.
+	strPtr := func(s string) *string {
+		return &s
+	}
+
+	tests := []struct {
+		name     string
+		prefix   string
+		t        *time.Time
+		fallback *string
+		location *time.Location
+		want     string
+	}{
+		{
+			name:     "Valid time with prefix",
+			prefix:   "Created:",
+			t:        &fixedTime,
+			fallback: nil,
+			location: time.UTC,
+			want:     "Created: 2026/08/10 12:30 UTC\n",
+		},
+		{
+			name:     "Valid time in EST timezone",
+			prefix:   "Modified:",
+			t:        &fixedTime,
+			fallback: nil,
+			location: estLocation,
+			want:     "Modified: 2026/08/10 08:30 EDT\n",
+		},
+		{
+			name:     "Nil time with no fallback returns empty",
+			prefix:   "Created:",
+			t:        nil,
+			fallback: nil,
+			location: time.UTC,
+			want:     "",
+		},
+		{
+			name:     "Zero time with no fallback returns empty",
+			prefix:   "Created:",
+			t:        &zeroTime,
+			fallback: nil,
+			location: time.UTC,
+			want:     "",
+		},
+		{
+			name:     "Nil time with fallback uses fallback",
+			prefix:   "Created:",
+			t:        nil,
+			fallback: strPtr("MISSING"),
+			location: time.UTC,
+			want:     "Created: MISSING\n",
+		},
+		{
+			name:     "Zero time with fallback uses fallback",
+			prefix:   "Created:",
+			t:        &zeroTime,
+			fallback: strPtr("never"),
+			location: time.UTC,
+			want:     "Created: never\n",
+		},
+		{
+			name:     "Valid time ignores fallback",
+			prefix:   "Updated:",
+			t:        &fixedTime,
+			fallback: strPtr("FALLBACK_IGNORED"),
+			location: time.UTC,
+			want:     "Updated: 2026/08/10 12:30 UTC\n",
+		},
+		{
+			name:     "Empty prefix with valid time",
+			prefix:   "",
+			t:        &fixedTime,
+			fallback: nil,
+			location: time.UTC,
+			want:     "2026/08/10 12:30 UTC\n",
+		},
+	}
+
+	localTimeLocation := time.Local
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			if tc.location != nil {
+				time.Local = tc.location
+				defer func() {
+					time.Local = localTimeLocation
+				}()
+			}
+
+			buf := &bytes.Buffer{}
+			printTimeIfSet(buf, tc.prefix, tc.t, tc.fallback)
+			s.Equal(tc.want, buf.String())
+		})
+	}
 }
