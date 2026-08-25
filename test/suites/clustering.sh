@@ -4043,8 +4043,8 @@ test_clustering_edit_configuration() {
   # shellcheck disable=SC2154
   LXD_NETNS="${ns6}" respawn_lxd "${LXD_SIX_DIR}" true
 
-  # Let the heartbeats catch up
-  sleep 11
+  # Wait for all members to be back online.
+  wait_all_members_online "${LXD_SIX_DIR}"
 
   # Sanity check of the automated backup
   # We can't check that the backup has the same files as even LXD_ONE_DIR, because
@@ -4068,7 +4068,6 @@ test_clustering_edit_configuration() {
   LXD_DIR="${LXD_FOUR_DIR}"  lxc info --target node1 | grep -F "server_name: node1"
   LXD_DIR="${LXD_FIVE_DIR}"  lxc info --target node1 | grep -F "server_name: node1"
   LXD_DIR="${LXD_SIX_DIR}"   lxc info --target node1 | grep -F "server_name: node1"
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -F "No heartbeat" || false
 
   # Clean up
   shutdown_lxd "${LXD_ONE_DIR}"
