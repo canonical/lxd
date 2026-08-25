@@ -691,6 +691,34 @@ const (
 	clusterLinkRequestActivate
 )
 
+// validateReplicationClusterLink checks that the named cluster link exists, is of a type that can
+// carry replication traffic, and is visible to the caller. Replication requires the remote cluster to
+// authenticate the connection, so link types that present no client certificate are rejected here
+// rather than part-way through a replication run.
+func validateReplicationClusterLink(ctx context.Context, s *state.State, name string) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), name)
+		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				return api.StatusErrorf(http.StatusNotFound, "Cluster link %q not found", name)
+			}
+
+			return err
+		}
+
+		if !api.ClusterLinkTypePresentsClientCertificate(string(clusterLink.Type)) {
+			return api.StatusErrorf(http.StatusBadRequest, "Cluster link %q is of type %q, which cannot be used for replication", name, clusterLink.Type)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return s.Authorizer.CheckPermission(ctx, entity.ClusterLinkURL(name), auth.EntitlementCanView)
+}
+
 // validateClusterLinksPostRequest validates the field combinations of a cluster link creation request and
 // classifies which flow it is for. Returned errors carry the HTTP status code to respond with.
 func validateClusterLinksPostRequest(req api.ClusterLinksPost, clusterLinkType dbCluster.ClusterLinkType, addresses []string) (clusterLinkRequestMode, error) {
@@ -1533,10 +1561,10 @@ func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var args *lxd.ConnectionArgs
-	if clusterLink.Type == api.ClusterLinkTypePublic {
-		args = cluster.GetPublicClusterLinkConnectionArgs(targetCert)
-	} else {
+	if api.ClusterLinkTypePresentsClientCertificate(clusterLink.Type) {
 		args = cluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
+	} else {
+		args = cluster.GetPublicClusterLinkConnectionArgs(targetCert)
 	}
 
 	args.SkipGetServer = true

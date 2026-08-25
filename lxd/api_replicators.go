@@ -343,30 +343,7 @@ func replicatorValidateConfig(ctx context.Context, s *state.State, config map[st
 		//  shortdesc: Target cluster link name.
 		//  scope: global
 		"cluster": validate.Required(func(value string) error {
-			err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-				clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), value)
-				if err != nil {
-					if api.StatusErrorCheck(err, http.StatusNotFound) {
-						return api.StatusErrorf(http.StatusNotFound, "Cluster link %q not found", value)
-					}
-
-					return err
-				}
-
-				// Public cluster links present no client certificate, so the target cluster cannot
-				// authenticate the connection. Replication needs authenticated writes, so reject the
-				// link here rather than failing part-way through a replication run.
-				if clusterLink.Type == dbCluster.ClusterLinkType(api.ClusterLinkTypePublic) {
-					return api.StatusErrorf(http.StatusBadRequest, "Cluster link %q is a public cluster link, which cannot be used by a replicator", value)
-				}
-
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-
-			return s.Authorizer.CheckPermission(ctx, entity.ClusterLinkURL(value), auth.EntitlementCanView)
+			return validateReplicationClusterLink(ctx, s, value)
 		}),
 
 		// lxdmeta:generate(entities=replicator; group=conf; key=schedule)
