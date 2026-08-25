@@ -452,8 +452,8 @@ func (r *ProtocolLXD) CreateIdentityClusterLinkToken(clusterLink api.ClusterLink
 }
 
 // CreateClusterLinkPendingPublic creates a pending public cluster link and returns the remote cluster's
-// certificate fingerprint and PEM-encoded certificate for user verification. The certificate must be
-// resubmitted via CreateClusterLink to confirm and pin it, activating the link.
+// certificate fingerprint for user verification. The fingerprint must be resubmitted via
+// CreateClusterLink to confirm and pin the certificate, activating the link.
 func (r *ProtocolLXD) CreateClusterLinkPendingPublic(clusterLink api.ClusterLinksPost) (*api.ClusterLinkCertificate, error) {
 	err := r.CheckExtension("cluster_links_public")
 	if err != nil {
