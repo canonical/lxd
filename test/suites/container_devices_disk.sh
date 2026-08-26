@@ -28,15 +28,15 @@ _container_devices_disk_type_arg() {
   [ "$(tail -1 <<< "${err}")" = 'Error: The device type cannot be set as a key=value pair "type=disk", use the third positional argument instead' ]
 }
 
-_container_devices_disk_shift() {
+_container_devices_idmapped_mounts_supported() {
   # `tmpfs` does not support idmapped mounts on kernels older than 6.3
   if [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.3; then
     echo "==> SKIP: tmpfs (LXD_TMPFS=${LXD_TMPFS}) idmapped mount requires a kernel >= 6.3"
-    return
+    return 1
   fi
 
   if [ -n "${LXD_IDMAPPED_MOUNTS_DISABLE:-}" ]; then
-    return
+    return 1
   fi
 
   if [ "$(storage_backend "$LXD_DIR")" = "zfs" ]; then
@@ -45,7 +45,7 @@ _container_devices_disk_shift() {
     if [ "$(printf '%s\n' "$zfs_version" "2.2" | sort -V | head -n1)" = "$zfs_version" ]; then
       if [ "$zfs_version" != "2.2" ]; then
         echo "ZFS version is less than 2.2. Skipping idmapped mounts tests."
-        return
+        return 1
       else
         echo "ZFS version is 2.2. Idmapped mounts are supported with ZFS."
       fi
@@ -53,6 +53,12 @@ _container_devices_disk_shift() {
       echo "ZFS version is greater than 2.2. Idmapped mounts are supported with ZFS."
     fi
   fi
+
+  return 0
+}
+
+_container_devices_disk_shift() {
+  _container_devices_idmapped_mounts_supported || return
 
   # Test basic shifting
   mkdir -p "${TEST_DIR}/shift-source"
