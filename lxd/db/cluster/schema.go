@@ -619,6 +619,8 @@ CREATE TABLE replicators (
 	description TEXT NOT NULL,
 	last_run_date DATETIME,
 	last_run_status TEXT NOT NULL,
+    last_success_date DATETIME,
+    last_success_oldest_snapshot_date DATETIME,
 	UNIQUE(project_id, name),
 	FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
 );
@@ -826,5 +828,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (88, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (89, strftime("%s"))
 `
