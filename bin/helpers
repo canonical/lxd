@@ -536,12 +536,35 @@ EOF
   lxc exec "${instance}" --project "${project}" -- systemctl restart --no-block lxd-agent.service || true
 
   for _ in $(seq 60); do
-      rc=0
-      start_time_new=$(lxc exec "${instance}" --project "${project}" -- systemctl show -p ExecMainStartTimestampMonotonic --value lxd-agent.service) || rc=$?
-      if [ "${rc}" -eq 0 ] && [ -n "${start_time_new}" ] && [ "${start_time_new}" != "${start_time_orig}" ]; then
-        return 0
-      fi
-      sleep 1
+    rc=0
+    start_time_new=$(lxc exec "${instance}" --project "${project}" -- systemctl show -p ExecMainStartTimestampMonotonic --value lxd-agent.service) || rc=$?
+    if [ "${rc}" -eq 0 ] && [ -n "${start_time_new}" ] && [ "${start_time_new}" != "${start_time_orig}" ]; then
+      local consecutive=0
+      for _ in $(seq 30); do
+        # Check that the instance can serve 'lxc exec' reliably. Test failures revealed that despite being
+        # able to handle the above lxc exec to populate start_time_new, the agent can flip back to appearing
+        # offline (such that an lxc exec will fail) due to some quirks in the online/offline status handling
+        # code (in particular: lxd appears to read the state of the agent only when QEMU emits an event into
+        # the channel. QEMU is rate-limiting events to 1s, such that you can do an lxc exec that observes a stale
+        # 'STARTED' state and attempts the exec in between the shutdown and startup phases of the restart,
+        # and the exec eventually succeeds while the state flag gets flipped to STOPPED on top of it, leaving
+        # a <=1s gap after the exec returns where a subsequent exec will/may observe STOPPED against a runnning
+        # lxd-agent. This issue can only happen with agent restarts and not on cold boots, and the impact is
+        # minimal, so a test workaround seems appropriate.
+        if lxc exec "${instance}" --project "${project}" -- true > /dev/null  2>&1; then
+          consecutive=$((consecutive + 1))
+          if [ "${consecutive}" -ge 2 ]; then
+            return 0
+          fi
+        else
+          consecutive=0
+        fi
+        sleep 1
+      done
+      echo "lxd-agent inside the ${instance} (${project:-"-"}) instance started, but did not become ready within 30s"
+      return 1
+    fi
+    sleep 1
   done
 
   echo "lxd-agent inside the ${instance} (${project:-"-"}) instance did not restart within 60s"
