@@ -6,6 +6,7 @@ test_container_devices_disk() {
   _container_devices_disk_type_arg
   _container_devices_disk_shift
   _container_devices_disk_mount
+  _container_devices_disk_recursive
   _container_devices_raw_mount_options
   _container_devices_disk_ceph
   _container_devices_disk_cephfs
@@ -151,6 +152,62 @@ _container_devices_disk_mount() {
 
   echo "Cleanup."
   lxc stop -f foo
+}
+
+_container_devices_disk_recursive() {
+  lxc start foo
+
+  sub_test "Hot-plug a recursive disk device and verify a submount nested in its source is visible too"
+  # A source with a submount nested inside it (rather than a plain
+  # directory), with recursive=true. The submount must be visible in the
+  # instance too, not just the top-level mount.
+  mkdir -p "${TEST_DIR}/recursive-source/nested"
+  echo top-level-file > "${TEST_DIR}/recursive-source/top"
+  mount -t tmpfs tmpfs "${TEST_DIR}/recursive-source/nested"
+  echo nested-file > "${TEST_DIR}/recursive-source/nested/marker"
+
+  lxc config device add foo recursive-mount disk source="${TEST_DIR}/recursive-source" path=/mnt/recursive recursive=true
+  [ "$(lxc exec foo -- cat /mnt/recursive/top)" = "top-level-file" ]
+  [ "$(lxc exec foo -- cat /mnt/recursive/nested/marker)" = "nested-file" ]
+  lxc config device remove foo recursive-mount
+
+  umount "${TEST_DIR}/recursive-source/nested"
+  lxc stop foo -f
+
+  # The top-level source below is a plain path under TEST_DIR, same as
+  # _container_devices_disk_shift()'s basic-shifting phase, so it needs the
+  # same idmapped-mount eligibility check (e.g. TEST_DIR itself can be tmpfs
+  # via LXD_TMPFS=1, which only gained idmapped mount support in 6.3).
+  _container_devices_idmapped_mounts_supported || return
+
+  sub_test "Hot-plug a recursive AND shifted disk device and verify the nested submount is shifted too"
+  # recursive=true and shift=true can be combined. A submount nested under
+  # the top-level mount should be shifted too. Use a loopback ext4 mount
+  # (rather than tmpfs) for the nested submount specifically, so that part
+  # doesn't additionally depend on whatever filesystem TEST_DIR happens to
+  # be on: ext4 has supported idmapped mounts since they were introduced
+  # (5.12), unlike tmpfs which only gained support in 6.3.
+  configure_loop_device recursive_shift_loop_file recursive_shift_loop_device
+  # shellcheck disable=SC2154
+  mkfs.ext4 -q "${recursive_shift_loop_device}"
+
+  mkdir -p "${TEST_DIR}/recursive-shift-source/nested"
+  touch "${TEST_DIR}/recursive-shift-source/top"
+  chown 123:456 "${TEST_DIR}/recursive-shift-source/top"
+  mount "${recursive_shift_loop_device}" "${TEST_DIR}/recursive-shift-source/nested"
+  touch "${TEST_DIR}/recursive-shift-source/nested/marker"
+  chown 123:456 "${TEST_DIR}/recursive-shift-source/nested/marker"
+
+  lxc start foo
+  lxc config device add foo recursive-shift-mount disk source="${TEST_DIR}/recursive-shift-source" path=/mnt/recursive-shift recursive=true shift=true
+  [ "$(lxc exec foo -- stat -c '%u:%g' /mnt/recursive-shift/top)" = "123:456" ]
+  [ "$(lxc exec foo -- stat -c '%u:%g' /mnt/recursive-shift/nested/marker)" = "123:456" ]
+  lxc config device remove foo recursive-shift-mount
+  lxc stop foo -f
+
+  umount "${TEST_DIR}/recursive-shift-source/nested"
+  # shellcheck disable=SC2154
+  deconfigure_loop_device "${recursive_shift_loop_file}" "${recursive_shift_loop_device}"
 }
 
 _container_devices_raw_mount_options() {
