@@ -5849,10 +5849,28 @@ definitions:
                 type: string
                 x-go-name: LastRunAt
             last_run_status:
-                description: Status of the last replicator run (Pending, Completed, or Failed).
+                description: Status of the last replicator run (Pending, Running, Completed, or Failed).
                 example: Completed
                 type: string
                 x-go-name: LastRunStatus
+            last_success_at:
+                description: |-
+                    Timestamp when the replicator job last completed successfully.
+
+                    API extension: metrics_replicators.
+                example: "2021-03-23T17:38:37.753398689-04:00"
+                format: date-time
+                type: string
+                x-go-name: LastSuccessAt
+            last_success_oldest_snapshot_at:
+                description: |-
+                    Timestamp of the oldest snapshot replicated by the last successful run.
+
+                    API extension: metrics_replicators.
+                example: "2021-03-23T17:38:37.753398689-04:00"
+                format: date-time
+                type: string
+                x-go-name: LastSuccessOldestSnapshotAt
             name:
                 description: Name of the replicator.
                 example: lxd02
