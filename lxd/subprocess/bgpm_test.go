@@ -281,6 +281,15 @@ func TestImportRoundTripLive(t *testing.T) {
 		t.Error("Failed stopping imported process: ", err)
 	}
 
+	// Stop on an imported process must block until its monitor has completed.
+	ctxWait, cancelWait := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancelWait()
+
+	_, err = imp.Wait(ctxWait)
+	if errors.Is(err, context.DeadlineExceeded) {
+		t.Error("Imported Stop returned before the imported process exited")
+	}
+
 	// The kill must land on the process we saved: its monitor sees it exit.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
