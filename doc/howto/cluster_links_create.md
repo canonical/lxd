@@ -122,7 +122,7 @@ Follow these steps:
 1. On Cluster B (the target), issue a pending identity token:
 
    ```bash
-   lxc auth identity create cluster-link/<name-for-cluster-a> --auth-group <auth-group-name>
+   lxc auth identity create cluster-link/<name-for-cluster-a> --group <auth-group-name>
    ```
 
    This command creates a pending `Cluster link certificate` identity on Cluster B and returns a trust token.
@@ -130,7 +130,7 @@ Follow these steps:
    Example:
 
    ```bash
-   lxc auth identity create cluster-link/cluster_a --auth-group clusters
+   lxc auth identity create cluster-link/cluster_a --group clusters
    ```
 
 1. On Cluster A (the initiator), create the cluster link using the token from Cluster B:
