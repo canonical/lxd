@@ -613,7 +613,7 @@ func runBulkOperation(op *Operation) error {
 	var firstChildError error
 
 	// Function to run or cancel a child operation.
-	runChildOp := func(op *Operation) {
+	handleChildOp := func(op *Operation) {
 		// Start if there are no previous errors.
 		if firstChildError == nil {
 			op.start()
@@ -633,7 +633,7 @@ func runBulkOperation(op *Operation) error {
 	// Process each batch.
 	for _, batch := range batches {
 		for _, childOp := range batch {
-			runChildOp(childOp)
+			handleChildOp(childOp)
 		}
 
 		// Wait on any operations that have been started or cancelled in this batch.
