@@ -5,10 +5,12 @@ package subprocess
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -419,8 +421,15 @@ func TestImportOldFormat(t *testing.T) {
 // pidfd (rather than as a child), that Wait blocks until it exits, and that its exit code is
 // reported when the kernel supports PIDFD_GET_INFO.
 func TestImportWaitExitCode(t *testing.T) {
-	// Start a process that stays alive briefly then exits with a known non-zero code.
-	p, err := NewProcess("sh", []string{"-c", "sleep 0.5; exit 42"}, "", "")
+	// Use a FIFO to synchronise with the child. This avoids wall-clock timing
+	// assertions that can be flaky on loaded runners.
+	fifoPath := filepath.Join(t.TempDir(), "fifo")
+	err := syscall.Mkfifo(fifoPath, 0600)
+	if err != nil {
+		t.Fatal("Failed creating fifo: ", err)
+	}
+
+	p, err := NewProcess("sh", []string{"-c", fmt.Sprintf("read line < %s; exit 42", fifoPath)}, "", "")
 	if err != nil {
 		t.Fatal("Failed process creation: ", err)
 	}
@@ -444,18 +453,61 @@ func TestImportWaitExitCode(t *testing.T) {
 		t.Fatal("Imported live process should have a monitor to be waited on")
 	}
 
-	// Wait must block on the pidfd until the process exits, then report its exit code.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// Start waiting in the background and verify it remains blocked.
+	waitDone := make(chan struct{})
+	var code int64
+	var waitErr error
+	go func() {
+		defer close(waitDone)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		code, waitErr = imp.Wait(ctx)
+	}()
 
-	started := time.Now()
-	code, err := imp.Wait(ctx)
-	if errors.Is(err, context.DeadlineExceeded) {
-		t.Fatal("Wait on imported process timed out")
+	select {
+	case <-waitDone:
+		t.Fatal("Wait returned before the process was released")
+	case <-time.After(200 * time.Millisecond):
 	}
 
-	if time.Since(started) < 300*time.Millisecond {
-		t.Error("Wait returned before the process exited; it did not block on the pidfd")
+	// Open the FIFO for writing and release the child. The open itself blocks until
+	// the child has opened the FIFO for reading, so do it in the background too.
+	fifoOpened := make(chan *os.File, 1)
+	fifoErr := make(chan error, 1)
+	go func() {
+		f, err := os.OpenFile(fifoPath, os.O_WRONLY, 0)
+		if err != nil {
+			fifoErr <- err
+			return
+		}
+
+		fifoOpened <- f
+	}()
+
+	var f *os.File
+	select {
+	case f = <-fifoOpened:
+	case err = <-fifoErr:
+		t.Fatal("Failed opening fifo for writing: ", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timed out waiting for child to open fifo")
+	}
+
+	_, err = f.WriteString("\n")
+	if err != nil {
+		t.Fatal("Failed writing to fifo: ", err)
+	}
+
+	_ = f.Close()
+
+	select {
+	case <-waitDone:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Wait did not return after releasing the process")
+	}
+
+	if errors.Is(waitErr, context.DeadlineExceeded) {
+		t.Fatal("Wait on imported process timed out")
 	}
 
 	if code == -1 {
@@ -468,7 +520,7 @@ func TestImportWaitExitCode(t *testing.T) {
 		t.Errorf("Expected exit code 42 but got %d", code)
 	}
 
-	if err == nil {
+	if waitErr == nil {
 		t.Error("Expected a non-nil error for a non-zero exit code")
 	}
 }
