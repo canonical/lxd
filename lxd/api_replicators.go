@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
@@ -28,6 +29,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -904,11 +906,27 @@ func replicatorDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	name := r.PathValue("name")
+	var replicatorID int64
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbReplicator, err := dbCluster.GetReplicator(ctx, tx.Tx(), name, projectName)
+		if err != nil {
+			return err
+		}
+
+		replicatorID = dbReplicator.Row.ID
+
 		return dbCluster.DeleteReplicator(ctx, tx.Tx(), name, projectName)
 	})
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed deleting replicator %q: %w", name, err))
+	}
+
+	// Warnings are not cascaded by the database, so drop any run failure warning left behind by
+	// the deleted replicator. Otherwise it would linger and could later be matched by a new
+	// replicator that reuses the same ID.
+	err = warnings.DeleteWarningsByNodeAndProjectAndTypeAndEntity(s.DB.Cluster, "", projectName, warningtype.ReplicatorRunFailure, entity.TypeReplicator, int(replicatorID))
+	if err != nil {
+		logger.Warn("Failed deleting replicator run failure warnings", logger.Ctx{"replicator": name, "project": projectName, "err": err})
 	}
 
 	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorDeleted.Event(name, projectName, request.CreateRequestor(r.Context()), nil))
@@ -1417,6 +1435,21 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	}, nil
 }
 
+// replicatorRaiseRunFailureWarning records a warning for a failed replicator run.
+//
+// The warning is recorded against the cluster as a whole rather than the member that happened
+// to run the replicator, because a replicator is a cluster-wide entity and a later run may well
+// be picked up by a different member. A member scoped warning would never be resolved by that
+// run's success.
+func replicatorRaiseRunFailureWarning(s *state.State, projectName string, name string, replicatorID int64, message string) {
+	err := s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.UpsertWarning(ctx, "", projectName, entity.TypeReplicator, int(replicatorID), warningtype.ReplicatorRunFailure, message)
+	})
+	if err != nil {
+		logger.Warn("Failed creating replicator run failure warning", logger.Ctx{"replicator": name, "project": projectName, "err": err})
+	}
+}
+
 // replicatorChildInstanceName returns the name of the instance a per-instance child operation
 // acted on. Forward children carry it in their entity URL, while restore children are scoped to
 // the project and carry the instance URL in their metadata instead. It returns an empty string
@@ -1591,10 +1624,20 @@ func replicatorFinalizeOperationArgs(s *state.State, projectName string, name st
 				})
 			}
 
+			// The warning is recorded against the cluster as a whole rather than the member
+			// that happened to run the replicator, so that a later run on a different member
+			// can resolve it.
 			if runStatus == api.ReplicatorStatusCompleted {
 				logger.Info("Replicator run completed", logCtx)
+
+				err = warnings.ResolveWarningsByNodeAndProjectAndTypeAndEntity(s.DB.Cluster, "", projectName, warningtype.ReplicatorRunFailure, entity.TypeReplicator, int(replicatorID))
+				if err != nil {
+					logger.Warn("Failed resolving replicator run failure warning", logger.Ctx{"replicator": name, "project": projectName, "err": err})
+				}
 			} else {
 				logger.Error("Replicator run failed", logCtx)
+
+				replicatorRaiseRunFailureWarning(s, projectName, name, replicatorID, fmt.Sprintf("Replication of %d out of %d instances failed", instancesFailed, instancesTotal))
 			}
 
 			s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(name, projectName, op.EventLifecycleRequestor(), eventCtx))
