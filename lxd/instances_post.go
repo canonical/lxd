@@ -1439,6 +1439,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var targetMemberInfo *db.NodeInfo
 	var targetGroupName string
 	var placementGroupName string
+	var imageAuthorizationChecker func(ctx context.Context) error
 
 	// Set to true once we find that the request is currently handled on a member which isn't hosting the source instance.
 	sourceInstOnDifferentMember := false
@@ -1559,10 +1560,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 		case api.SourceTypeImage:
-			// Try to resolve the source image from cache and perform authorization checks.
-			// This is needed to verify the caller has access to the image if it's from a different project,
-			// and to retrieve the image's metadata (such as profiles) so they can be applied to the instance.
-			sourceImage, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, string(req.Type))
+			// Try to resolve the source image from cache.
+			sourceImage, imageAuthorizationChecker, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, string(req.Type))
 			if err != nil {
 				return err
 			}
@@ -1710,6 +1709,15 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	// Verify the caller has access to the image if it's from a different project, and to retrieve the image's metadata
+	// (such as profiles) so they can be applied to the instance.
+	if imageAuthorizationChecker != nil {
+		err = imageAuthorizationChecker(r.Context())
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	poolSupportsInternalCopy := false
