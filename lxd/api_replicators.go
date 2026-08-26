@@ -681,6 +681,7 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 
 	opArgs, err := prepareReplicatorRunOperation(r.Context(), s, projectName, name, clusterLinkName, restore, dbReplicator.Row.ID)
 	if err != nil {
+		replicatorRecordSetupFailure(s, projectName, name, dbReplicator.Row.ID, restore, request.CreateRequestor(r.Context()), err)
 		return response.SmartError(err)
 	}
 
@@ -698,10 +699,9 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, opArgs)
 	if err != nil {
-		// Revert Running to Failed so the status doesn't get stuck.
-		_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), dbReplicator.Row.ID, api.ReplicatorStatusFailed)
-		})
+		// The run never started, so record the failure rather than leaving the status stuck
+		// at Running.
+		replicatorRecordSetupFailure(s, projectName, name, dbReplicator.Row.ID, restore, request.CreateRequestor(r.Context()), err)
 
 		return response.SmartError(err)
 	}
@@ -1450,6 +1450,47 @@ func replicatorRaiseRunFailureWarning(s *state.State, projectName string, name s
 	}
 }
 
+// replicatorRecordSetupFailure records the outcome of a replicator run that failed before any
+// per-instance operation could be scheduled, so that it is observable in the same way as a run
+// that failed while executing.
+//
+// Without this such a run leaves no trace beyond a daemon log line: last_run_status keeps the
+// value written by an earlier run, so a replicator whose target cluster has become unreachable
+// keeps reporting its last success while every scheduled run silently fails.
+//
+// Bad request errors are ignored because they reject the run before any replication is
+// attempted (for example a project that is not in leader mode). Recording those would report a
+// caller mistake as a replication failure.
+func replicatorRecordSetupFailure(s *state.State, projectName string, name string, replicatorID int64, restore bool, requestor *api.EventLifecycleRequestor, runErr error) {
+	if api.StatusErrorCheck(runErr, http.StatusBadRequest) {
+		return
+	}
+
+	// Record the attempt so the replicator stops reporting the status of an earlier run.
+	err := s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.UpdateReplicatorLastRun(ctx, tx.Tx(), replicatorID, time.Now(), api.ReplicatorStatusFailed)
+	})
+	if err != nil {
+		logger.Warn("Failed updating replicator last run status", logger.Ctx{"replicator": name, "project": projectName, "err": err})
+	}
+
+	// A restore is a failback rather than a replication run, so it only records its status.
+	if restore {
+		return
+	}
+
+	logger.Error("Replicator run failed to start", logger.Ctx{"replicator": name, "project": projectName, "err": runErr})
+
+	replicatorRaiseRunFailureWarning(s, projectName, name, replicatorID, "Replicator run failed to start: "+runErr.Error())
+
+	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(name, projectName, requestor, map[string]any{
+		"status":           api.ReplicatorStatusFailed,
+		"instances_total":  0,
+		"instances_failed": 0,
+		"err":              runErr.Error(),
+	}))
+}
+
 // replicatorChildInstanceName returns the name of the instance a per-instance child operation
 // acted on. Forward children carry it in their entity URL, while restore children are scoped to
 // the project and carry the instance URL in their metadata instead. It returns an empty string
@@ -2049,6 +2090,10 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 
 	opArgs, err := prepareReplicatorRunOperation(ctx, s, replicator.Project, replicator.Name, clusterLinkName, false, row.Row.ID)
 	if err != nil {
+		// A scheduled run has no caller to report to, so the failure has to be recorded or it
+		// would only ever appear in the daemon log.
+		replicatorRecordSetupFailure(s, replicator.Project, replicator.Name, row.Row.ID, false, nil, err)
+
 		return err
 	}
 
@@ -2074,9 +2119,7 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 		}
 
 		// Revert Running to Failed so the status doesn't get stuck.
-		_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), row.Row.ID, api.ReplicatorStatusFailed)
-		})
+		replicatorRecordSetupFailure(s, replicator.Project, replicator.Name, row.Row.ID, false, nil, err)
 
 		return fmt.Errorf("Failed scheduling replicator operation: %w", err)
 	}
