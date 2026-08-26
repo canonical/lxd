@@ -112,7 +112,7 @@ func (p *Process) monitorImported() {
 	p.startMonitor(func() (int64, error) {
 		code, err := waitProcess(context.Background(), pid, startTime)
 		if err != nil {
-			return -1, nil
+			return -1, err
 		}
 
 		if code > 0 {
