@@ -83,6 +83,21 @@ func ImportProcess(path string) (*Process, error) {
 	// On unix, FindProcess always returns successfully (with a 'done' process if pidfd_open
 	// returned with ESRCH).
 	proc.proc, _ = os.FindProcess(proc.PID)
+
+	// First check whether the process is still alive. If it is not, there is no
+	// need to verify identity further; just release the handle and return a
+	// stopped Process object.
+	if proc.Signal(0) != nil {
+		if proc.proc != nil {
+			_ = proc.proc.Release()
+			proc.proc = nil
+		}
+
+		return &proc, nil
+	}
+
+	// The process appears alive; verify it is the same process we saved by
+	// comparing start times.
 	if proc.StartTime != 0 {
 		starttime, err := processStartTime(proc.PID)
 		if err == nil {
@@ -97,16 +112,7 @@ func ImportProcess(path string) (*Process, error) {
 	// Spawn a monitor goroutine so a running imported process can be waited on like a spawned
 	// one. Only do so when the process is actually alive; the monitor records the exit code and
 	// starting it for an already-exited process would race with any later reuse of the object.
-	if proc.Signal(0) != nil {
-		// The process died between the start-time check and the signal; release
-		// the os.Process handle so the returned object is fully stopped.
-		if proc.proc != nil {
-			_ = proc.proc.Release()
-			proc.proc = nil
-		}
-	} else {
-		proc.monitorImported()
-	}
+	proc.monitorImported()
 
 	return &proc, nil
 }
