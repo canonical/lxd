@@ -1054,13 +1054,15 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 		},
 	}
 
-	// Send POST to remote /1.0/cluster/links to activate pending cluster link using token.
-	for _, address := range trustToken.Addresses {
-		args := &lxd.ConnectionArgs{
-			TLSServerCert: clusterCert,
-			UserAgent:     version.UserAgent,
-		}
+	args := &lxd.ConnectionArgs{
+		TLSServerCert: clusterCert,
+		UserAgent:     version.UserAgent,
+	}
 
+	orderedAddresses := cluster.PrioritizeResponsiveClusterLinkAddresses(r.Context(), trustToken.Addresses, args)
+
+	// Send POST to remote /1.0/cluster/links to activate pending cluster link using token.
+	for _, address := range orderedAddresses {
 		clusterAddress := util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
 		client, err := lxd.ConnectLXD("https://"+clusterAddress, args)
 		if err != nil {
@@ -1676,14 +1678,16 @@ func clusterLinkCreateUnidirectional(s *state.State, r *http.Request, req api.Cl
 		TrustToken: trustToken.String(),
 	}
 
-	for _, address := range trustToken.Addresses {
-		args := &lxd.ConnectionArgs{
-			TLSServerCert: remotePEM,
-			TLSClientCert: string(networkCert.PublicKey()),
-			TLSClientKey:  string(networkCert.PrivateKey()),
-			UserAgent:     version.UserAgent,
-		}
+	args := &lxd.ConnectionArgs{
+		TLSServerCert: remotePEM,
+		TLSClientCert: string(networkCert.PublicKey()),
+		TLSClientKey:  string(networkCert.PrivateKey()),
+		UserAgent:     version.UserAgent,
+	}
 
+	orderedAddresses := cluster.PrioritizeResponsiveClusterLinkAddresses(r.Context(), trustToken.Addresses, args)
+
+	for _, address := range orderedAddresses {
 		clusterAddress := util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
 		client, err := lxd.ConnectLXD("https://"+clusterAddress, args)
 		if err != nil {
