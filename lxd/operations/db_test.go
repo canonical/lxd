@@ -28,12 +28,16 @@ func (s *dbSuite) Test_isRetentionCandidateLocal() {
 		expected bool
 	}
 
+	timePtr := func(t time.Time) *time.Time {
+		return &t
+	}
+
 	tests := []testCase{
 		{
 			name: "running operation updated 4 seconds ago",
 			opFunc: func() *Operation {
 				op := newTestOp(s.Require())
-				op.updatedAt = now.Add(-4 * time.Second)
+				op.updatedAt.Store(timePtr(now.Add(-4 * time.Second)))
 				return op
 			},
 			expected: true,
@@ -42,7 +46,7 @@ func (s *dbSuite) Test_isRetentionCandidateLocal() {
 			name: "running operation updated 6 seconds ago",
 			opFunc: func() *Operation {
 				op := newTestOp(s.Require())
-				op.updatedAt = now.Add(-6 * time.Second)
+				op.updatedAt.Store(timePtr(now.Add(-6 * time.Second)))
 				return op
 			},
 			expected: true,
@@ -52,7 +56,7 @@ func (s *dbSuite) Test_isRetentionCandidateLocal() {
 			opFunc: func() *Operation {
 				op := newTestOp(s.Require())
 				op.finished.Cancel()
-				op.updatedAt = now.Add(-4 * time.Second)
+				op.updatedAt.Store(timePtr(now.Add(-4 * time.Second)))
 				return op
 			},
 			expected: true,
@@ -62,7 +66,7 @@ func (s *dbSuite) Test_isRetentionCandidateLocal() {
 			opFunc: func() *Operation {
 				op := newTestOp(s.Require())
 				op.finished.Cancel()
-				op.updatedAt = now.Add(-6 * time.Second)
+				op.updatedAt.Store(timePtr(now.Add(-6 * time.Second)))
 				return op
 			},
 			expected: false,
@@ -73,7 +77,7 @@ func (s *dbSuite) Test_isRetentionCandidateLocal() {
 				parent := newTestOp(s.Require())
 				child := newTestOp(s.Require())
 				parent.children = []*Operation{child}
-				parent.updatedAt = time.Now().Add(-(24*time.Hour + time.Second))
+				parent.updatedAt.Store(timePtr(time.Now().Add(-(24*time.Hour + time.Second))))
 				return parent
 			},
 			expected: true,
@@ -85,7 +89,7 @@ func (s *dbSuite) Test_isRetentionCandidateLocal() {
 				child := newTestOp(s.Require())
 				parent.children = []*Operation{child}
 				child.parent = parent
-				child.updatedAt = time.Now().Add(-(24*time.Hour + time.Second))
+				child.updatedAt.Store(timePtr(time.Now().Add(-(24*time.Hour + time.Second))))
 				return child
 			},
 			expected: true,
@@ -98,7 +102,7 @@ func (s *dbSuite) Test_isRetentionCandidateLocal() {
 				parent.children = []*Operation{child}
 				child.parent = parent
 				parent.finished.Cancel()
-				parent.updatedAt = now.Add(-(24*time.Hour - time.Second))
+				parent.updatedAt.Store(timePtr(now.Add(-(24*time.Hour - time.Second))))
 				return parent
 			},
 			expected: true,
@@ -111,7 +115,7 @@ func (s *dbSuite) Test_isRetentionCandidateLocal() {
 				parent.children = []*Operation{child}
 				child.parent = parent
 				child.finished.Cancel()
-				child.updatedAt = now.Add(-(24*time.Hour - time.Second))
+				child.updatedAt.Store(timePtr(now.Add(-(24*time.Hour - time.Second))))
 				return child
 			},
 			expected: true,
@@ -124,7 +128,7 @@ func (s *dbSuite) Test_isRetentionCandidateLocal() {
 				parent.children = []*Operation{child}
 				child.parent = parent
 				parent.finished.Cancel()
-				parent.updatedAt = now.Add(-(24*time.Hour + time.Second))
+				parent.updatedAt.Store(timePtr(now.Add(-(24*time.Hour + time.Second))))
 				return parent
 			},
 			expected: false,

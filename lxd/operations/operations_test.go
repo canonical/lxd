@@ -27,20 +27,20 @@ func newTestOp(require *require.Assertions) *Operation {
 	now := time.Unix(sec, nsec)
 
 	op := &Operation{
-		id:                     opUUID,
-		class:                  1,
-		createdAt:              now,
-		updatedAt:              now,
-		status:                 api.Running,
-		url:                    "/1.0",
-		entityURL:              entity.ServerURL(),
-		dbOpType:               1000,
-		logger:                 logger.AddContext(logger.Ctx{"uuid": opUUID}),
-		finished:               cancel.New(),
-		running:                cancel.New(),
-		lastPersistenceAttempt: now,
-		readonly:               false,
+		id:        opUUID,
+		class:     1,
+		createdAt: now,
+		url:       "/1.0",
+		entityURL: entity.ServerURL(),
+		dbOpType:  1000,
+		logger:    logger.AddContext(logger.Ctx{"uuid": opUUID}),
+		finished:  cancel.New(),
+		running:   cancel.New(),
 	}
+
+	op.updatedAt.Store(&now)
+	op.status.Store(int64(api.Running))
+	op.readonly.Store(false)
 
 	setDoneFunc(op)
 
@@ -97,11 +97,11 @@ func (s *operationsSuite) Test_deleteInternalNoChildren() {
 		s.True(ok)
 	})
 
-	s.True(op1.readonly)
+	s.True(op1.readonly.Load())
 	s.ErrorIs(op1.finished.Err(), context.Canceled)
-	s.True(op3.readonly)
+	s.True(op3.readonly.Load())
 	s.ErrorIs(op3.finished.Err(), context.Canceled)
-	s.False(op2.readonly)
+	s.False(op2.readonly.Load())
 	s.NoError(op2.finished.Err())
 }
 
@@ -125,11 +125,11 @@ func (s *operationsSuite) Test_deleteInternalParentWithChildren() {
 		s.Len(operations, 3)
 	})
 
-	s.False(op1.readonly)
+	s.False(op1.readonly.Load())
 	s.NoError(op1.finished.Err())
-	s.False(op1Child.readonly)
+	s.False(op1Child.readonly.Load())
 	s.NoError(op1Child.finished.Err())
-	s.False(op2.readonly)
+	s.False(op2.readonly.Load())
 	s.NoError(op2.finished.Err())
 
 	deleteInternal(op1.id)
@@ -140,10 +140,10 @@ func (s *operationsSuite) Test_deleteInternalParentWithChildren() {
 		s.True(ok)
 	})
 
-	s.True(op1.readonly)
+	s.True(op1.readonly.Load())
 	s.ErrorIs(op1.finished.Err(), context.Canceled)
-	s.True(op1Child.readonly)
+	s.True(op1Child.readonly.Load())
 	s.ErrorIs(op1Child.finished.Err(), context.Canceled)
-	s.False(op2.readonly)
+	s.False(op2.readonly.Load())
 	s.NoError(op2.finished.Err())
 }
