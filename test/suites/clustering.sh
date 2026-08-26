@@ -6319,6 +6319,235 @@ test_clustering_replicator_snapshot() {
   kill_lxd "${LXD_ONE_DIR}"
 }
 
+# replicator_assert_run_status asserts the one-hot lxd_replicator_last_run_status gauge: the
+# expected status reports 1 and every other status reports 0. Every status is emitted on every
+# scrape so that a status change never leaves a stale series behind.
+replicator_assert_run_status() {
+  local metrics="${1}"
+  local project="${2}"
+  local name="${3}"
+  local expected="${4}"
+  local status value
+
+  for status in Pending Running Completed Failed; do
+    value=0
+    if [ "${status}" = "${expected}" ]; then
+      value=1
+    fi
+
+    grep -xF "lxd_replicator_last_run_status{name=\"${name}\",project=\"${project}\",status=\"${status}\"} ${value}" <<< "${metrics}"
+  done
+}
+
+# replicator_metric_value prints the value of a replicator gauge that has project and name labels.
+replicator_metric_value() {
+  local metrics="${1}"
+  local metric="${2}"
+  local project="${3}"
+  local name="${4}"
+
+  awk -v key="${metric}{name=\"${name}\",project=\"${project}\"}" '$1 == key { print $2 }' <<< "${metrics}"
+}
+
+# replicator_wait_event waits for a lifecycle monitor file to contain an event matching the given
+# jq filter, then asserts on it. The monitor writes asynchronously, so the event can land shortly
+# after the command that triggered it has returned.
+replicator_wait_event() {
+  local monfile="${1}"
+  local filter="${2}"
+  local _
+
+  for _ in $(seq 30); do
+    if jq --exit-status --slurp "${filter}" "${monfile}" > /dev/null 2>&1; then
+      break
+    fi
+
+    sleep 0.2
+  done
+
+  jq --exit-status --slurp "${filter}" "${monfile}"
+}
+
+test_clustering_replicator_metrics() {
+  # Create two standalone clustered LXD daemons to simulate two separate clusters.
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_ONE_DIR}" true
+
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_TWO_DIR}" true
+
+  # Enable clustering on both.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster enable node2
+
+  # Create projects on both clusters.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project create replicator-project
+
+  # Setup auth groups and cluster links.
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  LXD_ONE_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --quiet --auth-group replicator-group)"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}" --auth-group replicator-group
+
+  # Configure replica project settings: standby sets replica.cluster, leader creates replicator.
+  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create metrics-replicator cluster=lxd_two --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
+
+  # Setup storage on both clusters.
+  local pool_one pool_two
+  pool_one="lxdtest-$(basename "${LXD_ONE_DIR}")"
+  pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
+
+  local metrics success_ts snapshot_ts previous_success_ts monfile mon_pid
+
+  sub_test "Verify a replicator that has never run reports as pending"
+
+  metrics="$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/metrics)"
+
+  # lxd_replicators is dense: every project reports a count, including projects without any
+  # replicator, so that `lxd_replicators == 0` identifies unprotected projects.
+  grep -xF 'lxd_replicators{project="replicator-project"} 1' <<< "${metrics}"
+  grep -xF 'lxd_replicators{project="default"} 0' <<< "${metrics}"
+
+  replicator_assert_run_status "${metrics}" replicator-project metrics-replicator Pending
+
+  # A zero timestamp means no successful run has been recorded yet.
+  [ "$(replicator_metric_value "${metrics}" lxd_replicator_last_success_timestamp replicator-project metrics-replicator)" = "0" ]
+  [ "$(replicator_metric_value "${metrics}" lxd_replicator_last_success_oldest_snapshot_timestamp replicator-project metrics-replicator)" = "0" ]
+
+  sub_test "Verify the target cluster does not report the source cluster's replicator"
+
+  # The replicator only exists in the source cluster's database, so the target reports a count of
+  # zero for the project and no per-replicator series at all.
+  metrics="$(LXD_DIR="${LXD_TWO_DIR}" lxc query /1.0/metrics)"
+  grep -xF 'lxd_replicators{project="replicator-project"} 0' <<< "${metrics}"
+  if grep -F 'lxd_replicator_last_run_status{' <<< "${metrics}"; then
+    echo "ERROR: target cluster reported a replicator status it does not own" >&2
+    exit 1
+  fi
+
+  sub_test "Verify a successful run updates the metrics and emits a completion event"
+
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --project replicator-project -d "${SMALL_ROOT_DISK}"
+
+  monfile="${TEST_DIR}/replicator-events.jsonl"
+  rm -f "${monfile}"
+  LXD_DIR="${LXD_ONE_DIR}" stdbuf -oL lxc monitor --all-projects --type=lifecycle --format=json > "${monfile}" &
+  mon_pid=$!
+  sleep 0.5
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run metrics-replicator --project replicator-project
+
+  # The replicator-run event fires on completion (not when a manual run starts) and carries the
+  # outcome of the run, including the recovery point it achieved.
+  replicator_wait_event "${monfile}" \
+    'map(select(.metadata.action == "replicator-run" and .metadata.context.status == "Completed" and .metadata.context.instances_total == 1 and .metadata.context.instances_failed == 0 and .metadata.context.effective_rpo_seconds >= 0)) | length == 1'
+
+  kill_go_proc "${mon_pid}"
+
+  metrics="$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/metrics)"
+  replicator_assert_run_status "${metrics}" replicator-project metrics-replicator Completed
+
+  # Both timestamps are now recorded, and the recovery point cannot be newer than the run that
+  # established it.
+  success_ts="$(replicator_metric_value "${metrics}" lxd_replicator_last_success_timestamp replicator-project metrics-replicator)"
+  snapshot_ts="$(replicator_metric_value "${metrics}" lxd_replicator_last_success_oldest_snapshot_timestamp replicator-project metrics-replicator)"
+  [ "${success_ts}" != "0" ]
+  [ "${snapshot_ts}" != "0" ]
+  jq --exit-status --null-input --argjson run "${success_ts}" --argjson snap "${snapshot_ts}" '$snap <= $run'
+
+  sub_test "Verify a failed run is reported in the metrics, the event and a warning"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc warning delete --all
+
+  # Force the per-instance child operation to fail: the instance no longer exists on the target,
+  # so it has to be created there, and the project forbids creating any instance.
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project limits.instances=0
+
+  rm -f "${monfile}"
+  LXD_DIR="${LXD_ONE_DIR}" stdbuf -oL lxc monitor --all-projects --type=lifecycle --format=json > "${monfile}" &
+  mon_pid=$!
+  sleep 0.5
+
+  if LXD_DIR="${LXD_ONE_DIR}" lxc replicator run metrics-replicator --project replicator-project; then
+    echo "ERROR: replicator run unexpectedly succeeded with a failing instance" >&2
+    exit 1
+  fi
+
+  replicator_wait_event "${monfile}" \
+    'map(select(.metadata.action == "replicator-run" and .metadata.context.status == "Failed" and .metadata.context.instances_total == 1 and .metadata.context.instances_failed == 1)) | length == 1'
+
+  kill_go_proc "${mon_pid}"
+
+  metrics="$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/metrics)"
+  replicator_assert_run_status "${metrics}" replicator-project metrics-replicator Failed
+
+  # A failed run must not discard the recovery point recorded by the last successful run,
+  # otherwise a single failure would erase the evidence that the project was ever protected.
+  previous_success_ts="${success_ts}"
+  [ "$(replicator_metric_value "${metrics}" lxd_replicator_last_success_timestamp replicator-project metrics-replicator)" = "${previous_success_ts}" ]
+
+  # The failure is also surfaced as a warning against the replicator.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/warnings?recursion=1&project=replicator-project" \
+    | jq --exit-status 'map(select(.type == "Replicator run failed" and .status != "resolved")) | length == 1'
+
+  sub_test "Verify a later successful run clears the failure"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc project unset replicator-project limits.instances
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run metrics-replicator --project replicator-project
+
+  metrics="$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/metrics)"
+  replicator_assert_run_status "${metrics}" replicator-project metrics-replicator Completed
+
+  # The recovery point moved forward now that the run succeeded again.
+  success_ts="$(replicator_metric_value "${metrics}" lxd_replicator_last_success_timestamp replicator-project metrics-replicator)"
+  jq --exit-status --null-input --argjson new "${success_ts}" --argjson old "${previous_success_ts}" '$new >= $old'
+
+  # The warning raised by the failed run is resolved rather than left behind.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/warnings?recursion=1&project=replicator-project" \
+    | jq --exit-status 'map(select(.type == "Replicator run failed" and .status != "resolved")) | length == 0'
+
+  sub_test "Verify a run that cannot start is recorded"
+
+  # A run that fails before any per-instance operation is scheduled (here because the target
+  # cluster is unreachable) must still be recorded. Otherwise the replicator would keep
+  # reporting the status of its last successful run while every new run silently fails.
+  LXD_DIR="${LXD_ONE_DIR}" lxc warning delete --all
+  shutdown_lxd "${LXD_TWO_DIR}"
+
+  if LXD_DIR="${LXD_ONE_DIR}" lxc replicator run metrics-replicator --project replicator-project; then
+    echo "ERROR: replicator run unexpectedly succeeded with the target cluster down" >&2
+    exit 1
+  fi
+
+  metrics="$(LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/metrics)"
+  replicator_assert_run_status "${metrics}" replicator-project metrics-replicator Failed
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/warnings?recursion=1&project=replicator-project" \
+    | jq --exit-status 'map(select(.type == "Replicator run failed" and .status != "resolved")) | length == 1'
+
+  respawn_lxd "${LXD_TWO_DIR}" true
+
+  # Cleanup
+  rm -f "${monfile}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device remove default root --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device remove default root --project replicator-project
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+}
+
 test_clustering_replicator_multi_member() {
   local poolDriver
   poolDriver=$(storage_backend "${LXD_INITIAL_DIR}")
@@ -6391,6 +6620,20 @@ test_clustering_replicator_multi_member() {
   # The replicator operation must report success with two child operations.
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+
+  sub_test "Verify replicator metrics are reported by exactly one cluster member"
+
+  # Replicator state is global to the cluster while the metrics endpoint is scraped per member,
+  # so only the leader reports these gauges. If every member reported them, an aggregation such
+  # as sum(lxd_replicator_last_run_status) would over-count by the number of members.
+  local member_dir reporting_members=0
+  for member_dir in "${LXD_ONE_DIR}" "${LXD_TWO_DIR}"; do
+    if LXD_DIR="${member_dir}" lxc query /1.0/metrics | grep -F 'lxd_replicator_last_run_status{' > /dev/null; then
+      reporting_members=$((reporting_members + 1))
+    fi
+  done
+
+  [ "${reporting_members}" = "1" ]
 
   sub_test "Verify snapshotting works for instances on other cluster members"
 
