@@ -388,6 +388,26 @@ wait_for_cluster_leader() {
   return 1
 }
 
+wait_all_members_online() {
+  local lxdDir="${1}"
+  local i members
+
+  for i in $(seq "${MAX_WAIT_SECONDS:-120}"); do
+    members="$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${lxdDir}" lxc cluster list --format json 2>/dev/null || true)"
+    if [ -n "${members}" ] && jq --exit-status 'all(.status == "Online")' <<< "${members}" > /dev/null; then
+      return 0
+    fi
+
+    sleep 1
+  done
+
+  echo "One or more cluster members did not come back online after ${i}s"
+
+  # Dump all members for debugging purposes.
+  echo "${members}"
+  return 1
+}
+
 is_uuid_v4() {
   # Case insensitive match for a v4 UUID. The third group must start with 4, and the fourth group must start with 8, 9,
   # a, or b. This accounts for the version and variant. See https://datatracker.ietf.org/doc/html/rfc9562#name-uuid-version-4.
