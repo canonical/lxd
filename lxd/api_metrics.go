@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"runtime"
@@ -131,7 +132,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Register internal metrics.
-		intMetrics = internalMetrics(ctx, s, tx)
+		intMetrics = internalMetrics(ctx, s, tx, projectNames)
 		return nil
 	})
 	if err != nil {
@@ -408,7 +409,100 @@ func clusterMemberWarnings(ctx context.Context, s *state.State, tx *db.ClusterTx
 	return dbCluster.GetWarnings(ctx, tx.Tx(), filters...)
 }
 
-func internalMetrics(ctx context.Context, s *state.State, tx *db.ClusterTx) *metrics.MetricSet {
+// replicatorMetrics returns the replicator gauges for the given projects.
+//
+// Replicator state is global to the cluster while the metrics endpoint is scraped per cluster
+// member, so only the leader reports these gauges. Otherwise every member would emit a sample
+// for the same replicator and aggregations such as sum() would over-count by the number of
+// members. This mirrors how nodeless warnings are attributed to the leader.
+func replicatorMetrics(ctx context.Context, s *state.State, tx *db.ClusterTx, projectNames []string) (*metrics.MetricSet, error) {
+	leaderInfo, err := s.LeaderInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	if !leaderInfo.Leader {
+		return nil, nil
+	}
+
+	replicators, _, err := dbCluster.GetReplicatorsAndURLs(ctx, tx.Tx(), nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	out := metrics.NewMetricSet(nil)
+
+	replicatorCounts := make(map[string]int, len(projectNames))
+	for _, projectName := range projectNames {
+		replicatorCounts[projectName] = 0
+	}
+
+	allStatuses := []string{
+		api.ReplicatorStatusPending,
+		api.ReplicatorStatusRunning,
+		api.ReplicatorStatusCompleted,
+		api.ReplicatorStatusFailed,
+	}
+
+	for _, replicator := range replicators {
+		_, ok := replicatorCounts[replicator.ProjectName]
+		if !ok {
+			// Not a project the caller asked about.
+			continue
+		}
+
+		replicatorCounts[replicator.ProjectName]++
+
+		labels := map[string]string{"project": replicator.ProjectName, "name": replicator.Row.Name}
+
+		status := replicator.Row.LastRunStatus
+		if status == "" {
+			status = api.ReplicatorStatusPending
+		}
+
+		// Emit a sample for every status rather than only the current one, so a status
+		// transition never leaves a stale series behind: the series for the previous status
+		// drops to 0 in the same scrape that raises the new one to 1.
+		for _, candidate := range allStatuses {
+			statusLabels := maps.Clone(labels)
+			statusLabels["status"] = candidate
+
+			value := float64(0)
+			if candidate == status {
+				value = 1
+			}
+
+			out.AddSamples(metrics.ReplicatorLastRunStatus, metrics.Sample{Labels: statusLabels, Value: value})
+		}
+
+		// A zero value means the replicator has never completed a run successfully.
+		var lastSuccess float64
+		if replicator.Row.LastSuccessDate.Valid {
+			lastSuccess = float64(replicator.Row.LastSuccessDate.Time.Unix())
+		}
+
+		out.AddSamples(metrics.ReplicatorLastSuccessTimestamp, metrics.Sample{Labels: maps.Clone(labels), Value: lastSuccess})
+
+		// A zero value means the last successful run replicated no snapshots, so there is no
+		// recovery point to report.
+		var oldestSnapshot float64
+		if replicator.Row.LastSuccessOldestSnapshotDate.Valid {
+			oldestSnapshot = float64(replicator.Row.LastSuccessOldestSnapshotDate.Time.Unix())
+		}
+
+		out.AddSamples(metrics.ReplicatorLastSuccessOldestSnapshotTimestamp, metrics.Sample{Labels: maps.Clone(labels), Value: oldestSnapshot})
+	}
+
+	// Emit a sample for every project, including 0 for projects with no replicators, so that
+	// queries such as `lxd_replicators == 0` can identify unprotected projects.
+	for _, projectName := range projectNames {
+		out.AddSamples(metrics.Replicators, metrics.Sample{Labels: map[string]string{"project": projectName}, Value: float64(replicatorCounts[projectName])})
+	}
+
+	return out, nil
+}
+
+func internalMetrics(ctx context.Context, s *state.State, tx *db.ClusterTx, projectNames []string) *metrics.MetricSet {
 	out := metrics.NewMetricSet(nil)
 
 	warnings, err := clusterMemberWarnings(ctx, s, tx)
@@ -418,6 +512,13 @@ func internalMetrics(ctx context.Context, s *state.State, tx *db.ClusterTx) *met
 	} else {
 		// Total number of warnings
 		out.AddSamples(metrics.WarningsTotal, metrics.Sample{Value: float64(len(warnings))})
+	}
+
+	replicatorSet, err := replicatorMetrics(ctx, s, tx, projectNames)
+	if err != nil {
+		logger.Warn("Failed getting replicator metrics", logger.Ctx{"err": err})
+	} else {
+		out.Merge(replicatorSet)
 	}
 
 	// Create local variable to get a pointer.
