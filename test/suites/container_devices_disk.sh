@@ -15,18 +15,18 @@ test_container_devices_disk() {
   lxc delete foo
 }
 
-_container_devices_disk_shift() {
+_container_devices_idmapped_mounts_supported() {
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
   # `tmpfs` does not support idmapped mounts on kernels older than 6.3
   if [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.3; then
     echo "==> SKIP: tmpfs (LXD_TMPFS=${LXD_TMPFS}) idmapped mount requires a kernel >= 6.3"
-    return
+    return 1
   fi
 
   if [ -n "${LXD_IDMAPPED_MOUNTS_DISABLE:-}" ]; then
-    return
+    return 1
   fi
 
   if [ "${lxd_backend}" = "zfs" ]; then
@@ -35,7 +35,7 @@ _container_devices_disk_shift() {
     if [ "$(printf '%s\n' "$zfs_version" "2.2" | sort -V | head -n1)" = "$zfs_version" ]; then
       if [ "$zfs_version" != "2.2" ]; then
         echo "ZFS version is less than 2.2. Skipping idmapped mounts tests."
-        return
+        return 1
       else
         echo "ZFS version is 2.2. Idmapped mounts are supported with ZFS."
       fi
@@ -43,6 +43,12 @@ _container_devices_disk_shift() {
       echo "ZFS version is greater than 2.2. Idmapped mounts are supported with ZFS."
     fi
   fi
+
+  return 0
+}
+
+_container_devices_disk_shift() {
+  _container_devices_idmapped_mounts_supported || return
 
   # Test basic shifting
   mkdir -p "${TEST_DIR}/shift-source"
