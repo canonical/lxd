@@ -156,6 +156,13 @@ func (p *Process) StartWithFiles(ctx context.Context, fds []*os.File) error {
 }
 
 func (p *Process) start(ctx context.Context, fds []*os.File) error {
+	// If this Process object is already associated with a live process, refuse
+	// to start a new one. finish() clears hasMonitor once the process has exited,
+	// so Restart() (Stop -> Start) continues to work.
+	if p.hasMonitor {
+		return ErrAlreadyRunning
+	}
+
 	var cmd *exec.Cmd
 
 	if p.Apparmor != "" && p.hasApparmor() {
