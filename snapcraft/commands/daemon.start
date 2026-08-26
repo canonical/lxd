@@ -61,11 +61,16 @@ fi
 nsenter -t 1 -m systemd-run -u snap."${SNAP_INSTANCE_NAME}".workaround -p Delegate=yes -r /bin/true >/dev/null 2>&1 || true
 
 # Workaround to ensure LXD is stopped before MicroCeph/MicroOVN
+# We use both a static list and a list taken from systemctl list-units. The static list is in case a service is not loaded
+# when this is run and doesn't show up in list-units but is eventually enabled. The dynamic list is in case the static list
+# does not immediately pick up on a new microceph/microovn service.
+STATIC_SUBUNITS="snap.microceph.daemon.service snap.microceph.mds.service snap.microceph.mgr.service snap.microceph.mon.service snap.microceph.nfs.service snap.microceph.osd.service snap.microceph.rgw.service snap.microceph.rbd-mirror.service snap.microceph.cephfs-mirror.service snap.microovn.daemon.service snap.microovn.ovn-ovsdb-server-nb.service snap.microovn.ovn-ovsdb-server-sb.service snap.microovn.ovn-northd.service snap.microovn.chassis.service snap.microovn.switch.service snap.microovn.bird.service"
+RUNTIME_SUBUNITS="$(nsenter -t 1 -m systemctl list-units --all --plain --quiet 'snap.microceph.*.service' 'snap.microovn.*.service' 2> /dev/null | sed 's/ .*$//' | tr '\n' ' ')"
+SHUTDOWN_CONF="$(printf '[Unit]\nAfter=%s\n' "${STATIC_SUBUNITS} ${RUNTIME_SUBUNITS}")"
 SYSTEMD_OVERRIDE_DIR="/var/lib/snapd/hostfs/run/systemd/system/snap.lxd.daemon.service.d"
-if [ ! -e "${SYSTEMD_OVERRIDE_DIR}/lxd-shutdown.conf" ]; then
+if ! echo "${SHUTDOWN_CONF}" | cmp -s "${SYSTEMD_OVERRIDE_DIR}/lxd-shutdown.conf" -; then
     mkdir -p "${SYSTEMD_OVERRIDE_DIR}"
-    echo "[Unit]
-After=snap.microceph.daemon.service snap.microovn.daemon.service" > "${SYSTEMD_OVERRIDE_DIR}/lxd-shutdown.conf"
+    echo "${SHUTDOWN_CONF}" > "${SYSTEMD_OVERRIDE_DIR}/lxd-shutdown.conf"
     nsenter -t 1 -m systemctl daemon-reload
 fi
 
