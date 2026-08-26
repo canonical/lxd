@@ -154,6 +154,14 @@ The following internal metrics are provided:
   - Number of bytes obtained from system
 * - `lxd_operations_total`
   - Number of running operations
+* - `lxd_replicators`
+  - Number of configured replicators in the project. See [Replicator metrics](replicator-metrics).
+* - `lxd_replicator_last_run_status`
+  - Whether the last replicator run ended in the given status. See [Replicator metrics](replicator-metrics).
+* - `lxd_replicator_last_success_timestamp`
+  - Time of the last successful replicator run (in seconds since the epoch). See [Replicator metrics](replicator-metrics).
+* - `lxd_replicator_last_success_oldest_snapshot_timestamp`
+  - Creation time of the oldest snapshot replicated by the last successful run (in seconds since the epoch). See [Replicator metrics](replicator-metrics).
 * - `lxd_uptime_seconds`
   - Daemon uptime (in seconds)
 * - `lxd_warnings_total`
@@ -172,6 +180,44 @@ These metrics consider all endpoints in the [LXD REST API](../api), with the exc
 - `error_server`, for errors on the server side, this includes responses with HTTP status codes from 500 to 599. Any failed asynchronous operations also fall into this category.
 - `error_client`, for responses with HTTP status codes from 400 to 499, indicating an error on the client side.
 - `succeeded`, for endpoints that executed successfully.
+
+(replicator-metrics)=
+## Replicator metrics
+
+The replicator metrics report the health of {ref}`replicators <exp-replicators>`, so that replication failures and the current recovery point objective (RPO) are visible in an observability tool rather than only through the API.
+
+Replicator state is global to the cluster, so these metrics are reported only by the cluster member that is currently the database leader. Scraping every member therefore yields one sample per replicator rather than one per member.
+
+`lxd_replicators` carries a `project` label and reports the number of replicators configured in that project. A sample is emitted for every project, using `0` for projects that have no replicators, so that unprotected projects can be identified.
+
+`lxd_replicator_last_run_status` carries `project`, `name` and `status` labels. A sample is emitted for each of the four possible statuses (`Pending`, `Running`, `Completed` and `Failed`), with a value of `1` for the status of the last run and `0` for the others. `Pending` means the replicator has never run. Because every status is always present, a status change never leaves a stale series behind.
+
+`lxd_replicator_last_success_timestamp` and `lxd_replicator_last_success_oldest_snapshot_timestamp` carry `project` and `name` labels and report times in seconds since the epoch. The first is the completion time of the last successful run, and the second is the creation time of the oldest snapshot that run replicated. A value of `0` means no such time has been recorded yet.
+
+Some example queries:
+
+```
+# Number of replicators whose last run failed
+sum(lxd_replicator_last_run_status{status="Failed"})
+
+# Breakdown by status
+sum by (status) (lxd_replicator_last_run_status)
+
+# Projects with no replication configured
+lxd_replicators == 0
+
+# Time since the last successful run, in seconds
+time() - lxd_replicator_last_success_timestamp
+
+# Current RPO, in seconds
+time() - lxd_replicator_last_success_oldest_snapshot_timestamp
+
+# Alert: last successful run is older than an hourly schedule allows
+time() - lxd_replicator_last_success_timestamp > 3600
+
+# Replicators that have never succeeded
+lxd_replicator_last_success_timestamp == 0
+```
 
 ## Related topics
 
