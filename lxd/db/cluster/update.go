@@ -132,6 +132,17 @@ var updates = map[int]schema.Update{
 	86: updateFromV85,
 	87: updateFromV86,
 	88: updateFromV87,
+	89: updateFromV88,
+}
+
+// updateFromV88 adds the last successful run tracking columns to the replicators table.
+func updateFromV88(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+ALTER TABLE replicators ADD COLUMN last_success_date DATETIME;
+ALTER TABLE replicators ADD COLUMN last_success_oldest_snapshot_date DATETIME;
+`)
+
+	return err
 }
 
 func updateFromV87(ctx context.Context, tx *sql.Tx) error {
