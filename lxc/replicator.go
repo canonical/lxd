@@ -868,6 +868,14 @@ func (c *cmdReplicatorInfo) run(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Last run: %s\n", replicator.LastRunAt.Local().Format(layout))
 	}
 
+	if shared.TimeIsSet(replicator.LastSuccessAt) {
+		fmt.Printf("Last successful run: %s\n", replicator.LastSuccessAt.Local().Format(layout))
+	}
+
+	if shared.TimeIsSet(replicator.LastSuccessOldestSnapshotAt) {
+		fmt.Printf("Recovery point: %s\n", replicator.LastSuccessOldestSnapshotAt.Local().Format(layout))
+	}
+
 	if schedule != "" {
 		now := time.Now()
 		var nextRun time.Time
