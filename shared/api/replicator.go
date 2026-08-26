@@ -43,7 +43,7 @@ type Replicator struct {
 	// Example: 2021-03-23T17:38:37.753398689-04:00
 	LastRunAt time.Time `json:"last_run_at" yaml:"last_run_at"`
 
-	// Status of the last replicator run (Pending, Completed, or Failed).
+	// Status of the last replicator run (Pending, Running, Completed, or Failed).
 	// Example: Completed
 	LastRunStatus string `json:"last_run_status" yaml:"last_run_status"`
 
