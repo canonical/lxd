@@ -79,7 +79,7 @@ func (p *Process) release() {
 func (p *Process) finish() {
 	if p.hasMonitor {
 		<-p.chExit
-		return
+		p.hasMonitor = false
 	}
 
 	p.release()
