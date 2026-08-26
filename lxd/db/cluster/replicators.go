@@ -15,12 +15,14 @@ import (
 // ReplicatorRow represents a single row of the replicators table.
 // db:model replicators
 type ReplicatorRow struct {
-	ID            int64        `db:"id"`
-	Name          string       `db:"name"`
-	ProjectID     int64        `db:"project_id"`
-	Description   string       `db:"description"`
-	LastRunDate   sql.NullTime `db:"last_run_date"`
-	LastRunStatus string       `db:"last_run_status"`
+	ID                            int64        `db:"id"`
+	Name                          string       `db:"name"`
+	ProjectID                     int64        `db:"project_id"`
+	Description                   string       `db:"description"`
+	LastRunDate                   sql.NullTime `db:"last_run_date"`
+	LastRunStatus                 string       `db:"last_run_status"`
+	LastSuccessDate               sql.NullTime `db:"last_success_date"`
+	LastSuccessOldestSnapshotDate sql.NullTime `db:"last_success_oldest_snapshot_date"`
 }
 
 // APIName implements [query.APINamer] for API friendly error messages.
@@ -63,6 +65,14 @@ func (r *Replicator) ToAPI(allConfigs map[int64]map[string]string) *api.Replicat
 
 	if r.Row.LastRunDate.Valid {
 		replicator.LastRunAt = r.Row.LastRunDate.Time
+	}
+
+	if r.Row.LastSuccessDate.Valid {
+		replicator.LastSuccessAt = r.Row.LastSuccessDate.Time
+	}
+
+	if r.Row.LastSuccessOldestSnapshotDate.Valid {
+		replicator.LastSuccessOldestSnapshotAt = r.Row.LastSuccessOldestSnapshotDate.Time
 	}
 
 	if r.Row.LastRunStatus != "" {
@@ -150,5 +160,19 @@ func UpdateReplicatorLastRun(ctx context.Context, tx *sql.Tx, id int64, date tim
 // UpdateReplicatorLastRunStatus updates only the last_run_status field of the replicator with the given ID.
 func UpdateReplicatorLastRunStatus(ctx context.Context, tx *sql.Tx, id int64, status string) error {
 	_, err := tx.ExecContext(ctx, `UPDATE replicators SET last_run_status=? WHERE id=?`, status, id)
+	return err
+}
+
+// UpdateReplicatorRunResult records the terminal status of a replicator run.
+// When lastSuccessDate is nil only the status is written, so the fields recorded by an
+// earlier successful run are preserved. Otherwise lastSuccessDate records the completion
+// time of the run and oldestSnapshotDate records the creation time of the oldest snapshot
+// replicated by it, which is left NULL when the run replicated no snapshots.
+func UpdateReplicatorRunResult(ctx context.Context, tx *sql.Tx, id int64, status string, lastSuccessDate *time.Time, oldestSnapshotDate *time.Time) error {
+	if lastSuccessDate == nil {
+		return UpdateReplicatorLastRunStatus(ctx, tx, id, status)
+	}
+
+	_, err := tx.ExecContext(ctx, `UPDATE replicators SET last_run_status=?, last_success_date=?, last_success_oldest_snapshot_date=? WHERE id=?`, status, *lastSuccessDate, oldestSnapshotDate, id)
 	return err
 }
