@@ -704,7 +704,8 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(name, projectName, request.CreateRequestor(r.Context()), nil))
+	// The replicator-run event is emitted by the finalize operation on completion, so that it
+	// carries the run outcome and covers scheduled runs as well as manual ones.
 
 	return response.OperationResponse(op)
 }
@@ -1568,8 +1569,16 @@ func replicatorFinalizeOperationArgs(s *state.State, projectName string, name st
 				"duration_seconds": durationSeconds,
 			}
 
+			eventCtx := map[string]any{
+				"status":           runStatus,
+				"instances_total":  instancesTotal,
+				"instances_failed": instancesFailed,
+				"duration_seconds": durationSeconds,
+			}
+
 			if !oldestSnapshot.IsZero() {
 				effectiveRPO := completedAt.Sub(oldestSnapshot).Seconds()
+				eventCtx["effective_rpo_seconds"] = effectiveRPO
 
 				// Surface the instance that determines the project's recovery point, since
 				// that is the one to look at when the RPO is worse than expected.
@@ -1587,6 +1596,8 @@ func replicatorFinalizeOperationArgs(s *state.State, projectName string, name st
 			} else {
 				logger.Error("Replicator run failed", logCtx)
 			}
+
+			s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(name, projectName, op.EventLifecycleRequestor(), eventCtx))
 
 			return nil
 		},
