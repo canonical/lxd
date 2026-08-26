@@ -572,8 +572,9 @@ func (d *qemu) generateAgentCert() (agentCert string, agentKey string, clientCer
 		return "", "", "", "", err
 	}
 
-	// Read all the files
-	agentCertBytes, err := os.ReadFile(agentCertFile)
+	// Read back what was just created. Everything but the server key is shared
+	// with the read-only path.
+	agentCert, clientCert, clientKey, err = d.readAgentCert()
 	if err != nil {
 		return "", "", "", "", err
 	}
@@ -583,17 +584,7 @@ func (d *qemu) generateAgentCert() (agentCert string, agentKey string, clientCer
 		return "", "", "", "", err
 	}
 
-	clientCertBytes, err := os.ReadFile(clientCertFile)
-	if err != nil {
-		return "", "", "", "", err
-	}
-
-	clientKeyBytes, err := os.ReadFile(clientKeyFile)
-	if err != nil {
-		return "", "", "", "", err
-	}
-
-	return string(agentCertBytes), string(agentKeyBytes), string(clientCertBytes), string(clientKeyBytes), nil
+	return agentCert, string(agentKeyBytes), clientCert, clientKey, nil
 }
 
 // Freeze freezes the instance.
