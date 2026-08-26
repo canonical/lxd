@@ -52,7 +52,7 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			ProjectID:         projectID,
 			Class:             int64(op.class),
 			CreatedAt:         op.createdAt,
-			UpdatedAt:         op.updatedAt,
+			UpdatedAt:         op.UpdatedAt(),
 			StatusCode:        int64(op.Status()),
 			Parent:            parentOpID,
 			ConflictReference: op.conflictReference,
@@ -83,7 +83,7 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			operationsRow.EntityID = int64(entityReference.EntityID)
 		}
 
-		metadataJSON, err := json.Marshal(op.metadata)
+		metadataJSON, err := json.Marshal(op.Metadata())
 		if err != nil {
 			return 0, fmt.Errorf("Failed marshalling operation metadata: %w", err)
 		}
@@ -108,9 +108,6 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 
 			return 0, err
 		}
-
-		// Save the time at which the operation was persisted
-		op.lastPersistenceAttempt = op.updatedAt
 
 		err = cluster.CreateOperationResources(ctx, tx.Tx(), dbOpID, op.resources)
 		if err != nil {
@@ -169,17 +166,21 @@ func persistOperation(ctx context.Context, op *Operation) error {
 		return errors.New("Failed updating operation: No state available")
 	}
 
-	// Save the lastPersistenceAttempt field as the current updatedAt value.
-	// If persistence fails, the updated_at row in the database will be behind this value.
-	op.lastPersistenceAttempt = op.updatedAt
-
 	err := op.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, op.metadata, op.err, op.errCode)
+		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.UpdatedAt(), op.Status(), op.Metadata(), op.getErr(), op.errCode.Load())
 	})
 	if err != nil {
-		// cluster.UpdateOperation returns a conflict error if the operation exists but is not present on the given node ID (this node).
-		// This means the operation has been relocated. Cancel the operation if it is durable so that it is not running in two places at once.
-		if api.StatusErrorCheck(err, http.StatusConflict) && op.Class() == operationtype.OperationClassDurable {
+		// Check the error code. For unexpected errors, flag the operations as having failed to persist.
+		// If the operation has moved to another cluster member (conflict), or its UUID is not present (not found)
+		// we should not attempt to resynchronize the operation later.
+		code, matched := api.StatusErrorMatch(err, http.StatusConflict, http.StatusNotFound)
+		if !matched {
+			op.persistenceFailed.Store(true)
+			return fmt.Errorf("Failed updating operation %q record: %w", op.id, err)
+		}
+
+		// If the operation has moved to another cluster member (conflict) and is a durable operation, cancel it internally.
+		if code == http.StatusConflict && op.Class() == operationtype.OperationClassDurable {
 			cancelInternal(op)
 		}
 
@@ -270,27 +271,27 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 	}
 
 	op := Operation{
-		dbID:                   dbOp.Row.ID,
-		projectName:            dbOp.ProjectName,
-		id:                     dbOp.Row.UUID,
-		class:                  operationtype.Class(dbOp.Row.Class),
-		createdAt:              dbOp.Row.CreatedAt,
-		updatedAt:              dbOp.Row.UpdatedAt,
-		lastPersistenceAttempt: dbOp.Row.UpdatedAt,
-		status:                 api.StatusCode(dbOp.Row.StatusCode),
-		url:                    api.NewURL().Path(version.APIVersion, "operations", dbOp.Row.UUID).String(),
-		description:            dbOp.Row.Type.Description(),
-		dbOpType:               dbOp.Row.Type,
-		finished:               cancel.New(),
-		running:                cancel.New(),
-		state:                  s,
-		location:               dbOp.NodeName,
-		err:                    dbOp.Row.Error,
-		errCode:                dbOp.Row.ErrorCode,
-		conflictReference:      dbOp.Row.ConflictReference,
-		requestor:              dbOp.Requestor(),
-		stage:                  uint16(dbOp.Row.Stage),
+		dbID:              dbOp.Row.ID,
+		projectName:       dbOp.ProjectName,
+		id:                dbOp.Row.UUID,
+		class:             operationtype.Class(dbOp.Row.Class),
+		createdAt:         dbOp.Row.CreatedAt,
+		url:               api.NewURL().Path(version.APIVersion, "operations", dbOp.Row.UUID).String(),
+		description:       dbOp.Row.Type.Description(),
+		dbOpType:          dbOp.Row.Type,
+		finished:          cancel.New(),
+		running:           cancel.New(),
+		state:             s,
+		location:          dbOp.NodeName,
+		conflictReference: dbOp.Row.ConflictReference,
+		requestor:         dbOp.Requestor(),
+		stage:             uint16(dbOp.Row.Stage),
 	}
+
+	op.updatedAt.Store(&dbOp.Row.UpdatedAt)
+	op.status.Store(dbOp.Row.StatusCode)
+	op.err.Store(dbOp.Row.Error)
+	op.errCode.Store(dbOp.Row.ErrorCode)
 
 	// If server is not clustered, the DB contains 'none' as the node name. In that case we use the server name as the location.
 	if !s.ServerClustered {
@@ -333,7 +334,7 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 		return nil, fmt.Errorf("Failed unmarshalling operation metadata for operation %d: %w", dbOp.Row.ID, err)
 	}
 
-	op.metadata = metadata
+	op.metadata.Store(&metadata)
 
 	var inputs map[InputKey]json.RawMessage
 	err = json.Unmarshal([]byte(dbOp.Row.Inputs), &inputs)
@@ -358,7 +359,7 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 
 	// We have just reconstructed the operation from the database, generally this is for inspection only, so call done and cancel running context.
 	// However, durable operations may be reloaded and re-run, only finalize these operations if they have a final or cancelling status.
-	if op.class != operationtype.OperationClassDurable || op.status.IsFinal() || op.status == api.Cancelling {
+	if op.class != operationtype.OperationClassDurable || op.Status().IsFinal() || op.Status() == api.Cancelling {
 		op.running.Cancel()
 		op.done()
 	}
@@ -441,44 +442,77 @@ func Synchronize(ctx context.Context, s *state.State) error {
 
 	// Add the reconstructed operations back to the local map. Restart any durable operations that need to be restarted,
 	// and internally cancel any durable operations that need to be cancelled.
-	// Only lock if necessary.
-	if len(reconstructedOps) > 0 || len(durableOperationUUIDsToRestart) > 0 || len(durableOperationUUIDsToInternallyCancel) > 0 {
-		operationsLock.Lock()
-		for _, reconstructedOp := range reconstructedOps {
-			operations[reconstructedOp.id] = reconstructedOp
-			for _, child := range reconstructedOp.children {
-				operations[child.id] = child
-			}
+	operationsLock.Lock()
+
+	// Add reconstructed operations back into the local map.
+	for _, reconstructedOp := range reconstructedOps {
+		operations[reconstructedOp.id] = reconstructedOp
+		for _, child := range reconstructedOp.children {
+			operations[child.id] = child
+		}
+	}
+
+	// Finally, iterate over all local operations and:
+	// - Unflag any that require synchronization, they are now synchronized.
+	// - Restart any durable operations that need to be restarted.
+	// - Interally cancel any durable operations that need to be cancelled.
+	// - Get a list of all operations that have been internally cancelled.
+	var nResynchronized uint
+	internallyCancelledParentOps := make([]*Operation, 0, len(operations))
+	opsToRestart := make([]*Operation, 0, len(durableOperationUUIDsToRestart))
+	for _, op := range operations {
+		// Skip any not included in original clone.
+		if op.dbID > maxID {
+			continue
 		}
 
-		for opUUIDToCancelInternal := range durableOperationUUIDsToInternallyCancel {
-			op, ok := operations[opUUIDToCancelInternal]
-			if !ok {
-				// Should never get here. Operations are only ever deleted from the internal map within this function
-				// and the operation UUID was present when the map was cloned. Log a warning in case a regression causes
-				// this logic to break.
-				logger.Warn("Found a durable operation to cancel but it is no longer present in the internal map", logger.Ctx{"uuid": opUUIDToCancelInternal})
-				continue
-			}
+		// If the operation had a persistence failure, since the transaction succeeded it is now up-to-date.
+		previousPersistenceFailure := op.persistenceFailed.Swap(false)
+		if previousPersistenceFailure {
+			nResynchronized++
+			continue
+		}
 
+		// Collect operations to be restarted
+		_, toBeRestarted := durableOperationUUIDsToRestart[op.id]
+		if toBeRestarted && op.parent == nil {
+			opsToRestart = append(opsToRestart, op)
+		}
+
+		// Internally cancel the durable operation if it is to be internally cancelled.
+		_, toBeInternallyCancelled := durableOperationUUIDsToInternallyCancel[op.id]
+		if toBeInternallyCancelled {
 			cancelInternal(op)
 		}
 
-		for opUUIDToRestart := range durableOperationUUIDsToRestart {
-			op, ok := operations[opUUIDToRestart]
-			if !ok {
-				// Should never get here. The durable operation should have been reconstructed because it is registered
-				// to this member and is not finished. We've just added any reconstructed operations to the local map, so
-				// if it is not present there is a logic mismatch when calculating the restartable operations list.
-				logger.Warn("Found a durable operation to restart but it was not reconstructed", logger.Ctx{"uuid": opUUIDToRestart})
-				continue
-			}
-
-			restartOperation(op)
+		// Collect all operations that are internally cancelled (whether due to missed heartbeats or synchronization).
+		if op.internallyCancelled.Load() && !op.IsChild() {
+			internallyCancelledParentOps = append(internallyCancelledParentOps, op)
 		}
-
-		operationsLock.Unlock()
 	}
+
+	operationsLock.Unlock()
+
+	// Restart the operations we've collected.
+	// Note that we don't call `restartOperation` here, because the operation is already present in the local map.
+	// Instead, we just log the operation is restarting and call Operation.start.
+	for _, op := range opsToRestart {
+		op.logger.Info("Restarting operation", logger.Ctx{"id": op.id})
+		op.start()
+	}
+
+	// Wait for all internally cancelled operations to finish.
+	internallyCancelledOpUIIDsToDelete := make([]string, 0, len(internallyCancelledParentOps))
+	for _, internallyCancelledParentOp := range internallyCancelledParentOps {
+		_ = internallyCancelledParentOp.Wait(ctx)
+		internallyCancelledOpUIIDsToDelete = append(internallyCancelledOpUIIDsToDelete, internallyCancelledParentOp.id)
+	}
+
+	// Then delete them from the local map.
+	// Otherwise, they will remain present in the operations map forever.
+	// This is because the local map entry has been stale since the operation was internally cancelled.
+	// It still has a status of running, so is never deleted in the previous sweep.
+	deleteInternal(internallyCancelledOpUIIDsToDelete...)
 
 	return nil
 }
@@ -510,26 +544,15 @@ func ensureLocalOperationsAreSynchronized(ctx context.Context, tx *db.ClusterTx,
 			continue
 		}
 
-		// If Operation.lastPersistenceAttempt is equal to operations.updated_at, then the operation is in sync with the database.
-		lastPersistenceAttemptUnixMillis := op.lastPersistenceAttempt.UnixMilli()
-		dbUpdatedAtUnixMillis := dbOp.Row.UpdatedAt.UnixMilli()
-		if lastPersistenceAttemptUnixMillis <= dbUpdatedAtUnixMillis {
-			// The lastPersistenceAttempt should never be behind operations.updated_at.
-			// If it is, update it to the current database value and log a warning.
-			if lastPersistenceAttemptUnixMillis < dbUpdatedAtUnixMillis {
-				op.lastPersistenceAttempt = dbOp.Row.UpdatedAt
-				op.updatedAt = dbOp.Row.UpdatedAt
-				logger.Warn("Operation persistence tracking mismatch", logger.Ctx{"uuid": op.id})
-			}
-
+		if !op.persistenceFailed.Load() {
+			// If the operation did not fail to persist data, then there is nothing to do.
 			continue
 		}
 
 		// If the operation is not in sync, it could be due to a misbehaving database when the operation attempted to persist its data.
 		// Synchronize the operation now.
 		op.logger.Info("Resynchronizing operation")
-		op.lastPersistenceAttempt = op.updatedAt
-		err := cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, op.metadata, op.err, op.errCode)
+		err := cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.UpdatedAt(), op.Status(), op.Metadata(), op.getErr(), op.errCode.Load())
 		if err != nil {
 			errs = append(errs, err)
 			op.logger.Warn("Failed synchronizing operation with database", logger.Ctx{"err": err})
