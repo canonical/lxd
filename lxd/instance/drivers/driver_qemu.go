@@ -7949,10 +7949,14 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 			}
 		}
 
+		// A standby's images are mirrors that Ceph owns, so a receive that fails part way must
+		// leave them alone rather than delete the data it was describing.
+		holdsReplicas := storagePools.HoldsCephReplicas(pool, d.Project())
+
 		// Only delete all instance volumes on error if the pool volume creation has succeeded to
 		// avoid deleting an existing conflicting volume.
 		isRemoteClusterMove := args.ClusterMoveSourceName != "" && poolInfo.Remote
-		if !volTargetArgs.Refresh && !isRemoteClusterMove {
+		if !volTargetArgs.Refresh && !isRemoteClusterMove && !holdsReplicas {
 			revert.Add(func() {
 				snapshots, _ := d.Snapshots()
 				snapshotCount := len(snapshots)
