@@ -841,6 +841,47 @@ func (m *Monitor) NBDBlockExportAdd(deviceNodeName string) error {
 	return nil
 }
 
+// BlockDirtyInfo contains information about a dirty bitmap.
+type BlockDirtyInfo struct {
+	Name        string `json:"name"`
+	Count       int64  `json:"count"`
+	Granularity int    `json:"granularity"`
+	Busy        bool   `json:"busy"`
+}
+
+// QueryNodeDirtyBitmaps returns the dirty bitmaps of the given block node.
+// The node is looked up through query-named-block-nodes rather than query-block because a running
+// blockdev-backup job inserts its copy-before-write filter in front of the disk node, which then no
+// longer appears as the inserted node of the device.
+func (m *Monitor) QueryNodeDirtyBitmaps(nodeName string) ([]BlockDirtyInfo, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []struct {
+			NodeName     string           `json:"node-name"`
+			DirtyBitmaps []BlockDirtyInfo `json:"dirty-bitmaps"`
+		} `json:"return"`
+	}
+
+	err := m.run("query-named-block-nodes", nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying named block nodes: %w", err)
+	}
+
+	for _, node := range resp.Return {
+		if node.NodeName != nodeName {
+			continue
+		}
+
+		if node.DirtyBitmaps == nil {
+			return []BlockDirtyInfo{}, nil
+		}
+
+		return node.DirtyBitmaps, nil
+	}
+
+	return nil, fmt.Errorf("Block node %q not found", nodeName)
+}
+
 // BlockDevSnapshot creates a snapshot of a device using the specified snapshot device.
 func (m *Monitor) BlockDevSnapshot(deviceNodeName string, snapshotNodeName string) error {
 	var args struct {
@@ -1139,4 +1180,43 @@ func (m *Monitor) CheckPCIDevice(deviceID string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// AddDirtyBitmap creates a dirty bitmap on each of the given block nodes in a single transaction.
+func (m *Monitor) AddDirtyBitmap(deviceNames []string, bitmapName string) error {
+	actions := make([]TransactionAction, 0, len(deviceNames))
+	for _, deviceName := range deviceNames {
+		actions = append(actions, TransactionAction{
+			Type: "block-dirty-bitmap-add",
+			Data: map[string]any{
+				"node": deviceName,
+				"name": bitmapName,
+			},
+		})
+	}
+
+	err := m.RunTransaction(actions)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RemoveDirtyBitmap removes a dirty bitmap from a block node.
+func (m *Monitor) RemoveDirtyBitmap(deviceName string, bitmapName string) error {
+	var args struct {
+		Node string `json:"node"`
+		Name string `json:"name"`
+	}
+
+	args.Node = deviceName
+	args.Name = bitmapName
+
+	err := m.run("block-dirty-bitmap-remove", args, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
