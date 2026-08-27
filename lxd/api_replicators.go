@@ -1025,6 +1025,7 @@ func init() {
 	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorFinalize, replicatorFinalizeDurableOperationRunHook)
 	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorRunInstanceForward, replicatorRunInstanceForwardDurableOperationHook)
 	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorRunInstanceRestore, replicatorRunInstanceRestoreDurableOperationHook)
+	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorSnapshotInstance, replicatorRunInstanceForwardSnapshotDurableOperationHook)
 }
 
 func replicatorFinalizeDurableOperationRunHook(_ context.Context, op *operations.Operation) error {
@@ -1050,7 +1051,41 @@ func replicatorFinalizeDurableOperationRunHook(_ context.Context, op *operations
 	})
 }
 
+func replicatorRunInstanceForwardSnapshotDurableOperationHook(ctx context.Context, op *operations.Operation) error {
+	instanceID, err := operations.GetOperationInputValue[int64](op, durableOperationInputKeyReplicatorInstanceID)
+	if err != nil {
+		return fmt.Errorf("Failed getting instance ID from operation inputs: %w", err)
+	}
+
+	return snapshotInstance(ctx, op.State(), op, instanceID)
+}
+
 func replicatorRunInstanceForwardDurableOperationHook(ctx context.Context, op *operations.Operation) error {
+	instanceID, err := operations.GetOperationInputValue[int64](op, durableOperationInputKeyReplicatorInstanceID)
+	if err != nil {
+		return fmt.Errorf("Failed getting instance ID from operation inputs: %w", err)
+	}
+
+	// Check that the snapshot stage for this instance has succeeded.
+	for _, child := range op.Parent().Children() {
+		if child.Type() != operationtype.ReplicatorSnapshotInstance {
+			continue
+		}
+
+		snapInstID, err := operations.GetOperationInputValue[int64](child, durableOperationInputKeyReplicatorInstanceID)
+		if err != nil {
+			return err
+		}
+
+		if snapInstID != instanceID {
+			continue
+		}
+
+		if child.Status() == api.Failure {
+			return errors.New("Skipping instance replication due to failed snapshot")
+		}
+	}
+
 	clusterLink, err := operations.GetOperationInputValue[api.ClusterLink](op, durableOperationInputKeyReplicatorClusterLink)
 	if err != nil {
 		return fmt.Errorf("Failed getting cluster link from operation inputs: %w", err)
@@ -1069,11 +1104,6 @@ func replicatorRunInstanceForwardDurableOperationHook(ctx context.Context, op *o
 	targetProject, err := operations.GetOperationInputValue[string](op, durableOperationInputKeyReplicatorTargetProjectName)
 	if err != nil {
 		return fmt.Errorf("Failed getting target project name from operation inputs: %w", err)
-	}
-
-	instanceID, err := operations.GetOperationInputValue[int64](op, durableOperationInputKeyReplicatorInstanceID)
-	if err != nil {
-		return fmt.Errorf("Failed getting instance ID from operation inputs: %w", err)
 	}
 
 	s := op.State()
@@ -1461,6 +1491,22 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 			err = builder.AddChildArgs(operations.OperationArgs{
 				ProjectName: projectName,
 				EntityURL:   entity.InstanceURL(projectName, inst.Name()),
+				Type:        operationtype.ReplicatorSnapshotInstance,
+				Class:       operationtype.OperationClassDurable,
+			}, map[operations.InputKey]any{
+				durableOperationInputKeyReplicatorInstanceID:      inst.ID(),
+				durableOperationInputKeyReplicatorMemberAddresses: nodeAddressByName,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("Failed preparing instance forward replication snapshot operation: %w", err)
+			}
+		}
+
+		builder.IncrementStage()
+		for _, inst := range allInsts {
+			err = builder.AddChildArgs(operations.OperationArgs{
+				ProjectName: projectName,
+				EntityURL:   entity.InstanceURL(projectName, inst.Name()),
 				Type:        operationtype.ReplicatorRunInstanceForward,
 				Class:       operationtype.OperationClassDurable,
 			}, map[operations.InputKey]any{
@@ -1538,10 +1584,7 @@ func replicatorCheckInstancesStopped(allInsts []instance.Instance) error {
 	return nil
 }
 
-// replicateInstance handles forward replication of a single instance to the
-// destination cluster. It handles both instances on the local cluster member
-// and instances on other cluster members.
-func replicateInstance(ctx context.Context, s *state.State, op *operations.Operation, instanceID int64, dstClient lxd.InstanceServer, targetCertPEM string) error {
+func snapshotInstance(ctx context.Context, s *state.State, op *operations.Operation, instanceID int64) error {
 	inst, err := instance.LoadByID(s, int(instanceID))
 	if err != nil {
 		return err
@@ -1553,6 +1596,68 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 	// snapshot schedule defined, since scheduled snapshots provide point-in-time history so
 	// an extra one here would be redundant.
 	createSnapshot := inst.ExpandedConfig()["snapshots.schedule"] == ""
+	if !createSnapshot {
+		return nil
+	}
+
+	instanceLocation := inst.Location()
+	if instanceLocation != s.ServerName {
+		memberAddresses, err := operations.GetOperationInputValue[map[string]string](op, durableOperationInputKeyReplicatorMemberAddresses)
+		if err != nil {
+			return fmt.Errorf("Failed getting member addresses from operation inputs: %w", err)
+		}
+
+		memberAddress, ok := memberAddresses[instanceLocation]
+		if !ok {
+			return fmt.Errorf("Failed resolving cluster member address for instance %q", instName)
+		}
+
+		// Connect to the hosting cluster member.
+		memberClient, err := lxdCluster.Connect(ctx, memberAddress, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+		if err != nil {
+			return fmt.Errorf("Failed connecting to hosting cluster member for instance %q: %w", instName, err)
+		}
+
+		memberClient = memberClient.UseProject(projectName)
+
+		// Create a snapshot on the hosting cluster member if needed.
+		snapOp, err := memberClient.CreateInstanceSnapshot(instName, api.InstanceSnapshotsPost{})
+		if err != nil {
+			return fmt.Errorf("Failed creating snapshot of instance %q on hosting cluster member: %w", instName, err)
+		}
+
+		err = snapOp.Wait()
+		if err != nil {
+			return fmt.Errorf("Failed waiting for snapshot of instance %q on hosting cluster member: %w", instName, err)
+		}
+
+		return nil
+	}
+
+	snapName, err := instance.NextSnapshotName(s, inst, "snap%d")
+	if err != nil {
+		return fmt.Errorf("Failed generating snapshot name for instance %q: %w", instName, err)
+	}
+
+	err = inst.Snapshot(ctx, snapName, nil, false, api.DiskVolumesModeRoot, nil)
+	if err != nil {
+		return fmt.Errorf("Failed creating snapshot of instance %q: %w", instName, err)
+	}
+
+	return nil
+}
+
+// replicateInstance handles forward replication of a single instance to the
+// destination cluster. It handles both instances on the local cluster member
+// and instances on other cluster members.
+func replicateInstance(ctx context.Context, s *state.State, op *operations.Operation, instanceID int64, dstClient lxd.InstanceServer, targetCertPEM string) error {
+	inst, err := instance.LoadByID(s, int(instanceID))
+	if err != nil {
+		return err
+	}
+
+	instName := inst.Name()
+	projectName := inst.Project().Name
 
 	// Instance on another cluster member: connect to the hosting cluster member and
 	// drive the snapshot (if needed) and push migration through its API so the
@@ -1576,19 +1681,6 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		}
 
 		memberClient = memberClient.UseProject(projectName)
-
-		// Create a snapshot on the hosting cluster member if needed.
-		if createSnapshot {
-			snapOp, err := memberClient.CreateInstanceSnapshot(instName, api.InstanceSnapshotsPost{})
-			if err != nil {
-				return fmt.Errorf("Failed creating snapshot of instance %q on hosting cluster member: %w", instName, err)
-			}
-
-			err = snapOp.Wait()
-			if err != nil {
-				return fmt.Errorf("Failed waiting for snapshot of instance %q on hosting cluster member: %w", instName, err)
-			}
-		}
 
 		// Get instance metadata from the hosting cluster member.
 		srcInstInfo, _, err := memberClient.GetInstance(instName)
@@ -1645,19 +1737,6 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		destOpCancelled = true
 
 		return destOp.Wait()
-	}
-
-	// Local instance: handle replication directly.
-	if createSnapshot {
-		snapName, err := instance.NextSnapshotName(s, inst, "snap%d")
-		if err != nil {
-			return fmt.Errorf("Failed generating snapshot name for instance %q: %w", instName, err)
-		}
-
-		err = inst.Snapshot(ctx, snapName, nil, false, api.DiskVolumesModeRoot, nil)
-		if err != nil {
-			return fmt.Errorf("Failed creating snapshot of instance %q: %w", instName, err)
-		}
 	}
 
 	srcRenderRes, _, err := inst.Render()
