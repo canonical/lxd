@@ -217,6 +217,96 @@ func TestListenEventOneListener(t *testing.T) {
 	}
 }
 
+func TestRunTimeout(t *testing.T) {
+	eg := &errgroup.Group{}
+	m := &qemuMachineProtocol{}
+
+	commandTimeouts["test-timeout"] = 50 * time.Millisecond
+	t.Cleanup(func() { delete(commandTimeouts, "test-timeout") })
+
+	timedOut := make(chan struct{})
+	mockMonitorServer(t, eg, m, func(nc net.Conn) error {
+		enc := json.NewEncoder(nc)
+		dec := json.NewDecoder(nc)
+
+		// Hold the reply to the first command until the client has given up on it.
+		var cmd qmpCommand
+		err := dec.Decode(&cmd)
+		if err != nil {
+			return err
+		}
+
+		<-timedOut
+
+		err = enc.Encode(qmpResponse{ID: cmd.ID})
+		if err != nil {
+			return err
+		}
+
+		// Reply to the second command right away.
+		err = dec.Decode(&cmd)
+		if err != nil {
+			return err
+		}
+
+		return enc.Encode(qmpResponse{ID: cmd.ID})
+	})
+
+	err := m.connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = m.run([]byte(`{"execute":"test-timeout"}`), 0)
+	if !errors.Is(err, ErrMonitorTimeout) {
+		t.Fatalf("unexpected error:\n- want: %v\n-  got: %v", ErrMonitorTimeout, err)
+	}
+
+	if !strings.Contains(err.Error(), `"test-timeout" after 50ms`) {
+		t.Fatalf("error should name the command and the timeout: %v", err)
+	}
+
+	close(timedOut)
+
+	// The late reply must be dropped and the next command must still work.
+	_, err = m.run([]byte(`{"execute":"query-version"}`), 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	m.replies.Range(func(key, value any) bool {
+		t.Fatal("replies should be empty")
+		return false
+	})
+
+	err = m.disconnect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = eg.Wait()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCommandName(t *testing.T) {
+	tests := map[string]string{
+		`{"execute":"query-status","id":1}`:        "query-status",
+		`{"exec-oob":"migrate-pause","id":2}`:      "migrate-pause",
+		`{"execute":"stop","arguments":{},"id":3}`: "stop",
+		`{"arguments":{},"id":4}`:                  "",
+		`<html>`:                                   "",
+	}
+
+	for command, want := range tests {
+		got := commandName([]byte(command))
+		if want != got {
+			t.Fatalf("unexpected command name for %s:\n- want: %q\n-  got: %q", command, want, got)
+		}
+	}
+}
+
 func mockMonitorServer(t *testing.T, eg *errgroup.Group, qmp *qemuMachineProtocol, hands ...func(net.Conn) error) {
 	t.Helper()
 	unixsock := filepath.Join(t.TempDir(), "mockmonitor.sock")
