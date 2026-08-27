@@ -6797,10 +6797,13 @@ test_clustering_replicator_unclustered() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project clear-replica replica-state-project
   LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq --exit-status 'has("replica_mode") | not'
 
-  # clear-replica resets the replica mode back to empty from standby mode.
+  # clear-replica resets the replica mode back to empty from standby mode, but only with --force:
+  # clearing a standby drops the record of which cluster was replicating into it, which would
+  # otherwise let the project be promoted under the weaker no-replica-mode rules.
   LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replica-state-project --force
   LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq --exit-status '.replica_mode == "standby"'
-  LXD_DIR="${LXD_ONE_DIR}" lxc project clear-replica replica-state-project
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc project clear-replica replica-state-project 2>&1)" = 'Error: Project "replica-state-project" is a standby replica, use --force to clear its replica mode' ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc project clear-replica replica-state-project --force
   LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replica-state-project | jq --exit-status 'has("replica_mode") | not'
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete replica-state-project
