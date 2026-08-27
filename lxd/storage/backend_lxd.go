@@ -2547,6 +2547,11 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 	isRemoteClusterMove := args.ClusterMoveSourceName != "" && b.driver.Info().Remote
 
+	// A replica arrives through Ceph rather than through this transfer. The pre-filler and the
+	// delete on failure are kept off it here; the receive itself is made record-only by the
+	// metadata-only migration mode.
+	holdsReplicas := HoldsCephReplicas(b, inst.Project())
+
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
 	var vol drivers.Volume
@@ -2681,7 +2686,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 	var preFiller drivers.VolumeFiller
 
-	if !args.Refresh && !isRemoteClusterMove {
+	if !args.Refresh && !isRemoteClusterMove && !holdsReplicas {
 		// If the negotiated migration method is rsync and the instance's base image is
 		// already on the host then setup a pre-filler that will unpack the local image
 		// to try and speed up the rsync of the incoming volume by avoiding the need to
@@ -2762,7 +2767,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 		return err
 	}
 
-	if !isRemoteClusterMove {
+	if !isRemoteClusterMove && !holdsReplicas {
 		revert.Add(func() { _ = b.DeleteInstance(inst, progressReporter) })
 	}
 
