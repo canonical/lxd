@@ -882,6 +882,68 @@ func (m *Monitor) QueryNodeDirtyBitmaps(nodeName string) ([]BlockDirtyInfo, erro
 	return nil, fmt.Errorf("Block node %q not found", nodeName)
 }
 
+// BlockExport contains information about an exported block node.
+type BlockExport struct {
+	NodeName string `json:"node-name"`
+	Type     string `json:"type"`
+}
+
+// QueryBlockExports returns a list of all block exports.
+func (m *Monitor) QueryBlockExports() ([]BlockExport, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []BlockExport `json:"return"`
+	}
+
+	err := m.run("query-block-exports", nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying block exports: %w", err)
+	}
+
+	return resp.Return, nil
+}
+
+// QueryNBDBlockExports returns a list of the block exports of type nbd.
+func (m *Monitor) QueryNBDBlockExports() ([]BlockExport, error) {
+	exports, err := m.QueryBlockExports()
+	if err != nil {
+		return nil, err
+	}
+
+	nbdExports := []BlockExport{}
+	for _, export := range exports {
+		if export.Type != "nbd" {
+			continue
+		}
+
+		nbdExports = append(nbdExports, export)
+	}
+
+	return nbdExports, nil
+}
+
+// QueryNamedBlockNodes returns the names of all named block nodes.
+func (m *Monitor) QueryNamedBlockNodes() ([]string, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []struct {
+			NodeName string `json:"node-name"`
+		} `json:"return"`
+	}
+
+	err := m.run("query-named-block-nodes", nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying named block nodes: %w", err)
+	}
+
+	nodeNames := make([]string, 0, len(resp.Return))
+	for _, node := range resp.Return {
+		nodeNames = append(nodeNames, node.NodeName)
+	}
+
+	return nodeNames, nil
+}
+
 // BlockDevSnapshot creates a snapshot of a device using the specified snapshot device.
 func (m *Monitor) BlockDevSnapshot(deviceNodeName string, snapshotNodeName string) error {
 	var args struct {
@@ -930,6 +992,32 @@ func (m *Monitor) BlockDevBackupTransaction(backups []BlockDevBackupTarget) erro
 	}
 
 	return nil
+}
+
+// BlockNodeSize returns the virtual size in bytes of the given block node.
+func (m *Monitor) BlockNodeSize(nodeName string) (int64, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []struct {
+			NodeName string `json:"node-name"`
+			Image    struct {
+				VirtualSize int64 `json:"virtual-size"`
+			} `json:"image"`
+		} `json:"return"`
+	}
+
+	err := m.run("query-named-block-nodes", nil, &resp)
+	if err != nil {
+		return 0, fmt.Errorf("Failed querying named block nodes: %w", err)
+	}
+
+	for _, node := range resp.Return {
+		if node.NodeName == nodeName {
+			return node.Image.VirtualSize, nil
+		}
+	}
+
+	return 0, fmt.Errorf("Block node %q not found", nodeName)
 }
 
 // blockJobWaitReady waits until the specified jobID is ready, errored or missing.
