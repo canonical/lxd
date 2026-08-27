@@ -7383,68 +7383,15 @@ func (d *qemu) migrateSendLive(ctx context.Context, pool storagePools.Pool, clus
 			return fmt.Errorf("Failed setting migration capabilities: %w", err)
 		}
 
-		// Create snapshot of the root disk.
-		// We use the VM's config volume for this so that the maximum size of the snapshot can be limited
-		// by setting the root disk's `size.state` property.
-		snapshotFile := filepath.Join(d.Path(), "migration_snapshot.qcow2")
-
-		// Ensure there are no existing migration snapshot files.
-		err = os.Remove(snapshotFile)
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
-
-		// Always remove the snapshotFile so that if qemu-img fails the partially written file is removed.
-		defer func() { _ = os.Remove(snapshotFile) }()
-
-		// Create qcow2 disk image with the maximum size set to the instance's root disk size for use as
+		// Create a snapshot overlay with the maximum size set to the instance's root disk size for use as
 		// a CoW target for the migration snapshot. This will be used during migration to store writes in
-		// the guest whilst the storage driver is transferring the root disk and snapshots to the taget.
-		_, err = shared.RunCommand(d.state.ShutdownCtx, "qemu-img", "create", "-f", "qcow2", snapshotFile, strconv.FormatInt(rootDiskSize, 10))
+		// the guest whilst the storage driver is transferring the root disk and snapshots to the target.
+		removeOverlay, err := d.addOverlay(monitor, rootSnapshotDiskName, rootDiskSize)
 		if err != nil {
-			return fmt.Errorf("Failed opening file image for migration storage snapshot %q: %w", snapshotFile, err)
+			return fmt.Errorf("Failed adding migration storage snapshot: %w", err)
 		}
 
-		// Pass the snapshot file to the running QEMU process.
-		snapFile, err := os.OpenFile(snapshotFile, unix.O_RDWR, 0)
-		if err != nil {
-			return fmt.Errorf("Failed opening file descriptor for migration storage snapshot %q: %w", snapshotFile, err)
-		}
-
-		defer func() { _ = snapFile.Close() }()
-
-		// Remove the snapshot file as we don't want to sync this to the target.
-		err = os.Remove(snapshotFile)
-		if err != nil {
-			return err
-		}
-
-		info, err := monitor.SendFileWithFDSet(rootSnapshotDiskName, snapFile, false)
-		if err != nil {
-			return fmt.Errorf("Failed sending file descriptor of %q for migration storage snapshot: %w", snapFile.Name(), err)
-		}
-
-		defer func() { _ = monitor.RemoveFDFromFDSet(rootSnapshotDiskName) }()
-
-		_ = snapFile.Close() // Do not prevent clean unmount when instance is stopped.
-
-		// Add the snapshot file as a block device (not visible to the guest OS).
-		err = monitor.AddBlockDevice(map[string]any{
-			"driver":    "qcow2",
-			"node-name": rootSnapshotDiskName,
-			"read-only": false,
-			"file": map[string]any{
-				"driver":   "file",
-				"filename": fmt.Sprintf("/dev/fdset/%d", info.ID),
-			},
-		}, nil)
-		if err != nil {
-			return fmt.Errorf("Failed adding migration storage snapshot block device: %w", err)
-		}
-
-		defer func() {
-			_ = monitor.RemoveBlockDevice(rootSnapshotDiskName)
-		}()
+		defer removeOverlay()
 
 		// Take a snapshot of the root disk and redirect writes to the snapshot disk.
 		err = monitor.BlockDevSnapshot(rootDiskName, rootSnapshotDiskName)
