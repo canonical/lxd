@@ -7,7 +7,6 @@ import (
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/identity"
-	"github.com/canonical/lxd/shared/api"
 )
 
 // entityTypeIdentity implements entityTypeDBInfo for an [IdentitiesRow].
@@ -18,7 +17,7 @@ type entityTypeIdentity struct {
 // identityTypes returns the list of identity type codes that are considered fine-grained.
 func (e entityTypeIdentity) identityTypes() (types []int64) {
 	for _, t := range identity.Types() {
-		if t.IsFineGrained() || t.Name() == api.IdentityTypeBearerTokenInitialUI {
+		if t.IsFineGrained() || identity.IsInitialUIBearer(t.Name()) {
 			types = append(types, t.Code())
 		}
 	}
