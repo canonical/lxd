@@ -1042,6 +1042,36 @@ func (d *powerstore) SetVolumeQuota(vol Volume, size string, allowUnsafeResize b
 	return nil
 }
 
+// ActivateTask runs task with the volume's block device activated but not mounted.
+func (d *powerstore) ActivateTask(vol Volume, task func(devPath string) error) error {
+	if (vol.volType != VolumeTypeVM && vol.volType != VolumeTypeCustom) || vol.contentType != ContentTypeBlock {
+		return ErrNotSupported
+	}
+
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	// Check if the device is already mapped (but don't map if not).
+	devPath, _, _ := d.getMappedDevicePath(vol, false)
+	if devPath != "" && shared.PathExists(devPath) {
+		return api.StatusErrorf(http.StatusConflict, "Volume is already active")
+	}
+
+	volDevPath, cleanup, err := d.getMappedDevicePath(vol, true)
+	if err != nil {
+		return err
+	}
+
+	taskErr := task(volDevPath)
+	cleanup()
+
+	return taskErr
+}
+
 // MountVolume mounts a volume and increments ref counter.
 func (d *powerstore) MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return mountVolume(d, vol, d.getMappedDevicePath, progressReporter)
