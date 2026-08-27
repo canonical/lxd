@@ -1577,10 +1577,27 @@ func getProjectAndReplicatorLinks(ctx context.Context, s *state.State, projectNa
 }
 
 // validateProjectPromote validates that a project is ready to be promoted to leader mode.
-// It checks that the source cluster's project is no longer in leader mode, and that all
-// replicator target clusters have their project in standby mode.
+// It checks that the project takes part in a replication topology, that the source cluster's
+// project is no longer in leader mode, and that all replicator target clusters have their project
+// in standby mode.
 func validateProjectPromote(ctx context.Context, s *state.State, projectName string, project *api.Project, clusterLinkNames []string) error {
 	sourceClusterLinkName := project.Config["replica.cluster"]
+
+	switch project.ReplicaMode {
+	case api.ReplicatorProjectModeStandby:
+		// replica.cluster names the cluster this project replicates with. Without it there is
+		// nothing to check that the old leader has stepped down against, and a replicator
+		// target is not necessarily that leader.
+		if sourceClusterLinkName == "" {
+			return fmt.Errorf("Project %q must have replica.cluster config set before promoting to leader mode", projectName)
+		}
+
+	case api.ReplicatorProjectModeNone:
+		// Require proof that the project takes part in a replication topology.
+		if len(clusterLinkNames) == 0 {
+			return fmt.Errorf("Project %q has no replicators, create a replicator before promoting to leader mode", projectName)
+		}
+	}
 
 	// Check the old leader (identified by replica.cluster config) is unreachable or already demoted.
 	if sourceClusterLinkName != "" {
@@ -1683,7 +1700,11 @@ func projectDemote(ctx context.Context, s *state.State, projectName string, forc
 		return fmt.Errorf("Project %q is already in standby mode", projectName)
 	}
 
-	// Require replica.cluster config to be set so the standby knows which cluster can write to it.
+	// A standby project only accepts replication data from the cluster link named by
+	// replica.cluster, so it must be set before the project can enter standby mode.
+	// Demoting a leader is never blocked on the standby having taken over first: leaving the
+	// topology briefly without a leader is recoverable, whereas promoting before the leader
+	// steps down would give it two.
 	if !force && project.Config["replica.cluster"] == "" {
 		return fmt.Errorf("Project %q must have replica.cluster config set before demoting to standby mode", projectName)
 	}
