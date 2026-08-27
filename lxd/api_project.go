@@ -2162,10 +2162,12 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 		"restricted.snapshots": isEitherAllowOrBlock,
 
 		// lxdmeta:generate(entities=project; group=replica; key=replica.cluster)
-		// This setting is used on standby projects to identify which cluster link is allowed to replicate instances to this project.
+		// On a standby project, this identifies the cluster link that is allowed to replicate instances into it.
+		//
+		// Set it on the leader project as well: demoting to standby requires it, and it is what lets a project that has been demoted during a failover be promoted back to leader.
 		// ---
 		//  type: string
-		//  shortdesc: Cluster link allowed to replicate to this standby project.
+		//  shortdesc: Cluster link this project replicates with
 		"replica.cluster": validate.Optional(func(value string) error {
 			err := s.DB.Cluster.Transaction(ctx, func(dbCtx context.Context, tx *db.ClusterTx) error {
 				clusterLink, err := dbCluster.GetClusterLink(dbCtx, tx.Tx(), value)
