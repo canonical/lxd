@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/flosch/pongo2"
@@ -25,6 +27,7 @@ import (
 	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/project"
@@ -1491,4 +1494,44 @@ func VolumeDetermineNextSnapshotName(ctx context.Context, s *state.State, pool s
 	}
 
 	return pattern, nil
+}
+
+// nbdInstanceLockName returns the NBD lock name for sessions served by the QEMU process of an instance or by
+// qemu-nbd against its root volume.
+func nbdInstanceLockName(projectName string, instName string) string {
+	return "NBDInstanceOperation_" + project.Instance(projectName, instName)
+}
+
+// nbdVolumeLockName returns the NBD lock name for sessions served by qemu-nbd against a custom volume.
+func nbdVolumeLockName(poolName string, projectName string, volName string) string {
+	return drivers.OperationLockName("NBD", poolName, drivers.VolumeTypeCustom, drivers.ContentTypeBlock, project.StorageVolume(projectName, volName))
+}
+
+// nbdLockedSession opens an NBD session with connect while holding the named NBD lock, where description
+// names the locked instance or volume in the error returned when the lock is held. The lock is released once
+// the returned cleanup function runs, so that a second session cannot start while the first still serves
+// connections.
+func nbdLockedSession(lockName string, description string, connect func() (net.Conn, func(), error)) (net.Conn, func(), error) {
+	unlock := locking.TryLock(lockName)
+	if unlock == nil {
+		return nil, nil, api.StatusErrorf(http.StatusConflict, "NBD operation already in progress for %s", description)
+	}
+
+	conn, disconnect, err := connect()
+	if err != nil {
+		unlock()
+		return nil, nil, err
+	}
+
+	// Unlocking releases whatever entry holds the name at the time, so a repeated cleanup must not evict the
+	// lock of a newer session.
+	var once sync.Once
+	cleanup := func() {
+		once.Do(func() {
+			disconnect()
+			unlock()
+		})
+	}
+
+	return conn, cleanup, nil
 }
