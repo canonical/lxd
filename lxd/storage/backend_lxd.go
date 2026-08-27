@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -3445,6 +3446,150 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 	}
 
 	return nil
+}
+
+// GetInstanceNBD returns an NBD connection to the root volume of a virtual machine. A read-only export goes
+// through the QEMU process of the running instance. A writable export runs qemu-nbd against the volume and
+// requires the instance to be stopped. With reuse, an additional connection to the running read-only session
+// is returned instead of starting a new one.
+func (b *lxdBackend) GetInstanceNBD(inst instance.Instance, writable bool, reuse bool) (net.Conn, func(), error) {
+	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "writable": writable, "reuse": reuse})
+	l.Debug("GetInstanceNBD started")
+	defer l.Debug("GetInstanceNBD finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if writable && reuse {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Reuse is not supported on writable exports")
+	}
+
+	if inst.Type() != instancetype.VM {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is only supported for virtual machines")
+	}
+
+	if writable {
+		if inst.IsRunning() {
+			return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Writable NBD requires the instance to be stopped")
+		}
+
+		return nil, nil, api.StatusErrorf(http.StatusNotImplemented, "Writable NBD export is not implemented")
+	}
+
+	if !inst.IsRunning() {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	rootDiskName, _, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return inst.ConnectNBD(rootDiskName, reuse)
+}
+
+// GetInstanceAllDisksNBD returns a single read-only NBD connection exporting every block disk of a running
+// virtual machine. With reuse, an additional connection to the running session is returned instead.
+func (b *lxdBackend) GetInstanceAllDisksNBD(inst instance.Instance, reuse bool) (net.Conn, func(), error) {
+	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "reuse": reuse})
+	l.Debug("GetInstanceAllDisksNBD started")
+	defer l.Debug("GetInstanceAllDisksNBD finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if inst.Type() != instancetype.VM {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is only supported for virtual machines")
+	}
+
+	if !inst.IsRunning() {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	return inst.ConnectNBDAllDisks(reuse)
+}
+
+// GetCustomVolumeNBD returns an NBD connection to a custom block volume. A read-only export goes through the
+// QEMU process of the running virtual machine the volume is attached to. A writable export runs qemu-nbd
+// against the volume and requires that no running instance uses it. With reuse, an additional connection to
+// the running read-only session is returned instead of starting a new one.
+func (b *lxdBackend) GetCustomVolumeNBD(projectName string, volName string, writable bool, reuse bool) (net.Conn, func(), error) {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName, "writable": writable, "reuse": reuse})
+	l.Debug("GetCustomVolumeNBD started")
+	defer l.Debug("GetCustomVolumeNBD finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if shared.IsSnapshot(volName) {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is not supported for snapshots")
+	}
+
+	if writable && reuse {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Reuse is not supported on writable exports")
+	}
+
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if dbVol.ContentType != cluster.StoragePoolVolumeContentTypeNameBlock {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is only supported for block volumes")
+	}
+
+	if writable {
+		// A shared block volume can be attached to several stopped virtual machines, so every attached
+		// instance is checked instead of requiring a single one.
+		err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &dbVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+			if dbInst.Node != b.state.ServerName {
+				return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to instance %q on cluster member %q", dbInst.Name, dbInst.Node)
+			}
+
+			inst, err := instance.Load(b.state, dbInst, project)
+			if err != nil {
+				return err
+			}
+
+			if inst.IsRunning() {
+				return api.StatusErrorf(http.StatusBadRequest, "Writable NBD requires instance %q to be stopped", dbInst.Name)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return nil, nil, api.StatusErrorf(http.StatusNotImplemented, "Writable NBD export is not implemented")
+	}
+
+	inst, deviceName, err := InstanceByVolumeName(b.state, b.name, projectName, volName, cluster.StoragePoolVolumeTypeCustom)
+	if err != nil {
+		if errors.Is(err, ErrVolumeNotAttached) {
+			return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Volume must be attached to a running virtual machine")
+		}
+
+		return nil, nil, err
+	}
+
+	// IsRunning reports the state on the local cluster member only.
+	if inst.Location() != b.state.ServerName {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Volume is attached to instance %q on cluster member %q", inst.Name(), inst.Location())
+	}
+
+	if !inst.IsRunning() {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Volume must be attached to a running virtual machine")
+	}
+
+	return inst.ConnectNBD(deviceName, reuse)
 }
 
 // GetInstanceUsage returns the disk usage of the instance's root volume.
