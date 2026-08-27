@@ -2579,7 +2579,7 @@ func updateIdentityCache(d *Daemon) {
 		} else if identityType.AuthenticationMethod() == api.AuthenticationMethodBearer {
 			secret, ok := bearerIdentitySecrets[id.ID]
 			if !ok {
-				// No need to add bearer identities with no secret to the cache, they cannot authenticate.
+				logger.Warn("Missing signing key for active bearer identity", logger.Ctx{"identity_identifier": id.Identifier})
 				continue
 			}
 
