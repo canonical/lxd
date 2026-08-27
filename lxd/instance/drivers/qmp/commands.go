@@ -859,6 +859,38 @@ func (m *Monitor) BlockDevSnapshot(deviceNodeName string, snapshotNodeName strin
 	return nil
 }
 
+// BlockDevBackupTarget describes a single blockdev-backup action.
+type BlockDevBackupTarget struct {
+	Device string
+	Target string
+	Sync   string
+	JobID  string
+}
+
+// BlockDevBackupTransaction starts the given blockdev-backup jobs in a single transaction so that all
+// targets share the same point in time.
+func (m *Monitor) BlockDevBackupTransaction(backups []BlockDevBackupTarget) error {
+	actions := make([]TransactionAction, 0, len(backups))
+	for _, backup := range backups {
+		actions = append(actions, TransactionAction{
+			Type: "blockdev-backup",
+			Data: map[string]any{
+				"device": backup.Device,
+				"target": backup.Target,
+				"sync":   backup.Sync,
+				"job-id": backup.JobID,
+			},
+		})
+	}
+
+	err := m.RunTransaction(actions)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // blockJobWaitReady waits until the specified jobID is ready, errored or missing.
 // Returns nil if the job is ready, otherwise an error.
 func (m *Monitor) blockJobWaitReady(jobID string) error {
@@ -895,6 +927,43 @@ func (m *Monitor) blockJobWaitReady(jobID string) error {
 
 		if !found {
 			return errors.New("Specified block job not found")
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
+// blockJobWaitGone waits until the specified jobID no longer exists.
+// Returns nil once the job is gone, otherwise the error the job reported.
+func (m *Monitor) blockJobWaitGone(jobID string) error {
+	for {
+		var resp struct {
+			Return []struct {
+				Device string `json:"device"`
+				Error  string `json:"error"`
+			} `json:"return"`
+		}
+
+		err := m.run("query-block-jobs", nil, &resp)
+		if err != nil {
+			return err
+		}
+
+		found := false
+		for _, job := range resp.Return {
+			if job.Device != jobID {
+				continue
+			}
+
+			if job.Error != "" {
+				return fmt.Errorf("Failed block job: %s", job.Error)
+			}
+
+			found = true
+		}
+
+		if !found {
+			return nil
 		}
 
 		time.Sleep(1 * time.Second)
@@ -973,6 +1042,21 @@ func (m *Monitor) BlockJobCancel(deviceNodeName string) error {
 	args.Device = deviceNodeName
 
 	err := m.run("block-job-cancel", args, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// BlockJobCancelWait cancels an ongoing block job and waits until it is gone.
+func (m *Monitor) BlockJobCancelWait(jobID string) error {
+	err := m.BlockJobCancel(jobID)
+	if err != nil {
+		return err
+	}
+
+	err = m.blockJobWaitGone(jobID)
 	if err != nil {
 		return err
 	}

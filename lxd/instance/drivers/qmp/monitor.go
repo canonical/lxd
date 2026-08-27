@@ -42,6 +42,12 @@ type Monitor struct {
 	onDisconnectEvent bool
 }
 
+// TransactionAction represents a single action within a QMP transaction.
+type TransactionAction struct {
+	Type string         `json:"type"`
+	Data map[string]any `json:"data"`
+}
+
 // start handles the background goroutines for event handling and monitoring the ringbuffer.
 func (m *Monitor) start() error {
 	// Ringbuffer monitoring function.
@@ -218,6 +224,22 @@ func (m *Monitor) run(cmd string, args any, resp any) error {
 	}
 
 	return m.runJSON(request, resp, id)
+}
+
+// RunTransaction executes a series of actions as a single atomic transaction.
+func (m *Monitor) RunTransaction(actions []TransactionAction) error {
+	var args struct {
+		Actions []TransactionAction `json:"actions"`
+	}
+
+	args.Actions = actions
+
+	err := m.run("transaction", args, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Connect creates or retrieves an existing QMP monitor for the path.
