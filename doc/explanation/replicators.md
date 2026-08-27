@@ -20,6 +20,8 @@ Replication is configured at the project level. Both clusters have a project wit
 
 Replica mode is managed via `lxc project promote-replica`, `lxc project demote-replica`, and `lxc project clear-replica` (which resets the replica mode back to empty). It is not a configuration key and cannot be set with `lxc project set`.
 
+Clearing the replica mode of a standby project requires `--force`, because it drops the record of which cluster was replicating into it, and the project could then be promoted under the weaker rules that apply to a project taking no part in replication.
+
 The {config:option}`project-replica:replica.cluster` configuration key identifies the cluster link that is allowed to push replication data into a standby project. It is required on the standby project, and it must also be set on the leader project if you intend to fail over and later return to the original replication direction: after a failover the original leader becomes a standby, and it can only be promoted back to leader once LXD can identify the cluster it was replicating with.
 
 A project can only be promoted or demoted if it takes part in a replication topology. Demoting requires the `replica.cluster` key, because a standby project cannot accept replication data without it. Promoting a project that has no replica mode set requires at least one replicator, and promoting a standby requires the `replica.cluster` key, which is what identifies the cluster whose project must have stepped down first. Use `--force` to override these checks.
