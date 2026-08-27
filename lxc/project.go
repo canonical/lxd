@@ -1272,6 +1272,8 @@ func (c *cmdProjectDemote) run(cmd *cobra.Command, args []string) error {
 type cmdProjectClearReplica struct {
 	global  *cmdGlobal
 	project *cmdProject
+
+	flagForce bool
 }
 
 func (c *cmdProjectClearReplica) command() *cobra.Command {
@@ -1279,7 +1281,12 @@ func (c *cmdProjectClearReplica) command() *cobra.Command {
 	cmd.Use = usage("clear-replica", "[<remote>:]<project>")
 	cmd.Short = "Clear the replica mode of a project"
 	cmd.Long = cli.FormatSection("Description",
-		`Clears the replica mode of a project, removing it from any replication setup.`)
+		`Clears the replica mode of a project, removing it from any replication setup.
+
+Clearing the replica mode of a standby project requires --force, because it drops the record of
+which cluster was replicating into it.`)
+
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Allow clearing the replica mode of a standby project")
 
 	cmd.RunE = c.run
 
@@ -1314,7 +1321,7 @@ func (c *cmdProjectClearReplica) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Clear the project's replica mode
-	op, err := resource.server.UpdateProjectState(resource.name, api.ProjectStatePut{ReplicaMode: api.ReplicatorProjectModeNone}, false)
+	op, err := resource.server.UpdateProjectState(resource.name, api.ProjectStatePut{ReplicaMode: api.ReplicatorProjectModeNone}, c.flagForce)
 	if err != nil {
 		return err
 	}
