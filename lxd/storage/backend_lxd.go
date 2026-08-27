@@ -6940,6 +6940,15 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 		return nil
 	}
 
+	// Writing the backup file mounts the volume, and a replica is non-primary, so the map fails on
+	// a kernel feature set mismatch rather than on permissions. Every caller reaches the writer
+	// through here, including the ordinary instance update a refresh goes through, so the skip
+	// belongs here rather than at each call site.
+	if HoldsCephReplicas(b, inst.Project()) {
+		l.Info("Skipping the backup file write of a standby replica")
+		return nil
+	}
+
 	config, err := b.GenerateInstanceBackupConfig(inst, snapshots, volBackupConf, progressReporter)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance config: %w", err)
