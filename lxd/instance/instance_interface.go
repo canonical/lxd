@@ -189,6 +189,25 @@ type Instance interface {
 	Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error)
 }
 
+// SnapshotMetadataImage describes the snapshot metadata image of a volume snapshot of an instance
+// snapshot, the volume metadata image of the volume as the config volume snapshot contains it.
+type SnapshotMetadataImage struct {
+	// Path of the image relative to the mounted config volume snapshot, to open through OpenRoot.
+	Path string
+
+	// UUID of the volume.
+	VolumeUUID string
+
+	// UUID of the volume snapshot.
+	SnapshotUUID string
+
+	// Pool of the custom volume snapshot, empty for the root volume snapshot.
+	Pool string
+
+	// Name of the custom volume snapshot, empty for the root volume snapshot.
+	VolumeSnapshot string
+}
+
 // Container interface is for container specific functions.
 type Container interface {
 	Instance
