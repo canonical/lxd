@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -767,38 +768,84 @@ func (m *Monitor) SEVCapabilities() (AMDSEVCapabilities, error) {
 	return resp.Return, nil
 }
 
-// NBDServerStart starts internal NBD server and returns a connection to it.
-func (m *Monitor) NBDServerStart() (net.Conn, error) {
+// NBDServerStart starts the internal NBD server and returns a connection to it.
+// With an empty listenPath the server listens on a random abstract unix socket. Otherwise LXD binds
+// listenPath itself and hands the listener to QEMU as a file descriptor, because QEMU may have dropped
+// the privileges needed to create the socket. A maxConnections of 0 means unlimited.
+func (m *Monitor) NBDServerStart(listenPath string, maxConnections int) (net.Conn, error) {
 	var args struct {
 		Addr struct {
-			Data struct {
-				Path     string `json:"path"`
-				Abstract bool   `json:"abstract"`
-			} `json:"data"`
-			Type string `json:"type"`
+			Data map[string]any `json:"data"`
+			Type string         `json:"type"`
 		} `json:"addr"`
 		MaxConnections int `json:"max-connections"`
 	}
 
-	// Create abstract unix listener.
-	listener, err := net.Listen("unix", "")
-	if err != nil {
-		return nil, fmt.Errorf("Failed creating unix listener: %w", err)
+	revert := revert.New()
+	defer revert.Fail()
+
+	listenAddress := listenPath
+	if listenAddress == "" {
+		// Create abstract unix listener.
+		listener, err := net.Listen("unix", "")
+		if err != nil {
+			return nil, fmt.Errorf("Failed creating unix listener: %w", err)
+		}
+
+		// Get the random address, and then close the listener, and pass the address for use with nbd-server-start.
+		listenAddress = listener.Addr().String()
+		_ = listener.Close()
+
+		args.Addr.Type = "unix"
+		args.Addr.Data = map[string]any{
+			"path":     strings.TrimPrefix(listenAddress, "@"),
+			"abstract": true,
+		}
+	} else {
+		err := os.Remove(listenPath)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("Failed removing stale socket %q: %w", listenPath, err)
+		}
+
+		listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: listenPath, Net: "unix"})
+		if err != nil {
+			return nil, fmt.Errorf("Failed creating unix listener: %w", err)
+		}
+
+		// QEMU owns the socket from here on, so closing our listener must not unlink it.
+		listener.SetUnlinkOnClose(false)
+		revert.Add(func() { _ = os.Remove(listenPath) })
+
+		listenerFile, err := listener.File()
+		_ = listener.Close()
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting listener file descriptor: %w", err)
+		}
+
+		defer func() { _ = listenerFile.Close() }()
+
+		err = m.SendFile(listenPath, listenerFile)
+		if err != nil {
+			return nil, fmt.Errorf("Failed sending listener file descriptor: %w", err)
+		}
+
+		// QEMU only takes the descriptor out of its fd table once nbd-server-start consumes it.
+		revert.Add(func() { _ = m.CloseFile(listenPath) })
+
+		args.Addr.Type = "fd"
+		args.Addr.Data = map[string]any{
+			"str": listenPath,
+		}
 	}
 
-	// Get the random address, and then close the listener, and pass the address for use with nbd-server-start.
-	listenAddress := listener.Addr().String()
-	_ = listener.Close()
+	args.MaxConnections = maxConnections
 
-	args.Addr.Type = "unix"
-	args.Addr.Data.Path = strings.TrimPrefix(listenAddress, "@")
-	args.Addr.Data.Abstract = true
-	args.MaxConnections = 1
-
-	err = m.run("nbd-server-start", args, nil)
+	err := m.run("nbd-server-start", args, nil)
 	if err != nil {
 		return nil, err
 	}
+
+	revert.Add(func() { _ = m.NBDServerStop() })
 
 	// Connect to the NBD server and return the connection.
 	conn, err := net.Dial("unix", listenAddress)
@@ -806,6 +853,7 @@ func (m *Monitor) NBDServerStart() (net.Conn, error) {
 		return nil, fmt.Errorf("Failed connecting to NBD server: %w", err)
 	}
 
+	revert.Success()
 	return conn, nil
 }
 
@@ -819,19 +867,37 @@ func (m *Monitor) NBDServerStop() error {
 	return nil
 }
 
-// NBDBlockExportAdd exports a writable device via the NBD server.
-func (m *Monitor) NBDBlockExportAdd(deviceNodeName string) error {
+// NBDBlockExportAdd exports a block node via the NBD server under exportName.
+// The named bitmaps are published with the export and are looked up on bitmapNode,
+// which defaults to the exported node when empty.
+func (m *Monitor) NBDBlockExportAdd(deviceNodeName string, exportName string, writable bool, bitmapNode string, bitmapNames []string) error {
+	type bitmap struct {
+		Node string `json:"node"`
+		Name string `json:"name"`
+	}
+
 	var args struct {
-		ID       string `json:"id"`
-		Type     string `json:"type"`
-		NodeName string `json:"node-name"`
-		Writable bool   `json:"writable"`
+		ID       string   `json:"id"`
+		Type     string   `json:"type"`
+		NodeName string   `json:"node-name"`
+		Name     string   `json:"name"`
+		Writable bool     `json:"writable"`
+		Bitmaps  []bitmap `json:"bitmaps,omitempty"`
 	}
 
 	args.ID = deviceNodeName
 	args.Type = "nbd"
 	args.NodeName = deviceNodeName
-	args.Writable = true
+	args.Name = exportName
+	args.Writable = writable
+
+	if bitmapNode == "" {
+		bitmapNode = deviceNodeName
+	}
+
+	for _, bitmapName := range bitmapNames {
+		args.Bitmaps = append(args.Bitmaps, bitmap{Node: bitmapNode, Name: bitmapName})
+	}
 
 	err := m.run("block-export-add", args, nil)
 	if err != nil {

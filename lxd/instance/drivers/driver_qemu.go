@@ -906,7 +906,7 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 		// Perform non-shared storage transfer if requested.
 		filesystemConn := d.migrationReceiveStateful[api.SecretNameFilesystem]
 		if filesystemConn != nil {
-			nbdConn, err := monitor.NBDServerStart()
+			nbdConn, err := monitor.NBDServerStart("", 1)
 			if err != nil {
 				return fmt.Errorf("Failed starting NBD server: %w", err)
 			}
@@ -918,7 +918,7 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 				_ = monitor.NBDServerStop()
 			}()
 
-			err = monitor.NBDBlockExportAdd(qemuMigrationNBDExportName)
+			err = monitor.NBDBlockExportAdd(qemuMigrationNBDExportName, qemuMigrationNBDExportName, true, "", nil)
 			if err != nil {
 				return fmt.Errorf("Failed adding root disk to NBD server: %w", err)
 			}
