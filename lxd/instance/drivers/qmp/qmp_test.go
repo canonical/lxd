@@ -217,6 +217,26 @@ func TestListenEventOneListener(t *testing.T) {
 	}
 }
 
+func TestTransactionActions(t *testing.T) {
+	tests := map[string]TransactionAction{
+		`{"type":"blockdev-snapshot","data":{"node":"lxd_root","overlay":"lxd_root_overlay"}}`:                                                                          BlockDevSnapshotAction("lxd_root", "lxd_root_overlay"),
+		`{"type":"block-dirty-bitmap-add","data":{"disabled":true,"name":"b1","node":"metadata","persistent":true}}`:                                                    BlockDirtyBitmapAddAction("metadata", "b1", 0, true, true),
+		`{"type":"block-dirty-bitmap-add","data":{"disabled":false,"granularity":65536,"name":"b2","node":"lxd_root","persistent":false}}`:                              BlockDirtyBitmapAddAction("lxd_root", "b2", 65536, false, false),
+		`{"type":"block-dirty-bitmap-merge","data":{"bitmaps":[{"node":"lxdimage_root","name":"b1"},{"node":"lxd_root","name":"b1"}],"node":"metadata","target":"b1"}}`: BlockDirtyBitmapMergeAction("metadata", "b1", []BlockDirtyBitmapSource{{Node: "lxdimage_root", Name: "b1"}, {Node: "lxd_root", Name: "b1"}}),
+	}
+
+	for want, action := range tests {
+		got, err := json.Marshal(action)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if want != string(got) {
+			t.Fatalf("unexpected transaction action:\n- want: %s\n-  got: %s", want, got)
+		}
+	}
+}
+
 func mockMonitorServer(t *testing.T, eg *errgroup.Group, qmp *qemuMachineProtocol, hands ...func(net.Conn) error) {
 	t.Helper()
 	unixsock := filepath.Join(t.TempDir(), "mockmonitor.sock")
