@@ -187,6 +187,39 @@ type Instance interface {
 	DeferTemplateApply(trigger TemplateTrigger) error
 
 	Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error)
+
+	// Dirty bitmaps of the block volumes of a virtual machine.
+	// Bitmaps lists them, grouped by name, for an instance or an instance snapshot.
+	// DeleteBitmap removes one bitmap from every volume, DeleteDiskBitmap one bitmap from the
+	// volume attached through a disk device, and DeleteVolumeBitmaps every bitmap of that volume
+	// together with its volume metadata image.
+	Bitmaps() ([]api.InstanceBitmap, error)
+	DeleteBitmap(bitmapName string) error
+	DeleteDiskBitmap(deviceName string, bitmapName string) error
+	DeleteVolumeBitmaps(deviceName string) error
+
+	// Metadata images, the qcow2 images on the config volume that store the bitmaps of the block volumes.
+	// RemoveVolumeMetadataImage deletes the image and the overlay of the volume of the given UUID,
+	// and RemoveAllMetadataImages deletes every image, overlay and snapshot bitmap file.
+	// CommitDiskOverlays commits the overlays of the given disk devices into their volumes.
+	RemoveVolumeMetadataImage(volumeUUID string) error
+	RemoveAllMetadataImages() error
+	CommitDiskOverlays(deviceNames []string) error
+
+	// Snapshot with a bitmap.
+	// CreateSnapshotBitmaps creates the bitmap of a snapshot on the volumes attached through the
+	// given disk devices, writes their volume metadata images and the snapshot bitmap file, and
+	// adds an overlay to each volume.
+	// It returns the devices that got one, which CommitDiskOverlays commits after the storage snapshots.
+	// RemoveSnapshotBitmapFile deletes the snapshot bitmap file of the instance snapshot of the given
+	// UUID from the config volume.
+	CreateSnapshotBitmaps(snapshotUUID string, deviceNames []string, bitmapName string) ([]string, error)
+	RemoveSnapshotBitmapFile(snapshotUUID string) error
+
+	// SnapshotMetadataImages returns the snapshot metadata images of the volume snapshots of an
+	// instance snapshot, keyed by the disk device each volume was attached through.
+	// The images are on the config volume snapshot.
+	SnapshotMetadataImages() (map[string]SnapshotMetadataImage, error)
 }
 
 // SnapshotMetadataImage describes the snapshot metadata image of a volume snapshot of an instance
