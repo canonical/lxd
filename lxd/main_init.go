@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/identity"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -320,7 +321,7 @@ func (c *cmdInit) createUIInitialAccessLink(d lxd.InstanceServer) error {
 		if err != nil {
 			return fmt.Errorf("Failed creating initial UI identity: %w", err)
 		}
-	} else if uiAdminIdentity.Type != api.IdentityTypeBearerTokenInitialUI {
+	} else if !identity.IsInitialUIBearer(uiAdminIdentity.Type) {
 		return fmt.Errorf("A bearer identity with name %q already exists but is not of type %q", uiAdminIdentityName, api.IdentityTypeBearerTokenInitialUI)
 	}
 
