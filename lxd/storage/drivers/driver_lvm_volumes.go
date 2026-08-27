@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -17,6 +18,7 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/refcount"
 	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
@@ -841,6 +843,47 @@ func (d *lvm) mountCommon(vol Volume, progressReporter ioprogress.ProgressReport
 	vol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolumeSnapshot() when done.
 	revert.Success()
 	return nil
+}
+
+// ActivateTask runs task with the volume's block device activated but not mounted.
+// The unmount of a block volume leaves its logical volume active.
+// Therefore, the volume is in use while an instance or another task holds its activation count,
+// and not while the logical volume alone is active.
+// The logical volume is deactivated once the task ends.
+func (d *lvm) ActivateTask(vol Volume, task func(devPath string) error) error {
+	if (vol.volType != VolumeTypeVM && vol.volType != VolumeTypeCustom) || vol.contentType != ContentTypeBlock {
+		return ErrNotSupported
+	}
+
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	if refcount.Get(d.activationRefCountName(vol)) > 0 {
+		return api.StatusErrorf(http.StatusConflict, "Volume is already active")
+	}
+
+	volDevPath, err := d.GetVolumeDiskPath(vol)
+	if err != nil {
+		return err
+	}
+
+	_, err = d.activateVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	taskErr := task(volDevPath)
+
+	_, err = d.deactivateVolume(vol)
+	if taskErr != nil {
+		return taskErr
+	}
+
+	return err
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
