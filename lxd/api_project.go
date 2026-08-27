@@ -1483,7 +1483,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 //	parameters:
 //	  - in: query
 //	    name: force
-//	    description: Skip validation of remote project states
+//	    description: Skip the replication topology guards and the validation of remote project states, and allow clearing the replica mode of a standby project
 //	    type: boolean
 //	    example: false
 //	  - in: body
@@ -1530,7 +1530,7 @@ func projectStatePut(d *Daemon, r *http.Request) response.Response {
 
 	case api.ReplicatorProjectModeNone:
 		run = func(ctx context.Context, op *operations.Operation) error {
-			return projectClearReplicaMode(ctx, s, name)
+			return projectClearReplicaMode(ctx, s, name, force)
 		}
 
 	default:
@@ -1723,7 +1723,7 @@ func projectDemote(ctx context.Context, s *state.State, projectName string, forc
 }
 
 // projectClearReplicaMode clears the project's replica mode, removing it from any replication setup.
-func projectClearReplicaMode(ctx context.Context, s *state.State, projectName string) error {
+func projectClearReplicaMode(ctx context.Context, s *state.State, projectName string, force bool) error {
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
@@ -1732,6 +1732,13 @@ func projectClearReplicaMode(ctx context.Context, s *state.State, projectName st
 
 		if dbProject.ReplicaMode == dbCluster.ProjectReplicaMode(api.ReplicatorProjectModeNone) {
 			return fmt.Errorf("Project %q is not in a replica mode", projectName)
+		}
+
+		// Clearing a standby's replica mode drops the record of which cluster was replicating
+		// into it, which would let the project be promoted under the weaker rules that apply
+		// to a project with no replica mode while the old leader is still running.
+		if !force && dbProject.ReplicaMode == dbCluster.ProjectReplicaMode(api.ReplicatorProjectModeStandby) {
+			return fmt.Errorf("Project %q is a standby replica, use --force to clear its replica mode", projectName)
 		}
 
 		// Clear the replica mode.
