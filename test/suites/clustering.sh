@@ -5985,6 +5985,38 @@ test_clustering_replicator_basic() {
   # Unset schedule so it does not interfere with the rest of the test.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator unset my-replicator schedule --project replicator-project
 
+  sub_test "Verify the standby's storage is left to Ceph on a mirrored pool"
+
+  # A standby project whose pool carries its ceph.replicator key holds mirrors that Ceph owns.
+  # The guards here keep LXD off those images: no backup file write, no pre-filler, and no delete
+  # when a receive fails part way. The backup file is the one guarded write that reaches storage on
+  # every run, and it is the only one observable without a second Ceph cluster.
+  if [ "$(storage_backend "${LXD_TWO_DIR}")" = "ceph" ]; then
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage set "${pool_two}" ceph.replicator.replicator-project=peer-site
+
+    local logLinesBefore=0
+    if [ -n "${SERVER_DEBUG:-}" ]; then
+      logLinesBefore=$(wc -l < "${LXD_TWO_DIR}/lxd.log")
+    fi
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 c2 c3 --project replicator-project
+    LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+    bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+    jq --exit-status '([., (.children? // [])[]] | length) == 5 and .status == "Success" and .child_count == 4 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+    LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
+    LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
+    LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c3,STOPPED'
+
+    # The skip only reaches lxd.log when the daemon runs verbose.
+    if [ -n "${SERVER_DEBUG:-}" ]; then
+      local newLogs
+      newLogs="$(tail --lines="+$((logLinesBefore + 1))" "${LXD_TWO_DIR}/lxd.log")"
+      grep -qF "Skipping the backup file write of a standby replica" <<< "${newLogs}"
+    fi
+
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage unset "${pool_two}" ceph.replicator.replicator-project
+  fi
+
   sub_test "Verify cluster link cannot be deleted while referenced by a replicator"
 
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete lxd_two 2>&1)" = 'Error: Error deleting "lxd_two" from database: Cluster link is currently in use' ]
