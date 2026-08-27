@@ -3750,3 +3750,29 @@ If a project with a replicator holds volumes on a Ceph pool configured with this
 
 The `replica_mode` field is now omitted from project responses when the project takes no part in replication, instead of being returned as an empty string.
 The field is still returned for projects in `leader` or `standby` mode.
+
+(extension-storage-volume-block-tracking)=
+## `storage_volume_block_tracking`
+
+Adds changed block tracking for the block volumes of virtual machines, implemented as QEMU dirty bitmaps that are kept across a stop and a start of the instance, and adds the ability to export snapshot data over NBD tunneled through the LXD API.
+
+The snapshot request `POST /1.0/instances/{name}/snapshots` accepts a new `bitmap` field. When it is set, the bitmaps of every block volume of the snapshot are copied into the snapshot and a new bitmap named after the snapshot starts recording on each of those volumes at the instant of the snapshot. With `disk_volumes_mode` set to `all-exclusive` this covers the exclusively attached custom block volumes as well as the root disk. A snapshot whose name exists is rejected with `409`. Deleting a snapshot removes the bitmap of its name, and renaming one removes the bitmaps of its old and new names.
+
+The following endpoints list bitmaps. The UUID of a bitmap is the `volatile.uuid` of the root volume snapshot of the instance snapshot it was created with:
+
+* `GET /1.0/instances/{name}/snapshots/{snapshot}/bitmaps` lists the bitmaps of an instance snapshot, grouped by name with one entry per volume.
+* `GET /1.0/instances/{name}/snapshots/{snapshot}/bitmaps/{bitmap}` shows one bitmap of an instance snapshot.
+
+The following endpoints export volume data over NBD. Each is reached with the `Upgrade: nbd` header and returns `101 Switching Protocols`, after which the connection carries the NBD protocol.
+
+* `GET /1.0/instances/{name}/snapshots/{snapshot}/nbd` exports the block volume snapshots of an instance snapshot read-only, each under an NBD export named after its disk device, together with the bitmaps of the snapshot as `qemu:dirty-bitmap:<name>` metadata contexts. The `device` query parameter, repeated once per device, selects a subset of the devices. The `previous_snapshot_uuid` query parameter limits the bitmaps to the ones created with the instance snapshot of that UUID, and none is exported when no instance snapshot has it.
+* `POST /1.0/storage-pools/{pool}/volumes/{type}/{volume}/nbd` exports one block volume read-write, for writing a backup back. The volume must be detached or attached to a stopped instance, and its bitmaps are deleted before the export.
+
+A new `can_connect_nbd` entitlement on instances and storage volumes governs access to the NBD endpoints.
+
+New `lxc` commands:
+
+* `lxc snapshot --bitmap` creates a snapshot with a bitmap.
+* `lxc bitmap list` and `lxc bitmap show` list the bitmaps of an instance snapshot.
+* `lxc nbd` exports an instance snapshot over NBD, with `--previous-snapshot-uuid` to limit the bitmaps.
+* `lxc storage volume nbd --writable` serves a storage volume read-write over NBD.
