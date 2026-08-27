@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 type cmdMonitor struct {
@@ -212,6 +213,7 @@ func (c *cmdMonitor) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	logger.Info("Monitoring events", logger.Ctx{"remote": remote, "types": c.flagType})
 	go func() {
 		chError <- listener.Wait()
 	}()
