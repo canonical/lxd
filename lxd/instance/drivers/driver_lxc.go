@@ -6007,6 +6007,16 @@ func (d *lxc) StopForkFile(force bool) {
 	}
 }
 
+// ConnectNBD is not supported for containers.
+func (d *lxc) ConnectNBD(diskName string, reuse bool) (net.Conn, func(), error) {
+	return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is not supported for containers")
+}
+
+// ConnectNBDAllDisks is not supported for containers.
+func (d *lxc) ConnectNBDAllDisks(reuse bool) (net.Conn, func(), error) {
+	return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is not supported for containers")
+}
+
 // Console attaches to the instance console.
 func (d *lxc) Console(ctx context.Context, protocol string) (*os.File, chan error, error) {
 	if protocol != instance.ConsoleTypeConsole {
@@ -7408,6 +7418,21 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	}
 
 	return out, nil
+}
+
+// CreateBitmap is not supported for containers.
+func (d *lxc) CreateBitmap(deviceNames []string, data api.StorageVolumeBitmapsPost) error {
+	return api.StatusErrorf(http.StatusBadRequest, "Dirty bitmaps are not supported for containers")
+}
+
+// DeleteBitmap is not supported for containers.
+func (d *lxc) DeleteBitmap(deviceName string, bitmapName string) error {
+	return api.StatusErrorf(http.StatusBadRequest, "Dirty bitmaps are not supported for containers")
+}
+
+// GetBitmaps is not supported for containers.
+func (d *lxc) GetBitmaps(deviceName string) ([]api.StorageVolumeBitmap, error) {
+	return nil, api.StatusErrorf(http.StatusBadRequest, "Dirty bitmaps are not supported for containers")
 }
 
 func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
