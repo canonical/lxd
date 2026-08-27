@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -841,6 +842,45 @@ func (d *lvm) mountCommon(vol Volume, progressReporter ioprogress.ProgressReport
 	vol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolumeSnapshot() when done.
 	revert.Success()
 	return nil
+}
+
+// ActivateTask runs task with the volume's block device activated but not mounted.
+func (d *lvm) ActivateTask(vol Volume, task func(devPath string) error) error {
+	if (vol.volType != VolumeTypeVM && vol.volType != VolumeTypeCustom) || vol.contentType != ContentTypeBlock {
+		return ErrNotSupported
+	}
+
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	volDevPath, err := d.GetVolumeDiskPath(vol)
+	if err != nil {
+		return err
+	}
+
+	activated, err := d.activateVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if !activated {
+		// activateVolume counts every call, so the count is balanced for the device that stays active.
+		d.activationRefCountDecrement(vol)
+		return api.StatusErrorf(http.StatusConflict, "Volume is already active")
+	}
+
+	taskErr := task(volDevPath)
+
+	_, err = d.deactivateVolume(vol)
+	if taskErr != nil {
+		return taskErr
+	}
+
+	return err
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.

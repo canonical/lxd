@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -1086,6 +1087,32 @@ func (d *btrfs) GetVolumeDiskPath(vol Volume) (string, error) {
 // ListVolumes returns a list of LXD volumes in storage pool.
 func (d *btrfs) ListVolumes() ([]Volume, error) {
 	return genericVFSListVolumes(d)
+}
+
+// ActivateTask runs task with the volume's block file available but not mounted.
+func (d *btrfs) ActivateTask(vol Volume, task func(devPath string) error) error {
+	if (vol.volType != VolumeTypeVM && vol.volType != VolumeTypeCustom) || vol.contentType != ContentTypeBlock {
+		return ErrNotSupported
+	}
+
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	// A running instance holds a mount reference on the volume.
+	if vol.MountInUse() {
+		return api.StatusErrorf(http.StatusConflict, "Volume is in use")
+	}
+
+	volDevPath, err := d.GetVolumeDiskPath(vol)
+	if err != nil {
+		return err
+	}
+
+	return task(volDevPath)
 }
 
 // MountVolume simulates mounting a volume.
