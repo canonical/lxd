@@ -841,6 +841,51 @@ func (m *Monitor) NBDBlockExportAdd(deviceNodeName string) error {
 	return nil
 }
 
+// BlockDirtyInfo contains information about a dirty bitmap.
+// An inconsistent bitmap is a persistent bitmap that its image marked in use, because the process
+// that loaded it exited without writing it back.
+type BlockDirtyInfo struct {
+	Name         string `json:"name"`
+	Count        int64  `json:"count"`
+	Granularity  int    `json:"granularity"`
+	Recording    bool   `json:"recording"`
+	Busy         bool   `json:"busy"`
+	Persistent   bool   `json:"persistent"`
+	Inconsistent bool   `json:"inconsistent"`
+}
+
+// QueryNodeDirtyBitmaps returns the dirty bitmaps of the given block node.
+// The node is looked up through query-named-block-nodes rather than query-block because an overlay
+// node added with blockdev-snapshot replaces the disk node as the inserted node of the device.
+func (m *Monitor) QueryNodeDirtyBitmaps(nodeName string) ([]BlockDirtyInfo, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []struct {
+			NodeName     string           `json:"node-name"`
+			DirtyBitmaps []BlockDirtyInfo `json:"dirty-bitmaps"`
+		} `json:"return"`
+	}
+
+	err := m.run("query-named-block-nodes", nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying named block nodes: %w", err)
+	}
+
+	for _, node := range resp.Return {
+		if node.NodeName != nodeName {
+			continue
+		}
+
+		if node.DirtyBitmaps == nil {
+			return []BlockDirtyInfo{}, nil
+		}
+
+		return node.DirtyBitmaps, nil
+	}
+
+	return nil, fmt.Errorf("Block node %q not found", nodeName)
+}
+
 // BlockDevSnapshot creates a snapshot of a device using the specified snapshot device.
 func (m *Monitor) BlockDevSnapshot(deviceNodeName string, snapshotNodeName string) error {
 	var args struct {
@@ -1068,4 +1113,70 @@ func (m *Monitor) CheckPCIDevice(deviceID string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// BlockDirtyBitmapAddAction returns the transaction action that creates a dirty bitmap on a block node.
+// A granularity of 0 leaves the choice to QEMU.
+// A persistent bitmap is written into the node's image when the node is closed, which only a qcow2 node supports.
+// A disabled bitmap records no writes.
+func BlockDirtyBitmapAddAction(nodeName string, bitmapName string, granularity int, persistent bool, disabled bool) TransactionAction {
+	data := map[string]any{
+		"node":       nodeName,
+		"name":       bitmapName,
+		"persistent": persistent,
+		"disabled":   disabled,
+	}
+
+	if granularity > 0 {
+		data["granularity"] = granularity
+	}
+
+	return TransactionAction{
+		Type: "block-dirty-bitmap-add",
+		Data: data,
+	}
+}
+
+// BlockDirtyBitmapSource names a bitmap that a merge reads, by its block node and its name.
+type BlockDirtyBitmapSource struct {
+	Node string `json:"node"`
+	Name string `json:"name"`
+}
+
+// blockDirtyBitmapMergeArgs returns the arguments of the block-dirty-bitmap-merge command that
+// merges the source bitmaps into the target bitmap of the given block node.
+func blockDirtyBitmapMergeArgs(nodeName string, bitmapName string, sources []BlockDirtyBitmapSource) map[string]any {
+	return map[string]any{
+		"node":    nodeName,
+		"target":  bitmapName,
+		"bitmaps": sources,
+	}
+}
+
+// BlockDirtyBitmapMergeAction returns the transaction action that merges the source bitmaps into the target bitmap.
+// A merge sets the bits set in a source and clears none.
+// A source may be a bitmap of another block node, which must have the same size as the target's node.
+func BlockDirtyBitmapMergeAction(nodeName string, bitmapName string, sources []BlockDirtyBitmapSource) TransactionAction {
+	return TransactionAction{
+		Type: "block-dirty-bitmap-merge",
+		Data: blockDirtyBitmapMergeArgs(nodeName, bitmapName, sources),
+	}
+}
+
+// RemoveDirtyBitmap removes a dirty bitmap from a block node.
+func (m *Monitor) RemoveDirtyBitmap(deviceName string, bitmapName string) error {
+	var args struct {
+		Node string `json:"node"`
+		Name string `json:"name"`
+	}
+
+	args.Node = deviceName
+	args.Name = bitmapName
+
+	err := m.run("block-dirty-bitmap-remove", args, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
