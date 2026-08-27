@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"time"
@@ -150,4 +151,9 @@ type Pool interface {
 
 	// Storage volume recovery.
 	ListUnknownVolumes(progressReporter ioprogress.ProgressReporter) (map[string][]*backupConfig.Config, error)
+
+	// NBD.
+	GetInstanceNBD(inst instance.Instance, writable bool, reuse bool) (net.Conn, func(), error)
+	GetInstanceAllDisksNBD(inst instance.Instance, reuse bool) (net.Conn, func(), error)
+	GetCustomVolumeNBD(projectName string, volName string, writable bool, reuse bool) (net.Conn, func(), error)
 }
