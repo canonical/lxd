@@ -1,6 +1,6 @@
 module github.com/canonical/lxd/tools
 
-go 1.26.5
+go 1.26.7
 
 tool (
 	fillmore-labs.com/errortype
