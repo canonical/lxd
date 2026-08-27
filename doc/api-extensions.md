@@ -3664,3 +3664,32 @@ Public cluster links cannot be used by {ref}`replicators <exp-replicators>` or a
 Introduces new operation class for durable operations.
 Durable operations are restarted on the DQLite raft leader if the member that is running the operation fails to respond to heartbeats.
 If the leader was running the operation and goes offline, the operation is restarted on the newly elected leader.
+
+(extension-storage-volume-block-tracking)=
+## `storage_volume_block_tracking`
+
+Adds changed block tracking for block volumes of running virtual machines, implemented as named QEMU dirty bitmaps, and exports volume data over NBD tunneled through the LXD API.
+
+The following endpoints manage bitmaps. The `POST` and `DELETE` requests return an operation:
+
+* `GET /1.0/storage-pools/{pool}/volumes/{type}/{volume}/bitmaps` lists the bitmaps on a volume.
+* `POST /1.0/storage-pools/{pool}/volumes/{type}/{volume}/bitmaps` creates a bitmap on a volume from a body of the form `{"name": "backup-20260712"}`.
+* `GET /1.0/storage-pools/{pool}/volumes/{type}/{volume}/bitmaps/{name}` shows one bitmap with its name, dirty byte count, granularity and busy state.
+* `DELETE /1.0/storage-pools/{pool}/volumes/{type}/{volume}/bitmaps/{name}` deletes one bitmap.
+* `POST /1.0/instances/{name}/bitmaps` creates one bitmap of the given name on the instance root disk and on every non-shared block disk device in a single QEMU transaction, so that all of them start recording at the same instant.
+
+The following endpoints expose volume data over NBD. Each is reached with the `Upgrade: nbd` header and returns `101 Switching Protocols`, after which the connection carries the NBD protocol. The `GET` requests carry a body of the form `{"reuse": false}`. With `reuse` set to `true` the request attaches to the session already open for the volume or instance instead of opening a new one, so that several clients read the same point in time. Each session runs as a task operation on the cluster member that serves it, which is listed and cancelled through `/1.0/operations`, and cancelling it closes the connection. When that member answers the request itself, the `101` response carries a `Location` header with the URL of the operation.
+
+* `GET /1.0/storage-pools/{pool}/volumes/{type}/{volume}/nbd` exports one block volume read-only.
+* `POST /1.0/storage-pools/{pool}/volumes/{type}/{volume}/nbd` imports one block volume through a writable NBD connection, for restoring a backup.
+* `GET /1.0/instances/{name}/nbd` exports every non-shared block disk of the instance read-only, each under an NBD export named after its disk device.
+
+A bitmap exists only inside the QEMU process of a running virtual machine, so the bitmap endpoints and the read-only exports require one. The volume must be of type `virtual-machine` or `custom` and have the `block` content type. A `custom` volume must be attached to exactly one running virtual machine. The writable import runs against the volume directly and requires the instance to be stopped. Shared block volumes are skipped by the instance bitmap endpoint, because no single QEMU process sees every write to them.
+
+While a read-only export is open, QEMU installs a copy-before-write overlay on the instance's config volume, so the export serves a frozen point-in-time view of the volume while the guest keeps writing. The export carries the `base:allocation` and `qemu:dirty-bitmap:<name>` NBD metadata contexts, which a client uses to read the allocation map and the changed block map of a bitmap over the same connection.
+
+Bitmaps are transient. They are lost when the QEMU process exits, for example when the instance is stopped or restarted or the host reboots, and the next backup must then be a full one.
+
+A new `can_connect_nbd` entitlement on instances and storage volumes governs access to the NBD endpoints.
+
+The `lxc` client gains the `lxc storage volume bitmap list`, `lxc storage volume bitmap show`, `lxc storage volume bitmap create` and `lxc storage volume bitmap delete` commands for managing bitmaps on a volume, `lxc bitmap` for creating a bitmap on every block disk of an instance, and `lxc storage volume nbd` and `lxc nbd` for serving a volume or an instance's disks to a local NBD client.
