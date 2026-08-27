@@ -511,7 +511,7 @@ EOF
       # Ensure the returned status code is 423 (StatusLocked).
       patchReq='{"config": {"size": "12MiB"}}'
       opID="$(lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X PATCH "lxd/1.0/storage-pools/${pool}/volumes/custom/block-vol" -d "${patchReq}" | jq --raw-output --exit-status .id)"
-      [ "$(lxc exec "${inst}" --project "${project}" -- curl -s -o /dev/null -w "%{http_code}" --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X GET "lxd/1.0/operations/${opID}/wait?timeout=5" -d "${patchReq}")" = "423" ]
+      lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X GET "lxd/1.0/operations/${opID}/wait?timeout=5" -d "${patchReq}" | jq --exit-status '.metadata.error_code == 423' >/dev/null
 
       # Detach device.
       detachReq='{"devices": {"block-vol": null}}'
