@@ -549,6 +549,12 @@ func (t Type) ConflictAction() ConflictAction {
 func (t Type) MustRun() bool {
 	switch t {
 	case ReplicatorFinalize:
+		// Replicator finalization must always run so that it updates the last run status of the replicator.
+		return true
+	case ReplicatorRunInstanceForward:
+		// Replicator instance forward replication must always run, even if a snapshot has failed.
+		// This is so that instance refreshes still occur for instances whose snapshot succeeded.
+		// The operation run hook is responsible for checking that the snapshot stage for the same instance has succeeded.
 		return true
 	default:
 		return false
