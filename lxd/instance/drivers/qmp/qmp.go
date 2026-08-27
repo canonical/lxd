@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"golang.org/x/sys/unix"
 
@@ -247,6 +248,78 @@ func (qmp *qemuMachineProtocol) listen(r io.Reader, events chan<- qmpEvent, repl
 	replies.Clear()
 }
 
+// defaultCommandTimeout is how long to wait for a QMP reply before giving up.
+const defaultCommandTimeout = 5 * time.Second
+
+// blockCommandTimeout is used for block and NBD commands that do blocking storage I/O.
+const blockCommandTimeout = 5 * time.Second
+
+// heavyCommandTimeout is used for commands that flush I/O or touch VFIO devices.
+const heavyCommandTimeout = 30 * time.Second
+
+// commandTimeouts overrides defaultCommandTimeout for slow synchronous commands.
+var commandTimeouts = map[string]time.Duration{
+	"block-commit":              blockCommandTimeout,
+	"block-dirty-bitmap-add":    blockCommandTimeout,
+	"block-dirty-bitmap-remove": blockCommandTimeout,
+	"block-export-add":          blockCommandTimeout,
+	"block-export-del":          blockCommandTimeout,
+	"block-job-cancel":          blockCommandTimeout,
+	"block-job-complete":        blockCommandTimeout,
+	"block_resize":              blockCommandTimeout,
+	"block_set_io_throttle":     blockCommandTimeout,
+	"blockdev-backup":           blockCommandTimeout,
+	"blockdev-mirror":           blockCommandTimeout,
+	"blockdev-snapshot":         blockCommandTimeout,
+	"change-backing-file":       blockCommandTimeout,
+	"eject":                     blockCommandTimeout,
+	"job-complete":              blockCommandTimeout,
+	"job-dismiss":               blockCommandTimeout,
+	"nbd-server-start":          blockCommandTimeout,
+	"nbd-server-stop":           blockCommandTimeout,
+	"query-block":               blockCommandTimeout,
+	"query-block-exports":       blockCommandTimeout,
+	"query-block-jobs":          blockCommandTimeout,
+	"query-blockstats":          blockCommandTimeout,
+	"query-named-block-nodes":   blockCommandTimeout,
+	"transaction":               blockCommandTimeout,
+	"blockdev-add":              heavyCommandTimeout,
+	"blockdev-del":              heavyCommandTimeout,
+	"cont":                      heavyCommandTimeout,
+	"device_add":                heavyCommandTimeout,
+	"device_del":                heavyCommandTimeout,
+	"migrate":                   heavyCommandTimeout,
+	"migrate-continue":          heavyCommandTimeout,
+	"migrate-incoming":          heavyCommandTimeout,
+	"migrate-set-capabilities":  heavyCommandTimeout,
+	"migrate-set-parameters":    heavyCommandTimeout,
+	"netdev_add":                heavyCommandTimeout,
+	"netdev_del":                heavyCommandTimeout,
+	"object-add":                heavyCommandTimeout,
+	"object-del":                heavyCommandTimeout,
+	"query-migrate":             heavyCommandTimeout,
+	"quit":                      heavyCommandTimeout,
+	"stop":                      heavyCommandTimeout,
+	"system_reset":              heavyCommandTimeout,
+	"x-colo-lost-heartbeat":     heavyCommandTimeout,
+	"screendump":                10 * time.Second,
+}
+
+// commandName extracts the command name from a marshalled QMP request.
+func commandName(command []byte) string {
+	var req struct {
+		Execute          string `json:"execute"`
+		ExecuteOutOfBand string `json:"exec-oob"`
+	}
+
+	_ = json.Unmarshal(command, &req)
+	if req.Execute != "" {
+		return req.Execute
+	}
+
+	return req.ExecuteOutOfBand
+}
+
 // run executes the given QAPI command against a domain's QEMU instance.
 func (qmp *qemuMachineProtocol) run(command []byte, id uint32) ([]byte, error) {
 	// Just call RunWithFile with no file
@@ -300,8 +373,23 @@ func (qmp *qemuMachineProtocol) runWithFile(command []byte, file *os.File, id ui
 		return nil, err
 	}
 
-	// Wait for a response or error to our command
-	res := <-repCh
+	// Pick the timeout for this command.
+	cmd := commandName(command)
+	timeout := defaultCommandTimeout
+	override, ok := commandTimeouts[cmd]
+	if ok {
+		timeout = override
+	}
+
+	// Wait for a response, error or timeout.
+	var res rawResponse
+	select {
+	case res = <-repCh:
+	case <-time.After(timeout):
+		qmp.replies.Delete(id)
+		return nil, fmt.Errorf("%w: %q after %s", ErrMonitorTimeout, cmd, timeout)
+	}
+
 	if res.err != nil {
 		return nil, res.err
 	}
