@@ -54,7 +54,6 @@ on:
 
 env:
   GOTOOLCHAIN: "local"  # Never download a different Go toolchain
-  LXD_SKIP_TESTS: "concurrent"  # concurrent is too unreliable/racy
   LXD_REQUIRED_TESTS: "network_ovn"
   GOCOVERAGE: ${{ (( github.event_name == 'workflow_dispatch' && inputs.coverage ) || ( github.event_name == 'schedule' && github.repository == 'canonical/lxd' ) || ( github.event_name == 'pull_request' && github.repository == 'canonical/lxd' )) && 'true' || 'false' }}
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
