@@ -550,6 +550,8 @@ func (t Type) MustRun() bool {
 	switch t {
 	case ReplicatorFinalize:
 		return true
+	case ReplicatorRunInstanceForward:
+		return true
 	default:
 		return false
 	}
