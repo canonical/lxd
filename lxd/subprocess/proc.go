@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"go.yaml.in/yaml/v2"
+	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/shared"
 )
@@ -277,12 +278,67 @@ func (p *Process) Signal(signal int64) error {
 // Wait will wait for the given process object exit code.
 func (p *Process) Wait(ctx context.Context) (int64, error) {
 	if !p.hasMonitor {
-		return -1, errors.New("Cannot wait on process we did not spawn")
+		return p.waitHandle(ctx)
 	}
 
 	select {
 	case <-p.chExit:
 		return p.exitCode, p.exitErr
+	case <-ctx.Done():
+		return -1, ctx.Err()
+	}
+}
+
+// waitHandle waits for an imported (non-child) process to exit by polling its pidfd.
+// The exit status of a non-child process cannot be reaped, so on exit it returns
+// ErrNoExitStatus rather than an exit code.
+func (p *Process) waitHandle(ctx context.Context) (int64, error) {
+	if p.proc == nil {
+		return -1, errors.New("Cannot wait on process we did not spawn")
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- p.proc.WithHandle(func(handle uintptr) {
+			fds := []unix.PollFd{{Fd: int32(handle), Events: unix.POLLIN}}
+			for {
+				// A short timeout bounds ctx cancellation latency and lets this goroutine unwind.
+				n, err := unix.Poll(fds, 500)
+				if err != nil {
+					if errors.Is(err, unix.EINTR) {
+						continue
+					}
+
+					return
+				}
+
+				// A readable pidfd means the process has exited.
+				if n > 0 {
+					return
+				}
+
+				if ctx.Err() != nil {
+					return
+				}
+			}
+		})
+	}()
+
+	select {
+	case err := <-done:
+		if errors.Is(err, os.ErrNoHandle) {
+			return -1, errors.New("Cannot wait on process we did not spawn")
+		}
+
+		if err != nil {
+			return -1, err
+		}
+
+		if ctx.Err() != nil {
+			return -1, ctx.Err()
+		}
+
+		return -1, ErrNoExitStatus
 	case <-ctx.Done():
 		return -1, ctx.Err()
 	}

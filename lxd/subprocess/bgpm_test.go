@@ -7,12 +7,15 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"go.yaml.in/yaml/v2"
+	"golang.org/x/sys/unix"
 )
 
 func TestSignalHandling(t *testing.T) {
@@ -408,5 +411,106 @@ func TestImportOldFormat(t *testing.T) {
 	err = imp.Stop()
 	if err != nil {
 		t.Error("Failed stopping process imported from old-format file: ", err)
+	}
+}
+
+// startNonChild starts a process that is not a child of the test binary by backgrounding
+// it in a shell that then exits, causing the process to reparent. It returns the PID of the
+// reparented process and registers a cleanup that kills it on test exit.
+func startNonChild(t *testing.T, seconds string) int {
+	t.Helper()
+
+	out, err := exec.Command("sh", "-c", "sleep "+seconds+" </dev/null >/dev/null 2>&1 & echo $!").Output()
+	if err != nil {
+		t.Fatal("Failed starting non-child process: ", err)
+	}
+
+	pid, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil {
+		t.Fatal("Failed parsing non-child PID: ", err)
+	}
+
+	t.Cleanup(func() { _ = unix.Kill(pid, unix.SIGKILL) })
+
+	return pid
+}
+
+// savePidForPID writes a minimal pid file referencing pid and returns its path.
+func savePidForPID(t *testing.T, pid int) string {
+	t.Helper()
+
+	p := &Process{Name: "sleep", PID: pid}
+	path := filepath.Join(t.TempDir(), "proc.yaml")
+	err := p.Save(path)
+	if err != nil {
+		t.Fatal("Failed saving process: ", err)
+	}
+
+	return path
+}
+
+// TestWaitImportedNonChild checks that Wait works on a process that is not a child of the
+// test binary: it blocks while the process is alive and reports ErrNoExitStatus once it exits.
+func TestWaitImportedNonChild(t *testing.T) {
+	pid := startNonChild(t, "100")
+	path := savePidForPID(t, pid)
+
+	imp, err := ImportProcess(path)
+	if err != nil {
+		t.Fatal("Failed importing process: ", err)
+	}
+
+	// Wait must block while the process is alive.
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	_, err = imp.Wait(ctx)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Wait on a live non-child should time out, got: %v", err)
+	}
+
+	err = unix.Kill(pid, unix.SIGKILL)
+	if err != nil {
+		t.Fatal("Failed killing non-child process: ", err)
+	}
+
+	// After the process exits, Wait reports termination with no retrievable status.
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel2()
+
+	code, err := imp.Wait(ctx2)
+	if !errors.Is(err, ErrNoExitStatus) {
+		t.Fatalf("Wait on an exited non-child should return ErrNoExitStatus, got code %d err %v", code, err)
+	}
+}
+
+// TestWaitImportedSelfExit checks that Wait unblocks and reports ErrNoExitStatus when an
+// imported non-child process exits on its own.
+func TestWaitImportedSelfExit(t *testing.T) {
+	pid := startNonChild(t, "1")
+	path := savePidForPID(t, pid)
+
+	imp, err := ImportProcess(path)
+	if err != nil {
+		t.Fatal("Failed importing process: ", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	code, err := imp.Wait(ctx)
+	if !errors.Is(err, ErrNoExitStatus) {
+		t.Fatalf("Wait on a self-exited non-child should return ErrNoExitStatus, got code %d err %v", code, err)
+	}
+}
+
+// TestWaitNotSpawned checks that Wait on a process with no handle returns the legacy error
+// rather than the pidfd exit sentinel.
+func TestWaitNotSpawned(t *testing.T) {
+	p := &Process{}
+
+	_, err := p.Wait(context.Background())
+	if err == nil || errors.Is(err, ErrNoExitStatus) {
+		t.Fatalf("Wait on a process we did not spawn should fail with the legacy error, got: %v", err)
 	}
 }
