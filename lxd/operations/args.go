@@ -117,7 +117,9 @@ func (a OperationArgs) validate(isChild bool) error {
 		return errors.New("Bulk operations cannot have nested bulk operations")
 	}
 
-	if isBulkOperation && len(a.Children) == 0 {
+	// If it is a bulk operation, the children slice must be initialized but a zero length slice is allowed.
+	// This allows e.g. `lxc start --all` for an empty project.
+	if isBulkOperation && a.Children == nil {
 		return errors.New("Bulk operations must have children")
 	}
 
@@ -132,7 +134,7 @@ func (a OperationArgs) validate(isChild bool) error {
 	switch a.Class {
 	case operationtype.OperationClassTask:
 		// If this is a single task operation without children, it must have a run hook.
-		if len(a.Children) == 0 && a.RunHook == nil {
+		if !isBulkOperation && a.RunHook == nil {
 			return errors.New("Task operations must have a Run hook")
 		}
 

@@ -333,18 +333,21 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		return nil, err
 	}
 
-	// Create the child operations, if any.
-	op.children = make([]*Operation, 0, len(args.Children))
-	for _, childArgs := range args.Children {
-		// Child operations inherit the requestor from the parent operation.
-		// metricsCallback is set only on the parent operation, so that it's called only once for the whole bulk operation.
-		childArgs.requestor = args.requestor
-		childOp, err := initOperation(s, *childArgs)
-		if err != nil {
-			return nil, fmt.Errorf("Failed creating child operation: %w", err)
-		}
+	// Create the child operations, if any. Note that we only initialize Operation.children if args.Children is non-nil.
+	// This differentiates a non-bulk operation from a bulk operations with zero children.
+	if args.Children != nil {
+		op.children = make([]*Operation, 0, len(args.Children))
+		for _, childArgs := range args.Children {
+			// Child operations inherit the requestor from the parent operation.
+			// metricsCallback is set only on the parent operation, so that it's called only once for the whole bulk operation.
+			childArgs.requestor = args.requestor
+			childOp, err := initOperation(s, *childArgs)
+			if err != nil {
+				return nil, fmt.Errorf("Failed creating child operation: %w", err)
+			}
 
-		op.addChild(childOp)
+			op.addChild(childOp)
+		}
 	}
 
 	shutdownCtx := context.TODO()
@@ -483,7 +486,7 @@ func (op *Operation) start() {
 
 	// If there's a run hook, we need to run it and get the final status from it.
 	// If there are child operations, we need to start and wait for them to finish before we can get the final status of the parent operation.
-	if op.onRun != nil || len(op.children) > 0 {
+	if op.onRun != nil || op.children != nil {
 		// The operation context is the "running" context plus the requestor.
 		// The requestor is available directly on the operation, but we should still put it in the context.
 		// This is so that, if an operation queries another cluster member, the requestor information will be set
@@ -495,7 +498,7 @@ func (op *Operation) start() {
 
 		go func(ctx context.Context, op *Operation) {
 			var err error
-			if op.parent == nil && len(op.children) > 0 {
+			if op.parent == nil && op.children != nil {
 				err = runBulkOperation(op)
 			} else if op.onRun != nil {
 				// Single-task operation: just run the hook.
@@ -610,7 +613,7 @@ func runBulkOperation(op *Operation) error {
 	var firstChildError error
 
 	// Function to run or cancel a child operation.
-	runChildOp := func(op *Operation) {
+	handleChildOp := func(op *Operation) {
 		// Start if there are no previous errors.
 		if firstChildError == nil {
 			op.start()
@@ -630,7 +633,7 @@ func runBulkOperation(op *Operation) error {
 	// Process each batch.
 	for _, batch := range batches {
 		for _, childOp := range batch {
-			runChildOp(childOp)
+			handleChildOp(childOp)
 		}
 
 		// Wait on any operations that have been started or cancelled in this batch.
