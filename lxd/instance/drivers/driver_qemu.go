@@ -8343,6 +8343,96 @@ func (d *qemu) FileSFTP() (*sftp.Client, error) {
 	return client, nil
 }
 
+// CreateBitmap creates a dirty bitmap on each of the given disk devices in a single transaction, so that
+// every bitmap starts recording at the same instant.
+func (d *qemu) CreateBitmap(deviceNames []string, data api.StorageVolumeBitmapsPost) error {
+	// QEMU accepts an empty transaction silently.
+	if len(deviceNames) == 0 {
+		return errors.New("No disk devices specified")
+	}
+
+	if !d.IsRunning() {
+		return api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	nodeNames := make([]string, 0, len(deviceNames))
+	for _, deviceName := range deviceNames {
+		nodeName := blockNodeName(deviceName)
+
+		// QEMU reports a duplicate name as a generic transaction failure, so check first to report a conflict.
+		dirtyBitmaps, err := monitor.QueryNodeDirtyBitmaps(nodeName)
+		if err != nil {
+			return fmt.Errorf("Failed querying bitmaps of disk device %q: %w", deviceName, err)
+		}
+
+		if slices.ContainsFunc(dirtyBitmaps, func(bitmap qmp.BlockDirtyInfo) bool { return bitmap.Name == data.Name }) {
+			return api.StatusErrorf(http.StatusConflict, "Bitmap %q already exists on disk device %q", data.Name, deviceName)
+		}
+
+		nodeNames = append(nodeNames, nodeName)
+	}
+
+	err = monitor.AddDirtyBitmap(nodeNames, data.Name)
+	if err != nil {
+		return fmt.Errorf("Failed creating bitmap %q: %w", data.Name, err)
+	}
+
+	return nil
+}
+
+// DeleteBitmap deletes a dirty bitmap from a disk device.
+func (d *qemu) DeleteBitmap(deviceName string, bitmapName string) error {
+	if !d.IsRunning() {
+		return api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	err = monitor.RemoveDirtyBitmap(blockNodeName(deviceName), bitmapName)
+	if err != nil {
+		return fmt.Errorf("Failed deleting bitmap %q: %w", bitmapName, err)
+	}
+
+	return nil
+}
+
+// GetBitmaps returns the dirty bitmaps of a disk device.
+func (d *qemu) GetBitmaps(deviceName string) ([]api.StorageVolumeBitmap, error) {
+	if !d.IsRunning() {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return nil, err
+	}
+
+	dirtyBitmaps, err := monitor.QueryNodeDirtyBitmaps(blockNodeName(deviceName))
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying bitmaps of disk device %q: %w", deviceName, err)
+	}
+
+	bitmaps := make([]api.StorageVolumeBitmap, 0, len(dirtyBitmaps))
+	for _, bitmap := range dirtyBitmaps {
+		bitmaps = append(bitmaps, api.StorageVolumeBitmap{
+			Name:        bitmap.Name,
+			Count:       bitmap.Count,
+			Granularity: bitmap.Granularity,
+			Busy:        bitmap.Busy,
+		})
+	}
+
+	return bitmaps, nil
+}
+
 // Console gets access to the instance's console.
 func (d *qemu) Console(ctx context.Context, protocol string) (*os.File, chan error, error) {
 	var path string
