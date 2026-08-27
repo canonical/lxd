@@ -8543,14 +8543,265 @@ func (d *qemu) ConnectNBD(diskName string, reuse bool) (net.Conn, func(), error)
 	return nbdConn, func() { d.releaseNBDSession(session) }, nil
 }
 
-// CreateBitmap creates a dirty bitmap on each of the given disk devices in a single transaction, so that
-// every bitmap starts recording at the same instant.
-func (d *qemu) CreateBitmap(deviceNames []string, data api.StorageVolumeBitmapsPost) error {
-	// QEMU accepts an empty transaction silently.
-	if len(deviceNames) == 0 {
-		return errors.New("No disk devices specified")
+// exportableDisks returns the sorted names of the disk devices whose every write the instance's own QEMU
+// process sees, which is the set that the all-disks NBD export serves and that instance-wide bitmaps cover.
+// nodeNames holds the QEMU block node names, as only a block-backed disk has a node to export or track.
+func (d *qemu) exportableDisks(nodeNames []string) ([]string, error) {
+	rootDiskName, _, err := d.getRootDiskDevice()
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting root disk: %w", err)
 	}
 
+	deviceNames := []string{}
+	diskPools := make(map[string]storagePools.Pool)
+	for devName, devConf := range d.ExpandedDevices() {
+		if !filters.IsDisk(devConf) {
+			continue
+		}
+
+		// Read-only disks never change, so there is nothing to back up.
+		if shared.IsTrue(devConf["readonly"]) || devConf["source.snapshot"] != "" {
+			d.logger.Debug("Skipping read-only disk", logger.Ctx{"device": devName})
+			continue
+		}
+
+		// An ISO image is never written to by the guest.
+		if devConf["pool"] == "" && strings.HasSuffix(strings.ToLower(devConf["source"]), ".iso") {
+			d.logger.Debug("Skipping ISO disk", logger.Ctx{"device": devName})
+			continue
+		}
+
+		// The cloud-init config drive is a generated read-only ISO image.
+		if devConf["source"] == device.DiskSourceCloudInit {
+			d.logger.Debug("Skipping cloud-init config drive", logger.Ctx{"device": devName})
+			continue
+		}
+
+		isRootDisk := devName == rootDiskName
+		if isRootDisk || filters.IsCustomVolumeDisk(devConf) {
+			poolName := devConf["pool"]
+			diskPool, ok := diskPools[poolName]
+			if !ok {
+				diskPool, err = storagePools.LoadByName(d.state, poolName)
+				if err != nil {
+					return nil, fmt.Errorf("Failed loading storage pool: %w", err)
+				}
+
+				diskPools[poolName] = diskPool
+			}
+
+			volumeType := dbCluster.StoragePoolVolumeTypeCustom
+			volumeName := devConf["source"]
+			if isRootDisk {
+				volumeType = dbCluster.StoragePoolVolumeTypeVM
+				volumeName = d.name
+			}
+
+			volumeProject := project.StorageVolumeProjectFromRecord(&d.project, volumeType)
+
+			var dbVolume *db.StorageVolume
+			err = d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+				dbVolume, err = tx.GetStoragePoolVolume(ctx, diskPool.ID(), volumeProject, volumeType, volumeName, true)
+				return err
+			})
+			if err != nil {
+				return nil, fmt.Errorf("Failed loading volume %q of type %q from project %q: %w", volumeName, volumeType, volumeProject, err)
+			}
+
+			if !isRootDisk && dbVolume.ContentType != dbCluster.StoragePoolVolumeContentTypeNameBlock {
+				d.logger.Debug("Skipping non-block custom volume disk", logger.Ctx{"device": devName, "contentType": dbVolume.ContentType})
+				continue
+			}
+
+			// Several instances write to a shared volume, so no single QEMU process sees every write to it.
+			if shared.IsTrue(dbVolume.Config["security.shared"]) {
+				d.logger.Debug("Skipping shared volume disk", logger.Ctx{"device": devName})
+				continue
+			}
+		}
+
+		// Only block-backed disks have a matching QEMU block node, this filters out filesystem shares which
+		// cannot be exported over NBD.
+		if !slices.Contains(nodeNames, blockNodeName(devName)) {
+			d.logger.Debug("Skipping disk without a block node", logger.Ctx{"device": devName})
+			continue
+		}
+
+		deviceNames = append(deviceNames, devName)
+	}
+
+	sort.Strings(deviceNames)
+
+	return deviceNames, nil
+}
+
+// ConnectNBDAllDisks exports a frozen view of every block disk of the instance read-only over a single user
+// requested NBD server, each under an export named after its disk device, and returns a connection to it.
+// With reuse, an additional connection to the running all-disks session is returned instead.
+// The server is stopped once its last connection is released.
+func (d *qemu) ConnectNBDAllDisks(reuse bool) (net.Conn, func(), error) {
+	if !d.IsRunning() {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	if reuse {
+		return d.connectNBDSession("")
+	}
+
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Check for existing NBD block exports to detect if another operation is in progress.
+	exports, err := monitor.QueryNBDBlockExports()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(exports) > 0 {
+		return nil, nil, api.StatusErrorf(http.StatusConflict, "Another NBD operation is already in progress for: %s", exports[0].NodeName)
+	}
+
+	nodeNames, err := monitor.QueryNamedBlockNodes()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	deviceNames, err := d.exportableDisks(nodeNames)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(deviceNames) == 0 {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Instance has no exportable disks")
+	}
+
+	// Recover any overlay left behind by an earlier failed teardown so that the disks can be exported again.
+	for _, devName := range deviceNames {
+		overlayNode := overlayNodeName(devName)
+		if !slices.Contains(nodeNames, overlayNode) {
+			continue
+		}
+
+		err = d.removeOverlay(monitor, overlayNode)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed recovering disk %q from an earlier failed teardown: %w", devName, err)
+		}
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	nbdConn, err := monitor.NBDServerStart(d.nbdPath(), 0)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed starting NBD server: %w", err)
+	}
+
+	d.logger.Debug("User requested NBD server started")
+
+	stopServer := func() {
+		d.logger.Debug("User requested NBD server stopped")
+		_ = nbdConn.Close()
+
+		err := monitor.NBDServerStop()
+		if err != nil {
+			d.logger.Error("Failed stopping NBD server", logger.Ctx{"err": err})
+		}
+
+		_ = os.Remove(d.nbdPath())
+	}
+
+	revert.Add(stopServer)
+
+	type exportTarget struct {
+		deviceName  string
+		nodeName    string
+		overlayNode string
+		bitmaps     []string
+	}
+
+	targets := make([]exportTarget, 0, len(deviceNames))
+	backups := make([]qmp.BlockDevBackupTarget, 0, len(deviceNames))
+
+	// Expose a frozen view of each disk through a copy-before-write overlay while the guest keeps writing to
+	// the disk itself.
+	for _, devName := range deviceNames {
+		nodeName := blockNodeName(devName)
+		overlayNode := overlayNodeName(devName)
+
+		bitmaps, err := d.GetBitmaps(devName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed fetching bitmaps for %q: %w", devName, err)
+		}
+
+		bitmapNames := make([]string, 0, len(bitmaps))
+		for _, bitmap := range bitmaps {
+			bitmapNames = append(bitmapNames, bitmap.Name)
+		}
+
+		size, err := monitor.BlockNodeSize(nodeName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed fetching size for %q: %w", devName, err)
+		}
+
+		_, err = d.addOverlay(monitor, overlayNode, size, nodeName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed creating temporary snapshot for %q: %w", devName, err)
+		}
+
+		// A backup job that QEMU started before its transaction command timed out holds the overlay, so the
+		// revert cancels any job before removing the overlay.
+		revert.Add(func() { _ = d.removeOverlay(monitor, overlayNode) })
+
+		backups = append(backups, qmp.BlockDevBackupTarget{Device: nodeName, Target: overlayNode, Sync: "none", JobID: overlayNode})
+		targets = append(targets, exportTarget{deviceName: devName, nodeName: nodeName, overlayNode: overlayNode, bitmaps: bitmapNames})
+	}
+
+	// Start all copy-before-write jobs in one transaction so that the exported disks share the same instant.
+	err = monitor.BlockDevBackupTransaction(backups)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed creating consistent storage snapshot: %w", err)
+	}
+
+	// The backup jobs hold the overlay nodes and an export holds its overlay, so from here on teardown stops
+	// the server first and then cancels each job before removing its overlay.
+	stop := func() {
+		stopServer()
+
+		for _, target := range targets {
+			err := d.removeOverlay(monitor, target.overlayNode)
+			if err != nil {
+				d.logger.Error("Failed removing temporary snapshot overlay", logger.Ctx{"overlay": target.overlayNode, "err": err})
+			}
+		}
+	}
+
+	revert.Success()
+
+	// Add an NBD export per disk under the disk device name. The bitmaps live on the disk node, not on the
+	// exported overlay.
+	for _, target := range targets {
+		err = monitor.NBDBlockExportAdd(target.overlayNode, target.deviceName, false, target.nodeName, target.bitmaps)
+		if err != nil {
+			stop()
+			return nil, nil, fmt.Errorf("Failed adding disk %q to NBD server: %w", target.deviceName, err)
+		}
+	}
+
+	// Register the session, it is stopped once its last connection is released.
+	session := &nbdSession{connections: 1, export: "", stop: stop}
+	nbdSessionsMu.Lock()
+	nbdSessions[d.id] = session
+	nbdSessionsMu.Unlock()
+
+	return nbdConn, func() { d.releaseNBDSession(session) }, nil
+}
+
+// CreateBitmap creates a dirty bitmap on each of the given disk devices in a single transaction, so that
+// every bitmap starts recording at the same instant. With no disk devices, the bitmap is created on every
+// disk that ConnectNBDAllDisks exports.
+func (d *qemu) CreateBitmap(deviceNames []string, data api.StorageVolumeBitmapsPost) error {
 	if !d.IsRunning() {
 		return api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
 	}
@@ -8558,6 +8809,22 @@ func (d *qemu) CreateBitmap(deviceNames []string, data api.StorageVolumeBitmapsP
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
 		return err
+	}
+
+	if len(deviceNames) == 0 {
+		blockNodes, err := monitor.QueryNamedBlockNodes()
+		if err != nil {
+			return err
+		}
+
+		deviceNames, err = d.exportableDisks(blockNodes)
+		if err != nil {
+			return err
+		}
+
+		if len(deviceNames) == 0 {
+			return api.StatusErrorf(http.StatusBadRequest, "Instance has no exportable disks")
+		}
 	}
 
 	nodeNames := make([]string, 0, len(deviceNames))

@@ -39,8 +39,8 @@ import (
 	"github.com/canonical/lxd/shared/validate"
 )
 
-// Special disk "source" value used for generating a VM cloud-init config ISO.
-const diskSourceCloudInit = "cloud-init:config"
+// DiskSourceCloudInit is the special disk "source" value used for generating a VM cloud-init config ISO.
+const DiskSourceCloudInit = "cloud-init:config"
 
 // DiskFileDescriptorMountPrefix indicates the mount dev path is using a file descriptor rather than a normal path.
 // The Mount.DevPath field will be expected to be in the format: "fd:<fdNum>:<devPath>".
@@ -131,7 +131,7 @@ func (d *disk) sourceIsLocalPath(source string) bool {
 		return false
 	}
 
-	if source == diskSourceCloudInit {
+	if source == DiskSourceCloudInit {
 		return false
 	}
 
@@ -705,8 +705,8 @@ func (d *disk) validateEnvironmentSourcePath() error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *disk) validateEnvironment() error {
-	if d.inst.Type() != instancetype.VM && d.config["source"] == diskSourceCloudInit {
-		return fmt.Errorf("disks with source=%s are only supported by virtual machines", diskSourceCloudInit)
+	if d.inst.Type() != instancetype.VM && d.config["source"] == DiskSourceCloudInit {
+		return fmt.Errorf("disks with source=%s are only supported by virtual machines", DiskSourceCloudInit)
 	}
 
 	err := d.validateEnvironmentSourcePath()
@@ -1082,7 +1082,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		}
 
 		return &runConf, nil
-	} else if d.config["source"] == diskSourceCloudInit {
+	} else if d.config["source"] == DiskSourceCloudInit {
 		// This is a special virtual disk source that can be attached to a VM to provide cloud-init config.
 		isoPath, err := d.generateVMConfigDrive()
 		if err != nil {
@@ -2670,7 +2670,7 @@ func (d *disk) cephCreds() (clusterName string, userName string) {
 // Remove cleans up the device when it is removed from an instance.
 func (d *disk) Remove() error {
 	// Remove the config.iso file for cloud-init config drives.
-	if d.config["source"] == diskSourceCloudInit {
+	if d.config["source"] == DiskSourceCloudInit {
 		pool, err := storagePools.LoadByInstance(d.state, d.inst)
 		if err != nil {
 			return err
@@ -2686,7 +2686,7 @@ func (d *disk) Remove() error {
 		isoPath := filepath.Join(d.inst.Path(), "config.iso")
 		err = os.Remove(isoPath)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("Failed removing %s file: %w", diskSourceCloudInit, err)
+			return fmt.Errorf("Failed removing %s file: %w", DiskSourceCloudInit, err)
 		}
 	}
 
