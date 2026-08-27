@@ -132,6 +132,11 @@ func (m *Monitor) SendFile(name string, file *os.File) error {
 	// Query the status.
 	_, err = m.qmp.runWithFile(reqJSON, file, id)
 	if err != nil {
+		// Keep the monitor cached on timeout, as a timeout means QEMU is busy rather than gone.
+		if errors.Is(err, ErrMonitorTimeout) {
+			return err
+		}
+
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
 		if errPing != nil {
@@ -188,6 +193,11 @@ func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (
 
 	ret, err := m.qmp.runWithFile(reqJSON, file, id)
 	if err != nil {
+		// Keep the monitor cached on timeout, as a timeout means QEMU is busy rather than gone.
+		if errors.Is(err, ErrMonitorTimeout) {
+			return nil, err
+		}
+
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
 		if errPing != nil {
@@ -301,8 +311,10 @@ func (m *Monitor) MigrateWait(state string) error {
 			} `json:"return"`
 		}
 
+		// The QEMU main loop is busy during switchover.
+		// A timed out query is therefore not a failure, and polling continues.
 		err := m.run("query-migrate", nil, &resp)
-		if err != nil {
+		if err != nil && !errors.Is(err, ErrMonitorTimeout) {
 			return err
 		}
 
@@ -352,8 +364,10 @@ func (m *Monitor) MigrateIncoming(ctx context.Context, uri string) error {
 			} `json:"return"`
 		}
 
+		// The QEMU main loop is busy during switchover.
+		// A timed out query is therefore not a failure, and polling continues.
 		err := m.run("query-migrate", nil, &resp)
-		if err != nil {
+		if err != nil && !errors.Is(err, ErrMonitorTimeout) {
 			return err
 		}
 
