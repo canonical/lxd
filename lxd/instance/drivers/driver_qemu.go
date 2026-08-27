@@ -112,6 +112,11 @@ const qemuDeviceNamePrefix = "lxd_"
 // qemuDeviceNameMaxLength used to indicate the maximum length of a qemu block node name and device tags.
 const qemuDeviceNameMaxLength = 31
 
+// qemuOverlayNodePrefix used as part of the name given the QEMU block nodes of ephemeral overlays. Device names
+// may contain underscores, so a suffix on qemuDeviceNamePrefix would collide with a device named <name>_snap.
+// No block node of a device starts with this prefix.
+const qemuOverlayNodePrefix = "lxdsnap_"
+
 // qemuMigrationNBDExportName is the name of the disk device export by the migration NBD server.
 const qemuMigrationNBDExportName = "lxd_root"
 
@@ -7286,6 +7291,114 @@ func (d *qemu) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, p
 	}
 }
 
+// blockNodeName returns the QEMU block node name of a disk device.
+func blockNodeName(deviceName string) string {
+	return qemuDeviceNameOrID(qemuDeviceNamePrefix, deviceName, "", qemuDeviceNameMaxLength)
+}
+
+// overlayNodeName returns the QEMU block node name of the ephemeral overlay of a disk device.
+func overlayNodeName(deviceName string) string {
+	return qemuDeviceNameOrID(qemuOverlayNodePrefix, deviceName, "", qemuDeviceNameMaxLength)
+}
+
+// addOverlay adds a qcow2 overlay block node of the given virtual size to the running QEMU process.
+// The overlay file lives on the instance config volume so that the root disk's size.state property limits
+// its growth, and it is unlinked as soon as QEMU holds its descriptor so that it cannot outlive QEMU.
+// A copy-before-write overlay needs the disk it covers as backingNode, a blockdev-snapshot overlay needs none.
+// The returned function removes the overlay block node and its file descriptor set.
+func (d *qemu) addOverlay(monitor *qmp.Monitor, overlayNode string, size int64, backingNode string) (func(), error) {
+	overlayFile := filepath.Join(d.Path(), overlayNode+".qcow2")
+
+	// Ensure there are no existing overlay files.
+	err := os.Remove(overlayFile)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+
+	// Always remove the overlay file so that if qemu-img fails the partially written file is removed.
+	defer func() { _ = os.Remove(overlayFile) }()
+
+	_, err = shared.RunCommand(d.state.ShutdownCtx, "qemu-img", "create", "-f", "qcow2", overlayFile, strconv.FormatInt(size, 10))
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating overlay image %q: %w", overlayFile, err)
+	}
+
+	// Pass the overlay file to the running QEMU process.
+	overlay, err := os.OpenFile(overlayFile, unix.O_RDWR, 0)
+	if err != nil {
+		return nil, fmt.Errorf("Failed opening file descriptor for overlay %q: %w", overlayFile, err)
+	}
+
+	defer func() { _ = overlay.Close() }()
+
+	// Remove the overlay file so that it is neither synced to a migration target nor left behind.
+	err = os.Remove(overlayFile)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := monitor.SendFileWithFDSet(overlayNode, overlay, false)
+	if err != nil {
+		return nil, fmt.Errorf("Failed sending file descriptor of %q for overlay: %w", overlay.Name(), err)
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	revert.Add(func() { _ = monitor.RemoveFDFromFDSet(overlayNode) })
+
+	_ = overlay.Close() // Do not prevent clean unmount when instance is stopped.
+
+	blockDev := map[string]any{
+		"driver":    "qcow2",
+		"node-name": overlayNode,
+		"read-only": false,
+		"file": map[string]any{
+			"driver":   "file",
+			"filename": fmt.Sprintf("/dev/fdset/%d", info.ID),
+		},
+	}
+
+	if backingNode != "" {
+		blockDev["backing"] = backingNode
+	}
+
+	// Add the overlay as a block device (not visible to the guest OS).
+	err = monitor.AddBlockDevice(blockDev, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed adding overlay block device: %w", err)
+	}
+
+	removeOverlay := func() {
+		_ = monitor.RemoveBlockDevice(overlayNode)
+		_ = monitor.RemoveFDFromFDSet(overlayNode)
+	}
+
+	revert.Success()
+	return removeOverlay, nil
+}
+
+// removeOverlay tears down a copy-before-write overlay. The backup job holds the overlay node, so the job is
+// cancelled before the node and its file descriptor set are removed.
+func (d *qemu) removeOverlay(monitor *qmp.Monitor, overlayNode string) error {
+	err := monitor.BlockJobCancelWait(overlayNode)
+	if err != nil {
+		d.logger.Debug("Failed cancelling overlay block job", logger.Ctx{"overlay": overlayNode, "err": err})
+	}
+
+	err = monitor.RemoveBlockDevice(overlayNode)
+	if err != nil {
+		return fmt.Errorf("Failed removing overlay block device %q: %w", overlayNode, err)
+	}
+
+	err = monitor.RemoveFDFromFDSet(overlayNode)
+	if err != nil {
+		d.logger.Warn("Failed removing overlay file descriptor set", logger.Ctx{"overlay": overlayNode, "err": err})
+	}
+
+	return nil
+}
+
 // migrateSendLive performs live migration send process.
 func (d *qemu) migrateSendLive(ctx context.Context, pool storagePools.Pool, clusterMoveSourceName string, rootDiskSize int64, filesystemConn io.ReadWriteCloser, stateConn io.ReadWriteCloser, volSourceArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -7325,68 +7438,15 @@ func (d *qemu) migrateSendLive(ctx context.Context, pool storagePools.Pool, clus
 			return fmt.Errorf("Failed setting migration capabilities: %w", err)
 		}
 
-		// Create snapshot of the root disk.
-		// We use the VM's config volume for this so that the maximum size of the snapshot can be limited
-		// by setting the root disk's `size.state` property.
-		snapshotFile := filepath.Join(d.Path(), "migration_snapshot.qcow2")
-
-		// Ensure there are no existing migration snapshot files.
-		err = os.Remove(snapshotFile)
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
-
-		// Always remove the snapshotFile so that if qemu-img fails the partially written file is removed.
-		defer func() { _ = os.Remove(snapshotFile) }()
-
-		// Create qcow2 disk image with the maximum size set to the instance's root disk size for use as
+		// Create a snapshot overlay with the maximum size set to the instance's root disk size for use as
 		// a CoW target for the migration snapshot. This will be used during migration to store writes in
-		// the guest whilst the storage driver is transferring the root disk and snapshots to the taget.
-		_, err = shared.RunCommand(d.state.ShutdownCtx, "qemu-img", "create", "-f", "qcow2", snapshotFile, strconv.FormatInt(rootDiskSize, 10))
+		// the guest whilst the storage driver is transferring the root disk and snapshots to the target.
+		removeOverlay, err := d.addOverlay(monitor, rootSnapshotDiskName, rootDiskSize, "")
 		if err != nil {
-			return fmt.Errorf("Failed opening file image for migration storage snapshot %q: %w", snapshotFile, err)
+			return fmt.Errorf("Failed adding migration storage snapshot: %w", err)
 		}
 
-		// Pass the snapshot file to the running QEMU process.
-		snapFile, err := os.OpenFile(snapshotFile, unix.O_RDWR, 0)
-		if err != nil {
-			return fmt.Errorf("Failed opening file descriptor for migration storage snapshot %q: %w", snapshotFile, err)
-		}
-
-		defer func() { _ = snapFile.Close() }()
-
-		// Remove the snapshot file as we don't want to sync this to the target.
-		err = os.Remove(snapshotFile)
-		if err != nil {
-			return err
-		}
-
-		info, err := monitor.SendFileWithFDSet(rootSnapshotDiskName, snapFile, false)
-		if err != nil {
-			return fmt.Errorf("Failed sending file descriptor of %q for migration storage snapshot: %w", snapFile.Name(), err)
-		}
-
-		defer func() { _ = monitor.RemoveFDFromFDSet(rootSnapshotDiskName) }()
-
-		_ = snapFile.Close() // Do not prevent clean unmount when instance is stopped.
-
-		// Add the snapshot file as a block device (not visible to the guest OS).
-		err = monitor.AddBlockDevice(map[string]any{
-			"driver":    "qcow2",
-			"node-name": rootSnapshotDiskName,
-			"read-only": false,
-			"file": map[string]any{
-				"driver":   "file",
-				"filename": fmt.Sprintf("/dev/fdset/%d", info.ID),
-			},
-		}, nil)
-		if err != nil {
-			return fmt.Errorf("Failed adding migration storage snapshot block device: %w", err)
-		}
-
-		defer func() {
-			_ = monitor.RemoveBlockDevice(rootSnapshotDiskName)
-		}()
+		defer removeOverlay()
 
 		// Take a snapshot of the root disk and redirect writes to the snapshot disk.
 		err = monitor.BlockDevSnapshot(rootDiskName, rootSnapshotDiskName)
