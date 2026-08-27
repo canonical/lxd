@@ -165,6 +165,12 @@ func (m *Monitor) ping() error {
 	_, err := m.qmp.run(fmt.Appendf([]byte{},
 		`{"execute": "query-version", "id": %d}`, id), id)
 	if err != nil {
+		// A timed out query means QEMU is busy rather than gone, so the monitor stays cached and the
+		// caller keeps the error of its own command.
+		if errors.Is(err, ErrMonitorTimeout) {
+			return nil
+		}
+
 		m.Disconnect()
 		return ErrMonitorDisconnect
 	}
@@ -181,6 +187,11 @@ func (m *Monitor) runJSON(request []byte, resp any, id uint32) error {
 
 	out, err := m.qmp.run(request, id)
 	if err != nil {
+		// Keep the monitor cached on timeout so that a busy QEMU is not mistaken for a dead one.
+		if errors.Is(err, ErrMonitorTimeout) {
+			return err
+		}
+
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
 		if errPing != nil {
