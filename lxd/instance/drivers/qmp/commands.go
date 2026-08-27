@@ -859,6 +859,19 @@ func (m *Monitor) BlockDevSnapshot(deviceNodeName string, snapshotNodeName strin
 	return nil
 }
 
+// BlockDevSnapshotAction returns the transaction action that adds the given overlay node, a qcow2
+// node added without a backing node, on top of a block node.
+// Writes go to the overlay node from then on.
+func BlockDevSnapshotAction(nodeName string, overlayNodeName string) TransactionAction {
+	return TransactionAction{
+		Type: "blockdev-snapshot",
+		Data: map[string]any{
+			"node":    nodeName,
+			"overlay": overlayNodeName,
+		},
+	}
+}
+
 // blockJobWaitReady waits until the specified jobID is ready, errored or missing.
 // Returns nil if the job is ready, otherwise an error.
 func (m *Monitor) blockJobWaitReady(jobID string) error {
