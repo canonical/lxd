@@ -32,6 +32,7 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
+	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -1682,6 +1683,13 @@ func projectPromote(ctx context.Context, s *state.State, projectName string, for
 		if err != nil {
 			return err
 		}
+	}
+
+	// Promote the storage before the mode flip, so the project only leaves standby once its
+	// instances have volumes they can be started from.
+	err = storagePools.PromoteProjectVolumes(ctx, s, projectName, force)
+	if err != nil {
+		return err
 	}
 
 	// Update the replica mode to leader.
