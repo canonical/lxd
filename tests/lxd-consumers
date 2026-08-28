@@ -7,7 +7,7 @@ set -eux
 if [ "${#}" -gt 0 ]; then
     products=("${@}")
 else
-    products=(snapcraft workshop)
+    products=(snapcraft workshop charmcraft)
 fi
 
 # test_snapcraft: pack a minimal snap and confirm snapcraft used the LXD backend.
@@ -109,6 +109,51 @@ EOF
     userdel --remove --force "${wsuser}"
 }
 
+# test_charmcraft: pack a minimal charm and confirm charmcraft used the LXD backend.
+test_charmcraft() {
+    # Install charmcraft (use latest/candidate to help catch regressions in LXD/charmcraft earlier).
+    snap install charmcraft --classic --channel=latest/candidate
+
+    local tmpdir
+    tmpdir="$(mktemp -d)"
+    cd "${tmpdir}"
+
+    mkdir -p "${tmpdir}/src"
+
+    # Create the charm content to pack.
+    echo "Example charm." > "${tmpdir}/src/example.txt"
+
+    # Create the charmcraft.yaml file.
+    cat << EOF > "${tmpdir}/charmcraft.yaml"
+type: charm
+name: charm-example
+title: Charm Example
+summary: A simple charm
+description: |
+  This is a basic charm.
+base: ubuntu@24.04
+platforms:
+  $(dpkg --print-architecture):
+parts:
+  example-charm:
+    plugin: dump
+    source: src/
+EOF
+
+    # Produce the charm file.
+    charmcraft pack -v
+
+    # Verify the charm artifact was produced (arch suffix varies, so glob it).
+    ls charm-example_*.charm
+
+    # Confirm charmcraft used the LXD backend.
+    lxc list --project charmcraft
+
+    # Clean up the temporary working directory.
+    cd - > /dev/null
+    rm -rf "${tmpdir}"
+}
+
 # Install and setup LXD.
 install_lxd
 lxd init --auto
@@ -120,6 +165,9 @@ for product in "${products[@]}"; do
             ;;
         workshop)
             test_workshop
+            ;;
+        charmcraft)
+            test_charmcraft
             ;;
         *)
             echo "Unknown product: ${product}" >&2
