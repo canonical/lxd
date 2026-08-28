@@ -470,6 +470,17 @@ func (b *lxdBackend) ConfirmProjectVolumeMirrors(ctx context.Context, projectNam
 	return pending, err
 }
 
+// PromoteProjectVolumes makes the replicated volumes a project holds on this pool writable.
+func (b *lxdBackend) PromoteProjectVolumes(ctx context.Context, projectName string, force bool) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "force": force})
+	l.Debug("PromoteProjectVolumes started")
+	defer l.Debug("PromoteProjectVolumes finished")
+
+	return b.forEachProjectVolume(ctx, projectName, func(vol drivers.Volume) error {
+		return b.driver.PromoteVolume(vol, force)
+	})
+}
+
 // GetResources returns utilisation information about the pool.
 func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	l := b.logger.AddContext(nil)
