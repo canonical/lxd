@@ -1780,6 +1780,24 @@ func (r *ProtocolLXD) GetInstanceFileSFTP(instanceName string) (*sftp.Client, er
 	return client, nil
 }
 
+// GetInstanceNBDConn returns a connection to the instance's NBD export of every non-shared block disk, each under its device name.
+//
+// The returned connection speaks NBD and the server sends the first message of the handshake.
+// Note that it's the caller's responsibility to close the returned connection.
+func (r *ProtocolLXD) GetInstanceNBDConn(instanceName string, args api.InstanceNBDGet) (net.Conn, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	apiURL := api.NewURL()
+	apiURL.URL = r.httpBaseURL // Preload the URL with the client base URL.
+	apiURL.Path("1.0", "instances", instanceName, "nbd")
+	r.setURLQueryAttributes(&apiURL.URL)
+
+	return r.rawUpgradeConn(http.MethodGet, &apiURL.URL, "nbd", args)
+}
+
 // CreateInstanceBitmap creates a bitmap of the given name on the root disk and every non-shared block disk of the instance.
 func (r *ProtocolLXD) CreateInstanceBitmap(instanceName string, bitmap api.StorageVolumeBitmapsPost) (Operation, error) {
 	err := r.CheckExtension("storage_volume_block_tracking")

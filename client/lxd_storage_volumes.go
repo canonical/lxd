@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 
@@ -1248,4 +1249,40 @@ func (r *ProtocolLXD) DeleteStorageVolumeBitmap(pool string, volumeType string, 
 	}
 
 	return op, nil
+}
+
+// GetStoragePoolVolumeNBDConn returns a connection to the volume's read-only NBD export.
+//
+// The returned connection speaks NBD and the server sends the first message of the handshake.
+// Note that it's the caller's responsibility to close the returned connection.
+func (r *ProtocolLXD) GetStoragePoolVolumeNBDConn(pool string, volType string, volName string, args api.StorageVolumeNBDGet) (net.Conn, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	apiURL := api.NewURL()
+	apiURL.URL = r.httpBaseURL // Preload the URL with the client base URL.
+	apiURL.Path("1.0", "storage-pools", pool, "volumes", volType, volName, "nbd")
+	r.setURLQueryAttributes(&apiURL.URL)
+
+	return r.rawUpgradeConn(http.MethodGet, &apiURL.URL, "nbd", args)
+}
+
+// GetStoragePoolVolumeNBDWriteConn returns a connection to the volume's writable NBD import.
+//
+// The returned connection speaks NBD and the server sends the first message of the handshake.
+// Note that it's the caller's responsibility to close the returned connection.
+func (r *ProtocolLXD) GetStoragePoolVolumeNBDWriteConn(pool string, volType string, volName string, args api.StorageVolumeNBDPost) (net.Conn, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	apiURL := api.NewURL()
+	apiURL.URL = r.httpBaseURL // Preload the URL with the client base URL.
+	apiURL.Path("1.0", "storage-pools", pool, "volumes", volType, volName, "nbd")
+	r.setURLQueryAttributes(&apiURL.URL)
+
+	return r.rawUpgradeConn(http.MethodPost, &apiURL.URL, "nbd", args)
 }
