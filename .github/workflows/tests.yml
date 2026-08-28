@@ -123,6 +123,7 @@ jobs:
           - devlxd
           - docker
           - efi-vm
+          - lxd-consumers
           - lxd-installer
           - lxd-user
           - interception
@@ -132,7 +133,6 @@ jobs:
           - network-routed
           - pylxd
           - qemu-external-vm
-          - snapcraft
           - snapd
           - storage-buckets
           - storage-disks-vm
@@ -194,7 +194,7 @@ jobs:
             track: "4.0/candidate"
           - test: qemu-external-vm
             track: "4.0/candidate"
-          - test: snapcraft
+          - test: lxd-consumers
             track: "4.0/candidate"
           - test: storage-buckets
             track: "4.0/candidate"
@@ -246,7 +246,7 @@ jobs:
             track: "4.0/edge"
           - test: qemu-external-vm
             track: "4.0/edge"
-          - test: snapcraft
+          - test: lxd-consumers
             track: "4.0/edge"
           - test: storage-buckets
             track: "4.0/edge"
@@ -297,9 +297,9 @@ jobs:
             track: "5.0/candidate"
           - test: qemu-external-vm
             track: "5.0/edge"
-          - test: snapcraft
+          - test: lxd-consumers
             track: "5.0/candidate"
-          - test: snapcraft
+          - test: lxd-consumers
             track: "5.0/edge"
           - test: vm-migration
             track: "5.0/candidate"
@@ -318,11 +318,11 @@ jobs:
             track: "5.21/candidate"
           - test: qemu-external-vm
             track: "5.21/edge"
-          - test: snapcraft
+          - test: lxd-consumers
             track: "5.21/stable"
-          - test: snapcraft
+          - test: lxd-consumers
             track: "5.21/candidate"
-          - test: snapcraft
+          - test: lxd-consumers
             track: "5.21/edge"
           # some tests are not worth testing on specific OSes
           - os: 22.04
@@ -332,7 +332,7 @@ jobs:
           - os: 22.04
             test: qemu-external-vm
           - os: 22.04
-            test: snapcraft
+            test: lxd-consumers
           # skip track/os combinations that are too far appart
           - os: 24.04
             track: "4.0/candidate"
