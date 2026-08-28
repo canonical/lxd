@@ -784,10 +784,10 @@ if [ -x "${SNAP_COMMON}/lxd.debug" ]; then
     echo "==> WARNING: Using a custom debug LXD binary!"
 fi
 
-CMD="${LXD} --logfile ${SNAP_COMMON}/lxd/logs/lxd.log"
+set -- "${LXD}" --logfile "${SNAP_COMMON}/lxd/logs/lxd.log"
 
 if getent group -- "${daemon_group}" >/dev/null 2>&1; then
-    CMD="${CMD} --group ${daemon_group}"
+    set -- "$@" --group "${daemon_group}"
     if [ -e "${SNAP_COMMON}/lxd/unix.socket" ]; then
         chgrp -- "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
     fi
@@ -796,15 +796,15 @@ else
 fi
 
 if [ "${daemon_debug:-"false"}" = "true" ]; then
-    CMD="${CMD} --debug"
+    set -- "$@" --debug
 fi
 
 if [ "${daemon_syslog:-"false"}" = "true" ]; then
-    CMD="${CMD} --syslog"
+    set -- "$@" --syslog
 fi
 
 if [ "${daemon_verbose:-"false"}" = "true" ]; then
-    CMD="${CMD} --verbose"
+    set -- "$@" --verbose
 fi
 
 if [ "${db_trace:-"false"}" = "true" ]; then
@@ -825,8 +825,7 @@ set +e
     read -r sbpid _ < /proc/self/stat
     export LISTEN_PID="${sbpid}"
 
-    # shellcheck disable=SC2086
-    exec ${CMD}
+    exec "$@"
 )&
 PID=$!
 echo "${PID}" > "${SNAP_COMMON}/lxd.pid"
