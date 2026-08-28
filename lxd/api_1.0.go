@@ -176,6 +176,7 @@ var api10 = []APIEndpoint{
 var changedBlockTrackingCmds = []APIEndpoint{
 	instanceSnapshotBitmapsCmd,
 	instanceSnapshotBitmapCmd,
+	instanceSnapshotNBDCmd,
 }
 
 // swagger:operation GET /1.0?public server server_get_untrusted
