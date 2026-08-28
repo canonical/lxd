@@ -138,17 +138,19 @@ test_devlxd() {
 
     # Test cloud-init user-data.
     # Ensure the header is preserved and the outputted value is not escaped.
-    local cloudInitUserData="#cloud-config
+    if hasNeededAPIExtension cloud_init; then
+        local cloudInitUserData="#cloud-config
 package_update: false
 package_upgrade: false
 runcmd:
 - echo test"
 
-    lxc config set "${instName}" cloud-init.user-data "${cloudInitUserData}"
-    local out
-    out="$(lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock lxd/1.0/config/cloud-init.user-data)"
-    [ "${out}" = "${cloudInitUserData}" ]
-    lxc config unset "${instName}" cloud-init.user-data
+        lxc config set "${instName}" cloud-init.user-data "${cloudInitUserData}"
+        local out
+        out="$(lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/config/cloud-init.user-data)"
+        [ "${out}" = "${cloudInitUserData}" ]
+        lxc config unset "${instName}" cloud-init.user-data
+    fi
 
     if hasNeededAPIExtension instance_ready_state; then
         # test instance Ready state
