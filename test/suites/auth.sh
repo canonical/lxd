@@ -44,14 +44,20 @@ test_authorization() {
   # Instance permissions.
   ! lxc auth group permission add test-group instance c1 can_exec project=default || false # Not found
   lxc init --empty c1
-  ! lxc auth group permission add test-group instance c1 can_exec || false # No project
   ! lxc auth group permission add test-group instance c1 can_exec project=default || false # Cannot view default project
   lxc auth group permission add test-group project default can_view
+  ! lxc auth group permission add test-group instance c1 can_exec || false # No project
+  ! lxc auth group permission add test-group instance c1 can_exec project=default || false # Cannot view instance
+  lxc auth group permission add test-group instance c1 can_view project=default # Valid
+  ! lxc auth group permission remove test-group instance c1 can_exec project=default || false # No such permission
   lxc auth group permission add test-group instance c1 can_exec project=default # Valid
+  ! lxc auth group permission remove test-group instance c1 can_view || false # Can't remove viewership while exec perms held.
   lxc auth group permission remove test-group instance c1 can_exec project=default # Valid
   ! lxc auth group permission remove test-group instance c1 can_exec project=default || false # Already removed
   ! lxc auth group permission add test-group instance c1 not_an_instance_entitlement project=default || false # Invalid entitlement
-  lxc auth group permission remove test-group project default can_view
+  ! lxc auth group permission remove test-group project default can_view || false # Can't remove project viewership while group members can still view an instance inside it.
+  lxc auth group permission remove test-group instance c1 can_view project=default # Valid
+  lxc auth group permission remove test-group project default can_view # Valid
 
   # Instance snapshot permissions, these are not valid because permissions can only be granted on the parent instance.
   lxc snapshot c1 c1-snap
@@ -81,9 +87,9 @@ test_authorization() {
 
   # Test permission is removed automatically when instance is removed.
   lxc auth group permission add test-group project default can_view
-  lxc auth group permission add test-group instance c1 can_exec project=default # Valid
+  lxc auth group permission add test-group instance c1 can_edit project=default # Valid
   lxc rm c1 --force
-  [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM auth_groups_permissions WHERE entitlement = 'can_exec'")" = 0 ] # Permission should be removed when instance is removed.
+  [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM auth_groups_permissions WHERE entitlement = 'can_edit'")" = 0 ] # Permission should be removed when instance is removed.
   lxc auth group permission remove test-group project default can_view
 
   # Network permissions
