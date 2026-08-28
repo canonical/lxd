@@ -26,6 +26,10 @@ var ErrSnapshotDoesNotMatchIncrementalSource = errors.New("Snapshot does not mat
 // volume rather than mutating a shared image dataset.
 var ErrImageVariantNotSupported = errors.New("Image variant not supported by driver")
 
+// ErrPeerPrimary is returned by an unforced promotion while the peer still holds the primary image,
+// or while the peer's demotion has not reached this site yet.
+var ErrPeerPrimary = errors.New("The peer image is still primary or its demotion has not reached this site yet")
+
 // ErrDeleteSnapshots is a special error used to tell the backend to delete more recent snapshots.
 type ErrDeleteSnapshots struct {
 	Snapshots []string
