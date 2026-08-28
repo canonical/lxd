@@ -1815,6 +1815,86 @@ func (r *ProtocolLXD) GetInstanceFileSFTP(instanceName string) (*sftp.Client, er
 	return client, nil
 }
 
+// instanceSnapshotBitmapsPath returns the API path of the bitmaps of an instance snapshot.
+func (r *ProtocolLXD) instanceSnapshotBitmapsPath(instanceName string, snapshotName string) (string, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return "", err
+	}
+
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return "", err
+	}
+
+	return path + "/" + url.PathEscape(instanceName) + "/snapshots/" + url.PathEscape(snapshotName) + "/bitmaps", nil
+}
+
+// getInstanceBitmapNames returns the names of the bitmaps at the given bitmaps path.
+func (r *ProtocolLXD) getInstanceBitmapNames(path string) ([]string, error) {
+	// Fetch the raw URL values.
+	urls := []string{}
+	_, err := r.queryStruct(http.MethodGet, path, nil, "", &urls)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse it.
+	return urlsToResourceNames(path, urls...)
+}
+
+// getInstanceBitmaps returns the bitmaps at the given bitmaps path.
+func (r *ProtocolLXD) getInstanceBitmaps(path string) ([]api.InstanceBitmap, error) {
+	bitmaps := []api.InstanceBitmap{}
+	_, err := r.queryStruct(http.MethodGet, path+"?recursion=1", nil, "", &bitmaps)
+	if err != nil {
+		return nil, err
+	}
+
+	return bitmaps, nil
+}
+
+// getInstanceBitmap returns the named bitmap at the given bitmaps path.
+func (r *ProtocolLXD) getInstanceBitmap(path string, bitmapName string) (*api.InstanceBitmap, error) {
+	bitmap := api.InstanceBitmap{}
+	_, err := r.queryStruct(http.MethodGet, path+"/"+url.PathEscape(bitmapName), nil, "", &bitmap)
+	if err != nil {
+		return nil, err
+	}
+
+	return &bitmap, nil
+}
+
+// GetInstanceSnapshotBitmapNames returns the names of the bitmaps of the instance snapshot.
+func (r *ProtocolLXD) GetInstanceSnapshotBitmapNames(instanceName string, snapshotName string) ([]string, error) {
+	path, err := r.instanceSnapshotBitmapsPath(instanceName, snapshotName)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.getInstanceBitmapNames(path)
+}
+
+// GetInstanceSnapshotBitmaps returns the bitmaps of the instance snapshot.
+func (r *ProtocolLXD) GetInstanceSnapshotBitmaps(instanceName string, snapshotName string) ([]api.InstanceBitmap, error) {
+	path, err := r.instanceSnapshotBitmapsPath(instanceName, snapshotName)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.getInstanceBitmaps(path)
+}
+
+// GetInstanceSnapshotBitmap returns the named bitmap of the instance snapshot.
+func (r *ProtocolLXD) GetInstanceSnapshotBitmap(instanceName string, snapshotName string, bitmapName string) (*api.InstanceBitmap, error) {
+	path, err := r.instanceSnapshotBitmapsPath(instanceName, snapshotName)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.getInstanceBitmap(path, bitmapName)
+}
+
 // GetInstanceSnapshotNames returns a list of snapshot names for the instance.
 func (r *ProtocolLXD) GetInstanceSnapshotNames(instanceName string) ([]string, error) {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
