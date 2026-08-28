@@ -169,6 +169,7 @@ var api10 = []APIEndpoint{
 // feature preview. restServer registers them only when the preview is enabled.
 var changedBlockTrackingCmds = []APIEndpoint{
 	instanceBitmapsCmd,
+	instanceNBDCmd,
 	storagePoolVolumeTypeBitmapsCmd,
 	storagePoolVolumeTypeBitmapCmd,
 	storagePoolVolumeTypeNBDCmd,
