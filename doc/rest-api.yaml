@@ -2734,6 +2734,16 @@ definitions:
         title: InstanceFull is a combination of Instance, InstanceBackup, InstanceState and InstanceSnapshot.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    InstanceNBDGet:
+        description: InstanceNBDGet represents the fields available for a read-only NBD export of an instance's disks
+        properties:
+            reuse:
+                description: Attach to the NBD session already open for the instance instead of opening a new one
+                example: false
+                type: boolean
+                x-go-name: Reuse
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     InstancePost:
         properties:
             Config:
@@ -8236,6 +8246,57 @@ definitions:
         title: StorageVolume represents the fields of a LXD storage volume.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    StorageVolumeBitmap:
+        description: StorageVolumeBitmap represents a volume bitmap
+        properties:
+            busy:
+                description: Whether the bitmap is in use by an operation
+                example: true
+                type: boolean
+                x-go-name: Busy
+            count:
+                description: Number of dirty bytes
+                example: 300
+                format: int64
+                type: integer
+                x-go-name: Count
+            granularity:
+                description: Granularity of the dirty bitmap in bytes
+                example: 32768
+                format: int64
+                type: integer
+                x-go-name: Granularity
+            name:
+                description: Bitmap name
+                example: bitmap0
+                type: string
+                x-go-name: Name
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    StorageVolumeBitmapsPost:
+        description: StorageVolumeBitmapsPost represents the fields available for a new volume bitmap
+        properties:
+            name:
+                description: Bitmap name
+                example: bitmap0
+                type: string
+                x-go-name: Name
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    StorageVolumeNBDGet:
+        description: StorageVolumeNBDGet represents the fields available for a read-only NBD export of a volume
+        properties:
+            reuse:
+                description: Attach to the NBD session already open for the volume instead of opening a new one
+                example: false
+                type: boolean
+                x-go-name: Reuse
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
+    StorageVolumeNBDPost:
+        description: StorageVolumeNBDPost represents the fields available for a writable NBD import of a volume
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     StorageVolumePost:
         description: StorageVolumePost represents the fields required to rename a LXD storage pool volume
         properties:
@@ -13082,6 +13143,42 @@ paths:
             summary: Get the backups
             tags:
                 - instances
+    /1.0/instances/{name}/bitmaps:
+        post:
+            consumes:
+                - application/json
+            description: |-
+                Creates a dirty bitmap of the given name on every disk that the instance NBD export serves, which are the
+                writable non-shared block disks of the instance.
+            operationId: instance_bitmaps_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Bitmap
+                  in: body
+                  name: bitmap
+                  required: true
+                  schema:
+                    $ref: '#/definitions/StorageVolumeBitmapsPost'
+            produces:
+                - application/json
+            responses:
+                "202":
+                    $ref: '#/responses/Operation'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Create instance bitmaps
+            tags:
+                - instances
     /1.0/instances/{name}/console:
         delete:
             description: Clears the console log buffer.
@@ -13770,6 +13867,48 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Create or replace a template file
+            tags:
+                - instances
+    /1.0/instances/{name}/nbd:
+        get:
+            consumes:
+                - application/json
+            description: |-
+                Upgrades the request to a read-only NBD connection exporting every non-shared block disk of the instance,
+                each under an export named after its device name. The instance must be a running virtual machine.
+                The export runs as an operation on the cluster member serving it, which is listed and cancelled through
+                the operations API. Cancelling the operation closes the connection.
+            operationId: instance_nbd_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: NBD export
+                  in: body
+                  name: nbd
+                  schema:
+                    $ref: '#/definitions/InstanceNBDGet'
+            produces:
+                - application/json
+                - application/octet-stream
+            responses:
+                "101":
+                    description: Switching protocols to NBD
+                    headers:
+                        Location:
+                            description: URL of the operation representing the export, set when the responding cluster member serves it
+                            type: string
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the instance NBD connection
             tags:
                 - instances
     /1.0/instances/{name}/rebuild:
@@ -19821,6 +19960,319 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Get the storage volume backups
+            tags:
+                - storage
+    /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/bitmaps:
+        get:
+            description: Returns a list of storage volume bitmaps (URLs).
+            operationId: storage_pool_volumes_type_bitmaps_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/storage-pools/local/volumes/virtual-machine/v1/bitmaps/bitmap0",
+                                      "/1.0/storage-pools/local/volumes/virtual-machine/v1/bitmaps/bitmap1"
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the storage volume bitmaps
+            tags:
+                - storage
+        post:
+            consumes:
+                - application/json
+            description: Creates a new dirty bitmap on the storage volume.
+            operationId: storage_pool_volumes_type_bitmaps_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+                - description: Storage volume bitmap
+                  in: body
+                  name: bitmap
+                  required: true
+                  schema:
+                    $ref: '#/definitions/StorageVolumeBitmapsPost'
+            produces:
+                - application/json
+            responses:
+                "202":
+                    $ref: '#/responses/Operation'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Create a storage volume bitmap
+            tags:
+                - storage
+    /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/bitmaps/{bitmapName}:
+        delete:
+            description: Deletes a storage volume bitmap.
+            operationId: storage_pool_volumes_type_bitmap_delete
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "202":
+                    $ref: '#/responses/Operation'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Delete a storage volume bitmap
+            tags:
+                - storage
+        get:
+            description: Gets a specific storage volume bitmap.
+            operationId: storage_pool_volumes_type_bitmap_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Storage volume bitmap
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/StorageVolumeBitmap'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the storage volume bitmap
+            tags:
+                - storage
+    /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/bitmaps?recursion=1:
+        get:
+            description: Returns a list of storage volume bitmaps (structs).
+            operationId: storage_pool_volumes_type_bitmaps_get_recursion1
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of storage volume bitmaps
+                                items:
+                                    $ref: '#/definitions/StorageVolumeBitmap'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the storage volume bitmaps
+            tags:
+                - storage
+    /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/nbd:
+        get:
+            consumes:
+                - application/json
+            description: |-
+                Upgrades the request to a read-only NBD connection of the storage volume's block device.
+                The volume must be of type virtual-machine or custom and attached to a running virtual machine.
+                The export runs as an operation on the cluster member serving it, which is listed and cancelled through
+                the operations API. Cancelling the operation closes the connection.
+            operationId: storage_pool_volumes_type_nbd_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+                - description: NBD export
+                  in: body
+                  name: nbd
+                  schema:
+                    $ref: '#/definitions/StorageVolumeNBDGet'
+            produces:
+                - application/json
+                - application/octet-stream
+            responses:
+                "101":
+                    description: Switching protocols to NBD
+                    headers:
+                        Location:
+                            description: URL of the operation representing the export, set when the responding cluster member serves it
+                            type: string
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the storage volume NBD connection
+            tags:
+                - storage
+        post:
+            consumes:
+                - application/json
+            description: |-
+                Upgrades the request to a writable NBD connection of the storage volume's block device.
+                The volume must be of type virtual-machine or custom and every instance using it must be stopped.
+                The import runs as an operation on the cluster member serving it, which is listed and cancelled through
+                the operations API. Cancelling the operation closes the connection.
+            operationId: storage_pool_volumes_type_nbd_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+                - description: NBD import
+                  in: body
+                  name: nbd
+                  schema:
+                    $ref: '#/definitions/StorageVolumeNBDPost'
+            produces:
+                - application/json
+                - application/octet-stream
+            responses:
+                "101":
+                    description: Switching protocols to NBD
+                    headers:
+                        Location:
+                            description: URL of the operation representing the import, set when the responding cluster member serves it
+                            type: string
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Import into the storage volume over NBD
             tags:
                 - storage
     /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/snapshots:
