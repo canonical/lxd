@@ -156,6 +156,10 @@ For help with any of those, simply call them with --help.`)
 	aliasCmd := cmdAlias{global: &globalCmd}
 	app.AddCommand(aliasCmd.command())
 
+	// bitmap sub-command
+	bitmapCmd := cmdBitmap{global: &globalCmd}
+	app.AddCommand(bitmapCmd.command())
+
 	// cluster sub-command
 	clusterCmd := cmdCluster{global: &globalCmd}
 	app.AddCommand(clusterCmd.command())
