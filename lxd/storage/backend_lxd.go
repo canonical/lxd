@@ -369,6 +369,72 @@ func (b *lxdBackend) GetVolume(volType drivers.VolumeType, contentType drivers.C
 	return drivers.NewVolume(b.driver, b.name, volType, contentType, volName, volConfig, b.db.Config).Clone()
 }
 
+// PromoteProjectVolumes makes the replicated volumes a project holds on this pool writable.
+// Snapshots are left out because a replica carries them along with the volume they belong to.
+// Image volumes are left out because nothing writes to one after it is unpacked, so an image never
+// has to be primary for the instances cloned from it to start.
+func (b *lxdBackend) PromoteProjectVolumes(ctx context.Context, projectName string, force bool) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "force": force})
+	l.Debug("PromoteProjectVolumes started")
+	defer l.Debug("PromoteProjectVolumes finished")
+
+	volTypeContainer := cluster.StoragePoolVolumeTypeContainer
+	volTypeVM := cluster.StoragePoolVolumeTypeVM
+	volTypeCustom := cluster.StoragePoolVolumeTypeCustom
+
+	var dbVolumes []*db.StorageVolume
+
+	err := b.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		dbVolumes, err = tx.GetStorageVolumes(ctx, false,
+			db.StorageVolumeFilter{Project: &projectName, PoolID: &b.id, Type: &volTypeContainer},
+			db.StorageVolumeFilter{Project: &projectName, PoolID: &b.id, Type: &volTypeVM},
+			db.StorageVolumeFilter{Project: &projectName, PoolID: &b.id, Type: &volTypeCustom},
+		)
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed loading the volumes of project %q: %w", projectName, err)
+	}
+
+	for _, dbVolume := range dbVolumes {
+		if shared.IsSnapshot(dbVolume.Name) {
+			continue
+		}
+
+		dbVolType, err := cluster.StoragePoolVolumeTypeFromName(dbVolume.Type)
+		if err != nil {
+			return fmt.Errorf("Failed reading the type of volume %q: %w", dbVolume.Name, err)
+		}
+
+		dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(dbVolume.ContentType)
+		if err != nil {
+			return fmt.Errorf("Failed reading the content type of volume %q: %w", dbVolume.Name, err)
+		}
+
+		volType := VolumeDBTypeToType(dbVolType)
+
+		// Custom volumes carry the project in their storage name everywhere, instance volumes
+		// only outside the default project, and either way it ends up in the volume name the
+		// driver acts on.
+		volStorageName := project.StorageVolume(dbVolume.Project, dbVolume.Name)
+		if volType != drivers.VolumeTypeCustom {
+			volStorageName = project.Instance(dbVolume.Project, dbVolume.Name)
+		}
+
+		vol := b.GetVolume(volType, VolumeDBContentTypeToContentType(dbContentType), volStorageName, dbVolume.Config)
+
+		err = b.driver.PromoteVolume(vol, force)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // GetResources returns utilisation information about the pool.
 func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	l := b.logger.AddContext(nil)
