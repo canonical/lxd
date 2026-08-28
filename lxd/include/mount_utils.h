@@ -28,6 +28,12 @@
 #define OPEN_TREE_CLOEXEC O_CLOEXEC
 #endif
 
+// Reuses the generic AT_* namespace: tells open_tree() to clone the whole
+// mount subtree (equivalent to the legacy MS_REC flag for bind mounts).
+#ifndef AT_RECURSIVE
+#define AT_RECURSIVE 0x8000
+#endif
+
 // fsmount() flags
 #ifndef FSMOUNT_CLOEXEC
 #define FSMOUNT_CLOEXEC 0x00000001

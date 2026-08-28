@@ -405,7 +405,18 @@ static void do_move_forkmount(int pidfd, int ns_fd)
 		if (mnt_fd < 0)
 			die("fsmount");
 	} else {
-		mnt_fd = lxd_open_tree(-EBADF, src, OPEN_TREE_CLOEXEC | OPEN_TREE_CLONE);
+		unsigned int open_tree_flags = OPEN_TREE_CLOEXEC | OPEN_TREE_CLONE;
+
+		// MS_REC (set for recursive/"rbind" disk devices) has no
+		// MOUNT_ATTR_* equivalent: it has to be requested on open_tree()
+		// itself via AT_RECURSIVE, or nested mounts under src are silently
+		// left behind by the clone.
+		// This does not affect the cold-plug path which is handled by liblxc
+		// that already handles MS_REC correctly.
+		if (old_mntflags & MS_REC)
+			open_tree_flags |= AT_RECURSIVE;
+
+		mnt_fd = lxd_open_tree(-EBADF, src, open_tree_flags);
 		if (mnt_fd < 0)
 			die("open_tree");
 	}
@@ -415,13 +426,22 @@ static void do_move_forkmount(int pidfd, int ns_fd)
 		die("preserve userns");
 
 	if (strcmp(idmapType, "idmapped") == 0) {
+		unsigned int mount_setattr_flags = AT_EMPTY_PATH;
 		struct lxc_mount_attr attr = {
 			.attr_set	= MOUNT_ATTR_IDMAP,
 			.userns_fd	= fd_userns,
 
 		};
 
-		ret = lxd_mount_setattr(mnt_fd, "", AT_EMPTY_PATH, &attr, sizeof(attr));
+		// recursive=true can be combined with shift=true (disk device
+		// validation only rejects recursive+readonly): without AT_RECURSIVE
+		// here too, MOUNT_ATTR_IDMAP only applies to the top-level mount and
+		// any submount cloned from src via AT_RECURSIVE above keeps its
+		// original, unshifted host ownership.
+		if (old_mntflags & MS_REC)
+			mount_setattr_flags |= AT_RECURSIVE;
+
+		ret = lxd_mount_setattr(mnt_fd, "", mount_setattr_flags, &attr, sizeof(attr));
 		if (ret)
 			die("idmap mount");
 	}

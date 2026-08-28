@@ -6,6 +6,7 @@ test_container_devices_disk() {
   _container_devices_disk_type_arg
   _container_devices_disk_shift
   _container_devices_disk_mount
+  _container_devices_disk_recursive
   _container_devices_raw_mount_options
   _container_devices_disk_ceph
   _container_devices_disk_cephfs
@@ -19,6 +20,7 @@ test_container_devices_disk() {
 _container_devices_disk_type_arg() {
   local err
 
+  sub_test "Verify the disk device type cannot be given as a key=value pair"
   # Check that providing a key=value pair as the device type positional argument fails.
   err="$(! lxc config device add foo mnt-test "boot.priority=10" pool=default source=vol path=/mnt type=disk 2>&1 || echo fail)"
   [ "$(tail -1 <<< "${err}")" = 'Error: Invalid device type "boot.priority=10": the device type must be specified as the third positional argument' ]
@@ -28,15 +30,15 @@ _container_devices_disk_type_arg() {
   [ "$(tail -1 <<< "${err}")" = 'Error: The device type cannot be set as a key=value pair "type=disk", use the third positional argument instead' ]
 }
 
-_container_devices_disk_shift() {
+_container_devices_idmapped_mounts_supported() {
   # `tmpfs` does not support idmapped mounts on kernels older than 6.3
   if [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.3; then
     echo "==> SKIP: tmpfs (LXD_TMPFS=${LXD_TMPFS}) idmapped mount requires a kernel >= 6.3"
-    return
+    return 1
   fi
 
   if [ -n "${LXD_IDMAPPED_MOUNTS_DISABLE:-}" ]; then
-    return
+    return 1
   fi
 
   if [ "$(storage_backend "$LXD_DIR")" = "zfs" ]; then
@@ -45,7 +47,7 @@ _container_devices_disk_shift() {
     if [ "$(printf '%s\n' "$zfs_version" "2.2" | sort -V | head -n1)" = "$zfs_version" ]; then
       if [ "$zfs_version" != "2.2" ]; then
         echo "ZFS version is less than 2.2. Skipping idmapped mounts tests."
-        return
+        return 1
       else
         echo "ZFS version is 2.2. Idmapped mounts are supported with ZFS."
       fi
@@ -54,6 +56,13 @@ _container_devices_disk_shift() {
     fi
   fi
 
+  return 0
+}
+
+_container_devices_disk_shift() {
+  _container_devices_idmapped_mounts_supported || return
+
+  sub_test "Hot-plug an unshifted then a shift=true device and verify ownership"
   # Test basic shifting
   mkdir -p "${TEST_DIR}/shift-source"
   touch "${TEST_DIR}/shift-source/a"
@@ -72,6 +81,7 @@ _container_devices_disk_shift() {
   lxc config device remove foo idmapped_mount
   lxc stop foo -f
 
+  sub_test "security.shifted custom volumes: verify shared ownership across privileged and isolated instances"
   # Test shifted custom volumes
   local POOL
   POOL="lxdtest-$(basename "${LXD_DIR}")"
@@ -114,7 +124,8 @@ _container_devices_disk_shift() {
 
 _container_devices_disk_mount() {
   lxc start foo
-  echo "Add a mount that points to an existing path in the instance."
+
+  sub_test "Mount over an existing directory and verify permissions/ownership survive device removal"
   lxc exec foo -- mkdir -p /opt/target
   lxc exec foo -- chmod 754 /opt/target
   lxc exec foo -- chown 12345:12345 /opt/target
@@ -124,7 +135,7 @@ _container_devices_disk_mount() {
   echo "Check permissions and ownership remain after removal."
   [ "$(lxc exec foo -- stat -c '%a %u %g' /opt/target)" = "754 12345 12345" ]
 
-  echo "Add a mount point that points to an existing file in the instance."
+  sub_test "Mount over an existing file and verify permissions/ownership/content survive device removal"
   echo "hello" | lxc file push - foo/opt/target-file
   lxc exec foo -- chmod 754 /opt/target-file
   lxc exec foo -- chown 12345:12345 /opt/target-file
@@ -137,14 +148,71 @@ _container_devices_disk_mount() {
   echo "Check file content remains after removal."
   [ "$(lxc exec foo -- cat /opt/target-file)" = "hello" ]
 
-  echo "Check removal of mount point devices created in /dev."
+  sub_test "Verify removal of a device that created its mount point under /dev"
   lxc config device add foo bar disk source=/dev/zero path=/dev/test
   lxc config device remove foo bar
   ! lxc exec foo -- mount | grep -F "/dev/test" || false
   ! lxc exec foo -- test -e /dev/test || false
 
   echo "Cleanup."
+
   lxc stop -f foo
+}
+
+_container_devices_disk_recursive() {
+  lxc start foo
+
+  sub_test "Hot-plug a recursive disk device and verify a submount nested in its source is visible too"
+  # A source with a submount nested inside it (rather than a plain
+  # directory), with recursive=true. The submount must be visible in the
+  # instance too, not just the top-level mount.
+  mkdir -p "${TEST_DIR}/recursive-source/nested"
+  echo top-level-file > "${TEST_DIR}/recursive-source/top"
+  mount -t tmpfs tmpfs "${TEST_DIR}/recursive-source/nested"
+  echo nested-file > "${TEST_DIR}/recursive-source/nested/marker"
+
+  lxc config device add foo recursive-mount disk source="${TEST_DIR}/recursive-source" path=/mnt/recursive recursive=true
+  [ "$(lxc exec foo -- cat /mnt/recursive/top)" = "top-level-file" ]
+  [ "$(lxc exec foo -- cat /mnt/recursive/nested/marker)" = "nested-file" ]
+  lxc config device remove foo recursive-mount
+
+  umount "${TEST_DIR}/recursive-source/nested"
+  lxc stop foo -f
+
+  # The top-level source below is a plain path under TEST_DIR, same as
+  # _container_devices_disk_shift()'s basic-shifting phase, so it needs the
+  # same idmapped-mount eligibility check (e.g. TEST_DIR itself can be tmpfs
+  # via LXD_TMPFS=1, which only gained idmapped mount support in 6.3).
+  _container_devices_idmapped_mounts_supported || return
+
+  sub_test "Hot-plug a recursive AND shifted disk device and verify the nested submount is shifted too"
+  # recursive=true and shift=true can be combined. A submount nested under
+  # the top-level mount should be shifted too. Use a loopback ext4 mount
+  # (rather than tmpfs) for the nested submount specifically, so that part
+  # doesn't additionally depend on whatever filesystem TEST_DIR happens to
+  # be on: ext4 has supported idmapped mounts since they were introduced
+  # (5.12), unlike tmpfs which only gained support in 6.3.
+  configure_loop_device recursive_shift_loop_file recursive_shift_loop_device
+  # shellcheck disable=SC2154
+  mkfs.ext4 -q "${recursive_shift_loop_device}"
+
+  mkdir -p "${TEST_DIR}/recursive-shift-source/nested"
+  touch "${TEST_DIR}/recursive-shift-source/top"
+  chown 123:456 "${TEST_DIR}/recursive-shift-source/top"
+  mount "${recursive_shift_loop_device}" "${TEST_DIR}/recursive-shift-source/nested"
+  touch "${TEST_DIR}/recursive-shift-source/nested/marker"
+  chown 123:456 "${TEST_DIR}/recursive-shift-source/nested/marker"
+
+  lxc start foo
+  lxc config device add foo recursive-shift-mount disk source="${TEST_DIR}/recursive-shift-source" path=/mnt/recursive-shift recursive=true shift=true
+  [ "$(lxc exec foo -- stat -c '%u:%g' /mnt/recursive-shift/top)" = "123:456" ]
+  [ "$(lxc exec foo -- stat -c '%u:%g' /mnt/recursive-shift/nested/marker)" = "123:456" ]
+  lxc config device remove foo recursive-shift-mount
+  lxc stop foo -f
+
+  umount "${TEST_DIR}/recursive-shift-source/nested"
+  # shellcheck disable=SC2154
+  deconfigure_loop_device "${recursive_shift_loop_file}" "${recursive_shift_loop_device}"
 }
 
 _container_devices_raw_mount_options() {
@@ -154,16 +222,19 @@ _container_devices_raw_mount_options() {
 
   lxc launch testimage foo-priv -c security.privileged=true
 
+  sub_test "Hot-plug a loop device without raw.mount.options and verify default ownership/writability"
   lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt
   [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "0:0" ]
   lxc exec foo-priv -- touch /mnt/foo
   lxc config device remove foo-priv loop_raw_mount_options
 
+  sub_test "Hot-plug a loop device with raw.mount.options and verify uid/gid/ro are applied"
   lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456,ro
   [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "123:456" ]
   ! lxc exec foo-priv -- touch /mnt/foo || false
   lxc config device remove foo-priv loop_raw_mount_options
 
+  sub_test "Cold-plug a loop device with raw.mount.options and verify uid/gid/ro are applied"
   lxc stop foo-priv -f
   lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456,ro
   lxc start foo-priv
@@ -181,6 +252,7 @@ _container_devices_disk_ceph() {
     return
   fi
 
+  sub_test "Hot-plug a ceph RBD volume and verify it survives a restart"
   RBD_POOL_NAME=lxdtest-$(basename "${LXD_DIR}")-disk
   ceph osd pool create "${RBD_POOL_NAME}" 1
   rbd create --pool "${RBD_POOL_NAME}" --size 24M my-volume
@@ -202,6 +274,7 @@ _container_devices_disk_cephfs() {
     return
   fi
 
+  sub_test "Hot-plug a cephfs volume and verify it survives a restart"
   lxc launch testimage ceph-fs -c security.privileged=true
   lxc config device add ceph-fs fs disk source=cephfs:"${LXD_CEPH_CEPHFS}"/ ceph.user_name=admin ceph.cluster_name=ceph path=/cephfs
   lxc exec ceph-fs -- stat /cephfs
@@ -212,25 +285,32 @@ _container_devices_disk_cephfs() {
 
 _container_devices_disk_socket() {
   lxc start foo
+
+  sub_test "Hot-plug a unix socket disk device and verify it survives a restart"
   lxc config device add foo unix-socket disk source="${LXD_DIR}/unix.socket" path=/root/lxd.sock
   [ "$(lxc exec foo -- stat /root/lxd.sock -c '%F')" = "socket" ]
   lxc restart -f foo
   [ "$(lxc exec foo -- stat /root/lxd.sock -c '%F')" = "socket" ]
   lxc config device remove foo unix-socket
+
   lxc stop foo -f
 }
 
 _container_devices_disk_char() {
   lxc start foo
+
+  sub_test "Hot-plug a character device disk and verify it survives a restart"
   lxc config device add foo char disk source=/dev/zero path=/root/zero
   [ "$(lxc exec foo -- stat /root/zero -c '%F')" = "character special file" ]
   lxc restart -f foo
   [ "$(lxc exec foo -- stat /root/zero -c '%F')" = "character special file" ]
   lxc config device remove foo char
+
   lxc stop foo -f
 }
 
 _container_devices_disk_patch() {
+  sub_test "Add, update, and remove an instance device via PATCH"
   # Ensure no devices are present.
   [ "$(lxc config device list foo || echo fail)" = "" ]
 
