@@ -173,6 +173,7 @@ type InstanceServer interface {
 
 	// Instance block tracking functions ("storage_volume_block_tracking" API extension)
 	CreateInstanceBitmap(instanceName string, bitmap api.StorageVolumeBitmapsPost) (op Operation, err error)
+	GetInstanceNBDConn(instanceName string, args api.InstanceNBDGet) (net.Conn, error)
 
 	// Event handling functions
 	GetEvents() (listener *EventListener, err error)
@@ -382,6 +383,8 @@ type InstanceServer interface {
 	GetStorageVolumeBitmap(pool string, volumeType string, volumeName string, bitmapName string) (bitmap *api.StorageVolumeBitmap, err error)
 	CreateStorageVolumeBitmap(pool string, volumeType string, volumeName string, bitmap api.StorageVolumeBitmapsPost) (op Operation, err error)
 	DeleteStorageVolumeBitmap(pool string, volumeType string, volumeName string, bitmapName string) (op Operation, err error)
+	GetStoragePoolVolumeNBDConn(pool string, volType string, volName string, args api.StorageVolumeNBDGet) (net.Conn, error)
+	GetStoragePoolVolumeNBDWriteConn(pool string, volType string, volName string, args api.StorageVolumeNBDPost) (net.Conn, error)
 
 	// Cluster functions ("cluster" API extensions)
 	GetCluster() (cluster *api.Cluster, ETag string, err error)
