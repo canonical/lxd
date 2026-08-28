@@ -1780,6 +1780,27 @@ func (r *ProtocolLXD) GetInstanceFileSFTP(instanceName string) (*sftp.Client, er
 	return client, nil
 }
 
+// CreateInstanceBitmap creates a bitmap of the given name on the root disk and every non-shared block disk of the instance.
+func (r *ProtocolLXD) CreateInstanceBitmap(instanceName string, bitmap api.StorageVolumeBitmapsPost) (Operation, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation(http.MethodPost, path+"/"+url.PathEscape(instanceName)+"/bitmaps", bitmap, "", true)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
 // GetInstanceSnapshotNames returns a list of snapshot names for the instance.
 func (r *ProtocolLXD) GetInstanceSnapshotNames(instanceName string) ([]string, error) {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
