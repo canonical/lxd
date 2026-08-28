@@ -482,6 +482,11 @@ func (d *common) VolumeMirrorReplayed(vol Volume, peerSite string) (bool, error)
 	return false, ErrNotSupported
 }
 
+// PromoteVolume makes a replicated volume primary so that it can be written to.
+func (d *common) PromoteVolume(vol Volume, force bool) error {
+	return ErrNotSupported
+}
+
 // MigrateVolume streams the volume (with or without snapshots).
 func (d *common) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
