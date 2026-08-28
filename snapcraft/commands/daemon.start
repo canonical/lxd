@@ -789,7 +789,7 @@ CMD="${LXD} --logfile ${SNAP_COMMON}/lxd/logs/lxd.log"
 if getent group "${daemon_group}" >/dev/null 2>&1; then
     CMD="${CMD} --group ${daemon_group}"
     if [ -e "${SNAP_COMMON}/lxd/unix.socket" ]; then
-        chgrp "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
+        chgrp -- "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
     fi
 else
     echo "==> No \"${daemon_group}\" group found, only root will be able to use LXD."
