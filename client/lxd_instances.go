@@ -1798,6 +1798,40 @@ func (r *ProtocolLXD) GetInstanceFileSFTP(instanceName string) (*sftp.Client, er
 	return client, nil
 }
 
+// GetInstanceSnapshotNBDConn returns a connection to the read-only NBD export of the instance
+// snapshot, which serves the volume snapshots of the given disk devices, or of every device when
+// none is given, each under an export named after its disk device at the time of the snapshot,
+// together with the bitmaps of the snapshot.
+// previousSnapshotUUID limits the bitmaps to the ones created with the instance snapshot of that
+// UUID, and every bitmap of the snapshot is served when it is empty.
+//
+// The returned connection is an NBD connection, on which the server sends the first message of the handshake.
+// Note that it's the caller's responsibility to close the returned connection.
+func (r *ProtocolLXD) GetInstanceSnapshotNBDConn(instanceName string, snapshotName string, deviceNames []string, previousSnapshotUUID string) (net.Conn, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	apiURL := api.NewURL()
+	apiURL.URL = r.httpBaseURL // Preload the URL with the client base URL.
+	apiURL.Path("1.0", "instances", instanceName, "snapshots", snapshotName, "nbd")
+	r.setURLQueryAttributes(&apiURL.URL)
+
+	query := apiURL.Query()
+	for _, deviceName := range deviceNames {
+		query.Add("device", deviceName)
+	}
+
+	if previousSnapshotUUID != "" {
+		query.Set("previous_snapshot_uuid", previousSnapshotUUID)
+	}
+
+	apiURL.RawQuery = query.Encode()
+
+	return r.rawUpgradeConn(http.MethodGet, &apiURL.URL, "nbd", nil)
+}
+
 // instanceSnapshotBitmapsPath returns the API path of the bitmaps of an instance snapshot.
 func (r *ProtocolLXD) instanceSnapshotBitmapsPath(instanceName string, snapshotName string) (string, error) {
 	err := r.CheckExtension("storage_volume_block_tracking")

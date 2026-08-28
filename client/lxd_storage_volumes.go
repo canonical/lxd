@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 
@@ -1159,4 +1160,23 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromBackup(pool string, args Storag
 	}
 
 	return r.createStoragePoolVolumeFromFile(pool, args, "")
+}
+
+// GetStoragePoolVolumeNBDConn returns a connection to the read-write NBD export of the volume, for
+// writing a backup back. The bitmaps of the volume are deleted before the export starts.
+//
+// The returned connection is an NBD connection, on which the server sends the first message of the handshake.
+// Note that it's the caller's responsibility to close the returned connection.
+func (r *ProtocolLXD) GetStoragePoolVolumeNBDConn(pool string, volType string, volName string) (net.Conn, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	apiURL := api.NewURL()
+	apiURL.URL = r.httpBaseURL // Preload the URL with the client base URL.
+	apiURL.Path("1.0", "storage-pools", pool, "volumes", volType, volName, "nbd")
+	r.setURLQueryAttributes(&apiURL.URL)
+
+	return r.rawUpgradeConn(http.MethodPost, &apiURL.URL, "nbd", nil)
 }
