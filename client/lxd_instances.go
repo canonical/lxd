@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/tcp"
 	"github.com/canonical/lxd/shared/ws"
 )
@@ -1648,16 +1650,18 @@ func (r *ProtocolLXD) DeleteInstanceFile(instanceName string, filePath string) e
 	return nil
 }
 
-// rawSFTPConn connects to the apiURL, upgrades to an SFTP raw connection and returns it.
-func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
+// rawUpgradeConn connects to the apiURL, upgrades the connection to the given protocol and returns it
+// together with the Location header of the response.
+// A non-nil body is sent as JSON.
+func (r *ProtocolLXD) rawUpgradeConn(method string, apiURL *url.URL, protocol string, body any) (net.Conn, string, error) {
 	// Get the HTTP transport.
 	httpTransport, err := r.getUnderlyingHTTPTransport()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	req := &http.Request{
-		Method:     http.MethodGet,
+		Method:     method,
 		URL:        apiURL,
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,
@@ -1666,54 +1670,105 @@ func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
 		Host:       apiURL.Host,
 	}
 
-	req.Header["Upgrade"] = []string{"sftp"}
+	req.Header["Upgrade"] = []string{protocol}
 	req.Header["Connection"] = []string{"Upgrade"}
 
+	if body != nil {
+		data, err := json.Marshal(body)
+		if err != nil {
+			return nil, "", err
+		}
+
+		// The request is written by hand. Its length must be set for the body to be sent as-is.
+		req.Body = io.NopCloser(bytes.NewReader(data))
+		req.ContentLength = int64(len(data))
+		req.Header.Set("Content-Type", "application/json")
+	}
+
 	r.addClientHeaders(req)
+
+	// The raw dialers do not apply the default port.
+	addr := apiURL.Host
+	if apiURL.Port() == "" {
+		port := "80"
+		if apiURL.Scheme == "https" {
+			port = "443"
+		}
+
+		addr = net.JoinHostPort(apiURL.Hostname(), port)
+	}
 
 	// Establish the connection.
 	var conn net.Conn
 
 	if httpTransport.TLSClientConfig != nil {
-		conn, err = httpTransport.DialTLSContext(context.Background(), "tcp", apiURL.Host)
+		conn, err = httpTransport.DialTLSContext(context.Background(), "tcp", addr)
 	} else {
-		conn, err = httpTransport.DialContext(context.Background(), "tcp", apiURL.Host)
+		conn, err = httpTransport.DialContext(context.Background(), "tcp", addr)
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
+
+	revert := revert.New()
+	defer revert.Fail()
+	revert.Add(func() { _ = conn.Close() })
 
 	remoteTCP, _ := tcp.ExtractConn(conn)
 	if remoteTCP != nil {
 		err = tcp.SetTimeouts(remoteTCP, 0)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 
 	err = req.Write(conn)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	resp, err := http.ReadResponse(bufio.NewReader(conn), req)
+	reader := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(reader, req)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if resp.StatusCode != http.StatusSwitchingProtocols {
 		_, _, err := lxdParseResponse(resp)
+		_ = resp.Body.Close()
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
+
+		return nil, "", fmt.Errorf("Unexpected status code %d", resp.StatusCode)
 	}
 
-	if resp.Header.Get("Upgrade") != "sftp" {
-		return nil, errors.New("Missing or unexpected Upgrade header in response")
+	if resp.Header.Get("Upgrade") != protocol {
+		return nil, "", errors.New("Missing or unexpected Upgrade header in response")
 	}
 
-	return conn, err
+	revert.Success()
+	return &upgradedConn{Conn: conn, reader: reader}, resp.Header.Get("Location"), nil
+}
+
+// upgradedConn is a connection returned by rawUpgradeConn.
+// After the upgrade, the server can send data before the client does, as an NBD server does when
+// it starts the handshake.
+// Some of that data can already be buffered in the bufio.Reader that parsed the HTTP 101 response.
+// Reads therefore return the buffered bytes first.
+type upgradedConn struct {
+	net.Conn
+	reader *bufio.Reader
+}
+
+// Read returns the bytes buffered past the upgrade headers before reading from the connection.
+func (c *upgradedConn) Read(p []byte) (int, error) {
+	if c.reader.Buffered() > 0 {
+		return c.reader.Read(p)
+	}
+
+	return c.Conn.Read(p)
 }
 
 // GetInstanceFileSFTPConn returns a connection to the instance's SFTP endpoint.
@@ -1723,7 +1778,9 @@ func (r *ProtocolLXD) GetInstanceFileSFTPConn(instanceName string) (net.Conn, er
 	apiURL.Path("1.0", "instances", instanceName, "sftp")
 	r.setURLQueryAttributes(&apiURL.URL)
 
-	return r.rawSFTPConn(&apiURL.URL)
+	conn, _, err := r.rawUpgradeConn(http.MethodGet, &apiURL.URL, "sftp", nil)
+
+	return conn, err
 }
 
 // GetInstanceFileSFTP returns an SFTP connection to the instance.
