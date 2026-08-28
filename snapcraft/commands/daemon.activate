@@ -72,12 +72,12 @@ fi
 # Set socket ownership
 if [ -e "${SNAP_COMMON}/lxd/unix.socket" ] && getent group "${daemon_group}" >/dev/null 2>&1; then
     echo "==> Setting LXD socket ownership"
-    chgrp "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
+    chgrp -- "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
 fi
 
 if [ -e "${SNAP_COMMON}/lxd-user/unix.socket" ] && getent group "${daemon_user_group}" >/dev/null 2>&1; then
     echo "==> Setting LXD user socket ownership"
-    chgrp "${daemon_user_group}" "${SNAP_COMMON}/lxd-user/unix.socket"
+    chgrp -- "${daemon_user_group}" "${SNAP_COMMON}/lxd-user/unix.socket"
 fi
 
 # Check if LXD ever started
