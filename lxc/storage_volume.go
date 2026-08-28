@@ -131,6 +131,10 @@ Unless specified through a prefix, all volume operations affect "custom" (user c
 	storageVolumeMoveCmd := cmdStorageVolumeMove{global: c.global, storage: c.storage, storageVolume: c, storageVolumeCopy: &storageVolumeCopyCmd, storageVolumeRename: &storageVolumeRenameCmd}
 	cmd.AddCommand(storageVolumeMoveCmd.command())
 
+	// NBD
+	storageVolumeNBDCmd := cmdStorageVolumeNBD{global: c.global, storage: c.storage, storageVolume: c}
+	cmd.AddCommand(storageVolumeNBDCmd.command())
+
 	// Set
 	storageVolumeSetCmd := cmdStorageVolumeSet{global: c.global, storage: c.storage, storageVolume: c}
 	cmd.AddCommand(storageVolumeSetCmd.command())
