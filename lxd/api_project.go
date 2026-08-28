@@ -1715,6 +1715,20 @@ func projectPromote(ctx context.Context, s *state.State, projectName string, for
 		}
 	}
 
+	// Promote the storage before the mode flip, so the project only leaves standby once its
+	// instances have volumes they can be started from.
+	err = storagePools.PromoteProjectVolumes(ctx, s, projectName, force)
+	if err != nil {
+		// The leader check above does not rule this out. It passes when the leader cannot be
+		// reached, and after a demotion Ceph still refuses until the demotion has been replayed
+		// to this site.
+		if errors.Is(err, storageDrivers.ErrPeerPrimary) {
+			return fmt.Errorf("%w (demote the project on the leader and wait for the demotion to replay, or use --force if the leader site is gone)", err)
+		}
+
+		return err
+	}
+
 	// Update the replica mode to leader.
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return dbCluster.UpdateProjectReplicaMode(ctx, tx.Tx(), projectName, api.ReplicatorProjectModeLeader)
