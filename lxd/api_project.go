@@ -1704,6 +1704,13 @@ func projectPromote(ctx context.Context, s *state.State, projectName string, for
 		}
 	}
 
+	// Promote the storage before the mode flip, so the project only leaves standby once its
+	// instances have volumes they can be started from.
+	err = storagePools.PromoteProjectVolumes(ctx, s, projectName, force)
+	if err != nil {
+		return err
+	}
+
 	// Update the replica mode to leader.
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return dbCluster.UpdateProjectReplicaMode(ctx, tx.Tx(), projectName, api.ReplicatorProjectModeLeader)
