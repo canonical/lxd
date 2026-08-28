@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"path"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
@@ -603,4 +606,131 @@ func entityNameFromURL(urlStr string) (string, error) {
 	}
 
 	return name, nil
+}
+
+// nbdListen opens the local listener of an NBD proxy command.
+// An address that starts with a slash is a unix socket path, anything else is a TCP address, and
+// an empty address picks a loopback port.
+func nbdListen(address string) (net.Listener, error) {
+	if address == "" {
+		address = "127.0.0.1:0"
+	}
+
+	network := "tcp"
+	if strings.HasPrefix(address, "/") {
+		network = "unix"
+
+		err := nbdRemoveStaleSocket(address)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	listener, err := net.Listen(network, address)
+	if err != nil {
+		return nil, fmt.Errorf("Failed listening for connection: %w", err)
+	}
+
+	return listener, nil
+}
+
+// nbdRemoveStaleSocket deletes the unix socket file at path when nothing listens on it, which is
+// the case when a proxy command was killed before closing its listener.
+// Any other file at path is kept, and [net.Listen] fails on it.
+func nbdRemoveStaleSocket(path string) error {
+	if !shared.IsUnixSocket(path) {
+		return nil
+	}
+
+	conn, err := net.Dial("unix", path)
+	if err == nil {
+		_ = conn.Close()
+		return fmt.Errorf("Socket %q is already in use", path)
+	}
+
+	err = os.Remove(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("Failed deleting stale socket %q: %w", path, err)
+	}
+
+	return nil
+}
+
+// nbdProxy forwards the connection of the NBD client accepted on listener to the server side
+// connection obtained from connect, and returns once that client disconnects.
+// An interrupt ends the run through closing the listener, which also unlinks a unix socket file.
+func nbdProxy(listener net.Listener, connect func() (net.Conn, error)) error {
+	chSignal := make(chan os.Signal, 1)
+	signal.Notify(chSignal, os.Interrupt)
+	defer signal.Stop(chSignal)
+
+	interrupted := make(chan struct{})
+	done := make(chan struct{})
+	defer close(done)
+
+	go func() {
+		select {
+		case <-chSignal:
+			close(interrupted)
+			_ = listener.Close()
+		case <-done:
+		}
+	}()
+
+	nConn, err := listener.Accept()
+	if err != nil {
+		select {
+		case <-interrupted:
+			return nil
+		default:
+		}
+
+		return fmt.Errorf("Failed accepting incoming connection: %w", err)
+	}
+
+	// Nothing further is accepted.
+	// Closing the listener now keeps a second client from queueing in the listen backlog and hanging.
+	_ = listener.Close()
+
+	conn, err := connect()
+	if err != nil {
+		_ = nConn.Close()
+		return err
+	}
+
+	nbdRelay(nConn, conn)
+
+	return nil
+}
+
+// nbdRelay copies data between the local client and the server side connection in both directions.
+// When the copy in one direction returns, it closes the write half of its destination, and the
+// copy in the other direction keeps running.
+// Both connections are closed once both copies have returned.
+func nbdRelay(client net.Conn, server net.Conn) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	relay := func(dst net.Conn, src net.Conn) {
+		defer wg.Done()
+
+		_, _ = io.Copy(dst, src)
+
+		// A transport without a write half close is closed fully instead, otherwise the copy in
+		// the other direction would never return. TCP, unix and TLS connections all have one.
+		c, ok := dst.(interface{ CloseWrite() error })
+		if ok {
+			_ = c.CloseWrite()
+		} else {
+			_ = dst.Close()
+		}
+	}
+
+	go relay(server, client)
+	go relay(client, server)
+
+	wg.Wait()
+
+	_ = client.Close()
+	_ = server.Close()
 }
