@@ -74,6 +74,9 @@ type Pool interface {
 	// not replayed yet.
 	ConfirmProjectVolumeMirrors(ctx context.Context, projectName string) ([]string, error)
 
+	// PromoteProjectVolumes makes the replicated volumes a project holds on this pool writable.
+	PromoteProjectVolumes(ctx context.Context, projectName string, force bool) error
+
 	// Instances.
 	CreateInstance(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error
 	CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) (func(instance.Instance) error, revert.Hook, error)
