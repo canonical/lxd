@@ -81,6 +81,9 @@ type Driver interface {
 	GetVolumeDiskPath(vol Volume) (string, error)
 	ListVolumes() ([]Volume, error)
 
+	// PromoteVolume makes a replicated volume primary so that it can be written to.
+	PromoteVolume(vol Volume, force bool) error
+
 	// MountVolume mounts a storage volume (if not mounted) and increments reference counter.
 	MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error
 
