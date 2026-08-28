@@ -36,8 +36,8 @@ type Authorizer interface {
 	// the entity.
 	GetPermissionChecker(ctx context.Context, entitlement Entitlement, entityType entity.Type) (PermissionChecker, error)
 
-	// GetViewableProjects accepts a list of permissions and returns a list of projects that a member of a group with these permissions is able to view.
-	GetViewableProjects(ctx context.Context, permissions []api.Permission) ([]string, error)
+	// CheckContextualPermission checks that, with the given list of permissions, the given entitlement is allowed for the given entity URL.
+	CheckContextualPermission(ctx context.Context, entityURL *api.URL, entitlement Entitlement, permissions []api.Permission) (bool, error)
 }
 
 // IsDeniedError returns true if the error is not found or forbidden. This is because the CheckPermission method on
