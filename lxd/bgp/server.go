@@ -31,7 +31,7 @@ type Server struct {
 	address  string
 	asn      uint32
 	routerID net.IP
-	paths    map[string]path
+	paths    map[uuid.UUID]path
 	peers    map[string]peer
 
 	mu sync.Mutex
@@ -55,7 +55,7 @@ type peer struct {
 func NewServer() *Server {
 	// Setup new struct.
 	s := &Server{
-		paths: map[string]path{},
+		paths: map[uuid.UUID]path{},
 		peers: map[string]peer{},
 	}
 
@@ -114,11 +114,11 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 	}
 
 	// Copy the path list
-	oldPaths := map[string]path{}
+	oldPaths := map[uuid.UUID]path{}
 	maps.Copy(oldPaths, s.paths)
 
 	// Add existing paths.
-	s.paths = map[string]path{}
+	s.paths = map[uuid.UUID]path{}
 	for _, path := range oldPaths {
 		err := s.addPrefix(path.prefix, path.nexthop, path.owner)
 		if err != nil {
@@ -250,7 +250,7 @@ func (s *Server) addPrefix(subnet net.IPNet, nexthop net.IP, owner string) error
 	attrs := []bgpPacket.PathAttributeInterface{bgpPacket.NewPathAttributeOrigin(0)}
 
 	// Add the prefix to the server.
-	var pathUUID string
+	var pathUUID uuid.UUID
 	if s.bgp != nil {
 		nextHop, err := netip.ParseAddr(nexthop.String())
 		if err != nil {
@@ -296,10 +296,10 @@ func (s *Server) addPrefix(subnet net.IPNet, nexthop net.IP, owner string) error
 			return responses[0].Error
 		}
 
-		pathUUID = responses[0].UUID.String()
+		pathUUID = responses[0].UUID
 	} else {
 		// Generate a dummy UUID.
-		pathUUID = uuid.New().String()
+		pathUUID = uuid.New()
 	}
 
 	// Add path to the map.
@@ -319,7 +319,7 @@ func (s *Server) RemovePrefixByOwner(owner string) error {
 	defer s.mu.Unlock()
 
 	// Make a copy of the paths dict to safely iterate (path removal mutates it).
-	paths := map[string]path{}
+	paths := map[uuid.UUID]path{}
 	maps.Copy(paths, s.paths)
 
 	// Iterate through the paths and remove them from the server.
@@ -367,15 +367,10 @@ func (s *Server) removePrefix(subnet net.IPNet, nexthop net.IP) error {
 	return nil
 }
 
-func (s *Server) removePrefixByUUID(pathUUID string) error {
+func (s *Server) removePrefixByUUID(pathUUID uuid.UUID) error {
 	// Remove it from the BGP server.
 	if s.bgp != nil {
-		pathID, err := uuid.Parse(pathUUID)
-		if err != nil {
-			return err
-		}
-
-		err = s.bgp.DeletePath(bgpAPIUtil.DeletePathRequest{UUIDs: []uuid.UUID{pathID}})
+		err := s.bgp.DeletePath(bgpAPIUtil.DeletePathRequest{UUIDs: []uuid.UUID{pathUUID}})
 		if err != nil && !strings.HasSuffix(err.Error(), "find a specified path(s) with the given UUID(s)") {
 			return err
 		}
