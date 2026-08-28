@@ -228,6 +228,10 @@ For help with any of those, simply call them with --help.`)
 	moveCmd := cmdMove{global: &globalCmd}
 	app.AddCommand(moveCmd.command())
 
+	// nbd sub-command
+	nbdCmd := cmdNBD{global: &globalCmd}
+	app.AddCommand(nbdCmd.command())
+
 	// network sub-command
 	networkCmd := cmdNetwork{global: &globalCmd}
 	app.AddCommand(networkCmd.command())
