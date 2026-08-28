@@ -1709,6 +1709,51 @@ func (d *ceph) RenameVolume(vol Volume, newVolName string, progressReporter iopr
 	}, false, progressReporter)
 }
 
+// cephIsAlreadyPrimary reports whether an RBD failure is due to the image already being primary.
+// Ceph gives no exit status of its own for this, so the message it prints is what identifies it.
+func cephIsAlreadyPrimary(err error) bool {
+	var runErr shared.RunError
+
+	isRunErr := errors.As(err, &runErr)
+	if !isRunErr {
+		return false
+	}
+
+	return strings.Contains(runErr.StdErr().String(), "already primary")
+}
+
+// PromoteVolume makes a volume's RBD image primary so that it can be written to.
+// The forced variant is for disaster recovery, where the site holding the primary image is gone and
+// so cannot be demoted first.
+// An image that is already primary is left alone, so that a promotion covering many images which
+// failed part way can be run again to completion.
+func (d *ceph) PromoteVolume(vol Volume, force bool) error {
+	args := []string{"mirror", "image", "promote", "--image", d.getRBDVolumeName(vol, "", false, false)}
+	if force {
+		args = append(args, "--force")
+	}
+
+	_, err := d.rbd(context.TODO(), args...)
+	if err != nil {
+		if !cephIsAlreadyPrimary(err) {
+			return fmt.Errorf("Failed promoting volume %q: %w", vol.name, err)
+		}
+
+		d.logger.Warn("Volume is already primary", logger.Ctx{"volume": vol.name})
+	}
+
+	// For VMs, also promote the filesystem volume, as a config drive that stayed read-only
+	// stops the instance from starting.
+	if vol.IsVMBlock() {
+		err := d.PromoteVolume(vol.NewVMBlockFilesystemVolume(), force)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // MigrateVolume sends a volume for migration.
 func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	if volSrcArgs.ClusterMove {

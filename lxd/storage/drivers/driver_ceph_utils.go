@@ -48,6 +48,15 @@ var cephVolTypePrefixes = map[VolumeType]string{
 	VolumeTypeCustom:    cluster.StoragePoolVolumeTypeNameCustom,
 }
 
+// rbd runs the rbd command against the pool, cluster and user this driver is configured with.
+func (d *ceph) rbd(ctx context.Context, args ...string) (string, error) {
+	cmd := make([]string, 0, 6+len(args))
+	cmd = append(cmd, "--id", d.config["ceph.user.name"], "--cluster", d.config["ceph.cluster_name"], "--pool", d.config["ceph.osd.pool_name"])
+	cmd = append(cmd, args...)
+
+	return shared.RunCommand(ctx, "rbd", cmd...)
+}
+
 // osdPoolExists checks whether a given OSD pool exists.
 func (d *ceph) osdPoolExists() (bool, error) {
 	_, err := shared.RunCommand(
