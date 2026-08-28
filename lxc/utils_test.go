@@ -1,6 +1,9 @@
 package main
 
 import (
+	"net"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -181,4 +184,44 @@ func (s *utilsTestSuite) TestResolveRegistryImageSource() {
 			s.Equal(tc.wantRegistry, registryName)
 		})
 	}
+}
+
+func (s *utilsTestSuite) TestNBDRemoveStaleSocket() {
+	// A directory named after the test can push the socket paths past the 104 byte sun_path limit of macOS.
+	dir, err := os.MkdirTemp("", "lxc")
+	s.Require().NoError(err)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	s.Run("Missing path", func() {
+		s.NoError(nbdRemoveStaleSocket(filepath.Join(dir, "missing.sock")))
+	})
+
+	s.Run("Stale socket is deleted", func() {
+		path := filepath.Join(dir, "stale.sock")
+		listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
+		s.Require().NoError(err)
+		listener.SetUnlinkOnClose(false)
+		_ = listener.Close()
+
+		s.NoError(nbdRemoveStaleSocket(path))
+		s.NoFileExists(path)
+	})
+
+	s.Run("Live socket is kept", func() {
+		path := filepath.Join(dir, "live.sock")
+		listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
+		s.Require().NoError(err)
+		defer func() { _ = listener.Close() }()
+
+		s.Error(nbdRemoveStaleSocket(path))
+		s.FileExists(path)
+	})
+
+	s.Run("Regular file is kept", func() {
+		path := filepath.Join(dir, "file")
+		s.Require().NoError(os.WriteFile(path, nil, 0o600))
+
+		s.NoError(nbdRemoveStaleSocket(path))
+		s.FileExists(path)
+	})
 }
