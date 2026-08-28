@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -147,6 +148,12 @@ For help with any of those, simply call them with --help.`)
 	// alias sub-command
 	aliasCmd := cmdAlias{global: &globalCmd}
 	app.AddCommand(aliasCmd.command())
+
+	// bitmap sub-command, gated behind the changed_block_tracking feature preview
+	if features.IsEnabled(features.ChangedBlockTracking) {
+		bitmapCmd := cmdBitmap{global: &globalCmd}
+		app.AddCommand(bitmapCmd.command())
+	}
 
 	// cluster sub-command
 	clusterCmd := cmdCluster{global: &globalCmd}
