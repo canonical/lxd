@@ -8,11 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"runtime"
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/oklog/ulid/v2"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
@@ -114,14 +112,16 @@ func (e *embeddedOpenFGA) load(ctx context.Context, opts Opts) error {
 	return nil
 }
 
-// GetViewableProjects accepts a list of permissions and returns a list of projects that a member of a group with these permissions is able to view.
-func (e *embeddedOpenFGA) GetViewableProjects(ctx context.Context, permissions []api.Permission) ([]string, error) {
+// CheckContextualPermission checks that a member of a group with the given list of permissions has the given entitlement on the given entity URL.
+// The OpenFGA datastore is effectively disabled for this call. Instead, all tuples are passed in contextually.
+// It returns a boolean to indicate if the permission is allowed, and an error if any internal error occurred.
+func (e *embeddedOpenFGA) CheckContextualPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement, permissions []api.Permission) (bool, error) {
 	// Explicitly set the OpenFGA request cache to nil for this call.
-	//
-	// Why? Because the OpenFGA datastore will load a cache that is optimised for permission checking an individual request.
-	// In this case we are asking the datastore to enumerate projects based on contextual tuples.
-	// The cache is not useful for this, so we don't want to trigger loading it.
+	// This is safety to ensure that permissions of the current user are not considered for this authorization check.
 	ctx = context.WithValue(ctx, request.CtxOpenFGARequestCache, nil)
+
+	// Set a context key to indicate to the datastore that it should not return anything. All tuples will be passed contextually.
+	ctx = context.WithValue(ctx, request.CtxOpenFGAContextualTuplesOnly, true)
 
 	// "member" is the relation between identities and groups.
 	// Only group members can have relations to other openfga types in the model.
@@ -130,64 +130,139 @@ func (e *embeddedOpenFGA) GetViewableProjects(ctx context.Context, permissions [
 
 	// Construct a list objects request using a dummy identity as a member of a dummy group.
 	//
-	// Why? We're checking that, if this group *were* to exist, which projects would members of it be able to view?
+	// We're checking that, if this group *were* to exist, whether a member of the group will have the given entitlement on the given entity.
 	// Neither the group nor the identity have to exist, all tuples are passed contextually.
-	// Note that we do still need to conform to our datastore implementations' expectation about the format of tuples,
-	// which is why we're passing URLs and not random strings.
-	userObject := string(entity.TypeIdentity) + ":" + entity.IdentityURL("foo", "bar").String()
 	groupObject := string(entity.TypeAuthGroup) + ":" + entity.AuthGroupURL("dummy").String()
-	req := &openfgav1.ListObjectsRequest{
-		StoreId:  dummyDatastoreULID,
-		Type:     entity.TypeProject.String(),
-		Relation: string(auth.EntitlementCanView),
-		User:     userObject,
-		ContextualTuples: &openfgav1.ContextualTupleKeys{
-			TupleKeys: []*openfgav1.TupleKey{
-				{
-					// The dummy identity is a member of the dummy group.
-					User:     userObject,
-					Relation: memberRelation,
-					Object:   groupObject,
-				},
-			},
+	userObject := string(entity.TypeIdentity) + ":" + entity.IdentityURL("foo", "bar").String()
+
+	// The first contextual tuple will relate the dummy identity to the dummy group as a member.
+	contextualTuples := []*openfgav1.TupleKey{
+		{
+			User:     userObject,
+			Relation: memberRelation,
+			Object:   groupObject,
 		},
 	}
 
-	// Add a contextual tuple for each given permission
+	// Parse the input URL. We need to add contextual tuples that will relate the given entity up the hierarchy of the authorization model.
+	// E.g. If it is an instance, we will add tuples relating the instance to its project, and the project to the server.
+	eType, project, location, args, err := entity.ParseURL(entityURL.URL)
+	if err != nil {
+		return false, err
+	}
+
+	entityURLStr := entityURL.String()
+	switch eType {
+	case entity.TypeInstanceBackup, entity.TypeInstanceSnapshot:
+		if len(args) < 1 {
+			return false, errors.New("No instance name for snapshot or backup")
+		}
+
+		// Relate the instance backup or snapshot up the hierarchy back to the server.
+		instanceURLStr := entity.InstanceURL(project, args[0]).String()
+		projectURLStr := entity.ProjectURL(project).String()
+		contextualTuples = append(contextualTuples, &openfgav1.TupleKey{
+			User:     string(entity.TypeInstance) + ":" + instanceURLStr,
+			Relation: string(entity.TypeInstance),
+			Object:   string(eType) + ":" + entityURLStr,
+		}, &openfgav1.TupleKey{
+			User:     string(entity.TypeProject) + ":" + projectURLStr,
+			Relation: string(entity.TypeProject),
+			Object:   string(entity.TypeInstance) + ":" + instanceURLStr,
+		}, &openfgav1.TupleKey{
+			User:     string(entity.TypeServer) + ":" + entity.ServerURL().String(),
+			Relation: string(entity.TypeServer),
+			Object:   string(entity.TypeProject) + ":" + projectURLStr,
+		})
+	case entity.TypeStorageVolumeBackup, entity.TypeStorageVolumeSnapshot:
+		if len(args) < 3 {
+			return false, errors.New("Missing path parameters for storage volume snapshot or backup URL")
+		}
+
+		// Relate the storage volume backup or snapshot up the hierarchy back to the server.
+		projectURLStr := entity.ProjectURL(project).String()
+		storageVolumeURLStr := entity.StorageVolumeURL(project, location, args[0], args[1], args[2]).String()
+		contextualTuples = append(contextualTuples, &openfgav1.TupleKey{
+			User:     string(entity.TypeStorageVolume) + ":" + storageVolumeURLStr,
+			Relation: string(entity.TypeStorageVolume),
+			Object:   string(eType) + ":" + entityURLStr,
+		}, &openfgav1.TupleKey{
+			User:     string(entity.TypeProject) + ":" + projectURLStr,
+			Relation: string(entity.TypeProject),
+			Object:   string(entity.TypeStorageVolume) + ":" + storageVolumeURLStr,
+		}, &openfgav1.TupleKey{
+			User:     string(entity.TypeServer) + ":" + entity.ServerURL().String(),
+			Relation: string(entity.TypeServer),
+			Object:   string(entity.TypeProject) + ":" + projectURLStr,
+		})
+
+	default:
+		// For all other entities, we can relate them back up the hierarchy by checking if they are project specific.
+		projectSpecific, err := eType.RequiresProject()
+		if err != nil {
+			return false, err
+		}
+
+		if projectSpecific {
+			// Project specific entities need to be related to the project and the project to the server.
+			projectURLStr := entity.ProjectURL(project).String()
+			contextualTuples = append(contextualTuples, &openfgav1.TupleKey{
+				User:     string(entity.TypeProject) + ":" + projectURLStr,
+				Relation: string(entity.TypeProject),
+				Object:   string(eType) + ":" + entityURLStr,
+			}, &openfgav1.TupleKey{
+				User:     string(entity.TypeServer) + ":" + entity.ServerURL().String(),
+				Relation: string(entity.TypeServer),
+				Object:   string(entity.TypeProject) + ":" + projectURLStr,
+			})
+		} else if eType != entity.TypeServer {
+			// Any other non-server entity just needs to be related to the server.
+			contextualTuples = append(contextualTuples, &openfgav1.TupleKey{
+				User:     string(entity.TypeServer) + ":" + entity.ServerURL().String(),
+				Relation: string(entity.TypeServer),
+				Object:   string(eType) + ":" + entityURLStr,
+			})
+		}
+	}
+
+	// Add a contextual tuple for each given permission. These tuples grant members of the dummy group (i.e. our dummy identity)
+	// the given list of permissions.
 	for _, permission := range permissions {
-		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
+		contextualTuples = append(contextualTuples, &openfgav1.TupleKey{
 			User:     groupObject + "#" + memberRelation, // Members of the dummy group have permission, not the group itself.
 			Relation: permission.Entitlement,
 			Object:   permission.EntityType + ":" + permission.EntityReference,
 		})
 	}
 
+	// Compose the OpenFGA check request. This checks if the dummy identity has the given entitlement on the given
+	// entity, given all the contextual tuples above.
+	req := &openfgav1.CheckRequest{
+		StoreId: dummyDatastoreULID,
+		TupleKey: &openfgav1.CheckRequestTupleKey{
+			User:     userObject,
+			Relation: string(entitlement),
+			Object:   string(eType) + ":" + entityURLStr,
+		},
+		ContextualTuples: &openfgav1.ContextualTupleKeys{
+			TupleKeys: contextualTuples,
+		},
+	}
+
 	// Perform the check.
-	resp, err := e.server.ListObjects(ctx, req)
+	resp, err := e.server.Check(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("Failed listing OpenFGA tuples: %w", err)
-	}
-
-	// This will be a list where each element is the form "project:/1.0/projects/{name}"
-	projectObjects := resp.GetObjects()
-
-	// Parse the object list to return a list of project names.
-	projects := make([]string, 0, len(projectObjects))
-	for _, obj := range projectObjects {
-		u, err := url.Parse(strings.TrimPrefix(obj, entity.TypeProject.String()+":"))
-		if err != nil {
-			return nil, fmt.Errorf("Invalid project url %q returned from list object request", err)
+		// Unwrap the internal error directly and return it to the caller. We are not concerned about a permission issue
+		// here because the caller is editing a group, so is already a user with high privilege.
+		openFGAInternalError, ok := errors.AsType[openFGAErrors.InternalError](err)
+		if ok {
+			err = openFGAInternalError.Unwrap()
 		}
 
-		_, project, _, _, err := entity.ParseURL(*u)
-		if err != nil {
-			return nil, fmt.Errorf("Invalid project url %q returned from list object request", err)
-		}
-
-		projects = append(projects, project)
+		return false, fmt.Errorf("Failed checking contextual permission: %w", err)
 	}
 
-	return projects, nil
+	return resp.GetAllowed(), nil
 }
 
 // CheckPermission checks if the current requestor has the given entitlement on the given entity URL.
