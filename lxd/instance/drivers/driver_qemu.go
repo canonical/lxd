@@ -597,6 +597,15 @@ func (d *qemu) configDriveMountPath() string {
 
 // configDriveMountPathClear attempts to unmount the config drive bind mount and remove the directory.
 func (d *qemu) configDriveMountPathClear() error {
+	// Unmount the nested lxd-agent bind mount first, otherwise the parent mount is busy.
+	agentMntPath := filepath.Join(d.configDriveMountPath(), "lxd-agent")
+	if filesystem.IsMountPoint(agentMntPath) {
+		err := storageDrivers.TryUnmount(agentMntPath, unix.MNT_DETACH)
+		if err != nil {
+			return fmt.Errorf("Failed unmounting lxd-agent bind mount %q: %w", agentMntPath, err)
+		}
+	}
+
 	return device.DiskMountClear(d.configDriveMountPath())
 }
 
@@ -1280,8 +1289,17 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		volatileSet["volatile.uuid.generation"] = vmGenUUID
 	}
 
+	// Resolve the host lxd-agent once so the config drive placeholder and the bind mount
+	// below agree on the same binary. Empty if the agent is not installed.
+	lxdAgentSrcPath, err := d.lxdAgentSourcePath()
+	if err != nil {
+		err = fmt.Errorf("Failed resolving lxd-agent path: %w", err)
+		op.Done(err)
+		return err
+	}
+
 	// Generate the config drive.
-	err = d.generateConfigShare()
+	err = d.generateConfigShare(lxdAgentSrcPath)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -1497,6 +1515,19 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		err = fmt.Errorf("Failed mounting device mount path %q for config drive: %w", configMntPath, err)
 		op.Done(err)
 		return err
+	}
+
+	// Bind-mount the host lxd-agent over the placeholder so its bytes come from the host,
+	// not the quota'd config volume (see generateConfigShare). This intentionally pins the
+	// running daemon's agent revision for the VM's lifetime, as the daemon does for itself.
+	if lxdAgentSrcPath != "" {
+		agentDstPath := filepath.Join(configMntPath, "lxd-agent")
+		err = device.DiskMount(lxdAgentSrcPath, agentDstPath, false, "", []string{"ro"}, "none")
+		if err != nil {
+			err = fmt.Errorf("Failed mounting lxd-agent into config drive: %w", err)
+			op.Done(err)
+			return err
+		}
 	}
 
 	// Setup virtiofsd for the config drive mount path.
@@ -3109,11 +3140,22 @@ func (d *qemu) spiceCmdlineConfig() string {
 	return "unix=on,disable-ticketing=on,addr=" + d.spicePath()
 }
 
+// lxdAgentSourcePath returns the resolved path to the host lxd-agent binary, or an empty
+// string if it is not installed (the VM then starts without an up-to-date agent).
+func (d *qemu) lxdAgentSourcePath() (string, error) {
+	srcPath, err := exec.LookPath("lxd-agent")
+	if err != nil {
+		return "", nil
+	}
+
+	return filepath.EvalSymlinks(srcPath)
+}
+
 // generateConfigShare generates the config share directory that will be exported to the VM via
 // a 9P share. Due to the unknown size of templates inside the images this directory is created
 // inside the VM's config volume so that it can be restricted by quota.
 // Requires the instance be mounted before calling this function.
-func (d *qemu) generateConfigShare() error {
+func (d *qemu) generateConfigShare(lxdAgentSrcPath string) error {
 	configDrivePath := filepath.Join(d.Path(), "config")
 
 	// Create config drive dir if doesn't exist, if it does exist, leave it around so we don't regenerate all
@@ -3123,61 +3165,20 @@ func (d *qemu) generateConfigShare() error {
 		return err
 	}
 
-	// Add the VM agent.
-	lxdAgentSrcPath, err := exec.LookPath("lxd-agent")
-	if err != nil {
-		d.logger.Warn("lxd-agent not found, skipping its inclusion in the VM config drive", logger.Ctx{"err": err})
+	// Keep only a placeholder here; the real binary is bind-mounted over it in start() so it
+	// never occupies the quota'd config volume. Only touch it when a host agent exists to mount
+	// later, else leave any existing binary in place.
+	if lxdAgentSrcPath == "" {
+		d.logger.Warn("lxd-agent not found, skipping its inclusion in the VM config drive")
 	} else {
-		// Install agent into config drive dir if found.
-		lxdAgentSrcPath, err = filepath.EvalSymlinks(lxdAgentSrcPath)
-		if err != nil {
-			return err
-		}
-
-		lxdAgentSrcInfo, err := os.Stat(lxdAgentSrcPath)
-		if err != nil {
-			return fmt.Errorf("Failed getting info for lxd-agent source %q: %w", lxdAgentSrcPath, err)
-		}
-
+		// O_TRUNC reclaims the space used by a full binary copied by an older LXD version.
 		lxdAgentInstallPath := filepath.Join(configDrivePath, "lxd-agent")
-		lxdAgentNeedsInstall := true
-
-		lxdAgentInstallInfo, err := os.Stat(lxdAgentInstallPath)
-		if err == nil {
-			if lxdAgentInstallInfo.ModTime().Equal(lxdAgentSrcInfo.ModTime()) && lxdAgentInstallInfo.Size() == lxdAgentSrcInfo.Size() {
-				lxdAgentNeedsInstall = false
-			}
-		} else if !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("Failed getting info for existing lxd-agent install %q: %w", lxdAgentInstallPath, err)
+		f, err := os.OpenFile(lxdAgentInstallPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0500)
+		if err != nil {
+			return fmt.Errorf("Failed creating lxd-agent placeholder %q: %w", lxdAgentInstallPath, err)
 		}
 
-		// Only install the lxd-agent into config drive if the existing one is different to the source one.
-		// Otherwise we would end up copying it again and this can cause unnecessary snapshot usage.
-		if lxdAgentNeedsInstall {
-			d.logger.Debug("Installing lxd-agent", logger.Ctx{"srcPath": lxdAgentSrcPath, "installPath": lxdAgentInstallPath})
-			err = shared.FileCopy(lxdAgentSrcPath, lxdAgentInstallPath)
-			if err != nil {
-				return err
-			}
-
-			err = os.Chmod(lxdAgentInstallPath, 0500)
-			if err != nil {
-				return err
-			}
-
-			err = os.Chown(lxdAgentInstallPath, 0, 0)
-			if err != nil {
-				return err
-			}
-
-			// Ensure we copy the source file's timestamps so they can be used for comparison later.
-			err = os.Chtimes(lxdAgentInstallPath, lxdAgentSrcInfo.ModTime(), lxdAgentSrcInfo.ModTime())
-			if err != nil {
-				return fmt.Errorf("Failed setting lxd-agent timestamps: %w", err)
-			}
-		} else {
-			d.logger.Debug("Skipping lxd-agent install as unchanged", logger.Ctx{"srcPath": lxdAgentSrcPath, "installPath": lxdAgentInstallPath})
-		}
+		_ = f.Close()
 	}
 
 	agentCert, agentKey, clientCert, _, err := d.generateAgentCert()
