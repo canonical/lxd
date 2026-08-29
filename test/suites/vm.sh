@@ -204,6 +204,28 @@ test_vm_pcie_bus() {
   lxc exec v1 -- mount -t virtiofs config /mnt
   ! lxc exec v1 -- touch /mnt/foo || false
 
+  # lxd-agent is bind-mounted in, not copied into the quota'd config volume (issue #16694):
+  # placeholder stays 0 bytes on disk while the VM still sees the full binary via the share.
+  [ "$(stat -c %s "${LXD_DIR}/virtual-machines/v1/config/lxd-agent")" = "0" ]
+  [ "$(lxc exec v1 -- stat -c %s /mnt/lxd-agent)" -gt "0" ]
+  lxc exec v1 -- umount /mnt
+
+  # Simulate the pre-fix upgrade path: an older LXD left a full agent copy in the quota'd config
+  # volume. The placeholder is a plain file on the host (the bind mount lives elsewhere), so seed
+  # it here and assert the next startup truncates it back to 0 to reclaim the space (#16694).
+  echo "stale agent copy" > "${LXD_DIR}/virtual-machines/v1/config/lxd-agent"
+
+  # The bind mount is present in the daemon's mount table while v1 runs, and gone once stopped.
+  local LXD_PID
+  LXD_PID="$(< "${LXD_DIR}/lxd.pid")"
+  grep -qsF "config.mount/lxd-agent" "/proc/${LXD_PID}/mountinfo"
+  prepare_vm_for_hard_stop v1
+  lxc stop -f v1
+  ! grep -qsF "config.mount/lxd-agent" "/proc/${LXD_PID}/mountinfo" || false
+  lxc start v1
+  waitInstanceReady v1
+  [ "$(stat -c %s "${LXD_DIR}/virtual-machines/v1/config/lxd-agent")" = "0" ]
+
   sub_test "Check that limits.max_bus_ports config option enforces the number of allowed PCIe devices"
 
   # The default value for "limits.max_bus_ports" is 8 ports.
