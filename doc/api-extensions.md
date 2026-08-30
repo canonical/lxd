@@ -3744,3 +3744,75 @@ When the server supports this extension, the DevLXD operation also has a new `er
 ## `vm_volatile_maxcpus`
 
 Adds a new volatile VM configuration key {config:option}`instance-volatile:volatile.cpu.maxcpus` that records the vCPU hotplug limit (SMP `maxcpus`) used when the VM booted. The value is reused on stateful start (stateful resume or live migration target) so that the QEMU SMP topology matches on both ends of a live migration regardless of the CPU count on each host.
+
+(extension-instance-microvm)=
+## `instance_microvm`
+
+```{warning}
+**Do not** enable this extension in production environments. It is a feature preview.
+```
+
+This extension adds support for MicroVM instances using libkrun.
+
+MicroVMs boot directly from a kernel image provided by the host and run container images unpacked into an ext4 filesystem on a dedicated block volume. The technology currently have been tested only on `x86_64` hosts.
+
+The server only advertises this extension when the `microvm` feature preview is enabled.
+In a cluster, the feature preview must be enabled on all cluster members.
+
+To test this extension please follow the instructions below:
+
+1. Install requirements:
+
+Install Rust toolchain
+```bash
+   sudo snap install rustup --classic
+   rustup default stable
+   rustup target add $(uname -m)-unknown-linux-musl
+```
+
+Install packages needed for building libkrun and libkrunfw:
+```Bash
+   apt install python3-pyelftools build-essential flex bison libelf-dev
+```
+> For more information regarding libkrun and likrunfw, their dependencies and building process, please visit [libkrun](https://github.com/libkrun/libkrun) and [libkrunfw](https://github.com/libkrun/libkrunfw) correspondingly.
+
+
+2. Build and install libkrun with block and network support:
+
+   ```bash
+   git clone https://github.com/libkrun/libkrun.git
+   cd libkrun
+   make BLK=1 NET=1 -j"$(nproc)"
+   sudo make BLK=1 NET=1 install
+   ```
+
+3. Build a guest kernel, for example with [`libkrunfw`](https://github.com/libkrun/libkrunfw):
+
+   ```bash
+   git clone https://github.com/libkrun/libkrunfw.git
+   cd libkrunfw
+   make -j"$(nproc)"
+   ```
+
+4. Copy the uncompressed kernel and the libkrun library to the LXD directory (`/var/snap/lxd/common/lxd` for the snap):
+
+   ```bash
+   sudo mkdir -p /var/snap/lxd/common/lxd/microvm /var/snap/lxd/common/lxd/libkrun
+   sudo cp libkrunfw/linux-*/vmlinux /var/snap/lxd/common/lxd/microvm/vmlinuz
+   sudo cp libkrun/target/release/libkrun.so.* /var/snap/lxd/common/lxd/libkrun/
+   ```
+
+5. Enable the feature preview for the daemon and client, then restart it:
+
+   ```bash
+   export LXD_FEATURES=microvm
+   sudo snap set lxd features=microvm
+   sudo systemctl daemon-reload
+   sudo snap restart --reload lxd
+   ```
+
+6. Create a MicroVM from a container image:
+
+   ```bash
+   lxc launch ubuntu:26.04 m1 --microvm
+   ```
