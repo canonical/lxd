@@ -3919,7 +3919,7 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, progressReporter iopr
 
 	var mountInfo MountInfo
 
-	if inst.Type() == instancetype.VM {
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		diskPath, err := b.driver.GetVolumeDiskPath(vol)
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting disk path: %w", err)
@@ -4447,7 +4447,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, progressRepor
 
 	var mountInfo MountInfo
 
-	if inst.Type() == instancetype.VM {
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		diskPath, err := b.driver.GetVolumeDiskPath(vol)
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting disk path: %w", err)
@@ -7768,7 +7768,7 @@ func (b *lxdBackend) ListUnknownVolumes(progressReporter ioprogress.ProgressRepo
 		}
 
 		switch volType {
-		case drivers.VolumeTypeVM, drivers.VolumeTypeContainer:
+		case drivers.VolumeTypeVM, drivers.VolumeTypeContainer, drivers.VolumeTypeMicroVM:
 			err = b.detectUnknownInstanceAndCustomVolumes(&poolVol, projectVols, progressReporter)
 			if err != nil {
 				return nil, fmt.Errorf("Failed detecting unknown instances: %w", err)
