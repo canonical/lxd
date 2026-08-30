@@ -52,6 +52,21 @@ The following instance options control the boot-related behavior of the instance
     :end-before: <!-- config group instance-boot end -->
 ```
 
+(instance-options-microvm)=
+## MicroVM options
+
+```{warning}
+This extension is still WIP and MUST NOT be enabled in production environments.
+```
+
+The following instance options control MicroVM boot behavior:
+
+% Include content from [../metadata.txt](../metadata.txt)
+```{include} ../metadata.txt
+  :start-after: <!-- config group instance-microvm start -->
+  :end-before: <!-- config group instance-microvm end -->
+```
+
 (instance-options-cloud-init)=
 ## `cloud-init` configuration
 
