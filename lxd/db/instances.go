@@ -857,10 +857,10 @@ func (c *ClusterTx) GetLocalInstanceWithVsockID(ctx context.Context, vsockID int
 	q := `
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id JOIN instances_config ON instances.id = instances_config.instance_id
-  WHERE instances.node_id = ? AND instances.type = ? AND instances_config.key = "volatile.vsock_id" AND instances_config.value = ? LIMIT 1
+  WHERE instances.node_id = ? AND instances.type IN (?, ?) AND instances_config.key = "volatile.vsock_id" AND instances_config.value = ? LIMIT 1
   `
 
-	inargs := []any{c.nodeID, instancetype.VM, vsockID}
+	inargs := []any{c.nodeID, instancetype.VM, instancetype.MicroVM, vsockID}
 	inst := cluster.Instance{}
 
 	err := c.tx.QueryRowContext(ctx, q, inargs...).Scan(&inst.ID, &inst.Project, &inst.Name, &inst.Node, &inst.Type, &inst.Architecture, &inst.Ephemeral, &inst.CreationDate, &inst.Stateful, &inst.LastUseDate, &inst.Description, &inst.ExpiryDate)
