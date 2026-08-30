@@ -3,6 +3,8 @@ package version
 import (
 	"os"
 	"strconv"
+
+	"github.com/canonical/lxd/shared/features"
 )
 
 // APIVersion contains the API base version. Only bumped for backward incompatible changes.
@@ -515,6 +517,13 @@ var APIExtensions = []string{
 	"loki_config_api_check_ready",
 	"server_state",
 	"storage_volume_block_tracking",
+}
+
+func init() {
+	// Only advertise microvm extension when the feature preview is enabled.
+	if features.IsEnabled(features.MicroVM) {
+		APIExtensions = append(APIExtensions, "instance_microvm")
+	}
 }
 
 // APIExtensionsCount returns the number of available API extensions.
