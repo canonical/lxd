@@ -2095,6 +2095,39 @@
 					}
 				]
 			},
+			"microvm": {
+				"keys": [
+					{
+						"microvm.initrd_path": {
+							"condition": "microvm",
+							"defaultdesc": "`/boot/initrd.img`",
+							"liveupdate": "no",
+							"longdesc": "Path to the host initrd to use for booting the microvm.",
+							"shortdesc": "Path to the host initrd for booting",
+							"type": "string"
+						}
+					},
+					{
+						"microvm.kernel_append": {
+							"condition": "microvm",
+							"liveupdate": "no",
+							"longdesc": "Additional kernel command line arguments to pass when booting the microvm.",
+							"shortdesc": "Additional kernel command line arguments",
+							"type": "string"
+						}
+					},
+					{
+						"microvm.kernel_path": {
+							"condition": "microvm",
+							"defaultdesc": "`/boot/vmlinuz`",
+							"liveupdate": "no",
+							"longdesc": "Path to the host kernel to use for booting the microvm.",
+							"shortdesc": "Path to the host kernel for booting",
+							"type": "string"
+						}
+					}
+				]
+			},
 			"migration": {
 				"keys": [
 					{
