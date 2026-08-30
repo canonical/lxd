@@ -2359,9 +2359,14 @@ func (b *lxdBackend) CreateInstanceFromImage(ctx context.Context, inst instance.
 	}
 
 	// Ensure the required image variant exists; nil means fall back to slow-unpack.
-	imgVol, err := b.EnsureImage(ctx, fingerprint, inst.Project().Name, inst, progressReporter)
-	if err != nil {
-		return err
+	// A MicroVM is always unpacked: its root disk is an ext4 filesystem made from a container image,
+	// which a cached image volume (a plain file tree) cannot be copied into.
+	var imgVol *drivers.Volume
+	if inst.Type() != instancetype.MicroVM {
+		imgVol, err = b.EnsureImage(ctx, fingerprint, inst.Project().Name, inst, progressReporter)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Clone from the cached image volume when one was prepared; otherwise
@@ -7770,7 +7775,7 @@ func (b *lxdBackend) ListUnknownVolumes(progressReporter ioprogress.ProgressRepo
 		volType := poolVol.Type()
 
 		// If the storage driver has returned a filesystem volume for a VM, this is a break of protocol.
-		if volType == drivers.VolumeTypeVM && poolVol.ContentType() == drivers.ContentTypeFS {
+		if (volType == drivers.VolumeTypeVM || volType == drivers.VolumeTypeMicroVM) && poolVol.ContentType() == drivers.ContentTypeFS {
 			return nil, fmt.Errorf("Storage driver returned unexpected VM volume with filesystem content type (%q)", poolVol.Name())
 		}
 

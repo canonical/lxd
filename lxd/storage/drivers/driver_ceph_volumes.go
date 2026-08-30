@@ -214,7 +214,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter i
 			}
 
 			// Move the GPT alt header to end of disk if needed.
-			if vol.IsVMBlock() {
+			if vol.IsVMBlock() && !vol.IsMicroVM() {
 				err = d.moveGPTAltHeader(devPath)
 				if err != nil {
 					return err
@@ -1411,7 +1411,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, p
 
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as it is
 		// expected the caller will do all necessary post resize actions themselves).
-		if vol.IsVMBlock() && !allowUnsafeResize {
+		if vol.IsVMBlock() && !vol.IsMicroVM() && !allowUnsafeResize {
 			err = d.moveGPTAltHeader(devPath)
 			if err != nil {
 				return err
@@ -1485,7 +1485,7 @@ func (d *ceph) ListVolumes() ([]Volume, error) {
 
 		isBlock := strings.HasSuffix(volName, cephBlockVolSuffix)
 
-		if volType == VolumeTypeVM && !isBlock {
+		if (volType == VolumeTypeVM || volType == VolumeTypeMicroVM) && !isBlock {
 			continue // Ignore VM filesystem volumes as we will just return the VM's block volume.
 		}
 
@@ -1493,7 +1493,7 @@ func (d *ceph) ListVolumes() ([]Volume, error) {
 		if volType == VolumeTypeCustom && strings.HasSuffix(volName, cephISOVolSuffix) {
 			contentType = ContentTypeISO
 			volName = strings.TrimSuffix(volName, cephISOVolSuffix)
-		} else if volType == VolumeTypeVM || isBlock {
+		} else if volType == VolumeTypeVM || volType == VolumeTypeMicroVM || isBlock {
 			contentType = ContentTypeBlock
 			volName = strings.TrimSuffix(volName, cephBlockVolSuffix)
 		}

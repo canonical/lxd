@@ -40,7 +40,7 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 		// This means that other volume types may have underscores in their names that don't
 		// indicate the project name.
 		switch volType {
-		case drivers.VolumeTypeContainer, drivers.VolumeTypeVM:
+		case drivers.VolumeTypeContainer, drivers.VolumeTypeVM, drivers.VolumeTypeMicroVM:
 			projectName, volName = project.InstanceParts(volName)
 		case drivers.VolumeTypeCustom:
 			projectName, volName = project.StorageVolumeParts(volName)
