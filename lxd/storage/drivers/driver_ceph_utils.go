@@ -44,6 +44,7 @@ const CephDefaultUser = "admin"
 var cephVolTypePrefixes = map[VolumeType]string{
 	VolumeTypeContainer: cluster.StoragePoolVolumeTypeNameContainer,
 	VolumeTypeVM:        cluster.StoragePoolVolumeTypeNameVM,
+	VolumeTypeMicroVM:   cluster.StoragePoolVolumeTypeNameMicroVM,
 	VolumeTypeImage:     cluster.StoragePoolVolumeTypeNameImage,
 	VolumeTypeCustom:    cluster.StoragePoolVolumeTypeNameCustom,
 }
