@@ -22,7 +22,7 @@ const tmpVolSuffix = ".lxdtmp"
 // isoVolSuffix suffix used for iso content type volumes.
 const isoVolSuffix = ".iso"
 
-// DefaultBlockSize is the default size of block volumes.
+// defaultBlockSize is the default size of block volumes.
 const defaultBlockSize = "10GiB"
 
 // DefaultFilesystem filesytem to use for block devices by default.
@@ -39,7 +39,7 @@ type VolumeType string
 
 // IsInstance indicates if the VolumeType represents an instance type.
 func (t VolumeType) IsInstance() bool {
-	if t == VolumeTypeContainer || t == VolumeTypeVM {
+	if t == VolumeTypeContainer || t == VolumeTypeVM || t == VolumeTypeMicroVM {
 		return true
 	}
 
@@ -60,6 +60,9 @@ const VolumeTypeContainer = VolumeType("containers")
 
 // VolumeTypeVM represents a virtual-machine storage volume.
 const VolumeTypeVM = VolumeType("virtual-machines")
+
+// VolumeTypeMicroVM represents a microvm storage volume.
+const VolumeTypeMicroVM = VolumeType("microvms")
 
 // ContentType indicates the format of the volume.
 type ContentType string
@@ -88,6 +91,7 @@ var BaseDirectories = map[VolumeType]baseDirectory{
 	VolumeTypeCustom:    {Paths: []string{"custom", "custom-snapshots"}, Mode: 0o700},
 	VolumeTypeImage:     {Paths: []string{"images"}, Mode: 0o700},
 	VolumeTypeVM:        {Paths: []string{"virtual-machines", "virtual-machines-snapshots"}, Mode: 0o700},
+	VolumeTypeMicroVM:   {Paths: []string{"microvms", "microvms-snapshots"}, Mode: 0o700},
 }
 
 // Volume represents a storage volume, and provides functions to mount and unmount it.
@@ -417,7 +421,12 @@ func (v Volume) ContentType() ContentType {
 
 // IsVMBlock returns true if volume is a block volume for virtual machines or associated images.
 func (v Volume) IsVMBlock() bool {
-	return (v.volType == VolumeTypeVM || v.volType == VolumeTypeImage) && v.contentType == ContentTypeBlock
+	return (v.volType == VolumeTypeVM || v.volType == VolumeTypeMicroVM || v.volType == VolumeTypeImage) && v.contentType == ContentTypeBlock
+}
+
+// IsMicroVM returns true if volume belongs to a MicroVM (block or filesystem volume).
+func (v Volume) IsMicroVM() bool {
+	return v.volType == VolumeTypeMicroVM
 }
 
 // IsCustomBlock returns true if volume is a custom block volume.
@@ -535,7 +544,7 @@ func (v Volume) ConfigSizeFromSource(srcVol Volume) (string, error) {
 	}
 
 	// VM config filesystem volumes should always have a fixed specified size, so just return volume size.
-	if v.volType == VolumeTypeVM && v.contentType == ContentTypeFS {
+	if (v.volType == VolumeTypeVM || v.volType == VolumeTypeMicroVM) && v.contentType == ContentTypeFS {
 		return v.config["size"], nil
 	}
 
