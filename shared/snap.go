@@ -7,6 +7,14 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
+// Snap health status constants for use with SnapSetHealth.
+const (
+	SnapHealthOkay    = "okay"
+	SnapHealthWaiting = "waiting"
+	SnapHealthBlocked = "blocked"
+	SnapHealthError   = "error"
+)
+
 // SnapSetHealth calls snapctl set-health. No-op when not running inside the snap.
 // If ctx has no deadline, a 5s timeout is applied.
 func SnapSetHealth(ctx context.Context, status string, message string) {
