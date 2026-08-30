@@ -7291,7 +7291,7 @@ func (b *lxdBackend) ListUnknownVolumes(progressReporter ioprogress.ProgressRepo
 		}
 
 		switch volType {
-		case drivers.VolumeTypeVM, drivers.VolumeTypeContainer:
+		case drivers.VolumeTypeVM, drivers.VolumeTypeContainer, drivers.VolumeTypeMicroVM:
 			err = b.detectUnknownInstanceAndCustomVolumes(&poolVol, projectVols, progressReporter)
 			if err != nil {
 				return nil, fmt.Errorf("Failed detecting unknown instances: %w", err)

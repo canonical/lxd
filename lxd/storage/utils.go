@@ -37,6 +37,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -86,6 +87,8 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (cluster.StoragePoolVolumeTy
 		return cluster.StoragePoolVolumeTypeContainer, nil
 	case drivers.VolumeTypeVM:
 		return cluster.StoragePoolVolumeTypeVM, nil
+	case drivers.VolumeTypeMicroVM:
+		return cluster.StoragePoolVolumeTypeMicroVM, nil
 	case drivers.VolumeTypeImage:
 		return cluster.StoragePoolVolumeTypeImage, nil
 	case drivers.VolumeTypeCustom:
@@ -102,6 +105,8 @@ func VolumeDBTypeToType(volDBType cluster.StoragePoolVolumeType) drivers.VolumeT
 		return drivers.VolumeTypeContainer
 	case cluster.StoragePoolVolumeTypeVM:
 		return drivers.VolumeTypeVM
+	case cluster.StoragePoolVolumeTypeMicroVM:
+		return drivers.VolumeTypeMicroVM
 	case cluster.StoragePoolVolumeTypeImage:
 		return drivers.VolumeTypeImage
 	case cluster.StoragePoolVolumeTypeCustom:
@@ -118,6 +123,8 @@ func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, e
 		return drivers.VolumeTypeContainer, nil
 	case instancetype.VM:
 		return drivers.VolumeTypeVM, nil
+	case instancetype.MicroVM:
+		return drivers.VolumeTypeMicroVM, nil
 	}
 
 	return "", errors.New("Invalid instance type")
@@ -130,6 +137,8 @@ func VolumeTypeToAPIInstanceType(volType drivers.VolumeType) (api.InstanceType, 
 		return api.InstanceTypeContainer, nil
 	case drivers.VolumeTypeVM:
 		return api.InstanceTypeVM, nil
+	case drivers.VolumeTypeMicroVM:
+		return api.InstanceTypeMicroVM, nil
 	}
 
 	return api.InstanceTypeAny, errors.New("Volume type does not have equivalent instance type")
@@ -709,6 +718,61 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 		return 0, nil
 	}
 
+	if vol.Type() == drivers.VolumeTypeMicroVM {
+		// ConfigSize already falls back to the driver's default block size for block volumes.
+		sizeStr := vol.ConfigSize()
+		if sizeStr == "" {
+			return -1, errors.New("MicroVM volume size is not set")
+		}
+
+		sizeBytes, err := units.ParseByteSizeString(sizeStr)
+		if err != nil {
+			return -1, fmt.Errorf("Invalid root disk size %q: %w", sizeStr, err)
+		}
+
+		hasSeparateRootfs := shared.PathExists(imageRootfsFile)
+
+		// Unpack metadata (or combined tarball) into destPath.
+		err = archive.UnpackImage(s, imageFile, destPath, vol.IsBlockBacked(), progressHandler)
+		if err != nil {
+			return -1, err
+		}
+
+		// Format and mount block target, unpack rootfs, and cleanup.
+		err = drivers.FormatAndMountBlockFS(destBlockFile, sizeBytes, "ext4", func(mountPath string) error {
+			if hasSeparateRootfs {
+				err := archive.UnpackImage(s, imageRootfsFile, mountPath, false, progressHandler)
+				if err != nil {
+					return fmt.Errorf("Failed unpacking rootfs image: %w", err)
+				}
+			} else {
+				combinedRootfsPath := filepath.Join(destPath, "rootfs")
+				_, err := rsync.LocalCopy(combinedRootfsPath, mountPath, "", true)
+				if err != nil {
+					return fmt.Errorf("Failed copying rootfs into disk image: %w", err)
+				}
+
+				_ = os.RemoveAll(combinedRootfsPath)
+			}
+
+			entries, err := os.ReadDir(mountPath)
+			if err != nil {
+				return fmt.Errorf("Failed reading unpacked rootfs at %q: %w", mountPath, err)
+			}
+
+			if len(entries) <= 1 {
+				return fmt.Errorf("Image is missing a rootfs: %s", imageFile)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return -1, err
+		}
+
+		return sizeBytes, nil
+	}
+
 	// If a rootBlockPath is supplied then this is a VM image unpack.
 
 	// Validate the target.
@@ -892,7 +956,7 @@ func qemuImageInfo(sysOS *sys.OS, imagePath string, tracker *ioprogress.Progress
 // InstanceContentType returns the instance's content type.
 func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		contentType = drivers.ContentTypeBlock
 	}
 
