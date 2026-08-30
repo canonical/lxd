@@ -886,6 +886,8 @@ func (c *cmdList) typeColumnData(cInfo api.InstanceFull) string {
 	instType := "CONTAINER"
 	if cInfo.Type == string(api.InstanceTypeVM) {
 		instType = "VIRTUAL-MACHINE"
+	} else if cInfo.Type == string(api.InstanceTypeMicroVM) {
+		instType = "MICROVM"
 	}
 
 	if cInfo.Ephemeral {
