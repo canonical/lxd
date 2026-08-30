@@ -3830,3 +3830,77 @@ New `lxc` commands:
 Adds support for `recursion=2` on `GET /1.0/cluster/members`. In addition to the cluster member information returned with `recursion=1`, each entry contains a `state` field with the member state (as returned by `GET /1.0/cluster/members/{name}/state`).
 
 The state of all members is fetched in parallel by the member handling the request. The `state` field is `null` for offline members and for members whose state could not be retrieved.
+
+(extension-instance-microvm)=
+## `instance_microvm`
+
+```{warning}
+**Do not** enable this extension in production environments. It is a feature preview.
+```
+
+This extension adds support for MicroVM instances using libkrun.
+
+MicroVMs boot directly from a kernel image provided by the host and run container images unpacked into an ext4 filesystem on a dedicated block volume. MicroVMs have only been tested on `x86_64` hosts.
+
+MicroVMs can currently be created on storage pools that use the `dir`, `btrfs`, `zfs`, `lvm` or `ceph` driver. A cached image volume is not used for them: the image is unpacked for every new MicroVM.
+
+The server only advertises this extension when the `microvm` feature preview is enabled.
+In a cluster, the feature preview must be enabled on all cluster members.
+
+To test this extension please follow the instructions below:
+
+1. Install requirements:
+
+   Install Rust toolchain
+   ```bash
+   sudo snap install rustup --classic
+   rustup default stable
+   rustup target add $(uname -m)-unknown-linux-musl
+   ```
+
+   Install packages needed for building libkrun and libkrunfw:
+   ```bash
+   apt install python3-pyelftools build-essential flex bison libelf-dev
+   ```
+
+   > For more information regarding libkrun and libkrunfw, their dependencies and building process, please visit [libkrun](https://github.com/libkrun/libkrun) and [libkrunfw](https://github.com/libkrun/libkrunfw) correspondingly.
+
+2. Build libkrun with block and network support. LXD uses the libkrun C API, which later libkrun revisions no longer provide, so check out the following compatible revision:
+
+   ```bash
+   git clone https://github.com/libkrun/libkrun.git
+   cd libkrun
+   git checkout 6254f5e22b8782a4dffe530ff44f1bbe623332e0
+   make BLK=1 NET=1 -j"$(nproc)"
+   ```
+
+3. Build a guest kernel, for example with [`libkrunfw`](https://github.com/libkrun/libkrunfw):
+
+   ```bash
+   git clone https://github.com/libkrun/libkrunfw.git
+   cd libkrunfw
+   make -j"$(nproc)"
+   ```
+
+4. Copy the uncompressed kernel and the libkrun library to the LXD directory (`/var/snap/lxd/common/lxd` for the snap):
+
+   ```bash
+   sudo mkdir -p /var/snap/lxd/common/lxd/microvm /var/snap/lxd/common/lxd/libkrun
+   sudo cp libkrunfw/linux-*/vmlinux /var/snap/lxd/common/lxd/microvm/vmlinuz
+   sudo cp libkrun/target/release/libkrun.so /var/snap/lxd/common/lxd/libkrun/
+   ```
+
+5. Enable the feature preview for the daemon and client, then restart it:
+
+   ```bash
+   export LXD_FEATURES=microvm
+   sudo snap set lxd features=microvm
+   sudo systemctl daemon-reload
+   sudo snap restart --reload lxd
+   ```
+
+6. Create a MicroVM from a container image:
+
+   ```bash
+   lxc launch ubuntu:26.04 m1 --microvm
+   ```
