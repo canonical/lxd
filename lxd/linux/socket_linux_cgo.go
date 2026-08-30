@@ -103,6 +103,19 @@ func PidfdSendSignal(Pidfd int, Signal int, Flags uint32) error {
 	return nil
 }
 
+// PidfdGetExitInfo returns the raw wait-style exit code reported by PIDFD_GET_INFO.
+func PidfdGetExitInfo(Pidfd int) (int, bool, error) {
+	var exitCode C.int
+	var hasExitCode C.int
+
+	ret, errno := C.lxd_pidfd_get_exit_info(C.int(Pidfd), &exitCode, &hasExitCode)
+	if ret != 0 {
+		return 0, false, errno
+	}
+
+	return int(exitCode), hasExitCode != 0, nil
+}
+
 const CLOSE_RANGE_UNSHARE uint32 = C.CLOSE_RANGE_UNSHARE //nolint:revive
 const CLOSE_RANGE_CLOEXEC uint32 = C.CLOSE_RANGE_CLOEXEC //nolint:revive
 
