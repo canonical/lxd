@@ -2212,8 +2212,6 @@ func (b *lxdBackend) CreateInstanceFromImage(ctx context.Context, inst instance.
 		return err
 	}
 
-	// Leave reverting on failure to caller, they are expected to call DeleteInstance().
-
 	volFiller := drivers.VolumeFiller{
 		Fingerprint: fingerprint,
 		Fill:        b.imageFiller(fingerprint, progressReporter, inst.Project().Name),
@@ -3700,7 +3698,7 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, progressReporter iopr
 
 	var mountInfo MountInfo
 
-	if inst.Type() == instancetype.VM {
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		diskPath, err := b.driver.GetVolumeDiskPath(vol)
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting disk path: %w", err)
@@ -4222,7 +4220,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, progressRepor
 
 	var mountInfo MountInfo
 
-	if inst.Type() == instancetype.VM {
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		diskPath, err := b.driver.GetVolumeDiskPath(vol)
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting disk path: %w", err)
