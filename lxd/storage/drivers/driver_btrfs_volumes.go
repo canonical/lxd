@@ -118,7 +118,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter 
 		}
 
 		// Move the GPT alt header to end of disk if needed and if filler specified.
-		if vol.IsVMBlock() && filler != nil && filler.Fill != nil {
+		if vol.IsVMBlock() && !vol.IsMicroVM() && filler != nil && filler.Fill != nil {
 			err = d.moveGPTAltHeader(rootBlockPath)
 			if err != nil {
 				return err
@@ -989,7 +989,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 		// Move the GPT alt header to end of disk if needed and resize has taken place (not needed in
 		// unsafe resize mode as it is expected the caller will do all necessary post resize actions
 		// themselves).
-		if vol.IsVMBlock() && resized && !allowUnsafeResize {
+		if vol.IsVMBlock() && !vol.IsMicroVM() && resized && !allowUnsafeResize {
 			err = d.moveGPTAltHeader(rootBlockPath)
 			if err != nil {
 				return err
@@ -1063,7 +1063,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 	// Modify the limit.
 	if sizeBytes > 0 {
 		// Custom handling for filesystem volume associated with a VM.
-		if vol.volType == VolumeTypeVM {
+		if vol.volType == VolumeTypeVM || vol.volType == VolumeTypeMicroVM {
 			// Get the size of the VM image.
 			blockSize, err := block.DiskSizeBytes(filepath.Join(volPath, genericVolumeDiskFile))
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
