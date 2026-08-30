@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
@@ -27,6 +28,8 @@ func vSockServer(d *Daemon) *http.Server {
 
 // vSockAuthenticator implements DevLXDAuthenticator for vsock connections.
 type vSockAuthenticator struct{}
+
+var authenticateAgentCertByPresentedCertFunc = authenticateAgentCertByPresentedCert
 
 // IsVsock returns true indicating that this authenticator is used for vsock connections.
 func (vSockAuthenticator) IsVsock() bool {
@@ -52,9 +55,13 @@ func authenticateAgentCert(s *state.State, r *http.Request) (bool, instance.Inst
 	var vsockID int
 	trusted := false
 
+	if r.TLS == nil {
+		return false, nil, nil
+	}
+
 	_, err := fmt.Sscanf(r.RemoteAddr, "vm(%d)", &vsockID)
 	if err != nil {
-		return false, nil, err
+		return authenticateAgentCertByPresentedCertFunc(s, r)
 	}
 
 	var clusterInst *cluster.Instance
@@ -85,6 +92,36 @@ func authenticateAgentCert(s *state.State, r *http.Request) (bool, instance.Inst
 		trusted, _ = util.CheckMutualTLS(*cert, trustedCerts)
 		if trusted {
 			return true, inst, nil
+		}
+	}
+
+	return false, nil, nil
+}
+
+func authenticateAgentCertByPresentedCert(s *state.State, r *http.Request) (bool, instance.Instance, error) {
+	instances, err := instance.LoadNodeAll(s, instancetype.MicroVM)
+	if err != nil {
+		return false, nil, err
+	}
+
+	for _, inst := range instances {
+		vm, ok := inst.(instance.VM)
+		if !ok {
+			continue
+		}
+
+		agentCert := vm.AgentCertificate()
+		if agentCert == nil {
+			continue
+		}
+
+		trustedCerts := map[string]x509.Certificate{"0": *agentCert}
+
+		for _, cert := range r.TLS.PeerCertificates {
+			trusted, _ := util.CheckMutualTLS(*cert, trustedCerts)
+			if trusted {
+				return true, inst, nil
+			}
 		}
 	}
 
