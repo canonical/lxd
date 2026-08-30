@@ -5,12 +5,15 @@
 #define _GNU_SOURCE 1
 #endif
 #include <linux/sched.h>
+#include <linux/types.h>
 #include <sched.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/syscall.h>
+#include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -27,6 +30,58 @@ static inline int lxd_pidfd_send_signal(int pidfd, int sig, siginfo_t *info,
 					unsigned int flags)
 {
 	return syscall(__NR_pidfd_send_signal, pidfd, sig, info, flags);
+}
+
+struct lxd_pidfd_info {
+	__u64 mask;
+	__u64 cgroupid;
+	__u32 pid;
+	__u32 tgid;
+	__u32 ppid;
+	__u32 ruid;
+	__u32 rgid;
+	__u32 euid;
+	__u32 egid;
+	__u32 suid;
+	__u32 sgid;
+	__u32 fsuid;
+	__u32 fsgid;
+	__s32 exit_code;
+	__u32 coredump_mask;
+	__u32 coredump_signal;
+	__u32 coredump_code;
+	__u32 coredump_pad;
+	__u64 supported_mask;
+};
+
+#ifndef PIDFD_INFO_EXIT
+#define PIDFD_INFO_EXIT (1UL << 3)
+#endif
+
+#ifndef PIDFD_GET_INFO
+#define PIDFS_IOCTL_MAGIC 0xFF
+#define PIDFD_GET_INFO _IOWR(PIDFS_IOCTL_MAGIC, 11, struct lxd_pidfd_info)
+#endif
+
+static inline int lxd_pidfd_get_exit_info(int pidfd, int *exit_code,
+					  int *has_exit_code)
+{
+	struct lxd_pidfd_info info = {0};
+	int ret;
+
+	if (!exit_code || !has_exit_code)
+		return ret_errno(EINVAL);
+
+	info.mask = PIDFD_INFO_EXIT;
+
+	ret = ioctl(pidfd, PIDFD_GET_INFO, &info);
+	if (ret < 0)
+		return -1;
+
+	*exit_code = info.exit_code;
+	*has_exit_code = !!(info.mask & PIDFD_INFO_EXIT);
+
+	return 0;
 }
 
 static inline bool process_still_alive(int pidfd)
