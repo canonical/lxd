@@ -24,6 +24,11 @@ const InstanceTypeContainer = InstanceType("container")
 // InstanceTypeVM defines the instance type value for a virtual-machine.
 const InstanceTypeVM = InstanceType("virtual-machine")
 
+// InstanceTypeMicroVM defines the instance type value for a microvm.
+//
+// API extension: instance_microvm.
+const InstanceTypeMicroVM = InstanceType("microvm")
+
 // SourceType represents source of the instance creation.
 type SourceType string
 
