@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/lxd/lxd/endpoints/listeners"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -172,13 +173,14 @@ func (e *Endpoints) up(config *Config) error {
 	defer e.mu.Unlock()
 
 	e.servers = map[kind]*http.Server{
-		cluster: config.RestServer,
-		devlxd:  config.DevLxdServer,
-		local:   config.RestServer,
-		metrics: config.MetricsServer,
-		network: config.RestServer,
-		pprof:   pprofCreateServer(),
-		vmvsock: config.VsockServer,
+		cluster:     config.RestServer,
+		devlxd:      config.DevLxdServer,
+		local:       config.RestServer,
+		metrics:     config.MetricsServer,
+		network:     config.RestServer,
+		pprof:       pprofCreateServer(),
+		vmvsock:     config.VsockServer,
+		vmvsockunix: config.VsockServer,
 	}
 
 	e.cert = config.Cert
@@ -218,6 +220,13 @@ func (e *Endpoints) up(config *Config) error {
 		e.listeners[vmvsock], err = createVsockListener(e.cert)
 		if err != nil {
 			return err
+		}
+
+		if features.IsEnabled(features.MicroVM) {
+			e.listeners[vmvsockunix], err = createVsockUnixListener(config.Dir, e.cert)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -378,6 +387,15 @@ func (e *Endpoints) Down() error {
 		}
 	}
 
+	if features.IsEnabled(features.MicroVM) {
+		if e.listeners[vmvsockunix] != nil {
+			err := e.closeListener(vmvsockunix)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	if e.tomb != nil {
 		e.tomb.Kill(nil)
 		_ = e.tomb.Wait()
@@ -468,15 +486,17 @@ const (
 	cluster
 	metrics
 	vmvsock
+	vmvsockunix
 )
 
 // Human-readable descriptions of the various kinds of endpoints.
 var descriptions = map[kind]string{
-	local:   "REST API Unix socket",
-	devlxd:  "devlxd socket",
-	network: "REST API TCP socket",
-	pprof:   "pprof socket",
-	cluster: "cluster socket",
-	metrics: "metrics socket",
-	vmvsock: "VM socket",
+	local:       "REST API Unix socket",
+	devlxd:      "devlxd socket",
+	network:     "REST API TCP socket",
+	pprof:       "pprof socket",
+	cluster:     "cluster socket",
+	metrics:     "metrics socket",
+	vmvsock:     "VM socket",
+	vmvsockunix: "VM unix socket",
 }
