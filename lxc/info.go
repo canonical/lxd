@@ -778,6 +778,12 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, name string, showLog bool) 
 				return err
 			}
 
+		case "microvm":
+			log, err = d.GetInstanceLogfile(name, "qemu.log")
+			if err != nil {
+				return err
+			}
+
 		default:
 			return fmt.Errorf("Unsupported instance type: %s", inst.Type)
 		}
