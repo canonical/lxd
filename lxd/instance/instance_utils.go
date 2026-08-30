@@ -145,6 +145,12 @@ func validConfigKey(os *sys.OS, key string, value string, instanceType instancet
 			_, exists = instancetype.InstanceConfigKeysVM[key]
 		case instancetype.Container:
 			_, exists = instancetype.InstanceConfigKeysContainer[key]
+		case instancetype.MicroVM:
+			_, exists = instancetype.InstanceConfigKeysMicroVM[key]
+			if !exists {
+				// MicroVM inherits VM config keys.
+				_, exists = instancetype.InstanceConfigKeysVM[key]
+			}
 		}
 
 		_, existsAny := instancetype.InstanceConfigKeysAny[key]
