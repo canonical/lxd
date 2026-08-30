@@ -140,7 +140,7 @@ func (e *Endpoints) NetworkUpdateCert(cert *shared.CertInfo) {
 	defer e.mu.Unlock()
 	e.cert = cert
 
-	for _, listenerKey := range []kind{network, cluster, vmvsock, metrics} {
+	for _, listenerKey := range []kind{network, cluster, vmvsock, vmvsockunix, metrics} {
 		listener, found := e.listeners[listenerKey]
 		if found {
 			listener.(*listeners.FancyTLSListener).Config(cert)
