@@ -86,6 +86,15 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (cluster.StoragePoolVolumeTy
 		return cluster.StoragePoolVolumeTypeContainer, nil
 	case drivers.VolumeTypeVM:
 		return cluster.StoragePoolVolumeTypeVM, nil
+	case drivers.VolumeTypeMicroVM:
+		// TODO: MicroVM maps to the container DB type because there is no dedicated
+		// StoragePoolVolumeTypeMicroVM code yet. This collides with a real container of
+		// the same name in the (storage_pool_id, node_id, project_id, name, type) unique
+		// index, and makes `lxc storage volume list` report MicroVM volumes as containers.
+		// A real StoragePoolVolumeTypeMicroVM DB code is needed to keep them apart, but that
+		// touches volume-type validation and permission/auth entity URL generation across
+		// several files, so is left as follow-up work.
+		return cluster.StoragePoolVolumeTypeContainer, nil
 	case drivers.VolumeTypeImage:
 		return cluster.StoragePoolVolumeTypeImage, nil
 	case drivers.VolumeTypeCustom:
@@ -118,6 +127,8 @@ func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, e
 		return drivers.VolumeTypeContainer, nil
 	case instancetype.VM:
 		return drivers.VolumeTypeVM, nil
+	case instancetype.MicroVM:
+		return drivers.VolumeTypeMicroVM, nil
 	}
 
 	return "", errors.New("Invalid instance type")
@@ -130,6 +141,8 @@ func VolumeTypeToAPIInstanceType(volType drivers.VolumeType) (api.InstanceType, 
 		return api.InstanceTypeContainer, nil
 	case drivers.VolumeTypeVM:
 		return api.InstanceTypeVM, nil
+	case drivers.VolumeTypeMicroVM:
+		return api.InstanceTypeMicroVM, nil
 	}
 
 	return api.InstanceTypeAny, errors.New("Volume type does not have equivalent instance type")
@@ -859,6 +872,103 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 	return imgSize, nil
 }
 
+// ImageUnpackMicroVM unpacks a container filesystem image into an ext4 disk image file for MicroVM instances.
+// It creates a sparse disk image, formats it with ext4, loop-mounts it, unpacks the container rootfs,
+// and then unmounts it.
+func ImageUnpackMicroVM(s *state.State, projectName string, imageFile string, vol drivers.Volume, destBlockFile string, sizeBytes int64, progressHandler ioprogress.ProgressHandler) (int64, error) {
+	l := logger.Log.AddContext(logger.Ctx{"imageFile": imageFile, "volName": vol.Name(), "destBlockFile": destBlockFile})
+	l.Info("MicroVM image unpack started")
+	defer l.Info("MicroVM image unpack stopped")
+
+	imageRootfsFile := imageFile + ".rootfs"
+	destPath := vol.MountPath()
+	hasSeparateRootfs := shared.PathExists(imageRootfsFile)
+
+	// Unpack the metadata (or combined) tarball into destPath. Split images only carry
+	// metadata here; combined images (from `images:`/`ubuntu:`, with no separate .rootfs
+	// file) also carry the rootfs, under destPath/rootfs, moved into the ext4 disk below.
+	err := archive.UnpackImage(s, imageFile, destPath, vol.IsBlockBacked(), progressHandler)
+	if err != nil {
+		return -1, err
+	}
+
+	// Create the sparse disk image file.
+	err = drivers.EnsureSparseFile(destBlockFile, sizeBytes)
+	if err != nil {
+		return -1, fmt.Errorf("Failed creating sparse disk image %q: %w", destBlockFile, err)
+	}
+
+	// Format the disk image with ext4.
+	_, err = drivers.MakeFSType(destBlockFile, "ext4", nil)
+	if err != nil {
+		return -1, fmt.Errorf("Failed formatting disk image with ext4: %w", err)
+	}
+
+	// Create a temporary mount point.
+	tmpMountPath, err := os.MkdirTemp("", "lxd-microvm-unpack-")
+	if err != nil {
+		return -1, fmt.Errorf("Failed creating temporary mount directory: %w", err)
+	}
+
+	defer func() { _ = os.RemoveAll(tmpMountPath) }()
+
+	// Set up a loop device for the disk image.
+	loopDev, err := drivers.LoopDeviceSetup(destBlockFile)
+	if err != nil {
+		return -1, fmt.Errorf("Failed setting up loop device for %q: %w", destBlockFile, err)
+	}
+
+	defer func() { _ = drivers.LoopDeviceAutoDetach(loopDev) }()
+
+	// Mount the loop device.
+	err = unix.Mount(loopDev, tmpMountPath, "ext4", 0, "")
+	if err != nil {
+		return -1, fmt.Errorf("Failed mounting loop device %q at %q: %w", loopDev, tmpMountPath, err)
+	}
+
+	defer func() { _ = unix.Unmount(tmpMountPath, unix.MNT_DETACH) }()
+
+	// Unpack the rootfs into the mounted filesystem.
+	rootfsPath := tmpMountPath
+	if hasSeparateRootfs {
+		// Split image: the root squashfs is a separate file next to the metadata tarball.
+		err = archive.UnpackImage(s, imageRootfsFile, rootfsPath, false, progressHandler)
+		if err != nil {
+			return -1, fmt.Errorf("Failed unpacking rootfs image: %w", err)
+		}
+	} else {
+		// Combined image: the rootfs was unpacked alongside the metadata above. Move it
+		// into the ext4 disk image and remove the now-redundant copy on the metadata volume.
+		combinedRootfsPath := filepath.Join(destPath, "rootfs")
+
+		_, err = rsync.LocalCopy(combinedRootfsPath, rootfsPath, "", true)
+		if err != nil {
+			return -1, fmt.Errorf("Failed copying rootfs into disk image: %w", err)
+		}
+
+		err = os.RemoveAll(combinedRootfsPath)
+		if err != nil {
+			return -1, fmt.Errorf("Failed removing temporary rootfs at %q: %w", combinedRootfsPath, err)
+		}
+	}
+
+	// Check that the container image unpack has resulted in a populated rootfs. mkfs.ext4
+	// always creates a lost+found entry, so a rootfs with only that entry is still empty.
+	entries, err := os.ReadDir(rootfsPath)
+	if err != nil {
+		return -1, fmt.Errorf("Failed reading unpacked rootfs at %q: %w", rootfsPath, err)
+	}
+
+	if len(entries) <= 1 {
+		return -1, fmt.Errorf("Image is missing a rootfs: %s", imageFile)
+	}
+
+	// Sync to ensure all data is written to the disk image.
+	unix.Sync()
+
+	return sizeBytes, nil
+}
+
 // qemuImageInfo retrieves the format and virtual size of an image (size after unpacking the image)
 // on the given path.
 func qemuImageInfo(sysOS *sys.OS, imagePath string, tracker *ioprogress.ProgressTracker) (format string, bytes int64, err error) {
@@ -892,7 +1002,7 @@ func qemuImageInfo(sysOS *sys.OS, imagePath string, tracker *ioprogress.Progress
 // InstanceContentType returns the instance's content type.
 func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		contentType = drivers.ContentTypeBlock
 	}
 
