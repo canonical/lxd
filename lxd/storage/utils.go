@@ -42,6 +42,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -91,6 +92,8 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (cluster.StoragePoolVolumeTy
 		return cluster.StoragePoolVolumeTypeContainer, nil
 	case drivers.VolumeTypeVM:
 		return cluster.StoragePoolVolumeTypeVM, nil
+	case drivers.VolumeTypeMicroVM:
+		return cluster.StoragePoolVolumeTypeMicroVM, nil
 	case drivers.VolumeTypeImage:
 		return cluster.StoragePoolVolumeTypeImage, nil
 	case drivers.VolumeTypeCustom:
@@ -107,6 +110,8 @@ func VolumeDBTypeToType(volDBType cluster.StoragePoolVolumeType) drivers.VolumeT
 		return drivers.VolumeTypeContainer
 	case cluster.StoragePoolVolumeTypeVM:
 		return drivers.VolumeTypeVM
+	case cluster.StoragePoolVolumeTypeMicroVM:
+		return drivers.VolumeTypeMicroVM
 	case cluster.StoragePoolVolumeTypeImage:
 		return drivers.VolumeTypeImage
 	case cluster.StoragePoolVolumeTypeCustom:
@@ -123,6 +128,8 @@ func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, e
 		return drivers.VolumeTypeContainer, nil
 	case instancetype.VM:
 		return drivers.VolumeTypeVM, nil
+	case instancetype.MicroVM:
+		return drivers.VolumeTypeMicroVM, nil
 	}
 
 	return "", errors.New("Invalid instance type")
@@ -135,6 +142,8 @@ func VolumeTypeToAPIInstanceType(volType drivers.VolumeType) (api.InstanceType, 
 		return api.InstanceTypeContainer, nil
 	case drivers.VolumeTypeVM:
 		return api.InstanceTypeVM, nil
+	case drivers.VolumeTypeMicroVM:
+		return api.InstanceTypeMicroVM, nil
 	}
 
 	return api.InstanceTypeAny, errors.New("Volume type does not have equivalent instance type")
@@ -695,6 +704,14 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // VM Format A: Separate metadata tarball and root qcow2 file.
 //   - Unpack metadata tarball into mountPath.
 //   - Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
+//
+// MicroVM Format A: Separate metadata tarball and root squashfs file.
+//   - Unpack metadata tarball into mountPath.
+//   - Format rootBlockPath as ext4 and unpack root squashfs file into it.
+//
+// MicroVM Format B: Combined tarball containing metadata files and root squashfs.
+//   - Unpack combined tarball into mountPath.
+//   - Format rootBlockPath as ext4 and move mountPath/rootfs into it.
 func ImageUnpack(s *state.State, projectName string, imageFile string, vol drivers.Volume, destBlockFile string, allowUnsafeResize bool, progressHandler ioprogress.ProgressHandler) (int64, error) {
 	l := logger.Log.AddContext(logger.Ctx{"imageFile": imageFile, "volName": vol.Name()})
 	l.Info("Image unpack started")
@@ -733,6 +750,98 @@ func ImageUnpack(s *state.State, projectName string, imageFile string, vol drive
 
 		// Done with this.
 		return 0, nil
+	}
+
+	if vol.IsMicroVM() {
+		// ConfigSize already falls back to the driver's default block size for block volumes.
+		sizeStr := vol.ConfigSize()
+		if sizeStr == "" {
+			return -1, errors.New("MicroVM volume size is not set")
+		}
+
+		sizeBytes, err := units.ParseByteSizeString(sizeStr)
+		if err != nil {
+			return -1, fmt.Errorf("Invalid root disk size %q: %w", sizeStr, err)
+		}
+
+		if shared.PathExists(imageRootfsFile) {
+			// Unpack the main image file.
+			err = archive.UnpackImage(s, imageFile, destPath, vol.IsBlockBacked(), progressHandler)
+			if err != nil {
+				return -1, err
+			}
+
+			err = drivers.FormatAndMountBlockFS(destBlockFile, sizeBytes, "ext4", func(mountPath string) error {
+				err := archive.UnpackImage(s, imageRootfsFile, mountPath, false, progressHandler)
+				if err != nil {
+					return fmt.Errorf("Failed unpacking rootfs image: %w", err)
+				}
+
+				entries, err := os.ReadDir(mountPath)
+				if err != nil {
+					return fmt.Errorf("Failed reading unpacked rootfs at %q: %w", mountPath, err)
+				}
+
+				if len(entries) <= 1 {
+					return fmt.Errorf("Image is missing a rootfs: %s", imageFile)
+				}
+
+				return nil
+			})
+			if err != nil {
+				return -1, err
+			}
+		} else {
+			// Dealing with unified tarballs require an initial unpack to a temporary directory.
+			tempDir, err := os.MkdirTemp(s.ImagesStoragePath(projectName), "lxd_image_unpack_")
+			if err != nil {
+				return -1, err
+			}
+
+			defer func() { _ = os.RemoveAll(tempDir) }()
+
+			err = archive.UnpackImage(s, imageFile, tempDir, vol.IsBlockBacked(), progressHandler)
+			if err != nil {
+				return -1, err
+			}
+
+			combinedRootfsPath := filepath.Join(tempDir, "rootfs")
+
+			err = drivers.FormatAndMountBlockFS(destBlockFile, sizeBytes, "ext4", func(mountPath string) error {
+				_, err := rsync.LocalCopy(combinedRootfsPath, mountPath, "", true)
+				if err != nil {
+					return fmt.Errorf("Failed copying rootfs into disk image: %w", err)
+				}
+
+				entries, err := os.ReadDir(mountPath)
+				if err != nil {
+					return fmt.Errorf("Failed reading unpacked rootfs at %q: %w", mountPath, err)
+				}
+
+				if len(entries) <= 1 {
+					return fmt.Errorf("Image is missing a rootfs: %s", imageFile)
+				}
+
+				return nil
+			})
+			if err != nil {
+				return -1, err
+			}
+
+			err = os.RemoveAll(combinedRootfsPath)
+			if err != nil {
+				return -1, fmt.Errorf("Failed removing %q: %w", combinedRootfsPath, err)
+			}
+
+			// Transfer the content excluding the destBlockFile name so that we don't delete the block file
+			// created above if the storage driver stores image files in the same directory as destPath.
+			_, err = rsync.LocalCopy(tempDir, destPath, "", true, "--exclude", filepath.Base(destBlockFile))
+			if err != nil {
+				return -1, err
+			}
+		}
+
+		return sizeBytes, nil
 	}
 
 	// If a rootBlockPath is supplied then this is a VM image unpack.
@@ -918,7 +1027,7 @@ func qemuImageInfo(sysOS *sys.OS, imagePath string, tracker *ioprogress.Progress
 // InstanceContentType returns the instance's content type.
 func InstanceContentType(inst instance.Instance) drivers.ContentType {
 	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		contentType = drivers.ContentTypeBlock
 	}
 
