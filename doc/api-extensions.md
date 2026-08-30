@@ -3744,3 +3744,18 @@ When the server supports this extension, the DevLXD operation also has a new `er
 ## `vm_volatile_maxcpus`
 
 Adds a new volatile VM configuration key {config:option}`instance-volatile:volatile.cpu.maxcpus` that records the vCPU hotplug limit (SMP `maxcpus`) used when the VM booted. The value is reused on stateful start (stateful resume or live migration target) so that the QEMU SMP topology matches on both ends of a live migration regardless of the CPU count on each host.
+
+(extension-instance-microvm)=
+## `instance_microvm`
+
+```{warning}
+**Do not** enable this extension in production environments. It is a feature preview.
+```
+
+This extension adds support for MicroVM instances using libkrun.
+
+MicroVMs boot directly from the host's kernel (bind-mounted at a fixed path) and run container images unpacked into an ext4 filesystem on a dedicated block volume.
+
+```{note}
+To test this extension, enable the feature with `snap set lxd features=microvm`, then restart the daemon with `snap restart --reload lxd`.
+```
