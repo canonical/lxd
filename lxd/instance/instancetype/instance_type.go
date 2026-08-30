@@ -18,6 +18,9 @@ const (
 
 	// VM represents a virtual-machine instance type.
 	VM = Type(1)
+
+	// MicroVM represents a microvm instance type.
+	MicroVM = Type(2)
 )
 
 // New validates the supplied string against the allowed types of instance and returns the internal
@@ -34,6 +37,11 @@ func New(name string) (Type, error) {
 		return VM, nil
 	}
 
+	// If "microvm" is supplied, return type as MicroVM.
+	if api.InstanceType(name) == api.InstanceTypeMicroVM {
+		return MicroVM, nil
+	}
+
 	return -1, errors.New("Invalid instance type")
 }
 
@@ -46,6 +54,10 @@ func (instanceType Type) String() string {
 
 	if instanceType == VM {
 		return string(api.InstanceTypeVM)
+	}
+
+	if instanceType == MicroVM {
+		return string(api.InstanceTypeMicroVM)
 	}
 
 	return ""
