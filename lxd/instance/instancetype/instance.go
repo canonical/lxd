@@ -1189,6 +1189,38 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	"boot.debug_edk2": validate.Optional(validate.IsBool),
 }
 
+// InstanceConfigKeysMicroVM is a map of config key to validator. (keys applying to MicroVM only).
+var InstanceConfigKeysMicroVM = map[string]func(value string) error{
+	// lxdmeta:generate(entities=instance; group=microvm; key=microvm.kernel_path)
+	// Path to the host kernel to use for booting the microvm.
+	// ---
+	//  type: string
+	//  defaultdesc: `/boot/vmlinuz`
+	//  liveupdate: no
+	//  condition: microvm
+	//  shortdesc: Path to the host kernel for booting
+	"microvm.kernel_path": validate.IsAny,
+
+	// lxdmeta:generate(entities=instance; group=microvm; key=microvm.initrd_path)
+	// Path to the host initrd to use for booting the microvm.
+	// ---
+	//  type: string
+	//  defaultdesc: `/boot/initrd.img`
+	//  liveupdate: no
+	//  condition: microvm
+	//  shortdesc: Path to the host initrd for booting
+	"microvm.initrd_path": validate.IsAny,
+
+	// lxdmeta:generate(entities=instance; group=microvm; key=microvm.kernel_append)
+	// Additional kernel command line arguments to pass when booting the microvm.
+	// ---
+	//  type: string
+	//  liveupdate: no
+	//  condition: microvm
+	//  shortdesc: Additional kernel command line arguments
+	"microvm.kernel_append": validate.IsAny,
+}
+
 // ConfigKeyChecker returns a function that will check whether or not
 // a provide value is valid for the associate config key.  Returns an
 // error if the key is not known.  The checker function only performs
@@ -1208,8 +1240,16 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		}
 	}
 
-	if instanceType == Any || instanceType == VM {
+	// TODO: delete microvm keys once microvm is fully supported
+	if instanceType == Any || instanceType == VM || instanceType == MicroVM {
 		f, ok := InstanceConfigKeysVM[key]
+		if ok {
+			return f, nil
+		}
+	}
+
+	if instanceType == Any || instanceType == MicroVM {
+		f, ok := InstanceConfigKeysMicroVM[key]
 		if ok {
 			return f, nil
 		}
