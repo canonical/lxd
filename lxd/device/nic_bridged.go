@@ -61,7 +61,7 @@ func (d *nicBridged) CanMigrate() bool {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
-	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
+	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM, instancetype.MicroVM) {
 		return ErrUnsupportedDevType
 	}
 
@@ -516,7 +516,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 			}
 		}
 		peerName, mtu, err = networkCreateVethPair(saveData["host_name"], d.config)
-	case instancetype.VM:
+	case instancetype.VM, instancetype.MicroVM:
 		if saveData["host_name"] == "" {
 			saveData["host_name"], err = d.generateHostName("tap", d.config["hwaddr"])
 			if err != nil {
@@ -524,7 +524,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 			}
 		}
 		peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
-		mtu, err = networkCreateTap(saveData["host_name"], d.config)
+		mtu, err = networkCreateTap(saveData["host_name"], d.config, networkTapMultiQueue(d.inst))
 	}
 
 	if err != nil {
@@ -673,7 +673,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		{Key: "hwaddr", Value: d.config["hwaddr"]},
 	}
 
-	if d.inst.Type() == instancetype.VM {
+	if d.inst.Type() == instancetype.VM || d.inst.Type() == instancetype.MicroVM {
 		runConf.NetworkInterface = append(runConf.NetworkInterface,
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
