@@ -203,7 +203,7 @@ func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName 
 
 // validateConfig checks the supplied config for correctness.
 func (d *disk) validateConfig(instConf instance.ConfigReader) error {
-	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
+	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM, instancetype.MicroVM) {
 		return ErrUnsupportedDevType
 	}
 
@@ -705,7 +705,8 @@ func (d *disk) validateEnvironmentSourcePath() error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *disk) validateEnvironment() error {
-	if d.inst.Type() != instancetype.VM && d.config["source"] == diskSourceCloudInit {
+	instType := d.inst.Type()
+	if instType != instancetype.VM && instType != instancetype.MicroVM && d.config["source"] == diskSourceCloudInit {
 		return fmt.Errorf("disks with source=%s are only supported by virtual machines", diskSourceCloudInit)
 	}
 
@@ -807,7 +808,8 @@ func (d *disk) Start() (*deviceConfig.RunConfig, error) {
 
 	err := d.validateEnvironment()
 	if err == nil {
-		if d.inst.Type() == instancetype.VM {
+		instType := d.inst.Type()
+		if instType == instancetype.VM || instType == instancetype.MicroVM {
 			runConfig, err = d.startVM()
 		} else {
 			runConfig, err = d.startContainer()
@@ -1444,7 +1446,7 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 				return err
 			}
 
-		case instancetype.VM:
+		case instancetype.VM, instancetype.MicroVM:
 			// Parse the limits into usable values.
 			readBps, readIops, writeBps, writeIops, err := d.parseLimit(d.config)
 			if err != nil {
@@ -2114,7 +2116,8 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 
 // Stop is run when the device is removed from the instance.
 func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
-	if d.inst.Type() == instancetype.VM {
+	instType := d.inst.Type()
+	if instType == instancetype.VM || instType == instancetype.MicroVM {
 		return d.stopVM()
 	}
 
