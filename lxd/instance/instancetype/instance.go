@@ -1199,6 +1199,10 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	"boot.debug_edk2": validate.Optional(validate.IsBool),
 }
 
+// InstanceConfigKeysMicroVM is a map of config key to validator (keys applying to MicroVM only).
+// Currently no MicroVM-only keys are defined.
+var InstanceConfigKeysMicroVM = map[string]func(value string) error{}
+
 // ConfigKeyChecker returns a function that will check whether or not
 // a provide value is valid for the associate config key.  Returns an
 // error if the key is not known.  The checker function only performs
@@ -1220,6 +1224,13 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 
 	if instanceType == Any || instanceType == VM {
 		f, ok := InstanceConfigKeysVM[key]
+		if ok {
+			return f, nil
+		}
+	}
+
+	if instanceType == Any || instanceType == MicroVM {
+		f, ok := InstanceConfigKeysMicroVM[key]
 		if ok {
 			return f, nil
 		}
