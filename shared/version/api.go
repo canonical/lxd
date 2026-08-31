@@ -510,6 +510,7 @@ var APIExtensions = []string{
 	"access_management_identity_effective_groups",
 	"storage_driver_pure_nvmefc",
 	"storage_ceph_replicator",
+	"image_registries",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
