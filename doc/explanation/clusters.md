@@ -170,7 +170,7 @@ There are three link types, each suited to different trust and access requiremen
 : Either cluster can initiate requests to the other cluster. The clusters authenticate each other using mutual TLS, and both clusters create an identity for the other side. This is the default type.
 
 `unidirectional`
-: Requests can only be sent in one direction: from Cluster A to Cluster B. Cluster A pins B's certificate and uses a token to activate a pending identity that B created for A. B stores only a TLS identity for A (no cluster link record) and can authenticate incoming requests from A, but holds no address for A and cannot initiate requests to it.
+: Requests can only be sent in one direction: from Cluster A to Cluster B. Cluster A pins Cluster B's certificate and uses a token to activate a pending identity that Cluster B created for Cluster A. Cluster B stores only a TLS identity for Cluster A (no cluster link record) and can authenticate incoming requests from Cluster A, but holds no address for Cluster A and cannot initiate requests to it.
 
 `public`
 : An initiating cluster (Cluster A) stores a link to a public cluster (Cluster B). Cluster A connects to Cluster B without presenting a client certificate, relying solely on certificate pinning for server authentication. Cluster B has no record of the connection, and neither cluster creates an identity for the other. Use this type when Cluster B exposes resources publicly or when you want read-only, anonymous access to Cluster B.
@@ -208,7 +208,7 @@ The identities created depend on the link type:
 - **Bidirectional**: LXD creates a `Cluster link certificate` identity on each side. The identity can be in one of two states:
   - **Pending**: A trust token has been generated but the link has not been activated yet.
   - **Active**: Both clusters have exchanged certificates and the link is operational.
-- **Unidirectional**: Cluster B creates a TLS identity for Cluster A (no cluster link record); Cluster A stores Cluster B's certificate directly without an associated identity.
+- **Unidirectional**: Cluster B creates a TLS identity for Cluster A (no cluster link record). Cluster A stores Cluster B's certificate directly without an associated identity.
 
 Identities are managed using {ref}`fine-grained authorization <fine-grained-authorization>`.
 
@@ -226,14 +226,14 @@ Together, these controls limit the potential impact of a compromised link by enf
 Deleting a cluster link revokes the security trust it established. The scope depends on the link type:
 
 - **Bidirectional**: Run [`lxc cluster link delete`](lxc_cluster_link_delete.md) on both clusters to fully remove the trust relationship.
-- **Unidirectional**: Deleting on Cluster A removes only A's link. Cluster B's identity remains until B explicitly revokes it with [`lxc auth identity delete`](lxc_auth_identity_delete.md) `cluster-link/<name-for-cluster-a>`.
+- **Unidirectional**: Deleting on Cluster A removes only Cluster A's link. Cluster B's identity remains until Cluster B explicitly revokes it with [`lxc auth identity delete`](lxc_auth_identity_delete.md) `cluster-link/<name-for-cluster-a>`.
 
 ### Member status
 
 A cluster link member can have one of the following statuses. Run [`lxc cluster link info`](lxc_cluster_link_info.md) to check member status. (Refer to {ref}`howto-cluster-links-view` for additional details.)
 
 - `ACTIVE`: Reachable and authenticated. The link is usable for requests according to the {ref}`entitlements <fine-grained-authorization>` you granted.
-- `UNAUTHENTICATED`: Reachable but not authenticated. The remote cluster cannot use the link yet; resolve the trust exchange before relying on it.
+- `UNAUTHENTICATED`: Reachable but not authenticated. The remote cluster cannot use the link yet. Resolve the trust exchange before relying on it.
 - `UNREACHABLE`: Not reachable. Requests that depend on the link will fail until connectivity is restored or the remote cluster is online.
 
 Member status reflects connectivity, while [`lxc cluster link list`](lxc_cluster_link_list.md) shows the link identity status and link type, which determine the permissions available to the linked cluster.
