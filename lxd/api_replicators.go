@@ -1572,10 +1572,18 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 			return fmt.Errorf("Failed getting instance %q from hosting cluster member: %w", instName, err)
 		}
 
+		// Carry forward the protected volatile keys of the destination copy, as the refresh
+		// payload is applied as the full desired target configuration.
+		destPut := srcInstInfo.Writable()
+		err = applyRemoteRefreshTargetConfig(dstClient, instName, &destPut)
+		if err != nil {
+			return err
+		}
+
 		// Set up a push-mode migration sink on the destination.
 		destOp, err := dstClient.CreateInstance(api.InstancesPost{
 			Name:        instName,
-			InstancePut: srcInstInfo.Writable(),
+			InstancePut: destPut,
 			Type:        api.InstanceType(srcInstInfo.Type),
 			Source: api.InstanceSource{
 				Type:    api.SourceTypeMigration,
@@ -1646,13 +1654,21 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		return fmt.Errorf("Unexpected result from source instance render for %q", instName)
 	}
 
+	// Carry forward the protected volatile keys of the destination copy, as the refresh payload
+	// is applied as the full desired target configuration.
+	destPut := srcInstInfo.Writable()
+	err = applyRemoteRefreshTargetConfig(dstClient, instName, &destPut)
+	if err != nil {
+		return err
+	}
+
 	// Set up a push-mode migration sink on the destination. In push mode the
 	// leader (source) connects outward to the destination, so the destination
 	// does not need to reach back into the leader. This is required when the
 	// destination project is restricted, which disallows pull-mode migrations.
 	destOp, err := dstClient.CreateInstance(api.InstancesPost{
 		Name:        instName,
-		InstancePut: srcInstInfo.Writable(),
+		InstancePut: destPut,
 		Type:        api.InstanceType(srcInstInfo.Type),
 		Source: api.InstanceSource{
 			Type:    api.SourceTypeMigration,
