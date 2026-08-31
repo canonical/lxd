@@ -472,6 +472,11 @@ func (d *common) PromoteVolume(vol Volume, force bool) error {
 	return ErrNotSupported
 }
 
+// DemoteVolume makes a replicated volume non-primary so that its peer can be promoted.
+func (d *common) DemoteVolume(vol Volume) error {
+	return ErrNotSupported
+}
+
 // MigrateVolume streams the volume (with or without snapshots).
 func (d *common) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
