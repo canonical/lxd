@@ -2,8 +2,9 @@ DOMAIN=lxd
 VERSION=$(or ${CUSTOM_VERSION},$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2))
 ARCHIVE=lxd-$(VERSION).tar
 HASH := \#
-TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
 GOPATH ?= $(shell go env GOPATH)
+# Expand immediately so the "go env" call runs once per make invocation.
+GOPATH := $(GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
@@ -11,6 +12,7 @@ GOMIN=1.26.7
 GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
+GOCOVERDIR := $(GOCOVERDIR)
 ifeq "$(GOCOVERDIR)" ""
 	COVER=
 	COVER_TEST=
@@ -19,6 +21,7 @@ else
 	COVER_TEST=-test.gocoverdir="$(GOCOVERDIR)"
 endif
 ARCH ?= $(shell uname -m)
+ARCH := $(ARCH)
 DQLITE_BRANCH=v1.18.x
 LIBLXC_BRANCH=main
 
@@ -36,6 +39,7 @@ export CGO_LDFLAGS ?= -L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux
 export LD_LIBRARY_PATH ?= $(DQLITE_PATH)/.libs/:$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/
 export PKG_CONFIG_PATH ?= $(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/pkgconfig
 export CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
+TAG_SQLITE3 := $(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
 
 .PHONY: default
 default: all
