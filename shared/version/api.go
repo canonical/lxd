@@ -510,6 +510,7 @@ var APIExtensions = []string{
 	"vm_volatile_maxcpus",
 	"access_management_identity_effective_groups",
 	"storage_driver_pure_nvmefc",
+	"storage_ceph_replicator",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
