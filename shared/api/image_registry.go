@@ -19,10 +19,6 @@ type ImageRegistriesPost struct {
 	// Registry name
 	// Example: ubuntu
 	Name string `json:"name" yaml:"name"`
-
-	// Protocol used by the image registry ("SimpleStreams" or "LXD")
-	// Example: simplestreams
-	Protocol string `json:"protocol" yaml:"protocol"`
 }
 
 // ImageRegistryPost represents the fields required to rename the image registry.
