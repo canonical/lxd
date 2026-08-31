@@ -6459,6 +6459,16 @@ test_clustering_replicator_multi_member() {
 
   sub_test "Verify --restore rejects running instances on other members"
 
+  # c2 has never been started, so the copy replicated to the target cluster has no idmap keys.
+  # Start and stop it on node2 so only the source copy records an idmap: the restore below runs
+  # through the remote cluster member and must preserve that map rather than delete it.
+  local c2_idmap
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc config get c2 volatile.idmap.current --project replicator-project || echo fail)" = "" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc start c2 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc stop c2 --force --project replicator-project
+  c2_idmap="$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c2 volatile.idmap.current --project replicator-project)"
+  jq --exit-status 'type == "array" and length > 0' <<< "${c2_idmap}"
+
   # Simulate failover: source becomes standby, target becomes leader.
   LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replicator-project --force
   LXD_DIR="${LXD_THREE_DIR}" lxc project promote-replica replicator-project --force
@@ -6488,6 +6498,9 @@ test_clustering_replicator_multi_member() {
   # Verify instances were restored to their original cluster members.
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nL | grep -xF 'c1,node1'
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nL | grep -xF 'c2,node2'
+
+  # The restore ran through node2 for c2 and must have kept the idmap recorded there.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c2 volatile.idmap.current --project replicator-project)" = "${c2_idmap}" ]
 
   # Cleanup: instances exist on both clusters after replication + restore.
   LXD_DIR="${LXD_THREE_DIR}" lxc delete c1 c2 --project replicator-project
