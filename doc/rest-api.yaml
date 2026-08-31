@@ -485,14 +485,9 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     ClusterLinkCertificate:
         description: |-
-            It is returned when creating a pending public cluster link, and must be submitted back as
-            ClusterLinksPost.ClusterCertificate to confirm and pin it.
+            It is returned when creating a pending public cluster link, and its fingerprint must be submitted
+            back as ClusterLinksPost.Fingerprint to confirm and pin the certificate.
         properties:
-            certificate:
-                description: PEM-encoded X.509 certificate.
-                example: '-----BEGIN CERTIFICATE-----\n..'
-                type: string
-                x-go-name: Certificate
             fingerprint:
                 description: SHA-256 fingerprint of the certificate.
                 example: a1b2c3d4..
@@ -596,6 +591,15 @@ definitions:
                 example: Linked cluster
                 type: string
                 x-go-name: Description
+            fingerprint:
+                description: |-
+                    Fingerprint of the remote cluster's certificate, echoed back to confirm a pending public
+                    cluster link. It must match the fingerprint returned when the pending link was created; the
+                    certificate itself is not resubmitted, as the server pins the copy it already holds.
+                    API extension: cluster_links_public.
+                example: a1b2c3d4..
+                type: string
+                x-go-name: Fingerprint
             name:
                 description: Name of the cluster.
                 example: lxd02
@@ -604,9 +608,10 @@ definitions:
             remote_address:
                 description: |-
                     RemoteAddress is the address of the remote cluster, used for public links. It is the address
-                    contacted when creating a pending public cluster link. It remains required when confirming that
-                    link, but its value is ignored: the address pinned on confirmation is the one recorded when the
-                    pending link was created, so the link always points at the address that was verified.
+                    contacted when creating a pending public cluster link, and is required for that request only.
+                    Confirming the link pins the address recorded when the pending link was created, so the link
+                    always points at the address that was verified; setting this field on a confirm request is
+                    rejected.
                 example: 10.0.0.1:8443
                 type: string
                 x-go-name: RemoteAddress
