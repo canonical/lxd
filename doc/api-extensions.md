@@ -3714,3 +3714,10 @@ The `Replicator` API type gains two read-only fields, `last_success_at` and `las
 Four gauges are added to the {ref}`metrics API <metrics>`: `lxd_replicators`, `lxd_replicator_last_run_status`, `lxd_replicator_last_success_timestamp` and `lxd_replicator_last_success_oldest_snapshot_timestamp`.
 
 The `replicator-run` lifecycle event now fires when a run completes rather than when a manual run starts, so it covers scheduled runs as well, and carries the run outcome in its context.
+
+(extension-storage-ceph-replicator)=
+## `storage_ceph_replicator`
+
+This introduces the `ceph.replicator.<project>` configuration key on `ceph` storage pools.
+It records the peer Ceph site to which a project's volumes on the pool are mirrored.
+A replicator whose project holds volumes on such a pool enrolls them into RBD mirroring, triggers a mirror snapshot of each on every run, and completes the run only once the peer has replayed them.
