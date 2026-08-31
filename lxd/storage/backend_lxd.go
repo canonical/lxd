@@ -369,15 +369,12 @@ func (b *lxdBackend) GetVolume(volType drivers.VolumeType, contentType drivers.C
 	return drivers.NewVolume(b.driver, b.name, volType, contentType, volName, volConfig, b.db.Config).Clone()
 }
 
-// PromoteProjectVolumes makes the replicated volumes a project holds on this pool writable.
+// forEachProjectVolume runs fn against the driver volume of every instance and custom volume a
+// project holds on this pool.
 // Snapshots are left out because a replica carries them along with the volume they belong to.
 // Image volumes are left out because nothing writes to one after it is unpacked, so an image never
 // has to be primary for the instances cloned from it to start.
-func (b *lxdBackend) PromoteProjectVolumes(ctx context.Context, projectName string, force bool) error {
-	l := b.logger.AddContext(logger.Ctx{"project": projectName, "force": force})
-	l.Debug("PromoteProjectVolumes started")
-	defer l.Debug("PromoteProjectVolumes finished")
-
+func (b *lxdBackend) forEachProjectVolume(ctx context.Context, projectName string, fn func(vol drivers.Volume) error) error {
 	volTypeContainer := cluster.StoragePoolVolumeTypeContainer
 	volTypeVM := cluster.StoragePoolVolumeTypeVM
 	volTypeCustom := cluster.StoragePoolVolumeTypeCustom
@@ -424,15 +421,36 @@ func (b *lxdBackend) PromoteProjectVolumes(ctx context.Context, projectName stri
 			volStorageName = project.Instance(dbVolume.Project, dbVolume.Name)
 		}
 
-		vol := b.GetVolume(volType, VolumeDBContentTypeToContentType(dbContentType), volStorageName, dbVolume.Config)
-
-		err = b.driver.PromoteVolume(vol, force)
+		err = fn(b.GetVolume(volType, VolumeDBContentTypeToContentType(dbContentType), volStorageName, dbVolume.Config))
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// PromoteProjectVolumes makes the replicated volumes a project holds on this pool writable.
+func (b *lxdBackend) PromoteProjectVolumes(ctx context.Context, projectName string, force bool) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "force": force})
+	l.Debug("PromoteProjectVolumes started")
+	defer l.Debug("PromoteProjectVolumes finished")
+
+	return b.forEachProjectVolume(ctx, projectName, func(vol drivers.Volume) error {
+		return b.driver.PromoteVolume(vol, force)
+	})
+}
+
+// DemoteProjectVolumes makes the replicated volumes a project holds on this pool read-only, so that
+// the site taking over can promote its own copies.
+func (b *lxdBackend) DemoteProjectVolumes(ctx context.Context, projectName string) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName})
+	l.Debug("DemoteProjectVolumes started")
+	defer l.Debug("DemoteProjectVolumes finished")
+
+	return b.forEachProjectVolume(ctx, projectName, func(vol drivers.Volume) error {
+		return b.driver.DemoteVolume(vol)
+	})
 }
 
 // GetResources returns utilisation information about the pool.

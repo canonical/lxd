@@ -135,6 +135,11 @@ func (b *mockBackend) PromoteProjectVolumes(ctx context.Context, projectName str
 	return nil
 }
 
+// DemoteProjectVolumes ...
+func (b *mockBackend) DemoteProjectVolumes(ctx context.Context, projectName string) error {
+	return nil
+}
+
 // CreateInstance ...
 func (b *mockBackend) CreateInstance(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error {
 	return nil
