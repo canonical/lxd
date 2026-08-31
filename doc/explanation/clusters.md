@@ -181,15 +181,15 @@ All link types rely on TLS certificate pinning: Cluster A fetches and pins Clust
 
 #### Bidirectional connection process
 
-1. **Cluster A** creates a pending cluster link and generates a trust token.
-1. **Cluster B** uses this token to establish the connection and send its certificate back.
+1. A user initiates the process to {ref}`create a bidirectional cluster link <howto-cluster-links-create-bidirectional>` on Cluster A, generating a trust token.
+1. A user uses this token to create the corresponding link on Cluster B, establishing the connection and sending Cluster B's certificate back.
 1. Both clusters validate certificates and activate their cluster links.
 1. The trust relationship is established and both clusters can communicate.
 
 #### Unidirectional connection process
 
-1. **Cluster B** issues a pending identity token using [`lxc auth identity create`](lxc_auth_identity_create.md) `cluster-link/<name>`.
-1. **Cluster A** consumes the token with [`lxc cluster link create`](lxc_cluster_link_create.md) `<name> --token <token> --unidirectional`, pins Cluster B's certificate, and calls back to B to activate the pending identity.
+1. A user initiates the process to {ref}`create a unidirectional cluster link <howto-cluster-links-create-unidirectional>` by issuing a pending identity token on Cluster B.
+1. A user uses that token to create the link on Cluster A. This pins Cluster B's certificate on Cluster A and calls back to Cluster B to activate the pending identity.
 1. Cluster A has an active cluster link to Cluster B with no associated identity. Cluster B has an active TLS identity for Cluster A but no cluster link record.
 
 #### Public connection process
