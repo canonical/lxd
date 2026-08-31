@@ -62,6 +62,48 @@ func TestAddRemovePrefix(t *testing.T) {
 	}
 }
 
+// TestAddRemovePrefixRunningServer verifies that prefixes can be added to and
+// removed from a running BGP server for both IPv4 and IPv6.
+func TestAddRemovePrefixRunningServer(t *testing.T) {
+	s := NewServer()
+	// Disabling the listener avoids needing elevated privileges to bind to a low port (179).
+	err := s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err := s.stop()
+		require.NoError(t, err)
+	})
+
+	tests := []struct {
+		name    string
+		subnet  net.IPNet
+		nexthop net.IP
+	}{
+		{
+			name:    "IPv4",
+			subnet:  mustParseCIDR("10.0.0.0/24"),
+			nexthop: mustParseIP("192.168.1.1"),
+		},
+		{
+			name:    "IPv6",
+			subnet:  mustParseCIDR("2001:db8::/32"),
+			nexthop: mustParseIP("2001:db8::1"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := s.AddPrefix(tc.subnet, tc.nexthop, "owner")
+			require.NoError(t, err)
+			require.Len(t, s.paths, 1)
+
+			err = s.RemovePrefix(tc.subnet, tc.nexthop)
+			require.NoError(t, err)
+			require.Empty(t, s.paths)
+		})
+	}
+}
+
 // TestRemovePrefixNotFound verifies that removing a prefix that was never added
 // returns ErrPrefixNotFound.
 func TestRemovePrefixNotFound(t *testing.T) {

@@ -535,6 +535,7 @@ jobs:
       matrix:
         os: ${{ fromJSON(inputs.ubuntu-releases || '["26.04"]') }}
         test:
+          - bgp
           - cgroup
           - cloud-init
           - cluster
