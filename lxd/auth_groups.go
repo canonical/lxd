@@ -773,7 +773,13 @@ func deleteAuthGroup(d *Daemon, r *http.Request) response.Response {
 // validatePermissions checks that a) the entity type exists, b) the entitlement exists, c) then entity type matches the
 // entity reference (URL), and d) that the entitlement is valid for the entity type.
 func validatePermissions(ctx context.Context, s *state.State, permissions []api.Permission) ([]dbCluster.Permission, error) {
-	projectsWithViewPermissionRequired := make(map[string][]api.Permission, len(permissions))
+	// Compose a map of entity URLs where view permission is required. For example, if a permission is for an entity that is project specific,
+	// then the URL of the project is added to the map and the permission appended to the list. Later, we will check that a group with the input list of
+	// permissions can view the project. The list of permissions associated with the URL (map values) are only used for informative error messages.
+	// URLs are added to the map as string keys to prevent duplicates.
+	entityURLsWithViewPermissionRequired := make(map[string][]api.Permission, len(permissions))
+
+	// Populate database references for the input URLs. Ensuring we can find the entities in the database.
 	entityReferences := make(map[*api.URL]*dbCluster.EntityRef, len(permissions))
 	permissionToURL := make(map[api.Permission]*api.URL, len(permissions))
 	for _, permission := range permissions {
@@ -788,7 +794,7 @@ func validatePermissions(ctx context.Context, s *state.State, permissions []api.
 			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed parsing permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 
-		referenceEntityType, projectName, _, _, err := entity.ParseURL(*u)
+		referenceEntityType, projectName, location, args, err := entity.ParseURL(*u)
 		if err != nil {
 			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed parsing permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
@@ -797,14 +803,34 @@ func validatePermissions(ctx context.Context, s *state.State, permissions []api.
 			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed parsing permission with entity reference %q and entitlement %q: Entity type does not correspond to entity reference", permission.EntityReference, permission.Entitlement)
 		}
 
-		err = auth.ValidateEntitlement(entityType, auth.Entitlement(permission.Entitlement))
+		permissionEntitlement := auth.Entitlement(permission.Entitlement)
+		err = auth.ValidateEntitlement(entityType, permissionEntitlement)
 		if err != nil {
 			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed validating group permission with entity reference %q and entitlement %q: %w", permission.EntityReference, permission.Entitlement, err)
 		}
 
+		// If the entitlement is not `can_view`, check that a group with these permissions can view the entity.
+		if permissionEntitlement != auth.EntitlementCanView {
+			// Only perform the check if `can_view` is valid for the entity type.
+			// E.g. If granting `can_edit` on a storage pool, we don't check that a group with these permissions can view
+			// the storage pool because there is no such entitlement.
+			err = auth.ValidateEntitlement(entityType, auth.EntitlementCanView)
+			if err == nil {
+				entityURL, err := referenceEntityType.URL(projectName, location, args...)
+				if err != nil {
+					return nil, err
+				}
+
+				entityURLString := entityURL.String()
+				entityURLsWithViewPermissionRequired[entityURLString] = append(entityURLsWithViewPermissionRequired[entityURLString], permission)
+			}
+		}
+
+		// If the entity type requires a project, check that a group with these permissions can view the project.
 		requiresProject, _ := entityType.RequiresProject()
-		if requiresProject || entityType == entity.TypeProject {
-			projectsWithViewPermissionRequired[projectName] = append(projectsWithViewPermissionRequired[projectName], permission)
+		if requiresProject {
+			projectURLString := entity.ProjectURL(projectName).String()
+			entityURLsWithViewPermissionRequired[projectURLString] = append(entityURLsWithViewPermissionRequired[projectURLString], permission)
 		}
 
 		apiURL := &api.URL{URL: *u}
@@ -812,22 +838,32 @@ func validatePermissions(ctx context.Context, s *state.State, permissions []api.
 		permissionToURL[permission] = apiURL
 	}
 
-	if len(projectsWithViewPermissionRequired) > 0 {
-		viewableProjects, err := s.Authorizer.GetViewableProjects(ctx, permissions)
+	// Check the group for consistency. A group permission that references a project specific entity is only allowed if the group can view the parent project.
+	// A group permission that references any entity (and whose entitlement is not "can_view") is only allowed if the group can view the entity.
+	for urlStr, perms := range entityURLsWithViewPermissionRequired {
+		u, err := url.Parse(urlStr)
 		if err != nil {
-			return nil, fmt.Errorf("Failed verifying that projects are viewable: %w", err)
+			// We should never hit this error because we've already parsed the URL above.
+			return nil, fmt.Errorf("Failed re-parsing entity URL during group consistency checks: %w", err)
 		}
 
-		for project, perms := range projectsWithViewPermissionRequired {
-			if !slices.Contains(viewableProjects, project) {
-				if len(perms) == 1 {
-					// Return an informative error message if possible.
-					return nil, api.StatusErrorf(http.StatusBadRequest, "Entitlement %q on entity type %q references project %q, but the project cannot be viewed by the group", perms[0].Entitlement, perms[0].EntityType, project)
-				}
-
-				return nil, api.StatusErrorf(http.StatusBadRequest, "Members of the group cannot view project %q, but %d permissions reference this project", project, len(perms))
-			}
+		// Check view permission on the entity contextually, so that the permission check is not conflated with permissions of the caller.
+		isAllowed, err := s.Authorizer.CheckContextualPermission(ctx, &api.URL{URL: *u}, auth.EntitlementCanView, permissions)
+		if err != nil {
+			return nil, err
 		}
+
+		// If members of the group can view the entity, we're good.
+		if isAllowed {
+			continue
+		}
+
+		// Otherwise, return an informative error message based on the offending permissions.
+		if len(perms) == 1 {
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Entitlement %q on entity type %q references %q, but the entity cannot be viewed by the group", perms[0].Entitlement, perms[0].EntityType, urlStr)
+		}
+
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Members of the group cannot view %q, but %d permissions reference this entity", urlStr, len(perms))
 	}
 
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {

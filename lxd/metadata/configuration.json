@@ -7912,11 +7912,11 @@
 				},
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the certificate."
+					"description": "Grants permission to view and edit the certificate."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the certificate."
+					"description": "Grants permission to view and delete the certificate."
 				}
 			]
 		},
@@ -7929,11 +7929,11 @@
 				},
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the cluster link."
+					"description": "Grants permission to view and edit the cluster link."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the cluster link."
+					"description": "Grants permission to view and delete the cluster link."
 				}
 			]
 		},
@@ -7946,11 +7946,11 @@
 				},
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the group."
+					"description": "Grants permission to view and edit the group."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the group."
+					"description": "Grants permission to view and delete the group."
 				}
 			]
 		},
@@ -7963,11 +7963,11 @@
 				},
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the identity. To edit an identity, it is additionally required that the caller is able to view all groups that the identity is a member of."
+					"description": "Grants permission to view and edit the identity. To edit an identity, it is additionally required that the caller is able to view all groups that the identity is a member of."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the identity."
+					"description": "Grants permission to view and delete the identity."
 				}
 			]
 		},
@@ -7980,11 +7980,11 @@
 				},
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the identity provider group."
+					"description": "Grants permission to view and edit the identity provider group."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the identity provider group."
+					"description": "Grants permission to view and delete the identity provider group."
 				}
 			]
 		},
@@ -7993,11 +7993,11 @@
 			"entitlements": [
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the image."
+					"description": "Grants permission to view and edit the image."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the image."
+					"description": "Grants permission to view and delete the image."
 				},
 				{
 					"name": "can_view",
@@ -8010,11 +8010,11 @@
 			"entitlements": [
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the image alias."
+					"description": "Grants permission to view and edit the image alias."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the image alias."
+					"description": "Grants permission to view and delete the image alias."
 				},
 				{
 					"name": "can_view",
@@ -8035,11 +8035,11 @@
 				},
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the instance."
+					"description": "Grants permission to view and edit the instance."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the instance."
+					"description": "Grants permission to view and delete the instance."
 				},
 				{
 					"name": "can_view",
@@ -8080,11 +8080,11 @@
 			"entitlements": [
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the network."
+					"description": "Grants permission to view and edit the network."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the network."
+					"description": "Grants permission to view and delete the network."
 				},
 				{
 					"name": "can_view",
@@ -8097,11 +8097,11 @@
 			"entitlements": [
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the network ACL."
+					"description": "Grants permission to view and edit the network ACL."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the network ACL."
+					"description": "Grants permission to view and delete the network ACL."
 				},
 				{
 					"name": "can_view",
@@ -8114,11 +8114,11 @@
 			"entitlements": [
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the network zone."
+					"description": "Grants permission to view and edit the network zone."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the network zone."
+					"description": "Grants permission to view and delete the network zone."
 				},
 				{
 					"name": "can_view",
@@ -8131,11 +8131,11 @@
 			"entitlements": [
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the placement group."
+					"description": "Grants permission to view and edit the placement group."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the placement group."
+					"description": "Grants permission to view and delete the placement group."
 				},
 				{
 					"name": "can_view",
@@ -8148,11 +8148,11 @@
 			"entitlements": [
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the profile."
+					"description": "Grants permission to view and edit the profile."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the profile."
+					"description": "Grants permission to view and delete the profile."
 				},
 				{
 					"name": "can_view",
@@ -8177,11 +8177,11 @@
 				},
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the project."
+					"description": "Grants permission to view and edit the project."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the project."
+					"description": "Grants permission to view and delete the project."
 				},
 				{
 					"name": "image_manager",
@@ -8197,11 +8197,11 @@
 				},
 				{
 					"name": "can_edit_images",
-					"description": "Grants permission to edit images."
+					"description": "Grants permission to view and edit images."
 				},
 				{
 					"name": "can_delete_images",
-					"description": "Grants permission to delete images."
+					"description": "Grants permission to view and delete images."
 				},
 				{
 					"name": "image_alias_manager",
@@ -8217,11 +8217,11 @@
 				},
 				{
 					"name": "can_edit_image_aliases",
-					"description": "Grants permission to edit image aliases."
+					"description": "Grants permission to view and edit image aliases."
 				},
 				{
 					"name": "can_delete_image_aliases",
-					"description": "Grants permission to delete image aliases."
+					"description": "Grants permission to view and delete image aliases."
 				},
 				{
 					"name": "instance_manager",
@@ -8237,11 +8237,11 @@
 				},
 				{
 					"name": "can_edit_instances",
-					"description": "Grants permission to edit instances."
+					"description": "Grants permission to view and edit instances."
 				},
 				{
 					"name": "can_delete_instances",
-					"description": "Grants permission to delete instances."
+					"description": "Grants permission to view and delete instances."
 				},
 				{
 					"name": "can_operate_instances",
@@ -8261,11 +8261,11 @@
 				},
 				{
 					"name": "can_edit_networks",
-					"description": "Grants permission to edit networks."
+					"description": "Grants permission to view and edit networks."
 				},
 				{
 					"name": "can_delete_networks",
-					"description": "Grants permission to delete networks."
+					"description": "Grants permission to view and delete networks."
 				},
 				{
 					"name": "network_acl_manager",
@@ -8281,11 +8281,11 @@
 				},
 				{
 					"name": "can_edit_network_acls",
-					"description": "Grants permission to edit network ACLs."
+					"description": "Grants permission to view and edit network ACLs."
 				},
 				{
 					"name": "can_delete_network_acls",
-					"description": "Grants permission to delete network ACLs."
+					"description": "Grants permission to view and delete network ACLs."
 				},
 				{
 					"name": "network_zone_manager",
@@ -8301,11 +8301,11 @@
 				},
 				{
 					"name": "can_edit_network_zones",
-					"description": "Grants permission to edit network zones."
+					"description": "Grants permission to view and edit network zones."
 				},
 				{
 					"name": "can_delete_network_zones",
-					"description": "Grants permission to delete network zones."
+					"description": "Grants permission to view and delete network zones."
 				},
 				{
 					"name": "profile_manager",
@@ -8321,11 +8321,11 @@
 				},
 				{
 					"name": "can_edit_profiles",
-					"description": "Grants permission to edit profiles."
+					"description": "Grants permission to view and edit profiles."
 				},
 				{
 					"name": "can_delete_profiles",
-					"description": "Grants permission to delete profiles."
+					"description": "Grants permission to view and delete profiles."
 				},
 				{
 					"name": "storage_volume_manager",
@@ -8341,11 +8341,11 @@
 				},
 				{
 					"name": "can_edit_storage_volumes",
-					"description": "Grants permission to edit storage volumes."
+					"description": "Grants permission to view and edit storage volumes."
 				},
 				{
 					"name": "can_delete_storage_volumes",
-					"description": "Grants permission to delete storage volumes."
+					"description": "Grants permission to view and delete storage volumes."
 				},
 				{
 					"name": "storage_bucket_manager",
@@ -8361,11 +8361,11 @@
 				},
 				{
 					"name": "can_edit_storage_buckets",
-					"description": "Grants permission to edit storage buckets."
+					"description": "Grants permission to view and edit storage buckets."
 				},
 				{
 					"name": "can_delete_storage_buckets",
-					"description": "Grants permission to delete storage buckets."
+					"description": "Grants permission to view and delete storage buckets."
 				},
 				{
 					"name": "placement_group_manager",
@@ -8381,11 +8381,11 @@
 				},
 				{
 					"name": "can_edit_placement_groups",
-					"description": "Grants permission to edit placement groups."
+					"description": "Grants permission to view and edit placement groups."
 				},
 				{
 					"name": "can_delete_placement_groups",
-					"description": "Grants permission to delete placement groups."
+					"description": "Grants permission to view and delete placement groups."
 				},
 				{
 					"name": "replicator_manager",
@@ -8401,11 +8401,11 @@
 				},
 				{
 					"name": "can_edit_replicators",
-					"description": "Grants permission to edit replicators."
+					"description": "Grants permission to view and edit replicators."
 				},
 				{
 					"name": "can_delete_replicators",
-					"description": "Grants permission to delete replicators."
+					"description": "Grants permission to view and delete replicators."
 				},
 				{
 					"name": "can_view_operations",
@@ -8426,11 +8426,11 @@
 			"entitlements": [
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the replicator."
+					"description": "Grants permission to view and edit the replicator."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the replicator."
+					"description": "Grants permission to view and delete the replicator."
 				},
 				{
 					"name": "can_view",
@@ -8471,11 +8471,11 @@
 				},
 				{
 					"name": "can_edit_identities",
-					"description": "Grants permission to edit identities. Note that clients with this permission are able to elevate their own privileges."
+					"description": "Grants permission to view and edit identities. Note that clients with this permission are able to elevate their own privileges."
 				},
 				{
 					"name": "can_delete_identities",
-					"description": "Grants permission to delete identities."
+					"description": "Grants permission to view and delete identities."
 				},
 				{
 					"name": "can_create_groups",
@@ -8487,11 +8487,11 @@
 				},
 				{
 					"name": "can_edit_groups",
-					"description": "Grants permission to edit authorization groups. Note that clients with this permission are able to elevate their own privileges."
+					"description": "Grants permission to view and edit authorization groups. Note that clients with this permission are able to elevate their own privileges."
 				},
 				{
 					"name": "can_delete_groups",
-					"description": "Grants permission to delete authorization groups."
+					"description": "Grants permission to view and delete authorization groups."
 				},
 				{
 					"name": "can_create_identity_provider_groups",
@@ -8503,11 +8503,11 @@
 				},
 				{
 					"name": "can_edit_identity_provider_groups",
-					"description": "Grants permission to edit identity provider groups. Note that clients with this permission are able to elevate their own privileges."
+					"description": "Grants permission to view and edit identity provider groups. Note that clients with this permission are able to elevate their own privileges."
 				},
 				{
 					"name": "can_delete_identity_provider_groups",
-					"description": "Grants permission to delete identity provider groups."
+					"description": "Grants permission to view and delete identity provider groups."
 				},
 				{
 					"name": "storage_pool_manager",
@@ -8539,11 +8539,11 @@
 				},
 				{
 					"name": "can_edit_projects",
-					"description": "Grants permission to edit projects, and all resources within those projects."
+					"description": "Grants permission to view and edit projects, and all resources within those projects."
 				},
 				{
 					"name": "can_delete_projects",
-					"description": "Grants permission to delete projects."
+					"description": "Grants permission to view and delete projects."
 				},
 				{
 					"name": "can_override_cluster_target_restriction",
@@ -8583,11 +8583,11 @@
 				},
 				{
 					"name": "can_edit_cluster_links",
-					"description": "Grants permission to edit cluster links."
+					"description": "Grants permission to view and edit cluster links."
 				},
 				{
 					"name": "can_delete_cluster_links",
-					"description": "Grants permission to delete cluster links."
+					"description": "Grants permission to view and delete cluster links."
 				}
 			]
 		},
@@ -8596,11 +8596,11 @@
 			"entitlements": [
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the storage bucket."
+					"description": "Grants permission to view and edit the storage bucket."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the storage bucket."
+					"description": "Grants permission to view and delete the storage bucket."
 				},
 				{
 					"name": "can_view",
@@ -8626,11 +8626,11 @@
 			"entitlements": [
 				{
 					"name": "can_edit",
-					"description": "Grants permission to edit the storage volume."
+					"description": "Grants permission to view and edit the storage volume."
 				},
 				{
 					"name": "can_delete",
-					"description": "Grants permission to delete the storage volume."
+					"description": "Grants permission to view and delete the storage volume."
 				},
 				{
 					"name": "can_view",

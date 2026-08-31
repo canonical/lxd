@@ -32,9 +32,9 @@ func (t *tls) load(ctx context.Context, opts Opts) error {
 	return nil
 }
 
-// GetViewableProjects is not implemented for the TLS authorizer.
-func (t *tls) GetViewableProjects(ctx context.Context, permissions []api.Permission) ([]string, error) {
-	return nil, api.NewGenericStatusError(http.StatusNotImplemented)
+// CheckContextualPermission is not implemented for the TLS authorizer.
+func (t *tls) CheckContextualPermission(ctx context.Context, entityURL *api.URL, entitlement auth.Entitlement, permissions []api.Permission) (bool, error) {
+	return false, api.NewGenericStatusError(http.StatusNotImplemented)
 }
 
 // CheckPermission returns an error if the user does not have the given Entitlement on the given Object.
