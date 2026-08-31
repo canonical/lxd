@@ -3750,3 +3750,27 @@ If a project with a replicator holds volumes on a Ceph pool configured with this
 
 The `replica_mode` field is now omitted from project responses when the project takes no part in replication, instead of being returned as an empty string.
 The field is still returned for projects in `leader` or `standby` mode.
+
+(extension-image-registries)=
+## `image_registries`
+
+This introduces the image registries API.
+
+An image registry is a cluster-wide entity that points to a source of images, such as a Simple Streams server or another LXD server.
+Because image registries are managed on the server, all clients of a LXD server (and all members of a cluster) share the same set of image sources.
+For more information, see {ref}`howto-image-registries` and {ref}`ref-image-registries`.
+
+It includes the following new endpoints (see {ref}`rest-api` for details):
+
+* [`GET /1.0/image-registries`](swagger:/image-registries/image_registries_get)
+* [`GET /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_get)
+* [`GET /1.0/image-registries/<name>/images`](swagger:/image-registries/image_registry_images_get)
+* [`POST /1.0/image-registries`](swagger:/image-registries/image_registries_post)
+* [`POST /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_post)
+* [`PUT /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_put)
+* [`PATCH /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_patch)
+* [`DELETE /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_delete)
+
+This also adds a new project-level configuration key:
+
+* {config:option}`project-restricted:restricted.registries` - Comma separated list of allowed image registries for use in a project.
