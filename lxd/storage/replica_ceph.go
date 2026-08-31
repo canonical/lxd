@@ -91,6 +91,24 @@ func PromoteProjectVolumes(ctx context.Context, s *state.State, projectName stri
 	return nil
 }
 
+// DemoteProjectVolumes makes the volumes a project holds on its mirrored pools read-only, so that
+// the site taking over can promote its own copies.
+func DemoteProjectVolumes(ctx context.Context, s *state.State, projectName string) error {
+	pools, err := cephReplicaPools(ctx, s, projectName)
+	if err != nil {
+		return err
+	}
+
+	for _, pool := range pools {
+		err := pool.DemoteProjectVolumes(ctx, projectName)
+		if err != nil {
+			return fmt.Errorf("Failed demoting the volumes of storage pool %q: %w", pool.Name(), err)
+		}
+	}
+
+	return nil
+}
+
 // ConfirmProjectVolumeMirrors returns, as "pool/volume", the volumes on the project's mirrored pools
 // that the peer has not replayed yet.
 func ConfirmProjectVolumeMirrors(ctx context.Context, s *state.State, projectName string) ([]string, error) {
