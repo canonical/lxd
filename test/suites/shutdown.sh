@@ -677,4 +677,54 @@ test_shutdown() {
     lxc storage volume delete mypool backups
     lxc storage volume delete mypool images
     lxc storage delete mypool
+
+    scenario_name="scenario10"
+    echo "$scenario_name"
+    echo "- LXD shutdown sequence with a stopped instance that has a lingering forkfile daemon."
+    echo "- The forkfile daemon was started by a file operation on the stopped instance and"
+    echo "  keeps the instance's storage volume mounted/busy for a short while afterwards."
+    echo "Expected behavior: LXD should stop the lingering forkfile daemon before unmounting"
+    echo "storage pools so that they can be unmounted cleanly and are not left mounted/orphaned."
+    echo "----------------------------------------------------------"
+
+    if [ "$lxd_backend" != "zfs" ]; then
+        echo "Skipping $scenario_name: zpool export only applies to the zfs storage driver."
+    else
+        lxc init testimage i1
+
+        # Performing a file operation on a stopped instance makes LXD mount the instance's
+        # storage volume and spawn a forkfile daemon that keeps it mounted for a while afterwards.
+        echo "test" | lxc file push -q - i1/root/forkfile-test
+
+        lxd_shutdown_restart "${scenario_name}"
+
+        expected_msgs=(
+            'Starting shutdown sequence'
+            'Stopping daemon storage volumes'
+            'Daemon storage volumes unmounted'
+            'Operations deleted from the database'
+            'Closing the database'
+        )
+        if ! check_log_presence "$scenario_name.log" "${expected_msgs[@]}"; then
+            echo "Failed to find expected messages in the log file."
+            exit 1
+        fi
+
+        # The lingering forkfile daemon must be stopped before storage pools are unmounted,
+        # otherwise unmounting/exporting the pool fails because the instance's volume is still
+        # busy, which can leave the pool mounted/orphaned after shutdown.
+        unexpected_msgs=(
+            'Cannot unmount storage pool'
+            'Failed running: zpool export'
+            'pool or dataset is busy'
+        )
+        if ! check_log_absence "$scenario_name.log" "${unexpected_msgs[@]}"; then
+            echo "Storage pool failed to unmount because of a lingering forkfile daemon."
+            exit 1
+        fi
+
+        # Cleanup
+        lxc delete -f i1
+        rm "$scenario_name.log"
+    fi
 }
