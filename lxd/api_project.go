@@ -23,6 +23,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/node"
@@ -1570,10 +1571,11 @@ func projectStatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, operations.OperationArgs{
-		Type:      operationtype.ProjectReplicaModeUpdate,
-		Class:     operationtype.OperationClassTask,
-		EntityURL: entity.ProjectURL(name),
-		RunHook:   run,
+		Type:              operationtype.ProjectReplicaModeUpdate,
+		Class:             operationtype.OperationClassTask,
+		EntityURL:         entity.ProjectURL(name),
+		ConflictReference: entity.ProjectURL(name).String(), // Prevents concurrent mode changes; paired with ConflictActionFail on the operation type to enforce cluster-wide exclusivity.
+		RunHook:           run,
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1763,13 +1765,40 @@ func projectDemote(ctx context.Context, s *state.State, projectName string, forc
 		return err
 	}
 
+	mirrored, err := storagePools.ProjectMirrorsToCeph(ctx, s, projectName)
+	if err != nil {
+		return err
+	}
+
 	if project.ReplicaMode == api.ReplicatorProjectModeStandby {
-		return fmt.Errorf("Project %q is already in standby mode", projectName)
+		if !mirrored {
+			return fmt.Errorf("Project %q is already in standby mode", projectName)
+		}
+
+		// The mode is already standby, so only the storage half can be outstanding. The driver
+		// tolerates images that are already non-primary, so a rerun finishes a demotion that
+		// stopped part way. The guests must be stopped for it, as for the first attempt.
+		err = checkProjectInstancesStopped(ctx, s, projectName)
+		if err != nil {
+			return err
+		}
+
+		return storagePools.DemoteProjectVolumes(ctx, s, projectName)
 	}
 
 	// Require replica.cluster config to be set so the standby knows which cluster can write to it.
 	if !force && project.Config["replica.cluster"] == "" {
 		return fmt.Errorf("Project %q must have replica.cluster config set before demoting to standby mode", projectName)
+	}
+
+	// Demoting an image out from under a running guest either fails on the lock the guest holds
+	// or lets the guest keep writing past the point the peer takes over from, so the workload has
+	// to be stopped first. Only a project whose pools are mirrored has images to demote.
+	if mirrored {
+		err = checkProjectInstancesStopped(ctx, s, projectName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Update the replica mode to standby.
@@ -1780,9 +1809,33 @@ func projectDemote(ctx context.Context, s *state.State, projectName string, forc
 		return fmt.Errorf("Failed updating project replica mode: %w", err)
 	}
 
+	// Demote the storage after the mode flip, so LXD has stopped treating the volumes as its own
+	// to write to before Ceph makes them read-only. A demotion that fails part way leaves images
+	// the peer cannot promote without forcing, and the error names them. A second demote-replica
+	// finishes it.
+	err = storagePools.DemoteProjectVolumes(ctx, s, projectName)
+	if err != nil {
+		return err
+	}
+
 	s.Events.SendLifecycle(projectName, lifecycle.ProjectUpdated.Event(projectName, request.CreateRequestor(ctx), nil))
 
 	return nil
+}
+
+// checkProjectInstancesStopped verifies that every instance of a project is stopped, across all
+// cluster members. The power state recorded in the database is what says so, since the instances
+// of a project are not all local.
+func checkProjectInstancesStopped(ctx context.Context, s *state.State, projectName string) error {
+	return s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.InstanceList(ctx, func(dbInst db.InstanceArgs, _ api.Project) error {
+			if dbInst.Config["volatile.last_state.power"] == instance.PowerStateRunning {
+				return api.StatusErrorf(http.StatusBadRequest, "Instance %q is running, stop all project instances before demoting", dbInst.Name)
+			}
+
+			return nil
+		}, dbCluster.InstanceFilter{Project: &projectName})
+	})
 }
 
 // projectClearReplicaMode clears the project's replica mode, removing it from any replication setup.
