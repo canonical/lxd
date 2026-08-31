@@ -1780,6 +1780,31 @@ func (d *ceph) PromoteMirroredVolume(vol Volume, force bool) error {
 	return nil
 }
 
+// DemoteMirroredVolume makes a volume's RBD image non-primary so that its peer can be promoted.
+// An image that is already non-primary is left alone, so that a demotion covering many images which
+// failed part way can be run again to completion.
+func (d *ceph) DemoteMirroredVolume(vol Volume) error {
+	_, err := d.rbd(context.Background(), "mirror", "image", "demote", "--image", d.getRBDVolumeName(vol, "", false, false))
+	if err != nil {
+		if !cephMirrorErrorSays(err, "not primary") {
+			return fmt.Errorf("Failed demoting volume %q: %w", vol.name, err)
+		}
+
+		d.logger.Warn("Volume is already non-primary", logger.Ctx{"volume": vol.name})
+	}
+
+	// For VMs, also demote the filesystem volume, as the peer cannot promote a config drive that
+	// is still primary here.
+	if vol.IsVMBlock() {
+		err := d.DemoteMirroredVolume(vol.NewVMBlockFilesystemVolume())
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // MigrateVolume sends a volume for migration.
 func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	if volSrcArgs.ClusterMove {

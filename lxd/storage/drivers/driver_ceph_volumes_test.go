@@ -44,6 +44,7 @@ func Test_ceph_cephMirrorErrorSays(t *testing.T) {
 
 	peerPrimary := rbdError("2026-09-28T08:20:09.796+0000 7fecc59a36c0 -1 librbd::mirror::PromoteRequest: 0x7feca8030dc0 handle_get_info: image is primary within a remote cluster or demotion is not propagated yet\nrbd: error promoting image to primary\n")
 	alreadyPrimary := rbdError("2026-09-28T08:20:09.796+0000 7fecc59a36c0 -1 librbd::mirror::PromoteRequest: 0x7feca8030dc0 handle_get_info: image is already primary\nrbd: error promoting image to primary\n")
+	notPrimary := rbdError("2026-09-28T08:20:09.796+0000 7fecc59a36c0 -1 librbd::mirror::DemoteRequest: 0x7feca8030dc0 handle_get_info: image is not primary\nrbd: error demoting image to non-primary\n")
 
 	tests := []struct {
 		name    string
@@ -54,6 +55,7 @@ func Test_ceph_cephMirrorErrorSays(t *testing.T) {
 		{"Promotion of an image that is already primary", alreadyPrimary, "already primary", true},
 		// A refusal read as an image that is already primary would be tolerated instead of reported.
 		{"Refusal is not an image that is already primary", peerPrimary, "already primary", false},
+		{"Demotion of an image that is already non-primary", notPrimary, "not primary", true},
 		{"Error wrapped by the caller", fmt.Errorf("Failed promoting volume: %w", alreadyPrimary), "already primary", true},
 		// Only what rbd printed counts, not an error that merely quotes the message.
 		{"Error that did not come from rbd", errors.New("image is already primary"), "already primary", false},
