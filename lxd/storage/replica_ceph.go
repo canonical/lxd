@@ -57,8 +57,59 @@ func PromoteProjectVolumes(ctx context.Context, s *state.State, projectName stri
 	return nil
 }
 
+// DemoteProjectVolumes makes the volumes a project holds on its mirrored pools read-only, so that
+// the site taking over can promote its own copies.
+func DemoteProjectVolumes(ctx context.Context, s *state.State, projectName string) error {
+	pools, err := cephReplicaPools(ctx, s, projectName)
+	if err != nil {
+		return err
+	}
+
+	for _, pool := range pools {
+		err := pool.DemoteProjectVolumes(ctx, projectName)
+		if err != nil {
+			return fmt.Errorf("Failed demoting the volumes of storage pool %q: %w", pool.Name(), err)
+		}
+	}
+
+	return nil
+}
+
+// ProjectMirrorsToCeph reports whether any pool carries the project's `ceph.replicator.<project>`
+// key, and so whether a mode change has images to promote or demote.
+func ProjectMirrorsToCeph(ctx context.Context, s *state.State, projectName string) (bool, error) {
+	records, err := cephReplicaPoolRecords(ctx, s, projectName)
+	if err != nil {
+		return false, err
+	}
+
+	return len(records) > 0, nil
+}
+
 // cephReplicaPools returns the storage pools carrying a project's `ceph.replicator.<project>` key.
 func cephReplicaPools(ctx context.Context, s *state.State, projectName string) ([]Pool, error) {
+	replicaPools, err := cephReplicaPoolRecords(ctx, s, projectName)
+	if err != nil {
+		return nil, err
+	}
+
+	pools := make([]Pool, 0, len(replicaPools))
+
+	for _, poolRecord := range replicaPools {
+		pool, err := LoadByRecord(s, poolRecord.id, poolRecord.info, poolRecord.members)
+		if err != nil {
+			return nil, fmt.Errorf("Failed loading storage pool %q: %w", poolRecord.info.Name, err)
+		}
+
+		pools = append(pools, pool)
+	}
+
+	return pools, nil
+}
+
+// cephReplicaPoolRecords returns the records of the pools carrying a project's
+// `ceph.replicator.<project>` key.
+func cephReplicaPoolRecords(ctx context.Context, s *state.State, projectName string) ([]replicaPool, error) {
 	var replicaPools []replicaPool
 
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -85,16 +136,5 @@ func cephReplicaPools(ctx context.Context, s *state.State, projectName string) (
 		return nil, err
 	}
 
-	pools := make([]Pool, 0, len(replicaPools))
-
-	for _, poolRecord := range replicaPools {
-		pool, err := LoadByRecord(s, poolRecord.id, poolRecord.info, poolRecord.members)
-		if err != nil {
-			return nil, fmt.Errorf("Failed loading storage pool %q: %w", poolRecord.info.Name, err)
-		}
-
-		pools = append(pools, pool)
-	}
-
-	return pools, nil
+	return replicaPools, nil
 }
