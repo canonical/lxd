@@ -87,6 +87,13 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	// Translate the deprecated Server and Protocol image source fields into an image registry
+	// for backward compatibility with older clients.
+	err = resolveDeprecatedInstanceSource(r.Context(), s, targetProjectName, &req.Source)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var targetProject *api.Project
 	var sourceImage *api.Image
 	var inst instance.Instance
