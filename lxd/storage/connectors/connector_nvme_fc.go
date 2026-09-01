@@ -222,9 +222,9 @@ func nvmeFCMissingPaths(session *session, targetAddr string, hostAddrs []string)
 		// Target addresses are compared case insensitively, as the requested one
 		// originates from the storage array while the connected ones are reported
 		// by the kernel.
-		for addr, hostAddrs := range session.hostAddresses {
+		for addr, targetHostAddrs := range session.hostAddressesByTarget {
 			if strings.EqualFold(addr, targetAddr) {
-				connectedHostAddrs = append(connectedHostAddrs, hostAddrs...)
+				connectedHostAddrs = append(connectedHostAddrs, targetHostAddrs...)
 			}
 		}
 	}
