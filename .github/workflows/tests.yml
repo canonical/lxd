@@ -522,7 +522,7 @@ jobs:
       BRANCH_NAME: ${{ github.ref_name }}
       SNAP_RISK: ${{ inputs.snap-risk || 'edge' }}
       SNAP_TRACK: "latest"
-      SUDO_PRESERVE_ENV: "PATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,OVN_SOURCE"
+      SUDO_PRESERVE_ENV: "PATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,OVN_SOURCE,LXD_SNAP_SIDELOAD,LXD_SNAP_BINARY_DIR"
     name: Snap
     runs-on: ubuntu-${{ matrix.os }}
     # avoid runaway test burning 6 hours of CI
@@ -535,6 +535,7 @@ jobs:
       matrix:
         os: ${{ fromJSON(inputs.ubuntu-releases || '["26.04"]') }}
         test:
+          - bgp
           - cgroup
           - cloud-init
           - cluster
@@ -543,9 +544,11 @@ jobs:
           - container-nesting
           - conversion
           - cpu-vm
+          - csi
           - devlxd
           - docker
           - efi-vm
+          - lxd-consumers
           - lxd-installer
           - lxd-user
           - interception
@@ -567,10 +570,8 @@ jobs:
           - storage-vm zfs
           - storage-volumes-vm
           - tpm-vm
-          # Skip UI tests as they are unreliable and similar ones are done
-          # against the non-snap daemon
-          #- ui chromium
-          #- ui firefox
+          - ui chromium
+          - ui firefox
           - vm
           - vm-migration
           - vm-nesting
@@ -589,14 +590,6 @@ jobs:
 
       - name: Tune disk performance
         uses: ./.github/actions/tune-disk-performance
-
-      - name: Checkout lxd-ci
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          repository: 'canonical/lxd-ci'
-          ref: main
-          path: lxd-ci
-          persist-credentials: false
 
       - name: Reclaim some memory
         uses: ./.github/actions/reclaim-memory
@@ -667,7 +660,7 @@ jobs:
           key: cache-${{ steps.get-date.outputs.date }}
 
       - name: Setup MicroCeph
-        if: ${{ matrix.test == 'conversion' || matrix.test == 'storage-buckets' || matrix.test == 'storage-vm ceph' || matrix.test == 'storage-volumes-vm' }}
+        if: ${{ matrix.test == 'conversion' || matrix.test == 'storage-buckets' || matrix.test == 'storage-vm ceph' || matrix.test == 'storage-volumes-vm' || startsWith(matrix.test, 'ui ') }}
         uses: ./.github/actions/setup-microceph
         with:
           osd-count: 3
@@ -677,6 +670,13 @@ jobs:
         uses: ./.github/actions/setup-microovn
         with:
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+
+      - name: Install Node
+        if: ${{ startsWith(matrix.test, 'ui ') }}
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        # zizmor: ignore[cache-poisoning]
+        with:
+          node-version: 22
 
       - name: Make GOCOVERDIR
         run: |
@@ -703,36 +703,7 @@ jobs:
             echo "SNAP_TRACK=${SNAP_TRACK}" >> "${GITHUB_ENV}"
           fi
 
-      - name: Adapt lxd-ci test for sideloading and coverage collection
-        working-directory: './lxd-ci'
-        run: |
-          set -eux
-
-          # Avoid lxd-installer getting in the way
-          sudo rm -f /usr/sbin/lxd /usr/sbin/lxc
-
-          cat << EOF > /tmp/install_lxd.sh
-          # install_lxd replacement that sideloads the built snap and enables coverage collection
-          install_lxd() (
-            # Ensure our custom binaries are found first
-            export PATH="/home/runner/go/bin:${PATH}"
-
-            sideload_lxd_snap "${SNAP_TRACK}/${SNAP_RISK}"
-            gocoverage_lxd_snap
-          )
-          EOF
-
-          # Add snap helpers from the main repo
-          sed -i '1 r ../test/includes/snap.sh' bin/helpers
-          # Replace the install_lxd helper
-          sed -i '/^# install_lxd:/,/^)$/d' bin/helpers
-          cat /tmp/install_lxd.sh >> bin/helpers
-          rm -f /tmp/install_lxd.sh
-
-          cat bin/helpers
-
       - name: ${{ matrix.test }}
-        working-directory: './lxd-ci'
         run: |
           set -eux
 
@@ -760,7 +731,7 @@ jobs:
           # It is appended (not prepended) so the snap's lxc/lxd wrappers keep precedence; the snap
           # lxc/lxd/lxd-agent coverage is collected separately via the sideloaded *.debug binaries.
           export PATH="${PATH}:/home/runner/go/bin"
-          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./bin/local-run "tests/${TEST_SCRIPT}" "${SNAP_TRACK}/${SNAP_RISK}" ${EXTRA_ARGS:-}
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./test/snap.sh "test/snap/${TEST_SCRIPT}" "${SNAP_TRACK}/${SNAP_RISK}" ${EXTRA_ARGS:-}
 
           # Cleanly stopping `snap.lxd.daemon.service` will ensure that any Go
           # coverage data is flushed to disk and can be collected by the upload
@@ -769,6 +740,9 @@ jobs:
           if [ -n "${GOCOVERDIR:-}" ] && systemctl is-active --quiet snap.lxd.daemon.service; then
             sudo systemctl stop snap.lxd.daemon.service
           fi
+        env:
+          LXD_SNAP_BINARY_DIR: /home/runner/go/bin
+          LXD_SNAP_SIDELOAD: "1"
 
       # Only save if there wasn't an exact cache hit, AND the code is running on the main repo (not an untrusted fork)
       - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
