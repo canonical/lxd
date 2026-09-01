@@ -41,6 +41,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -52,6 +53,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
@@ -605,8 +607,37 @@ func (d *btrfs) restorationHeader(vol Volume, snapshots []string) (*BTRFSMetaDat
 	return &migrationHeader, nil
 }
 
+// validateSubVolumeHeader rejects a metadata header whose subvolume paths or snapshot names could
+// escape the parent volume.
+func (d *btrfs) validateSubVolumeHeader(header BTRFSMetaDataHeader, expectedSnapshots []string) error {
+	for _, subVol := range header.Subvolumes {
+		if subVol.Snapshot != "" {
+			err := instancetype.ValidSnapName(subVol.Snapshot)
+			if err != nil {
+				return fmt.Errorf("Invalid subvolume snapshot name %q: %w", subVol.Snapshot, err)
+			}
+
+			if expectedSnapshots != nil && !slices.Contains(expectedSnapshots, subVol.Snapshot) {
+				return fmt.Errorf("Subvolume snapshot %q does not belong to the volume", subVol.Snapshot)
+			}
+		}
+
+		if subVol.Path == string(filepath.Separator) {
+			// The volume top ("/") is always in bounds.
+			continue
+		}
+
+		if !filepath.IsLocal(strings.TrimPrefix(subVol.Path, string(filepath.Separator))) {
+			return fmt.Errorf("Subvolume path %q must be within the volume", subVol.Path)
+		}
+	}
+
+	return nil
+}
+
 // loadOptimizedBackupHeader extracts optimized backup header from a given ReadSeeker.
-func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*BTRFSMetaDataHeader, error) {
+// Snapshot names in the header are validated against expectedSnapshots.
+func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string, expectedSnapshots []string) (*BTRFSMetaDataHeader, error) {
 	header := BTRFSMetaDataHeader{}
 
 	// Extract.
@@ -631,6 +662,12 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*B
 			err = yaml.NewDecoder(tr).Decode(&header)
 			if err != nil {
 				return nil, fmt.Errorf("Error parsing optimized backup header file: %w", err)
+			}
+
+			// Defend against path traversal attacks.
+			err = d.validateSubVolumeHeader(header, expectedSnapshots)
+			if err != nil {
+				return nil, err
 			}
 
 			cancelFunc()

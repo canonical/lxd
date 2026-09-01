@@ -194,7 +194,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 	// Load optimized backup header file if specified.
 	var optimizedHeader *BTRFSMetaDataHeader
 	if *srcBackup.OptimizedHeader {
-		optimizedHeader, err = d.loadOptimizedBackupHeader(srcData, GetVolumeMountPath(d.name, vol.volType, ""))
+		optimizedHeader, err = d.loadOptimizedBackupHeader(srcData, GetVolumeMountPath(d.name, vol.volType, ""), srcBackup.Snapshots)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -562,6 +562,22 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 			return fmt.Errorf("Failed decoding BTRFS migration header: %w", err)
 		}
 
+		// The header comes from the source peer and must be validated.
+		// A normal copy sends exactly the negotiated snapshots, and any other snapshot
+		// name is rejected here.
+		// A refresh sends the source's whole snapshot list, letting the target skip the
+		// ones it already has. Each snapshot is then checked as it is chosen for transfer
+		// in the loop below.
+		var expectedSnapshots []string
+		if !volTargetArgs.Refresh {
+			expectedSnapshots = append([]string{}, volTargetArgs.Snapshots...)
+		}
+
+		err = d.validateSubVolumeHeader(migrationHeader, expectedSnapshots)
+		if err != nil {
+			return err
+		}
+
 		d.logger.Debug("Received BTRFS migration meta data header", logger.Ctx{"name": vol.name})
 	} else {
 		// Populate the migrationHeader subvolumes with root volumes only to support older LXD sources.
@@ -585,6 +601,11 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 		if err != nil {
 			return err
 		}
+
+		// The header lists every source snapshot. A snapshot missing on the target must be
+		// negotiated. A snapshot already on the target is not negotiated when its name and
+		// creation date match, but is still received when its received UUID differs.
+		negotiatedSnapshots := volTargetArgs.Snapshots
 
 		// Reset list of snapshots which are to be received.
 		volTargetArgs.Snapshots = []string{}
@@ -612,6 +633,10 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 			}
 
 			if migrationSnap.Path == "/" && migrationSnap.Snapshot != "" {
+				if !ok && !shared.StringInSlice(migrationSnap.Snapshot, negotiatedSnapshots) {
+					return fmt.Errorf("Subvolume snapshot %q was not negotiated for this migration", migrationSnap.Snapshot)
+				}
+
 				volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, migrationSnap.Snapshot)
 			}
 
