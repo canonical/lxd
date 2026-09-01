@@ -115,3 +115,74 @@ func Test_btrfs_validateSubVolumeHeader_snapshots(t *testing.T) {
 		})
 	}
 }
+
+// Test_btrfs_validateReturnedSubvolumes asserts that a migration refresh reply may only include
+// subvolumes the source offered in the first place.
+func Test_btrfs_validateReturnedSubvolumes(t *testing.T) {
+	driver := &btrfs{}
+
+	sent := []BTRFSSubVolume{
+		{Snapshot: "", Path: "/", UUID: "uuid-root", Readonly: false},
+		{Snapshot: "", Path: "/foo", UUID: "uuid-foo", Readonly: true},
+		{Snapshot: "snap0", Path: "/", UUID: "uuid-snap0", Readonly: true},
+	}
+
+	tests := []struct {
+		name      string
+		returned  []BTRFSSubVolume
+		wantError string
+	}{
+		{
+			name:     "Empty reply",
+			returned: nil,
+		},
+		{
+			name: "Subset of offered entries, readonly ignored",
+			returned: []BTRFSSubVolume{
+				{Snapshot: "", Path: "/", UUID: "uuid-root"},
+				{Snapshot: "snap0", Path: "/", UUID: "uuid-snap0"},
+			},
+		},
+		{
+			name: "Lexically local path the source never offered is rejected",
+			returned: []BTRFSSubVolume{
+				{Snapshot: "", Path: "/evil", UUID: "uuid-root"},
+			},
+			wantError: `Returned subvolume path "/evil" (snapshot "") was not offered by the source`,
+		},
+		{
+			name: "Offered path with a different UUID is rejected",
+			returned: []BTRFSSubVolume{
+				{Snapshot: "", Path: "/foo", UUID: "uuid-forged"},
+			},
+			wantError: `Returned subvolume path "/foo" (snapshot "") was not offered by the source`,
+		},
+		{
+			name: "Offered path under a different snapshot is rejected",
+			returned: []BTRFSSubVolume{
+				{Snapshot: "snap0", Path: "/foo", UUID: "uuid-foo"},
+			},
+			wantError: `Returned subvolume path "/foo" (snapshot "snap0") was not offered by the source`,
+		},
+		{
+			name: "One crafted entry among valid ones is rejected",
+			returned: []BTRFSSubVolume{
+				{Snapshot: "", Path: "/", UUID: "uuid-root"},
+				{Snapshot: "", Path: "/foo", UUID: "uuid-foo"},
+				{Snapshot: "", Path: "/foo/../../etc", UUID: "uuid-foo"},
+			},
+			wantError: `Returned subvolume path "/foo/../../etc" (snapshot "") was not offered by the source`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := driver.validateReturnedSubvolumes(sent, test.returned)
+			if test.wantError != "" {
+				require.EqualError(t, err, test.wantError)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
