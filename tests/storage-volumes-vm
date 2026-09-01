@@ -9,7 +9,7 @@ install_lxd
 
 IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
 
-poolDriverList="${1:-ceph dir btrfs lvm lvm-thin zfs}"
+poolDriverList="${1:-dir btrfs lvm lvm-thin zfs ceph}"
 
 # Configure LXD
 lxc project switch default
