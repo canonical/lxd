@@ -657,6 +657,37 @@ func (d *btrfs) validateReturnedSubvolumes(sent []BTRFSSubVolume, returned []BTR
 	return nil
 }
 
+// resolveSubvolumeDest resolves subVolPath within the volume rooted at volRoot to a destination
+// path that cannot escape the volume via a symlink in the restored content, which a lexical check
+// on the header path cannot catch. The returned path is valid until closer is called.
+func (d *btrfs) resolveSubvolumeDest(volRoot string, subVolPath string) (dest string, closer func(), err error) {
+	rel := strings.TrimPrefix(subVolPath, string(filepath.Separator))
+	if rel == "" {
+		// The destination is the volume root itself, whose parent is the trusted pool directory.
+		return volRoot, func() {}, nil
+	}
+
+	root, err := os.OpenRoot(volRoot)
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed opening volume root %q: %w", volRoot, err)
+	}
+
+	parent, err := root.Open(filepath.Dir(rel))
+	if err != nil {
+		_ = root.Close()
+		return "", nil, fmt.Errorf("Failed resolving subvolume path %q within volume %q: %w", subVolPath, volRoot, err)
+	}
+
+	// Address the final component through the verified parent fd rather than re-walking the path.
+	dest = filepath.Join("/proc/self/fd", strconv.Itoa(int(parent.Fd())), filepath.Base(rel))
+	closer = func() {
+		_ = parent.Close()
+		_ = root.Close()
+	}
+
+	return dest, closer, nil
+}
+
 // loadOptimizedBackupHeader extracts optimized backup header from a given ReadSeeker.
 // Snapshot names in the header are validated against expectedSnapshots.
 func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string, expectedSnapshots []string) (*BTRFSMetaDataHeader, error) {
