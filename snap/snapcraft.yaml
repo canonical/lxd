@@ -1222,7 +1222,7 @@ parts:
 
   zfs-2-2:
     source: https://github.com/openzfs/zfs
-    source-commit: 07c1e2e38e2534818acb056223e6cfe1b667155e # zfs-2.2.10
+    source-commit: f2d87f5c724ccdbb27a11fb84c4a185e0a917598 # zfs-2.2.11
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1263,7 +1263,7 @@ parts:
 
   zfs-2-3:
     source: https://github.com/openzfs/zfs
-    source-commit: b4842aee84437fccc6f87d436ca4ca8d4da676ae # zfs-2.3.8
+    source-commit: 4c0eb7203e5a2b147d1d5e27b5e2a3461a95c1dc # zfs-2.3.9
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1304,7 +1304,7 @@ parts:
 
   zfs-2-4:
     source: https://github.com/openzfs/zfs
-    source-commit: 83020cf8259d057d4cc9102010c05f07ffdfc136 # zfs-2.4.3
+    source-commit: 71a9f9578616a90c3c14bb59629fb4d31bfd68d1 # zfs-2.4.4
     source-depth: 1
     source-type: git
     plugin: autotools
