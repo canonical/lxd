@@ -633,6 +633,30 @@ func (d *btrfs) validateSubVolumeHeader(header BTRFSMetaDataHeader, expectedSnap
 	return nil
 }
 
+// validateReturnedSubvolumes rejects a migration refresh reply whose subvolume entries were not
+// among those the source offered.
+func (d *btrfs) validateReturnedSubvolumes(sent []BTRFSSubVolume, returned []BTRFSSubVolume) error {
+	type subVolKey struct {
+		Snapshot string
+		Path     string
+		UUID     string
+	}
+
+	offered := make(map[subVolKey]struct{}, len(sent))
+	for _, subVol := range sent {
+		offered[subVolKey{Snapshot: subVol.Snapshot, Path: subVol.Path, UUID: subVol.UUID}] = struct{}{}
+	}
+
+	for _, subVol := range returned {
+		_, ok := offered[subVolKey{Snapshot: subVol.Snapshot, Path: subVol.Path, UUID: subVol.UUID}]
+		if !ok {
+			return fmt.Errorf("Returned subvolume path %q (snapshot %q) was not offered by the source", subVol.Path, subVol.Snapshot)
+		}
+	}
+
+	return nil
+}
+
 // loadOptimizedBackupHeader extracts optimized backup header from a given ReadSeeker.
 // Snapshot names in the header are validated against expectedSnapshots.
 func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string, expectedSnapshots []string) (*BTRFSMetaDataHeader, error) {
