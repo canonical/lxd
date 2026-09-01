@@ -23,7 +23,7 @@ elif [ "${arch}" = "armhf" ]; then
   arch="arm"
 fi
 
-poolDriverList="${1:-ceph dir btrfs lvm lvm-thin zfs}"
+poolDriverList="${1:-dir btrfs lvm lvm-thin zfs ceph}"
 
 # Without storage_buckets_local, only ceph/cephobject is supported.
 if ! hasNeededAPIExtension storage_buckets_local; then
