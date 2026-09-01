@@ -227,6 +227,22 @@ func (h pureHost) matchesQualifiedName(mode string, qn string) bool {
 	}
 }
 
+// matchesAnyQualifiedName returns true if the host is configured with any of the given
+// initiator qualified names for the given Pure Storage mode.
+//
+// A Fibre Channel host has one WWPN per host bus adapter port, and all of them are
+// registered on a single Pure Storage host, so a match on any one of them identifies
+// the host.
+func (h pureHost) matchesAnyQualifiedName(mode string, qns []string) bool {
+	for _, qn := range qns {
+		if h.matchesQualifiedName(mode, qn) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // purePort represents a port in Pure Storage.
 type purePort struct {
 	Name string `json:"name"`
@@ -1046,7 +1062,9 @@ func (p *pureClient) getCurrentHost() (*pureHost, error) {
 		return nil, err
 	}
 
-	qn, err := connector.QualifiedName()
+	// A Fibre Channel host has one WWPN per host bus adapter port, all registered on a
+	// single Pure Storage host, so match on any of them.
+	qns, err := connectors.QualifiedNames(connector)
 	if err != nil {
 		return nil, err
 	}
@@ -1059,12 +1077,12 @@ func (p *pureClient) getCurrentHost() (*pureHost, error) {
 	mode := connector.Type()
 
 	for _, host := range hosts {
-		if host.matchesQualifiedName(mode, qn) {
+		if host.matchesAnyQualifiedName(mode, qns) {
 			return &host, nil
 		}
 	}
 
-	return nil, api.StatusErrorf(http.StatusNotFound, "Host with qualified name %q not found", qn)
+	return nil, api.StatusErrorf(http.StatusNotFound, "Host with qualified names %v not found", qns)
 }
 
 // createHost creates a new host with provided initiator qualified names that can be associated
@@ -1399,8 +1417,11 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 		return "", nil, err
 	}
 
-	// Get the qualified name of the host.
-	qn, err := connector.QualifiedName()
+	// Get every initiator qualified name of the host. iSCSI and NVMe hosts have a
+	// single IQN or NQN, whereas a Fibre Channel host has one WWPN per host bus
+	// adapter port. All of them must be registered, otherwise the array does not
+	// present its volumes to the unregistered ports and those paths stay unused.
+	qns, err := connectors.QualifiedNames(connector)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1419,14 +1440,14 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 			return "", nil, err
 		}
 
-		err = d.client().createHost(hostname, []string{qn})
+		err = d.client().createHost(hostname, qns)
 		if err != nil {
 			if !api.StatusErrorCheck(err, http.StatusConflict) {
 				return "", nil, err
 			}
 
 			// The host with the given name already exists, update it instead.
-			err = d.client().updateHost(hostname, []string{qn})
+			err = d.client().updateHost(hostname, qns)
 			if err != nil {
 				return "", nil, err
 			}
