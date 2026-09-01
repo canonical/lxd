@@ -208,7 +208,8 @@ func (h pureHost) matchesQualifiedName(mode string, qn string) bool {
 	switch mode {
 	case connectors.TypeISCSI:
 		return slices.Contains(h.IQNs, qn)
-	case connectors.TypeNVMeTCP:
+	case connectors.TypeNVMeTCP, connectors.TypeNVMeFC:
+		// Both NVMe transports identify the host by a single NQN.
 		return slices.Contains(h.NQNs, qn)
 	case connectors.TypeSCSIFC:
 		// Pure Storage reports host WWNs in uppercase, whereas the connector reports the
@@ -248,8 +249,13 @@ type pureConnection struct {
 // fcTargetWWNs returns the normalized WWNs of the Fibre Channel target ports among the
 // given ports.
 //
-// A Pure Storage port can serve both SCSI/FC and NVMe/FC. A port that reports an NQN in
-// addition to a WWN is an NVMe/FC target and must therefore not be used for SCSI/FC.
+// An array can present Fibre Channel ports for both SCSI/FC and NVMe/FC at the same time,
+// so a port that reports an NQN in addition to a WWN is treated as an NVMe/FC target and
+// is not used for SCSI/FC.
+//
+// This relies on a Pure Storage target port serving one protocol at a time. Fibre Channel
+// does not require that in general, and host bus adapters commonly run both concurrently,
+// so a target port serving both would be excluded here despite being usable for SCSI/FC.
 func fcTargetWWNs(ports []purePort) []string {
 	wwns := make([]string, 0, len(ports))
 
@@ -267,6 +273,38 @@ func fcTargetWWNs(ports []purePort) []string {
 	}
 
 	return wwns
+}
+
+// nvmeFCTargets returns the subsystem NQN and the Fibre Channel transport addresses of the
+// NVMe/FC target ports among the given ports.
+//
+// An NVMe/FC target port reports both an NQN and a WWN, the inverse of the SCSI/FC ports
+// selected by [fcTargetWWNs]. All of the array's ports share a single subsystem NQN.
+//
+// On Pure Storage the NVMe/FC target node name equals the target port WWN, so both halves
+// of the transport address are built from the same value.
+func nvmeFCTargets(ports []purePort) (targetNQN string, targetAddrs []string) {
+	targetAddrs = make([]string, 0, len(ports))
+
+	for _, port := range ports {
+		if port.WWN == "" || port.NQN == "" {
+			continue
+		}
+
+		if targetNQN == "" {
+			targetNQN = port.NQN
+		}
+
+		wwn := block.NormalizeWWN(port.WWN)
+		addr := "nn-0x" + wwn + ":pn-0x" + wwn
+		if slices.Contains(targetAddrs, addr) {
+			continue
+		}
+
+		targetAddrs = append(targetAddrs, addr)
+	}
+
+	return targetNQN, targetAddrs
 }
 
 // pureClient holds the Pure Storage HTTP client and an access token.
@@ -1062,7 +1100,7 @@ func (p *pureClient) createHost(hostName string, qns []string) error {
 	switch connector.Type() {
 	case connectors.TypeISCSI:
 		req["iqns"] = qns
-	case connectors.TypeNVMeTCP:
+	case connectors.TypeNVMeTCP, connectors.TypeNVMeFC:
 		req["nqns"] = qns
 	case connectors.TypeSCSIFC:
 		req["wwns"] = qns
@@ -1095,7 +1133,7 @@ func (p *pureClient) updateHost(hostName string, qns []string) error {
 	switch connector.Type() {
 	case connectors.TypeISCSI:
 		req["iqns"] = qns
-	case connectors.TypeNVMeTCP:
+	case connectors.TypeNVMeTCP, connectors.TypeNVMeFC:
 		req["nqns"] = qns
 	case connectors.TypeSCSIFC:
 		req["wwns"] = qns
@@ -1265,17 +1303,54 @@ func (p *pureClient) getFCTargets() ([]string, error) {
 	return targetWWPNs, nil
 }
 
+// getNVMeFCTargets retrieves the subsystem NQN and the Fibre Channel transport addresses of
+// the array's NVMe/FC target ports.
+//
+// As for SCSI/FC, these are not Pure Storage network interfaces and are therefore retrieved
+// from the ports endpoint rather than the network interface endpoint.
+func (p *pureClient) getNVMeFCTargets() (targetNQN string, targetAddrs []string, err error) {
+	var resp pureResponse[purePort]
+
+	url := api.NewURL().Path("ports")
+
+	err = p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed retrieving Pure Storage ports: %w", err)
+	}
+
+	targetNQN, targetAddrs = nvmeFCTargets(resp.Items)
+	if targetNQN == "" || len(targetAddrs) == 0 {
+		return "", nil, api.StatusErrorf(http.StatusNotFound, "No NVMe over Fibre Channel target port found on the array")
+	}
+
+	return targetNQN, targetAddrs, nil
+}
+
 // getTargets retrieves the qualified names and addresses of the Pure Storage targets for the
-// configured mode. Fibre Channel fabrics commonly present multiple target ports, whereas iSCSI
-// and NVMe/TCP present a single qualified name reachable on one or more addresses. No addresses
-// are returned in Fibre Channel mode, as its targets are identified by WWPN alone.
+// configured mode.
+//
+// SCSI/FC fabrics commonly present multiple target ports, each identified by its WWPN alone,
+// so no addresses are returned for that mode. The other modes present a single qualified name
+// reachable on one or more addresses: an IP portal for iSCSI and NVMe/TCP, and a Fibre Channel
+// transport address for NVMe/FC.
 func (p *pureClient) getTargets() (targetQNs []string, targetAddrs []string, err error) {
 	connector, err := p.driver.connector()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if connector.Transport() == connectors.TransportFC {
+	if connector.Type() == connectors.TypeNVMeFC {
+		var targetNQN string
+
+		targetNQN, targetAddrs, err = p.getNVMeFCTargets()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return []string{targetNQN}, targetAddrs, nil
+	}
+
+	if connector.Type() == connectors.TypeSCSIFC {
 		targetQNs, err = p.getFCTargets()
 		if err != nil {
 			return nil, nil, err
@@ -1488,9 +1563,11 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 	for _, targetQN := range targetQNs {
 		var connReverter revert.Hook
 
-		if connector.Transport() == connectors.TransportFC {
-			// The Fibre Channel connector expects the LUN of the connected volume instead
-			// of target addresses, because the host bus adapter handles the fabric login
+		// Keyed on the connector type rather than the transport, because NVMe/FC also
+		// reports the Fibre Channel transport but is addressed like the other NVMe modes.
+		if connector.Type() == connectors.TypeSCSIFC {
+			// The SCSI/FC connector expects the LUN of the connected volume instead of
+			// target addresses, because the host bus adapter handles the fabric login
 			// itself and the LUN only scopes the SCSI bus rescan.
 			connReverter, err = connector.Connect(d.state.ShutdownCtx, targetQN, strconv.Itoa(lun))
 		} else {
@@ -1578,8 +1655,9 @@ func (d *pure) unmapVolume(vol Volume) error {
 	// removed volume.
 	//
 	// For NVMe the host-side device is removed asynchronously after the array detaches the
-	// volume. NVMe's [connectors.RemoveDiskDevice] is a no-op, so this is the only sync point.
-	if volumePath != "" && connector.Type() == connectors.TypeNVMeTCP && !block.WaitDiskDeviceGone(d.state.ShutdownCtx, volumePath) {
+	// volume. NVMe's [connectors.RemoveDiskDevice] is a no-op for both TCP and Fibre
+	// Channel, so this is the only sync point.
+	if volumePath != "" && connectors.IsNVMe(connector.Type()) && !block.WaitDiskDeviceGone(d.state.ShutdownCtx, volumePath) {
 		return fmt.Errorf("Timeout exceeded waiting for Pure Storage volume %q to disappear on path %q", vol.name, volumePath)
 	}
 
@@ -1634,7 +1712,10 @@ func pureDiskSuffix(mode string, serial string) (string, error) {
 		// Both iSCSI and Fibre Channel present the volume as a SCSI device, whose device
 		// identifier is the volume serial number.
 		return serial, nil
-	case connectors.TypeNVMeTCP:
+	case connectors.TypeNVMeTCP, connectors.TypeNVMeFC:
+		// Both NVMe transports address the volume by its namespace globally unique
+		// identifier, which does not depend on the transport.
+		//
 		// The disk device ID (e.g. "008726b5033af24324a9373d00014196") is constructed as:
 		// - "00"             - Padding
 		// - "8726b5033af243" - First 14 characters of serial number
