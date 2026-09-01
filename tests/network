@@ -1,0 +1,264 @@
+#!/bin/bash
+set -eux
+
+# testflinger_queue: luma
+
+# Check if IOMMU is configured
+if [ -n "$(find /sys/kernel/iommu_groups/ -empty)" ]; then
+    echo "System not IOMMU ready, hint: \"./bin/custom-kernel iommu\"" >&2
+    exit 1
+fi
+
+# Install LXD
+install_lxd
+
+# Install dependencies
+install_deps jq
+
+IMAGE="${TEST_IMG:-ubuntu-daily:24.04}"
+
+parentNIC="${1:-}"
+
+if [ -z "${parentNIC}" ]; then
+  # Consult available resources
+  first_sriov_nic="$(lxc query /1.0/resources | jq -r '[.network.cards | .[] | select(.sriov != null) | .ports][0] | .[0].id')"
+  parentNIC="${first_sriov_nic}"
+fi
+
+# Enable SR-IOV on nic and bring up
+enableNICSRIOV "${parentNIC}"
+
+# Check that all instances have an IPv4 and IPv6 address
+networkTests() {
+    FAIL=0
+
+    echo "=> Performing network tests"
+    for url in $(lxc query "/1.0/instances" | jq -r .[]); do
+        name=$(echo "${url}" | cut -d/ -f4)
+        echo ""
+
+        # Get the addresses
+        address=$(lxc query "${url}/state" | jq -r ".network.eth0.addresses | .[] | select(.scope | contains(\"global\")) | .address" 2>/dev/null || true)
+        if [ -z "${address}" ]; then
+            address=$(lxc query "${url}/state" | jq -r ".network.enp5s0.addresses | .[] | select(.scope | contains(\"global\")) | .address" 2>/dev/null || true)
+        fi
+
+        if [ -z "${address}" ]; then
+            echo "FAIL: No network interface: ${name}"
+            FAIL=1
+            continue
+        fi
+
+        # IPv4 address
+        if echo "${address}" | grep -qF "."; then
+            echo "PASS: IPv4 address: ${name}"
+        else
+            echo "FAIL: IPv4 address: ${name}"
+            FAIL=1
+        fi
+
+        # IPv6 address
+        if echo "${address}" | grep -qF ":"; then
+            echo "PASS: IPv6 address: ${name}"
+        else
+            echo "WARN: IPv6 address: ${name}"
+            #FAIL=1
+        fi
+
+        # DNS resolution
+        if lxc exec "${name}" -- getent hosts archive.ubuntu.com >/dev/null 2>&1; then
+            echo "PASS: DNS resolution: ${name}"
+        else
+            echo "FAIL: DNS resolution: ${name}"
+            FAIL=1
+        fi
+
+        # TCP connectivity
+        if lxc exec "${name}" -- nc -zv archive.ubuntu.com 80 >/dev/null 2>&1; then
+            echo "PASS: TCP connectivity: ${name}"
+        else
+            echo "FAIL: TCP connectivity: ${name}"
+            FAIL=1
+        fi
+    done
+
+    if [ "${FAIL}" = "1" ]; then
+        return 1
+    fi
+
+    return 0
+}
+
+# Configure LXD
+lxc storage create default zfs
+lxc profile device add default root disk path=/ pool=default
+
+# Launch instances with physical NICs
+echo "==> VM on default VLAN with physical"
+lxc init "${IMAGE}" v1-physical --vm -c limits.cpu=3
+lxc config device add v1-physical eth0 nic nictype=physical parent="${parentNIC}v1" name=eth0
+lxc start v1-physical
+
+echo "==> Container on default VLAN with physical"
+lxc init "${IMAGE}" c1-physical
+lxc config device add c1-physical eth0 nic nictype=physical parent="${parentNIC}v2" name=eth0
+lxc start c1-physical
+
+# Launch instances with macvlan NICs
+echo "==> VM on default VLAN with macvlan"
+lxc init "${IMAGE}" v1-macvlan --vm -c limits.cpu=3
+lxc config device add v1-macvlan eth0 nic nictype=macvlan parent="${parentNIC}" name=eth0
+lxc start v1-macvlan
+
+echo "==> Container on default VLAN with macvlan"
+lxc init "${IMAGE}" c1-macvlan
+lxc config device add c1-macvlan eth0 nic nictype=macvlan parent="${parentNIC}" name=eth0
+lxc start c1-macvlan
+
+# Launch instances with sriov NICs
+echo "==> VM on default VLAN with sriov"
+lxc init "${IMAGE}" v1-sriov --vm -c limits.cpu=3
+lxc config device add v1-sriov eth0 nic nictype=sriov parent="${parentNIC}" name=eth0
+lxc start v1-sriov
+
+echo "==> Container on default VLAN with sriov"
+lxc init "${IMAGE}" c1-sriov
+lxc config device add c1-sriov eth0 nic nictype=sriov parent="${parentNIC}" name=eth0
+lxc start c1-sriov
+
+# Wait for VMs to start.
+echo "==> Waiting for VMs to start"
+
+waitInstanceBooted c1-physical
+waitInstanceBooted c1-macvlan
+waitInstanceBooted c1-sriov
+waitInstanceBooted v1-physical
+waitInstanceBooted v1-macvlan
+waitInstanceBooted v1-sriov
+
+lxc list
+networkTests
+
+# Reload LXD and check connectivity still works.
+# Ensures VM NICs are not dependent on any fds/fdsets from LXD.
+systemctl reload snap.lxd.daemon
+sleep 10
+lxd waitready --timeout=300
+networkTests
+
+# Check VM macvlan multi-queue support.
+lxc exec v1-macvlan -- apt-get install --no-install-recommends --yes ethtool
+lxc exec v1-macvlan -- ethtool -l enp5s0 | grep -c '^Combined:\s\+3$'  | grep -Fx 2
+
+# Check VM "agent.nic_config" works by adding "eth1" configured to use parent name and MAC address by "agent.nic_config".
+echo "=> Performing VM physical NIC agent.nic_config tests"
+lxc exec v1-physical -- "sync"
+lxc stop v1-physical -f
+
+# Get the MAC address of the host NIC before starting instance.
+parentNICMAC=$(cat /sys/class/net/"${parentNIC}v4"/address || echo fail)
+ip link set "${parentNIC}" vf 4 mac "${parentNICMAC}"
+lxc config set v1-physical agent.nic_config=true
+lxc config device add v1-physical eth1 nic nictype=physical parent="${parentNIC}v4" name=eth1
+lxc start v1-physical
+
+# Wait for lxd-agent to rename the interface.
+waitInstanceBooted v1-physical
+
+# Interface "eth1" should exist in the VM with the correct name and MAC address.
+[ "$(lxc exec v1-physical -- cat /sys/class/net/eth1/address)" = "${parentNICMAC}" ]
+
+# Remove "eth1" as it is no longer needed.
+lxc config device remove v1-physical eth1
+lxc stop -f v1-physical
+lxc config set v1-physical agent.nic_config=false
+lxc start v1-physical
+waitInstanceBooted v1-physical
+
+# Hot unplug the NICs and check they are removed
+lxc config device remove v1-physical eth0
+! lxc exec v1-physical -- ip a show enp5s0 || false
+lxc config device remove c1-physical eth0
+! lxc exec c1-physical -- ip a show eth0 || false
+lxc config device remove v1-macvlan eth0
+! lxc exec v1-macvlan -- ip a show enp5s0 || false
+lxc config device remove c1-macvlan eth0
+! lxc exec c1-macvlan -- ip a show eth0 || false
+lxc config device remove v1-sriov eth0
+! lxc exec v1-sriov -- ip a show enp5s0 || false
+lxc config device remove c1-sriov eth0
+! lxc exec c1-sriov -- ip a show eth0 || false
+
+lxc list
+
+# Hot plug the NICs back
+lxc config device add v1-physical eth0 nic nictype=physical parent="${parentNIC}v1" name=eth0
+lxc config device add c1-physical eth0 nic nictype=physical parent="${parentNIC}v2" name=eth0
+lxc config device add v1-macvlan eth0 nic nictype=macvlan parent="${parentNIC}" name=eth0
+lxc config device add c1-macvlan eth0 nic nictype=macvlan parent="${parentNIC}" name=eth0
+lxc config device add v1-sriov eth0 nic nictype=sriov parent="${parentNIC}" name=eth0
+lxc config device add c1-sriov eth0 nic nictype=sriov parent="${parentNIC}" name=eth0
+
+# Wait for DHCP
+sleep 10
+
+# Check the IPs are re-added
+lxc list
+networkTests
+
+# Remove instances, leaving one VM and container for bridge hotplug test
+lxc delete -f v1-macvlan
+lxc delete -f c1-macvlan
+lxc delete -f v1-sriov
+lxc delete -f c1-sriov
+
+# Check bridged NIC type works (also test hotlugging different NIC type).
+echo "=> Performing bridged NIC tests"
+lxc network create lxdbr0
+lxc config device remove v1-physical eth0
+lxc config device remove c1-physical eth0
+lxc config device add v1-physical eth0 nic network=lxdbr0 name=eth0
+lxc config device add c1-physical eth0 nic network=lxdbr0 name=eth0
+
+# Wait for DHCP
+sleep 10
+
+# Check the IPs are re-added
+lxc list
+networkTests
+
+# Check VM "agent.nic_config" works by reconfiguring eth0 to use parent and mtu settings.
+echo "=> Performing VM bridged NIC agent.nic_config tests"
+lxc exec v1-physical -- "sync"
+lxc stop v1-physical -f
+lxc config set v1-physical agent.nic_config=true
+lxc config device set v1-physical eth0 nictype=bridged parent=lxdbr0 network= mtu=1400 name=eth0
+lxc start v1-physical
+
+# Wait for lxd-agent to rename the interface.
+waitInstanceBooted v1-physical
+
+# Interface "eth0" should exist in the VM with the correct MTU.
+lxc exec v1-physical -- test -d /sys/class/net/eth0
+lxc exec v1-physical -- grep -Fx 1400 /sys/class/net/eth0/mtu
+
+# Check VM bridged multi-queue support.
+lxc exec v1-physical -- apt-get install --no-install-recommends --yes ethtool
+lxc exec v1-physical -- ethtool -l eth0 | grep -c '^Combined:\s\+3$'  | grep -Fx 2
+
+# Default VM interface enp5s0 should not exist in the VM.
+! lxc exec v1-physical -- test -d /sys/class/net/enp5s0 || false
+
+# Cleanup
+echo "=> Cleanup"
+for url in $(lxc query "/1.0/instances" | jq -r .[]); do
+    name=$(echo "${url}" | cut -d/ -f4)
+    lxc delete -f "${name}"
+done
+
+lxc profile device remove default root
+lxc storage delete default
+lxc network delete lxdbr0
+
+# shellcheck disable=SC2034
+FAIL=0

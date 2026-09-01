@@ -1,0 +1,126 @@
+job_queue: $JOB_QUEUE
+global_timeout: 3600
+output_timeout: 1800
+provision_data:
+  distro: $DISTRO
+
+test_data:
+  test_cmds: |
+    #!/bin/bash
+
+    set -xeuo pipefail
+
+    # This is used, along with DEVICE_IP, by all scriptlets to access the device
+    export DEVICE_USER="ubuntu"
+
+    # retrieve the tools installer
+    curl -Ls -o install_tools.sh https://raw.githubusercontent.com/canonical/hwcert-jenkins-tools/main/install_tools.sh
+
+    # install the scriptlets and other tools on the agent and the device, as necessary
+    export TOOLS_PATH=tools
+    source install_tools.sh $TOOLS_PATH
+
+    # ensure device is available before continuing
+    wait-for-ssh --allow-degraded
+
+    # Wait for snapd to become available
+    _run_retry "timeout 5 sudo snap wait system seed.loaded"
+    wait-for-snap-changes
+
+    # allow content on kernel snaps
+    _run sudo snap refresh snapd --channel=latest/beta --no-wait
+    wait-for-snap-changes
+
+    # LXD 5.21 is based on `core24` and newer versions are using `core26`.
+    # The host base/kernel snaps are set up before LXD is installed,
+    # so derive the matching version from the target LXD snap channel.
+    case "$SNAP_CHANNEL" in
+      6/*|latest/*) CORE_VERSION="26" ;;
+      *) CORE_VERSION="24" ;;
+    esac
+
+    # Fail fast if the provisioned device image (DISTRO) does not match
+    # the core version derived from the LXD snap channel, to avoid
+    # setting up core(24/26) snaps on a mismatched device.
+    if [ "$DISTRO" != "core${CORE_VERSION}-latest" ]; then
+      echo "ERROR: DISTRO=$DISTRO does not match core${CORE_VERSION} derived from SNAP_CHANNEL=$SNAP_CHANNEL" >&2
+      exit 1
+    fi
+
+    # get device nodes on module load
+    if [ "${CORE_VERSION}" = "26" ]; then
+      _run sudo snap refresh "core${CORE_VERSION}" --edge --no-wait
+    else
+      _run sudo snap refresh "core${CORE_VERSION}" --no-wait
+    fi
+    wait-for-snap-changes
+
+    # refresh to the new kernel
+    _run sudo snap refresh pc-kernel --channel "${CORE_VERSION}/candidate" --no-wait
+    # Add some extra time to ensure that machine has rebooted after updating the kernel
+    sleep 30
+    wait-for-snap-changes
+
+    # Pre-test diagnostics I
+    _run snap list
+    _run snap components
+    _run sudo snap changes
+    _run sudo snap connections --all
+
+    # install the module component
+    _run sudo snap components pc-kernel
+    _run sudo snap set pc-kernel nvidia-stream=580-erd
+    wait-for-snap-changes
+
+    # until kernel-module-load is autoconnected
+    _run_retry sudo modprobe nvidia_drm modeset=1
+    _run_retry sudo modprobe nvidia_uvm
+    _run ls /dev/nvidia*
+
+    # LXD working
+    _run_retry sudo snap install lxd --channel=$SNAP_CHANNEL --no-wait --cohort=+
+    wait-for-snap-changes
+
+    # LXD 5.21 will remain based on `core24` but newer versions are using `core26`.
+    # Look at the installed snap for a `gpu-XXYY` directory to know which `mesa-XXYY` snap to install and connect with.
+    GPU_DIR="$(_run 'basename /snap/lxd/current/gpu-*')"
+    GPU_VERSION="${GPU_DIR#gpu-}"
+
+    # Ensure the coreXX, mesa-XX04 and LXD's base are all aligned
+    if [ "${GPU_VERSION}" != "${CORE_VERSION}04" ]; then
+      echo "ERROR: LXD base mesa-${GPU_VERSION} does not match host core${CORE_VERSION}" >&2
+      exit 1
+    fi
+
+    # install mesa snap
+    _run_retry sudo snap install "mesa-${GPU_VERSION}" --channel latest/candidate --no-wait
+    wait-for-snap-changes
+
+    # check for auto connection of kernel-gpu-XXYY content interface being populated
+    _run find "/snap/mesa-${GPU_VERSION}/current/" -print
+    _run find "/var/snap/pc-kernel/common/kernel-gpu-${GPU_VERSION}/" -print
+
+    # Pre-test diagnostics II
+    _run snap list
+    _run snap components
+    _run sudo snap changes
+    _run sudo snap connections --all
+
+    _run sudo lxd init --auto
+    _run sudo usermod -aG lxd ubuntu
+
+    _run "lxc init ubuntu:noble c1 </dev/null"
+    _run lxc config device add c1 gpu0 gpu gputype=physical id=nvidia.com/gpu=0
+
+    _run lxc start c1
+
+    # print out all mounts we have so we can compare it later if anything goes wrong
+    _run lxc exec c1 -- cat /proc/self/mountinfo
+
+    # check that nvidia-smi works
+    _run lxc exec c1 -- nvidia-smi
+
+    # check presence of a few different files to catch regressions
+    _run lxc exec c1 -- cat /proc/self/mountinfo | grep "nvidia_icd.json"
+    _run lxc exec c1 -- cat /proc/self/mountinfo | grep "10_nvidia_wayland.json"
+    _run lxc exec c1 -- cat /proc/self/mountinfo | grep "libcuda.so"

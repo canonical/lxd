@@ -1,0 +1,697 @@
+# shellcheck shell=bash
+
+# waitSnapdSeed: wait for snapd to be seeded and installed/refreshed.
+# Optional argument: snapd channel to install from (default: latest/beta).
+waitSnapdSeed() (
+  { set +x; } 2>/dev/null
+  local waitSecs=60
+  local SNAPD_SNAP_CHANNEL="${1:-"latest/beta"}"
+
+  if timeout "${waitSecs}" snap wait system seed.loaded; then
+    local action="install"
+    # check if snapd is already installed
+    if snap list snapd 2>/dev/null; then
+        action="refresh"
+    fi
+    snap "${action}" snapd --channel "${SNAPD_SNAP_CHANNEL}" --cohort=+
+
+    # Disable automatic updates so we don't get unexpected refreshes during tests.
+    snap refresh --hold=8h
+
+    return 0 # Success.
+  fi
+  echo "snapd not seeded after ${waitSecs}s"
+  return 1 # Failed.
+)
+
+# waitInstanceReady: waits for the instance to be ready (processes count > 1).
+waitInstanceReady() (
+  { set +x; } 2>/dev/null
+  maxWait="${MAX_WAIT_SECONDS:-120}"
+  instName="${1}"
+  instProj="${2:-}"
+
+  # Wait for the instance to report more than one process.
+  processes=0
+  for _ in $(seq "${maxWait}"); do
+      processes="$(lxc info --project "${instProj}" "${instName}" | awk '{if ($1 == "Processes:") print $2}')"
+      if [ "${processes:-0}" -ge "${MIN_PROC_COUNT:-2}" ]; then
+          return 0 # Success.
+      fi
+      sleep 1
+  done
+
+  echo "Instance ${instName} (${instProj:-current}) not ready after ${maxWait}s"
+  return 1 # Failed.
+)
+
+# waitForGuestCPUCount: waits for the guest to report the expected number of CPUs.
+# Usage: waitForGuestCPUCount <instance> <expected-count> [max-wait-seconds]
+waitForGuestCPUCount() (
+  { set +x; } 2>/dev/null
+  local instName="${1}"
+  local expected="${2}"
+  local maxWait="${3:-3}"
+  local guestCPUCount
+
+  for _ in $(seq "${maxWait}"); do
+    guestCPUCount="$(lxc exec "${instName}" -- ls /sys/devices/system/cpu | grep -xEc 'cpu[[:digit:]]+')"
+    [ "${guestCPUCount}" -eq "${expected}" ] && return 0
+    sleep 1
+  done
+
+  echo "Instance ${instName} guest CPU count is ${guestCPUCount}, expected ${expected} after ${maxWait}s"
+  return 1 # Failed.
+)
+
+# waitInstanceBooted: waits for the instance to be ready and fully booted.
+waitInstanceBooted() (
+  { set +x; } 2>/dev/null
+  prefix="::warning::"
+  if [ "${WARNING_PREFIX:-}" = "false" ]; then
+    prefix=""
+  fi
+  maxWait="${MAX_WAIT_SECONDS:-90}"
+  instName="$1"
+  instProj="${2:-}"
+
+  # Wait for the instance to be ready
+  waitInstanceReady "${instName}" "${instProj}"
+
+  # Then wait for the boot sequence to complete.
+  sleep 1
+  rc=0
+  state="$(lxc exec --project "${instProj}" "${instName}" -- timeout "${maxWait}" systemctl is-system-running --wait)" || rc="$?"
+
+  # rc=124 is when `timeout` is hit.
+  # Other rc values are ignored as it doesn't matter if the system is fully
+  # operational (`running`) as it is booted.
+  if [ "${rc}" -eq 124 ]; then
+    echo "${prefix}Instance ${instName} (${instProj:-current}) not booted after ${maxWait}s"
+    lxc list --project "${instProj}" "${instName}"
+    return 1 # Failed.
+  elif [ "${state}" != "running" ]; then
+    echo "${prefix}Instance ${instName} (${instProj:-current}) booted but not fully operational: ${state} != running"
+  fi
+
+  return 0 # Success.
+)
+
+
+# systemdUnitResetFailed: reset the failed state of a specific systemd unit in the instance.
+systemdUnitResetFailed() {
+    local name="${1}"
+    shift
+
+    # Reset the failed state of the specified systemd service(s) in the instance.
+    lxc exec "${name}" -- systemctl reset-failed "${@}"
+}
+
+# isSystemdUnitFailed: check if a specific systemd unit has failed in the instance.
+isSystemdUnitFailed() {
+    local name="${1}"
+    local unit="${2}"
+
+    # Check if the specified systemd service in the instance has failed.
+    lxc exec "${name}" -- systemctl --quiet --failed | grep -wF "${unit}"
+}
+
+# isSystemdClean: wait for instance to be booted and check for systemd failures.
+# ==> Returns 1 if systemd state is clean (no failure), 1 otherwise.
+isSystemdClean() (
+  { set +x; } 2>/dev/null
+  instName="$1"
+  instProj="${2:-}"
+
+  # Wait for the instance to be booted
+  waitInstanceBooted "${instName}" "${instProj}"
+
+  # On 20.04, --quiet is silently ignored
+  lxc exec --project "${instProj}" "${instName}" -- systemctl --quiet --failed
+)
+
+# enableNICSRIOV: enable SR-IOV on a NIC.
+enableNICSRIOV() (
+  { set +x; } 2>/dev/null
+  parentNIC="${1}"
+  numVFS="${2:-"7"}"
+
+  if ! [ -d "/sys/class/net/${parentNIC}" ]; then
+      echo "${parentNIC} is not present, wrong name?"
+      return 1
+  fi
+
+  if ! [ -e "/sys/class/net/${parentNIC}/device/sriov_numvfs" ]; then
+      echo "${parentNIC} does not support SRIOV VFs"
+      return 1
+  fi
+
+  echo "${numVFS}" > "/sys/class/net/${parentNIC}/device/sriov_numvfs"
+  ip link set "${parentNIC}" up
+  sleep 10
+  ethtool "${parentNIC}"
+)
+
+# install_deps: install dependencies if needed.
+install_deps() (
+    { set +x; } 2>/dev/null
+    PKGS="${*}"
+    missing=""
+    PKGS_LIST="$(dpkg --get-selections | awk '{print $1}')"
+    for pkg in ${PKGS}; do
+        # Many commands are already available on CI runners (like `jq` and
+        # `yq`) and are sometimes not installed using deb packages (like `yq`).
+        # As such check if a binary of the same name as the package needing to
+        # be installed is present.
+        # XXX: iptables, nftables and ebtables need special handling due to
+        #      using alternative mechanism
+        if ! [[ "${pkg}" =~ .*tables ]]; then
+            command -v "${pkg}" > /dev/null && continue
+        fi
+
+        grep -qxF "${pkg}" <<< "${PKGS_LIST}" && continue
+        missing="${missing} ${pkg}"
+        break
+    done
+
+    if [ "${missing}" != "" ]; then
+        apt-get update
+        if [ "${INSTALL_RECOMMENDS:-"no"}" = "yes" ]; then
+            # shellcheck disable=SC2086
+            apt-get install --yes ${PKGS}
+        else
+            # shellcheck disable=SC2086
+            apt-get install --no-install-recommends --yes ${PKGS}
+        fi
+    fi
+)
+
+# install_microceph: install MicroCeph snap.
+install_microceph() (
+    # Wait for snapd seeding
+    waitSnapdSeed
+
+    if snap list microceph 2>/dev/null; then
+        snap refresh microceph --channel="${MICROCEPH_SNAP_CHANNEL:-latest/edge}" --cohort=+
+    else
+        snap install microceph --channel="${MICROCEPH_SNAP_CHANNEL:-latest/edge}" --cohort=+
+    fi
+)
+
+# configure_microceph: prepare MicroCeph for use by LXD.
+configure_microceph() {
+    if [ -z "${CEPH_DISK}" ]; then
+        echo "Missing disk for use with MicroCeph" >&2
+        return 1
+    fi
+
+    if [ ! -b "${CEPH_DISK}" ]; then
+        echo "${CEPH_DISK} is not a block device" >&2
+        return 1
+    fi
+
+    if microceph status; then
+        return 0
+    fi
+
+    microceph cluster bootstrap
+    microceph.ceph config set global mon_allow_pool_size_one true
+    microceph.ceph config set global mon_allow_pool_delete true
+    microceph.ceph config set global osd_pool_default_size 1
+    microceph.ceph config set global osd_memory_target 939524096
+    microceph.ceph osd crush rule rm replicated_rule
+    microceph.ceph osd crush rule create-replicated replicated default osd
+    for flag in nosnaptrim nobackfill norebalance norecover noscrub nodeep-scrub; do
+        microceph.ceph osd set $flag
+    done
+
+    microceph disk add --wipe "${CEPH_DISK}"
+
+    microceph enable rgw
+    microceph.ceph osd pool create cephfs_meta 32
+    microceph.ceph osd pool create cephfs_data 32
+    microceph.ceph fs new cephfs cephfs_meta cephfs_data
+    microceph.ceph fs ls
+    sleep 30
+    microceph.ceph status
+    # Wait until there are no more "unknowns" pgs
+    for _ in $(seq 60); do
+      if microceph.ceph pg stat | grep -wF unknown; then
+        sleep 1
+      else
+        break
+      fi
+    done
+    microceph.ceph status
+}
+
+# install_ovn: install OVN packages or MicroOVN snap.
+install_ovn() (
+    # Wait for snapd seeding
+    waitSnapdSeed
+
+    if [ "${OVN_SOURCE:-latest/edge}" = "deb" ]; then
+        # Avoid clashing with the microovn snap
+        if snap list microovn 2>/dev/null; then
+            snap remove --purge microovn
+        fi
+
+        install_deps ovn-host ovn-central
+    elif ! snap list microovn 2>/dev/null; then
+        # Avoid clashing with the deb packages
+        apt-get autopurge --yes ovn-host ovn-central || true
+
+        snap install microovn --channel="${OVN_SOURCE:-latest/edge}" --cohort=+
+    fi
+)
+
+# configure_ovn: prepare OVN for use by LXD.
+configure_ovn() {
+    if [ "${OVN_SOURCE:-latest/edge}" = "deb" ]; then
+        ovs-vsctl set open_vswitch . \
+          external_ids:ovn-remote=unix:/var/run/ovn/ovnsb_db.sock \
+          external_ids:ovn-encap-type=geneve \
+          external_ids:ovn-encap-ip=127.0.0.1
+
+        # Empty controller log so ACL log checks are consistent over repeat runs.
+        echo "" > /var/log/ovn/ovn-controller.log
+    else
+        microovn status || microovn cluster bootstrap
+        if ! hasNeededAPIExtension ovn_dynamic_northbound_connection; then
+          lxc config set network.ovn.northbound_connection "ssl:127.0.0.1:6641"
+        fi
+    fi
+}
+
+# install_lxd: install LXD from a specific channel or `latest/edge` if none is provided.
+# Optional argument: boolean which indicates whether to start the daemon. Default is true.
+install_lxd() (
+    local start_daemon="${1:-true}"
+
+    # Prevent lxd-installer from getting in the way
+    [ -x /usr/sbin/lxd ] && chmod -x /usr/sbin/lxd
+    [ -x /usr/sbin/lxc ] && chmod -x /usr/sbin/lxc
+
+    if [ -n "${KEEP_LXD:-}" ]; then
+        if [ "${start_daemon}" = "true" ]; then
+            # Make sure LXD is started at least
+            systemctl start snap.lxd.daemon.service
+        fi
+    else
+        waitSnapdSeed
+
+        # Prior to removal, snap takes a snapshot of the user data. This is
+        # slow and IO intensive so best skipped if possible by a purge.
+        if [ -n "${PURGE_LXD:-}" ]; then
+            snap remove --purge lxd || true
+        fi
+
+        # Installing a locally provided snap requires to first install from the
+        # snapstore then install with --dangerous. The alias needs to be created
+        # manually too.
+        if [ -n "${LXD_SNAP_PATH:-}" ]; then
+            snap list lxd 2>/dev/null || snap install lxd --channel "${LXD_SNAP_CHANNEL}" --cohort=+
+            snap install --dangerous "${LXD_SNAP_PATH}"
+            snap alias lxd.lxc lxc
+        else
+            if snap list lxd 2>/dev/null; then
+                snap refresh lxd --channel="${LXD_SNAP_CHANNEL}" --cohort=+
+            else
+                snap install lxd --channel="${LXD_SNAP_CHANNEL}" --cohort=+
+            fi
+        fi
+    fi
+
+    # Switch all `coreXX` bases to `latest/candidate`
+    for core in $(snap list | awk '/^core[0-9]+/ {print $1}'); do
+        snap refresh "${core}" --channel=latest/candidate --cohort=+
+    done
+
+    snap list lxd
+    uname -a
+    cat /proc/cmdline
+
+    if [ -n "${LXD_SIDELOAD_PATH:-}" ]; then
+        cp "${LXD_SIDELOAD_PATH}" /var/snap/lxd/common/lxd.debug
+    fi
+
+    if [ -n "${LXC_SIDELOAD_PATH:-}" ]; then
+        cp "${LXC_SIDELOAD_PATH}" /var/snap/lxd/common/lxc.debug
+    fi
+
+    if [ -n "${LXD_AGENT_SIDELOAD_PATH:-}" ]; then
+        mount --bind "${LXD_AGENT_SIDELOAD_PATH}" /snap/lxd/current/bin/lxd-agent
+    fi
+
+    if [ -n "${LXD_ZFS_EXTERNAL:-}" ]; then
+        snap set lxd zfs.external=true
+    fi
+
+    if [ "$start_daemon" = "true" ]; then
+        lxd waitready --timeout=300
+    fi
+
+    # Silence the "If this is your first time running LXD on this machine" banner
+    # on first invocation
+    mkdir -p ~/snap/lxd/common/config/
+    touch ~/snap/lxd/common/config/config.yml
+)
+
+# hasNeededAPIExtension: check if LXD supports the needed extension.
+hasNeededAPIExtension() (
+    { set +x; } 2>/dev/null
+    local lxc_info_out
+    lxc_info_out="$(lxc info)" || exit 1
+    echo "${lxc_info_out}" | grep -qxFm1 -- "- ${1}"
+)
+
+# runsMinimumKernel: check if the running kernel is at least the minimum version.
+runsMinimumKernel() (
+    min_version="${1}"
+    min_major="$(echo "${min_version}" | cut -d. -f1)"
+    min_minor="$(echo "${min_version}" | cut -d. -f2)"
+    running_version="$(uname -r | cut -d. -f 1,2)"
+    running_major="$(echo "${running_version}" | cut -d. -f1)"
+    running_minor="$(echo "${running_version}" | cut -d. -f2)"
+
+    if [ "${running_major}" -lt "${min_major}" ]; then
+        return 1
+    elif [ "${running_major}" -eq "${min_major}" ] && [ "${running_minor}" -lt "${min_minor}" ]; then
+        return 1
+    fi
+    return 0
+)
+
+# createPowerFlexPool: creates a new storage pool using the PowerFlex driver.
+createPowerFlexPool() (
+  lxc storage create "${1}" powerflex \
+    powerflex.pool="${POWERFLEX_POOL}" \
+    powerflex.domain="${POWERFLEX_DOMAIN}" \
+    powerflex.gateway="${POWERFLEX_GATEWAY}" \
+    powerflex.gateway.verify="${POWERFLEX_GATEWAY_VERIFY:-true}" \
+    powerflex.user.name="${POWERFLEX_USER}" \
+    powerflex.user.password="${POWERFLEX_PASSWORD}" \
+    powerflex.mode="${POWERFLEX_MODE:-nvme/tcp}"
+
+  if [ -n "${POWERFLEX_SNAPSHOT_COPY:-}" ]; then
+    lxc storage set "${1}" powerflex.snapshot_copy=true
+  fi
+)
+
+# createPowerStorePool: creates a new storage pool using the PowerStore driver.
+createPowerStorePool() (
+  lxc storage create "${1}" powerstore \
+    powerstore.gateway="${POWERSTORE_GATEWAY}" \
+    powerstore.gateway.verify="${POWERSTORE_GATEWAY_VERIFY:-true}" \
+    powerstore.user.name="${POWERSTORE_USER}" \
+    powerstore.user.password="${POWERSTORE_PASSWORD}" \
+    powerstore.mode="${POWERSTORE_MODE:-nvme/tcp}"
+)
+
+# createPureStoragePool: creates a new storage pool using the Pure Storage driver.
+createPureStoragePool() (
+  lxc storage create "${1}" pure \
+    pure.gateway="${PURE_GATEWAY}" \
+    pure.gateway.verify="${PURE_GATEWAY_VERIFY:-true}" \
+    pure.api.token="${PURE_API_TOKEN}" \
+    pure.mode="${PURE_MODE:-nvme/tcp}"
+)
+
+# createAlletraStoragePool: creates a new storage pool using the HPE Alletra Storage driver.
+createAlletraStoragePool() (
+  lxc storage create "${1}" alletra \
+    alletra.wsapi="${ALLETRA_WSAPI}" \
+    alletra.user.name="${ALLETRA_USERNAME}" \
+    alletra.user.password="${ALLETRA_PASSWORD}" \
+    alletra.wsapi.verify="${ALLETRA_WSAPI_VERIFY:-true}" \
+    alletra.cpg="${ALLETRA_CPG}" \
+    alletra.mode="${ALLETRA_MODE:-nvme/tcp}"
+)
+
+# createCertificateAndKey: creates a new key pair.
+createCertificateAndKey() (
+  key_file="${1}"
+  crt_file="${2}"
+  cn="${3}"
+  openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -sha384 -keyout "${key_file}" -nodes -out "${crt_file}" -days 1 -subj "/CN=${cn}"
+)
+
+# certificateFingerprint: returns the certificate's fingerprint.
+certificateFingerprint() (
+  openssl x509 -in "${1}" -outform der | sha256sum
+)
+
+# certificateFingerprintShort: returns the certificate's fingerprint in short form as used by LXD.
+certificateFingerprintShort() (
+  certificateFingerprint "${1}" | head -c12
+)
+
+# setup_swap: create a temporary swapfile for CI usage but only if there is no existing swap.
+setup_swap() {
+    if [ -n "$(swapon --noheading --raw)" ]; then
+        # Swap detected, nothing to do
+        return
+    fi
+
+    SIZE="${1:-1G}"
+    LXD_CI_SWAPFILE="$(mktemp --tmpdir lxd-ci.swapfile.XXXXXXX)"
+    fallocate -l "${SIZE}" "${LXD_CI_SWAPFILE}"
+    chmod 0000 "${LXD_CI_SWAPFILE}"
+    mkswap "${LXD_CI_SWAPFILE}"
+    swapon "${LXD_CI_SWAPFILE}"
+    export LXD_CI_SWAPFILE
+}
+
+# teardown_swap: deactivate and remove any swapfile created by setup_swap
+teardown_swap() {
+    if [ -z "${LXD_CI_SWAPFILE:-}" ]; then
+        return
+    fi
+
+    swapoff "${LXD_CI_SWAPFILE}"
+    rm "${LXD_CI_SWAPFILE}"
+}
+
+# Returns true if Go coverage collection is enabled (GOCOVERDIR is set) and testing against a modern LXD version.
+coverage_enabled() {
+  # Never collect coverage data on older LXD versions
+  if [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
+    return 1
+  fi
+
+  [ -n "${GOCOVERDIR:-}" ]
+}
+
+# If Go coverage is enabled, prepare the lxd-agent inside the instance for hard stop.
+# This is a no-op if coverage is not enabled.
+prepare_vm_for_hard_stop() {
+  coverage_enabled || return 0
+
+  local instance="${1}"
+  local project="${2:-}"
+
+  # The lxd-agent is only relevant for VMs.
+  if [ "$(lxc list --project "${project}" -f csv -c t name="${instance}")" != "VIRTUAL-MACHINE" ]; then
+    return 0
+  fi
+
+  lxc exec "${instance}" --project "${project}" -- systemctl stop --no-block lxd-agent.service || true
+}
+
+# Setup instance to collect coverage data from running Go binaries from inside the instance.
+# If coverage is not enabled, this is a no-op.
+# If the instance is a VM, the lxd-agent will be instrumented too.
+# Note: incompatible with `migration.stateful=true` instances due to relying on host shared directory for coverage data.
+setup_instance_gocoverage() {
+  coverage_enabled || return 0
+
+  local instance="${1}"
+  local project="${2:-}"
+
+  echo "==> Setting up Go coverage gathering inside the ${instance} (${project:-"-"}) instance"
+
+  # Mount the host's GOCOVERDIR into the instance.
+  lxc config device add "${instance}" gocoverdir disk source="${GOCOVERDIR}" path="${GOCOVERDIR}" --project "${project}"
+
+  # The GOCOVERDIR variable is set for use by test binaries.
+  lxc config set "${instance}" environment.GOCOVERDIR="${GOCOVERDIR}" --project "${project}"
+
+  # The lxd-agent is only relevant for VMs.
+  if [ "$(lxc list --project "${project}" -f csv -c t name="${instance}")" != "VIRTUAL-MACHINE" ]; then
+    return 0
+  fi
+
+  # The GOCOVERDIR variable is passed to lxd-agent via a systemd drop-in.
+  lxc file push --quiet --create-dirs --project "${project}" - "${instance}"/etc/systemd/system/lxd-agent.service.d/env.conf << EOF
+[Service]
+Environment="GOCOVERDIR=${GOCOVERDIR}"
+EOF
+  lxc exec "${instance}" --project "${project}" -- systemctl daemon-reload
+
+  local start_time_orig start_time_new rc
+  start_time_orig=$(lxc exec "${instance}" --project "${project}" -- systemctl show -p ExecMainStartTimestampMonotonic --value lxd-agent.service)
+
+  # Restarting lxd-agent is expected to abruptly terminate the lxc exec session,
+  # so a failure is possible and harmless.
+  lxc exec "${instance}" --project "${project}" -- systemctl restart --no-block lxd-agent.service || true
+
+  for _ in $(seq 60); do
+    rc=0
+    start_time_new=$(lxc exec "${instance}" --project "${project}" -- systemctl show -p ExecMainStartTimestampMonotonic --value lxd-agent.service) || rc=$?
+    if [ "${rc}" -eq 0 ] && [ -n "${start_time_new}" ] && [ "${start_time_new}" != "${start_time_orig}" ]; then
+      local consecutive=0
+      for _ in $(seq 30); do
+        # Check that the instance can serve 'lxc exec' reliably. Test failures revealed that despite being
+        # able to handle the above lxc exec to populate start_time_new, the agent can flip back to appearing
+        # offline (such that an lxc exec will fail) due to some quirks in the online/offline status handling
+        # code (in particular: lxd appears to read the state of the agent only when QEMU emits an event into
+        # the channel. QEMU is rate-limiting events to 1s, such that you can do an lxc exec that observes a stale
+        # 'STARTED' state and attempts the exec in between the shutdown and startup phases of the restart,
+        # and the exec eventually succeeds while the state flag gets flipped to STOPPED on top of it, leaving
+        # a <=1s gap after the exec returns where a subsequent exec will/may observe STOPPED against a runnning
+        # lxd-agent. This issue can only happen with agent restarts and not on cold boots, and the impact is
+        # minimal, so a test workaround seems appropriate.
+        if lxc exec "${instance}" --project "${project}" -- true > /dev/null  2>&1; then
+          consecutive=$((consecutive + 1))
+          if [ "${consecutive}" -ge 2 ]; then
+            return 0
+          fi
+        else
+          consecutive=0
+        fi
+        sleep 1
+      done
+      echo "lxd-agent inside the ${instance} (${project:-"-"}) instance started, but did not become ready within 30s"
+      return 1
+    fi
+    sleep 1
+  done
+
+  echo "lxd-agent inside the ${instance} (${project:-"-"}) instance did not restart within 60s"
+  return 1
+}
+
+# count_gpu_devices: returns the number of GPU devices in the instance.
+count_gpu_devices() {
+  lxc exec "${1}" -- ls /dev/dri/ | grep -cx 'card[0-9]\+'
+}
+
+# cleanup: report if the test passed or not and return the appropriate return code.
+cleanup() {
+    set +e
+    echo ""
+
+    # Ignore unattended-upgrades core dumps (https://bugs.launchpad.net/ubuntu/+source/unattended-upgrades/+bug/2139433)
+    if compgen -G "/var/crash/unattended-upgr*.gz" > /dev/null 2>&1; then
+      echo "::notice::==> CORE: unattended-upgrades core dump ignored (LP: #2139433)"
+      rm /var/crash/unattended-upgr*.gz
+    fi
+
+    # XXX: Ignore qemu core dumps only for QEMU < 10.2.0
+    if compgen -G "/var/crash/qemu-system-x86.*.gz" > /dev/null 2>&1; then
+        local qemu_pkg_version
+        qemu_pkg_version="$(lxc query /1.0 | jq --exit-status --raw-output '.environment.driver_version' | awk '{print $NF}')"
+
+        if [ -n "${qemu_pkg_version}" ] && dpkg --compare-versions "${qemu_pkg_version}" lt "10.2.0"; then
+            echo "CORE: Ignoring qemu core dumps (qemu-system-x86 ${qemu_pkg_version})"
+            rm /var/crash/qemu-system-x86.*.gz
+        fi
+    fi
+
+    # Ignore WGA (Windows Azure Guest Agent) crashes.
+    if compgen -G "/var/crash/*waagent*" > /dev/null 2>&1; then
+        echo "::notice::==> CORE: WGA (waagent) core dump ignored"
+        rm /var/crash/*waagent*
+    fi
+
+    # Ignore io_context_pool crashes.
+    if compgen -G "/var/crash/io_context_pool*" > /dev/null 2>&1; then
+        echo "::notice::==> CORE: io_context_pool core dump ignored"
+        rm /var/crash/io_context_pool*
+    fi
+
+    # Ignore dnsmasq crashes.
+    if compgen -G "/var/crash/dnsmasq*" > /dev/null 2>&1; then
+        echo "::notice::==> CORE: dnsmasq core dump ignored"
+        rm /var/crash/dnsmasq*
+    fi
+
+    # Ignore fuse_worker crashes.
+    if compgen -G "/var/crash/fuse_worker*" > /dev/null 2>&1; then
+        echo "::notice::==> CORE: fuse_worker core dump ignored"
+        rm /var/crash/fuse_worker*
+    fi
+
+    if [ -n "$(ls -A /var/crash/)" ]; then
+        echo "CORE: coredump found during cleanup, forcing failure"
+        FAIL=1
+    fi
+
+    if [ "${FAIL}" = "1" ]; then
+        echo "Test failed"
+
+        # Displaying a wall of text is OK in CI but best avoided when running locally
+        if [ -n "${GITHUB_ACTIONS:-}" ]; then
+            echo "::group::diagnostic"
+            # Report current disk usage to diagnose potential out of space issues
+            df -h
+
+            # Report about disk usage as seen from LXD's mount namespace
+            LD_LIBRARY_PATH=/snap/lxd/current/lib/:/snap/lxd/current/lib/x86_64-linux-gnu/:/snap/lxd/current/lib/x86_64-linux-gnu/ceph:/snap/lxd/current/zfs-2.3/lib PATH=/snap/lxd/current/zfs-2.3/bin:/snap/lxd/current/bin:$PATH nsenter --mount=/run/snapd/ns/lxd.mnt -- df -h
+
+            # Report some more information for diagnostic purposes
+            snap list --all
+            uname -a
+            if echo "${LXD_SNAP_CHANNEL}" | grep -qE '^4\.0/'; then
+                lxc list
+                lxc image list
+                lxc storage list
+                lxc storage info default
+            else
+                lxc list --all-projects
+                lxc image list --all-projects
+                lxc storage list
+                for storage in $(lxc storage list -f csv | cut -d, -f1); do lxc storage info "${storage}"; done
+            fi
+            echo "::endgroup::"
+
+            echo "::group::lsmod"
+            lsmod
+            echo "::endgroup::"
+
+            echo "::group::meminfo"
+            cat /proc/meminfo
+            echo "::endgroup::"
+
+            echo "::group::mountinfo"
+            cat /proc/1/mountinfo
+            echo "::endgroup::"
+
+            # LXD daemon logs
+            echo "::group::lxd logs"
+            journalctl --quiet --no-hostname --no-pager --boot=0 --lines=100 --unit=snap.lxd.daemon.service
+            echo "::endgroup::"
+
+            # dmesg may contain oops, IO errors, crashes, etc
+            echo "::group::dmesg logs"
+            journalctl --quiet --no-hostname --no-pager --boot=0 --lines=100 --dmesg
+            echo "::endgroup::"
+        fi
+
+        exit 1
+    fi
+
+    # Teardown any swapfile created by lxd-ci
+    teardown_swap
+
+    echo "Test passed"
+    exit 0
+}
+
+# Only if executed directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  @@LXD_SNAP_CHANNEL@@
+  export DEBIAN_FRONTEND=noninteractive
+  FAIL=1
+  trap cleanup EXIT HUP INT TERM
+fi

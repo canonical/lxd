@@ -1,0 +1,180 @@
+#!/bin/bash
+set -eux
+
+# Integration test verifying that Canonical products relying on LXD keep working
+# with it. It accepts an optional list of products to test as arguments.
+# When no arguments are provided, all supported products are tested.
+if [ "${#}" -gt 0 ]; then
+    products=("${@}")
+else
+    products=(snapcraft workshop charmcraft)
+fi
+
+# test_snapcraft: pack a minimal snap and confirm snapcraft used the LXD backend.
+test_snapcraft() {
+    # Install snapcraft (use latest/candidate to help catch regressions in LXD/snapcraft earlier).
+    snap install snapcraft --classic --channel=latest/candidate
+
+    local tmpdir
+    tmpdir="$(mktemp -d)"
+    cd "${tmpdir}"
+
+    mkdir -p "${tmpdir}/snap"
+    mkdir -p "${tmpdir}/src"
+
+    # Create the app to pack.
+    cat << 'EOF' > "${tmpdir}/src/example.sh"
+#!/bin/bash
+echo "Example snap."
+EOF
+
+    chmod +x "${tmpdir}/src/example.sh"
+
+    # Create the snapcraft.yaml file.
+    cat << 'EOF' > "${tmpdir}/snap/snapcraft.yaml"
+name: snap-example
+version: '0.1'
+summary: A simple snap
+description: |
+  This is a basic snap.
+
+base: core24
+confinement: strict
+grade: devel
+
+apps:
+  snap-example:
+    command: bin/example.sh
+
+parts:
+  example-script:
+    plugin: dump
+    source: src/
+    organize:
+      example.sh: bin/example.sh
+EOF
+
+    # Produce the snap file.
+    snapcraft pack -v
+
+    # Verify the snap artifact was produced (arch suffix varies, so glob it).
+    ls snap-example_0.1_*.snap
+
+    # Confirm snapcraft used the LXD backend.
+    lxc list --project snapcraft
+
+    # Clean up the temporary working directory.
+    cd - > /dev/null
+    rm -rf "${tmpdir}"
+}
+
+# test_workshop: launch a minimal workshop and confirm it successfully used LXD.
+test_workshop() {
+    # Install Workshop (use latest/edge to help catch regressions in LXD/Workshop earlier).
+    snap install workshop --classic --channel=latest/edge
+
+    # Workshop maps the invoking user into its unprivileged container. Running as
+    # root would map host uid 0 into the container, which breaks the LXCFS mount
+    # hook and prevents the container from starting, so Workshop must be driven by
+    # a non-root user that has access to LXD.
+    local wsuser="lxd-consumer"
+    useradd --create-home --groups lxd --uid 5000 "${wsuser}"
+
+    sudo -Hu "${wsuser}" -- bash -eux << 'EOF'
+cd "${HOME}"
+mkdir -p project
+cd project
+
+# Define a minimal workshop: a base image plus the built-in system SDK.
+workshop init dev --base ubuntu@24.04
+
+# The definition should now exist in the project directory.
+[ -f "${HOME}/project/.workshop/dev.yaml" ]
+
+# Launch the workshop (downloads the base image and provisions the LXD container).
+workshop launch dev
+
+# Verify the workshop is usable by running a command inside it and checking the base.
+workshop exec dev -- grep -xF 'VERSION_ID="24.04"' /etc/os-release
+
+# Remove the workshop.
+workshop remove dev
+EOF
+
+    # Confirm Workshop successfully used LXD.
+    lxc storage show workshop
+
+    # Clean up the user and its home directory.
+    loginctl terminate-user "${wsuser}" 2>/dev/null || true
+    userdel --remove --force "${wsuser}"
+}
+
+# test_charmcraft: pack a minimal charm and confirm charmcraft used the LXD backend.
+test_charmcraft() {
+    # Install charmcraft (use latest/candidate to help catch regressions in LXD/charmcraft earlier).
+    snap install charmcraft --classic --channel=latest/candidate
+
+    local tmpdir
+    tmpdir="$(mktemp -d)"
+    cd "${tmpdir}"
+
+    mkdir -p "${tmpdir}/src"
+
+    # Create the charm content to pack.
+    echo "Example charm." > "${tmpdir}/src/example.txt"
+
+    # Create the charmcraft.yaml file.
+    cat << EOF > "${tmpdir}/charmcraft.yaml"
+type: charm
+name: charm-example
+title: Charm Example
+summary: A simple charm
+description: |
+  This is a basic charm.
+base: ubuntu@24.04
+platforms:
+  $(dpkg --print-architecture):
+parts:
+  example-charm:
+    plugin: dump
+    source: src/
+EOF
+
+    # Produce the charm file.
+    charmcraft pack -v
+
+    # Verify the charm artifact was produced (arch suffix varies, so glob it).
+    ls charm-example_*.charm
+
+    # Confirm charmcraft used the LXD backend.
+    lxc list --project charmcraft
+
+    # Clean up the temporary working directory.
+    cd - > /dev/null
+    rm -rf "${tmpdir}"
+}
+
+# Install and setup LXD.
+install_lxd
+lxd init --auto
+
+for product in "${products[@]}"; do
+    case "${product}" in
+        snapcraft)
+            test_snapcraft
+            ;;
+        workshop)
+            test_workshop
+            ;;
+        charmcraft)
+            test_charmcraft
+            ;;
+        *)
+            echo "Unknown product: ${product}" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# shellcheck disable=SC2034
+FAIL=0

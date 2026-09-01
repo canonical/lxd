@@ -1,0 +1,133 @@
+#!/bin/bash
+set -eux
+
+architecture="$(uname -m)"
+if [ "${architecture}" != "x86_64" ] && [ "${architecture}" != "s390x" ]; then
+  echo "Skipping test as CPU hotplugging not supported on ${architecture}"
+  exit 0
+fi
+
+# Install LXD
+install_lxd
+
+if ! hasNeededAPIExtension cpu_hotplug; then
+  echo "Skipping test as CPU hotplugging not supported on ${LXD_SNAP_CHANNEL}"
+  exit 0
+fi
+
+# Configure LXD
+lxc network create lxdbr0
+lxc profile device add default eth0 nic network=lxdbr0
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+poolName="vmpool$$"
+poolDriver=dir
+
+echo "==> Create storage pool using driver ${poolDriver}"
+lxc storage create "${poolName}" "${poolDriver}"
+
+# limits.kernel.* aren't valid for VMs, but profiles with the key set should
+# still work
+lxc profile set default limits.kernel.nofile 50
+
+! lxc init v0 --vm --empty -c limits.kernel.cpu=46 -s "${poolName}" || false
+
+lxc init v0 --vm --empty -s "${poolName}"
+
+# limits.kernel.* only applies to containers (shouldn't work)
+! lxc config set v0 limits.kernel.as=1GiB || false
+
+lxc delete v0
+
+echo "==> Create and boot VM"
+lxc launch "${IMAGE}" v1 --vm -s "${poolName}"
+waitInstanceReady v1
+setup_instance_gocoverage v1
+lxc info v1
+
+# Get number of CPUs
+# shellcheck disable=SC2010
+cpuCount="$(ls /sys/devices/system/cpu | grep -xEc 'cpu[[:digit:]]+')"
+
+# VMs should have only 1 CPU per default
+waitForGuestCPUCount v1 1
+
+# Set valid CPU limits (low to high)
+for i in $(seq 2 "${cpuCount}"); do
+  lxc config set v1 limits.cpu="${i}"
+  waitForGuestCPUCount v1 "${i}"
+done
+
+# Try setting more CPUs than available
+! lxc config set v1 limits.cpu="$(( cpuCount + 1 ))" || false
+
+# Set valid CPU limits (high to low)
+for i in $(seq "${cpuCount}" -1 1); do
+  lxc config set v1 limits.cpu="${i}"
+  waitForGuestCPUCount v1 "${i}"
+done
+
+if [ "$(nproc)" -gt 2 ]; then
+  echo "==> Check that there is no CPU pinning set"
+  QEMU_PID="$(lxc list -f csv -c p v1)"
+  ! taskset --cpu-list -a -p "${QEMU_PID}" | grep -E ':\s+[0-9]+$' || false
+  taskset --cpu-list -a -p "${QEMU_PID}" | grep -E ":\s+0-$((cpuCount-1))$"
+
+  # Set max CPU count
+  lxc config set v1 limits.cpu="${cpuCount}"
+  waitForGuestCPUCount v1 "${cpuCount}"
+
+  # Try doing pinning while VM is running (shouldn't work)
+  ! lxc config set v1 limits.cpu=1,2 || false
+fi
+
+# Unset CPU limit
+lxc config unset v1 limits.cpu
+
+# Unsetting the limit should leave the VM with 1 CPU
+waitForGuestCPUCount v1 1
+
+echo "==> Deleting VM"
+prepare_vm_for_hard_stop v1
+lxc delete -f v1
+
+if hasNeededAPIExtension vm_limits_cpu_pin_strategy; then
+  echo "==> Check CPU auto pinning when limits.cpu.pin_strategy=auto"
+  lxc launch --empty v1 --vm -c limits.cpu="${cpuCount}" -c limits.cpu.pin_strategy=auto -s "${poolName}"
+
+  # Try changing limits.cpu.pin_strategy while VM is running (shouldn't work)
+  ! lxc config set v1 limits.cpu.pin_strategy=none || false
+
+  QEMU_PID="$(lxc list -f csv -c p v1)"
+  # Check that there are processes with pinning set
+  # It will be shown like this (for limits.cpu=2):
+  # pid 2894's current affinity list: 6
+  # pid 2895's current affinity list: 8
+  # pid 2897's current affinity list: 0-15
+  # pid 2898's current affinity list: 0-15
+  # pid 2899's current affinity list: 0-15
+  # 2894 and 2895 have affinity set, while others don't
+  PINNED_THREADS_NUM=$(taskset --cpu-list -a -p "${QEMU_PID}" | grep -cE ':\s+[0-9]+$')
+  [ "${PINNED_THREADS_NUM}" -ge "$(lxc config get v1 limits.cpu)" ]
+
+  echo "==> Deleting VM"
+  lxc delete -f v1
+fi
+
+echo "==> Testing ephemeral VM cleanup on stop"
+lxc launch --empty v1 --vm -s "${poolName}" --ephemeral
+lxc stop -f v1
+! lxc info v1 || false
+
+lxc profile device remove default eth0
+lxc profile unset default limits.kernel.nofile
+
+echo "==> Deleting storage pool"
+lxc storage delete "${poolName}"
+
+echo "==> Deleting storage pool"
+lxc network delete lxdbr0
+
+# shellcheck disable=SC2034
+FAIL=0

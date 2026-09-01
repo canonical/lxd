@@ -1,0 +1,100 @@
+#!/bin/bash
+set -eux
+
+# Install dependencies
+install_deps iputils-ping
+
+# Install LXD
+install_lxd
+
+# Configure LXD.
+lxc project switch default
+lxc storage create default dir
+
+IMAGE="${TEST_IMG:-ubuntu-daily:24.04}"
+
+# Set global sysctl.
+sysctl net.ipv6.conf.all.forwarding=1
+sysctl net.ipv6.conf.all.proxy_ndp=1
+
+# Setup dummy parent interface.
+ip link add dummy0 type dummy
+sysctl net.ipv6.conf.dummy0.proxy_ndp=1
+sysctl net.ipv6.conf.dummy0.forwarding=1
+sysctl net.ipv4.conf.dummy0.forwarding=1
+sysctl net.ipv6.conf.dummy0.accept_dad=0
+ip link set dummy0 up
+ip addr add 192.0.2.1/32 dev dummy0
+ip addr add 2001:db8::1/128 dev dummy0
+
+NET_CONFIG_KEY="cloud-init.network-config"
+if ! hasNeededAPIExtension cloud_init; then
+    NET_CONFIG_KEY="user.network-config"
+fi
+
+for type in container vm; do
+    instName="c1"
+    iface="eth0"
+    extra_args=""
+    if [ "${type}" = "vm" ]; then
+      instName="v1"
+      extra_args="--vm"
+      iface="enp5s0"
+    fi
+
+    # Create instance and add routed NIC.
+    lxc init "${IMAGE}" "${instName}" -s default -c limits.memory=512MiB ${extra_args} # Don't quote to omit empty extra args.
+    lxc config device add "${instName}" eth0 nic \
+        nictype=routed \
+        parent=dummy0 \
+        ipv4.address=192.0.2.2,192.0.2.3 \
+        ipv6.address=2001:db8::2,2001:db8::3
+
+    # Set up the network configuration for the instance.
+    lxc config set "${instName}" "${NET_CONFIG_KEY}" - << EOF
+network:
+  version: 2
+  ethernets:
+    ${iface}:
+      routes:
+      - to: default
+        via: 169.254.0.1
+        on-link: true
+      - to: default
+        via: fe80::1
+        on-link: true
+      addresses:
+      - 192.0.2.2/32
+      - 192.0.2.3/32
+      - 2001:db8::2/128
+      - 2001:db8::3/128
+EOF
+
+    lxc start "${instName}"
+
+    # Wait for VM to start.
+    waitInstanceReady "${instName}"
+    sleep 10
+
+    # Show useful debugging information.
+    lxc exec "${instName}" -- ip a
+    lxc exec "${instName}" -- ip route
+    lxc exec "${instName}" -- ip -6 route
+
+    # Test ping to/from instance NIC.
+    ping -nc1 -i0.1 -w1 -4 192.0.2.2
+    ping -nc1 -i0.1 -w1 -6 2001:db8::2
+    lxc exec "${instName}" -- ping -nc1 -i0.1 -w1 -4 192.0.2.1
+    lxc exec "${instName}" -- ping -nc1 -i0.1 -w1 -6 2001:db8::2
+    lxc exec "${instName}" -- ping -nc1 -i0.1 -w1 -4 169.254.0.1
+    lxc exec "${instName}" -- ping -nc1 -i0.1 -w1 -6 "fe80::1%${iface}"
+
+    lxc delete -f "${instName}"
+done
+
+# Cleanup.
+ip link delete dummy0
+lxc storage delete default
+
+# shellcheck disable=SC2034
+FAIL=0

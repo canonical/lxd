@@ -1,0 +1,122 @@
+#!/bin/bash
+set -eux
+
+# Install dependencies
+install_deps jq
+
+# Install MicroCeph
+install_microceph
+
+# Disk for use by MicroCeph
+backing_file="$(mktemp)"
+truncate -s 20GiB "${backing_file}"
+CEPH_DISK="$(losetup --direct-io=on --show --find "${backing_file}")"
+export CEPH_DISK
+
+# Configure MicroCeph
+configure_microceph
+
+# Install LXD
+install_lxd
+
+# Configure LXD
+lxc network create lxdbr0
+lxc profile device add default eth0 nic network=lxdbr0
+
+poolName="vmpool$$"
+poolDriver=zfs
+
+echo "==> Create storage pool using driver ${poolDriver}"
+lxc storage create "${poolName}" "${poolDriver}"
+lxc profile device add default root disk path="/" pool="${poolName}"
+
+# Launch two instances for our LXD cluster and wait for them to be ready.
+lxc init "${TEST_IMG:-ubuntu-minimal-daily:24.04}" member1 --vm -c limits.memory=2GiB
+lxc init "${TEST_IMG:-ubuntu-minimal-daily:24.04}" member2 --vm -c limits.memory=2GiB
+if hasNeededAPIExtension devlxd_images_vm; then
+    lxc config set member1 security.devlxd.images=true
+    lxc config set member2 security.devlxd.images=true
+fi
+lxc start member1
+lxc start member2
+
+for instance in member1 member2; do
+    waitInstanceReady "${instance}"
+    setup_instance_gocoverage "${instance}"
+    lxc exec "${instance}" -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
+done
+
+# Install LXD in the first member.
+lxc exec member1 -- snap install lxd --channel="${LXD_SNAP_CHANNEL}" --cohort=+
+if [ -n "${LXD_SIDELOAD_PATH:-}" ]; then
+    lxc file push --quiet "${LXD_SIDELOAD_PATH}" member1/var/snap/lxd/common/lxd.debug
+    lxc exec member1 -- systemctl restart snap.lxd.daemon
+fi
+lxc exec member1 -- lxd waitready --timeout=300
+
+# Initialise and configure LXD in the first member.
+lxc exec member1 -- lxd init --auto
+member1Address="$(lxc query /1.0/instances/member1?recursion=2 | jq -r ".state.network.enp5s0.addresses[0].address")"
+lxc exec member1 -- lxc config set core.https_address="${member1Address}:8443"
+lxc exec member1 -- lxc cluster enable member1
+joinToken="$(lxc exec member1 -- lxc cluster add member2 --quiet)"
+
+# Install LXD on the second member.
+lxc exec member2 -- snap install lxd --channel="${LXD_SNAP_CHANNEL}" --cohort=+
+if [ -n "${LXD_SIDELOAD_PATH:-}" ]; then
+    lxc file push --quiet "${LXD_SIDELOAD_PATH}" member2/var/snap/lxd/common/lxd.debug
+    lxc exec member2 -- systemctl restart snap.lxd.daemon
+fi
+lxc exec member2 -- lxd waitready --timeout=300
+
+# Create a preseed file for member2 to join member1.
+member2Address="$(lxc query /1.0/instances/member2?recursion=2 | jq -r ".state.network.enp5s0.addresses[0].address")"
+
+# Initialise member2 with the preseed.
+lxc exec member2 -- lxd init --preseed << EOF
+cluster:
+  enabled: true
+  server_address: "${member2Address}"
+  cluster_token: "${joinToken}"
+EOF
+
+# Copy the ceph config from the local microceph snap into each cluster member.
+lxc file push -r -p --quiet /var/snap/microceph/current/conf/* member1/etc/ceph/
+lxc file push -r -p --quiet /var/snap/microceph/current/conf/* member2/etc/ceph/
+lxc exec member1 -- chmod +x /etc/ceph
+lxc exec member2 -- chmod +x /etc/ceph
+
+# Create the ceph storage pool
+lxc exec member1 -- lxc storage create ceph ceph --target member1
+lxc exec member1 -- lxc storage create ceph ceph --target member2
+lxc exec member1 -- lxc storage create ceph ceph
+
+# Create a volume in the ceph pool to test that we can live-migrate a VM with this volume attached.
+lxc exec member1 -- lxc storage volume create ceph vol1 --type=block size=4MiB
+
+# Create a VM in the cluster, on member1.
+lxc exec member1 -- lxc init "${TEST_IMG:-ubuntu-minimal-daily:24.04}" v1 --vm --storage ceph --target member1 -c migration.stateful=true -c limits.memory=512MiB -d root,size=3584MiB
+
+# Add vol1 as a disk device to the VM.
+lxc exec member1 -- lxc config device add v1 vol1-disk disk pool=ceph source=vol1
+
+# Start the VM.
+lxc exec member1 -- lxc start v1
+sleep 60
+
+# Ascertain that the VM is indeed on member1.
+[ "$(lxc exec member1 -- lxc list -c L -f csv v1)" = "member1" ]
+
+# Move the VM to member2 but with a timeout as this sometimes hangs indefinitely but when it works it's fast.
+lxc exec member1 -- timeout 600 lxc move v1 --target member2
+
+# Verify the migration did succeeded and the VM is running on member2.
+[ "$(lxc exec member1 -- lxc list -c L -f csv v1)" = "member2" ]
+
+# Cleanup
+prepare_vm_for_hard_stop member1
+prepare_vm_for_hard_stop member2
+lxc delete -f member1 member2
+
+# shellcheck disable=SC2034
+FAIL=0

@@ -1,0 +1,368 @@
+#!/bin/bash
+set -eux
+
+# Checks the given backup file contents for format version 1.
+check_format_version1() {
+    backupFile="$1"
+    backupFileType="$2"
+
+    if [ "${backupFileType}" != "instance" ] && [ "${backupFileType}" != "volume" ]; then
+        echo "Invalid backup file type: ${backupFileType}"
+        exit 1
+    fi
+
+    # These fields are only relevant for instances.
+    if [ "${backupFileType}" = "instance" ]; then
+        yq --exit-status '.config.container' < "${backupFile}"
+        yq --exit-status '.config.pool' < "${backupFile}"
+        yq --exit-status '.config.snapshots | length == 1' < "${backupFile}"
+    fi
+
+    yq --exit-status '.config.volume' < "${backupFile}"
+    yq --exit-status '.config.volume_snapshots | length == 1' < "${backupFile}"
+    yq --exit-status '.snapshots | length == 1' < "${backupFile}"
+
+    # New fields which should not appear in the old default format.
+    yq --exit-status '.config.instance == null' < "${backupFile}"
+    yq --exit-status '.config.version == null' < "${backupFile}"
+    yq --exit-status '.config.pools == null' < "${backupFile}"
+    yq --exit-status '.config.volumes == null' < "${backupFile}"
+}
+
+# Checks the given backup file contents for format version 2.
+check_format_version2() {
+    backupFile="$1"
+    backupFileType="$2"
+
+    if [ "${backupFileType}" != "instance" ] && [ "${backupFileType}" != "volume" ]; then
+        echo "Invalid backup file type: ${backupFileType}"
+        exit 1
+    fi
+
+    # These fields are only relevant for instances.
+    if [ "${backupFileType}" = "instance" ]; then
+        yq --exit-status '.config.instance' < "${backupFile}"
+        yq --exit-status '.config.pools | length == 1' < "${backupFile}"
+    fi
+
+    yq --exit-status '.config.version' < "${backupFile}"
+    yq --exit-status '.config.volumes | length == 1' < "${backupFile}"
+    yq --exit-status '.config.volumes.[0].snapshots | length == 1' < "${backupFile}"
+    yq --exit-status '.snapshots | length == 1' < "${backupFile}"
+
+    # Deprecated fields which should not appear in the new default format.
+    yq --exit-status '.config.container == null' < "${backupFile}"
+    yq --exit-status '.config.pool == null' < "${backupFile}"
+    yq --exit-status '.config.volume == null' < "${backupFile}"
+    yq --exit-status '.config.volume_snapshots == null' < "${backupFile}"
+}
+
+# Install dependencies.
+# Releases before 24.04 don't have a yq deb so use the snap instead.
+# shellcheck disable=SC1091
+. /etc/os-release
+
+if dpkg --compare-versions "${VERSION_ID}" ge 24.04; then
+    install_deps jq yq
+else
+    install_deps jq
+    if ! command -v yq > /dev/null; then
+        waitSnapdSeed
+        snap install yq
+    fi
+fi
+
+# Install LXD.
+install_lxd
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+# Configure LXD.
+lxc network create lxdbr0
+lxc profile device add default eth0 nic network=lxdbr0
+lxc config set core.https_address :8443
+
+poolDriver="zfs"
+poolName="vmpool-${poolDriver}"
+
+echo "==> Create storage pool using driver ${poolDriver}"
+lxc storage create "${poolName}" "${poolDriver}"
+lxc profile device add default root disk pool="${poolName}" path=/
+
+# Do a matrix test and check the current version of LXD against latest, 5.21 and 5.0:
+# latest is using the new format both internally and by default for exports/metadata.
+# 5.21   is using the new format internally but falls back to the old format for exports/metadata.
+# 5.0    is using the old format both internally and for exports/metadata (same for 4.0).
+# New versions can be added to the matrix on demand.
+# The test suite knows which versions are using the old format version 1.
+# All other versions are tested against the new format version 2.
+for vers in "latest" "5.21" "5.0"; do
+    risk="$(echo "${LXD_SNAP_CHANNEL}" | cut -d/ -f2)"
+    versStr="${vers}/${risk}"
+
+    # Don't test 5.0 clients against latest track as the client is too old and only supports password authentication.
+    # Due to the nature of this matrix test, the latest client gets tested against an 5.0 server.
+    if ! echo "${LXD_SNAP_CHANNEL}" | grep -qE "^(latest|5\.[1-9].)/" && [ "${vers}" = "latest" ]; then
+        echo "Skip testing ${LXD_SNAP_CHANNEL} against ${versStr} as the client is too old"
+        continue
+    fi
+
+    echo "==> Create container with a ${versStr} LXD"
+    lxc launch "${IMAGE}" c1 -s "${poolName}" -c security.devlxd.images=true -c security.nesting=true -c limits.cpu=4 -c limits.memory=4GiB -d root,size=20GiB
+
+    echo "==> Add required devices for creating empty VMs inside of the container"
+    lxc config device add c1 kvm unix-char source=/dev/kvm
+    lxc config device add c1 vhost-net unix-char source=/dev/vhost-net
+    lxc config device add c1 vhost-vsock unix-char source=/dev/vhost-vsock
+    lxc config device add c1 vsock unix-char source=/dev/vsock
+
+    waitInstanceReady c1
+
+    # shellcheck disable=SC3044 # Ignore "declare is undefined" shellcheck error.
+    lxc exec c1 -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
+    lxc exec c1 -- snap install lxd --channel="${versStr}" --cohort=+
+    lxc exec c1 -- lxd init --auto --storage-backend=dir --network-address="[::]" --network-port=8443
+
+    echo "==> Add nested LXD as remote"
+    token="$(lxc exec c1 -- lxc config trust add --name host --quiet)"
+    lxc remote add c1 "${token}"
+
+    tmpdir="$(mktemp -d)"
+
+    # Check if instance backups from ${versStr} can be imported into present version of LXD.
+    for type in container vm; do
+        extra_args=""
+        if [ "${type}" = "vm" ]; then
+            extra_args="--vm"
+        fi
+
+        vol_size="3584MiB"
+        if [ "${type}" = "container" ]; then
+            # Overwrite the root volume's size for containers to speed up the export/import.
+            vol_size="512MiB"
+        fi
+
+        echo "==> Create a ${type} and snapshot it"
+        lxc init "${IMAGE}" c1:i1 -d root,size="${vol_size}" ${extra_args} # Don't quote to omit empty extra args.
+        lxc snapshot c1:i1
+
+        echo "==> Export using the default backup format implicitly by not specifying a version"
+        # 5.0/5.21 always use the old format.
+        # > 5.21 uses the new format.
+        lxc export c1:i1 "${tmpdir}/i1.tar" --compression none --optimized-storage
+        tar --occurrence=1 -xf "${tmpdir}/i1.tar" -C "${tmpdir}" backup/index.yaml
+
+        echo "==> Check the backup index file"
+        cat "${tmpdir}/backup/index.yaml"
+
+        if [ "${vers}" = "5.21" ] || [ "${vers}" = "5.0" ]; then
+            check_format_version1 "${tmpdir}/backup/index.yaml" instance
+
+            # The old format should be allowed for import in any case.
+            echo "==> Check the ${type} can be imported on LXD ${LXD_SNAP_CHANNEL}"
+            lxc import "${tmpdir}/i1.tar" i1
+            lxc query "/1.0/instances/i1?recursion=1" | jq --exit-status '.snapshots | length == 1'
+
+            lxc delete i1
+        else
+            check_format_version2 "${tmpdir}/backup/index.yaml" instance
+
+            # Only LXD >= 5.21 allows importing the new format.
+            if hasNeededAPIExtension backup_metadata_version; then
+                echo "==> Check the ${type} can be imported on LXD ${LXD_SNAP_CHANNEL}"
+                lxc import "${tmpdir}/i1.tar" i1
+                lxc query "/1.0/instances/i1?recursion=1" | jq --exit-status '.snapshots | length == 1'
+
+                lxc delete i1
+            fi
+        fi
+
+        rm -rf "${tmpdir}/backup"
+        rm "${tmpdir}/i1.tar"
+
+        # Only LXD >= 5.21 allows setting the export version.
+        # We check for the backup_metadata_version API extension on both source (c1) and target (present) LXD.
+        # As both the server and client get shipped together with the snap, by testing for backup_metadata_version we can check if the client supports the --export-version flag.
+        if lxc exec c1 -- sh -c "$(declare -f hasNeededAPIExtension); hasNeededAPIExtension backup_metadata_version" && hasNeededAPIExtension backup_metadata_version; then
+            echo "==> Export using the old backup format 1 explicitly"
+            lxc export c1:i1 "${tmpdir}/i1.tar" --export-version 1 --compression none --optimized-storage
+            tar --occurrence=1 -xf "${tmpdir}/i1.tar" -C "${tmpdir}" backup/index.yaml
+
+            echo "==> Check the backup index file"
+            cat "${tmpdir}/backup/index.yaml"
+            check_format_version1 "${tmpdir}/backup/index.yaml" instance
+
+            rm -rf "${tmpdir}/backup"
+
+            echo "==> Check the ${type} can be imported on LXD ${LXD_SNAP_CHANNEL}"
+            lxc import "${tmpdir}/i1.tar" i1
+            lxc query "/1.0/instances/i1?recursion=1" | jq --exit-status '.snapshots | length == 1'
+
+            rm "${tmpdir}/i1.tar"
+            lxc delete i1
+
+            echo "==> Export using the new backup format 2 explicitly"
+            lxc export c1:i1 "${tmpdir}/i1.tar" --export-version 2 --compression none --optimized-storage
+            tar --occurrence=1 -xf "${tmpdir}/i1.tar" -C "${tmpdir}" backup/index.yaml
+
+            echo "==> Check the backup index file"
+            cat "${tmpdir}/backup/index.yaml"
+            check_format_version2 "${tmpdir}/backup/index.yaml" instance
+
+            rm -rf "${tmpdir}/backup"
+
+            # Only LXD >= 5.21 allows importing the new format 2.
+            if hasNeededAPIExtension backup_metadata_version; then
+                echo "==> Check the ${type} can be imported on LXD ${LXD_SNAP_CHANNEL}"
+                lxc import "${tmpdir}/i1.tar" i1
+                lxc query "/1.0/instances/i1?recursion=1" | jq --exit-status '.snapshots | length == 1'
+
+                lxc delete i1
+            fi
+
+            rm "${tmpdir}/i1.tar"
+        fi
+
+        echo "==> Check the ${type} can be migrated from LXD ${versStr} to ${LXD_SNAP_CHANNEL}"
+        lxc move c1:i1 i1
+        lxc query "/1.0/instances/i1?recursion=1" | jq --exit-status '.snapshots | length == 1'
+
+        echo "==> Check the migrated ${type} can be started"
+        lxc start i1
+        waitInstanceReady i1
+        lxc stop -f i1
+
+        # Unset incompatible volatile key if remote version of LXD doesn't support instance_ready_state.
+        if hasNeededAPIExtension instance_ready_state && ! lxc exec c1 -- sh -c "$(declare -f hasNeededAPIExtension); hasNeededAPIExtension instance_ready_state"; then
+            lxc config unset i1 volatile.last_state.ready
+        fi
+
+        # Unset incompatible volatile key if remote version of LXD doesn't support vm_persistent_bus.
+        if [ "${type}" = "vm" ] && hasNeededAPIExtension vm_persistent_bus && ! lxc exec c1 -- sh -c "$(declare -f hasNeededAPIExtension); hasNeededAPIExtension vm_persistent_bus"; then
+            lxc config set i1 volatile.bus.mode="" volatile.eth0.bus=""
+        fi
+
+        echo "==> Check the ${type} can be migrated from LXD ${LXD_SNAP_CHANNEL} to ${versStr}"
+        lxc move i1 c1:i1
+        lxc query "c1:/1.0/instances/i1?recursion=1" | jq --exit-status '.snapshots | length == 1'
+
+        # When migrating the instance from 5.0 to latest and back to 5.0, the VM's
+        # state directory contains an invalid version of the firmware.
+        # Reset the file (and symlink) which causes LXD to pick up the 5.0 firmware.
+        if [ "${type}" = "vm" ] && [ "${vers}" = "5.0" ] && [ "$(echo "${LXD_SNAP_CHANNEL}" | cut -d/ -f1)" != "5.0" ]; then
+            echo "==> Ensure LXD picks up the right firmware"
+            lxc exec c1 -- nsenter --mount=/run/snapd/ns/lxd.mnt rm /var/snap/lxd/common/lxd/virtual-machines/i1/qemu.nvram
+        fi
+
+        echo "==> Check the migrated ${type} can be started back on its origin"
+        lxc start c1:i1
+        waitInstanceReady c1:i1
+        lxc delete -f c1:i1
+    done
+
+    # Check if custom storage volume backups can be imported into present version of LXD.
+    echo "==> Create a custom storage volume and snapshot it"
+    lxc storage volume create c1:default foo size=1MiB
+    lxc storage volume snapshot c1:default foo
+
+    echo "==> Export using the default backup format implicitly by not specifying a version"
+    # 5.0/5.21 always use the old format.
+    # > 5.21 uses the new format.
+    lxc storage volume export c1:default foo "${tmpdir}/foo.tar" --compression none --optimized-storage
+    tar --occurrence=1 -xf "${tmpdir}/foo.tar" -C "${tmpdir}" backup/index.yaml
+
+    echo "==> Check the backup index file"
+    cat "${tmpdir}/backup/index.yaml"
+
+    if [ "${vers}" = "5.21" ] || [ "${vers}" = "5.0" ]; then
+        check_format_version1 "${tmpdir}/backup/index.yaml" volume
+
+        # The old format should be allowed for import in any case.
+        echo "==> Check the custom storage volume can be imported on LXD ${LXD_SNAP_CHANNEL}"
+        lxc storage volume import "${poolName}" "${tmpdir}/foo.tar" foo
+        lxc query "/1.0/storage-pools/${poolName}/volumes/custom/foo/snapshots" | jq --exit-status 'length == 1'
+
+        lxc storage volume delete "${poolName}" foo
+    else
+        check_format_version2 "${tmpdir}/backup/index.yaml" volume
+
+        # Only LXD >= 5.21 allows importing the new format.
+        if hasNeededAPIExtension backup_metadata_version; then
+            echo "==> Check the custom storage volume can be imported on LXD ${LXD_SNAP_CHANNEL}"
+            lxc storage volume import "${poolName}" "${tmpdir}/foo.tar" foo
+            lxc query "/1.0/storage-pools/${poolName}/volumes/custom/foo/snapshots" | jq --exit-status 'length == 1'
+
+            lxc storage volume delete "${poolName}" foo
+        fi
+    fi
+
+    rm -rf "${tmpdir}/backup"
+    rm "${tmpdir}/foo.tar"
+
+    # Only LXD >= 5.21 allows setting the export version.
+    # We check for the backup_metadata_version API extension on both source (c1) and target (present) LXD.
+        # As both the server and client get shipped together with the snap, by testing for backup_metadata_version we can check if the client supports the --export-version flag.
+    if lxc exec c1 -- sh -c "$(declare -f hasNeededAPIExtension); hasNeededAPIExtension backup_metadata_version" && hasNeededAPIExtension backup_metadata_version; then
+        echo "==> Export using the old backup format 1 explicitly"
+        lxc storage volume export c1:default foo "${tmpdir}/foo.tar" --export-version 1 --compression none --optimized-storage
+        tar --occurrence=1 -xf "${tmpdir}/foo.tar" -C "${tmpdir}" backup/index.yaml
+
+        echo "==> Check the backup index file"
+        cat "${tmpdir}/backup/index.yaml"
+        check_format_version1 "${tmpdir}/backup/index.yaml" volume
+
+        rm -rf "${tmpdir}/backup"
+
+        echo "==> Check the custom storage volume can be imported on LXD ${LXD_SNAP_CHANNEL}"
+        lxc storage volume import "${poolName}" "${tmpdir}/foo.tar" foo
+        lxc query "/1.0/storage-pools/${poolName}/volumes/custom/foo/snapshots" | jq --exit-status 'length == 1'
+
+        rm "${tmpdir}/foo.tar"
+        lxc storage volume delete "${poolName}" foo
+
+        echo "==> Export using the new backup format 2 explicitly"
+        lxc storage volume export c1:default foo "${tmpdir}/foo.tar" --export-version 2 --compression none --optimized-storage
+        tar --occurrence=1 -xf "${tmpdir}/foo.tar" -C "${tmpdir}" backup/index.yaml
+
+        echo "==> Check the backup index file"
+        cat "${tmpdir}/backup/index.yaml"
+        check_format_version2 "${tmpdir}/backup/index.yaml" volume
+
+        rm -rf "${tmpdir}/backup"
+
+        # Only LXD >= 5.21 allows importing the new format 2.
+        if hasNeededAPIExtension backup_metadata_version; then
+            echo "==> Check the custom storage volume can be imported on LXD ${LXD_SNAP_CHANNEL}"
+            lxc storage volume import "${poolName}" "${tmpdir}/foo.tar" foo
+            lxc query "/1.0/storage-pools/${poolName}/volumes/custom/foo/snapshots" | jq --exit-status 'length == 1'
+
+            lxc storage volume delete "${poolName}" foo
+        fi
+
+        rm "${tmpdir}/foo.tar"
+    fi
+
+    echo "==> Check the custom storage volume can be migrated from LXD ${versStr} to ${LXD_SNAP_CHANNEL}"
+    lxc storage volume move c1:default/foo "${poolName}/foo"
+    lxc query "/1.0/storage-pools/${poolName}/volumes/custom/foo/snapshots" | jq --exit-status 'length == 1'
+
+    echo "==> Check the custom storage volume can be migrated from LXD ${LXD_SNAP_CHANNEL} to ${versStr}"
+    lxc storage volume move "${poolName}/foo" c1:default/foo
+    lxc query "c1:/1.0/storage-pools/default/volumes/custom/foo/snapshots" | jq --exit-status 'length == 1'
+
+    lxc storage volume delete c1:default foo
+
+    lxc remote remove c1
+    lxc delete -f c1
+done
+
+echo "==> Cleanup"
+rm -rf "${tmpdir}"
+lxc profile device remove default eth0
+lxc profile device remove default root
+lxc storage delete "${poolName}"
+lxc network delete lxdbr0
+lxc config unset core.https_address
+
+# shellcheck disable=SC2034
+FAIL=0

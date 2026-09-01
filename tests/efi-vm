@@ -1,0 +1,154 @@
+#!/bin/bash
+set -eux
+
+architecture="$(uname -m)"
+if [ "${architecture}" != "x86_64" ] && [ "${architecture}" != "aarch64" ]; then
+  echo "Skipping test as EFI is not supported on ${architecture}"
+  # shellcheck disable=SC2034
+  FAIL=0
+  exit 0
+fi
+
+# Determine whether 2023 Microsoft CA certs are expected based on the LXD channel.
+# 4.0/* will never get the 2023 Microsoft CA certs
+EXPECT_2023_CERTS=true
+if echo "${LXD_SNAP_CHANNEL}" | grep -qE '^4\.0/'; then
+    EXPECT_2023_CERTS=false
+fi
+
+efi_sb_key_tests() {
+  # FirmwareSecvarUpdaterVersion is the trace of the patched EDK2 injecting the
+  # 2023 Microsoft CA certs into the KEK and db variables on boot.
+  # The `lxc config uefi` command requires the instances_uefi_vars API extension
+  # which is not available on 5.0/* and older.
+  if hasNeededAPIExtension instances_uefi_vars; then
+    echo "==> Verify presence of FirmwareSecvarUpdaterVersion variable"
+    if [ "${EXPECT_2023_CERTS}" = "true" ]; then
+      lxc config uefi get v1 FirmwareSecvarUpdaterVersion-a2f5da32-9e4c-4f6b-b3a1-7c8d5e6f0a1b
+    else
+      ! lxc config uefi get v1 FirmwareSecvarUpdaterVersion-a2f5da32-9e4c-4f6b-b3a1-7c8d5e6f0a1b || false
+    fi
+  else
+    echo "==> Skipping FirmwareSecvarUpdaterVersion check as instances_uefi_vars API extension is not supported"
+  fi
+
+  lxc exec v1 -- apt-get update
+  lxc exec v1 -- apt-get install -y --no-install-recommends efitools
+
+  echo "==> Read Microsoft UEFI CA certs from KEK variable"
+  lxc exec v1 -- efi-readvar -v KEK
+  for k in "KEK CA 2011" "KEK 2K CA 2023"; do
+    if [ "${EXPECT_2023_CERTS}" = "true" ] || [ "${k}" != "KEK 2K CA 2023" ]; then
+      lxc exec v1 -- efi-readvar -v KEK | grep -F "${k}"
+    else
+      ! lxc exec v1 -- efi-readvar -v KEK | grep -F "${k}" || false
+    fi
+  done
+
+  echo "==> Read Microsoft UEFI CA certs from db variable"
+  lxc exec v1 -- efi-readvar -v db
+  for k in "UEFI CA 2011" "UEFI CA 2023"; do
+    if [ "${EXPECT_2023_CERTS}" = "true" ] || [ "${k}" != "UEFI CA 2023" ]; then
+      lxc exec v1 -- efi-readvar -v db | grep -F "${k}"
+    else
+      ! lxc exec v1 -- efi-readvar -v db | grep -F "${k}" || false
+    fi
+  done
+
+  if [ "${EXPECT_2023_CERTS}" = "false" ]; then
+    echo "::notice::Microsoft UEFI CA 2023 certs missing from KEK and db variables (expected for channel ${LXD_SNAP_CHANNEL})"
+  fi
+}
+
+uefi_vars_tests() {
+  EFI_GLOBAL_VARIABLE_GUID="8be4df61-93ca-11d2-aa0d-00e098032b8c"
+  EFI_VAR_NAME="testvar"
+  EFI_VAR_FULL_NAME="${EFI_VAR_NAME}-${EFI_GLOBAL_VARIABLE_GUID}"
+
+  # Convert ASCII value to HEX string
+  EFI_VAR_VALUE_ASCII="Hey"
+  EFI_VAR_VALUE="$(printf '%s' "${EFI_VAR_VALUE_ASCII}" | xxd -p -c 256)"
+
+  echo "==> Try to set EFI variable while VM is running (should fail)"
+  ! lxc config uefi set v1 "${EFI_VAR_FULL_NAME}"="${EFI_VAR_VALUE}" || false
+
+  # Stop VM and set EFI variable
+  prepare_vm_for_hard_stop v1
+  lxc stop -f v1
+
+  echo "==> Try to set invalid data as EFI variable value"
+  # Try to set invalid data ("0" is not a valid HEX-encoding for a byte, should be "00")
+  ! lxc config uefi set v1 "${EFI_VAR_FULL_NAME}"="0" || false
+
+  echo "==> Set a valid variable data"
+  lxc config uefi set v1 "${EFI_VAR_FULL_NAME}"="${EFI_VAR_VALUE}"
+
+  echo "==> Start VM and try to read a set value back from efivarfs"
+  lxc start v1
+  waitInstanceReady v1
+  lxc exec v1 -- grep -xF "${EFI_VAR_VALUE_ASCII}" /sys/firmware/efi/efivars/"${EFI_VAR_FULL_NAME}"
+
+  echo "==> Try to unset with VM running (should fail)"
+  ! lxc config uefi unset v1 "${EFI_VAR_FULL_NAME}" || false
+
+  prepare_vm_for_hard_stop v1
+  lxc stop -f v1
+  lxc config uefi unset v1 "${EFI_VAR_FULL_NAME}"
+
+  echo "==> Start VM and check that variable does not exist anymore"
+  lxc start v1
+  waitInstanceReady v1
+  ! lxc exec v1 -- test -e /sys/firmware/efi/efivars/"${EFI_VAR_FULL_NAME}" || false
+}
+
+# Install LXD
+install_lxd
+
+# Configure LXD
+lxc network create lxdbr0
+lxc profile device add default eth0 nic network=lxdbr0
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+poolName="vmpool$$"
+poolDriver=dir
+
+echo "==> Create storage pool using driver ${poolDriver}"
+lxc storage create "${poolName}" "${poolDriver}"
+
+echo "==> Create VM and boot"
+lxc launch "${IMAGE}" v1 --vm -s "${poolName}"
+
+# Wait for instance to be ready ensures LXD is done initializing the NVRAM
+waitInstanceReady v1
+setup_instance_gocoverage v1
+lxc info v1
+
+echo "==> Verify Microsoft UEFI CA presence in VM"
+efi_sb_key_tests
+
+echo "==> UEFI vars tests"
+if hasNeededAPIExtension instances_uefi_vars; then
+  # XXX: temporarily allow for slower boots (cause: unknown)
+  export MAX_WAIT_SECONDS=180
+
+  uefi_vars_tests
+else
+  echo "Skipping UEFI vars tests as not supported"
+fi
+
+# Cleanup
+echo "==> Stopping and deleting VM"
+prepare_vm_for_hard_stop v1
+lxc delete -f v1
+
+lxc profile device remove default eth0
+
+echo "==> Deleting storage pool"
+lxc storage delete "${poolName}"
+
+echo "==> Deleting network"
+lxc network delete lxdbr0
+
+# shellcheck disable=SC2034
+FAIL=0

@@ -1,0 +1,321 @@
+#!/bin/bash
+set -eu
+
+# Install dependencies
+install_deps nftables iptables ebtables tcpdump
+
+# Install LXD
+install_lxd
+
+IMAGE="${TEST_IMG:-ubuntu-daily:24.04}"
+
+# Test
+set -x
+
+# Configure LXD
+lxc storage create default btrfs
+lxc network create lxdbr0 \
+    ipv4.address=192.0.2.1/24 \
+    ipv6.address=2001:db8::1/64 \
+    ipv4.dhcp.ranges=192.0.2.2-192.0.2.199
+
+if hasNeededAPIExtension warnings; then
+    echo "=> Ensure that IPv6 CIDR size checks in LXD are correct"
+    # Check that we produce a warning if user sets a prefix larger than /64
+    lxc network set lxdbr0 ipv6.address=2001:db8::1/48
+    lxc warning list | grep "IPv6 networks with a prefix larger than 64"
+    # Check that there is no warning if user sets prefix smaller than /64
+    lxc network set lxdbr0 ipv6.address=2001:db8::1/65
+    ! lxc warning list | grep "IPv6 networks with a prefix larger than 64" || false
+    # set a right subnet for the test
+    lxc network set lxdbr0 ipv6.address=2001:db8::1/64
+fi
+
+lxc profile device add default root disk path=/ pool=default
+
+echo "=> Setting up firewall tooling and checking versions"
+update-alternatives --set iptables /usr/sbin/iptables-legacy
+update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
+update-alternatives --set ebtables /usr/sbin/ebtables-legacy
+
+# Check legacy versions installed.
+iptables --version 2>&1 | grep legacy
+ip6tables --version 2>&1 | grep legacy
+ebtables --version 2>&1 | grep legacy
+
+# Check if br_netfilter module is already loaded.
+BR_NETFILTER_LOADED=false
+if lsmod | grep -qw ^br_netfilter; then
+    BR_NETFILTER_LOADED=true
+fi
+
+# Setup bridge filter and unmanaged bridges
+modprobe br_netfilter
+ip link del lxdbr0unmanaged || true
+ip link add lxdbr0unmanaged type bridge
+
+firewallTests() {
+    lxc launch "${IMAGE}" c1
+    waitInstanceReady c1
+
+    managed=0
+
+    if lxc config show c1 --expanded | grep -qF "network: lxdbr0"; then
+        echo "=> Performing basic DHCP/SLAAC ping tests"
+        sleep 5
+        lxc exec c1 -- ping -nc1 -i0.1 -w1 192.0.2.1
+        lxc exec c1 -- ping -nc1 -i0.1 -w1 2001:db8::1
+        managed=1
+    fi
+
+    # Disable DHCP client and SLAAC acceptance so we don't get automatic IPs added.
+    lxc exec c1 -- rm -fr /etc/netplan
+    lxc exec c1 -- netplan apply
+    lxc exec c1 -- sysctl net.ipv6.conf.eth0.accept_ra=0
+
+    echo "=> Performing faked source IP ping tests without filtering"
+    lxc exec c1 -- ip a flush dev eth0
+    lxc exec c1 -- ip a add 192.0.2.254/24 dev eth0
+    lxc exec c1 -- ip a add 2001:db8::254/64 dev eth0 nodad
+    lxc exec c1 -- ip a
+    lxc exec c1 -- ping -nc1 -i0.1 -w1 192.0.2.1
+    lxc exec c1 -- ping -nc1 -i0.1 -w1 2001:db8::1
+
+    echo "=> Performing faked source IP ping tests with filtering"
+    if [ $managed -eq 1 ]; then
+        lxc config device override c1 eth0 \
+            security.mac_filtering=true \
+            security.ipv4_filtering=true \
+            security.ipv6_filtering=true
+    else
+        lxc config device override c1 eth0 \
+            security.mac_filtering=true \
+            security.ipv4_filtering=true \
+            security.ipv6_filtering=true \
+            ipv4.address=192.0.2.2 \
+            ipv6.address=2001:db8::2
+    fi
+
+    lxc exec c1 -- ip a flush dev eth0
+    lxc exec c1 -- ip a add 192.0.2.254/24 dev eth0
+    lxc exec c1 -- ip a add 2001:db8::254/64 dev eth0 nodad
+    lxc exec c1 -- ip a
+    ! lxc exec c1 -- ping -nc1 -i0.1 -w1 192.0.2.1 || false
+    ! lxc exec c1 -- ping -nc1 -i0.1 -w1 2001:db8::1 || false
+
+    echo "=> Performing faked source MAC ping tests without filtering"
+    lxc stop -f c1
+
+    if [ $managed -eq 1 ]; then
+        lxc config device set c1 eth0 \
+            security.mac_filtering=false \
+            security.ipv4_filtering=false \
+            security.ipv6_filtering=false
+    else
+        lxc config device set c1 eth0 \
+            security.mac_filtering=false \
+            security.ipv4_filtering=false \
+            security.ipv6_filtering=false \
+            ipv4.address= \
+            ipv6.address=
+    fi
+
+    lxc start c1
+    waitInstanceReady c1
+    lxc exec c1 -- sysctl net.ipv6.conf.eth0.accept_ra=0
+    lxc exec c1 -- ip a flush dev eth0
+    lxc exec c1 -- ip link set dev eth0 address 00:11:22:33:44:56 up
+    lxc exec c1 -- ip a add 192.0.2.254/24 dev eth0
+    lxc exec c1 -- ip a add 2001:db8::254/64 dev eth0 nodad
+    lxc exec c1 -- ip a
+    lxc exec c1 -- ping -nc1 -i0.1 -w1 192.0.2.1
+    lxc exec c1 -- ping -nc1 -i0.1 -w1 2001:db8::1
+
+    echo "=> Performing faked source MAC ping tests with filtering"
+    lxc config device set c1 eth0 security.mac_filtering=true
+    lxc exec c1 -- ip a
+    ! lxc exec c1 -- ping -nc1 -i0.1 -w1 192.0.2.1 || false
+    ! lxc exec c1 -- ping -nc1 -i0.1 -w1 2001:db8::1 || false
+
+    lxc delete -f c1
+
+    # Perform NAT tests for managed bridges only.
+    if [ $managed -eq 1 ]; then
+        echo "=> Performing NAT tests with masquerading"
+        lxc network set lxdbr0 ipv4.nat=true ipv6.nat=true
+        lxc network create lxdbr1 \
+            ipv4.address=192.0.3.1/24 \
+            ipv6.address=2001:db9::1/64 \
+            ipv4.dhcp.ranges=192.0.3.2-192.0.3.199 \
+            ipv6.dhcp.stateful=true \
+            ipv4.nat=true \
+            ipv6.nat=true
+
+        lxc launch "${IMAGE}" c1
+        lxc launch "${IMAGE}" c2 -n lxdbr1
+        waitInstanceBooted c1  # Allow time for DHCP/SLAAC/DAD to complete
+        waitInstanceReady c2   # Static IPs can be set immediately
+
+        lxc exec c2 -- ip a add 192.0.3.254/24 dev eth0
+        lxc exec c2 -- ip a add 2001:db9::254/64 dev eth0 nodad
+        sleep 2
+
+        # Check if regular traffic passes between different networks and is masqueraded with the gateways IP.
+        lxc ls
+        lxc exec c1 -T -n -- ping -n -i0.1 -w2 -W2 -4 192.0.3.254 || true &
+        timeout 2s tcpdump -i lxdbr1 -nn icmp and src 192.0.3.1 -q -c 1 > /dev/null
+        wait
+
+        lxc exec c1 -T -n -- ping -n -i0.1 -w2 -W2 -6 2001:db9::254 || true &
+        timeout 2s tcpdump -i lxdbr1 -nn icmp6 and src 2001:db9::1 -q -c 1 > /dev/null
+        wait
+
+        # LXD 5.21 and onwards don't masquerade multicast traffic if the host has br_netfilter loaded.
+        if echo "${LXD_SNAP_CHANNEL}" | grep -vE '^([45]\.0)/'; then
+            # Check if multicast traffic is returned too and not mangled.
+            # Launch a server in the same network that responds on datagrams under a specific multicast group with its hostname.
+            lxc launch "${IMAGE}" c3 -n lxdbr1
+            lxc exec c2 -- apt-get update
+            lxc exec c2 -- apt-get install --no-install-recommends --yes socat
+            lxc exec c2 -- socat udp4-recvfrom:1234,ip-add-membership=239.0.0.1:192.0.3.254,fork exec:hostname &
+            server_process="$!"
+            sleep 2 # wait for the multicast server to settle.
+
+            # Check if multicast traffic passes within the same network.
+            waitInstanceReady c3
+            lxc exec c3 -- apt-get update
+            lxc exec c3 -- apt-get install --no-install-recommends --yes socat
+            [ "$(lxc exec c3 -- socat stdio udp4-datagram:239.0.0.1:1234 <<< "")" = "c2" ]
+            kill "${server_process}"
+        fi
+
+        echo "=> Performing NAT tests with explicit SNAT address"
+        lxc network set lxdbr0 ipv4.nat.address=192.0.2.10 ipv6.nat.address=2001:db8::10
+
+        # Check if regular traffic passes between different networks and is masqueraded with the SNAT IP.
+        lxc exec c1 -T -n -- ping -n -i0.1 -w2 -W2 -4 192.0.3.254 || true &
+        timeout 2s tcpdump -i lxdbr1 -nn icmp and src 192.0.2.10 -q -c 1 > /dev/null
+        wait
+
+        lxc exec c1 -T -n -- ping -n -i0.1 -w2 -W2 -6 2001:db9::254 || true &
+        timeout 2s tcpdump -i lxdbr1 -nn icmp6 and src 2001:db8::10 -q -c 1 > /dev/null
+        wait
+
+        # LXD 5.21 and onwards don't masquerade multicast traffic if the host has br_netfilter loaded.
+        if echo "${LXD_SNAP_CHANNEL}" | grep -vE '^([45]\.0)/'; then
+            # Check if multicast traffic passes within the same network.
+            lxc exec c2 -- socat udp4-recvfrom:1234,ip-add-membership=239.0.0.1:192.0.3.254,fork exec:hostname &
+            server_process="$!"
+            sleep 2 # wait for the multicast server to settle.
+            [ "$(lxc exec c3 -- socat stdio udp4-datagram:239.0.0.1:1234 <<< "")" = "c2" ]
+            kill "${server_process}"
+
+            lxc delete -f c3
+        fi
+
+        lxc delete -f c1 c2
+        lxc network delete lxdbr1
+        lxc network set lxdbr0 ipv4.nat.address= ipv6.nat.address= ipv4.nat= ipv6.nat=
+    fi
+}
+
+networkLimitsPriorityNftablesTest() {
+    lxc launch "${IMAGE}" c1
+    waitInstanceReady c1
+
+    prio=7
+    ctEth0Hostname=$(lxc config get "c1" volatile.eth0.host_name)
+    tempNftTableName="network_bridge_limits_prio_temp"
+
+    # prepare a trap for skb's with skb->priority is set
+    nft add table netdev "${tempNftTableName}"
+    nft add chain netdev "${tempNftTableName}" skb_with_prio_trap "{ type filter hook egress device \"${ctEth0Hostname}\" priority filter + 1; policy accept; }"
+    nft add rule netdev "${tempNftTableName}" skb_with_prio_trap meta priority 0:$prio counter
+
+    lxc config device override c1 eth0 limits.priority=$prio
+    sleep 5
+
+    packetsBefore=$(nft list table netdev "${tempNftTableName}" | awk '/meta/ { print $6 }')
+
+    packetsToSend=14
+    # generate some network packets
+    lxc exec c1 -- ping -nc"${packetsToSend}" -i0.1 192.0.2.1
+
+    packetsAfter=$(nft list table netdev "${tempNftTableName}" | awk '/meta/ { print $6 }')
+    packetsDiff=$((packetsAfter - packetsBefore))
+
+    [ "${packetsDiff}" -ge "${packetsToSend}" ]
+
+    nft delete table netdev "${tempNftTableName}"
+
+    lxc delete -f c1
+}
+
+echo "=> Performing nftables managed bridge tests"
+# Check by default on fresh system we detect and use nftables.
+lxc info | grep 'firewall: nftables'
+lxc profile device add default eth0 nic network=lxdbr0
+firewallTests
+
+if hasNeededAPIExtension instances_nic_limits_priority && runsMinimumKernel 5.17; then
+    echo "=> Performing nftables network device limits.priority option test"
+    networkLimitsPriorityNftablesTest
+else
+    echo "=> Skipping nftables network device limits.priority option test"
+fi
+
+echo "=> Performing nftables unmanaged bridge tests"
+ip a flush dev lxdbr0 # Clear duplicate address from lxdbr0.
+ip link set lxdbr0 down
+ip a add 192.0.2.1/24 dev lxdbr0unmanaged
+ip a add 2001:db8::1/64 dev lxdbr0unmanaged
+ip link set lxdbr0unmanaged up
+lxc profile device remove default eth0
+lxc profile device add default eth0 nic \
+    nictype=bridged \
+    parent=lxdbr0unmanaged
+firewallTests
+lxc profile device remove default eth0
+ip a flush dev lxdbr0unmanaged
+
+echo "=> Performing xtables managed bridge tests"
+lxc profile device add default eth0 nic network=lxdbr0
+nft flush ruleset
+iptables -A INPUT
+systemctl reload snap.lxd.daemon
+sleep 5
+
+# Check if xtables is in use we detect and use xtables.
+lxc info | grep 'firewall: xtables'
+firewallTests
+
+echo "=> Performing xtables unmanaged bridge tests"
+ip a flush dev lxdbr0 # Clear duplicate address from lxdbr0.
+ip link set lxdbr0 down
+ip a add 192.0.2.1/24 dev lxdbr0unmanaged
+ip a add 2001:db8::1/64 dev lxdbr0unmanaged
+ip link set lxdbr0unmanaged up
+lxc profile device remove default eth0
+lxc profile device add default eth0 nic \
+    nictype=bridged \
+    parent=lxdbr0unmanaged
+firewallTests
+lxc profile device remove default eth0
+ip link delete lxdbr0unmanaged
+
+# Cleanup.
+lxc profile device remove default root
+lxc network delete lxdbr0
+lxc storage delete default
+
+# Clear firewall.
+lxd shutdown
+iptables -D INPUT
+
+# Unload br_netfilter only if it was loaded by the test script
+if [ "${BR_NETFILTER_LOADED}" = "false" ]; then
+    modprobe -r br_netfilter
+fi
+
+# shellcheck disable=SC2034
+FAIL=0

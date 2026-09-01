@@ -1,0 +1,23 @@
+#!/bin/bash
+set -eu
+
+# Install LXD
+install_lxd
+
+# Test
+set -x
+
+# Get the code
+if [ ! -d pylxd ]; then
+    command -v git || install_deps git
+    git clone --depth=1 https://github.com/canonical/pylxd
+fi
+
+# Run the pylxd tests
+cd pylxd
+export DEBIAN_FRONTEND=noninteractive
+export HOME=/root
+integration/run-integration-tests
+
+# shellcheck disable=SC2034
+FAIL=0

@@ -1,0 +1,69 @@
+#!/bin/bash
+set -eux
+
+# Install LXD
+install_lxd
+
+# Configure LXD
+lxd init --auto
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+echo "==> Create test instance"
+lxc init "${IMAGE}" v1 --vm
+
+echo "==> Ensure aliased image can launch without VM flag set"
+lxc image alias create vmalias "$(lxc config get v1 volatile.base_image)"
+lxc launch vmalias v2
+lxc delete -f v2
+lxc image alias delete vmalias
+
+echo "==> Start test instance"
+lxc start v1
+waitInstanceBooted v1
+setup_instance_gocoverage v1
+
+echo "==> Test cleanly stopping a VM"
+lxc stop v1
+
+if ! echo "${LXD_SNAP_CHANNEL}" | grep -qE '^4\.0/'; then
+    echo "==> Test lxc exec exit code upon VM disconnection due to a stop/reboot"
+    lxc start v1
+    waitInstanceBooted v1
+
+    echo "==> Test getting the correct exit code for a signaled process"
+    # Signaling the process spawned by lxc exec and checking its exit code.
+    # Simulates what can happen if the VM stops in the middle of lxc exec.
+    for signal in SIGTERM SIGHUP SIGTERM; do
+        echo "==> Test getting the correct exit code when sending ${signal} to an exec'ed process"
+        code="$(kill -l "${signal}")"
+        # killall is not included in minimal images so we use escaping to combine pgrep and kill.
+        (sleep 5 && lxc exec v1 -- bash -c "kill -s ${signal} \$(pgrep sleep)") &
+        lxc exec v1 -- sleep 60 || exitCode=$?
+        # Check exit code, should be 128 plus signal number, 1 for SIGHUP, 9 for SIGKILL and 15 for SIGTERM.
+        [ "${exitCode:-0}" -eq $((128 + code)) ]
+    done
+
+    echo "==> Test lxc exec exit code when stopping the VM abruptly"
+    # XXX: intentionally not using 'prepare_vm_for_hard_stop v1' here as that would
+    #      kill the lxd-agent inside the VM.
+    (sleep 5 && lxc stop -f v1) &
+    lxc exec v1 -- sleep 60 || exitCode=$?
+    [ "${exitCode:-0}" -eq 129 ]
+    wait $!
+
+    echo "==> Test what happens when the connection with the agent is severed"
+    lxc start v1
+    waitInstanceBooted v1
+    # Simulates what happens during lxc stop.
+    # killall is not included in minimal images so we use escaping to combine pgrep and kill.
+    lxc exec v1 -- bash -c "kill -s SIGTERM \$(pgrep lxd-agent)" || exitCode=$?
+    [ "${exitCode:-0}" -eq 129 ]
+fi
+
+# Cleanup
+prepare_vm_for_hard_stop v1
+lxc delete -f v1
+
+# shellcheck disable=SC2034
+FAIL=0

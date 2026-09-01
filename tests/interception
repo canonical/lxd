@@ -1,0 +1,158 @@
+#!/bin/bash
+set -eu
+
+# Install dependencies
+install_deps attr
+
+# Install LXD
+install_lxd
+
+# Configure LXD
+if echo "${LXD_SNAP_CHANNEL}" | grep -q '^5\.0/'; then
+    echo "Enabling shiftfs support"
+    snap set lxd shiftfs.enable=true
+fi
+lxd init --auto
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+# Test
+set -x
+
+lxc launch "${IMAGE}" c1
+sleep 10
+lxc exec c1 -- apt-get update
+lxc exec c1 -- apt-get install --no-install-recommends --yes attr fuse2fs
+
+## setxattr
+lxc exec c1 -- touch xattr-test
+! lxc exec c1 -- setfattr -n trusted.overlay.opaque -v y xattr-test || false
+lxc config set c1 security.syscalls.intercept.setxattr true
+lxc restart c1 -f
+lxc exec c1 -- setfattr -n trusted.overlay.opaque -v y xattr-test
+[ "$(getfattr --only-values --absolute-names -n trusted.overlay.opaque /var/snap/lxd/common/lxd/containers/c1/rootfs/root/xattr-test)" = "y" ]
+
+## mknod
+! lxc exec c1 -- mknod mknod-test c 1 3 || false
+lxc config set c1 security.syscalls.intercept.mknod true
+lxc restart c1 -f
+
+## Relative path
+lxc exec c1 -- mknod mknod-test c 1 3
+
+## Absolute path on tmpfs
+lxc exec c1 -- mknod /dev/mknod-test c 1 3
+
+## Absolute path on rootfs
+lxc exec c1 -- mknod /root/mknod-test1 c 1 3
+
+## bpf (needs 5.9 or higher)
+if runsMinimumKernel 5.9 && hasNeededAPIExtension container_syscall_intercept_bpf_devices; then
+    lxc config set c1 security.syscalls.intercept.bpf=true security.syscalls.intercept.bpf.devices=true
+    lxc restart c1 -f
+else
+    echo "Skipping security.syscalls.intercept.bpf config as the kernel is too old or LXD support missing"
+fi
+
+## mount
+truncate -s 10G loop.img
+LOOP=$(losetup -f --show loop.img)
+lxc config device add c1 loop unix-block source="${LOOP}" path=/dev/sda
+lxc exec c1 -- mkfs.ext4 -F /dev/sda
+! lxc exec c1 -- mount /dev/sda /mnt || false
+lxc config set c1 security.syscalls.intercept.mount=true
+
+lxc config set c1 security.syscalls.intercept.mount.allowed=ext4
+lxc restart c1 -f
+lxc exec c1 -- mount /dev/sda /mnt
+[ "$(lxc exec c1 -- stat --format=%u:%g /mnt)" = "65534:65534" ]
+lxc exec c1 -- umount /mnt
+
+if echo "${LXD_SNAP_CHANNEL}" | grep -qE "^4\.0/"; then
+    echo "Skipping security.syscalls.intercept.mount.shift test, not compatible with ${LXD_SNAP_CHANNEL}"
+else
+    lxc config set c1 security.syscalls.intercept.mount.shift=true
+    lxc exec c1 -- mount /dev/sda /mnt
+    [ "$(lxc exec c1 -- stat --format=%u:%g /mnt)" = "0:0" ]
+    lxc exec c1 -- umount /mnt
+fi
+
+lxc config unset c1 security.syscalls.intercept.mount.allowed
+lxc config set c1 security.syscalls.intercept.mount.fuse=ext4=fuse2fs
+lxc restart c1 -f
+
+lxc exec c1 -- mount /dev/sda /mnt
+[ "$(lxc exec c1 -- stat --format=%u:%g /mnt)" = "0:0" ]
+lxc exec c1 -- umount /mnt
+
+if hasNeededAPIExtension container_syscall_intercept_finit_module; then
+    # it can be any module which is present in the host filesystem and at the same time not used and can be unloaded
+    # good examples: slip, ip_nat_pptp, ip_gre, ip_conntrack_pptp (rarely used modules at the same time widely available)
+    MODULE_TO_TRY="nf_nat_ftp"
+    echo "Trying with module ... ${MODULE_TO_TRY}"
+
+    # try to load on the host
+    if ! modprobe -v "${MODULE_TO_TRY}"; then
+        # useful for debugging this failure
+        find /lib/modules -type f -name '*.ko'
+        lsmod
+
+        false
+    fi
+
+    # we are good, let's unload it
+    rmmod "${MODULE_TO_TRY}"
+
+    # must fail (non-zero exit code)
+    lsmod | grep "${MODULE_TO_TRY}" || true
+
+    MODULE_PATH="$(modinfo -n "${MODULE_TO_TRY}")"
+    MODULE_FILE_NAME="$(basename "${MODULE_PATH}")"
+
+    # upload module file into the container
+    lxc file push "${MODULE_PATH}" "c1/root/"
+
+    # Ubuntu 23.10+ ships kernel modules individually compressed to speed up
+    # boot and initramfs generation
+    # (https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2028568)
+    # XXX: This compression seems to prevent proper parsing by the `container_syscall_intercept_finit_module` feature
+    #      resulting in `Operation not permitted` error
+    if echo "${MODULE_FILE_NAME}" | grep -q "\.zst$"; then
+        lxc exec c1 -- apt-get update -qq
+        lxc exec c1 -- apt-get install --no-install-recommends -y zstd
+        lxc exec c1 -- unzstd "/root/${MODULE_FILE_NAME}"
+        MODULE_FILE_NAME="$(basename "${MODULE_PATH}" .zst)"
+    fi
+
+    # negative case 1 (feature is not enabled)
+    ! lxc exec c1 -- insmod "/root/${MODULE_FILE_NAME}" || false
+
+    # turn on feature
+    lxc config set c1 linux.kernel_modules.load=ondemand
+    lxc restart c1 -f
+
+    # negative case 2 (module is not in allow list)
+    ! lxc exec c1 -- insmod "/root/${MODULE_FILE_NAME}" || talse
+
+    # allow module
+    lxc config set c1 linux.kernel_modules="${MODULE_TO_TRY}"
+    lxc restart c1 -f
+
+    lxc exec c1 -- insmod "/root/${MODULE_FILE_NAME}"
+
+    # must succeed (zero exit code)
+    lsmod | grep "${MODULE_TO_TRY}"
+
+    # clean up
+    rmmod "${MODULE_TO_TRY}"
+else
+    echo "Skipping finit_module() syscall intercept tests as the container_syscall_intercept_finit_module API extension is missing"
+fi
+
+## cleanup
+lxc delete -f c1
+losetup -d "${LOOP}"
+rm -f loop.img
+
+# shellcheck disable=SC2034
+FAIL=0
