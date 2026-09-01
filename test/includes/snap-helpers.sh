@@ -222,7 +222,7 @@ configure_microceph() {
     microceph.ceph osd crush rule rm replicated_rule
     microceph.ceph osd crush rule create-replicated replicated default osd
     for flag in nosnaptrim nobackfill norebalance norecover noscrub nodeep-scrub; do
-        microceph.ceph osd set $flag
+        microceph.ceph osd set "${flag}"
     done
 
     microceph disk add --wipe "${CEPH_DISK}"
@@ -287,10 +287,33 @@ configure_ovn() {
 # Optional argument: boolean which indicates whether to start the daemon. Default is true.
 install_lxd() (
     local start_daemon="${1:-true}"
+    local lxd_snap_binary_dir
 
     # Prevent lxd-installer from getting in the way
-    [ -x /usr/sbin/lxd ] && chmod -x /usr/sbin/lxd
-    [ -x /usr/sbin/lxc ] && chmod -x /usr/sbin/lxc
+    rm -f /usr/sbin/lxd /usr/sbin/lxc
+
+    if [ "${LXD_SNAP_SIDELOAD:-0}" = "1" ]; then
+        lxd_snap_binary_dir="${LXD_SNAP_BINARY_DIR:-}"
+        if [ -z "${lxd_snap_binary_dir}" ]; then
+            lxd_snap_binary_dir="$(go env GOPATH)/bin"
+        fi
+
+        for binary in lxc lxd lxd-agent lxd-user; do
+            if ! [ -x "${lxd_snap_binary_dir}/${binary}" ]; then
+                echo "Missing executable ${lxd_snap_binary_dir}/${binary}." >&2
+                return 1
+            fi
+        done
+
+        PATH="${lxd_snap_binary_dir}:${PATH}" sideload_lxd_snap "${LXD_SNAP_CHANNEL}"
+        gocoverage_lxd_snap
+
+        if [ "${start_daemon}" = "true" ]; then
+            "${lxd_snap_binary_dir}/lxd" waitready --timeout=300
+        fi
+
+        return
+    fi
 
     if [ -n "${KEEP_LXD:-}" ]; then
         if [ "${start_daemon}" = "true" ]; then
@@ -686,12 +709,4 @@ cleanup() {
 
     echo "Test passed"
     exit 0
-}
-
-# Only if executed directly (not sourced)
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  @@LXD_SNAP_CHANNEL@@
-  export DEBIAN_FRONTEND=noninteractive
-  FAIL=1
-  trap cleanup EXIT HUP INT TERM
-fi
+  }
