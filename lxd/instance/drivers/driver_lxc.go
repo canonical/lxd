@@ -1997,7 +1997,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Wait for any file operations to complete.
 	// This is to avoid having an active mount by forkfile and so all file operations
 	// from this point will use the container's namespace rather than a chroot.
-	d.stopForkfile(false)
+	d.StopForkFile(false)
 
 	// Mount instance root volume.
 	mountInfo, err := d.mount()
@@ -2714,7 +2714,7 @@ func (d *lxc) Stop(stateful bool) error {
 	}
 
 	// Forcefully stop any forkfile process if running.
-	d.stopForkfile(true)
+	d.StopForkFile(true)
 
 	// Release liblxc container once done.
 	defer func() {
@@ -3028,7 +3028,7 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		// Wait for any file operations to complete.
 		// This is to required so we can actually unmount the container.
-		d.stopForkfile(false)
+		d.StopForkFile(false)
 
 		// Clean up devices.
 		d.cleanupDevices(false, "")
@@ -3528,7 +3528,7 @@ func (d *lxc) snapshot(name string, expiry time.Time, stateful bool) error {
 	}
 
 	// Wait for any file operations to complete to have a more consistent snapshot.
-	d.stopForkfile(false)
+	d.StopForkFile(false)
 
 	return d.snapshotCommon(d, name, expiry, stateful)
 }
@@ -3613,7 +3613,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	// Wait for any file operations to complete.
 	// This is required so we can actually unmount the container and restore its rootfs.
-	d.stopForkfile(false)
+	d.StopForkFile(false)
 
 	// Initialize storage interface for the container and mount the rootfs for criu state check.
 	pool, err := storagePools.LoadByInstance(d.state, d)
@@ -3823,7 +3823,7 @@ func (d *lxc) delete(force bool) error {
 	// Wait for any file operations to complete.
 	// This is required so we can actually unmount the container and delete it.
 	if !d.IsSnapshot() {
-		d.stopForkfile(false)
+		d.StopForkFile(false)
 	}
 
 	// Delete any persistent warnings for instance.
@@ -7098,8 +7098,8 @@ func (d *lxc) FileSFTP() (*sftp.Client, error) {
 	return client, nil
 }
 
-// stopForkFile attempts to send SIGTERM (if force is true) or SIGINT to forkfile then waits for it to exit.
-func (d *lxc) stopForkfile(force bool) {
+// StopForkFile attempts to send SIGTERM (if force is true) or SIGINT to forkfile then waits for it to exit.
+func (d *lxc) StopForkFile(force bool) {
 	// Make sure that when the function exits, no forkfile is running by acquiring the lock (which indicates
 	// that forkfile isn't running and holding the lock) and then releasing it.
 	defer func() {
@@ -8280,7 +8280,7 @@ func (d *lxc) LockExclusive() (*operationlock.InstanceOperation, error) {
 	}
 
 	// Stop forkfile as otherwise it will hold the root volume open preventing unmount.
-	d.stopForkfile(false)
+	d.StopForkFile(false)
 
 	return op, err
 }
