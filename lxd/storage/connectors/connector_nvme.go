@@ -53,6 +53,7 @@ const (
 // Transport type definitions (from https://github.com/linux-nvme/libnvme/blob/97886cb68d238ccbbed804a275851f63e490b22f/src/nvme/fabrics.c#L73).
 const (
 	nvmeTransportTypeTCP = "tcp"
+	nvmeTransportTypeFC  = "fc"
 )
 
 // SubtypeNVMESubsys defines an NVMe subsystem type (from https://github.com/linux-nvme/libnvme/blob/97886cb68d238ccbbed804a275851f63e490b22f/src/nvme/fabrics.c#L99).
@@ -62,15 +63,11 @@ type nvmeDiscoveryLog struct {
 	Records []NVMeDiscoveryLogRecord `json:"records"`
 }
 
-// nvmeFilterDiscoveryLog filters out entries from the provided discovery log
-// that do not describe NVMe targets with specified transport type.
-func nvmeFilterDiscoveryLog(log *nvmeDiscoveryLog, transportType string) {
-	if len(log.Records) == 0 {
-		return
-	}
-
-	filteredRecords := make([]NVMeDiscoveryLogRecord, 0, len(log.Records))
-	for _, record := range log.Records {
+// nvmeFilterDiscoveryLog filters out the discovery log records that do not
+// describe NVMe targets with specified transport type.
+func nvmeFilterDiscoveryLog(records []NVMeDiscoveryLogRecord, transportType string) []NVMeDiscoveryLogRecord {
+	filtered := make([]NVMeDiscoveryLogRecord, 0, len(records))
+	for _, record := range records {
 		if record.SubType != SubtypeNVMESubsys {
 			continue
 		}
@@ -79,26 +76,25 @@ func nvmeFilterDiscoveryLog(log *nvmeDiscoveryLog, transportType string) {
 			continue
 		}
 
-		filteredRecords = append(filteredRecords, record)
+		filtered = append(filtered, record)
 	}
 
-	log.Records = filteredRecords
+	return filtered
 }
 
-// nvmeNormalizeDiscoveryLog normalizes NVMe discovery log:
-//   - For entries with TCP transport type ensure all port numbers (transport
-//     service identifiers) are set. For non specified ports function uses
-//     the default transport port number.
-func nvmeNormalizeDiscoveryLog(log *nvmeDiscoveryLog) {
-	if len(log.Records) == 0 {
-		return
+// nvmeNormalizeDiscoveryLog sets the default transport port on TCP discovery
+// records that do not specify one.
+func nvmeNormalizeDiscoveryLog(records []NVMeDiscoveryLogRecord) []NVMeDiscoveryLogRecord {
+	normalized := make([]NVMeDiscoveryLogRecord, 0, len(records))
+	for _, record := range records {
+		if record.TransportType == nvmeTransportTypeTCP && record.TransportServiceIdentifier == "" {
+			record.TransportServiceIdentifier = NVMeDefaultTransportPort
+		}
+
+		normalized = append(normalized, record)
 	}
 
-	for i := range log.Records {
-		if log.Records[i].TransportType == nvmeTransportTypeTCP && log.Records[i].TransportServiceIdentifier == "" {
-			log.Records[i].TransportServiceIdentifier = NVMeDefaultTransportPort
-		}
-	}
+	return normalized
 }
 
 // Type returns the type of the connector.
@@ -113,6 +109,11 @@ func (c *connectorNVMe) Transport() TransportType {
 
 // Version returns the version of the NVMe CLI.
 func (c *connectorNVMe) Version() (string, error) {
+	return nvmeVersion()
+}
+
+// nvmeVersion returns the version of the NVMe CLI.
+func nvmeVersion() (string, error) {
 	// Detect and record the version of the NVMe CLI.
 	out, err := shared.RunCommand(context.Background(), "nvme", "version")
 	if err != nil {
@@ -128,7 +129,6 @@ func (c *connectorNVMe) Version() (string, error) {
 }
 
 // LoadModules loads the NVMe/TCP kernel modules.
-// Returns true if the modules can be loaded.
 func (c *connectorNVMe) LoadModules() error {
 	err := util.LoadModule("nvme_fabrics")
 	if err != nil {
@@ -139,10 +139,15 @@ func (c *connectorNVMe) LoadModules() error {
 }
 
 // QualifiedName returns a custom NQN generated from the server UUID.
+func (c *connectorNVMe) QualifiedName() (string, error) {
+	return nvmeQualifiedName(c.serverUUID), nil
+}
+
+// nvmeQualifiedName returns a custom host NQN generated from the server UUID.
 // Getting the NQN from /etc/nvme/hostnqn would require the nvme-cli
 // package to be installed on the host.
-func (c *connectorNVMe) QualifiedName() (string, error) {
-	return "nqn.2014-08.org.nvmexpress:uuid:" + c.serverUUID, nil
+func nvmeQualifiedName(serverUUID string) string {
+	return "nqn.2014-08.org.nvmexpress:uuid:" + serverUUID
 }
 
 // Connect establishes a connection with the target on the given address.
@@ -178,6 +183,11 @@ func (c *connectorNVMe) Connect(ctx context.Context, targetQN string, targetAddr
 
 // Disconnect terminates a connection with the target.
 func (c *connectorNVMe) Disconnect(targetQN string) error {
+	return nvmeDisconnect(c, targetQN)
+}
+
+// nvmeDisconnect terminates a connection with the target.
+func nvmeDisconnect(c Connector, targetQN string) error {
 	// Find an existing NVMe session.
 	session, err := c.findSession(targetQN)
 	if err != nil {
@@ -216,6 +226,11 @@ func (c *connectorNVMe) Disconnect(targetQN string) error {
 // found the function determines addresses of the active connections by checking
 // "/sys/class/nvme", and returns a non-nil result (except if an error occurs).
 func (c *connectorNVMe) findSession(targetQN string) (*session, error) {
+	return nvmeFindSession(targetQN, c.Transport())
+}
+
+// nvmeFindSession implements the session lookup shared by all NVMe connectors.
+func nvmeFindSession(targetQN string, transport TransportType) (*session, error) {
 	// Base path for NVMe sessions/subsystems.
 	subsysBasePath := "/sys/class/nvme-subsystem"
 
@@ -254,8 +269,9 @@ func (c *connectorNVMe) findSession(targetQN string) (*session, error) {
 	}
 
 	session := &session{
-		id:       sessionID,
-		targetQN: targetQN,
+		id:            sessionID,
+		targetQN:      targetQN,
+		hostAddresses: make(map[string][]string),
 	}
 
 	basePath := "/sys/class/nvme"
@@ -295,30 +311,47 @@ func (c *connectorNVMe) findSession(targetQN string) (*session, error) {
 		}
 
 		// Extract the addresses from the file.
-		// The "address" file contains one line per connection,
-		// each in format "traddr=<ip>,trsvcid=<port>,...".
+		// The "address" file contains one line per connection.
+		// For TCP each line has the format "traddr=<ip>,trsvcid=<port>,...".
+		// For Fibre Channel it has the format "traddr=nn-<wwnn>:pn-<wwpn>,...".
 		for line := range bytes.SplitSeq(bytes.TrimSpace(fileBytes), []byte{'\n'}) {
-			parts := strings.Split(string(bytes.TrimSpace(line)), ",")
-
-			transportAddr := ""
-			for _, part := range parts {
-				addr, ok := strings.CutPrefix(part, "traddr=")
-				if ok {
-					transportAddr = addr
-					break
+			// Each line is a comma separated list of "<key>=<value>" pairs.
+			fields := make(map[string]string)
+			for part := range strings.SplitSeq(string(bytes.TrimSpace(line)), ",") {
+				key, value, found := strings.Cut(part, "=")
+				if found {
+					fields[key] = value
 				}
 			}
 
-			transportServiceID := NVMeDefaultTransportPort
-			for _, part := range parts {
-				port, ok := strings.CutPrefix(part, "trsvcid=")
-				if ok {
-					transportServiceID = port
-					break
-				}
+			transportAddr := fields["traddr"]
+			if transportAddr == "" {
+				continue
 			}
 
-			session.addresses = append(session.addresses, net.JoinHostPort(transportAddr, transportServiceID))
+			if transport == TransportFC {
+				if !slices.Contains(session.addresses, transportAddr) {
+					session.addresses = append(session.addresses, transportAddr)
+				}
+
+				// Record which local HBA this path originates from, so that the
+				// paths of the remaining HBAs can still be established while this
+				// one is already connected.
+				hostAddr := fields["host_traddr"]
+				if hostAddr != "" && !slices.Contains(session.hostAddresses[transportAddr], hostAddr) {
+					session.hostAddresses[transportAddr] = append(session.hostAddresses[transportAddr], hostAddr)
+				}
+			} else {
+				transportServiceID := fields["trsvcid"]
+				if transportServiceID == "" {
+					transportServiceID = NVMeDefaultTransportPort
+				}
+
+				targetAddr := net.JoinHostPort(transportAddr, transportServiceID)
+				if !slices.Contains(session.addresses, targetAddr) {
+					session.addresses = append(session.addresses, targetAddr)
+				}
+			}
 		}
 	}
 
@@ -369,8 +402,8 @@ func (c *connectorNVMe) Discover(ctx context.Context, targetAddresses ...string)
 			return nil, fmt.Errorf("Failed unmarshaling the returned discovery log entries from %q: %w", targetAddr, err)
 		}
 
-		nvmeFilterDiscoveryLog(&discoveryLog, nvmeTransportTypeTCP)
-		nvmeNormalizeDiscoveryLog(&discoveryLog)
+		discoveryLog.Records = nvmeFilterDiscoveryLog(discoveryLog.Records, nvmeTransportTypeTCP)
+		discoveryLog.Records = nvmeNormalizeDiscoveryLog(discoveryLog.Records)
 
 		// Unmarshaling the response from the discovery succeeded, break the loop.
 		break
