@@ -82,5 +82,5 @@ test_data:
     _run ls /dev/nvidia*
     _run nvidia-smi
 
-    _run git clone --depth=1 --branch main https://github.com/canonical/lxd-ci.git
-    _run "cd lxd-ci && sudo ./bin/local-run tests/gpu-container $SNAP_CHANNEL < /dev/null"
+    _run git clone --depth=1 https://github.com/canonical/lxd.git
+    _run "cd lxd && git fetch --depth=1 origin $LXD_REF && git checkout --detach FETCH_HEAD && sudo -E ./test/snap.sh test/snap/gpu-container $SNAP_CHANNEL < /dev/null"

@@ -1,11 +1,13 @@
 #!/bin/bash -eu
 
 temp_job="${TFWORKFLOW}.yml.tmp"
+LXD_REF="${LXD_REF:-main}"
 
 echo "Inputs: $JOB_QUEUE $DISTRO $SNAP_CHANNEL $TFWORKFLOW"
 
 # Replace env vars with inputs
-envsubst '$JOB_QUEUE $DISTRO $SNAP_CHANNEL' < "${TFWORKFLOW}.yml" > $temp_job
+# shellcheck disable=SC2016 # envsubst requires literal variable names.
+envsubst '$JOB_QUEUE $DISTRO $SNAP_CHANNEL $LXD_REF' < "${TFWORKFLOW}.yml" > "${temp_job}"
 
 if [[ "${1:-}" == "--dryrun" ]]; then
   echo "Dry-run complete"
@@ -15,4 +17,4 @@ if [[ "${1:-}" == "--dryrun" ]]; then
 fi
 
 # Submit the modified job
-testflinger submit --poll $temp_job
+testflinger submit --poll "${temp_job}"

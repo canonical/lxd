@@ -1,7 +1,11 @@
 # Testflinger scripts
 
-This directory contains the scripts used for GPU testing (NVIDIA and AMD) via Github actions and Testflinger.
+This directory contains the scripts used for GPU testing (NVIDIA and AMD) via GitHub Actions and Testflinger.
 The tests run on devices within Canonical's test farm.
+
+The NVIDIA and NVIDIA MIG templates clone the LXD revision that triggered the
+workflow and run the relevant script through `test/snap.sh`. The Ubuntu Core
+and AMD CDI templates test the selected store snap directly.
 
 ## Run locally
 Running the tests locally is only possible if your machine has access to the Testflinger server.

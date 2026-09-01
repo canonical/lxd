@@ -89,5 +89,5 @@ test_data:
     _run sudo reboot
     wait-for-ssh --allow-degraded
 
-    _run git clone --depth=1 --branch main https://github.com/canonical/lxd-ci.git
-    _run "cd lxd-ci && sudo ./bin/local-run tests/gpu-mig $SNAP_CHANNEL < /dev/null"
+    _run git clone --depth=1 https://github.com/canonical/lxd.git
+    _run "cd lxd && git fetch --depth=1 origin $LXD_REF && git checkout --detach FETCH_HEAD && sudo -E ./test/snap.sh test/snap/gpu-mig $SNAP_CHANNEL < /dev/null"

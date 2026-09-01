@@ -5,6 +5,10 @@ on:
     paths:
       - '.github/workflows/gpu-passthrough-tests.yml'
       - '.github/workflows/testflinger/**'
+      - 'test/includes/snap-helpers.sh'
+      - 'test/includes/snap.sh'
+      - 'test/snap.sh'
+      - 'test/snap/**'
   schedule:
     - cron: '38 6 */5 * *'
   workflow_dispatch:
@@ -45,12 +49,13 @@ concurrency:
 
 env:
   TESTFLINGER_DIR: .github/workflows/testflinger
+  LXD_REF: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   uc-nvidia-cdi:
     runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
     # LXD 5.0 does not support CDI, only `nvidia.runtime`.
-    if: ${{ !contains(inputs.snap-track, '5.0/') }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && !contains(inputs.snap-track, '5.0/') }}
     strategy:
       matrix:
         track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
@@ -85,6 +90,7 @@ jobs:
 
   nvidia:
     runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     strategy:
       matrix:
         track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
@@ -118,6 +124,7 @@ jobs:
 
   nvidia-mig:
     runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     strategy:
       matrix:
         track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
@@ -152,7 +159,7 @@ jobs:
   amd-cdi:
     runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
     # AMD CDI is not supported on LXD 5.0 or 5.21.
-    if: ${{ !contains(inputs.snap-track, '5.0/') && !contains(inputs.snap-track, '5.21/') }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && !contains(inputs.snap-track, '5.0/') && !contains(inputs.snap-track, '5.21/') }}
     strategy:
       matrix:
         track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
