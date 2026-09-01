@@ -1250,6 +1250,10 @@ func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArg
 	}
 
 	if volSrcArgs.Refresh && shared.StringInSlice(migration.BTRFSFeatureSubvolumeUUIDs, volSrcArgs.MigrationType.Features) {
+		// The target replies with the subset of the subvolumes the source just offered that
+		// it still needs. Keep the offered set so the reply can be validated against it.
+		sentSubvolumes := migrationHeader.Subvolumes
+
 		migrationHeader = &BTRFSMetaDataHeader{}
 
 		buf, err := io.ReadAll(conn)
@@ -1260,6 +1264,14 @@ func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArg
 		err = json.Unmarshal(buf, &migrationHeader)
 		if err != nil {
 			return fmt.Errorf("Failed decoding BTRFS migration header: %w", err)
+		}
+
+		// Defend against path traversal attacks. migrateVolumeOptimized btrfs-sends exactly
+		// the paths in the returned header, so require every returned entry to match one
+		// the source offered.
+		err = d.validateReturnedSubvolumes(sentSubvolumes, migrationHeader.Subvolumes)
+		if err != nil {
+			return err
 		}
 
 		d.logger.Debug("Received BTRFS migration meta data header", logger.Ctx{"name": vol.name})
