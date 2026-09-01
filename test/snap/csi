@@ -31,7 +31,7 @@ fi
 git clone --depth=1 --single-branch https://github.com/canonical/lxd-csi-driver.git
 
 echo "==> Deploy Kubernetes cluster with LXD CSI driver"
-LXD_CI_HELPERS_PATH="$(realpath bin/helpers)"
+LXD_CI_HELPERS_PATH="$(realpath test/includes/snap-helpers.sh)"
 K8S_KUBECONFIG_PATH="$(realpath lxd-csi-driver)/.kube/${CLUSTER_NAME}.yml"
 
 export LXD_CI_HELPERS_PATH
