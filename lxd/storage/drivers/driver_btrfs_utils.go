@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -528,7 +530,9 @@ func (d *btrfs) getSubVolumeReceivedUUID(vol Volume) (string, error) {
 
 // selectSubvolumesToSync returns the snapshots and subvolumes from a migration refresh header that the
 // target still needs. localSubvolumes maps each target snapshot to its received UUID.
-func (d *btrfs) selectSubvolumesToSync(subvolumes []BTRFSSubVolume, localSubvolumes map[string]string) ([]string, []BTRFSSubVolume) {
+// A snapshot missing on the target must be negotiated. A snapshot already on the target is not negotiated
+// when its name and creation date match, but is still received when its received UUID differs.
+func (d *btrfs) selectSubvolumesToSync(subvolumes []BTRFSSubVolume, localSubvolumes map[string]string, negotiatedSnapshots []string) ([]string, []BTRFSSubVolume, error) {
 	snapshots := []string{}
 	var syncSubvolumes []BTRFSSubVolume
 
@@ -540,13 +544,17 @@ func (d *btrfs) selectSubvolumesToSync(subvolumes []BTRFSSubVolume, localSubvolu
 		}
 
 		if migrationSnap.Path == "/" && migrationSnap.Snapshot != "" {
+			if !ok && !slices.Contains(negotiatedSnapshots, migrationSnap.Snapshot) {
+				return nil, nil, fmt.Errorf("Subvolume snapshot %q was not negotiated for this migration", migrationSnap.Snapshot)
+			}
+
 			snapshots = append(snapshots, migrationSnap.Snapshot)
 		}
 
 		syncSubvolumes = append(syncSubvolumes, BTRFSSubVolume{Path: migrationSnap.Path, Snapshot: migrationSnap.Snapshot, UUID: migrationSnap.UUID})
 	}
 
-	return snapshots, syncSubvolumes
+	return snapshots, syncSubvolumes, nil
 }
 
 // BTRFSMetaDataHeader is the meta data header about the volumes being sent/stored.
@@ -597,8 +605,37 @@ func (d *btrfs) restorationHeader(vol Volume, snapshots []string) (*BTRFSMetaDat
 	return &migrationHeader, nil
 }
 
+// validateSubVolumeHeader rejects a metadata header whose subvolume paths or snapshot names could
+// escape the parent volume.
+func (d *btrfs) validateSubVolumeHeader(header BTRFSMetaDataHeader, expectedSnapshots []string) error {
+	for _, subVol := range header.Subvolumes {
+		if subVol.Snapshot != "" {
+			err := instancetype.ValidSnapName(subVol.Snapshot)
+			if err != nil {
+				return fmt.Errorf("Invalid subvolume snapshot name %q: %w", subVol.Snapshot, err)
+			}
+
+			if expectedSnapshots != nil && !slices.Contains(expectedSnapshots, subVol.Snapshot) {
+				return fmt.Errorf("Subvolume snapshot %q does not belong to the volume", subVol.Snapshot)
+			}
+		}
+
+		if subVol.Path == string(filepath.Separator) {
+			// The volume top ("/") is always in bounds.
+			continue
+		}
+
+		if !filepath.IsLocal(strings.TrimPrefix(subVol.Path, string(filepath.Separator))) {
+			return fmt.Errorf("Subvolume path %q must be within the volume", subVol.Path)
+		}
+	}
+
+	return nil
+}
+
 // loadOptimizedBackupHeader extracts optimized backup header from a given ReadSeeker.
-func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*BTRFSMetaDataHeader, error) {
+// Snapshot names in the header are validated against expectedSnapshots.
+func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string, expectedSnapshots []string) (*BTRFSMetaDataHeader, error) {
 	header := BTRFSMetaDataHeader{}
 
 	// Extract.
@@ -623,6 +660,12 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*B
 			err = yaml.NewDecoder(util.MaxBytesReader(tr, util.MaxYAMLFileBytes)).Decode(&header)
 			if err != nil {
 				return nil, fmt.Errorf("Error parsing optimized backup header file: %w", err)
+			}
+
+			// Defend against path traversal attacks.
+			err = d.validateSubVolumeHeader(header, expectedSnapshots)
+			if err != nil {
+				return nil, err
 			}
 
 			cancelFunc()

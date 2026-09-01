@@ -12,11 +12,12 @@ func Test_btrfs_selectSubvolumesToSync(t *testing.T) {
 	driver := &btrfs{}
 
 	tests := []struct {
-		name            string
-		subvolumes      []BTRFSSubVolume
-		localSubvolumes map[string]string
-		wantSnapshots   []string
-		wantSubvolumes  []BTRFSSubVolume
+		name                string
+		subvolumes          []BTRFSSubVolume
+		localSubvolumes     map[string]string
+		negotiatedSnapshots []string
+		wantSnapshots       []string
+		wantSubvolumes      []BTRFSSubVolume
 	}{
 		{
 			name:            "Main volume is always synced",
@@ -37,8 +38,9 @@ func Test_btrfs_selectSubvolumesToSync(t *testing.T) {
 				{Snapshot: "snap1", Path: "/", UUID: "uuid-snap1"},
 				{Snapshot: "snap1", Path: "/foo", UUID: "uuid-snap1-foo"},
 			},
-			localSubvolumes: map[string]string{},
-			wantSnapshots:   []string{"snap1"},
+			localSubvolumes:     map[string]string{},
+			negotiatedSnapshots: []string{"snap1"},
+			wantSnapshots:       []string{"snap1"},
 			wantSubvolumes: []BTRFSSubVolume{
 				{Snapshot: "snap1", Path: "/", UUID: "uuid-snap1"},
 				{Snapshot: "snap1", Path: "/foo", UUID: "uuid-snap1-foo"},
@@ -55,7 +57,8 @@ func Test_btrfs_selectSubvolumesToSync(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			snapshots, syncSubvolumes := driver.selectSubvolumesToSync(test.subvolumes, test.localSubvolumes)
+			snapshots, syncSubvolumes, err := driver.selectSubvolumesToSync(test.subvolumes, test.localSubvolumes, test.negotiatedSnapshots)
+			require.NoError(t, err)
 			require.Equal(t, test.wantSnapshots, snapshots)
 			require.Equal(t, test.wantSubvolumes, syncSubvolumes)
 		})

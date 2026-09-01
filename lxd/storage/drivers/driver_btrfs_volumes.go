@@ -197,7 +197,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 	// Load optimized backup header file if specified.
 	var optimizedHeader *BTRFSMetaDataHeader
 	if *srcBackup.OptimizedHeader {
-		optimizedHeader, err = d.loadOptimizedBackupHeader(srcData, GetVolumeMountPath(d.name, vol.volType, ""))
+		optimizedHeader, err = d.loadOptimizedBackupHeader(srcData, GetVolumeMountPath(d.name, vol.volType, ""), srcBackup.Snapshots)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -575,6 +575,22 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 			return fmt.Errorf("Failed decoding BTRFS migration header: %w", err)
 		}
 
+		// The header comes from the source peer and must be validated.
+		// A normal copy sends exactly the negotiated snapshots, and any other snapshot
+		// name is rejected here.
+		// A refresh sends the source's whole snapshot list, letting the target skip the
+		// ones it already has. Each snapshot is then checked as it is chosen for transfer
+		// in the loop below.
+		var expectedSnapshots []string
+		if !volTargetArgs.Refresh {
+			expectedSnapshots = append([]string{}, volTargetArgs.Snapshots...)
+		}
+
+		err = d.validateSubVolumeHeader(migrationHeader, expectedSnapshots)
+		if err != nil {
+			return err
+		}
+
 		d.logger.Debug("Received BTRFS migration meta data header", logger.Ctx{"name": vol.name})
 	} else {
 		// Populate the migrationHeader subvolumes with root volumes only to support older LXD sources.
@@ -614,7 +630,10 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 		}
 
 		// Figure out which snapshots need to be copied by comparing the UUIDs and received UUIDs from the migration header.
-		volTargetArgs.Snapshots, syncSubvolumes = d.selectSubvolumesToSync(migrationHeader.Subvolumes, localSubvolumes)
+		volTargetArgs.Snapshots, syncSubvolumes, err = d.selectSubvolumesToSync(migrationHeader.Subvolumes, localSubvolumes, volTargetArgs.Snapshots)
+		if err != nil {
+			return err
+		}
 
 		migrationHeader = BTRFSMetaDataHeader{Subvolumes: syncSubvolumes}
 
