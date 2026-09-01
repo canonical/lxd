@@ -455,6 +455,83 @@ func Test_fcTargetWWNs(t *testing.T) {
 	}
 }
 
+func Test_nvmeFCTargets(t *testing.T) {
+	const subsystemNQN = "nqn.2010-06.com.purestorage:flasharray.1234"
+
+	tests := []struct {
+		Name      string
+		Ports     []purePort
+		WantNQN   string
+		WantAddrs []string
+	}{
+		{
+			// An NVMe/FC port reports both an NQN and a WWN. On Pure Storage the target
+			// node name equals the port WWN, so both halves of the address match.
+			Name: "NVMe/FC port yields nn/pn address from a single WWN",
+			Ports: []purePort{
+				{Name: "CT0.FC1", WWN: "52:4A:93:71:56:B8:6F:01", NQN: subsystemNQN},
+			},
+			WantNQN:   subsystemNQN,
+			WantAddrs: []string{"nn-0x524a937156b86f01:pn-0x524a937156b86f01"},
+		},
+		{
+			// The inverse of the SCSI/FC filter: a WWN with no NQN is a SCSI/FC port.
+			Name: "SCSI/FC port is excluded",
+			Ports: []purePort{
+				{Name: "CT0.FC0", WWN: "52:4A:93:71:56:B8:6F:00"},
+			},
+			WantNQN:   "",
+			WantAddrs: []string{},
+		},
+		{
+			Name: "NVMe/TCP and iSCSI ports are excluded",
+			Ports: []purePort{
+				{Name: "CT0.ETH0", IQN: "iqn.2010-06.com.purestorage:flasharray.1234"},
+				{Name: "CT0.ETH1", NQN: subsystemNQN},
+			},
+			WantNQN:   "",
+			WantAddrs: []string{},
+		},
+		{
+			Name: "Mixed ports keep only the NVMe/FC ones",
+			Ports: []purePort{
+				{Name: "CT0.FC0", WWN: "52:4A:93:71:56:B8:6F:00"},
+				{Name: "CT0.FC1", WWN: "52:4A:93:71:56:B8:6F:01", NQN: subsystemNQN},
+				{Name: "CT1.FC1", WWN: "52:4A:93:71:56:B8:6F:11", NQN: subsystemNQN},
+				{Name: "CT0.ETH0", IQN: "iqn.2010-06.com.purestorage:flasharray.1234"},
+			},
+			WantNQN: subsystemNQN,
+			WantAddrs: []string{
+				"nn-0x524a937156b86f01:pn-0x524a937156b86f01",
+				"nn-0x524a937156b86f11:pn-0x524a937156b86f11",
+			},
+		},
+		{
+			Name: "Duplicate ports are reported once",
+			Ports: []purePort{
+				{Name: "CT0.FC1", WWN: "52:4A:93:71:56:B8:6F:01", NQN: subsystemNQN},
+				{Name: "CT0.FC1", WWN: "0x524a937156b86f01", NQN: subsystemNQN},
+			},
+			WantNQN:   subsystemNQN,
+			WantAddrs: []string{"nn-0x524a937156b86f01:pn-0x524a937156b86f01"},
+		},
+		{
+			Name:      "No ports at all",
+			Ports:     []purePort{},
+			WantNQN:   "",
+			WantAddrs: []string{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			nqn, addrs := nvmeFCTargets(test.Ports)
+			assert.Equal(t, test.WantNQN, nqn)
+			assert.Equal(t, test.WantAddrs, addrs)
+		})
+	}
+}
+
 func Test_pureConnection_unmarshal(t *testing.T) {
 	// Responses as returned by the Pure Storage "connections" endpoint. The LUN is
 	// required by the SCSI/FC connector to scope the SCSI bus rescan.
