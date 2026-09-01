@@ -199,6 +199,67 @@ func Test_pureHost_matchesQualifiedName(t *testing.T) {
 	}
 }
 
+func Test_pureHost_matchesAnyQualifiedName(t *testing.T) {
+	// A Fibre Channel host registers one WWPN per host bus adapter port on a single
+	// Pure Storage host, so a match on any of them identifies the host.
+	host := pureHost{
+		Name: "server01-scsi-fc",
+		WWNs: []string{"21000024FF43B10C", "21000024FF43B10D"},
+	}
+
+	tests := []struct {
+		Name string
+		Mode string
+		QNs  []string
+		Want bool
+	}{
+		{
+			Name: "All local initiators registered",
+			Mode: connectors.TypeSCSIFC,
+			QNs:  []string{"21000024ff43b10c", "21000024ff43b10d"},
+			Want: true,
+		},
+		{
+			// Matters when a port is added after the host object was created.
+			Name: "Only the second local initiator is registered",
+			Mode: connectors.TypeSCSIFC,
+			QNs:  []string{"21000024ff43b1ff", "21000024ff43b10d"},
+			Want: true,
+		},
+		{
+			// The reason enumeration order must not change host identity.
+			Name: "Registration order does not matter",
+			Mode: connectors.TypeSCSIFC,
+			QNs:  []string{"21000024ff43b10d", "21000024ff43b10c"},
+			Want: true,
+		},
+		{
+			Name: "No local initiator is registered",
+			Mode: connectors.TypeSCSIFC,
+			QNs:  []string{"21000024ff43b1fe", "21000024ff43b1ff"},
+			Want: false,
+		},
+		{
+			Name: "Empty initiator list never matches",
+			Mode: connectors.TypeSCSIFC,
+			QNs:  []string{},
+			Want: false,
+		},
+		{
+			Name: "Single-initiator transports still match",
+			Mode: connectors.TypeISCSI,
+			QNs:  []string{"iqn.2005-03.org.open-iscsi:abcdef123456"},
+			Want: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			assert.Equal(t, test.Want, host.matchesAnyQualifiedName(test.Mode, test.QNs))
+		})
+	}
+}
+
 func Test_pureDiskSuffix(t *testing.T) {
 	// A Pure Storage volume serial number is always 24 characters long.
 	const serial = "8726B5033AF2433D00014196"
