@@ -3,7 +3,7 @@ set -eu
 
 # Source helper functions.
 # shellcheck disable=SC1091
-. ./bin/helpers
+. ./test/includes/snap-helpers.sh
 
 # XXX: virt-v2v is recent enough in 24.04 onward. For older releases,
 # virt-v2v is not installed, and the conversion test is skipped.
