@@ -330,6 +330,29 @@ test_backup_import_with_project() {
     lxc info c1
     lxc start c1
     lxc delete --force c1
+
+    if [ "$lxd_backend" = "btrfs" ]; then
+      sub_test "Reject path traversal in BTRFS optimized backup"
+
+      # A custom subvolume path in optimized_header.yaml must not be able to traverse out of the
+      # volume mount point. Repack the backup unchanged first and require it to import. Afterwards,
+      # replace the path and ensure import rejects it.
+      tamper_dir="${LXD_DIR}/backup-tamper"
+      mkdir "${tamper_dir}"
+      tar --warning=no-timestamp -xzf "${LXD_DIR}/c1-optimized.tar.gz" -C "${tamper_dir}"
+
+      tar -czf "${LXD_DIR}/c1-repacked-optimized.tar.gz" -C "${tamper_dir}" backup
+      lxc import "${LXD_DIR}/c1-repacked-optimized.tar.gz"
+      lxc delete --force c1
+
+      sed -i 's|^- path: /$|- path: ../../../../etc/cron.d|' "${tamper_dir}/backup/optimized_header.yaml"
+      tar -czf "${LXD_DIR}/c1-traversal-optimized.tar.gz" -C "${tamper_dir}" backup
+      import_err="$(! lxc import "${LXD_DIR}/c1-traversal-optimized.tar.gz" custom 2>&1 || false)"
+      grep -qF 'Subvolume path "../../../../etc/cron.d" must be within the volume' <<< "${import_err}"
+      ! lxc info custom || false
+
+      rm -rf "${tamper_dir}" "${LXD_DIR}/c1-repacked-optimized.tar.gz" "${LXD_DIR}/c1-traversal-optimized.tar.gz"
+    fi
   fi
 
   # with snapshots
