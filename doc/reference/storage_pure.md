@@ -88,14 +88,6 @@ Sharing the Pure Storage storage pool between multiple LXD installations
 Recovering Pure Storage storage pools
 : Recovery of Pure Storage storage pools using `lxd recover` is currently not supported.
 
-Only one Fibre Channel initiator is used
-: In `scsi/fc` mode, LXD registers a single initiator {abbr}`WWPN (World Wide Port Name)` with the array: the first one the host reports.
-  A host can have several Fibre Channel {abbr}`HBA (host bus adapter)` cards, each card can provide several ports, and every port has its own WWPN.
-  All initiators except the first are left unregistered, and the array does not present volumes to them.
-  Redundancy is therefore limited to the paths reachable through the registered initiator, and its loss means that the pool can no longer be accessed even if the host has other Fibre Channel ports.
-  Which initiator is registered depends on the order in which they are enumerated by the host, which is not guaranteed to be stable across reboots.
-  Zone the fabric so that the registered initiator reaches every array target port that should be used.
-
 ## Configuration options
 
 The following configuration options are available for storage pools that use the `pure` driver, as well as storage volumes in these pools.
