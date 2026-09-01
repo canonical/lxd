@@ -329,7 +329,8 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 				continue
 			}
 
-			if transport == TransportFC {
+			switch transport {
+			case TransportFC:
 				if !slices.Contains(session.addresses, transportAddr) {
 					session.addresses = append(session.addresses, transportAddr)
 				}
@@ -341,7 +342,8 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 				if hostAddr != "" && !slices.Contains(session.hostAddressesByTarget[transportAddr], hostAddr) {
 					session.hostAddressesByTarget[transportAddr] = append(session.hostAddressesByTarget[transportAddr], hostAddr)
 				}
-			} else {
+
+			case TransportTCP:
 				transportServiceID := fields["trsvcid"]
 				if transportServiceID == "" {
 					transportServiceID = NVMeDefaultTransportPort
@@ -351,6 +353,9 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 				if !slices.Contains(session.addresses, targetAddr) {
 					session.addresses = append(session.addresses, targetAddr)
 				}
+
+			default:
+				return nil, fmt.Errorf("Unsupported NVMe transport type %q", transport)
 			}
 		}
 	}
