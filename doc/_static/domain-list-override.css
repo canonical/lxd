@@ -1,0 +1,8 @@
+/* Override sphinx-structured-toc separator color to Ubuntu orange */
+.domain-list > ul > li > ul > li {
+    border-left: 1px solid #E95420;
+}
+
+.domain-list > ul > li > ul > li:first-child {
+    border-left: none;
+}
