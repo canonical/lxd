@@ -5,7 +5,7 @@ set -eux
 
 # Check if IOMMU is configured
 if [ -n "$(find /sys/kernel/iommu_groups/ -empty)" ]; then
-    echo "System not IOMMU ready, hint: \"./bin/custom-kernel iommu\"" >&2
+    echo "System not IOMMU ready. Configure IOMMU before running this test." >&2
     exit 1
 fi
 
@@ -39,6 +39,9 @@ networkTests() {
         case "${name}" in
         c3|c4|v3|v4)
             continue # Can't test instances on different VLAN.
+            ;;
+        *)
+            ;;
         esac
 
         echo ""
