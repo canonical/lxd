@@ -1460,6 +1460,23 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(errors.New("Invalid images JSON"))
 	}
 
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	isClusterNotification := requestor.IsClusterNotification()
+
+	// Translate the deprecated Server and Protocol image source fields into an image registry
+	// for backward compatibility with older clients. This is skipped for cluster-internal
+	// requests (e.g. member-to-member image replication).
+	if !imageUpload && req.Source != nil && !isClusterNotification {
+		err = resolveDeprecatedImagesPostSource(r.Context(), s, projectName, req.Source)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
 	if !imageUpload && req.Source.Type == "image" && req.Source.ImageRegistry != "" {
 		if !projectutils.RegistryAllowed(projectConfig, req.Source.ImageRegistry) {
 			return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Image registry not found"))
@@ -1495,13 +1512,6 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 	}
-
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	isClusterNotification := requestor.IsClusterNotification()
 
 	// Begin background operation
 	run := func(ctx context.Context, op *operations.Operation) error {
