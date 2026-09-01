@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/canonical/lxd/client"
@@ -13,6 +15,70 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
 )
+
+// transitionalSimpleStreamsHosts contains hostnames whose URLs are allowed
+// to be auto-created as image registries through the deprecated Server/Protocol
+// backward-compatibility path. Only HTTPS URLs on these hosts are accepted.
+var transitionalSimpleStreamsHosts = []string{
+	"cloud-images.ubuntu.com",
+	"images.lxd.canonical.com",
+	"cdimage.ubuntu.com",
+}
+
+// IsTransitionalSimpleStreamsURL reports whether raw URL is an endpoint eligible
+// for the transitional image registry auto-creation path. The URL must use the
+// HTTPS scheme and its hostname must apper in the allowlist.
+func IsTransitionalSimpleStreamsURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+
+	if u.Scheme != "https" {
+		return false
+	}
+
+	host := strings.ToLower(u.Hostname())
+	for _, allowed := range transitionalSimpleStreamsHosts {
+		if host == allowed {
+			return true
+		}
+	}
+
+	return false
+}
+
+// TransitionalRegistryName derives a deterministic image registry name from a
+// SimpleStreams URL. The scheme is stripped, the hostname is lower-cased, and
+// non-empty path segments are joined with "-". The result is suitable for use
+// as an image registry name (ASCII, no "/" or ":").
+//
+// Returns an empty string if rawURL cannot be parsed.
+func TransitionalRegistryName(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+
+	host := strings.ToLower(u.Hostname())
+	if host == "" {
+		return ""
+	}
+
+	// Collect non-empty path segments.
+	var segments []string
+	for _, seg := range strings.Split(u.Path, "/") {
+		if seg != "" {
+			segments = append(segments, seg)
+		}
+	}
+
+	if len(segments) == 0 {
+		return host
+	}
+
+	return host + "-" + strings.Join(segments, "-")
+}
 
 // ConnectImageRegistry is a convenience function that connects to the image registry's underlying image server based on its protocol and authentication requirements.
 // It returns an initialized [client.ImageServer] ready for use.
