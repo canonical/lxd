@@ -102,7 +102,7 @@ for vers in "latest" "5.21" "5.0"; do
 
     # Don't test 5.0 clients against latest track as the client is too old and only supports password authentication.
     # Due to the nature of this matrix test, the latest client gets tested against an 5.0 server.
-    if ! echo "${LXD_SNAP_CHANNEL}" | grep -qE "^(latest|5\.[1-9].)/" && [ "${vers}" = "latest" ]; then
+    if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^(latest|5\.[1-9].)/ ]] && [[ "${vers}" = "latest" ]]; then
         echo "Skip testing ${LXD_SNAP_CHANNEL} against ${versStr} as the client is too old"
         continue
     fi
