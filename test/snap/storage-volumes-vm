@@ -319,7 +319,7 @@ do
 		! lxc delete v2 || false
 
 		# Make sure used_by is calculated correctly
-		lxc storage volume show "${poolName}" virtual-machine/v2 | grep -qF '/1.0/instances/v1'
+		lxc storage volume show "${poolName}" virtual-machine/v2 | grep -F '/1.0/instances/v1'
 
 		# Can't unset security.protection.start when v2's root volume is attached to vm1
 		! lxc config unset v2 security.protection.start || false
