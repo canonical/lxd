@@ -20,7 +20,7 @@ check_mountinfo() {
 }
 
 # Install required components from "restricted" pocket
-if ! grep -v '^#' /etc/apt/sources.list | grep -qwFm1 restricted; then
+if ! grep -v '^#' /etc/apt/sources.list | grep -wF restricted; then
     ARCH="$(dpkg --print-architecture)"
     DISTRO="$(lsb_release -sc)"
     if [ "$ARCH" != "amd64" ]; then
