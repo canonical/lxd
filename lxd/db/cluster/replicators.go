@@ -248,3 +248,54 @@ func FinalizeReplicatorStatus(ctx context.Context, tx *sql.Tx, replicatorID int6
 
 	return err
 }
+
+// GetLastReplicatorStatuses gets the most recent [ReplicatorsStatusRow] for all [Replicator] entries in the given project,
+// or for all projects if no project name is provided.
+func GetLastReplicatorStatuses(ctx context.Context, tx *sql.Tx, projectName *string) (map[int64]ReplicatorsStatusRow, error) {
+	var b strings.Builder
+	r := ReplicatorsStatusRow{}
+	cols := r.SelectColumns()
+	idx := slices.Index(cols, "replicators_status.id")
+	cols[idx] = "MAX(replicators_status.id)"
+	b.WriteString(`SELECT `)
+	b.WriteString(cols[0])
+	for _, col := range cols[1:] {
+		b.WriteString(", ")
+		b.WriteString(col)
+	}
+
+	b.WriteString(" FROM ")
+	b.WriteString(r.TableName())
+
+	var args []any
+	if projectName != nil {
+		b.WriteString(" JOIN replicators ON ")
+		b.WriteString(r.TableName())
+		b.WriteString(".replicator_id = replicators.id JOIN projects ON replicators.project_id = projects.id WHERE projects.name = ?")
+		args = append(args, *projectName)
+	}
+
+	b.WriteString(" GROUP BY replicators_status.replicator_id")
+
+	result := make(map[int64]ReplicatorsStatusRow)
+	err := query.Scan(ctx, tx, b.String(), func(scan func(dest ...any) error) error {
+		status := &ReplicatorsStatusRow{}
+		err := scan(status.ScanArgs()...)
+		if err != nil {
+			return fmt.Errorf("Failed scanning replicator status row: %w", err)
+		}
+
+		result[status.ReplicatorID] = *status
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying for replicator statuses: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetLastReplicatorStatus gets the most recent [ReplicatorsStatusRow] for the [Replicator] with the given ID.
+func GetLastReplicatorStatus(ctx context.Context, tx *sql.Tx, replicatorID int64) (*ReplicatorsStatusRow, error) {
+	return query.SelectOne[ReplicatorsStatusRow](ctx, tx, "WHERE replicators_status.replicator_id = ? ORDER BY replicators_status.id DESC LIMIT 1", replicatorID)
+}
