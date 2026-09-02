@@ -7,6 +7,10 @@ import (
 // IndexHeaderVersion version of the index header to be sent/recv.
 const IndexHeaderVersion uint32 = 2
 
+// IndexHeaderVersionCustomVolumes is the first index header version whose data stream carries the
+// instance's attached custom volumes after the root volume.
+const IndexHeaderVersionCustomVolumes uint32 = 3
+
 // BTRFSFeatureMigrationHeader indicates a migration header will be sent/recv in data channel after index header.
 const BTRFSFeatureMigrationHeader = "migration_header"
 
