@@ -281,7 +281,7 @@ echo "==> Check /dev/disk/by-id with escaped long device name"
 lxc launch "${IMAGE}" v2 --vm
 waitInstanceReady v2
 #setup_instance_gocoverage v2 # The injected disk device would not be allowed in this restricted project
-lxc config device add v2 ${LONG_DEVICE_NAME} disk source="${testRoot}/allowed1/lxd-block-test"
+lxc config device add v2 "${LONG_DEVICE_NAME}" disk source="${testRoot}/allowed1/lxd-block-test"
 sleep 3
 
 QEMU_DEV_ID="lxd_device-----with--very--long--name--and--4--qemu--property--handling--test_"
@@ -291,9 +291,9 @@ echo "${LXD_SNAP_CHANNEL} detected, using a shorter device_id"
   QEMU_DEV_ID="lxd_device-----with-"
 fi
 
-BLOCK_SPECIAL_FILE="$(lxc exec v2 -- readlink -f /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_${QEMU_DEV_ID})"
+BLOCK_SPECIAL_FILE="$(lxc exec v2 -- readlink -f "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_${QEMU_DEV_ID}")"
 lxc exec v2 -- test -b "$BLOCK_SPECIAL_FILE"
-lxc config device remove v2 ${LONG_DEVICE_NAME}
+lxc config device remove v2 "${LONG_DEVICE_NAME}"
 sleep 3
 ! lxc exec v2 -- stat "$BLOCK_SPECIAL_FILE" || false
 ! lxc exec v2 -- stat "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_${QEMU_DEV_ID}" || false
