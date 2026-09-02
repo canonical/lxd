@@ -11,6 +11,16 @@ Image registries store information about global, read-only sources of images, su
 You can use image registries to centrally define and manage the image sources that are accessible to all members of the cluster.
 Once you create an image registry, you can use it to download images for LXD.
 
+Image registries are the mechanism that LXD uses to download images.
+Every LXD server comes with a set of {ref}`built-in image registries <remote-image-servers>` for the most common public image sources.
+Built-in registries cannot be renamed, reconfigured, or deleted.
+You can add your own registries in addition to the built-in ones.
+
+```{note}
+Access to image registries can be restricted per project with the {config:option}`project-restricted:restricted.registries` configuration option.
+See {ref}`project-restrictions` for more information.
+```
+
 (howto-image-registries-create)=
 ## Create an image registry
 
@@ -41,6 +51,15 @@ See [`POST /1.0/image-registries`](swagger:/image-registries/image_registries_po
 
 ````
 `````
+
+```{note}
+The `source_project` option selects which project on the remote server the registry draws images from.
+
+Public images can exist only in the `default` project; every other project can contain private images only (the `default` project can also contain private images).
+A public cluster link connects to the remote server anonymously, so it can access only public images, which means public images in the server's `default` project.
+To expose private images from any project, use a unidirectional or bidirectional cluster link whose {ref}`authentication group <howto-cluster-links-auth>` has the `can_view_images` permission on the source project.
+Otherwise the registry still connects, but it cannot see the private images, so they remain inaccessible.
+```
 
 To create a registry for an image source that uses the `simplestreams` protocol, specify the URL of the SimpleStreams server.
 
@@ -104,6 +123,44 @@ See [`GET /1.0/image-registries`](swagger:/image-registries/image_registries_get
 
 ````
 `````
+
+(howto-image-registries-list-images)=
+## List the images in a registry
+
+To see which images an image registry provides, list its images.
+
+`````{tabs}
+````{group-tab} CLI
+
+Use the `--registry` flag of the [`lxc image list`](lxc_image_list.md) command:
+
+```bash
+lxc image list --registry <registry_name>
+```
+
+You can filter the results in the same way as when {ref}`listing local images <images-manage-filter>`.
+
+````
+````{group-tab} API
+
+Send a `GET` request to the `images` sub-endpoint of the registry:
+
+```bash
+lxc query --request GET /1.0/image-registries/<name>/images
+```
+
+See [`GET /1.0/image-registries/{name}/images`](swagger:/image-registries/{name}/image_registry_images_get) for more information.
+
+````
+`````
+
+(howto-image-registries-use)=
+## Use an image registry
+
+You use an image registry the same way you would use any other image source: reference the registry name together with an image alias or fingerprint.
+
+- To create an instance from an image provided by a registry, see {ref}`instances-create`.
+- To copy an image from a registry into your local image store, see {ref}`images-copy`.
 
 (howto-image-registries-configure)=
 ## Configure an image registry
