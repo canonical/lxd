@@ -61,6 +61,7 @@ lxd init --auto --network-address "[::]" --network-port "8443"
 
 # Select VM secure boot config syntax based on server API support.
 vm_secureboot_config="security.secureboot=false"
+# shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
 if hasNeededAPIExtension instance_boot_mode; then
     vm_secureboot_config="boot.mode=uefi-nosecureboot"
 fi
@@ -215,7 +216,7 @@ conversion() {
         # Install rsync and conversion tool.
         lxc exec "${instName}" -- apt-get update
         lxc exec "${instName}" -- apt-get install --no-install-recommends -y rsync file
-        lxc file push --create-dirs --mode 0755 --quiet "$(command -v ${LXD_CONVERT_TOOL})" "${instName}"/root/go/bin/${LXD_CONVERT_TOOL}
+        lxc file push --create-dirs --mode 0755 --quiet "$(command -v "${LXD_CONVERT_TOOL}")" "${instName}/root/go/bin/${LXD_CONVERT_TOOL}"
 
         # Set instName to the name of the new container that will be created
         # from the existing one.
@@ -395,6 +396,7 @@ rm -rf "${tmpdir}/backup"
 
 # Test VM conversion using non-raw disk formats only if server supports
 # conversion API extension.
+# shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
 if hasNeededAPIExtension instance_import_conversion; then
     # Test QCOW2 images.
     IMAGE_PATH="${tmpdir}/image"
@@ -453,6 +455,7 @@ if hasNeededAPIExtension instance_import_conversion; then
 
         # Ensure instance does not boot without virtio_scsi drivers.
         lxc start v1
+        # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
         ! MAX_WAIT_SECONDS=90 waitInstanceReady v1 || { echo "Instance booted without SCSI drivers!"; false; }
         lxc delete -f v1
 
