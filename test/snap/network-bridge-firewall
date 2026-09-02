@@ -45,7 +45,7 @@ ebtables --version 2>&1 | grep legacy
 
 # Check if br_netfilter module is already loaded.
 BR_NETFILTER_LOADED=false
-if lsmod | grep -qw ^br_netfilter; then
+if lsmod | grep -w ^br_netfilter; then
     BR_NETFILTER_LOADED=true
 fi
 
@@ -60,7 +60,7 @@ firewallTests() {
 
     managed=0
 
-    if lxc config show c1 --expanded | grep -qF "network: lxdbr0"; then
+    if lxc config show c1 --expanded | grep -F "network: lxdbr0"; then
         echo "=> Performing basic DHCP/SLAAC ping tests"
         sleep 5
         lxc exec c1 -- ping -nc1 -i0.1 -w1 192.0.2.1
@@ -171,7 +171,7 @@ firewallTests() {
         wait
 
         # LXD 5.21 and onwards don't masquerade multicast traffic if the host has br_netfilter loaded.
-        if echo "${LXD_SNAP_CHANNEL}" | grep -vE '^([45]\.0)/'; then
+        if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^([45]\.0)/ ]]; then
             # Check if multicast traffic is returned too and not mangled.
             # Launch a server in the same network that responds on datagrams under a specific multicast group with its hostname.
             lxc launch "${IMAGE}" c3 -n lxdbr1
@@ -202,7 +202,7 @@ firewallTests() {
         wait
 
         # LXD 5.21 and onwards don't masquerade multicast traffic if the host has br_netfilter loaded.
-        if echo "${LXD_SNAP_CHANNEL}" | grep -vE '^([45]\.0)/'; then
+        if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^([45]\.0)/ ]]; then
             # Check if multicast traffic passes within the same network.
             lxc exec c2 -- socat udp4-recvfrom:1234,ip-add-membership=239.0.0.1:192.0.3.254,fork exec:hostname &
             server_process="$!"
