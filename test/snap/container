@@ -168,7 +168,7 @@ for release in $RELEASES; do
         lxc exec n1 -- lxd init --auto
         lxc exec n1 -- lxc launch "${IMAGE}" n11
         sleep 5
-        [ "$(lxc exec n1 -- lxc exec n11 -- systemctl --quiet --failed)" = "" ] || ignore_known_issues n11 nested
+        [ "$(lxc exec n1 -- lxc exec n11 -- systemctl --quiet --failed || echo fail)" = "" ] || ignore_known_issues n11 nested
         lxc delete -f n1
     else
         echo "Skip ${release} nested container tests on ${LXD_SNAP_CHANNEL}"
