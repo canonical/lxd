@@ -123,7 +123,7 @@ func (ReplicatorsStatusRow) APIPluralName() string {
 }
 
 // ToAPI converts the [Replicator] to an [api.Replicator].
-func (r *Replicator) ToAPI(allConfigs map[int64]map[string]string) *api.Replicator {
+func (r *Replicator) ToAPI(allConfigs map[int64]map[string]string, lastStatuses map[int64]ReplicatorsStatusRow) *api.Replicator {
 	config := allConfigs[r.Row.ID]
 	if config == nil {
 		config = map[string]string{}
@@ -137,12 +137,10 @@ func (r *Replicator) ToAPI(allConfigs map[int64]map[string]string) *api.Replicat
 		LastRunStatus: api.ReplicatorStatusPending,
 	}
 
-	if r.Row.LastRunDate.Valid {
-		replicator.LastRunAt = r.Row.LastRunDate.Time
-	}
-
-	if r.Row.LastRunStatus != "" {
-		replicator.LastRunStatus = r.Row.LastRunStatus
+	lastStatus, ok := lastStatuses[r.Row.ID]
+	if ok {
+		replicator.LastRunAt = lastStatus.StartedDate
+		replicator.LastRunStatus = lastStatus.Status
 	}
 
 	return replicator
