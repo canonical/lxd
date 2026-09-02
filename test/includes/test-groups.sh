@@ -81,7 +81,7 @@ readonly test_group_replicator_storage=(
 
 readonly test_group_instance=(
     "cloud_init"
-    "concurrent"  # Disabled as flaky.
+    "concurrent"
     "concurrent_exec"
     "console"
     "console_vm"
