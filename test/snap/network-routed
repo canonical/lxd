@@ -86,7 +86,7 @@ EOF
     ping -nc1 -i0.1 -w1 -4 192.0.2.2
     ping -nc1 -i0.1 -w1 -6 2001:db8::2
     lxc exec "${instName}" -- ping -nc1 -i0.1 -w1 -4 192.0.2.1
-    lxc exec "${instName}" -- ping -nc1 -i0.1 -w1 -6 2001:db8::2
+    lxc exec "${instName}" -- ping -nc1 -i0.1 -w1 -6 2001:db8::1
     lxc exec "${instName}" -- ping -nc1 -i0.1 -w1 -4 169.254.0.1
     lxc exec "${instName}" -- ping -nc1 -i0.1 -w1 -6 "fe80::1%${iface}"
 
