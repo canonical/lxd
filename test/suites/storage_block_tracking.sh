@@ -162,6 +162,15 @@ test_storage_block_tracking_vm() {
   [ "$(! "${_LXC}" storage volume bitmap create "${pool}" container/c1 bm1 2>&1 1>/dev/null)" = 'Error: Invalid storage volume type "container"' ]
   lxc delete -f c1
 
+  sub_test "Shared volumes reject bitmaps and NBD exports"
+  lxc storage volume create "${pool}" cbt-shared size=32MiB --type block security.shared=true
+  [ "$(! "${_LXC}" storage volume bitmap create "${pool}" cbt-shared bm1 2>&1 1>/dev/null)" = "Error: Bitmaps are not supported on shared volumes" ]
+  _nbd_export "${pool}" cbt-shared
+  ! nbdinfo "${NBD_URI}" || false
+  ! wait "${NBD_PID}" || false
+  [[ "$(cat "${NBD_STDERR}")" == "Error: NBD export is not supported on shared volumes"* ]]
+  lxc storage volume delete "${pool}" cbt-shared
+
   sub_test "Writable NBD import of the stopped root volume"
   # Written after the export was taken, so it must be gone once the copy is written back.
   lxc exec v1 -- sh -c 'touch /root/after-export && sync'

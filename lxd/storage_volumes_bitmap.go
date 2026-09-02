@@ -19,6 +19,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/version"
@@ -82,6 +83,12 @@ func storagePoolVolumeTypeBitmapInstance(s *state.State, r *http.Request, operat
 
 	if dbVolume.ContentType != cluster.StoragePoolVolumeContentTypeNameBlock {
 		return nil, "", details, "", response.BadRequest(fmt.Errorf("Invalid storage volume content type %q, bitmaps are only supported on block volumes", dbVolume.ContentType))
+	}
+
+	// Several instances can write to a shared volume, so no single QEMU process sees every write and a
+	// bitmap on it would be incomplete.
+	if shared.IsTrue(dbVolume.Config["security.shared"]) {
+		return nil, "", details, "", response.BadRequest(errors.New("Bitmaps are not supported on shared volumes"))
 	}
 
 	inst, deviceName, err = storagePools.InstanceByVolumeName(s, details.pool.Name(), effectiveProjectName, details.volumeName, details.volumeType)

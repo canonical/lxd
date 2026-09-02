@@ -3473,18 +3473,24 @@ func (b *lxdBackend) GetInstanceNBD(inst instance.Instance, writable bool, reuse
 		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is only supported for virtual machines")
 	}
 
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), drivers.VolumeTypeVM)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// A shared volume can be written by another instance during the export, so neither the read-only nor
+	// the writable export can produce a consistent image.
+	if shared.IsTrue(dbVol.Config["security.shared"]) {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is not supported on shared volumes")
+	}
+
 	lockName := nbdInstanceLockName(inst.Project().Name, inst.Name())
 	lockDesc := fmt.Sprintf("instance %q", inst.Name())
 
 	if writable {
 		if inst.IsRunning() {
 			return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Writable NBD requires the instance to be stopped")
-		}
-
-		// Load storage volume from database.
-		dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), drivers.VolumeTypeVM)
-		if err != nil {
-			return nil, nil, err
 		}
 
 		// Generate the effective root device volume for instance.
@@ -3584,9 +3590,15 @@ func (b *lxdBackend) GetCustomVolumeNBD(projectName string, volName string, writ
 		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is only supported for block volumes")
 	}
 
+	// A shared volume can be written by another instance during the export, so neither the read-only nor
+	// the writable export can produce a consistent image.
+	if shared.IsTrue(dbVol.Config["security.shared"]) {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is not supported on shared volumes")
+	}
+
 	if writable {
-		// A shared block volume can be attached to several stopped virtual machines, so every attached
-		// instance is checked instead of requiring a single one.
+		// A non-shared block volume is attached to at most one instance, which must be stopped and on this
+		// member before qemu-nbd can open it.
 		err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &dbVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
 			if dbInst.Node != b.state.ServerName {
 				return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to instance %q on cluster member %q", dbInst.Name, dbInst.Node)

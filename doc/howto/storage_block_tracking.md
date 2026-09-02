@@ -14,6 +14,7 @@ They exist only in the QEMU process of the virtual machine, so any stop, reboot 
 - For bitmaps and for reading a volume, the volume must be attached to exactly one running virtual machine.
   A `custom` volume that is attached to a container, to several instances, or to no instance at all is rejected.
 - For writing a volume, every instance that uses the volume must be {ref}`stopped <instances-manage-stop>`.
+- For a bitmap or an NBD export of a single volume, the volume must not have `security.shared` enabled, because a shared block volume can be written by more than one virtual machine at once and neither a bitmap nor an export of it can be consistent. LXD rejects such a request, while the instance-wide `lxc bitmap` and `lxc nbd` commands skip shared block volumes instead.
 - The `can_connect_nbd` entitlement on the instance or storage volume to read or write it over NBD, and the `can_edit` entitlement to create and delete bitmaps (see {ref}`permissions-reference`).
 - An NBD client on the machine that runs the LXD client, for example `nbdinfo` and `nbdcopy` from `libnbd`, or `qemu-img`.
 
