@@ -193,7 +193,7 @@ else
 fi
 
 # limits.network.priority was dropped after 5.0
-if [ -e "/sys/fs/cgroup/net_prio" ] && echo "${LXD_SNAP_CHANNEL}" | grep -qE "^5\.0/"; then
+if [[ -e "/sys/fs/cgroup/net_prio" ]] && [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
     echo "==> Testing limits.network.priority"
     # NOTE: No such thing as net_prio under cgroup2
     lxc config set c1 limits.network.priority=10
