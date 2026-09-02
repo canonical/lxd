@@ -83,7 +83,7 @@ checkIPAddresses() {
     fail=0
 
     # IPv4 address
-    if echo "${address}" | grep -qF "."; then
+    if echo "${address}" | grep -F "." > /dev/null; then
         echo "===> PASS: IPv4 address: ${instName}"
     else
         echo "===> FAIL: IPv4 address: ${instName}"
@@ -91,7 +91,7 @@ checkIPAddresses() {
     fi
 
     # IPv6 address
-    if echo "${address}" | grep -qF ":"; then
+    if echo "${address}" | grep -F ":" > /dev/null; then
         echo "===> PASS: IPv6 address: ${instName}"
     else
         echo "===> FAIL: IPv6 address: ${instName}"
