@@ -2298,7 +2298,93 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 	// Receive index header from source if applicable and respond confirming receipt.
 	// This will also communicate the args.Refresh setting back to the source (in case it was changed by the
 	// caller if the instance DB record already exists).
-	srcInfo, err := b.migrationIndexHeaderReceive(l, args.IndexHeaderVersion, conn, args.Refresh)
+	// The devices the target deferred point at volumes that must arrive with the instance, and every volume
+	// the source lists must have a device in the instance's effective config here, or a profile on the target
+	// lacks it. Checking both against the header reports the problem before the root disk is transferred,
+	// instead of after the whole instance has been received.
+	checkVolumes := func(info *migration.Info) error {
+		if len(args.DeferredCustomVolumes) > 0 && args.IndexHeaderVersion < migration.IndexHeaderVersionCustomVolumes {
+			return errors.New("The source does not support transferring custom volumes with the instance")
+		}
+
+		listed := make(map[string]struct{})
+		if info.Config != nil {
+			for _, vol := range info.Config.Volumes {
+				if vol != nil && vol.Type == string(backupConfig.TypeCustom) {
+					listed[vol.Pool+"/"+vol.Name] = struct{}{}
+				}
+			}
+		}
+
+		for volKey := range args.DeferredCustomVolumes {
+			_, ok := listed[volKey]
+			if !ok {
+				return fmt.Errorf("Custom volume %q is missing on the target and the source will not transfer it", volKey)
+			}
+		}
+
+		// Only a sink that receives custom volumes has a device list to check the announcement against. A
+		// copy between pools on this server reuses the same header but leaves the custom volumes alone.
+		if args.AttachedCustomVolumes == nil {
+			return nil
+		}
+
+		for volKey := range listed {
+			_, ok := args.AttachedCustomVolumes[volKey]
+			if !ok {
+				return fmt.Errorf("Custom volume %q travels with the instance but no device of the instance or its profiles on the target references it", volKey)
+			}
+		}
+
+		// A volume another instance here attaches must never be overwritten. Refusing while the header is
+		// still being answered leaves the root volume and every custom volume untouched, which a refusal
+		// once the transfer has started would not.
+		instProject := inst.Project()
+		storageProject := project.StorageVolumeProjectFromRecord(&instProject, cluster.StoragePoolVolumeTypeCustom)
+
+		existing := make([]*db.StorageVolume, 0, len(listed))
+		for volKey := range listed {
+			poolName, volName, _ := strings.Cut(volKey, "/")
+
+			volPool, err := LoadByName(b.state, poolName)
+			if err != nil {
+				return fmt.Errorf("Failed loading storage pool %q for custom volume %q: %w", poolName, volName, err)
+			}
+
+			dbVol, err := VolumeDBGet(volPool, storageProject, volName, drivers.VolumeTypeCustom)
+			if err != nil {
+				if !response.IsNotFoundError(err) {
+					return fmt.Errorf("Failed checking for custom volume %q in pool %q: %w", volName, poolName, err)
+				}
+
+				continue
+			}
+
+			existing = append(existing, dbVol)
+		}
+
+		var users map[string][]db.InstanceArgs
+		err := b.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+			users, err = VolumesUsedBy(ctx, tx, storageProject, existing)
+			return err
+		})
+		if err != nil {
+			return fmt.Errorf("Failed finding users of the announced custom volumes: %w", err)
+		}
+
+		for volKey, volUsers := range users {
+			for _, user := range volUsers {
+				if !instance.IsSameLogicalInstance(inst, &user) {
+					return fmt.Errorf("Custom volume %q is attached to another instance on the target", volKey)
+				}
+			}
+		}
+
+		return nil
+	}
+
+	srcInfo, err := b.migrationIndexHeaderReceive(l, args.IndexHeaderVersion, conn, args.Refresh, checkVolumes)
 	if err != nil {
 		return err
 	}
@@ -5256,7 +5342,9 @@ func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersio
 
 // migrationIndexHeaderReceive receives migration index header from source and sends confirmation of receipt.
 // Returns the received source index header info.
-func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVersion uint32, conn io.ReadWriteCloser, refresh bool) (*migration.Info, error) {
+// The optional check runs on the decoded header before the response is sent, so a refusal reaches the source
+// as the response's error rather than as a dropped connection.
+func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVersion uint32, conn io.ReadWriteCloser, refresh bool, check func(*migration.Info) error) (*migration.Info, error) {
 	info := migration.Info{}
 
 	// Receive index header from source if applicable and respond confirming receipt.
@@ -5276,6 +5364,15 @@ func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVer
 		l.Info("Received migration index header, sending response", logger.Ctx{"version": indexHeaderVersion})
 
 		infoResp := migration.InfoResponse{StatusCode: http.StatusOK, Refresh: &refresh}
+
+		var checkErr error
+		if check != nil {
+			checkErr = check(&info)
+			if checkErr != nil {
+				infoResp = migration.InfoResponse{StatusCode: http.StatusBadRequest, Error: checkErr.Error()}
+			}
+		}
+
 		headerJSON, err := json.Marshal(infoResp)
 		if err != nil {
 			return nil, fmt.Errorf("Failed encoding migration index header response: %w", err)
@@ -5289,6 +5386,10 @@ func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVer
 		err = conn.Close() // End the frame.
 		if err != nil {
 			return nil, fmt.Errorf("Failed closing migration index header response frame: %w", err)
+		}
+
+		if checkErr != nil {
+			return nil, checkErr
 		}
 
 		// In all cases upgrade the format into the new one.
@@ -5448,7 +5549,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(ctx context.Context, projec
 	// Receive index header from source if applicable and respond confirming receipt.
 	// This will also let the source know whether to actually perform a refresh, as the target
 	// will set Refresh to false if the volume doesn't exist.
-	srcInfo, err := b.migrationIndexHeaderReceive(l, args.IndexHeaderVersion, conn, args.Refresh)
+	srcInfo, err := b.migrationIndexHeaderReceive(l, args.IndexHeaderVersion, conn, args.Refresh, nil)
 	if err != nil {
 		return err
 	}

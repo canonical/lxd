@@ -82,6 +82,21 @@ test_container_local_cross_pool_handling() {
   lxc storage volume show "${otherPool}" container/c2/snap1
   lxc delete c2
 
+  # A cross-pool copy goes through the migration system, and its index header lists the instance's attached
+  # custom volumes even though the copy leaves them where they are. The target must not read that list as a
+  # promise to deliver them.
+  lxc storage volume create "${originalPool}" attachedvol
+  lxc init testimage c1
+  lxc storage volume attach "${originalPool}" attachedvol c1 /mnt/attached
+  lxc copy c1 c2 --storage "${otherPool}"
+  [ "$(lxc config device get c2 attachedvol source)" = "attachedvol" ]
+  lxc storage volume show "${otherPool}" container/c2
+  lxc copy c1 c2 --storage "${otherPool}" --refresh
+  lxc delete c2
+  lxc storage volume detach "${originalPool}" attachedvol c1
+  lxc delete c1
+  lxc storage volume delete "${originalPool}" attachedvol
+
   lxc storage delete "${otherPool}"
 }
 

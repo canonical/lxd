@@ -77,6 +77,16 @@ type VolumeTargetArgs struct {
 	ContentType           string
 	VolumeOnly            bool
 	ClusterMoveSourceName string
+
+	// DeferredCustomVolumes holds "pool/name" for the custom volumes the target could not validate yet because
+	// they are missing and expected from the source. The index header must list each of them, or the migration
+	// is refused before any data moves. Only used for instance migration.
+	DeferredCustomVolumes map[string]struct{}
+
+	// AttachedCustomVolumes holds "pool/name" for every custom volume the instance's effective devices on the
+	// target refer to. Every custom volume the index header lists must be in it, or the migration is refused
+	// before any data moves. Only used for instance migration.
+	AttachedCustomVolumes map[string]struct{}
 }
 
 // TypesToHeader converts one or more Types to a MigrationHeader. It uses the first type argument

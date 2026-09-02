@@ -7923,6 +7923,8 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 			VolumeSize:            offerHeader.GetVolumeSize(), // Block size setting override.
 			VolumeOnly:            !args.Snapshots,
 			ClusterMoveSourceName: args.ClusterMoveSourceName,
+			DeferredCustomVolumes: args.DeferredVolumes,
+			AttachedCustomVolumes: args.AttachedVolumes,
 		}
 
 		// At this point we have already figured out the parent instances's root
@@ -8045,7 +8047,7 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 		// A live request keeps writing to the volumes, so those never travel with the instance. The
 		// condition matches the source so both sides agree on whether the frames are coming.
 		if respHeader.GetIndexHeaderVersion() >= migration.IndexHeaderVersionCustomVolumes && args.ClusterMoveSourceName == "" && !args.Live {
-			err = d.migrateReceiveCustomVolumes(ctx, d, filesystemConn, respHeader.GetIndexHeaderVersion(), args.Snapshots, revert, progressReporter)
+			err = d.migrateReceiveCustomVolumes(ctx, d, filesystemConn, respHeader.GetIndexHeaderVersion(), args.Snapshots, args.AttachedVolumes, revert, progressReporter)
 			if err != nil {
 				return err
 			}

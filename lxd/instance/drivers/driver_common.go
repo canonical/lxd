@@ -2492,7 +2492,7 @@ func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices device
 // The index header frame is always sent by a source at index header version 3 or higher, even when the instance has
 // no attached custom volumes, so this never blocks waiting for a frame that is not coming. Snapshots follow the
 // same setting as the instance's own snapshots.
-func (d *common) migrateReceiveCustomVolumes(ctx context.Context, inst instance.Instance, conn io.ReadWriteCloser, indexHeaderVersion uint32, snapshots bool, reverter *revert.Reverter, progressReporter ioprogress.ProgressReporter) error {
+func (d *common) migrateReceiveCustomVolumes(ctx context.Context, inst instance.Instance, conn io.ReadWriteCloser, indexHeaderVersion uint32, snapshots bool, attachedVolumes map[string]struct{}, reverter *revert.Reverter, progressReporter ioprogress.ProgressReporter) error {
 	buf, err := io.ReadAll(conn)
 	if err != nil {
 		return fmt.Errorf("Failed reading custom volume index header: %w", err)
@@ -2534,6 +2534,13 @@ func (d *common) migrateReceiveCustomVolumes(ctx context.Context, inst instance.
 
 		if vol.Type != dbCluster.StoragePoolVolumeTypeNameCustom || vol.Name == "" || vol.Pool == "" || shared.IsSnapshot(vol.Name) {
 			return fmt.Errorf("Invalid custom volume %q at index header entry %d", vol.Name, i)
+		}
+
+		// The source picks what to send, so without this a source could create a volume the instance
+		// never used or overwrite an unrelated one that already exists on the target.
+		_, attached := attachedVolumes[vol.Pool+"/"+vol.Name]
+		if !attached {
+			return fmt.Errorf("Custom volume %q in pool %q is not attached to instance %q", vol.Name, vol.Pool, inst.Name())
 		}
 
 		volPool, err := storagePools.LoadByName(d.state, vol.Pool)

@@ -11,6 +11,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/google/uuid"
@@ -25,6 +26,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
@@ -36,6 +38,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -266,6 +269,72 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 		return nil, fmt.Errorf("Failed setting up instance args: %w", err)
 	}
 
+	localDevices := args.Devices.Clone()
+
+	var deferredDevices []string
+
+	// Custom volumes the instance's devices refer to, keyed pool/name. A migration only ever creates or
+	// refreshes volumes from this set, so a source cannot make the target touch an unrelated volume.
+	attachedVolumes := map[string]struct{}{}
+
+	// The subset whose device is masked below because the volume is missing here. The source's index header
+	// must list each of them, so a volume that will not arrive is reported before any data moves. The
+	// transfer is what creates them, so they are also what a failed device restoration has to clean up.
+	deferredVolumes := map[string]struct{}{}
+
+	// The project the custom volumes live in, empty while no device refers to one.
+	var storageProjectName string
+
+	diskVolumesMode := req.Source.DiskVolumesMode
+	if diskVolumesMode != "" && diskVolumesMode != api.DiskVolumesModeRoot && diskVolumesMode != api.DiskVolumesModeAllExclusive {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Invalid disk volumes mode %q", diskVolumesMode)
+	}
+
+	// Cluster moves and live requests never carry custom volumes, so they keep the existing early validation.
+	if clusterMoveSourceName == "" && !req.Source.Live {
+		storageProjectName, err = project.StorageVolumeProject(s.DB.Cluster, projectName, dbCluster.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return nil, err
+		}
+
+		// A project that inherits its volumes never receives one, so a device pointing at a volume that
+		// is missing on the target is a real error for the normal validation to report.
+		if storageProjectName == projectName {
+			customVolumeDevices := instancetype.ExpandInstanceDevices(args.Devices.Clone(), profiles).Filter(filters.IsCustomVolumeDisk)
+			for _, dev := range customVolumeDevices {
+				attachedVolumes[dev["pool"]+"/"+dev["source"]] = struct{}{}
+			}
+
+			// Only all-exclusive mode transfers volumes, and any effective device, from the instance or a
+			// profile, may point at one that only exists on the source and so cannot validate yet. Mask
+			// those until the transfer has delivered the volume. A profile device is masked by a local
+			// override of the same name, which the restoration drops again.
+			if diskVolumesMode == api.DiskVolumesModeAllExclusive {
+				for devName, dev := range customVolumeDevices {
+					// Leave the device alone if its pool cannot be loaded so the normal device validation
+					// reports the pool problem.
+					volPool, err := storagePools.LoadByName(s, dev["pool"])
+					if err != nil {
+						continue
+					}
+
+					_, err = storagePools.VolumeDBGet(volPool, storageProjectName, dev["source"], storageDrivers.VolumeTypeCustom)
+					if err == nil {
+						continue
+					}
+
+					if !response.IsNotFoundError(err) {
+						return nil, err
+					}
+
+					args.Devices[devName] = deviceConfig.Device{"type": "none"}
+					deferredDevices = append(deferredDevices, devName)
+					deferredVolumes[dev["pool"]+"/"+dev["source"]] = struct{}{}
+				}
+			}
+		}
+	}
+
 	var inst instance.Instance
 	var instOp *operationlock.InstanceOperation
 
@@ -300,6 +369,8 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 	// We keep the ContainerOnly for backward compatibility.
 	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
 
+	created := inst == nil
+
 	if inst == nil {
 		_, err = storagePools.LoadByName(s, storagePool)
 		if err != nil {
@@ -323,6 +394,26 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 		// For refresh requests, validate and apply target config before migration transfer starts.
 		// Skip this during internal cluster move requests, where config update semantics differ.
 		if req.Source.Refresh && clusterMoveSourceName == "" {
+			// Masking a device rewrites the existing instance, so remember the devices it had and
+			// put them back if the transfer or the later device restoration fails. The source's
+			// devices cannot be used here because one of them is what failed to validate.
+			if len(deferredDevices) > 0 {
+				preRefreshDevices := inst.LocalDevices().Clone()
+
+				rev.Add(func() {
+					_ = inst.Update(context.Background(), db.InstanceArgs{
+						Architecture: inst.Architecture(),
+						Config:       inst.LocalConfig(),
+						Description:  inst.Description(),
+						Devices:      preRefreshDevices,
+						Ephemeral:    inst.IsEphemeral(),
+						Profiles:     inst.Profiles(),
+						Project:      inst.Project().Name,
+						Type:         inst.Type(),
+					}, instance.UpdateActionUserRefresh)
+				})
+			}
+
 			err = inst.Update(ctx, *args, instance.UpdateActionUserRefresh)
 			if err != nil {
 				return nil, fmt.Errorf("Failed applying refresh target instance config: %w", err)
@@ -359,6 +450,8 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 		instanceOnly:          instanceOnly,
 		clusterMoveSourceName: clusterMoveSourceName,
 		refresh:               req.Source.Refresh,
+		attachedVolumes:       attachedVolumes,
+		deferredVolumes:       deferredVolumes,
 	}
 
 	sink, err := newMigrationSink(&migrationArgs)
@@ -381,12 +474,83 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 			return err
 		}
 
+		// The lock is released first because restoring the devices goes through an instance update, which
+		// takes an instance operation of its own and would wait on this one.
 		instOp.Done(nil) // Complete operation that was created earlier, to release lock.
+
+		// Nothing else removes the volumes the transfer created: the migration disarmed their own revert
+		// hooks on success, and the masked devices mean an all-exclusive delete would not find them. The
+		// instance goes first because its restored devices reference them.
+		discardReceived := func() {
+			// Only a create that received volumes has anything to discard. A refresh keeps its instance,
+			// and a migration that deferred nothing created no volume here.
+			if !created || len(deferredVolumes) == 0 {
+				return
+			}
+
+			// Without this a create would also leave behind an instance whose devices point at nothing,
+			// and its root volume would then block the retry.
+			_ = inst.Delete(context.Background(), true, api.DiskVolumesModeRoot, nil)
+
+			for volKey := range deferredVolumes {
+				poolName, volName, _ := strings.Cut(volKey, "/")
+
+				volPool, poolErr := storagePools.LoadByName(s, poolName)
+				if poolErr != nil {
+					logger.Warn("Failed loading storage pool to remove received custom volume", logger.Ctx{"pool": poolName, "volume": volName, "err": poolErr})
+					continue
+				}
+
+				delErr := volPool.DeleteCustomVolume(context.Background(), storageProjectName, volName, nil)
+				if delErr != nil {
+					logger.Warn("Failed removing received custom volume", logger.Ctx{"pool": poolName, "volume": volName, "err": delErr})
+				}
+			}
+		}
+
+		// The transfer has delivered every volume it will deliver, so validation of the real devices can run
+		// now. A volume that is still missing was not exclusive on the source and has to exist on the target
+		// beforehand.
+		if len(deferredDevices) > 0 {
+			devices := inst.LocalDevices().Clone()
+
+			for _, devName := range deferredDevices {
+				// Dropping the local key lets a profile device resurface.
+				delete(devices, devName)
+
+				localDevice, found := localDevices[devName]
+				if found {
+					devices[devName] = localDevice
+				}
+			}
+
+			// Use the live instance values because the transfer sets volatile keys such as
+			// volatile.last_state.idmap.
+			updateArgs := db.InstanceArgs{
+				Architecture: inst.Architecture(),
+				Config:       inst.LocalConfig(),
+				Description:  inst.Description(),
+				Devices:      devices,
+				Ephemeral:    inst.IsEphemeral(),
+				Profiles:     inst.Profiles(),
+				Project:      inst.Project().Name,
+				Type:         inst.Type(),
+			}
+
+			err = inst.Update(ctx, updateArgs, instance.UpdateActionUserRefresh)
+			if err != nil {
+				discardReceived()
+
+				return fmt.Errorf("Failed restoring custom volume devices: %w", err)
+			}
+		}
 
 		// Start up the instance if requested by the client.
 		if req != nil && req.Start {
 			err := inst.Start(ctx, false, op)
 			if err != nil {
+				discardReceived()
+
 				return fmt.Errorf("Failed starting instance %q: %w", inst.Name(), err)
 			}
 		}
