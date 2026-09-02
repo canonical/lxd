@@ -1464,7 +1464,7 @@ ovn_peering_tests() {
         ipv6.routes.external=2001:db8:1:2::2/128
 
     # If LXD 5.0 then NIC port is only added on instance start.
-    if echo "${LXD_SNAP_CHANNEL}" | grep -qE "^5\.0/"; then
+    if [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
         lxc start ovn1 --project=ovn1
     fi
 
@@ -1474,7 +1474,7 @@ ovn_peering_tests() {
     ovn-nbctl list address_set | grep -F 2001:db8:1:2::2/128
 
     # If LXD 5.21 or later then NIC port is only added on NIC add not instance start.
-    if ! echo "${LXD_SNAP_CHANNEL}" | grep -qE "^5\.0/"; then
+    if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
         lxc start ovn1 --project=ovn1
     fi
 
@@ -2017,7 +2017,7 @@ ovn_acl_tests() {
     lxc stop -f c1
     lxc config device set c1 eth0 security.acls=lxdbr0-ping
 
-    if ! echo "${LXD_SNAP_CHANNEL}" | grep -qE "^5\."; then
+    if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^5\. ]]; then
         # Starting with LXD 6 the ACL port groups are created at assignment time, not start time.
         echo "==> Expect 3 LXD related port group to exist before the device is started (network port group, ACL port group, and per-ACL-per-network port group)"
         [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
