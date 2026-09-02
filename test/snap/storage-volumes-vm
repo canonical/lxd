@@ -377,7 +377,7 @@ do
 		lxc exec v1 -- test -L "${snap0_path}"
 
 		# Make sure snapshots are mounted read-only
-		snap0_devname="$(basename "$(lxc exec v1 -- readlink ${snap0_path})")"
+		snap0_devname="$(basename "$(lxc exec v1 -- readlink "${snap0_path}")")"
 		[ "$(lxc exec v1 -- cat "/sys/block/${snap0_devname}/ro")" = "1" ]
 
 		# Start v2 to ensure that reference counts are decremented correctly on
