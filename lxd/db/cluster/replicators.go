@@ -217,14 +217,34 @@ func GetReplicatorsAndURLs(ctx context.Context, tx *sql.Tx, projectName *string,
 	return replicators, replicatorURLs, nil
 }
 
-// UpdateReplicatorLastRun updates the last_run_date and last_run_status fields of the replicator with the given ID.
-func UpdateReplicatorLastRun(ctx context.Context, tx *sql.Tx, id int64, date time.Time, status string) error {
-	_, err := tx.ExecContext(ctx, `UPDATE replicators SET last_run_date=?, last_run_status=? WHERE id=?`, date, status, id)
+// CreateNewReplicatorStatus updates the last_run_date and last_run_status fields of the replicator with the given ID.
+func CreateNewReplicatorStatus(ctx context.Context, tx *sql.Tx, replicatorID int64, date time.Time, status string, mode ReplicatorRunMode) error {
+	_, err := query.Create(ctx, tx, ReplicatorsStatusRow{
+		Mode:         mode,
+		Status:       status,
+		StartedDate:  date,
+		ReplicatorID: replicatorID,
+	})
 	return err
 }
 
-// UpdateReplicatorLastRunStatus updates only the last_run_status field of the replicator with the given ID.
-func UpdateReplicatorLastRunStatus(ctx context.Context, tx *sql.Tx, id int64, status string) error {
-	_, err := tx.ExecContext(ctx, `UPDATE replicators SET last_run_status=? WHERE id=?`, status, id)
+// FinalizeReplicatorStatus updates only the last_run_status field of the replicator with the given ID.
+func FinalizeReplicatorStatus(ctx context.Context, tx *sql.Tx, replicatorID int64, status string, date time.Time) error {
+	var b strings.Builder
+	args := []any{status}
+	b.WriteString("UPDATE replicators_status SET status = ?")
+	if status == api.ReplicatorStatusCompleted {
+		args = append(args, date.UTC())
+		b.WriteString(", finished_date = ?")
+	}
+
+	args = append(args, replicatorID)
+	b.WriteString(" WHERE id = (SELECT MAX(id) FROM replicators_status WHERE replicator_id = ?)")
+	_, err := tx.ExecContext(ctx, b.String(), args...)
+
+	if err != nil {
+		return fmt.Errorf("Failed finalizing replicator run status: %w", err)
+	}
+
 	return err
 }
