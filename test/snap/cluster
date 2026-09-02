@@ -217,7 +217,7 @@ for i in $(seq "${SIZE}"); do
         CLUSTER_CRT=$(lxc file pull "m${i}"/var/snap/lxd/common/lxd/cluster.crt - | sed 's/^/    /')
     else
         # Get a join token
-        if echo "${LXD_SNAP_CHANNEL}" | grep -qE "^4\.0/"; then
+        if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
             # 4.0 doesn't support --quiet
             TOKEN="$(lxc exec m1 -- lxc cluster add "m${i}" | tail -n1)"
         else
