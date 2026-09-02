@@ -217,14 +217,33 @@ func GetReplicatorsAndURLs(ctx context.Context, tx *sql.Tx, projectName *string,
 	return replicators, replicatorURLs, nil
 }
 
-// UpdateReplicatorLastRun updates the last_run_date and last_run_status fields of the replicator with the given ID.
-func UpdateReplicatorLastRun(ctx context.Context, tx *sql.Tx, id int64, date time.Time, status string) error {
-	_, err := tx.ExecContext(ctx, `UPDATE replicators SET last_run_date=?, last_run_status=? WHERE id=?`, date, status, id)
-	return err
+// CreateNewReplicatorStatus creates a new [ReplicatorsStatusRow] with the given replicator ID, start date, status, and mode.
+func CreateNewReplicatorStatus(ctx context.Context, tx *sql.Tx, replicatorID int64, startedDate time.Time, status string, mode ReplicatorRunMode) (int64, error) {
+	return query.Create(ctx, tx, ReplicatorsStatusRow{
+		Mode:         mode,
+		Status:       status,
+		StartedDate:  startedDate,
+		ReplicatorID: replicatorID,
+	})
 }
 
-// UpdateReplicatorLastRunStatus updates only the last_run_status field of the replicator with the given ID.
-func UpdateReplicatorLastRunStatus(ctx context.Context, tx *sql.Tx, id int64, status string) error {
-	_, err := tx.ExecContext(ctx, `UPDATE replicators SET last_run_status=? WHERE id=?`, status, id)
+// FinalizeReplicatorStatus updates the [ReplicatorsStatusRow] with the given ID. It sets the status and finished_date columns.
+func FinalizeReplicatorStatus(ctx context.Context, tx *sql.Tx, runID int64, status string, finishedDate time.Time) error {
+	q := `UPDATE replicators_status SET status = ?, finished_date = ? WHERE id = ?`
+	res, err := tx.ExecContext(ctx, q, status, finishedDate, runID)
+
+	if err != nil {
+		return fmt.Errorf("Failed finalizing replicator run status: %w", err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed verifying replicator run status update: %w", err)
+	}
+
+	if rowsAffected != 1 {
+		return fmt.Errorf("Failed verifying replicator run status update: Expected to update 1 row, but updated %d", rowsAffected)
+	}
+
 	return err
 }
