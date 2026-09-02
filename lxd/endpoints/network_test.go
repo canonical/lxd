@@ -53,6 +53,7 @@ func TestEndpoints_NetworkSocketBasedActivation(t *testing.T) {
 
 	file, err := listener.File()
 	require.NoError(t, err)
+	defer func() { _ = file.Close() }()
 
 	setupSocketBasedActivation(endpoints, file)
 
