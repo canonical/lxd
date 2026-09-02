@@ -51,17 +51,20 @@ func NewSTARTTLSListener(inner net.Listener, cert *shared.CertInfo) *StarttlsLis
 // if the client began with a STARTTLS handshake. Once the listener is closed it
 // returns net.ErrClosed instead of blocking.
 func (l *StarttlsListener) Accept() (net.Conn, error) {
-	// Prioritise cancellation so a closed listener never hands out a connection,
-	// even if one raced into l.accepted just before Close.
-	if l.canceller.Err() != nil {
-		return nil, net.ErrClosed
-	}
-
 	select {
-	case res := <-l.accepted:
-		return res.conn, res.err
 	case <-l.canceller.Done():
 		return nil, net.ErrClosed
+	case res := <-l.accepted:
+		// Re-check: drop the connection rather than hand it out after the listener closed.
+		if l.canceller.Err() != nil {
+			if res.conn != nil {
+				_ = res.conn.Close()
+			}
+
+			return nil, net.ErrClosed
+		}
+
+		return res.conn, res.err
 	}
 }
 
