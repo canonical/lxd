@@ -2209,7 +2209,7 @@ ovn_acl_tests() {
     ! ovn-nbctl --bare --column=name --format=csv find port_group | grep ^lxd_ || false
 
     echo "==> Expect all OVN ACLs to be cleaned up"
-    [ "$(ovn-nbctl list acl)" = "" ]
+    [ "$(ovn-nbctl list acl || echo fail)" = "" ]
 
     lxc network delete lxdbr0 --project default
     lxc network acl delete icmp --project default
