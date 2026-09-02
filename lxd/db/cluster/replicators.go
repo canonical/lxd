@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -246,4 +245,43 @@ func FinalizeReplicatorStatus(ctx context.Context, tx *sql.Tx, runID int64, stat
 	}
 
 	return err
+}
+
+// GetLastReplicatorStatuses gets the most recent [ReplicatorsStatusRow] for all [Replicator] entries in the given project,
+// or for all projects if no project name is provided.
+func GetLastReplicatorStatuses(ctx context.Context, tx *sql.Tx, projectName *string) (map[int64]ReplicatorsStatusRow, error) {
+	var b strings.Builder
+	var args []any
+
+	if projectName != nil {
+		b.WriteString(`
+JOIN replicators ON replicators_status.replicator_id = replicators.id
+JOIN projects ON replicators.project_id = projects.id`)
+	}
+
+	b.WriteString(`
+WHERE replicators_status.id IN (
+	SELECT MAX(id) FROM replicators_status GROUP BY replicator_id
+)`)
+
+	if projectName != nil {
+		b.WriteString(" AND projects.name = ?")
+		args = []any{*projectName}
+	}
+
+	result := make(map[int64]ReplicatorsStatusRow)
+	err := query.SelectFunc[ReplicatorsStatusRow](ctx, tx, b.String(), func(row ReplicatorsStatusRow) error {
+		result[row.ReplicatorID] = row
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying for last replicator statuses: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetLastReplicatorStatus gets the most recent [ReplicatorsStatusRow] for the [Replicator] with the given ID.
+func GetLastReplicatorStatus(ctx context.Context, tx *sql.Tx, replicatorID int64) (*ReplicatorsStatusRow, error) {
+	return query.SelectOne[ReplicatorsStatusRow](ctx, tx, "WHERE replicators_status.replicator_id = ? ORDER BY replicators_status.id DESC LIMIT 1", replicatorID)
 }
