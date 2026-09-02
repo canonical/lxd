@@ -8,7 +8,7 @@ install_deps attr
 install_lxd
 
 # Configure LXD
-if echo "${LXD_SNAP_CHANNEL}" | grep -q '^5\.0/'; then
+if [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
     echo "Enabling shiftfs support"
     snap set lxd shiftfs.enable=true
 fi
@@ -68,7 +68,7 @@ lxc exec c1 -- mount /dev/sda /mnt
 [ "$(lxc exec c1 -- stat --format=%u:%g /mnt)" = "65534:65534" ]
 lxc exec c1 -- umount /mnt
 
-if echo "${LXD_SNAP_CHANNEL}" | grep -qE "^4\.0/"; then
+if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
     echo "Skipping security.syscalls.intercept.mount.shift test, not compatible with ${LXD_SNAP_CHANNEL}"
 else
     lxc config set c1 security.syscalls.intercept.mount.shift=true
@@ -117,7 +117,7 @@ if hasNeededAPIExtension container_syscall_intercept_finit_module; then
     # (https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2028568)
     # XXX: This compression seems to prevent proper parsing by the `container_syscall_intercept_finit_module` feature
     #      resulting in `Operation not permitted` error
-    if echo "${MODULE_FILE_NAME}" | grep -q "\.zst$"; then
+    if echo "${MODULE_FILE_NAME}" | grep "\.zst$" > /dev/null; then
         lxc exec c1 -- apt-get update -qq
         lxc exec c1 -- apt-get install --no-install-recommends -y zstd
         lxc exec c1 -- unzstd "/root/${MODULE_FILE_NAME}"
@@ -132,7 +132,7 @@ if hasNeededAPIExtension container_syscall_intercept_finit_module; then
     lxc restart c1 -f
 
     # negative case 2 (module is not in allow list)
-    ! lxc exec c1 -- insmod "/root/${MODULE_FILE_NAME}" || talse
+    ! lxc exec c1 -- insmod "/root/${MODULE_FILE_NAME}" || false
 
     # allow module
     lxc config set c1 linux.kernel_modules="${MODULE_TO_TRY}"
