@@ -17,6 +17,12 @@ To list all images on a server, enter the following command:
     lxc image list [<remote>:]
 
 If you do not specify a remote, the {ref}`default remote <images-remote-default>` is used.
+
+To list the images provided by an {ref}`image registry <ref-image-registries>` instead, use the `--registry` flag:
+
+    lxc image list --registry <registry_name>
+
+See {ref}`howto-image-registries-list-images` for more information.
 ````
 ````{group-tab} API
 Query the `/1.0/images` endpoint to list all images on the server:
