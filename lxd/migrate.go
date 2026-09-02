@@ -192,6 +192,8 @@ type migrationSink struct {
 	push                  bool
 	clusterMoveSourceName string
 	refresh               bool
+	attachedVolumes       map[string]struct{}
+	deferredVolumes       map[string]struct{}
 }
 
 // migrationSinkArgs arguments to configure migration sink.
@@ -209,6 +211,8 @@ type migrationSinkArgs struct {
 	refresh               bool
 	clusterMoveSourceName string
 	snapshots             []*migration.Snapshot
+	attachedVolumes       map[string]struct{}
+	deferredVolumes       map[string]struct{}
 
 	// Storage specific fields
 	volumeOnly bool

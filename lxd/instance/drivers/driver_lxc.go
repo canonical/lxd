@@ -5276,6 +5276,8 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 			VolumeSize:            offerHeader.GetVolumeSize(), // Block size setting override.
 			VolumeOnly:            !args.Snapshots,
 			ClusterMoveSourceName: args.ClusterMoveSourceName,
+			DeferredCustomVolumes: args.DeferredVolumes,
+			AttachedCustomVolumes: args.AttachedVolumes,
 		}
 
 		// At this point we have already figured out the parent container's root
@@ -5353,7 +5355,7 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 
 		// Registered after the instance revert so the reverter removes the custom volumes first.
 		if respHeader.GetIndexHeaderVersion() >= migration.IndexHeaderVersionCustomVolumes && args.ClusterMoveSourceName == "" && !args.Live {
-			err = d.migrateReceiveCustomVolumes(ctx, d, filesystemConn, respHeader.GetIndexHeaderVersion(), args.Snapshots, revert, progressReporter)
+			err = d.migrateReceiveCustomVolumes(ctx, d, filesystemConn, respHeader.GetIndexHeaderVersion(), args.Snapshots, args.AttachedVolumes, revert, progressReporter)
 			if err != nil {
 				return err
 			}
