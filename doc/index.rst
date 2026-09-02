@@ -90,7 +90,8 @@ LXD (|lxd-listen-anchor-open|\ ``[lɛks'di:]``\ |lxd-listen-anchor-close|) is a 
       .. slice:: Images
 
          :doc:`About local and remote images <image-handling>`
-         :doc:`Remote image servers <reference/remote_image_servers>`
+         :doc:`Built-in image registries <reference/remote_image_servers>`
+         :doc:`Manage image registries <howto/image_registries>`
          :doc:`Manage images <howto/images_manage>`
          :doc:`Image format <reference/image_format>`
 
