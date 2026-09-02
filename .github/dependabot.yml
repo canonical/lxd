@@ -3,8 +3,6 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/"
     ignore:
-      - dependency-name: "github.com/gorilla/websocket"
-        versions: ["> 1.5.1"]
       - dependency-name: "github.com/olekukonko/tablewriter"
         versions: ["1.x"]
     labels: []
