@@ -82,7 +82,7 @@ firewallTests() {
     lxc exec c1 -- ping -nc1 -i0.1 -w1 2001:db8::1
 
     echo "=> Performing faked source IP ping tests with filtering"
-    if [ $managed -eq 1 ]; then
+    if [ "${managed}" -eq 1 ]; then
         lxc config device override c1 eth0 \
             security.mac_filtering=true \
             security.ipv4_filtering=true \
@@ -106,7 +106,7 @@ firewallTests() {
     echo "=> Performing faked source MAC ping tests without filtering"
     lxc stop -f c1
 
-    if [ $managed -eq 1 ]; then
+    if [ "${managed}" -eq 1 ]; then
         lxc config device set c1 eth0 \
             security.mac_filtering=false \
             security.ipv4_filtering=false \
@@ -140,7 +140,7 @@ firewallTests() {
     lxc delete -f c1
 
     # Perform NAT tests for managed bridges only.
-    if [ $managed -eq 1 ]; then
+    if [ "${managed}" -eq 1 ]; then
         echo "=> Performing NAT tests with masquerading"
         lxc network set lxdbr0 ipv4.nat=true ipv6.nat=true
         lxc network create lxdbr1 \
@@ -230,9 +230,9 @@ networkLimitsPriorityNftablesTest() {
     # prepare a trap for skb's with skb->priority is set
     nft add table netdev "${tempNftTableName}"
     nft add chain netdev "${tempNftTableName}" skb_with_prio_trap "{ type filter hook egress device \"${ctEth0Hostname}\" priority filter + 1; policy accept; }"
-    nft add rule netdev "${tempNftTableName}" skb_with_prio_trap meta priority 0:$prio counter
+    nft add rule netdev "${tempNftTableName}" skb_with_prio_trap meta priority 0:"${prio}" counter
 
-    lxc config device override c1 eth0 limits.priority=$prio
+    lxc config device override c1 eth0 "limits.priority=${prio}"
     sleep 5
 
     packetsBefore=$(nft list table netdev "${tempNftTableName}" | awk '/meta/ { print $6 }')
