@@ -26,7 +26,7 @@ setup_instance_gocoverage v1
 echo "==> Test cleanly stopping a VM"
 lxc stop v1
 
-if ! echo "${LXD_SNAP_CHANNEL}" | grep -qE '^4\.0/'; then
+if [[ "${LXD_SNAP_CHANNEL}" !~ ^4\.0/ ]]; then
     echo "==> Test lxc exec exit code upon VM disconnection due to a stop/reboot"
     lxc start v1
     waitInstanceBooted v1
