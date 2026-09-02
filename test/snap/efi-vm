@@ -12,7 +12,7 @@ fi
 # Determine whether 2023 Microsoft CA certs are expected based on the LXD channel.
 # 4.0/* will never get the 2023 Microsoft CA certs
 EXPECT_2023_CERTS=true
-if echo "${LXD_SNAP_CHANNEL}" | grep -qE '^4\.0/'; then
+if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
     EXPECT_2023_CERTS=false
 fi
 
