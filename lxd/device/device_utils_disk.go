@@ -385,6 +385,16 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 		return nil, err
 	}
 
+	// This is required because virtiofsd is split into two long-running processes.
+	// The child calls `pivot_root(2)`, which sandboxes both processes inside `sharePath`.
+	// However, it only pivots the working directory of the parent process when it starts as `/`.
+	// Normally this would only prevent unmounting LXD's working directory, which is OK.
+	// But when we run virtiofsd from a non-initial user namespace, all existing mounts are
+	// brought into the sandbox as a single unit (see `mount_namespaces(7)`). These remain
+	// alive even after unmounting them on the host (MNT_LOCKED), which can prevent LXD from
+	// deactivating instance volumes.
+	proc.Dir = "/"
+
 	effectiveIDMaps, err := diskVMVirtiofsdResolveIDMaps(idmaps, idmap.CurrentIdmapSet)
 	if err != nil {
 		return nil, err
