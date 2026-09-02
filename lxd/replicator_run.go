@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/robfig/cron/v3"
-
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -143,7 +141,7 @@ func replicatorFinalizeDurableOperationRunHook(_ context.Context, op *operations
 	// Use a fresh context so the status write always completes, even if the operation context was cancelled.
 	// Only the status is updated here; last_run_date was already set when the operation started.
 	return op.State().DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), replicatorID, runStatus)
+		return dbCluster.FinalizeReplicatorStatus(ctx, tx.Tx(), replicatorID, runStatus, time.Now())
 	})
 }
 
@@ -921,9 +919,14 @@ func runScheduledReplicators(ctx context.Context, s *state.State) error {
 			return fmt.Errorf("Failed loading replicator configs: %w", err)
 		}
 
+		lastStatuses, err := dbCluster.GetLastReplicatorStatuses(ctx, tx.Tx(), nil)
+		if err != nil {
+			return fmt.Errorf("Failed loading last replicator statuses: %w", err)
+		}
+
 		apiReplicatorsTx := make([]*api.Replicator, 0, len(replicators))
 		for _, replicator := range replicators {
-			apiReplicatorsTx = append(apiReplicatorsTx, replicator.ToAPI(allConfigs))
+			apiReplicatorsTx = append(apiReplicatorsTx, replicator.ToAPI(allConfigs, lastStatuses))
 		}
 
 		apiReplicators = apiReplicatorsTx
@@ -1027,7 +1030,7 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 	// writing the terminal status first. By setting Running here, that terminal write always
 	// comes after Running, so the status is never left stuck at Running.
 	err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.UpdateReplicatorLastRun(ctx, tx.Tx(), row.Row.ID, time.Now(), api.ReplicatorStatusRunning)
+		return dbCluster.CreateNewReplicatorStatus(ctx, tx.Tx(), row.Row.ID, time.Now(), api.ReplicatorStatusRunning, dbCluster.ReplicatorRunModeScheduled)
 	})
 	if err != nil {
 		logger.Warn("Failed updating replicator last run status to running", logger.Ctx{"replicator": replicator.Name, "project": replicator.Project, "err": err})
@@ -1044,7 +1047,7 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 
 		// Revert Running to Failed so the status doesn't get stuck.
 		_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), row.Row.ID, api.ReplicatorStatusFailed)
+			return dbCluster.FinalizeReplicatorStatus(ctx, tx.Tx(), row.Row.ID, api.ReplicatorStatusFailed, time.Now())
 		})
 
 		return fmt.Errorf("Failed scheduling replicator operation: %w", err)
