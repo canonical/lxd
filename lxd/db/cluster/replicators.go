@@ -3,7 +3,9 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -12,15 +14,60 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 )
 
+// ReplicatorRunMode stores information about how a replicator run is initiated.
+type ReplicatorRunMode string
+
+const (
+	// ReplicatorRunModeManual represents a user requested "manual" run.
+	ReplicatorRunModeManual ReplicatorRunMode = "manual"
+
+	// ReplicatorRunModeScheduled indicates that the replicator run was triggered by the replicator's cron schedule.
+	ReplicatorRunModeScheduled ReplicatorRunMode = "scheduled"
+)
+
+const (
+	replicatorRunModeCodeManual    int64 = 0
+	replicatorRunModeCodeScheduled int64 = 1
+)
+
+// Scan implements [sql.Scanner] for [ReplicatorRunMode].
+func (r *ReplicatorRunMode) Scan(value any) error {
+	return query.ScanValue(value, r, false)
+}
+
+// ScanInteger implements [query.IntegerScanner] for [ReplicatorRunMode] which reduces duplication for [sql.Scanner] implementations.
+func (r *ReplicatorRunMode) ScanInteger(in int64) error {
+	switch in {
+	case replicatorRunModeCodeManual:
+		*r = ReplicatorRunModeManual
+	case replicatorRunModeCodeScheduled:
+		*r = ReplicatorRunModeScheduled
+	default:
+		return fmt.Errorf(`Unknown replicator mode code "%d"`, in)
+	}
+
+	return nil
+}
+
+// Value implements [driver.Valuer] for [ReplicatorRunMode].
+func (r ReplicatorRunMode) Value() (driver.Value, error) {
+	switch r {
+	case ReplicatorRunModeManual:
+		return replicatorRunModeCodeManual, nil
+	case ReplicatorRunModeScheduled:
+		return replicatorRunModeCodeScheduled, nil
+	default:
+		return nil, fmt.Errorf("Unknown replicator run mode %q", r)
+	}
+}
+
 // ReplicatorRow represents a single row of the replicators table.
 // db:model replicators
 type ReplicatorRow struct {
-	ID            int64        `db:"id"`
-	Name          string       `db:"name"`
-	ProjectID     int64        `db:"project_id"`
-	Description   string       `db:"description"`
-	LastRunDate   sql.NullTime `db:"last_run_date"`
-	LastRunStatus string       `db:"last_run_status"`
+	ID          int64  `db:"id"`
+	Name        string `db:"name"`
+	ProjectID   int64  `db:"project_id"`
+	Description string `db:"description"`
 }
 
 // APIName implements [query.APINamer] for API friendly error messages.
@@ -44,6 +91,35 @@ func ReplicatorsConfigStore() *query.EntityConfigStore {
 		ConfigTable:               "replicators_config",
 		ConfigTableEntityIDColumn: "replicator_id",
 	}
+}
+
+// ReplicatorsStatusRow represents a row of the replicators_status table.
+// db:model replicators_status
+type ReplicatorsStatusRow struct {
+	ID int64 `db:"id"`
+
+	// db:omit update
+	Mode   ReplicatorRunMode `db:"mode"`
+	Status string            `db:"status"`
+
+	// db:omit update
+	StartedDate          time.Time    `db:"started_date"`
+	FinishedDate         sql.NullTime `db:"finished_date"`
+	SnapshotStartedDate  sql.NullTime `db:"snapshot_started_date"`
+	SnapshotFinishedDate sql.NullTime `db:"snapshot_finished_date"`
+
+	// db:omit update
+	ReplicatorID int64 `db:"replicator_id"`
+}
+
+// APIName implements [query.APINamer] for API friendly error messages.
+func (ReplicatorsStatusRow) APIName() string {
+	return "Replicator status"
+}
+
+// APIPluralName implements [query.APIPluralNamer] for API friendly error messages (to avoid misspelling the plural of the [APIName] by appending an "s").
+func (ReplicatorsStatusRow) APIPluralName() string {
+	return "Replicator statuses"
 }
 
 // ToAPI converts the [Replicator] to an [api.Replicator].
