@@ -59,7 +59,7 @@ networkTests() {
         fi
 
         # IPv4 address
-        if echo "${address}" | grep -qF "."; then
+        if echo "${address}" | grep -F "." > /dev/null; then
             echo "PASS: IPv4 address: ${name}"
         else
             echo "FAIL: IPv4 address: ${name}"
@@ -67,7 +67,7 @@ networkTests() {
         fi
 
         # IPv6 address
-        if echo "${address}" | grep -qF ":"; then
+        if echo "${address}" | grep -F ":" > /dev/null; then
             echo "PASS: IPv6 address: ${name}"
         else
             echo "WARN: IPv6 address: ${name}"
