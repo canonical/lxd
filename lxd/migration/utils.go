@@ -5,7 +5,7 @@ import (
 )
 
 // IndexHeaderVersion version of the index header to be sent/recv.
-const IndexHeaderVersion uint32 = 2
+const IndexHeaderVersion uint32 = IndexHeaderVersionCustomVolumes
 
 // IndexHeaderVersionCustomVolumes is the first index header version whose data stream carries the
 // instance's attached custom volumes after the root volume.
