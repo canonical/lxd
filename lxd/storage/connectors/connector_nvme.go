@@ -269,9 +269,9 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 	}
 
 	session := &session{
-		id:            sessionID,
-		targetQN:      targetQN,
-		hostAddresses: make(map[string][]string),
+		id:                    sessionID,
+		targetQN:              targetQN,
+		hostAddressesByTarget: make(map[string][]string),
 	}
 
 	basePath := "/sys/class/nvme"
@@ -329,7 +329,8 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 				continue
 			}
 
-			if transport == TransportFC {
+			switch transport {
+			case TransportFC:
 				if !slices.Contains(session.addresses, transportAddr) {
 					session.addresses = append(session.addresses, transportAddr)
 				}
@@ -338,10 +339,11 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 				// paths of the remaining HBAs can still be established while this
 				// one is already connected.
 				hostAddr := fields["host_traddr"]
-				if hostAddr != "" && !slices.Contains(session.hostAddresses[transportAddr], hostAddr) {
-					session.hostAddresses[transportAddr] = append(session.hostAddresses[transportAddr], hostAddr)
+				if hostAddr != "" && !slices.Contains(session.hostAddressesByTarget[transportAddr], hostAddr) {
+					session.hostAddressesByTarget[transportAddr] = append(session.hostAddressesByTarget[transportAddr], hostAddr)
 				}
-			} else {
+
+			case TransportTCP:
 				transportServiceID := fields["trsvcid"]
 				if transportServiceID == "" {
 					transportServiceID = NVMeDefaultTransportPort
@@ -351,6 +353,9 @@ func nvmeFindSession(targetQN string, transport TransportType) (*session, error)
 				if !slices.Contains(session.addresses, targetAddr) {
 					session.addresses = append(session.addresses, targetAddr)
 				}
+
+			default:
+				return nil, fmt.Errorf("Unsupported NVMe transport type %q", transport)
 			}
 		}
 	}
