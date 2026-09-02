@@ -25,6 +25,10 @@ type Feature string
 // envVar is the environment variable which holds the active features of LXD.
 const envVar = "LXD_FEATURES"
 
+// MicroVM gates the microvm instance type, which boots a container image under a
+// lightweight hypervisor.
+const MicroVM Feature = "microvm"
+
 // enabledFeaturePrevs holds the status of supported feature previews.
 var enabledFeaturePrevs = map[Feature]struct{}{}
 
