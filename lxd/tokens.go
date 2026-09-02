@@ -17,7 +17,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-func removeTokenHandler(d *Daemon, r *http.Request) response.Response {
+func internalTestingPruneTokensHandler(d *Daemon, r *http.Request) response.Response {
 	autoRemoveExpiredTokens(r.Context(), d.State())
 	return response.EmptySyncResponse
 }

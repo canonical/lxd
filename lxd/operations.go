@@ -1144,12 +1144,16 @@ type operationWaitPost struct {
 }
 
 func init() {
-	operations.RegisterDurableOperationRunHook(operationtype.Wait, waitHandlerOperationRunHook)
+	operations.RegisterDurableOperationRunHook(operationtype.Wait, internalTestingWaitHandlerOperationRunHook)
 }
 
 const operationInputKeyWaitHandlerDuration operations.InputKey = "duration"
 
-func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) error {
+// internalTestingWaitHandlerOperationRunHook is a durable operation run hook used for testing. It accepts a "duration"
+// input value and logs a warning every second until the duration is complete. The elapsed duration is saved to the
+// operation metadata on each tick, so that if the member running this operation goes offline, the operation is restarted
+// on the leader and continues from the current elapsed duration.
+func internalTestingWaitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) error {
 	inputDuration, err := operations.GetOperationInputValue[string](op, operationInputKeyWaitHandlerDuration)
 	if err != nil {
 		return err
@@ -1160,7 +1164,9 @@ func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) 
 		return fmt.Errorf("Invalid duration: %w", err)
 	}
 
-	logger.Warnf("Starting wait handler operation for %s", duration.String())
+	s := op.State()
+
+	l := logger.AddContext(logger.Ctx{"total_duration": inputDuration, "member_name": s.ServerName})
 
 	// Initialize metadata map if needed.
 	metadata := op.Metadata()
@@ -1181,7 +1187,9 @@ func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) 
 			return fmt.Errorf("Failed parsing elapsed metadata: %w", err)
 		}
 
-		logger.Warnf("Resuming wait handler operation, already waited for %s", elapsed.String())
+		l.Warn("Resuming wait handler operation", logger.Ctx{"elapsed": elapsed.String()})
+	} else {
+		l.Warn("Starting wait handler operation")
 	}
 
 	for duration > elapsed {
@@ -1193,7 +1201,7 @@ func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) 
 		}
 
 		elapsed = elapsed + time.Second
-		logger.Warnf("Wait handler operation running for %d seconds...", elapsed/time.Second)
+		l.Warn("Running wait handler operation", logger.Ctx{"elapsed": elapsed.String()})
 		metadata["elapsed"] = elapsed.String()
 		err = op.UpdateMetadata(metadata)
 		if err != nil {
@@ -1206,13 +1214,13 @@ func waitHandlerOperationRunHook(ctx context.Context, op *operations.Operation) 
 		}
 	}
 
-	logger.Warn("Wait handler operation completed")
+	l.Warn("Wait handler operation completed")
 
 	return nil
 }
 
-// operationWaitHandler creates a dummy operation that waits for a specified duration.
-func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
+// internalTestingOperationWaitHandler creates a dummy operation that waits for a specified duration.
+func internalTestingOperationWaitHandler(d *Daemon, r *http.Request) response.Response {
 	// Extract the entity URL and duration from the request.
 	req := operationWaitPost{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -1247,7 +1255,7 @@ func operationWaitHandler(d *Daemon, r *http.Request) response.Response {
 		ProjectName:       request.QueryParam(r, "project"),
 		Type:              req.OpType,
 		Class:             req.OpClass,
-		RunHook:           waitHandlerOperationRunHook,
+		RunHook:           internalTestingWaitHandlerOperationRunHook,
 		ConnectHook:       onConnect,
 		EntityURL:         entityURL,
 		ConflictReference: req.ConflictReference,

@@ -2726,15 +2726,23 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	if isLeader && unavailableMembers != nil && len(heartbeatData.Members) > 1 {
 		offlineMemberIDs := d.handleHeartbeatClusterRoleChanges(heartbeatData, unavailableMembers, localClusterAddress)
 
-		// On initial heartbeat, if there are offline nodes (whether part of raft or not) delete any orphaned operations
-		// that may be present there. After the initial heartbeat, this is handled by the autoRemoveOrphanedOperationsTask.
-		// It can't be performed at startup in case of stale member state, which can lead to operations being erroneously removed.
-		if mode == cluster.HeartbeatInitial && len(offlineMemberIDs) > 0 {
-			err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-				return dbCluster.ClearStaleOperationsFromNodes(ctx, tx.Tx(), offlineMemberIDs...)
-			})
+		if len(offlineMemberIDs) > 0 {
+			// On initial heartbeat, if there are offline nodes (whether part of raft or not) delete any orphaned operations
+			// that may be present there. After the initial heartbeat, this is handled by the autoRemoveOrphanedOperationsTask.
+			// It can't be performed at startup in case of stale member state, which can lead to operations being erroneously removed.
+			if mode == cluster.HeartbeatInitial {
+				err = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+					return dbCluster.ClearStaleOperationsFromNodes(ctx, tx.Tx(), offlineMemberIDs...)
+				})
+				if err != nil {
+					logger.Warn("Could not remove orphaned operations from offline members after initial heartbeat round", logger.Ctx{"err": err, "local": localClusterAddress})
+				}
+			}
+
+			// For any heartbeat, if there are offline cluster members running durable operations, we need to restart them here.
+			err = operations.RestartDurableOperationsFromNodes(s.ShutdownCtx, s, offlineMemberIDs...)
 			if err != nil {
-				logger.Warn("Could not remove orphaned operations from offline members after initial heartbeat round", logger.Ctx{"err": err, "local": localClusterAddress})
+				logger.Warn("Could not restart durable operations from offline members", logger.Ctx{"err": err, "offlineMemberIDs": offlineMemberIDs})
 			}
 		}
 	}

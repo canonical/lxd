@@ -113,16 +113,16 @@ type Operation struct {
 	id              string
 	class           operationtype.Class
 	createdAt       time.Time
-	updatedAt       time.Time
-	status          api.StatusCode
+	updatedAt       atomic.Pointer[time.Time]
+	status          atomic.Int64
 	url             string
 	resources       map[entity.Type][]api.URL
 	entityURL       *api.URL
-	metadata        map[string]any
+	metadata        atomic.Pointer[map[string]any]
 	inputs          map[InputKey]json.RawMessage
-	err             string
-	errCode         int64
-	readonly        bool
+	err             atomic.Value
+	errCode         atomic.Int64
+	readonly        atomic.Bool
 	description     string
 	dbOpType        operationtype.Type
 	requestor       *request.RequestorAuditor
@@ -157,13 +157,8 @@ type Operation struct {
 	// When this is true, we skip deleting the database record and instead just remove the operation from the in-memory map.
 	internallyCancelled atomic.Bool
 
-	// Locking for concurrent access to the Operation
-	lock sync.Mutex
-
-	// lastPersistenceAttempt contains the value of updatedAt on the last attempted write of the operation to the database.
-	// If the write fails, the value of lastPersistenceAttempt will be greater than the value of the `operations.updated_at`
-	// column for the row representing this operation. This is used for operation synchronization.
-	lastPersistenceAttempt time.Time
+	// persistenceFailed is set to true if the Operation fails to persist. This is used for background synchronization.
+	persistenceFailed atomic.Bool
 
 	state  *state.State
 	events *events.Server
@@ -244,8 +239,7 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 		op.dbOpType = args.Type
 		op.class = args.Class
 		op.createdAt = time.Now()
-		op.updatedAt = op.createdAt
-		op.status = api.Running
+		op.updatedAt.Store(&op.createdAt)
 		op.url = api.NewURL().Path(version.APIVersion, "operations", op.id).String()
 		op.entityURL = args.EntityURL
 		op.resources = args.Resources
@@ -299,14 +293,15 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 			return nil, fmt.Errorf("Failed validating operation metadata: %w", err)
 		}
 
-		op.metadata = metadata
+		op.metadata.Store(&metadata)
 
 		// Only operations in stage zero are initially running.
 		// OperationArgs validation ensures that parent operations are in stage zero.
 		// If all children have stage zero, then they are all spawned at once.
-		op.status = api.Running
-		if op.stage > 0 {
-			op.status = api.Pending
+		if op.stage == 0 {
+			op.status.Store(int64(api.Running))
+		} else {
+			op.status.Store(int64(api.Pending))
 		}
 
 		// Ensure inputs are non-nil if empty.
@@ -393,14 +388,11 @@ func scheduleOperation(s *state.State, args OperationArgs) (*Operation, error) {
 // initially scheduled and when an operation is reconstructed from the database.
 func setDoneFunc(op *Operation) {
 	op.done = sync.OnceFunc(func() {
-		op.lock.Lock()
-
-		finalStatus := op.status
-		op.readonly = true
+		finalStatus := op.Status()
+		op.readonly.Store(true)
 		op.onRun = nil
 		op.onConnect = nil
 		op.finished.Cancel()
-		op.lock.Unlock()
 
 		if op.metricsCallback != nil {
 			op.metricsCallback(statusToMetricsResult(finalStatus))
@@ -410,12 +402,8 @@ func setDoneFunc(op *Operation) {
 
 // addChild adds a child operation to the parent operation. It also sets the parent of the child operation to the parent operation.
 func (op *Operation) addChild(child *Operation) {
-	op.lock.Lock()
 	op.children = append(op.children, child)
-	op.lock.Unlock()
-	child.lock.Lock()
 	child.parent = op
-	child.lock.Unlock()
 }
 
 // CheckRequestor checks that the requestor of a given HTTP request is equal to the requestor of the operation.
@@ -463,24 +451,20 @@ func statusToMetricsResult(status api.StatusCode) metrics.RequestResult {
 
 // start a pending operation.
 func (op *Operation) start() {
-	op.lock.Lock()
-
 	// Operations that have already been cancelled should not be started.
 	if op.running.Err() != nil {
 		// Ensure the operation is finalized.
-		if !op.status.IsFinal() {
+		if !op.Status().IsFinal() {
 			op.cancelImmediate()
-			op.lock.Unlock()
 			op.done()
 			return
 		}
 
-		op.lock.Unlock()
 		return
 	}
 
 	// Pending operations have their status set to [api.Running] before invoking the run hook.
-	if op.status == api.Pending {
+	if op.Status() == api.Pending {
 		op.persistWithNewStatus(api.Running)
 	}
 
@@ -506,15 +490,13 @@ func (op *Operation) start() {
 			}
 
 			if err != nil {
-				op.lock.Lock()
-
 				// Set the error and error code. We use either the error code from the error, or default to internal server error.
-				op.err = err.Error()
+				op.err.Store(err.Error())
 				statusCode, found := api.StatusErrorMatch(err)
 				if found {
-					op.errCode = int64(statusCode)
+					op.errCode.Store(int64(statusCode))
 				} else {
-					op.errCode = http.StatusInternalServerError
+					op.errCode.Store(http.StatusInternalServerError)
 				}
 
 				// If the durable operation was cancelled locally because of missed heartbeat, only set its local status
@@ -525,7 +507,6 @@ func (op *Operation) start() {
 					// We keep the api.Running status because it is still running, it is being moved to another cluster
 					// member to be restarted.
 					op.running.Cancel()
-					op.lock.Unlock()
 					op.done()
 					return
 				}
@@ -540,42 +521,31 @@ func (op *Operation) start() {
 				// Always call cancel. This is a no-op if already cancelled.
 				op.running.Cancel()
 
-				op.lock.Unlock()
 				op.done()
 
 				op.logger.Warn("Failure for operation", logger.Ctx{"err": err})
 				_, md := op.Render()
 
-				op.lock.Lock()
 				op.sendEvent(md)
-				op.lock.Unlock()
 
 				return
 			}
 
-			op.lock.Lock()
 			op.persistWithNewStatus(api.Success)
 			op.running.Cancel()
-			op.lock.Unlock()
 			op.done()
 
 			op.logger.Debug("Success for operation")
 			_, md := op.Render()
 
-			op.lock.Lock()
 			op.sendEvent(md)
-			op.lock.Unlock()
 		}(runCtx, op)
 	}
-
-	op.lock.Unlock()
 
 	op.logger.Debug("Started operation")
 	_, md := op.Render()
 
-	op.lock.Lock()
 	op.sendEvent(md)
-	op.lock.Unlock()
 }
 
 // runBulkOperation runs a bulk operation. It sorts child operations into stages and runs each stage, waiting for it to
@@ -585,9 +555,7 @@ func (op *Operation) start() {
 // children via [Operation.Cancel].
 func runBulkOperation(op *Operation) error {
 	// Get a shallow clone of the child operations.
-	op.lock.Lock()
 	children := slices.Clone(op.children)
-	op.lock.Unlock()
 
 	// Sort the list of children
 	slices.SortFunc(children, func(a, b *Operation) int {
@@ -678,16 +646,13 @@ func (op *Operation) IsFinished() bool {
 //     The go routine that is running the run hook will detect a [context.Canceled] error when the run hook exits and set
 //     the status to [api.Cancelled].
 func (op *Operation) Cancel() error {
-	op.lock.Lock()
 	if op.running.Err() != nil {
 		// Already cancelled, nothing to do.
-		op.lock.Unlock()
 		return nil
 	}
 
 	// If this is a pending child operation whose operation type dictates that it must run, then it cannot be cancelled.
 	if !op.isCancellable() {
-		op.lock.Unlock()
 		return api.StatusErrorf(http.StatusBadRequest, "This operation cannot be cancelled")
 	}
 
@@ -699,7 +664,7 @@ func (op *Operation) Cancel() error {
 	// If an operation is not in stage zero, it's initial status is pending (which is then updated to running when it is
 	// started). While it is pending, the run hook has not yet been executed, and will never be executed because we have
 	// just cancelled the running context, so we need to cancel immediately.
-	isInProgress := (op.onRun != nil || len(op.children) > 0) && op.status != api.Pending
+	isInProgress := (op.onRun != nil || len(op.children) > 0) && op.Status() != api.Pending
 
 	if isInProgress {
 		// If the operation has a run hook, or this is a parent operation waiting for children, set the status to cancelling.
@@ -719,14 +684,10 @@ func (op *Operation) Cancel() error {
 		op.cancelImmediate()
 	}
 
-	op.lock.Unlock()
-
 	op.logger.Debug("Cancelling operation")
 	_, md := op.Render()
 
-	op.lock.Lock()
 	op.sendEvent(md)
-	op.lock.Unlock()
 
 	// If the operation was immediately cancelled, either its run hook was never executed or it doesn't have a run hook.
 	// In this case we need to call op.done to clean it up. Other operations will be cleaned up when their run hook exits.
@@ -740,8 +701,8 @@ func (op *Operation) Cancel() error {
 // cancelImmediate sets the operation statuses to cancelled and persists the cancellation to the database.
 // This function should only be called under lock when the running context is cancelled and the run hook is not executing.
 func (op *Operation) cancelImmediate() {
-	op.err = context.Canceled.Error()
-	op.errCode = http.StatusInternalServerError
+	op.err.Store(context.Canceled.Error())
+	op.errCode.Store(int64(http.StatusInternalServerError))
 	op.persistWithNewStatus(api.Cancelled)
 }
 
@@ -792,16 +753,14 @@ func CancelLocalDurableOperations() {
 // Connect connects a websocket operation. If the operation is not a websocket
 // operation or the operation is not running, it returns an error.
 func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error, error) {
-	op.lock.Lock()
 	if op.class != operationtype.OperationClassWebsocket {
-		op.lock.Unlock()
 		return nil, errors.New("Only websocket operations can be connected")
 	}
 
 	if op.running.Err() != nil {
-		op.lock.Unlock()
-		if op.err != "" {
-			return nil, api.NewStatusError(int(op.errCode), "Failed connecting to operation: "+op.err)
+		opErr := op.getErr()
+		if opErr != "" {
+			return nil, api.NewStatusError(int(op.errCode.Load()), "Failed connecting to operation: "+opErr)
 		}
 
 		return nil, api.NewStatusError(http.StatusBadRequest, "Only running operations can be connected")
@@ -822,7 +781,6 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 
 		op.logger.Debug("Connected to operation")
 	}(op, chanConnect)
-	op.lock.Unlock()
 
 	op.logger.Debug("Connecting to operation")
 
@@ -849,27 +807,21 @@ func (op *Operation) Render() (string, *api.Operation) {
 		renderedResources = tmpResources
 	}
 
-	op.lock.Lock()
-
-	// Make a copy of the metadata to avoid concurrent reads/writes.
-	metadata := make(map[string]any, len(op.metadata))
-	maps.Copy(metadata, op.metadata)
-
 	// Put together the response struct.
 	retOp := &api.Operation{
 		ID:          op.id,
 		Class:       op.class.String(),
 		Description: op.description,
 		CreatedAt:   op.createdAt,
-		UpdatedAt:   op.updatedAt,
-		Status:      op.status.String(),
-		StatusCode:  op.status,
+		UpdatedAt:   op.UpdatedAt(),
+		Status:      op.Status().String(),
+		StatusCode:  op.Status(),
 		Resources:   renderedResources,
-		Metadata:    metadata,
+		Metadata:    op.Metadata(),
 		MayCancel:   op.isCancellable(),
 		Location:    op.location,
-		Err:         op.err,
-		ErrCode:     op.errCode,
+		Err:         op.getErr(),
+		ErrCode:     op.errCode.Load(),
 		ChildCount:  int64(len(op.children)),
 	}
 
@@ -878,8 +830,6 @@ func (op *Operation) Render() (string, *api.Operation) {
 		retOp.Requestor = requestor.OperationRequestor()
 	}
 
-	op.lock.Unlock()
-
 	return op.url, retOp
 }
 
@@ -887,7 +837,7 @@ func (op *Operation) Render() (string, *api.Operation) {
 // The exception is a pending child operation whose operation type specifies that it must run.
 // This private function should only be called under lock.
 func (op *Operation) isCancellable() bool {
-	return op.parent == nil || op.status != api.Pending || !op.dbOpType.MustRun()
+	return op.parent == nil || op.Status() != api.Pending || !op.dbOpType.MustRun()
 }
 
 // RenderWithoutProgress renders the operation structure without progress metadata.
@@ -909,9 +859,6 @@ func (op *Operation) RenderWithoutProgress() (string, *api.Operation) {
 func (op *Operation) RenderFullWithoutProgress() (string, *api.OperationFull) {
 	url, baseOp := op.RenderWithoutProgress()
 
-	op.lock.Lock()
-	defer op.lock.Unlock()
-
 	retOp := &api.OperationFull{
 		Operation: *baseOp,
 	}
@@ -930,24 +877,39 @@ func (op *Operation) RenderFullWithoutProgress() (string, *api.OperationFull) {
 	return url, retOp
 }
 
+func (op *Operation) getErr() string {
+	errAny := op.err.Load()
+	if errAny == nil {
+		return ""
+	}
+
+	errStr, ok := errAny.(string)
+	if !ok {
+		return ""
+	}
+
+	return errStr
+}
+
 // Wait for the operation to be done.
 // Returns non-nil error if operation failed or context was cancelled.
 func (op *Operation) Wait(ctx context.Context) error {
 	select {
 	case <-op.finished.Done():
-		if op.err != "" {
+		opErr := op.getErr()
+		if opErr != "" {
 			// Custom error types can contain additional information about the failure.
 			// To ensure the error returned from the database is the same as error returned
 			// directly from the operation code, we return a new error object consisting
 			// only of the error message and error code.
 
 			// If the operation was cancelled, return fresh context.Cancelled error.
-			if op.status == api.Cancelled {
+			if op.Status() == api.Cancelled {
 				return context.Canceled
 			}
 
 			// For other errors, return a new error with the same message and code.
-			return api.NewStatusError(int(op.errCode), op.err)
+			return api.NewStatusError(int(op.errCode.Load()), opErr)
 		}
 
 		return nil
@@ -966,9 +928,9 @@ func (op *Operation) EntityURL() *api.URL {
 // then it persists the operation to the database. If persistence fails, a warning is logged but execution is allowed to
 // continue. Desynchronized operations will be fixed up via the Synchronize function and background task.
 func (op *Operation) persistWithNewStatus(newStatus api.StatusCode) {
-	oldStatus := op.status
-	op.status = newStatus
-	op.updatedAt = time.Now()
+	oldStatus := op.status.Swap(int64(newStatus))
+	now := time.Now()
+	op.updatedAt.Store(&now)
 	err := persistOperation(op.finished, op)
 	if err != nil {
 		op.logger.Warn("Failed updating operation status", logger.Ctx{
@@ -989,14 +951,11 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 		return fmt.Errorf("Failed updating operation metadata: %w", err)
 	}
 
-	op.lock.Lock()
 	if op.finished.Err() != nil {
-		op.lock.Unlock()
 		return api.NewStatusError(http.StatusBadRequest, "Operations cannot be updated after they have completed")
 	}
 
-	if op.readonly {
-		op.lock.Unlock()
+	if op.readonly.Load() {
 		return errors.New("Read-only operations cannot be updated")
 	}
 
@@ -1006,7 +965,8 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 
 	// Retain entity URL unless it is set in the input map.
 	// This is to prevent the caller inadvertently overwriting it.
-	oldEntityURL, ok := op.metadata[api.MetadataEntityURL]
+	opMeta := op.Metadata()
+	oldEntityURL, ok := opMeta[api.MetadataEntityURL]
 	if ok {
 		_, ok := opMetadata[api.MetadataEntityURL]
 		if !ok {
@@ -1014,26 +974,21 @@ func (op *Operation) UpdateMetadata(opMetadata map[string]any) error {
 		}
 	}
 
-	op.updatedAt = time.Now()
-	op.metadata = opMetadata
-	op.lock.Unlock()
+	now := time.Now()
+	op.updatedAt.Store(&now)
+	op.metadata.Store(&opMetadata)
 
 	op.logger.Debug("Updated metadata for operation")
 	_, md := op.Render()
 
-	op.lock.Lock()
 	op.sendEvent(md)
-	op.lock.Unlock()
 
 	return nil
 }
 
 // Persist saves the current operation state to the database. The operation is locked while it is being saved.
 func (op *Operation) Persist() error {
-	op.lock.Lock()
-	defer op.lock.Unlock()
-
-	if op.readonly {
+	if op.readonly.Load() {
 		return errors.New("Read-only operations cannot be updated")
 	}
 
@@ -1044,54 +999,49 @@ func (op *Operation) Persist() error {
 // ExtendMetadata updates the metadata of the operation with the additional data provided.
 // It returns an error if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) ExtendMetadata(metadata map[string]any) error {
-	op.lock.Lock()
-
 	// Quick checks.
 	if op.finished.Err() != nil {
-		op.lock.Unlock()
 		return api.NewStatusError(http.StatusBadRequest, "Operations cannot be updated after they have completed")
 	}
 
-	if op.readonly {
-		op.lock.Unlock()
+	if op.readonly.Load() {
 		return errors.New("Read-only operations cannot be updated")
 	}
 
 	// Nothing to do.
 	if len(metadata) == 0 {
-		op.lock.Unlock()
 		return nil
 	}
 
 	// Get current metadata.
-	newMetadata := maps.Clone(op.metadata)
+	newMetadata := op.Metadata()
 
 	// Merge with current one.
-	if op.metadata == nil {
-		newMetadata = metadata
-	} else {
-		maps.Copy(newMetadata, metadata)
-	}
+	maps.Copy(newMetadata, metadata)
 
 	err := validateMetadata(newMetadata)
 	if err != nil {
-		op.lock.Unlock()
 		return fmt.Errorf("Failed extending operation metadata: %w", err)
 	}
 
 	// Update the operation.
-	op.updatedAt = time.Now()
-	op.metadata = newMetadata
-	op.lock.Unlock()
+	now := time.Now()
+	op.updatedAt.Store(&now)
+	op.metadata.Store(&newMetadata)
 
 	op.logger.Debug("Updated metadata for operation")
 	_, md := op.Render()
 
-	op.lock.Lock()
 	op.sendEvent(md)
-	op.lock.Unlock()
 
 	return nil
+}
+
+// State returns the operation's [state.State]. The state is usually in the operation run hook scope via the Daemon for
+// server or user requested operations, but durable operations must be statically defined. This function makes state
+// available for those operations.
+func (op *Operation) State() *state.State {
+	return op.state
 }
 
 // ID returns the operation ID.
@@ -1101,9 +1051,12 @@ func (op *Operation) ID() string {
 
 // Metadata returns a copy of the operation Metadata.
 func (op *Operation) Metadata() map[string]any {
-	op.lock.Lock()
-	defer op.lock.Unlock()
-	return maps.Clone(op.metadata)
+	opMetaPtr := op.metadata.Load()
+	if opMetaPtr == nil {
+		return map[string]any{}
+	}
+
+	return maps.Clone(*opMetaPtr)
 }
 
 // URL returns the operation URL.
@@ -1123,12 +1076,17 @@ func (op *Operation) Project() string {
 
 // Status returns the operation status.
 func (op *Operation) Status() api.StatusCode {
-	return op.status
+	return api.StatusCode(op.status.Load())
 }
 
 // UpdatedAt returns the last update time of the operation.
 func (op *Operation) UpdatedAt() time.Time {
-	return op.updatedAt
+	t := op.updatedAt.Load()
+	if t == nil {
+		return op.createdAt
+	}
+
+	return *t
 }
 
 // Class returns the operation class.
@@ -1240,9 +1198,6 @@ func (op *Operation) sendEvent(eventMessage any) {
 // GetOperationInputValue returns the input value associated with the given key. It returns an [http.StatusNotFound]
 // error if not present, or an error if value cannot be unmarshalled into the given type.
 func GetOperationInputValue[T any](op *Operation, key InputKey) (T, error) {
-	op.lock.Lock()
-	defer op.lock.Unlock()
-
 	var t T
 	rawJSON, ok := op.inputs[key]
 	if !ok {

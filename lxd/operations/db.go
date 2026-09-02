@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,7 +52,7 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			ProjectID:         projectID,
 			Class:             int64(op.class),
 			CreatedAt:         op.createdAt,
-			UpdatedAt:         op.updatedAt,
+			UpdatedAt:         op.UpdatedAt(),
 			StatusCode:        int64(op.Status()),
 			Parent:            parentOpID,
 			ConflictReference: op.conflictReference,
@@ -82,7 +83,7 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 			operationsRow.EntityID = int64(entityReference.EntityID)
 		}
 
-		metadataJSON, err := json.Marshal(op.metadata)
+		metadataJSON, err := json.Marshal(op.Metadata())
 		if err != nil {
 			return 0, fmt.Errorf("Failed marshalling operation metadata: %w", err)
 		}
@@ -107,9 +108,6 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 
 			return 0, err
 		}
-
-		// Save the time at which the operation was persisted
-		op.lastPersistenceAttempt = op.updatedAt
 
 		err = cluster.CreateOperationResources(ctx, tx.Tx(), dbOpID, op.resources)
 		if err != nil {
@@ -168,17 +166,21 @@ func persistOperation(ctx context.Context, op *Operation) error {
 		return errors.New("Failed updating operation: No state available")
 	}
 
-	// Save the lastPersistenceAttempt field as the current updatedAt value.
-	// If persistence fails, the updated_at row in the database will be behind this value.
-	op.lastPersistenceAttempt = op.updatedAt
-
 	err := op.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, op.metadata, op.err, op.errCode)
+		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.UpdatedAt(), op.Status(), op.Metadata(), op.getErr(), op.errCode.Load())
 	})
 	if err != nil {
-		// cluster.UpdateOperation returns a conflict error if the operation exists but is not present on the given node ID (this node).
-		// This means the operation has been relocated. Cancel the operation if it is durable so that it is not running in two places at once.
-		if api.StatusErrorCheck(err, http.StatusConflict) && op.Class() == operationtype.OperationClassDurable {
+		// Check the error code. For unexpected errors, flag the operations as having failed to persist.
+		// If the operation has moved to another cluster member (conflict), or its UUID is not present (not found)
+		// we should not attempt to resynchronize the operation later.
+		code, matched := api.StatusErrorMatch(err, http.StatusConflict, http.StatusNotFound)
+		if !matched {
+			op.persistenceFailed.Store(true)
+			return fmt.Errorf("Failed updating operation %q record: %w", op.id, err)
+		}
+
+		// If the operation has moved to another cluster member (conflict) and is a durable operation, cancel it internally.
+		if code == http.StatusConflict && op.Class() == operationtype.OperationClassDurable {
 			cancelInternal(op)
 		}
 
@@ -269,27 +271,27 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 	}
 
 	op := Operation{
-		dbID:                   dbOp.Row.ID,
-		projectName:            dbOp.ProjectName,
-		id:                     dbOp.Row.UUID,
-		class:                  operationtype.Class(dbOp.Row.Class),
-		createdAt:              dbOp.Row.CreatedAt,
-		updatedAt:              dbOp.Row.UpdatedAt,
-		lastPersistenceAttempt: dbOp.Row.UpdatedAt,
-		status:                 api.StatusCode(dbOp.Row.StatusCode),
-		url:                    api.NewURL().Path(version.APIVersion, "operations", dbOp.Row.UUID).String(),
-		description:            dbOp.Row.Type.Description(),
-		dbOpType:               dbOp.Row.Type,
-		finished:               cancel.New(),
-		running:                cancel.New(),
-		state:                  s,
-		location:               dbOp.NodeName,
-		err:                    dbOp.Row.Error,
-		errCode:                dbOp.Row.ErrorCode,
-		conflictReference:      dbOp.Row.ConflictReference,
-		requestor:              dbOp.Requestor(),
-		stage:                  uint16(dbOp.Row.Stage),
+		dbID:              dbOp.Row.ID,
+		projectName:       dbOp.ProjectName,
+		id:                dbOp.Row.UUID,
+		class:             operationtype.Class(dbOp.Row.Class),
+		createdAt:         dbOp.Row.CreatedAt,
+		url:               api.NewURL().Path(version.APIVersion, "operations", dbOp.Row.UUID).String(),
+		description:       dbOp.Row.Type.Description(),
+		dbOpType:          dbOp.Row.Type,
+		finished:          cancel.New(),
+		running:           cancel.New(),
+		state:             s,
+		location:          dbOp.NodeName,
+		conflictReference: dbOp.Row.ConflictReference,
+		requestor:         dbOp.Requestor(),
+		stage:             uint16(dbOp.Row.Stage),
 	}
+
+	op.updatedAt.Store(&dbOp.Row.UpdatedAt)
+	op.status.Store(dbOp.Row.StatusCode)
+	op.err.Store(dbOp.Row.Error)
+	op.errCode.Store(dbOp.Row.ErrorCode)
 
 	// If server is not clustered, the DB contains 'none' as the node name. In that case we use the server name as the location.
 	if !s.ServerClustered {
@@ -332,7 +334,7 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 		return nil, fmt.Errorf("Failed unmarshalling operation metadata for operation %d: %w", dbOp.Row.ID, err)
 	}
 
-	op.metadata = metadata
+	op.metadata.Store(&metadata)
 
 	var inputs map[InputKey]json.RawMessage
 	err = json.Unmarshal([]byte(dbOp.Row.Inputs), &inputs)
@@ -357,7 +359,7 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 
 	// We have just reconstructed the operation from the database, generally this is for inspection only, so call done and cancel running context.
 	// However, durable operations may be reloaded and re-run, only finalize these operations if they have a final or cancelling status.
-	if op.class != operationtype.OperationClassDurable || op.status.IsFinal() || op.status == api.Cancelling {
+	if op.class != operationtype.OperationClassDurable || op.Status().IsFinal() || op.Status() == api.Cancelling {
 		op.running.Cancel()
 		op.done()
 	}
@@ -365,7 +367,7 @@ func constructSingleOperation(s *state.State, dbOp cluster.Operation, resources 
 	return &op, nil
 }
 
-// Synchronize is run on database start up and shutdown, and as a recurring task every minute.
+// Synchronize is run on Daemon start and every minute thereafter.
 // It first checks the local map for any operations that need to be retained. These are:
 // - Bulk operations that completed less than 24 hours ago.
 // - Other operations that completed less than 5 seconds ago.
@@ -440,44 +442,77 @@ func Synchronize(ctx context.Context, s *state.State) error {
 
 	// Add the reconstructed operations back to the local map. Restart any durable operations that need to be restarted,
 	// and internally cancel any durable operations that need to be cancelled.
-	// Only lock if necessary.
-	if len(reconstructedOps) > 0 || len(durableOperationUUIDsToRestart) > 0 || len(durableOperationUUIDsToInternallyCancel) > 0 {
-		operationsLock.Lock()
-		for _, reconstructedOp := range reconstructedOps {
-			operations[reconstructedOp.id] = reconstructedOp
-			for _, child := range reconstructedOp.children {
-				operations[child.id] = child
-			}
+	operationsLock.Lock()
+
+	// Add reconstructed operations back into the local map.
+	for _, reconstructedOp := range reconstructedOps {
+		operations[reconstructedOp.id] = reconstructedOp
+		for _, child := range reconstructedOp.children {
+			operations[child.id] = child
+		}
+	}
+
+	// Finally, iterate over all local operations and:
+	// - Unflag any that require synchronization, they are now synchronized.
+	// - Restart any durable operations that need to be restarted.
+	// - Interally cancel any durable operations that need to be cancelled.
+	// - Get a list of all operations that have been internally cancelled.
+	var nResynchronized uint
+	internallyCancelledParentOps := make([]*Operation, 0, len(operations))
+	opsToRestart := make([]*Operation, 0, len(durableOperationUUIDsToRestart))
+	for _, op := range operations {
+		// Skip any not included in original clone.
+		if op.dbID > maxID {
+			continue
 		}
 
-		for opUUIDToCancelInternal := range durableOperationUUIDsToInternallyCancel {
-			op, ok := operations[opUUIDToCancelInternal]
-			if !ok {
-				// Should never get here. Operations are only ever deleted from the internal map within this function
-				// and the operation UUID was present when the map was cloned. Log a warning in case a regression causes
-				// this logic to break.
-				logger.Warn("Found a durable operation to cancel but it is no longer present in the internal map", logger.Ctx{"uuid": opUUIDToCancelInternal})
-				continue
-			}
+		// If the operation had a persistence failure, since the transaction succeeded it is now up-to-date.
+		previousPersistenceFailure := op.persistenceFailed.Swap(false)
+		if previousPersistenceFailure {
+			nResynchronized++
+			continue
+		}
 
+		// Collect operations to be restarted
+		_, toBeRestarted := durableOperationUUIDsToRestart[op.id]
+		if toBeRestarted && op.parent == nil {
+			opsToRestart = append(opsToRestart, op)
+		}
+
+		// Internally cancel the durable operation if it is to be internally cancelled.
+		_, toBeInternallyCancelled := durableOperationUUIDsToInternallyCancel[op.id]
+		if toBeInternallyCancelled {
 			cancelInternal(op)
 		}
 
-		for opUUIDToRestart := range durableOperationUUIDsToRestart {
-			op, ok := operations[opUUIDToRestart]
-			if !ok {
-				// Should never get here. The durable operation should have been reconstructed because it is registered
-				// to this member and is not finished. We've just added any reconstructed operations to the local map, so
-				// if it is not present there is a logic mismatch when calculating the restartable operations list.
-				logger.Warn("Found a durable operation to restart but it was not reconstructed", logger.Ctx{"uuid": opUUIDToRestart})
-				continue
-			}
-
-			restartOperation(op)
+		// Collect all operations that are internally cancelled (whether due to missed heartbeats or synchronization).
+		if op.internallyCancelled.Load() && !op.IsChild() {
+			internallyCancelledParentOps = append(internallyCancelledParentOps, op)
 		}
-
-		operationsLock.Unlock()
 	}
+
+	operationsLock.Unlock()
+
+	// Restart the operations we've collected.
+	// Note that we don't call `restartOperation` here, because the operation is already present in the local map.
+	// Instead, we just log the operation is restarting and call Operation.start.
+	for _, op := range opsToRestart {
+		op.logger.Info("Restarting operation", logger.Ctx{"id": op.id})
+		op.start()
+	}
+
+	// Wait for all internally cancelled operations to finish.
+	internallyCancelledOpUIIDsToDelete := make([]string, 0, len(internallyCancelledParentOps))
+	for _, internallyCancelledParentOp := range internallyCancelledParentOps {
+		_ = internallyCancelledParentOp.Wait(ctx)
+		internallyCancelledOpUIIDsToDelete = append(internallyCancelledOpUIIDsToDelete, internallyCancelledParentOp.id)
+	}
+
+	// Then delete them from the local map.
+	// Otherwise, they will remain present in the operations map forever.
+	// This is because the local map entry has been stale since the operation was internally cancelled.
+	// It still has a status of running, so is never deleted in the previous sweep.
+	deleteInternal(internallyCancelledOpUIIDsToDelete...)
 
 	return nil
 }
@@ -503,26 +538,21 @@ func ensureLocalOperationsAreSynchronized(ctx context.Context, tx *db.ClusterTx,
 			continue
 		}
 
-		// If Operation.lastPersistenceAttempt is equal to operations.updated_at, then the operation is in sync with the database.
-		lastPersistenceAttemptUnixMillis := op.lastPersistenceAttempt.UnixMilli()
-		dbUpdatedAtUnixMillis := dbOp.Row.UpdatedAt.UnixMilli()
-		if lastPersistenceAttemptUnixMillis <= dbUpdatedAtUnixMillis {
-			// The lastPersistenceAttempt should never be behind operations.updated_at.
-			// If it is, update it to the current database value and log a warning.
-			if lastPersistenceAttemptUnixMillis < dbUpdatedAtUnixMillis {
-				op.lastPersistenceAttempt = dbOp.Row.UpdatedAt
-				op.updatedAt = dbOp.Row.UpdatedAt
-				logger.Warn("Operation persistence tracking mismatch", logger.Ctx{"uuid": op.id})
-			}
+		if op.internallyCancelled.Load() {
+			// If the operation has been internally cancelled, it should not be synchronized.
+			// The leader will restart the operation from its current state in the database.
+			continue
+		}
 
+		if !op.persistenceFailed.Load() {
+			// If the operation did not fail to persist data, then there is nothing to do.
 			continue
 		}
 
 		// If the operation is not in sync, it could be due to a misbehaving database when the operation attempted to persist its data.
 		// Synchronize the operation now.
 		op.logger.Info("Resynchronizing operation")
-		op.lastPersistenceAttempt = op.updatedAt
-		err := cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.updatedAt, op.status, op.metadata, op.err, op.errCode)
+		err := cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.UpdatedAt(), op.Status(), op.Metadata(), op.getErr(), op.errCode.Load())
 		if err != nil {
 			errs = append(errs, err)
 			op.logger.Warn("Failed synchronizing operation with database", logger.Ctx{"err": err})
@@ -576,11 +606,10 @@ func filterReconstructCandidatesForFinalization(syncStartedAt time.Time, operati
 		if operation.Row.Parent != nil {
 			_, ok := operationIDRetentionSet[*operation.Row.Parent]
 			if !ok {
+				// Also we don't want to reconstruct it because the parent has gone, so we need to delete it from the reconstruction set.
+				delete(operationsToReconstruct, operation.Row.UUID)
 				continue
 			}
-
-			// Also we don't want to reconstruct it because the parent has gone, so we need to delete it from the reconstruction set.
-			delete(operationsToReconstruct, operation.Row.UUID)
 		}
 
 		// Don't set status on durable operations that are to be restarted.
@@ -803,52 +832,116 @@ func loadAndConstructOperationFromDB(ctx context.Context, s *state.State, opID s
 	return ops[0], nil
 }
 
-// RelocateAndReconstructRunningDurableOperationsFromNode loads all durable operations on the given node, relocates them to this
-// cluster member (by changing their node ID), and reconstructs them.
-func RelocateAndReconstructRunningDurableOperationsFromNode(ctx context.Context, s *state.State, nodeID int64) ([]*Operation, error) {
-	var ops []*Operation
-	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		// See if there are any durable operations running on the node which need to be restarted.
-		dbOps, err := cluster.GetOperationsByNodeIDAndClass(ctx, tx.Tx(), nodeID, operationtype.OperationClassDurable)
-		if err != nil {
-			return fmt.Errorf("Failed loading durable operations for node ID %d: %w", nodeID, err)
-		}
+// getUnfinishedDurableOperationsByNodeIDs queries for all durable operations on the given node IDs and returns all
+// parent operations that have not finished, or child operations whose parent has not finished.
+func getUnfinishedDurableOperationsByNodeIDs(ctx context.Context, tx *sql.Tx, nodeIDs ...int64) ([]cluster.Operation, error) {
+	if len(nodeIDs) == 0 {
+		return []cluster.Operation{}, nil
+	}
 
-		// Check which are running and which have already completed.
-		var nRunningOps int
-		for _, dbOp := range dbOps {
-			if api.StatusCode(dbOp.Row.StatusCode).IsFinal() {
-				continue
+	var unfinishedOperations []cluster.Operation
+	var unfinishedOperationIDs []int64
+
+	appendOperation := func(op cluster.Operation) {
+		unfinishedOperations = append(unfinishedOperations, op)
+		unfinishedOperationIDs = append(unfinishedOperationIDs, op.Row.ID)
+	}
+
+	unfinishedParentOperationIDs := make(map[int64]struct{})
+
+	// Query operations by class and node ID. Order by parent with nulls first, so that parent operations are scanned first.
+	var b strings.Builder
+	b.WriteString("WHERE operations.class = ? AND operations.node_id IN ")
+	b.WriteString(query.IntParams(nodeIDs...))
+	b.WriteString(" ORDER BY operations.parent NULLS FIRST")
+	err := query.SelectFunc[cluster.Operation](ctx, tx, b.String(), func(operation cluster.Operation) error {
+		// Handle parent operations.
+		if operation.Row.Parent == nil {
+			// Skip parent operations that have finished.
+			// All children must have finished for the parent to have finished.
+			if operation.IsFinished() {
+				return nil
 			}
 
-			nRunningOps++
-		}
-
-		// If none were running, then there are none to restart.
-		if nRunningOps == 0 {
+			unfinishedParentOperationIDs[operation.Row.ID] = struct{}{}
+			appendOperation(operation)
 			return nil
 		}
 
-		// Move the operation that have not completed to this member.
-		nMovedOps, err := relocateUnfinishedDurableOperationsFromNode(ctx, tx, nodeID)
+		// Handle child operations.
+		// If there is no parent in the map, then the parent has already finished.
+		_, ok := unfinishedParentOperationIDs[*operation.Row.Parent]
+		if !ok {
+			return nil
+		}
+
+		// The parent has not finished. Add the child regardless of its status.
+		appendOperation(operation)
+		return nil
+	}, operationtype.OperationClassDurable)
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying for durable operations to restart: %w", err)
+	}
+
+	return unfinishedOperations, err
+}
+
+// relocateAndReconstructRunningDurableOperationsFromNodes loads all running durable operations on the given node IDs,
+// relocates them to this cluster member (by changing their node ID), and reconstructs them.
+func relocateAndReconstructRunningDurableOperationsFromNodes(ctx context.Context, s *state.State, nodeIDs ...int64) ([]*Operation, error) {
+	if len(nodeIDs) == 0 {
+		return []*Operation{}, nil
+	}
+
+	nodeIDErrFmtString := func() string {
+		var b strings.Builder
+		b.WriteString(`"`)
+		b.WriteString(strconv.FormatInt(nodeIDs[0], 10))
+		for _, nodeID := range nodeIDs[1:] {
+			b.WriteString(`", "`)
+			b.WriteString(strconv.FormatInt(nodeID, 10))
+		}
+
+		b.WriteString(`"`)
+
+		return b.String()
+	}
+
+	var ops []*Operation
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// See if there are any durable operations running on the given nodes.
+		dbOps, err := getUnfinishedDurableOperationsByNodeIDs(ctx, tx.Tx(), nodeIDs...)
 		if err != nil {
-			return fmt.Errorf("Failed relocating durable operations from node ID %d: %w", nodeID, err)
+			return fmt.Errorf("Failed loading durable operations for offline cluster members with IDs %s: %w", nodeIDErrFmtString(), err)
 		}
 
-		if int(nMovedOps) != nRunningOps {
-			return fmt.Errorf("Failed relocating durable operations from node ID %d: Expected to move %d operations but moved %d", nodeID, nRunningOps, nMovedOps)
+		// If none were running, then there are none to restart.
+		if len(dbOps) == 0 {
+			return nil
 		}
 
-		// Update the records of operations we moved to match what is now in the database.
+		// Update the records of operations we are about to move to match what will be represented in the database.
+		now := time.Now()
 		currentNodeID := tx.GetNodeID()
-		for _, dbOp := range dbOps {
+		dbOpIDs := make([]int64, 0, len(dbOps))
+		for i, dbOp := range dbOps {
+			// Some child operations will be reconstructed but are already final.
+			// They will continue to be represented on the node that ran them.
 			if api.StatusCode(dbOp.Row.StatusCode).IsFinal() {
 				continue
 			}
 
-			dbOp.Row.NodeID = currentNodeID
-			dbOp.NodeName = s.ServerName
-			dbOp.NodeAddress = s.Endpoints.NetworkAddress()
+			dbOpIDs = append(dbOpIDs, dbOp.Row.ID)
+			dbOps[i].Row.UpdatedAt = now
+			dbOps[i].Row.NodeID = currentNodeID
+			dbOps[i].NodeName = s.ServerName
+			dbOps[i].NodeAddress = s.Endpoints.NetworkAddress()
+		}
+
+		// Move the operations that have not completed to this member.
+		err = relocateRunningDurableOperations(ctx, tx, now, dbOpIDs...)
+		if err != nil {
+			return fmt.Errorf("Failed relocating durable operations from offline cluster members with IDs %s: %w", nodeIDErrFmtString(), err)
 		}
 
 		// Reconstruct all durable operations. Even those that have finished.
@@ -864,25 +957,26 @@ func RelocateAndReconstructRunningDurableOperationsFromNode(ctx context.Context,
 		return nil, err
 	}
 
-	// Reconstructed operations are a list of parent operations.
-	// If the parent operations have completed, there is no need to restart them.
-	ops = slices.DeleteFunc(ops, func(op *Operation) bool {
-		return op.finished.Err() != nil
-	})
-
 	return ops, nil
 }
 
-// relocateUnfinishedDurableOperationsFromNode moves durable operations from the given nodeID to this cluster member.
-// It is defined in this package (rather than in the db/cluster package) and unexported to prevent usage elsewhere.
-// It returns the number of affected rows.
-func relocateUnfinishedDurableOperationsFromNode(ctx context.Context, tx *db.ClusterTx, fromNodeID int64) (int64, error) {
-	res, err := tx.Tx().ExecContext(ctx, "UPDATE operations SET node_id = ?, updated_at = ? WHERE node_id = ? AND class = ? AND status_code < ?", tx.GetNodeID(), time.Now(), fromNodeID, operationtype.OperationClassDurable, api.Success)
+// relocateRunningDurableOperations moves running durable operations with the given IDs to this cluster member.
+func relocateRunningDurableOperations(ctx context.Context, tx *db.ClusterTx, now time.Time, operationIDs ...int64) error {
+	res, err := tx.Tx().ExecContext(ctx, "UPDATE operations SET node_id = ?, updated_at = ? WHERE class = ? AND status_code < ? AND id IN"+query.IntParams(operationIDs...), tx.GetNodeID(), now, operationtype.OperationClassDurable, api.Success)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	return res.RowsAffected()
+	nAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed validating operation relocation: %w", err)
+	}
+
+	if int(nAffected) != len(operationIDs) {
+		return fmt.Errorf("Failed relocating operations: Expected to update %d rows but updated %d", len(operationIDs), nAffected)
+	}
+
+	return nil
 }
 
 // restartOperation registers the operation and all of its children to the in-memory operations map and then
@@ -901,14 +995,14 @@ func restartOperation(op *Operation) {
 
 	operationsLock.Unlock()
 
-	op.logger.Debug("Restarting operation", logger.Ctx{"id": op.id})
+	op.logger.Info("Restarting operation", logger.Ctx{"id": op.id})
 	op.start()
 }
 
-// RestartDurableOperationsFromNode restarts all durable operations that were running on the node
-// which failed to respond to heartbeats.
-func RestartDurableOperationsFromNode(ctx context.Context, s *state.State, nodeID int64) error {
-	operations, err := RelocateAndReconstructRunningDurableOperationsFromNode(ctx, s, nodeID)
+// RestartDurableOperationsFromNodes moves all durable operations that are reported as still running on the given node
+// IDs to this node, then reconstructs and restarts them here.
+func RestartDurableOperationsFromNodes(ctx context.Context, s *state.State, nodeIDs ...int64) error {
+	operations, err := relocateAndReconstructRunningDurableOperationsFromNodes(ctx, s, nodeIDs...)
 	if err != nil {
 		return err
 	}
