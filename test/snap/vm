@@ -34,9 +34,10 @@ if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
     echo "==> Test getting the correct exit code for a signaled process"
     # Signaling the process spawned by lxc exec and checking its exit code.
     # Simulates what can happen if the VM stops in the middle of lxc exec.
-    for signal in SIGTERM SIGHUP SIGTERM; do
+    for signal in SIGTERM SIGHUP SIGKILL; do
         echo "==> Test getting the correct exit code when sending ${signal} to an exec'ed process"
         code="$(kill -l "${signal}")"
+        unset exitCode
         # killall is not included in minimal images so we use escaping to combine pgrep and kill.
         (sleep 5 && lxc exec v1 -- bash -c "kill -s ${signal} \$(pgrep sleep)") &
         lxc exec v1 -- sleep 60 || exitCode=$?
