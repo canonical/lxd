@@ -110,7 +110,7 @@ sleep 60
 # Move the VM to member2 but with a timeout as this sometimes hangs indefinitely but when it works it's fast.
 lxc exec member1 -- timeout 600 lxc move v1 --target member2
 
-# Verify the migration did succeeded and the VM is running on member2.
+# Verify the migration did succeed and the VM is running on member2.
 [ "$(lxc exec member1 -- lxc list -c L -f csv v1)" = "member2" ]
 
 # Cleanup
