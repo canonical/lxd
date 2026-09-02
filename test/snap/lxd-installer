@@ -35,7 +35,7 @@ test_lxd_installer() {
 
     # list snaps (should be empty)
     lxc exec "${instance}" -- snap list
-    [ "$(lxc exec "${instance}" -- snap list lxd 2>/dev/null)" = "" ]
+    ! lxc exec "${instance}" -- snap list lxd 2>/dev/null || false
 
     # trigger lxd-installer (without prompting)
     lxc exec "${instance}" -- lxc list < /dev/null
