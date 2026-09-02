@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eu
+shopt -s inherit_errexit
 
 # Install LXD
 install_lxd
@@ -49,6 +50,7 @@ FORWARD_ADDR="203.0.113.200"
 # Usage: frrPrefixNexthops <4|6> <prefix>
 frrPrefixNexthops() (
     { set +x; } 2>/dev/null
+    set -e
     # join() emits a single value so an absent prefix is an empty string rather than no
     # output at all, leaving --exit-status to only catch unusable vtysh output.
     vtysh -c "show bgp ipv${1} unicast json" | jq --exit-status --raw-output --arg prefix "${2}" '[.routes[$prefix]?[]?.nexthops[]?.ip] | unique | join("\n")'
@@ -185,6 +187,7 @@ fi
 # The peer is only registered once both address and ASN are set, so to avoid
 # bouncing the BGP session with multiple 'lxc network set', it's advisable to
 # set the address last or provide all the configuration in a single command.
+# shellcheck disable=SC2248 # Deliberate word splitting omits an empty optional configuration argument.
 lxc network create "${BGP_NET}" \
     ipv4.address="${NET_ADDR4}" ipv4.nat=false \
     ipv6.address="${NET_ADDR6}" ipv6.nat=false \
@@ -249,6 +252,7 @@ waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
 waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
 
 echo "==> Checking the session follows the peer being removed and re-added"
+# shellcheck disable=SC2248 # Deliberate word splitting omits an empty optional configuration argument.
 lxc network set "${BGP_NET}" \
     bgp.peers.frr.address="" \
     bgp.peers.frr.asn="" \
@@ -256,6 +260,7 @@ lxc network set "${BGP_NET}" \
     ${peer_holdtime_clear} # Don't quote to omit the empty arg.
 waitFRRSession down
 
+# shellcheck disable=SC2248 # Deliberate word splitting omits an empty optional configuration argument.
 lxc network set "${BGP_NET}" \
     bgp.peers.frr.address="${FRR_ADDR}" \
     bgp.peers.frr.asn="${FRR_ASN}" \
