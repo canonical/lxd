@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"slices"
 
+	"google.golang.org/protobuf/proto"
+
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -249,4 +251,27 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 	}
 
 	return matchedTypes, nil
+}
+
+// VolumeSnapshotToProtobuf converts a custom volume snapshot into its migration header representation.
+func VolumeSnapshotToProtobuf(vol *api.StorageVolumeSnapshot) *Snapshot {
+	config := make([]*Config, 0, len(vol.Config))
+	for k, v := range vol.Config {
+		kCopy := string(k)
+		vCopy := string(v)
+		config = append(config, &Config{Key: &kCopy, Value: &vCopy})
+	}
+
+	return &Snapshot{
+		Name:         &vol.Name,
+		LocalConfig:  config,
+		Profiles:     []string{},
+		Ephemeral:    new(false),
+		LocalDevices: []*Device{},
+		Architecture: proto.Int32(0),
+		Stateful:     new(false),
+		CreationDate: new(vol.CreatedAt.Unix()),
+		LastUsedDate: proto.Int64(0),
+		ExpiryDate:   proto.Int64(0),
+	}
 }

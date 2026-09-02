@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
@@ -131,7 +129,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 
 		for i := range customVol.Snapshots {
 			offerHeader.SnapshotNames = append(offerHeader.SnapshotNames, customVol.Snapshots[i].Name)
-			offerHeader.Snapshots = append(offerHeader.Snapshots, volumeSnapshotToProtobuf(customVol.Snapshots[i]))
+			offerHeader.Snapshots = append(offerHeader.Snapshots, migration.VolumeSnapshotToProtobuf(customVol.Snapshots[i]))
 		}
 	}
 
@@ -490,27 +488,5 @@ func (c *migrationSink) DoStorage(ctx context.Context, state *state.State, proje
 			// whether or not the restore was successful.
 			logger.Warn("Unknown message from migration source", logger.Ctx{"message": msg.GetMessage()})
 		}
-	}
-}
-
-func volumeSnapshotToProtobuf(vol *api.StorageVolumeSnapshot) *migration.Snapshot {
-	config := make([]*migration.Config, 0, len(vol.Config))
-	for k, v := range vol.Config {
-		kCopy := string(k)
-		vCopy := string(v)
-		config = append(config, &migration.Config{Key: &kCopy, Value: &vCopy})
-	}
-
-	return &migration.Snapshot{
-		Name:         &vol.Name,
-		LocalConfig:  config,
-		Profiles:     []string{},
-		Ephemeral:    new(false),
-		LocalDevices: []*migration.Device{},
-		Architecture: proto.Int32(0),
-		Stateful:     new(false),
-		CreationDate: new(vol.CreatedAt.Unix()),
-		LastUsedDate: proto.Int64(0),
-		ExpiryDate:   proto.Int64(0),
 	}
 }
