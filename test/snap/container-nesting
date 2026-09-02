@@ -118,7 +118,7 @@ for poolDriver in ${poolDriverList}; do
 
     # Cleanup.
     lxc delete --force "${instName}"
-    if echo "${nestedPoolDriverList}" | grep -qwF zfs; then
+    if echo "${nestedPoolDriverList}" | grep -wF zfs >/dev/null; then
         lxc storage volume delete "${poolName}" vol1
     fi
     lxc storage delete "${poolName}"
