@@ -4,6 +4,8 @@ set -eux
 architecture="$(uname -m)"
 if [ "${architecture}" != "x86_64" ] && [ "${architecture}" != "s390x" ]; then
   echo "Skipping test as CPU hotplugging not supported on ${architecture}"
+  # shellcheck disable=SC2034
+  FAIL=0
   exit 0
 fi
 
@@ -12,6 +14,8 @@ install_lxd
 
 if ! hasNeededAPIExtension cpu_hotplug; then
   echo "Skipping test as CPU hotplugging not supported on ${LXD_SNAP_CHANNEL}"
+  # shellcheck disable=SC2034
+  FAIL=0
   exit 0
 fi
 
