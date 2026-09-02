@@ -4767,7 +4767,15 @@ func (d *lxc) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, pr
 		}
 	}
 
-	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, nil, progressReporter)
+	// The index frame describes the instance like backup.yaml does, so include the attached custom volumes.
+	volSrcConfig, err := pool.GenerateInstanceCustomVolumeBackupConfig(d, nil, args.Snapshots, progressReporter)
+	if err != nil {
+		err := fmt.Errorf("Failed generating instance custom volume migration config: %w", err)
+		op.Done(err)
+		return err
+	}
+
+	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, volSrcConfig, progressReporter)
 	if err != nil {
 		err := fmt.Errorf("Failed generating instance migration config: %w", err)
 		op.Done(err)
