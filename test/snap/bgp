@@ -74,7 +74,7 @@ waitFRRPrefix() (
                 return 0 # Success.
             fi
         elif [ -n "${nexthops}" ]; then
-            if [ -z "${nexthop}" ] || grep -qxF "${nexthop}" <<< "${nexthops}"; then
+            if [ -z "${nexthop}" ] || grep -xF "${nexthop}" <<< "${nexthops}"; then
                 return 0 # Success.
             fi
         fi
@@ -165,7 +165,7 @@ vtysh -c "show running-config"
 
 # Older FRR releases silently drop the config, which would only show up much later
 # as a session that never comes up.
-if ! vtysh -c "show running-config" | grep -qF "neighbor ${LXD_ADDR} remote-as ${LXD_ASN}"; then
+if ! vtysh -c "show running-config" | grep -F "neighbor ${LXD_ADDR} remote-as ${LXD_ASN}"; then
     echo "FRR did not load the BGP peer configuration"
     exit 1
 fi
