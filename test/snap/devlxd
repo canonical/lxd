@@ -53,7 +53,7 @@ test_devlxd() {
 
     local meta_data
     meta_data="$(lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data)"
-    grep -xE 'instance-id: [^ ]{36}' <<< "${meta_data}" || grep -Fq 'instance-id:' <<< "${meta_data}"
+    grep -xE 'instance-id: [^ ]{36}' <<< "${meta_data}" || grep -F 'instance-id:' <<< "${meta_data}"
     grep -xF "local-hostname: ${instName}" <<< "${meta_data}"
 
     # Check devlxd instance name validation works on containers (5.21 onwards).
@@ -67,16 +67,16 @@ test_devlxd() {
         # LXD looks for the project name and instance name at the end of the process name in the format " <project_name>_<instance_name>".
         # So use the curl `--proxy` option to allow adding " <project_name>_<instance_name>" to the end of the process name.
         # This works because `--proxy` is not used in combination with `--unix-socket`.
-        lxc exec "${instName}" -- bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' default_${peerName}'" | grep -Fq "local-hostname: ${instName}"
-        lxc exec "${instName}" -- bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' default_missing'" | grep -Fq "local-hostname: ${instName}"
-        lxc exec "${instName}" -- bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' missing_missing'" | grep -Fq "local-hostname: ${instName}"
+        lxc exec "${instName}" -- bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' default_${peerName}'" | grep -F "local-hostname: ${instName}"
+        lxc exec "${instName}" -- bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' default_missing'" | grep -F "local-hostname: ${instName}"
+        lxc exec "${instName}" -- bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' missing_missing'" | grep -F "local-hostname: ${instName}"
 
         # Next check the second discovery method (where the curl process is under the lxc monitor process tree).
         # systemd-run requires D-Bus, so wait until instance is fully booted before proceeding.
         waitInstanceBooted "${instName}"
-        lxc exec "${instName}" -- systemd-run --pipe --wait --quiet bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' default_${peerName}'" | grep -Fq "local-hostname: ${instName}"
-        lxc exec "${instName}" -- systemd-run --pipe --wait --quiet bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' default_missing'" | grep -Fq "local-hostname: ${instName}"
-        lxc exec "${instName}" -- systemd-run --pipe --wait --quiet bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' missing_missing'" | grep -Fq "local-hostname: ${instName}"
+        lxc exec "${instName}" -- systemd-run --pipe --wait --quiet bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' default_${peerName}'" | grep -F "local-hostname: ${instName}"
+        lxc exec "${instName}" -- systemd-run --pipe --wait --quiet bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' default_missing'" | grep -F "local-hostname: ${instName}"
+        lxc exec "${instName}" -- systemd-run --pipe --wait --quiet bash -c "exec -a '[lxc monitor]' curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data --proxy ' missing_missing'" | grep -F "local-hostname: ${instName}"
 
         lxc delete -f "${peerName}"
     fi
@@ -97,8 +97,8 @@ test_devlxd() {
     fi
     lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/config | jq
     meta_data="$(lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data)"
-    grep -Fq 'instance-id:' <<< "${meta_data}"
-    grep -Fq "local-hostname: ${instName}" <<< "${meta_data}"
+    grep -F 'instance-id:' <<< "${meta_data}"
+    grep -F "local-hostname: ${instName}" <<< "${meta_data}"
 
     # Disable devlxd
     lxc config set "${instName}" security.devlxd false
@@ -133,7 +133,7 @@ test_devlxd() {
 
     # Ensure that the outputted metadata is in correct format.
     meta_data="$(lxc exec "${instName}" -- curl --silent --show-error --unix-socket /dev/lxd/sock http://custom.socket/1.0/meta-data)"
-    grep -xE 'instance-id: [^ ]{36}' <<< "${meta_data}" || grep -Fq 'instance-id:' <<< "${meta_data}"
+    grep -xE 'instance-id: [^ ]{36}' <<< "${meta_data}" || grep -F 'instance-id:' <<< "${meta_data}"
     grep -xF "local-hostname: ${instName}" <<< "${meta_data}"
 
     # Test cloud-init user-data.
