@@ -132,6 +132,103 @@ var updates = map[int]schema.Update{
 	86: updateFromV85,
 	87: updateFromV86,
 	88: updateFromV87,
+	89: updateFromV88,
+}
+
+func updateFromV88(ctx context.Context, tx *sql.Tx) error {
+	type replicatorStatus struct {
+		lastRunDate   sql.NullTime
+		lastRunStatus string
+	}
+
+	replicatorStatuses := make(map[int64]replicatorStatus)
+	err := query.Scan(ctx, tx, "SELECT id, last_run_status, last_run_date FROM replicators", func(scan func(dest ...any) error) error {
+		var rs replicatorStatus
+		var id int64
+		err := scan(&id, &rs.lastRunStatus, &rs.lastRunDate)
+		if err != nil {
+			return err
+		}
+
+		replicatorStatuses[id] = rs
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	replicatorConfigs, err := ReplicatorsConfigStore().GetAll(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	args := make([]any, 0, len(replicatorStatuses)*4)
+	values := make([]string, 0, len(replicatorStatuses))
+	for id, rs := range replicatorStatuses {
+		mode := ReplicatorRunModeManual
+		if !rs.lastRunDate.Valid {
+			continue
+		}
+
+		values = append(values, query.Params(4))
+
+		config, ok := replicatorConfigs[id]
+		if !ok {
+			args = append(args, mode, rs.lastRunStatus, rs.lastRunDate.Time, id)
+			continue
+		}
+
+		schedule, ok := config["schedule"]
+		if !ok {
+			args = append(args, mode, rs.lastRunStatus, rs.lastRunDate.Time, id)
+			continue
+		}
+
+		specs := shared.SplitNTrimSpace(schedule, ", ", -1, true)
+		for _, spec := range specs {
+			isActive, err := shared.CronSpecIsActiveThisMinute(spec, rs.lastRunDate.Time)
+			if err == nil && isActive {
+				mode = ReplicatorRunModeScheduled
+				break
+			}
+		}
+
+		args = append(args, mode, rs.lastRunStatus, rs.lastRunDate.Time, id)
+	}
+
+	_, err = tx.ExecContext(ctx, `
+CREATE TABLE replicators_status (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    mode INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    started_date DATETIME NOT NULL,
+    finished_date DATETIME,
+    snapshot_started_date DATETIME,
+    snapshot_finished_date DATETIME,
+    replicator_id INTEGER NOT NULL,
+    FOREIGN KEY (replicator_id) REFERENCES replicators (id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		return fmt.Errorf("Failed creating replicator status table: %w", err)
+	}
+
+	if len(values) > 0 {
+		_, err = tx.ExecContext(ctx, `INSERT INTO replicators_status (mode, status, started_date, replicator_id) VALUES `+strings.Join(values, ", "), args...)
+		if err != nil {
+			return fmt.Errorf("Failed moving replicator run statuses: %w", err)
+		}
+	}
+
+	_, err = tx.ExecContext(ctx, `
+ALTER TABLE replicators DROP COLUMN last_run_date;
+ALTER TABLE replicators DROP COLUMN last_run_status;
+`)
+	if err != nil {
+		return fmt.Errorf("Failed dropping replicator last run columns: %w", err)
+	}
+
+	return nil
 }
 
 func updateFromV87(ctx context.Context, tx *sql.Tx) error {
