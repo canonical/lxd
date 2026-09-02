@@ -5337,6 +5337,14 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 			})
 		}
 
+		// Registered after the instance revert so the reverter removes the custom volumes first.
+		if respHeader.GetIndexHeaderVersion() >= migration.IndexHeaderVersionCustomVolumes && args.ClusterMoveSourceName == "" && !args.Live {
+			err = d.migrateReceiveCustomVolumes(ctx, d, filesystemConn, respHeader.GetIndexHeaderVersion(), args.Snapshots, revert, progressReporter)
+			if err != nil {
+				return err
+			}
+		}
+
 		// For containers, the fs map of the source is sent as part of the migration
 		// stream, then at the end we need to record that map as last_state so that
 		// LXD can shift on startup if needed.

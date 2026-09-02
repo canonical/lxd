@@ -8024,6 +8024,16 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 			})
 		}
 
+		// Registered after the instance revert so the reverter removes the custom volumes first.
+		// A live request keeps writing to the volumes, so those never travel with the instance. The
+		// condition matches the source so both sides agree on whether the frames are coming.
+		if respHeader.GetIndexHeaderVersion() >= migration.IndexHeaderVersionCustomVolumes && args.ClusterMoveSourceName == "" && !args.Live {
+			err = d.migrateReceiveCustomVolumes(ctx, d, filesystemConn, respHeader.GetIndexHeaderVersion(), args.Snapshots, revert, progressReporter)
+			if err != nil {
+				return err
+			}
+		}
+
 		if args.ClusterMoveSourceName != d.name {
 			err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
 			if err != nil {
