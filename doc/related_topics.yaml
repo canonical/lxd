@@ -9,7 +9,7 @@ getting_started_ref: "Reference:\n\n- {ref}`requirements`\n- {ref}`ref-releases-
 getting_started_tut: "Tutorial:\n\n- {ref}`first-steps`",
 images_exp: "Explanation:\n\n- {ref}`about-images`",
 images_how: "How-to guides:\n\n- {ref}`images`",
-images_ref: "Reference:\n\n- {ref}`image-format`\n- {ref}`remote-image-servers`",
+images_ref: "Reference:\n\n- {ref}`image-format`\n- {ref}`ref-image-registries`\n- {ref}`remote-image-servers`",
 initialize: "How-to guides:\n\n- {ref}`initialize`",
 instances_exp: "Explanation:\n\n- {ref}`expl-instances`",
 instances_how: "How-to guides:\n\n- {ref}`instances`",
