@@ -92,15 +92,13 @@ test_tls_restrictions() {
 
   # The restricted caller can listen for events on all projects, but the events are filtered to only those in the projects they have access to.
   monfile_root="${TEST_DIR}/mon-root.jsonl"
-  lxc monitor --all-projects --type lifecycle --format json > "${monfile_root}" &
-  mon_root_pid=$!
-  sleep 0.1
+  lxc_monitor_start "${monfile_root}" --all-projects --type lifecycle --format json
+  mon_root_pid="${LXC_MONITOR_PID}"
 
   monfile_restricted="${TEST_DIR}/mon-restricted.jsonl"
   lxc remote switch localhost
-  lxc monitor --all-projects --format json > "${monfile_restricted}" &
-  mon_restricted_pid=$!
-  sleep 0.1
+  lxc_monitor_start "${monfile_restricted}" --all-projects --format json
+  mon_restricted_pid="${LXC_MONITOR_PID}"
 
   lxc remote switch local
   lxc storage volume create "${pool_name}" vol1

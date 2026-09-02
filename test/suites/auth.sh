@@ -521,9 +521,8 @@ events_filtering() {
 
   # Monitor as fine-grained identity with no permissions.
   lxc remote switch tls
-  lxc monitor --all-projects --format json > "${monfile}" &
-  monitor_pid=$!
-  sleep 0.1
+  lxc_monitor_start "${monfile}" --all-projects --format json
+  monitor_pid="${LXC_MONITOR_PID}"
   lxc remote switch local
 
   # Create an image via unix socket, then kill the monitor process.
@@ -539,9 +538,8 @@ events_filtering() {
   lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group project default can_view_events
   lxc remote switch tls
-  lxc monitor --all-projects --format json > "${monfile}" &
-  monitor_pid=$!
-  sleep 0.1
+  lxc_monitor_start "${monfile}" --all-projects --format json
+  monitor_pid="${LXC_MONITOR_PID}"
   lxc remote switch local
 
   # Create a profile via unix socket, then kill the monitor process.
@@ -558,9 +556,8 @@ events_filtering() {
   # Monitor as fine-grained identity that creates the profile with minimal permissions.
   lxc auth group permission add test-group project default can_create_profiles
   lxc remote switch tls
-  lxc monitor --all-projects --format json > "${monfile}" &
-  monitor_pid=$!
-  sleep 0.1
+  lxc_monitor_start "${monfile}" --all-projects --format json
+  monitor_pid="${LXC_MONITOR_PID}"
   lxc remote switch local
 
   # Create a profile via the fine-grained identity, without view permissions.

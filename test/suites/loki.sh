@@ -57,13 +57,8 @@ test_loki_security_types() {
 
   sub_test "Verify sys_monitor_disabled does not fire when security is removed from loki.types"
   local monfile="${TEST_DIR}/loki-monitor-disabled.jsonl"
-  lxc monitor --type=security --format=json > "${monfile}" &
-  local mon_pid=$!
-  for _ in $(seq 10); do
-    kill -0 "${mon_pid}" && break
-    sleep 1
-  done
-  kill -0 "${mon_pid}"
+  lxc_monitor_start "${monfile}" --type=security --format=json
+  local mon_pid="${LXC_MONITOR_PID}"
 
   # The Loki client stays up; sys_monitor_disabled is reserved for the
   # full enabled -> disabled transition.
