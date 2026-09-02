@@ -498,7 +498,7 @@ teardown_swap() {
 # Returns true if Go coverage collection is enabled (GOCOVERDIR is set) and testing against a modern LXD version.
 coverage_enabled() {
   # Never collect coverage data on older LXD versions
-  if [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
+  if [[ "${LXD_SNAP_CHANNEL:-}" =~ ^[45]\. ]]; then
     return 1
   fi
 
@@ -665,7 +665,7 @@ cleanup() {
             # Report some more information for diagnostic purposes
             snap list --all
             uname -a
-            if echo "${LXD_SNAP_CHANNEL}" | grep -qE '^4\.0/'; then
+            if [[ "${LXD_SNAP_CHANNEL:-}" =~ ^4\.0/ ]]; then
                 lxc list
                 lxc image list
                 lxc storage list
