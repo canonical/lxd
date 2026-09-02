@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eux
+shopt -s inherit_errexit
 
 # Install dependencies
 install_deps bind9-dnsutils iputils-ping jq
@@ -27,6 +28,7 @@ can_test_ovn_forward_ping() {
         return 0
     fi
 
+    # shellcheck disable=SC1091
     . /etc/os-release
     [ "${VERSION_ID}" != "22.04" ]
 }
@@ -785,6 +787,7 @@ ovn_forward_tests() {
     timeout 5 grep -m1 ^SSH < /dev/tcp/2001:db8:1:2::1/22
 
     echo "==> Check forward is working by pinging it"
+    # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
     if can_test_ovn_forward_ping; then
         ping -nc1 -i0.1 -w2 192.0.2.1
         ping -nc1 -i0.1 -w2 2001:db8:1:2::1
@@ -1603,6 +1606,7 @@ ovn_peering_tests() {
 
     # XXX: unable to get logs from old OVN .deb from 20.04
     if [ -z "${ovn_logs}" ]; then
+        # shellcheck disable=SC1091
         . /etc/os-release
         if [ "${VERSION_ID}" = "20.04" ]; then
             echo "Ignoring network acl show-log not working on ${VERSION_ID}"
@@ -2277,6 +2281,7 @@ ovn_l3only_tests() {
 # countDynamicLeases is a helper function that counts dynamic leases of the instance within
 # all network leases.
 countDynamicLeases(){
+        set -e
         network="$1"
         instance="$2"
         count="$(lxc network list-leases "${network}" --format csv | awk -F, -v inst="${instance}" '$1 == inst && $4 == "DYNAMIC" { count++ } END { print count+0 }')"
@@ -2286,6 +2291,7 @@ countDynamicLeases(){
 # countStaticLeases is a helper function that counts static leases of the instance within
 # all network leases.
 countStaticLeases(){
+        set -e
         network="$1"
         instance="$2"
         count="$(lxc network list-leases "${network}" --format csv | awk -F, -v inst="${instance}" '$1 == inst && $4 == "STATIC" { count++ } END { print count+0 }')"
