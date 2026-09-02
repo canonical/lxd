@@ -991,18 +991,15 @@ func runScheduledReplicators(ctx context.Context, s *state.State) error {
 
 // replicatorIsScheduledNow returns true if any of the (comma-separated) cron expressions in spec matches the provided minute.
 func replicatorIsScheduledNow(spec string, now time.Time) bool {
-	t := now.Truncate(time.Minute)
 	// Split on ", " (comma+space) to match validate.IsCron, preserving intra-field commas like "0,30 * * * *".
 	for _, s := range shared.SplitNTrimSpace(spec, ", ", -1, true) {
-		sched, err := cron.ParseStandard(s)
+		isActive, err := shared.CronSpecIsActiveThisMinute(s, now)
 		if err != nil {
 			logger.Warn("Failed parsing replicator schedule expression", logger.Ctx{"spec": s, "err": err})
 			continue
 		}
 
-		// Next(t - 1s) returns the next scheduled time strictly after t-1s.
-		// If t itself is a scheduled minute, that equals t.
-		if sched.Next(t.Add(-time.Second)).Equal(t) {
+		if isActive {
 			return true
 		}
 	}
