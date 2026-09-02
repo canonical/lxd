@@ -13,7 +13,7 @@ IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
 
 poolDriverList="${1:-dir btrfs lvm lvm-thin zfs ceph}"
 
-if echo "${poolDriverList}" | grep -qwF "lvm-thin"; then
+if echo "${poolDriverList}" | grep -wF "lvm-thin"; then
     # For LVM thin use external LVM tools to avoid errors like:
     # Failed to run: lvcreate --yes --wipesignatures y --thinpool --extents 100%FREE: Device or resource busy
     snap set lxd lvm.external=true
@@ -29,7 +29,7 @@ MiB="$((1024 * 1024))"
 GiB="$((1024 * MiB))"
 
 # zfs.external
-if echo "${poolDriverList}" | grep -qwF "zfs" && grep -qwFm1 zfs_external /snap/lxd/current/commands/daemon.start; then
+if echo "${poolDriverList}" | grep -wF "zfs" && grep -wF zfs_external /snap/lxd/current/commands/daemon.start; then
     echo "==> Use external ZFS tools"
     snap set lxd zfs.external=true
     systemctl restart snap.lxd.daemon.service
@@ -117,7 +117,7 @@ for poolDriver in $poolDriverList; do
         echo "==> Check /dev/disk/by-id"
         lxc exec v1 -- test -b /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root
         lxc exec v1 -- test -b /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root-part1
-        if lxc exec v1 -- mount | grep -qwF /boot/efi; then
+        if lxc exec v1 -- mount | grep -wF /boot/efi; then
                 lxc exec v1 -- test -b /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root-part15
         fi
 
