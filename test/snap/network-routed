@@ -43,6 +43,7 @@ for type in container vm; do
     fi
 
     # Create instance and add routed NIC.
+    # shellcheck disable=SC2248 # Deliberate word splitting omits empty optional arguments.
     lxc init "${IMAGE}" "${instName}" -s default -c limits.memory=512MiB ${extra_args} # Don't quote to omit empty extra args.
     lxc config device add "${instName}" eth0 nic \
         nictype=routed \
