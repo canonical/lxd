@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eux
+shopt -s inherit_errexit
 
 # Known LXD snap tracks in ascending order. Update when a new track is opened.
 KNOWN_TRACKS=("4.0" "5.0" "5.21" "6")
@@ -9,6 +10,7 @@ KNOWN_TRACKS=("4.0" "5.0" "5.21" "6")
 # e.g. get_upgrade_chain "5.21/edge" => 5.21/stable 5.21/edge 6/edge
 get_upgrade_chain() {
     local target="$1"
+    set -e
 
     if [[ "${target}" != */* ]]; then
         echo "ERROR: Invalid channel '${target}'. Expected format '<track>/<risk>'." >&2
