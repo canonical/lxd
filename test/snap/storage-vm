@@ -334,7 +334,7 @@ for poolDriver in $poolDriverList; do
 
         # Proceed to actually growing the root disk
         lxc start v1
-        [ "$(lxc config get v1 volatile.root.apply_quota)" = "" ]
+        [ "$(lxc config get v1 volatile.root.apply_quota || echo fail)" = "" ]
         prepare_vm_for_hard_stop v1
         lxc stop -f v1
 
@@ -398,7 +398,7 @@ for poolDriver in $poolDriverList; do
                 echo "==> Ensure the VM volume ignores volume.block.filesystem"
                 if [ "${poolDriver}" = "zfs" ]; then
                     # The VM config disk is not a zvol with ext4 on top but just a plain ZFS dataset so no block.filesystem is used
-                    [ "$(lxc storage volume get "${poolName}" virtual-machine/v1 block.filesystem)" = "" ]
+                    [ "$(lxc storage volume get "${poolName}" virtual-machine/v1 block.filesystem || echo fail)" = "" ]
                 else
                     [ "$(lxc storage volume get "${poolName}" virtual-machine/v1 block.filesystem)" = "ext4" ]
                 fi
@@ -529,7 +529,7 @@ for poolDriver in $poolDriverList; do
         # to stderr. This is not fatal as GPT can cope with this but it would indicate an issue with LXD
         # not updating the backup table. As such, verify that nothing is output to stderr.
         lxc exec v2 -- fdisk --list /dev/sda | grep -xF 'Disklabel type: gpt'
-        [ "$(lxc exec v2 -- fdisk --list /dev/sda 2>&1 >/dev/null)" = "" ]
+        [ "$(lxc exec v2 -- fdisk --list /dev/sda 2>&1 >/dev/null || echo fail)" = "" ]
 
         if [ "${poolDriver}" != "powerflex" ]; then
                 echo "==> Checking copied VM root disk size is 4GiB"
@@ -597,7 +597,7 @@ for poolDriver in $poolDriverList; do
         # to stderr. This is not fatal as GPT can cope with this but it would indicate an issue with LXD
         # not updating the backup table. As such, verify that nothing is output to stderr.
         lxc exec v2 -- fdisk --list /dev/sda | grep -xF 'Disklabel type: gpt'
-        [ "$(lxc exec v2 -- fdisk --list /dev/sda 2>&1 >/dev/null)" = "" ]
+        [ "$(lxc exec v2 -- fdisk --list /dev/sda 2>&1 >/dev/null || echo fail)" = "" ]
 
         if [ "${poolDriver}" != "powerflex" ]; then
                 echo "==> Checking copied VM root disk size is 5GiB"
