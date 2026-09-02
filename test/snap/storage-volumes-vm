@@ -341,8 +341,8 @@ do
 		# security.shared allows many attachments
 		lxc storage volume attach "${poolName}" virtual-machine/v2 v3
 
-		lxc storage volume show "${poolName}" virtual-machine/v2 | grep -qF '/1.0/instances/v1'
-		lxc storage volume show "${poolName}" virtual-machine/v2 | grep -qF '/1.0/instances/v3'
+		lxc storage volume show "${poolName}" virtual-machine/v2 | grep -F '/1.0/instances/v1'
+		lxc storage volume show "${poolName}" virtual-machine/v2 | grep -F '/1.0/instances/v3'
 
 		lxc config unset v2 security.protection.start
 
