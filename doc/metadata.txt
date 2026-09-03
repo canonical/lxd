@@ -4184,7 +4184,7 @@ This setting applies to both images and image aliases.
 :initialvaluedesc: "`false`"
 :shortdesc: "Whether to use a separate set of networks for the project"
 :type: "bool"
-
+This feature requires `features.profiles` to be enabled.
 ```
 
 ```{config:option} features.networks.zones project-features
