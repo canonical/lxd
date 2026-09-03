@@ -251,6 +251,14 @@ func replicatorRunInstanceRestoreDurableOperationHook(ctx context.Context, op *o
 	// pushing data back to us.
 	localCertPEM := string(clusterCert.PublicKey())
 
+	// The promoted cluster decides what travels, so the mode comes from its view of the project.
+	remoteProject, _, err := dstClient.GetProject(targetProject)
+	if err != nil {
+		return fmt.Errorf("Failed getting project %q from current leader cluster: %w", targetProject, err)
+	}
+
+	diskVolumesMode := replicationDiskVolumesMode(remoteProject.Config)
+
 	var instanceLocation string
 	inst, err := instance.LoadByProjectAndName(s, targetProject, instName)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -284,9 +292,10 @@ func replicatorRunInstanceRestoreDurableOperationHook(ctx context.Context, op *o
 			InstancePut: freshInst.Writable(),
 			Type:        api.InstanceType(freshInst.Type),
 			Source: api.InstanceSource{
-				Type:    api.SourceTypeMigration,
-				Mode:    "push",
-				Refresh: true,
+				Type:            api.SourceTypeMigration,
+				Mode:            "push",
+				Refresh:         true,
+				DiskVolumesMode: diskVolumesMode,
 			},
 		})
 		if err != nil {
@@ -308,7 +317,8 @@ func replicatorRunInstanceRestoreDurableOperationHook(ctx context.Context, op *o
 
 		// Tell the current leader cluster to push-migrate the instance to the hosting cluster member's sink.
 		remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{
-			Migration: true,
+			Migration:       true,
+			DiskVolumesMode: diskVolumesMode,
 			Target: &api.InstancePostTarget{
 				Operation:   restoreOp.URL().String(),
 				Websockets:  restoreSecrets,
@@ -353,9 +363,10 @@ func replicatorRunInstanceRestoreDurableOperationHook(ctx context.Context, op *o
 		Name: instName,
 		Type: api.InstanceType(freshInst.Type),
 		Source: api.InstanceSource{
-			Type:    api.SourceTypeMigration,
-			Mode:    "push",
-			Refresh: true,
+			Type:            api.SourceTypeMigration,
+			Mode:            "push",
+			Refresh:         true,
+			DiskVolumesMode: diskVolumesMode,
 		},
 	}
 
@@ -417,7 +428,8 @@ func replicatorRunInstanceRestoreDurableOperationHook(ctx context.Context, op *o
 
 	// Tell the current leader cluster to push-migrate the instance to our local sink.
 	remoteMigrateOp, err := dstClient.MigrateInstance(instName, api.InstancePost{
-		Migration: true,
+		Migration:       true,
+		DiskVolumesMode: diskVolumesMode,
 		Target: &api.InstancePostTarget{
 			Operation:   sinkOpURL,
 			Websockets:  sinkSecrets,
@@ -661,6 +673,18 @@ func replicatorCheckInstancesStopped(allInsts []instance.Instance) error {
 	return nil
 }
 
+// replicationDiskVolumesMode returns the disk volumes mode for a replication push. Projects that inherit their
+// volumes own none of them and the migration API rejects all-exclusive for them, so those push the root disk alone.
+func replicationDiskVolumesMode(projectConfig map[string]string) string {
+	// The same rule the storage layer applies, so a project whose key is unset is treated as inheriting
+	// rather than owning volumes it has none of.
+	if shared.IsFalseOrEmpty(projectConfig["features.storage.volumes"]) {
+		return api.DiskVolumesModeRoot
+	}
+
+	return api.DiskVolumesModeAllExclusive
+}
+
 func snapshotInstance(ctx context.Context, s *state.State, instanceID int64, memberAddresses map[string]string) error {
 	inst, err := instance.LoadByID(s, int(instanceID))
 	if err != nil {
@@ -749,6 +773,10 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 	instName := inst.Name()
 	projectName := inst.Project().Name
 
+	// The source enters the custom volume section only in all-exclusive mode, and the sink defers the
+	// devices of missing exclusive volumes only when asked the same way.
+	diskVolumesMode := replicationDiskVolumesMode(inst.Project().Config)
+
 	targetCertPEM := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
 
 	// Instance on another cluster member: connect to the hosting cluster member and
@@ -781,9 +809,10 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 			InstancePut: srcInstInfo.Writable(),
 			Type:        api.InstanceType(srcInstInfo.Type),
 			Source: api.InstanceSource{
-				Type:    api.SourceTypeMigration,
-				Mode:    "push",
-				Refresh: true,
+				Type:            api.SourceTypeMigration,
+				Mode:            "push",
+				Refresh:         true,
+				DiskVolumesMode: diskVolumesMode,
 			},
 		})
 		if err != nil {
@@ -805,7 +834,8 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 
 		// Tell the hosting cluster member to push-migrate the instance to the destination.
 		srcMigrateOp, err := memberClient.MigrateInstance(instName, api.InstancePost{
-			Migration: true,
+			Migration:       true,
+			DiskVolumesMode: diskVolumesMode,
 			Target: &api.InstancePostTarget{
 				Operation:   destOp.URL().String(),
 				Websockets:  destSecrets,
@@ -845,9 +875,10 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		InstancePut: srcInstInfo.Writable(),
 		Type:        api.InstanceType(srcInstInfo.Type),
 		Source: api.InstanceSource{
-			Type:    api.SourceTypeMigration,
-			Mode:    "push",
-			Refresh: true,
+			Type:            api.SourceTypeMigration,
+			Mode:            "push",
+			Refresh:         true,
+			DiskVolumesMode: diskVolumesMode,
 		},
 	})
 	if err != nil {
@@ -875,7 +906,7 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		Certificate: targetCertPEM,
 	}
 
-	srcMigration, err := newMigrationSource(inst, false, false, false, "", "", pushTarget)
+	srcMigration, err := newMigrationSource(inst, false, false, false, diskVolumesMode, "", pushTarget)
 	if err != nil {
 		return fmt.Errorf("Failed setting up migration source for instance %q: %w", instName, err)
 	}
