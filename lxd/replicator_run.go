@@ -830,7 +830,7 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		Certificate: targetCertPEM,
 	}
 
-	srcMigration, err := newMigrationSource(inst, false, false, false, "", pushTarget)
+	srcMigration, err := newMigrationSource(inst, false, false, false, "", "", pushTarget)
 	if err != nil {
 		return fmt.Errorf("Failed setting up migration source for instance %q: %w", instName, err)
 	}

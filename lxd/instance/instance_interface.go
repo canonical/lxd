@@ -256,6 +256,10 @@ type MigrateSendArgs struct {
 	MigrateArgs
 
 	AllowInconsistent bool
+
+	// DiskVolumesMode selects which disk volumes travel with the instance. Only all-exclusive sends the
+	// custom volumes attached to the instance alone; any other value sends the root disk only.
+	DiskVolumesMode string
 }
 
 // MigrateReceiveArgs represent arguments for instance migration receive.

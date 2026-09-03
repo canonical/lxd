@@ -313,6 +313,25 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Migration {
+		// The mode only matters when the instance leaves this server, so it is checked here rather than
+		// for every rename.
+		if req.DiskVolumesMode != "" && req.DiskVolumesMode != api.DiskVolumesModeRoot && req.DiskVolumesMode != api.DiskVolumesModeAllExclusive {
+			return response.BadRequest(fmt.Errorf("Invalid disk volumes mode %q", req.DiskVolumesMode))
+		}
+
+		// A project that does not own its custom volumes has none to send, so only the root disk can travel.
+		// This is the rule the storage layer applies, so an unset key counts as inheriting.
+		if shared.IsFalseOrEmpty(inst.Project().Config["features.storage.volumes"]) && req.DiskVolumesMode == api.DiskVolumesModeAllExclusive {
+			return response.BadRequest(errors.New("Project does not have features.storage.volumes enabled"))
+		}
+
+		// A live migration carries the root volume alone, so accepting the mode would report success for
+		// volumes that never moved. The request defaults to live when the caller omits the key, and live
+		// only takes effect for a running virtual machine, so both have to be checked before refusing.
+		if req.Live && inst.IsRunning() && inst.Type() == instancetype.VM && req.DiskVolumesMode == api.DiskVolumesModeAllExclusive {
+			return response.BadRequest(errors.New("Custom volumes cannot travel with a live migration"))
+		}
+
 		// Server-side instance migration.
 		hasConfigOverrides := req.Config != nil || req.Devices != nil || req.Profiles != nil || req.OverrideSnapshotProfiles
 		hasInstanceChanges := req.Pool != "" || targetProjectName != inst.Project().Name || hasConfigOverrides
@@ -350,6 +369,12 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 		if targetMemberInfo != nil && !needsClusterMove {
 			return response.BadRequest(errors.New("Target must be different than instance's current location"))
+		}
+
+		// A move between cluster members carries the root volume alone, so accepting the mode here would
+		// report success for volumes that never moved.
+		if needsClusterMove && req.DiskVolumesMode == api.DiskVolumesModeAllExclusive {
+			return response.BadRequest(errors.New("Custom volumes cannot travel with a move between cluster members"))
 		}
 
 		// Validate offline source member constraints.
@@ -449,7 +474,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 		// We keep the req.ContainerOnly for backward compatibility.
 		instanceOnly := req.InstanceOnly || req.ContainerOnly //nolint:staticcheck,unused
-		ws, err := newMigrationSource(inst, req.Live, instanceOnly, req.AllowInconsistent, "", req.Target)
+		ws, err := newMigrationSource(inst, req.Live, instanceOnly, req.AllowInconsistent, req.DiskVolumesMode, "", req.Target)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -878,7 +903,7 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 			}
 		}
 
-		srcMigration, err := newMigrationSource(srcInst, live, false, allowInconsistent, srcInstName, nil)
+		srcMigration, err := newMigrationSource(srcInst, live, false, allowInconsistent, "", srcInstName, nil)
 		if err != nil {
 			return fmt.Errorf("Failed setting up instance migration on source: %w", err)
 		}
