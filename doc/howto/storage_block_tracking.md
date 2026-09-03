@@ -9,6 +9,7 @@ They exist only in the QEMU process of the virtual machine, so any stop, reboot 
 
 ## Requirements
 
+- The `changed_block_tracking` feature preview enabled on both the server and the client (see {ref}`howto-snap-configure-feature-previews`). While it is disabled the server does not register the endpoints or advertise the extension, and the `lxc bitmap` and `lxc nbd` commands are hidden.
 - The `storage_volume_block_tracking` API extension (see {ref}`extension-storage-volume-block-tracking`).
 - A storage volume of {ref}`type <storage-volume-types>` `virtual-machine` or `custom` with {ref}`content type <storage-content-types>` `block`.
 - For bitmaps and for reading a volume, the volume must be attached to exactly one running virtual machine.
