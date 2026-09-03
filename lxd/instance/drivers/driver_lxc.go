@@ -2982,7 +2982,7 @@ func (d *lxc) Restart(timeout time.Duration) error {
 func (d *lxc) Rebuild(img *api.Image, op *operations.Operation) error {
 	// Rebuild assumes instance is stopped.  But a stopped instance could still have a running
 	// forkfile.  So stop the forkfile.
-	d.stopForkfile(false)
+	d.StopForkFile(false)
 	return d.rebuildCommon(d, img, op)
 }
 
