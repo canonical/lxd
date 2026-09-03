@@ -1,3 +1,5 @@
+.. vale off
+
 :relatedlinks: [Run&#32;system&#32;containers&#32;with&#32;LXD](https://canonical.com/lxd), [Open&#32;source&#32;for&#32;beginners:&#32;setting&#32;up&#32;your&#32;dev&#32;environment&#32;with&#32;LXD](https://ubuntu.com/blog/open-source-for-beginners-dev-environment-with-lxd)
 
 .. meta::
@@ -256,6 +258,8 @@ This documentation uses the Diátaxis documentation structure.
 - The :ref:`howtos` assume you have basic familiarity with LXD. They walk you through specific tasks, such as creating storage pools and managing clusters.
 - The :ref:`reference` guides include configuration options, API references, and other technical details.
 - The :ref:`explanation` section includes topic overviews and detailed explanations of key concepts, such as the difference between system containers and virtual machines.
+
+.. vale on
 
 Project and community
 ---------------------
