@@ -2788,6 +2788,14 @@ definitions:
                 type: boolean
                 x-deprecated: true
                 x-go-name: ContainerOnly
+            disk_volumes_mode:
+                description: |-
+                    Which disk volumes travel with the instance (migration only)
+
+                    API extension: replicator_custom_volumes
+                example: all-exclusive
+                type: string
+                x-go-name: DiskVolumesMode
             instance_only:
                 description: Whether snapshots should be discarded (migration only)
                 example: false
@@ -3146,6 +3154,14 @@ definitions:
                     type: string
                 type: array
                 x-go-name: ConversionOptions
+            disk_volumes_mode:
+                description: |-
+                    Which disk volumes the migration transfers with the instance (for migration)
+
+                    API extension: replicator_custom_volumes
+                example: all-exclusive
+                type: string
+                x-go-name: DiskVolumesMode
             fingerprint:
                 description: Image fingerprint (for image source)
                 example: ed56997f7c5b48e8d78986d2467a26109be6fb9f2d92e8c7b08eb8b6cec7629a
