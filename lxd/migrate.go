@@ -137,6 +137,7 @@ type migrationSourceWs struct {
 	migrationFields
 
 	clusterMoveSourceName string
+	diskVolumesMode       string
 
 	pushCertificate  string
 	pushOperationURL string

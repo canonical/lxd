@@ -20,13 +20,14 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 )
 
-func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool, clusterMoveSourceName string, pushTarget *api.InstancePostTarget) (*migrationSourceWs, error) {
+func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool, diskVolumesMode string, clusterMoveSourceName string, pushTarget *api.InstancePostTarget) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{
 		migrationFields: migrationFields{
 			instance:          inst,
 			allowInconsistent: allowInconsistent,
 		},
 		clusterMoveSourceName: clusterMoveSourceName,
+		diskVolumesMode:       diskVolumesMode,
 	}
 
 	if pushTarget != nil {
@@ -145,6 +146,7 @@ func (s *migrationSourceWs) Do(ctx context.Context, state *state.State, migrateO
 			ClusterMoveSourceName: s.clusterMoveSourceName,
 		},
 		AllowInconsistent: s.allowInconsistent,
+		DiskVolumesMode:   s.diskVolumesMode,
 	}, migrateOp)
 	if err != nil {
 		l.Error("Failed migration on source", logger.Ctx{"err": err})
