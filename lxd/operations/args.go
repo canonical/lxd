@@ -181,6 +181,10 @@ func (a OperationArgs) validate(isChild bool) error {
 			return errors.New("Operation children cannot be nil")
 		}
 
+		if child.Class != a.Class {
+			return errors.New("Bulk operation children must have the same class as the parent")
+		}
+
 		if child.ProjectName != a.ProjectName {
 			return errors.New("Child operations cannot have a different project to the parent operation")
 		}
