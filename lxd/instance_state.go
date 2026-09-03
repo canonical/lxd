@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -281,8 +282,26 @@ func doInstanceStatePut(ctx context.Context, inst instance.Instance, req api.Ins
 			return inst.Unfreeze(ctx)
 		}
 
+		// Starting the instance opens its block volumes.
+		// Refuse while an NBD export of any attached volume is active.
+		unlock, err := storagePools.LockInstanceNBD(inst)
+		if err != nil {
+			return err
+		}
+
+		defer unlock()
+
 		return inst.Start(ctx, req.Stateful, op)
 	case instancetype.Stop:
+		// Stopping the instance tears down the QEMU process that serves a read-only export.
+		// Refuse while an NBD export of any of its block volumes runs.
+		unlock, err := storagePools.LockInstanceNBD(inst)
+		if err != nil {
+			return err
+		}
+
+		defer unlock()
+
 		if req.Stateful {
 			return inst.Stop(ctx, req.Stateful)
 		}
@@ -297,6 +316,15 @@ func doInstanceStatePut(ctx context.Context, inst instance.Instance, req api.Ins
 
 		return inst.Shutdown(ctx, timeout)
 	case instancetype.Restart:
+		// A restart stops and then starts the instance.
+		// Refuse while an NBD export of any of its block volumes runs.
+		unlock, err := storagePools.LockInstanceNBD(inst)
+		if err != nil {
+			return err
+		}
+
+		defer unlock()
+
 		return inst.Restart(ctx, timeout, op)
 	case instancetype.Freeze:
 		return inst.Freeze(ctx)

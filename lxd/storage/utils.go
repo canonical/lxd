@@ -1535,3 +1535,46 @@ func nbdLockedSession(lockName string, description string, connect func() (net.C
 
 	return conn, cleanup, nil
 }
+
+// LockInstanceNBD acquires the NBD locks that guard an instance's root volume and each of its
+// attached custom block volumes against conflicting operations, such as starting or stopping
+// the instance while NBD is active.
+//
+// Note that these are the same locks the export sessions hold, so an ongoing export makes it return
+// a conflict error naming the busy instance or volume, and holding them keeps a new export from
+// starting until the returned cleanup function runs.
+func LockInstanceNBD(inst instance.Instance) (func(), error) {
+	var unlocks []func()
+	release := func() {
+		for _, unlock := range unlocks {
+			unlock()
+		}
+	}
+
+	unlock := locking.TryLock(nbdInstanceLockName(inst.Project().Name, inst.Name()))
+	if unlock == nil {
+		return nil, api.StatusErrorf(http.StatusConflict, "NBD operation already in progress for instance %q", inst.Name())
+	}
+
+	unlocks = append(unlocks, unlock)
+
+	// An attached custom block volume can be exported directly by qemu-nbd while the instance is stopped, under
+	// a per-volume lock the root instance lock does not cover.
+	instProject := inst.Project()
+	volProject := project.StorageVolumeProjectFromRecord(&instProject, cluster.StoragePoolVolumeTypeCustom)
+	for _, devConf := range inst.ExpandedDevices() {
+		if !filters.IsCustomVolumeBlockDisk(devConf) {
+			continue
+		}
+
+		unlock := locking.TryLock(nbdVolumeLockName(devConf["pool"], volProject, devConf["source"]))
+		if unlock == nil {
+			release()
+			return nil, api.StatusErrorf(http.StatusConflict, "NBD operation already in progress for volume %q", devConf["pool"]+"/"+devConf["source"])
+		}
+
+		unlocks = append(unlocks, unlock)
+	}
+
+	return release, nil
+}
