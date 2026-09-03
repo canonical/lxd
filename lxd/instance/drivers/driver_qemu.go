@@ -360,7 +360,10 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 	}
 
 	// The connection uses mutual authentication, so use the LXD server's key & cert for client.
-	agentCert, _, clientCert, clientKey, err := d.generateAgentCert()
+	// Read the certificates rather than generating them: the instance is already
+	// running, so they exist, and generating here would write into a possibly
+	// unmounted instance directory (see readAgentCert).
+	agentCert, clientCert, clientKey, err := d.readAgentCert()
 	if err != nil {
 		return nil, err
 	}
@@ -488,7 +491,50 @@ func (d *qemu) unmount() error {
 	return nil
 }
 
+// readAgentCert reads the instance's existing agent certificates, without ever
+// creating them.
+//
+// It is meant for callers that run while the instance is already up, where the
+// certificates are expected to have been created at startup. Those callers must
+// not fall back to generating a fresh set.
+//
+// These live on the instance's config volume, which for a running instance is of
+// course mounted -- but not necessarily in the mount namespace of the daemon
+// asking. After a snap refresh the daemon restarts into a new namespace, where
+// the config volume is not mounted until RegisterDevices re-establishes it, and
+// getAgentClient is driven by QMP events that can fire before that happens.
+// Generating then writes a stray set into the *underlying* instance directory and
+// breaks the agent connection, which still trusts the original certificates. The
+// stray files get shadowed once the config volume is mounted over them, and
+// resurface at deletion time as "Failed removing ... directory not empty".
+func (d *qemu) readAgentCert() (agentCert string, clientCert string, clientKey string, err error) {
+	instancePath := d.Path()
+
+	for _, f := range []struct {
+		out  *string
+		name string
+	}{
+		{&agentCert, "agent.crt"},
+		{&clientCert, "agent-client.crt"},
+		{&clientKey, "agent-client.key"},
+	} {
+		contents, err := os.ReadFile(filepath.Join(instancePath, f.name))
+		if err != nil {
+			return "", "", "", fmt.Errorf("Failed reading agent TLS material %q (the instance's config volume may not be mounted in this mount namespace): %w", f.name, err)
+		}
+
+		*f.out = string(contents)
+	}
+
+	return agentCert, clientCert, clientKey, nil
+}
+
 // generateAgentCert creates the necessary server key and certificate if needed.
+//
+// This writes into the instance's directory, so it must only be called on paths
+// where the instance's volume is known to be mounted (e.g. instance startup).
+// Callers that merely need to read the certificates of a running instance must
+// use readAgentCert instead.
 func (d *qemu) generateAgentCert() (agentCert string, agentKey string, clientCert string, clientKey string, err error) {
 	agentCertFile := filepath.Join(d.Path(), "agent.crt")
 	agentKeyFile := filepath.Join(d.Path(), "agent.key")
@@ -507,8 +553,9 @@ func (d *qemu) generateAgentCert() (agentCert string, agentKey string, clientCer
 		return "", "", "", "", err
 	}
 
-	// Read all the files
-	agentCertBytes, err := os.ReadFile(agentCertFile)
+	// Read back what was just created. Everything but the server key is shared
+	// with the read-only path.
+	agentCert, clientCert, clientKey, err = d.readAgentCert()
 	if err != nil {
 		return "", "", "", "", err
 	}
@@ -518,17 +565,7 @@ func (d *qemu) generateAgentCert() (agentCert string, agentKey string, clientCer
 		return "", "", "", "", err
 	}
 
-	clientCertBytes, err := os.ReadFile(clientCertFile)
-	if err != nil {
-		return "", "", "", "", err
-	}
-
-	clientKeyBytes, err := os.ReadFile(clientKeyFile)
-	if err != nil {
-		return "", "", "", "", err
-	}
-
-	return string(agentCertBytes), string(agentKeyBytes), string(clientCertBytes), string(clientKeyBytes), nil
+	return agentCert, string(agentKeyBytes), clientCert, clientKey, nil
 }
 
 // Freeze freezes the instance.
