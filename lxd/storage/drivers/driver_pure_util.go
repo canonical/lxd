@@ -1477,7 +1477,14 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 	outerReverter := revert.New()
 	hasUnmapReverter := false
 
-	// Connect to the array.
+	// Connect to the array. The targets are redundant paths to the same volume, so a target
+	// that cannot be reached is not fatal on its own: the volume stays usable over the
+	// remaining ones, and failing the whole mapping would make a single degraded path enough
+	// to prevent a volume from being attached. Failures are therefore collected and reported
+	// only if no target could be connected at all.
+	var connectErrs []error
+	connected := 0
+
 	for _, targetQN := range targetQNs {
 		var connReverter revert.Hook
 
@@ -1491,8 +1498,12 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		}
 
 		if err != nil {
-			return nil, err
+			d.logger.Warn("Failed connecting to Pure Storage target", logger.Ctx{"volume": vol.name, "target": targetQN, "err": err})
+			connectErrs = append(connectErrs, fmt.Errorf("Target %q: %w", targetQN, err))
+			continue
 		}
+
+		connected++
 
 		// If connect succeeded it means we have at least one established connection.
 		// However, its reverter does not clean up the established connections or a newly
@@ -1509,6 +1520,12 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		// unmapVolume to ensure it is called first.
 		outerReverter.Add(connReverter)
 		reverter.Add(connReverter)
+	}
+
+	// [pureClient.getTargets] never returns an empty list without an error, so reaching this
+	// with no successful connection means every target failed and connectErrs is populated.
+	if connected == 0 {
+		return nil, fmt.Errorf("Failed connecting to any Pure Storage target: %w", errors.Join(connectErrs...))
 	}
 
 	reverter.Success()
