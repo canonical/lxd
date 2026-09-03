@@ -55,7 +55,6 @@ d/build-test:
     - go.sum
     - scripts/**/*
     - snap/**/*
-    - snapcraft/**/*
     - test/**/*
     - tools/**/*
 
