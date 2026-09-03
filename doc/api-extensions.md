@@ -3664,3 +3664,9 @@ Public cluster links cannot be used by {ref}`replicators <exp-replicators>` or a
 Introduces new operation class for durable operations.
 Durable operations are restarted on the DQLite raft leader if the member that is running the operation fails to respond to heartbeats.
 If the leader was running the operation and goes offline, the operation is restarted on the newly elected leader.
+
+(extension-storage-driver-pure-scsifc)=
+## `storage_driver_pure_scsifc`
+
+Adds SCSI/FC support to the Pure Storage storage driver.
+Fibre Channel targets are discovered through the host bus adapter, so `pure.target` has no effect when `pure.mode` is set to `scsi/fc`.
