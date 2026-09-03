@@ -190,6 +190,7 @@ type Container interface {
 	InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error
 	DevptsFd() (*os.File, error)
 	IdmappedStorage(path string, fstype string) idmap.IdmapStorageType
+	StopForkFile(force bool)
 }
 
 // VM interface is for VM specific functions.
