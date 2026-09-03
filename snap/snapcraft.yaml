@@ -757,7 +757,7 @@ parts:
       patch -p1 < "${CRAFT_PROJECT_DIR}/patches/nvidia-0002-pre-load-libdl.patch"
 
       mkdir -p "${CRAFT_PART_INSTALL}/bin/"
-      cp "${CRAFT_PROJECT_DIR}/snapcraft/wrappers/nvidia-container-cli" "${CRAFT_PART_INSTALL}/bin/"
+      cp "${CRAFT_PROJECT_DIR}/snap/local/wrappers/nvidia-container-cli" "${CRAFT_PART_INSTALL}/bin/"
 
       set +ex
       craftctl default
@@ -1847,10 +1847,9 @@ parts:
 
   wrappers:
     plugin: dump
-    source: snapcraft/
+    source: snap/local/
     organize:
       commands/snap-query: bin/
-      hooks/: snap/hooks/
       wrappers/lxd-stophook: bin/lxd
       wrappers/gpu-2604-custom-wrapper: bin/
       wrappers/editor: bin/
