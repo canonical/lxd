@@ -36,5 +36,5 @@ linkify-it-py==2.2.0
 pyyaml==6.0.3
 sphinx-copybutton==0.5.2
 sphinx-remove-toctrees==1.0.0.post1
-watchfiles==1.2.0
 sphinx-structured-toc==0.1.1
+watchfiles==1.2.0
