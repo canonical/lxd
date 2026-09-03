@@ -1261,7 +1261,9 @@ func internalTestingOperationWaitHandler(d *Daemon, r *http.Request) response.Re
 		ConflictReference: req.ConflictReference,
 	}
 
-	err = args.SetInputValue(operationInputKeyWaitHandlerDuration, req.Duration)
+	err = args.SetInputValues(map[operations.InputKey]any{
+		operationInputKeyWaitHandlerDuration: req.Duration,
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
