@@ -13,6 +13,22 @@ test_storage_volume_import() {
   ! lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.img --type=iso || false
   ! lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.tar.gz --type=tar || false
 
+  # A volume name supplied via the X-LXD-name header must not be usable to escape the storage pool.
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  # The name is validated before the body is parsed, so the payload content is irrelevant.
+  for type in iso tar; do
+    op="$(curl --silent --unix-socket "${LXD_DIR}/unix.socket" -X POST "lxd/1.0/storage-pools/${pool}/volumes" \
+        -H "Content-Type: application/octet-stream" \
+        -H "X-LXD-type: ${type}" \
+        -H "X-LXD-name: ../../../../foo-traversal" \
+        --data-binary 'something' | jq --exit-status --raw-output '.operation')"
+
+    # Confirm the operation failed because the name was rejected for containing a slash rather
+    # than being turned into a path.
+    curl --unix-socket "${LXD_DIR}/unix.socket" "lxd${op}/wait" | jq --exit-status '.error_code == 500 and (.error | test("Cannot contain slashes"))'
+  done
+
   # import ISO as storage volume
   lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.iso foo
   lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.img --type=iso foobar
