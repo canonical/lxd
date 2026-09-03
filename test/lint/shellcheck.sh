@@ -9,4 +9,7 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
     exit 0
 fi
 
+# snap scripts must use POSIX compliant shell (no bashisms)
+find snap/local snap/hooks -type f -exec grep -lZ '^#!/bin/sh' {} + | xargs -0 shellcheck --shell=sh
+
 exec shellcheck test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh

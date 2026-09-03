@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck shell=sh
 set -eu
 
 # Re-exec outside of apparmor confinement
