@@ -110,7 +110,8 @@ func runUpdate() error {
 		return nil
 	}
 
-	// Wait a random amout of seconds (up to 30) in order to avoid
+	shared.SnapSetHealth(context.Background(), shared.SnapHealthWaiting, "Waiting for cluster snap refresh to complete")
+	// Wait a random amount of seconds (up to 30) in order to avoid
 	// restarting all cluster members at the same time, and make the
 	// upgrade more graceful.
 	wait := time.Duration(rand.Intn(30)) * time.Second
@@ -121,6 +122,7 @@ func runUpdate() error {
 	_, err := shared.RunCommand(context.TODO(), updateExecutable)
 	if err != nil {
 		logger.Error("Triggering cluster update failed", logger.Ctx{"err": err})
+		shared.SnapSetHealth(context.Background(), shared.SnapHealthError, "Cluster snap refresh failed")
 		return err
 	}
 

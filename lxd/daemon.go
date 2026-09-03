@@ -1175,13 +1175,19 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, i
 	return nil
 }
 
-func (d *Daemon) init() error {
+func (d *Daemon) init() (err error) {
 	d.startStopLock.Lock()
 	defer d.startStopLock.Unlock()
 
-	var dbWarnings []dbCluster.Warning
+	defer func() {
+		if err != nil {
+			// Use context.Background() rather than d.shutdownCtx because a shutdown
+			// may be the reason init() failed, in which case d.shutdownCtx is already cancelled.
+			shared.SnapSetHealth(context.Background(), shared.SnapHealthError, "LXD daemon failed to start")
+		}
+	}()
 
-	var err error
+	var dbWarnings []dbCluster.Warning
 
 	// Set default authorizer.
 	d.authorizer, err = authDrivers.LoadAuthorizer(d.shutdownCtx, authDrivers.DriverTLS, logger.Log, authDrivers.WithSendSecurity(d.events.SendSecurity))
@@ -1598,6 +1604,7 @@ func (d *Daemon) init() error {
 			// now fine, and then retry
 			logger.Warn("Wait for other cluster members to align their versions, cluster not started yet")
 
+			shared.SnapSetHealth(d.shutdownCtx, shared.SnapHealthWaiting, "Waiting for cluster members to align their versions after snap refresh")
 			// The only thing we want to still do on this node is
 			// to run the heartbeat task, in case we are the raft
 			// leader.
@@ -2057,6 +2064,7 @@ func (d *Daemon) init() error {
 
 	logger.Info("Daemon started")
 
+	shared.SnapSetHealth(d.shutdownCtx, shared.SnapHealthOkay, "")
 	return nil
 }
 
