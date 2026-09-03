@@ -761,6 +761,12 @@ test_basic_usage() {
   ! lxc config show c1 | grep -F 'image.' || false
   lxc delete c1 -f
 
+  # Test that rebuild succeeds after a file operation.
+  lxc init testimage c1
+  lxc file create c1/foo
+  lxc rebuild testimage c1
+  lxc delete c1
+
   # Test assigning an empty profile (with no root disk device) to an instance.
   lxc init testimage c1
   lxc profile create foo
