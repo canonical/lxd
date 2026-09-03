@@ -133,6 +133,18 @@ test_storage_block_tracking_vm() {
   wait "${holder_pid}" || true
   wait "${first_pid}"
 
+  sub_test "Enabling security.shared is rejected while an NBD export is in progress"
+  # A raw connection keeps the read-only session and its NBD lock alive while the update is attempted.
+  _nbd_export "${pool}" virtual-machine/v1
+  address="${NBD_URI#nbd://}"
+  sleep 60 | nc "${address%:*}" "${address##*:}" &
+  holder_pid=$!
+  [ "$(! "${_LXC}" storage volume set "${pool}" virtual-machine/v1 security.shared=true 2>&1 1>/dev/null)" = 'Error: NBD operation already in progress for instance "v1"' ]
+  kill "${NBD_PID}" 2>/dev/null || true
+  wait "${NBD_PID}" || true
+  kill "${holder_pid}"
+  wait "${holder_pid}" || true
+
   sub_test "Bitmaps on an attached custom block volume"
   lxc storage volume bitmap create "${pool}" cbt-blk bm1
   lxc storage volume bitmap list "${pool}" cbt-blk --format csv | grep -F "bm1"

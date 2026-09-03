@@ -3128,6 +3128,19 @@ func (b *lxdBackend) UpdateInstance(ctx context.Context, inst instance.Instance,
 			}
 		}
 
+		if shared.IsTrue(changedConfig["security.shared"]) && volDBType == cluster.StoragePoolVolumeTypeVM {
+			// Enabling security.shared while an NBD export runs would let another instance write to a volume
+			// whose export assumes it has exclusive access. The export holds the NBD lock for its whole
+			// session, so refuse the change while the lock is held and keep it for the rest of the update so
+			// that no export can start in the meantime.
+			unlock := locking.TryLock(nbdInstanceLockName(inst.Project().Name, inst.Name()))
+			if unlock == nil {
+				return api.StatusErrorf(http.StatusConflict, "NBD operation already in progress for instance %q", inst.Name())
+			}
+
+			defer unlock()
+		}
+
 		// Generate the effective root device volume for instance.
 		volStorageName := project.Instance(inst.Project().Name, inst.Name())
 		curVol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
@@ -3451,6 +3464,17 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 	return nil
 }
 
+// allowVolumeNBDExport returns an error if volume does not meet conditions to be exported as NBD.
+// Currently, it rejects any volume that has security.shared enabled, since a shared volume can be
+// written by another instance during the export causing backup corruption.
+func (b *lxdBackend) allowVolumeNBDExport(volConfig map[string]string) error {
+	if shared.IsTrue(volConfig["security.shared"]) {
+		return api.StatusErrorf(http.StatusBadRequest, "NBD export is not supported on shared volumes")
+	}
+
+	return nil
+}
+
 // GetInstanceNBD returns an NBD connection to the root volume of a virtual machine. A read-only export goes
 // through the QEMU process of the running instance. A writable export runs qemu-nbd against the volume and
 // requires the instance to be stopped. With reuse, an additional connection to the running read-only session
@@ -3473,20 +3497,21 @@ func (b *lxdBackend) GetInstanceNBD(inst instance.Instance, writable bool, reuse
 		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is only supported for virtual machines")
 	}
 
+	lockName := nbdInstanceLockName(inst.Project().Name, inst.Name())
+	lockDesc := fmt.Sprintf("instance %q", inst.Name())
+
 	// Load storage volume from database.
 	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), drivers.VolumeTypeVM)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// A shared volume can be written by another instance during the export, so neither the read-only nor
-	// the writable export can produce a consistent image.
-	if shared.IsTrue(dbVol.Config["security.shared"]) {
-		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is not supported on shared volumes")
+	// Rejected before the state checks so that a shared volume is refused for that reason. The check is
+	// repeated under the session lock, which enabling security.shared also takes.
+	err = b.allowVolumeNBDExport(dbVol.Config)
+	if err != nil {
+		return nil, nil, err
 	}
-
-	lockName := nbdInstanceLockName(inst.Project().Name, inst.Name())
-	lockDesc := fmt.Sprintf("instance %q", inst.Name())
 
 	if writable {
 		if inst.IsRunning() {
@@ -3502,6 +3527,11 @@ func (b *lxdBackend) GetInstanceNBD(inst instance.Instance, writable bool, reuse
 		}
 
 		return nbdLockedSession(lockName, lockDesc, func() (net.Conn, func(), error) {
+			err := b.allowVolumeNBDExport(vol.Config())
+			if err != nil {
+				return nil, nil, err
+			}
+
 			return b.connectOfflineNBD(vol, true)
 		})
 	}
@@ -3521,6 +3551,11 @@ func (b *lxdBackend) GetInstanceNBD(inst instance.Instance, writable bool, reuse
 	}
 
 	return nbdLockedSession(lockName, lockDesc, func() (net.Conn, func(), error) {
+		err := b.allowVolumeNBDExport(dbVol.Config)
+		if err != nil {
+			return nil, nil, err
+		}
+
 		return inst.ConnectNBD(rootDiskName, false)
 	})
 }
@@ -3590,10 +3625,11 @@ func (b *lxdBackend) GetCustomVolumeNBD(projectName string, volName string, writ
 		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is only supported for block volumes")
 	}
 
-	// A shared volume can be written by another instance during the export, so neither the read-only nor
-	// the writable export can produce a consistent image.
-	if shared.IsTrue(dbVol.Config["security.shared"]) {
-		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is not supported on shared volumes")
+	// Rejected before the attachment checks so that a shared volume is refused for that reason whether or not
+	// it is attached. The check is repeated under the session lock, which enabling security.shared also takes.
+	err = b.allowVolumeNBDExport(dbVol.Config)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	if writable {
@@ -3626,6 +3662,11 @@ func (b *lxdBackend) GetCustomVolumeNBD(projectName string, volName string, writ
 		lockDesc := fmt.Sprintf("volume %q", b.name+"/"+volName)
 
 		return nbdLockedSession(lockName, lockDesc, func() (net.Conn, func(), error) {
+			err := b.allowVolumeNBDExport(dbVol.Config)
+			if err != nil {
+				return nil, nil, err
+			}
+
 			return b.connectOfflineNBD(vol, true)
 		})
 	}
@@ -3658,6 +3699,11 @@ func (b *lxdBackend) GetCustomVolumeNBD(projectName string, volName string, writ
 
 	// The session is served by the instance's QEMU process, which runs one NBD server at a time.
 	return nbdLockedSession(lockName, lockDesc, func() (net.Conn, func(), error) {
+		err := b.allowVolumeNBDExport(dbVol.Config)
+		if err != nil {
+			return nil, nil, err
+		}
+
 		return inst.ConnectNBD(deviceName, false)
 	})
 }
@@ -6215,10 +6261,32 @@ func (b *lxdBackend) UpdateCustomVolume(ctx context.Context, projectName string,
 		}
 
 		sharedVolume, ok := changedConfig["security.shared"]
-		if ok && shared.IsFalseOrEmpty(sharedVolume) && curVol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
-			err = allowRemoveSecurityShared(b.state, projectName, &curVol.StorageVolume)
-			if err != nil {
-				return err
+		if ok && curVol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
+			if shared.IsFalseOrEmpty(sharedVolume) {
+				err = allowRemoveSecurityShared(b.state, projectName, &curVol.StorageVolume)
+				if err != nil {
+					return err
+				}
+			} else {
+				// Enabling security.shared while an NBD export runs would let another instance write to a
+				// volume whose export assumes it has exclusive access. A writable export holds the volume's
+				// NBD lock and a read-only export holds the attached instance's, so refuse the change while
+				// either is held and keep them for the rest of the update so that no export can start.
+				unlock := locking.TryLock(nbdVolumeLockName(b.name, projectName, volName))
+				if unlock == nil {
+					return api.StatusErrorf(http.StatusConflict, "NBD operation already in progress for volume %q", b.name+"/"+volName)
+				}
+
+				defer unlock()
+
+				for _, inst := range instances {
+					instUnlock := locking.TryLock(nbdInstanceLockName(inst.Project().Name, inst.Name()))
+					if instUnlock == nil {
+						return api.StatusErrorf(http.StatusConflict, "NBD operation already in progress for instance %q", inst.Name())
+					}
+
+					defer instUnlock()
+				}
 			}
 		}
 
