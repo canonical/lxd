@@ -421,7 +421,7 @@ ovn_basic_tests() {
     echo "===> Testing projects"
     lxc project create testovn \
         -c features.images=false \
-        -c features.profiles=false \
+        -c features.profiles=true \
         -c features.storage.volumes=false \
         -c features.networks=true \
         -c limits.networks=1
@@ -620,7 +620,6 @@ ovn_basic_tests() {
 
     lxc project switch default
     lxc project delete testovn
-    lxc profile device remove default root
 }
 
 ovn_forward_tests() {
@@ -636,7 +635,7 @@ ovn_forward_tests() {
     echo "==> Create OVN network using bridge uplink network"
     lxc project create testovn \
         -c features.images=false \
-        -c features.profiles=false \
+        -c features.profiles=true \
         -c features.storage.volumes=false \
         -c features.networks=true
 
@@ -939,7 +938,7 @@ ovn_load_balancer_tests() {
     echo "==> Create OVN network using physical uplink network"
     lxc project create testovn \
         -c features.images=false \
-        -c features.profiles=false \
+        -c features.profiles=true \
         -c features.storage.volumes=false \
         -c features.networks=true
 
@@ -1325,13 +1324,13 @@ ovn_peering_tests() {
     echo "==> Create two projects to test cross-project peering"
     lxc project create ovn1 \
         -c features.images=false \
-        -c features.profiles=false \
+        -c features.profiles=true \
         -c features.storage.volumes=false \
         -c features.networks=true
 
     lxc project create ovn2 \
         -c features.images=false \
-        -c features.profiles=false \
+        -c features.profiles=true \
         -c features.storage.volumes=false \
         -c features.networks=true
 
