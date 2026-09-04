@@ -13,8 +13,11 @@ test_image_prefer_cached() {
   LXD_DIR=${LXD2_DIR} deps/import-busybox --alias testimage --public
   fp1="$(LXD_DIR=${LXD2_DIR} lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
 
-  token="$(LXD_DIR=${LXD2_DIR} lxc config trust add --name foo -q)"
-  lxc remote add l2 "${LXD2_ADDR}" --token "${token}"
+  # Create an image registry backed by a public cluster link to the second LXD.
+  pending="$(lxc query --request POST /1.0/cluster/links --data "{\"name\":\"l2-link\",\"type\":\"public\",\"remote_address\":\"${LXD2_ADDR}\"}")"
+  link_cert="$(echo "${pending}" | jq --exit-status '.certificate')"
+  lxc query --request POST /1.0/cluster/links --data "{\"name\":\"l2-link\",\"type\":\"public\",\"remote_address\":\"${LXD2_ADDR}\",\"cluster_certificate\":${link_cert}}" > /dev/null
+  lxc image registry create l2 cluster=l2-link source_project=default
   lxc init l2:testimage c1
 
   # Now the first image image is in the local store, since it was
@@ -39,7 +42,8 @@ test_image_prefer_cached() {
   fi
 
   lxc delete c1 c2
-  lxc remote remove l2
+  lxc image registry delete l2
+  lxc cluster link delete l2-link
   lxc image delete "${fp1}"
 
   kill_lxd "$LXD2_DIR"

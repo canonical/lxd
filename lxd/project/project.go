@@ -269,6 +269,34 @@ func NetworkAllowed(reqProjectConfig map[string]string, networkName string, isMa
 	return slices.Contains(allowedRestrictedNetworks, networkName)
 }
 
+// RegistryAllowed returns whether access is allowed to a particular image registry based on projectConfig.
+func RegistryAllowed(reqProjectConfig map[string]string, registryName string) bool {
+	// If project is not restricted, then access to registry is allowed.
+	if shared.IsFalseOrEmpty(reqProjectConfig["restricted"]) {
+		return true
+	}
+
+	// By default when restricted=true, registries are blocked.
+	registries := reqProjectConfig["restricted.registries"]
+	if registries == "" {
+		registries = "block"
+	}
+
+	if registries == "allow" {
+		// All registries are allowed.
+		return true
+	}
+
+	if registries == "block" {
+		// All registries are blocked.
+		return false
+	}
+
+	// Check if requested registry is in the list of allowed registries.
+	allowedRestrictedRegistries := shared.SplitNTrimSpace(registries, ",", -1, true)
+	return slices.Contains(allowedRestrictedRegistries, registryName)
+}
+
 // ProfileProject returns the effective project to use for the profile based on the requested project.
 // If the requested project has the "features.profiles" flag enabled then the requested project's info is returned,
 // otherwise the default project's info is returned.

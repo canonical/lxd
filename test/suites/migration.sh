@@ -14,6 +14,7 @@ test_migration() {
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD2_DIR}" true
   LXD2_ADDR=$(< "${LXD2_DIR}/lxd.addr")
+  LXD_DIR=${LXD2_DIR} deps/import-busybox --alias testimage
 
   token="$(lxc config trust add --name foo -q)"
   # shellcheck disable=2153

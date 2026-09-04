@@ -173,6 +173,8 @@ readonly test_group_standalone=(
     "filtering"
     "bulk_operation_children"
     "get_operations"
+    "image_registries_basic"
+    "image_registries_list_images_compression"
     "operations_conflict_reference"
     "instances_selective_recursion"
     "image_backup_confined"

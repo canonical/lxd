@@ -1790,11 +1790,6 @@ definitions:
                 example: ubuntu
                 type: string
                 x-go-name: Name
-            protocol:
-                description: Protocol used by the image registry ("SimpleStreams" or "LXD")
-                example: simplestreams
-                type: string
-                x-go-name: Protocol
         title: ImageRegistriesPost represents the fields of a new image registry.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
@@ -1903,14 +1898,22 @@ definitions:
                 type: string
                 x-go-name: ImageType
             protocol:
-                description: Source server protocol
+                description: |-
+                    Source server protocol (deprecated, use image_registry)
+
+                    Deprecated: Use ImageRegistry.
                 example: simplestreams
                 type: string
+                x-deprecated: true
                 x-go-name: Protocol
             server:
-                description: URL of the source server
+                description: |-
+                    URL of the source server (deprecated, use image_registry)
+
+                    Deprecated: Use ImageRegistry.
                 example: https://cloud-images.ubuntu.com/releases/
                 type: string
+                x-deprecated: true
                 x-go-name: Server
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
@@ -2047,9 +2050,13 @@ definitions:
                 type: string
                 x-go-name: Project
             protocol:
-                description: Source server protocol
+                description: |-
+                    Source server protocol (deprecated, use image_registry)
+
+                    Deprecated: Use ImageRegistry.
                 example: simplestreams
                 type: string
+                x-deprecated: true
                 x-go-name: Protocol
             secret:
                 description: Source image server secret token (when downloading private images)
@@ -2057,9 +2064,13 @@ definitions:
                 type: string
                 x-go-name: Secret
             server:
-                description: URL of the source server
+                description: |-
+                    URL of the source server (deprecated, use image_registry)
+
+                    Deprecated: Use ImageRegistry.
                 example: https://cloud-images.ubuntu.com/releases/
                 type: string
+                x-deprecated: true
                 x-go-name: Server
             type:
                 $ref: '#/definitions/SourceType'
@@ -3208,9 +3219,13 @@ definitions:
                 type: object
                 x-go-name: Properties
             protocol:
-                description: Protocol name (for remote image)
+                description: |-
+                    Protocol name (for remote image, deprecated, use image_registry)
+
+                    Deprecated: Use ImageRegistry.
                 example: simplestreams
                 type: string
+                x-deprecated: true
                 x-go-name: Protocol
             refresh:
                 description: Whether this is refreshing an existing instance (for migration and copy)
@@ -3232,9 +3247,13 @@ definitions:
                 type: object
                 x-go-name: Websockets
             server:
-                description: Remote server URL (for remote images)
+                description: |-
+                    Remote server URL (for remote images, deprecated, use image_registry)
+
+                    Deprecated: Use ImageRegistry.
                 example: https://cloud-images.ubuntu.com/releases/
                 type: string
+                x-deprecated: true
                 x-go-name: Server
             source:
                 description: Existing instance name or snapshot (for copy)
@@ -11598,6 +11617,287 @@ paths:
             summary: Get the event stream
             tags:
                 - server
+    /1.0/image-registries:
+        get:
+            description: Returns a list of image registries (URLs).
+            operationId: image_registries_get
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example:
+                                    - /1.0/image-registries/ubuntu
+                                    - /1.0/image-registries/lxd01
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the image registries
+            tags:
+                - image-registries
+        post:
+            consumes:
+                - application/json
+            description: Creates a new image registry.
+            operationId: image_registries_post
+            parameters:
+                - description: Image registry
+                  in: body
+                  name: image_registry
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ImageRegistriesPost'
+            produces:
+                - application/json
+            responses:
+                "202":
+                    $ref: '#/responses/Operation'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Add an image registry
+            tags:
+                - image-registries
+    /1.0/image-registries/{name}:
+        delete:
+            description: Deletes the image registry.
+            operationId: image_registry_delete
+            produces:
+                - application/json
+            responses:
+                "202":
+                    $ref: '#/responses/Operation'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Delete the image registry
+            tags:
+                - image-registries
+        get:
+            description: Returns a specific image registry.
+            operationId: image_registry_get
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Image registry
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ImageRegistry'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the image registry
+            tags:
+                - image-registries
+        patch:
+            consumes:
+                - application/json
+            description: Updates a subset of the image registry configuration.
+            operationId: image_registry_patch
+            parameters:
+                - description: Update image registry request
+                  in: body
+                  name: image_registry
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ImageRegistryPut'
+            produces:
+                - application/json
+            responses:
+                "202":
+                    $ref: '#/responses/Operation'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Update the image registry
+            tags:
+                - image-registries
+        post:
+            consumes:
+                - application/json
+            description: Renames an existing image registry.
+            operationId: image_registry_post
+            parameters:
+                - description: Image registry rename request
+                  in: body
+                  name: image_registry
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ImageRegistryPost'
+            produces:
+                - application/json
+            responses:
+                "202":
+                    $ref: '#/responses/Operation'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Rename the image registry
+            tags:
+                - image-registries
+        put:
+            consumes:
+                - application/json
+            description: Updates the image registry configuration.
+            operationId: image_registry_put
+            parameters:
+                - description: Update image registry request
+                  in: body
+                  name: image_registry
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ImageRegistryPut'
+            produces:
+                - application/json
+            responses:
+                "202":
+                    $ref: '#/responses/Operation'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Update the image registry
+            tags:
+                - image-registries
+    /1.0/image-registries/{name}/images:
+        get:
+            description: Returns a list of available images (structs) from the image registry.
+            operationId: image_registry_images_get
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Images
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of images
+                                items:
+                                    $ref: '#/definitions/Image'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the available images from image registry
+            tags:
+                - image-registries
+    /1.0/image-registries?recursion=1:
+        get:
+            description: Returns a list of image registries (structs).
+            operationId: image_registries_get_recursion1
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Image registries
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of image registries
+                                items:
+                                    $ref: '#/definitions/ImageRegistry'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the image registries
+            tags:
+                - image-registries
     /1.0/images:
         get:
             description: Returns a list of images (URLs).

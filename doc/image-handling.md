@@ -8,18 +8,31 @@
 LXD uses an image-based workflow.
 Each instance is based on an image, which contains a basic operating system (for example, a Linux distribution) and some LXD-related information.
 
-Images are available from remote image stores (see {ref}`remote-image-servers` for an overview), but you can also create your own images, either based on an existing instances or a rootfs image.
-LXD uses the [Go TLS stack](https://pkg.go.dev/crypto/tls) to connect to remote image servers.
+To download images, LXD uses {ref}`image registries <ref-image-registries>`.
+An image registry is a server-side entity that points to a source of images, such as a [simple streams](https://git.launchpad.net/simplestreams/tree/) server or another LXD server.
+LXD comes pre-configured with a set of {ref}`built-in image registries <remote-image-servers>` for the most common image sources, and you can {ref}`add your own <howto-image-registries>`.
+LXD uses the [Go TLS stack](https://pkg.go.dev/crypto/tls) to connect to the image sources.
 
-You can copy images from remote servers to your local image store, or copy local images to remote servers.
-You can also use a local image to create a remote instance.
+You can also create your own images, either based on an existing instance or a rootfs image.
+
+Because image registries are managed on the server, all clients of a LXD server (and all members of a cluster) share the same set of image sources.
+
+```{note}
+In earlier versions of LXD, images were downloaded through client-side *remotes*.
+Downloading images now goes through image registries instead.
+In the LXD command-line client, remotes are still used to connect to other LXD servers, but no longer to source images.
+For backwards compatibility, older clients that still reference a remote image source keep working, as long as a matching image registry exists on the server (LXD auto-creates one for a small set of well-known public image sources).
+```
+
+Once an image is downloaded, it is stored in the local image store.
+You can copy local images to other LXD servers and use a local image to create a remote instance.
 
 Each image is identified by a fingerprint (SHA256).
 To make it easier to manage images, LXD allows defining one or more aliases for each image.
 
 ## Caching
 
-When you create an instance using a remote image, LXD downloads the image and caches it locally.
+When you create an instance using an image from a registry, LXD downloads the image and caches it locally.
 It is stored in the local image store with the cached flag set.
 The image is kept locally as a private image until either:
 
@@ -30,7 +43,7 @@ LXD keeps track of the image usage by updating the `last_used_at` image property
 
 ## Auto-update
 
-LXD can automatically keep images that come from a remote server up to date.
+LXD can automatically keep images that come from an image registry up to date.
 
 ```{note}
 Only images that are requested through an alias can be updated.
@@ -40,11 +53,11 @@ If you request an image through a fingerprint, you request an exact image versio
 Whether auto-update is enabled for an image depends on how the image was downloaded:
 
 - If the image was downloaded and cached when creating an instance, it is automatically updated if {config:option}`server-images:images.auto_update_cached` was set to `true` (the default) at download time.
-- If the image was copied from a remote server using the [`lxc image copy`](lxc_image_copy.md) command, it is automatically updated only if the `--auto-update` flag was specified.
+- If the image was copied from another server using the [`lxc image copy`](lxc_image_copy.md) command, it is automatically updated only if the `--auto-update` flag was specified.
 
 You can change this behavior for an image by [editing the `auto_update` property](images-manage-edit).
 
-On startup and after every {config:option}`server-images:images.auto_update_interval` (by default, every six hours), the LXD daemon checks for more recent versions of all the images in the store that are marked to be auto-updated and have a recorded source server.
+On startup and after every {config:option}`server-images:images.auto_update_interval` (by default, every six hours), the LXD daemon checks for more recent versions of all the images in the store that are marked to be auto-updated and have a recorded source registry.
 
 When a new version of an image is found, it is downloaded into the image store.
 Then any aliases pointing to the old image are moved to the new one, and the old image is removed from the store.
