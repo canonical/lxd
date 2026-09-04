@@ -958,6 +958,11 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (attachedVolumes map
 	// Get attached storage volumes.
 	attachedVolumes = make(map[string]db.StorageVolume)
 	instanceProject := inst.Project()
+
+	// A project that does not own its custom volumes keeps them in the default project, which is where the
+	// device's source resolves.
+	storageProject := project.StorageVolumeProjectFromRecord(&instanceProject, dbCluster.StoragePoolVolumeTypeCustom)
+
 	for name, dev := range d.expandedDevices.Filter(filters.IsCustomVolumeDisk) {
 		// Storage cache lookup.
 		pool, err := storageCache.GetPool(dev["pool"])
@@ -968,7 +973,7 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (attachedVolumes map
 		volName, _, _ := api.GetParentAndSnapshotName(dev["source"])
 
 		err = d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			vol, err := tx.GetStoragePoolVolume(ctx, pool.ID(), instanceProject.Name, dbCluster.StoragePoolVolumeTypeCustom, volName, true)
+			vol, err := tx.GetStoragePoolVolume(ctx, pool.ID(), storageProject, dbCluster.StoragePoolVolumeTypeCustom, volName, true)
 			if err != nil {
 				return err
 			}
