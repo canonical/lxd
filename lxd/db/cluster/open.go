@@ -184,7 +184,7 @@ func EnsureSchema(db *sql.DB, address string, dir string, serverUUID string) err
 			return err
 		}
 
-		err = query.Transaction(context.TODO(), db, func(_ context.Context, tx *sql.Tx) error {
+		err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 			stmt := `
 INSERT INTO nodes(id, name, address, schema, api_extensions, arch, description) VALUES(1, 'none', '0.0.0.0', ?, ?, ?, '')
 `
@@ -241,6 +241,12 @@ INSERT INTO cluster_groups (name, description) VALUES ('default', 'Default clust
 INSERT INTO nodes_cluster_groups (node_id, group_id) VALUES(1, 1);
 `
 			_, err = tx.Exec(stmt)
+			if err != nil {
+				return err
+			}
+
+			// Built-in image registries
+			err = createBuiltinImageRegistries(ctx, tx)
 			if err != nil {
 				return err
 			}
@@ -332,5 +338,58 @@ func checkClusterIsUpgradable(ctx context.Context, tx *sql.Tx, target [2]int) er
 			panic("Unexpected return value from compareVersions")
 		}
 	}
+	return nil
+}
+
+// builtinImageRegistries is the list of built-in SimpleStreams image registries, mapping
+// each registry name to its URL. This list is used both on fresh initialization and by the
+// updateFromV88 migration, so it must never change. The migration has to insert the same rows on
+// every upgrade regardless of the LXD version applying it.
+var builtinImageRegistries = map[string]string{
+	"images":               "https://images.lxd.canonical.com",
+	"ubuntu":               "https://cloud-images.ubuntu.com/releases/",
+	"ubuntu-daily":         "https://cloud-images.ubuntu.com/daily/",
+	"ubuntu-minimal":       "https://cloud-images.ubuntu.com/minimal/releases/",
+	"ubuntu-minimal-daily": "https://cloud-images.ubuntu.com/minimal/daily/",
+}
+
+// createBuiltinImageRegistries prepopulates the database with built-in image registries.
+// This is used to initialize LXD database and for the database migration.
+func createBuiltinImageRegistries(ctx context.Context, tx *sql.Tx) error {
+	// Prepare a SQL statement to create a built-in image registry with the given name and protocol.
+	stmtRegistry, err := tx.PrepareContext(ctx, `INSERT INTO image_registries (name, description, protocol, builtin) VALUES (?, '', ?, 1)`)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = stmtRegistry.Close() }()
+
+	// Prepare a SQL statement to insert config key-value pair for the image registry with the given ID.
+	stmtConfig, err := tx.PrepareContext(ctx, `INSERT INTO image_registries_config (image_registry_id, key, value) VALUES (?, ?, ?)`)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = stmtConfig.Close() }()
+
+	for name, url := range builtinImageRegistries {
+		// Save the built-in registry to the database.
+		res, err := stmtRegistry.ExecContext(ctx, name, ImageRegistryProtocol(api.ImageRegistryProtocolSimpleStreams))
+		if err != nil {
+			return err
+		}
+
+		registryID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+
+		// Set the registry URL.
+		_, err = stmtConfig.ExecContext(ctx, registryID, "url", url)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

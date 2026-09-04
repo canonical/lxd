@@ -103,6 +103,9 @@ var topLevelInstanceServerResourceNameFuncs = map[string]func(server lxd.Instanc
 	"replicator": func(server lxd.InstanceServer) ([]string, error) {
 		return server.GetReplicatorNames()
 	},
+	"image_registry": func(server lxd.InstanceServer) ([]string, error) {
+		return server.GetImageRegistryNames()
+	},
 }
 
 var topLevelImageServerResourceNameFuncs = map[string]func(server lxd.ImageServer) ([]string, error){
@@ -375,6 +378,31 @@ func (g *cmdGlobal) cmpClusterMemberRoles(memberName string) ([]string, cobra.Sh
 	}
 
 	return member.Roles, cobra.ShellCompDirectiveNoFileComp
+}
+
+// cmpImageRegistryConfig provides shell completion for image registry configuration.
+// It takes an image registry name and returns a list of image registry configs along with a shell completion directive.
+func (g *cmdGlobal) cmpImageRegistryConfig(registryName string) ([]string, cobra.ShellCompDirective) {
+	// Parse remote.
+	resources, err := g.ParseServers(registryName)
+	if err != nil || len(resources) == 0 {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	registry, _, err := client.GetImageRegistry(resource.name)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	results := make([]string, 0, len(registry.Config))
+	for k := range registry.Config {
+		results = append(results, k)
+	}
+
+	return results, cobra.ShellCompDirectiveNoFileComp
 }
 
 // cmpImages provides shell completion for image fingerprints and aliases. It takes a partial input string and returns a
