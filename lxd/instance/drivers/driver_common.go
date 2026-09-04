@@ -762,10 +762,13 @@ func (d *common) rebuildCommon(ctx context.Context, inst instance.Instance, img 
 // When diskVolumesMode is "all-exclusive", it deletes the attached volume snapshots.
 func (d *common) deleteAttachedVolumeSnapshots(ctx context.Context, snapInst instance.Instance, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
 	// Get attached volume snapshot UUIDs from the snapshot instance.
-	var attachedVolumeUUIDs map[string]string
-	err := json.Unmarshal([]byte(snapInst.LocalConfig()["volatile.attached_volumes"]), &attachedVolumeUUIDs)
+	attachedVolumeUUIDs, err := parseVolatileAttachedVolumes(snapInst)
 	if err != nil {
-		return fmt.Errorf(`Failed parsing snapshot instance "volatile.attached_volumes": %w`, err)
+		return err
+	}
+
+	if len(attachedVolumeUUIDs) == 0 {
+		return nil
 	}
 
 	// Get attached volume snapshots.
@@ -889,11 +892,31 @@ func (d *common) runHooks(hooks []func() error) error {
 	return nil
 }
 
+// parseVolatileAttachedVolumes returns the device name to snapshot UUID map an all-exclusive snapshot records.
+// A snapshot of an instance with no snapshottable attached volumes records nothing, so an absent key means
+// the snapshot captured the root volume alone rather than that a record was lost.
+func parseVolatileAttachedVolumes(snapInst instance.Instance) (map[string]string, error) {
+	value := snapInst.LocalConfig()["volatile.attached_volumes"]
+	if value == "" {
+		return nil, nil
+	}
+
+	var attachedVolumeUUIDs map[string]string
+	err := json.Unmarshal([]byte(value), &attachedVolumeUUIDs)
+	if err != nil {
+		return nil, fmt.Errorf(`Failed parsing "volatile.attached_volumes": %w`, err)
+	}
+
+	return attachedVolumeUUIDs, nil
+}
+
 // getAttachedVolumeSnapshots returns storage volume snapshots matching the snapshot UUIDs stored in "volatile.attached_volumes".
 // Used for multi-volume instance snapshot restores and deletes.
 func (d *common) getAttachedVolumeSnapshots(inst instance.Instance, volatileAttachedVolumes map[string]string) ([]*db.StorageVolume, error) {
+	// An empty record means the snapshot captured the root volume alone. Querying with no UUIDs would filter
+	// nothing and return every custom volume in the project.
 	if len(volatileAttachedVolumes) == 0 {
-		return nil, errors.New(`Empty "volatile.attached_volumes"`)
+		return nil, nil
 	}
 
 	// Convert map values to slice of snapshot UUIDs for database query (filter storage volumes by snapshot UUID).
@@ -1422,10 +1445,9 @@ func (d *common) restoreCommon(ctx context.Context, inst instance.Instance, sour
 
 // resolveRestoreSnapshots returns a list of snapshot volumes to include in an instance restore.
 func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance.Instance) (restoreSnapshots []*db.StorageVolume, err error) {
-	var volatileAttachedVolumes map[string]string
-	err = json.Unmarshal([]byte(source.LocalConfig()["volatile.attached_volumes"]), &volatileAttachedVolumes)
+	attachedVolumeUUIDs, err := parseVolatileAttachedVolumes(source)
 	if err != nil {
-		return nil, fmt.Errorf(`Failed parsing source instance "volatile.attached_volumes": %w`, err)
+		return nil, err
 	}
 
 	// Get attached volumes (map of device name -> volume).
@@ -1435,7 +1457,7 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 	}
 
 	// Get attached volume snapshots.
-	attachedVolumeSnapshots, err := d.getAttachedVolumeSnapshots(source, volatileAttachedVolumes)
+	attachedVolumeSnapshots, err := d.getAttachedVolumeSnapshots(source, attachedVolumeUUIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -1451,7 +1473,7 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 
 	// Check which attached volumes have matching snapshots.
 	restoreSnapshots = make([]*db.StorageVolume, 0, len(attachedVolumeSnapshots))
-	for deviceName, snapshotUUID := range volatileAttachedVolumes {
+	for deviceName, snapshotUUID := range attachedVolumeUUIDs {
 		vol, ok := uuidToVolume[snapshotUUID]
 		if ok {
 			restoreSnapshots = append(restoreSnapshots, vol)
@@ -1493,6 +1515,13 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 		}
 
 		return nil, errors.New(errMsg.String())
+	}
+
+	// A snapshot records nothing when it was taken in root mode, and also when none of the attached volumes
+	// could be captured, so the state here cannot tell the two apart. Report it the same way a partially
+	// missing record is reported rather than refusing a restore the snapshot can still satisfy.
+	if len(attachedVolumeUUIDs) == 0 && len(attachedVolumes) > 0 {
+		d.logger.Warn("Snapshot holds no record of attached volumes, restoring the root volume alone", logger.Ctx{"snapshot": source.Name()})
 	}
 
 	return restoreSnapshots, nil
