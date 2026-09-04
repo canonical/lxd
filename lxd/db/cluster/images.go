@@ -5,6 +5,7 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -169,6 +170,13 @@ var ImageSourceProtocol = map[int]string{
 	2: "simplestreams",
 }
 
+// imageSourceProtocolCode maps image source protocol names to database codes.
+var imageSourceProtocolCode = map[string]int{
+	"lxd":           0,
+	"direct":        1, // Deprecated: kept for backward compatibility with existing data.
+	"simplestreams": 2,
+}
+
 // GetImageSource returns the image source with the given ID.
 func GetImageSource(ctx context.Context, tx *sql.Tx, imageID int) (int, *api.ImageSource, error) {
 	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
@@ -216,4 +224,50 @@ func GetImageSource(ctx context.Context, tx *sql.Tx, imageID int) (int, *api.Ima
 	}
 
 	return source.ID, result, nil
+}
+
+// GetCachedImageWithSource gets a cached image with the given fingerprint and source details.
+func GetCachedImageWithSource(ctx context.Context, tx *sql.Tx, fingerprint string, server string, protocol string, alias string, certificate string) (int, *api.Image, error) {
+	protocolCode, ok := imageSourceProtocolCode[protocol]
+	if !ok {
+		return -1, nil, api.StatusErrorf(http.StatusBadRequest, "Unknown protocol %q", protocol)
+	}
+
+	q := `
+SELECT
+	images.id,
+	projects.name,
+	images.fingerprint,
+	images.type,
+	images.size,
+	images.public,
+	images.architecture,
+	images.creation_date,
+	images.expiry_date,
+	images.upload_date,
+	images.cached,
+	images.last_use_date,
+	images.auto_update
+FROM images
+JOIN projects ON images.project_id = projects.id
+JOIN images_source ON images.id = images_source.image_id
+WHERE images.cached = 1 AND images.fingerprint = ? AND images_source.server = ? AND images_source.protocol = ? AND images_source.alias = ? AND images_source.certificate = ?`
+
+	var image Image
+	row := tx.QueryRowContext(ctx, q, fingerprint, server, protocolCode, alias, certificate)
+	err := row.Scan(&image.ID, &image.Project, &image.Fingerprint, &image.Type, &image.Size, &image.Public, &image.Architecture, &image.CreationDate, &image.ExpiryDate, &image.UploadDate, &image.Cached, &image.LastUseDate, &image.AutoUpdate)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return -1, nil, api.StatusErrorf(http.StatusNotFound, "Image not found")
+		}
+
+		return -1, nil, fmt.Errorf("Failed getting cached image with source: %w", err)
+	}
+
+	apiImage, err := image.ToAPI(ctx, tx, "")
+	if err != nil {
+		return -1, nil, fmt.Errorf("Failed getting image API details: %w", err)
+	}
+
+	return image.ID, apiImage, nil
 }
