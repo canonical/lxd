@@ -34,15 +34,15 @@ Set up Grafana </howto/grafana>
 
 ## Back up and recover
 
-Full and partial server backups protect against data loss. Instance recovery and disaster recovery options are available for different failure scenarios.
+Active-passive disaster recovery can be managed with replicators, or set up through storage replication. Full and partial server backups can also protect against data loss, and recovery options are available if a LXD database is lost.
 
 ```{toctree}
 :titlesonly:
 
+Perform disaster recovery </howto/perform_disaster_recovery>
+Set up storage replication </howto/disaster_recovery_replication>
 Back up a server </backup>
 Recover instances </howto/disaster_recovery>
-Disaster recovery with storage replication </howto/disaster_recovery_replication>
-Disaster recovery with replicators </howto/replicators_dr>
 ```
 
 ## Decommission
