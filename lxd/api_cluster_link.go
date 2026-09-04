@@ -691,6 +691,34 @@ const (
 	clusterLinkRequestActivate
 )
 
+// validateReplicationClusterLink checks that the named cluster link exists, is of a type that can
+// carry replication traffic, and is visible to the caller. Replication requires the remote cluster to
+// authenticate the connection, so link types that present no client certificate are rejected here
+// rather than part-way through a replication run.
+func validateReplicationClusterLink(ctx context.Context, s *state.State, name string) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), name)
+		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				return api.StatusErrorf(http.StatusNotFound, "Cluster link %q not found", name)
+			}
+
+			return err
+		}
+
+		if !api.ClusterLinkTypePresentsClientCertificate(string(clusterLink.Type)) {
+			return api.StatusErrorf(http.StatusBadRequest, "Cluster link %q is of type %q, which cannot be used for replication", name, clusterLink.Type)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return s.Authorizer.CheckPermission(ctx, entity.ClusterLinkURL(name), auth.EntitlementCanView)
+}
+
 // validateClusterLinksPostRequest validates the field combinations of a cluster link creation request and
 // classifies which flow it is for. Returned errors carry the HTTP status code to respond with.
 func validateClusterLinksPostRequest(req api.ClusterLinksPost, clusterLinkType dbCluster.ClusterLinkType, addresses []string) (clusterLinkRequestMode, error) {
@@ -707,12 +735,27 @@ func validateClusterLinksPostRequest(req api.ClusterLinksPost, clusterLinkType d
 			return 0, api.StatusErrorf(http.StatusBadRequest, "Auth groups cannot be set for public cluster links")
 		}
 
-		if req.RemoteAddress == "" {
-			return 0, api.StatusErrorf(http.StatusBadRequest, "Public cluster links require remote_address")
+		// Public links are confirmed by echoing the fingerprint returned when the pending link was
+		// created; the certificate itself is never resubmitted, so it has no meaning here.
+		if req.ClusterCertificate != "" {
+			return 0, api.StatusErrorf(http.StatusBadRequest, "Cluster certificate cannot be set for public cluster links")
 		}
 
-		if req.ClusterCertificate == "" {
+		if req.Fingerprint == "" {
+			// The pending phase is the only one that contacts the remote, so it is the only one
+			// that needs an address to contact.
+			if req.RemoteAddress == "" {
+				return 0, api.StatusErrorf(http.StatusBadRequest, "Public cluster links require remote_address")
+			}
+
 			return clusterLinkRequestPendingPublic, nil
+		}
+
+		// Confirming pins the address recorded when the pending link was created, so an address sent
+		// here would be silently ignored. Reject it rather than letting a caller believe they chose
+		// the address that gets pinned.
+		if req.RemoteAddress != "" {
+			return 0, api.StatusErrorf(http.StatusBadRequest, "Remote address cannot be set when confirming a pending public cluster link")
 		}
 
 		return clusterLinkRequestConfirmPublic, nil
@@ -720,6 +763,10 @@ func validateClusterLinksPostRequest(req api.ClusterLinksPost, clusterLinkType d
 
 	if req.RemoteAddress != "" {
 		return 0, api.StatusErrorf(http.StatusBadRequest, "Remote address can only be set for public cluster links")
+	}
+
+	if req.Fingerprint != "" {
+		return 0, api.StatusErrorf(http.StatusBadRequest, "Cluster certificate fingerprint can only be set for public cluster links")
 	}
 
 	if req.Name != "" && req.TrustToken == "" {
@@ -1533,10 +1580,10 @@ func clusterLinkStateGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var args *lxd.ConnectionArgs
-	if clusterLink.Type == api.ClusterLinkTypePublic {
-		args = cluster.GetPublicClusterLinkConnectionArgs(targetCert)
-	} else {
+	if api.ClusterLinkTypePresentsClientCertificate(clusterLink.Type) {
 		args = cluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
+	} else {
+		args = cluster.GetPublicClusterLinkConnectionArgs(targetCert)
 	}
 
 	args.SkipGetServer = true
@@ -1733,10 +1780,10 @@ func clusterLinkCreateUnidirectional(s *state.State, r *http.Request, req api.Cl
 }
 
 // clusterLinkCreatePendingPublic handles the first phase of public cluster link creation: it fetches the
-// remote cluster's certificate and stores it (unpinned) on a pending cluster link row, then returns it to
-// the caller. The caller must present the returned fingerprint/certificate to the user and, if accepted,
-// resubmit the same certificate via a confirm request (clusterLinkConfirmPublic), which verifies it
-// matches before pinning it and activating the link. No identity is created on either side.
+// remote cluster's certificate, stores it (unpinned) on a pending cluster link row, and returns its
+// fingerprint to the caller. The caller must present that fingerprint to the user and, if accepted,
+// echo it back via a confirm request (clusterLinkConfirmPublic), which verifies it matches before
+// pinning the stored certificate and activating the link. No identity is created on either side.
 func clusterLinkCreatePendingPublic(s *state.State, r *http.Request, req api.ClusterLinksPost, requestor *api.EventLifecycleRequestor) response.Response {
 	// Check if the caller has permission to create cluster links.
 	err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanCreateClusterLinks)
@@ -1777,14 +1824,13 @@ func clusterLinkCreatePendingPublic(s *state.State, r *http.Request, req api.Clu
 	}
 
 	fingerprint := shared.CertFingerprint(cert)
-	pemCert := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
 
 	// The fetched certificate and the canonical address it was fetched from are held here pending
 	// confirmation, so clusterLinkConfirmPublic can verify the certificate matches and pin exactly
 	// the address that was verified, without re-contacting the remote. Neither is promoted (via
 	// dbCluster.SetClusterLinkCertificate and volatile.addresses) until confirmed, so the link
 	// stays entirely inert until then.
-	req.Config["volatile.pending_certificate"] = pemCert
+	req.Config["volatile.pending_certificate"] = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
 	req.Config["volatile.pending_address"] = canonicalAddress
 
 	var refreshed bool
@@ -1855,27 +1901,19 @@ func clusterLinkCreatePendingPublic(s *state.State, r *http.Request, req api.Clu
 
 	return response.SyncResponse(true, api.ClusterLinkCertificate{
 		Fingerprint: fingerprint,
-		Certificate: pemCert,
 	})
 }
 
 // clusterLinkConfirmPublic handles the second phase of public cluster link creation: it verifies the
-// resubmitted certificate matches the one fetched by clusterLinkCreatePendingPublic, then pins it and
-// activates the pending link. The remote address is not re-fetched or re-verified here; the certificate
-// must match what was already fetched when the pending link was created.
+// submitted fingerprint matches that of the certificate fetched by clusterLinkCreatePendingPublic,
+// then pins that certificate and activates the pending link. The remote is not contacted again here;
+// the fingerprint must match what was already fetched when the pending link was created.
 func clusterLinkConfirmPublic(s *state.State, r *http.Request, req api.ClusterLinksPost, requestor *api.EventLifecycleRequestor) response.Response {
 	// Check if the caller has permission to create cluster links.
 	err := s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanCreateClusterLinks)
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	remoteCert, err := shared.ParseCert([]byte(req.ClusterCertificate))
-	if err != nil {
-		return response.BadRequest(fmt.Errorf("Failed parsing cluster certificate: %w", err))
-	}
-
-	fingerprint := shared.CertFingerprint(remoteCert)
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		clusterLink, err := dbCluster.GetClusterLink(ctx, tx.Tx(), req.Name)
@@ -1915,13 +1953,12 @@ func clusterLinkConfirmPublic(s *state.State, r *http.Request, req api.ClusterLi
 			return err
 		}
 
-		if shared.CertFingerprint(pendingCert) != fingerprint {
-			return api.StatusErrorf(http.StatusBadRequest, "Certificate does not match the certificate returned when the pending cluster link was created")
+		// Compare case-insensitively so an upper-cased echo of the fingerprint is still accepted.
+		fingerprint := shared.CertFingerprint(pendingCert)
+		if !strings.EqualFold(fingerprint, req.Fingerprint) {
+			return api.StatusErrorf(http.StatusBadRequest, "Certificate fingerprint does not match the fingerprint returned when the pending cluster link was created")
 		}
 
-		// Store the PEM the server itself fetched, not the resubmitted one. The fingerprint check
-		// above only covers the first PEM block, so req.ClusterCertificate could carry unvalidated
-		// trailing data.
 		err = dbCluster.SetClusterLinkCertificate(ctx, tx.Tx(), clusterLink.ID, fingerprint, pendingPEM)
 		if err != nil {
 			return err

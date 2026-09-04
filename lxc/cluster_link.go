@@ -244,7 +244,7 @@ func (c *cmdClusterLinkCreate) run(cmd *cobra.Command, args []string) error {
 
 			// Check length before accessing line to prevent runtime panic.
 			// Continue with creating the link if the fingerprint matches, or the user confirmed.
-			if string(line) == certResp.Fingerprint || (len(line) > 0 && strings.ToLower(string(line[0])) == "y") {
+			if strings.EqualFold(string(line), certResp.Fingerprint) || (len(line) > 0 && strings.ToLower(string(line[0])) == "y") {
 				break
 			}
 
@@ -263,8 +263,13 @@ func (c *cmdClusterLinkCreate) run(cmd *cobra.Command, args []string) error {
 			fmt.Print("Please type 'y', 'n' or the fingerprint: ")
 		}
 
-		clusterLink.ClusterCertificate = certResp.Certificate
-		err = client.CreateClusterLink(clusterLink)
+		// Confirming takes only the name and the fingerprint being acknowledged: the address was
+		// used to fetch the certificate during the pending phase and is rejected here.
+		err = client.CreateClusterLink(api.ClusterLinksPost{
+			Name:        clusterLinkName,
+			Type:        api.ClusterLinkTypePublic,
+			Fingerprint: certResp.Fingerprint,
+		})
 		if err != nil {
 			// A conflict means the link is already confirmed, so it is not ours to clean up:
 			// deleting here would destroy a working link (for example when a retry follows a

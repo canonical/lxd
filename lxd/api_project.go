@@ -2185,26 +2185,8 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 		//  type: string
 		//  shortdesc: Cluster link allowed to replicate to this standby project.
 		"replica.cluster": validate.Optional(func(value string) error {
-			err := s.DB.Cluster.Transaction(ctx, func(dbCtx context.Context, tx *db.ClusterTx) error {
-				clusterLink, err := dbCluster.GetClusterLink(dbCtx, tx.Tx(), value)
-				if err != nil {
-					return api.StatusErrorf(http.StatusNotFound, "Cluster link %q not found", value)
-				}
-
-				// Public cluster links present no client certificate, so the source cluster cannot
-				// authenticate the connection. Project replication needs authenticated access, so
-				// reject the link here rather than failing during promotion or demotion.
-				if clusterLink.Type == dbCluster.ClusterLinkType(api.ClusterLinkTypePublic) {
-					return api.StatusErrorf(http.StatusBadRequest, "Cluster link %q is a public cluster link, which cannot be used for project replication", value)
-				}
-
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-
-			return s.Authorizer.CheckPermission(ctx, entity.ClusterLinkURL(value), auth.EntitlementCanView)
+			// Rejected here rather than during promotion or demotion.
+			return validateReplicationClusterLink(ctx, s, value)
 		}),
 	}
 

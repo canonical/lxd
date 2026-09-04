@@ -6961,6 +6961,9 @@ test_clustering_link_unidirectional() {
 }
 
 test_clustering_link_public() {
+  # A syntactically valid fingerprint that never matches a real certificate.
+  wrong_fingerprint="$(printf 'a%.0s' $(seq 64))"
+
   # Cluster A = LXD_ONE + LXD_TWO, Cluster B = LXD_THREE + LXD_FOUR.
   # Public links are created on A alone; B is never contacted beyond the initial certificate fetch.
 
@@ -7007,11 +7010,9 @@ test_clustering_link_public() {
 
   sub_test "Check confirming a public link with no matching pending link is rejected"
 
-  # cluster_certificate must be a validly-parseable PEM cert so the request reaches the
-  # pending-link lookup rather than failing certificate parsing first; its content is
-  # otherwise irrelevant since no link named "no-such-link" exists.
-  cert_json="$(cert_to_json "${LXD_THREE_DIR}/server.crt")"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"no-such-link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\",\"cluster_certificate\":${cert_json}}" 2>&1)" = 'Error: Failed loading pending cluster link "no-such-link": Failed loading cluster link: Cluster link not found' ]
+  # The fingerprint is compared against the pending link's own certificate, so its value is
+  # irrelevant here: no link named "no-such-link" exists to look up.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"no-such-link\",\"type\":\"public\",\"fingerprint\":\"${wrong_fingerprint}\"}" 2>&1)" = 'Error: Failed loading pending cluster link "no-such-link": Failed loading cluster link: Cluster link not found' ]
 
   sub_test "Check public link: certificate rejection"
 
@@ -7025,7 +7026,6 @@ test_clustering_link_public() {
 
   # A wrong fingerprint of the right length must fail immediately rather than re-prompting, so
   # scripts feeding a stale fingerprint cannot hang.
-  wrong_fingerprint="$(printf 'a%.0s' $(seq 64))"
   [ "$(printf '%s\n' "${wrong_fingerprint}" | CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_b --public --remote-address "${LXD_B_ADDR}" 2>&1 >/dev/null)" = 'Error: The provided fingerprint does not match the remote cluster certificate fingerprint' ]
   if LXD_DIR="${LXD_ONE_DIR}" lxc cluster link list --format csv | grep -wF 'lxd_b'; then
     echo "ERROR: cluster link 'lxd_b' unexpectedly found on A after fingerprint mismatch" >&2
@@ -7047,9 +7047,10 @@ test_clustering_link_public() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get volatile_link volatile.addresses || echo fail)" = "" ]
 
   # The link is still confirmable, proving the injected key did not brick it. Feed back the
-  # certificate the server actually fetched rather than assuming which one the remote presents.
-  cert_json="$(echo "${pending}" | jq --exit-status '.certificate')"
-  LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"volatile_link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\",\"cluster_certificate\":${cert_json}}" > /dev/null
+  # fingerprint the server actually returned rather than assuming which certificate the remote
+  # presents.
+  fingerprint="$(echo "${pending}" | jq --exit-status --raw-output '.fingerprint')"
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"volatile_link\",\"type\":\"public\",\"fingerprint\":\"${fingerprint}\"}" > /dev/null
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get volatile_link volatile.addresses)" = "${LXD_B_ADDR}" ]
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete volatile_link
 
@@ -7067,9 +7068,8 @@ test_clustering_link_public() {
   # confirming with a certificate that does not match what was actually fetched.
   LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"mismatch_link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\"}" > /dev/null
 
-  # Attempt to confirm with an unrelated (but validly-parseable) certificate.
-  cert_json="$(cert_to_json "${LXD_ONE_DIR}/server.crt")"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"mismatch_link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\",\"cluster_certificate\":${cert_json}}" 2>&1)" = 'Error: Certificate does not match the certificate returned when the pending cluster link was created' ]
+  # Attempt to confirm with a fingerprint that is not the one returned for this link.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"mismatch_link\",\"type\":\"public\",\"fingerprint\":\"${wrong_fingerprint}\"}" 2>&1)" = 'Error: Certificate fingerprint does not match the fingerprint returned when the pending cluster link was created' ]
 
   # The link must remain pending: no volatile.addresses set, so it's still inert.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get mismatch_link volatile.addresses || echo fail)" = "" ]
@@ -7077,13 +7077,20 @@ test_clustering_link_public() {
   # Clean up the still-pending link.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete mismatch_link
 
-  sub_test "Check confirm pins the verified address, not the one resubmitted"
+  sub_test "Check confirm rejects a resubmitted remote address and pins the verified one"
 
-  # The confirm request carries a remote_address, but the server must ignore it and pin the
-  # address it actually fetched and verified during the pending phase.
+  # remote_address belongs to the pending phase only. Confirming always pins the address the
+  # server fetched and verified, so an address sent here must be rejected rather than silently
+  # ignored, which would let a caller believe they chose the address that gets pinned.
   pending="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"address_link\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\"}")"
-  cert_json="$(echo "${pending}" | jq --exit-status '.certificate')"
-  LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"address_link\",\"type\":\"public\",\"remote_address\":\"192.0.2.1:8443\",\"cluster_certificate\":${cert_json}}" > /dev/null
+  fingerprint="$(echo "${pending}" | jq --exit-status --raw-output '.fingerprint')"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"address_link\",\"type\":\"public\",\"remote_address\":\"192.0.2.1:8443\",\"fingerprint\":\"${fingerprint}\"}" 2>&1)" = 'Error: Remote address cannot be set when confirming a pending public cluster link' ]
+
+  # The rejection must leave the link pending rather than half-confirmed.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get address_link volatile.addresses || echo fail)" = "" ]
+
+  # Confirming without an address succeeds and pins the address verified during the pending phase.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"address_link\",\"type\":\"public\",\"fingerprint\":\"${fingerprint}\"}" > /dev/null
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link get address_link volatile.addresses)" = "${LXD_B_ADDR}" ]
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete address_link
 
@@ -7127,8 +7134,7 @@ test_clustering_link_public() {
 
   # lxd_b is already confirmed above; resubmitting a confirm request must fail with a conflict
   # rather than silently re-pinning a (possibly different) certificate.
-  cert_json="$(cert_to_json "${LXD_THREE_DIR}/server.crt")"
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"lxd_b\",\"type\":\"public\",\"remote_address\":\"${LXD_B_ADDR}\",\"cluster_certificate\":${cert_json}}" 2>&1)" = 'Error: Cluster link "lxd_b" has already been confirmed' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc query --request POST /1.0/cluster/links --data "{\"name\":\"lxd_b\",\"type\":\"public\",\"fingerprint\":\"${wrong_fingerprint}\"}" 2>&1)" = 'Error: Cluster link "lxd_b" has already been confirmed' ]
 
   # Re-running the pending phase against a confirmed link must conflict too, rather than
   # resetting it to pending.
@@ -7147,9 +7153,9 @@ test_clustering_link_public() {
   # Public links present no client certificate, so B cannot authenticate the connection.
   # Replication needs authenticated access and must reject the link up front.
   LXD_DIR="${LXD_ONE_DIR}" lxc project create replica-public-project
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_b --project replica-public-project 2>&1)" = 'Error: Invalid value for replicator configuration key "cluster": Cluster link "lxd_b" is a public cluster link, which cannot be used by a replicator' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_b --project replica-public-project 2>&1)" = 'Error: Invalid value for replicator configuration key "cluster": Cluster link "lxd_b" is of type "public", which cannot be used for replication' ]
 
-  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc project set replica-public-project replica.cluster=lxd_b 2>&1)" = 'Error: Invalid project configuration key "replica.cluster" value: Cluster link "lxd_b" is a public cluster link, which cannot be used for project replication' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc project set replica-public-project replica.cluster=lxd_b 2>&1)" = 'Error: Invalid project configuration key "replica.cluster" value: Cluster link "lxd_b" is of type "public", which cannot be used for replication' ]
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete replica-public-project
 

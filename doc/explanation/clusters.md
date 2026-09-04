@@ -170,10 +170,10 @@ There are three link types, each suited to different trust and access requiremen
 : Either cluster can initiate requests to the other cluster. The clusters authenticate each other using mutual TLS, and both clusters create an identity for the other side. This is the default type.
 
 `unidirectional`
-: Requests can only be sent in one direction: from Cluster A to Cluster B. Cluster A pins B's certificate and uses a token to activate a pending identity that B created for A. B stores only a TLS identity for A (no cluster link record) and can authenticate incoming requests from A, but holds no address for A and cannot initiate requests to it.
+: Requests can only be sent in one direction: from Cluster A to Cluster B. Cluster A pins Cluster B's certificate and uses a token to activate a pending identity that Cluster B created for Cluster A. Cluster B stores only a TLS identity for Cluster A (no cluster link record) and can authenticate incoming requests from Cluster A, but holds no address for Cluster A and cannot initiate requests to it.
 
 `public`
-: Only the initiating cluster (A) stores a link to B. A connects to B without presenting a client certificate, relying solely on certificate pinning for server authentication. B is completely unaware of the link and no identity is created on either side. Use this type when B exposes resources publicly or when you want read-only, anonymous-style access to B.
+: An initiating cluster (Cluster A) stores a link to a public cluster (Cluster B). Cluster A connects to Cluster B without presenting a client certificate, relying solely on certificate pinning for server authentication. Cluster B has no record of the connection, and neither cluster creates an identity for the other. Use this type when Cluster B exposes resources publicly or when you want read-only, anonymous access to Cluster B.
 
 ### Connection process
 
@@ -181,22 +181,22 @@ All link types rely on TLS certificate pinning: Cluster A fetches and pins Clust
 
 #### Bidirectional connection process
 
-1. **Cluster A** creates a pending cluster link and generates a trust token.
-1. **Cluster B** uses this token to establish the connection and send its certificate back.
+1. A user initiates the process to {ref}`create a bidirectional cluster link <howto-cluster-links-create-bidirectional>` on Cluster A, generating a trust token.
+1. A user uses this token to create the corresponding link on Cluster B, establishing the connection and sending Cluster B's certificate back.
 1. Both clusters validate certificates and activate their cluster links.
 1. The trust relationship is established and both clusters can communicate.
 
 #### Unidirectional connection process
 
-1. **Cluster B** issues a pending identity token using [`lxc auth identity create`](lxc_auth_identity_create.md) `cluster-link/<name>`.
-1. **Cluster A** consumes the token with [`lxc cluster link create`](lxc_cluster_link_create.md) `<name> --token <token> --unidirectional`, pins Cluster B's certificate, and calls back to B to activate the pending identity.
+1. A user initiates the process to {ref}`create a unidirectional cluster link <howto-cluster-links-create-unidirectional>` by issuing a pending identity token on Cluster B.
+1. A user uses that token to create the link on Cluster A. This pins Cluster B's certificate on Cluster A and calls back to Cluster B to activate the pending identity.
 1. Cluster A has an active cluster link to Cluster B with no associated identity. Cluster B has an active TLS identity for Cluster A but no cluster link record.
 
 #### Public connection process
 
-1. **Cluster A** runs `lxc cluster link create <name> --public --remote-address <addr>`.
-1. Cluster A's LXD server fetches B's certificate, confirms B is serving the LXD API, and creates a pending link holding that certificate and the verified address. Neither is pinned yet, so the link is inert. The CLI displays the fingerprint for the user to confirm.
-1. If confirmed, the CLI resubmits the certificate; A checks it against the one it fetched, then pins it and activates the link using the address it verified. If rejected, the CLI deletes the pending link. B is not contacted beyond the initial certificate fetch and remains unaware of the link.
+1. A user initiates the process to {ref}`create a public cluster link <howto-cluster-links-create-public>` on Cluster A that points to Cluster B.
+1. Cluster A's LXD server fetches Cluster B's certificate, confirms Cluster B is serving the LXD API, and creates a pending link holding that certificate and the verified address. Neither is pinned yet, so the link is inert. The fingerprint is displayed for the user to confirm.
+1. If the user confirms, a request echoing back the fingerprint is sent to Cluster A's LXD server to acknowledge the certificate the user verified. Cluster A checks the returned fingerprint against the certificate it already fetched, then pins that certificate and activates the link using the address it verified. If the user rejects it, the pending link is deleted. Cluster B is not contacted beyond the initial certificate fetch and has no record of the link.
 
 For more information, see: {ref}`howto-cluster-links-create`.
 
@@ -208,7 +208,7 @@ The identities created depend on the link type:
 - **Bidirectional**: LXD creates a `Cluster link certificate` identity on each side. The identity can be in one of two states:
   - **Pending**: A trust token has been generated but the link has not been activated yet.
   - **Active**: Both clusters have exchanged certificates and the link is operational.
-- **Unidirectional**: Cluster B creates a TLS identity for Cluster A (no cluster link record); Cluster A stores Cluster B's certificate directly without an associated identity.
+- **Unidirectional**: Cluster B creates a TLS identity for Cluster A (no cluster link record). Cluster A stores Cluster B's certificate directly without an associated identity.
 
 Identities are managed using {ref}`fine-grained authorization <fine-grained-authorization>`.
 
@@ -226,14 +226,14 @@ Together, these controls limit the potential impact of a compromised link by enf
 Deleting a cluster link revokes the security trust it established. The scope depends on the link type:
 
 - **Bidirectional**: Run [`lxc cluster link delete`](lxc_cluster_link_delete.md) on both clusters to fully remove the trust relationship.
-- **Unidirectional**: Deleting on Cluster A removes only A's link. Cluster B's identity remains until B explicitly revokes it with [`lxc auth identity delete`](lxc_auth_identity_delete.md) `cluster-link/<name-for-cluster-a>`.
+- **Unidirectional**: Deleting on Cluster A removes only Cluster A's link. Cluster B's identity remains until Cluster B explicitly revokes it with [`lxc auth identity delete`](lxc_auth_identity_delete.md) `cluster-link/<name-for-cluster-a>`.
 
 ### Member status
 
 A cluster link member can have one of the following statuses. Run [`lxc cluster link info`](lxc_cluster_link_info.md) to check member status. (Refer to {ref}`howto-cluster-links-view` for additional details.)
 
 - `ACTIVE`: Reachable and authenticated. The link is usable for requests according to the {ref}`entitlements <fine-grained-authorization>` you granted.
-- `UNAUTHENTICATED`: Reachable but not authenticated. The remote cluster cannot use the link yet; resolve the trust exchange before relying on it.
+- `UNAUTHENTICATED`: Reachable but not authenticated. The remote cluster cannot use the link yet. Resolve the trust exchange before relying on it.
 - `UNREACHABLE`: Not reachable. Requests that depend on the link will fail until connectivity is restored or the remote cluster is online.
 
 Member status reflects connectivity, while [`lxc cluster link list`](lxc_cluster_link_list.md) shows the link identity status and link type, which determine the permissions available to the linked cluster.

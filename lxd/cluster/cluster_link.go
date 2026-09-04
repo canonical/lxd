@@ -134,7 +134,7 @@ func VerifyClusterLinkServer(ctx context.Context, address string, cert *x509.Cer
 
 	_, _, err = client.GetServer()
 	if err != nil {
-		return fmt.Errorf("Failed querying /1.0 endpoint at %q: %w", address, err)
+		return fmt.Errorf("Failed retrieving server information from %q: %w", address, err)
 	}
 
 	return nil
@@ -256,11 +256,11 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 	}
 
 	var args *lxd.ConnectionArgs
-	if clusterLink.Type == api.ClusterLinkTypePublic {
-		args = GetPublicClusterLinkConnectionArgs(targetCert)
-	} else {
+	if api.ClusterLinkTypePresentsClientCertificate(clusterLink.Type) {
 		clusterCert := s.Endpoints.NetworkCert()
 		args = GetClusterLinkConnectionArgs(clusterCert, targetCert)
+	} else {
+		args = GetPublicClusterLinkConnectionArgs(targetCert)
 	}
 
 	targetClient, err := ConnectCluster(ctx, *clusterLink, args)
