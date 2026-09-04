@@ -334,6 +334,32 @@ test_projects_snapshots() {
   lxc storage volume delete "${pool}" exclusivevol
   lxc image delete testimage
   lxc project delete baz
+
+  # A project without the key at all inherits its volumes from the default project just like one with the
+  # key set to false, so every caller that acts on the instance's volumes must refuse it the same way.
+  echo "Create a project that inherits its volumes and switch to it"
+  lxc project create qux
+  lxc project unset qux features.storage.volumes
+  [ "$(lxc project get qux features.storage.volumes || echo fail)" = "" ]
+  lxc project switch qux
+
+  ensure_import_testimage qux
+  lxc profile device add default root disk path="/" pool="${pool}"
+  lxc init testimage c3 --device "${SMALL_ROOT_DISK}"
+
+  echo "Check snapshot, restore and migration all refuse all-exclusive for an inheriting project"
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc snapshot c3 --disk-volumes=all-exclusive 2>&1)" = "Error: Project does not have features.storage.volumes enabled" ]
+  lxc snapshot c3 snap0
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc restore c3 snap0 --disk-volumes=all-exclusive 2>&1)" = "Error: Project does not have features.storage.volumes enabled" ]
+  # "lxc query" does not pick up the switched project, so the path has to name it.
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc query --request POST "/1.0/instances/c3?project=qux" --data '{"migration": true, "disk_volumes_mode": "all-exclusive"}' 2>&1)" = "Error: Project does not have features.storage.volumes enabled" ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc query --request POST "/1.0/instances?project=qux" --data '{"name": "c4", "architecture": "'"$(uname -m)"'", "source": {"type": "migration", "mode": "push", "disk_volumes_mode": "all-exclusive"}}' 2>&1)" = "Error: Project does not have features.storage.volumes enabled" ]
+
+  echo "Cleanup"
+  lxc delete --force c3
+  lxc image delete testimage
+  lxc project switch default
+  lxc project delete qux
 }
 
 # Use backups in a project.
