@@ -348,57 +348,12 @@ func (c *migrationSink) DoStorage(ctx context.Context, state *state.State, proje
 	}
 
 	if c.refresh {
-		// Get the remote snapshots on the source.
-		sourceSnapshots := offerHeader.GetSnapshots()
-		sourceSnapshotComparable := make([]storagePools.ComparableSnapshot, 0, len(sourceSnapshots))
-		for _, sourceSnap := range sourceSnapshots {
-			sourceSnapshotComparable = append(sourceSnapshotComparable, storagePools.ComparableSnapshot{
-				Name:         sourceSnap.GetName(),
-				CreationDate: time.Unix(sourceSnap.GetCreationDate(), 0),
-			})
-		}
-
-		// Get existing snapshots on the local target.
-		targetSnapshots, err := storagePools.VolumeDBSnapshotsGet(pool, projectName, req.Name, storageDrivers.VolumeTypeCustom)
+		// Drop the target snapshots the source no longer has and only request the ones it still needs to
+		// send, the same comparison the instance sink runs for the custom volumes travelling with it.
+		syncSnapshots, syncSnapshotNames, err := storagePools.CustomVolumeSnapshotsToSync(ctx, pool, projectName, req.Name, offerHeader.GetSnapshots(), op)
 		if err != nil {
 			c.sendControl(err)
 			return err
-		}
-
-		targetSnapshotsComparable := make([]storagePools.ComparableSnapshot, 0, len(targetSnapshots))
-		for _, targetSnap := range targetSnapshots {
-			_, targetSnapName, _ := api.GetParentAndSnapshotName(targetSnap.Name)
-
-			targetSnapshotsComparable = append(targetSnapshotsComparable, storagePools.ComparableSnapshot{
-				Name: targetSnapName,
-
-				// The list of source snapshots from the offer header
-				// contains the creation timestamps in seconds granularity.
-				// Also use second based granularity for the target snapshots to be able to compare them.
-				// They are stored with nanoseconds in the database.
-				// Retrieve the timestamp using second based granularity the same way as it's done on the source.
-				CreationDate: time.Unix(targetSnap.CreationDate.Unix(), 0),
-			})
-		}
-
-		// Compare the two sets.
-		syncSourceSnapshotIndexes, deleteTargetSnapshotIndexes := storagePools.CompareSnapshots(sourceSnapshotComparable, targetSnapshotsComparable)
-
-		// Delete the extra local snapshots first.
-		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
-			err := pool.DeleteCustomVolumeSnapshot(ctx, projectName, targetSnapshots[deleteTargetSnapshotIndex].Name, op)
-			if err != nil {
-				c.sendControl(err)
-				return err
-			}
-		}
-
-		// Only request to send the snapshots that need updating.
-		syncSnapshotNames := make([]string, 0, len(syncSourceSnapshotIndexes))
-		syncSnapshots := make([]*migration.Snapshot, 0, len(syncSourceSnapshotIndexes))
-		for _, syncSourceSnapshotIndex := range syncSourceSnapshotIndexes {
-			syncSnapshotNames = append(syncSnapshotNames, sourceSnapshots[syncSourceSnapshotIndex].GetName())
-			syncSnapshots = append(syncSnapshots, sourceSnapshots[syncSourceSnapshotIndex])
 		}
 
 		respHeader.Snapshots = syncSnapshots
