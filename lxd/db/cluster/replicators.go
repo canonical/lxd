@@ -225,9 +225,9 @@ func CreateNewReplicatorStatus(ctx context.Context, tx *sql.Tx, replicatorID int
 }
 
 // FinalizeReplicatorStatus updates the [ReplicatorsStatusRow] with the given ID. It sets the status and finished_date columns.
-func FinalizeReplicatorStatus(ctx context.Context, tx *sql.Tx, runID int64, status string, finishedDate time.Time) error {
-	q := `UPDATE replicators_status SET status = ?, finished_date = ? WHERE id = ?`
-	res, err := tx.ExecContext(ctx, q, status, finishedDate, runID)
+func FinalizeReplicatorStatus(ctx context.Context, tx *sql.Tx, runID int64, status string, finishedDate time.Time, snapshotStartedDate *time.Time, snapshotFinishedDate *time.Time) error {
+	q := `UPDATE replicators_status SET status = ?, finished_date = ?, snapshot_started_date = ?, snapshot_finished_date = ? WHERE id = ?`
+	res, err := tx.ExecContext(ctx, q, status, finishedDate, snapshotStartedDate, snapshotFinishedDate, runID)
 
 	if err != nil {
 		return fmt.Errorf("Failed finalizing replicator run status: %w", err)
