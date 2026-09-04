@@ -1,5 +1,6 @@
 redirects = {
     'howto/instances_snapshots/index': '../instances_backup/',
+    'howto/replicators_dr/index': '../perform_disaster_recovery/',
     'reference/network_external/index': '../networks/',
     'explanation/containers_and_vms/index': '../instances/',
     'explanation/clustering/index': '../clusters/',
