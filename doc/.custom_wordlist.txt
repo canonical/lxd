@@ -71,6 +71,7 @@ DaemonSet
 dataset
 dGPU
 DCO
+deduplicated
 dereferenced
 DevLXD
 DHCP

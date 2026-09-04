@@ -1209,7 +1209,6 @@ func (c *cmdIdentityShow) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Show the identity
 	identity, _, err := server.GetIdentity(method, name)
 	if err != nil {
 		return err
@@ -1217,6 +1216,27 @@ func (c *cmdIdentityShow) run(cmd *cobra.Command, args []string) error {
 
 	if idType != "" && identity.Type != idType {
 		return fmt.Errorf("Expected identity of type %q but found identity with type %q", idType, identity.Type)
+	}
+
+	// Include the identity state (e.g. effective groups) if the server supports it.
+	if server.HasExtension("access_management_identity_effective_groups") {
+		state, _, err := server.GetIdentityState(method, name)
+		if err != nil {
+			return err
+		}
+
+		identityFull := api.IdentityFull{
+			Identity:        *identity,
+			EffectiveGroups: state.EffectiveGroups,
+		}
+
+		data, err := yaml.Marshal(&identityFull)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("%s", data)
+		return nil
 	}
 
 	data, err := yaml.Marshal(&identity)

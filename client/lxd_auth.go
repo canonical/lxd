@@ -230,6 +230,24 @@ func (r *ProtocolLXD) GetIdentity(authenticationMethod string, nameOrIdentifier 
 	return &identity, etag, nil
 }
 
+// GetIdentityState returns the state of the identity with the given authentication method and identifier. A name may be
+// supplied in place of the identifier if the name is unique within the authentication method.
+func (r *ProtocolLXD) GetIdentityState(authenticationMethod string, nameOrIdentifier string) (*api.IdentityState, string, error) {
+	err := r.CheckExtension("access_management_identity_effective_groups")
+	if err != nil {
+		return nil, "", err
+	}
+
+	identityState := api.IdentityState{}
+	url := api.NewURL().Path("auth", "identities", authenticationMethod, nameOrIdentifier, "state")
+	etag, err := r.queryStruct(http.MethodGet, url.String(), nil, "", &identityState)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &identityState, etag, nil
+}
+
 // GetCurrentIdentityInfo returns the identity of the requestor. The response includes contextual information that is
 // used for authorization.
 func (r *ProtocolLXD) GetCurrentIdentityInfo() (*api.IdentityInfo, string, error) {

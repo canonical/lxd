@@ -389,6 +389,42 @@ func (i *IdentitiesRow) ToAPI(idToGroups map[int64][]string, idToCertificates ma
 	}, nil
 }
 
+// ToAPIState returns the api.IdentityState for the identity with effective groups calculated from the given direct
+// group membership and identity provider group mappings.
+func (i *IdentitiesRow) ToAPIState(groups []string, idpGroups []string, idpGroupsToAuthGroupNames map[string][]string, canViewGroup func(*api.URL) bool) *api.IdentityState {
+	effectiveGroups := slices.Clone(groups)
+	if effectiveGroups == nil {
+		effectiveGroups = []string{}
+	}
+
+	effectiveGroupSet := make(map[string]struct{}, len(effectiveGroups))
+	for _, effectiveGroup := range effectiveGroups {
+		effectiveGroupSet[effectiveGroup] = struct{}{}
+	}
+
+	if i.AuthMethod == api.AuthenticationMethodOIDC {
+		for _, idpGroupName := range idpGroups {
+			for _, mappedGroupName := range idpGroupsToAuthGroupNames[idpGroupName] {
+				if !canViewGroup(entity.AuthGroupURL(mappedGroupName)) {
+					continue
+				}
+
+				_, ok := effectiveGroupSet[mappedGroupName]
+				if ok {
+					continue
+				}
+
+				effectiveGroups = append(effectiveGroups, mappedGroupName)
+				effectiveGroupSet[mappedGroupName] = struct{}{}
+			}
+		}
+	}
+
+	return &api.IdentityState{
+		EffectiveGroups: effectiveGroups,
+	}
+}
+
 // GetIdentityByAuthenticationMethodAndIdentifier gets a single identity by authentication method and identifier.
 func GetIdentityByAuthenticationMethodAndIdentifier(ctx context.Context, tx *sql.Tx, authenticationMethod string, identifier string) (*IdentitiesRow, error) {
 	return query.SelectOne[IdentitiesRow](ctx, tx, "WHERE auth_method = ? AND identifier = ?", AuthMethod(authenticationMethod), identifier)
