@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	lxd "github.com/canonical/lxd/client"
@@ -196,10 +197,27 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 				return nil, fmt.Errorf("Failed adding transferred image %q to local cluster member: %w", imgInfo.Fingerprint, err)
 			}
 		}
-	} else if response.IsNotFoundError(err) {
-		// Check if the image already exists in some other project.
-		_, imgInfo, err = s.DB.Cluster.GetImageFromAnyProject(fp)
+	} else if response.IsNotFoundError(err) && args.SetCached && alias != fp && info != nil {
+		// If the image is a candidate to be cached, is not a user requested image copy, has an alias, and we have got the image info from the
+		// given image source, check if we already have the image cached with an identical source.
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			_, imgInfo, err = tx.GetCachedImageWithSource(ctx, fp, args.Server, protocol, alias, args.Certificate)
+			return err
+		})
 		if err == nil {
+			// If there is a cached image already with an identical source, we'll create a record for it in this project.
+			// We need to overwrite all fields of the image with those from the given image source, so that no properties are copied from the other project.
+			imgInfo.Fingerprint = info.Fingerprint
+			imgInfo.Filename = info.Filename
+			imgInfo.Size = info.Size
+			imgInfo.Public = args.Public
+			imgInfo.AutoUpdate = args.AutoUpdate
+			imgInfo.Architecture = info.Architecture
+			imgInfo.CreatedAt = info.CreatedAt
+			imgInfo.ExpiresAt = info.ExpiresAt
+			imgInfo.Properties = info.Properties
+			imgInfo.Type = info.Type
+
 			// Check if the image is available locally or it's on another node. Do this before creating
 			// the missing DB record so we don't include ourself in the search results.
 			nodeAddress, err := s.DB.Cluster.LocateImage(imgInfo.Fingerprint)
@@ -301,16 +319,33 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		return nil, err
 	}
 
-	defer destRoot.Close()
+	// Check if the file already exists. This can happen if redownloading an image that already exists but is not marked
+	// as cached, or if downloading an identical image from a different source. We have a local lock on the image, so this
+	// is not subject to time-of-check time-of-use errors.
+	var imageFileExists bool
+	_, err = destRoot.Stat(fp)
+	if err == nil {
+		imageFileExists = true
+	}
 
-	destFile, err := destRoot.Create(fp)
+	defer func() { _ = destRoot.Close() }()
+
+	// Set up file names. Use temporary names if the file already exists so that an existing image is not corrupted on
+	// partial download.
+	destFileName := fp
+	destRootfsFileName := fp + ".rootfs"
+	if imageFileExists {
+		destFileName = destFileName + ".tmp"
+		destRootfsFileName = destRootfsFileName + ".tmp"
+	}
+
+	destFile, err := destRoot.Create(destFileName)
 	if err != nil {
 		return nil, err
 	}
 
 	defer func() { _ = destFile.Close() }()
 
-	destRootfsFileName := fp + ".rootfs"
 	destRootfsFile, err := destRoot.Create(destRootfsFileName)
 	if err != nil {
 		return nil, err
@@ -322,7 +357,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 	defer reverter.Fail()
 
 	reverter.Add(func() {
-		_ = destRoot.Remove(fp)
+		_ = destRoot.Remove(destFileName)
 		_ = destRoot.Remove(destRootfsFileName)
 	})
 
@@ -349,6 +384,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		op.SetCanceler(canceler)
 	}
 
+	var metaFileSize, rootfsSize int64
 	if protocol == "lxd" || protocol == "simplestreams" {
 		// Compatibility with older LXD servers
 		if info.Type == "" {
@@ -387,42 +423,9 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 			return nil, err
 		}
 
-		// Truncate down to size
-		if resp.RootfsSize > 0 {
-			err = destRootfsFile.Truncate(resp.RootfsSize)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		err = destFile.Truncate(resp.MetaSize)
-		if err != nil {
-			return nil, err
-		}
-
-		// Deal with unified images
-		if resp.RootfsSize == 0 {
-			err := destRoot.Remove(destRootfsFileName)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		err = destFile.Close()
-		if err != nil {
-			return nil, err
-		}
-
-		err = destRootfsFile.Close()
-		if err != nil {
-			return nil, err
-		}
+		rootfsSize = resp.RootfsSize
+		metaFileSize = resp.MetaSize
 	} else if protocol == "direct" {
-		err := destRoot.Remove(destRootfsFileName)
-		if err != nil {
-			return nil, err
-		}
-
 		// Setup HTTP client
 		httpClient, err := util.HTTPClient(args.Certificate, s.Proxy)
 		if err != nil {
@@ -493,13 +496,55 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		info.ExpiresAt = time.Unix(imageMeta.ExpiryDate, 0)
 		info.Properties = imageMeta.Properties
 		info.Type = imageType
+	} else {
+		return nil, fmt.Errorf("Unsupported protocol: %v", protocol)
+	}
 
-		err = destFile.Close()
+	// Remove rootfs file if it has zero size (unified image)
+	// Otherwise truncate to expected size.
+	if rootfsSize == 0 {
+		err := destRoot.Remove(destRootfsFileName)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		return nil, fmt.Errorf("Unsupported protocol: %v", protocol)
+		err = destRootfsFile.Truncate(rootfsSize)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if metaFileSize != 0 {
+		err = destFile.Truncate(metaFileSize)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = destFile.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	err = destRootfsFile.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	// Deduplicate image files in case of a re-download
+	if imageFileExists {
+		err = destRoot.Rename(destFileName, strings.TrimSuffix(destFileName, ".tmp"))
+		if err != nil {
+			return nil, err
+		}
+
+		// Only deduplicate the rootfs file for non-unified images (since we have already deleted it otherwise).
+		if rootfsSize > 0 {
+			err = destRoot.Rename(destRootfsFileName, strings.TrimSuffix(destRootfsFileName, ".tmp"))
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// Override visiblity
