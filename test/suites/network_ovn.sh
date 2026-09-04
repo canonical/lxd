@@ -408,6 +408,26 @@ test_network_ovn() {
   [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" 10.10.10.1 | grep -cF c1.lxd)" = 1 ]
   [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" fd42:4242:4242:1010::1 | grep -cF c1.lxd)" = 1 ]
 
+  echo "Change dns.domain and assert DNS records and resolution update for running instances."
+  lxc network set "${ovn_network}" dns.domain=testdomain.test
+
+  # Check OVN DNS records table reflects new domain.
+  [ "$(ovn-nbctl get dns "${dns_entry_uuid}" records:c1.testdomain.test)" = '"'"${c1_ipv4_address} ${c1_ipv6_address}"'"' ]
+
+  # Test DNS resolution with new domain.
+  [ "$(lxc exec c1 -- nslookup c1.testdomain.test 10.10.10.1 | grep -cF "${c1_ipv6_address}")" = 1 ]
+  [ "$(lxc exec c1 -- nslookup c1.testdomain.test fd42:4242:4242:1010::1 | grep -cF "${c1_ipv6_address}")" = 1 ]
+
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv4_address}" 10.10.10.1 | grep -cF c1.testdomain.test)" = 1 ]
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv4_address}" fd42:4242:4242:1010::1 | grep -cF c1.testdomain.test)" = 1 ]
+
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" 10.10.10.1 | grep -cF c1.testdomain.test)" = 1 ]
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" fd42:4242:4242:1010::1 | grep -cF c1.testdomain.test)" = 1 ]
+
+  # Check unsetting dns.domain restores records back to default domain.
+  lxc network unset "${ovn_network}" dns.domain
+  [ "$(ovn-nbctl get dns "${dns_entry_uuid}" records:c1.lxd)" = '"'"${c1_ipv4_address} ${c1_ipv6_address}"'"' ]
+
   echo "Check that default target address of a network forward cannot be a network address."
   ! lxc network forward create "${ovn_network}" 192.0.2.1 target_address=10.24.140.0 || false
   ! lxc network forward create "${ovn_network}" 2001:db8:1:2::1 target_address=fd42:bd85:5f89:5293:: || false
@@ -1264,7 +1284,7 @@ test_network_ovn() {
 
   echo "==> Change the pool's target port to something invalid and use the instance override to restore."
   lxc network load-balancer pool set "${ovn_network}" http target_port=81
-  lxc network load-balancer pool show "${ovn_network}" http | yq --exit-status '.instances[].target_port = "80"' | lxc network load-balancer pool edit "${ovn_network}" http
+  lxc network load-balancer pool show "${ovn_network}" http | yq --exit-status '.instances[].target_port = "80"' | lxc network load-balancer edit "${ovn_network}" http
 
   echo "==> Wait for the target to become healthy again for the dual-stack load balancer."
   wait_for_pool_status "${ovn_network}" 192.0.2.100 http online 1
