@@ -261,7 +261,9 @@ fine_grained: true"
   lxc auth identity delete tls/tmp
 
   lxc auth identity create devlxd/tmp
-  devlxd_identity_id="$(lxc auth identity list --format csv | grep -F 'DevLXD token bearer' | cut -d, -f4)"
+  # A newly created DevLXD bearer identity is pending until a token is issued.
+  [ "$(lxc auth identity show devlxd/tmp | sed -n 's/^type: //p')" = "DevLXD token bearer (pending)" ]
+  devlxd_identity_id="$(lxc auth identity show devlxd/tmp | grep "^id:" | cut -d' ' -f2)"
   ! lxc auth group permission add test-group identity "${devlxd_identity_id}" can_view || false # Missing authentication method
   lxc auth group permission add test-group identity "devlxd/${devlxd_identity_id}" can_view # Valid
   lxc auth group permission remove test-group identity "devlxd/${devlxd_identity_id}" can_view
@@ -281,10 +283,19 @@ fine_grained: true"
   lxc auth identity create bearer/tmp
   tmp_bearer_identity_id="$(lxc auth identity show bearer/tmp | grep "^id:" | cut -d' ' -f2)"
 
-  # A bearer identity with no issued token has no expiry to report.
+  # A bearer identity with no issued token is pending and has no expiry to report.
+  [ "$(lxc auth identity show bearer/tmp | sed -n 's/^type: //p')" = "Client token bearer (pending)" ]
   lxc query "/1.0/auth/identities/bearer/${tmp_bearer_identity_id}" | jq --exit-status '.expires_at == null'
 
+  # Pruning expired tokens must not remove a pending bearer identity, which holds no token and is waiting for one
+  # to be issued, unlike a pending TLS identity whose token secret expires.
+  lxc query --request POST /internal/testing/prune-tokens
+  [ "$(lxc auth identity show bearer/tmp | sed -n 's/^type: //p')" = "Client token bearer (pending)" ]
+
   tmp_bearer_identity_token="$(lxc auth identity token issue bearer/tmp --quiet)"
+
+  # Issuing a token promotes the identity from pending to its active type.
+  [ "$(lxc auth identity show bearer/tmp | sed -n 's/^type: //p')" = "Client token bearer" ]
 
   # Once a token is issued, the identity reports its expiry when shown, not only via the current identity endpoint.
   # The reported expiry must match the "exp" claim of the issued token exactly, so that the identity and the token
@@ -306,14 +317,22 @@ fine_grained: true"
   lxc auth identity token revoke bearer/tmp
   curl -s -k -H "Authorization: Bearer ${tmp_bearer_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.error_code == 403'
 
-  # Revoking the token clears the reported expiry, so that a revoked token is not advertised as still valid.
+  # Revoking the token demotes the identity back to its pending type and clears the reported expiry, so that a
+  # revoked token is not advertised as still valid.
+  [ "$(lxc auth identity show bearer/tmp | sed -n 's/^type: //p')" = "Client token bearer (pending)" ]
   lxc query "/1.0/auth/identities/bearer/${tmp_bearer_identity_id}" | jq --exit-status '.expires_at == null'
+
+  # An identity that was demoted to pending by a revocation must also survive token pruning.
+  lxc query --request POST /internal/testing/prune-tokens
+  [ "$(lxc auth identity show bearer/tmp | sed -n 's/^type: //p')" = "Client token bearer (pending)" ]
 
   lxc auth identity delete bearer/tmp
 
   # Ensure DevLXD token cannot be to authenticate with main LXD API.
   lxc auth identity create devlxd/tmp
   devlxd_identity_token="$(lxc auth identity token issue devlxd/tmp --quiet)"
+  # Issuing a token promotes the DevLXD identity to its active type.
+  [ "$(lxc auth identity show devlxd/tmp | sed -n 's/^type: //p')" = "DevLXD token bearer" ]
   curl -s -k -H "Authorization: Bearer ${devlxd_identity_token}" "https://${LXD_ADDR}/1.0" | jq --exit-status '.error_code == 403'
   lxc auth identity delete devlxd/tmp
 
@@ -473,9 +492,9 @@ fine_grained: true"
 
   # As an admin
   ! lxc query -X PUT /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${user6_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}" || false
-  [ "$("${_LXC}" query -X PUT /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${user6_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}"  2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "DevLXD token bearer"' ]
+  [ "$("${_LXC}" query -X PUT /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${user6_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}"  2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "DevLXD token bearer (pending)"' ]
   ! lxc query -X PATCH /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${user6_cert}\"}" || false
-  [ "$("${_LXC}" query -X PATCH /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${user6_cert}\"}" 2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "DevLXD token bearer"' ]
+  [ "$("${_LXC}" query -X PATCH /1.0/auth/identities/bearer/test-bearer -d "{\"tls_certificate\":\"${user6_cert}\"}" 2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "DevLXD token bearer (pending)"' ]
   ! lxc query -X PUT /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}" || false
   [ "$("${_LXC}" query -X PUT /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\",\"name\":\" \",\"identifier\":\"test-user@example.com\"}"  2>&1 >/dev/null)" = 'Error: Cannot update certificate for identities of type "OIDC client"' ]
   ! lxc query -X PATCH /1.0/auth/identities/oidc/test-user@example.com -d "{\"tls_certificate\":\"${user6_cert}\"}" || false
@@ -1897,6 +1916,9 @@ test_ui_initial_access_link() {
   echo "==> Test initial UI access link"
   lxd init --ui-initial-access-link
 
+  # Issuing the initial UI token promotes the identity from pending to its active type.
+  [ "$(lxc auth identity show bearer/ui-admin-initial | sed -n 's/^type: //p')" = "Initial UI token bearer" ]
+
   # Regenerate while identity already exists.
   lxd init --ui-initial-access-link
 
@@ -2000,6 +2022,10 @@ test_ui_initial_access_link() {
 
   echo "==> Testing revoked token access"
   lxc auth identity token revoke bearer/ui-admin-initial
+
+  # Revoking the token demotes the identity back to its pending type.
+  [ "$(lxc auth identity show bearer/ui-admin-initial | sed -n 's/^type: //p')" = "Initial UI token bearer (pending)" ]
+
   loginOutput=$(curl -s -k -i -H "User-Agent: Mozilla" "${url}")
 
   if grep -q "token_bearer_session=" <<< "${loginOutput}"; then
@@ -2015,6 +2041,10 @@ test_ui_initial_access_link() {
 
   # Ensure access is forbidden when using the revoked token.
   curl -s -k -H "User-Agent: Mozilla" -H "Cookie: token_bearer_session=${cookie}" "https://${LXD_ADDR}/1.0/auth/identities/current" | jq --exit-status '.error_code == 403'
+
+  # Regenerate while the identity is pending, which is the state a revoked token leaves it in.
+  lxd init --ui-initial-access-link
+  [ "$(lxc auth identity show bearer/ui-admin-initial | sed -n 's/^type: //p')" = "Initial UI token bearer" ]
 
   # Cleanup.
   lxc auth identity delete bearer/ui-admin-initial

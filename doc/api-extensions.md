@@ -3664,3 +3664,10 @@ Replication requires the remote cluster to authenticate the connection, so {ref}
 Introduces new operation class for durable operations.
 Durable operations are restarted on the DQLite raft leader if the member that is running the operation fails to respond to heartbeats.
 If the leader was running the operation and goes offline, the operation is restarted on the newly elected leader.
+
+(extension-access-management-bearer-pending)=
+## `access_management_bearer_pending`
+
+Adds three identity types, `Client token bearer (pending)`, `DevLXD token bearer (pending)` and `Initial UI token bearer (pending)`, that represent bearer identities for which no token is currently issued.
+
+A bearer identity is created in the pending state because no token has been issued for it yet. Issuing a token promotes the identity to its active type of `Client token bearer`, `DevLXD token bearer` or `Initial UI token bearer`, and revoking the token demotes it back to the pending type. A token that has expired but has not been revoked leaves the identity active.

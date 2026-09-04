@@ -121,8 +121,30 @@ func (i IdentityType) ActiveType() (IdentityType, error) {
 		return api.IdentityTypeCertificateClient, nil
 	case api.IdentityTypeCertificateClusterLinkPending:
 		return api.IdentityTypeCertificateClusterLink, nil
+	case api.IdentityTypeBearerTokenClientPending:
+		return api.IdentityTypeBearerTokenClient, nil
+	case api.IdentityTypeBearerTokenDevLXDPending:
+		return api.IdentityTypeBearerTokenDevLXD, nil
+	case api.IdentityTypeBearerTokenInitialUIPending:
+		return api.IdentityTypeBearerTokenInitialUI, nil
 	default:
 		return "", fmt.Errorf("Identities of type %q cannot be activated", i)
+	}
+}
+
+// PendingType returns the pending version of an active bearer identity type.
+// A bearer identity is demoted to its pending type when its token is revoked and no signing key remains.
+// It returns an error for types that cannot be demoted to a pending variant.
+func (i IdentityType) PendingType() (IdentityType, error) {
+	switch i {
+	case api.IdentityTypeBearerTokenClient:
+		return api.IdentityTypeBearerTokenClientPending, nil
+	case api.IdentityTypeBearerTokenDevLXD:
+		return api.IdentityTypeBearerTokenDevLXDPending, nil
+	case api.IdentityTypeBearerTokenInitialUI:
+		return api.IdentityTypeBearerTokenInitialUIPending, nil
+	default:
+		return "", fmt.Errorf("Identities of type %q cannot be made pending", i)
 	}
 }
 
@@ -255,6 +277,12 @@ func (i IdentitiesRow) PendingTLSMetadata() (*PendingTLSMetadata, error) {
 		return nil, api.StatusErrorf(http.StatusBadRequest, "Cannot extract pending %q TLS identity secret: Identity is not pending", i.Type)
 	}
 
+	// Pending identities of other authentication methods carry different metadata, so reject them rather than
+	// reporting an empty secret and expiry for them.
+	if identityType.AuthenticationMethod() != api.AuthenticationMethodTLS {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Cannot extract pending %q TLS identity secret: Identity does not authenticate with TLS", i.Type)
+	}
+
 	var metadata PendingTLSMetadata
 	err = json.Unmarshal([]byte(i.Metadata), &metadata)
 	if err != nil {
@@ -292,36 +320,30 @@ func (i IdentitiesRow) BearerMetadata() (*BearerMetadata, error) {
 	return &metadata, nil
 }
 
-// SetBearerIdentityTokenExpiry records the expiry of the issued token for a bearer identity.
-func SetBearerIdentityTokenExpiry(ctx context.Context, tx *sql.Tx, identityID int64, expiry *time.Time) error {
+// SetBearerTokenExpiry sets the expiry of the issued token in the identity metadata. A nil expiry records
+// that the identity has no usable token. The [AuthMethod] of the [IdentitiesRow] must be
+// [api.AuthenticationMethodBearer]. The change is persisted by [query.UpdateByPrimaryKey].
+func (i *IdentitiesRow) SetBearerTokenExpiry(expiry *time.Time) error {
+	metadata, err := i.BearerMetadata()
+	if err != nil {
+		return err
+	}
+
 	// A non-nil expiry is signed into the token as a JWT NumericDate, which has second
 	// precision, so we truncate to second precision before storing it to ensure the expiry
 	// reported for a listed identity is identical to the one the token itself carries.
-	var value any
+	metadata.TokenExpiry = nil
 	if expiry != nil {
-		value = expiry.UTC().Truncate(time.Second).Format(time.RFC3339Nano)
+		truncated := expiry.UTC().Truncate(time.Second)
+		metadata.TokenExpiry = &truncated
 	}
 
-	// Update token_expiry in place so any other metadata fields are preserved.
-	// A nil expiry is stored as JSON null, which unmarshals back to a nil TokenExpiry,
-	// representing "no active token".
-	q := `
-UPDATE identities
-SET metadata = json_set(CASE WHEN metadata = '' THEN '{}' ELSE metadata END, '$.token_expiry', ?)
-WHERE id = ? AND auth_method = ?`
-	res, err := tx.ExecContext(ctx, q, value, identityID, AuthMethod(api.AuthenticationMethodBearer))
+	b, err := json.Marshal(metadata)
 	if err != nil {
-		return fmt.Errorf("Failed setting bearer identity token expiry: %w", err)
+		return fmt.Errorf("Failed marshaling bearer metadata: %w", err)
 	}
 
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("Failed checking bearer identity token expiry update: %w", err)
-	}
-
-	if rowsAffected != 1 {
-		return fmt.Errorf("Failed setting bearer identity token expiry: Expected to update 1 row, updated %d", rowsAffected)
-	}
+	i.Metadata = string(b)
 
 	return nil
 }
@@ -461,9 +483,11 @@ func ActivateTLSIdentity(ctx context.Context, tx *sql.Tx, identifier uuid.UUID, 
 	return query.UpdateByPrimaryKey(ctx, tx, ident)
 }
 
-var pendingIdentityTypes = func() (result []int64) {
+// pendingTLSIdentityTypes returns the type codes of all pending identity types whose authentication method is TLS.
+// These are the only pending identities that carry a token secret in their metadata and can be activated with one.
+var pendingTLSIdentityTypes = func() (result []int64) {
 	for _, t := range identity.Types() {
-		if t.IsPending() {
+		if t.IsPending() && t.AuthenticationMethod() == api.AuthenticationMethodTLS {
 			result = append(result, t.Code())
 		}
 	}
@@ -475,7 +499,7 @@ var pendingIdentityTypes = func() (result []int64) {
 func GetPendingTLSIdentityByTokenSecret(ctx context.Context, tx *sql.Tx, secret string) (*IdentitiesRow, error) {
 	clause := fmt.Sprintf(`
 	WHERE identities.type IN %s
-	AND json_extract(identities.metadata, '$.secret') = ?`, query.IntParams(pendingIdentityTypes()...))
+	AND json_extract(identities.metadata, '$.secret') = ?`, query.IntParams(pendingTLSIdentityTypes()...))
 
 	ident, err := query.SelectOne[IdentitiesRow](ctx, tx, clause, secret)
 	if err != nil {

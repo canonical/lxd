@@ -900,7 +900,7 @@ INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('
 	require.NoError(t, err)
 
 	baseQ := `SELECT certificates.fingerprint, certificates.certificate, identities.identifier, identities.metadata
-FROM identities 
+FROM identities
     JOIN identities_certificates ON identities.id = identities_certificates.identity_id
 	JOIN certificates ON identities_certificates.certificate_id = certificates.id `
 	row := db.QueryRowContext(t.Context(), baseQ+"WHERE identities.name = ?", "unrestricted")
@@ -950,4 +950,84 @@ FROM identities
 	err = json.Unmarshal([]byte(metadata), &gotPendingTLSMetadata)
 	require.NoError(t, err)
 	require.Equal(t, pendingTLSMetadata, gotPendingTLSMetadata)
+}
+
+func TestUpdateFromV88(t *testing.T) {
+	// Identity type codes:
+	// 9:  DevLXD token bearer
+	// 10: Client token bearer
+	// 11: Initial UI token bearer
+	//
+	// Entity type codes:
+	// 24: Identity entities
+	//
+	// Secret type codes:
+	// 2:  Bearer signing keys
+	schema := Schema()
+	db, err := schema.ExerciseUpdate(89, func(db *sql.DB) {
+		_, err := db.Exec(`
+-- Client bearer identity without a signing key (should become pending).
+INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('019d6c4f-bf62-7bb8-a1d2-000000000001', 3, 10, 'client-no-token', '');
+ -- Client bearer identity with a signing key and an expired token (should stay active).
+ INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('019d6c4f-bf62-7bb8-a1d2-000000000002', 3, 10, 'client-with-token', '{"token_expiry":"2020-01-01T00:00:00Z"}');
+-- DevLXD bearer identity without a signing key (should become pending).
+INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('019d6c4f-bf62-7bb8-a1d2-000000000003', 3, 9, 'devlxd-no-token', '');
+-- DevLXD bearer identity with a signing key (should stay active).
+INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('019d6c4f-bf62-7bb8-a1d2-000000000004', 3, 9, 'devlxd-with-token', '{"token_expiry":"2035-01-01T00:00:00Z"}');
+-- Initial UI identity without a signing key (should become pending).
+INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('019d6c4f-bf62-7bb8-a1d2-000000000005', 3, 11, 'initial-ui', '');
+
+-- Add signing keys for the two identities that have an issued token.
+INSERT INTO secrets (entity_type, entity_id, type, value) SELECT 24, id, 2, 'client-signing-key' FROM identities WHERE identifier = '019d6c4f-bf62-7bb8-a1d2-000000000002';
+INSERT INTO secrets (entity_type, entity_id, type, value) SELECT 24, id, 2, 'devlxd-signing-key' FROM identities WHERE identifier = '019d6c4f-bf62-7bb8-a1d2-000000000004';
+`)
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	assertType := func(identifier string, expected string) {
+		t.Helper()
+		var identityType IdentityType
+		err := db.QueryRowContext(t.Context(), `SELECT type FROM identities WHERE identifier = ?`, identifier).Scan(&identityType)
+		require.NoError(t, err)
+		require.Equal(t, IdentityType(expected), identityType)
+	}
+
+	// Tokenless client and DevLXD identities are demoted to their pending type.
+	assertType("019d6c4f-bf62-7bb8-a1d2-000000000001", api.IdentityTypeBearerTokenClientPending)
+	assertType("019d6c4f-bf62-7bb8-a1d2-000000000003", api.IdentityTypeBearerTokenDevLXDPending)
+
+	// Identities that still hold a signing key keep their active type.
+	assertType("019d6c4f-bf62-7bb8-a1d2-000000000002", api.IdentityTypeBearerTokenClient)
+	assertType("019d6c4f-bf62-7bb8-a1d2-000000000004", api.IdentityTypeBearerTokenDevLXD)
+
+	assertType("019d6c4f-bf62-7bb8-a1d2-000000000005", api.IdentityTypeBearerTokenInitialUIPending)
+
+	// There is only ever one initial UI identity, whether it is active or pending, so a second one of either type
+	// must collide with the pending one that is already present.
+	_, err = db.ExecContext(t.Context(), `INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('019d6c4f-bf62-7bb8-a1d2-000000000006', 3, 11, 'initial-ui-active', '')`)
+	require.ErrorContains(t, err, "UNIQUE constraint failed")
+
+	_, err = db.ExecContext(t.Context(), `INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('019d6c4f-bf62-7bb8-a1d2-000000000007', 3, 16, 'initial-ui-pending', '')`)
+	require.ErrorContains(t, err, "UNIQUE constraint failed")
+}
+
+func TestUpdateFromV88InitialUIWithSigningKey(t *testing.T) {
+	// The initial UI identity is subject to the same rule as the other bearer identities, it keeps its active type
+	// while it holds a signing key. It gets its own test because the index that predates this update permits only
+	// one initial UI identity in the fixture.
+	schema := Schema()
+	db, err := schema.ExerciseUpdate(89, func(db *sql.DB) {
+		_, err := db.Exec(`
+INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('019d6c4f-bf62-7bb8-a1d2-000000000008', 3, 11, 'initial-ui', '{"token_expiry":"2035-01-01T00:00:00Z"}');
+INSERT INTO secrets (entity_type, entity_id, type, value) SELECT 24, id, 2, 'initial-ui-signing-key' FROM identities WHERE identifier = '019d6c4f-bf62-7bb8-a1d2-000000000008';
+`)
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	var identityType IdentityType
+	err = db.QueryRowContext(t.Context(), `SELECT type FROM identities WHERE identifier = ?`, "019d6c4f-bf62-7bb8-a1d2-000000000008").Scan(&identityType)
+	require.NoError(t, err)
+	require.Equal(t, IdentityType(api.IdentityTypeBearerTokenInitialUI), identityType)
 }
