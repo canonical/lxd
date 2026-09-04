@@ -33,6 +33,79 @@ get_bool() {
     return
 }
 
+# Print an invalid group name error.
+print_group_name_err() {
+    echo "Invalid ${1} value: ${2}" >&2
+    echo "Expected a group name starting with a letter or underscore, followed by letters, numbers, underscores, or hyphens, optionally ending with a dollar sign" >&2
+}
+
+# Print an invalid feature list error.
+print_feature_name_err() {
+    echo "Invalid features value: ${1}" >&2
+    echo "Expected a comma-separated list of names containing only letters, numbers, and underscores" >&2
+}
+
+# Validate group names.
+validate_group_names() {
+    # Return if empty.
+    [ -z "${2}" ] && return
+
+    # Group names must start with a letter or underscore.
+    case "${2}" in
+	[!a-zA-Z_]*)
+            print_group_name_err "${1}" "${2}"
+            exit 1
+            ;;
+        *)
+            ;;
+    esac
+
+    # All characters must be either letters, numbers, underscore, hyphen
+    # or dollar sign (in the end only).
+    case "${2}" in
+	*[!a-zA-Z0-9-_$]*)
+            print_group_name_err "${1}" "${2}"
+            exit 1
+            ;;
+        *)
+            ;;
+    esac
+
+    # A dollar sign is allowed only as the final character.
+    case "${2}" in
+	*\$?*)
+            print_group_name_err "${1}" "${2}"
+            exit 1
+            ;;
+        *)
+            ;;
+    esac
+}
+
+# Validate feature previews.
+validate_feature_names() {
+    # Return if empty.
+    [ -z "${1}" ] && return
+
+    # Feature lists may contain only letters, numbers, underscores, and commas.
+    case "${1}" in
+        *[!a-zA-Z0-9_,]*)
+            print_feature_name_err "${1}"
+            exit 1
+            ;;
+        *) ;;
+    esac
+
+    # Comma character must not be in the beggining, in the end or follow another comma.
+    case "${1}" in
+        ,*|*,|*,,*)
+            print_feature_name_err "${1}"
+            exit 1
+            ;;
+        *) ;;
+    esac
+}
+
 # Don't fail if the mount namespace isn't properly setup yet
 if [ ! -e /run/snapd-snap.socket ]; then
     exit 0
@@ -43,12 +116,12 @@ apparmor_unprivileged_restrictions_disable=$(get_bool "$(snapctl get apparmor.un
 ceph_builtin=$(get_bool "$(snapctl get ceph.builtin)")
 ceph_external=$(get_bool "$(snapctl get ceph.external)")
 daemon_debug=$(get_bool "$(snapctl get daemon.debug)")
-daemon_group=$(snapctl get daemon.group)
-daemon_user_group=$(snapctl get daemon.user.group)
+daemon_group="$(snapctl get daemon.group)"
+daemon_user_group="$(snapctl get daemon.user.group)"
 daemon_syslog=$(get_bool "$(snapctl get daemon.syslog)")
 daemon_verbose=$(get_bool "$(snapctl get daemon.verbose)")
 db_trace=$(get_bool "$(snapctl get db.trace)")
-features=$(snapctl get features)
+features="$(snapctl get features)"
 lvm_external=$(get_bool "$(snapctl get lvm.external)")
 lxcfs_loadavg=$(get_bool "$(snapctl get lxcfs.loadavg)")
 lxcfs_cfs=$(get_bool "$(snapctl get lxcfs.cfs)")
@@ -64,6 +137,11 @@ if [ -n "${daemon_preseed}" ]; then
     echo "${daemon_preseed}" > "${SNAP_COMMON}/init.yaml"
 fi
 
+# Check string inputs for the following configs
+validate_group_names "daemon.group" "${daemon_group}"
+validate_group_names "daemon.user.group" "${daemon_user_group}"
+validate_feature_names "${features}"
+
 # Generate the config
 config="${SNAP_COMMON}/config"
 
@@ -77,7 +155,7 @@ daemon_group=${daemon_group:-"lxd"}
 daemon_syslog=${daemon_syslog:-"false"}
 daemon_user_group=${daemon_user_group:-"lxd"}
 daemon_verbose=${daemon_verbose:-"false"}
-features="${features:-}"
+features=${features:-}
 db_trace=${db_trace:-"false"}
 lvm_external=${lvm_external:-"false"}
 lxcfs_cfs=${lxcfs_cfs:-"false"}
