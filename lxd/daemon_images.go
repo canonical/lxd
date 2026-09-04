@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/canonical/lxd/client"
@@ -221,16 +222,30 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 				return nil, fmt.Errorf("Failed adding transferred image %q to local cluster member: %w", imgInfo.Fingerprint, err)
 			}
 		}
-	} else if response.IsNotFoundError(err) {
+	} else if response.IsNotFoundError(err) && args.SetCached && !args.UserRequested && alias != fp && info != nil {
+		// If the image is a candidate to be cached, is not a user requested image copy, has an alias, and we have got the image info from the
+		// given image source, check if we already have the image cached with an identical source.
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Check if the image already exists in some other project.
-			_, imgInfo, err = tx.GetImageFromAnyProject(ctx, fp)
-
+			_, imgInfo, err = cluster.GetCachedImageWithSource(ctx, tx.Tx(), fp, args.Server, protocol, alias, args.Certificate)
 			return err
 		})
 		if err == nil {
+			// If there is a cached image already with an identical source, we'll create a record for it in this project.
+			// We need to overwrite all fields of the image with those from the given image source, so that no properties are copied from the other project.
 			var nodeAddress string
 			otherProject := imgInfo.Project
+
+			imgInfo.Project = args.ProjectName
+			imgInfo.Fingerprint = info.Fingerprint
+			imgInfo.Filename = info.Filename
+			imgInfo.Size = info.Size
+			imgInfo.Public = args.Public
+			imgInfo.AutoUpdate = true // We've already checked that the alias does not equal the fingerprint
+			imgInfo.Architecture = info.Architecture
+			imgInfo.CreatedAt = info.CreatedAt
+			imgInfo.ExpiresAt = info.ExpiresAt
+			imgInfo.Properties = info.Properties
+			imgInfo.Type = info.Type
 
 			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				// Check if the image is available locally or it's on another node. Do this before creating
@@ -375,16 +390,33 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		return nil, err
 	}
 
+	// Check if the file already exists. This can happen if redownloading an image that already exists but is not marked
+	// as cached, or if downloading an identical image from a different source. We have a local lock on the image, so this
+	// is not subject to time-of-check time-of-use errors.
+	var fileExists bool
+	_, err = destRoot.Stat(fp)
+	if err == nil {
+		fileExists = true
+	}
+
 	defer func() { _ = destRoot.Close() }()
 
-	destFile, err := destRoot.Create(fp)
+	// Set up file names. Use temporary names if the file already exists so that an existing image is not corrupted on
+	// partial download.
+	destFileName := fp
+	destRootfsFileName := fp + ".rootfs"
+	if fileExists {
+		destFileName = destFileName + ".tmp"
+		destRootfsFileName = destRootfsFileName + ".tmp"
+	}
+
+	destFile, err := destRoot.Create(destFileName)
 	if err != nil {
 		return nil, err
 	}
 
 	defer func() { _ = destFile.Close() }()
 
-	destRootfsFileName := fp + ".rootfs"
 	destRootfsFile, err := destRoot.Create(destRootfsFileName)
 	if err != nil {
 		return nil, err
@@ -396,7 +428,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 	defer reverter.Fail()
 
 	reverter.Add(func() {
-		_ = destRoot.Remove(fp)
+		_ = destRoot.Remove(destFileName)
 		_ = destRoot.Remove(destRootfsFileName)
 	})
 
@@ -477,6 +509,22 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 	err = destRootfsFile.Close()
 	if err != nil {
 		return nil, err
+	}
+
+	// Deduplicate image files in case of a re-download
+	if fileExists {
+		err = destRoot.Rename(destFileName, strings.TrimSuffix(destFileName, ".tmp"))
+		if err != nil {
+			return nil, err
+		}
+
+		// Only deduplicate the rootfs file for non-unified images (since we have already deleted it otherwise).
+		if resp.RootfsSize > 0 {
+			err = destRoot.Rename(destRootfsFileName, strings.TrimSuffix(destRootfsFileName, ".tmp"))
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// Override visiblity
