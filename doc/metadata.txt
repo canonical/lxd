@@ -226,12 +226,12 @@ See the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/f
 ```
 
 ```{config:option} shift device-disk-device-conf
-:condition: "container"
 :defaultdesc: "`false`"
 :required: "no"
 :shortdesc: "Whether to set up a UID/GID shifting overlay"
 :type: "bool"
-If enabled, this option sets up a shifting overlay to translate the source UID/GID to match the container instance.
+For containers, if enabled, this option sets up a shifting overlay to translate the source UID/GID to match the instance.
+For virtual machines, the source UID/GID is passed through unchanged, even if the instance `raw.idmap` is set.
 ```
 
 ```{config:option} size device-disk-device-conf
