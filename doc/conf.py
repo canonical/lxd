@@ -250,6 +250,7 @@ extensions = [
     'sphinx_sitemap',
     'sphinx_remove_toctrees',
     'myst_parser',
+    'sphinx_structured_toc',
 ]
 
 # Additional MyST extensions
@@ -269,6 +270,7 @@ exclude_patterns = [
 # Adds custom CSS files, located under 'html_static_path' or from external link
 html_css_files = [
     'lxd_custom.css',
+    'domain-list-override.css',
     'https://assets.ubuntu.com/v1/d86746ef-cookie_banner.css',
 ]
 
