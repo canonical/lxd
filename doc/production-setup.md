@@ -40,7 +40,7 @@ Full and partial server backups protect against data loss. Instance recovery and
 :titlesonly:
 
 Back up a server </backup>
-Recover instances </howto/disaster_recovery>
+Recover LXD database records </howto/disaster_recovery>
 Disaster recovery with storage replication </howto/disaster_recovery_replication>
 Disaster recovery with replicators </howto/replicators_dr>
 ```
