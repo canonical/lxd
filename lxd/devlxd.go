@@ -653,10 +653,10 @@ func registerDevLXDEndpoint(d *Daemon, apiRouter *http.ServeMux, apiVersion stri
 // enforceDevLXDProject ensures the "project" query parameter matches the instance's project.
 // If missing, it is set to the instance's project, since permission checkers use it to identify the project.
 // If different, the request is rejected with a forbidden error.
-func enforceDevLXDProject(r *http.Request) error {
+func enforceDevLXDProject(r *http.Request) (string, error) {
 	inst, err := request.GetContextValue[instance.Instance](r.Context(), request.CtxDevLXDInstance)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	instProject := inst.Project().Name
@@ -670,10 +670,10 @@ func enforceDevLXDProject(r *http.Request) error {
 		r.URL.RawQuery = q.Encode()
 	} else if projectParam != instProject {
 		// Disallow cross-project access.
-		return api.NewGenericStatusError(http.StatusForbidden)
+		return "", api.NewGenericStatusError(http.StatusForbidden)
 	}
 
-	return nil
+	return instProject, nil
 }
 
 // allowDevLXDAuthenticated is an access handler that rejects requests from unauthenticated clients.
@@ -705,17 +705,10 @@ func allowDevLXDPermission(entityType entity.Type, entitlement auth.Entitlement,
 		s := d.State()
 
 		// Disallow cross-project access.
-		err = enforceDevLXDProject(r)
+		instProject, err := enforceDevLXDProject(r)
 		if err != nil {
 			return response.DevLXDErrorResponse(err)
 		}
-
-		inst, err := request.GetContextValue[instance.Instance](r.Context(), request.CtxDevLXDInstance)
-		if err != nil {
-			return response.DevLXDErrorResponse(err)
-		}
-
-		instProject := inst.Project().Name
 
 		if entityType == entity.TypeProject && len(muxVars) == 0 {
 			entityURL = entity.ProjectURL(instProject)

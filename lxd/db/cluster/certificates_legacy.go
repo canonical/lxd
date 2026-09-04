@@ -13,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -347,4 +348,42 @@ func UpdateCertificateLegacy(ctx context.Context, tx *sql.Tx, object Certificate
 	}
 
 	return UpdateTLSIdentity(ctx, tx, *identity, identity.Identifier, object.Certificate)
+}
+
+// GetCertificateLegacyProjectsWithFeatures returns a map of project name to feature flag for the given legacy certificate identity ID.
+func GetCertificateLegacyProjectsWithFeatures(ctx context.Context, tx *sql.Tx, certificateID int64) (map[string]map[string]bool, error) {
+	stmt := `SELECT projects.name, coalesce(projects_config.key, ''), coalesce(projects_config.value, '') FROM projects 
+JOIN identities_projects 
+    ON projects.id = identities_projects.project_id
+LEFT JOIN projects_config 
+    ON projects.id = projects_config.project_id 
+	AND projects_config.key LIKE 'features.%' 
+WHERE identities_projects.identity_id = ?
+	`
+
+	out := make(map[string]map[string]bool)
+	err := query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
+		var projectName, featureFlag, featureValue string
+		err := scan(&projectName, &featureFlag, &featureValue)
+		if err != nil {
+			return err
+		}
+
+		_, ok := out[projectName]
+		if !ok {
+			out[projectName] = make(map[string]bool)
+		}
+
+		if featureFlag == "" {
+			return nil
+		}
+
+		out[projectName][featureFlag] = shared.IsTrue(featureValue)
+		return nil
+	}, certificateID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading certificate projects: %w", err)
+	}
+
+	return out, nil
 }
