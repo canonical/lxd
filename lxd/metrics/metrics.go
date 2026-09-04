@@ -94,6 +94,10 @@ func (m *MetricSet) String() string {
 		GoHeapObjects,
 		Instances,
 		APIOngoingRequests,
+		Replicators,
+		ReplicatorLastRunStatus,
+		ReplicatorLastSuccessTimestamp,
+		ReplicatorLastSuccessOldestSnapshotTimestamp,
 	}
 
 	for _, metricType := range metricTypes {

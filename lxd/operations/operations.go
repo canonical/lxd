@@ -1089,6 +1089,11 @@ func (op *Operation) UpdatedAt() time.Time {
 	return *t
 }
 
+// CreatedAt returns the creation time of the operation.
+func (op *Operation) CreatedAt() time.Time {
+	return op.createdAt
+}
+
 // Class returns the operation class.
 func (op *Operation) Class() operationtype.Class {
 	return op.class

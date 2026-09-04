@@ -125,3 +125,56 @@ func TestMetricSet_FilterSamples(t *testing.T) {
 		require.Contains(t, hasKeys, "project")
 	}
 }
+
+func TestMetricSet_ReplicatorMetricsAreGauges(t *testing.T) {
+	tests := []struct {
+		name       string
+		metricType MetricType
+		sample     Sample
+		wantLine   string
+	}{
+		{
+			name:       "replicator count per project",
+			metricType: Replicators,
+			sample:     Sample{Labels: map[string]string{"project": "default"}, Value: 2},
+			wantLine:   `lxd_replicators{project="default"} 2`,
+		},
+		{
+			name:       "last run status is one-hot encoded",
+			metricType: ReplicatorLastRunStatus,
+			sample:     Sample{Labels: map[string]string{"project": "default", "name": "r1", "status": "Failed"}, Value: 1},
+			wantLine:   `lxd_replicator_last_run_status{name="r1",project="default",status="Failed"} 1`,
+		},
+		{
+			name:       "last success timestamp",
+			metricType: ReplicatorLastSuccessTimestamp,
+			sample:     Sample{Labels: map[string]string{"project": "default", "name": "r1"}, Value: 1750000000},
+			wantLine:   `lxd_replicator_last_success_timestamp{name="r1",project="default"} 1.75e+09`,
+		},
+		{
+			name:       "last success oldest snapshot timestamp",
+			metricType: ReplicatorLastSuccessOldestSnapshotTimestamp,
+			sample:     Sample{Labels: map[string]string{"project": "default", "name": "r1"}, Value: 1749999000},
+			wantLine:   `lxd_replicator_last_success_oldest_snapshot_timestamp{name="r1",project="default"} 1.749999e+09`,
+		},
+		{
+			name:       "never succeeded is reported as zero rather than omitted",
+			metricType: ReplicatorLastSuccessTimestamp,
+			sample:     Sample{Labels: map[string]string{"project": "default", "name": "r1"}, Value: 0},
+			wantLine:   `lxd_replicator_last_success_timestamp{name="r1",project="default"} 0`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewMetricSet(nil)
+			m.AddSamples(tt.metricType, tt.sample)
+
+			out := m.String()
+
+			// The values of all four metrics can decrease, so they must not be declared as counters.
+			require.Contains(t, out, "# TYPE "+MetricNames[tt.metricType]+" gauge")
+			require.Contains(t, out, tt.wantLine)
+		})
+	}
+}

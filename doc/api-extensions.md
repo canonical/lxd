@@ -3664,3 +3664,14 @@ Replication requires the remote cluster to authenticate the connection, so {ref}
 Introduces new operation class for durable operations.
 Durable operations are restarted on the DQLite raft leader if the member that is running the operation fails to respond to heartbeats.
 If the leader was running the operation and goes offline, the operation is restarted on the newly elected leader.
+
+(extension-metrics-replicators)=
+## `metrics_replicators`
+
+Adds observability for {ref}`replicators <exp-replicators>`.
+
+The `Replicator` API type gains two read-only fields, `last_success_at` and `last_success_oldest_snapshot_at`, recording when the replicator last completed a run successfully and the creation time of the oldest snapshot that run replicated. The latter is the effective recovery point objective (RPO) of the replicated project.
+
+Four gauges are added to the {ref}`metrics API <metrics>`: `lxd_replicators`, `lxd_replicator_last_run_status`, `lxd_replicator_last_success_timestamp` and `lxd_replicator_last_success_oldest_snapshot_timestamp`.
+
+The `replicator-run` lifecycle event now fires when a run completes rather than when a manual run starts, so it covers scheduled runs as well, and carries the run outcome in its context.

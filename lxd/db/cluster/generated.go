@@ -956,6 +956,8 @@ func (r Replicator) SelectColumns() []string {
 		"replicators.description",
 		"replicators.last_run_date",
 		"replicators.last_run_status",
+		"replicators.last_success_date",
+		"replicators.last_success_oldest_snapshot_date",
 		"projects.name",
 	}
 }
@@ -970,7 +972,7 @@ func (r Replicator) Joins() []string {
 // ScanArgs implements [query.ScanArger] for [Replicator].
 // This returns references to struct fields in definition order.
 func (r *Replicator) ScanArgs() []any {
-	return []any{&r.Row.ID, &r.Row.Name, &r.Row.ProjectID, &r.Row.Description, &r.Row.LastRunDate, &r.Row.LastRunStatus, &r.ProjectName}
+	return []any{&r.Row.ID, &r.Row.Name, &r.Row.ProjectID, &r.Row.Description, &r.Row.LastRunDate, &r.Row.LastRunStatus, &r.Row.LastSuccessDate, &r.Row.LastSuccessOldestSnapshotDate, &r.ProjectName}
 }
 
 // TableName returns the table name for [ReplicatorRow] entities.
@@ -987,6 +989,8 @@ func (r ReplicatorRow) SelectColumns() []string {
 		"replicators.description",
 		"replicators.last_run_date",
 		"replicators.last_run_status",
+		"replicators.last_success_date",
+		"replicators.last_success_oldest_snapshot_date",
 	}
 }
 
@@ -998,17 +1002,17 @@ func (r ReplicatorRow) Joins() []string {
 // ScanArgs implements [query.ScanArger] for [ReplicatorRow].
 // This returns references to struct fields in definition order.
 func (r *ReplicatorRow) ScanArgs() []any {
-	return []any{&r.ID, &r.Name, &r.ProjectID, &r.Description, &r.LastRunDate, &r.LastRunStatus}
+	return []any{&r.ID, &r.Name, &r.ProjectID, &r.Description, &r.LastRunDate, &r.LastRunStatus, &r.LastSuccessDate, &r.LastSuccessOldestSnapshotDate}
 }
 
 // CreateValues returns a list of values from [ReplicatorRow] entities matching the bind arguments in [CreateStmt].
 func (r ReplicatorRow) CreateValues() []any {
-	return []any{r.Name, r.ProjectID, r.Description, r.LastRunDate, r.LastRunStatus}
+	return []any{r.Name, r.ProjectID, r.Description, r.LastRunDate, r.LastRunStatus, r.LastSuccessDate, r.LastSuccessOldestSnapshotDate}
 }
 
 // UpdateValues returns a list of values from [ReplicatorRow] entities matching the columns in [UpdateStmt].
 func (r ReplicatorRow) UpdateValues() []any {
-	return []any{r.Name, r.ProjectID, r.Description, r.LastRunDate, r.LastRunStatus}
+	return []any{r.Name, r.ProjectID, r.Description, r.LastRunDate, r.LastRunStatus, r.LastSuccessDate, r.LastSuccessOldestSnapshotDate}
 }
 
 // PKColumns returns the column names for the primary key of a [ReplicatorRow] entity used during an update.
@@ -1025,10 +1029,10 @@ func (r ReplicatorRow) PKValues() []any {
 
 // CreateStmt returns a query that creates a [ReplicatorRow] entity.
 func (r ReplicatorRow) CreateStmt() string {
-	return "INSERT INTO replicators (name, project_id, description, last_run_date, last_run_status) VALUES (?, ?, ?, ?, ?)"
+	return "INSERT INTO replicators (name, project_id, description, last_run_date, last_run_status, last_success_date, last_success_oldest_snapshot_date) VALUES (?, ?, ?, ?, ?, ?, ?)"
 }
 
 // UpdateStmt returns a query that updates a [ReplicatorRow] by primary key.
 func (r ReplicatorRow) UpdateStmt() string {
-	return "UPDATE replicators SET name = ?, project_id = ?, description = ?, last_run_date = ?, last_run_status = ? "
+	return "UPDATE replicators SET name = ?, project_id = ?, description = ?, last_run_date = ?, last_run_status = ?, last_success_date = ?, last_success_oldest_snapshot_date = ? "
 }

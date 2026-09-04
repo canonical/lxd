@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
@@ -27,6 +29,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -499,7 +502,7 @@ func replicatorsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorCreated.Event(r.Context(), req.Name, projectName, nil))
+	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorCreated.Event(req.Name, projectName, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
@@ -563,7 +566,7 @@ func replicatorPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRenamed.Event(r.Context(), req.Name, projectName, logger.Ctx{"old_name": name}))
+	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRenamed.Event(req.Name, projectName, request.CreateRequestor(r.Context()), logger.Ctx{"old_name": name}))
 
 	return response.EmptySyncResponse
 }
@@ -655,6 +658,7 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 
 	opArgs, err := prepareReplicatorRunOperation(r.Context(), s, projectName, name, clusterLinkName, restore, dbReplicator.Row.ID)
 	if err != nil {
+		replicatorRecordSetupFailure(s, projectName, name, dbReplicator.Row.ID, restore, request.CreateRequestor(r.Context()), err)
 		return response.SmartError(err)
 	}
 
@@ -672,15 +676,15 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, opArgs)
 	if err != nil {
-		// Revert Running to Failed so the status doesn't get stuck.
-		_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), dbReplicator.Row.ID, api.ReplicatorStatusFailed)
-		})
+		// The run never started, so record the failure rather than leaving the status stuck
+		// at Running.
+		replicatorRecordSetupFailure(s, projectName, name, dbReplicator.Row.ID, restore, request.CreateRequestor(r.Context()), err)
 
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(r.Context(), name, projectName, nil))
+	// The replicator-run event is emitted by the finalize operation on completion, so that it
+	// carries the run outcome and covers scheduled runs as well as manual ones.
 
 	return response.OperationResponse(op)
 }
@@ -765,7 +769,7 @@ func updateReplicator(d *Daemon, r *http.Request, isPatch bool) response.Respons
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorUpdated.Event(r.Context(), name, projectName, nil))
+	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorUpdated.Event(name, projectName, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
@@ -879,14 +883,30 @@ func replicatorDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	name := r.PathValue("name")
+	var replicatorID int64
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbReplicator, err := dbCluster.GetReplicator(ctx, tx.Tx(), name, projectName)
+		if err != nil {
+			return err
+		}
+
+		replicatorID = dbReplicator.Row.ID
+
 		return dbCluster.DeleteReplicator(ctx, tx.Tx(), name, projectName)
 	})
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed deleting replicator %q: %w", name, err))
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorDeleted.Event(r.Context(), name, projectName, nil))
+	// Warnings are not cascaded by the database, so drop any run failure warning left behind by
+	// the deleted replicator. Otherwise it would linger and could later be matched by a new
+	// replicator that reuses the same ID.
+	err = warnings.DeleteWarningsByNodeAndProjectAndTypeAndEntity(s.DB.Cluster, "", projectName, warningtype.ReplicatorRunFailure, entity.TypeReplicator, int(replicatorID))
+	if err != nil {
+		logger.Warn("Failed deleting replicator run failure warnings", logger.Ctx{"replicator": name, "project": projectName, "err": err})
+	}
+
+	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorDeleted.Event(name, projectName, request.CreateRequestor(r.Context()), nil))
 
 	return response.EmptySyncResponse
 }
@@ -1131,7 +1151,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 		}
 
 		stage++
-		childArgs = append(childArgs, replicatorFinalizeOperationArgs(s, projectName, replicatorURL, replicatorID, stage))
+		childArgs = append(childArgs, replicatorFinalizeOperationArgs(s, projectName, name, replicatorURL, replicatorID, false, stage))
 
 		return operations.OperationArgs{
 			ProjectName:       projectName,
@@ -1380,7 +1400,7 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	}
 
 	stage++
-	childArgs = append(childArgs, replicatorFinalizeOperationArgs(s, projectName, replicatorURL, replicatorID, stage))
+	childArgs = append(childArgs, replicatorFinalizeOperationArgs(s, projectName, name, replicatorURL, replicatorID, true, stage))
 
 	return operations.OperationArgs{
 		ProjectName:       projectName,
@@ -1392,28 +1412,255 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 	}, nil
 }
 
-func replicatorFinalizeOperationArgs(s *state.State, projectName string, replicatorURL *api.URL, replicatorID int64, stage uint16) *operations.OperationArgs {
+// replicatorRaiseRunFailureWarning records a warning for a failed replicator run.
+//
+// The warning is recorded against the cluster as a whole rather than the member that happened
+// to run the replicator, because a replicator is a cluster-wide entity and a later run may well
+// be picked up by a different member. A member scoped warning would never be resolved by that
+// run's success.
+func replicatorRaiseRunFailureWarning(s *state.State, projectName string, name string, replicatorID int64, message string) {
+	err := s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.UpsertWarning(ctx, "", projectName, entity.TypeReplicator, int(replicatorID), warningtype.ReplicatorRunFailure, message)
+	})
+	if err != nil {
+		logger.Warn("Failed creating replicator run failure warning", logger.Ctx{"replicator": name, "project": projectName, "err": err})
+	}
+}
+
+// replicatorRecordSetupFailure records the outcome of a replicator run that failed before any
+// per-instance operation could be scheduled, so that it is observable in the same way as a run
+// that failed while executing.
+//
+// Without this such a run leaves no trace beyond a daemon log line: last_run_status keeps the
+// value written by an earlier run, so a replicator whose target cluster has become unreachable
+// keeps reporting its last success while every scheduled run silently fails.
+//
+// Bad request errors are ignored because they reject the run before any replication is
+// attempted (for example a project that is not in leader mode). Recording those would report a
+// caller mistake as a replication failure.
+func replicatorRecordSetupFailure(s *state.State, projectName string, name string, replicatorID int64, restore bool, requestor *api.EventLifecycleRequestor, runErr error) {
+	if api.StatusErrorCheck(runErr, http.StatusBadRequest) {
+		return
+	}
+
+	// Record the attempt so the replicator stops reporting the status of an earlier run.
+	err := s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.UpdateReplicatorLastRun(ctx, tx.Tx(), replicatorID, time.Now(), api.ReplicatorStatusFailed)
+	})
+	if err != nil {
+		logger.Warn("Failed updating replicator last run status", logger.Ctx{"replicator": name, "project": projectName, "err": err})
+	}
+
+	// A restore is a failback rather than a replication run, so it only records its status.
+	if restore {
+		return
+	}
+
+	logger.Error("Replicator run failed to start", logger.Ctx{"replicator": name, "project": projectName, "err": runErr})
+
+	replicatorRaiseRunFailureWarning(s, projectName, name, replicatorID, "Replicator run failed to start: "+runErr.Error())
+
+	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(name, projectName, requestor, map[string]any{
+		"status":           api.ReplicatorStatusFailed,
+		"instances_total":  0,
+		"instances_failed": 0,
+		"err":              runErr.Error(),
+	}))
+}
+
+// replicatorChildInstanceName returns the name of the instance a per-instance child operation
+// acted on. Forward children carry it in their entity URL, while restore children are scoped to
+// the project and carry the instance URL in their metadata instead. It returns an empty string
+// when the instance cannot be determined.
+func replicatorChildInstanceName(child *operations.Operation) string {
+	metadata := child.Metadata()
+
+	instName, ok := metadata[replicatorMetadataInstance].(string)
+	if ok && instName != "" {
+		return instName
+	}
+
+	rawURL, ok := metadata[api.MetadataEntityURL].(string)
+	if !ok || rawURL == "" {
+		entityURL := child.EntityURL()
+		if entityURL == nil {
+			return ""
+		}
+
+		rawURL = entityURL.String()
+	}
+
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+
+	entityType, _, _, pathArgs, err := entity.ParseURL(*u)
+	if err != nil || entityType != entity.TypeInstance || len(pathArgs) == 0 {
+		return ""
+	}
+
+	return pathArgs[0]
+}
+
+// replicatorChildSnapshotTime returns the creation time of the newest snapshot replicated by a
+// child operation, or the zero time when the child did not record one. The value survives a
+// round-trip through JSON when the operation is persisted, so both integer representations are
+// accepted.
+func replicatorChildSnapshotTime(child *operations.Operation) time.Time {
+	raw, ok := child.Metadata()[replicatorMetadataSnapshotTimestamp]
+	if !ok {
+		return time.Time{}
+	}
+
+	switch value := raw.(type) {
+	case int64:
+		return time.Unix(value, 0)
+	case float64:
+		return time.Unix(int64(value), 0)
+	default:
+		return time.Time{}
+	}
+}
+
+// replicatorFinalizeOperationArgs builds the final child operation of a replicator run. It runs
+// after every per-instance child has settled and records the outcome of the run: the terminal
+// status, the recovery point that was achieved, the lifecycle event and, on failure, a warning.
+func replicatorFinalizeOperationArgs(s *state.State, projectName string, name string, replicatorURL *api.URL, replicatorID int64, restore bool, stage uint16) *operations.OperationArgs {
 	return &operations.OperationArgs{
 		ProjectName: projectName,
 		Type:        operationtype.ReplicatorFinalize,
 		Class:       operationtype.OperationClassTask,
 		EntityURL:   replicatorURL,
 		RunHook: func(_ context.Context, op *operations.Operation) error {
+			completedAt := time.Now()
+			parent := op.Parent()
+
 			// Iterate over all operations for the bulk replicator run.
 			// If any operations (that are not this one) have failed, then the replicator run has failed overall.
 			runStatus := api.ReplicatorStatusCompleted
-			for _, child := range op.Parent().Children() {
-				if child.ID() != op.ID() && child.Status() != api.Success {
+			instancesTotal := 0
+			instancesFailed := 0
+
+			// The oldest of the per-instance recovery points is the recovery point of the run
+			// as a whole, since the project is only as protected as its laggiest instance.
+			var oldestSnapshot time.Time
+			var oldestSnapshotInstance string
+
+			for _, child := range parent.Children() {
+				if child.ID() == op.ID() {
+					continue
+				}
+
+				instancesTotal++
+
+				instName := replicatorChildInstanceName(child)
+
+				if child.Status() != api.Success {
+					instancesFailed++
 					runStatus = api.ReplicatorStatusFailed
-					break
+
+					// Log each failure individually so that a partial failure can be
+					// investigated without having to correlate the child operations by hand.
+					_, childAPI := child.RenderWithoutProgress()
+					logger.Warn("Replicator failed replicating instance", logger.Ctx{
+						"replicator": name,
+						"project":    projectName,
+						"instance":   instName,
+						"status":     childAPI.Status,
+						"err":        childAPI.Err,
+					})
+
+					continue
+				}
+
+				snapshotTime := replicatorChildSnapshotTime(child)
+				if snapshotTime.IsZero() {
+					continue
+				}
+
+				if oldestSnapshot.IsZero() || snapshotTime.Before(oldestSnapshot) {
+					oldestSnapshot = snapshotTime
+					oldestSnapshotInstance = instName
+				}
+			}
+
+			// A restore is a failback from the current leader cluster rather than a replication
+			// run, so it creates no snapshots and must not advance the recovery point recorded
+			// for the replicator. Only its status is written.
+			var lastSuccessDate *time.Time
+			var oldestSnapshotDate *time.Time
+			if !restore && runStatus == api.ReplicatorStatusCompleted {
+				lastSuccessDate = &completedAt
+				if !oldestSnapshot.IsZero() {
+					oldestSnapshotDate = &oldestSnapshot
 				}
 			}
 
 			// Use a fresh context so the status write always completes, even if the operation context was cancelled.
-			// Only the status is updated here; last_run_date was already set when the operation started.
-			return s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), replicatorID, runStatus)
+			// last_run_date was already set when the operation started.
+			err := s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return dbCluster.UpdateReplicatorRunResult(ctx, tx.Tx(), replicatorID, runStatus, lastSuccessDate, oldestSnapshotDate)
 			})
+			if err != nil {
+				return err
+			}
+
+			if restore {
+				return nil
+			}
+
+			durationSeconds := completedAt.Sub(parent.CreatedAt()).Seconds()
+
+			logCtx := logger.Ctx{
+				"replicator":       name,
+				"project":          projectName,
+				"instances_total":  instancesTotal,
+				"instances_failed": instancesFailed,
+				"duration_seconds": durationSeconds,
+			}
+
+			eventCtx := map[string]any{
+				"status":           runStatus,
+				"instances_total":  instancesTotal,
+				"instances_failed": instancesFailed,
+				"duration_seconds": durationSeconds,
+			}
+
+			if !oldestSnapshot.IsZero() {
+				effectiveRPO := completedAt.Sub(oldestSnapshot).Seconds()
+				eventCtx["effective_rpo_seconds"] = effectiveRPO
+
+				// Surface the instance that determines the project's recovery point, since
+				// that is the one to look at when the RPO is worse than expected.
+				logger.Info("Replicator run recovery point", logger.Ctx{
+					"replicator":            name,
+					"project":               projectName,
+					"instance":              oldestSnapshotInstance,
+					"oldest_snapshot":       oldestSnapshot,
+					"effective_rpo_seconds": effectiveRPO,
+				})
+			}
+
+			// The warning is recorded against the cluster as a whole rather than the member
+			// that happened to run the replicator, so that a later run on a different member
+			// can resolve it.
+			if runStatus == api.ReplicatorStatusCompleted {
+				logger.Info("Replicator run completed", logCtx)
+
+				err = warnings.ResolveWarningsByNodeAndProjectAndTypeAndEntity(s.DB.Cluster, "", projectName, warningtype.ReplicatorRunFailure, entity.TypeReplicator, int(replicatorID))
+				if err != nil {
+					logger.Warn("Failed resolving replicator run failure warning", logger.Ctx{"replicator": name, "project": projectName, "err": err})
+				}
+			} else {
+				logger.Error("Replicator run failed", logCtx)
+
+				replicatorRaiseRunFailureWarning(s, projectName, name, replicatorID, fmt.Sprintf("Replication of %d out of %d instances failed", instancesFailed, instancesTotal))
+			}
+
+			s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(name, projectName, op.EventLifecycleRequestor(), eventCtx))
+
+			return nil
 		},
 		Stage: stage,
 	}
@@ -1430,6 +1677,48 @@ func replicatorCheckInstancesStopped(allInsts []instance.Instance) error {
 	}
 
 	return nil
+}
+
+// Replicator run metadata keys recorded on the per-instance child operations. The finalize
+// operation reads them back from its siblings to derive the run's worst-case recovery point.
+const (
+	// replicatorMetadataInstance holds the name of the replicated instance.
+	replicatorMetadataInstance = "replicated_instance"
+
+	// replicatorMetadataSnapshotTimestamp holds the creation time of the newest snapshot
+	// replicated for that instance, in seconds since the epoch.
+	replicatorMetadataSnapshotTimestamp = "replicated_snapshot_timestamp"
+)
+
+// newestSnapshotTime returns the creation time of the most recent snapshot in the list, or the
+// zero time when the list is empty. This is the point in time the destination is restored to,
+// so it determines the instance's recovery point.
+func newestSnapshotTime(snapshots []api.InstanceSnapshot) time.Time {
+	var newest time.Time
+	for _, snapshot := range snapshots {
+		if snapshot.CreatedAt.After(newest) {
+			newest = snapshot.CreatedAt
+		}
+	}
+
+	return newest
+}
+
+// recordReplicatedSnapshot stores the creation time of the newest snapshot replicated for an
+// instance on its child operation. Failing to record it must not fail the replication itself,
+// since the data has already been copied, so errors are only logged.
+func recordReplicatedSnapshot(op *operations.Operation, instName string, snapshotTime time.Time) {
+	if snapshotTime.IsZero() {
+		return
+	}
+
+	err := op.ExtendMetadata(map[string]any{
+		replicatorMetadataInstance:          instName,
+		replicatorMetadataSnapshotTimestamp: snapshotTime.Unix(),
+	})
+	if err != nil {
+		logger.Warn("Failed recording replicated snapshot timestamp", logger.Ctx{"instance": instName, "err": err})
+	}
 }
 
 // replicateInstance handles forward replication of a single instance to the
@@ -1476,6 +1765,14 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		srcInstInfo, _, err := memberClient.GetInstance(instName)
 		if err != nil {
 			return fmt.Errorf("Failed getting instance %q from hosting cluster member: %w", instName, err)
+		}
+
+		// Record the recovery point this instance contributes to the run.
+		memberSnaps, err := memberClient.GetInstanceSnapshots(instName)
+		if err != nil {
+			logger.Warn("Failed listing snapshots of replicated instance on hosting cluster member", logger.Ctx{"project": projectName, "instance": instName, "err": err})
+		} else {
+			recordReplicatedSnapshot(op, instName, newestSnapshotTime(memberSnaps))
 		}
 
 		// Set up a push-mode migration sink on the destination.
@@ -1540,6 +1837,22 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		if err != nil {
 			return fmt.Errorf("Failed creating snapshot of instance %q: %w", instName, err)
 		}
+	}
+
+	// Record the recovery point this instance contributes to the run.
+	localSnaps, err := inst.Snapshots()
+	if err != nil {
+		logger.Warn("Failed listing snapshots of replicated instance", logger.Ctx{"project": projectName, "instance": instName, "err": err})
+	} else {
+		var newestSnap time.Time
+		for _, snap := range localSnaps {
+			creationDate := snap.CreationDate()
+			if creationDate.After(newestSnap) {
+				newestSnap = creationDate
+			}
+		}
+
+		recordReplicatedSnapshot(op, instName, newestSnap)
 	}
 
 	srcRenderRes, _, err := inst.Render()
@@ -1754,6 +2067,10 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 
 	opArgs, err := prepareReplicatorRunOperation(ctx, s, replicator.Project, replicator.Name, clusterLinkName, false, row.Row.ID)
 	if err != nil {
+		// A scheduled run has no caller to report to, so the failure has to be recorded or it
+		// would only ever appear in the daemon log.
+		replicatorRecordSetupFailure(s, replicator.Project, replicator.Name, row.Row.ID, false, nil, err)
+
 		return err
 	}
 
@@ -1779,9 +2096,7 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 		}
 
 		// Revert Running to Failed so the status doesn't get stuck.
-		_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), row.Row.ID, api.ReplicatorStatusFailed)
-		})
+		replicatorRecordSetupFailure(s, replicator.Project, replicator.Name, row.Row.ID, false, nil, err)
 
 		return fmt.Errorf("Failed scheduling replicator operation: %w", err)
 	}
