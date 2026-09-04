@@ -4821,8 +4821,8 @@
 				"keys": [
 					{
 						"replica.cluster": {
-							"longdesc": "This setting is used on standby projects to identify which cluster link is allowed to replicate instances to this project.",
-							"shortdesc": "Cluster link allowed to replicate to this standby project.",
+							"longdesc": "On a standby project, this identifies the cluster link that is allowed to replicate instances into it.\n\nSet it on the leader project as well: demoting to standby requires it, and it is what lets a project that has been demoted during a failover be promoted back to leader.",
+							"shortdesc": "Cluster link this project replicates with",
 							"type": "string"
 						}
 					}

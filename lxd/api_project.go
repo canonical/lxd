@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -1484,7 +1483,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 //	parameters:
 //	  - in: query
 //	    name: force
-//	    description: Skip validation of remote project states
+//	    description: Skip the replication topology guards and the validation of remote project states, and allow clearing the replica mode of a standby project
 //	    type: boolean
 //	    example: false
 //	  - in: body
@@ -1531,7 +1530,7 @@ func projectStatePut(d *Daemon, r *http.Request) response.Response {
 
 	case api.ReplicatorProjectModeNone:
 		run = func(ctx context.Context, op *operations.Operation) error {
-			return projectClearReplicaMode(ctx, s, name)
+			return projectClearReplicaMode(ctx, s, name, force)
 		}
 
 	default:
@@ -1551,31 +1550,63 @@ func projectStatePut(d *Daemon, r *http.Request) response.Response {
 	return response.OperationResponse(op)
 }
 
-// validateProjectPromote validates that a project is ready to be promoted to leader mode.
-// It checks that the source cluster's project is no longer in leader mode, and that all
-// replicator target clusters have their project in standby mode.
-func validateProjectPromote(ctx context.Context, s *state.State, projectName string, project *api.Project, replicators []dbCluster.Replicator, allConfigs map[int64]map[string]string) error {
-	clusterCert := s.Endpoints.NetworkCert()
-
-	// Check the old leader (identified by replica.cluster config) is unreachable or already demoted.
-	sourceClusterLinkName := project.Config["replica.cluster"]
-	if sourceClusterLinkName != "" {
-		var clusterLink *api.ClusterLink
-		var targetCert *x509.Certificate
-		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			var err error
-			_, clusterLink, targetCert, err = cluster.LoadClusterLinkAndCert(ctx, tx.Tx(), sourceClusterLinkName)
-			return err
-		})
+// getProjectAndReplicatorLinks loads a project along with the names of the cluster links targeted by
+// its replicators.
+func getProjectAndReplicatorLinks(ctx context.Context, s *state.State, projectName string) (*api.Project, []string, error) {
+	var project *api.Project
+	var clusterLinkNames []string
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
-			return fmt.Errorf("Failed loading cluster link %q: %w", sourceClusterLinkName, err)
+			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
 		}
 
-		args := cluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
-		sourceClient, err := cluster.ConnectCluster(ctx, *clusterLink, args)
+		project, err = dbProject.ToAPI(ctx, tx.Tx())
 		if err != nil {
+			return err
+		}
+
+		clusterLinkNames, err = replicatorClusterLinkNames(ctx, tx, projectName)
+		return err
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return project, clusterLinkNames, nil
+}
+
+// validateProjectPromote validates that a project is ready to be promoted to leader mode.
+// It checks that the project takes part in a replication topology, that the source cluster's
+// project is no longer in leader mode, and that all replicator target clusters have their project
+// in standby mode.
+func validateProjectPromote(ctx context.Context, s *state.State, projectName string, project *api.Project, clusterLinkNames []string) error {
+	sourceClusterLinkName := project.Config["replica.cluster"]
+
+	switch project.ReplicaMode {
+	case api.ReplicatorProjectModeStandby:
+		// replica.cluster names the cluster this project replicates with. Without it there is
+		// nothing to check that the old leader has stepped down against, and a replicator
+		// target is not necessarily that leader.
+		if sourceClusterLinkName == "" {
+			return fmt.Errorf("Project %q must have replica.cluster config set before promoting to leader mode", projectName)
+		}
+
+	case api.ReplicatorProjectModeNone:
+		// Require proof that the project takes part in a replication topology.
+		if len(clusterLinkNames) == 0 {
+			return fmt.Errorf("Project %q has no replicators, create a replicator before promoting to leader mode", projectName)
+		}
+	}
+
+	// Check the old leader (identified by replica.cluster config) is unreachable or already demoted.
+	if sourceClusterLinkName != "" {
+		sourceClient, err := cluster.ConnectClusterLinkByName(ctx, s, sourceClusterLinkName)
+		if errors.Is(err, cluster.ErrClusterLinkUnreachable) {
 			// Source cluster is unreachable, allow failover promotion.
 			logger.Warn("Failed connecting to source cluster, allowing failover promotion", logger.Ctx{"clusterLink": sourceClusterLinkName, "err": err})
+		} else if err != nil {
+			return err
 		} else {
 			defer sourceClient.Disconnect()
 
@@ -1591,30 +1622,14 @@ func validateProjectPromote(ctx context.Context, s *state.State, projectName str
 	}
 
 	// Check all replicator targets are in standby mode.
-	for _, replicator := range replicators {
-		config := allConfigs[replicator.Row.ID]
-		clusterLinkName := config["cluster"]
-		if clusterLinkName == "" {
-			continue
-		}
-
-		var clusterLink *api.ClusterLink
-		var targetCert *x509.Certificate
-		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			var err error
-			_, clusterLink, targetCert, err = cluster.LoadClusterLinkAndCert(ctx, tx.Tx(), clusterLinkName)
-			return err
-		})
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link %q: %w", clusterLinkName, err)
-		}
-
-		args := cluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
-		targetClient, err := cluster.ConnectCluster(ctx, *clusterLink, args)
-		if err != nil {
+	for _, clusterLinkName := range clusterLinkNames {
+		targetClient, err := cluster.ConnectClusterLinkByName(ctx, s, clusterLinkName)
+		if errors.Is(err, cluster.ErrClusterLinkUnreachable) {
 			// Skip unreachable clusters to allow for disaster recovery failover.
 			logger.Warn("Failed connecting to target cluster, skipping validation", logger.Ctx{"clusterLink": clusterLinkName, "err": err})
 			continue
+		} else if err != nil {
+			return err
 		}
 
 		targetProject, _, err := targetClient.GetProject(projectName)
@@ -1636,39 +1651,7 @@ func validateProjectPromote(ctx context.Context, s *state.State, projectName str
 
 // projectPromote promotes the project to leader mode for replication.
 func projectPromote(ctx context.Context, s *state.State, projectName string, force bool) error {
-	var project *api.Project
-	var replicators []dbCluster.Replicator
-	var allConfigs map[int64]map[string]string
-
-	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
-		if err != nil {
-			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
-		}
-
-		project, err = dbProject.ToAPI(ctx, tx.Tx())
-		if err != nil {
-			return err
-		}
-
-		// Load all replicators for this project.
-		replicators, _, err = dbCluster.GetReplicatorsAndURLs(ctx, tx.Tx(), &projectName, func(_ dbCluster.Replicator) bool { return true })
-		if err != nil {
-			return fmt.Errorf("Failed loading replicators for project %q: %w", projectName, err)
-		}
-
-		replicatorIDList := make([]int64, 0, len(replicators))
-		for _, r := range replicators {
-			replicatorIDList = append(replicatorIDList, r.Row.ID)
-		}
-
-		allConfigs, err = dbCluster.ReplicatorsConfigStore().GetByEntityIDs(ctx, tx.Tx(), replicatorIDList...)
-		if err != nil {
-			return fmt.Errorf("Failed loading replicator configs: %w", err)
-		}
-
-		return nil
-	})
+	project, clusterLinkNames, err := getProjectAndReplicatorLinks(ctx, s, projectName)
 	if err != nil {
 		return err
 	}
@@ -1678,7 +1661,7 @@ func projectPromote(ctx context.Context, s *state.State, projectName string, for
 	}
 
 	if !force {
-		err = validateProjectPromote(ctx, s, projectName, project, replicators, allConfigs)
+		err = validateProjectPromote(ctx, s, projectName, project, clusterLinkNames)
 		if err != nil {
 			return err
 		}
@@ -1700,7 +1683,6 @@ func projectPromote(ctx context.Context, s *state.State, projectName string, for
 // projectDemote demotes the project to standby mode for replication.
 func projectDemote(ctx context.Context, s *state.State, projectName string, force bool) error {
 	var project *api.Project
-
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
@@ -1708,11 +1690,7 @@ func projectDemote(ctx context.Context, s *state.State, projectName string, forc
 		}
 
 		project, err = dbProject.ToAPI(ctx, tx.Tx())
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return err
 	})
 	if err != nil {
 		return err
@@ -1722,7 +1700,11 @@ func projectDemote(ctx context.Context, s *state.State, projectName string, forc
 		return fmt.Errorf("Project %q is already in standby mode", projectName)
 	}
 
-	// Require replica.cluster config to be set so the standby knows which cluster can write to it.
+	// A standby project only accepts replication data from the cluster link named by
+	// replica.cluster, so it must be set before the project can enter standby mode.
+	// Demoting a leader is never blocked on the standby having taken over first: leaving the
+	// topology briefly without a leader is recoverable, whereas promoting before the leader
+	// steps down would give it two.
 	if !force && project.Config["replica.cluster"] == "" {
 		return fmt.Errorf("Project %q must have replica.cluster config set before demoting to standby mode", projectName)
 	}
@@ -1741,7 +1723,7 @@ func projectDemote(ctx context.Context, s *state.State, projectName string, forc
 }
 
 // projectClearReplicaMode clears the project's replica mode, removing it from any replication setup.
-func projectClearReplicaMode(ctx context.Context, s *state.State, projectName string) error {
+func projectClearReplicaMode(ctx context.Context, s *state.State, projectName string, force bool) error {
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
@@ -1750,6 +1732,13 @@ func projectClearReplicaMode(ctx context.Context, s *state.State, projectName st
 
 		if dbProject.ReplicaMode == dbCluster.ProjectReplicaMode(api.ReplicatorProjectModeNone) {
 			return fmt.Errorf("Project %q is not in a replica mode", projectName)
+		}
+
+		// Clearing a standby's replica mode drops the record of which cluster was replicating
+		// into it, which would let the project be promoted under the weaker rules that apply
+		// to a project with no replica mode while the old leader is still running.
+		if !force && dbProject.ReplicaMode == dbCluster.ProjectReplicaMode(api.ReplicatorProjectModeStandby) {
+			return fmt.Errorf("Project %q is a standby replica, use --force to clear its replica mode", projectName)
 		}
 
 		// Clear the replica mode.
@@ -2180,10 +2169,12 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 		"restricted.snapshots": isEitherAllowOrBlock,
 
 		// lxdmeta:generate(entities=project; group=replica; key=replica.cluster)
-		// This setting is used on standby projects to identify which cluster link is allowed to replicate instances to this project.
+		// On a standby project, this identifies the cluster link that is allowed to replicate instances into it.
+		//
+		// Set it on the leader project as well: demoting to standby requires it, and it is what lets a project that has been demoted during a failover be promoted back to leader.
 		// ---
 		//  type: string
-		//  shortdesc: Cluster link allowed to replicate to this standby project.
+		//  shortdesc: Cluster link this project replicates with
 		"replica.cluster": validate.Optional(func(value string) error {
 			// Rejected here rather than during promotion or demotion.
 			return validateReplicationClusterLink(ctx, s, value)

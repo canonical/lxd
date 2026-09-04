@@ -385,13 +385,12 @@ func replicatorValidateConfig(ctx context.Context, s *state.State, config map[st
 	return nil
 }
 
-// replicatorCheckClusterLinkUnique returns an error if another replicator in the given project
-// already targets the given cluster link. excludeID should be the ID of the replicator being
-// updated, or 0 when creating a new replicator.
-func replicatorCheckClusterLinkUnique(ctx context.Context, tx *db.ClusterTx, projectName string, clusterLinkName string, excludeID int64) error {
+// replicatorsAndConfigs returns the replicators in the given project along with their configs,
+// keyed by replicator ID.
+func replicatorsAndConfigs(ctx context.Context, tx *db.ClusterTx, projectName string) ([]dbCluster.Replicator, map[int64]map[string]string, error) {
 	replicators, _, err := dbCluster.GetReplicatorsAndURLs(ctx, tx.Tx(), &projectName, nil)
 	if err != nil {
-		return err
+		return nil, nil, fmt.Errorf("Failed loading replicators for project %q: %w", projectName, err)
 	}
 
 	ids := make([]int64, 0, len(replicators))
@@ -401,7 +400,40 @@ func replicatorCheckClusterLinkUnique(ctx context.Context, tx *db.ClusterTx, pro
 
 	allConfigs, err := dbCluster.ReplicatorsConfigStore().GetByEntityIDs(ctx, tx.Tx(), ids...)
 	if err != nil {
-		return fmt.Errorf("Failed loading replicator configs: %w", err)
+		return nil, nil, fmt.Errorf("Failed loading replicator configs: %w", err)
+	}
+
+	return replicators, allConfigs, nil
+}
+
+// replicatorClusterLinkNames returns the names of the cluster links targeted by the replicators in
+// the given project. Replicators without a cluster config key are skipped.
+func replicatorClusterLinkNames(ctx context.Context, tx *db.ClusterTx, projectName string) ([]string, error) {
+	replicators, allConfigs, err := replicatorsAndConfigs(ctx, tx, projectName)
+	if err != nil {
+		return nil, err
+	}
+
+	clusterLinkNames := make([]string, 0, len(replicators))
+	for _, replicator := range replicators {
+		clusterLinkName := allConfigs[replicator.Row.ID]["cluster"]
+		if clusterLinkName == "" {
+			continue
+		}
+
+		clusterLinkNames = append(clusterLinkNames, clusterLinkName)
+	}
+
+	return clusterLinkNames, nil
+}
+
+// replicatorCheckClusterLinkUnique returns an error if another replicator in the given project
+// already targets the given cluster link. excludeID should be the ID of the replicator being
+// updated, or 0 when creating a new replicator.
+func replicatorCheckClusterLinkUnique(ctx context.Context, tx *db.ClusterTx, projectName string, clusterLinkName string, excludeID int64) error {
+	replicators, allConfigs, err := replicatorsAndConfigs(ctx, tx, projectName)
+	if err != nil {
+		return err
 	}
 
 	for _, replicator := range replicators {

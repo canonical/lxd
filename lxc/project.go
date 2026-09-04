@@ -503,7 +503,6 @@ func (c *cmdProjectList) columns() []cli.ShorthandColumn[api.Project] {
 		{Shorthand: 'z', Name: "NETWORK ZONES", Data: c.networkZonesColumnData},
 		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
 		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
-		{Shorthand: 'r', Name: "REPLICA MODE", Data: c.replicaModeColumnData},
 	}
 }
 
@@ -566,8 +565,14 @@ func (c *cmdProjectList) run(cmd *cobra.Command, args []string) error {
 
 	c.currentProject = info.Project
 
+	// Add non-default column that is available for user selection. REPLICA MODE is only
+	// meaningful for projects taking part in a replication topology, so it is opt-in.
+	cols := append(c.columns(),
+		cli.ShorthandColumn[api.Project]{Shorthand: 'r', Name: "REPLICA MODE", Data: c.replicaModeColumnData},
+	)
+
 	// Parse column flags.
-	columns, err := cli.ParseShorthandColumns(c.flagColumns, c.columns())
+	columns, err := cli.ParseShorthandColumns(c.flagColumns, cols)
 	if err != nil {
 		return err
 	}
@@ -1137,9 +1142,12 @@ func (c *cmdProjectPromote) command() *cobra.Command {
 	cmd.Long = cli.FormatSection("Description",
 		`Promotes the project to leader mode for replication.
 
-This validates that all replicator targets are in standby mode unless --force is specified.`)
+The project must take part in a replication topology: one with no replica mode set requires at least
+one replicator, and one in standby mode requires the replica.cluster config key.
+This also validates that all replicator targets are in standby mode, and that the cluster the project
+replicates with is no longer in leader mode. Use --force to skip these checks.`)
 
-	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Skip validation of remote project states")
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Skip validation of the replication topology and remote project states")
 
 	cmd.RunE = c.run
 
@@ -1264,6 +1272,8 @@ func (c *cmdProjectDemote) run(cmd *cobra.Command, args []string) error {
 type cmdProjectClearReplica struct {
 	global  *cmdGlobal
 	project *cmdProject
+
+	flagForce bool
 }
 
 func (c *cmdProjectClearReplica) command() *cobra.Command {
@@ -1271,7 +1281,12 @@ func (c *cmdProjectClearReplica) command() *cobra.Command {
 	cmd.Use = usage("clear-replica", "[<remote>:]<project>")
 	cmd.Short = "Clear the replica mode of a project"
 	cmd.Long = cli.FormatSection("Description",
-		`Clears the replica mode of a project, removing it from any replication setup.`)
+		`Clears the replica mode of a project, removing it from any replication setup.
+
+Clearing the replica mode of a standby project requires --force, because it drops the record of
+which cluster was replicating into it.`)
+
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Allow clearing the replica mode of a standby project")
 
 	cmd.RunE = c.run
 
@@ -1306,7 +1321,7 @@ func (c *cmdProjectClearReplica) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Clear the project's replica mode
-	op, err := resource.server.UpdateProjectState(resource.name, api.ProjectStatePut{ReplicaMode: api.ReplicatorProjectModeNone}, false)
+	op, err := resource.server.UpdateProjectState(resource.name, api.ProjectStatePut{ReplicaMode: api.ReplicatorProjectModeNone}, c.flagForce)
 	if err != nil {
 		return err
 	}
