@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	yaml "go.yaml.in/yaml/v2"
@@ -1052,7 +1053,7 @@ func (c *cmdClusterListTokens) run(cmd *cobra.Command, args []string) error {
 		displayTokens = append(displayTokens, displayToken{
 			ServerName: joinToken.ServerName,
 			Token:      joinToken.String(),
-			ExpiresAt:  joinToken.ExpiresAt.Format("2006/01/02 15:04 MST"),
+			ExpiresAt:  formatTime(&joinToken.ExpiresAt, time.Local),
 		})
 	}
 

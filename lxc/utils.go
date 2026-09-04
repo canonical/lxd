@@ -13,12 +13,19 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/termios"
+)
+
+const (
+	// timeLayout is the layout for all [time.Time] values displayed by the CLI when using the table output or other
+	// custom outputs that are not raw JSON/Yaml.
+	timeLayout = "2006/01/02 15:04 MST"
 )
 
 // Batch operations.
@@ -601,4 +608,39 @@ func entityNameFromURL(urlStr string) (string, error) {
 	}
 
 	return name, nil
+}
+
+// printTimeIfSet writes the given time to the given writer with the given location. If no time is set, the fallback will
+// be written (if set). The prefix is space separated from the time and a newline is appended.
+func printTimeIfSet(writer io.Writer, prefix string, t *time.Time, fallback *string, location *time.Location) {
+	tStr := formatTime(t, location)
+	if tStr == "" {
+		if fallback == nil {
+			return
+		}
+
+		tStr = *fallback
+	}
+
+	// Space separate time from prefix if set.
+	if prefix != "" {
+		prefix += " "
+	}
+
+	_, _ = writer.Write([]byte(prefix + tStr + "\n"))
+}
+
+// formatTime returns the given time formatted such that displayed times are consistent across the CLI.
+func formatTime(t *time.Time, location *time.Location) string {
+	// Times are only displayed if available and set.
+	if t == nil || !shared.TimeIsSet(*t) {
+		return ""
+	}
+
+	// (time.Time).In panics if a nil location is given. Default to UTC.
+	if location == nil {
+		location = time.UTC
+	}
+
+	return t.In(location).Format(timeLayout)
 }

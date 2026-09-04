@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
@@ -1026,24 +1027,11 @@ func (c *cmdImageInfo) run(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Public: %s\n", public)
 	fmt.Print("Timestamps:\n")
 
-	const layout = "2006/01/02 15:04 UTC"
-	if shared.TimeIsSet(info.CreatedAt) {
-		fmt.Printf("    Created: %s\n", info.CreatedAt.UTC().Format(layout))
-	}
-
-	fmt.Printf("    Uploaded: %s\n", info.UploadedAt.UTC().Format(layout))
-
-	if shared.TimeIsSet(info.ExpiresAt) {
-		fmt.Printf("    Expires: %s\n", info.ExpiresAt.UTC().Format(layout))
-	} else {
-		fmt.Print("    Expires: never\n")
-	}
-
-	if shared.TimeIsSet(info.LastUsedAt) {
-		fmt.Printf("    Last used: %s\n", info.LastUsedAt.UTC().Format(layout))
-	} else {
-		fmt.Print("    Last used: never\n")
-	}
+	timeFallback := "never"
+	printTimeIfSet(os.Stdout, "    Created:", &info.CreatedAt, nil, time.Local)
+	printTimeIfSet(os.Stdout, "    Uploaded:", &info.UploadedAt, nil, time.Local)
+	printTimeIfSet(os.Stdout, "    Expires:", &info.ExpiresAt, &timeFallback, time.Local)
+	printTimeIfSet(os.Stdout, "    Last used:", &info.LastUsedAt, &timeFallback, time.Local)
 
 	fmt.Println("Properties:")
 	for key, value := range info.Properties {
@@ -1216,7 +1204,7 @@ func (c *cmdImageList) typeColumnData(image api.Image) string {
 }
 
 func (c *cmdImageList) uploadDateColumnData(image api.Image) string {
-	return image.UploadedAt.UTC().Format("Jan 2, 2006 at 3:04pm (MST)")
+	return formatTime(&image.UploadedAt, time.Local)
 }
 
 func (c *cmdImageList) shortestAlias(list []api.ImageAlias) string {
