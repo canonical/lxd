@@ -257,8 +257,9 @@ func instanceSnapRestore(ctx context.Context, s *state.State, projectName string
 		return err
 	}
 
-	// When "features.storage.volumes" is disabled, only allow root disk to be restored.
-	if shared.IsFalse(p.Config["features.storage.volumes"]) && req.RestoreDiskVolumesMode == api.DiskVolumesModeAllExclusive {
+	// A project that does not own its custom volumes has none to restore, so only allow the root disk.
+	// This is the rule the storage layer applies, so an unset key counts as inheriting.
+	if shared.IsFalseOrEmpty(p.Config["features.storage.volumes"]) && req.RestoreDiskVolumesMode == api.DiskVolumesModeAllExclusive {
 		return errors.New("Project does not have features.storage.volumes enabled")
 	}
 
