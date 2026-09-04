@@ -147,6 +147,12 @@ const (
 	ProjectReplicaModeUpdate
 	ReplicatorRunInstanceRestore
 	ReplicatorFinalize
+	InstanceNBDExport
+	VolumeNBDExport
+	VolumeNBDImport
+	InstanceBitmapCreate
+	VolumeBitmapCreate
+	VolumeBitmapDelete
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -402,6 +408,18 @@ func (t Type) Description() string {
 		return "Updating project replica mode"
 	case ReplicatorFinalize:
 		return "Finalizing replicator"
+	case InstanceNBDExport:
+		return "Exporting instance over NBD"
+	case VolumeNBDExport:
+		return "Exporting storage volume over NBD"
+	case VolumeNBDImport:
+		return "Importing storage volume over NBD"
+	case InstanceBitmapCreate:
+		return "Creating instance bitmap"
+	case VolumeBitmapCreate:
+		return "Creating storage volume bitmap"
+	case VolumeBitmapDelete:
+		return "Deleting storage volume bitmap"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -436,7 +454,8 @@ func (t Type) EntityType() entity.Type {
 		return entity.TypeStorageBucket
 
 	// Volume operations.
-	case VolumeMigrate, VolumeMove, VolumeSnapshotCreate, CustomVolumeBackupCreate, VolumeCopy, VolumeUpdate, VolumeDelete:
+	case VolumeMigrate, VolumeMove, VolumeSnapshotCreate, CustomVolumeBackupCreate, VolumeCopy, VolumeUpdate, VolumeDelete,
+		VolumeNBDExport, VolumeNBDImport, VolumeBitmapCreate, VolumeBitmapDelete:
 		return entity.TypeStorageVolume
 
 	// Volume snapshot operations
@@ -447,7 +466,7 @@ func (t Type) EntityType() entity.Type {
 	case BackupCreate, ConsoleShow, InstanceFreeze, InstanceUpdate, InstanceUnfreeze,
 		InstanceStart, InstanceStop, InstanceRestart, InstanceRename, InstanceMigrate, InstanceLiveMigrate,
 		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate, InstanceCopy,
-		ReplicatorRunInstanceForward:
+		ReplicatorRunInstanceForward, InstanceNBDExport, InstanceBitmapCreate:
 		return entity.TypeInstance
 
 	// Instance backup operations.
