@@ -2980,6 +2980,13 @@
 						}
 					},
 					{
+						"volatile.cpu.maxcpus": {
+							"longdesc": "The vCPU hotplug limit (SMP `maxcpus`) recorded when the VM booted.\nIt is reused on stateful start (stateful resume or live migration) so that the\nQEMU SMP topology matches on both ends of a live migration regardless of the\nhosts' CPU counts.",
+							"shortdesc": "vCPU hotplug limit used as of last boot",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.evacuate.origin": {
 							"longdesc": "The cluster member that the instance lived on before evacuation.",
 							"shortdesc": "The origin of the evacuated instance",

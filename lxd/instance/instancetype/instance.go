@@ -1180,6 +1180,16 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  shortdesc: Instance `vsock ID` used as of last start
 	"volatile.vsock_id": validate.Optional(validate.IsInt64),
 
+	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.cpu.maxcpus)
+	// The vCPU hotplug limit (SMP `maxcpus`) recorded when the VM booted.
+	// It is reused on stateful start (stateful resume or live migration) so that the
+	// QEMU SMP topology matches on both ends of a live migration regardless of the
+	// hosts' CPU counts.
+	// ---
+	//  type: string
+	//  shortdesc: vCPU hotplug limit used as of last boot
+	"volatile.cpu.maxcpus": validate.Optional(validate.IsInt64),
+
 	// lxdmeta:generate(entities=instance; group=boot; key=boot.debug_edk2)
 	// The instance should use a debug version of the `edk2`.
 	// A log file can be found in `$LXD_DIR/logs/<instance_name>/edk2.log`.

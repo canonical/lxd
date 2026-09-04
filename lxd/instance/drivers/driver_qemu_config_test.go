@@ -723,6 +723,67 @@ func TestQemuConfigTemplates(t *testing.T) {
 		}
 	})
 
+	t.Run("qemu_cpu_hotplug", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuCPUOpts
+			expected string
+		}{{
+			qemuCPUOpts{
+				architecture:        osarch.ARCH_64BIT_INTEL_X86,
+				cpuCount:            1,
+				cpuMaxCPUs:          8,
+				cpuNumaNodes:        []uint64{},
+				cpuNumaMapping:      []qemuNumaEntry{},
+				cpuNumaHostNodes:    []uint64{},
+				hugepages:           "",
+				memory:              1024,
+				qemuMemObjectFormat: "indexed",
+			},
+			`# CPU
+			[smp-opts]
+			cpus = "1"
+			maxcpus = "8"
+
+			[object "mem0"]
+			qom-type = "memory-backend-memfd"
+			size = "1024M"
+			share = "on"
+
+			[numa]
+			type = "node"
+			nodeid = "0"
+			memdev = "mem0"`,
+		}, {
+			qemuCPUOpts{
+				architecture:        osarch.ARCH_64BIT_INTEL_X86,
+				cpuCount:            1,
+				cpuMaxCPUs:          0,
+				cpuNumaNodes:        []uint64{},
+				cpuNumaMapping:      []qemuNumaEntry{},
+				cpuNumaHostNodes:    []uint64{},
+				hugepages:           "",
+				memory:              1024,
+				qemuMemObjectFormat: "indexed",
+			},
+			`# CPU
+			[smp-opts]
+			cpus = "1"
+
+			[object "mem0"]
+			qom-type = "memory-backend-memfd"
+			size = "1024M"
+			share = "on"
+
+			[numa]
+			type = "node"
+			nodeid = "0"
+			memdev = "mem0"`,
+		}}
+		for _, tc := range testCases {
+			runTest(tc.expected, qemuCPU(&tc.opts, false))
+		}
+	})
+
 	t.Run("qemu_control_socket", func(t *testing.T) {
 		testCases := []struct {
 			opts     qemuControlSocketOpts
