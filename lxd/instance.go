@@ -142,7 +142,13 @@ func instanceCreateFromImage(ctx context.Context, s *state.State, img *api.Image
 		return err
 	}
 
-	if imgType != args.Type {
+	// MicroVM uses container images.
+	expectedImgType := args.Type
+	if args.Type == instancetype.MicroVM {
+		expectedImgType = instancetype.Container
+	}
+
+	if imgType != expectedImgType {
 		return fmt.Errorf("Requested image's type %q does not match instance type %q", imgType, args.Type)
 	}
 
@@ -214,7 +220,13 @@ func instanceRebuildFromImage(ctx context.Context, s *state.State, inst instance
 		return err
 	}
 
-	if imgType != inst.Type() {
+	// MicroVM uses container images.
+	expectedImgType := inst.Type()
+	if inst.Type() == instancetype.MicroVM {
+		expectedImgType = instancetype.Container
+	}
+
+	if imgType != expectedImgType {
 		return fmt.Errorf("Requested image's type %q does not match instance type %q", imgType, inst.Type())
 	}
 

@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/termios"
 )
 
@@ -34,9 +35,19 @@ type cmdInit struct {
 	flagNoProfiles    bool
 	flagEmpty         bool
 	flagVM            bool
+	flagMicroVM       bool
 }
 
 func (c *cmdInit) command() *cobra.Command {
+	microvmCmd := ""
+	if features.IsEnabled(features.MicroVM) {
+		microvmCmd = `
+lxc init ubuntu:24.04 m1 --microvm
+    Create a microvm using the host kernel
+
+`
+	}
+
 	cmd := &cobra.Command{}
 	cmd.Use = usage("init", "[<registry|remote>:]<image> [<remote>:][<name>]")
 	cmd.Short = "Create instances from images"
@@ -56,9 +67,10 @@ lxc init ubuntu:24.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
 lxc init ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size=32GiB
     Create a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB
 
-Note: The --project flag sets the project for both the image remote and the instance remote.
+`+microvmCmd+
+		`Note: The --project flag sets the project for both the image remote and the instance remote.
 If the image remote is a public remote (e.g. simplestreams) then this project is ignored by the image remote.
-If the image remote is another LXD server, specify the source project for the image remote 
+If the image remote is another LXD server, specify the source project for the image remote
 with --project and the instance remote with --target-project (if different from --project).
 `)
 
@@ -75,6 +87,10 @@ with --project and the instance remote with --target-project (if different from 
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied")
 	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, "Create an empty instance")
 	cmd.Flags().BoolVar(&c.flagVM, "vm", false, "Create a virtual machine")
+
+	if features.IsEnabled(features.MicroVM) {
+		cmd.Flags().BoolVar(&c.flagMicroVM, "microvm", false, "Create a microvm")
+	}
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) > 1 {
@@ -274,6 +290,8 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 	var instanceDBType api.InstanceType
 	if c.flagVM {
 		instanceDBType = api.InstanceTypeVM
+	} else if c.flagMicroVM {
+		instanceDBType = api.InstanceTypeMicroVM
 	}
 
 	// Set the target if provided.
@@ -417,7 +435,10 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 				return nil, "", errors.New("Asked for a VM but image is of type container")
 			}
 
-			req.Type = api.InstanceType(imgInfo.Type)
+			// A microvm boots from a container image and the requested type is set already
+			if !c.flagMicroVM {
+				req.Type = api.InstanceType(imgInfo.Type)
+			}
 		}
 
 		// Create the instance.

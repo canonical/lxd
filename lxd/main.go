@@ -143,6 +143,12 @@ func main() {
 	forklimitsCmd := cmdForklimits{global: &globalCmd}
 	app.AddCommand(forklimitsCmd.command())
 
+	// forklibkrun sub-command
+	if features.IsEnabled(features.MicroVM) {
+		forklibkrunCmd := cmdForklibkrun{global: &globalCmd}
+		app.AddCommand(forklibkrunCmd.command())
+	}
+
 	// forkmigrate sub-command
 	forkmigrateCmd := cmdForkmigrate{global: &globalCmd}
 	app.AddCommand(forkmigrateCmd.command())

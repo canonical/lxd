@@ -1998,6 +1998,24 @@ func (b *lxdBackend) imageFiller(fingerprint string, progressReporter ioprogress
 	}
 }
 
+// microVMImageFiller returns a function that can be used as a filler function with CreateVolume().
+// The function unpacks a container image into an ext4 disk image file for MicroVM instances.
+func (b *lxdBackend) microVMImageFiller(fingerprint string, progressReporter ioprogress.ProgressReporter, projectName string, sizeBytes int64) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
+	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
+		var progressHandler ioprogress.ProgressHandler
+		if progressReporter != nil {
+			opHandler := progressReporter.ProgressHandler("create_instance_from_image_unpack")
+			progressHandler = func(data ioprogress.ProgressData) {
+				data.Text = "Unpacking image: " + data.Text
+				opHandler(data)
+			}
+		}
+
+		imageFile := filepath.Join(b.state.ImagesStoragePath(projectName), fingerprint)
+		return ImageUnpackMicroVM(b.state, projectName, imageFile, vol, rootBlockPath, sizeBytes, progressHandler)
+	}
+}
+
 // isoFiller returns a function that can be used as a filler function with CreateVolume().
 // The function returned will copy the ISO content into the specified mount path
 // provided.
@@ -2214,9 +2232,27 @@ func (b *lxdBackend) CreateInstanceFromImage(ctx context.Context, inst instance.
 
 	// Leave reverting on failure to caller, they are expected to call DeleteInstance().
 
-	volFiller := drivers.VolumeFiller{
-		Fingerprint: fingerprint,
-		Fill:        b.imageFiller(fingerprint, progressReporter, inst.Project().Name),
+	var volFiller drivers.VolumeFiller
+	if inst.Type() == instancetype.MicroVM {
+		// MicroVM uses container images unpacked into an ext4 disk.
+		// Use default size of 10GiB for the disk image if not specified.
+		sizeBytes := int64(10 * 1024 * 1024 * 1024)
+		if vol.ConfigSize() != "" {
+			parsedSize, err := units.ParseByteSizeString(vol.ConfigSize())
+			if err == nil {
+				sizeBytes = parsedSize
+			}
+		}
+
+		volFiller = drivers.VolumeFiller{
+			Fingerprint: fingerprint,
+			Fill:        b.microVMImageFiller(fingerprint, progressReporter, inst.Project().Name, sizeBytes),
+		}
+	} else {
+		volFiller = drivers.VolumeFiller{
+			Fingerprint: fingerprint,
+			Fill:        b.imageFiller(fingerprint, progressReporter, inst.Project().Name),
+		}
 	}
 
 	// Ensure the required image variant exists; nil means fall back to slow-unpack.
@@ -3610,7 +3646,7 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, progressReporter iopr
 
 	var mountInfo MountInfo
 
-	if inst.Type() == instancetype.VM {
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		diskPath, err := b.driver.GetVolumeDiskPath(vol)
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting disk path: %w", err)
@@ -4132,7 +4168,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, progressRepor
 
 	var mountInfo MountInfo
 
-	if inst.Type() == instancetype.VM {
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		diskPath, err := b.driver.GetVolumeDiskPath(vol)
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting disk path: %w", err)

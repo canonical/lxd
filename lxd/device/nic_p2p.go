@@ -110,7 +110,7 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 		}
 
 		peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
-		mtu, err = networkCreateTap(saveData["host_name"], d.config)
+		mtu, err = networkCreateTap(saveData["host_name"], d.config, networkTapMultiQueue(d.inst))
 	}
 
 	if err != nil {
