@@ -307,11 +307,15 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 			return nil, err
 		}
 
+		// A project that does not own its custom volumes has none to receive, so only the root disk can
+		// travel. The snapshot, restore and source side migration refuse the mode for the same reason.
+		if storageProjectName != projectName && diskVolumesMode == api.DiskVolumesModeAllExclusive {
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Project does not have features.storage.volumes enabled")
+		}
+
 		// Only all-exclusive mode transfers volumes, so leaving the set empty in the other modes is what
-		// makes the target refuse an announcement the request never asked for. A project that inherits its
-		// volumes never receives one either, so a device pointing at a volume that is missing on the
-		// target is a real error for the normal validation to report.
-		if storageProjectName == projectName && diskVolumesMode == api.DiskVolumesModeAllExclusive {
+		// makes the target refuse an announcement the request never asked for.
+		if diskVolumesMode == api.DiskVolumesModeAllExclusive {
 			customVolumeDevices := instancetype.ExpandInstanceDevices(args.Devices.Clone(), profiles).Filter(filters.IsCustomVolumeDisk)
 			for devName, dev := range customVolumeDevices {
 				attachedVolumes[dev["pool"]+"/"+dev["source"]] = struct{}{}
