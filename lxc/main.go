@@ -316,6 +316,9 @@ For help with any of those, simply call them with --help.`)
 		}
 	}
 
+	// Setup bash completion
+	setupBashCompletion(app)
+
 	// Help flags
 	app.Flags().BoolVar(&globalCmd.flagHelpAll, "all", false, "Show less common commands")
 	help.Flags().BoolVar(&globalCmd.flagHelpAll, "all", false, "Show less common commands")

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"net"
 	"os"
@@ -18,6 +19,171 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 )
+
+// bashCompletionFallback is prepended to Cobra's generated bash completion script.
+// In bash-completion >= 2.12 (shipped in Ubuntu 26.04 / core26), internal functions
+// were renamed (_init_completion -> _comp_initialize, _get_comp_words_by_ref -> _comp_get_words)
+// and moved to 000_bash_completion_compat.bash, which is not available in snap confinement
+// when the host /etc is mounted. Provide guarded compatibility wrappers when absent.
+const bashCompletionFallback = `# bash-completion compatibility fallback.
+if ! declare -F _init_completion >/dev/null 2>&1; then
+    if declare -F _comp_initialize >/dev/null 2>&1; then
+        _init_completion() {
+            local was_split
+            _comp_initialize "$@"
+            local rc=$?
+            local flag OPTIND=1 OPTARG="" OPTERR=0
+            while getopts "n:e:o:i:s" flag "$@"; do
+                case $flag in
+                    [neoi]) ;;
+                    s)
+                        if [[ $was_split ]]; then
+                            split=true
+                        else
+                            split=false
+                        fi
+                        break
+                        ;;
+                esac
+            done
+
+            return "$rc"
+        }
+
+    fi
+fi
+
+if ! declare -F _get_comp_words_by_ref >/dev/null 2>&1; then
+    if declare -F _comp_get_words >/dev/null 2>&1; then
+        _get_comp_words_by_ref() {
+            _comp_get_words "$@"
+        }
+
+    else
+        # Pure-bash word reassembly fallback for environments without bash-completion.
+        _get_comp_words_by_ref() {
+            local exclude="" i w issep attach="" preblank j=-1
+            local line="$COMP_LINE"
+            local -a rebuilt=()
+            local rcword="$COMP_CWORD"
+            if [[ "$1" == "-n" ]]; then
+                exclude="$2"
+                shift 2
+            fi
+
+            for ((i = 0; i < ${#COMP_WORDS[@]}; i++)); do
+                w="${COMP_WORDS[$i]}"
+                preblank=""
+                if [[ "$line" == [[:blank:]]* ]]; then
+                    preblank=1
+                fi
+
+                line="${line#*"$w"}"
+                issep=""
+                if [[ -n "$w" && -n "$exclude" && -z "${w//[$exclude]/}" ]]; then
+                    issep=1
+                fi
+
+                if [[ $j -ge 1 && -z "$preblank" && ( -n "$issep" || -n "$attach" ) ]]; then
+                    rebuilt[$j]="${rebuilt[$j]}$w"
+                else
+                    j=$((j + 1))
+                    rebuilt[$j]="$w"
+                fi
+
+                if [[ $i -eq $COMP_CWORD ]]; then
+                    rcword=$j
+                fi
+
+                attach="$issep"
+            done
+
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                cur)
+                    cur="${rebuilt[$rcword]}"
+                    ;;
+                prev)
+                    prev=""
+                    if [[ $rcword -gt 0 ]]; then
+                        prev="${rebuilt[$((rcword - 1))]}"
+                    fi
+                    ;;
+                words)
+                    words=("${rebuilt[@]}")
+                    ;;
+                cword)
+                    cword="$rcword"
+                    ;;
+                esac
+                shift
+            done
+
+            return 0
+        }
+
+    fi
+fi
+
+if ! declare -F _filedir >/dev/null 2>&1; then
+    if declare -F _comp_compgen >/dev/null 2>&1; then
+        _filedir() {
+            _comp_compgen -a filedir "$@"
+        }
+
+    fi
+fi
+
+`
+
+// setupBashCompletion initializes Cobra's default completion command and wraps
+// its bash subcommand to prepend bashCompletionFallback to the output script.
+func setupBashCompletion(app *cobra.Command) {
+	app.InitDefaultCompletionCmd("completion")
+
+	var completionCmd *cobra.Command
+	for _, cmd := range app.Commands() {
+		if cmd.Name() == "completion" {
+			completionCmd = cmd
+			break
+		}
+	}
+
+	if completionCmd == nil {
+		return
+	}
+
+	var bashCmd *cobra.Command
+	for _, cmd := range completionCmd.Commands() {
+		if cmd.Name() == "bash" {
+			bashCmd = cmd
+			break
+		}
+	}
+
+	if bashCmd == nil {
+		return
+	}
+
+	bashCmd.RunE = func(cmd *cobra.Command, args []string) error {
+		out := cmd.OutOrStdout()
+		_, err := io.WriteString(out, bashCompletionFallback)
+		if err != nil {
+			return err
+		}
+
+		noDesc := false
+		flag := cmd.Flags().Lookup("no-descriptions")
+		if flag != nil {
+			v, err := cmd.Flags().GetBool("no-descriptions")
+			if err == nil {
+				noDesc = v
+			}
+		}
+
+		return cmd.Root().GenBashCompletionV2(out, !noDesc)
+	}
+}
 
 // handleCompletionError should always be returned when an error occurs in a cobra.CompletionFunc.
 // If the BASH_COMP_DEBUG_FILE environment variable is set, it logs the error message there before returning
