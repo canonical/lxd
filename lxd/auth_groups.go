@@ -62,6 +62,27 @@ var authGroupCmd = APIEndpoint{
 	},
 }
 
+// isServerAdminPermission returns true if p grants the "admin" entitlement on the server entity.
+func isServerAdminPermission(p api.Permission) bool {
+	return p.EntityType == string(entity.TypeServer) && p.Entitlement == string(auth.EntitlementAdmin)
+}
+
+// hasServerAdminPermission returns true if permissions contains the server admin permission.
+func hasServerAdminPermission(permissions []api.Permission) bool {
+	return slices.ContainsFunc(permissions, isServerAdminPermission)
+}
+
+// validateAdminsGroupPermissions ensures that the desired permissions for the admins group consist of
+// exactly the server admin permission (and nothing else). This is used when creating the admins group or
+// when granting the server admin permission to an admins group that does not yet have it.
+func validateAdminsGroupPermissions(permissions []api.Permission) error {
+	if len(permissions) != 1 || !isServerAdminPermission(permissions[0]) {
+		return api.StatusErrorf(http.StatusBadRequest, "The admins group can only be granted the server admin permission")
+	}
+
+	return nil
+}
+
 func validateGroupName(name string) error {
 	if name == "" {
 		return api.StatusErrorf(http.StatusBadRequest, "Group name cannot be empty")
@@ -334,6 +355,16 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// The admins group is a built-in group. It may be created without permissions (e.g. by users
+	// upgrading from a version of LXD that predates the built-in admins group), but if permissions
+	// are provided at creation time they must consist of exactly the server admin permission.
+	if group.Name == api.AuthGroupAdminsName && len(group.Permissions) > 0 {
+		err = validateAdminsGroupPermissions(group.Permissions)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	}
+
 	s := d.State()
 	validatedPermissions, err := validatePermissions(r.Context(), s, group.Permissions)
 	if err != nil {
@@ -478,9 +509,6 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 	groupName := r.PathValue("groupName")
 	var err error
-	if groupName == api.AuthGroupAdminsName {
-		return response.BadRequest(errors.New("The admins group cannot be modified"))
-	}
 
 	var groupPut api.AuthGroupPut
 	err = json.NewDecoder(r.Body).Decode(&groupPut)
@@ -518,6 +546,22 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 		err = util.EtagCheck(r, *apiGroup)
 		if err != nil {
 			return err
+		}
+
+		// The admins group is a built-in group with special semantics. Once it has been granted the
+		// server admin permission it becomes immutable. It may still be updated to grant the server
+		// admin permission if it does not yet have it (for example when the group has been created
+		// manually on an installation that was upgraded from a version of LXD that did not seed the
+		// admins group automatically).
+		if groupName == api.AuthGroupAdminsName {
+			if hasServerAdminPermission(apiGroup.Permissions) {
+				return api.StatusErrorf(http.StatusBadRequest, "The admins group cannot be modified")
+			}
+
+			err = validateAdminsGroupPermissions(groupPut.Permissions)
+			if err != nil {
+				return err
+			}
 		}
 
 		group.Description = groupPut.Description
@@ -577,9 +621,6 @@ func updateAuthGroup(d *Daemon, r *http.Request) response.Response {
 func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 	groupName := r.PathValue("groupName")
 	var err error
-	if groupName == api.AuthGroupAdminsName {
-		return response.BadRequest(errors.New("The admins group cannot be modified"))
-	}
 
 	var groupPut api.AuthGroupPut
 	err = json.NewDecoder(r.Body).Decode(&groupPut)
@@ -614,6 +655,22 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 		err = util.EtagCheck(r, *apiGroup)
 		if err != nil {
 			return err
+		}
+
+		// The admins group is a built-in group with special semantics. Once it has been granted the
+		// server admin permission it becomes immutable. It may still be patched to grant the server
+		// admin permission if it does not yet have it (for example when the group has been created
+		// manually on an installation that was upgraded from a version of LXD that did not seed the
+		// admins group automatically).
+		if groupName == api.AuthGroupAdminsName {
+			if hasServerAdminPermission(apiGroup.Permissions) {
+				return api.StatusErrorf(http.StatusBadRequest, "The admins group cannot be modified")
+			}
+
+			err = validateAdminsGroupPermissions(groupPut.Permissions)
+			if err != nil {
+				return err
+			}
 		}
 
 		for _, permission := range groupPut.Permissions {
