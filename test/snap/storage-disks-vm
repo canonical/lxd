@@ -1,0 +1,507 @@
+#!/bin/bash
+set -eu
+
+# Install LXD
+install_lxd
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+# Test
+set -x
+
+echo "==> Setup share directory"
+# Create directory for use as basis for restricted disk source tests.
+testRoot="/opt/lxd-test-restricted"
+[ -d "${testRoot}" ] && rm -rf "${testRoot}"
+mkdir "${testRoot}"
+
+# Create directory for use as allowed disk source path prefix in project.
+mkdir "${testRoot}/allowed1"
+mkdir "${testRoot}/allowed2"
+mkdir "${testRoot}/allowed1/foo1"
+mkdir "${testRoot}/allowed1/foo2"
+chown 1000:1000 "${testRoot}/allowed1/foo1"
+chown 1001:1001 "${testRoot}/allowed1/foo2"
+mkdir "${testRoot}/not-allowed1"
+ln -s "${testRoot}/not-allowed1" "${testRoot}/allowed1/not-allowed1"
+ln -s "${testRoot}/allowed2" "${testRoot}/allowed1/not-allowed2"
+(cd "${testRoot}/allowed1" || false; ln -s foo1 foolink)
+
+# Create block device source inside allowed directory
+touch "${testRoot}/allowed1/lxd-block-test"
+truncate -s 5m "${testRoot}/allowed1/lxd-block-test"
+touch "${testRoot}/allowed1/lxd-test"
+
+# Create loop device to use as NVMe disk
+loopImgNVME="$(mktemp --suffix=-nvme)"
+truncate -s 100M "${loopImgNVME}"
+loopDevNVME="$(losetup --show --find "${loopImgNVME}")"
+
+# Create loop device to use as virtio-blk disk
+loopImgVirtioBlk="$(mktemp --suffix=-virtio-blk)"
+truncate -s 100M "${loopImgVirtioBlk}"
+loopDevVirtioBlk="$(losetup --show --find "${loopImgVirtioBlk}")"
+
+# Create loop device to use as virtio-scsi disk
+loopImgVirtioSCSI="$(mktemp --suffix=-virtio-scsi)"
+truncate -s 100M "${loopImgVirtioSCSI}"
+loopDevVirtioSCSI="$(losetup --show --find "${loopImgVirtioSCSI}")"
+
+# Configure LXD
+lxc project switch default
+lxc network create lxdbr0
+lxc storage create default zfs size=20GB volume.size=5GB
+
+lxc profile device add default root disk path="/" pool=default
+lxc profile device add default eth0 nic network=lxdbr0
+lxc profile show default
+
+echo "==> Checking additional disk device support"
+lxc init "${IMAGE}" v1 --vm
+
+# Add disks
+lxc config device add v1 dir1rw disk source="${testRoot}/allowed1" path="/srv/rw"
+lxc config device add v1 dir1ro disk source="${testRoot}/allowed1" path="/srv/ro" readonly=true
+lxc config device add v1 block1ro disk source="${testRoot}/allowed1/lxd-block-test" readonly=true
+lxc config device add v1 block1rw disk source="${testRoot}/allowed1/lxd-block-test"
+lxc start v1
+waitInstanceReady v1
+setup_instance_gocoverage v1
+
+lxc exec v1 -- mount | grep -F /srv/
+
+echo "==> Testing VM lxd-agent drive mounts"
+# Check there is only 1 mount for each directory disk and that it is mounted with the appropriate options.
+[ "$(lxc exec v1 -- mount | grep -cF '/srv/rw type')" = "1" ]
+[ "$(lxc exec v1 -- mount | grep -cF '/srv/ro type')" = "1" ]
+
+# RW disks should use virtio-fs when used with the snap.
+lxc exec v1 -- mount | grep -xF 'lxd_dir1rw on /srv/rw type virtiofs (rw,relatime)'
+
+# RO disks should use virtio-fs when used with the snap but be mounted readonly.
+lxc exec v1 -- mount | grep -xF 'lxd_dir1ro on /srv/ro type virtiofs (ro,relatime)'
+
+# Check UID/GID are correct.
+[ "$(lxc exec v1 -- stat -c '%u:%g' /srv/rw)" = '0:0' ]
+[ "$(lxc exec v1 -- stat -c '%u:%g' /srv/ro)" = '0:0' ]
+
+# Remount the readonly disk as rw inside VM and check that the disk is still readonly at the LXD layer.
+lxc exec v1 -- mount -o remount,rw /srv/ro
+lxc exec v1 -- mount | grep -xF 'lxd_dir1ro on /srv/ro type virtiofs (rw,relatime)'
+! lxc exec v1 -- touch /srv/ro/lxd-test-ro || false
+! lxc exec v1 -- mkdir /srv/ro/lxd-test-ro || false
+! lxc exec v1 -- rm /srv/ro/lxd-test.txt || false
+! lxc exec v1 -- chmod 777 /srv/ro || false
+
+# LXD 5.21 and older have shared directory exported both as virtiofs and 9p
+# but newer LXD only uses virtiofs (except for the config disk that's also 9p+ro).
+if [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
+  ## Mount the readonly disk as rw inside VM using 9p and check the disk is still readonly at the LXD layer.
+  lxc exec v1 -- mkdir /srv/ro9p
+  lxc exec v1 -- mount -t 9p lxd_dir1ro /srv/ro9p
+  lxc exec v1 -- mount | grep -x 'lxd_dir1ro on /srv/ro9p type 9p (rw,.*,access=client,trans=virtio)'
+  ! lxc exec v1 -- touch /srv/ro9p/lxd-test-ro || false
+  ! lxc exec v1 -- mkdir /srv/ro9p/lxd-test-ro || false
+  ! lxc exec v1 -- rm /srv/ro9p/lxd-test.txt || false
+  ! lxc exec v1 -- chmod 777 /srv/ro9p || false
+else
+  ## 9p mounts should all fail
+  lxc exec v1 -- mkdir /srv/ro9p
+  ! lxc exec v1 -- mount -t 9p lxd_dir1ro /srv/ro9p || false
+  ! lxc exec v1 -- mount -t 9p -o ro lxd_dir1ro /srv/ro9p || false
+fi
+# Check that the config disk is mountable as virtiofs and 9p
+lxc exec v1 -- mkdir /mnt/config
+lxc exec v1 -- mount -t virtiofs config /mnt/config
+! lxc exec v1 -- touch /mnt/config/lxd-test-ro || false
+lxc exec v1 -- umount /mnt/config
+lxc exec v1 -- mount -t 9p config /mnt/config
+! lxc exec v1 -- touch /mnt/config/lxd-test-ro || false
+lxc exec v1 -- umount /mnt/config
+
+# Check writable disk is writable.
+lxc exec v1 -- touch /srv/rw/lxd-test-rw
+[ "$(stat -c '%u:%g' "${testRoot}/allowed1/lxd-block-test")" = "0:0" ]
+lxc exec v1 -- rm /srv/rw/lxd-test-rw
+lxc exec v1 -- rm /srv/rw/lxd-test
+
+# Check /dev/disk/by-id/ links
+lxc exec v1 -- test -b /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_block1ro
+lxc exec v1 -- test -b /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_block1rw
+
+# Check /dev/sd*
+# The root disk is always /dev/sda, but the order of the other disks is not guaranteed, so we check that the two block devices are /dev/sdb and /dev/sdc in some order.
+[ "$(lxc exec v1 -- readlink -f /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root)" = "/dev/sda" ]
+block1ro_dev="$(lxc exec v1 -- readlink -f /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_block1ro)"
+block1rw_dev="$(lxc exec v1 -- readlink -f /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_block1rw)"
+case "${block1ro_dev} ${block1rw_dev}" in
+  "/dev/sdb /dev/sdc"|"/dev/sdc /dev/sdb")
+    ;;
+  *)
+    echo "Unexpected block device mapping: block1ro=${block1ro_dev}, block1rw=${block1rw_dev}"
+    false
+    ;;
+esac
+
+# Check the rw driver accepts writes and the ro does not.
+! lxc exec v1 -- dd if=/dev/urandom of=/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_block1ro bs=512 count=2 || false
+lxc exec v1 -- dd if=/dev/urandom of=/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_block1rw bs=512 count=2
+
+echo "==> Checking disk device hotplug support"
+lxc config device remove v1 block1rw
+lxc config device remove v1 block1ro
+lxc config device add v1 block1 disk source="${testRoot}/allowed1/lxd-block-test" readonly=true
+sleep 1
+# shellcheck disable=SC2016
+DISK_DEV="$(basename "$(lxc exec v1 -- readlink -f /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_block1)")"
+lxc exec v1 -- sh -c "for i in \$(seq 10); do test -e /sys/block/${DISK_DEV}/ro && break; echo \"Waiting for sys file to appear (\${i}s)\"; sleep 1; done"
+[ "$(lxc exec v1 -- cat /sys/block/"${DISK_DEV}"/ro)" -eq 1 ]
+lxc config device set v1 block1 readonly=false
+# shellcheck disable=SC2016
+lxc exec v1 -- sh -c "for i in \$(seq 10); do test -e /sys/block/${DISK_DEV}/ro && break; echo \"Waiting for sys file to appear (\${i}s)\"; sleep 1; done"
+[ "$(lxc exec v1 -- cat /sys/block/"${DISK_DEV}"/ro)" -eq 0 ]
+
+if [[ "${LXD_SNAP_CHANNEL}" =~ ^([45]\.0)/ ]]; then
+  # Hotplugging directories is not allowed and will fail on LXD 4.0 and 5.0
+  ! lxc config device add v1 dir1 disk source="${testRoot}/allowed1" path="/mnt/bar" || false
+else
+  # Hotplugging directories is allowed from LXD 5.21 onwards
+  lxc config device add v1 dir1 disk source="${testRoot}/allowed1" path="/mnt/bar" readonly=true
+  sleep 1
+  lxc exec v1 -- mount | grep -w "lxd_dir1 on /mnt/bar type virtiofs" | grep -w ro
+  lxc config device set v1 dir1 readonly=false
+  sleep 1
+  lxc exec v1 -- mount | grep -w "lxd_dir1 on /mnt/bar type virtiofs" | grep -w rw
+
+  lxc config device remove v1 dir1
+fi
+
+# Hot plug cloud-init:config ISO.
+lxc config device add v1 cloudinit disk source=cloud-init:config
+sleep 3
+BLOCK_SPECIAL_FILE="$(readlink -f /dev/disk/by-id/scsi-0QEMU_QEMU_CD-ROM_lxd_cloudinit)"
+lxc exec v1 -- test -b "${BLOCK_SPECIAL_FILE}"
+lxc exec v1 -- mount -t iso9660 -o ro /dev/disk/by-id/scsi-0QEMU_QEMU_CD-ROM_lxd_cloudinit /mnt
+lxc exec v1 -- umount /dev/disk/by-id/scsi-0QEMU_QEMU_CD-ROM_lxd_cloudinit
+lxc config device remove v1 cloudinit
+! lxc exec v1 -- test -e "${BLOCK_SPECIAL_FILE}" || false
+! lxc exec v1 -- test -e /dev/disk/by-id/scsi-0QEMU_QEMU_CD-ROM_lxd_cloudinit || false
+
+# Test file pushes to VMs with uid and gid changes
+touch "${testRoot}/file-push.txt"
+lxc file push "${testRoot}/file-push.txt" v1/root/newdir/file-push.txt --uid=65535 --gid=65535 -p
+[ "$(lxc exec v1 -- stat -c "%u:%g" /root/newdir)" = "65535:65535" ]
+[ "$(lxc exec v1 -- stat -c "%u:%g" /root/newdir/file-push.txt)" = "65535:65535" ]
+rm "${testRoot}/file-push.txt"
+
+echo "==> Deleting VM"
+prepare_vm_for_hard_stop v1
+lxc delete -f v1
+
+lxc init "${IMAGE}" v1 --vm
+
+lxc config device add v1 d1 disk source="${testRoot}/allowed1" path=/mnt
+
+# tests to prevent regressions like:
+# https://github.com/canonical/lxd/issues/13325
+lxc config set v1 raw.idmap - << EOF
+uid 0 0
+gid 0 1
+EOF
+lxc start v1
+lxc stop -f v1
+
+lxc config set v1 raw.idmap - << EOF
+uid 0 0
+gid 0 0
+EOF
+lxc start v1
+lxc stop -f v1
+
+lxc config set v1 raw.idmap - << EOF
+both 0 0
+EOF
+lxc start v1
+lxc stop -f v1
+
+lxc delete -f v1
+lxc profile device remove default root
+lxc profile device remove default eth0
+
+# Create project with restricted disk source path.
+lxc project create restricted \
+  -c features.images=false \
+  -c restricted=true \
+  -c restricted.devices.disk=allow \
+  -c restricted.devices.disk.paths="${testRoot}/allowed1,${testRoot}/allowed2"
+
+# Allow the project to access image registries.
+if hasNeededAPIExtension "image_registries"; then
+  lxc project set restricted restricted.registries=allow
+fi
+
+lxc project switch restricted
+lxc profile device add default root disk path="/" pool=default
+lxc profile device add default eth0 nic network=lxdbr0
+lxc profile show default
+
+# Create instance and add check relative source paths are not allowed.
+lxc init "${IMAGE}" v1 --vm
+! lxc config device add v1 d1 disk source=foo path=/mnt || false
+
+# Check adding a disk with a source path above the restricted parent source path isn't allowed.
+! lxc config device add v1 d1 disk source="${testRoot}/not-allowed1" path=/mnt || false
+
+# Check adding a disk with a source path that is a symlink above the restricted parent source path isn't allowed
+# at start time (check that openat2 restrictions are doing their job).
+lxc config device add v1 d1 disk source="${testRoot}/allowed1/not-allowed1" path=/mnt
+! lxc start v1 || false
+
+# Check some rudimentary work arounds to allowed path checks don't work.
+! lxc config device set v1 d1 source="${testRoot}/../not-allowed1" || false
+
+# Check adding a disk from a restricted source path cannot use shifting at start time. This is not safe as we
+# cannot prevent creation of files with setuid, which would allow a root executable to be created.
+lxc config device set v1 d1 source="${testRoot}/allowed1" shift=true
+! lxc start v1 || false
+
+# Check adding a disk with a source path that is allowed.
+lxc config device set v1 d1 source="${testRoot}/allowed1" shift=false
+lxc start v1
+waitInstanceReady v1
+#setup_instance_gocoverage v1 # The injected disk device would not be allowed in this restricted project
+lxc exec v1 -- ls -l /mnt/foo1
+lxc stop -f v1
+
+# Check adding a disk to a vm with a long name (max 63) and slash to test possible problems with long socket paths or long qemu device tags
+LONG_DEVICE_NAME="device-/-with-very-long-name-and-4-qemu-property-handling-test_"
+DEVICE_HOTPLUG="1"
+
+echo "==> Check /dev/disk/by-id with escaped long device name"
+lxc launch "${IMAGE}" v2 --vm
+waitInstanceReady v2
+#setup_instance_gocoverage v2 # The injected disk device would not be allowed in this restricted project
+lxc config device add v2 "${LONG_DEVICE_NAME}" disk source="${testRoot}/allowed1/lxd-block-test"
+sleep 3
+
+QEMU_DEV_ID="lxd_device-----with--very--long--name--and--4--qemu--property--handling--test_"
+
+if [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
+  echo "${LXD_SNAP_CHANNEL} detected, using a shorter device_id"
+  QEMU_DEV_ID="lxd_device-----with-"
+fi
+
+BLOCK_SPECIAL_FILE="$(lxc exec v2 -- readlink -f "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_${QEMU_DEV_ID}")"
+lxc exec v2 -- test -b "$BLOCK_SPECIAL_FILE"
+lxc config device remove v2 "${LONG_DEVICE_NAME}"
+sleep 3
+! lxc exec v2 -- stat "$BLOCK_SPECIAL_FILE" || false
+! lxc exec v2 -- stat "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_${QEMU_DEV_ID}" || false
+#prepare_vm_for_hard_stop v2 # The injected disk device would not be allowed in this restricted project
+lxc stop -f v2
+
+# XXX: LXD releases 5.21 and earlier don't support long names (yet)
+if [[ "${LXD_SNAP_CHANNEL}" =~ ^([45]\.0|5\.21)/ ]]; then
+    echo "${LXD_SNAP_CHANNEL} detected, using a shorter name"
+    LONG_DEVICE_NAME="notSoLongName"
+fi
+
+# XXX: LXD releases 5.0 and earlier don't hotplugging
+if [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\.0/ ]]; then
+  DEVICE_HOTPLUG="0"
+fi
+
+lxc config device add v2 "${LONG_DEVICE_NAME}" disk source="${testRoot}/allowed1" path="/mnt/bar1"
+lxc start v2
+waitInstanceReady v2
+lxc exec v2 -- mountpoint /mnt/bar1
+
+if [ "${DEVICE_HOTPLUG}" = "1" ]; then
+  if [ "${LONG_DEVICE_NAME}" = "notSoLongName" ]; then
+      # Only test hotplug, not hotunplug on 5.0 and earlier.
+      #prepare_vm_for_hard_stop v2 # The injected disk device would not be allowed in this restricted project
+      lxc stop -f v2
+      lxc config device remove v2 "${LONG_DEVICE_NAME}"
+      lxc start v2
+      waitInstanceReady v2
+      ! lxc exec v2 -- mountpoint /mnt/bar2 || false  # Make sure nothing is mounted
+      lxc config device add v2 "${LONG_DEVICE_NAME}" disk source="${testRoot}/allowed1" path="/mnt/bar2" # Test hotplugging as well
+      sleep 1
+      lxc exec v2 -- mountpoint /mnt/bar2
+  else
+      lxc config device remove v2 "${LONG_DEVICE_NAME}"
+      sleep 1
+      ! lxc exec v2 -- mountpoint /mnt/bar1 || false # Just tests for mountpoint disconnected, not unmount.
+      lxc config device add v2 "${LONG_DEVICE_NAME}" disk source="${testRoot}/allowed1" path="/mnt/bar2" # Test hotplugging as well
+      sleep 1
+      lxc exec v2 -- mountpoint /mnt/bar2
+      lxc config device remove v2 "${LONG_DEVICE_NAME}"
+      sleep 1
+      ! lxc exec v2 -- mountpoint /mnt/bar2 || false # Just tests for mountpoint disconnected, not unmount.
+  fi
+fi
+
+#prepare_vm_for_hard_stop v2 # The injected disk device would not be allowed in this restricted project
+lxc delete -f v2
+
+# Check adding a disk with a source path that is allowed that symlinks to another allowed source path isn't
+# allowed at start time.
+lxc config device set v1 d1 source="${testRoot}/allowed1/not-allowed2"
+! lxc start v1 || false
+
+# Check relative symlink inside allowed parent path is allowed.
+lxc config device set v1 d1 source="${testRoot}/allowed1/foolink" path=/mnt/foolink
+lxc start v1
+waitInstanceReady v1
+[ "$(lxc exec v1  -- stat /mnt/foolink -c '%u:%g')" = "65534:65534" ]
+#prepare_vm_for_hard_stop v1 # The injected disk device would not be allowed in this restricted project
+lxc stop -f v1
+
+# Check usage of raw.idmap is restricted.
+! lxc config set v1 raw.idmap="both 1000 1000" || false
+
+# Allow specific raw.idmap host UID/GID.
+lxc project set restricted restricted.idmap.uid=1000
+! lxc config set v1 raw.idmap="both 1000 1000" || false
+! lxc config set v1 raw.idmap="gid 1000 1000" || false
+lxc config set v1 raw.idmap="uid 1000 1000"
+
+lxc project set restricted restricted.idmap.gid=1000
+lxc config set v1 raw.idmap="gid 1000 1000"
+lxc config set v1 raw.idmap="both 1000 1000"
+
+# Check conflict detection works.
+! lxc project unset restricted restricted.idmap.uid || false
+! lxc project unset restricted restricted.idmap.gid || false
+
+# Check single entry raw.idmap has taken effect on disk share.
+lxc config device set v1 d1 source="${testRoot}/allowed1" path=/mnt
+lxc start v1 || { lxc info --show-log v1; false; }
+waitInstanceReady v1
+[ "$(lxc exec v1  -- stat /mnt/foo1 -c '%u:%g')" = "1000:1000" ]
+[ "$(lxc exec v1  -- stat /mnt/foo2 -c '%u:%g')" = "65534:65534" ]
+
+# Check secure boot setting is applied to running VM at next startup.
+if lxc exec v1 -- mount | grep -wF /boot/efi; then
+  [ "$(lxc exec v1 -- mokutil --sb-state)" = "SecureBoot enabled" ]
+  if hasNeededAPIExtension instance_boot_mode; then
+    lxc profile set default boot.mode=uefi-nosecureboot
+  else
+    lxc profile set default security.secureboot=false
+  fi
+  #prepare_vm_for_hard_stop v1 # The injected disk device would not be allowed in this restricted project
+  lxc restart -f v1
+  waitInstanceReady v1
+
+  # Depending on LXD version, 'boot.mode=uefi-nosecureboot' can either disable Secure Boot ("SecureBoot disabled") by enabling Setup Mode
+  # or switch to firmware without Secure Boot support (error out with "This system doesn't support Secure Boot"). Accept both as valid.
+  sb_exit_code=0
+  sb_output="$(lxc exec v1 -- mokutil --sb-state 2>&1)" || sb_exit_code=$?
+
+  if [ "${sb_exit_code}" -eq 0 ]; then
+    # When in Setup Mode, verify that Secure Boot is reported as disabled
+    grep -Fx "SecureBoot disabled" <<< "${sb_output}"
+  else
+    [ "${sb_output}" = "This system doesn't support Secure Boot" ]
+  fi
+fi
+
+# Check io.threads is working and allowed only when restricted.virtual-machines.lowlevel is allow.
+if hasNeededAPIExtension disk_io_threads_virtiofsd; then
+  #prepare_vm_for_hard_stop v1 # The injected disk device would not be allowed in this restricted project
+  lxc stop -f v1
+
+  # Check can't specify io.threads when restricted.
+  ! lxc config device set v1 d1 io.threads=4 || false
+  lxc project set restricted restricted.virtual-machines.lowlevel=allow
+
+  # Check directory hotplugged after VM start is mounted by lxd-agent using config drive agent-mounts file.
+  lxc config device remove v1 d1
+  lxc start v1
+  lxc config device add v1 d1 disk source="${testRoot}/allowed1" path=/mnt io.threads=4
+
+  # Wait for lxd-agent to start and mount the disk.
+  waitInstanceBooted v1
+  pgrep -f "virtiofsd --fd=3 --shared-dir /var/snap/lxd/common/lxd/devices/restricted_v1/disk.d1.mnt --cache auto --allow-direct-io --thread-pool-size 4 --xattr"
+  [ "$(lxc exec v1  -- stat /mnt/foo1 -c '%u:%g')" = "1000:1000" ]
+
+  # Check that io.threads can be set on existing disk device and that devlxd events are acted upon by lxd-agent.
+  lxc config device set v1 d1 io.threads=5
+  sleep 1
+  pgrep -f "virtiofsd --fd=3 --shared-dir /var/snap/lxd/common/lxd/devices/restricted_v1/disk.d1.mnt --cache auto --allow-direct-io --thread-pool-size 5 --xattr"
+  [ "$(lxc exec v1 -- findmnt --noheadings /mnt | wc -l)" = "1" ] # Check that the remove/add caused an unmount and mount.
+  [ "$(lxc exec v1  -- stat /mnt/foo1 -c '%u:%g')" = "1000:1000" ] # Check that the ownership is still correct.
+
+  ! lxc project unset restricted restricted.virtual-machines.lowlevel || false
+else
+  echo 'Skipping disk_io_threads_virtiofsd tests due to missing extension: "disk_io_threads_virtiofsd"'
+fi
+
+if hasNeededAPIExtension disk_io_bus; then
+  # Remove disk device restrictions and add disks
+  #prepare_vm_for_hard_stop v1 # The injected disk device would not be allowed in this restricted project
+  lxc stop -f v1
+  lxc config device remove v1 d1
+  lxc project unset restricted restricted.devices.disk
+  lxc project unset restricted restricted.devices.disk.paths
+  lxc project unset restricted restricted
+
+  # Add a NVMe disk
+  lxc config device add v1 nvme-ssd disk source="${loopDevNVME}" io.bus=nvme
+
+  # Add a virtio-scsi disk
+  lxc config device add v1 virtio-scsi-ssd disk source="${loopDevVirtioSCSI}" io.bus=virtio-scsi
+
+  # Start VM
+  lxc start v1
+  waitInstanceReady v1
+
+  # Check if lspci is available
+  if ! lxc exec v1 -- sh -c 'command -v lspci'; then
+    lxc exec v1 -- apt-get update
+    lxc exec v1 -- apt-get install --no-install-recommends -y pciutils
+  fi
+
+  lxc exec v1 -- lspci
+
+  # Check if NVMe and virtio-scsi controllers are added to the VM
+  lxc exec v1 -- lspci | grep -F "QEMU NVM Express Controller"
+  lxc exec v1 -- lspci | grep -E "Red Hat, Inc\. Virtio ([0-9]+\.[0-9]+ )?SCSI"
+
+  if hasNeededAPIExtension disk_io_bus_virtio_blk; then
+    # Add a virtio-blk disk
+    lxc config device add v1 virtio-blk-ssd disk source="${loopDevVirtioBlk}" io.bus=virtio-blk
+    # Check if virtio-blk controller is added to the VM
+    lxc exec v1 -- lspci | grep -E "Red Hat, Inc\. Virtio ([0-9]+\.[0-9]+ )?block device"
+  fi
+else
+  echo 'Skipping disk_io_bus tests due to missing extension: "disk_io_bus"'
+fi
+
+echo "==> Cleanup"
+#prepare_vm_for_hard_stop v1 # The injected disk device would not be allowed in this restricted project
+lxc delete -f v1
+lxc project switch default
+lxc project delete restricted
+lxc storage delete default
+lxc network delete lxdbr0
+
+rm "${testRoot}/allowed1/not-allowed1"
+rm "${testRoot}/allowed1/not-allowed2"
+rm "${testRoot}/allowed1/lxd-block-test"
+rmdir "${testRoot}/allowed1/foo1"
+rmdir "${testRoot}/allowed1/foo2"
+rm "${testRoot}/allowed1/foolink"
+rmdir "${testRoot}/allowed1"
+rmdir "${testRoot}/allowed2"
+rmdir "${testRoot}/not-allowed1"
+rmdir "${testRoot}"
+losetup --detach "${loopDevNVME}"
+rm "${loopImgNVME}"
+losetup --detach "${loopDevVirtioBlk}"
+rm "${loopImgVirtioBlk}"
+losetup --detach "${loopDevVirtioSCSI}"
+rm "${loopImgVirtioSCSI}"
+
+# shellcheck disable=SC2034
+FAIL=0

@@ -1,0 +1,345 @@
+#!/bin/bash
+set -eux
+shopt -s inherit_errexit
+
+# Known LXD snap tracks in ascending order. Update when a new track is opened.
+KNOWN_TRACKS=("4.0" "5.0" "5.21" "6")
+
+# get_upgrade_chain returns the ordered list of channels to upgrade through.
+# The first element is the source (install) channel.
+# e.g. get_upgrade_chain "5.21/edge" => 5.21/stable 5.21/edge 6/edge
+get_upgrade_chain() {
+    local target="$1"
+    set -e
+
+    if [[ "${target}" != */* ]]; then
+        echo "ERROR: Invalid channel '${target}'. Expected format '<track>/<risk>'." >&2
+        exit 1
+    fi
+
+    local track="${target%%/*}"
+    local risk="${target#*/}"
+
+    case "${risk}" in
+        stable|candidate|beta|edge) ;;
+        *)
+            echo "ERROR: Invalid risk '${risk}' in channel '${target}'." >&2
+            exit 1
+            ;;
+    esac
+
+    # "latest" is a snap alias for the highest numbered track.
+    if [ "${track}" = "latest" ]; then
+        track="${KNOWN_TRACKS[-1]}"
+    fi
+
+    local track_found=0
+    for known in "${KNOWN_TRACKS[@]}"; do
+        if [ "${known}" = "${track}" ]; then
+            track_found=1
+            break
+        fi
+    done
+
+    if [ "${track_found}" = "0" ]; then
+        echo "ERROR: Unknown track '${track}'. Known tracks: ${KNOWN_TRACKS[*]}" >&2
+        echo "Please update KNOWN_TRACKS in tests/cluster." >&2
+        exit 1
+    fi
+
+    local src="${track}/stable"
+
+    # Workaround for dqlite SOCK_CLOEXEC/AppArmor issue on kernel 6.17+
+    # affecting `*/stable` except `6/stable`.
+    if [[ "${track}" =~ ^[4-5] ]] && dpkg --compare-versions "$(uname -r)" "ge" "6.17"; then
+        src="${track}/candidate"
+    fi
+
+    local chain=("${src}")
+
+    if [ "${target}" != "${src}" ]; then
+        chain+=("${target}")
+    fi
+
+    # Cross-track upgrade to the head track when not already on it.
+    local head_track="${KNOWN_TRACKS[-1]}"
+    if [ "${track}" != "${head_track}" ]; then
+        chain+=("${head_track}/edge")
+    fi
+
+    echo "${chain[@]}"
+}
+
+upgrade_cluster() {
+    local dst_channel="$1"
+
+    echo "==> Upgrading the cluster to ${dst_channel}"
+    for i in $(seq "${SIZE}"); do
+        lxc exec "m${i}" -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
+        lxc exec "m${i}" -- snap refresh
+        # XXX: there should be no refresh ongoing but we've seen races before so let's collect evidences
+        lxc exec "m${i}" -- snap changes
+        lxc exec "m${i}" -- snap switch lxd --channel="${dst_channel}" --cohort=+
+        if [ "$i" = "${SIZE}" ]; then
+            lxc exec "m${i}" -- timeout 10m snap refresh lxd
+        fi
+    done
+
+    echo "==> Wait for all members to be ONLINE"
+    wait_for_online_cluster
+
+    echo "==> Validating the cluster after upgrade to ${dst_channel}"
+    lxc exec m1 -- lxc info
+    lxc exec m1 -- lxc cluster list
+
+    echo "==> Verify that instances are still functional after upgrade to ${dst_channel}"
+    instance_connectivity_checks
+
+    echo "==> Restarting the cluster"
+    lxc restart --all
+    wait_for_online_cluster
+
+    echo "==> Verify that instances are still functional after cluster reboot"
+    instance_connectivity_checks
+}
+
+# Install LXD
+install_lxd
+
+# Configure LXD
+lxd init --auto --storage-backend btrfs --storage-create-loop 5
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+SIZE="${1:-3}"
+# Accept both the new <count> <channel> and legacy <count> <src> <dst> invocations.
+if [ "$#" -ge 3 ]; then
+    CHANNEL="${3:-${LXD_SNAP_CHANNEL}}"
+else
+    CHANNEL="${2:-${LXD_SNAP_CHANNEL}}"
+fi
+
+read -r -a UPGRADE_CHAIN <<< "$(get_upgrade_chain "${CHANNEL}")"
+SRC_CHANNEL="${UPGRADE_CHAIN[0]}"
+
+if [ "${#UPGRADE_CHAIN[@]}" -lt 2 ]; then
+    echo "ERROR: Upgrade chain must have at least a source and one destination."
+    echo "Got: ${UPGRADE_CHAIN[*]}"
+    exit 1
+fi
+
+echo "==> Upgrade chain: ${UPGRADE_CHAIN[*]}"
+
+echo "==> Deploying the cluster"
+
+print_log() {
+    echo "==> Start log file ${1}"
+    lxc file pull "${1}/var/snap/lxd/common/lxd/logs/lxd.log" - || true
+    echo "<== End log file ${1}"
+}
+
+# wait for u1 and u2 to be booted and have them both connect to the cluster member IPs
+instance_connectivity_checks() {
+    lxc exec m1 -- sh -c "$(declare -f waitInstanceReady waitInstanceBooted); waitInstanceBooted u1; waitInstanceBooted u2"
+    lxc exec m1 -- lxc list --fast
+
+    # Debug failure to start the 2 instances
+    if [ "$(lxc exec m1 -- lxc list -f csv -c s | grep -cxF RUNNING || true)" != "2" ]; then
+        for m in $(seq "${SIZE}"); do
+            echo "::group::lxd logs for m${m}"
+            lxc exec "m${m}" -- journalctl --quiet --no-hostname --no-pager --boot=0 --lines=100 --unit=snap.lxd.daemon.service || true
+            echo "::endgroup::"
+        done
+        exit 1
+    fi
+
+    for ip in ${CLUSTER_MEMBER_IPS}; do
+        # XXX: replace ping (not on -minimal images) by a TCP probe on ssh port
+        lxc exec m1 -- lxc exec u1 -- timeout 30s bash -eu -c "grep -m1 ^SSH < /dev/tcp/${ip}/22"
+        lxc exec m1 -- lxc exec u2 -- timeout 30s bash -eu -c "grep -m1 ^SSH < /dev/tcp/${ip}/22"
+    done
+}
+
+wait_for_online_cluster() {
+    sleep 5
+    for i in $(seq "${SIZE}"); do
+        lxc exec "m${i}" -- lxd waitready --timeout=300
+    done
+    for _ in $(seq 30); do
+        ONLINE_MEMBERS="$(lxc exec m1 -- lxc cluster list | grep -cwF ONLINE || true)"
+        [ "${ONLINE_MEMBERS}" = "${SIZE}" ] && break
+        sleep 5
+    done
+    sleep 5
+}
+
+# Launch the container
+lxc launch "${IMAGE}" m1 -c security.nesting=true -c security.devlxd.images=true
+
+waitInstanceBooted m1
+
+# XXX: not using '--cohort=+' as this is an older LXD that will be upgraded later on
+lxc exec m1 -- snap install lxd --channel="${SRC_CHANNEL}" || lxc exec m1 -- snap refresh lxd --channel="${SRC_CHANNEL}"
+
+# The test runs a 'snap refresh' on each cluster member and expects LXD not to be refreshed at this point
+# but it can happen if the channel has a new revision phasing in due to intentionally not using '--cohort=+'.
+# Holding the LXD snap prevents the 'snap refresh' from triggering a cluster-wide LXD snap refresh too early.
+lxc exec m1 -- snap refresh --hold lxd
+
+lxc pause m1
+for i in $(seq 2 "${SIZE}"); do
+    lxc copy m1 "m${i}"
+    lxc start "m${i}"
+done
+
+# Wait for cluster members to be fully booted
+for i in $(seq 2 "${SIZE}"); do
+    waitInstanceBooted "m${i}"
+done
+lxc start m1
+
+CLUSTER_MEMBER_IPS=""
+for i in $(seq "${SIZE}"); do
+    sleep 10
+
+    MEMBER_IP="$(lxc exec "m${i}" -- ip -4 addr show dev eth0 scope global | grep inet | cut -d' ' -f6 | cut -d/ -f1)"
+    CLUSTER_MEMBER_IPS+=" ${MEMBER_IP}"
+
+    # Configure the cluster
+    if [ "$i" = "1" ]; then
+        CLUSTER_IP="${MEMBER_IP}"
+        lxc exec "m${i}" -- lxc config set core.https_address="${CLUSTER_IP}:8443" cluster.https_address="${CLUSTER_IP}:8443"
+        lxc exec "m${i}" -- lxc cluster enable "m${i}"
+        lxc exec "m${i}" -- lxc network create lxdbr0
+        lxc exec "m${i}" -- lxc storage create default dir
+        lxc exec "m${i}" -- lxc profile device add default root disk path=/ pool=default
+        lxc exec "m${i}" -- lxc profile device add default eth0 nic name=eth0 network=lxdbr0
+        lxc exec "m${i}" -- lxc network show lxdbr0
+        CLUSTER_CRT=$(lxc file pull "m${i}"/var/snap/lxd/common/lxd/cluster.crt - | sed 's/^/    /')
+    else
+        # Get a join token
+        if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
+            # 4.0 doesn't support --quiet
+            TOKEN="$(lxc exec m1 -- lxc cluster add "m${i}" | tail -n1)"
+        else
+            TOKEN="$(lxc exec m1 -- lxc cluster add --quiet "m${i}")"
+        fi
+
+        lxc exec "m${i}" -- lxd init --preseed << EOF
+cluster:
+  server_name: "m${i}"
+  enabled: true
+  member_config: []
+  cluster_address: ${CLUSTER_IP}:8443
+  cluster_certificate: |
+${CLUSTER_CRT}
+  server_address: ${MEMBER_IP}:8443
+  cluster_token: ${TOKEN}
+EOF
+    fi
+
+done
+
+echo "==> Wait for all members to be ONLINE"
+wait_for_online_cluster
+
+echo "==> Validating the cluster"
+lxc exec m1 -- lxc info
+lxc exec m1 -- lxc cluster list
+
+echo "==> Create test instances"
+for i in 1 2; do
+  lxc exec m1 -- lxc launch "${IMAGE}" u"${i}"
+  lxc exec m1 -- sh -c "$(declare -f waitInstanceReady); waitInstanceReady u${i}"
+  # Apparmor fails to start in nested containers which cascades to snapd
+  # as it requires Apparmor to be functional
+  lxc exec m1 -- lxc exec u"${i}" -- systemctl mask --now apparmor.service snapd.seeded.service snapd.service snapd.socket
+  lxc exec m1 -- lxc exec u"${i}" -- systemctl reset-failed apparmor.service snapd.seeded.service snapd.service snapd.socket
+done
+
+# Test fan networking (intra fan from container and host, as well as external NAT comms)
+echo "==> Test fan networking"
+instance_connectivity_checks
+
+tmp_cert_dir="$(mktemp -d)"
+
+if hasNeededAPIExtension certificate_project; then
+    TEST_RESTRICTED=1
+else
+    echo "Skipping restricted certificate test, not supported"
+    TEST_RESTRICTED=0
+fi
+
+echo "==> Add unrestricted certificate"
+createCertificateAndKey "${tmp_cert_dir}/cert.key" "${tmp_cert_dir}/cert.crt" "cert.local"
+lxc config trust add "${tmp_cert_dir}/cert.crt"
+unrestricted_fingerprint="$(certificateFingerprintShort "${tmp_cert_dir}/cert.crt")"
+
+if [ "${TEST_RESTRICTED}" = "1" ]; then
+  echo "==> Add restricted certificate"
+  createCertificateAndKey "${tmp_cert_dir}/cert-restricted.key" "${tmp_cert_dir}/cert-restricted.crt" "cert-restricted.local"
+  lxc config trust add "${tmp_cert_dir}/cert-restricted.crt" --restricted --projects default
+  restricted_fingerprint="$(certificateFingerprintShort "${tmp_cert_dir}/cert-restricted.crt")"
+fi
+
+echo "==> Check the certificates for their permissions"
+lxc query "/1.0/certificates/${unrestricted_fingerprint}" | jq -er '.restricted == false'
+lxc query "/1.0/certificates/${unrestricted_fingerprint}" | jq -er '.type == "client"'
+
+if [ "${TEST_RESTRICTED}" = "1" ]; then
+  lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.restricted == true'
+  lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.type == "client"'
+  lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.projects[0] == "default"'
+fi
+
+if [ "${TEST_RESTRICTED}" = "1" ]; then
+  echo "==> Add restricted and unrestricted metrics certificates"
+  createCertificateAndKey "${tmp_cert_dir}/metrics.key" "${tmp_cert_dir}/metrics.crt" "metrics.local"
+  createCertificateAndKey "${tmp_cert_dir}/metrics-restricted.key" "${tmp_cert_dir}/metrics-restricted.crt" "metrics-restricted.local"
+  lxc config trust add "${tmp_cert_dir}/metrics.crt" --type metrics
+  lxc config trust add "${tmp_cert_dir}/metrics-restricted.crt" --type metrics --restricted --projects default
+  unrestricted_metrics_fingerprint="$(certificateFingerprintShort "${tmp_cert_dir}/metrics.crt")"
+  restricted_metrics_fingerprint="$(certificateFingerprintShort "${tmp_cert_dir}/metrics-restricted.crt")"
+
+  echo "==> Check the metrics certificates for their permissions"
+  lxc query "/1.0/certificates/${unrestricted_metrics_fingerprint}" | jq -er '.restricted == false'
+  lxc query "/1.0/certificates/${unrestricted_metrics_fingerprint}" | jq -er '.type == "metrics"'
+  lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.restricted == true'
+  lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.type == "metrics"'
+  lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.projects[0] == "default"'
+fi
+
+for step_idx in $(seq 1 $(( ${#UPGRADE_CHAIN[@]} - 1 ))); do
+    upgrade_cluster "${UPGRADE_CHAIN[${step_idx}]}"
+done
+
+echo "==> Check the certificates for their permissions after cluster upgrade"
+lxc query "/1.0/certificates/${unrestricted_fingerprint}" | jq -er '.restricted == false'
+lxc query "/1.0/certificates/${unrestricted_fingerprint}" | jq -er '.type == "client"'
+if [ "${TEST_RESTRICTED}" = "1" ]; then
+    lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.restricted == true'
+    lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.type == "client"'
+    lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.projects[0] == "default"'
+fi
+
+if [ "${TEST_RESTRICTED}" = "1" ]; then
+    echo "==> Check the metrics certificates for their permissions after cluster upgrade"
+    lxc query "/1.0/certificates/${unrestricted_metrics_fingerprint}" | jq -er '.restricted == false'
+    lxc query "/1.0/certificates/${unrestricted_metrics_fingerprint}" | jq -er '.type == "metrics"'
+    lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.restricted == true'
+    lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.type == "metrics"'
+    lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.projects[0] == "default"'
+fi
+
+echo "==> Check container can be stopped after upgrade (checks for stop hook notification functionality)"
+lxc exec m1 -- lxc stop --force u1 u2
+
+echo "==> Deleting the cluster"
+for i in $(seq "${SIZE}"); do
+    print_log "m${i}"
+    lxc delete --force "m${i}"
+done
+
+rm -rf "${tmp_cert_dir}"
+
+# shellcheck disable=SC2034
+FAIL=0

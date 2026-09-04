@@ -1,0 +1,147 @@
+#!/bin/bash
+set -eux
+
+# testflinger_queue: ficet
+
+# Install LXD.
+install_lxd
+
+VM_IN_CTN=1
+VMs=10
+nestedVMs=3
+storageDriver="zfs"
+if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
+    # VMs on 4.0 are more resource intensive and slower to boot
+    export MAX_WAIT_SECONDS=240
+
+    # VMs inside containers do not work
+    VM_IN_CTN=0
+
+    VMs=3
+    nestedVMs=2
+
+    zfsVersion="$(modinfo -F version zfs)"
+    if dpkg --compare-versions "${zfsVersion}" gt "2.2"; then
+        storageDriver="lvm"
+        echo "${LXD_SNAP_CHANNEL} does not support ZFS ${zfsVersion}, falling back to ${storageDriver}"
+    fi
+fi
+
+# Configure LXD.
+lxc project switch default
+lxc storage create default "${storageDriver}" size=30GiB
+lxc network create lxdbr0
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+function parallel() {
+	seq "$1" | xargs -P "$1" -I "{}" "${@:2}"
+}
+
+function init() {
+	vm="${2:-}"
+	if [ -z "${vm}" ]
+	then
+		parallel "$1" lxc init "${IMAGE}" "t{}" -s default -n lxdbr0 --quiet
+	else
+		parallel "$1" lxc init "${IMAGE}" "t{}" "${vm}" -s default -n lxdbr0 --quiet
+	fi
+}
+
+function conf() {
+	parallel "$1" lxc config set "t{}" "$2"
+}
+
+function device_add() {
+	parallel "$1" lxc config device add "t{}" "$2" "$3" "$4"
+}
+
+function start() {
+	instances=()
+	for i in $(seq "$1"); do
+		instances["$i"]="t$i"
+	done
+
+	echo "Start ${instances[*]}"
+	lxc start "${instances[@]}"
+}
+
+function wait() {
+	for i in $(seq "$1"); do
+		waitInstanceReady "t${i}"
+		setup_instance_gocoverage "t${i}"
+	done
+}
+
+function copy() {
+	parallel "$1" lxc file push "$2" "t{}$3"
+}
+
+function cmd() {
+	parallel "$1" lxc exec "t{}" -- bash -c "$2"
+}
+
+function delete() {
+	instances=()
+	for i in $(seq "$1"); do
+		instances["$i"]="t$i"
+		prepare_vm_for_hard_stop "t$i"
+	done
+
+	echo "Delete ${instances[*]}"
+	lxc delete -f "${instances[@]}"
+}
+
+echo "==> Test ${VMs} VMs in parallel"
+init "${VMs}" --vm
+start "${VMs}"
+delete "${VMs}"
+
+echo "==> Test ${VMs} VMs in parallel for vsock ID collision"
+init "${VMs}" --vm
+conf "${VMs}" volatile.vsock_id=42
+start "${VMs}"
+delete "${VMs}"
+
+echo "==> Test ${nestedVMs} VMs each with one nested VM"
+init "${nestedVMs}" --vm
+if hasNeededAPIExtension devlxd_images_vm; then
+    conf "${nestedVMs}" security.devlxd.images=true
+fi
+start "${nestedVMs}"
+wait "${nestedVMs}"
+
+cmd "${nestedVMs}" "$(declare -f waitSnapdSeed); waitSnapdSeed"
+cmd "${nestedVMs}" "snap install lxd --channel ${LXD_SNAP_CHANNEL}"
+cmd "${nestedVMs}" "lxd init --auto"
+cmd "${nestedVMs}" "lxc profile device set default root size=3584MiB"
+cmd "${nestedVMs}" "lxc launch ${IMAGE} nested --vm -c limits.memory=512MiB --quiet"
+delete "${nestedVMs}"
+
+if [ "${VM_IN_CTN}" = "1" ]; then
+    echo "==> Test ${nestedVMs} containers each with one nested VM"
+    init "${nestedVMs}"
+    conf "${nestedVMs}" security.devlxd.images=true security.nesting=true
+    device_add "${nestedVMs}" kvm unix-char source=/dev/kvm
+    device_add "${nestedVMs}" vhost-net unix-char source=/dev/vhost-net
+    device_add "${nestedVMs}" vhost-vsock unix-char source=/dev/vhost-vsock
+    device_add "${nestedVMs}" vsock unix-char source=/dev/vsock
+    start "${nestedVMs}"
+    cmd "${nestedVMs}" "$(declare -f waitSnapdSeed); waitSnapdSeed"
+    cmd "${nestedVMs}" "snap install lxd --channel ${LXD_SNAP_CHANNEL}"
+    cmd "${nestedVMs}" "lxd init --auto"
+    cmd "${nestedVMs}" "lxc profile device set default root size=3584MiB"
+    cmd "${nestedVMs}" "lxc launch ${IMAGE} nested --vm -c limits.memory=512MiB --quiet"
+else
+    echo "Skipping VM in container tests on ${LXD_SNAP_CHANNEL}"
+fi
+
+echo "==> Cleaning up"
+instCount="$(lxc list -f csv -c n t | wc -l)"
+[ "$instCount" -gt 0 ] && delete "${instCount}"
+
+lxc network delete lxdbr0
+lxc storage delete default
+
+# shellcheck disable=SC2034
+FAIL=0

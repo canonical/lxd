@@ -1,0 +1,312 @@
+#!/bin/bash
+set -eu
+
+# Install LXD
+install_lxd
+
+# Configure LXD
+lxd init --auto --storage-backend btrfs --storage-create-loop 5
+
+# Test
+set -x
+
+# Containers should boot quickly
+export MAX_WAIT_SECONDS=15
+
+RELEASES="${RELEASES:-"20.04 22.04 24.04 26.04"}"
+
+print_message() {
+    local msg="${1}"
+    if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+        echo "${msg}" >> "${GITHUB_STEP_SUMMARY}"
+    fi
+    echo "${msg}"
+}
+
+known_systemd_remount_fs_issue() {
+    local ctn_name="${1}"
+    # 20.04 has a known issue with systemd-remount-fs.service failing.
+    if isSystemdUnitFailed "${ctn_name}" systemd-remount-fs.service; then
+        if lxc exec "${ctn_name}" -- journalctl -o cat --unit=systemd-remount-fs.service | grep -xF "mount: /: can't find LABEL=cloudimg-rootfs."; then
+            # Reset the failed state and return success.
+            systemdUnitResetFailed "${ctn_name}" systemd-remount-fs.service
+        fi
+    fi
+}
+
+ignore_known_issues() {
+    local ctn_name="${1}"
+    local use_case="${2}"
+
+    case "${use_case}" in
+      unprivileged|privileged|escapable|isolated|nesting|nested)
+        ;;
+      *)
+        echo "::error::Unknown use case: ${use_case}" >&2
+        return 1
+        ;;
+    esac
+
+    if [ "${release}" = "20.04" ]; then
+      # Don't deal with nested containers in 20.04
+      if [ "${use_case}" = "nested" ]; then
+        return 0
+      fi
+
+      # All other use cases should be fine with 20.04 once the systemd-remount-fs issue is handled.
+      known_systemd_remount_fs_issue "${ctn_name}"
+
+      isSystemdClean "${ctn_name}"
+      return 0
+    fi
+
+    if [ "${use_case}" = "privileged" ]; then
+      if [ "${release}" = "22.04" ]; then
+        # XXX: 22.04 fail with:
+        # ● systemd-sysusers.service loaded failed failed Create System Users
+        if isSystemdUnitFailed "${ctn_name}" systemd-sysusers.service; then
+            systemdUnitResetFailed "${ctn_name}" systemd-sysusers.service
+
+            isSystemdClean "${ctn_name}"
+            return 0
+        fi
+      elif [ "${release}" = "24.04" ]; then
+        # XXX: 24.04 fail with:
+        # ● systemd-binfmt.service                   loaded failed failed Set Up Additional Binary Formats
+        # ● systemd-logind.service                   loaded failed failed User Login Management
+        # ● systemd-networkd.service                 loaded failed failed Network Configuration
+        # ● systemd-resolved.service                 loaded failed failed Network Name Resolution
+        # ● systemd-sysctl.service                   loaded failed failed Apply Kernel Variables
+        # ● systemd-sysusers.service                 loaded failed failed Create System Users
+        # ● systemd-timedated.service                loaded failed failed Time & Date Service
+        # ● systemd-tmpfiles-setup-dev-early.service loaded failed failed Create Static Device Nodes in /dev gracefully
+        # ● systemd-tmpfiles-setup-dev.service       loaded failed failed Create Static Device Nodes in /dev
+        # ● systemd-tmpfiles-setup.service           loaded failed failed Create Volatile Files and Directories
+        # ● systemd-networkd.socket                  loaded failed failed Network Service Netlink Socket
+
+        print_message "Ignoring known issue with privileged container (${release})"
+        return 0
+      fi
+    elif [ "${use_case}" = "escapable" ]; then
+        if [ "${release}" = "24.04" ]; then
+            # https://github.com/canonical/lxd/issues/13607
+            # XXX: 24.04 fail with:
+            # ● systemd-binfmt.service loaded failed failed Set Up Additional Binary Formats
+            if isSystemdUnitFailed "${ctn_name}" systemd-binfmt.service; then
+                systemdUnitResetFailed "${ctn_name}" systemd-binfmt.service
+
+                isSystemdClean "${ctn_name}"
+                return 0
+            fi
+        fi
+    elif [ "${use_case}" = "nested" ]; then
+        # The nested case is rather broken as apparmor.service and multiple other services fail.
+        # Consider it a success if it can get an IPv4 for eth0 and do a DNS lookup.
+        lxc exec n1 -- lxc list "${ctn_name}" -c 4 -f csv | grep -wF eth0
+        lxc exec n1 -- lxc exec "${ctn_name}" -- getent ahosts _gateway
+        return 0
+    fi
+
+    print_message "::error::Unknown issue with ${use_case} container (${release})"
+    return 1
+}
+
+# Some host versions cannot run some guest versions
+# shellcheck disable=SC1091
+. /etc/os-release
+
+# Silence GH warnings in isSystemdClean
+export WARNING_PREFIX="false"
+for release in $RELEASES; do
+    if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
+        if dpkg --compare-versions "${release}" ge "24.04"; then
+            echo "Skip ${release} container tests on ${LXD_SNAP_CHANNEL}"
+            continue
+        fi
+    fi
+
+    if [ "${release}" = "20.04" ] && dpkg --compare-versions "${VERSION_ID}" gt "24.04"; then
+        echo "Skip ${release} container tests on ${VERSION_ID} host"
+        continue
+    fi
+
+    IMAGE="ubuntu-minimal-daily:${release}"
+
+    echo "==> unprivileged container (${release})"
+    lxc launch "${IMAGE}" u1
+    isSystemdClean u1 || ignore_known_issues u1 unprivileged
+    lxc delete -f u1
+
+    echo "==> privileged container (${release})"
+    lxc launch "${IMAGE}" p1 -c security.privileged=true
+    isSystemdClean p1 || ignore_known_issues p1 privileged
+    lxc delete -f p1
+
+    echo "==> escapable container (${release})"
+    lxc launch "${IMAGE}" e1 -c security.privileged=true -c security.nesting=true
+    isSystemdClean e1 || ignore_known_issues e1 escapable
+    lxc delete -f e1
+
+    echo "==> isolated container (${release})"
+    lxc launch "${IMAGE}" i1 -c security.idmap.isolated=true
+    isSystemdClean i1 || ignore_known_issues i1 isolated
+    lxc delete -f i1
+
+    testNested="true"
+    if [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
+        if dpkg --compare-versions "${release}" ge "26.04"; then
+            testNested="false"
+        fi
+    fi
+
+    if [ "${testNested}" = "true" ]; then
+        echo "==> nested container (${release})"
+        lxc launch "${IMAGE}" n1 -c security.nesting=true -c security.devlxd.images=true
+        isSystemdClean n1 || ignore_known_issues n1 nesting
+        lxc exec n1 -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
+        lxc exec n1 -- snap install lxd --channel="${LXD_SNAP_CHANNEL}" --cohort=+
+        lxc exec n1 -- lxd init --auto
+        lxc exec n1 -- lxc launch "${IMAGE}" n11
+        sleep 5
+        [ "$(lxc exec n1 -- lxc exec n11 -- systemctl --quiet --failed || echo fail)" = "" ] || ignore_known_issues n11 nested
+        lxc delete -f n1
+    else
+        echo "Skip ${release} nested container tests on ${LXD_SNAP_CHANNEL}"
+        continue
+    fi
+
+    # Expunge images that won't be reused (!= 24.04)
+    for image in $(lxc image list -f csv | grep -vwF 24.04 | cut -d, -f2); do
+        lxc image delete "${image}"
+    done
+done
+unset WARNING_PREFIX
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+echo "==> check that we can mount devpts and procfs in unprivileged container"
+lxc launch "${IMAGE}" u1
+waitInstanceBooted u1
+lxc exec u1 -- mkdir /root/proc
+lxc exec u1 -- mount -t proc proc /root/proc
+lxc exec u1 -- mkdir /root/devpts
+lxc exec u1 -- mount -t devpts devpts /root/devpts
+lxc exec u1 -- mkdir /root/sys
+lxc exec u1 -- mount -t sysfs sysfs /root/sys
+lxc delete -f u1
+
+echo "==> Try cleanly stopping a container"
+lxc launch "${IMAGE}" c1
+waitInstanceBooted c1
+lxc stop c1
+lxc start c1
+waitInstanceBooted c1
+
+echo "==> Test getting the correct exit code for a signaled process"
+# Signaling the process spawned by lxc exec and checking its exit code.
+# Simulates what can happen if the container stops cleanly in the middle of lxc exec.
+for signal in SIGTERM SIGHUP SIGKILL; do
+    echo "==> Test getting the correct exit code when sending ${signal} to an exec'ed process"
+    code="$(kill -l "${signal}")"
+    unset exitCode
+    # killall is not included in minimal images so we use escaping to combine pgrep and kill.
+    (sleep 5 && lxc exec c1 -- bash -c "kill -s ${signal} \$(pgrep sleep)") &
+    lxc exec c1 -- sleep 60 || exitCode=$?
+    # Check exit code, should be 128 plus signal number, 1 for SIGHUP, 9 for SIGKILL and 15 for SIGTERM.
+    [ "${exitCode:-0}" -eq $((128 + code)) ]
+done
+
+echo "==> Test exit codes when container disconnects during lxc exec"
+# Try disconnecting a container stopping forcefully and gracefully to make sure they differ appropriately.
+(sleep 1 && lxc stop -f c1) &
+lxc exec c1 -- sleep 10 || exitCode=$?
+[ "${exitCode:-0}" -eq 137 ]
+wait $!
+
+echo "==> Ensure aliased image won't launch with VM flag set"
+lxc image alias create containeralias "$(lxc config get c1 volatile.base_image)"
+! lxc launch containeralias c2 --vm || false
+lxc image alias delete containeralias
+
+echo "==> Test unprivileged BPF delegation"
+if ! { runsMinimumKernel 6.9 && hasNeededAPIExtension container_bpf_delegation; }; then
+    # check that we fail container to start if kernel has no support for bpf token
+    if hasNeededAPIExtension container_bpf_delegation; then
+        lxc delete -f c1
+        lxc init "${IMAGE}" c1
+        lxc config set c1 security.delegate_bpf=true
+        ! lxc start c1 || false
+        lxc config unset c1 security.delegate_bpf
+    fi
+
+    echo "Skipping unprivileged container bpf delegation test as the kernel is too old or LXD support missing"
+else
+    lxc delete -f c1
+    lxc init "${IMAGE}" c1
+
+    lxc config set c1 security.delegate_bpf=true
+    lxc config set c1 security.delegate_bpf.prog_types=socket_filter
+    lxc config set c1 security.delegate_bpf.attach_types=cgroup_inet_ingress
+    lxc config set c1 security.delegate_bpf.cmd_types=prog_load:map_create
+    lxc config set c1 security.delegate_bpf.map_types=ringbuf
+
+    lxc start c1
+    waitInstanceBooted c1
+
+    lxc exec c1 -- grep -F "delegate_cmds=map_create:prog_load,delegate_maps=ringbuf,delegate_progs=socket_filter,delegate_attachs=cgroup_inet_ingress" /proc/self/mountinfo
+
+	lxc stop -f c1
+fi
+
+echo "==> Test running miscellaneous binary formats with binfmt_misc in unprivileged container"
+if lxc info | grep -F 'unpriv_binfmt: "true"'; then
+	lxc start c1
+	waitInstanceBooted c1
+
+	echo "Enabling binfmt_misc in unprivileged container"
+	lxc exec c1 -- mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc
+    [ "$(lxc exec c1 -- cat /proc/sys/fs/binfmt_misc/status)" = "enabled" ]
+
+	echo "Installing required packages"
+    lxc exec c1 -- apt-get update
+    lxc exec c1 -- apt-get install --no-install-recommends -y qemu-user-static binfmt-support
+    lxc exec c1 -- systemctl restart systemd-binfmt # Restart systemd-binfmt service to pick up new binary types provided by qemu-user
+
+	echo "Compiling aarch64 Go test binary on host"
+    cat > hello.go << 'EOF'
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello, World!")
+}
+EOF
+
+    if ! command -v go; then
+        snap install go --classic
+    fi
+    GOOS=linux GOARCH=arm64 go build -o hello hello.go
+
+    echo "Pushing binary to container"
+    lxc file push --quiet hello c1/root/hello
+    rm hello.go hello
+
+    echo "Running aarch64 test binary"
+    lxc exec c1 -- test -f /proc/sys/fs/binfmt_misc/qemu-aarch64
+    [ "$(lxc exec c1 -- /root/hello)" = "Hello, World!" ]
+
+	echo "Unmounting binfmt_misc in unprivileged container"
+	lxc exec c1 -- umount /proc/sys/fs/binfmt_misc
+
+	echo "Checking that running aarch64 test binary now fails"
+	! lxc exec c1 -- /root/hello || false
+else
+	echo "Skipping unprivileged container binfmt_misc test as the kernel is too old or LXD support missing"
+fi
+
+# Cleanup
+lxc delete -f c1
+
+# shellcheck disable=SC2034
+FAIL=0
