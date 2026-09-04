@@ -64,6 +64,37 @@ func ProtoSend(ws *websocket.Conn, msg proto.Message) error {
 	return w.Close()
 }
 
+// ProtoSendFrame writes a protobuf message as one barrier framed message, for channels that drivers only see as an io.ReadWriteCloser rather than a websocket.
+func ProtoSendFrame(conn io.ReadWriteCloser, msg proto.Message) error {
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return err
+	}
+
+	err = shared.WriteAll(conn, data)
+	if err != nil {
+		return err
+	}
+
+	return conn.Close() // End the frame.
+}
+
+// ProtoRecvFrame reads one barrier framed message into a protobuf message, for channels that drivers only see as an io.Reader rather than a websocket.
+func ProtoRecvFrame(conn io.Reader, msg proto.Message) error {
+	buf, err := io.ReadAll(conn)
+	if err != nil {
+		return err
+	}
+
+	// A peer that closed without writing reads as an empty buffer, which unmarshals into a zero message. The
+	// caller would then negotiate against values nobody sent and report a later failure instead of this one.
+	if len(buf) == 0 {
+		return errors.New("Empty migration frame")
+	}
+
+	return proto.Unmarshal(buf, msg)
+}
+
 // ProtoSendControl sends a migration control message over a websocket.
 func ProtoSendControl(ws *websocket.Conn, err error) {
 	message := ""

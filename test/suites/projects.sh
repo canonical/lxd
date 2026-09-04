@@ -334,6 +334,31 @@ test_projects_snapshots() {
   lxc storage volume delete "${pool}" exclusivevol
   lxc image delete testimage
   lxc project delete baz
+
+  # A project without the key at all inherits its volumes from the default project just like one with the
+  # key set to false, so every caller that acts on the instance's volumes must refuse it the same way.
+  echo "Create a project that inherits its volumes and switch to it"
+  lxc project create qux
+  lxc project unset qux features.storage.volumes
+  [ "$(lxc project get qux features.storage.volumes || echo fail)" = "" ]
+  lxc project switch qux
+
+  ensure_import_testimage qux
+  lxc profile device add default root disk path="/" pool="${pool}"
+  lxc init testimage c3 --device "${SMALL_ROOT_DISK}"
+
+  echo "Check snapshot, restore and migration all refuse all-exclusive for an inheriting project"
+  [ "$(lxc snapshot c3 --disk-volumes=all-exclusive 2>&1 | grep -cF "Error: Project does not have features.storage.volumes enabled")" = 1 ]
+  lxc snapshot c3 snap0
+  [ "$(lxc restore c3 snap0 --disk-volumes=all-exclusive 2>&1 | grep -cF "Error: Project does not have features.storage.volumes enabled")" = 1 ]
+  # "lxc query" does not pick up the switched project, so the path has to name it.
+  [ "$(lxc query --request POST "/1.0/instances/c3?project=qux" --data '{"migration": true, "disk_volumes_mode": "all-exclusive"}' 2>&1 | grep -cF "Project does not have features.storage.volumes enabled")" = 1 ]
+
+  echo "Cleanup"
+  lxc delete --force c3
+  lxc image delete testimage
+  lxc project switch default
+  lxc project delete qux
 }
 
 # Use backups in a project.

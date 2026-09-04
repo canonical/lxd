@@ -149,6 +149,12 @@ type InstancePost struct {
 	// API extension: instance_move_config
 	Profiles []string `json:"Profiles" yaml:"profiles"`
 
+	// Which disk volumes travel with the instance (migration only)
+	// Example: all-exclusive
+	//
+	// API extension: replicator_custom_volumes
+	DiskVolumesMode string `json:"disk_volumes_mode,omitempty" yaml:"disk_volumes_mode,omitempty"`
+
 	// Whether the instances's snapshot should receive target instances profile on copy
 	// Example: true
 	//
@@ -635,6 +641,12 @@ type InstanceSource struct {
 	//
 	// API extension: override_snapshot_profiles_on_copy
 	OverrideSnapshotProfiles bool `json:"override_snapshot_profiles" yaml:"override_snapshot_profiles"`
+
+	// Which disk volumes the migration transfers with the instance (for migration)
+	// Example: all-exclusive
+	//
+	// API extension: replicator_custom_volumes
+	DiskVolumesMode string `json:"disk_volumes_mode,omitempty" yaml:"disk_volumes_mode,omitempty"`
 }
 
 // InstanceUEFIVars represents the UEFI variables of a LXD virtual machine.

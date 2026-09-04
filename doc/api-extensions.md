@@ -3664,3 +3664,35 @@ Replication requires the remote cluster to authenticate the connection, so {ref}
 Introduces new operation class for durable operations.
 Durable operations are restarted on the DQLite raft leader if the member that is running the operation fails to respond to heartbeats.
 If the leader was running the operation and goes offline, the operation is restarted on the newly elected leader.
+
+(extension-replicator-custom-volumes)=
+## `replicator_custom_volumes`
+
+Adds `disk_volumes_mode` to the instance migration request (`POST /1.0/instances/<name>` with `migration: true`)
+and to the migration source of `POST /1.0/instances`, with the values of the snapshot API: `root` (default) and
+`all-exclusive`.
+
+With `all-exclusive` the source transfers the custom storage volumes that are attached only to the migrated
+instance, with their snapshots, in the same operation, and lists them in the migration index header. A volume is
+transferred when no other instance references it on the source, whether it is attached directly or through a
+profile. A target in the same mode creates the instance before those volumes exist, checks when the index header
+arrives that it lists every volume the target is still waiting for, that every listed volume is referenced by
+the instance's effective devices on the target, and that no listed volume is already attached to another
+instance there, and refuses the migration before any data is sent otherwise. Each listed
+volume is created in the pool of the same name, or refreshed when it already exists, and the instance's disk
+devices are restored afterwards. A refresh only sends the snapshots the target is missing, and `instance_only`
+drops the volume snapshots along with the instance's. The default mode keeps the existing behaviour, so
+`lxc copy` and `lxc move` are unchanged. Projects that do not own their custom volumes, live migrations and
+moves between cluster members reject the mode.
+
+All-exclusive snapshots also skip volumes attached to more than one instance, so a snapshot of an instance
+whose volumes are all shared records the root volume alone. This applies to every caller of the snapshot API,
+not only to replicators.
+
+Replicators use `all-exclusive`, so an instance is replicated together with the custom volumes attached only to
+it, including their snapshots. The pre-replication snapshot of the instance captures those volumes at the same
+moment as its root disk. Volumes attached to more than one instance or to no instance are not replicated and
+must exist on the standby before the instances using them can be replicated. A volume attached through a profile
+is replicated when it is exclusive to one instance; create it on the standby and add the device to the standby's
+profile before the first run, which then refreshes it.
+`lxc replicator info` lists the volumes that will travel.

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -20,6 +21,7 @@ import (
 
 	agentAPI "github.com/canonical/lxd/lxd-agent/api"
 	"github.com/canonical/lxd/lxd/backup"
+	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/device"
@@ -31,8 +33,10 @@ import (
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/locking"
+	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
+	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
@@ -758,10 +762,13 @@ func (d *common) rebuildCommon(ctx context.Context, inst instance.Instance, img 
 // When diskVolumesMode is "all-exclusive", it deletes the attached volume snapshots.
 func (d *common) deleteAttachedVolumeSnapshots(ctx context.Context, snapInst instance.Instance, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
 	// Get attached volume snapshot UUIDs from the snapshot instance.
-	var attachedVolumeUUIDs map[string]string
-	err := json.Unmarshal([]byte(snapInst.LocalConfig()["volatile.attached_volumes"]), &attachedVolumeUUIDs)
+	attachedVolumeUUIDs, err := parseVolatileAttachedVolumes(snapInst)
 	if err != nil {
-		return fmt.Errorf(`Failed parsing snapshot instance "volatile.attached_volumes": %w`, err)
+		return err
+	}
+
+	if len(attachedVolumeUUIDs) == 0 {
+		return nil
 	}
 
 	// Get attached volume snapshots.
@@ -885,11 +892,31 @@ func (d *common) runHooks(hooks []func() error) error {
 	return nil
 }
 
+// parseVolatileAttachedVolumes returns the device name to snapshot UUID map an all-exclusive snapshot records.
+// A snapshot of an instance with no snapshottable attached volumes records nothing, so an absent key means
+// the snapshot captured the root volume alone rather than that a record was lost.
+func parseVolatileAttachedVolumes(snapInst instance.Instance) (map[string]string, error) {
+	value := snapInst.LocalConfig()["volatile.attached_volumes"]
+	if value == "" {
+		return nil, nil
+	}
+
+	var attachedVolumeUUIDs map[string]string
+	err := json.Unmarshal([]byte(value), &attachedVolumeUUIDs)
+	if err != nil {
+		return nil, fmt.Errorf(`Failed parsing "volatile.attached_volumes": %w`, err)
+	}
+
+	return attachedVolumeUUIDs, nil
+}
+
 // getAttachedVolumeSnapshots returns storage volume snapshots matching the snapshot UUIDs stored in "volatile.attached_volumes".
 // Used for multi-volume instance snapshot restores and deletes.
 func (d *common) getAttachedVolumeSnapshots(inst instance.Instance, volatileAttachedVolumes map[string]string) ([]*db.StorageVolume, error) {
+	// An empty record means the snapshot captured the root volume alone. Querying with no UUIDs would filter
+	// nothing and return every custom volume in the project.
 	if len(volatileAttachedVolumes) == 0 {
-		return nil, errors.New(`Empty "volatile.attached_volumes"`)
+		return nil, nil
 	}
 
 	// Convert map values to slice of snapshot UUIDs for database query (filter storage volumes by snapshot UUID).
@@ -954,6 +981,11 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (attachedVolumes map
 	// Get attached storage volumes.
 	attachedVolumes = make(map[string]db.StorageVolume)
 	instanceProject := inst.Project()
+
+	// A project that does not own its custom volumes keeps them in the default project, which is where the
+	// device's source resolves.
+	storageProject := project.StorageVolumeProjectFromRecord(&instanceProject, dbCluster.StoragePoolVolumeTypeCustom)
+
 	for name, dev := range d.expandedDevices.Filter(filters.IsCustomVolumeDisk) {
 		// Storage cache lookup.
 		pool, err := storageCache.GetPool(dev["pool"])
@@ -964,7 +996,7 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (attachedVolumes map
 		volName, _, _ := api.GetParentAndSnapshotName(dev["source"])
 
 		err = d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-			vol, err := tx.GetStoragePoolVolume(ctx, pool.ID(), instanceProject.Name, dbCluster.StoragePoolVolumeTypeCustom, volName, true)
+			vol, err := tx.GetStoragePoolVolume(ctx, pool.ID(), storageProject, dbCluster.StoragePoolVolumeTypeCustom, volName, true)
 			if err != nil {
 				return err
 			}
@@ -978,6 +1010,63 @@ func (d *common) getAttachedVolumes(inst instance.Instance) (attachedVolumes map
 	}
 
 	return attachedVolumes, nil
+}
+
+// otherVolumeUsers reports the instances attaching each of the given custom volumes apart from inst itself,
+// keyed as pool/name, using a single scan of the instance list. Volumes no other instance attaches have no
+// entry, which is what makes them exclusive to inst.
+func (d *common) otherVolumeUsers(inst instance.Instance, vols []*db.StorageVolume) (map[string][]db.InstanceArgs, error) {
+	others := make(map[string][]db.InstanceArgs, len(vols))
+	if len(vols) == 0 {
+		return others, nil
+	}
+
+	instanceProject := inst.Project()
+	storageProject := project.StorageVolumeProjectFromRecord(&instanceProject, dbCluster.StoragePoolVolumeTypeCustom)
+
+	var users map[string][]db.InstanceArgs
+	err := d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		users, err = storagePools.VolumesUsedBy(ctx, tx, storageProject, vols)
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed finding users of attached volumes: %w", err)
+	}
+
+	for volKey, volUsers := range users {
+		volUsers = slices.DeleteFunc(volUsers, func(user db.InstanceArgs) bool {
+			return instance.IsSameLogicalInstance(inst, &user)
+		})
+
+		if len(volUsers) > 0 {
+			others[volKey] = volUsers
+		}
+	}
+
+	return others, nil
+}
+
+// sharedAttachedVolumes returns the set of volumes in attachedVolumes that are also attached to at least one
+// other instance in the same project. Profile references do not count here: a volume only reachable through a
+// profile applied to this instance alone is still exclusive to it.
+func (d *common) sharedAttachedVolumes(inst instance.Instance, attachedVolumes map[string]db.StorageVolume) (map[string]struct{}, error) {
+	vols := make([]*db.StorageVolume, 0, len(attachedVolumes))
+	for _, vol := range attachedVolumes {
+		vols = append(vols, &vol)
+	}
+
+	others, err := d.otherVolumeUsers(inst, vols)
+	if err != nil {
+		return nil, err
+	}
+
+	sharedVols := make(map[string]struct{}, len(others))
+	for volKey := range others {
+		sharedVols[volKey] = struct{}{}
+	}
+
+	return sharedVols, nil
 }
 
 // snapshotCommon handles the common part of a snapshot.
@@ -1014,12 +1103,22 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		}
 	}
 
+	sharedVolumes, err := d.sharedAttachedVolumes(inst, attachedVolumes)
+	if err != nil {
+		return fmt.Errorf("Failed checking shared status of attached volumes: %w", err)
+	}
+
 	// Attached volumes to snapshot alongside the root, excluding ISO volumes whose
-	// snapshots are unsupported. An ISO-only attachment therefore does not need a
-	// crash-consistent freeze.
+	// snapshots are unsupported, and volumes shared with other instances. An ISO-only
+	// attachment does not need a crash-consistent freeze.
 	snapshottableVolumes := make(map[string]db.StorageVolume, len(attachedVolumes))
 	for deviceName, volume := range attachedVolumes {
 		if volume.ContentType == dbCluster.StoragePoolVolumeContentTypeNameISO {
+			continue
+		}
+
+		_, isShared := sharedVolumes[volume.Pool+"/"+volume.Name]
+		if isShared {
 			continue
 		}
 
@@ -1101,8 +1200,9 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		}
 	})
 
-	// Snapshot attached disk volumes.
-	if len(attachedVolumes) > 0 {
+	// Snapshot attached disk volumes. Nothing snapshottable means nothing to record, so the snapshot is left
+	// without the key rather than carrying an empty map that later reads as a lost record.
+	if len(snapshottableVolumes) > 0 {
 		// Snapshot attached custom volumes.
 		storageCache := storagePools.NewStorageCache(pool) // Create storage cache for pool lookups.
 		volatileAttachedVolumes := make(map[string]string)
@@ -1345,10 +1445,9 @@ func (d *common) restoreCommon(ctx context.Context, inst instance.Instance, sour
 
 // resolveRestoreSnapshots returns a list of snapshot volumes to include in an instance restore.
 func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance.Instance) (restoreSnapshots []*db.StorageVolume, err error) {
-	var volatileAttachedVolumes map[string]string
-	err = json.Unmarshal([]byte(source.LocalConfig()["volatile.attached_volumes"]), &volatileAttachedVolumes)
+	attachedVolumeUUIDs, err := parseVolatileAttachedVolumes(source)
 	if err != nil {
-		return nil, fmt.Errorf(`Failed parsing source instance "volatile.attached_volumes": %w`, err)
+		return nil, err
 	}
 
 	// Get attached volumes (map of device name -> volume).
@@ -1358,7 +1457,7 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 	}
 
 	// Get attached volume snapshots.
-	attachedVolumeSnapshots, err := d.getAttachedVolumeSnapshots(source, volatileAttachedVolumes)
+	attachedVolumeSnapshots, err := d.getAttachedVolumeSnapshots(source, attachedVolumeUUIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -1374,7 +1473,7 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 
 	// Check which attached volumes have matching snapshots.
 	restoreSnapshots = make([]*db.StorageVolume, 0, len(attachedVolumeSnapshots))
-	for deviceName, snapshotUUID := range volatileAttachedVolumes {
+	for deviceName, snapshotUUID := range attachedVolumeUUIDs {
 		vol, ok := uuidToVolume[snapshotUUID]
 		if ok {
 			restoreSnapshots = append(restoreSnapshots, vol)
@@ -1389,18 +1488,15 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 
 	// Detect shared volumes.
 	// This is required because currently the only supported disk volumes mode is "all-exclusive".
-	for _, v := range attachedVolumes {
-		err = storagePools.VolumeUsedByInstanceDevices(d.state, v.Pool, v.Project, &v.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-			// Skip this instance.
-			if instance.IsSameLogicalInstance(inst, &dbInst) {
-				return nil
-			}
+	sharedVolumeNames, err := d.sharedAttachedVolumes(inst, attachedVolumes)
+	if err != nil {
+		return nil, fmt.Errorf("Failed checking shared status of attached volumes: %w", err)
+	}
 
+	for _, v := range attachedVolumes {
+		_, isShared := sharedVolumeNames[v.Pool+"/"+v.Name]
+		if isShared {
 			shared = append(shared, v)
-			return nil
-		})
-		if err != nil {
-			return nil, err
 		}
 	}
 
@@ -1419,6 +1515,13 @@ func (d *common) resolveRestoreSnapshots(inst instance.Instance, source instance
 		}
 
 		return nil, errors.New(errMsg.String())
+	}
+
+	// A snapshot records nothing when it was taken in root mode, and also when none of the attached volumes
+	// could be captured, so the state here cannot tell the two apart. Report it the same way a partially
+	// missing record is reported rather than refusing a restore the snapshot can still satisfy.
+	if len(attachedVolumeUUIDs) == 0 && len(attachedVolumes) > 0 {
+		d.logger.Warn("Snapshot holds no record of attached volumes, restoring the root volume alone", logger.Ctx{"snapshot": source.Name()})
 	}
 
 	return restoreSnapshots, nil
@@ -2413,6 +2516,321 @@ func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices device
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	return nil
+}
+
+// migrateReceiveCustomVolumes receives the custom volumes attached to the instance from the migration source.
+// The index header frame is always sent by a source at index header version 3 or higher, even when the instance has
+// no attached custom volumes, so this never blocks waiting for a frame that is not coming. Snapshots follow the
+// same setting as the instance's own snapshots.
+func (d *common) migrateReceiveCustomVolumes(ctx context.Context, inst instance.Instance, conn io.ReadWriteCloser, indexHeaderVersion uint32, snapshots bool, attachedVolumes map[string]struct{}, reverter *revert.Reverter, progressReporter ioprogress.ProgressReporter) error {
+	buf, err := io.ReadAll(conn)
+	if err != nil {
+		return fmt.Errorf("Failed reading custom volume index header: %w", err)
+	}
+
+	info := migration.Info{}
+
+	err = json.Unmarshal(buf, &info)
+	if err != nil {
+		return fmt.Errorf("Failed decoding custom volume index header: %w", err)
+	}
+
+	if info.Config == nil {
+		return errors.New("Missing custom volume index header")
+	}
+
+	if len(info.Config.Volumes) == 0 {
+		return nil
+	}
+
+	storageProject := project.StorageVolumeProjectFromRecord(&d.project, dbCluster.StoragePoolVolumeTypeCustom)
+
+	// The index frame was already checked against the target's devices, but the source chooses this list
+	// separately, so the whole of it is validated before anything is received. One pass also keeps the
+	// users of the announced volumes to a single scan of the instance list. Each entry lines up with the
+	// volume of the same index, so the transfer loop reuses what was resolved here.
+	type announcedVolume struct {
+		pool   storagePools.Pool
+		exists bool
+	}
+
+	announced := make([]announcedVolume, 0, len(info.Config.Volumes))
+	existingVols := make([]*db.StorageVolume, 0, len(info.Config.Volumes))
+
+	for i, vol := range info.Config.Volumes {
+		if vol == nil {
+			return fmt.Errorf("Invalid custom volume index header entry at index %d", i)
+		}
+
+		if vol.Type != dbCluster.StoragePoolVolumeTypeNameCustom || vol.Name == "" || vol.Pool == "" || shared.IsSnapshot(vol.Name) {
+			return fmt.Errorf("Invalid custom volume %q at index header entry %d", vol.Name, i)
+		}
+
+		// The source picks what to send, so without this a source could create a volume the instance
+		// never used or overwrite an unrelated one that already exists on the target.
+		_, attached := attachedVolumes[vol.Pool+"/"+vol.Name]
+		if !attached {
+			return fmt.Errorf("Custom volume %q in pool %q is not attached to instance %q", vol.Name, vol.Pool, inst.Name())
+		}
+
+		volPool, err := storagePools.LoadByName(d.state, vol.Pool)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage pool %q for custom volume %q: %w", vol.Pool, vol.Name, err)
+		}
+
+		dbVol, err := storagePools.VolumeDBGet(volPool, storageProject, vol.Name, storageDrivers.VolumeTypeCustom)
+		if err != nil && !response.IsNotFoundError(err) {
+			return fmt.Errorf("Failed checking for custom volume %q in pool %q: %w", vol.Name, vol.Pool, err)
+		}
+
+		if dbVol != nil {
+			existingVols = append(existingVols, dbVol)
+		}
+
+		announced = append(announced, announcedVolume{pool: volPool, exists: dbVol != nil})
+	}
+
+	// A volume another instance here attaches must never be overwritten by a migration.
+	others, err := d.otherVolumeUsers(inst, existingVols)
+	if err != nil {
+		return err
+	}
+
+	for _, vol := range info.Config.Volumes {
+		if len(others[vol.Pool+"/"+vol.Name]) > 0 {
+			return fmt.Errorf("Custom volume %q in pool %q is attached to another instance on the target", vol.Name, vol.Pool)
+		}
+	}
+
+	for i, vol := range info.Config.Volumes {
+		volPool := announced[i].pool
+		exists := announced[i].exists
+
+		offer := &migration.MigrationHeader{}
+
+		err = migration.ProtoRecvFrame(conn, offer)
+		if err != nil {
+			return fmt.Errorf("Failed reading migration offer for custom volume %q: %w", vol.Name, err)
+		}
+
+		contentType := storageDrivers.ContentType(vol.ContentType)
+
+		// The source never sets Refresh in the offer header, but MatchTypes needs it to pick the right types.
+		offer.Refresh = &exists
+
+		respTypes, err := migration.MatchTypes(offer, storagePools.FallbackMigrationType(contentType), volPool.MigrationTypes(contentType, exists, snapshots))
+		if err != nil {
+			return fmt.Errorf("Failed negotiating migration options for custom volume %q: %w", vol.Name, err)
+		}
+
+		respHeader := migration.TypesToHeader(respTypes...)
+		respHeader.Refresh = &exists
+		respHeader.IndexHeaderVersion = &indexHeaderVersion
+		respHeader.Snapshots = offer.Snapshots
+		respHeader.SnapshotNames = offer.SnapshotNames
+
+		// On a refresh only the snapshots the target is missing are requested, and target snapshots the
+		// source no longer has are deleted first, matching the root volume.
+		if exists && snapshots {
+			respHeader.Snapshots, respHeader.SnapshotNames, err = storagePools.CustomVolumeSnapshotsToSync(ctx, volPool, storageProject, vol.Name, offer.GetSnapshots(), progressReporter)
+			if err != nil {
+				return fmt.Errorf("Failed comparing snapshots of custom volume %q in pool %q: %w", vol.Name, vol.Pool, err)
+			}
+		}
+
+		err = migration.ProtoSendFrame(conn, respHeader)
+		if err != nil {
+			return fmt.Errorf("Failed sending migration response for custom volume %q: %w", vol.Name, err)
+		}
+
+		volTargetArgs := migration.VolumeTargetArgs{
+			IndexHeaderVersion: indexHeaderVersion,
+			Name:               vol.Name,
+			Description:        vol.Description,
+			Config:             vol.Config,
+			MigrationType:      respTypes[0],
+			TrackProgress:      true,
+			Refresh:            exists,
+			ContentType:        vol.ContentType,
+			VolumeOnly:         !snapshots,
+		}
+
+		// A zero length Snapshots slice indicates volume only migration in VolumeTargetArgs, so it is only
+		// populated when snapshots were requested.
+		if snapshots {
+			volTargetArgs.Snapshots = respHeader.SnapshotNames
+		}
+
+		err = volPool.CreateCustomVolumeFromMigration(ctx, storageProject, conn, volTargetArgs, progressReporter)
+		if err != nil {
+			return fmt.Errorf("Failed receiving custom volume %q into pool %q: %w", vol.Name, vol.Pool, err)
+		}
+
+		// Only volumes created by this transfer are removed on failure, refreshed volumes keep their partial
+		// state like the root volume does.
+		if !exists {
+			reverter.Add(func() {
+				// The errgroup context is already cancelled when reverts run.
+				_ = volPool.DeleteCustomVolume(context.Background(), storageProject, vol.Name, nil)
+			})
+		}
+	}
+
+	return nil
+}
+
+// migrationCustomVolumes returns the backup config of the custom volumes that travel with the instance. Snapshots are
+// included when requested, matching the instance's own snapshots.
+func (d *common) migrationCustomVolumes(inst instance.Instance, pool storagePools.Pool, diskVolumesMode string, snapshots bool, progressReporter ioprogress.ProgressReporter) (*backupConfig.Config, error) {
+	// The section is opt in. The frame still goes out for any other mode so that both sides stay in step
+	// at index header version 3, but it lists nothing.
+	if diskVolumesMode != api.DiskVolumesModeAllExclusive {
+		return &backupConfig.Config{Version: api.BackupMetadataVersion2}, nil
+	}
+
+	// A project that inherits its volumes owns none of them, and the snapshot and restore APIs already
+	// refuse to act on them from the instance. Migration follows the same rule, so those volumes stay
+	// where they are and must exist on the target beforehand.
+	instProject := inst.Project()
+	if project.StorageVolumeProjectFromRecord(&instProject, dbCluster.StoragePoolVolumeTypeCustom) != instProject.Name {
+		return &backupConfig.Config{Version: api.BackupMetadataVersion2}, nil
+	}
+
+	instConfig, err := pool.GenerateInstanceCustomVolumeBackupConfig(inst, nil, snapshots, progressReporter)
+	if err != nil {
+		return nil, fmt.Errorf("Failed generating custom volume index header: %w", err)
+	}
+
+	vols := make([]*db.StorageVolume, 0, len(instConfig.Volumes))
+	for i, vol := range instConfig.Volumes {
+		if vol == nil {
+			return nil, fmt.Errorf("Custom volume index header contains nil volume at index %d", i)
+		}
+
+		vols = append(vols, &db.StorageVolume{StorageVolume: vol.StorageVolume})
+	}
+
+	// Only volumes used by this instance alone travel with it, counted over effective devices the way the
+	// all-exclusive snapshot counts them: another instance makes a volume shared, a profile reference on its
+	// own does not. Shared volumes need group placement, which is out of scope. A profile device that is
+	// missing on the target is caught there, when the index header is checked against the effective config.
+	others, err := d.otherVolumeUsers(inst, vols)
+	if err != nil {
+		return nil, err
+	}
+
+	volsConfig := &backupConfig.Config{Version: api.BackupMetadataVersion2}
+
+	for _, vol := range instConfig.Volumes {
+		if len(others[vol.Pool+"/"+vol.Name]) > 0 {
+			continue
+		}
+
+		volsConfig.Volumes = append(volsConfig.Volumes, vol)
+	}
+
+	// The target only reads Volumes and always uses its own pool of the same name, so the pool config the
+	// generator produces for backup.yaml is left out of the frames.
+	return volsConfig, nil
+}
+
+// migrateSendCustomVolumes sends the instance's exclusively attached custom volumes to the migration target.
+// The index header frame is sent even when there is no volume to send, so the target never blocks on it.
+func (d *common) migrateSendCustomVolumes(conn io.ReadWriteCloser, indexHeaderVersion uint32, snapshots bool, volsConfig *backupConfig.Config, progressReporter ioprogress.ProgressReporter) error {
+	headerJSON, err := json.Marshal(migration.Info{Config: volsConfig})
+	if err != nil {
+		return fmt.Errorf("Failed encoding custom volume index header: %w", err)
+	}
+
+	_, err = conn.Write(headerJSON)
+	if err != nil {
+		return fmt.Errorf("Failed sending custom volume index header: %w", err)
+	}
+
+	err = conn.Close() // End the frame.
+	if err != nil {
+		return fmt.Errorf("Failed closing custom volume index header frame: %w", err)
+	}
+
+	storageProject := project.StorageVolumeProjectFromRecord(&d.project, dbCluster.StoragePoolVolumeTypeCustom)
+
+	for _, vol := range volsConfig.Volumes {
+		volPool, err := storagePools.LoadByName(d.state, vol.Pool)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage pool %q for custom volume %q: %w", vol.Pool, vol.Name, err)
+		}
+
+		contentType := storageDrivers.ContentType(vol.ContentType)
+
+		types := volPool.MigrationTypes(contentType, false, snapshots)
+		if len(types) == 0 {
+			return fmt.Errorf("No source migration types available for custom volume %q", vol.Name)
+		}
+
+		offer := migration.TypesToHeader(types...)
+		offer.IndexHeaderVersion = &indexHeaderVersion
+		offer.SnapshotNames = make([]string, 0, len(vol.Snapshots))
+		offer.Snapshots = make([]*migration.Snapshot, 0, len(vol.Snapshots))
+		for _, snap := range vol.Snapshots {
+			offer.SnapshotNames = append(offer.SnapshotNames, snap.Name)
+			offer.Snapshots = append(offer.Snapshots, migration.VolumeSnapshotToProtobuf(snap))
+		}
+
+		err = migration.ProtoSendFrame(conn, offer)
+		if err != nil {
+			return fmt.Errorf("Failed sending migration offer for custom volume %q: %w", vol.Name, err)
+		}
+
+		resp := &migration.MigrationHeader{}
+
+		err = migration.ProtoRecvFrame(conn, resp)
+		if err != nil {
+			return fmt.Errorf("Failed reading migration response for custom volume %q: %w", vol.Name, err)
+		}
+
+		matched, err := migration.MatchTypes(resp, storagePools.FallbackMigrationType(contentType), types)
+		if err != nil {
+			return fmt.Errorf("Failed negotiating migration options for custom volume %q: %w", vol.Name, err)
+		}
+
+		// On a refresh the target replies with only the snapshots it is missing, so the per volume index
+		// frame and the transfer are trimmed to that set.
+		snapshotNames := offer.SnapshotNames
+		volSnapshots := vol.Snapshots
+		if resp.GetRefresh() {
+			snapshotNames = resp.GetSnapshotNames()
+			volSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(snapshotNames))
+			for _, snap := range vol.Snapshots {
+				if slices.Contains(snapshotNames, snap.Name) {
+					volSnapshots = append(volSnapshots, snap)
+				}
+			}
+		}
+
+		// The per volume index frame describes a single custom volume, so it carries only that volume.
+		volCopy := *vol
+		volCopy.Snapshots = volSnapshots
+		volConfig := &backupConfig.Config{Version: api.BackupMetadataVersion2, Volumes: []*backupConfig.Volume{&volCopy}}
+
+		volSourceArgs := &migration.VolumeSourceArgs{
+			IndexHeaderVersion: indexHeaderVersion,
+			Name:               vol.Name,
+			Snapshots:          snapshotNames,
+			MigrationType:      matched[0],
+			TrackProgress:      true,
+			ContentType:        vol.ContentType,
+			Refresh:            resp.GetRefresh(),
+			VolumeOnly:         !snapshots,
+			Info:               &migration.Info{Config: volConfig},
+		}
+
+		err = volPool.MigrateCustomVolume(storageProject, conn, volSourceArgs, progressReporter)
+		if err != nil {
+			return fmt.Errorf("Failed sending custom volume %q from pool %q: %w", vol.Name, vol.Pool, err)
 		}
 	}
 

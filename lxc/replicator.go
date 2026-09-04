@@ -900,7 +900,88 @@ func (c *cmdReplicatorInfo) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return nil
+	// A server without the extension never transfers custom volumes, so listing them would
+	// misreport what the replicator covers.
+	if !resource.server.HasExtension("replicator_custom_volumes") {
+		return nil
+	}
+
+	// The replicator also replicates the project's custom volumes, so list them alongside
+	// the instances. Each volume's used_by is returned populated by the recursive fetch.
+	// A project without features.storage.volumes owns no custom volumes; the listing would
+	// show volumes inherited from the default project that the replicator never transfers,
+	// so skip the volumes section entirely for such projects.
+	proj, _, err := resource.server.GetProject(replicator.Project)
+	if err != nil {
+		return err
+	}
+
+	if shared.IsFalseOrEmpty(proj.Config["features.storage.volumes"]) {
+		return nil
+	}
+
+	volumes, err := resource.server.GetVolumesWithFilter([]string{"type=custom"})
+	if err != nil {
+		return err
+	}
+
+	// A volume's used_by names an instance only for a direct attachment; an instance that gets the volume
+	// through a profile shows up as that profile. Resolve profiles to the instances applying them, so a
+	// profile-attached volume is counted the way the server counts it.
+	profiles, err := resource.server.GetProfiles()
+	if err != nil {
+		return err
+	}
+
+	profileInstances := make(map[string][]string, len(profiles))
+	for _, profile := range profiles {
+		profileInstances[profile.Name] = profile.UsedBy
+	}
+
+	// Only a volume used by exactly one instance travels with that instance, whether it is attached directly
+	// or through a profile, so listing anything else would claim coverage the replicator does not provide.
+	filteredVolumes := make([]api.StorageVolume, 0, len(volumes))
+	for _, vol := range volumes {
+		if shared.IsSnapshot(vol.Name) {
+			continue
+		}
+
+		instanceUsers := make(map[string]struct{})
+		for _, user := range vol.UsedBy {
+			if strings.HasPrefix(user, "/1.0/instances/") {
+				instanceUsers[user] = struct{}{}
+				continue
+			}
+
+			profileName, found := strings.CutPrefix(user, "/1.0/profiles/")
+			if !found {
+				continue
+			}
+
+			profileName, _, _ = strings.Cut(profileName, "?")
+			for _, instanceURL := range profileInstances[profileName] {
+				instanceUsers[instanceURL] = struct{}{}
+			}
+		}
+
+		if len(instanceUsers) != 1 {
+			continue
+		}
+
+		filteredVolumes = append(filteredVolumes, vol)
+	}
+
+	sort.Slice(filteredVolumes, func(i, j int) bool {
+		return filteredVolumes[i].Name < filteredVolumes[j].Name
+	})
+
+	volumeData := make([][]string, 0, len(filteredVolumes))
+	for _, vol := range filteredVolumes {
+		volumeData = append(volumeData, []string{vol.Name, vol.Pool, strings.Join(vol.UsedBy, "\n")})
+	}
+
+	fmt.Println("Volumes:")
+	return cli.RenderTable(cli.TableFormatTable, []string{"NAME", "POOL", "USED BY"}, volumeData, filteredVolumes)
 }
 
 // Rename.

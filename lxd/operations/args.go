@@ -217,15 +217,74 @@ func (a OperationArgs) validate(isChild bool) error {
 // SetInputValue sets the given value on the operation inputs. This enforces that the value can be serialized.
 // Values can be retrieved via [GetOperationInputValue].
 func (a *OperationArgs) SetInputValue(key InputKey, value any) error {
+	return a.SetInputValues(map[InputKey]any{key: value})
+}
+
+// SetInputValues sets the given values on the operation inputs. This enforces that the values can be serialized.
+// Values can be retrieved via [GetOperationInputValue].
+func (a *OperationArgs) SetInputValues(values map[InputKey]any) error {
 	if a.inputs == nil {
 		a.inputs = map[InputKey]json.RawMessage{}
 	}
 
-	b, err := json.Marshal(value)
-	if err != nil {
-		return fmt.Errorf("Failed setting operation input value: %w", err)
+	for k, v := range values {
+		b, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Errorf("Failed setting operation input value for key %q: %w", k, err)
+		}
+
+		a.inputs[k] = b
 	}
 
-	a.inputs[key] = b
+	return nil
+}
+
+// BulkArgBuilder is a convenience wrapper for creating OperationArgs with multiple stages and/or input values.
+type BulkArgBuilder struct {
+	stage uint16
+	args  *OperationArgs
+}
+
+// NewBulkArgBuilder returns a [BulkArgBuilder]. The parent OperationArgs are required.
+func NewBulkArgBuilder(parentArgs OperationArgs) *BulkArgBuilder {
+	return &BulkArgBuilder{
+		args: &parentArgs,
+	}
+}
+
+// Args returns the result of the builder.
+func (a *BulkArgBuilder) Args() OperationArgs {
+	if a.args == nil {
+		return OperationArgs{}
+	}
+
+	return *a.args
+}
+
+// IncrementStage increments the stage of the builder. To ensure that BulkArgBuilder always returns valid OperationArgs,
+// the stage is not incremented if there are no child operations or if no children were added to the current stage
+// (stages must be consecutive, starting at zero).
+func (a *BulkArgBuilder) IncrementStage() {
+	if a.args == nil || len(a.args.Children) == 0 || a.args.Children[len(a.args.Children)-1].Stage != a.stage {
+		return
+	}
+
+	a.stage++
+}
+
+// AddChildArgs adds a child OperationArgs with the current stage and any given inputs.
+func (a *BulkArgBuilder) AddChildArgs(args OperationArgs, inputs map[InputKey]any) error {
+	if a.args == nil {
+		return errors.New("No parent operation args have been set")
+	}
+
+	childArgs := &args
+	err := childArgs.SetInputValues(inputs)
+	if err != nil {
+		return err
+	}
+
+	childArgs.Stage = a.stage
+	a.args.Children = append(a.args.Children, childArgs)
 	return nil
 }

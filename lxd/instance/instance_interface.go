@@ -256,6 +256,10 @@ type MigrateSendArgs struct {
 	MigrateArgs
 
 	AllowInconsistent bool
+
+	// DiskVolumesMode selects which disk volumes travel with the instance. Only all-exclusive sends the
+	// custom volumes attached to the instance alone; any other value sends the root disk only.
+	DiskVolumesMode string
 }
 
 // MigrateReceiveArgs represent arguments for instance migration receive.
@@ -264,6 +268,14 @@ type MigrateReceiveArgs struct {
 
 	InstanceOperation *operationlock.InstanceOperation
 	Refresh           bool
+
+	// AttachedVolumes holds "pool/name" for every custom volume the instance's devices refer to. A
+	// migration only ever creates or refreshes volumes from this set.
+	AttachedVolumes map[string]struct{}
+
+	// DeferredVolumes holds "pool/name" for the attached custom volumes whose device was masked because
+	// the volume is missing on the target. The source's index header must list each of them.
+	DeferredVolumes map[string]struct{}
 }
 
 // ConversionArgs represent arguments for instance conversion send and receive.
