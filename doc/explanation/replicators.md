@@ -40,7 +40,7 @@ If the leader cluster fails, the standby project can be promoted with `lxc proje
 
 When the original leader comes back online, it can be re-synced from the new leader by running the replicator in restore mode (`lxc replicator run --restore`), then returning both projects to their original roles with `lxc project demote-replica` and `lxc project promote-replica`. In restore mode, the remote leader's instance list is used as the authoritative source: instances that were created on the new leader after failover are also created on the recovering cluster, not just the instances that existed before the failure.
 
-See {ref}`howto-replicators-dr` for step-by-step instructions.
+See {ref}`howto-disaster-recovery` for step-by-step instructions.
 
 (exp-replicators-vs-storage-replication)=
 ## Replicators vs. storage replication
