@@ -402,6 +402,36 @@ func (d *alletra) GetVolumeDiskPath(vol Volume) (string, error) {
 	return "", ErrNotSupported
 }
 
+// ActivateTask runs task with the volume's block device activated but not mounted.
+func (d *alletra) ActivateTask(vol Volume, task func(devPath string) error) error {
+	if (vol.volType != VolumeTypeVM && vol.volType != VolumeTypeCustom) || vol.contentType != ContentTypeBlock {
+		return ErrNotSupported
+	}
+
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	// Check if the device is already mapped (but don't map if not).
+	devPath, _, _ := d.getMappedDevPath(vol, false)
+	if devPath != "" && shared.PathExists(devPath) {
+		return api.StatusErrorf(http.StatusConflict, "Volume is already active")
+	}
+
+	volDevPath, cleanup, err := d.getMappedDevPath(vol, true)
+	if err != nil {
+		return err
+	}
+
+	taskErr := task(volDevPath)
+	cleanup()
+
+	return taskErr
+}
+
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
 func (d *alletra) MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error {
 	return mountVolume(d, vol, d.getMappedDevPath, progressReporter)

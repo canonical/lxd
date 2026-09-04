@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net/http"
 	"os"
 	"os/exec"
 	"slices"
@@ -2679,6 +2680,38 @@ func (d *zfs) deactivateVolume(vol Volume) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// ActivateTask runs task with the volume's block device activated but not mounted.
+func (d *zfs) ActivateTask(vol Volume, task func(devPath string) error) error {
+	if (vol.volType != VolumeTypeVM && vol.volType != VolumeTypeCustom) || vol.contentType != ContentTypeBlock {
+		return ErrNotSupported
+	}
+
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	activated, volDevPath, err := d.activateVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if !activated {
+		return api.StatusErrorf(http.StatusConflict, "Volume is already active")
+	}
+
+	taskErr := task(volDevPath)
+
+	_, err = d.deactivateVolume(vol)
+	if taskErr != nil {
+		return taskErr
+	}
+
+	return err
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.

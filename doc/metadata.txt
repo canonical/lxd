@@ -7308,6 +7308,9 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 `can_connect_sftp`
 : Grants permission to get an SFTP client for the instance.
 
+`can_connect_nbd`
+: Grants permission to connect to the instance's disks over NBD.
+
 `can_access_files`
 : Grants permission to push or pull files into or out of the instance.
 
@@ -7736,6 +7739,9 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 
 `can_manage_backups`
 : Grants permission to create and delete backups of the storage volume.
+
+`can_connect_nbd`
+: Grants permission to connect to the storage volume over NBD.
 
 
 <!-- entity group storage_volume end -->

@@ -128,6 +128,10 @@ type Instance interface {
 	FileSFTPConn() (net.Conn, error)
 	FileSFTP() (*sftp.Client, error)
 
+	// Block device handling.
+	ConnectNBD(diskName string, reuse bool) (net.Conn, func(), error)
+	ConnectNBDAllDisks(reuse bool) (net.Conn, func(), error)
+
 	// Console - Allocate and run a console tty or a spice Unix socket.
 	Console(ctx context.Context, protocol string) (*os.File, chan error, error)
 	Exec(ctx context.Context, req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (Cmd, error)
@@ -187,6 +191,11 @@ type Instance interface {
 	DeferTemplateApply(trigger TemplateTrigger) error
 
 	Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error)
+
+	// Dirty bitmaps. CreateBitmap with no device names covers every disk that ConnectNBDAllDisks exports.
+	CreateBitmap(deviceNames []string, data api.StorageVolumeBitmapsPost) error
+	DeleteBitmap(deviceName string, bitmapName string) error
+	GetBitmaps(deviceName string) ([]api.StorageVolumeBitmap, error)
 }
 
 // Container interface is for container specific functions.

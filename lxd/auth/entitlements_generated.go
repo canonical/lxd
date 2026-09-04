@@ -313,6 +313,9 @@ const (
 	// EntitlementCanConnectSFTP is the "can_connect_sftp" entitlement. It applies to the following entities: entity.TypeInstance.
 	EntitlementCanConnectSFTP Entitlement = "can_connect_sftp"
 
+	// EntitlementCanConnectNBD is the "can_connect_nbd" entitlement. It applies to the following entities: entity.TypeInstance, entity.TypeStorageVolume.
+	EntitlementCanConnectNBD Entitlement = "can_connect_nbd"
+
 	// EntitlementCanAccessFiles is the "can_access_files" entitlement. It applies to the following entities: entity.TypeInstance.
 	EntitlementCanAccessFiles Entitlement = "can_access_files"
 
@@ -399,6 +402,8 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanManageBackups,
 		// Grants permission to get an SFTP client for the instance.
 		EntitlementCanConnectSFTP,
+		// Grants permission to connect to the instance's disks over NBD.
+		EntitlementCanConnectNBD,
 		// Grants permission to push or pull files into or out of the instance.
 		EntitlementCanAccessFiles,
 		// Grants permission to start a console session.
@@ -685,5 +690,7 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanManageSnapshots,
 		// Grants permission to create and delete backups of the storage volume.
 		EntitlementCanManageBackups,
+		// Grants permission to connect to the storage volume over NBD.
+		EntitlementCanConnectNBD,
 	},
 }

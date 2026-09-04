@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"time"
@@ -443,4 +444,19 @@ func (b *mockBackend) CreateCustomVolumeFromISO(ctx context.Context, projectName
 // CreateCustomVolumeFromTarball ...
 func (b *mockBackend) CreateCustomVolumeFromTarball(ctx context.Context, projectName string, volName string, srcData *os.File, progressReporter ioprogress.ProgressReporter) error {
 	return nil
+}
+
+// GetInstanceNBD ...
+func (b *mockBackend) GetInstanceNBD(inst instance.Instance, writable bool, reuse bool) (net.Conn, func(), error) {
+	return nil, nil, nil
+}
+
+// GetInstanceAllDisksNBD ...
+func (b *mockBackend) GetInstanceAllDisksNBD(inst instance.Instance, reuse bool) (net.Conn, func(), error) {
+	return nil, nil, nil
+}
+
+// GetCustomVolumeNBD ...
+func (b *mockBackend) GetCustomVolumeNBD(projectName string, volName string, writable bool, reuse bool) (net.Conn, func(), error) {
+	return nil, nil, nil
 }

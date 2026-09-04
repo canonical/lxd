@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -111,6 +112,11 @@ const qemuDeviceNamePrefix = "lxd_"
 
 // qemuDeviceNameMaxLength used to indicate the maximum length of a qemu block node name and device tags.
 const qemuDeviceNameMaxLength = 31
+
+// qemuOverlayNodePrefix used as part of the name given the QEMU block nodes of ephemeral overlays. Device names
+// may contain underscores, so a suffix on qemuDeviceNamePrefix would collide with a device named <name>_snap.
+// No block node of a device starts with this prefix.
+const qemuOverlayNodePrefix = "lxdsnap_"
 
 // qemuMigrationNBDExportName is the name of the disk device export by the migration NBD server.
 const qemuMigrationNBDExportName = "lxd_root"
@@ -906,7 +912,7 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 		// Perform non-shared storage transfer if requested.
 		filesystemConn := d.migrationReceiveStateful[api.SecretNameFilesystem]
 		if filesystemConn != nil {
-			nbdConn, err := monitor.NBDServerStart()
+			nbdConn, err := monitor.NBDServerStart("", 1)
 			if err != nil {
 				return fmt.Errorf("Failed starting NBD server: %w", err)
 			}
@@ -918,7 +924,7 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 				_ = monitor.NBDServerStop()
 			}()
 
-			err = monitor.NBDBlockExportAdd(qemuMigrationNBDExportName)
+			err = monitor.NBDBlockExportAdd(qemuMigrationNBDExportName, qemuMigrationNBDExportName, true, "", nil)
 			if err != nil {
 				return fmt.Errorf("Failed adding root disk to NBD server: %w", err)
 			}
@@ -3103,6 +3109,10 @@ func (d *qemu) consolePath() string {
 
 func (d *qemu) spicePath() string {
 	return filepath.Join(d.LogPath(), "qemu.spice")
+}
+
+func (d *qemu) nbdPath() string {
+	return filepath.Join(d.LogPath(), "qemu.nbd")
 }
 
 func (d *qemu) spiceCmdlineConfig() string {
@@ -7286,6 +7296,114 @@ func (d *qemu) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, p
 	}
 }
 
+// blockNodeName returns the QEMU block node name of a disk device.
+func blockNodeName(deviceName string) string {
+	return qemuDeviceNameOrID(qemuDeviceNamePrefix, deviceName, "", qemuDeviceNameMaxLength)
+}
+
+// overlayNodeName returns the QEMU block node name of the ephemeral overlay of a disk device.
+func overlayNodeName(deviceName string) string {
+	return qemuDeviceNameOrID(qemuOverlayNodePrefix, deviceName, "", qemuDeviceNameMaxLength)
+}
+
+// addOverlay adds a qcow2 overlay block node of the given virtual size to the running QEMU process.
+// The overlay file lives on the instance config volume so that the root disk's size.state property limits
+// its growth, and it is unlinked as soon as QEMU holds its descriptor so that it cannot outlive QEMU.
+// A copy-before-write overlay needs the disk it covers as backingNode, a blockdev-snapshot overlay needs none.
+// The returned function removes the overlay block node and its file descriptor set.
+func (d *qemu) addOverlay(monitor *qmp.Monitor, overlayNode string, size int64, backingNode string) (func(), error) {
+	overlayFile := filepath.Join(d.Path(), overlayNode+".qcow2")
+
+	// Ensure there are no existing overlay files.
+	err := os.Remove(overlayFile)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+
+	// Always remove the overlay file so that if qemu-img fails the partially written file is removed.
+	defer func() { _ = os.Remove(overlayFile) }()
+
+	_, err = shared.RunCommand(d.state.ShutdownCtx, "qemu-img", "create", "-f", "qcow2", overlayFile, strconv.FormatInt(size, 10))
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating overlay image %q: %w", overlayFile, err)
+	}
+
+	// Pass the overlay file to the running QEMU process.
+	overlay, err := os.OpenFile(overlayFile, unix.O_RDWR, 0)
+	if err != nil {
+		return nil, fmt.Errorf("Failed opening file descriptor for overlay %q: %w", overlayFile, err)
+	}
+
+	defer func() { _ = overlay.Close() }()
+
+	// Remove the overlay file so that it is neither synced to a migration target nor left behind.
+	err = os.Remove(overlayFile)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := monitor.SendFileWithFDSet(overlayNode, overlay, false)
+	if err != nil {
+		return nil, fmt.Errorf("Failed sending file descriptor of %q for overlay: %w", overlay.Name(), err)
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	revert.Add(func() { _ = monitor.RemoveFDFromFDSet(overlayNode) })
+
+	_ = overlay.Close() // Do not prevent clean unmount when instance is stopped.
+
+	blockDev := map[string]any{
+		"driver":    "qcow2",
+		"node-name": overlayNode,
+		"read-only": false,
+		"file": map[string]any{
+			"driver":   "file",
+			"filename": fmt.Sprintf("/dev/fdset/%d", info.ID),
+		},
+	}
+
+	if backingNode != "" {
+		blockDev["backing"] = backingNode
+	}
+
+	// Add the overlay as a block device (not visible to the guest OS).
+	err = monitor.AddBlockDevice(blockDev, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed adding overlay block device: %w", err)
+	}
+
+	removeOverlay := func() {
+		_ = monitor.RemoveBlockDevice(overlayNode)
+		_ = monitor.RemoveFDFromFDSet(overlayNode)
+	}
+
+	revert.Success()
+	return removeOverlay, nil
+}
+
+// removeOverlay tears down a copy-before-write overlay. The backup job holds the overlay node, so the job is
+// cancelled before the node and its file descriptor set are removed.
+func (d *qemu) removeOverlay(monitor *qmp.Monitor, overlayNode string) error {
+	err := monitor.BlockJobCancelWait(overlayNode)
+	if err != nil {
+		d.logger.Debug("Failed cancelling overlay block job", logger.Ctx{"overlay": overlayNode, "err": err})
+	}
+
+	err = monitor.RemoveBlockDevice(overlayNode)
+	if err != nil {
+		return fmt.Errorf("Failed removing overlay block device %q: %w", overlayNode, err)
+	}
+
+	err = monitor.RemoveFDFromFDSet(overlayNode)
+	if err != nil {
+		d.logger.Warn("Failed removing overlay file descriptor set", logger.Ctx{"overlay": overlayNode, "err": err})
+	}
+
+	return nil
+}
+
 // migrateSendLive performs live migration send process.
 func (d *qemu) migrateSendLive(ctx context.Context, pool storagePools.Pool, clusterMoveSourceName string, rootDiskSize int64, filesystemConn io.ReadWriteCloser, stateConn io.ReadWriteCloser, volSourceArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -7325,68 +7443,15 @@ func (d *qemu) migrateSendLive(ctx context.Context, pool storagePools.Pool, clus
 			return fmt.Errorf("Failed setting migration capabilities: %w", err)
 		}
 
-		// Create snapshot of the root disk.
-		// We use the VM's config volume for this so that the maximum size of the snapshot can be limited
-		// by setting the root disk's `size.state` property.
-		snapshotFile := filepath.Join(d.Path(), "migration_snapshot.qcow2")
-
-		// Ensure there are no existing migration snapshot files.
-		err = os.Remove(snapshotFile)
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
-
-		// Always remove the snapshotFile so that if qemu-img fails the partially written file is removed.
-		defer func() { _ = os.Remove(snapshotFile) }()
-
-		// Create qcow2 disk image with the maximum size set to the instance's root disk size for use as
+		// Create a snapshot overlay with the maximum size set to the instance's root disk size for use as
 		// a CoW target for the migration snapshot. This will be used during migration to store writes in
-		// the guest whilst the storage driver is transferring the root disk and snapshots to the taget.
-		_, err = shared.RunCommand(d.state.ShutdownCtx, "qemu-img", "create", "-f", "qcow2", snapshotFile, strconv.FormatInt(rootDiskSize, 10))
+		// the guest whilst the storage driver is transferring the root disk and snapshots to the target.
+		removeOverlay, err := d.addOverlay(monitor, rootSnapshotDiskName, rootDiskSize, "")
 		if err != nil {
-			return fmt.Errorf("Failed opening file image for migration storage snapshot %q: %w", snapshotFile, err)
+			return fmt.Errorf("Failed adding migration storage snapshot: %w", err)
 		}
 
-		// Pass the snapshot file to the running QEMU process.
-		snapFile, err := os.OpenFile(snapshotFile, unix.O_RDWR, 0)
-		if err != nil {
-			return fmt.Errorf("Failed opening file descriptor for migration storage snapshot %q: %w", snapshotFile, err)
-		}
-
-		defer func() { _ = snapFile.Close() }()
-
-		// Remove the snapshot file as we don't want to sync this to the target.
-		err = os.Remove(snapshotFile)
-		if err != nil {
-			return err
-		}
-
-		info, err := monitor.SendFileWithFDSet(rootSnapshotDiskName, snapFile, false)
-		if err != nil {
-			return fmt.Errorf("Failed sending file descriptor of %q for migration storage snapshot: %w", snapFile.Name(), err)
-		}
-
-		defer func() { _ = monitor.RemoveFDFromFDSet(rootSnapshotDiskName) }()
-
-		_ = snapFile.Close() // Do not prevent clean unmount when instance is stopped.
-
-		// Add the snapshot file as a block device (not visible to the guest OS).
-		err = monitor.AddBlockDevice(map[string]any{
-			"driver":    "qcow2",
-			"node-name": rootSnapshotDiskName,
-			"read-only": false,
-			"file": map[string]any{
-				"driver":   "file",
-				"filename": fmt.Sprintf("/dev/fdset/%d", info.ID),
-			},
-		}, nil)
-		if err != nil {
-			return fmt.Errorf("Failed adding migration storage snapshot block device: %w", err)
-		}
-
-		defer func() {
-			_ = monitor.RemoveBlockDevice(rootSnapshotDiskName)
-		}()
+		defer removeOverlay()
 
 		// Take a snapshot of the root disk and redirect writes to the snapshot disk.
 		err = monitor.BlockDevSnapshot(rootDiskName, rootSnapshotDiskName)
@@ -8281,6 +8346,558 @@ func (d *qemu) FileSFTP() (*sftp.Client, error) {
 	}()
 
 	return client, nil
+}
+
+// nbdSession tracks a user requested NBD server and its active connections. The export is the name of the disk
+// device served by a single disk session and empty for an all-disks session.
+type nbdSession struct {
+	connections int
+	export      string
+	stop        func()
+}
+
+// nbdSessions tracks the active NBD sessions by instance ID.
+var (
+	nbdSessionsMu sync.Mutex
+	nbdSessions   = map[int]*nbdSession{}
+)
+
+// releaseNBDSession drops one connection from the given NBD session and stops the session once no
+// connections are left. A session that is no longer the one registered for the instance was replaced after
+// its QEMU process went away, so its late release is ignored rather than counted against the new session.
+func (d *qemu) releaseNBDSession(session *nbdSession) {
+	nbdSessionsMu.Lock()
+	defer nbdSessionsMu.Unlock()
+
+	if nbdSessions[d.id] != session {
+		return
+	}
+
+	session.connections--
+	if session.connections > 0 {
+		return
+	}
+
+	delete(nbdSessions, d.id)
+	session.stop()
+}
+
+// connectNBDSession returns an additional connection to the instance's running NBD session. The session must
+// serve the given export, which is a disk device name or empty for the all-disks export, so that the caller
+// is never handed a connection serving a different disk.
+func (d *qemu) connectNBDSession(export string) (net.Conn, func(), error) {
+	nbdSessionsMu.Lock()
+	defer nbdSessionsMu.Unlock()
+
+	session := nbdSessions[d.id]
+	if session == nil {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "No NBD session is currently active")
+	}
+
+	if session.export != export {
+		switch {
+		case session.export == "":
+			return nil, nil, api.StatusErrorf(http.StatusBadRequest, "The active NBD session exports all disks, not only disk %q", export)
+		case export == "":
+			return nil, nil, api.StatusErrorf(http.StatusBadRequest, "The active NBD session exports only disk %q, not all disks", session.export)
+		default:
+			return nil, nil, api.StatusErrorf(http.StatusBadRequest, "The active NBD session exports disk %q, not disk %q", session.export, export)
+		}
+	}
+
+	conn, err := net.Dial("unix", d.nbdPath())
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed connecting to NBD server: %w", err)
+	}
+
+	session.connections++
+
+	cleanup := func() {
+		_ = conn.Close()
+		d.releaseNBDSession(session)
+	}
+
+	return conn, cleanup, nil
+}
+
+// ConnectNBD exports a frozen view of a disk device read-only over a user requested NBD server and returns a
+// connection to it. With reuse, an additional connection to the running session is returned instead.
+// The server is stopped once its last connection is released.
+func (d *qemu) ConnectNBD(diskName string, reuse bool) (net.Conn, func(), error) {
+	if !d.IsRunning() {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	if reuse {
+		return d.connectNBDSession(diskName)
+	}
+
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Check for existing NBD block exports to detect if another operation is in progress.
+	exports, err := monitor.QueryNBDBlockExports()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(exports) > 0 {
+		return nil, nil, api.StatusErrorf(http.StatusConflict, "Another NBD operation is already in progress for: %s", exports[0].NodeName)
+	}
+
+	nodeName := blockNodeName(diskName)
+	overlayNode := overlayNodeName(diskName)
+
+	// Recover an overlay left behind by an earlier failed teardown so that the disk can be exported again.
+	nodeNames, err := monitor.QueryNamedBlockNodes()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if slices.Contains(nodeNames, overlayNode) {
+		err = d.removeOverlay(monitor, overlayNode)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed recovering disk %q from an earlier failed teardown: %w", diskName, err)
+		}
+	}
+
+	bitmaps, err := d.GetBitmaps(diskName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed fetching bitmaps for %q: %w", diskName, err)
+	}
+
+	bitmapNames := make([]string, 0, len(bitmaps))
+	for _, bitmap := range bitmaps {
+		bitmapNames = append(bitmapNames, bitmap.Name)
+	}
+
+	size, err := monitor.BlockNodeSize(nodeName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed fetching size for %q: %w", diskName, err)
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	nbdConn, err := monitor.NBDServerStart(d.nbdPath(), 0)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed starting NBD server: %w", err)
+	}
+
+	d.logger.Debug("User requested NBD server started")
+
+	stopServer := func() {
+		d.logger.Debug("User requested NBD server stopped")
+		_ = nbdConn.Close()
+
+		err := monitor.NBDServerStop()
+		if err != nil {
+			d.logger.Error("Failed stopping NBD server", logger.Ctx{"err": err})
+		}
+
+		_ = os.Remove(d.nbdPath())
+	}
+
+	revert.Add(stopServer)
+
+	// Expose a frozen view of the disk through a copy-before-write overlay while the guest keeps writing to
+	// the disk itself.
+	_, err = d.addOverlay(monitor, overlayNode, size, nodeName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed creating temporary snapshot for %q: %w", diskName, err)
+	}
+
+	// A backup job that QEMU started before its transaction command timed out holds the overlay, so the revert
+	// cancels any job before removing the overlay.
+	revert.Add(func() { _ = d.removeOverlay(monitor, overlayNode) })
+
+	err = monitor.BlockDevBackupTransaction([]qmp.BlockDevBackupTarget{{Device: nodeName, Target: overlayNode, Sync: "none", JobID: overlayNode}})
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed starting copy-before-write job for %q: %w", diskName, err)
+	}
+
+	// The bitmaps live on the disk node, not on the exported overlay.
+	err = monitor.NBDBlockExportAdd(overlayNode, "", false, nodeName, bitmapNames)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed adding disk %q to NBD server: %w", diskName, err)
+	}
+
+	stop := func() {
+		stopServer()
+
+		err := d.removeOverlay(monitor, overlayNode)
+		if err != nil {
+			d.logger.Error("Failed removing temporary snapshot overlay", logger.Ctx{"overlay": overlayNode, "err": err})
+		}
+	}
+
+	// Register the session, it is stopped once its last connection is released.
+	session := &nbdSession{connections: 1, export: diskName, stop: stop}
+	nbdSessionsMu.Lock()
+	nbdSessions[d.id] = session
+	nbdSessionsMu.Unlock()
+
+	revert.Success()
+	return nbdConn, func() { d.releaseNBDSession(session) }, nil
+}
+
+// exportableDisks returns the sorted names of the disk devices whose every write the instance's own QEMU
+// process sees, which is the set that the all-disks NBD export serves and that instance-wide bitmaps cover.
+// nodeNames holds the QEMU block node names, as only a block-backed disk has a node to export or track.
+func (d *qemu) exportableDisks(nodeNames []string) ([]string, error) {
+	rootDiskName, _, err := d.getRootDiskDevice()
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting root disk: %w", err)
+	}
+
+	deviceNames := []string{}
+	diskPools := make(map[string]storagePools.Pool)
+	for devName, devConf := range d.ExpandedDevices() {
+		if !filters.IsDisk(devConf) {
+			continue
+		}
+
+		// Read-only disks never change, so there is nothing to back up.
+		if shared.IsTrue(devConf["readonly"]) || devConf["source.snapshot"] != "" {
+			d.logger.Debug("Skipping read-only disk", logger.Ctx{"device": devName})
+			continue
+		}
+
+		// An ISO image is never written to by the guest.
+		if devConf["pool"] == "" && strings.HasSuffix(strings.ToLower(devConf["source"]), ".iso") {
+			d.logger.Debug("Skipping ISO disk", logger.Ctx{"device": devName})
+			continue
+		}
+
+		// The cloud-init config drive is a generated read-only ISO image.
+		if devConf["source"] == device.DiskSourceCloudInit {
+			d.logger.Debug("Skipping cloud-init config drive", logger.Ctx{"device": devName})
+			continue
+		}
+
+		isRootDisk := devName == rootDiskName
+		if isRootDisk || filters.IsCustomVolumeDisk(devConf) {
+			poolName := devConf["pool"]
+			diskPool, ok := diskPools[poolName]
+			if !ok {
+				diskPool, err = storagePools.LoadByName(d.state, poolName)
+				if err != nil {
+					return nil, fmt.Errorf("Failed loading storage pool: %w", err)
+				}
+
+				diskPools[poolName] = diskPool
+			}
+
+			volumeType := dbCluster.StoragePoolVolumeTypeCustom
+			volumeName := devConf["source"]
+			if isRootDisk {
+				volumeType = dbCluster.StoragePoolVolumeTypeVM
+				volumeName = d.name
+			}
+
+			volumeProject := project.StorageVolumeProjectFromRecord(&d.project, volumeType)
+
+			var dbVolume *db.StorageVolume
+			err = d.state.DB.Cluster.Transaction(d.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+				dbVolume, err = tx.GetStoragePoolVolume(ctx, diskPool.ID(), volumeProject, volumeType, volumeName, true)
+				return err
+			})
+			if err != nil {
+				return nil, fmt.Errorf("Failed loading volume %q of type %q from project %q: %w", volumeName, volumeType, volumeProject, err)
+			}
+
+			if !isRootDisk && dbVolume.ContentType != dbCluster.StoragePoolVolumeContentTypeNameBlock {
+				d.logger.Debug("Skipping non-block custom volume disk", logger.Ctx{"device": devName, "contentType": dbVolume.ContentType})
+				continue
+			}
+
+			// Several instances write to a shared volume, so no single QEMU process sees every write to it.
+			if shared.IsTrue(dbVolume.Config["security.shared"]) {
+				d.logger.Debug("Skipping shared volume disk", logger.Ctx{"device": devName})
+				continue
+			}
+		}
+
+		// Only block-backed disks have a matching QEMU block node, this filters out filesystem shares which
+		// cannot be exported over NBD.
+		if !slices.Contains(nodeNames, blockNodeName(devName)) {
+			d.logger.Debug("Skipping disk without a block node", logger.Ctx{"device": devName})
+			continue
+		}
+
+		deviceNames = append(deviceNames, devName)
+	}
+
+	sort.Strings(deviceNames)
+
+	return deviceNames, nil
+}
+
+// ConnectNBDAllDisks exports a frozen view of every block disk of the instance read-only over a single user
+// requested NBD server, each under an export named after its disk device, and returns a connection to it.
+// With reuse, an additional connection to the running all-disks session is returned instead.
+// The server is stopped once its last connection is released.
+func (d *qemu) ConnectNBDAllDisks(reuse bool) (net.Conn, func(), error) {
+	if !d.IsRunning() {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	if reuse {
+		return d.connectNBDSession("")
+	}
+
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Check for existing NBD block exports to detect if another operation is in progress.
+	exports, err := monitor.QueryNBDBlockExports()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(exports) > 0 {
+		return nil, nil, api.StatusErrorf(http.StatusConflict, "Another NBD operation is already in progress for: %s", exports[0].NodeName)
+	}
+
+	nodeNames, err := monitor.QueryNamedBlockNodes()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	deviceNames, err := d.exportableDisks(nodeNames)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(deviceNames) == 0 {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Instance has no exportable disks")
+	}
+
+	// Recover any overlay left behind by an earlier failed teardown so that the disks can be exported again.
+	for _, devName := range deviceNames {
+		overlayNode := overlayNodeName(devName)
+		if !slices.Contains(nodeNames, overlayNode) {
+			continue
+		}
+
+		err = d.removeOverlay(monitor, overlayNode)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed recovering disk %q from an earlier failed teardown: %w", devName, err)
+		}
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	nbdConn, err := monitor.NBDServerStart(d.nbdPath(), 0)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed starting NBD server: %w", err)
+	}
+
+	d.logger.Debug("User requested NBD server started")
+
+	stopServer := func() {
+		d.logger.Debug("User requested NBD server stopped")
+		_ = nbdConn.Close()
+
+		err := monitor.NBDServerStop()
+		if err != nil {
+			d.logger.Error("Failed stopping NBD server", logger.Ctx{"err": err})
+		}
+
+		_ = os.Remove(d.nbdPath())
+	}
+
+	revert.Add(stopServer)
+
+	type exportTarget struct {
+		deviceName  string
+		nodeName    string
+		overlayNode string
+		bitmaps     []string
+	}
+
+	targets := make([]exportTarget, 0, len(deviceNames))
+	backups := make([]qmp.BlockDevBackupTarget, 0, len(deviceNames))
+
+	// Expose a frozen view of each disk through a copy-before-write overlay while the guest keeps writing to
+	// the disk itself.
+	for _, devName := range deviceNames {
+		nodeName := blockNodeName(devName)
+		overlayNode := overlayNodeName(devName)
+
+		bitmaps, err := d.GetBitmaps(devName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed fetching bitmaps for %q: %w", devName, err)
+		}
+
+		bitmapNames := make([]string, 0, len(bitmaps))
+		for _, bitmap := range bitmaps {
+			bitmapNames = append(bitmapNames, bitmap.Name)
+		}
+
+		size, err := monitor.BlockNodeSize(nodeName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed fetching size for %q: %w", devName, err)
+		}
+
+		_, err = d.addOverlay(monitor, overlayNode, size, nodeName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed creating temporary snapshot for %q: %w", devName, err)
+		}
+
+		// A backup job that QEMU started before its transaction command timed out holds the overlay, so the
+		// revert cancels any job before removing the overlay.
+		revert.Add(func() { _ = d.removeOverlay(monitor, overlayNode) })
+
+		backups = append(backups, qmp.BlockDevBackupTarget{Device: nodeName, Target: overlayNode, Sync: "none", JobID: overlayNode})
+		targets = append(targets, exportTarget{deviceName: devName, nodeName: nodeName, overlayNode: overlayNode, bitmaps: bitmapNames})
+	}
+
+	// Start all copy-before-write jobs in one transaction so that the exported disks share the same instant.
+	err = monitor.BlockDevBackupTransaction(backups)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed creating consistent storage snapshot: %w", err)
+	}
+
+	// The backup jobs hold the overlay nodes and an export holds its overlay, so from here on teardown stops
+	// the server first and then cancels each job before removing its overlay.
+	stop := func() {
+		stopServer()
+
+		for _, target := range targets {
+			err := d.removeOverlay(monitor, target.overlayNode)
+			if err != nil {
+				d.logger.Error("Failed removing temporary snapshot overlay", logger.Ctx{"overlay": target.overlayNode, "err": err})
+			}
+		}
+	}
+
+	revert.Success()
+
+	// Add an NBD export per disk under the disk device name. The bitmaps live on the disk node, not on the
+	// exported overlay.
+	for _, target := range targets {
+		err = monitor.NBDBlockExportAdd(target.overlayNode, target.deviceName, false, target.nodeName, target.bitmaps)
+		if err != nil {
+			stop()
+			return nil, nil, fmt.Errorf("Failed adding disk %q to NBD server: %w", target.deviceName, err)
+		}
+	}
+
+	// Register the session, it is stopped once its last connection is released.
+	session := &nbdSession{connections: 1, export: "", stop: stop}
+	nbdSessionsMu.Lock()
+	nbdSessions[d.id] = session
+	nbdSessionsMu.Unlock()
+
+	return nbdConn, func() { d.releaseNBDSession(session) }, nil
+}
+
+// CreateBitmap creates a dirty bitmap on each of the given disk devices in a single transaction, so that
+// every bitmap starts recording at the same instant. With no disk devices, the bitmap is created on every
+// disk that ConnectNBDAllDisks exports.
+func (d *qemu) CreateBitmap(deviceNames []string, data api.StorageVolumeBitmapsPost) error {
+	if !d.IsRunning() {
+		return api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	if len(deviceNames) == 0 {
+		blockNodes, err := monitor.QueryNamedBlockNodes()
+		if err != nil {
+			return err
+		}
+
+		deviceNames, err = d.exportableDisks(blockNodes)
+		if err != nil {
+			return err
+		}
+
+		if len(deviceNames) == 0 {
+			return api.StatusErrorf(http.StatusBadRequest, "Instance has no exportable disks")
+		}
+	}
+
+	nodeNames := make([]string, 0, len(deviceNames))
+	for _, deviceName := range deviceNames {
+		nodeName := blockNodeName(deviceName)
+
+		// QEMU reports a duplicate name as a generic transaction failure, so check first to report a conflict.
+		dirtyBitmaps, err := monitor.QueryNodeDirtyBitmaps(nodeName)
+		if err != nil {
+			return fmt.Errorf("Failed querying bitmaps of disk device %q: %w", deviceName, err)
+		}
+
+		if slices.ContainsFunc(dirtyBitmaps, func(bitmap qmp.BlockDirtyInfo) bool { return bitmap.Name == data.Name }) {
+			return api.StatusErrorf(http.StatusConflict, "Bitmap %q already exists on disk device %q", data.Name, deviceName)
+		}
+
+		nodeNames = append(nodeNames, nodeName)
+	}
+
+	err = monitor.AddDirtyBitmap(nodeNames, data.Name)
+	if err != nil {
+		return fmt.Errorf("Failed creating bitmap %q: %w", data.Name, err)
+	}
+
+	return nil
+}
+
+// DeleteBitmap deletes a dirty bitmap from a disk device.
+func (d *qemu) DeleteBitmap(deviceName string, bitmapName string) error {
+	if !d.IsRunning() {
+		return api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	err = monitor.RemoveDirtyBitmap(blockNodeName(deviceName), bitmapName)
+	if err != nil {
+		return fmt.Errorf("Failed deleting bitmap %q: %w", bitmapName, err)
+	}
+
+	return nil
+}
+
+// GetBitmaps returns the dirty bitmaps of a disk device.
+func (d *qemu) GetBitmaps(deviceName string) ([]api.StorageVolumeBitmap, error) {
+	if !d.IsRunning() {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return nil, err
+	}
+
+	dirtyBitmaps, err := monitor.QueryNodeDirtyBitmaps(blockNodeName(deviceName))
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying bitmaps of disk device %q: %w", deviceName, err)
+	}
+
+	bitmaps := make([]api.StorageVolumeBitmap, 0, len(dirtyBitmaps))
+	for _, bitmap := range dirtyBitmaps {
+		bitmaps = append(bitmaps, api.StorageVolumeBitmap{
+			Name:        bitmap.Name,
+			Count:       bitmap.Count,
+			Granularity: bitmap.Granularity,
+			Busy:        bitmap.Busy,
+		})
+	}
+
+	return bitmaps, nil
 }
 
 // Console gets access to the instance's console.

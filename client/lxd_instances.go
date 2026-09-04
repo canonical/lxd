@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
 	"github.com/canonical/lxd/shared/ioprogress"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/tcp"
 	"github.com/canonical/lxd/shared/ws"
 )
@@ -1634,8 +1636,9 @@ func (r *ProtocolLXD) DeleteInstanceFile(instanceName string, filePath string) e
 	return nil
 }
 
-// rawSFTPConn connects to the apiURL, upgrades to an SFTP raw connection and returns it.
-func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
+// rawUpgradeConn connects to the apiURL, upgrades the connection to the given protocol and returns it.
+// A non-nil body is sent as JSON.
+func (r *ProtocolLXD) rawUpgradeConn(method string, apiURL *url.URL, protocol string, body any) (net.Conn, error) {
 	// Get the HTTP transport.
 	httpTransport, err := r.getUnderlyingHTTPTransport()
 	if err != nil {
@@ -1643,7 +1646,7 @@ func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
 	}
 
 	req := &http.Request{
-		Method:     http.MethodGet,
+		Method:     method,
 		URL:        apiURL,
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,
@@ -1652,23 +1655,45 @@ func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
 		Host:       apiURL.Host,
 	}
 
-	req.Header["Upgrade"] = []string{"sftp"}
+	req.Header["Upgrade"] = []string{protocol}
 	req.Header["Connection"] = []string{"Upgrade"}
 
+	if body != nil {
+		data, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+
+		// The request is written by hand, so the length must be set for the body to be sent as-is.
+		req.Body = io.NopCloser(bytes.NewReader(data))
+		req.ContentLength = int64(len(data))
+		req.Header.Set("Content-Type", "application/json")
+	}
+
 	r.addClientHeaders(req)
+
+	// The raw dialers do not apply the default port.
+	addr := apiURL.Host
+	if apiURL.Port() == "" {
+		addr = net.JoinHostPort(apiURL.Hostname(), "443")
+	}
 
 	// Establish the connection.
 	var conn net.Conn
 
 	if httpTransport.TLSClientConfig != nil {
-		conn, err = httpTransport.DialTLSContext(context.Background(), "tcp", apiURL.Host)
+		conn, err = httpTransport.DialTLSContext(context.Background(), "tcp", addr)
 	} else {
-		conn, err = httpTransport.DialContext(context.Background(), "tcp", apiURL.Host)
+		conn, err = httpTransport.DialContext(context.Background(), "tcp", addr)
 	}
 
 	if err != nil {
 		return nil, err
 	}
+
+	revert := revert.New()
+	defer revert.Fail()
+	revert.Add(func() { _ = conn.Close() })
 
 	remoteTCP, _ := tcp.ExtractConn(conn)
 	if remoteTCP != nil {
@@ -1683,23 +1708,43 @@ func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
 		return nil, err
 	}
 
-	resp, err := http.ReadResponse(bufio.NewReader(conn), req)
+	reader := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(reader, req)
 	if err != nil {
 		return nil, err
 	}
 
 	if resp.StatusCode != http.StatusSwitchingProtocols {
 		_, _, err := lxdParseResponse(resp)
+		_ = resp.Body.Close()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if resp.Header.Get("Upgrade") != "sftp" {
+	if resp.Header.Get("Upgrade") != protocol {
 		return nil, errors.New("Missing or unexpected Upgrade header in response")
 	}
 
-	return conn, err
+	revert.Success()
+	return &upgradedConn{Conn: conn, reader: reader}, nil
+}
+
+// upgradedConn is a connection returned by rawUpgradeConn. A server-speaks-first protocol such as NBD may send
+// its greeting in the same segment as the HTTP 101 headers, so reads first drain what the response reader
+// buffered past the headers.
+type upgradedConn struct {
+	net.Conn
+	reader *bufio.Reader
+}
+
+// Read returns the bytes buffered past the upgrade headers before reading from the connection.
+func (c *upgradedConn) Read(p []byte) (int, error) {
+	if c.reader.Buffered() > 0 {
+		return c.reader.Read(p)
+	}
+
+	return c.Conn.Read(p)
 }
 
 // GetInstanceFileSFTPConn returns a connection to the instance's SFTP endpoint.
@@ -1709,7 +1754,7 @@ func (r *ProtocolLXD) GetInstanceFileSFTPConn(instanceName string) (net.Conn, er
 	apiURL.Path("1.0", "instances", instanceName, "sftp")
 	r.setURLQueryAttributes(&apiURL.URL)
 
-	return r.rawSFTPConn(&apiURL.URL)
+	return r.rawUpgradeConn(http.MethodGet, &apiURL.URL, "sftp", nil)
 }
 
 // GetInstanceFileSFTP returns an SFTP connection to the instance.
@@ -1733,6 +1778,45 @@ func (r *ProtocolLXD) GetInstanceFileSFTP(instanceName string) (*sftp.Client, er
 	}()
 
 	return client, nil
+}
+
+// GetInstanceNBDConn returns a connection to the instance's NBD export of every non-shared block disk, each under its device name.
+//
+// The returned connection speaks NBD and the server sends the first message of the handshake.
+// Note that it's the caller's responsibility to close the returned connection.
+func (r *ProtocolLXD) GetInstanceNBDConn(instanceName string, args api.InstanceNBDGet) (net.Conn, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	apiURL := api.NewURL()
+	apiURL.URL = r.httpBaseURL // Preload the URL with the client base URL.
+	apiURL.Path("1.0", "instances", instanceName, "nbd")
+	r.setURLQueryAttributes(&apiURL.URL)
+
+	return r.rawUpgradeConn(http.MethodGet, &apiURL.URL, "nbd", args)
+}
+
+// CreateInstanceBitmap creates a bitmap of the given name on the root disk and every non-shared block disk of the instance.
+func (r *ProtocolLXD) CreateInstanceBitmap(instanceName string, bitmap api.StorageVolumeBitmapsPost) (Operation, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation(http.MethodPost, path+"/"+url.PathEscape(instanceName)+"/bitmaps", bitmap, "", true)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // GetInstanceSnapshotNames returns a list of snapshot names for the instance.

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 
@@ -1159,4 +1160,129 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromBackup(pool string, args Storag
 	}
 
 	return r.createStoragePoolVolumeFromFile(pool, args, "")
+}
+
+// GetStorageVolumeBitmapNames returns a list of bitmap names for the storage volume.
+func (r *ProtocolLXD) GetStorageVolumeBitmapNames(pool string, volumeType string, volumeName string) ([]string, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the raw URL values.
+	urls := []string{}
+	baseURL := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volumeType) + "/" + url.PathEscape(volumeName) + "/bitmaps"
+	_, err = r.queryStruct(http.MethodGet, baseURL, nil, "", &urls)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
+}
+
+// GetStorageVolumeBitmaps returns a list of bitmaps for the storage volume.
+func (r *ProtocolLXD) GetStorageVolumeBitmaps(pool string, volumeType string, volumeName string) ([]api.StorageVolumeBitmap, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	bitmaps := []api.StorageVolumeBitmap{}
+
+	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volumeType) + "/" + url.PathEscape(volumeName) + "/bitmaps?recursion=1"
+	_, err = r.queryStruct(http.MethodGet, path, nil, "", &bitmaps)
+	if err != nil {
+		return nil, err
+	}
+
+	return bitmaps, nil
+}
+
+// GetStorageVolumeBitmap returns a bitmap for the storage volume.
+func (r *ProtocolLXD) GetStorageVolumeBitmap(pool string, volumeType string, volumeName string, bitmapName string) (*api.StorageVolumeBitmap, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	bitmap := api.StorageVolumeBitmap{}
+
+	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volumeType) + "/" + url.PathEscape(volumeName) + "/bitmaps/" + url.PathEscape(bitmapName)
+	_, err = r.queryStruct(http.MethodGet, path, nil, "", &bitmap)
+	if err != nil {
+		return nil, err
+	}
+
+	return &bitmap, nil
+}
+
+// CreateStorageVolumeBitmap creates a bitmap on the storage volume.
+func (r *ProtocolLXD) CreateStorageVolumeBitmap(pool string, volumeType string, volumeName string, bitmap api.StorageVolumeBitmapsPost) (Operation, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the request
+	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volumeType) + "/" + url.PathEscape(volumeName) + "/bitmaps"
+	op, _, err := r.queryOperation(http.MethodPost, path, bitmap, "", true)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// DeleteStorageVolumeBitmap deletes a bitmap from the storage volume.
+func (r *ProtocolLXD) DeleteStorageVolumeBitmap(pool string, volumeType string, volumeName string, bitmapName string) (Operation, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the request
+	path := "/storage-pools/" + url.PathEscape(pool) + "/volumes/" + url.PathEscape(volumeType) + "/" + url.PathEscape(volumeName) + "/bitmaps/" + url.PathEscape(bitmapName)
+	op, _, err := r.queryOperation(http.MethodDelete, path, nil, "", true)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// GetStoragePoolVolumeNBDConn returns a connection to the volume's read-only NBD export.
+//
+// The returned connection speaks NBD and the server sends the first message of the handshake.
+// Note that it's the caller's responsibility to close the returned connection.
+func (r *ProtocolLXD) GetStoragePoolVolumeNBDConn(pool string, volType string, volName string, args api.StorageVolumeNBDGet) (net.Conn, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	apiURL := api.NewURL()
+	apiURL.URL = r.httpBaseURL // Preload the URL with the client base URL.
+	apiURL.Path("1.0", "storage-pools", pool, "volumes", volType, volName, "nbd")
+	r.setURLQueryAttributes(&apiURL.URL)
+
+	return r.rawUpgradeConn(http.MethodGet, &apiURL.URL, "nbd", args)
+}
+
+// GetStoragePoolVolumeNBDWriteConn returns a connection to the volume's writable NBD import.
+//
+// The returned connection speaks NBD and the server sends the first message of the handshake.
+// Note that it's the caller's responsibility to close the returned connection.
+func (r *ProtocolLXD) GetStoragePoolVolumeNBDWriteConn(pool string, volType string, volName string, args api.StorageVolumeNBDPost) (net.Conn, error) {
+	err := r.CheckExtension("storage_volume_block_tracking")
+	if err != nil {
+		return nil, err
+	}
+
+	apiURL := api.NewURL()
+	apiURL.URL = r.httpBaseURL // Preload the URL with the client base URL.
+	apiURL.Path("1.0", "storage-pools", pool, "volumes", volType, volName, "nbd")
+	r.setURLQueryAttributes(&apiURL.URL)
+
+	return r.rawUpgradeConn(http.MethodPost, &apiURL.URL, "nbd", args)
 }

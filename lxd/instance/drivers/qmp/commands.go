@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -132,6 +133,11 @@ func (m *Monitor) SendFile(name string, file *os.File) error {
 	// Query the status.
 	_, err = m.qmp.runWithFile(reqJSON, file, id)
 	if err != nil {
+		// Keep the monitor cached on timeout so that a busy QEMU is not mistaken for a dead one.
+		if errors.Is(err, ErrMonitorTimeout) {
+			return err
+		}
+
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
 		if errPing != nil {
@@ -188,6 +194,11 @@ func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (
 
 	ret, err := m.qmp.runWithFile(reqJSON, file, id)
 	if err != nil {
+		// Keep the monitor cached on timeout so that a busy QEMU is not mistaken for a dead one.
+		if errors.Is(err, ErrMonitorTimeout) {
+			return nil, err
+		}
+
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
 		if errPing != nil {
@@ -301,8 +312,9 @@ func (m *Monitor) MigrateWait(state string) error {
 			} `json:"return"`
 		}
 
+		// The QEMU main loop is busy during switchover, so a timed out query is not a failure and polling continues.
 		err := m.run("query-migrate", nil, &resp)
-		if err != nil {
+		if err != nil && !errors.Is(err, ErrMonitorTimeout) {
 			return err
 		}
 
@@ -352,8 +364,9 @@ func (m *Monitor) MigrateIncoming(ctx context.Context, uri string) error {
 			} `json:"return"`
 		}
 
+		// The QEMU main loop is busy during switchover, so a timed out query is not a failure and polling continues.
 		err := m.run("query-migrate", nil, &resp)
-		if err != nil {
+		if err != nil && !errors.Is(err, ErrMonitorTimeout) {
 			return err
 		}
 
@@ -767,38 +780,84 @@ func (m *Monitor) SEVCapabilities() (AMDSEVCapabilities, error) {
 	return resp.Return, nil
 }
 
-// NBDServerStart starts internal NBD server and returns a connection to it.
-func (m *Monitor) NBDServerStart() (net.Conn, error) {
+// NBDServerStart starts the internal NBD server and returns a connection to it.
+// With an empty listenPath the server listens on a random abstract unix socket. Otherwise LXD binds
+// listenPath itself and hands the listener to QEMU as a file descriptor, because QEMU may have dropped
+// the privileges needed to create the socket. A maxConnections of 0 means unlimited.
+func (m *Monitor) NBDServerStart(listenPath string, maxConnections int) (net.Conn, error) {
 	var args struct {
 		Addr struct {
-			Data struct {
-				Path     string `json:"path"`
-				Abstract bool   `json:"abstract"`
-			} `json:"data"`
-			Type string `json:"type"`
+			Data map[string]any `json:"data"`
+			Type string         `json:"type"`
 		} `json:"addr"`
 		MaxConnections int `json:"max-connections"`
 	}
 
-	// Create abstract unix listener.
-	listener, err := net.Listen("unix", "")
-	if err != nil {
-		return nil, fmt.Errorf("Failed creating unix listener: %w", err)
+	revert := revert.New()
+	defer revert.Fail()
+
+	listenAddress := listenPath
+	if listenAddress == "" {
+		// Create abstract unix listener.
+		listener, err := net.Listen("unix", "")
+		if err != nil {
+			return nil, fmt.Errorf("Failed creating unix listener: %w", err)
+		}
+
+		// Get the random address, and then close the listener, and pass the address for use with nbd-server-start.
+		listenAddress = listener.Addr().String()
+		_ = listener.Close()
+
+		args.Addr.Type = "unix"
+		args.Addr.Data = map[string]any{
+			"path":     strings.TrimPrefix(listenAddress, "@"),
+			"abstract": true,
+		}
+	} else {
+		err := os.Remove(listenPath)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("Failed removing stale socket %q: %w", listenPath, err)
+		}
+
+		listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: listenPath, Net: "unix"})
+		if err != nil {
+			return nil, fmt.Errorf("Failed creating unix listener: %w", err)
+		}
+
+		// QEMU owns the socket from here on, so closing our listener must not unlink it.
+		listener.SetUnlinkOnClose(false)
+		revert.Add(func() { _ = os.Remove(listenPath) })
+
+		listenerFile, err := listener.File()
+		_ = listener.Close()
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting listener file descriptor: %w", err)
+		}
+
+		defer func() { _ = listenerFile.Close() }()
+
+		err = m.SendFile(listenPath, listenerFile)
+		if err != nil {
+			return nil, fmt.Errorf("Failed sending listener file descriptor: %w", err)
+		}
+
+		// QEMU only takes the descriptor out of its fd table once nbd-server-start consumes it.
+		revert.Add(func() { _ = m.CloseFile(listenPath) })
+
+		args.Addr.Type = "fd"
+		args.Addr.Data = map[string]any{
+			"str": listenPath,
+		}
 	}
 
-	// Get the random address, and then close the listener, and pass the address for use with nbd-server-start.
-	listenAddress := listener.Addr().String()
-	_ = listener.Close()
+	args.MaxConnections = maxConnections
 
-	args.Addr.Type = "unix"
-	args.Addr.Data.Path = strings.TrimPrefix(listenAddress, "@")
-	args.Addr.Data.Abstract = true
-	args.MaxConnections = 1
-
-	err = m.run("nbd-server-start", args, nil)
+	err := m.run("nbd-server-start", args, nil)
 	if err != nil {
 		return nil, err
 	}
+
+	revert.Add(func() { _ = m.NBDServerStop() })
 
 	// Connect to the NBD server and return the connection.
 	conn, err := net.Dial("unix", listenAddress)
@@ -806,6 +865,7 @@ func (m *Monitor) NBDServerStart() (net.Conn, error) {
 		return nil, fmt.Errorf("Failed connecting to NBD server: %w", err)
 	}
 
+	revert.Success()
 	return conn, nil
 }
 
@@ -819,19 +879,37 @@ func (m *Monitor) NBDServerStop() error {
 	return nil
 }
 
-// NBDBlockExportAdd exports a writable device via the NBD server.
-func (m *Monitor) NBDBlockExportAdd(deviceNodeName string) error {
+// NBDBlockExportAdd exports a block node via the NBD server under exportName.
+// The named bitmaps are published with the export and are looked up on bitmapNode,
+// which defaults to the exported node when empty.
+func (m *Monitor) NBDBlockExportAdd(deviceNodeName string, exportName string, writable bool, bitmapNode string, bitmapNames []string) error {
+	type bitmap struct {
+		Node string `json:"node"`
+		Name string `json:"name"`
+	}
+
 	var args struct {
-		ID       string `json:"id"`
-		Type     string `json:"type"`
-		NodeName string `json:"node-name"`
-		Writable bool   `json:"writable"`
+		ID       string   `json:"id"`
+		Type     string   `json:"type"`
+		NodeName string   `json:"node-name"`
+		Name     string   `json:"name"`
+		Writable bool     `json:"writable"`
+		Bitmaps  []bitmap `json:"bitmaps,omitempty"`
 	}
 
 	args.ID = deviceNodeName
 	args.Type = "nbd"
 	args.NodeName = deviceNodeName
-	args.Writable = true
+	args.Name = exportName
+	args.Writable = writable
+
+	if bitmapNode == "" {
+		bitmapNode = deviceNodeName
+	}
+
+	for _, bitmapName := range bitmapNames {
+		args.Bitmaps = append(args.Bitmaps, bitmap{Node: bitmapNode, Name: bitmapName})
+	}
 
 	err := m.run("block-export-add", args, nil)
 	if err != nil {
@@ -839,6 +917,109 @@ func (m *Monitor) NBDBlockExportAdd(deviceNodeName string) error {
 	}
 
 	return nil
+}
+
+// BlockDirtyInfo contains information about a dirty bitmap.
+type BlockDirtyInfo struct {
+	Name        string `json:"name"`
+	Count       int64  `json:"count"`
+	Granularity int    `json:"granularity"`
+	Busy        bool   `json:"busy"`
+}
+
+// QueryNodeDirtyBitmaps returns the dirty bitmaps of the given block node.
+// The node is looked up through query-named-block-nodes rather than query-block because a running
+// blockdev-backup job inserts its copy-before-write filter in front of the disk node, which then no
+// longer appears as the inserted node of the device.
+func (m *Monitor) QueryNodeDirtyBitmaps(nodeName string) ([]BlockDirtyInfo, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []struct {
+			NodeName     string           `json:"node-name"`
+			DirtyBitmaps []BlockDirtyInfo `json:"dirty-bitmaps"`
+		} `json:"return"`
+	}
+
+	err := m.run("query-named-block-nodes", nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying named block nodes: %w", err)
+	}
+
+	for _, node := range resp.Return {
+		if node.NodeName != nodeName {
+			continue
+		}
+
+		if node.DirtyBitmaps == nil {
+			return []BlockDirtyInfo{}, nil
+		}
+
+		return node.DirtyBitmaps, nil
+	}
+
+	return nil, fmt.Errorf("Block node %q not found", nodeName)
+}
+
+// BlockExport contains information about an exported block node.
+type BlockExport struct {
+	NodeName string `json:"node-name"`
+	Type     string `json:"type"`
+}
+
+// QueryBlockExports returns a list of all block exports.
+func (m *Monitor) QueryBlockExports() ([]BlockExport, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []BlockExport `json:"return"`
+	}
+
+	err := m.run("query-block-exports", nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying block exports: %w", err)
+	}
+
+	return resp.Return, nil
+}
+
+// QueryNBDBlockExports returns a list of the block exports of type nbd.
+func (m *Monitor) QueryNBDBlockExports() ([]BlockExport, error) {
+	exports, err := m.QueryBlockExports()
+	if err != nil {
+		return nil, err
+	}
+
+	nbdExports := []BlockExport{}
+	for _, export := range exports {
+		if export.Type != "nbd" {
+			continue
+		}
+
+		nbdExports = append(nbdExports, export)
+	}
+
+	return nbdExports, nil
+}
+
+// QueryNamedBlockNodes returns the names of all named block nodes.
+func (m *Monitor) QueryNamedBlockNodes() ([]string, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []struct {
+			NodeName string `json:"node-name"`
+		} `json:"return"`
+	}
+
+	err := m.run("query-named-block-nodes", nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying named block nodes: %w", err)
+	}
+
+	nodeNames := make([]string, 0, len(resp.Return))
+	for _, node := range resp.Return {
+		nodeNames = append(nodeNames, node.NodeName)
+	}
+
+	return nodeNames, nil
 }
 
 // BlockDevSnapshot creates a snapshot of a device using the specified snapshot device.
@@ -857,6 +1038,64 @@ func (m *Monitor) BlockDevSnapshot(deviceNodeName string, snapshotNodeName strin
 	}
 
 	return nil
+}
+
+// BlockDevBackupTarget describes a single blockdev-backup action.
+type BlockDevBackupTarget struct {
+	Device string
+	Target string
+	Sync   string
+	JobID  string
+}
+
+// BlockDevBackupTransaction starts the given blockdev-backup jobs in a single transaction so that all
+// targets share the same point in time.
+func (m *Monitor) BlockDevBackupTransaction(backups []BlockDevBackupTarget) error {
+	actions := make([]TransactionAction, 0, len(backups))
+	for _, backup := range backups {
+		actions = append(actions, TransactionAction{
+			Type: "blockdev-backup",
+			Data: map[string]any{
+				"device": backup.Device,
+				"target": backup.Target,
+				"sync":   backup.Sync,
+				"job-id": backup.JobID,
+			},
+		})
+	}
+
+	err := m.RunTransaction(actions)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// BlockNodeSize returns the virtual size in bytes of the given block node.
+func (m *Monitor) BlockNodeSize(nodeName string) (int64, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []struct {
+			NodeName string `json:"node-name"`
+			Image    struct {
+				VirtualSize int64 `json:"virtual-size"`
+			} `json:"image"`
+		} `json:"return"`
+	}
+
+	err := m.run("query-named-block-nodes", nil, &resp)
+	if err != nil {
+		return 0, fmt.Errorf("Failed querying named block nodes: %w", err)
+	}
+
+	for _, node := range resp.Return {
+		if node.NodeName == nodeName {
+			return node.Image.VirtualSize, nil
+		}
+	}
+
+	return 0, fmt.Errorf("Block node %q not found", nodeName)
 }
 
 // blockJobWaitReady waits until the specified jobID is ready, errored or missing.
@@ -895,6 +1134,43 @@ func (m *Monitor) blockJobWaitReady(jobID string) error {
 
 		if !found {
 			return errors.New("Specified block job not found")
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
+// blockJobWaitGone waits until the specified jobID no longer exists.
+// Returns nil once the job is gone, otherwise the error the job reported.
+func (m *Monitor) blockJobWaitGone(jobID string) error {
+	for {
+		var resp struct {
+			Return []struct {
+				Device string `json:"device"`
+				Error  string `json:"error"`
+			} `json:"return"`
+		}
+
+		err := m.run("query-block-jobs", nil, &resp)
+		if err != nil {
+			return err
+		}
+
+		found := false
+		for _, job := range resp.Return {
+			if job.Device != jobID {
+				continue
+			}
+
+			if job.Error != "" {
+				return fmt.Errorf("Failed block job: %s", job.Error)
+			}
+
+			found = true
+		}
+
+		if !found {
+			return nil
 		}
 
 		time.Sleep(1 * time.Second)
@@ -980,6 +1256,21 @@ func (m *Monitor) BlockJobCancel(deviceNodeName string) error {
 	return nil
 }
 
+// BlockJobCancelWait cancels an ongoing block job and waits until it is gone.
+func (m *Monitor) BlockJobCancelWait(jobID string) error {
+	err := m.BlockJobCancel(jobID)
+	if err != nil {
+		return err
+	}
+
+	err = m.blockJobWaitGone(jobID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // BlockJobComplete completes a block job that is in reader state.
 func (m *Monitor) BlockJobComplete(deviceNodeName string) error {
 	var args struct {
@@ -1055,4 +1346,43 @@ func (m *Monitor) CheckPCIDevice(deviceID string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// AddDirtyBitmap creates a dirty bitmap on each of the given block nodes in a single transaction.
+func (m *Monitor) AddDirtyBitmap(deviceNames []string, bitmapName string) error {
+	actions := make([]TransactionAction, 0, len(deviceNames))
+	for _, deviceName := range deviceNames {
+		actions = append(actions, TransactionAction{
+			Type: "block-dirty-bitmap-add",
+			Data: map[string]any{
+				"node": deviceName,
+				"name": bitmapName,
+			},
+		})
+	}
+
+	err := m.RunTransaction(actions)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RemoveDirtyBitmap removes a dirty bitmap from a block node.
+func (m *Monitor) RemoveDirtyBitmap(deviceName string, bitmapName string) error {
+	var args struct {
+		Node string `json:"node"`
+		Name string `json:"name"`
+	}
+
+	args.Node = deviceName
+	args.Name = bitmapName
+
+	err := m.run("block-dirty-bitmap-remove", args, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

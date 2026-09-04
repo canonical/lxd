@@ -233,6 +233,7 @@ To see all configuration options that are explicitly set on the snap, run:
 sudo snap get lxd
 ```
 
+(howto-snap-configure-feature-previews)=
 ### Configure feature previews
 
 ```{warning}

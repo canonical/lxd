@@ -2,12 +2,16 @@ package storage
 
 import (
 	"archive/tar"
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -3124,6 +3128,19 @@ func (b *lxdBackend) UpdateInstance(ctx context.Context, inst instance.Instance,
 			}
 		}
 
+		if shared.IsTrue(changedConfig["security.shared"]) && volDBType == cluster.StoragePoolVolumeTypeVM {
+			// Enabling security.shared while an NBD export runs would let another instance write to a volume
+			// whose export assumes it has exclusive access. The export holds the NBD lock for its whole
+			// session, so refuse the change while the lock is held and keep it for the rest of the update so
+			// that no export can start in the meantime.
+			unlock := locking.TryLock(nbdInstanceLockName(inst.Project().Name, inst.Name()))
+			if unlock == nil {
+				return api.StatusErrorf(http.StatusConflict, "NBD operation already in progress for instance %q", inst.Name())
+			}
+
+			defer unlock()
+		}
+
 		// Generate the effective root device volume for instance.
 		volStorageName := project.Instance(inst.Project().Name, inst.Name())
 		curVol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
@@ -3445,6 +3462,435 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 	}
 
 	return nil
+}
+
+// allowVolumeNBDExport returns an error if volume does not meet conditions to be exported as NBD.
+// Currently, it rejects any volume that has security.shared enabled, since a shared volume can be
+// written by another instance during the export causing backup corruption.
+func (b *lxdBackend) allowVolumeNBDExport(volConfig map[string]string) error {
+	if shared.IsTrue(volConfig["security.shared"]) {
+		return api.StatusErrorf(http.StatusBadRequest, "NBD export is not supported on shared volumes")
+	}
+
+	return nil
+}
+
+// GetInstanceNBD returns an NBD connection to the root volume of a virtual machine. A read-only export goes
+// through the QEMU process of the running instance. A writable export runs qemu-nbd against the volume and
+// requires the instance to be stopped. With reuse, an additional connection to the running read-only session
+// is returned instead of starting a new one.
+func (b *lxdBackend) GetInstanceNBD(inst instance.Instance, writable bool, reuse bool) (net.Conn, func(), error) {
+	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "writable": writable, "reuse": reuse})
+	l.Debug("GetInstanceNBD started")
+	defer l.Debug("GetInstanceNBD finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if writable && reuse {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Reuse is not supported on writable exports")
+	}
+
+	if inst.Type() != instancetype.VM {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is only supported for virtual machines")
+	}
+
+	lockName := nbdInstanceLockName(inst.Project().Name, inst.Name())
+	lockDesc := fmt.Sprintf("instance %q", inst.Name())
+
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), drivers.VolumeTypeVM)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Rejected before the state checks so that a shared volume is refused for that reason. The check is
+	// repeated under the session lock, which enabling security.shared also takes.
+	err = b.allowVolumeNBDExport(dbVol.Config)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if writable {
+		if inst.IsRunning() {
+			return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Writable NBD requires the instance to be stopped")
+		}
+
+		// Generate the effective root device volume for instance.
+		volStorageName := project.Instance(inst.Project().Name, inst.Name())
+		vol := b.GetVolume(drivers.VolumeTypeVM, drivers.ContentTypeBlock, volStorageName, dbVol.Config)
+		err = b.applyInstanceRootDiskOverrides(inst, &vol)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return nbdLockedSession(lockName, lockDesc, func() (net.Conn, func(), error) {
+			err := b.allowVolumeNBDExport(vol.Config())
+			if err != nil {
+				return nil, nil, err
+			}
+
+			return b.connectOfflineNBD(vol, true)
+		})
+	}
+
+	if !inst.IsRunning() {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	rootDiskName, _, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Additional connections attach to the running session, which already holds the lock.
+	if reuse {
+		return inst.ConnectNBD(rootDiskName, true)
+	}
+
+	return nbdLockedSession(lockName, lockDesc, func() (net.Conn, func(), error) {
+		err := b.allowVolumeNBDExport(dbVol.Config)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return inst.ConnectNBD(rootDiskName, false)
+	})
+}
+
+// GetInstanceAllDisksNBD returns a single read-only NBD connection exporting every block disk of a running
+// virtual machine. With reuse, an additional connection to the running session is returned instead.
+func (b *lxdBackend) GetInstanceAllDisksNBD(inst instance.Instance, reuse bool) (net.Conn, func(), error) {
+	l := b.logger.AddContext(logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "reuse": reuse})
+	l.Debug("GetInstanceAllDisksNBD started")
+	defer l.Debug("GetInstanceAllDisksNBD finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if inst.Type() != instancetype.VM {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is only supported for virtual machines")
+	}
+
+	if !inst.IsRunning() {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	// Additional connections attach to the running session, which already holds the lock.
+	if reuse {
+		return inst.ConnectNBDAllDisks(true)
+	}
+
+	lockName := nbdInstanceLockName(inst.Project().Name, inst.Name())
+	lockDesc := fmt.Sprintf("instance %q", inst.Name())
+
+	return nbdLockedSession(lockName, lockDesc, func() (net.Conn, func(), error) {
+		return inst.ConnectNBDAllDisks(false)
+	})
+}
+
+// GetCustomVolumeNBD returns an NBD connection to a custom block volume. A read-only export goes through the
+// QEMU process of the running virtual machine the volume is attached to. A writable export runs qemu-nbd
+// against the volume and requires that no running instance uses it. With reuse, an additional connection to
+// the running read-only session is returned instead of starting a new one.
+func (b *lxdBackend) GetCustomVolumeNBD(projectName string, volName string, writable bool, reuse bool) (net.Conn, func(), error) {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "volume": volName, "writable": writable, "reuse": reuse})
+	l.Debug("GetCustomVolumeNBD started")
+	defer l.Debug("GetCustomVolumeNBD finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if shared.IsSnapshot(volName) {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is not supported for snapshots")
+	}
+
+	if writable && reuse {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Reuse is not supported on writable exports")
+	}
+
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if dbVol.ContentType != cluster.StoragePoolVolumeContentTypeNameBlock {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export is only supported for block volumes")
+	}
+
+	// Rejected before the attachment checks so that a shared volume is refused for that reason whether or not
+	// it is attached. The check is repeated under the session lock, which enabling security.shared also takes.
+	err = b.allowVolumeNBDExport(dbVol.Config)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if writable {
+		// A non-shared block volume is attached to at most one instance, which must be stopped and on this
+		// member before qemu-nbd can open it.
+		err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &dbVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+			if dbInst.Node != b.state.ServerName {
+				return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to instance %q on cluster member %q", dbInst.Name, dbInst.Node)
+			}
+
+			inst, err := instance.Load(b.state, dbInst, project)
+			if err != nil {
+				return err
+			}
+
+			if inst.IsRunning() {
+				return api.StatusErrorf(http.StatusBadRequest, "Writable NBD requires instance %q to be stopped", dbInst.Name)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		volStorageName := project.StorageVolume(projectName, volName)
+		vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentTypeBlock, volStorageName, dbVol.Config)
+
+		lockName := nbdVolumeLockName(b.name, projectName, volName)
+		lockDesc := fmt.Sprintf("volume %q", b.name+"/"+volName)
+
+		return nbdLockedSession(lockName, lockDesc, func() (net.Conn, func(), error) {
+			err := b.allowVolumeNBDExport(dbVol.Config)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			return b.connectOfflineNBD(vol, true)
+		})
+	}
+
+	inst, deviceName, err := InstanceByVolumeName(b.state, b.name, projectName, volName, cluster.StoragePoolVolumeTypeCustom)
+	if err != nil {
+		if errors.Is(err, ErrVolumeNotAttached) {
+			return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Volume must be attached to a running virtual machine")
+		}
+
+		return nil, nil, err
+	}
+
+	// IsRunning reports the state on the local cluster member only.
+	if inst.Location() != b.state.ServerName {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Volume is attached to instance %q on cluster member %q", inst.Name(), inst.Location())
+	}
+
+	if !inst.IsRunning() {
+		return nil, nil, api.StatusErrorf(http.StatusBadRequest, "Volume must be attached to a running virtual machine")
+	}
+
+	// Additional connections attach to the running session, which already holds the lock.
+	if reuse {
+		return inst.ConnectNBD(deviceName, true)
+	}
+
+	lockName := nbdInstanceLockName(inst.Project().Name, inst.Name())
+	lockDesc := fmt.Sprintf("instance %q", inst.Name())
+
+	// The session is served by the instance's QEMU process, which runs one NBD server at a time.
+	return nbdLockedSession(lockName, lockDesc, func() (net.Conn, func(), error) {
+		err := b.allowVolumeNBDExport(dbVol.Config)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return inst.ConnectNBD(deviceName, false)
+	})
+}
+
+// nbdSocketPath returns the qemu-nbd socket path for a volume. The volume name is encoded so that a snapshot
+// name cannot produce a nested path, and hashed when the path would not fit the unix socket path limit.
+func nbdSocketPath(vol drivers.Volume) string {
+	dir := shared.VarPath("nbd")
+	name := vol.Pool() + "_" + string(vol.Type()) + "_" + filesystem.PathNameEncode(vol.Name())
+
+	// sun_path holds 108 bytes including the terminating NUL, so the path is kept below 100 bytes as a margin.
+	maxNameLength := 100 - len(dir) - len("/.sock")
+	if maxNameLength > 0 && len(name) > maxNameLength {
+		hash := sha256.Sum256([]byte(name))
+		name = base64.RawURLEncoding.EncodeToString(hash[:])
+		if len(name) > maxNameLength {
+			name = name[:maxNameLength]
+		}
+	}
+
+	return filepath.Join(dir, name+".sock")
+}
+
+// connectOfflineNBD serves the volume through qemu-nbd and returns a connection to it. The volume stays
+// activated until qemu-nbd exits, which happens once the connection is closed or the returned disconnect
+// function is called. The disconnect function returns once the volume has been released.
+func (b *lxdBackend) connectOfflineNBD(vol drivers.Volume, writable bool) (net.Conn, func(), error) {
+	socketPath := nbdSocketPath(vol)
+
+	err := os.MkdirAll(filepath.Dir(socketPath), 0700)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed creating NBD socket directory: %w", err)
+	}
+
+	// A socket left behind by a session that did not shut down cleanly would pass the readiness check before
+	// qemu-nbd listens on it.
+	_ = os.Remove(socketPath)
+
+	// LXD block volumes are raw, and format probing must never run on guest controlled data.
+	args := []string{"--socket=" + socketPath, "--format=raw"}
+	if !writable {
+		args = append(args, "--read-only")
+	}
+
+	// Share the qemu-nbd process safely between the activation goroutine and this function.
+	var procMu sync.Mutex
+	var proc *os.Process
+	aborted := false
+
+	// Buffered so the goroutine never blocks if this function has already given up.
+	errCh := make(chan error, 1)
+
+	// started is closed once qemu-nbd runs and done once the goroutine has released the volume.
+	started := make(chan struct{})
+	done := make(chan struct{})
+
+	// The goroutine returns only when qemu-nbd exits so that the volume stays active for the whole session.
+	go func() {
+		defer close(done)
+
+		err := b.driver.ActivateTask(vol, func(devPath string) error {
+			var stderr bytes.Buffer
+			cmd := exec.Command("qemu-nbd", append(args, devPath)...)
+			cmd.Stderr = &stderr
+
+			procMu.Lock()
+			if aborted {
+				procMu.Unlock()
+				return errors.New("Request timed out before qemu-nbd could be started")
+			}
+
+			err := cmd.Start()
+			if err != nil {
+				procMu.Unlock()
+				return fmt.Errorf("Failed starting qemu-nbd: %w", err)
+			}
+
+			proc = cmd.Process
+			procMu.Unlock()
+			close(started)
+
+			err = cmd.Wait()
+			if err != nil {
+				return fmt.Errorf("Failed running qemu-nbd: %w (%s)", err, strings.TrimSpace(stderr.String()))
+			}
+
+			return nil
+		})
+		if err != nil {
+			procMu.Lock()
+			stopped := aborted
+			procMu.Unlock()
+
+			// qemu-nbd reports an error when LXD itself stopped it.
+			if stopped {
+				b.logger.Debug("Stopped serving volume over NBD", logger.Ctx{"volume": vol.Name(), "err": err})
+			} else {
+				b.logger.Error("Failed serving volume over NBD", logger.Ctx{"volume": vol.Name(), "err": err})
+			}
+
+			errCh <- err
+		}
+	}()
+
+	// stopNBD signals qemu-nbd if it was started and waits for the goroutine to release the volume. The
+	// process is killed if it has not exited after 30 seconds.
+	stopNBD := func(sig os.Signal) {
+		procMu.Lock()
+		aborted = true
+		if proc != nil {
+			_ = proc.Signal(sig)
+		}
+
+		procMu.Unlock()
+
+		select {
+		case <-done:
+		case <-time.After(30 * time.Second):
+			procMu.Lock()
+			if proc != nil {
+				_ = proc.Kill()
+			}
+
+			procMu.Unlock()
+
+			select {
+			case <-done:
+			case <-time.After(30 * time.Second):
+				b.logger.Error("Timed out waiting for qemu-nbd to exit", logger.Ctx{"volume": vol.Name()})
+			}
+		}
+
+		_ = os.Remove(socketPath)
+	}
+
+	// Activating the volume can take a while on drivers that wait for device nodes, so the socket readiness
+	// timeout only starts once qemu-nbd runs.
+	select {
+	case <-started:
+	case err := <-errCh:
+		stopNBD(unix.SIGKILL)
+		return nil, nil, err
+	case <-time.After(2 * time.Minute):
+		stopNBD(unix.SIGKILL)
+		return nil, nil, errors.New("Timed out waiting for volume activation")
+	}
+
+	// Wait for qemu-nbd to listen on the socket.
+	timeout := time.After(10 * time.Second)
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+
+	for ready := false; !ready; {
+		select {
+		case <-timeout:
+			stopNBD(unix.SIGKILL)
+			return nil, nil, errors.New("Timed out waiting for qemu-nbd socket")
+		case err := <-errCh:
+			stopNBD(unix.SIGKILL)
+			return nil, nil, err
+		case <-ticker.C:
+			_, err := os.Stat(socketPath)
+			ready = err == nil
+		}
+	}
+
+	b.logger.Debug("Connecting to qemu-nbd socket", logger.Ctx{"volume": vol.Name(), "socketPath": socketPath})
+	nbdConn, err := net.Dial("unix", socketPath)
+	if err != nil {
+		// qemu-nbd may have exited before the connection, in which case its error carries the reason.
+		select {
+		case err = <-errCh:
+		default:
+			err = fmt.Errorf("Failed connecting to qemu-nbd socket: %w", err)
+		}
+
+		stopNBD(unix.SIGKILL)
+		return nil, nil, err
+	}
+
+	disconnect := func() {
+		b.logger.Debug("Stopping qemu-nbd", logger.Ctx{"volume": vol.Name()})
+		_ = nbdConn.Close()
+		stopNBD(unix.SIGTERM)
+	}
+
+	return nbdConn, disconnect, nil
 }
 
 // GetInstanceUsage returns the disk usage of the instance's root volume.
@@ -5815,10 +6261,32 @@ func (b *lxdBackend) UpdateCustomVolume(ctx context.Context, projectName string,
 		}
 
 		sharedVolume, ok := changedConfig["security.shared"]
-		if ok && shared.IsFalseOrEmpty(sharedVolume) && curVol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
-			err = allowRemoveSecurityShared(b.state, projectName, &curVol.StorageVolume)
-			if err != nil {
-				return err
+		if ok && curVol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
+			if shared.IsFalseOrEmpty(sharedVolume) {
+				err = allowRemoveSecurityShared(b.state, projectName, &curVol.StorageVolume)
+				if err != nil {
+					return err
+				}
+			} else {
+				// Enabling security.shared while an NBD export runs would let another instance write to a
+				// volume whose export assumes it has exclusive access. A writable export holds the volume's
+				// NBD lock and a read-only export holds the attached instance's, so refuse the change while
+				// either is held and keep them for the rest of the update so that no export can start.
+				unlock := locking.TryLock(nbdVolumeLockName(b.name, projectName, volName))
+				if unlock == nil {
+					return api.StatusErrorf(http.StatusConflict, "NBD operation already in progress for volume %q", b.name+"/"+volName)
+				}
+
+				defer unlock()
+
+				for _, inst := range instances {
+					instUnlock := locking.TryLock(nbdInstanceLockName(inst.Project().Name, inst.Name()))
+					if instUnlock == nil {
+						return api.StatusErrorf(http.StatusConflict, "NBD operation already in progress for instance %q", inst.Name())
+					}
+
+					defer instUnlock()
+				}
 			}
 		}
 

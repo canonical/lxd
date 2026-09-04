@@ -77,6 +77,9 @@ ARCH="$(dpkg --print-architecture || echo "amd64")"
 export ARCH
 
 export LXD_VM_TESTS="${LXD_VM_TESTS:-1}"
+# Enable the changed_block_tracking feature preview so the daemon and client expose the
+# bitmap and NBD endpoints and commands that storage_block_tracking.sh exercises.
+export LXD_FEATURES="${LXD_FEATURES:-changed_block_tracking}"
 export CLIENT_DEBUG="" SERVER_DEBUG="" SHELL_TRACING=""
 if [ "${LXD_VERBOSE:-0}" != "0" ]; then
   if [ "${LXD_VERBOSE}" = "client" ]; then
