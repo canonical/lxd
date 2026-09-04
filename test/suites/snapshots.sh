@@ -617,6 +617,21 @@ test_snapshot_multi_volume() {
   lxc delete c1/c1-snap3 --disk-volumes=all-exclusive
   ! lxc storage volume list -f csv | grep -F "Created alongside container c1/c1-snap3 snapshot in project default" || false
 
+  # A volume attached to more than one instance is left out of an all-exclusive snapshot, so an instance
+  # whose volumes are all shared records nothing and its snapshot must still delete cleanly.
+  echo "Check an all-exclusive snapshot skips volumes attached to another instance."
+  lxc init testimage c3
+  lxc storage volume attach "${poolName}" shared c3 /mnt/shared
+  lxc snapshot c1 c1-snap4 --disk-volumes=all-exclusive
+  [ "$(lxc storage volume list --format csv | grep -cF "Created alongside container c1/c1-snap4 snapshot in project default")" = "1" ]
+  lxc delete c1/c1-snap4 --disk-volumes=all-exclusive
+
+  echo "Check an all-exclusive snapshot of an instance whose volumes are all shared."
+  lxc snapshot c3 c3-snap0 --disk-volumes=all-exclusive
+  [ "$(lxc config get c3/c3-snap0 volatile.attached_volumes || echo fail)" = "" ]
+  lxc delete c3/c3-snap0 --disk-volumes=all-exclusive
+  lxc delete --force c3
+
   echo "Check snapshotting with custom device name."
   lxc storage volume create "${poolName}" vol-custom-name
   lxc storage volume attach "${poolName}" vol-custom-name c1 custom-device-name /mnt/custom-name
