@@ -1837,7 +1837,7 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 		//  shortdesc: Whether to use a separate set of storage buckets for the project
 		"features.storage.buckets": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=project; group=features; key=features.networks)
-		//
+		// This feature requires `features.profiles` to be enabled.
 		// ---
 		//  type: bool
 		//  defaultdesc: `false`
@@ -2297,6 +2297,12 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 		if err != nil {
 			return fmt.Errorf("Invalid project configuration key %q value: %w", k, err)
 		}
+	}
+
+	// Ensure that projects with their own networks also have their own profiles. Otherwise the profiles of the
+	// default project could reference networks that do not exist in this project.
+	if shared.IsTrue(config["features.networks"]) && shared.IsFalseOrEmpty(config["features.profiles"]) {
+		return errors.New("Projects without their own profiles cannot have their own networks")
 	}
 
 	// Ensure that restricted projects have their own profiles. Otherwise restrictions in this project could

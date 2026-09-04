@@ -4693,7 +4693,7 @@
 						"features.networks": {
 							"defaultdesc": "`false`",
 							"initialvaluedesc": "`false`",
-							"longdesc": "",
+							"longdesc": "This feature requires `features.profiles` to be enabled.",
 							"shortdesc": "Whether to use a separate set of networks for the project",
 							"type": "bool"
 						}

@@ -726,7 +726,7 @@ test_network_ovn() {
   echo "Create project for following tests."
   lxc project create testovn \
     -c features.images=false \
-    -c features.profiles=false \
+    -c features.profiles=true \
     -c features.storage.volumes=false
 
   lxc project switch testovn
@@ -738,7 +738,6 @@ test_network_ovn() {
   lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}"=3 limits.networks.uplink_ips.ipv6."${uplink_network}"=3
 
   # We cannot restrict a project with uplink IP limits set.
-  lxc project set testovn features.profiles true # Needed to restrict project
   ! lxc project set testovn restricted true || false
   lxc project set testovn limits.networks.uplink_ips.ipv4."${uplink_network}"= limits.networks.uplink_ips.ipv6."${uplink_network}"=
 
@@ -795,7 +794,6 @@ test_network_ovn() {
   ! lxc project unset testovn restricted.networks.uplinks || false # Cannot unset while having limits set for the uplink network.
   lxc project set testovn restricted false
   lxc project set testovn restricted.networks.uplinks= limits.networks.uplink_ips.ipv4."${uplink_network}"= limits.networks.uplink_ips.ipv6."${uplink_network}"=
-  lxc project set testovn features.profiles false
 
   echo "Create an OVN network isolated in a project."
   project_ovn_network="project-ovn$$"
