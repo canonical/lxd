@@ -2636,7 +2636,7 @@ func (d *common) migrateReceiveCustomVolumes(ctx context.Context, inst instance.
 		// On a refresh only the snapshots the target is missing are requested, and target snapshots the
 		// source no longer has are deleted first, matching the root volume.
 		if exists && snapshots {
-			respHeader.Snapshots, respHeader.SnapshotNames, err = customVolumeSnapshotsToSync(ctx, volPool, storageProject, vol.Name, offer.GetSnapshots(), progressReporter)
+			respHeader.Snapshots, respHeader.SnapshotNames, err = storagePools.CustomVolumeSnapshotsToSync(ctx, volPool, storageProject, vol.Name, offer.GetSnapshots(), progressReporter)
 			if err != nil {
 				return fmt.Errorf("Failed comparing snapshots of custom volume %q in pool %q: %w", vol.Name, vol.Pool, err)
 			}
@@ -2681,53 +2681,6 @@ func (d *common) migrateReceiveCustomVolumes(ctx context.Context, inst instance.
 	}
 
 	return nil
-}
-
-// customVolumeSnapshotsToSync compares the snapshots the source offers for a custom volume with the ones the
-// target already holds, deletes the target snapshots the source no longer has and returns the subset the source
-// still needs to send.
-func customVolumeSnapshotsToSync(ctx context.Context, pool storagePools.Pool, projectName string, volName string, sourceSnapshots []*migration.Snapshot, progressReporter ioprogress.ProgressReporter) ([]*migration.Snapshot, []string, error) {
-	sourceComparable := make([]storagePools.ComparableSnapshot, 0, len(sourceSnapshots))
-	for _, sourceSnap := range sourceSnapshots {
-		sourceComparable = append(sourceComparable, storagePools.ComparableSnapshot{
-			Name:         sourceSnap.GetName(),
-			CreationDate: time.Unix(sourceSnap.GetCreationDate(), 0),
-		})
-	}
-
-	targetSnapshots, err := storagePools.VolumeDBSnapshotsGet(pool, projectName, volName, storageDrivers.VolumeTypeCustom)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	targetComparable := make([]storagePools.ComparableSnapshot, 0, len(targetSnapshots))
-	for _, targetSnap := range targetSnapshots {
-		_, targetSnapName, _ := api.GetParentAndSnapshotName(targetSnap.Name)
-
-		// The offer carries creation dates at second granularity, so compare at that granularity.
-		targetComparable = append(targetComparable, storagePools.ComparableSnapshot{
-			Name:         targetSnapName,
-			CreationDate: time.Unix(targetSnap.CreationDate.Unix(), 0),
-		})
-	}
-
-	syncSourceIndexes, deleteTargetIndexes := storagePools.CompareSnapshots(sourceComparable, targetComparable)
-
-	for _, deleteTargetIndex := range deleteTargetIndexes {
-		err := pool.DeleteCustomVolumeSnapshot(ctx, projectName, targetSnapshots[deleteTargetIndex].Name, progressReporter)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	syncSnapshots := make([]*migration.Snapshot, 0, len(syncSourceIndexes))
-	syncSnapshotNames := make([]string, 0, len(syncSourceIndexes))
-	for _, syncSourceIndex := range syncSourceIndexes {
-		syncSnapshots = append(syncSnapshots, sourceSnapshots[syncSourceIndex])
-		syncSnapshotNames = append(syncSnapshotNames, sourceSnapshots[syncSourceIndex].GetName())
-	}
-
-	return syncSnapshots, syncSnapshotNames, nil
 }
 
 // migrationCustomVolumes returns the backup config of the custom volumes that travel with the instance. Snapshots are

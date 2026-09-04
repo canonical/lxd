@@ -1106,6 +1106,53 @@ func VolumesUsedBy(ctx context.Context, tx *db.ClusterTx, projectName string, vo
 	return usedBy, nil
 }
 
+// CustomVolumeSnapshotsToSync compares the snapshots the source offers for a custom volume with the ones the
+// target already holds, deletes the target snapshots the source no longer has and returns the subset the source
+// still needs to send.
+func CustomVolumeSnapshotsToSync(ctx context.Context, pool Pool, projectName string, volName string, sourceSnapshots []*migration.Snapshot, progressReporter ioprogress.ProgressReporter) ([]*migration.Snapshot, []string, error) {
+	sourceComparable := make([]ComparableSnapshot, 0, len(sourceSnapshots))
+	for _, sourceSnap := range sourceSnapshots {
+		sourceComparable = append(sourceComparable, ComparableSnapshot{
+			Name:         sourceSnap.GetName(),
+			CreationDate: time.Unix(sourceSnap.GetCreationDate(), 0),
+		})
+	}
+
+	targetSnapshots, err := VolumeDBSnapshotsGet(pool, projectName, volName, drivers.VolumeTypeCustom)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	targetComparable := make([]ComparableSnapshot, 0, len(targetSnapshots))
+	for _, targetSnap := range targetSnapshots {
+		_, targetSnapName, _ := api.GetParentAndSnapshotName(targetSnap.Name)
+
+		// The offer carries creation dates at second granularity, so compare at that granularity.
+		targetComparable = append(targetComparable, ComparableSnapshot{
+			Name:         targetSnapName,
+			CreationDate: time.Unix(targetSnap.CreationDate.Unix(), 0),
+		})
+	}
+
+	syncSourceIndexes, deleteTargetIndexes := CompareSnapshots(sourceComparable, targetComparable)
+
+	for _, deleteTargetIndex := range deleteTargetIndexes {
+		err := pool.DeleteCustomVolumeSnapshot(ctx, projectName, targetSnapshots[deleteTargetIndex].Name, progressReporter)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	syncSnapshots := make([]*migration.Snapshot, 0, len(syncSourceIndexes))
+	syncSnapshotNames := make([]string, 0, len(syncSourceIndexes))
+	for _, syncSourceIndex := range syncSourceIndexes {
+		syncSnapshots = append(syncSnapshots, sourceSnapshots[syncSourceIndex])
+		syncSnapshotNames = append(syncSnapshotNames, sourceSnapshots[syncSourceIndex].GetName())
+	}
+
+	return syncSnapshots, syncSnapshotNames, nil
+}
+
 // VolumeUsedByInstanceDevices finds instances using a volume (either directly or via their expanded profiles if
 // expandDevices is true) and passes them to instanceFunc for evaluation. If instanceFunc returns an error then it
 // is returned immediately. The instanceFunc is executed during a DB transaction, so DB queries are not permitted.
