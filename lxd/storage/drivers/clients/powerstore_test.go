@@ -59,3 +59,43 @@ func Test_formatQN(t *testing.T) {
 		})
 	}
 }
+
+func Test_formatFCWWN(t *testing.T) {
+	tests := []struct {
+		name string
+		wwn  string
+		want string
+	}{
+		{
+			name: "Colon-separated WWN is converted into 0x prefixed form",
+			wwn:  "58:cc:f0:90:cb:20:03:46",
+			want: "0x58ccf090cb200346",
+		},
+		{
+			name: "Uppercase WWN is normalized to lowercase",
+			wwn:  "58:CC:F0:90:CB:20:03:46",
+			want: "0x58ccf090cb200346",
+		},
+		{
+			name: "WWN that is already in the expected form is returned unchanged",
+			wwn:  "0x58ccf090cb200346",
+			want: "0x58ccf090cb200346",
+		},
+		{
+			name: "Plain hex WWN without separators is prefixed with 0x",
+			wwn:  "58ccf090cb200346",
+			want: "0x58ccf090cb200346",
+		},
+		{
+			name: "WWN with surrounding whitespace is normalized",
+			wwn:  "  58:cc:f0:90:cb:20:03:46  ",
+			want: "0x58ccf090cb200346",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.want, formatFCWWN(test.wwn))
+		})
+	}
+}

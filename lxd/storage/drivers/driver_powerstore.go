@@ -28,6 +28,7 @@ var powerStoreSupportedConnectors = []string{
 	connectors.TypeISCSI,
 	connectors.TypeSCSIFC,
 	connectors.TypeNVMeTCP,
+	connectors.TypeNVMeFC,
 }
 
 // powerStoreDefaultUser represents the default PowerStore user name.
@@ -181,7 +182,7 @@ func (d *powerstore) Validate(config map[string]string) error {
 		"powerstore.gateway.verify": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-powerstore; group=pool-conf; key=powerstore.mode)
 		// The mode to use to map PowerStore volumes to the local server.
-		// Supported values are `iscsi`, `scsi/fc`, and `nvme/tcp`.
+		// Supported values are `iscsi`, `scsi/fc`, `nvme/tcp`, and `nvme/fc`.
 		// ---
 		//  type: string
 		//  defaultdesc: `nvme/tcp`
@@ -317,34 +318,15 @@ func (d *powerstore) targets() (map[string][]string, error) {
 		return nil, err
 	}
 
-	// Fetch discovery log records for each discovery address.
-	// The records contain the information about available targets.
-	var discoveryLogRecords []any
 	var filterAddresses []string
 
-	if connector.Transport() == connectors.TransportFC {
-		// Fiber channel targets are visible through the HBA.
-		discoveryLogRecords, err = connector.Discover(d.state.ShutdownCtx)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// Fetch discovery addresses from PowerStore for the selected connector type.
-		discoveryAddresses, err := d.client().DiscoveryAddresses(connector.Type())
-		if err != nil {
-			return nil, err
-		}
+	// Fetch discovery addresses from PowerStore for the selected connector type.
+	discoveryAddresses, err := d.client().DiscoveryAddresses(connector.Type())
+	if err != nil {
+		return nil, err
+	}
 
-		for _, addr := range discoveryAddresses {
-			discovered, err := connector.Discover(d.state.ShutdownCtx, addr)
-			if err != nil {
-				// Underlying connector already logs a warning.
-				continue
-			}
-
-			discoveryLogRecords = append(discoveryLogRecords, discovered...)
-		}
-
+	if connector.Transport() != connectors.TransportFC {
 		// Make sure target addresses have port configured.
 		var defaultPort string
 
@@ -366,6 +348,13 @@ func (d *powerstore) targets() (map[string][]string, error) {
 		}
 	}
 
+	// Fetch discovery log records for all discovery addresses.
+	// The records contain the information about available targets.
+	discoveryLogRecords, err := connector.Discover(d.state.ShutdownCtx, discoveryAddresses...)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(discoveryLogRecords) == 0 {
 		return nil, errors.New("Failed fetching discovery log records for PowerStore targets")
 	}
@@ -378,7 +367,12 @@ func (d *powerstore) targets() (map[string][]string, error) {
 			address = r.Address
 			qn = r.IQN
 		case connectors.NVMeDiscoveryLogRecord:
-			address = net.JoinHostPort(r.TransportAddress, r.TransportServiceIdentifier)
+			if connector.Transport() == connectors.TransportFC {
+				address = r.TransportAddress
+			} else {
+				address = net.JoinHostPort(r.TransportAddress, r.TransportServiceIdentifier)
+			}
+
 			qn = r.SubNQN
 		case connectors.FCDiscoveryRecord:
 			// FC targets are identified only by WWPN, so use it for both fields.

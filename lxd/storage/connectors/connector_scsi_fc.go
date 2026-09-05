@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -185,9 +186,13 @@ func (c *connectorSCSIFC) findSession(targetQN string) (*session, error) {
 	return nil, nil
 }
 
-// Discover returns the FC target ports visible on the fabric.
-// If WWPNs are provided they act as an allowlist.
+// Discover returns the FC target ports that are visible on the fabric and whose
+// port name matches one of the allowed WWPNs.
 func (c *connectorSCSIFC) Discover(ctx context.Context, wwpns ...string) ([]any, error) {
+	if len(wwpns) == 0 {
+		return nil, errors.New("No FC target WWPNs provided")
+	}
+
 	rportBasePath := "/sys/class/fc_remote_ports"
 
 	rports, err := os.ReadDir(rportBasePath)
@@ -208,18 +213,13 @@ func (c *connectorSCSIFC) Discover(ctx context.Context, wwpns ...string) ([]any,
 
 		portName := normalizeWWPN(string(portNameBytes))
 
-		if len(wwpns) > 0 {
-			found := false
-			for _, wwpn := range wwpns {
-				if strings.EqualFold(portName, normalizeWWPN(wwpn)) {
-					found = true
-					break
-				}
-			}
+		portFound := slices.ContainsFunc(wwpns, func(wwpn string) bool {
+			return strings.EqualFold(portName, normalizeWWPN(wwpn))
+		})
 
-			if !found {
-				continue
-			}
+		if !portFound {
+			// Skip ports that are not in the list of WWPNs that should be scanned.
+			continue
 		}
 
 		stateBytes, err := os.ReadFile(filepath.Join(rportBasePath, rport.Name(), "port_state"))
@@ -234,7 +234,7 @@ func (c *connectorSCSIFC) Discover(ctx context.Context, wwpns ...string) ([]any,
 		}
 
 		record := FCDiscoveryRecord{
-			PortName: normalizeWWPN(portName),
+			PortName: portName,
 		}
 
 		result = append(result, record)
