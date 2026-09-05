@@ -1709,6 +1709,77 @@ func (d *ceph) RenameVolume(vol Volume, newVolName string, progressReporter iopr
 	}, false, progressReporter)
 }
 
+// cephMirrorErrorSays reports whether a failed rbd command printed the given message.
+// Ceph gives no exit status of its own for an image that is already in the mirror state asked for,
+// so the message it prints is what identifies it.
+func cephMirrorErrorSays(err error, message string) bool {
+	var runErr shared.RunError
+
+	isRunErr := errors.As(err, &runErr)
+	if !isRunErr {
+		return false
+	}
+
+	return strings.Contains(runErr.StdErr().String(), message)
+}
+
+// PromoteVolume makes a volume's RBD image primary so that it can be written to.
+// The forced variant is for disaster recovery, where the site holding the primary image is gone and
+// so cannot be demoted first.
+// An image that is already primary is left alone, so that a promotion covering many images which
+// failed part way can be run again to completion.
+func (d *ceph) PromoteVolume(vol Volume, force bool) error {
+	args := []string{"mirror", "image", "promote", "--image", d.getRBDVolumeName(vol, "", false, false)}
+	if force {
+		args = append(args, "--force")
+	}
+
+	_, err := d.rbd(context.TODO(), args...)
+	if err != nil {
+		if !cephMirrorErrorSays(err, "already primary") {
+			return fmt.Errorf("Failed promoting volume %q: %w", vol.name, err)
+		}
+
+		d.logger.Warn("Volume is already primary", logger.Ctx{"volume": vol.name})
+	}
+
+	// For VMs, also promote the filesystem volume, as a config drive that stayed read-only
+	// stops the instance from starting.
+	if vol.IsVMBlock() {
+		err := d.PromoteVolume(vol.NewVMBlockFilesystemVolume(), force)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DemoteVolume makes a volume's RBD image non-primary so that its peer can be promoted.
+// An image that is already non-primary is left alone, so that a demotion covering many images which
+// failed part way can be run again to completion.
+func (d *ceph) DemoteVolume(vol Volume) error {
+	_, err := d.rbd(context.TODO(), "mirror", "image", "demote", "--image", d.getRBDVolumeName(vol, "", false, false))
+	if err != nil {
+		if !cephMirrorErrorSays(err, "not primary") {
+			return fmt.Errorf("Failed demoting volume %q: %w", vol.name, err)
+		}
+
+		d.logger.Warn("Volume is already non-primary", logger.Ctx{"volume": vol.name})
+	}
+
+	// For VMs, also demote the filesystem volume, as the peer cannot promote a config drive that
+	// is still primary here.
+	if vol.IsVMBlock() {
+		err := d.DemoteVolume(vol.NewVMBlockFilesystemVolume())
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // MigrateVolume sends a volume for migration.
 func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	if volSrcArgs.ClusterMove {

@@ -369,6 +369,90 @@ func (b *lxdBackend) GetVolume(volType drivers.VolumeType, contentType drivers.C
 	return drivers.NewVolume(b.driver, b.name, volType, contentType, volName, volConfig, b.db.Config).Clone()
 }
 
+// forEachProjectVolume runs fn against the driver volume of every instance and custom volume a
+// project holds on this pool.
+// Snapshots are left out because a replica carries them along with the volume they belong to.
+// Image volumes are left out because nothing writes to one after it is unpacked, so an image never
+// has to be primary for the instances cloned from it to start.
+func (b *lxdBackend) forEachProjectVolume(ctx context.Context, projectName string, fn func(vol drivers.Volume) error) error {
+	volTypeContainer := cluster.StoragePoolVolumeTypeContainer
+	volTypeVM := cluster.StoragePoolVolumeTypeVM
+	volTypeCustom := cluster.StoragePoolVolumeTypeCustom
+
+	var dbVolumes []*db.StorageVolume
+
+	err := b.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		dbVolumes, err = tx.GetStorageVolumes(ctx, false,
+			db.StorageVolumeFilter{Project: &projectName, PoolID: &b.id, Type: &volTypeContainer},
+			db.StorageVolumeFilter{Project: &projectName, PoolID: &b.id, Type: &volTypeVM},
+			db.StorageVolumeFilter{Project: &projectName, PoolID: &b.id, Type: &volTypeCustom},
+		)
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed loading the volumes of project %q: %w", projectName, err)
+	}
+
+	for _, dbVolume := range dbVolumes {
+		if shared.IsSnapshot(dbVolume.Name) {
+			continue
+		}
+
+		dbVolType, err := cluster.StoragePoolVolumeTypeFromName(dbVolume.Type)
+		if err != nil {
+			return fmt.Errorf("Failed reading the type of volume %q: %w", dbVolume.Name, err)
+		}
+
+		dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(dbVolume.ContentType)
+		if err != nil {
+			return fmt.Errorf("Failed reading the content type of volume %q: %w", dbVolume.Name, err)
+		}
+
+		volType := VolumeDBTypeToType(dbVolType)
+
+		// Custom volumes carry the project in their storage name everywhere, instance volumes
+		// only outside the default project, and either way it ends up in the volume name the
+		// driver acts on.
+		volStorageName := project.StorageVolume(dbVolume.Project, dbVolume.Name)
+		if volType != drivers.VolumeTypeCustom {
+			volStorageName = project.Instance(dbVolume.Project, dbVolume.Name)
+		}
+
+		err = fn(b.GetVolume(volType, VolumeDBContentTypeToContentType(dbContentType), volStorageName, dbVolume.Config))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// PromoteProjectVolumes makes the replicated volumes a project holds on this pool writable.
+func (b *lxdBackend) PromoteProjectVolumes(ctx context.Context, projectName string, force bool) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName, "force": force})
+	l.Debug("PromoteProjectVolumes started")
+	defer l.Debug("PromoteProjectVolumes finished")
+
+	return b.forEachProjectVolume(ctx, projectName, func(vol drivers.Volume) error {
+		return b.driver.PromoteVolume(vol, force)
+	})
+}
+
+// DemoteProjectVolumes makes the replicated volumes a project holds on this pool read-only, so that
+// the site taking over can promote its own copies.
+func (b *lxdBackend) DemoteProjectVolumes(ctx context.Context, projectName string) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName})
+	l.Debug("DemoteProjectVolumes started")
+	defer l.Debug("DemoteProjectVolumes finished")
+
+	return b.forEachProjectVolume(ctx, projectName, func(vol drivers.Volume) error {
+		return b.driver.DemoteVolume(vol)
+	})
+}
+
 // GetResources returns utilisation information about the pool.
 func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	l := b.logger.AddContext(nil)
@@ -2356,6 +2440,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 	isRemoteClusterMove := args.ClusterMoveSourceName != "" && b.driver.Info().Remote
 
+	// A replica arrives through Ceph rather than through this transfer, so nothing here may write
+	// to it or, on failure, delete it.
+	holdsReplicas := HoldsCephReplicas(b, inst.Project())
+
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
 	var vol drivers.Volume
@@ -2490,7 +2578,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 	var preFiller drivers.VolumeFiller
 
-	if !args.Refresh && !isRemoteClusterMove {
+	if !args.Refresh && !isRemoteClusterMove && !holdsReplicas {
 		// If the negotiated migration method is rsync and the instance's base image is
 		// already on the host then setup a pre-filler that will unpack the local image
 		// to try and speed up the rsync of the incoming volume by avoiding the need to
@@ -2571,7 +2659,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 		return err
 	}
 
-	if !isRemoteClusterMove {
+	if !isRemoteClusterMove && !holdsReplicas {
 		revert.Add(func() { _ = b.DeleteInstance(inst, progressReporter) })
 	}
 
@@ -6937,6 +7025,15 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 
 	// We only write backup files out for actual instances.
 	if inst.IsSnapshot() {
+		return nil
+	}
+
+	// Writing the backup file mounts the volume, and a replica is non-primary, so the map fails on
+	// a kernel feature set mismatch rather than on permissions. Every caller reaches the writer
+	// through here, including the ordinary instance update a refresh goes through, so the skip
+	// belongs here rather than at each call site.
+	if HoldsCephReplicas(b, inst.Project()) {
+		l.Info("Skipping the backup file write of a standby replica")
 		return nil
 	}
 
