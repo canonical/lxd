@@ -2356,6 +2356,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 	isRemoteClusterMove := args.ClusterMoveSourceName != "" && b.driver.Info().Remote
 
+	// A replica arrives through Ceph rather than through this transfer, so nothing here may write
+	// to it or, on failure, delete it.
+	holdsReplicas := HoldsCephReplicas(b, inst.Project())
+
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
 	var vol drivers.Volume
@@ -2490,7 +2494,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 	var preFiller drivers.VolumeFiller
 
-	if !args.Refresh && !isRemoteClusterMove {
+	if !args.Refresh && !isRemoteClusterMove && !holdsReplicas {
 		// If the negotiated migration method is rsync and the instance's base image is
 		// already on the host then setup a pre-filler that will unpack the local image
 		// to try and speed up the rsync of the incoming volume by avoiding the need to
@@ -2571,7 +2575,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 		return err
 	}
 
-	if !isRemoteClusterMove {
+	if !isRemoteClusterMove && !holdsReplicas {
 		revert.Add(func() { _ = b.DeleteInstance(inst, progressReporter) })
 	}
 
@@ -6937,6 +6941,15 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 
 	// We only write backup files out for actual instances.
 	if inst.IsSnapshot() {
+		return nil
+	}
+
+	// Writing the backup file mounts the volume, and a replica is non-primary, so the map fails on
+	// a kernel feature set mismatch rather than on permissions. Every caller reaches the writer
+	// through here, including the ordinary instance update a refresh goes through, so the skip
+	// belongs here rather than at each call site.
+	if HoldsCephReplicas(b, inst.Project()) {
+		l.Info("Skipping the backup file write of a standby replica")
 		return nil
 	}
 

@@ -502,6 +502,7 @@ var APIExtensions = []string{
 	"access_management_expiry",
 	"cluster_links_public",
 	"durable_operations",
+	"storage_ceph_replicator",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
