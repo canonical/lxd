@@ -42,7 +42,7 @@ On the other hand, using remote storage has significant advantages in a cluster 
 
 When creating a new storage pool using the `pure` driver in either `iscsi` or `nvme/tcp` mode, LXD automatically discovers the array's qualified name and target address (portal).
 In `scsi/fc` mode, LXD instead discovers the online Fibre Channel target ports through the local host bus adapter, because Fibre Channel targets are identified by {abbr}`WWPN (World Wide Port Name)` rather than by network address.
-Consequently, {config:option}`storage-pure-pool-conf:pure.target` has no effect in `scsi/fc` mode, and which targets are reachable is determined by the fabric zoning instead.
+Consequently, {config:option}`storage-pure-pool-conf:pure.target` has no effect in `scsi/fc` mode, and, instead, fabric zoning determines which targets are reachable.
 
 Upon successful discovery, LXD attaches all volumes that are connected to the Pure Storage host that is associated with a specific LXD server.
 Pure Storage hosts and volume connections are fully managed by LXD.
