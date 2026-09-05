@@ -15,7 +15,7 @@ Use a prefix that reflects the primary directory or area changed:
 | **Go client package**| Files in `client/`                               | `client: Add XYZ`                   |
 | **CLI changes**      | Files in `lxc/`                                  | `lxc/<command>: Change XYZ`         |
 | **LXD daemon**       | Files in `lxd/`                                  | `lxd/<package>: Add support for XYZ`|
-| **Snap packaging**   | Files in `snap/` or `snapcraft/`                 | `snap/<part>: Change XYZ` or `snapcraft/<dir>: Change XYZ` |
+| **Snap packaging**   | Files in `snap/`                                 | `snap/<part>: Change XYZ` or `snap/local/<dir>: Change XYZ` |
 | **Tests**            | Files in `test/`                                 | `test/<path>: Add test for XYZ`     |
 | **GitHub**           | Files in `.github/`                              | `github: Update XYZ`                |
 | **Makefile**         | `Makefile`                                       | `Makefile: Update XYZ`              |

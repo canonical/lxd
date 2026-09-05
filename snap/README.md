@@ -2,7 +2,7 @@
 
 LXD is a modern, secure and powerful system container and virtual machine manager.
 
-This directory contains the snap packaging used to build the [LXD snap](https://snapcraft.io/lxd). Additional snap resources are located in the [snapcraft](../snapcraft) directory.
+This directory contains the snap packaging used to build the [LXD snap](https://snapcraft.io/lxd). Additional snap resources are located in the [local](local) directory.
 
 ## Build the LXD snap locally
 

@@ -430,7 +430,7 @@ echo "==> Rotating logs"
 logrotate -f "${SNAP}/etc/logrotate.conf" -s "/etc/logrotate.status" || true
 
 # Setup for ZFS
-# shellcheck source=snapcraft/commands/setup-zfs
+# shellcheck source=snap/local/commands/setup-zfs
 . "${SNAP}/commands/setup-zfs"
 
 # Escape resource limits

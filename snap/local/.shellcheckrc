@@ -1,0 +1,9 @@
+#
+shell=sh
+external-sources=true
+# Enable some optional checks
+enable=add-default-case
+enable=avoid-nullary-conditions
+enable=deprecate-which
+enable=quote-safe-variables
+enable=useless-use-of-cat

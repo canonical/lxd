@@ -7,7 +7,7 @@ For more information about managing the LXD snap, see {ref}`howto-snap` and {ref
 
 The strategy used to track the fix will depend on both the snap's {ref}`risk level <ref-snap-risk>` (`edge` vs `candidate`/`stable`) and its {ref}`release type <ref-releases>`.
 
-The LXD snap packaging is maintained directly in the LXD repository ([canonical/lxd](https://github.com/canonical/lxd)) under the `snap/` and `snapcraft/` directories. (Packaging files used to be maintained separately, until the `canonical/lxd-pkg-snap` repository was merged with the LXD repository.)
+The LXD snap packaging is maintained directly in the LXD repository ([canonical/lxd](https://github.com/canonical/lxd)) under the `snap/` directory. (Packaging files used to be maintained separately, until the `canonical/lxd-pkg-snap` repository was merged with the LXD repository.)
 
 As an example, consider the issue [canonical/lxd#18023](https://github.com/canonical/lxd/issues/18023); this bug was [introduced in LXD 3.0](https://github.com/canonical/lxd/commit/d840004886b702b3bea15d4a1d6e4f32717a6b62). The linked pull request points to commit [`c1e8ab4`](https://github.com/canonical/lxd/commit/c1e8ab4c33c217a200e59f27916fd8e1d49241e2) as the fix.
 

@@ -38,7 +38,7 @@ Linux               | [Snap](https://snapcraft.io/lxd)                  | `snap 
 Windows             | [Chocolatey](https://chocolatey.org/packages/lxc) | `choco install lxc`
 macOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | `brew install lxc`
 
-The LXD snap packaging files are available in the [snap](snap) and [snapcraft](snapcraft) directories.
+The LXD snap packaging files are available in the [snap](snap) directory.
 
 For more instructions on installing LXD for a wide variety of Linux distributions and operating systems, and to install LXD from source, see [How to install LXD](https://canonical.com/lxd/docs/latest/installing/) in the documentation.
 
