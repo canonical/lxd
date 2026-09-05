@@ -6169,6 +6169,14 @@
 						}
 					},
 					{
+						"ceph.replicator.\u003cproject\u003e": {
+							"longdesc": "This option specifies the peer site, as registered in Ceph, that the volumes of the\ngiven project are mirrored to. One OSD pool can back several projects, each replicating\nto a different peer.",
+							"scope": "global",
+							"shortdesc": "Name of the peer Ceph site to mirror a project to",
+							"type": "string"
+						}
+					},
+					{
 						"ceph.user.name": {
 							"defaultdesc": "`admin`",
 							"longdesc": "",

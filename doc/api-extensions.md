@@ -3664,3 +3664,10 @@ Replication requires the remote cluster to authenticate the connection, so {ref}
 Introduces new operation class for durable operations.
 Durable operations are restarted on the DQLite raft leader if the member that is running the operation fails to respond to heartbeats.
 If the leader was running the operation and goes offline, the operation is restarted on the newly elected leader.
+
+(extension-storage-ceph-replicator)=
+## `storage_ceph_replicator`
+
+This introduces the `ceph.replicator.<project>` configuration key on `ceph` storage pools.
+It names the peer site, as registered in Ceph, that the volumes a project keeps on the pool are mirrored to.
+The project is part of the key because one OSD pool can back several projects, each replicating to a different peer.
