@@ -198,7 +198,33 @@ type pureHost struct {
 	Name            string   `json:"name"`
 	IQNs            []string `json:"iqns"`
 	NQNs            []string `json:"nqns"`
+	WWNs            []string `json:"wwns"`
 	ConnectionCount int      `json:"connection_count"`
+}
+
+// matchesQualifiedName returns true if the host is configured with the given initiator
+// qualified name for the given Pure Storage mode.
+func (h pureHost) matchesQualifiedName(mode string, qn string) bool {
+	switch mode {
+	case connectors.TypeISCSI:
+		return slices.Contains(h.IQNs, qn)
+	case connectors.TypeNVMeTCP:
+		return slices.Contains(h.NQNs, qn)
+	case connectors.TypeSCSIFC:
+		// Pure Storage reports host WWNs in uppercase, whereas the connector reports the
+		// local initiator WWPN in lowercase. Therefore compare them in normalized form.
+		normalizedQN := pureNormalizeWWN(qn)
+
+		for _, wwn := range h.WWNs {
+			if pureNormalizeWWN(wwn) == normalizedQN {
+				return true
+			}
+		}
+
+		return false
+	default:
+		return false
+	}
 }
 
 // purePort represents a port in Pure Storage.
@@ -206,6 +232,49 @@ type purePort struct {
 	Name string `json:"name"`
 	IQN  string `json:"iqn,omitempty"`
 	NQN  string `json:"nqn,omitempty"`
+	WWN  string `json:"wwn,omitempty"`
+}
+
+// fcTargetWWNs returns the normalized WWNs of the Fibre Channel target ports among the
+// given ports.
+//
+// A Pure Storage port can serve both SCSI/FC and NVMe/FC. A port that reports an NQN in
+// addition to a WWN is an NVMe/FC target and must therefore not be used for SCSI/FC.
+func fcTargetWWNs(ports []purePort) []string {
+	wwns := make([]string, 0, len(ports))
+
+	for _, port := range ports {
+		if port.WWN == "" || port.NQN != "" {
+			continue
+		}
+
+		wwn := pureNormalizeWWN(port.WWN)
+		if slices.Contains(wwns, wwn) {
+			continue
+		}
+
+		wwns = append(wwns, wwn)
+	}
+
+	return wwns
+}
+
+// pureConnection represents a connection between a host and a volume in Pure Storage.
+type pureConnection struct {
+	// LUN is the logical unit number by which the host addresses the connected volume.
+	LUN int `json:"lun"`
+}
+
+// pureNormalizeWWN normalizes a World Wide Name so that it can be compared regardless of the
+// format it is reported in. Pure Storage reports host WWNs in uppercase without separators
+// ("10000000C9A1B2C3") and array port WWNs in colon-separated byte format
+// ("21:00:34:80:0d:70:35:b3"), whereas the SCSI/FC connector reports the local initiator
+// WWPN in lowercase without separators.
+func pureNormalizeWWN(wwn string) string {
+	wwn = strings.TrimSpace(wwn)
+	wwn = strings.ToLower(wwn)
+	wwn = strings.TrimPrefix(wwn, "0x")
+	return strings.ReplaceAll(wwn, ":", "")
 }
 
 // pureClient holds the Pure Storage HTTP client and an access token.
@@ -980,11 +1049,7 @@ func (p *pureClient) getCurrentHost() (*pureHost, error) {
 	mode := connector.Type()
 
 	for _, host := range hosts {
-		if mode == connectors.TypeISCSI && slices.Contains(host.IQNs, qn) {
-			return &host, nil
-		}
-
-		if mode == connectors.TypeNVMeTCP && slices.Contains(host.NQNs, qn) {
+		if host.matchesQualifiedName(mode, qn) {
 			return &host, nil
 		}
 	}
@@ -1007,6 +1072,8 @@ func (p *pureClient) createHost(hostName string, qns []string) error {
 		req["iqns"] = qns
 	case connectors.TypeNVMeTCP:
 		req["nqns"] = qns
+	case connectors.TypeSCSIFC:
+		req["wwns"] = qns
 	default:
 		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
 	}
@@ -1038,11 +1105,13 @@ func (p *pureClient) updateHost(hostName string, qns []string) error {
 		req["iqns"] = qns
 	case connectors.TypeNVMeTCP:
 		req["nqns"] = qns
+	case connectors.TypeSCSIFC:
+		req["wwns"] = qns
 	default:
 		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
 	}
 
-	// Update the host by patching its qualified names (IQNs/NQNs).
+	// Update the host by patching its qualified names (IQNs/NQNs/WWNs).
 	url := api.NewURL().Path("hosts").WithQuery("names", hostName)
 	err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 	if err != nil {
@@ -1063,22 +1132,58 @@ func (p *pureClient) deleteHost(hostName string) error {
 	return nil
 }
 
-// connectHostToVolume creates a connection between a host and volume. It returns true if the connection
-// was created, and false if it already existed.
-func (p *pureClient) connectHostToVolume(poolName string, volName string, hostName string) (bool, error) {
+// getConnectionLUN returns the LUN of an existing connection between the given host and volume.
+func (p *pureClient) getConnectionLUN(poolName string, volName string, hostName string) (int, error) {
+	var resp pureResponse[pureConnection]
+
 	url := api.NewURL().Path("connections").WithQuery("host_names", hostName).WithQuery("volume_names", poolName+"::"+volName)
 
-	err := p.requestAuthenticated(http.MethodPost, url.URL, nil, nil)
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 	if err != nil {
-		if isPureErrorOf(err, http.StatusBadRequest, "Connection already exists.") {
-			// Do not error out if connection already exists.
-			return false, nil
-		}
-
-		return false, fmt.Errorf("Failed connecting volume %q with host %q: %w", volName, hostName, err)
+		return 0, fmt.Errorf("Failed retrieving connection between volume %q and host %q: %w", volName, hostName, err)
 	}
 
-	return true, nil
+	if len(resp.Items) == 0 {
+		return 0, api.StatusErrorf(http.StatusNotFound, "Connection between volume %q and host %q not found", volName, hostName)
+	}
+
+	return resp.Items[0].LUN, nil
+}
+
+// connectHostToVolume creates a connection between a host and volume. It returns the LUN by which
+// the host addresses the volume, and true if the connection was created, or false if it already
+// existed. The LUN is required by the SCSI/FC connector, which uses it to scope the SCSI bus
+// rescan, and is reported for the other modes as well.
+func (p *pureClient) connectHostToVolume(poolName string, volName string, hostName string) (lun int, connCreated bool, err error) {
+	var resp pureResponse[pureConnection]
+
+	url := api.NewURL().Path("connections").WithQuery("host_names", hostName).WithQuery("volume_names", poolName+"::"+volName)
+
+	err = p.requestAuthenticated(http.MethodPost, url.URL, nil, &resp)
+	if err != nil {
+		if isPureErrorOf(err, http.StatusBadRequest, "Connection already exists.") {
+			// Do not error out if the connection already exists, but retrieve the LUN of
+			// the existing connection, as it is not reported by the failed request.
+			lun, err = p.getConnectionLUN(poolName, volName, hostName)
+			if err != nil {
+				return 0, false, err
+			}
+
+			return lun, false, nil
+		}
+
+		return 0, false, fmt.Errorf("Failed connecting volume %q with host %q: %w", volName, hostName, err)
+	}
+
+	if len(resp.Items) == 0 {
+		// The connection was created but its LUN is unknown, which means the volume cannot
+		// be reliably mapped. Remove the connection again to avoid leaving it behind.
+		_ = p.disconnectHostFromVolume(poolName, volName, hostName)
+
+		return 0, false, fmt.Errorf("Failed retrieving LUN after connecting volume %q with host %q", volName, hostName)
+	}
+
+	return resp.Items[0].LUN, true, nil
 }
 
 // disconnectHostFromVolume deletes a connection between a host and volume.
@@ -1095,6 +1200,99 @@ func (p *pureClient) disconnectHostFromVolume(poolName string, volName string, h
 	}
 
 	return nil
+}
+
+// getFCTargetWWNs retrieves the WWNs of the Fibre Channel target ports of the array.
+//
+// Unlike iSCSI and NVMe/TCP targets, Fibre Channel targets are not Pure Storage network
+// interfaces and are therefore never returned by the network interface endpoint. They are
+// retrieved from the ports endpoint instead.
+func (p *pureClient) getFCTargetWWNs() ([]string, error) {
+	var resp pureResponse[purePort]
+
+	url := api.NewURL().Path("ports")
+
+	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed retrieving Pure Storage ports: %w", err)
+	}
+
+	wwns := fcTargetWWNs(resp.Items)
+	if len(wwns) == 0 {
+		return nil, api.StatusErrorf(http.StatusNotFound, "No Fibre Channel target port found on the array")
+	}
+
+	return wwns, nil
+}
+
+// getFCTargets retrieves the WWPNs of the Fibre Channel targets that are online on the fabric.
+//
+// The array's target ports are retrieved first and used to restrict the discovery, because a
+// host bus adapter can see the ports of every array on the fabric, and only those belonging to
+// this array may be used.
+func (p *pureClient) getFCTargets() ([]string, error) {
+	connector, err := p.driver.connector()
+	if err != nil {
+		return nil, err
+	}
+
+	targetWWNs, err := p.getFCTargetWWNs()
+	if err != nil {
+		return nil, err
+	}
+
+	// Discover which of the array's target ports are online on the local fabric.
+	records, err := connector.Discover(p.driver.state.ShutdownCtx, targetWWNs...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed discovering Fibre Channel targets: %w", err)
+	}
+
+	targetWWPNs := make([]string, 0, len(records))
+	for _, record := range records {
+		fcRecord, ok := record.(connectors.FCDiscoveryRecord)
+		if !ok {
+			return nil, fmt.Errorf("Unexpected Fibre Channel discovery record type %T", record)
+		}
+
+		if slices.Contains(targetWWPNs, fcRecord.PortName) {
+			continue
+		}
+
+		targetWWPNs = append(targetWWPNs, fcRecord.PortName)
+	}
+
+	if len(targetWWPNs) == 0 {
+		return nil, api.StatusErrorf(http.StatusNotFound, "No online Fibre Channel target found on the fabric")
+	}
+
+	return targetWWPNs, nil
+}
+
+// getTargets retrieves the qualified names and addresses of the Pure Storage targets for the
+// configured mode. Fibre Channel fabrics commonly present multiple target ports, whereas iSCSI
+// and NVMe/TCP present a single qualified name reachable on one or more addresses. No addresses
+// are returned in Fibre Channel mode, as its targets are identified by WWPN alone.
+func (p *pureClient) getTargets() (targetQNs []string, targetAddrs []string, err error) {
+	connector, err := p.driver.connector()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if connector.Transport() == connectors.TransportFC {
+		targetQNs, err = p.getFCTargets()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return targetQNs, nil, nil
+	}
+
+	targetQN, addrs, err := p.getTarget()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return []string{targetQN}, addrs, nil
 }
 
 // getTarget retrieves the qualified name and addresses of Pure Storage target for the configured mode.
@@ -1260,8 +1458,8 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 
 	reverter.Add(cleanup)
 
-	// Ensure the volume is connected to the host.
-	connCreated, err := d.client().connectHostToVolume(vol.pool, volName, hostname)
+	// Ensure the volume is connected to the host, obtaining the assigned LUN.
+	lun, connCreated, err := d.client().connectHostToVolume(vol.pool, volName, hostname)
 	if err != nil {
 		return nil, err
 	}
@@ -1270,34 +1468,65 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		reverter.Add(func() { _ = d.client().disconnectHostFromVolume(vol.pool, volName, hostname) })
 	}
 
-	// Find the array's qualified name for the configured mode.
-	targetQN, targetAddrs, err := d.client().getTarget()
+	// Find the array's qualified names for the configured mode.
+	targetQNs, targetAddrs, err := d.client().getTargets()
 	if err != nil {
 		return nil, err
 	}
 
-	// Connect to the array.
-	connReverter, err := connector.Connect(d.state.ShutdownCtx, targetQN, targetAddrs...)
-	if err != nil {
-		return nil, err
-	}
-
-	reverter.Add(connReverter)
-
-	// If connect succeeded it means we have at least one established connection.
-	// However, its reverter does not clean up the established connections or a newly
-	// created session. Therefore, if we created a mapping, add unmapVolume to the
-	// returned (outer) reverter. Unmap ensures the target is disconnected only when
-	// no other device is using it.
 	outerReverter := revert.New()
-	if connCreated {
-		outerReverter.Add(func() { _ = d.unmapVolume(vol) })
+	hasUnmapReverter := false
+
+	// Connect to the array. The targets are redundant paths to the same volume, so a target
+	// that cannot be reached is not fatal on its own: the volume stays usable over the
+	// remaining ones, and failing the whole mapping would make a single degraded path enough
+	// to prevent a volume from being attached. Failures are therefore collected and reported
+	// only if no target could be connected at all.
+	var connectErrs []error
+	connected := 0
+
+	for _, targetQN := range targetQNs {
+		var connReverter revert.Hook
+
+		if connector.Transport() == connectors.TransportFC {
+			// The Fibre Channel connector expects the LUN of the connected volume instead
+			// of target addresses, because the host bus adapter handles the fabric login
+			// itself and the LUN only scopes the SCSI bus rescan.
+			connReverter, err = connector.Connect(d.state.ShutdownCtx, targetQN, strconv.Itoa(lun))
+		} else {
+			connReverter, err = connector.Connect(d.state.ShutdownCtx, targetQN, targetAddrs...)
+		}
+
+		if err != nil {
+			d.logger.Warn("Failed connecting to Pure Storage target", logger.Ctx{"volume": vol.name, "target": targetQN, "err": err})
+			connectErrs = append(connectErrs, fmt.Errorf("Target %q: %w", targetQN, err))
+			continue
+		}
+
+		connected++
+
+		// If connect succeeded it means we have at least one established connection.
+		// However, its reverter does not clean up the established connections or a newly
+		// created session. Therefore, if we created a mapping, add unmapVolume to the
+		// returned (outer) reverter. Unmap ensures the target is disconnected only when
+		// no other device is using it.
+		if connCreated && !hasUnmapReverter {
+			outerReverter.Add(func() { _ = d.unmapVolume(vol) })
+			hasUnmapReverter = true
+		}
+
+		// Add connReverter to the outer reverter, as it will immediately stop
+		// any ongoing connection attempts. Note that it must be added after
+		// unmapVolume to ensure it is called first.
+		outerReverter.Add(connReverter)
+		reverter.Add(connReverter)
 	}
 
-	// Add connReverter to the outer reverter, as it will immediately stop
-	// any ongoing connection attempts. Note that it must be added after
-	// unmapVolume to ensure it is called first.
-	outerReverter.Add(connReverter)
+	// [pureClient.getTargets] never returns an empty list without an error, so reaching this
+	// with no successful connection means every target failed and connectErrs is populated.
+	if connected == 0 {
+		return nil, fmt.Errorf("Failed connecting to any Pure Storage target: %w", errors.Join(connectErrs...))
+	}
 
 	reverter.Success()
 	return outerReverter.Fail, nil
@@ -1342,10 +1571,11 @@ func (d *pure) unmapVolume(vol Volume) error {
 		return err
 	}
 
-	// iSCSI's [connectors.RemoveDiskDevice] implementation already waits for the device to
-	// disappear before returning. Re-checking the resolved /dev/dm-X path here is unsafe, as
-	// the kernel can reuse the dm device for a different mpath assembled concurrently, making
-	// the poll see an existing device that has nothing to do with the removed volume.
+	// iSCSI's and SCSI/FC's [connectors.RemoveDiskDevice] implementations already wait for the
+	// device to disappear before returning. Re-checking the resolved /dev/dm-X path here is
+	// unsafe, as the kernel can reuse the dm device for a different mpath assembled
+	// concurrently, making the poll see an existing device that has nothing to do with the
+	// removed volume.
 	//
 	// For NVMe the host-side device is removed asynchronously after the array detaches the
 	// volume. NVMe's [connectors.RemoveDiskDevice] is a no-op, so this is the only sync point.
@@ -1356,15 +1586,27 @@ func (d *pure) unmapVolume(vol Volume) error {
 	// If this was the last volume being unmapped from this system, disconnect the active session
 	// and remove the host from Pure Storage.
 	if host.ConnectionCount <= 1 {
-		targetQN, _, err := d.client().getTarget()
-		if err != nil {
-			return err
-		}
+		// SCSI/FC has no session to tear down, because the host bus adapter owns the fabric
+		// login and its [connectors.Connector.Disconnect] is a no-op. Discovering targets
+		// would therefore do no work while making host removal depend on the fabric being
+		// reachable. The volume is already detached from the array at this point, so a
+		// degraded fabric would fail an unmap that has in fact succeeded.
+		//
+		// This is keyed on the connector type rather than the transport, because NVMe/FC
+		// also reports the Fibre Channel transport but does establish a session.
+		if connector.Type() != connectors.TypeSCSIFC {
+			targetQNs, _, err := d.client().getTargets()
+			if err != nil {
+				return err
+			}
 
-		// Disconnect from the target.
-		err = connector.Disconnect(targetQN)
-		if err != nil {
-			return err
+			// Disconnect from the targets.
+			for _, targetQN := range targetQNs {
+				err = connector.Disconnect(targetQN)
+				if err != nil {
+					return err
+				}
+			}
 		}
 
 		// Remove the host from Pure Storage.
@@ -1375,6 +1617,33 @@ func (d *pure) unmapVolume(vol Volume) error {
 	}
 
 	return nil
+}
+
+// pureDiskSuffix returns the suffix of the device path by which the host addresses the volume
+// with the given serial number, which differs depending on the Pure Storage mode.
+func pureDiskSuffix(mode string, serial string) (string, error) {
+	// Ensure the serial number is exactly 24 characters long, as it uniquely
+	// identifies the device. This check should never succeed, but prevents
+	// out-of-bounds errors when slicing the string later.
+	if len(serial) != 24 {
+		return "", fmt.Errorf("Unexpected length of serial number %q (%d)", serial, len(serial))
+	}
+
+	switch mode {
+	case connectors.TypeISCSI, connectors.TypeSCSIFC:
+		// Both iSCSI and Fibre Channel present the volume as a SCSI device, whose device
+		// identifier is the volume serial number.
+		return serial, nil
+	case connectors.TypeNVMeTCP:
+		// The disk device ID (e.g. "008726b5033af24324a9373d00014196") is constructed as:
+		// - "00"             - Padding
+		// - "8726b5033af243" - First 14 characters of serial number
+		// - "24a937"         - OUI (Organizationally Unique Identifier)
+		// - "3d00014196"     - Last 10 characters of serial number
+		return "00" + serial[0:14] + "24a937" + serial[14:], nil
+	default:
+		return "", fmt.Errorf("Unsupported Pure Storage mode %q", mode)
+	}
 }
 
 // getMappedDevPath returns the local device path for the given volume.
@@ -1407,27 +1676,9 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 		return "", nil, err
 	}
 
-	// Ensure the serial number is exactly 24 characters long, as it uniquely
-	// identifies the device. This check should never succeed, but prevents
-	// out-of-bounds errors when slicing the string later.
-	if len(pureVol.Serial) != 24 {
-		return "", nil, fmt.Errorf("Failed locating device for volume %q: Unexpected length of serial number %q (%d)", vol.name, pureVol.Serial, len(pureVol.Serial))
-	}
-
-	var diskSuffix string
-
-	switch connector.Type() {
-	case connectors.TypeISCSI:
-		diskSuffix = pureVol.Serial
-	case connectors.TypeNVMeTCP:
-		// The disk device ID (e.g. "008726b5033af24324a9373d00014196") is constructed as:
-		// - "00"             - Padding
-		// - "8726b5033af243" - First 14 characters of serial number
-		// - "24a937"         - OUI (Organizationally Unique Identifier)
-		// - "3d00014196"     - Last 10 characters of serial number
-		diskSuffix = "00" + pureVol.Serial[0:14] + "24a937" + pureVol.Serial[14:]
-	default:
-		return "", nil, fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
+	diskSuffix, err := pureDiskSuffix(connector.Type(), pureVol.Serial)
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed locating device for volume %q: %w", vol.name, err)
 	}
 
 	// Filters devices by matching the device path with the lowercase disk suffix.
