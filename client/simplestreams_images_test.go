@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -23,6 +24,14 @@ import (
 // image files. combinedHash is the fingerprint advertised in the simplestreams index, and
 // metaContent and rootfsContent are the actual bytes served.
 func newTestSimpleStreamsServer(t *testing.T, metaContent []byte, rootfsContent []byte, combinedHash string) *httptest.Server {
+	t.Helper()
+
+	return newTestSimpleStreamsServerWithPaths(t, metaContent, rootfsContent, combinedHash, "images/test/meta.tar.xz", "images/test/rootfs.squashfs")
+}
+
+// newTestSimpleStreamsServerWithPaths lets the caller control the paths advertised for the
+// metadata and rootfs files in the simplestreams index.
+func newTestSimpleStreamsServerWithPaths(t *testing.T, metaContent []byte, rootfsContent []byte, combinedHash string, metaPath string, rootfsPath string) *httptest.Server {
 	t.Helper()
 
 	metaHash := sha256.Sum256(metaContent)
@@ -46,14 +55,14 @@ func newTestSimpleStreamsServer(t *testing.T, metaContent []byte, rootfsContent 
 								FileType:              "lxd.tar.xz",
 								HashSha256:            hex.EncodeToString(metaHash[:]),
 								Size:                  int64(len(metaContent)),
-								Path:                  "images/test/meta.tar.xz",
+								Path:                  metaPath,
 								LXDHashSha256SquashFs: combinedHash,
 							},
 							"root.squashfs": {
 								FileType:   "squashfs",
 								HashSha256: hex.EncodeToString(rootfsHash[:]),
 								Size:       int64(len(rootfsContent)),
-								Path:       "images/test/rootfs.squashfs",
+								Path:       rootfsPath,
 							},
 						},
 					},
@@ -94,11 +103,11 @@ func newTestSimpleStreamsServer(t *testing.T, metaContent []byte, rootfsContent 
 		_, _ = w.Write(productsJSON)
 	})
 
-	mux.HandleFunc("/images/test/meta.tar.xz", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(path.Clean("/"+metaPath), func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(metaContent)
 	})
 
-	mux.HandleFunc("/images/test/rootfs.squashfs", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(path.Clean("/"+rootfsPath), func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(rootfsContent)
 	})
 
@@ -185,10 +194,81 @@ func TestGetImageFile_CombinedFingerprintMismatch(t *testing.T) {
 	assert.EqualError(t, err, expectedMsg)
 }
 
+// TestGetImageFile_SanitizesFilePaths verifies that the file paths advertised by the
+// simplestreams index are reduced to their basename.
+func TestGetImageFile_SanitizesFilePaths(t *testing.T) {
+	metaContent := []byte("fake-metadata-content")
+	rootfsContent := []byte("fake-rootfs-content")
+	combinedFP := computeCombinedFingerprint(metaContent, rootfsContent)
+
+	tests := []struct {
+		name           string
+		metaPath       string
+		rootfsPath     string
+		wantMetaName   string
+		wantRootfsName string
+	}{
+		{
+			name:           "absolute paths",
+			metaPath:       "/etc/cron.d/evil.tar.xz",
+			rootfsPath:     "/etc/cron.d/evil.squashfs",
+			wantMetaName:   "evil.tar.xz",
+			wantRootfsName: "evil.squashfs",
+		},
+		{
+			name:           "relative traversal paths",
+			metaPath:       "images/../../evil.tar.xz",
+			rootfsPath:     "images/../../../evil.squashfs",
+			wantMetaName:   "evil.tar.xz",
+			wantRootfsName: "evil.squashfs",
+		},
+		{
+			name:           "trailing slashes",
+			metaPath:       "images/test/evil.tar.xz/",
+			rootfsPath:     "images/test/evil.squashfs/",
+			wantMetaName:   "evil.tar.xz",
+			wantRootfsName: "evil.squashfs",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := newTestSimpleStreamsServerWithPaths(t, metaContent, rootfsContent, combinedFP, tt.metaPath, tt.rootfsPath)
+			defer server.Close()
+
+			images := newTestSimpleStream(server)
+
+			metaFile, err := os.CreateTemp(t.TempDir(), "meta")
+			require.NoError(t, err)
+			defer metaFile.Close()
+
+			rootfsFile, err := os.CreateTemp(t.TempDir(), "rootfs")
+			require.NoError(t, err)
+			defer rootfsFile.Close()
+
+			resp, err := images.GetImageFile(combinedFP, ImageFileRequest{
+				MetaFile:   metaFile,
+				RootfsFile: rootfsFile,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantMetaName, resp.MetaName)
+			assert.Equal(t, tt.wantRootfsName, resp.RootfsName)
+		})
+	}
+}
+
 // newTestSimpleStreamsServerWithDelta creates a test server that serves a simplestreams index with
 // two image versions, a source version and a current version with a delta. The delta allows
 // upgrading from srcRootfs to newRootfs.
 func newTestSimpleStreamsServerWithDelta(t *testing.T, newMeta []byte, srcRootfs []byte, newRootfs []byte, deltaContent []byte, combinedHash string) *httptest.Server {
+	t.Helper()
+
+	return newTestSimpleStreamsServerWithDeltaPaths(t, newMeta, srcRootfs, newRootfs, deltaContent, combinedHash, "images/test/meta.tar.xz", "images/test/rootfs.squashfs")
+}
+
+// newTestSimpleStreamsServerWithDeltaPaths lets the caller control the paths advertised for
+// the current version's metadata and rootfs files in the simplestreams index.
+func newTestSimpleStreamsServerWithDeltaPaths(t *testing.T, newMeta []byte, srcRootfs []byte, newRootfs []byte, deltaContent []byte, combinedHash string, metaPath string, rootfsPath string) *httptest.Server {
 	t.Helper()
 
 	newMetaHash := sha256.Sum256(newMeta)
@@ -236,14 +316,14 @@ func newTestSimpleStreamsServerWithDelta(t *testing.T, newMeta []byte, srcRootfs
 								FileType:              "lxd.tar.xz",
 								HashSha256:            hex.EncodeToString(newMetaHash[:]),
 								Size:                  int64(len(newMeta)),
-								Path:                  "images/test/meta.tar.xz",
+								Path:                  metaPath,
 								LXDHashSha256SquashFs: combinedHash,
 							},
 							"root.squashfs": {
 								FileType:   "squashfs",
 								HashSha256: hex.EncodeToString(newRootfsHash[:]),
 								Size:       int64(len(newRootfs)),
-								Path:       "images/test/rootfs.squashfs",
+								Path:       rootfsPath,
 							},
 							"root.squashfs.vcdiff": {
 								FileType:   "squashfs.vcdiff",
@@ -287,11 +367,11 @@ func newTestSimpleStreamsServerWithDelta(t *testing.T, newMeta []byte, srcRootfs
 		_, _ = w.Write(productsJSON)
 	})
 
-	mux.HandleFunc("/images/test/meta.tar.xz", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(path.Clean("/"+metaPath), func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(newMeta)
 	})
 
-	mux.HandleFunc("/images/test/rootfs.squashfs", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(path.Clean("/"+rootfsPath), func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(newRootfs)
 	})
 
@@ -362,6 +442,70 @@ func TestGetImageFile_DeltaCombinedFingerprintValid(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, int64(len(newMeta)), resp.MetaSize)
+	assert.Equal(t, int64(len(newRootfs)), resp.RootfsSize)
+}
+
+// TestGetImageFile_DeltaSanitizesRootfsPath verifies that the basename sanitization of the
+// server-provided rootfs applies on the delta code path.
+func TestGetImageFile_DeltaSanitizesRootfsPath(t *testing.T) {
+	_, err := exec.LookPath("xdelta3")
+	if err != nil && runtime.GOOS != "linux" {
+		t.Skip("Missing xdelta3")
+	}
+
+	srcRootfs := []byte("source-rootfs-content-for-delta-test")
+	newRootfs := []byte("new-rootfs-content-for-delta-test")
+	newMeta := []byte("new-metadata-content")
+
+	tmpDir := t.TempDir()
+	srcPath := filepath.Join(tmpDir, "src.squashfs")
+	newPath := filepath.Join(tmpDir, "new.squashfs")
+	deltaPath := filepath.Join(tmpDir, "delta.vcdiff")
+
+	require.NoError(t, os.WriteFile(srcPath, srcRootfs, 0644))
+	require.NoError(t, os.WriteFile(newPath, newRootfs, 0644))
+
+	out, err := exec.Command("xdelta3", "-f", "-e", "-s", srcPath, newPath, deltaPath).CombinedOutput()
+	require.NoError(t, err, "xdelta3 encode failed: %s", string(out))
+
+	deltaContent, err := os.ReadFile(deltaPath)
+	require.NoError(t, err)
+
+	combinedFP := computeCombinedFingerprint(newMeta, newRootfs)
+
+	// Advertise a rootfs path containing a path traversal attempt.
+	server := newTestSimpleStreamsServerWithDeltaPaths(t, newMeta, srcRootfs, newRootfs, deltaContent, combinedFP, "images/test/meta.tar.xz", "/etc/cron.d/evil.squashfs/")
+	defer server.Close()
+
+	images := newTestSimpleStream(server)
+
+	srcMetaContent := []byte("old-metadata")
+	srcCombinedFP := computeCombinedFingerprint(srcMetaContent, srcRootfs)
+	srcRootfsPath := filepath.Join(tmpDir, "cached-rootfs.squashfs")
+	require.NoError(t, os.WriteFile(srcRootfsPath, srcRootfs, 0644))
+
+	metaFile, err := os.CreateTemp(t.TempDir(), "meta")
+	require.NoError(t, err)
+	defer metaFile.Close()
+
+	rootfsFile, err := os.CreateTemp(t.TempDir(), "rootfs")
+	require.NoError(t, err)
+	defer rootfsFile.Close()
+
+	resp, err := images.GetImageFile(combinedFP, ImageFileRequest{
+		MetaFile:   metaFile,
+		RootfsFile: rootfsFile,
+		DeltaSourceRetriever: func(fingerprint string, fname string) string {
+			if fingerprint == srcCombinedFP && fname == "rootfs" {
+				return srcRootfsPath
+			}
+
+			return ""
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "meta.tar.xz", resp.MetaName)
+	assert.Equal(t, "evil.squashfs", resp.RootfsName)
 	assert.Equal(t, int64(len(newRootfs)), resp.RootfsSize)
 }
 
