@@ -41,7 +41,7 @@ func CheckClusterLinkCertificate(ctx context.Context, addresses []string, finger
 	if !ok {
 		// Set default timeout of 30s if no deadline context provided.
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(30*time.Second))
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 	}
 
@@ -140,6 +140,85 @@ func VerifyClusterLinkServer(ctx context.Context, address string, cert *x509.Cer
 	return nil
 }
 
+// PrioritizeResponsiveClusterLinkAddresses moves the first address that accepts a LXD connection to the front.
+// The probe runs in parallel and returns as soon as one address connects successfully.
+func PrioritizeResponsiveClusterLinkAddresses(ctx context.Context, addresses []string, args *lxd.ConnectionArgs) []string {
+	return prioritizeResponsiveClusterLinkAddresses(ctx, addresses, func(ctx context.Context, address string) error {
+		networkAddress := util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
+		client, err := lxd.ConnectLXDWithContext(ctx, "https://"+networkAddress, args)
+		if err != nil {
+			return err
+		}
+
+		client.Disconnect()
+
+		return nil
+	})
+}
+
+func prioritizeResponsiveClusterLinkAddresses(ctx context.Context, addresses []string, probe func(ctx context.Context, address string) error) []string {
+	if len(addresses) < 2 {
+		return append([]string(nil), addresses...)
+	}
+
+	_, ok := ctx.Deadline()
+	if !ok {
+		// Set default timeout of 30s if no deadline context provided.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	g, ctx := errgroup.WithContext(ctx)
+	winnerCh := make(chan string, 1)
+	for _, address := range addresses {
+		g.Go(func() error {
+			err := probe(ctx, address)
+			if err != nil {
+				return nil
+			}
+
+			select {
+			case winnerCh <- address:
+				cancel()
+			default:
+			}
+
+			return nil
+		})
+	}
+
+	doneCh := make(chan struct{})
+	go func() {
+		_ = g.Wait()
+		close(doneCh)
+	}()
+
+	select {
+	case address := <-winnerCh:
+		return moveAddressFirst(addresses, address)
+	case <-doneCh:
+		return append([]string(nil), addresses...)
+	}
+}
+
+func moveAddressFirst(addresses []string, firstAddress string) []string {
+	reorderedAddresses := make([]string, 0, len(addresses))
+	reorderedAddresses = append(reorderedAddresses, firstAddress)
+	for _, address := range addresses {
+		if address == firstAddress {
+			continue
+		}
+
+		reorderedAddresses = append(reorderedAddresses, address)
+	}
+
+	return reorderedAddresses
+}
+
 // GetClusterLinkConnectionArgs builds connection args for cluster-to-cluster communication.
 func GetClusterLinkConnectionArgs(clusterCert *shared.CertInfo, targetCert *x509.Certificate) *lxd.ConnectionArgs {
 	targetCertStr := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
@@ -213,18 +292,44 @@ func LoadClusterLinkAndCert(ctx context.Context, tx *sql.Tx, name string) (id in
 	return dbLink.ID, clusterLink, cert, nil
 }
 
-// ConnectCluster connects to a linked cluster using the provided connection args, trying each address until one succeeds.
+// ConnectCluster connects to a linked cluster using the provided connection args, trying all addresses in parallel and returning the first successful connection.
 func ConnectCluster(ctx context.Context, clusterLink api.ClusterLink, args *lxd.ConnectionArgs) (lxd.InstanceServer, error) {
 	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
-	var errs []error
+	if len(addresses) == 0 {
+		return nil, fmt.Errorf("Failed connecting to any address of cluster link %q: no addresses available", clusterLink.Name)
+	}
+
+	type connectionResult struct {
+		client lxd.InstanceServer
+		err    error
+	}
+
+	// Start a connection attempt to every address concurrently.
+	resultCh := make(chan connectionResult, len(addresses))
+	g, _ := errgroup.WithContext(ctx)
 	for _, address := range addresses {
-		client, err := lxd.ConnectLXD("https://"+address, args)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("Failed connecting to %q: %w", address, err))
-			continue
+		g.Go(func() error {
+			client, err := lxd.ConnectLXD("https://"+address, args)
+			if err != nil {
+				resultCh <- connectionResult{err: fmt.Errorf("Failed connecting to %q: %w", address, err)}
+				return nil
+			}
+
+			resultCh <- connectionResult{client: client}
+			return nil
+		})
+	}
+
+	// Return the first successful connection. Remaining goroutines write to the
+	// buffered channel and terminate without blocking even if we return early.
+	var errs []error
+	for range len(addresses) {
+		r := <-resultCh
+		if r.err == nil {
+			return r.client, nil
 		}
 
-		return client, nil
+		errs = append(errs, r.err)
 	}
 
 	return nil, fmt.Errorf("Failed connecting to any address of cluster link %q: %w", clusterLink.Name, errors.Join(errs...))
