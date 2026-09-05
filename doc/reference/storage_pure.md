@@ -21,7 +21,7 @@ One benefit of using Pure Storage pods is that they can be linked with multiple 
 LXD creates volumes within a pod that is identified by the storage pool name.
 When the first volume needs to be mapped to a specific LXD host, a corresponding Pure Storage host is created with the name of the LXD host and a suffix of the used protocol.
 For example, if the LXD host is `host01` and the mode is `nvme/tcp`, the resulting Pure Storage host would be `host01-nvme-tcp`.
-Likewise, in `scsi/fc` mode the resulting Pure Storage host would be `host01-scsi-fc`, because a `/` is not valid in a host name and is therefore replaced with a `-`.
+Likewise, in `scsi/fc` mode the resulting Pure Storage host would be `host01-scsi-fc`, because a slash (`/`) is not valid in a host name and is therefore replaced with a hyphen (`-`).
 
 The Pure Storage host is then connected with the required volumes, to allow attaching and accessing volumes from the LXD host.
 The created Pure Storage host is automatically removed once there are no volumes connected to it.
