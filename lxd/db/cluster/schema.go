@@ -537,7 +537,7 @@ CREATE TABLE operations (
     FOREIGN KEY (parent) REFERENCES operations (id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX operations_conflict_reference ON operations (conflict_reference)
-    WHERE conflict_reference != ""
+    WHERE conflict_reference != ''
     AND status_code IN (103,104);
 CREATE TABLE operations_resources (
     operation_id INTEGER NOT NULL,
@@ -617,8 +617,6 @@ CREATE TABLE replicators (
 	name TEXT NOT NULL,
 	project_id INTEGER NOT NULL,
 	description TEXT NOT NULL,
-	last_run_date DATETIME,
-	last_run_status TEXT NOT NULL,
 	UNIQUE(project_id, name),
 	FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
 );
@@ -630,6 +628,17 @@ CREATE TABLE replicators_config (
 	PRIMARY KEY (replicator_id,
     key)
 ) WITHOUT ROWID;
+CREATE TABLE replicators_status (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    mode INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    started_date DATETIME NOT NULL,
+    finished_date DATETIME,
+    snapshot_started_date DATETIME,
+    snapshot_finished_date DATETIME,
+    replicator_id INTEGER NOT NULL,
+    FOREIGN KEY (replicator_id) REFERENCES replicators (id) ON DELETE CASCADE
+);
 CREATE TABLE secrets (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     entity_type INTEGER NOT NULL,
@@ -769,7 +778,7 @@ CREATE TRIGGER storage_volumes_check_id
   WHEN NEW.id IN (SELECT id FROM storage_volumes_snapshots)
   BEGIN
     SELECT RAISE(FAIL,
-    "invalid ID");
+    'invalid ID');
   END;
 CREATE TABLE "storage_volumes_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -795,7 +804,7 @@ CREATE TRIGGER storage_volumes_snapshots_check_id
   WHEN NEW.id IN (SELECT id FROM storage_volumes)
   BEGIN
     SELECT RAISE(FAIL,
-    "invalid ID");
+    'invalid ID');
   END;
 CREATE TABLE "storage_volumes_snapshots_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -826,5 +835,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (88, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (89, strftime("%s"))
 `

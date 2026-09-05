@@ -269,6 +269,31 @@ func (s *argsSuite) TestValidate() {
 			expectErr: false,
 		},
 		{
+			name: "bulk operation with children of different class",
+			args: func() OperationArgs {
+				args := validTaskOperationArgs()
+				args.Type = operationtype.InstanceStateUpdateBulk
+				args.Class = operationtype.OperationClassDurable
+				args.Children = []*OperationArgs{
+					{
+						ProjectName: "default",
+						Type:        operationtype.InstanceCreate,
+						Class:       operationtype.OperationClassTask,
+						EntityURL:   entity.InstanceURL("default", "test-instance-1"),
+						RunHook: func(ctx context.Context, op *Operation) error {
+							return nil
+						},
+					},
+				}
+
+				args.RunHook = nil
+				return args
+			}(),
+			isChild:   false,
+			expectErr: true,
+			errMsg:    "Bulk operation children must have the same class as the parent",
+		},
+		{
 			name: "bulk operation with a run hook",
 			args: func() OperationArgs {
 				args := validTaskOperationArgs()

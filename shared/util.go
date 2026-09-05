@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/flosch/pongo2"
+	"github.com/robfig/cron/v3"
 
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/cancel"
@@ -1526,4 +1527,24 @@ func ShellQuote(in string) string {
 	// Replace ' with '\'' which translates to:
 	// [End literal string] + [Escaped single quote] + [Start new literal string]
 	return `'` + strings.ReplaceAll(in, `'`, `'\''`) + `'`
+}
+
+// CronSpecIsActiveThisMinute returns true if the next job on the cron schedule ticked over in the last minute.
+// E.g. If the cron specifies that a job should run every hour at 30 minutes past the hour, then this function
+// returns true if the given time is between 30 and 31 minutes past the hour.
+// This is used for tasks that run every minute and check if they have tasks to run according to a cron schedule.
+func CronSpecIsActiveThisMinute(spec string, now time.Time) (bool, error) {
+	sched, err := cron.ParseStandard(spec)
+	if err != nil {
+		return false, fmt.Errorf("Could not parse cron %q", spec)
+	}
+
+	// We want to check if the cron spec indicates that a job should be run at the start of this minute, so truncate.
+	now = now.Truncate(time.Minute)
+
+	// Calculate the next scheduled job based on this minute minus one second.
+	next := sched.Next(now.Add(-time.Second))
+
+	// If this minute is equal to the time of the next job, the cron spec is active.
+	return now.Equal(next), nil
 }
