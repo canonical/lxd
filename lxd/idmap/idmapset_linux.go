@@ -583,6 +583,27 @@ func (m IdmapSet) ToGidMappings() []syscall.SysProcIDMap {
 	return m.toMappings(false)
 }
 
+// ToProcMaps returns the UID and GID maps in the format expected by /proc/PID/uid_map and
+// /proc/PID/gid_map (one "<nsid> <hostid> <range>" line per matching entry). An empty string is
+// returned for a map that has no entries.
+func (m IdmapSet) ToProcMaps() (uidMap string, gidMap string) {
+	var uidB strings.Builder
+	var gidB strings.Builder
+
+	for _, e := range m.Idmap {
+		line := fmt.Sprintf("%d %d %d\n", e.Nsid, e.Hostid, e.Maprange)
+		if e.Isuid {
+			uidB.WriteString(line)
+		}
+
+		if e.Isgid {
+			gidB.WriteString(line)
+		}
+	}
+
+	return uidB.String(), gidB.String()
+}
+
 // Append extends the IdmapSet with a new entry if it doesn't conflict with existing entries.
 func (m IdmapSet) Append(s string) (IdmapSet, error) {
 	e := IdmapEntry{}

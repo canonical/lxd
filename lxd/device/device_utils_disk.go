@@ -94,7 +94,13 @@ func DiskMount(srcPath string, dstPath string, recursive bool, propagation strin
 // DiskMountClear unmounts and removes the mount path used for disk shares.
 func DiskMountClear(mntPath string) error {
 	if shared.PathExists(mntPath) {
-		if filesystem.IsMountPoint(mntPath) {
+		// A share can have more than one mount stacked at the same path (e.g. a bind mount with an
+		// idmapped mount layered on top), so keep unmounting until the path is no longer a mountpoint.
+		for range 20 {
+			if !filesystem.IsMountPoint(mntPath) {
+				break
+			}
+
 			err := storageDrivers.TryUnmount(mntPath, 0)
 			if err != nil {
 				return fmt.Errorf("Failed unmounting %q: %w", mntPath, err)
@@ -242,11 +248,12 @@ func diskAddRootUserNSEntry(idmaps []idmap.IdmapEntry, hostRootID int64) []idmap
 }
 
 // DiskVMVirtiofsdStart starts a new virtiofsd process with a socket present at the supplied path.
-// If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
+// The supplied sharePath is exported as-is; any required UID/GID mapping must already be applied to it
+// (e.g. via an idmapped mount) by the caller. virtiofsd sandboxes itself using its own mount namespace.
 // Returns UnsupportedError error if the host system or instance does not support virtiofsd, returns normal error
 // type if process cannot be started for other reasons.
 // Returns a revert function on success.
-func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry, threadPoolSize uint16) (func(), error) {
+func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, threadPoolSize uint16) (func(), error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -332,10 +339,6 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 	proc, err := subprocess.NewProcess(cmd, args, logPath, logPath)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(idmaps) > 0 {
-		proc.SetUserns(&idmap.IdmapSet{Idmap: idmaps})
 	}
 
 	err = proc.StartWithFiles(context.Background(), []*os.File{unixFile})

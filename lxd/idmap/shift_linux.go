@@ -396,6 +396,82 @@ static int create_detached_idmapped_mount(const char *path, const char *fstype)
 
 	return 0;
 }
+
+// create_idmapped_mount clones the mount tree rooted at source, applies an idmap built from the
+// supplied uid_map/gid_map (in /proc/PID/{uid,gid}_map format), and attaches it at target. If target
+// is already a mountpoint the idmapped mount is layered on top. Returns 0 on success, -1 on failure.
+static int create_idmapped_mount(const char *source, const char *target, const char *uid_map, const char *gid_map)
+{
+	int userns_fd = -EBADF, mnt_fd = -EBADF, file_fd = -EBADF;
+	pid_t pid;
+	char path[256];
+	struct lxc_mount_attr attr = {
+	    .attr_set = MOUNT_ATTR_IDMAP,
+	};
+	int ret = -1;
+
+	// Create a user namespace holding the requested mappings.
+	pid = do_clone(get_userns_fd_cb, NULL, CLONE_NEWUSER);
+	if (pid < 0)
+		return -1;
+
+	snprintf(path, sizeof(path), "/proc/%d/ns/user", pid);
+	userns_fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (userns_fd < 0)
+		goto out;
+
+	snprintf(path, sizeof(path), "/proc/%d/uid_map", pid);
+	file_fd = openat(AT_FDCWD, path, O_WRONLY);
+	if (file_fd < 0)
+		goto out;
+	if (write(file_fd, uid_map, strlen(uid_map)) != (ssize_t)strlen(uid_map))
+		goto out;
+	close(file_fd);
+	file_fd = -EBADF;
+
+	snprintf(path, sizeof(path), "/proc/%d/setgroups", pid);
+	file_fd = openat(AT_FDCWD, path, O_WRONLY);
+	if (file_fd < 0)
+		goto out;
+	if (write(file_fd, "deny", 4) != 4)
+		goto out;
+	close(file_fd);
+	file_fd = -EBADF;
+
+	snprintf(path, sizeof(path), "/proc/%d/gid_map", pid);
+	file_fd = openat(AT_FDCWD, path, O_WRONLY);
+	if (file_fd < 0)
+		goto out;
+	if (write(file_fd, gid_map, strlen(gid_map)) != (ssize_t)strlen(gid_map))
+		goto out;
+	close(file_fd);
+	file_fd = -EBADF;
+
+	// Clone the source mount detached, apply the idmap, then attach it at target.
+	mnt_fd = lxd_open_tree(-EBADF, source, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+	if (mnt_fd < 0)
+		goto out;
+
+	attr.userns_fd = userns_fd;
+	if (lxd_mount_setattr(mnt_fd, "", AT_EMPTY_PATH, &attr, sizeof(attr)) < 0)
+		goto out;
+
+	if (lxd_move_mount(mnt_fd, "", -EBADF, target, MOVE_MOUNT_F_EMPTY_PATH) < 0)
+		goto out;
+
+	ret = 0;
+
+out:
+	if (file_fd >= 0)
+		close(file_fd);
+	if (mnt_fd >= 0)
+		close(mnt_fd);
+	if (userns_fd >= 0)
+		close(userns_fd);
+	kill(pid, SIGKILL);
+	wait_for_pid(pid);
+	return ret;
+}
 */
 import "C"
 
@@ -698,4 +774,29 @@ func CanIdmapMount(path string, fstype string) bool {
 	defer C.free(unsafe.Pointer(cfstype))
 
 	return bool(C.create_detached_idmapped_mount(cpath, cfstype) == 0)
+}
+
+// IdmappedMount creates an idmapped bind mount of sourcePath, mapped according to the receiver's
+// entries, and attaches it at targetPath (layered on top if targetPath is already a mountpoint).
+// Returns an error if idmapped mounts are unsupported for the underlying filesystem.
+func (m IdmapSet) IdmappedMount(sourcePath string, targetPath string) error {
+	uidMap, gidMap := m.ToProcMaps()
+	if uidMap == "" || gidMap == "" {
+		return errors.New("IdmapSet must contain both UID and GID mappings")
+	}
+
+	cSource := C.CString(sourcePath)
+	defer C.free(unsafe.Pointer(cSource))
+	cTarget := C.CString(targetPath)
+	defer C.free(unsafe.Pointer(cTarget))
+	cUIDMap := C.CString(uidMap)
+	defer C.free(unsafe.Pointer(cUIDMap))
+	cGIDMap := C.CString(gidMap)
+	defer C.free(unsafe.Pointer(cGIDMap))
+
+	if C.create_idmapped_mount(cSource, cTarget, cUIDMap, cGIDMap) != 0 {
+		return fmt.Errorf("Failed creating idmapped mount of %q at %q", sourcePath, targetPath)
+	}
+
+	return nil
 }
