@@ -50,7 +50,7 @@ if nsenter -t 1 -m snap model --assertion | grep -q "^model: lxd-core"; then
 fi
 
 # Setup the "lxd" group
-if [ "${daemon_group}" = "lxd" ] && ! getent group lxd >/dev/null 2>&1; then
+if [ "${daemon_group}" = "lxd" ] && ! getent group -- lxd >/dev/null 2>&1; then
     echo "==> Creating \"lxd\" group"
     if grep -q "^group.*extrausers" /var/lib/snapd/hostfs/etc/nsswitch.conf; then
         nsenter -t 1 -m groupadd --system --extrausers lxd || true
@@ -60,7 +60,7 @@ if [ "${daemon_group}" = "lxd" ] && ! getent group lxd >/dev/null 2>&1; then
 fi
 
 # Setup the "lxd" user
-if ! getent passwd lxd >/dev/null 2>&1; then
+if ! getent passwd -- lxd >/dev/null 2>&1; then
     echo "==> Creating \"lxd\" user"
     if grep -q "^passwd.*extrausers" /var/lib/snapd/hostfs/etc/nsswitch.conf; then
         nsenter -t 1 -m useradd --system -M -N --home "${SNAP_COMMON}/lxd" --shell /bin/false --gid lxd --extrausers lxd || true
@@ -70,14 +70,14 @@ if ! getent passwd lxd >/dev/null 2>&1; then
 fi
 
 # Set socket ownership
-if [ -e "${SNAP_COMMON}/lxd/unix.socket" ] && getent group "${daemon_group}" >/dev/null 2>&1; then
+if [ -e "${SNAP_COMMON}/lxd/unix.socket" ] && getent group -- "${daemon_group}" >/dev/null 2>&1; then
     echo "==> Setting LXD socket ownership"
-    chgrp "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
+    chgrp -- "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
 fi
 
-if [ -e "${SNAP_COMMON}/lxd-user/unix.socket" ] && getent group "${daemon_user_group}" >/dev/null 2>&1; then
+if [ -e "${SNAP_COMMON}/lxd-user/unix.socket" ] && getent group -- "${daemon_user_group}" >/dev/null 2>&1; then
     echo "==> Setting LXD user socket ownership"
-    chgrp "${daemon_user_group}" "${SNAP_COMMON}/lxd-user/unix.socket"
+    chgrp -- "${daemon_user_group}" "${SNAP_COMMON}/lxd-user/unix.socket"
 fi
 
 # Check if LXD ever started

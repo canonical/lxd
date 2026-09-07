@@ -343,7 +343,7 @@ for entry in dev proc sys; do
 done
 
 # Setup the "lxd" group
-if [ "${daemon_group}" = "lxd" ] && ! getent group lxd >/dev/null 2>&1; then
+if [ "${daemon_group}" = "lxd" ] && ! getent group -- lxd >/dev/null 2>&1; then
     echo "==> Creating \"lxd\" group"
     if grep -q "^group.*extrausers" /var/lib/snapd/hostfs/etc/nsswitch.conf; then
         nsenter -t 1 -m groupadd --system --extrausers lxd || true
@@ -353,7 +353,7 @@ if [ "${daemon_group}" = "lxd" ] && ! getent group lxd >/dev/null 2>&1; then
 fi
 
 # Setup the "lxd" user
-if ! getent passwd lxd >/dev/null 2>&1; then
+if ! getent passwd -- lxd >/dev/null 2>&1; then
     echo "==> Creating \"lxd\" user"
     if grep -q "^passwd.*extrausers" /var/lib/snapd/hostfs/etc/nsswitch.conf; then
         nsenter -t 1 -m useradd --system -M -N --home "${SNAP_COMMON}/lxd" --shell /bin/false --gid lxd --extrausers lxd || true
@@ -784,27 +784,27 @@ if [ -x "${SNAP_COMMON}/lxd.debug" ]; then
     echo "==> WARNING: Using a custom debug LXD binary!"
 fi
 
-CMD="${LXD} --logfile ${SNAP_COMMON}/lxd/logs/lxd.log"
+set -- "${LXD}" --logfile "${SNAP_COMMON}/lxd/logs/lxd.log"
 
-if getent group "${daemon_group}" >/dev/null 2>&1; then
-    CMD="${CMD} --group ${daemon_group}"
+if getent group -- "${daemon_group}" >/dev/null 2>&1; then
+    set -- "$@" --group "${daemon_group}"
     if [ -e "${SNAP_COMMON}/lxd/unix.socket" ]; then
-        chgrp "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
+        chgrp -- "${daemon_group}" "${SNAP_COMMON}/lxd/unix.socket"
     fi
 else
     echo "==> No \"${daemon_group}\" group found, only root will be able to use LXD."
 fi
 
 if [ "${daemon_debug:-"false"}" = "true" ]; then
-    CMD="${CMD} --debug"
+    set -- "$@" --debug
 fi
 
 if [ "${daemon_syslog:-"false"}" = "true" ]; then
-    CMD="${CMD} --syslog"
+    set -- "$@" --syslog
 fi
 
 if [ "${daemon_verbose:-"false"}" = "true" ]; then
-    CMD="${CMD} --verbose"
+    set -- "$@" --verbose
 fi
 
 if [ "${db_trace:-"false"}" = "true" ]; then
@@ -825,8 +825,7 @@ set +e
     read -r sbpid _ < /proc/self/stat
     export LISTEN_PID="${sbpid}"
 
-    # shellcheck disable=SC2086
-    exec ${CMD}
+    exec "$@"
 )&
 PID=$!
 echo "${PID}" > "${SNAP_COMMON}/lxd.pid"
