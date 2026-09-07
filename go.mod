@@ -12,7 +12,7 @@ require (
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
 	github.com/fvbommel/sortorder v1.1.0
 	github.com/go-acme/lego/v4 v4.35.2
-	github.com/go-chi/chi/v5 v5.3.1
+	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
@@ -39,16 +39,16 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openfga/api/proto v0.0.0-20260723150800-6981fff8d33b
 	github.com/openfga/language/pkg/go v0.3.2-0.20260730144454-83fedf8a4e70
-	github.com/openfga/openfga v1.18.3
+	github.com/openfga/openfga v1.19.0
 	github.com/osrg/gobgp/v3 v3.37.0
 	github.com/pkg/sftp v1.13.11
 	github.com/pkg/xattr v0.4.12
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/sirupsen/logrus v1.10.1
+	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/vishvananda/netlink v1.3.1
-	github.com/zitadel/oidc/v3 v3.49.2
+	github.com/zitadel/oidc/v3 v3.49.4
 	go.starlark.net v0.0.0-20260708150628-5395d018f003
 	go.uber.org/zap v1.28.0
 	go.yaml.in/yaml/v2 v2.4.4
