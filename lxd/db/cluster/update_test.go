@@ -900,7 +900,7 @@ INSERT INTO identities (identifier, auth_method, type, name, metadata) VALUES ('
 	require.NoError(t, err)
 
 	baseQ := `SELECT certificates.fingerprint, certificates.certificate, identities.identifier, identities.metadata
-FROM identities 
+FROM identities
     JOIN identities_certificates ON identities.id = identities_certificates.identity_id
 	JOIN certificates ON identities_certificates.certificate_id = certificates.id `
 	row := db.QueryRowContext(t.Context(), baseQ+"WHERE identities.name = ?", "unrestricted")
