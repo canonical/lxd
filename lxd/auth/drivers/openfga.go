@@ -21,8 +21,10 @@ import (
 	"github.com/openfga/openfga/pkg/server"
 	openFGAErrors "github.com/openfga/openfga/pkg/server/errors"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -576,6 +578,19 @@ func logCtxFromFields(fields []zap.Field) logger.Ctx {
 	}
 
 	return ctx
+}
+
+// Level reports the minimum enabled log level for this logger.
+func (o openfgaLogger) Level() zapcore.Level {
+	if daemon.Debug {
+		return zapcore.DebugLevel
+	}
+
+	if daemon.Verbose {
+		return zapcore.InfoLevel
+	}
+
+	return zapcore.WarnLevel
 }
 
 // Debug delegates to the authorizers logger.
