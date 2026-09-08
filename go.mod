@@ -6,6 +6,8 @@ replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
 
 replace golang.org/x/net => golang.org/x/net v0.0.0-20211020060615-d418f374d309
 
+replace launchpad.net/lpad => github.com/canonical/lpad v0.0.0-20131113112110-bef5e42ef176
+
 require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.0.0-20210323213023-7e956b284f0a
@@ -19,6 +21,7 @@ require (
 	github.com/fvbommel/sortorder v1.0.2
 	github.com/go-httprequest/httprequest v1.1.2
 	github.com/google/gopacket v1.1.19
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosexy/gettext v0.0.0-20160830220431-74466a0a0c4a
@@ -66,7 +69,6 @@ require (
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/renameio v1.0.1 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jkeiser/iter v0.0.0-20200628201005-c8aa0ae784d1 // indirect
 	github.com/juju/collections v0.0.0-20200605021417-0d0ec82b7271 // indirect
