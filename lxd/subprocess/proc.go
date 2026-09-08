@@ -38,6 +38,7 @@ type Process struct {
 	UID       uint32 `yaml:"uid"`
 	GID       uint32 `yaml:"gid"`
 	SetGroups bool   `yaml:"set_groups"`
+	Dir       string `yaml:"dir"`
 	StartTime int64  `yaml:"start_time"`
 
 	SysProcAttr *syscall.SysProcAttr
@@ -129,6 +130,7 @@ func (p *Process) start(ctx context.Context, fds []*os.File) error {
 	cmd.Stdout = p.stdout
 	cmd.Stderr = p.stderr
 	cmd.Stdin = p.stdin
+	cmd.Dir = p.Dir
 	cmd.SysProcAttr = p.SysProcAttr
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}

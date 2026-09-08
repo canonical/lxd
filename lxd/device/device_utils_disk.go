@@ -241,8 +241,59 @@ func diskAddRootUserNSEntry(idmaps []idmap.IdmapEntry, hostRootID int64) []idmap
 	return idmaps
 }
 
+// diskVMVirtiofsdResolveIDMaps returns explicit idmaps if provided, or the current namespace mappings otherwise.
+func diskVMVirtiofsdResolveIDMaps(idmaps []idmap.IdmapEntry, currentIdmapSetFunc func() (*idmap.IdmapSet, error)) ([]idmap.IdmapEntry, error) {
+	if len(idmaps) > 0 {
+		return idmaps, nil
+	}
+
+	if currentIdmapSetFunc == nil {
+		return nil, errors.New("Current idmap set function is nil")
+	}
+
+	currentIdmapSet, err := currentIdmapSetFunc()
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting current idmap set: %w", err)
+	}
+
+	if currentIdmapSet == nil || len(currentIdmapSet.Idmap) == 0 {
+		return nil, errors.New("Current idmap set cannot be empty")
+	}
+
+	// The current idmap set maps IDs in the current namespace (Nsid) to IDs in its parent (Hostid).
+	// virtiofsd runs in a child namespace of the current one, so build an identity map over each
+	// current Nsid range (Hostid = Nsid) to pass the host's ID range through unchanged. Reusing the
+	// parent Hostid values directly would be incorrect when LXD itself is nested.
+	effectiveIDMaps := make([]idmap.IdmapEntry, 0, len(currentIdmapSet.Idmap))
+	hasUIDMap := false
+	hasGIDMap := false
+	for _, idmapEntry := range currentIdmapSet.Idmap {
+		effectiveIDMaps = append(effectiveIDMaps, idmap.IdmapEntry{
+			Hostid:   idmapEntry.Nsid,
+			Isuid:    idmapEntry.Isuid,
+			Isgid:    idmapEntry.Isgid,
+			Nsid:     idmapEntry.Nsid,
+			Maprange: idmapEntry.Maprange,
+		})
+
+		if idmapEntry.Isuid {
+			hasUIDMap = true
+		}
+
+		if idmapEntry.Isgid {
+			hasGIDMap = true
+		}
+	}
+
+	if !hasUIDMap || !hasGIDMap {
+		return nil, errors.New("Current idmap set must contain both UID and GID mappings")
+	}
+
+	return effectiveIDMaps, nil
+}
+
 // DiskVMVirtiofsdStart starts a new virtiofsd process with a socket present at the supplied path.
-// If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
+// If the idmaps slice is empty, the current namespace mappings are used.
 // Returns UnsupportedError error if the host system or instance does not support virtiofsd, returns normal error
 // type if process cannot be started for other reasons.
 // Returns a revert function on success.
@@ -334,9 +385,22 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 		return nil, err
 	}
 
-	if len(idmaps) > 0 {
-		proc.SetUserns(&idmap.IdmapSet{Idmap: idmaps})
+	// This is required because virtiofsd is split into two long-running processes.
+	// The child calls `pivot_root(2)`, which sandboxes both processes inside `sharePath`.
+	// However, it only pivots the working directory of the parent process when it starts as `/`.
+	// Normally this would only prevent unmounting LXD's working directory, which is OK.
+	// But when we run virtiofsd from a non-initial user namespace, all existing mounts are
+	// brought into the sandbox as a single unit (see `mount_namespaces(7)`). These remain
+	// alive even after unmounting them on the host (MNT_LOCKED), which can prevent LXD from
+	// deactivating instance volumes.
+	proc.Dir = "/"
+
+	effectiveIDMaps, err := diskVMVirtiofsdResolveIDMaps(idmaps, idmap.CurrentIdmapSet)
+	if err != nil {
+		return nil, err
 	}
+
+	proc.SetUserns(&idmap.IdmapSet{Idmap: effectiveIDMaps}, true)
 
 	err = proc.StartWithFiles(context.Background(), []*os.File{unixFile})
 	if err != nil {
