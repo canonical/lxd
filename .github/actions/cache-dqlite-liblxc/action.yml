@@ -63,7 +63,7 @@ runs:
 
     - name: Install LXD build dependencies
       if: ${{ steps.check-build.outputs.needed == 'true' }}
-      uses: ./.github/actions/install-lxd-builddeps
+      uses: $/.github/actions/install-lxd-builddeps
 
     - name: Build LXD dependencies
       if: ${{ steps.check-build.outputs.needed == 'true' }}

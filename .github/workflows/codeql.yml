@@ -83,13 +83,13 @@ jobs:
       # Install C headers and build tools needed to compile LXD's CGO code (Go only).
       - name: Install LXD build dependencies
         if: matrix.language == 'go'
-        uses: ./.github/actions/install-lxd-builddeps
+        uses: $/.github/actions/install-lxd-builddeps
 
       # Build or restore dqlite/liblxc from the daily cache (Go only). On a cache
       # miss the action builds from the checked-out workspace.
       - name: Build or restore dqlite/liblxc dependencies
         if: matrix.language == 'go'
-        uses: ./.github/actions/cache-dqlite-liblxc
+        uses: $/.github/actions/cache-dqlite-liblxc
         with:
           export-env: true
 
