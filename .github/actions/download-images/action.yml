@@ -28,7 +28,7 @@ runs:
     # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#usage-limits-and-eviction-policy
     # Restoring the cache is safe even from untrusted forks
     - name: Restore images cache
-      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       id: cache-images
       with:
         path: ${{ inputs.image-cache-dir }}
@@ -49,7 +49,7 @@ runs:
 
     # Only save if there wasn't an exact cache hit, AND the code is running on the main repo (not an untrusted fork)
     - name: Save images cache
-      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       if: |
         steps.cache-images.outputs.cache-hit != 'true' &&
         (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)

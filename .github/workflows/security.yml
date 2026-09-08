@@ -30,7 +30,7 @@ jobs:
       SARIF_FILE: trivy-${{ github.event.repository.name }}-repo-scan-results.sarif
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           persist-credentials: false
@@ -60,7 +60,7 @@ jobs:
             mv trivy-modified.sarif "${SARIF_FILE}"
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           sarif_file: ${{ env.SARIF_FILE }}
           sha: ${{ github.sha }}
@@ -87,7 +87,7 @@ jobs:
             branch: stable-4.0
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ matrix.branch }}
           persist-credentials: false
@@ -135,7 +135,7 @@ jobs:
           mv ${{ matrix.branch }}-modified.sarif ${{ matrix.branch }}.sarif
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           sarif_file: ${{ matrix.branch }}.sarif
           sha: ${{ steps.branch-sha.outputs.sha }}

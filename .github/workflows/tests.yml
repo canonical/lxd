@@ -89,7 +89,7 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # A non-shallow clone is needed for the Differential ShellCheck
           fetch-depth: 0
@@ -126,7 +126,7 @@ jobs:
           snap-channel: ${{ inputs.go-snap-channel }}
 
       - name: Install Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         if: github.event_name != 'pull_request'
         with:
           # zizmor: ignore[cache-poisoning]
@@ -191,7 +191,7 @@ jobs:
 
       - name: Run golangci-lint
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.static-analysis }}
-        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9.2.1
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           version: ${{ steps.golangci-lint-version.outputs.version }}
 
@@ -319,7 +319,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -584,7 +584,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -592,7 +592,7 @@ jobs:
         uses: ./.github/actions/tune-disk-performance
 
       - name: Checkout lxd-ci
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: 'canonical/lxd-ci'
           ref: main
@@ -660,7 +660,7 @@ jobs:
       # for simplicity, just use one cache directory
       # and make it valid for one day
       # Restoring the cache is safe even from untrusted forks
-      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: cache-restore
         if: ${{ matrix.test == 'qemu-external-vm' }}
         with:
@@ -772,7 +772,7 @@ jobs:
           fi
 
       # Only save if there wasn't an exact cache hit, AND the code is running on the main repo (not an untrusted fork)
-      - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: |
           matrix.test == 'qemu-external-vm' &&
           steps.cache-restore.outputs.cache-hit != 'true' &&
@@ -828,7 +828,7 @@ jobs:
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -901,7 +901,7 @@ jobs:
           gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
-        uses: tiobe/tics-github-action@016a4d79f3027fe7b4a2901619a58c745ab7cadf # v3.10.0
+        uses: tiobe/tics-github-action@333078bc527399e5916a166bd1a3a788be5a01a9 # v3.12.0
         with:
           mode: qserver
           project: LXD
@@ -926,7 +926,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -1050,7 +1050,7 @@ jobs:
       code-quality: write
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -1090,7 +1090,7 @@ jobs:
           gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Upload code coverage
-        uses: actions/upload-code-coverage@1c15be36fc3733ba839b1dd643bd9556e4426dc1 # v1.4.1
+        uses: actions/upload-code-coverage@d8e329117199404bba6fc81efe8093dc7c015e34 # v1.4.2
         with:
           file: ${{env.GOCOVERDIR}}/coverage-go.xml
           language: Go
@@ -1113,7 +1113,7 @@ jobs:
       LXD_OIDC_GROUPS_CLAIM: "lxd-idp-groups"
     steps:
       - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -1121,7 +1121,7 @@ jobs:
         uses: ./.github/actions/tune-disk-performance
 
       - name: Checkout LXD-UI
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: 'canonical/lxd-ui'
           ref: main
@@ -1138,7 +1138,7 @@ jobs:
           cd lxd-ui
           dotrun install
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         # zizmor: ignore[cache-poisoning]
         with:
           node-version: 22
@@ -1300,7 +1300,7 @@ jobs:
     needs: code-tests
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # A non-shallow clone is needed for the sitemap generation
           fetch-depth: 0
@@ -1312,7 +1312,7 @@ jobs:
           snap-channel: ${{ inputs.go-snap-channel }}
 
       - name: Install Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           # zizmor: ignore[cache-poisoning]
           cache: 'pip' # caching pip dependencies
@@ -1358,7 +1358,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || ( github.event_name == 'schedule' && github.repository == 'canonical/lxd' ) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -1368,7 +1368,7 @@ jobs:
           snap-channel: ${{ inputs.go-snap-channel }}
 
       - name: Install Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           # zizmor: ignore[cache-poisoning]
           cache: 'pip' # caching pip dependencies
@@ -1402,7 +1402,7 @@ jobs:
       SSH_AUTH_SOCK: /tmp/ssh_agent.sock
     steps:
       - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # A non-shallow clone is needed for the rebase with the lxd-private branch
           fetch-depth: 0
