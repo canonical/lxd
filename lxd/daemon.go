@@ -2041,6 +2041,9 @@ func (d *Daemon) init() (err error) {
 
 		// Synchronize operations with the database (minutely)
 		d.tasks.Add(synchronizeOperationsTask(d.State))
+
+		// Refresh cluster link volatile addresses (daily).
+		d.tasks.Add(autoRefreshClusterLinkVolatileAddressesTask(d.State))
 	}
 
 	// Load Ubuntu Pro configuration before starting any instances.
@@ -2159,9 +2162,6 @@ func (d *Daemon) startClusterTasks() {
 
 	// Remove expired OIDC sessions
 	d.clusterTasks.Add(pruneExpiredOIDCSessionsTask(d.State))
-
-	// Refresh cluster link volatile addresses (daily).
-	d.clusterTasks.Add(autoRefreshClusterLinkVolatileAddressesTask(d.State))
 
 	// Start all background tasks
 	d.clusterTasks.Start(d.shutdownCtx)
