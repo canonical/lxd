@@ -1,0 +1,93 @@
+job_queue: $JOB_QUEUE
+global_timeout: 3600
+output_timeout: 1800
+provision_data:
+  distro: $DISTRO
+
+test_data:
+  test_cmds: |
+    #!/bin/bash
+
+    set -xeuo pipefail
+
+    # This is used, along with DEVICE_IP, by all scriptlets to access the device
+    export DEVICE_USER="ubuntu"
+
+    # retrieve the tools installer
+    curl -Ls -o install_tools.sh https://raw.githubusercontent.com/canonical/hwcert-jenkins-tools/main/install_tools.sh
+
+    # install the scriptlets and other tools on the agent and the device, as necessary
+    export TOOLS_PATH=tools
+    source install_tools.sh $TOOLS_PATH
+
+    # ensure device is available before continuing
+    wait-for-ssh --allow-degraded
+
+    # Wait for snapd to become available
+    _run_retry "timeout 5 sudo snap wait system seed.loaded"
+    wait-for-snap-changes
+
+    _run sudo snap remove lxd --purge || true
+
+    GRUB_FILE="/etc/default/grub"
+    NOUVEAU_BLACKLIST="module_blacklist=nouveau"
+
+    if [ -f "/etc/default/grub.d/50-cloudimg-settings.cfg" ]; then
+      GRUB_FILE="/etc/default/grub.d/50-cloudimg-settings.cfg"
+    fi
+
+    # Idempotent command to blacklist nouveau module from loading:
+    if ! grep -q "${NOUVEAU_BLACKLIST}" "${GRUB_FILE}"; then
+      _run sudo sed -i.bak "'s|^\(GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*\)\"$|\1 ${NOUVEAU_BLACKLIST}\"|'" "${GRUB_FILE}"
+    fi
+
+    # Apply the changes to the bootloader
+    _run sudo update-grub
+
+    # Find the recommended NVIDIA server-open version
+    _run install_packages ubuntu-drivers-common
+    NVIDIA_DRIVER="$(_run ubuntu-drivers --gpgpu devices | awk '/-server-open/ {print $3}' | sort -V -r | head -n1)"
+    NVIDIA_DRIVER_VERSION="$(echo "${NVIDIA_DRIVER}" | sed 's/.*-\([0-9]\+\)-server-open$/\1/')"
+
+    # install NVIDIA drivers and user space utilities
+    _run sudo ubuntu-drivers install --gpgpu nvidia:${NVIDIA_DRIVER_VERSION}-server-open
+
+    # Let's try to be as close as we can to Ubuntu Core's
+    # mesa-2404:kernel-gpu-2404 components in terms of which packages
+    # we want to have. We need this because it allows us to expect
+    # the same libraries, configuration files, etc available in the container
+    # independently if it's a classic Ubuntu or Ubuntu Core installation.
+    # Please, refer to
+    # https://git.launchpad.net/~canonical-kernel-snaps/canonical-kernel-snaps/+git/kernel-snaps-u24.04/tree/snapcraft.yaml?h=pc-components#n162
+    _run install_packages libnvidia-egl-wayland1 \
+                          libnvidia-cfg1-${NVIDIA_DRIVER_VERSION}-server \
+                          libnvidia-common-${NVIDIA_DRIVER_VERSION}-server \
+                          libnvidia-compute-${NVIDIA_DRIVER_VERSION}-server \
+                          libnvidia-decode-${NVIDIA_DRIVER_VERSION}-server \
+                          libnvidia-encode-${NVIDIA_DRIVER_VERSION}-server \
+                          libnvidia-extra-${NVIDIA_DRIVER_VERSION}-server \
+                          libnvidia-gl-${NVIDIA_DRIVER_VERSION}-server \
+                          libnvidia-fbc1-${NVIDIA_DRIVER_VERSION}-server \
+                          nvidia-utils-${NVIDIA_DRIVER_VERSION}-server
+
+    # reboot and wait for machine to get back
+    _run sudo reboot
+    wait-for-ssh --allow-degraded
+
+    # Show kernel boot arguments for debugging
+    _run cat /proc/cmdline
+
+    # verify that our drivers and tools work properly
+    _run lspci -k
+    _run ls /dev/nvidia*
+    _run nvidia-smi
+
+    # Enable MIG mode.
+    _run sudo nvidia-smi -mig 1
+
+    # Reboot and wait for machine to get back. This is needed because some machines require reboot after enabling MIG mode.
+    _run sudo reboot
+    wait-for-ssh --allow-degraded
+
+    _run git clone --depth=1 --branch main https://github.com/canonical/lxd-ci.git
+    _run "cd lxd-ci && sudo ./bin/local-run tests/gpu-mig $SNAP_CHANNEL < /dev/null"

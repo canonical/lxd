@@ -1,0 +1,181 @@
+#!/bin/bash
+set -eux
+
+# testflinger_queue: torchtusk
+
+if mokutil --sb-state | grep -Fx "SecureBoot enabled"; then
+  echo "SecureBoot needs to be disabled to avoid a prompt to register custom MOK (Machine-Owner Key) during DKMS" >&2
+  exit 1
+fi
+
+# Install dependencies
+install_deps jq ubuntu-drivers-common
+RECOMMENDED_DRIVER="$(ubuntu-drivers --gpgpu devices | awk '/-server-open/ {print $3}' | sort -V -r | head -n1)"
+INSTALL_RECOMMENDS=yes install_deps "${RECOMMENDED_DRIVER}"
+
+# Reload nvidia kernel module
+modprobe -r --remove-holders nvidia_drm || true
+modprobe -r --remove-holders nvidia || true
+modprobe --first-time nvidia
+
+# Install LXD
+install_lxd
+
+IMAGE="${TEST_IMG:-ubuntu-daily:24.04}"
+
+# Check that NVIDIA is installed
+nvidia-smi
+
+# Configure LXD
+lxc storage create default zfs
+lxc profile device add default root disk path=/ pool=default
+lxc network create lxdbr0
+lxc profile device add default eth0 nic network=lxdbr0 name=eth0
+
+# Consult available resources
+identical_nvidia_gpus="$(lxc query /1.0/resources | jq -r '.gpu.cards | .[] | select(.driver == "nvidia") | .product_id' | sort | uniq --repeated)"
+first_card_pci_slot="$(lxc query /1.0/resources | jq -r '.gpu.cards | .[] | select(.driver == "nvidia") | .pci_address' | head -n1)"
+first_card_product_id="$(lxc query /1.0/resources | jq -r ".gpu.cards | .[] | select(.pci_address == \"${first_card_pci_slot}\") | .product_id")"
+
+# Setup MIG on the first NVIDIA card only to keep the test deterministic on multi-GPU hosts.
+nvidia-smi -i "${first_card_pci_slot}" -mig 1
+nvidia-smi mig -i "${first_card_pci_slot}" -lgip
+nvidia-smi mig -i "${first_card_pci_slot}" -cgi 2g.10gb,1g.5gb,1g.5gb
+nvidia-smi mig -i "${first_card_pci_slot}" -lgi
+nvidia-smi mig -i "${first_card_pci_slot}" -lcip
+
+# GPU instance IDs are assigned by the driver and differ between GPU models, so
+# read back the IDs actually created above instead of hardcoding them. The -lgi
+# table lists one row per instance as "| GPU MIG <profile> <profileID> <instID> <placement> |",
+# so the instance ID is field 6.
+mapfile -t GI_1G5GB < <(nvidia-smi mig -i "${first_card_pci_slot}" -lgi | awk '$3 == "MIG" && $4 == "1g.5gb" {print $6}')
+mapfile -t GI_2G10GB < <(nvidia-smi mig -i "${first_card_pci_slot}" -lgi | awk '$3 == "MIG" && $4 == "2g.10gb" {print $6}')
+
+# The -cgi call above created two 1g.5gb and one 2g.10gb GPU instances. Fail early
+# with a clear message if they weren't found (e.g. MIG mode not actually enabled or
+# an unexpected -lgi output format) instead of a cryptic set -u "unbound variable".
+if [ "${#GI_1G5GB[@]}" -lt 2 ] || [ "${#GI_2G10GB[@]}" -lt 1 ]; then
+  echo "ERROR: expected two 1g.5gb and one 2g.10gb GPU instances, got ${#GI_1G5GB[@]} and ${#GI_2G10GB[@]}" >&2
+  exit 1
+fi
+
+nvidia-smi mig -i "${first_card_pci_slot}" -cci 1g.5gb -gi "${GI_1G5GB[0]}"
+nvidia-smi mig -i "${first_card_pci_slot}" -cci 1g.5gb -gi "${GI_1G5GB[1]}"
+nvidia-smi mig -i "${first_card_pci_slot}" -cci 1c.2g.10gb,1c.2g.10gb -gi "${GI_2G10GB[0]}"
+nvidia-smi
+
+UUIDS="$(nvidia-smi -L | sed -n "/(UUID: MIG-/ s/.* \(MIG-[^)]\+\))$/\1/p")"
+UUID1="$(echo "$UUIDS" | sed -n '1p')"
+UUID2="$(echo "$UUIDS" | sed -n '2p')"
+UUID3="$(echo "$UUIDS" | sed -n '3p')"
+UUID4="$(echo "$UUIDS" | sed -n '4p')"
+
+# Launch test containers
+for i in $(seq 1 4); do
+  lxc init "${IMAGE}" "nvidia-mig${i}"
+  if ! hasNeededAPIExtension "gpu_mig_cdi"; then
+    lxc config set "nvidia-mig${i}" nvidia.runtime=true
+  fi
+done
+
+lxc config device add nvidia-mig1 gpu0 gpu gputype=mig mig.uuid="$UUID1" pci="${first_card_pci_slot}"
+lxc config device add nvidia-mig2 gpu0 gpu gputype=mig mig.uuid="$UUID2" pci="${first_card_pci_slot}"
+lxc config device add nvidia-mig3 gpu0 gpu gputype=mig mig.uuid="$UUID3" pci="${first_card_pci_slot}"
+lxc config device add nvidia-mig4 gpu0 gpu gputype=mig mig.uuid="$UUID4" pci="${first_card_pci_slot}"
+lxc start nvidia-mig1
+lxc exec nvidia-mig1 -- nvidia-smi
+lxc start nvidia-mig2
+lxc exec nvidia-mig2 -- nvidia-smi
+lxc start nvidia-mig3
+lxc exec nvidia-mig3 -- nvidia-smi
+lxc start nvidia-mig4
+lxc exec nvidia-mig4 -- nvidia-smi
+
+lxc stop -f nvidia-mig4
+if [ -n "${identical_nvidia_gpus}" ]; then
+  # XXX: if there are multiple identical cards the vendorid/productid combo isn't enough to identify the GPU so a
+  #      PCI address would be needed as well but that's already been tested before
+  echo "Skipping vendorid/productid assignment test due to multiple NVIDIA GPUs with the same productid"
+  lxc config device add nvidia-mig4 gpu1 gpu gputype=mig mig.uuid="$UUID1" pci="${first_card_pci_slot}"
+  lxc config device add nvidia-mig4 gpu2 gpu gputype=mig mig.uuid="$UUID2" pci="${first_card_pci_slot}"
+else
+  lxc config device add nvidia-mig4 gpu1 gpu gputype=mig mig.uuid="$UUID1" vendorid=10de productid="${first_card_product_id}"
+  lxc config device add nvidia-mig4 gpu2 gpu gputype=mig mig.uuid="$UUID2" vendorid=10de productid="${first_card_product_id}"
+fi
+lxc start nvidia-mig4
+lxc exec nvidia-mig4 -- nvidia-smi
+
+# Make sure all 3 MIG devices are there (gpu{0,1,2})
+[ "$(lxc exec nvidia-mig4 -- nvidia-smi -L | grep -cwF MIG)" -eq 3 ]
+
+# Test CDI "id" notation as MIG selector (requires the gpu_mig_cdi API extension).
+if hasNeededAPIExtension "gpu_mig_cdi"; then
+  # Stop nvidia-mig3 to free UUID3 so the new container has exclusive use of the MIG slice.
+  lxc stop -f nvidia-mig3
+
+  lxc init "${IMAGE}" nvidia-mig5
+
+  # Verify CDI "id" is mutually exclusive with the "pci" parent selector.
+  if lxc config device add nvidia-mig5 gpu_bad gpu gputype=mig id="nvidia.com/mig=${UUID3}" pci="${first_card_pci_slot}"; then
+    echo "ERROR: combining CDI \"id\" with \"pci\" should be rejected" >&2
+    exit 1
+  fi
+
+  # Verify CDI "id" is mutually exclusive with the "vendorid"/"productid" parent selectors.
+  if lxc config device add nvidia-mig5 gpu_bad gpu gputype=mig id="nvidia.com/mig=${UUID3}" vendorid=10de productid="${first_card_product_id}"; then
+    echo "ERROR: combining CDI \"id\" with \"vendorid\"/\"productid\" should be rejected" >&2
+    exit 1
+  fi
+
+  # Verify CDI "id" is mutually exclusive with "mig.uuid".
+  if lxc config device add nvidia-mig5 gpu_bad gpu gputype=mig id="nvidia.com/mig=${UUID3}" mig.uuid="${UUID3}"; then
+    echo "ERROR: combining CDI \"id\" with \"mig.uuid\" should be rejected" >&2
+    exit 1
+  fi
+
+  # Verify CDI "id" is mutually exclusive with "mig.gi"+"mig.ci".
+  if lxc config device add nvidia-mig5 gpu_bad gpu gputype=mig id="nvidia.com/mig=${UUID3}" mig.gi=1 mig.ci=0; then
+    echo "ERROR: combining CDI \"id\" with \"mig.gi\"/\"mig.ci\" should be rejected" >&2
+    exit 1
+  fi
+
+  # Check MIG device is being passed through correctly when "id=nvidia.com/mig=<uuid>".
+  lxc config device add nvidia-mig5 gpu0 gpu gputype=mig id="nvidia.com/mig=${UUID3}"
+  lxc start nvidia-mig5
+  lxc exec nvidia-mig5 -- nvidia-smi
+  [ "$(lxc exec nvidia-mig5 -- nvidia-smi -L | grep -cwF MIG)" -eq 1 ]
+
+  # Verify the same MIG slice using the alternative "<dev_idx>:<mig_idx>" CDI form.
+  # UUID3 is the 3rd MIG slice on the only MIG-enabled GPU (Device 2 on that card).
+  first_card_nvml_idx="$(nvidia-smi -i "${first_card_pci_slot}" --query-gpu=index --format=csv,noheader,nounits)"
+  lxc stop -f nvidia-mig5
+  lxc config device remove nvidia-mig5 gpu0
+  lxc config device add nvidia-mig5 gpu0 gpu gputype=mig id="nvidia.com/mig=${first_card_nvml_idx}:2"
+  lxc start nvidia-mig5
+  lxc exec nvidia-mig5 -- nvidia-smi
+  [ "$(lxc exec nvidia-mig5 -- nvidia-smi -L | grep -cwF MIG)" -eq 1 ]
+fi
+
+# Wait for them to start and list
+lxc list
+
+# Stop all instances
+lxc stop -f --all
+
+# Cleanup MIG
+nvidia-smi mig -i "${first_card_pci_slot}" -dci
+nvidia-smi mig -i "${first_card_pci_slot}" -dgi
+nvidia-smi -i "${first_card_pci_slot}" -mig 0
+
+echo "==> Cleaning up"
+lxc delete nvidia-mig1 nvidia-mig2 nvidia-mig3 nvidia-mig4
+if hasNeededAPIExtension "gpu_mig_cdi"; then
+  lxc delete nvidia-mig5
+fi
+lxc profile device remove default root
+lxc profile device remove default eth0
+lxc storage delete default
+lxc network delete lxdbr0
+
+# shellcheck disable=SC2034
+FAIL=0

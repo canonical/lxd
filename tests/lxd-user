@@ -1,0 +1,36 @@
+#!/bin/bash
+set -eux
+
+lxc_user() {
+    sudo -Hu testuser GOCOVERDIR="${GOCOVERDIR:-}" LXD_DIR=/var/snap/lxd/common/lxd-user lxc "${@}"
+}
+
+# Install lxd
+install_lxd
+
+# Create testuser account
+useradd -m testuser -G lxd --uid 5000
+
+# Allow testuser to run lxd-user daemon without creating a systemd user session
+# See https://forum.snapcraft.io/t/46210
+loginctl enable-linger testuser
+sleep 3 # allow time for the session to be usable
+
+# Access lxd-user
+lxc_user info
+lxc_user project list
+lxc_user project list -f csv | grep '^user-5000.*,"User restricted project for ""testuser"" (5000)",'
+
+# Try to gracefully stop lxd-user daemon which allows coverage data to be
+# saved if needed.
+pkill -x lxd-user || pkill -x lxd-user.debug || true
+
+# End the user session
+loginctl terminate-user testuser
+
+# Cleanup
+lxc project delete user-5000
+userdel -r testuser 2>/dev/null
+
+# shellcheck disable=SC2034
+FAIL=0

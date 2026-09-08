@@ -1,0 +1,90 @@
+#!/bin/bash
+set -eu
+
+# Tests for snap-specific regressions when rsyncing a container whose storage pool is mounted in the snap confinement.
+
+# Install and setup LXD.
+install_lxd
+lxd init --auto
+
+# Install dependencies
+install_deps btrfs-progs xfsprogs
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+echo "==> Create a loop device that we can mount as a source for a dir storage pool"
+test_dir="$(mktemp -d XXX.test)"
+loopimg="$(mktemp "${test_dir}/XXX.img")"
+truncate -s 5G "${loopimg}"
+loopdev="$(losetup --show --find "${loopimg}")"
+
+# Begin Test.
+set -x
+
+echo "==> Launch a VM which will be the target of the copy"
+lxc launch "${IMAGE}" target --vm -d root,size=8GiB
+waitInstanceBooted target
+setup_instance_gocoverage target
+
+echo "==> Setup LXD on the target VM"
+lxc exec target -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
+lxc exec target -- snap install lxd --channel "${LXD_SNAP_CHANNEL}" --cohort=+
+lxc exec target -- lxd init --auto --network-address "[::]" --network-port "8443" --storage-backend "zfs"
+
+echo "==> Add the target VM as a remote LXD"
+token="$(lxc exec target -- lxc config trust add --name host --quiet)"
+lxc remote add target "${token}"
+
+# Run the test for various filesystems.
+for fs in "xfs" "btrfs" "ext4" ; do
+  echo "==> Testing with ${fs}"
+  mkfs."${fs}" "${loopdev}"
+  disk_dir="$(mktemp -d "${test_dir}/XXX.disk")"
+  mount "${loopdev}" "${disk_dir}"
+  rm -rf "${disk_dir}/lost+found"
+
+  # Create a storage pool with the mounted disk. It will be mounted in the snap, but not on the hostfs.
+  lxc storage create "${fs}" dir source="${PWD}/${disk_dir}"
+
+  # Create a container which we will copy to another target.
+  lxc launch "${IMAGE}" c1 --storage "${fs}"
+
+  # Copy the container to the remote LXD.
+  lxc copy c1 target:c1 --stateless --refresh --mode=relay
+
+  # Test refreshing the copy
+  lxc start target:c1
+  printf "%s" "${fs}" | lxc file push - c1/root/my-fs
+  ! lxc exec target:c1 -- test -e /root/my-fs || false
+  lxc stop -f target:c1
+  lxc copy c1 target:c1 --stateless --refresh --mode=relay
+  lxc start target:c1
+  [ "$(lxc exec target:c1 -- cat /root/my-fs)" = "${fs}" ]
+  lxc stop -f target:c1
+
+  # Test appending to a file before refreshing the copy
+  echo "-${$}" | lxc exec c1 -- tee -a /root/my-fs
+  lxc copy c1 target:c1 --stateless --refresh --mode=relay
+  lxc start target:c1
+  [ "$(lxc exec target:c1 -- cat /root/my-fs)" = "${fs}-${$}" ]
+  lxc stop -f target:c1
+
+  # Clean up the storage pool for this run.
+  lxc delete c1 -f
+  lxc delete target:c1 -f
+  lxc storage delete "${fs}"
+
+  # Reset the loop device.
+  umount "${loopdev}"
+  wipefs -a "${loopdev}"
+done
+
+echo "==> Clean up LXD and remove the loop device"
+lxc remote remove target
+prepare_vm_for_hard_stop target
+lxc delete target -f
+losetup --detach "${loopdev}"
+rm -rf "${test_dir}"
+
+# shellcheck disable=SC2034
+FAIL=0

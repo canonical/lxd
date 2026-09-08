@@ -1,0 +1,477 @@
+#!/bin/bash
+set -eu
+
+# Source helper functions.
+# shellcheck disable=SC1091
+. ./bin/helpers
+
+# XXX: virt-v2v is recent enough in 24.04 onward. For older releases,
+# virt-v2v is not installed, and the conversion test is skipped.
+# shellcheck disable=SC1091
+. /etc/os-release
+if dpkg --compare-versions "${VERSION_ID}" ge 24.04; then
+      install_deps file jq rsync unzip virt-v2v
+      apt-get remove passt
+else
+      install_deps file jq rsync unzip
+fi
+
+# Install LXD without starting the daemon so snap options can be configured first
+install_lxd false
+
+set -x
+
+# For LVM thin use external LVM tools to avoid errors like:
+# Failed to run: lvcreate --yes --wipesignatures y --thinpool --extents 100%FREE: Device or resource busy
+snap set lxd lvm.external=true
+systemctl restart snap.lxd.daemon.service
+lxd waitready --timeout=300
+
+if ! command -v go; then
+    # Install go from Snap.
+    waitSnapdSeed
+    snap install go --classic
+fi
+
+export PATH="${HOME}/go/bin:${PATH}"
+
+# Install lxd conversion tool based on LXD version
+# Default to lxd-convert (LXD 6+)
+LXD_CONVERT_TOOL="lxd-convert"
+LXD_CONVERT_TOOL_FLAG="--options"
+GIT_BRANCH="main"
+
+# Legacy versions have `lxd-migrate`
+if [[ ${LXD_SNAP_CHANNEL:-latest/stable} =~ ^[45]\. ]]; then
+    LXD_CONVERT_TOOL="lxd-migrate"
+    LXD_CONVERT_TOOL_FLAG="--conversion"
+    # Using the tool from 5.21 even on older releases
+    GIT_BRANCH="stable-5.21"
+fi
+
+# Look for a pre-built conversion tool in the PATH, and if not found, build it from the source.
+# The pre-built tool might have Go coverage instrumentation that is best kept for testing.
+if ! command -v "${LXD_CONVERT_TOOL}" > /dev/null; then
+  CGO_ENABLED=0 go install "github.com/canonical/lxd/${LXD_CONVERT_TOOL}@${GIT_BRANCH}"
+  strip --strip-all "$(command -v "${LXD_CONVERT_TOOL}")"
+fi
+
+# Configure LXD
+lxd init --auto --network-address "[::]" --network-port "8443"
+
+# Select VM secure boot config syntax based on server API support.
+vm_secureboot_config="security.secureboot=false"
+if hasNeededAPIExtension instance_boot_mode; then
+    vm_secureboot_config="boot.mode=uefi-nosecureboot"
+fi
+
+checkIPAddresses() {
+    instName=$1
+
+    address="$(lxc query "/1.0/instances/${instName}/state" | jq -r '.network | .[].addresses | .[] | select(.scope == "global") | .address')"
+
+    if [ -z "${address}" ]; then
+        echo "===> FAIL: No network interface: ${instName}"
+
+        # Show the network state.
+        echo "===> DEBUG: network state: ${instName}"
+        lxc info "${instName}"
+        return 1
+    fi
+
+    fail=0
+
+    # IPv4 address
+    if echo "${address}" | grep -qF "."; then
+        echo "===> PASS: IPv4 address: ${instName}"
+    else
+        echo "===> FAIL: IPv4 address: ${instName}"
+        fail=1
+    fi
+
+    # IPv6 address
+    if echo "${address}" | grep -qF ":"; then
+        echo "===> PASS: IPv6 address: ${instName}"
+    else
+        echo "===> FAIL: IPv6 address: ${instName}"
+        fail=1
+    fi
+
+    return "${fail}"
+}
+
+checkDNS() {
+    instName=$1
+
+    # Test lxd-agent and DNS resolution.
+    if lxc exec "${instName}" -- nslookup canonical.com >/dev/null 2>&1; then
+        echo "===> PASS: DNS resolution: ${instName}"
+        return 0
+    fi
+
+    if lxc exec "${instName}" -- getent hosts canonical.com >/dev/null 2>&1; then
+        echo "===> PASS: DNS resolution: ${instName}"
+        return 0
+    fi
+
+    echo "===> FAIL: DNS resolution: ${instName}"
+    return 1
+}
+
+testImportedInstance() {
+    instName=$1
+
+    # Start the instance.
+    echo "Starting instance ${instName}..."
+    lxc start "${instName}"
+
+    # Wait for the instance to be ready and ensure it has global IP addresses.
+    echo "Waiting instance ${instName} to start..."
+    waitInstanceReady "${instName}"
+    for _ in $(seq 10); do
+        sleep 1
+        [ "$(lxc query "/1.0/instances/${instName}/state" | jq -r '.network | .[].addresses | .[] | select(.scope == "global") | .address' | wc -l)" -ge 2 ] && break
+    done
+
+    # XXX: CentOS needs more time to get the network up.
+    #      using waitInstanceBooted runs into other issues
+    if lxc exec "${instName}" -- sh -c "command -v nm-online" >/dev/null; then
+        echo "Waiting for NetworkManager to be online in instance ${instName}..."
+        lxc exec "${instName}" -- nm-online --timeout=90
+    fi
+
+    # Print the instances.
+    lxc list
+
+    echo "Check network connectivity of instance ${instName}..."
+    checkIPAddresses "${instName}"
+
+    echo "Check DNS resolution of instance ${instName}..."
+    checkDNS "${instName}"
+
+    # Cleanup.
+    lxc delete -f "${instName}"
+}
+
+# conversion_vm creates a new LXD virtual machine from the image on the given path.
+# A dedicated storage pool of the given type will be created for a new virtual machine.
+#
+# Input arguments:
+# 1: Name of new virtual machine.
+# 2: Type of the storage pool.
+# 3: Path to the image.
+# 4: Enable secureboot (yes/no).
+# 5: Conversion options (defaults to "format").
+conversion_vm() {
+    conversion vm "$1" "$2" "$3" "$4" "${5:-format}"
+}
+
+# conversion_container creates a new LXD container from the filesystem of the existing container.
+#
+# Input arguments:
+# 1: Name of the existing container.
+conversion_container() {
+    conversion container "$1" "" "/" "no" ""
+}
+
+# conversion runs lxd-convert/lxd-migrate for the given image path. For virtual machine, the tool is
+# executed on the localhost. For container, the conversion tool will be installed and executed from
+# an existing container.
+conversion() {
+    instType=$1
+    instName=$2
+    poolType=$3
+    imgPath=$4
+    uefi_sb=$5
+    conversionOptions=$6
+
+    if [ "${instType}" = "vm" ]; then
+        echo "==> TEST: Conversion: Import virtual-machine '${instName}' on '${poolType}' storage pool"
+
+        instName="vm-${instName}-${poolType}"
+        poolName="pool-${instName}-${poolType}"
+        hostAddr="127.0.0.1"
+        instTypeCode="2" # VM in migration questioneer.
+
+        lxdMigrateCmd="${LXD_CONVERT_TOOL} ${LXD_CONVERT_TOOL_FLAG}=${conversionOptions}"
+
+        # Create storage pool.
+        if [ "$poolType" = "ceph" ] || [ "$poolType" = "dir" ]; then
+            lxc storage create "${poolName}" "${poolType}"
+        else
+            lxc storage create "${poolName}" "${poolType}" size=11GiB
+        fi
+
+    elif [ "${instType}" = "container" ]; then
+        echo "==> TEST: Conversion: Import container '${instName}'"
+
+        poolName=""
+        hostAddr=$(lxc network get lxdbr0 ipv4.address | cut -d/ -f1)
+        instTypeCode="1" # Container.
+
+        lxdMigrateCmd="lxc exec ${instName} -- /root/go/bin/${LXD_CONVERT_TOOL}"
+        setup_instance_gocoverage "${instName}"
+
+        # Install rsync and conversion tool.
+        lxc exec "${instName}" -- apt-get update
+        lxc exec "${instName}" -- apt-get install --no-install-recommends -y rsync file
+        lxc file push --create-dirs --mode 0755 --quiet "$(command -v ${LXD_CONVERT_TOOL})" "${instName}"/root/go/bin/${LXD_CONVERT_TOOL}
+
+        # Set instName to the name of the new container that will be created
+        # from the existing one.
+        instName="${instName}-migration"
+    else
+        echo "Invalid instance type '${instType}'. Valid types are 'container' and 'vm'."
+        return 1
+    fi
+
+    # Generate trust token for conversion.
+    token="$(lxc config trust add --quiet --name migrate)"
+    if [ -z "${token}" ]; then
+        echo "Failed to generate LXD trust token!"
+        return 1
+    fi
+
+    # Migration questions.
+    {
+        if [ "${instType}" = "vm" ]; then
+            echo "n"           # Do not use local unix socket.
+        fi
+
+        echo "${hostAddr}"     # Address of the target LXD server.
+        sleep 1
+        echo "y"               # Confirm the local LXD server is the target.
+        sleep 1
+        echo "1"               # Use a certificate token.
+        echo "${token}"        # Token.
+        echo "${instTypeCode}" # Instance type (1 == container, 2 == virtual-machine).
+
+        if [ "$(lxc project ls -f csv | wc -l)" -gt 1 ]; then
+            echo "default"     # Project name (required if there is more then 1 project)
+        fi
+
+        echo "${instName}"     # Instance name.
+        echo "${imgPath}"      # Local image path (or filesystem path in case of container).
+        echo "${uefi_sb}"      # Enable UEFI secure boot.
+
+        # Configure storage pool.
+        if [ "${poolName}" != "" ]; then
+            echo "4"           # Change storage pool settings.
+            echo "${poolName}" # Pool name.
+            echo "yes"         # Configure pool size?
+            echo "10GiB"       # Pool size.
+        fi
+
+        # Begin the migration with the above configuration
+        sleep 1
+        echo "1"
+    } | $lxdMigrateCmd
+
+    testImportedInstance "${instName}"
+
+    if [ "${poolName}" != "" ]; then
+        lxc storage delete "${poolName}"
+    fi
+}
+
+# Test container migration using conversion mode. If server does not
+# support conversion API extension, the conversion tool must fallback to
+# migration mode and successfully transfer the rootfs.
+lxc launch ubuntu-minimal-daily:24.04 c1 --device root,size=512MiB
+conversion_container "c1"
+lxc delete -f c1
+
+# Unblock images remote.
+sed -i '/images\.lxd\.canonical\.com/d' /etc/hosts
+systemctl restart systemd-resolved.service
+
+tmpdir="$(mktemp -d)"
+
+# Download and cache the image to avoid re-downloading it multiple times.
+# Skip the copy if the image already exists locally so reruns stay idempotent.
+if ! lxc image info alpine-edge-vm; then
+    lxc image copy images:alpine/edge local: --vm --alias alpine-edge-vm
+fi
+
+# Create an instance and export it to get raw image.
+lxc init alpine-edge-vm tmp --vm --device root,size=4GiB
+lxc export tmp --compression=none --quiet - | tar --occurrence=1 -xf - -C "${tmpdir}" "backup/virtual-machine.img"
+lxc delete tmp
+
+IMAGE_PATH="${tmpdir}/backup/virtual-machine.img"
+
+# Test VM migration using conversion mode. If server does not support
+# conversion API extension, the conversion tool must fallback to migration
+# mode and successfully transfer the VM disk.
+for driver in btrfs ceph dir lvm zfs; do
+    conversion_vm alpine-raw "${driver}" "${IMAGE_PATH}" "no"
+done
+
+# Test non-interactive VM imports.
+# Generate token for HTTPS remote server.
+token="$(lxc config trust add --quiet --name migrate)"
+if [ -z "${token}" ]; then
+    echo "Failed to generate LXD trust token!"
+    return 1
+fi
+
+# Test VM import with no target server - local unix server is used by default.
+${LXD_CONVERT_TOOL} --non-interactive --type vm --source "${IMAGE_PATH}" \
+    --name vm-ni-unix-default \
+    --config "${vm_secureboot_config}"
+query="$(lxc query /1.0/instances/vm-ni-unix-default)"
+[ "$(jq -r '.profiles[]' <<< "${query}")" = "default" ]       # Ensure default profile is applied.
+[ "$(jq -r .devices <<< "${query}")" = "{}" ]                 # Ensure no dierct devices.
+[ "$(jq -r '.expanded_devices | length' <<< "${query}")" = "2" ] # Ensure there are 2 devices from profile.
+testImportedInstance vm-ni-unix-default
+
+# Test VM import to local unix server.
+${LXD_CONVERT_TOOL} --non-interactive --type vm --source "${IMAGE_PATH}" \
+    --name vm-ni-unix \
+    --config "${vm_secureboot_config}" \
+    --server unix://
+testImportedInstance vm-ni-unix
+
+# Test VM import to remote HTTPS server.
+${LXD_CONVERT_TOOL} --non-interactive --type vm --source "${IMAGE_PATH}" \
+    --name vm-ni-https \
+    --server https://127.0.0.1:8443 \
+    --token "${token}" \
+    --config "${vm_secureboot_config}"
+testImportedInstance vm-ni-https
+
+# Custom configuration with no profiles.
+# Ensure that custom configuration is applied and no profiles are attached.
+${LXD_CONVERT_TOOL} --non-interactive --type vm --source "${IMAGE_PATH}" \
+    --name vm-ni-custom-config \
+    --no-profiles \
+    --network lxdbr0 \
+    --storage default \
+    --storage-size 5GiB \
+    --config limits.cpu=2 \
+    --config limits.memory=2GiB \
+    --config "${vm_secureboot_config}"
+query="$(lxc query /1.0/instances/vm-ni-custom-config)"
+[ "$(jq -r .profiles <<< "${query}")" = "[]" ]                  # Ensure no profiles are applied.
+[ "$(jq -r .devices.root.pool <<< "${query}")" = "default" ]    # Ensure storage pool default is used.
+[ "$(jq -r .devices.eth0.network <<< "${query}")" = "lxdbr0" ]  # Ensure network lxdbr0 is used.
+[ "$(jq -r '.config["limits.cpu"]' <<< "${query}")" = "2" ]
+[ "$(jq -r '.config["limits.memory"]' <<< "${query}")" = "2GiB" ]
+[ "$(jq -r --arg key "${vm_secureboot_config%%=*}" '.config[$key]' <<< "${query}")" = "${vm_secureboot_config#*=}" ]
+testImportedInstance vm-ni-custom-config
+
+# Ensure invalid instance name is rejected.
+! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid/name --source "${IMAGE_PATH}" || false
+
+# Ensure no-profiles and profiles flags are mutually exclusive.
+! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid-flags --source "${IMAGE_PATH}" --no-profiles --profiles default || false
+
+# Invalid instance config entry.
+! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid-flags --source "${IMAGE_PATH}" --config invalid || false
+
+# Invalid instance type.
+! ${LXD_CONVERT_TOOL} --non-interactive --name vm-ni-invalid-flags --source "${IMAGE_PATH}" || false
+! ${LXD_CONVERT_TOOL} --non-interactive --name vm-ni-invalid-flags --source "${IMAGE_PATH}" --type invalid || false
+
+# Invalid source path (VM).
+! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid-flags --source /invalid/file/path || false
+
+# Invalid config key.
+! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid-flags --source "${IMAGE_PATH}" --config invalid || false
+
+# Non-existing profile.
+! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid-flags --source "${IMAGE_PATH}" --profiles invalid || false
+
+# Non-existing storage pool.
+! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid-flags --source "${IMAGE_PATH}" --storage invalid || false
+
+# Invalid storage pool size.
+! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid-flags --source "${IMAGE_PATH}" --storage invalid --storage-size 15Gibibytes || false
+
+# Non-existing network.
+! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid-flags --source "${IMAGE_PATH}" --network invalid || false
+
+rm -rf "${tmpdir}/backup"
+
+# Test VM conversion using non-raw disk formats only if server supports
+# conversion API extension.
+if hasNeededAPIExtension instance_import_conversion; then
+    # Test QCOW2 images.
+    IMAGE_PATH="${tmpdir}/image"
+
+    lxc image export alpine-edge-vm "${IMAGE_PATH}" --vm
+    conversion_vm alpine-qcow2 zfs "${IMAGE_PATH}.root" "no"
+
+    # Download and cache the image to avoid re-downloading it multiple times.
+    # Skip the copy if the image already exists locally so reruns stay idempotent.
+    if ! lxc image info centos-9-stream-vm; then
+        lxc image copy images:centos/9-Stream local: --vm --alias centos-9-stream-vm
+    fi
+
+    lxc image export centos-9-stream-vm "${IMAGE_PATH}" --vm
+    conversion_vm centos9-qcow2 btrfs "${IMAGE_PATH}.root" "yes"
+
+    rm "${IMAGE_PATH}" "${IMAGE_PATH}.root"
+
+    # Test VMDK image.
+    wget -q -O "${IMAGE_PATH}" https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.vmdk
+
+    conversion_vm u24-vmdk lvm "${IMAGE_PATH}" "yes"
+    conversion_vm u24-vmdk dir "${IMAGE_PATH}" "yes"
+
+    # Use custom volume for backups. Images for conversion will be uploaded here.
+    lxc storage create backups-pool zfs
+    lxc storage volume create backups-pool backups-vol
+    lxc config set storage.backups_volume=backups-pool/backups-vol
+
+    conversion_vm u24-vmdk-bupvol dir "${IMAGE_PATH}" "yes"
+    conversion_vm u24-vmdk-bupvol zfs "${IMAGE_PATH}" "yes"
+
+    # Test virtio conversion if virt-v2v-in-place is installed.
+    if ! command -v virt-v2v-in-place > /dev/null; then
+        echo "===> SKIP: The virt-v2v-in-place is not installed"
+    else
+        # Create new instance.
+        lxc launch centos-9-stream-vm v1 --vm --config limits.cpu=2 --config limits.memory=2GiB --device root,size=4GiB
+        waitInstanceBooted v1
+        sleep 1
+
+        # Remove LXD dracut configuration to allow removing the virtio_scsi module.
+        # Afterwards, rebuild the initramfs image and stop the instance.
+        lxc exec v1 -- rm /etc/dracut.conf.d/lxd.conf
+        lxc exec v1 -- dracut --force --omit-drivers virtio_scsi
+
+        # XXX: Disable SELinux before exporting the instance, as it will block lxd-agent
+        # when re-imported.
+        if lxc exec v1 -- test -e /etc/selinux/config; then
+            lxc exec v1 -- sed -i "s/SELINUX=enforcing/SELINUX=disabled/" /etc/selinux/config
+        fi
+
+        # Export instance and extract raw image.
+        lxc stop v1
+        lxc export v1 --compression=none --quiet - | tar --occurrence=1 -xf - -C "${tmpdir}" "backup/virtual-machine.img"
+
+        # Ensure instance does not boot without virtio_scsi drivers.
+        lxc start v1
+        ! MAX_WAIT_SECONDS=90 waitInstanceReady v1 || { echo "Instance booted without SCSI drivers!"; false; }
+        lxc delete -f v1
+
+        # Ensure that virtio conversion adds the needed virtio_scsi module back into the initramfs.
+        conversion_vm centos-missing-driver zfs "${tmpdir}/backup/virtual-machine.img" "no" "virtio"
+    fi
+
+    # Cleanup.
+    rm -rf "${tmpdir}"
+    lxc image delete centos-9-stream-vm
+    lxc config unset storage.backups_volume
+    lxc storage volume delete backups-pool backups-vol
+    lxc storage delete backups-pool
+else
+    echo "===> SKIP: VM image conversion skipped. Server does not support API extenison 'instance_import_conversion'"
+fi
+
+# Remove the locally cached Alpine conversion image (always downloaded above).
+lxc image delete alpine-edge-vm
+
+# shellcheck disable=SC2034
+FAIL=0

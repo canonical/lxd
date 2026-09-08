@@ -1,0 +1,78 @@
+job_queue: $JOB_QUEUE
+global_timeout: 3600
+output_timeout: 1800
+provision_data:
+  distro: $DISTRO
+
+test_data:
+  test_cmds: |
+    #!/bin/bash
+
+    set -xeuo pipefail
+
+    # This is used, along with DEVICE_IP, by all scriptlets to access the device
+    export DEVICE_USER="ubuntu"
+
+    # retrieve the tools installer
+    curl -Ls -o install_tools.sh https://raw.githubusercontent.com/canonical/hwcert-jenkins-tools/main/install_tools.sh
+
+    # install the scriptlets and other tools on the agent and the device, as necessary
+    export TOOLS_PATH=tools
+    source install_tools.sh $TOOLS_PATH
+
+    # ensure device is available before continuing
+    wait-for-ssh --allow-degraded
+
+    # Wait for snapd to become available
+    _run_retry "timeout 5 sudo snap wait system seed.loaded"
+    wait-for-snap-changes
+
+    _run sudo snap remove lxd --purge || true
+    wait-for-snap-changes
+
+    # Show kernel boot arguments for debugging
+    _run cat /proc/cmdline
+
+    # verify that AMD GPU devices are available
+    _run lspci -k | grep -A 3 -i "vga\|display\|3d"
+    _run ls -la /dev/dri/
+    _run ls -la /dev/kfd
+
+    # LXD working
+    _run_retry sudo snap install lxd --channel=$SNAP_CHANNEL --no-wait --cohort=+
+    wait-for-snap-changes
+
+    _run sudo lxd init --auto
+    _run sudo usermod -aG lxd ubuntu
+
+    # Check LXD is ready
+    _run lxd waitready --timeout=60
+
+    # Check adding a GPU CDI devices works for stopped container
+    _run "lxc init ubuntu:noble c1 </dev/null"
+    _run lxc config device add c1 gpu0 gpu id=amd.com/gpu=0
+
+    _run lxc start c1
+
+    # Print out all mounts we have so we can compare it later if anything goes wrong
+    _run lxc exec c1 -- cat /proc/self/mountinfo
+
+    # Check that AMD devices are accessible in the container
+    _run lxc exec c1 -- ls -la /dev/dri/
+    _run lxc exec c1 -- ls -la /dev/kfd
+
+    # Verify that exactly one DRM card device and a render node exist in the container
+    _run "lxc exec c1 -- sh -c 'ls /dev/dri/card[0-9]* | wc -l | grep -qx 1'"
+    _run lxc exec c1 -- sh -c 'ls /dev/dri/renderD[0-9]*'
+
+    # Check that KFD device is accessible
+    _run lxc exec c1 -- test -c /dev/kfd
+
+    # Check hotplugging of the CDI device
+    _run lxc delete -f c1
+    _run "lxc launch ubuntu:noble c1 </dev/null"
+    _run lxc config device add c1 gpu0 gpu id=amd.com/gpu=0
+    _run lxc exec c1 -- ls -la /dev/dri/
+    _run "lxc exec c1 -- sh -c 'ls /dev/dri/card[0-9]* | wc -l | grep -qx 1'"
+    _run lxc exec c1 -- sh -c 'ls /dev/dri/renderD[0-9]*'
+    _run lxc exec c1 -- test -c /dev/kfd
