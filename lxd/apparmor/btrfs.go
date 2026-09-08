@@ -30,6 +30,8 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   capability setfcap,
   # CAP_SYS_ADMIN is needed for btrfs send/receive.
   capability sys_admin,
+  # CAP_SYS_CHROOT is needed for btrfs receive -C, which chroots into the destination path.
+  capability sys_chroot,
 
   {{ .execPath }} mixr,
 
