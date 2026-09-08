@@ -1236,3 +1236,67 @@ func (c *ClusterTx) GetProjectsUsingImage(ctx context.Context, fingerprint strin
 
 	return imgProjectNames, nil
 }
+
+// GetCachedImageWithSource gets a cached image with the given fingerprint and source details.
+func (c *ClusterTx) GetCachedImageWithSource(ctx context.Context, fingerprint string, server string, protocol string, alias string, certificate string) (int, *api.Image, error) {
+	var protocolCode uint8
+	switch protocol {
+	case "lxd":
+		protocolCode = 0
+	case "direct":
+		protocolCode = 1
+	case "simplestreams":
+		protocolCode = 2
+	default:
+		return -1, nil, api.StatusErrorf(http.StatusBadRequest, "Unknown protocol %q", protocol)
+	}
+
+	q := `
+SELECT
+	images.id,
+	projects.name,
+	images.fingerprint,
+	images.type,
+	images.size,
+	images.public,
+	images.architecture,
+	images.creation_date,
+	images.expiry_date,
+	images.upload_date,
+	images.cached,
+	images.last_use_date,
+	images.auto_update
+FROM images
+JOIN projects ON images.project_id = projects.id
+JOIN images_source ON images.id = images_source.image_id
+WHERE images.cached = 1 AND images.fingerprint = ? AND images_source.server = ? AND images_source.protocol = ? AND images_source.alias = ? AND images_source.certificate = ?`
+
+	var object cluster.Image
+	row := c.Tx().QueryRowContext(ctx, q, fingerprint, server, protocolCode, alias, certificate)
+	err := row.Scan(&object.ID, &object.Project, &object.Fingerprint, &object.Type, &object.Size, &object.Public, &object.Architecture, &object.CreationDate, &object.ExpiryDate, &object.UploadDate, &object.Cached, &object.LastUseDate, &object.AutoUpdate)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return -1, nil, api.StatusErrorf(http.StatusNotFound, "Image not found")
+		}
+
+		return -1, nil, fmt.Errorf("Failed getting cached image with source: %w", err)
+	}
+
+	var image api.Image
+	image.Fingerprint = object.Fingerprint
+	image.Filename = object.Filename
+	image.Size = object.Size
+	image.Cached = object.Cached
+	image.Public = object.Public
+	image.AutoUpdate = object.AutoUpdate
+
+	err = c.imageFill(
+		ctx, object.ID, &image,
+		&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
+		&object.UploadDate, object.Architecture, object.Type)
+	if err != nil {
+		return -1, nil, fmt.Errorf("Fill image details: %w", err)
+	}
+
+	return object.ID, &image, nil
+}
