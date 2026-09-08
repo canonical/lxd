@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -225,15 +226,39 @@ func ResolveMountOptions(options []string) (uintptr, string) {
 	return mountFlags, strings.Join(mountOptions, ",")
 }
 
-// GetMountinfo tracks down the mount entry for the path and returns all MountInfo fields.
-func GetMountinfo(path string) ([]string, error) {
+// ErrNoMountInfoEntry is returned by GetMountinfo when the mountinfo file held no
+// entry for the path. Callers that need to tell this apart from a real failure to
+// read or parse the file should check for it with errors.Is rather than treating
+// every returned error the same way.
+var ErrNoMountInfoEntry = errors.New("No mountinfo entry found")
+
+// GetMountinfo tracks down the mount entry for the path in the given mountinfo
+// file and returns all MountInfo fields. Entries holding fewer than 5 fields are
+// never matched, so the slice returned always has at least the 5 fields up to and
+// including the mount point.
+//
+// The path is located by stat'ing it and matching the mount ID the kernel reports
+// against the first field of each entry, so both arguments have to describe the
+// same mount tree. Pass "/proc/self/mountinfo" to look a path up in the caller's
+// own mount namespace. To look one up in another process' mount namespace, pass
+// that process' "/proc/<pid>/mountinfo" together with a path routed through
+// "/proc/<pid>/root": a bare path would be resolved in the caller's namespace,
+// whose mount IDs do not appear in the other process' file.
+//
+// The entry returned is the mount the path lives in, which is not necessarily one
+// mounted at the path itself. To tell those apart, compare the returned mount
+// point (field 4) against the path as the mountinfo file spells it, which is not
+// always the path passed in: mount points are written relative to the root of the
+// namespace the file describes, so a path routed through "/proc/<pid>/root"
+// appears there with that prefix stripped.
+func GetMountinfo(mountinfoPath string, path string) ([]string, error) {
 	stat := &unix.Statx_t{}
 	err := unix.Statx(0, path, 0, 0, stat)
 	if err != nil {
 		return nil, err
 	}
 
-	f, err := os.Open("/proc/self/mountinfo")
+	f, err := os.Open(mountinfoPath)
 	if err != nil {
 		return nil, err
 	}
@@ -242,21 +267,25 @@ func GetMountinfo(path string) ([]string, error) {
 
 	statMountID := strconv.FormatUint(stat.Mnt_id, 10)
 
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
+	reader := bufio.NewReader(f)
+	for {
+		line, err := reader.ReadString('\n')
 
 		tokens := strings.Fields(line)
-		if len(tokens) < 5 {
-			continue
+		if len(tokens) >= 5 && tokens[0] == statMountID {
+			return tokens, nil
 		}
 
-		if tokens[0] == statMountID {
-			return tokens, nil
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+
+			return nil, err
 		}
 	}
 
-	return nil, errors.New("No mountinfo entry found")
+	return nil, ErrNoMountInfoEntry
 }
 
 // MkdirAllOwner creates a directory named path, along with any necessary parents, in root.
@@ -314,4 +343,19 @@ func MkdirAllOwner(root *os.Root, path string, perm os.FileMode, uid int, gid in
 	}
 
 	return nil
+}
+
+// StatDeviceID stats path and returns the device ID (major:minor) of the
+// filesystem it lives on, in the same form as the third field of a mountinfo
+// entry. Other helpers that derive information from a path by stat'ing it should
+// follow the same StatXxx naming.
+func StatDeviceID(path string) (string, error) {
+	var st unix.Stat_t
+
+	err := unix.Stat(path, &st)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%d:%d", unix.Major(uint64(st.Dev)), unix.Minor(uint64(st.Dev))), nil
 }

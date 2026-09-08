@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/backup"
@@ -28,6 +29,8 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/device/filters"
+	"github.com/canonical/lxd/lxd/idmap"
+	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/network"
@@ -36,6 +39,7 @@ import (
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -53,6 +57,7 @@ const (
 	patchPreDaemonStorage
 	patchPostDaemonStorage
 	patchPostNetworks
+	patchPostInstancesLoaded
 )
 
 /*
@@ -129,6 +134,7 @@ var patches = []patch{
 	{name: "storage_rename_nvme_mode", stage: patchPreLoadClusterConfig, run: patchStoragePoolConnectorNVMeMode},
 	{name: "replicators_remove_snapshot_config_key", stage: patchPreLoadClusterConfig, run: patchReplicatorsRemoveSnapshotConfigKey},
 	{name: "config_remove_legacy_nvidia_keys", stage: patchPreLoadClusterConfig, run: patchRemoveLegacyNvidiaConfigKeys},
+	{name: "instance_reattach_shared_devlxd_shmounts", stage: patchPostInstancesLoaded, run: patchReattachSharedDevLXDMounts},
 }
 
 type patch struct {
@@ -2489,6 +2495,144 @@ func patchRemoveLegacyNvidiaConfigKeys(_ string, d *Daemon) error {
 
 		return nil
 	})
+}
+
+// reattachSharedDevLXDMount re-establishes the devLXD bind-mount that the daemon
+// shares with a running container.
+//
+// /dev/lxd is a bind-mount, made in the container's mount namespace, of a tmpfs
+// that LXD mounts in its own. When LXD runs from the snap that per-snap namespace
+// is discarded on every refresh, so the incoming daemon can come up with a brand
+// new filesystem while a container that survived the refresh still holds a
+// bind-mount of the previous one. Such a container ends up with an empty /dev/lxd,
+// because the outgoing daemon unlinked the devLXD socket on its way down.
+//
+// This is a no-op whenever the container's mount and the daemon's current
+// filesystem are still backed by the same device ID — the common case once devlxd
+// persists across a refresh, or when the container was started by the currently
+// running daemon.  See issue #18194.
+// The caller is responsible for only passing containers that have devLXD enabled.
+func reattachSharedDevLXDMount(inst instance.Container) error {
+	pid := inst.InitPID()
+	if inst.IsSnapshot() || pid <= 0 {
+		return nil
+	}
+
+	source := shared.VarPath("devlxd")
+	expected, err := filesystem.StatDeviceID(source)
+	if err != nil {
+		logger.Warn("Skipped re-attaching devLXD mount, cannot stat the source", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "source": source, "err": err})
+		return nil
+	}
+
+	// Look the mount up in the container's mount namespace rather than our own,
+	// which means reading the container's mountinfo and routing the path through
+	// /proc/<pid>/root so both describe the same mount tree.
+	const target = "/dev/lxd"
+	mountinfo := fmt.Sprintf("/proc/%d/mountinfo", pid)
+	fields, err := filesystem.GetMountinfo(mountinfo, fmt.Sprintf("/proc/%d/root%s", pid, target))
+	if err != nil {
+		// Either target does not exist in the container or its mountinfo could
+		// not be read or parsed: we don't know what is mounted there, so don't
+		// touch it.
+		logger.Warn("Skipped re-attaching devLXD mount, cannot look up the container's mount", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "target": target, "mountinfo": mountinfo, "err": err})
+		return nil
+	}
+
+	if len(fields) < 5 {
+		logger.Warn("Skipped re-attaching devLXD mount, mountinfo entry too short", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "target": target, "mountinfo": mountinfo, "fields": len(fields)})
+		return nil
+	}
+
+	// Field 2 is the device ID of the mount found and field 4 its mount point.
+	actual := fields[2]
+	if actual == expected {
+		return nil
+	}
+
+	// The lookup resolves to the mount target lives in, so a mount point other
+	// than target itself means nothing is mounted there and there is nothing
+	// stale to drop first.
+	stale := fields[4] == target
+
+	logCtx := logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "source": source, "target": target, "expected": expected, "actual": actual}
+	logger.Info("Re-attaching devLXD mount", logCtx)
+
+	if stale {
+		// Drop the stale mount first so the new one doesn't end up stacked on it.
+		err = inst.RemoveMount(target)
+		if err != nil {
+			// Not fatal: the new mount shadows whatever is left underneath for
+			// path resolution (mountinfo's "last match wins"), and the container
+			// needs a working mount more than it needs a clean mount table.
+			logger.Warn("Failed dropping the stale devLXD mount; re-attaching over it", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "target": target, "err": err})
+		}
+	}
+
+	// MoveMount is used rather than the insertMount paths because those hand the
+	// mount over to the container through /dev/.lxd-mounts, which the same
+	// refresh leaves stale and which this does not repair. move-mount needs no
+	// staging area.
+	err = inst.MoveMount(source, target, "none", unix.MS_BIND, idmap.IdmapStorageNone)
+	if err != nil {
+		return fmt.Errorf("Failed re-attaching %q onto %q: %w", source, target, err)
+	}
+
+	return nil
+}
+
+// patchReattachSharedDevLXDMounts re-establishes the devLXD bind-mount for any container that was
+// already running when the daemon started, so containers left holding a mount of a filesystem a
+// prior daemon owned (across a snap refresh, before the persistence fix from #18194) get repaired
+// once during the upgrade to this version.
+//
+// This is a soft patch: it never returns an error, so a failure to repair can't stop the daemon
+// from starting. The trade-off is that it still counts as applied, so anything left unrepaired
+// stays that way rather than being retried on the next start.
+func patchReattachSharedDevLXDMounts(name string, d *Daemon) error {
+	instances, err := instance.LoadNodeAll(d.State(), instancetype.Container)
+	if err != nil {
+		logger.Error("Failed loading instances, skipping devLXD mount re-attach", logger.Ctx{"name": name, "err": err})
+		return nil
+	}
+
+	var attempted int
+	var failedIDs []int
+
+	for _, inst := range instances {
+		if !inst.IsRunning() {
+			continue
+		}
+
+		c, isContainer := inst.(instance.Container)
+		if !isContainer {
+			continue
+		}
+
+		// Mirrors the condition under which the devLXD mount entry is added to
+		// the container's liblxc config.
+		if shared.IsTrueOrEmpty(c.ExpandedConfig()["security.devlxd"]) {
+			attempted++
+
+			// Best-effort: a failure here leaves this one instance no worse off
+			// than before this repair existed (it just keeps whatever mount it
+			// already had), and must not stop the other instances from being
+			// repaired.
+			err := reattachSharedDevLXDMount(c)
+			if err != nil {
+				failedIDs = append(failedIDs, inst.ID())
+				logger.Warn("Failed re-attaching devLXD mount", logger.Ctx{"id": inst.ID(), "project": inst.Project().Name, "instance": inst.Name(), "err": err})
+			}
+		}
+	}
+
+	if len(failedIDs) > 0 {
+		logger.Warn("Patch finished re-attaching devLXD mounts with failures", logger.Ctx{"name": name, "attempted": attempted, "failedInstanceIDs": failedIDs})
+	} else {
+		logger.Info("Patch finished re-attaching devLXD mounts", logger.Ctx{"name": name, "attempted": attempted})
+	}
+
+	return nil
 }
 
 // Patches end here

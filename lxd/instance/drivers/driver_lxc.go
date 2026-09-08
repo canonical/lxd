@@ -1615,7 +1615,7 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 
 			_, err = files.Lstat(relativeTargetPath)
 			if err == nil {
-				err := d.removeMount(mount.TargetPath)
+				err := d.RemoveMount(mount.TargetPath)
 				if err != nil {
 					return fmt.Errorf("Error unmounting the device path inside container: %s", err)
 				}
@@ -4028,7 +4028,7 @@ func (d *lxc) Update(ctx context.Context, args db.InstanceArgs, actionType insta
 					reverter.Add(func() { _ = files.Close() })
 					_, err = files.Lstat("/dev/lxd")
 					if err == nil {
-						err = d.removeMount("/dev/lxd")
+						err = d.RemoveMount("/dev/lxd")
 						if err != nil {
 							return err
 						}
@@ -6647,7 +6647,10 @@ func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 	return nil
 }
 
-func (d *lxc) moveMount(source, target, fstype string, flags int, idmapType idmap.IdmapStorageType) error {
+// MoveMount attaches source onto target inside the running container using
+// move_mount, without going through the /dev/.lxd-mounts staging area that
+// insertMountLXC and insertMountLXD rely on.
+func (d *lxc) MoveMount(source, target, fstype string, flags int, idmapType idmap.IdmapStorageType) error {
 	// Get the init PID
 	pid := d.InitPID()
 	if pid == -1 {
@@ -6698,7 +6701,7 @@ func (d *lxc) insertMount(source, target, fstype string, flags int, idmapType id
 	// Prefer open_tree()/move_mount() whenever the kernel supports it (which
 	// d.state.OS.IdmappedMounts establishes)
 	if d.state.OS.IdmappedMounts {
-		return d.moveMount(source, target, fstype, flags, idmapType)
+		return d.MoveMount(source, target, fstype, flags, idmapType)
 	}
 
 	if idmapType == idmap.IdmapStorageNone {
@@ -6708,7 +6711,8 @@ func (d *lxc) insertMount(source, target, fstype string, flags int, idmapType id
 	return d.insertMountLXD(source, target, fstype, flags, -1, idmapType)
 }
 
-func (d *lxc) removeMount(mount string) error {
+// RemoveMount unmounts the given path inside the running container.
+func (d *lxc) RemoveMount(mount string) error {
 	// Get the init PID
 	pid := d.InitPID()
 	if pid == -1 {

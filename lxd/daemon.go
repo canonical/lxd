@@ -1937,6 +1937,11 @@ func (d *Daemon) init() (err error) {
 			return fmt.Errorf("Failed loading local instances: %w", err)
 		}
 
+		err = patchesApply(d, patchPostInstancesLoaded)
+		if err != nil {
+			return err
+		}
+
 		// Register devices on running instances to receive events and reconnect to VM monitor sockets.
 		// This should come after the event handler go routines have been started.
 		devicesRegister(instances)
