@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,6 +16,7 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
+	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/ioprogress"
@@ -245,6 +247,14 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 	args = append(args, path)
 	cmd := exec.Command("btrfs", args...)
 
+	// Setup AppArmor confinement for the btrfs command.
+	cleanup, err := apparmor.BtrfsWrapper(d.state.OS, cmd, path, "", GetPoolMountPath(d.name))
+	if err != nil {
+		return err
+	}
+
+	defer cleanup()
+
 	// Prepare stdout/stderr.
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -462,8 +472,37 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string) (string, error
 		return "", fmt.Errorf("Target path is not empty %q", receivePath)
 	}
 
-	err = shared.RunCommandWithFds(r, nil, "btrfs", "receive", "-e", receivePath)
+	args := []string{"receive", "-e", receivePath}
+
+	cmd := exec.Command("btrfs", args...)
+	cmd.Stdin = r
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+
+	// The pool's mount point still needs to be granted to the AppArmor profile since btrfs
+	// receive scans the filesystem (including reading /proc/self/mounts) to auto-detect the
+	// mount point and to find the parent subvolume for incremental receives.
+	poolMountPath := GetPoolMountPath(d.name)
+
+	// Setup AppArmor confinement for the btrfs command.
+	cleanup, err := apparmor.BtrfsWrapper(d.state.OS, cmd, "", receivePath, poolMountPath)
 	if err != nil {
+		return "", err
+	}
+
+	defer cleanup()
+
+	err = cmd.Run()
+	if err != nil {
+		err := shared.RunError{
+			Msg:    fmt.Sprintf("Failed to run: btrfs %s: %s", strings.Join(args, " "), strings.TrimSpace(stderr.String())),
+			Stdout: stdout.String(),
+			Stderr: stderr.String(),
+			Err:    err,
+		}
+
 		return "", err
 	}
 
