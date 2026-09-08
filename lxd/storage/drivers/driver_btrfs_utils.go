@@ -657,7 +657,9 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string, tracker *iopro
 		}
 	}
 
-	args := []string{"receive", "-e", receivePath}
+	// -C confines the receive process to receivePath using chroot, as an extra layer of
+	// confinement on top of the AppArmor profile applied below.
+	args := []string{"receive", "-e", "-C", receivePath}
 
 	cmd := exec.Command("btrfs", args...)
 	cmd.Stdin = stdin
