@@ -7869,15 +7869,15 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 		args.Disconnect()
 	}()
 
-	// Start filesystem transfer routine and initialise a channel that is closed when the routine finishes.
-	fsTransferDone := make(chan struct{})
-	g.Go(func() error {
-		defer close(fsTransferDone)
+	// Start filesystem transfer routine and initialise a channel that carries its result. The routine's
+	// error reaches the error group only after the routine has returned, so a waiter woken by the routine
+	// finishing can still see an uncancelled context and mistake a failed transfer for a completed one.
+	fsTransferDone := make(chan error, 1)
+	g.Go(func() (err error) {
+		defer func() { fsTransferDone <- err }()
 
 		d.logger.Debug("Migrate receive transfer started")
 		defer d.logger.Debug("Migrate receive transfer finished")
-
-		var err error
 
 		snapshots := make([]*migration.Snapshot, 0)
 
@@ -8100,11 +8100,11 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 
 	{
 		// Wait until the filesystem transfer routine has finished.
-		<-fsTransferDone
+		fsTransferErr := <-fsTransferDone
 
-		// If context is cancelled by this stage, then an error has occurred.
+		// If the transfer failed or the context is cancelled by this stage, then an error has occurred.
 		// Wait for all routines to finish and collect the first error that occurred.
-		if ctx.Err() != nil {
+		if fsTransferErr != nil || ctx.Err() != nil {
 			err := g.Wait()
 
 			// Send failure response to source.
