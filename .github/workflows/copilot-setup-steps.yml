@@ -44,10 +44,10 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Install build dependencies
-        uses: ./.github/actions/install-lxd-builddeps
+        uses: $/.github/actions/install-lxd-builddeps
 
       - name: Build or restore dqlite/liblxc dependencies
-        uses: ./.github/actions/cache-dqlite-liblxc
+        uses: $/.github/actions/cache-dqlite-liblxc
         with:
           export-env: true
 
