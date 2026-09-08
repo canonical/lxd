@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
@@ -1179,10 +1181,13 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 			// Instances on the local member (including unclustered servers) are handled
 			// directly below. This mirrors the logic in replicateInstance.
 			var memberAddress string
+			var localInst instance.Instance
 			for _, inst := range allInsts {
 				if inst.Name() == instName {
 					if inst.Location() != s.ServerName {
 						memberAddress = nodeAddressByName[inst.Location()]
+					} else {
+						localInst = inst
 					}
 
 					break
@@ -1197,10 +1202,18 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 
 				memberClient = memberClient.UseProject(projectName)
 
+				// Carry forward the protected volatile keys of the local copy, as the refresh
+				// payload is applied as the full desired target configuration.
+				restorePut := freshInst.Writable()
+				err = applyRemoteRefreshTargetConfig(memberClient, instName, &restorePut)
+				if err != nil {
+					return err
+				}
+
 				// Set up a push-mode migration sink on the hosting cluster member.
 				restoreOp, err := memberClient.CreateInstance(api.InstancesPost{
 					Name:        instName,
-					InstancePut: freshInst.Writable(),
+					InstancePut: restorePut,
 					Type:        api.InstanceType(freshInst.Type),
 					Source: api.InstanceSource{
 						Type:    api.SourceTypeMigration,
@@ -1258,19 +1271,24 @@ func prepareReplicatorRunOperation(ctx context.Context, s *state.State, projectN
 				return fmt.Errorf("Failed loading profiles for instance %q: %w", instName, err)
 			}
 
+			restorePut := freshInst.Writable()
+
+			// Carry forward the protected volatile keys of the local copy, as the refresh payload
+			// is applied as the full desired target configuration. The instance doesn't exist
+			// locally when it was created on the current leader cluster after the failover, in
+			// which case there is nothing to carry forward.
+			if localInst != nil {
+				err = applyLocalRefreshTargetConfig(localInst, &restorePut)
+				if err != nil {
+					return err
+				}
+			}
+
 			// Set up a push-mode migration sink locally so the leader pushes data to us.
 			migrateReq := &api.InstancesPost{
-				InstancePut: api.InstancePut{
-					Architecture: freshInst.Architecture,
-					Config:       freshInst.Config,
-					Devices:      freshInst.Devices,
-					Description:  freshInst.Description,
-					Ephemeral:    freshInst.Ephemeral,
-					Profiles:     freshInst.Profiles,
-					Stateful:     freshInst.Stateful,
-				},
-				Name: instName,
-				Type: api.InstanceType(freshInst.Type),
+				InstancePut: restorePut,
+				Name:        instName,
+				Type:        api.InstanceType(freshInst.Type),
 				Source: api.InstanceSource{
 					Type:    api.SourceTypeMigration,
 					Mode:    "push",
@@ -1432,6 +1450,59 @@ func replicatorCheckInstancesStopped(allInsts []instance.Instance) error {
 	return nil
 }
 
+// applyRefreshTargetConfig merges protected target-only keys (such as the volatile idmap keys) from
+// the existing target instance into a refresh request payload. The server treats a refresh payload as
+// the full desired target configuration (see the "instance_refresh_config" API extension), so keys
+// that exist on the target but are missing from the payload are seen as deletions and rejected.
+func applyRefreshTargetConfig(put *api.InstancePut, target api.Instance) {
+	// Copy the maps before mutating them. A payload derived from a locally rendered instance
+	// shares its config map with the instance's own in-memory config (see (*lxc).Render), so
+	// mutating it in place would corrupt the source instance.
+	put.Config = maps.Clone(put.Config)
+	if put.Devices != nil {
+		put.Devices = deviceConfig.NewDevices(put.Devices).CloneNative()
+	}
+
+	put.ApplyRefreshConfig(target)
+}
+
+// applyLocalRefreshTargetConfig renders a locally hosted refresh target instance and merges its
+// protected target-only keys into the refresh request payload.
+func applyLocalRefreshTargetConfig(target instance.Instance, put *api.InstancePut) error {
+	renderRes, _, err := target.Render()
+	if err != nil {
+		return fmt.Errorf("Failed rendering local instance %q: %w", target.Name(), err)
+	}
+
+	targetInfo, ok := renderRes.(*api.Instance)
+	if !ok {
+		return fmt.Errorf("Unexpected result from local instance render for %q", target.Name())
+	}
+
+	applyRefreshTargetConfig(put, *targetInfo)
+
+	return nil
+}
+
+// applyRemoteRefreshTargetConfig fetches the refresh target instance from the given server and merges
+// its protected target-only keys into the refresh request payload. If the target instance doesn't
+// exist yet the payload is left unchanged, as the server then falls back to creating the instance
+// from scratch.
+func applyRemoteRefreshTargetConfig(client lxd.InstanceServer, instName string, put *api.InstancePut) error {
+	target, _, err := client.GetInstance(instName)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
+		return fmt.Errorf("Failed getting refresh target instance %q: %w", instName, err)
+	}
+
+	applyRefreshTargetConfig(put, *target)
+
+	return nil
+}
+
 // replicateInstance handles forward replication of a single instance to the
 // destination cluster. It handles both instances on the local cluster member
 // and instances on other cluster members.
@@ -1478,10 +1549,18 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 			return fmt.Errorf("Failed getting instance %q from hosting cluster member: %w", instName, err)
 		}
 
+		// Carry forward the protected volatile keys of the destination copy, as the refresh
+		// payload is applied as the full desired target configuration.
+		destPut := srcInstInfo.Writable()
+		err = applyRemoteRefreshTargetConfig(dstClient, instName, &destPut)
+		if err != nil {
+			return err
+		}
+
 		// Set up a push-mode migration sink on the destination.
 		destOp, err := dstClient.CreateInstance(api.InstancesPost{
 			Name:        instName,
-			InstancePut: srcInstInfo.Writable(),
+			InstancePut: destPut,
 			Type:        api.InstanceType(srcInstInfo.Type),
 			Source: api.InstanceSource{
 				Type:    api.SourceTypeMigration,
@@ -1552,13 +1631,21 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		return fmt.Errorf("Unexpected result from source instance render for %q", instName)
 	}
 
+	// Carry forward the protected volatile keys of the destination copy, as the refresh payload
+	// is applied as the full desired target configuration.
+	destPut := srcInstInfo.Writable()
+	err = applyRemoteRefreshTargetConfig(dstClient, instName, &destPut)
+	if err != nil {
+		return err
+	}
+
 	// Set up a push-mode migration sink on the destination. In push mode the
 	// leader (source) connects outward to the destination, so the destination
 	// does not need to reach back into the leader. This is required when the
 	// destination project is restricted, which disallows pull-mode migrations.
 	destOp, err := dstClient.CreateInstance(api.InstancesPost{
 		Name:        instName,
-		InstancePut: srcInstInfo.Writable(),
+		InstancePut: destPut,
 		Type:        api.InstanceType(srcInstInfo.Type),
 		Source: api.InstanceSource{
 			Type:    api.SourceTypeMigration,
