@@ -11,13 +11,16 @@ When you create an instance from a custom ISO file, the ISO file is mounted as a
 See [Content type `iso`](storage-content-types) and {ref}`instances-create-iso` for more information.
 ```
 
-## Copy an image from a remote
+## Copy an image from another server
 
 `````{tabs}
 ````{group-tab} CLI
 To copy an image from one server to another, enter the following command:
 
-    lxc image copy [<source_remote>:]<image> <target_remote>:
+    lxc image copy [<registry>:|<source_remote>:]<image> <target_remote>:
+
+The source can be an {ref}`image registry <ref-image-registries>` or another LXD server that you have added as a remote.
+If the target server supports image registries, the source image must be provided by an image registry (or already be available locally on the target server).
 
 ```{note}
 To copy the image to your local image store, specify `local:` as the target remote.
@@ -52,7 +55,7 @@ There are several ways of obtaining such image files:
 
 - Exporting an existing image (see {ref}`images-manage-export`)
 - Building your own image using LXD image builder (see {ref}`images-create-build`)
-- Downloading image files from a {ref}`remote image server <remote-image-servers>` (note that it is usually easier to {ref}`use the remote image <images-remote>` directly instead of downloading it to a file and importing it)
+- Downloading image files from an {ref}`image source <remote-image-servers>` (note that it is usually easier to {ref}`use an image registry <images-remote>` directly instead of downloading it to a file and importing it)
 
 ### Import from the local file system
 

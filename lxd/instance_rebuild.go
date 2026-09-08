@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared"
@@ -86,6 +87,13 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	// Translate the deprecated Server and Protocol image source fields into an image registry
+	// for backward compatibility with older clients.
+	err = resolveDeprecatedInstanceSource(r.Context(), s, targetProjectName, &req.Source)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var targetProject *api.Project
 	var sourceImage *api.Image
 	var inst instance.Instance
@@ -99,6 +107,12 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		targetProject, err = dbProject.ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
+		}
+
+		if req.Source.Type == "image" && req.Source.ImageRegistry != "" {
+			if !project.RegistryAllowed(targetProject.Config, req.Source.ImageRegistry) {
+				return api.StatusErrorf(http.StatusNotFound, "Image registry not found")
+			}
 		}
 
 		dbInst, err := dbCluster.GetInstance(ctx, tx.Tx(), targetProject.Name, name)
@@ -136,7 +150,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 			return instanceRebuildFromEmpty(ctx, inst, op)
 		}
 
-		if req.Source.Server != "" {
+		if req.Source.ImageRegistry != "" || req.Source.Project != "" {
 			sourceImage, err = ensureDownloadedImageFitWithinBudget(ctx, s, op, *targetProject, sourceImageRef, req.Source, inst.Type().String())
 			if err != nil {
 				return err

@@ -547,6 +547,7 @@ jobs:
           - devlxd
           - docker
           - efi-vm
+          - lxd-consumers
           - lxd-installer
           - lxd-user
           - interception
