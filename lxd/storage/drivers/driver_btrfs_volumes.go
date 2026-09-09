@@ -265,11 +265,17 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 				return err
 			}
 
-			// Clear the target for the subvol to use.
-			os.Remove(subVolTargetPath)
-
 			// Move unpacked subvolume into its final location.
-			err = os.Rename(unpackedSubVolPath, subVolTargetPath)
+			dest, closer, err := d.resolveSubvolumeDest(v.MountPath(), subVol.Path)
+			if err != nil {
+				return err
+			}
+
+			// Clear the target for the subvol to use.
+			os.Remove(dest)
+
+			err = os.Rename(unpackedSubVolPath, dest)
+			closer()
 			if err != nil {
 				return err
 			}
@@ -504,11 +510,19 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 				return err
 			}
 
+			// Move the received subvolume to its final location beneath the volume root, refusing
+			// any symlink in the received stream that would redirect it outside the volume.
+			dest, closer, err := d.resolveSubvolumeDest(v.MountPath(), subVol.Path)
+			if err != nil {
+				return err
+			}
+
 			// Clear the target for the subvol to use.
-			os.Remove(subVolTargetPath)
+			os.Remove(dest)
 
 			// And move it to the target path.
-			err = os.Rename(subVolRecvPath, subVolTargetPath)
+			err = os.Rename(subVolRecvPath, dest)
+			closer()
 			if err != nil {
 				return errors.Wrapf(err, "Failed to rename '%s' to '%s'", subVolRecvPath, subVolTargetPath)
 			}

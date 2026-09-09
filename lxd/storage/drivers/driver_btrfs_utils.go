@@ -473,6 +473,45 @@ func (d *btrfs) validateSubVolumeHeader(header BTRFSMetaDataHeader, expectedSnap
 	return nil
 }
 
+// resolveSubvolumeDest resolves subVolPath within the volume rooted at volRoot to a destination
+// path that cannot escape the volume via a symlink in the restored content, which a lexical check
+// on the header path cannot catch. Each path component is opened with O_NOFOLLOW, so a symlink
+// anywhere in the path is refused rather than followed. The returned path is valid until closer
+// is called.
+func (d *btrfs) resolveSubvolumeDest(volRoot string, subVolPath string) (string, func(), error) {
+	rel := strings.TrimPrefix(subVolPath, string(filepath.Separator))
+	if rel == "" {
+		// The destination is the volume root itself, whose parent is the trusted pool directory.
+		return volRoot, func() {}, nil
+	}
+
+	rel = filepath.Clean(rel)
+
+	parentFd, err := unix.Open(volRoot, unix.O_DIRECTORY|unix.O_RDONLY|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return "", nil, errors.Wrapf(err, "Failed opening volume root %q", volRoot)
+	}
+
+	dir := filepath.Dir(rel)
+	if dir != "." {
+		for _, name := range strings.Split(dir, string(filepath.Separator)) {
+			nextFd, err := unix.Openat(parentFd, name, unix.O_DIRECTORY|unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+			unix.Close(parentFd)
+			if err != nil {
+				return "", nil, errors.Wrapf(err, "Failed resolving subvolume path %q within volume %q", subVolPath, volRoot)
+			}
+
+			parentFd = nextFd
+		}
+	}
+
+	// Address the final component through the verified parent fd rather than re-walking the path.
+	dest := filepath.Join("/proc/self/fd", strconv.Itoa(parentFd), filepath.Base(rel))
+	closer := func() { unix.Close(parentFd) }
+
+	return dest, closer, nil
+}
+
 // loadOptimizedBackupHeader extracts optimized backup header from a given ReadSeeker.
 // Snapshot names in the header are validated against expectedSnapshots.
 func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, expectedSnapshots []string) (*BTRFSMetaDataHeader, error) {
