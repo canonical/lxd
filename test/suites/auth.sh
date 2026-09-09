@@ -99,6 +99,64 @@ test_authorization() {
   lxc auth group permission remove test-group project default can_view
   lxc network rm n1
 
+  ### BUILT-IN ADMINS GROUP ###
+  admins_group="admins"
+  admins_url="/1.0/auth/groups/${admins_group}"
+  server_admin_permission='{"entity_type": "server", "url": "/1.0", "entitlement": "admin"}'
+  project_operator_permission='{"entity_type": "project", "url": "/1.0/projects/default", "entitlement": "operator"}'
+
+  sub_test "The admins group is seeded with the server admin permission and is immutable"
+  lxc query "${admins_url}" | jq --exit-status ".permissions == [${server_admin_permission}]"
+  [ "$("${_LXC}" query -X POST "${admins_url}" -d '{"name": "not-admins"}' 2>&1 >/dev/null)" = 'Error: The admins group cannot be renamed' ]
+  [ "$("${_LXC}" query -X DELETE "${admins_url}" 2>&1 >/dev/null)" = 'Error: The admins group cannot be deleted' ]
+
+  # Even a no-op update is rejected while the group holds the server admin permission.
+  [ "$("${_LXC}" query -X PUT "${admins_url}" -d "{\"permissions\": [${server_admin_permission}]}" 2>&1 >/dev/null)" = 'Error: The admins group cannot be modified' ]
+  [ "$("${_LXC}" query -X PUT "${admins_url}" -d "{\"description\": \"Not allowed\", \"permissions\": [${server_admin_permission}]}" 2>&1 >/dev/null)" = 'Error: The admins group cannot be modified' ]
+  [ "$("${_LXC}" query -X PATCH "${admins_url}" -d "{\"permissions\": [${project_operator_permission}]}" 2>&1 >/dev/null)" = 'Error: The admins group cannot be modified' ]
+  lxc query "${admins_url}" | jq --exit-status ".permissions == [${server_admin_permission}]"
+
+  sub_test "The admins group can be granted the server admin permission if it does not have it"
+  # Simulate an installation that was upgraded from a LXD version that did not seed the admins group permissions.
+  lxd sql global "DELETE FROM auth_groups_permissions WHERE auth_group_id = (SELECT id FROM auth_groups WHERE name = '${admins_group}')"
+  lxc query "${admins_url}" | jq --exit-status '.permissions == []'
+
+  # Only the server admin permission (and nothing else) may be granted.
+  [ "$("${_LXC}" query -X PUT "${admins_url}" -d '{"permissions": []}' 2>&1 >/dev/null)" = 'Error: The admins group can only be granted the server admin permission' ]
+  [ "$("${_LXC}" query -X PUT "${admins_url}" -d "{\"permissions\": [${project_operator_permission}]}" 2>&1 >/dev/null)" = 'Error: The admins group can only be granted the server admin permission' ]
+  [ "$("${_LXC}" query -X PUT "${admins_url}" -d "{\"permissions\": [${server_admin_permission}, ${project_operator_permission}]}" 2>&1 >/dev/null)" = 'Error: The admins group can only be granted the server admin permission' ]
+  [ "$("${_LXC}" query -X PATCH "${admins_url}" -d "{\"permissions\": [${project_operator_permission}]}" 2>&1 >/dev/null)" = 'Error: The admins group can only be granted the server admin permission' ]
+  lxc query "${admins_url}" | jq --exit-status '.permissions == []'
+
+  # PATCH with exactly the server admin permission is allowed, and makes the group immutable again.
+  lxc query -X PATCH "${admins_url}" -d "{\"permissions\": [${server_admin_permission}]}"
+  lxc query "${admins_url}" | jq --exit-status ".permissions == [${server_admin_permission}]"
+  [ "$("${_LXC}" query -X PATCH "${admins_url}" -d "{\"permissions\": [${server_admin_permission}]}" 2>&1 >/dev/null)" = 'Error: The admins group cannot be modified' ]
+
+  # PUT with exactly the server admin permission is allowed too.
+  lxd sql global "DELETE FROM auth_groups_permissions WHERE auth_group_id = (SELECT id FROM auth_groups WHERE name = '${admins_group}')"
+  lxc query -X PUT "${admins_url}" -d "{\"permissions\": [${server_admin_permission}]}"
+  lxc query "${admins_url}" | jq --exit-status ".permissions == [${server_admin_permission}]"
+  [ "$("${_LXC}" query -X PUT "${admins_url}" -d "{\"permissions\": [${server_admin_permission}]}" 2>&1 >/dev/null)" = 'Error: The admins group cannot be modified' ]
+
+  sub_test "The admins group can only be created with no permissions or the server admin permission"
+  # Simulate an installation that was upgraded from a LXD version that predates the built-in admins group.
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM auth_groups WHERE name = '${admins_group}'"
+  [ "$("${_LXC}" query -X POST /1.0/auth/groups -d "{\"name\": \"${admins_group}\", \"permissions\": [${project_operator_permission}]}" 2>&1 >/dev/null)" = 'Error: The admins group can only be granted the server admin permission' ]
+  [ "$("${_LXC}" query -X POST /1.0/auth/groups -d "{\"name\": \"${admins_group}\", \"permissions\": [${server_admin_permission}, ${project_operator_permission}]}" 2>&1 >/dev/null)" = 'Error: The admins group can only be granted the server admin permission' ]
+
+  # Creating the group without permissions is allowed, it can then be granted the server admin permission.
+  lxc auth group create "${admins_group}"
+  lxc query "${admins_url}" | jq --exit-status '.permissions == []'
+  lxc query -X PUT "${admins_url}" -d "{\"permissions\": [${server_admin_permission}]}"
+  lxc query "${admins_url}" | jq --exit-status ".permissions == [${server_admin_permission}]"
+
+  # Creating the group with exactly the server admin permission is allowed.
+  lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM auth_groups WHERE name = '${admins_group}'"
+  lxc query -X POST /1.0/auth/groups -d "{\"name\": \"${admins_group}\", \"description\": \"Server administrators\", \"permissions\": [${server_admin_permission}]}"
+  lxc query "${admins_url}" | jq --exit-status ".permissions == [${server_admin_permission}]"
+  lxc query "${admins_url}" | jq --exit-status '.description == "Server administrators"'
+
   ### IDENTITY MANAGEMENT ###
   lxc config trust show "${tls_user_fingerprint}"
   ! lxc auth identity group add "tls/${tls_user_fingerprint}" test-group || false # TLS identities cannot be added to groups (yet).
