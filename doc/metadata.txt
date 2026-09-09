@@ -6784,7 +6784,7 @@ API authorization token for Pure Storage gateway. Must have array_admin role to 
 :shortdesc: "How volumes are mapped to the local server"
 :type: "string"
 The mode to use to map Pure Storage volumes to the local server.
-Supported values are `iscsi` and `nvme/tcp`.
+Supported values are `iscsi`, `nvme/tcp`, and `scsi/fc`.
 ```
 
 ```{config:option} pure.target storage-pure-pool-conf
@@ -6792,6 +6792,7 @@ Supported values are `iscsi` and `nvme/tcp`.
 :shortdesc: "List of target addresses."
 :type: "string"
 A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
+This option has no effect when `pure.mode` is set to `scsi/fc`, because Fibre Channel targets are identified by WWPN rather than by network address.
 ```
 
 ```{config:option} rsync.bwlimit storage-pure-pool-conf
