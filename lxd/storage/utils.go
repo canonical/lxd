@@ -1942,3 +1942,110 @@ func nbdLockedSession(s *state.State, lockName string, description string, conne
 
 	return conn, cleanup, lockName, nil
 }
+
+// LockInstanceNBD takes the NBD locks of an instance's root volume and of each attached custom
+// block volume, which the NBD sessions of those volumes hold.
+// It returns a conflict error naming the operation of an ongoing session, and keeps a new session
+// from starting until the returned cleanup function runs.
+// ISO and shared volumes are skipped, as NBD refuses them.
+// A container takes no lock, as NBD refuses its volumes.
+func LockInstanceNBD(s *state.State, inst instance.Instance) (func(), error) {
+	if inst.Type() != instancetype.VM {
+		return func() {}, nil
+	}
+
+	var unlocks []func()
+	release := func() {
+		for _, unlock := range unlocks {
+			unlock()
+		}
+	}
+
+	lockName := nbdInstanceLockName(inst.Project().Name, inst.Name())
+	unlock := locking.TryLock(lockName)
+	if unlock == nil {
+		return nil, nbdConflictError(s, lockName, fmt.Sprintf("instance %q", inst.Name()))
+	}
+
+	unlocks = append(unlocks, unlock)
+
+	// An attached block volume can be exported directly by qemu-nbd while the instance is stopped,
+	// under a lock the root instance lock does not cover.
+	instProject := inst.Project()
+	volProject := project.StorageVolumeProjectFromRecord(&instProject, cluster.StoragePoolVolumeTypeCustom)
+
+	// Cache the pool per name so a pool used by several devices loads once.
+	pools := make(map[string]Pool)
+	for _, devConf := range inst.ExpandedDevices() {
+		if !filters.IsCustomVolumeBlockDisk(devConf) {
+			continue
+		}
+
+		poolName := devConf["pool"]
+		pool, ok := pools[poolName]
+		if !ok {
+			var err error
+			pool, err = LoadByName(s, poolName)
+			if err != nil {
+				release()
+				return nil, err
+			}
+
+			pools[poolName] = pool
+		}
+
+		// The root volume of another virtual machine is exported under that instance's lock.
+		if devConf["source.type"] == cluster.StoragePoolVolumeTypeNameVM {
+			dbVol, err := VolumeDBGet(pool, instProject.Name, devConf["source"], drivers.VolumeTypeVM)
+			if err != nil {
+				release()
+				return nil, err
+			}
+
+			// GetVolumeNBD refuses shared volumes.
+			// Leave them unlocked to let instances that share such a volume start at the same time.
+			if shared.IsTrue(dbVol.Config["security.shared"]) {
+				continue
+			}
+
+			lockName := nbdInstanceLockName(instProject.Name, devConf["source"])
+			unlock := locking.TryLock(lockName)
+			if unlock == nil {
+				release()
+				return nil, nbdConflictError(s, lockName, fmt.Sprintf("instance %q", devConf["source"]))
+			}
+
+			unlocks = append(unlocks, unlock)
+			continue
+		}
+
+		dbVol, err := VolumeDBGet(pool, volProject, devConf["source"], drivers.VolumeTypeCustom)
+		if err != nil {
+			release()
+			return nil, err
+		}
+
+		// GetVolumeNBD refuses ISO and shared volumes.
+		// Leave them unlocked to let instances that share such a volume start at the same time.
+		if dbVol.ContentType != cluster.StoragePoolVolumeContentTypeNameBlock || shared.IsTrue(dbVol.Config["security.shared"]) {
+			continue
+		}
+
+		// Scope the lock to this member on a local pool, as nbdVolumeLockName describes.
+		lockMember := ""
+		if !pool.Driver().Info().Remote {
+			lockMember = s.ServerName
+		}
+
+		lockName := nbdVolumeLockName(lockMember, poolName, volProject, devConf["source"])
+		unlock := locking.TryLock(lockName)
+		if unlock == nil {
+			release()
+			return nil, nbdConflictError(s, lockName, fmt.Sprintf("volume %q", poolName+"/"+devConf["source"]))
+		}
+
+		unlocks = append(unlocks, unlock)
+	}
+
+	return release, nil
+}
