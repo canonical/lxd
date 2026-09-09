@@ -485,6 +485,20 @@ test_projects_profiles_default() {
 
   # Ensure failure when --network and features.networks=true used together
   ! lxc project create bar --network lxdbr0 -c features.networks=true || false
+
+  sub_test "features.networks requires features.profiles"
+
+  # Ensure failure when features.networks=true and features.profiles=false used together
+  ! lxc project create bar -c features.networks=true -c features.profiles=false || false
+
+  # Ensure features.profiles cannot be disabled while features.networks is enabled
+  lxc project create bar -c features.networks=true
+  ! lxc project set bar features.profiles false || false
+  ! lxc project unset bar features.profiles || false
+
+  # Disabling both features at once is allowed
+  lxc project set bar features.networks=false features.profiles=false
+  lxc project delete bar
 }
 
 # Use private images in a project.
