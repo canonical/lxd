@@ -1,0 +1,771 @@
+#!/bin/bash
+set -eux
+
+# testflinger_queue: hardhat
+
+# Install dependencies
+install_deps jq
+
+# Install LXD without starting the daemon so snap options can be configured first
+install_lxd false
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+poolDriverList="${1:-dir btrfs lvm lvm-thin zfs ceph}"
+
+if echo "${poolDriverList}" | grep -wF "lvm-thin"; then
+    # For LVM thin use external LVM tools to avoid errors like:
+    # Failed to run: lvcreate --yes --wipesignatures y --thinpool --extents 100%FREE: Device or resource busy
+    snap set lxd lvm.external=true
+    systemctl restart snap.lxd.daemon.service
+fi
+lxd waitready --timeout=300
+
+# Configure LXD
+lxc network create lxdbr0
+lxc profile device add default eth0 nic network=lxdbr0
+
+MiB="$((1024 * 1024))"
+GiB="$((1024 * MiB))"
+
+# zfs.external
+if echo "${poolDriverList}" | grep -wF "zfs" && grep -wF zfs_external /snap/lxd/current/commands/daemon.start; then
+    echo "==> Use external ZFS tools"
+    snap set lxd zfs.external=true
+    systemctl restart snap.lxd.daemon.service
+
+    if command -v zfs; then
+        apt-get autopurge -y zfsutils-linux
+    fi
+
+    echo "==> Creating ZFS storage without external tools should fail"
+    ! lxc storage create zexternal zfs || false
+
+    install_deps zfsutils-linux
+
+    echo "==> Creating ZFS storage with external tools should work"
+    lxc storage create zexternal zfs
+    zpool status zexternal
+
+    echo "==> Creating ZFS storage volume"
+    lxc storage volume create zexternal zslice1 size=1GiB
+    zfs list zexternal/custom/default_zslice1
+    [ "$(zfs get -Hpo value quota zexternal/custom/default_zslice1)" = "1073741824" ]
+
+    echo "==> Destroying ZFS pool"
+    lxc storage volume delete zexternal zslice1
+    lxc storage delete zexternal
+    ! zpool status zexternal || false
+
+    echo "==> Use internal ZFS tools if not explicitly set to use external"
+    if [ -z "${LXD_ZFS_EXTERNAL:-}" ]; then
+        snap unset lxd zfs.external
+        systemctl restart snap.lxd.daemon.service
+    fi
+else
+    echo "==> Skipping zfs.external test"
+fi
+
+for poolDriver in $poolDriverList; do
+        poolName="vmpool-${poolDriver}-$$"
+        echo "==> Create storage pool using driver ${poolDriver}"
+        if [ "${poolDriver}" = "dir" ] || [ "${poolDriver}" = "ceph" ]; then
+                lxc storage create "${poolName}" "${poolDriver}"
+        elif [ "${poolDriver}" = "lvm" ]; then
+                lxc storage create "${poolName}" "${poolDriver}" size=59GiB lvm.use_thinpool=false
+                lxc storage set "${poolName}" size=60GiB
+                ! lxc storage set "${poolName}" size=58GiB || false
+                [ "$(lxc storage get "${poolName}" size)" = "60GiB" ]
+        elif [ "${poolDriver}" = "lvm-thin" ]; then
+                lxc storage create "${poolName}" lvm size=19GiB
+                lxc storage set "${poolName}" size=20GiB
+                ! lxc storage set "${poolName}" size=18GiB || false
+                [ "$(lxc storage get "${poolName}" size)" = "20GiB" ]
+        elif [ "${poolDriver}" = "powerflex" ]; then
+                createPowerFlexPool "${poolName}"
+        elif [ "${poolDriver}" = "powerstore" ]; then
+                createPowerStorePool "${poolName}"
+        elif [ "${poolDriver}" = "pure" ]; then
+                createPureStoragePool "${poolName}"
+        elif [ "${poolDriver}" = "alletra" ]; then
+                createAlletraStoragePool "${poolName}"
+        else
+                lxc storage create "${poolName}" "${poolDriver}" size=19GiB
+                lxc storage set "${poolName}" size=20GiB
+                ! lxc storage set "${poolName}" size=18GiB || false
+                [ "$(lxc storage get "${poolName}" size)" = "20GiB" ]
+        fi
+
+        # Ensure non-power-of-two sizes are rounded appropriately for zfs
+        if [ "${poolDriver}" = "zfs" ]; then
+                lxc init --empty rounded --vm -s "${poolName}" -d root,size=13GB
+                lxc delete rounded
+        fi
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Create VM and boot with small root (3.5GiB == 3584MiB)"
+                lxc init "${IMAGE}" v1 --vm -s "${poolName}" -d root,size=3584MiB
+        else
+                echo "==> Create VM and boot with small root (8GiB)"
+                lxc init "${IMAGE}" v1 --vm -s "${poolName}" -d root,size=8GiB
+        fi
+        lxc start v1
+        waitInstanceReady v1
+        setup_instance_gocoverage v1
+        lxc info v1
+
+        echo "==> Check /dev/disk/by-id"
+        lxc exec v1 -- test -b /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root
+        lxc exec v1 -- test -b /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root-part1
+        if lxc exec v1 -- mount | grep -wF /boot/efi; then
+                lxc exec v1 -- test -b /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root-part15
+        fi
+
+        echo "==> Check config drive is readonly"
+        # Check 9p config drive share is exported readonly.
+        lxc exec v1 -- mount -t 9p config /srv
+        ! lxc exec v1 -- touch /srv/lxd-test || false
+        lxc exec v1 -- umount /srv
+
+        # Check virtiofs config drive share is exported readonly.
+        lxc exec v1 -- mount -t virtiofs config /srv
+        ! lxc exec v1 -- touch /srv/lxd-test || false
+        lxc exec v1 -- umount /srv
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Checking VM root disk size is 3584MiB"
+                [ "$(($(lxc exec v1 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / MiB))" -eq "3584" ]
+        else
+                echo "==> Checking VM root disk size is 8GiB"
+                [ "$(($(lxc exec v1 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "8" ]
+        fi
+
+        echo "foo" | lxc exec v1 -- tee /root/foo.txt
+        lxc exec v1 -- sync
+        # Add file to the VM's filesystem volume.
+        nsenter --mount=/run/snapd/ns/lxd.mnt touch "/var/snap/lxd/common/lxd/storage-pools/${poolName}/virtual-machines/v1/foo"
+        lxc snapshot v1
+        # Remove the file from filesytem volume after snapshot.
+        nsenter --mount=/run/snapd/ns/lxd.mnt rm "/var/snap/lxd/common/lxd/storage-pools/${poolName}/virtual-machines/v1/foo"
+
+        echo "==> Checking restore VM snapshot"
+        prepare_vm_for_hard_stop v1
+        lxc restore v1 snap0
+        waitInstanceReady v1
+        [ "$(lxc exec v1 -- cat /root/foo.txt)" = "foo" ]
+
+        echo "==> Checking VM filesystem volume was restored too"
+        nsenter --mount=/run/snapd/ns/lxd.mnt [ -f "/var/snap/lxd/common/lxd/storage-pools/${poolName}/virtual-machines/v1/foo" ]
+
+        echo "==> Checking VM can be copied with snapshots"
+        lxc copy v1 v2
+        lxc query /1.0/instances/v2?recursion=1 | jq --exit-status '.snapshots | length == 1'
+        lxc start v2
+        waitInstanceReady v2
+        prepare_vm_for_hard_stop v2
+        lxc stop -f v2
+
+        echo "==> Checking VM can be refreshed"
+        lxc snapshot v1
+        lxc copy v1 v2 --refresh
+        lxc query /1.0/instances/v2?recursion=1 | jq --exit-status '.snapshots | length == 2'
+        lxc delete v1/snap1
+        prepare_vm_for_hard_stop v2
+        lxc delete -f v2
+
+        echo "==> Checking running copied VM snapshot"
+        lxc copy v1/snap0 v2
+        lxc start v2
+        waitInstanceReady v2
+        [ "$(lxc exec v2 -- cat /root/foo.txt)" = "foo" ]
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Checking VM snapshot copy root disk size is 3584MiB"
+                [ "$(($(lxc exec v2 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / MiB))" -eq "3584" ]
+        else
+                echo "==> Checking VM snapshot copy root disk size is 8GiB"
+                [ "$(($(lxc exec v2 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "8" ]
+        fi
+        prepare_vm_for_hard_stop v2
+        lxc delete -f v2
+
+        echo "==> Add current LXD as remote via localhost"
+        lxc config set core.https_address=:8443
+        token="$(lxc config trust add --name localhost --quiet)"
+        lxc remote add localhost "${token}"
+
+        echo "==> Checking VM can be migrated with snapshots (same storage pool)"
+        lxc copy v1 localhost:v2 --stateless
+        lxc query /1.0/instances/v2?recursion=1 | jq --exit-status '.snapshots | length == 1'
+        lxc start v2
+        waitInstanceReady v2
+        prepare_vm_for_hard_stop v2
+        lxc stop -f v2
+
+        echo "==> Checking VM can be refreshed remotely (same storage pool)"
+        lxc snapshot v1
+        lxc copy v1 localhost:v2 --refresh
+        lxc query /1.0/instances/v2?recursion=1 | jq --exit-status '.snapshots | length == 2'
+        lxc delete v1/snap1
+        prepare_vm_for_hard_stop v2
+        lxc delete -f v2
+
+        echo "==> Checking running migrated VM snapshot (same storage pool)"
+        lxc copy v1/snap0 localhost:v2
+        lxc start v2
+        waitInstanceReady v2
+        [ "$(lxc exec v2 -- cat /root/foo.txt)" = "foo" ]
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Checking VM snapshot copy root disk size is 3584MiB"
+                [ "$(($(lxc exec v2 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / MiB))" -eq "3584" ]
+        else
+                echo "==> Checking VM snapshot copy root disk size is 8GiB"
+                [ "$(($(lxc exec v2 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "8" ]
+        fi
+        prepare_vm_for_hard_stop v2
+        lxc delete -f v2
+
+        echo "==> Create storage pool using different driver than ${poolDriver}"
+        if [ "${poolDriver}" != "dir" ]; then
+                lxc storage create "${poolName}2" dir
+        else
+                # Falback to ZFS in case the selected driver is dir to
+                # also allow testing migration to a different driver if dir.
+                lxc storage create "${poolName}2" zfs
+        fi
+
+        echo "==> Checking VM can be migrated with snapshots (different storage pool)"
+        lxc copy v1 localhost:v2 -s "${poolName}2" --stateless
+        lxc query /1.0/instances/v2?recursion=1 | jq --exit-status '.snapshots | length == 1'
+        lxc start v2
+        waitInstanceReady v2
+        prepare_vm_for_hard_stop v2
+        lxc stop -f v2
+
+        echo "==> Checking VM can be refreshed remotely (different storage pool)"
+        lxc snapshot v1
+        lxc copy v1 localhost:v2 --refresh -s "${poolName}2"
+        lxc query /1.0/instances/v2?recursion=1 | jq --exit-status '.snapshots | length == 2'
+        lxc delete v1/snap1
+        prepare_vm_for_hard_stop v2
+        lxc delete -f v2
+
+        echo "==> Checking running migrated VM snapshot (different storage pool)"
+        lxc copy v1/snap0 localhost:v2 -s "${poolName}2"
+        lxc delete v1/snap0
+        lxc start v2
+        waitInstanceReady v2
+        [ "$(lxc exec v2 -- cat /root/foo.txt)" = "foo" ]
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Checking VM snapshot copy root disk size is 3584MiB"
+                [ "$(($(lxc exec v2 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / MiB))" -eq "3584" ]
+        else
+                echo "==> Checking VM snapshot copy root disk size is 8GiB"
+                [ "$(($(lxc exec v2 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "8" ]
+        fi
+        prepare_vm_for_hard_stop v2
+        lxc delete -f v2
+
+        echo "==> Checking moving VM to a different storage pool"
+        lxc copy v1 v2 --stateless
+        lxc move v2 -s "${poolName}2"
+        lxc start v2
+        waitInstanceReady v2
+        prepare_vm_for_hard_stop v2
+        lxc stop -f v2
+
+        echo "==> Checking moving VM back to the original storage pool"
+        lxc move v2 -s "${poolName}"
+        lxc start v2
+        waitInstanceReady v2
+        prepare_vm_for_hard_stop v2
+        lxc delete -f v2
+        lxc remote rm localhost
+        lxc config trust rm "$(lxc query /1.0/certificates?recursion=1 | jq -r '.[].fingerprint')"
+        lxc storage delete "${poolName}2"
+
+        echo "==> Check QEMU crash behavior and recovery"
+        lxc exec v1 -- fsfreeze --freeze /
+        uuid=$(lxc config get v1 volatile.uuid)
+        pgrep -af "${uuid}"
+        nsenter --mount=/run/snapd/ns/lxd.mnt -- rm /var/snap/lxd/common/lxd/logs/v1/qemu.monitor
+        systemctl reload snap.lxd.daemon
+        sleep 5
+        [ "$(lxc list -f csv -c s v1)" = "ERROR" ]
+        ! lxc stop v1 || false
+        ! lxc start v1 || false
+        pgrep -af "${uuid}"
+        prepare_vm_for_hard_stop v1
+        lxc stop v1 -f
+        ! pgrep -af "${uuid}" || false
+        lxc start v1
+        waitInstanceReady v1
+
+        echo "==> Testing VM non-optimized export/import (while running to check config.mount is excluded)"
+        ! lxc export v1 --quiet --compression=none - | tar -tf - | grep -F config.mount || false
+
+        echo "==> Testing VM optimized export/import (while running to check config.mount is excluded)"
+        ! lxc export v1 --quiet --compression=none - --optimized-storage | tar -tf - | grep -F config.mount || false
+
+        echo "==> Increasing VM root disk size for next boot (24GiB)"
+        lxc config device set v1 root size=24GiB
+        [ "$(lxc config get v1 volatile.root.apply_quota)" = "true" ]
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Check VM online shrink is allowed if it greater or equal to initial size"
+                lxc config device set v1 root size=3584MiB # initial
+                lxc config device set v1 root size=32GiB
+
+                echo "==> Setting VM root disk size for next boot (4GiB)"
+                lxc config device set v1 root size=4GiB # final
+        else
+                echo "==> Check VM online shrink is allowed if it greater or equal to initial size"
+                lxc config device set v1 root size=8GiB # initial
+                lxc config device set v1 root size=32GiB
+
+                echo "==> Setting VM root disk size for next boot (16GiB)"
+                lxc config device set v1 root size=16GiB # final
+        fi
+        [ "$(lxc config get v1 volatile.root.apply_quota)" = "true" ]
+        prepare_vm_for_hard_stop v1
+        lxc stop -f v1
+
+        # Proceed to actually growing the root disk
+        lxc start v1
+        [ "$(lxc config get v1 volatile.root.apply_quota || echo fail)" = "" ]
+        prepare_vm_for_hard_stop v1
+        lxc stop -f v1
+
+        echo "==> Check VM offline shrink is blocked"
+        if [ "${poolDriver}" != "powerflex" ]; then
+                ! lxc config device set v1 root size=3584MiB || false
+        else
+                ! lxc config device set v1 root size=8GiB || false
+        fi
+
+        lxc start v1
+        waitInstanceReady v1
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Checking VM root disk size is 4GiB"
+                [ "$(($(lxc exec v1 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "4" ]
+
+                echo "==> Check VM online shrink is blocked"
+                ! lxc config device set v1 root size=3584MiB || false
+        else
+                echo "==> Checking VM root disk size is 16GiB"
+                [ "$(($(lxc exec v1 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "16" ]
+
+                echo "==> Check VM online shrink is blocked"
+                ! lxc config device set v1 root size=8GiB || false
+        fi
+        prepare_vm_for_hard_stop v1
+        lxc delete -f v1
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Change volume.size on pool from default of 10GiB to 4GiB and create VM"
+                lxc storage set "${poolName}" volume.size 4GiB
+        else
+                echo "==> Change volume.size on pool from default of 8GiB to 16GiB and create VM"
+                lxc storage set "${poolName}" volume.size 16GiB
+        fi
+
+        if [ "${poolDriver}" = "lvm" ] || [ "${poolDriver}" = "lvm-thin" ] || [ "${poolDriver}" = "ceph" ] || [ "${poolDriver}" = "powerflex" ] || [ "${poolDriver}" = "powerstore" ] || [ "${poolDriver}" = "pure" ] || [ "${poolDriver}" = "alletra" ] || [ "${poolDriver}" = "zfs" ]; then
+                echo "==> Change volume.block.filesystem on pool and create VM"
+                lxc storage set "${poolName}" volume.block.filesystem xfs
+
+                if [ "${poolDriver}" = "zfs" ]; then
+                    lxc storage set "${poolName}" volume.zfs.block_mode=true
+                fi
+        fi
+
+        lxc launch "${IMAGE}" v1 --vm -s "${poolName}"
+        waitInstanceReady v1
+        setup_instance_gocoverage v1
+        lxc info v1
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Checking VM root disk size is 4GiB"
+                [ "$(($(lxc exec v1 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "4" ]
+        else
+                echo "==> Checking VM root disk size is 16GiB"
+                [ "$(($(lxc exec v1 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "16" ]
+        fi
+
+        if [ "${poolDriver}" = "lvm" ] || [ "${poolDriver}" = "lvm-thin" ] || [ "${poolDriver}" = "ceph" ] || [ "${poolDriver}" = "powerflex" ] || [ "${poolDriver}" = "powerstore" ] || [ "${poolDriver}" = "pure" ] || [ "${poolDriver}" = "alletra" ] || [ "${poolDriver}" = "zfs" ]; then
+                echo "==> Ensure the VM volume ignores volume.block.filesystem"
+                if [ "${poolDriver}" = "zfs" ]; then
+                    # The VM config disk is not a zvol with ext4 on top but just a plain ZFS dataset so no block.filesystem is used
+                    [ "$(lxc storage volume get "${poolName}" virtual-machine/v1 block.filesystem || echo fail)" = "" ]
+                else
+                    [ "$(lxc storage volume get "${poolName}" virtual-machine/v1 block.filesystem)" = "ext4" ]
+                fi
+
+                echo "==> Checking VM config disk filesystem is not XFS"
+                serverPID="$(lxc query /1.0 | jq .environment.server_pid)"
+                if [ "${poolDriver}" = "zfs" ]; then
+                    # The VM config disk is not a zvol with ext4 on top but just a plain ZFS dataset
+                    CONFIG_MOUNT_FS="zfs"
+                else
+                    CONFIG_MOUNT_FS="ext4"
+                fi
+                [ "$(nsenter -m -t "${serverPID}" findmnt --noheadings --output=FSTYPE --mountpoint /var/snap/lxd/common/lxd/devices/v1/config.mount)" = "${CONFIG_MOUNT_FS}" ]
+
+                lxc storage unset "${poolName}" volume.block.filesystem
+
+                if [ "${poolDriver}" = "zfs" ]; then
+                    lxc storage unset "${poolName}" volume.zfs.block_mode
+                fi
+        fi
+
+        echo "==> Deleting VM and reset pool volume.size"
+        prepare_vm_for_hard_stop v1
+        lxc delete -f v1
+        lxc storage unset "${poolName}" volume.size
+
+        lxc profile copy default vmsmall
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Create VM from profile with small disk size (3584MiB)"
+                lxc profile device add vmsmall root disk pool="${poolName}" path=/ size=3584MiB
+        else
+                echo "==> Create VM from profile with small disk size (8GiB)"
+                lxc profile device add vmsmall root disk pool="${poolName}" path=/ size=8GiB
+        fi
+        lxc init "${IMAGE}" v1 --vm -p vmsmall
+        lxc start v1
+        waitInstanceReady v1
+        setup_instance_gocoverage v1
+        lxc info v1
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Checking VM root disk size is 3584MiB"
+                [ "$(($(lxc exec v1 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / MiB))" -eq "3584" ]
+        else
+                echo "==> Checking VM root disk size is 8GiB"
+                [ "$(($(lxc exec v1 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "8" ]
+        fi
+        V1_ROOT_GPT_DISK_ID="$(lxc exec v1 -- fdisk --list /dev/sda | awk '/^Disk identifier:/ {print $3}')"
+        V1_EFI_PART="$(lxc exec v1 -- fdisk --list /dev/sda | awk '/EFI System$/ {print $1}')"
+        V1_EFI_SHA256SUM="$(lxc exec v1 -- sha256sum "${V1_EFI_PART}")"
+
+        echo "==> Deactivate cloud-init after initial boot to avoid rootfs resize/growpart"
+        lxc exec v1 -- systemctl mask --now cloud-init.service
+
+        # Note the original size of the rootfs partition.
+        ROOTFS_SIZE_ORIG="$(lxc exec v1 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root-part1)"
+
+        lxc exec v1 -- sync
+        prepare_vm_for_hard_stop v1
+        lxc stop -f v1
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Increasing VM root disk size for next boot (4GiB)"
+                lxc config device override v1 root size=4GiB
+        else
+                echo "==> Increasing VM root disk size for next boot (16GiB)"
+                lxc config device override v1 root size=16GiB
+        fi
+        lxc start v1
+        waitInstanceReady v1
+
+        echo "==> Verify that the rootfs partition size has not changed after the disk resize"
+        ROOTFS_SIZE_NEW="$(lxc exec v1 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root-part1)"
+        [ "${ROOTFS_SIZE_ORIG}" = "${ROOTFS_SIZE_NEW}" ]
+
+        echo "==> Reactivate cloud-init"
+        lxc exec v1 -- systemctl unmask cloud-init.service
+
+        echo "==> Create extra partition"
+        echo ";" | lxc exec v1 -- sfdisk /dev/sda --force --no-reread --no-tell-kernel --append
+        lxc exec v1 -- partx -u /dev/sda
+
+        echo "==> Write random data to extra partition"
+        lxc exec v1 -- dd if=/dev/urandom of=/dev/sda2 bs=16M count=1
+        V1_SDA2_SHA256_ORIG="$(lxc exec v1 -- dd if=/dev/sda2 bs=16M count=1 | sha256sum)"
+
+        lxc exec v1 -- sync
+        prepare_vm_for_hard_stop v1
+        lxc stop -f v1
+        echo "==> Copy to different storage pool with same driver and check size"
+        if [ "${poolDriver}" = "dir" ] || [ "${poolDriver}" = "ceph" ]; then
+                lxc storage create "${poolName}-2" "${poolDriver}"
+        elif [ "${poolDriver}" = "lvm" ]; then
+                lxc storage create "${poolName}-2" "${poolDriver}" size=40GiB lvm.use_thinpool=false
+        elif [ "${poolDriver}" = "lvm-thin" ]; then
+                lxc storage create "${poolName}-2" lvm size=20GiB
+        elif [ "${poolDriver}" = "powerflex" ]; then
+                createPowerFlexPool "${poolName}-2"
+        elif [ "${poolDriver}" = "powerstore" ]; then
+                createPowerStorePool "${poolName}-2"
+        elif [ "${poolDriver}" = "pure" ]; then
+                createPureStoragePool "${poolName}-2"
+        elif [ "${poolDriver}" = "alletra" ]; then
+                createAlletraStoragePool "${poolName}-2"
+        else
+                lxc storage create "${poolName}-2" "${poolDriver}" size=20GiB
+        fi
+
+        lxc copy v1 v2 -s "${poolName}-2"
+        lxc start v2
+        waitInstanceReady v2
+        lxc info v2
+
+        echo "==> Read random data from extra partition"
+        [ "${V1_SDA2_SHA256_ORIG}" = "$(lxc exec v2 -- dd if=/dev/sda2 bs=16M count=1 | sha256sum)" ]
+
+        echo "==> Check the EFI partition number and content did not change after the volume size override"
+        V2_EFI_PART="$(lxc exec v2 -- fdisk --list /dev/sda | awk '/EFI System$/ {print $1}')"
+        V2_EFI_SHA256SUM="$(lxc exec v2 -- sha256sum "${V2_EFI_PART}")"
+        [ "${V1_EFI_SHA256SUM}" = "${V2_EFI_SHA256SUM}" ]
+
+        echo "==> Check the GPT disk ID of the root disk did not change after the copy"
+        V2_ROOT_GPT_DISK_ID="$(lxc exec v2 -- fdisk --list /dev/sda | awk '/^Disk identifier:/ {print $3}')"
+        [ "${V1_ROOT_GPT_DISK_ID}" = "${V2_ROOT_GPT_DISK_ID}" ]
+
+        echo "==> Check the GPT backup table was copied at the new end of the disk"
+        # If the GPT backup table was not copied to the end of the disk, `fdisk --list` would print
+        # `The backup GPT table is corrupt, but the primary appears OK, so that will be used.`
+        # to stderr. This is not fatal as GPT can cope with this but it would indicate an issue with LXD
+        # not updating the backup table. As such, verify that nothing is output to stderr.
+        lxc exec v2 -- fdisk --list /dev/sda | grep -xF 'Disklabel type: gpt'
+        [ "$(lxc exec v2 -- fdisk --list /dev/sda 2>&1 >/dev/null || echo fail)" = "" ]
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Checking copied VM root disk size is 4GiB"
+                [ "$(($(lxc exec v2 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "4" ]
+        else
+                echo "==> Checking copied VM root disk size is 16GiB"
+                [ "$(($(lxc exec v2 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "16" ]
+        fi
+        prepare_vm_for_hard_stop v2
+        lxc delete -f v2
+        lxc storage delete "${poolName}-2"
+
+        echo "==> Copy to different storage pool with different driver and check size"
+        dstPoolDriver=zfs # Use ZFS storage pool as that has fixed volumes not files.
+        if [ "${poolDriver}" = "zfs" ]; then
+                dstPoolDriver=lvm # Use something different when testing ZFS.
+        fi
+
+        lxc storage create "${poolName}-${dstPoolDriver}" "${dstPoolDriver}" size=20GiB
+        lxc copy v1 v2 -s "${poolName}-${dstPoolDriver}"
+        lxc start v2
+        waitInstanceReady v2
+        lxc info v2
+
+        echo "==> Read random data from extra partition"
+        [ "${V1_SDA2_SHA256_ORIG}" = "$(lxc exec v2 -- dd if=/dev/sda2 bs=16M count=1 | sha256sum)" ]
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Checking copied VM root disk size is 4GiB"
+                [ "$(($(lxc exec v2 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "4" ]
+        else
+                echo "==> Checking copied VM root disk size is 16GiB"
+                [ "$(($(lxc exec v2 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "16" ]
+        fi
+        prepare_vm_for_hard_stop v2
+        lxc delete -f v2
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Override volume size from profile (4GiB) to 5GiB and copy to different storage pool"
+                lxc config device set v1 root size=5GiB
+        else
+                echo "==> Override volume size from profile (16GiB) to 24GiB and copy to different storage pool"
+                lxc config device set v1 root size=24GiB
+        fi
+        lxc copy v1 v2 -s "${poolName}-${dstPoolDriver}"
+        lxc start v2
+        waitInstanceReady v2
+        lxc info v2
+
+        echo "==> Read random data from extra partition"
+        [ "${V1_SDA2_SHA256_ORIG}" = "$(lxc exec v2 -- dd if=/dev/sda2 bs=16M count=1 | sha256sum)" ]
+
+        echo "==> Check the EFI partition number and content did not change after the volume size override"
+        V2_EFI_PART="$(lxc exec v2 -- fdisk --list /dev/sda | awk '/EFI System$/ {print $1}')"
+        V2_EFI_SHA256SUM="$(lxc exec v2 -- sha256sum "${V2_EFI_PART}")"
+        [ "${V1_EFI_SHA256SUM}" = "${V2_EFI_SHA256SUM}" ]
+
+        echo "==> Check the GPT disk ID of the root disk did not change after the copy"
+        V2_ROOT_GPT_DISK_ID="$(lxc exec v2 -- fdisk --list /dev/sda | awk '/^Disk identifier:/ {print $3}')"
+        [ "${V1_ROOT_GPT_DISK_ID}" = "${V2_ROOT_GPT_DISK_ID}" ]
+
+        echo "==> Check the GPT backup table was copied at the new end of the disk"
+        # If the GPT backup table was not copied to the end of the disk, `fdisk --list` would print
+        # `The backup GPT table is corrupt, but the primary appears OK, so that will be used.`
+        # to stderr. This is not fatal as GPT can cope with this but it would indicate an issue with LXD
+        # not updating the backup table. As such, verify that nothing is output to stderr.
+        lxc exec v2 -- fdisk --list /dev/sda | grep -xF 'Disklabel type: gpt'
+        [ "$(lxc exec v2 -- fdisk --list /dev/sda 2>&1 >/dev/null || echo fail)" = "" ]
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Checking copied VM root disk size is 5GiB"
+                [ "$(($(lxc exec v2 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "5" ]
+        else
+                echo "==> Checking copied VM root disk size is 24GiB"
+                [ "$(($(lxc exec v2 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "24" ]
+        fi
+        prepare_vm_for_hard_stop v2
+        lxc delete -f v2
+        lxc storage delete "${poolName}-${dstPoolDriver}"
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Publishing larger VM (5GiB)"
+        else
+                echo "==> Publishing larger VM (24GiB)"
+        fi
+        lxc publish v1 --alias vmbig
+        lxc delete v1
+        if [ "${poolDriver}" != "powerflex" ]; then
+                lxc storage set "${poolName}" volume.size 3584MiB
+        else
+                lxc storage set "${poolName}" volume.size 8GiB
+        fi
+
+        echo "==> Check VM create fails when image larger than volume.size"
+        ! lxc init vmbig v1 --vm -s "${poolName}" || false
+
+        echo "==> Check VM create succeeds when no volume.size set"
+        lxc storage unset "${poolName}" volume.size
+        lxc launch vmbig v1 --vm -s "${poolName}"
+        waitInstanceReady v1
+        setup_instance_gocoverage v1
+        lxc info v1
+
+        echo "==> Read random data from extra partition"
+        [ "${V1_SDA2_SHA256_ORIG}" = "$(lxc exec v1 -- dd if=/dev/sda2 bs=16M count=1 | sha256sum)" ]
+
+        if [ "${poolDriver}" != "powerflex" ]; then
+                echo "==> Checking new VM root disk size has default volume size of 10GiB"
+                [ "$(($(lxc exec v1 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "10" ]
+        else
+                echo "==> Checking new VM root disk size has default volume size of 24GiB"
+                # 24GiB was the size of the VM's root volume when publishing the image.
+                [ "$(($(lxc exec v1 -- blockdev --getsize64 /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_root) / GiB))" -eq "24" ]
+        fi
+
+        echo "===> Renaming VM"
+        prepare_vm_for_hard_stop v1
+        lxc stop -f v1
+        lxc rename v1 v1renamed
+
+        echo "==> Deleting VM, and vmbig image"
+        lxc delete v1renamed
+        lxc image delete vmbig
+
+        echo "==> Checking VM Generation UUID with QEMU"
+        lxc launch --empty v1 --vm -s "${poolName}" -p vmsmall
+        lxc info v1
+
+        # Check that the volatile.uuid.generation setting is applied to the QEMU process.
+        vmGenID=$(lxc config get v1 volatile.uuid.generation)
+        qemuGenID=$(awk '/driver = "vmgenid"/,/guid = / {print $3}' /var/snap/lxd/common/lxd/logs/v1/qemu.conf | sed -n 's/"\([0-9a-fA-F]\{8\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{4\}-[0-9a-fA-F]\{12\}\)"/\1/p')
+        if [ "${vmGenID}" != "${qemuGenID}" ]; then
+                echo "==> VM Generation ID in LXD config does not match VM Generation ID in QEMU process"
+                false
+        fi
+        lxc delete -f v1
+
+        echo "==> Publishing VM to image"
+        lxc init "${IMAGE}" v1 --vm -s "${poolName}" -p vmsmall
+
+        # Set the images_volume on supported drivers only.
+        # Ceph RBD, PowerFlex, PowerStore, Pure, and Alletra are not supported to prevent concurrent mounts.
+        if [ "${poolDriver}" != "ceph"  ] && [ "${poolDriver}" != "powerflex" ] && [ "${poolDriver}" != "powerstore" ] && [ "${poolDriver}" != "pure" ] && [ "${poolDriver}" != "alletra" ]; then
+                lxc storage volume create "${poolName}" images
+                lxc config set storage.images_volume "${poolName}"/images
+        fi
+
+        lxc publish v1 --alias v1image
+        lxc delete v1
+        lxc init v1image v2 -s "${poolName}" -p vmsmall # --vm flag omitted as we are implicitly creating a vm
+        [ "$(lxc list -f csv -c t v2)" = "VIRTUAL-MACHINE" ]
+        lxc delete v2
+        lxc image delete v1image
+
+        if [ "$(lxc config get storage.images_volume)" != "" ]; then
+                lxc config unset storage.images_volume
+                lxc storage volume delete "${poolName}" images
+        fi
+
+        if hasNeededAPIExtension instances_migration_stateful; then
+                echo "==> Checking setting instances.migration.stateful for VMs"
+                # Check that migration.stateful is set in the instance's expanded config to the value of `instances.migration.stateful`
+                # if no local instance config nor profile value of `migration.stateful` is set.
+
+                lxc config set instances.migration.stateful=true
+                lxc init --empty v1 --vm -s "${poolName}" -p vmsmall
+                lxc query /1.0/instances/v1 | jq --exit-status '.expanded_config["migration.stateful"] == "true"'
+                lxc delete v1
+
+                lxc config set instances.migration.stateful=false
+                lxc init --empty v1 --vm -s "${poolName}" -p vmsmall
+                [ -z "$(lxc config get --expanded v1 migration.stateful || echo fail)" ] # instances.migration.stateful leave it unset because since it is `false`, it is the same as the default value of `migration.stateful`.
+                lxc delete v1
+
+                lxc config set instances.migration.stateful=true
+                lxc init --empty v1 --vm --config migration.stateful=false -s "${poolName}" -p vmsmall
+                lxc query /1.0/instances/v1 | jq --exit-status '.expanded_config["migration.stateful"] == "false"' # the instance local config should take precedence
+                lxc delete v1
+
+                lxc config set instances.migration.stateful=false
+                lxc profile copy vmsmall stateful_profile
+                lxc profile set stateful_profile migration.stateful=true
+                lxc init --empty v1 --vm -p stateful_profile -s "${poolName}"
+                lxc query /1.0/instances/v1 | jq --exit-status '.expanded_config["migration.stateful"] == "true"' # the profile config should take precedence
+                lxc delete v1
+                lxc profile delete stateful_profile
+
+                # Finally, unset the value to avoid any potential side effects on other tests.
+                lxc config unset instances.migration.stateful
+
+                echo "==> Checking start / stop operations with root size.state being unset"
+                # We should be able to start a VM with migration.stateful=true eventhough the root `size.state` config is unset.
+                if [ "${poolDriver}" != "powerflex" ]; then
+                        lxc launch "${IMAGE}" v1 --vm --config migration.stateful=true -s "${poolName}" -p vmsmall
+                else
+                        # For PowerFlex use more memory than the default size of the VM's config drive which is 8GiB.
+                        lxc launch "${IMAGE}" v1 --vm --config migration.stateful=true --config limits.memory=9GiB -s "${poolName}" -p vmsmall
+                fi
+                # However, we should not be able to statefully stop the VM.
+                ! lxc stop v1 --stateful || false
+                # But we should be able to change the root size.state config without stopping the VM.
+                if [ "${poolDriver}" != "powerflex" ]; then
+                        lxc config device set v1 root size.state=2GiB
+                else
+                        # For PowerFlex set the size.state to the smallest next possible number which is 16GiB.
+                        lxc config device set v1 root size.state=16GiB
+                fi
+                # And then we should be able to statefully stop the VM.
+                # But before, let's register the boot_id to check that it has not changed after a stateful stop / start.
+                waitInstanceReady v1
+                #setup_instance_gocoverage v1 # Not compatible with migration.stateful=true
+                boot_id="$(lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)"
+                lxc stop v1 --stateful
+                # And then we should be able to statefully start the VM again.
+                lxc start v1
+                waitInstanceReady v1
+                # And the boot_id should not have changed.
+                if [ "$(lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)" != "${boot_id}" ]; then
+                        echo "==> Boot ID changed after stateful stop / start"
+                        false
+                fi
+
+                #prepare_vm_for_hard_stop v1 # Not compatible with migration.stateful=true
+                lxc delete v1 -f
+        fi
+
+        echo "==> Deleting profile"
+        lxc profile delete vmsmall
+
+        echo "==> Deleting storage pool"
+        lxc storage delete "${poolName}"
+done
+
+echo "==> Delete network"
+lxc profile device remove default eth0
+lxc network delete lxdbr0
+
+# shellcheck disable=SC2034
+FAIL=0

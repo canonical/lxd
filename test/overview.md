@@ -1,8 +1,10 @@
 # LXD testing
 
-The testing of LXD is split across two primary repositories: [`canonical/lxd`](https://github.com/canonical/lxd), which handles core code tests and functional integration, and [`canonical/lxd-ci`](https://github.com/canonical/lxd-ci), which focuses on distribution-specific image building and snap integration tests ran on schedule and against supported snap channels.
+The LXD test suite runs from this repository. It includes code and functional
+integration tests, snap integration tests in `test/snap/`, and GPU passthrough
+tests dispatched to Testflinger.
 
-## `canonical/lxd`
+## CI workflows
 
 Testing happens on GitHub-hosted runners that are `amd64` based runners.
 
@@ -109,14 +111,15 @@ graph TD
 
 ### Snap tests
 
-The **`snap-tests`** job validates LXD's behavior as a snap package across different Ubuntu releases, utilizing test scripts and infrastructure from the `canonical/lxd-ci` repository.
+The **`snap-tests`** job validates LXD's behavior as a snap package across the
+configured Ubuntu releases.
 
-* **External Integration**: Unlike other jobs, this specifically checkouts the `canonical/lxd-ci` repository to reuse its specialized testing scripts.
-* **Infrastructure Preparation**: Dynamically configures **MicroCeph** and **MicroOVN** to provide clustered storage and networking services needed for the snap-based integration tests.
-* **Test Adaptation**: Customizes the `lxd-ci` environment on the fly to "sideload" the LXD snap built during the current run, ensuring the CI tests the exact code changes being proposed.
+* **Test execution**: Runs the executable scripts in `test/snap/` through `test/snap.sh`.
+* **LXD binary integration**: Sideloads the binaries built during the current run into the selected LXD snap, ensuring the tests exercise the proposed code.
+* **Infrastructure preparation**: Dynamically configures **MicroCeph** and **MicroOVN** to provide clustered storage and networking services needed for the snap-based integration tests.
 * **Matrix Dimensions**:
-  * **OS**: Validates compatibility across multiple Ubuntu releases (e.g., `22.04`, `24.04`).
-  * **Test Suites**: Runs over 35 specific functional tests, including `cloud-init`, `network-ovn`, `vm-migration`, and various `storage-vm` backends.
+    * **OS**: Validates compatibility across the configured Ubuntu releases.
+    * **Test suites**: Runs the snap test scripts, including `cloud-init`, `network-ovn`, `vm-migration`, UI tests, and various `storage-vm` backends.
 * **Resource Management**: Includes aggressive memory and disk space reclamation steps to ensure the GitHub runner has enough headroom for intensive virtual machine tests.
 
 ```mermaid
@@ -126,17 +129,17 @@ graph TD
         O_Node{OS}
         S_Node{Suite}
 
-        O_Node --- O1[ubuntu-22.04]
-        O_Node --- O2[ubuntu-24.04]
+        O_Node --- O1[configured Ubuntu release]
 
         S_Node --- S1[cgroup]
         S_Node --- S2[cloud-init]
         S_Node --- S3[cluster]
         S_Node --- S4[container]
-        S_Node --- S5_32[...]
-        S_Node --- S33[vm]
-        S_Node --- S34[vm-nesting]
-        S_Node --- S35[vm-migration]
+        S_Node --- S5_36[...]
+        S_Node --- S37[ui chromium]
+        S_Node --- S38[vm]
+        S_Node --- S39[vm-nesting]
+        S_Node --- S40[vm-migration]
     end
     subgraph ST [Snap tests]
         direction TB
@@ -147,8 +150,7 @@ graph TD
         InfraCheck -- No --> SetupOVN[Setup MicroOVN]
         SetupCeph --> SetupOVN
 
-        SetupOVN --> AdaptTests[Adapt lxd-ci tests: Sideload built snap & enable coverage]
-        AdaptTests --> ExecTest[Execute matrix.test via lxd-ci local-run]
+        SetupOVN --> ExecTest[Execute test/snap.sh test/snap/matrix.test]
 
         ExecTest --> Uploads[Upload reports, crash dumps, & coverage data]
     end
@@ -203,66 +205,7 @@ graph TD
     end
 ```
 
-## `canonical/lxd-ci`
-
-Most of the test happens on GitHub-hosted runners that are `amd64` based runners. Some tests however require access to specialized hardware and for those, **Testflinger** runners are used.
-
-### Snap integration tests
-
-The **`system-tests`** job executes a massive matrix of functional tests across multiple LXD snap tracks and Ubuntu releases.
-
-* **Matrix Strategy**: This job runs a three-dimensional matrix combining two Ubuntu versions (`22.04`, `24.04`), four snap tracks (`latest/edge`, `6/edge`, `5.21/edge`, `5.0/edge`), and 35 distinct test suites.
-* **Specialized Infrastructure**:
-  * **MicroCeph**: Setup for storage-related tests (e.g., `storage-vm ceph`).
-  * **VM Caching**: Specifically handles external VM images for the `qemu-external-vm` suite to speed up execution.
-  * **Node.js**: Installed only when executing browser-based UI tests.
-* **Test Execution**: Uses the `./bin/local-run` helper script to trigger the specific logic for each test suite defined in the matrix.
-* **Release Logic**: Includes specific logic to exclude incompatible combinations, such as skipping `lxd-installer` tests on older snap tracks or older Ubuntu releases.
-
-```mermaid
-graph TD
-    subgraph ST_Matrix [Matrix strategy]
-        direction LR
-        C_Node{Channel}
-        O_Node{OS}
-        S_Node{Suite}
-
-        C_Node --- C1[latest/edge]
-        C_Node --- C2[6/edge]
-        C_Node --- C3[5.21/edge]
-        C_Node --- C4[5.0/edge]
-
-        O_Node --- O1[ubuntu-22.04]
-        O_Node --- O2[ubuntu-24.04]
-
-        S_Node --- S1[cgroup]
-        S_Node --- S2[cloud-init]
-        S_Node --- S3[cluster]
-        S_Node --- S4[container]
-        S_Node --- S5_33[...]
-        S_Node --- S34[ui chromium]
-        S_Node --- S35[ui firefox]
-        S_Node --- S36[vm]
-        S_Node --- S37[vm-nesting]
-        S_Node --- S38[vm-migration]
-    end
-    subgraph ST [Snap tests]
-        direction TB
-        Start(["**Dimensions**: **OS** x **test suite**"]) --> PullArtifacts[Download dependencies: dqlite, images, snaps, & LXD binaries]
-
-        PullArtifacts --> InfraCheck{Setup MicroCeph?}
-        InfraCheck -- Yes --> SetupCeph[Setup MicroCeph 3-node cluster]
-        InfraCheck -- No --> SetupOVN[Setup MicroOVN]
-        SetupCeph --> SetupOVN
-
-        SetupOVN --> AdaptTests[Adapt lxd-ci tests: Sideload built snap & enable coverage]
-        AdaptTests --> ExecTest[Execute matrix.test via lxd-ci local-run]
-
-        ExecTest --> Uploads[Upload reports, crash dumps, & coverage data]
-    end
-```
-
-### GPU passthrough tests
+## GPU passthrough tests
 
 This workflow is a pipeline that automates the validation of NVIDIA GPU passthrough for containers using specialized hardware.
 

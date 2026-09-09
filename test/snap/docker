@@ -1,0 +1,82 @@
+#!/bin/bash
+set -eux
+
+# Install LXD
+install_lxd
+
+# Configure LXD
+lxd init --auto
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+CNAME="docker-$$"
+
+# Create the container
+lxc launch "${IMAGE}" "${CNAME}" -c security.nesting=true "$@"
+
+if [ -n "${https_proxy:-""}" ]; then
+  echo "Using https_proxy=${https_proxy} in ${CNAME}"
+  lxc config set "${CNAME}" environment.https_proxy="${https_proxy}"
+fi
+
+(
+cat << EOF
+#!/bin/bash
+# Wait for network
+sleep 10
+set -eux
+
+# Install distro docker
+apt-get update
+apt-get install --no-install-recommends --yes docker.io docker-buildx busybox-static
+
+# Stop the distro docker
+systemctl stop docker.service docker.socket
+
+# Download binaries built from current git head of the Docker repo.
+for BIN in docker dockerd docker-init docker-proxy; do
+    wget --no-verbose "https://master.dockerproject.org/linux/x86_64/\${BIN}" -O "/usr/bin/\${BIN}" && \
+        chmod +x "/usr/bin/\${BIN}"
+done
+
+# XXX: Workaround Apparmor/kernel bug: https://bugs.launchpad.net/bugs/2067900
+if [ -e /etc/apparmor.d/runc ]; then
+  cat << EOF2 > /etc/apparmor.d/local/runc
+# Workaround https://bugs.launchpad.net/bugs/2067900
+  pivot_root,
+EOF2
+  apparmor_parser -rTW /etc/apparmor.d/runc
+fi
+
+unset https_proxy
+
+# Start docker again
+systemctl start docker
+sleep 5
+
+# Show docker info (client and daemon version, etc.)
+docker info
+
+# Test whether we can build a simple Docker image.
+rm -rf busybox
+mkdir busybox
+cat << EOD > busybox/Dockerfile
+FROM scratch
+ADD echo /
+ENTRYPOINT ["/echo", "Hello world"]
+EOD
+cp "\$(command -v busybox)" busybox/echo
+docker buildx build --load --tag local:hello busybox/
+
+# Run a basic hello-world
+docker run --rm local:hello
+
+# Test whether we can remove a simple Docker image.
+docker image rm local:hello
+EOF
+) | lxc exec "${CNAME}" -- sh -eux
+
+lxc delete --force "${CNAME}"
+
+# shellcheck disable=SC2034
+FAIL=0

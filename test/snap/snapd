@@ -1,0 +1,67 @@
+#!/bin/bash
+set -eux
+
+# Install lxd without starting daemon
+install_lxd false
+
+test_lxc() {
+    local DURATION=30 OUT
+    local FORKS_PER_SECOND ITERATIONS
+
+    echo "Warmup"
+    OUT="$(lxc help)"
+    if ! grep -xF "Description:" <<<"${OUT}"; then
+        echo "Unexpected lxc help output:" >&2
+        echo "${OUT}" >&2
+        exit 1
+    fi
+
+    echo "Repeatedly call 'lxc help' for ${DURATION} and see how fast/slow it is"
+    # shellcheck disable=SC2016
+    ITERATIONS="$(timeout "${DURATION}" bash -c 'i=0; trap "echo \$i" EXIT; while i=$((i+1)); do lxc help >/dev/null; done' || true)"
+    if ! [[ "${ITERATIONS}" =~ ^[0-9]+$ ]]; then
+        echo "Unexpected iterations value: '${ITERATIONS}'" >&2
+        exit 1
+    fi
+    FORKS_PER_SECOND="$(awk "BEGIN {printf \"%d\n\", ${ITERATIONS}/${DURATION}}")"
+
+    # Check that lxc forks/s are not below a certain threshold
+    if [ "${FORKS_PER_SECOND}" -lt 15 ]; then
+        echo "::warning::lxc forks/s: ${FORKS_PER_SECOND} (< 15/s)"
+    else
+        echo "::notice::lxc forks/s: ${FORKS_PER_SECOND}"
+    fi
+}
+
+# Repeatedly call 'lxc help'
+test_lxc
+
+# Set preseed via snap
+snap set -s lxd daemon.preseed='{"config": {"core.https_address": "[::]:8443"}}'
+
+lxd waitready --timeout=300
+
+# Check that preseed via snap works
+[ "$(lxc config get core.https_address)" = "[::]:8443" ]
+
+# Check that user access works
+# Create testuser account
+useradd -m testuser -G lxd --uid 5000
+
+# Allow testuser to run lxd-user daemon without creating a systemd user session
+# See https://forum.snapcraft.io/t/46210
+loginctl enable-linger testuser
+sleep 3 # allow time for the session to be usable
+
+LXC="$(command -v lxc)"
+sudo -Hu testuser -- "${LXC}" info
+
+# End the user session
+loginctl terminate-user testuser
+
+# Cleanup
+echo "==> Deleting test user"
+userdel --remove --force testuser
+
+# shellcheck disable=SC2034
+FAIL=0

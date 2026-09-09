@@ -1004,7 +1004,7 @@ runcmd:
   lxc stop -f v1
   [ "$(lxc config get v1 volatile.last_state.ready)" = "false" ]
 
-  # TODO: add nested virt part from lxd-ci test
+  # TODO: add nested virt part from test/snap/devlxd
 
   # Cleanup
   lxc image delete "$(lxc config get v1 volatile.base_image)"

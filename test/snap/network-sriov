@@ -1,0 +1,177 @@
+#!/bin/bash
+set -eux
+
+# testflinger_queue: luma
+
+# Check if IOMMU is configured
+if [ -n "$(find /sys/kernel/iommu_groups/ -empty)" ]; then
+    echo "System not IOMMU ready. Configure IOMMU before running this test." >&2
+    exit 1
+fi
+
+# Install LXD
+install_lxd
+
+# Install dependencies
+install_deps jq
+
+IMAGE="${TEST_IMG:-ubuntu-daily:24.04}"
+
+parentNIC="${1:-}"
+
+if [ -z "${parentNIC}" ]; then
+  # Consult available resources
+  first_sriov_nic="$(lxc query /1.0/resources | jq -r '[.network.cards | .[] | select(.sriov != null) | .ports][0] | .[0].id')"
+  parentNIC="${first_sriov_nic}"
+fi
+
+# Enable SR-IOV on nic and bring up
+enableNICSRIOV "${parentNIC}"
+
+# Check that all instances have an IPv4 and IPv6 address
+networkTests() {
+    FAIL=0
+
+    echo "=> Performing network tests"
+    for url in $(lxc query "/1.0/instances" | jq -r .[]); do
+        name=$(echo "${url}" | cut -d/ -f4)
+
+        case "${name}" in
+        c3|c4|v3|v4)
+            continue # Can't test instances on different VLAN.
+            ;;
+        *)
+            ;;
+        esac
+
+        echo ""
+
+        # Get the addresses
+        address=$(lxc query "${url}/state" | jq -r ".network.eth0.addresses | .[] | select(.scope | contains(\"global\")) | .address" 2>/dev/null || true)
+        if [ -z "${address}" ]; then
+            address=$(lxc query "${url}/state" | jq -r ".network.enp5s0.addresses | .[] | select(.scope | contains(\"global\")) | .address" 2>/dev/null || true)
+        fi
+
+        if [ -z "${address}" ]; then
+            echo "FAIL: No network interface: ${name}"
+            FAIL=1
+            continue
+        fi
+
+        # IPv4 address
+        if echo "${address}" | grep -F "." > /dev/null; then
+            echo "PASS: IPv4 address: ${name}"
+        else
+            echo "FAIL: IPv4 address: ${name}"
+            FAIL=1
+        fi
+
+        # IPv6 address
+        if echo "${address}" | grep -F ":" > /dev/null; then
+            echo "PASS: IPv6 address: ${name}"
+        else
+            echo "WARN: IPv6 address: ${name}"
+            #FAIL=1
+        fi
+
+        # DNS resolution
+        if lxc exec "${name}" -- getent hosts archive.ubuntu.com >/dev/null 2>&1; then
+            echo "PASS: DNS resolution: ${name}"
+        else
+            echo "FAIL: DNS resolution: ${name}"
+            FAIL=1
+        fi
+
+        # TCP connectivity
+        if lxc exec "${name}" -- nc -zv archive.ubuntu.com 80 >/dev/null 2>&1; then
+            echo "PASS: TCP connectivity: ${name}"
+        else
+            echo "FAIL: TCP connectivity: ${name}"
+            FAIL=1
+        fi
+    done
+
+    if [ "${FAIL}" = "1" ]; then
+        return 1
+    fi
+
+    return 0
+}
+
+# Configure LXD
+lxc storage create default zfs
+lxc profile device add default root disk path=/ pool=default
+lxc profile device add default eth0 nic nictype=sriov parent="${parentNIC}" name=eth0
+
+# Launch a few VMs.
+# Do this first before containers to ensure VF free search handles VFs unbound from host.
+echo "==> VM on default VLAN"
+lxc init ubuntu-daily:24.04 v1 --vm
+lxc start v1
+
+echo "==> VM on default VLAN with filtering"
+lxc init ubuntu-daily:24.04 v2 --vm
+lxc config device override v2 eth0 security.mac_filtering=true
+lxc start v2
+
+echo "==> VM on alternate VLAN"
+lxc init ubuntu-daily:24.04 v3 --vm
+lxc config device override v3 eth0 vlan=4000
+lxc start v3
+
+echo "==> VM on alternate VLAN with filtering"
+lxc init ubuntu-daily:24.04 v4 --vm
+lxc config device override v4 eth0 vlan=4000 security.mac_filtering=true
+lxc start v4
+
+# Wait for VMs to start.
+waitInstanceReady v1
+waitInstanceReady v2
+waitInstanceReady v3
+waitInstanceReady v4
+
+lxc list
+networkTests
+
+# Delete all VMs except v1 to free up VFs for container tests.
+# Leave v1 so that the first VF is unbound to check that containers don't mistake it as free.
+lxc delete -f v2 v3 v4
+
+# Launch a few containers.
+echo "==> Container on default VLAN"
+lxc init "${IMAGE}" c1
+lxc start c1
+
+echo "==> Container on default VLAN with filtering"
+lxc init "${IMAGE}" c2
+lxc config device override c2 eth0 security.mac_filtering=true
+lxc start c2
+
+echo "==> Container on alternate VLAN"
+lxc init "${IMAGE}" c3
+lxc config device override c3 eth0 vlan=4000
+lxc start c3
+
+echo "==> Container on alternate VLAN with filtering"
+lxc init "${IMAGE}" c4
+lxc config device override c4 eth0 vlan=4000 security.mac_filtering=true
+lxc start c4
+
+# Wait for containers to start.
+waitInstanceReady c1
+waitInstanceReady c2
+waitInstanceReady c3
+waitInstanceReady c4
+
+lxc list
+networkTests
+
+# Delete remaining instances.
+lxc delete -f v1 c1 c2 c3 c4
+
+lxc profile device remove default eth0
+lxc profile device remove default root
+lxc storage delete default
+
+# shellcheck disable=SC2034
+FAIL=0

@@ -1,0 +1,192 @@
+name: GPU passthrough
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/gpu-passthrough-tests.yml'
+      - '.github/workflows/testflinger/**'
+      - 'test/includes/snap-helpers.sh'
+      - 'test/includes/snap.sh'
+      - 'test/snap.sh'
+      - 'test/snap/**'
+  schedule:
+    - cron: '38 6 */5 * *'
+  workflow_dispatch:
+    inputs:
+      ubuntu-releases:
+        description: Ubuntu releases to run the tests against. In JSON format, i.e. '["resolute", "noble"]'.
+        type: choice
+        default: '["noble"]'
+        options:
+          - '["resolute", "noble"]'
+          - '["resolute"]'
+          - '["noble"]'
+      snap-track:
+        description: Snap track to run the tests i.e. '["latest/edge", "6/candidate"]'.
+        type: choice
+        default: '["latest/edge"]'
+        options:
+          - '["latest/edge"]'
+          - '["latest/candidate"]'
+          - '["latest/stable"]'
+          - '["6/edge"]'
+          - '["6/candidate"]'
+          - '["6/stable"]'
+          - '["5.21/edge"]'
+          - '["5.21/candidate"]'
+          - '["5.21/stable"]'
+          - '["5.0/edge"]'
+          - '["5.0/candidate"]'
+          - '["5.0/stable"]'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.ubuntu-releases }}-${{ inputs.snap-track }}
+  # XXX: scheduled runs should not cancel manually triggered ones
+  cancel-in-progress: ${{ !contains(github.event_name, 'schedule')}}
+
+env:
+  TESTFLINGER_DIR: .github/workflows/testflinger
+  LXD_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  uc-nvidia-cdi:
+    runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
+    # LXD 5.0 does not support CDI, only `nvidia.runtime`.
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && !contains(inputs.snap-track, '5.0/') }}
+    strategy:
+      matrix:
+        track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
+    env:
+      SNAP_CHANNEL: ${{ matrix.track }}
+      TFWORKFLOW: uc-nvidia-cdi-job
+    steps:
+      - name: Event data
+        run: "echo ::notice::Snap channel: $SNAP_CHANNEL"
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create Testflinger job
+        env:
+          JOB_QUEUE: lxd-nvidia
+          # Only the `6/*` and `latest/*` LXD snaps are based on `core26`,
+          # the rest still use `core24`.
+          DISTRO: ${{ (startsWith(matrix.track, '6/') || startsWith(matrix.track, 'latest/')) && 'core26-latest' || 'core24-latest' }}
+        working-directory: ${{ env.TESTFLINGER_DIR }}
+        run: ./run.sh --dryrun
+
+      - name: Run tests
+        uses: canonical/testflinger/.github/actions/submit@545ed69f17a5e639a2299e325f5fb199ca9f98af
+        with:
+          poll: true
+          job-path: ${{ env.TESTFLINGER_DIR }}/${{ env.TFWORKFLOW }}.yml.tmp
+          client-id: ${{ secrets.TESTFLINGER_CLIENT_ID }}
+          secret-key: ${{ secrets.TESTFLINGER_SECRET_KEY }}
+
+  nvidia:
+    runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    strategy:
+      matrix:
+        track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
+        os: ${{ fromJSON(inputs.ubuntu-releases || '["noble"]') }}
+    env:
+      SNAP_CHANNEL: ${{ matrix.track }}
+      TFWORKFLOW: nvidia-gpu-job
+    steps:
+      - name: Event data
+        run: "echo ::notice::Snap channel: $SNAP_CHANNEL"
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create Testflinger job
+        env:
+          JOB_QUEUE: lxd-nvidia
+          DISTRO: ${{ matrix.os }}
+        working-directory: ${{ env.TESTFLINGER_DIR }}
+        run: ./run.sh --dryrun
+
+      - name: Run tests
+        uses: canonical/testflinger/.github/actions/submit@545ed69f17a5e639a2299e325f5fb199ca9f98af
+        with:
+          poll: true
+          job-path: ${{ env.TESTFLINGER_DIR }}/${{ env.TFWORKFLOW }}.yml.tmp
+          client-id: ${{ secrets.TESTFLINGER_CLIENT_ID }}
+          secret-key: ${{ secrets.TESTFLINGER_SECRET_KEY }}
+
+  nvidia-mig:
+    runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    strategy:
+      matrix:
+        track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
+        os: ${{ fromJSON(inputs.ubuntu-releases || '["noble"]') }}
+    env:
+      SNAP_CHANNEL: ${{ matrix.track }}
+      TFWORKFLOW: nvidia-mig-job
+    steps:
+      - name: Event data
+        run: "echo ::notice::Snap channel: $SNAP_CHANNEL"
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create Testflinger job
+        env:
+          JOB_QUEUE: lxd-mig
+          DISTRO: ${{ matrix.os }}
+        working-directory: ${{ env.TESTFLINGER_DIR }}
+        run: ./run.sh --dryrun
+
+      - name: Run tests
+        uses: canonical/testflinger/.github/actions/submit@545ed69f17a5e639a2299e325f5fb199ca9f98af
+        with:
+          poll: true
+          job-path: ${{ env.TESTFLINGER_DIR }}/${{ env.TFWORKFLOW }}.yml.tmp
+          client-id: ${{ secrets.TESTFLINGER_CLIENT_ID }}
+          secret-key: ${{ secrets.TESTFLINGER_SECRET_KEY }}
+
+  amd-cdi:
+    runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
+    # AMD CDI is not supported on LXD 5.0 or 5.21.
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && !contains(inputs.snap-track, '5.0/') && !contains(inputs.snap-track, '5.21/') }}
+    strategy:
+      matrix:
+        track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
+        os: ${{ fromJSON(inputs.ubuntu-releases || '["noble"]') }}
+    env:
+      SNAP_CHANNEL: ${{ matrix.track }}
+      TFWORKFLOW: amd-cdi-job
+    steps:
+      - name: Event data
+        run: "echo ::notice::Snap channel: $SNAP_CHANNEL"
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create Testflinger job
+        env:
+          JOB_QUEUE: lxd-amd
+          DISTRO: ${{ matrix.os }}
+        working-directory: ${{ env.TESTFLINGER_DIR }}
+        run: ./run.sh --dryrun
+
+      - name: Run tests
+        uses: canonical/testflinger/.github/actions/submit@545ed69f17a5e639a2299e325f5fb199ca9f98af
+        with:
+          poll: true
+          job-path: ${{ env.TESTFLINGER_DIR }}/${{ env.TFWORKFLOW }}.yml.tmp
+          client-id: ${{ secrets.TESTFLINGER_CLIENT_ID }}
+          secret-key: ${{ secrets.TESTFLINGER_SECRET_KEY }}

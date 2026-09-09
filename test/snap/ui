@@ -1,0 +1,132 @@
+#!/bin/bash
+set -eux
+
+BROWSER="${1:-chromium}"
+
+echo "==> Install LXD"
+install_lxd
+
+echo "==> Setup node"
+if ! command -v node > /dev/null; then
+  snap install node --channel=22/stable --classic
+fi
+node --version
+
+echo "==> Get ui test code"
+install_deps git yq
+
+TARGET="${LXD_SNAP_CHANNEL%%/*}"
+# The UI test suite for all the 6 channels match the suite for latest.
+if [ "$TARGET" = "6" ]; then
+  TARGET="latest"
+fi
+PLAYWRIGHT_PROJECT="${BROWSER}:lxd-${TARGET:-latest}-edge:unclustered"
+BRANCH="main"
+if [[ $LXD_SNAP_CHANNEL =~ ^5\.0 ]]; then
+  # LXD 5.0 suite has only chromium and firefox test projects
+  PLAYWRIGHT_PROJECT="${BROWSER}"
+
+  # The UI in LXD 5.0 is not compatible with the test suite in the main branch of lxd-ui,
+  # fall back to the old test suite from when LXD 5.0 was released.
+  BRANCH="stable-5.0"
+
+  # enable ui manually for 5.0, which disables ui by default
+  snap set lxd ui.enable=true
+  systemctl reload snap.lxd.daemon
+fi
+if [[ $LXD_SNAP_CHANNEL =~ ^5\.21 ]]; then
+  # For LXD 5.21, use the UI test suite from the corresponding branch
+  BRANCH="stable-5.21"
+  # Use project names from the 5.21 test suite
+  PLAYWRIGHT_PROJECT="${BROWSER}:lxd-${TARGET:-latest}-edge"
+fi
+
+# Determine which lxd-ui revision matches the UI bundled in the snap under test.
+# When the snap is packed, its manifest records how the `lxd-ui` part was sourced:
+#   - candidate/stable builds pin an exact commit (source-commit)
+#   - edge builds of a release branch pin that branch (source-branch, e.g. stable-5.21)
+#   - latest/edge pins neither and tracks the default branch (main)
+# Prefer the manifest so the checked out test suite matches the bundled UI, falling
+# back to the channel-derived branch when the manifest is unavailable (e.g. old snaps).
+MANIFEST="/snap/lxd/current/snap/manifest.yaml"
+UI_COMMIT=""
+UI_BRANCH=""
+if [ -r "${MANIFEST}" ]; then
+  UI_COMMIT="$(yq -r '.parts."lxd-ui"."source-commit" // ""' < "${MANIFEST}")"
+  UI_BRANCH="$(yq -r '.parts."lxd-ui"."source-branch" // ""' < "${MANIFEST}")"
+fi
+
+# Remove any leftover clone
+[ -d lxd-ui ] && rm -rf lxd-ui
+
+# Clone the LXD UI test suite matching the bundled UI as closely as possible.
+if [ -n "${UI_COMMIT}" ]; then
+  # Commit-pinned build (candidate/stable): fetch that exact revision.
+  echo "==> Fetch lxd-ui test suite at commit ${UI_COMMIT} (bundled in the snap)"
+  git init -q lxd-ui
+  git -C lxd-ui fetch -q --depth=1 https://github.com/canonical/lxd-ui.git "${UI_COMMIT}"
+  git -C lxd-ui checkout -q FETCH_HEAD
+else
+  # No commit pin: use the branch bundled in the snap, else the channel default.
+  BRANCH="${UI_BRANCH:-${BRANCH}}"
+  echo "==> Clone lxd-ui test suite from branch ${BRANCH} (bundled in the snap)"
+  git clone --depth=1 --single-branch --branch "${BRANCH}" https://github.com/canonical/lxd-ui.git
+fi
+
+echo "==> Install dependencies"
+npm install -g yarn
+cd lxd-ui
+yarn install --immutable
+# Writable and self owned home directory is needed for firefox
+export HOME=/root
+unset XDG_RUNTIME_DIR
+CI=1 npx playwright install --with-deps "$BROWSER"
+
+echo "==> Configure test suite"
+# Unblock images:
+sed -i '/images.lxd.canonical.com/ d' /etc/hosts
+# Generate certs
+mkdir -p keys
+openssl req -nodes -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -sha384 -keyout keys/lxd-ui.key -out keys/lxd-ui.crt -subj "/C=GB/ST=London/L=London/O=LXD UI/OU=dev/CN=localhost" -days 3000
+cat keys/lxd-ui.key keys/lxd-ui.crt > keys/lxd-ui.pem
+cp keys/lxd-ui.key keys/lxd-ui.crt.key
+# Set base url
+sed -i 's|https://localhost:8407/|https://localhost:8443/|g' playwright.config.ts
+# Skip login tests on main suite. Ignore this on 5.0 which doesn't have login tests
+if [[ ! $LXD_SNAP_CHANNEL =~ ^5\.0 ]]; then
+  sed -i 's/test\.skip(!testInfo\.project\.name\.includes("login"));/test.skip(true);/' tests/login.spec.ts
+fi
+# Use client certificate
+sed -i '/trace:/a\
+    clientCertificates: [\
+      {\
+        origin: "https://localhost:8443",\
+        certPath: "./keys/lxd-ui.pem",\
+        keyPath: "./keys/lxd-ui.key",\
+      },\
+    ],
+' playwright.config.ts
+# configure lxd for test suite that expects these settings
+lxc storage create default zfs
+lxc profile device add default root disk path=/ pool=default
+lxc network create local-network
+lxc profile device add default eth0 nic network=local-network
+lxc config set core.https_address "[::]:8443"
+lxc config set cluster.https_address "127.0.0.1"
+if [[ $LXD_SNAP_CHANNEL =~ ^5\.0 ]] || [[ $LXD_SNAP_CHANNEL =~ ^5\.21 ]]; then
+  # LXD 5.0 and 5.21 suites need a clustered backend
+  # newer suites expect unclustered setup
+  lxc cluster enable local
+fi
+
+lxc config trust add keys/lxd-ui.crt
+# setup oidc users that are expected in tests
+if hasNeededAPIExtension "oidc"; then
+  ./tests/scripts/setup_test
+fi
+
+echo "==> Run e2e test suite"
+CI=1 npx playwright test --project "${PLAYWRIGHT_PROJECT}"
+
+# shellcheck disable=SC2034
+FAIL=0

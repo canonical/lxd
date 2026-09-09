@@ -1,0 +1,65 @@
+#!/bin/bash
+set -eux
+
+# Install LXD
+install_lxd
+
+# Configure LXD
+lxd init --auto
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+# Launch test instance
+lxc init "${IMAGE}" v1 --vm
+
+echo "==> Try starting a VM with two TPM devices"
+lxc config device add v1 tpm1 tpm
+lxc config device add v1 tpm2 tpm
+! lxc start v1 || false
+
+echo "==> Starting VM with TPM"
+lxc config device remove v1 tpm2
+lxc start v1
+waitInstanceReady v1
+setup_instance_gocoverage v1
+
+echo "==> Check if TPM files are present"
+lxc exec v1 -- stat /dev/tpm0
+lxc exec v1 -- stat /dev/tpmrm0
+
+echo "==> Try removing TPM from a running VM"
+! lxc config device remove v1 tpm1 || false
+lxc exec v1 -- stat /dev/tpm0
+lxc exec v1 -- stat /dev/tpmrm0
+
+echo "==> Stopping VM and removing TPM"
+prepare_vm_for_hard_stop v1
+lxc stop v1 --force
+lxc config device remove v1 tpm1
+
+echo "==> Check if TPM was indeed removed"
+lxc start v1
+waitInstanceReady v1
+! lxc exec v1 -- stat /dev/tpm0 || false
+! lxc exec v1 -- stat /dev/tpmrm0 || false
+prepare_vm_for_hard_stop v1
+lxc stop v1 --force
+
+# TPM names are included on the swtpm socket path and long socket paths can cause problems if not handled correctly.
+echo "==> Test handling TPMs with long names"
+longName="device-with-very-long-name-and-/-4-qemu-property-handling-test_"
+# XXX: LXD releases 5.21 and earlier don't support long names
+if [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
+    echo "${LXD_SNAP_CHANNEL} detected, using a shorter name"
+    longName="notSoLongName"
+fi
+lxc config device add v1 "${longName}" tpm
+lxc start v1
+waitInstanceReady v1
+lxc exec v1 -- stat /dev/tpm0
+lxc exec v1 -- stat /dev/tpmrm0
+prepare_vm_for_hard_stop v1
+lxc delete v1 --force
+
+# shellcheck disable=SC2034
+FAIL=0

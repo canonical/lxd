@@ -1,0 +1,95 @@
+#!/bin/bash
+set -eux
+
+architecture="$(uname -m)"
+if [ "${architecture}" != "x86_64" ]; then
+  echo "Skipping test on ${architecture}"
+  # shellcheck disable=SC2034
+  FAIL=0
+  exit 0
+fi
+
+if [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
+  echo "Skipping test on 4.0, 5.0 and 5.21 branches"
+  # shellcheck disable=SC2034
+  FAIL=0
+  exit 0
+fi
+
+# Install LXD
+install_lxd
+
+# LXD 5.21 will remain based on `core24` but newer versions will move to `core26`
+# Look at the installed snap for a `gpu-XXYY` directory to know which `mesa-XXYY` snap to install and connect with.
+GPU_DIR="$(basename /snap/lxd/current/gpu-*)"
+GPU_VERSION="${GPU_DIR#gpu-}"
+
+# Configure LXD
+lxd init --auto
+
+# Get the source
+if ! command -v git >/dev/null; then
+  install_deps git
+fi
+git clone --depth=1 "https://github.com/canonical/lxd-pkg-snap.git" -b "latest-edge"
+
+# Build qemu-for-lxd snap
+cd lxd-pkg-snap/lxd-qemu-snap
+
+CACHE_PATH="/home/runner/work/cache"
+mkdir "${CACHE_PATH}" || true
+
+# debug
+ls -la "${CACHE_PATH}/"
+
+LXD_QEMU_SNAP_FILE_NAME="qemu-for-lxd_1_amd64.snap"
+LXD_QEMU_SNAP_HASHSUM_FILE_PATH="${CACHE_PATH}/${LXD_QEMU_SNAP_FILE_NAME}.source-hash"
+LXD_QEMU_SNAP_CACHED_HASH_SUM=""
+[ -e "${LXD_QEMU_SNAP_HASHSUM_FILE_PATH}" ] && LXD_QEMU_SNAP_CACHED_HASH_SUM=$(cat "${LXD_QEMU_SNAP_HASHSUM_FILE_PATH}")
+LXD_QEMU_SNAP_HASH_SUM=$(find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{ print $1 }')
+
+if [ "${LXD_QEMU_SNAP_CACHED_HASH_SUM}" != "${LXD_QEMU_SNAP_HASH_SUM}" ]; then
+  echo "==> Hash is changed (${LXD_QEMU_SNAP_CACHED_HASH_SUM} != ${LXD_QEMU_SNAP_HASH_SUM}). Rebuild is needed."
+
+  # Install snapcraft (use latest/candidate to help catch regressions in LXD/snapcraft earlier)
+  snap install snapcraft --classic --channel=latest/candidate
+
+  snapcraft pack -v # this should produce a qemu-for-lxd_1_amd64.snap file
+
+  # save to cache
+  mv "${LXD_QEMU_SNAP_FILE_NAME}" "${CACHE_PATH}/"
+  echo "${LXD_QEMU_SNAP_HASH_SUM}" > "${LXD_QEMU_SNAP_HASHSUM_FILE_PATH}"
+fi
+
+SNAP_TO_INSTALL_PATH="${CACHE_PATH}/${LXD_QEMU_SNAP_FILE_NAME}"
+
+# debug
+ls -la "${CACHE_PATH}/"
+
+snap install "${SNAP_TO_INSTALL_PATH}" --dangerous
+
+# install mesa snap providing the right GPU interface
+snap install "mesa-${GPU_VERSION}"
+
+# connect snaps
+snap connect "lxd:gpu-${GPU_VERSION}" "mesa-${GPU_VERSION}:gpu-${GPU_VERSION}"
+snap connect lxd:qemu-external qemu-for-lxd:qemu-external
+
+# let LXD to reload
+sleep 5
+lxd waitready --timeout=300
+
+# check that qemu-external connect hook works properly
+journalctl --quiet --no-hostname --no-pager --boot=0 --unit=snap.lxd.daemon.service | grep "Setting up external QEMU snap integration"
+
+# check that qemu instance driver is activated and is in "external" mode
+lxc query /1.0 | jq '.environment.driver' | grep "qemu"
+lxc query /1.0 | jq '.environment.driver_version' | grep "(external)"
+
+# check that connection with the mesa snap works
+serverPID="$(lxc query /1.0 | jq .environment.server_pid)"
+# Look in LXD daemon env for a variable that was exported by the 'gpu-${GPU_VERSION}-provider-wrapper' script
+grep -aF VK_LAYER_PATH "/proc/${serverPID}/environ"
+
+# shellcheck disable=SC2034
+FAIL=0

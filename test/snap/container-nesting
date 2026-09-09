@@ -1,0 +1,131 @@
+#!/bin/bash
+set -eux
+
+# Install and setup LXD.
+install_lxd
+lxd init --auto
+
+# Install dependencies
+install_deps jq
+
+poolDriverList="${1:- btrfs dir lvm zfs}"
+
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+
+# checkNestedInstanceDNS checks if the nested instance can resolve DNS names.
+checkNestedInstanceDNS() {
+    local instName=$1
+    local nestedInstName=$2
+
+    # Test DNS resolution.
+    for _ in $(seq 1 5); do
+        if lxc exec "${instName}" -- lxc exec "${nestedInstName}" -- getent hosts canonical.com; then
+            echo "===> PASS: DNS resolution: ${nestedInstName} (on instance ${instName})"
+            return 0
+        fi
+        sleep 1
+    done
+
+    echo "===> FAIL: DNS resolution: ${nestedInstName} (on instance ${instName})"
+    return 1
+}
+
+lxc profile create container-nesting
+lxc profile set container-nesting security.nesting=true
+
+if hasNeededAPIExtension devlxd_images_vm; then
+    lxc profile set container-nesting security.devlxd.images=true
+fi
+
+for poolDriver in ${poolDriverList}; do
+    poolName="pool-${poolDriver}"
+    instName="c1"
+
+    # Create storage pool.
+    lxc storage create "${poolName}" "${poolDriver}"
+
+    # Configure the list of storage drivers to be tested in the nested container.
+    # Storage driver "dir" is always supported.
+    nestedPoolDriverList="dir"
+
+    if [ "${poolDriver}" = "btrfs" ]; then
+        # BTRFS can be used within a nested container on top of BTRFS storage
+        # pool, if the source is a directory.
+        nestedPoolDriverList+=" btrfs"
+    elif [ "${poolDriver}" = "zfs" ]; then
+        # To use ZFS within a nested container, a ZFS version must be greater than
+        # or equal to 2.2, and ZFS delegation must be enabled.
+        zfsVersion="$(modinfo -F version zfs)"
+        if dpkg --compare-versions "${zfsVersion}" gt "2.2"; then
+            lxc storage set "${poolName}" volume.zfs.delegate=true
+            nestedPoolDriverList+=" zfs"
+
+            # XXX: Ensure that the ZFS device is accessible within the nested container.
+            #      Otherwise, the LXD storage pool creation will fail.
+            zfsPerm=$(stat -c '%a' /dev/zfs)
+            if [ $((zfsPerm & 7)) -eq 0 ]; then
+                # It's udev's job to fix the perms but the rule for it ships in
+                # the zfsutils-linux package which might not be installed.
+                chmod 0666 /dev/zfs
+            fi
+        else
+            echo "ZFS version ${zfsVersion} does not support ZFS delegation and cannot be used within nested containers."
+        fi
+    fi
+
+    # Launch a new container and install LXD.
+    lxc launch "${IMAGE}" "${instName}" --profile default --profile container-nesting --storage "${poolName}"
+    waitInstanceReady "${instName}"
+
+    # Ensure snapd is ready.
+    lxc exec "${instName}" -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
+
+    # Install LXD in the container.
+    lxc exec "${instName}" -- snap install lxd --channel="${LXD_SNAP_CHANNEL}"
+    lxc exec "${instName}" -- lxd init --auto
+
+    # Test each storage driver in nested container.
+    for nestedPoolDriver in ${nestedPoolDriverList}; do
+        nestedPoolName="pool-nested-${nestedPoolDriver}"
+        nestedInstName="nested-c1"
+
+        # Create nested storage pool.
+        if [ "${nestedPoolDriver}" = "btrfs" ]; then
+            # BTRFS pool must use a directory as a source.
+            lxc exec "${instName}" -- lxc storage create "${nestedPoolName}" "${nestedPoolDriver}" source="$(mktemp -d)"
+        elif [ "${nestedPoolDriver}" = "zfs" ]; then
+            # Create a custom volume and attach it to the instance.
+            lxc storage volume create "${poolName}" vol1
+            lxc config device add "${instName}" vol1 disk pool="${poolName}" source=vol1 path=/mnt/vol1
+
+            # Create a ZFS storage pool in the nested container using the attached volume.
+            lxc exec "${instName}" -- lxc storage create "${nestedPoolName}" "${nestedPoolDriver}" source="${poolName}/custom/default_vol1"
+        else
+            lxc exec "${instName}" -- lxc storage create "${nestedPoolName}" "${nestedPoolDriver}"
+        fi
+
+        # Launch nested container.
+        lxc exec "${instName}" -- lxc launch "${IMAGE}" "${nestedInstName}" --storage "${nestedPoolName}"
+        lxc exec "${instName}" -- sh -c "$(declare -f waitInstanceReady); waitInstanceReady ${nestedInstName}"
+
+        # Test container connection.
+        checkNestedInstanceDNS "${instName}" "${nestedInstName}"
+
+        # Test graceful shutdown of the nested container.
+        lxc exec "${instName}" -- timeout 30 lxc stop "${nestedInstName}"
+        lxc exec "${instName}" -- timeout 30 lxc delete "${nestedInstName}"
+    done
+
+    # Cleanup.
+    lxc delete --force "${instName}"
+    if echo "${nestedPoolDriverList}" | grep -wF zfs >/dev/null; then
+        lxc storage volume delete "${poolName}" vol1
+    fi
+    lxc storage delete "${poolName}"
+done
+
+# Cleanup.
+lxc profile delete container-nesting
+
+# shellcheck disable=SC2034
+FAIL=0
