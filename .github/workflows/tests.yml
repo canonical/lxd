@@ -87,7 +87,7 @@ jobs:
           persist-credentials: false
 
       - name: Tune disk performance
-        uses: ./.github/actions/tune-disk-performance
+        uses: $/.github/actions/tune-disk-performance
 
       - name: Dependency Review
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
@@ -127,7 +127,7 @@ jobs:
           python-version: '3.x'  # satisfied by any 3.x version already installed
 
       - name: Install build dependencies
-        uses: ./.github/actions/install-lxd-builddeps
+        uses: $/.github/actions/install-lxd-builddeps
 
       - name: Download go dependencies
         run: |
@@ -157,7 +157,7 @@ jobs:
 
       # In code-tests, this action warms the cache for the system-tests job
       - name: Build or restore dqlite/liblxc dependencies
-        uses: ./.github/actions/cache-dqlite-liblxc
+        uses: $/.github/actions/cache-dqlite-liblxc
 
       - name: Update env variables for deps
         run: |
@@ -214,19 +214,19 @@ jobs:
         if: env.GOCOVERDIR != '' && github.repository == 'canonical/lxd'
 
       - name: Prime cache with external test images
-        uses: ./.github/actions/download-images
+        uses: $/.github/actions/download-images
         with:
           prime-cache-only: true
           image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
 
       - name: Prime cache with snap dependencies
-        uses: ./.github/actions/download-snaps
+        uses: $/.github/actions/download-snaps
         with:
           prime-cache-only: true
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
       - name: Prime cache with minio/mc
-        uses: ./.github/actions/download-minio
+        uses: $/.github/actions/download-minio
         with:
           prime-cache-only: true
 
@@ -280,36 +280,36 @@ jobs:
           persist-credentials: false
 
       - name: Tune disk performance
-        uses: ./.github/actions/tune-disk-performance
+        uses: $/.github/actions/tune-disk-performance
 
       - name: Reclaim some memory
-        uses: ./.github/actions/reclaim-memory
+        uses: $/.github/actions/reclaim-memory
 
       - name: Remove docker
-        uses: ./.github/actions/disable-docker
+        uses: $/.github/actions/disable-docker
 
       - name: Install runtime dependencies
-        uses: ./.github/actions/install-lxd-runtimedeps
+        uses: $/.github/actions/install-lxd-runtimedeps
 
       # Restore the cache warmed in code-tests job
       - name: Build or restore dqlite/liblxc dependencies
-        uses: ./.github/actions/cache-dqlite-liblxc
+        uses: $/.github/actions/cache-dqlite-liblxc
 
       # Restore the cache warmed in code-tests job
       - name: Download external test images
-        uses: ./.github/actions/download-images
+        uses: $/.github/actions/download-images
         with:
           image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
 
       # Restore the cache warmed in code-tests job
       - name: Download snap dependencies
-        uses: ./.github/actions/download-snaps
+        uses: $/.github/actions/download-snaps
         with:
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
       # Restore the cache warmed in code-tests job
       - name: Download minio/mc
-        uses: ./.github/actions/download-minio
+        uses: $/.github/actions/download-minio
 
       - name: Download system test dependencies
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -326,14 +326,14 @@ jobs:
 
       - name: Setup MicroCeph
         if: ${{ matrix.backend == 'ceph' }}
-        uses: ./.github/actions/setup-microceph
+        uses: $/.github/actions/setup-microceph
         with:
           microceph-channel: "squid/candidate"
           osd-count: 3
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
       - name: Setup MicroOVN
-        uses: ./.github/actions/setup-microovn
+        uses: $/.github/actions/setup-microovn
         with:
           microovn-channel: "24.03/edge"
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
@@ -711,13 +711,13 @@ jobs:
           persist-credentials: false
 
       - name: Tune disk performance
-        uses: ./.github/actions/tune-disk-performance
+        uses: $/.github/actions/tune-disk-performance
 
       - name: Reclaim some memory
-        uses: ./.github/actions/reclaim-memory
+        uses: $/.github/actions/reclaim-memory
 
       - name: Remove docker
-        uses: ./.github/actions/disable-docker
+        uses: $/.github/actions/disable-docker
 
       - name: Install Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -741,7 +741,7 @@ jobs:
 
       # Restore the cache warmed in code-tests job
       - name: Build or restore dqlite/liblxc dependencies
-        uses: ./.github/actions/cache-dqlite-liblxc
+        uses: $/.github/actions/cache-dqlite-liblxc
 
       - name: Download system test dependencies
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -762,7 +762,7 @@ jobs:
           echo "PKG_CONFIG_PATH=${LIBLXC_ARCH_LIBS}/pkgconfig"          >> "${GITHUB_ENV}"
 
       - name: Install build dependencies
-        uses: ./.github/actions/install-lxd-builddeps
+        uses: $/.github/actions/install-lxd-builddeps
 
       - name: Install dependencies
         run: |
@@ -930,7 +930,7 @@ jobs:
           persist-credentials: false
 
       - name: Tune disk performance
-        uses: ./.github/actions/tune-disk-performance
+        uses: $/.github/actions/tune-disk-performance
 
       - name: Checkout LXD-UI
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -961,17 +961,17 @@ jobs:
           npx playwright install --with-deps chromium
 
       - name: Install runtime dependencies
-        uses: ./.github/actions/install-lxd-runtimedeps
+        uses: $/.github/actions/install-lxd-runtimedeps
         with:
           optional: true
 
       # Restore the cache warmed in code-tests job
       - name: Build or restore dqlite/liblxc dependencies
-        uses: ./.github/actions/cache-dqlite-liblxc
+        uses: $/.github/actions/cache-dqlite-liblxc
 
       # Restore the cache warmed in code-tests job
       - name: Download minio/mc
-        uses: ./.github/actions/download-minio
+        uses: $/.github/actions/download-minio
 
       - name: Download system test dependencies
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1221,7 +1221,7 @@ jobs:
 
       # XXX: from this point onwards in this **specific job**, the private SSH key is
       #      available through the SSH_AUTH_SOCK environment variable.
-      - uses: ./.github/actions/lp-snap-build
+      - uses: $/.github/actions/lp-snap-build
         with:
           repo: "git+ssh://lxdbot@git.launchpad.net/~lxd-snap/lxd"
           ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}" # zizmor: ignore[secrets-outside-env]

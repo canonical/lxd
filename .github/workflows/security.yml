@@ -29,7 +29,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Trivy
-        uses: ./.github/actions/install-trivy
+        uses: $/.github/actions/install-trivy
 
       - name: Download Trivy DB
         id: db_download
@@ -100,7 +100,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Trivy
-        uses: ./.github/actions/install-trivy
+        uses: $/.github/actions/install-trivy
 
       - name: Restore cached Trivy vulnerability database
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
