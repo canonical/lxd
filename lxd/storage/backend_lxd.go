@@ -2,7 +2,10 @@ package storage
 
 import (
 	"archive/tar"
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -3502,7 +3505,22 @@ func (b *lxdBackend) GetInstanceNBD(inst instance.Instance, writable bool, reuse
 			return nil, nil, "", api.StatusErrorf(http.StatusBadRequest, "Writable NBD requires the instance to be stopped")
 		}
 
-		return nil, nil, "", api.StatusErrorf(http.StatusNotImplemented, "Writable NBD export is not implemented")
+		// Generate the effective root device volume for instance.
+		volStorageName := project.Instance(inst.Project().Name, inst.Name())
+		vol := b.GetVolume(drivers.VolumeTypeVM, drivers.ContentTypeBlock, volStorageName, dbVol.Config)
+		err = b.applyInstanceRootDiskOverrides(inst, &vol)
+		if err != nil {
+			return nil, nil, "", err
+		}
+
+		return nbdLockedSession(b.state, lockName, lockDesc, func() (net.Conn, func(), error) {
+			err := b.allowVolumeNBDExport(vol.Config())
+			if err != nil {
+				return nil, nil, err
+			}
+
+			return b.connectOfflineNBD(vol, true)
+		})
 	}
 
 	if !inst.IsRunning() {
@@ -3563,6 +3581,17 @@ func (b *lxdBackend) GetInstanceAllDisksNBD(inst instance.Instance, reuse bool) 
 	return nbdLockedSession(b.state, lockName, lockDesc, func() (net.Conn, func(), error) {
 		return inst.ConnectNBDAllDisks(false)
 	})
+}
+
+// nbdVolumeLockMember returns the member name that scopes a custom volume's NBD lock. It is this member for a
+// local pool, where the same volume name is a different volume per member, and empty for a remote pool, whose
+// volume is one shared entity across the cluster.
+func (b *lxdBackend) nbdVolumeLockMember() string {
+	if b.driver.Info().Remote {
+		return ""
+	}
+
+	return b.state.ServerName
 }
 
 // GetCustomVolumeNBD returns an NBD connection to a custom block volume. A read-only export goes through the
@@ -3628,7 +3657,20 @@ func (b *lxdBackend) GetCustomVolumeNBD(projectName string, volName string, writ
 			return nil, nil, "", err
 		}
 
-		return nil, nil, "", api.StatusErrorf(http.StatusNotImplemented, "Writable NBD export is not implemented")
+		volStorageName := project.StorageVolume(projectName, volName)
+		vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentTypeBlock, volStorageName, dbVol.Config)
+
+		lockName := nbdVolumeLockName(b.nbdVolumeLockMember(), b.name, projectName, volName)
+		lockDesc := fmt.Sprintf("volume %q", b.name+"/"+volName)
+
+		return nbdLockedSession(b.state, lockName, lockDesc, func() (net.Conn, func(), error) {
+			err := b.allowVolumeNBDExport(dbVol.Config)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			return b.connectOfflineNBD(vol, true)
+		})
 	}
 
 	inst, deviceName, err := InstanceByVolumeName(b.state, b.name, projectName, volName, cluster.StoragePoolVolumeTypeCustom)
@@ -3667,6 +3709,191 @@ func (b *lxdBackend) GetCustomVolumeNBD(projectName string, volName string, writ
 
 		return inst.ConnectNBD(deviceName, false)
 	})
+}
+
+// nbdSocketPath returns the qemu-nbd socket path for a volume. The volume name is encoded so that a snapshot
+// name cannot produce a nested path, and hashed when the path would not fit the unix socket path limit.
+func nbdSocketPath(vol drivers.Volume) string {
+	dir := shared.VarPath("nbd")
+	name := vol.Pool() + "_" + string(vol.Type()) + "_" + filesystem.PathNameEncode(vol.Name())
+
+	// sun_path holds 108 bytes including the terminating NUL, so the path is kept below 100 bytes as a margin.
+	maxNameLength := 100 - len(dir) - len("/.sock")
+	if maxNameLength > 0 && len(name) > maxNameLength {
+		hash := sha256.Sum256([]byte(name))
+		name = base64.RawURLEncoding.EncodeToString(hash[:])
+		if len(name) > maxNameLength {
+			name = name[:maxNameLength]
+		}
+	}
+
+	return filepath.Join(dir, name+".sock")
+}
+
+// connectOfflineNBD serves the volume through qemu-nbd and returns a connection to it. The volume stays
+// activated until qemu-nbd exits, which happens once the connection is closed or the returned disconnect
+// function is called. The disconnect function returns once the volume has been released.
+func (b *lxdBackend) connectOfflineNBD(vol drivers.Volume, writable bool) (net.Conn, func(), error) {
+	socketPath := nbdSocketPath(vol)
+
+	err := os.MkdirAll(filepath.Dir(socketPath), 0700)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed creating NBD socket directory: %w", err)
+	}
+
+	// A socket left behind by a session that did not shut down cleanly would pass the readiness check before
+	// qemu-nbd listens on it.
+	_ = os.Remove(socketPath)
+
+	// LXD block volumes are raw, and format probing must never run on guest controlled data.
+	args := []string{"--socket=" + socketPath, "--format=raw"}
+	if !writable {
+		args = append(args, "--read-only")
+	}
+
+	// Share the qemu-nbd process safely between the activation goroutine and this function.
+	var procMu sync.Mutex
+	var proc *os.Process
+	aborted := false
+
+	// Buffered so the goroutine never blocks if this function has already given up.
+	errCh := make(chan error, 1)
+
+	// started is closed once qemu-nbd runs and done once the goroutine has released the volume.
+	started := make(chan struct{})
+	done := make(chan struct{})
+
+	// The goroutine returns only when qemu-nbd exits so that the volume stays active for the whole session.
+	go func() {
+		defer close(done)
+
+		err := b.driver.ActivateTask(vol, func(devPath string) error {
+			var stderr bytes.Buffer
+			cmd := exec.Command("qemu-nbd", append(args, devPath)...)
+			cmd.Stderr = &stderr
+
+			procMu.Lock()
+			if aborted {
+				procMu.Unlock()
+				return errors.New("Request timed out before qemu-nbd could be started")
+			}
+
+			err := cmd.Start()
+			if err != nil {
+				procMu.Unlock()
+				return fmt.Errorf("Failed starting qemu-nbd: %w", err)
+			}
+
+			proc = cmd.Process
+			procMu.Unlock()
+			close(started)
+
+			err = cmd.Wait()
+			if err != nil {
+				return fmt.Errorf("Failed running qemu-nbd: %w (%s)", err, strings.TrimSpace(stderr.String()))
+			}
+
+			return nil
+		})
+		if err != nil {
+			procMu.Lock()
+			stopped := aborted
+			procMu.Unlock()
+
+			// qemu-nbd reports an error when LXD itself stopped it.
+			if stopped {
+				b.logger.Debug("Stopped serving volume over NBD", logger.Ctx{"volume": vol.Name(), "err": err})
+			} else {
+				b.logger.Error("Failed serving volume over NBD", logger.Ctx{"volume": vol.Name(), "err": err})
+			}
+
+			errCh <- err
+		}
+	}()
+
+	// stopNBD signals qemu-nbd if it was started and waits for the goroutine to release the volume. The
+	// process is killed if it has not exited after 30 seconds.
+	stopNBD := func(sig os.Signal) {
+		procMu.Lock()
+		aborted = true
+		if proc != nil {
+			_ = proc.Signal(sig)
+		}
+
+		procMu.Unlock()
+
+		select {
+		case <-done:
+		case <-time.After(30 * time.Second):
+			procMu.Lock()
+			if proc != nil {
+				_ = proc.Kill()
+			}
+
+			procMu.Unlock()
+
+			select {
+			case <-done:
+			case <-time.After(30 * time.Second):
+				b.logger.Error("Timed out waiting for qemu-nbd to exit", logger.Ctx{"volume": vol.Name()})
+			}
+		}
+
+		_ = os.Remove(socketPath)
+	}
+
+	// Activating the volume can take a while on drivers that wait for device nodes, so the socket readiness
+	// timeout only starts once qemu-nbd runs.
+	select {
+	case <-started:
+	case err := <-errCh:
+		stopNBD(unix.SIGKILL)
+		return nil, nil, err
+	case <-time.After(2 * time.Minute):
+		stopNBD(unix.SIGKILL)
+		return nil, nil, errors.New("Timed out waiting for volume activation")
+	}
+
+	// Wait for qemu-nbd to listen on the socket.
+	timeout := time.After(10 * time.Second)
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+
+	for ready := false; !ready; {
+		select {
+		case <-timeout:
+			stopNBD(unix.SIGKILL)
+			return nil, nil, errors.New("Timed out waiting for qemu-nbd socket")
+		case err := <-errCh:
+			stopNBD(unix.SIGKILL)
+			return nil, nil, err
+		case <-ticker.C:
+			_, err := os.Stat(socketPath)
+			ready = err == nil
+		}
+	}
+
+	b.logger.Debug("Connecting to qemu-nbd socket", logger.Ctx{"volume": vol.Name(), "socketPath": socketPath})
+	nbdConn, err := net.Dial("unix", socketPath)
+	if err != nil {
+		// qemu-nbd may have exited before the connection, in which case its error carries the reason.
+		select {
+		case err = <-errCh:
+		default:
+			err = fmt.Errorf("Failed connecting to qemu-nbd socket: %w", err)
+		}
+
+		stopNBD(unix.SIGKILL)
+		return nil, nil, err
+	}
+
+	disconnect := func() {
+		b.logger.Debug("Stopping qemu-nbd", logger.Ctx{"volume": vol.Name()})
+		_ = nbdConn.Close()
+		stopNBD(unix.SIGTERM)
+	}
+
+	return nbdConn, disconnect, nil
 }
 
 // GetInstanceUsage returns the disk usage of the instance's root volume.
