@@ -1,0 +1,229 @@
+name: Run a snap integration test
+description: Run a single test/snap/* test against a snap channel, optionally sideloading built binaries with Go coverage
+
+inputs:
+  test:
+    description: Test to run, as it appears in the caller's matrix (e.g. "storage-vm btrfs")
+    required: true
+  channel:
+    description: Snap channel to test against, e.g. "6/edge"
+    required: true
+  os:
+    description: Ubuntu release the job is running on, used for cache/artifact naming
+    required: true
+  sideload:
+    description: Whether to sideload built binaries (with Go coverage support) instead of installing the plain channel
+    default: "false"
+    required: false
+  binary-dir:
+    description: Directory containing the built lxc/lxd/lxd-agent/lxd-user binaries (required when sideload is true)
+    default: ""
+    required: false
+  coverage:
+    description: Whether to collect Go coverage data (only meaningful when sideload is true)
+    default: "false"
+    required: false
+  image-cache-dir:
+    description: Directory to use for the external test images cache
+    required: true
+  snap-cache-dir:
+    description: Directory to use for the snap dependencies cache
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Reclaim disk space
+      # This can take multiple minutes if the runner is busy/slow so only run it when/where absolutely needed.
+      if: ${{ inputs.test == 'conversion' || inputs.test == 'vm-nesting' || startsWith(inputs.test, 'storage-') }}
+      uses: $/.github/actions/reclaim-disk-space
+
+    - name: "Disable br_netfilter"
+      shell: bash
+      run: |
+        set -eux
+        # XXX: br_netfilter causes subtle issues by subjecting internal
+        #      bridge traffic to NAT/MASQUERADING and IP filtering. This
+        #      module is not normally loaded on stock Ubuntu installs but it
+        #      is on GHA runners.
+        if lsmod | grep -qw ^br_netfilter; then
+          sudo modprobe -r br_netfilter
+        fi
+
+    # Only needed when running sideloaded binaries: they dynamically link against
+    # libdqlite/liblxc at runtime, which a plain channel install doesn't require.
+    - name: Build or restore dqlite/liblxc dependencies
+      if: ${{ inputs.sideload == 'true' }}
+      uses: $/.github/actions/cache-dqlite-liblxc
+
+    - name: Download external test images
+      uses: $/.github/actions/download-images
+      with:
+        image-cache-dir: ${{ inputs.image-cache-dir }}
+
+    - name: Download snap dependencies
+      uses: $/.github/actions/download-snaps
+      with:
+        snap-cache-dir: ${{ inputs.snap-cache-dir }}
+
+    - name: Download system test dependencies
+      if: ${{ inputs.sideload == 'true' }}
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        name: system-test-deps
+        merge-multiple: true
+        path: ${{ inputs.binary-dir }}
+
+    - name: Set exec perms on LXD binaries
+      if: ${{ inputs.sideload == 'true' }}
+      shell: bash
+      env:
+        BINARY_DIR: ${{ inputs.binary-dir }}
+      run: |
+        set -eux
+        if [ -z "${BINARY_DIR}" ] || [ ! -d "${BINARY_DIR}" ]; then
+          echo "::error::BINARY_DIR (\"${BINARY_DIR}\") does not exist" >&2
+          exit 1
+        fi
+        ls -lR "${BINARY_DIR}/"
+        chmod uog+x "${BINARY_DIR}"/*
+
+    - name: Get Date
+      id: get-date
+      if: ${{ inputs.test == 'qemu-external-vm' }}
+      shell: bash
+      run: |
+        echo "date=$(/bin/date -u "+%Y%m%d")" >> "${GITHUB_OUTPUT}"
+
+    # for simplicity, just use one cache directory
+    # and make it valid for one day
+    # Restoring the cache is safe even from untrusted forks
+    - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      id: cache-restore
+      if: ${{ inputs.test == 'qemu-external-vm' }}
+      with:
+        path: /home/runner/work/cache
+        key: cache-${{ steps.get-date.outputs.date }}
+
+    - name: Setup MicroCeph
+      if: ${{ inputs.test == 'conversion' || inputs.test == 'storage-buckets' || inputs.test == 'storage-vm ceph' || inputs.test == 'storage-volumes-vm' }}
+      uses: $/.github/actions/setup-microceph
+      with:
+        osd-count: 3
+        snap-cache-dir: ${{ inputs.snap-cache-dir }}
+
+    - name: Setup MicroOVN
+      uses: $/.github/actions/setup-microovn
+      with:
+        snap-cache-dir: ${{ inputs.snap-cache-dir }}
+
+    - name: Install Node
+      if: ${{ startsWith(inputs.test, 'ui ') }}
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      # zizmor: ignore[cache-poisoning]
+      with:
+        node-version: 22
+
+    - name: Make GOCOVERDIR
+      id: make-gocoverdir
+      if: ${{ inputs.sideload == 'true' && inputs.coverage == 'true' }}
+      shell: bash
+      run: |
+        set -eux
+        mkdir -p coverage
+        chmod 0777 coverage
+        cd coverage
+        echo "dir=$(pwd)" >> "${GITHUB_OUTPUT}"
+
+    - name: Sanitize Artifact Name
+      id: sanitize
+      shell: bash
+      env:
+        ID: ${{ inputs.test }}-${{ inputs.channel }}-${{ inputs.os }}
+      run: |
+        set -eux
+        echo "artifact_name=$(echo "${ID}" | tr ': /' '-_-')" >> "${GITHUB_OUTPUT}"
+
+    - name: ${{ inputs.test }}
+      shell: bash
+      env:
+        SUDO_PRESERVE_ENV: "PATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,OVN_SOURCE,LXD_SNAP_SIDELOAD,LXD_SNAP_BINARY_DIR"
+        LXD_SNAP_SIDELOAD: ${{ inputs.sideload == 'true' && '1' || '' }}
+        LXD_SNAP_BINARY_DIR: ${{ inputs.binary-dir }}
+        GOCOVERDIR: ${{ steps.make-gocoverdir.outputs.dir }}
+        INPUT_TEST: ${{ inputs.test }}
+        INPUT_CHANNEL: ${{ inputs.channel }}
+      run: |
+        set -eux
+
+        # XXX: prevent accidental usage of `images:` in CI test jobs.
+        #      All tests should be done using officially supported images.
+        echo '127.0.0.1 images.lxd.canonical.com' | sudo tee /etc/hosts
+
+        TEST_SCRIPT="$(echo "${INPUT_TEST}" | cut -d " " -f 1)"
+        EXTRA_ARGS="$(echo "${INPUT_TEST}" | cut -d " " -f 2- --only-delimited)"
+        if [ "${TEST_SCRIPT}" = "cluster" ]; then
+          # The cluster test script infers the upgrade chain (including
+          # cross-track upgrades) from the target channel automatically.
+          EXTRA_ARGS="${EXTRA_ARGS:-3}"
+        elif [ "${TEST_SCRIPT}" = "network-ovn" ]; then
+          if [ -n "${EXTRA_ARGS}" ]; then
+            # Strip the `ovn:` prefix
+            export OVN_SOURCE="${EXTRA_ARGS##ovn:}"
+            EXTRA_ARGS=""
+          fi
+        fi
+
+        if [ "${LXD_SNAP_SIDELOAD}" = "1" ]; then
+          # Append the Go bin directory to PATH so the test scripts can find the host-only
+          # binaries built in the code-tests job and downloaded via the system-test-deps artifact
+          # (notably the coverage-instrumented lxd-convert, which the snap does not ship).
+          # It is appended (not prepended) so the snap's lxc/lxd wrappers keep precedence; the snap
+          # lxc/lxd/lxd-agent coverage is collected separately via the sideloaded *.debug binaries.
+          export PATH="${PATH}:${LXD_SNAP_BINARY_DIR}"
+        fi
+        sudo --preserve-env="${SUDO_PRESERVE_ENV}" "./test/snap/${TEST_SCRIPT}" "${INPUT_CHANNEL}" ${EXTRA_ARGS:-}
+
+        # Cleanly stopping `snap.lxd.daemon.service` will ensure that any Go
+        # coverage data is flushed to disk and can be collected by the upload
+        # step below. If the service is not stopped, we might end up with
+        # partial or no coverage data at all.
+        if [ -n "${GOCOVERDIR:-}" ] && systemctl is-active --quiet snap.lxd.daemon.service; then
+          sudo systemctl stop snap.lxd.daemon.service
+        fi
+
+    # Only save if there wasn't an exact cache hit, AND the code is running on the main repo (not an untrusted fork)
+    - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      if: |
+        inputs.test == 'qemu-external-vm' &&
+        steps.cache-restore.outputs.cache-hit != 'true' &&
+        (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      with:
+        path: /home/runner/work/cache
+        key: cache-${{ steps.get-date.outputs.date }}
+
+    - name: Upload ${{ inputs.test }} test reports
+      if: ${{ always() && startsWith(inputs.test, 'ui ') }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: test-report-${{ steps.sanitize.outputs.artifact_name }}
+        path: lxd-ui/test-results
+        retention-days: 1
+
+    - name: Upload crash dumps
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: crash-dumps-${{ steps.sanitize.outputs.artifact_name }}
+        path: |
+          /var/crash/*
+        retention-days: 5
+        if-no-files-found: ignore
+
+    - name: Upload coverage data
+      if: ${{ inputs.sideload == 'true' && steps.make-gocoverdir.outputs.dir != '' && github.repository == 'canonical/lxd' }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: coverage-${{ steps.sanitize.outputs.artifact_name }}
+        path: ${{ steps.make-gocoverdir.outputs.dir }}
+        retention-days: 1
