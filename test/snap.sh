@@ -68,6 +68,18 @@ if command -v cloud-init > /dev/null && systemd-detect-virt --quiet --vm; then
     echo "Done"
 fi
 
+# Grow /tmp to 5GiB if it is a tmpfs with less than 4GiB available. Some CI
+# runners mount /tmp as a small tmpfs that cannot hold the multi-GiB VM exports
+# produced by some test suites. Only tmpfs can be resized online with remount,
+# and growing the limit does not allocate memory upfront.
+if [ "$(df --output=fstype /tmp | tail -n1)" = "tmpfs" ]; then
+    tmp_avail="$(df -B1 --output=avail /tmp | tail -n1)"
+    if [ "${tmp_avail}" -lt 4294967296 ]; then
+        echo "==> /tmp is a tmpfs with less than 4GiB available (${tmp_avail} bytes), remounting with size=5G"
+        mount -o remount,size=5G /tmp
+    fi
+fi
+
 # Set ulimit to ensure core dumps are output.
 ulimit -c unlimited
 echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/%e.%p.gz' > /proc/sys/kernel/core_pattern
