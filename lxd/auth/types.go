@@ -26,28 +26,15 @@ type Authorizer interface {
 
 	// CheckPermission checks if the caller has the given entitlement on the entity found at the given URL.
 	//
-	// Note: When a project does not have a feature enabled, the given URL should contain the request project, and the
-	// effective project for the entity should be set on the request.Info in the given context.
+	// Note: When a project does not have a feature enabled, the given URL should contain the effective project.
+	// E.g. if checking an image URL but "features.images=false" for the project, then the project query paramater must be "default".
 	CheckPermission(ctx context.Context, entityURL *api.URL, entitlement Entitlement) error
 
 	// GetPermissionChecker returns a PermissionChecker for a particular entity.Type.
 	//
-	// Note: As with CheckPermission, arguments to the returned PermissionChecker should contain the request project for
-	// the entity. The effective project for the entity must be set on the request.Info in the given context before
-	// calling the PermissionChecker.
+	// Note: As with CheckPermission, arguments to the returned PermissionChecker should contain the effective project for
+	// the entity.
 	GetPermissionChecker(ctx context.Context, entitlement Entitlement, entityType entity.Type) (PermissionChecker, error)
-
-	// CheckPermissionWithoutEffectiveProject checks a permission, but does not replace the project in the entity URL
-	// with the effective project stored in the context.
-	//
-	// Warn: You almost never need this function. You should use CheckPermission instead.
-	CheckPermissionWithoutEffectiveProject(ctx context.Context, entityURL *api.URL, entitlement Entitlement) error
-
-	// GetPermissionCheckerWithoutEffectiveProject returns a PermissionChecker does not replace the project in the entity URL
-	// with the effective project stored in the context.
-	//
-	// Warn: You almost never need this function. You should use GetPermissionChecker instead.
-	GetPermissionCheckerWithoutEffectiveProject(ctx context.Context, entitlement Entitlement, entityType entity.Type) (PermissionChecker, error)
 
 	// GetViewableProjects accepts a list of permissions and returns a list of projects that a member of a group with these permissions is able to view.
 	GetViewableProjects(ctx context.Context, permissions []api.Permission) ([]string, error)

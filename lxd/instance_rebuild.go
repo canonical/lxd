@@ -90,6 +90,7 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 	var sourceImage *api.Image
 	var inst instance.Instance
 	var sourceImageRef string
+	var imageAuthorizationChecker func(ctx context.Context) error
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), targetProjectName)
 		if err != nil {
@@ -107,10 +108,8 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if req.Source.Type != api.SourceTypeNone {
-			// Try to resolve the source image from cache and perform authorization checks.
-			// This is needed to verify the caller has access to the image if it's from a different project,
-			// and to retrieve the image's metadata.
-			sourceImage, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, dbInst.Type.String())
+			// Try to resolve the source image from cache.
+			sourceImage, imageAuthorizationChecker, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, dbInst.Type.String())
 			if err != nil {
 				return err
 			}
@@ -120,6 +119,14 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	// Verify the caller has access to the image if it's from a different project, and to retrieve the image's metadata.
+	if imageAuthorizationChecker != nil {
+		err = imageAuthorizationChecker(r.Context())
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	inst, err = instance.LoadByProjectAndName(s, targetProject.Name, name)

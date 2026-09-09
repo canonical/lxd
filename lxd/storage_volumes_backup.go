@@ -228,7 +228,7 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 			return response.InternalError(errors.New("Storage volume backup has invalid name"))
 		}
 
-		if !canView(entity.StorageVolumeBackupURL(request.ProjectParam(r), details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, backupName)) {
+		if !canView(entity.StorageVolumeBackupURL(effectiveProjectName, details.location, details.pool.Name(), details.volumeTypeName, details.volumeName, backupName)) {
 			continue
 		}
 
