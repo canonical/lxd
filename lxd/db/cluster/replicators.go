@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"strings"
 	"time"
@@ -12,15 +13,60 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 )
 
+// ReplicatorRunMode stores information about how a replicator run is initiated.
+type ReplicatorRunMode string
+
+const (
+	// ReplicatorRunModeManual represents a user requested "manual" run.
+	ReplicatorRunModeManual ReplicatorRunMode = "manual"
+
+	// ReplicatorRunModeScheduled indicates that the replicator run was triggered by the replicator's cron schedule.
+	ReplicatorRunModeScheduled ReplicatorRunMode = "scheduled"
+)
+
+const (
+	replicatorRunModeCodeManual    int64 = 0
+	replicatorRunModeCodeScheduled int64 = 1
+)
+
+// Scan implements [sql.Scanner] for [ReplicatorRunMode].
+func (r *ReplicatorRunMode) Scan(value any) error {
+	return query.ScanValue(value, r, false)
+}
+
+// ScanInteger implements [query.IntegerScanner] for [ReplicatorRunMode] which reduces duplication for [sql.Scanner] implementations.
+func (r *ReplicatorRunMode) ScanInteger(in int64) error {
+	switch in {
+	case replicatorRunModeCodeManual:
+		*r = ReplicatorRunModeManual
+	case replicatorRunModeCodeScheduled:
+		*r = ReplicatorRunModeScheduled
+	default:
+		return fmt.Errorf(`Unknown replicator mode code "%d"`, in)
+	}
+
+	return nil
+}
+
+// Value implements [driver.Valuer] for [ReplicatorRunMode].
+func (r ReplicatorRunMode) Value() (driver.Value, error) {
+	switch r {
+	case ReplicatorRunModeManual:
+		return replicatorRunModeCodeManual, nil
+	case ReplicatorRunModeScheduled:
+		return replicatorRunModeCodeScheduled, nil
+	default:
+		return nil, fmt.Errorf("Unknown replicator run mode %q", r)
+	}
+}
+
 // ReplicatorRow represents a single row of the replicators table.
 // db:model replicators
 type ReplicatorRow struct {
-	ID            int64        `db:"id"`
-	Name          string       `db:"name"`
-	ProjectID     int64        `db:"project_id"`
-	Description   string       `db:"description"`
-	LastRunDate   sql.NullTime `db:"last_run_date"`
-	LastRunStatus string       `db:"last_run_status"`
+	ID          int64  `db:"id"`
+	Name        string `db:"name"`
+	ProjectID   int64  `db:"project_id"`
+	Description string `db:"description"`
 }
 
 // APIName implements [query.APINamer] for API friendly error messages.
@@ -46,8 +92,37 @@ func ReplicatorsConfigStore() *query.EntityConfigStore {
 	}
 }
 
+// ReplicatorsStatusRow represents a row of the replicators_status table.
+// db:model replicators_status
+type ReplicatorsStatusRow struct {
+	ID int64 `db:"id"`
+
+	// db:omit update
+	Mode   ReplicatorRunMode `db:"mode"`
+	Status string            `db:"status"`
+
+	// db:omit update
+	StartedDate          time.Time    `db:"started_date"`
+	FinishedDate         sql.NullTime `db:"finished_date"`
+	SnapshotStartedDate  sql.NullTime `db:"snapshot_started_date"`
+	SnapshotFinishedDate sql.NullTime `db:"snapshot_finished_date"`
+
+	// db:omit update
+	ReplicatorID int64 `db:"replicator_id"`
+}
+
+// APIName implements [query.APINamer] for API friendly error messages.
+func (ReplicatorsStatusRow) APIName() string {
+	return "Replicator status"
+}
+
+// APIPluralName implements [query.APIPluralNamer] for API friendly error messages (to avoid misspelling the plural of the [APIName] by appending an "s").
+func (ReplicatorsStatusRow) APIPluralName() string {
+	return "Replicator statuses"
+}
+
 // ToAPI converts the [Replicator] to an [api.Replicator].
-func (r *Replicator) ToAPI(allConfigs map[int64]map[string]string) *api.Replicator {
+func (r *Replicator) ToAPI(allConfigs map[int64]map[string]string, lastStatuses map[int64]ReplicatorsStatusRow) *api.Replicator {
 	config := allConfigs[r.Row.ID]
 	if config == nil {
 		config = map[string]string{}
@@ -61,12 +136,10 @@ func (r *Replicator) ToAPI(allConfigs map[int64]map[string]string) *api.Replicat
 		LastRunStatus: api.ReplicatorStatusPending,
 	}
 
-	if r.Row.LastRunDate.Valid {
-		replicator.LastRunAt = r.Row.LastRunDate.Time
-	}
-
-	if r.Row.LastRunStatus != "" {
-		replicator.LastRunStatus = r.Row.LastRunStatus
+	lastStatus, ok := lastStatuses[r.Row.ID]
+	if ok {
+		replicator.LastRunAt = lastStatus.StartedDate
+		replicator.LastRunStatus = lastStatus.Status
 	}
 
 	return replicator
@@ -141,14 +214,72 @@ func GetReplicatorsAndURLs(ctx context.Context, tx *sql.Tx, projectName *string,
 	return replicators, replicatorURLs, nil
 }
 
-// UpdateReplicatorLastRun updates the last_run_date and last_run_status fields of the replicator with the given ID.
-func UpdateReplicatorLastRun(ctx context.Context, tx *sql.Tx, id int64, date time.Time, status string) error {
-	_, err := tx.ExecContext(ctx, `UPDATE replicators SET last_run_date=?, last_run_status=? WHERE id=?`, date, status, id)
+// CreateNewReplicatorStatus creates a new [ReplicatorsStatusRow] with the given replicator ID, start date, status, and mode.
+func CreateNewReplicatorStatus(ctx context.Context, tx *sql.Tx, replicatorID int64, startedDate time.Time, status string, mode ReplicatorRunMode) (int64, error) {
+	return query.Create(ctx, tx, ReplicatorsStatusRow{
+		Mode:         mode,
+		Status:       status,
+		StartedDate:  startedDate,
+		ReplicatorID: replicatorID,
+	})
+}
+
+// FinalizeReplicatorStatus updates the [ReplicatorsStatusRow] with the given ID. It sets the status and finished_date columns.
+func FinalizeReplicatorStatus(ctx context.Context, tx *sql.Tx, runID int64, status string, finishedDate time.Time) error {
+	q := `UPDATE replicators_status SET status = ?, finished_date = ? WHERE id = ?`
+	res, err := tx.ExecContext(ctx, q, status, finishedDate, runID)
+
+	if err != nil {
+		return fmt.Errorf("Failed finalizing replicator run status: %w", err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Failed verifying replicator run status update: %w", err)
+	}
+
+	if rowsAffected != 1 {
+		return fmt.Errorf("Failed verifying replicator run status update: Expected to update 1 row, but updated %d", rowsAffected)
+	}
+
 	return err
 }
 
-// UpdateReplicatorLastRunStatus updates only the last_run_status field of the replicator with the given ID.
-func UpdateReplicatorLastRunStatus(ctx context.Context, tx *sql.Tx, id int64, status string) error {
-	_, err := tx.ExecContext(ctx, `UPDATE replicators SET last_run_status=? WHERE id=?`, status, id)
-	return err
+// GetLastReplicatorStatuses gets the most recent [ReplicatorsStatusRow] for all [Replicator] entries in the given project,
+// or for all projects if no project name is provided.
+func GetLastReplicatorStatuses(ctx context.Context, tx *sql.Tx, projectName *string) (map[int64]ReplicatorsStatusRow, error) {
+	var b strings.Builder
+	var args []any
+
+	if projectName != nil {
+		b.WriteString(`
+JOIN replicators ON replicators_status.replicator_id = replicators.id
+JOIN projects ON replicators.project_id = projects.id`)
+	}
+
+	b.WriteString(`
+WHERE replicators_status.id IN (
+	SELECT MAX(id) FROM replicators_status GROUP BY replicator_id
+)`)
+
+	if projectName != nil {
+		b.WriteString(" AND projects.name = ?")
+		args = []any{*projectName}
+	}
+
+	result := make(map[int64]ReplicatorsStatusRow)
+	err := query.SelectFunc[ReplicatorsStatusRow](ctx, tx, b.String(), func(row ReplicatorsStatusRow) error {
+		result[row.ReplicatorID] = row
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying for last replicator statuses: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetLastReplicatorStatus gets the most recent [ReplicatorsStatusRow] for the [Replicator] with the given ID.
+func GetLastReplicatorStatus(ctx context.Context, tx *sql.Tx, replicatorID int64) (*ReplicatorsStatusRow, error) {
+	return query.SelectOne[ReplicatorsStatusRow](ctx, tx, "WHERE replicators_status.replicator_id = ? ORDER BY replicators_status.id DESC LIMIT 1", replicatorID)
 }
