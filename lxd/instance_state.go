@@ -17,6 +17,8 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/state"
+	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -174,7 +176,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	do := func(ctx context.Context, op *operations.Operation) error {
-		return doInstanceStatePut(ctx, inst, req, op)
+		return doInstanceStatePut(ctx, s, inst, req, op)
 	}
 
 	requestor, err := request.GetRequestor(r.Context())
@@ -263,7 +265,7 @@ func instanceActionToOptype(action string) (operationtype.Type, error) {
 	return operationtype.Unknown, fmt.Errorf("Unknown action: %q", action)
 }
 
-func doInstanceStatePut(ctx context.Context, inst instance.Instance, req api.InstanceStatePut, op *operations.Operation) error {
+func doInstanceStatePut(ctx context.Context, s *state.State, inst instance.Instance, req api.InstanceStatePut, op *operations.Operation) error {
 	if req.Force {
 		// A zero timeout indicates to do a forced stop/restart.
 		req.Timeout = 0
@@ -281,8 +283,26 @@ func doInstanceStatePut(ctx context.Context, inst instance.Instance, req api.Ins
 			return inst.Unfreeze(ctx)
 		}
 
+		// Starting the instance opens its block volumes.
+		// Refuse while an NBD export of any attached volume is active.
+		unlock, err := storagePools.LockInstanceNBD(s, inst)
+		if err != nil {
+			return err
+		}
+
+		defer unlock()
+
 		return inst.Start(ctx, req.Stateful, op)
 	case instancetype.Stop:
+		// Stopping the instance tears down the QEMU process that serves a read-only export.
+		// Refuse while an NBD export of any of its block volumes runs.
+		unlock, err := storagePools.LockInstanceNBD(s, inst)
+		if err != nil {
+			return err
+		}
+
+		defer unlock()
+
 		if req.Stateful {
 			return inst.Stop(ctx, req.Stateful)
 		}
@@ -297,6 +317,15 @@ func doInstanceStatePut(ctx context.Context, inst instance.Instance, req api.Ins
 
 		return inst.Shutdown(ctx, timeout)
 	case instancetype.Restart:
+		// A restart stops and then starts the instance.
+		// Refuse while an NBD export of any of its block volumes runs.
+		unlock, err := storagePools.LockInstanceNBD(s, inst)
+		if err != nil {
+			return err
+		}
+
+		defer unlock()
+
 		return inst.Restart(ctx, timeout, op)
 	case instancetype.Freeze:
 		return inst.Freeze(ctx)
