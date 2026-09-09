@@ -200,9 +200,14 @@ func replicatorsGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed loading replicator configs: %w", err)
 		}
 
+		statuses, err := dbCluster.GetLastReplicatorStatuses(ctx, tx.Tx(), projectFilter)
+		if err != nil {
+			return fmt.Errorf("Failed loading replicator statuses: %w", err)
+		}
+
 		apiReplicatorsTx := make([]*api.Replicator, 0, len(replicators))
 		for _, replicator := range replicators {
-			apiReplicatorsTx = append(apiReplicatorsTx, replicator.ToAPI(allConfigs))
+			apiReplicatorsTx = append(apiReplicatorsTx, replicator.ToAPI(allConfigs, statuses))
 		}
 
 		apiReplicators = apiReplicatorsTx
@@ -301,7 +306,15 @@ func replicatorGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed loading replicator config: %w", err)
 		}
 
-		apiReplicator = dbReplicator.ToAPI(config)
+		statuses := make(map[int64]dbCluster.ReplicatorsStatusRow)
+		lastStatus, err := dbCluster.GetLastReplicatorStatus(ctx, tx.Tx(), dbReplicator.Row.ID)
+		if err == nil {
+			statuses[dbReplicator.Row.ID] = *lastStatus
+		} else if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Failed loading replicator status: %w", err)
+		}
+
+		apiReplicator = dbReplicator.ToAPI(config, statuses)
 		return nil
 	})
 	if err != nil {
@@ -629,7 +642,15 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed loading replicator config: %w", err)
 		}
 
-		apiReplicator = dbReplicator.ToAPI(config)
+		statuses := make(map[int64]dbCluster.ReplicatorsStatusRow)
+		lastStatus, err := dbCluster.GetLastReplicatorStatus(ctx, tx.Tx(), dbReplicator.Row.ID)
+		if err == nil {
+			statuses[dbReplicator.Row.ID] = *lastStatus
+		} else if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Failed loading replicator status: %w", err)
+		}
+
+		apiReplicator = dbReplicator.ToAPI(config, statuses)
 		return nil
 	})
 	if err != nil {
@@ -641,30 +662,25 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Replicator %q has no cluster link configured", name))
 	}
 
-	opArgs, err := prepareReplicatorRunOperationArgs(r.Context(), s, projectName, name, clusterLinkName, restore, dbReplicator.Row.ID)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Set status to Running before scheduling the operation. The operation's RunHook writes
-	// the terminal status (Completed/Failed) when it finishes. If the project has no instances,
-	// the RunHook can complete synchronously inside ScheduleUserOperationFromRequest before it
-	// returns, writing the terminal status first. By setting Running here, that terminal write
-	// always comes after Running, so the status is never left stuck at Running.
+	// Create a status entry for the replicator to update.
+	var runID int64
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.UpdateReplicatorLastRun(ctx, tx.Tx(), dbReplicator.Row.ID, time.Now(), api.ReplicatorStatusRunning)
+		runID, err = dbCluster.CreateNewReplicatorStatus(ctx, tx.Tx(), dbReplicator.Row.ID, time.Now(), api.ReplicatorStatusRunning, dbCluster.ReplicatorRunModeManual)
+		return err
 	})
 	if err != nil {
-		logger.Warn("Failed updating replicator last run status to running", logger.Ctx{"name": name, "project": projectName, "err": err})
+		return response.SmartError(fmt.Errorf("Failed creating status data for replicator run: %w", err))
+	}
+
+	opArgs, err := prepareReplicatorRunOperationArgs(r.Context(), s, projectName, name, clusterLinkName, restore, runID)
+	if err != nil {
+		handleReplicatorSchedulingError(s, projectName, name, runID, err)
+		return response.SmartError(err)
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, *opArgs)
 	if err != nil {
-		// Revert Running to Failed so the status doesn't get stuck.
-		_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), dbReplicator.Row.ID, api.ReplicatorStatusFailed)
-		})
-
+		handleReplicatorSchedulingError(s, projectName, name, runID, err)
 		return response.SmartError(err)
 	}
 
@@ -696,7 +712,15 @@ func updateReplicator(d *Daemon, r *http.Request, isPatch bool) response.Respons
 			return fmt.Errorf("Failed loading replicator config: %w", err)
 		}
 
-		apiReplicator = dbReplicator.ToAPI(config)
+		statuses := make(map[int64]dbCluster.ReplicatorsStatusRow)
+		lastStatus, err := dbCluster.GetLastReplicatorStatus(ctx, tx.Tx(), dbReplicator.Row.ID)
+		if err == nil {
+			statuses[dbReplicator.Row.ID] = *lastStatus
+		} else if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return fmt.Errorf("Failed loading replicator status: %w", err)
+		}
+
+		apiReplicator = dbReplicator.ToAPI(config, statuses)
 		return nil
 	})
 	if err != nil {
@@ -938,10 +962,17 @@ func replicatorStateGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		status = api.ReplicatorStatusPending
-		if dbReplicator.Row.LastRunStatus != "" {
-			status = dbReplicator.Row.LastRunStatus
+		lastStatus, err := dbCluster.GetLastReplicatorStatus(ctx, tx.Tx(), dbReplicator.Row.ID)
+		if err != nil {
+			// If not found, there is no status for the replicator yet, so return nil (status pending).
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				return nil
+			}
+
+			return err
 		}
 
+		status = lastStatus.Status
 		return nil
 	})
 	if err != nil {

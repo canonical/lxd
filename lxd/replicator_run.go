@@ -9,13 +9,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/robfig/cron/v3"
-
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/state"
@@ -62,8 +61,8 @@ const (
 	durableOperationInputKeyReplicatorInstanceID   operations.InputKey = "replicator_instance_id"
 	durableOperationInputKeyReplicatorInstanceName operations.InputKey = "replicator_instance_name"
 
-	// Finalization operation input. This updates the replicator row with the run status.
-	durableOperationInputKeyReplicatorID operations.InputKey = "replicator_id"
+	// Finalization operation input. This updates the [cluster.ReplicatorsStatusRow] with the run status.
+	durableOperationInputKeyReplicatorRunID operations.InputKey = "replicator_run_id"
 )
 
 func init() {
@@ -125,9 +124,9 @@ func loadSharedReplicatorDetails(ctx context.Context, op *operations.Operation) 
 }
 
 func replicatorFinalizeDurableOperationRunHook(_ context.Context, op *operations.Operation) error {
-	replicatorID, err := operations.GetOperationInputValue[int64](op, durableOperationInputKeyReplicatorID)
+	runID, err := operations.GetOperationInputValue[int64](op, durableOperationInputKeyReplicatorRunID)
 	if err != nil {
-		return fmt.Errorf("Failed getting replicator ID from operation inputs: %w", err)
+		return fmt.Errorf("Failed getting replicator run ID from operation inputs: %w", err)
 	}
 
 	// Iterate over all operations for the bulk replicator run.
@@ -141,9 +140,8 @@ func replicatorFinalizeDurableOperationRunHook(_ context.Context, op *operations
 	}
 
 	// Use a fresh context so the status write always completes, even if the operation context was cancelled.
-	// Only the status is updated here; last_run_date was already set when the operation started.
 	return op.State().DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), replicatorID, runStatus)
+		return dbCluster.FinalizeReplicatorStatus(ctx, tx.Tx(), runID, runStatus, time.Now())
 	})
 }
 
@@ -446,7 +444,7 @@ func replicatorRunInstanceRestoreDurableOperationHook(ctx context.Context, op *o
 }
 
 // prepareReplicatorRunOperationArgs builds the operation used to run a replicator.
-func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, projectName string, name string, clusterLinkName string, restore bool, replicatorID int64) (*operations.OperationArgs, error) {
+func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, projectName string, name string, clusterLinkName string, restore bool, runID int64) (*operations.OperationArgs, error) {
 	// Load all DB state in a single transaction before any network I/O.
 	var clusterLink *api.ClusterLink
 	var targetCert *x509.Certificate
@@ -603,7 +601,7 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 			}
 		}
 
-		return finalizeReplicatorRunOperationArgs(builder, projectName, replicatorURL, replicatorID)
+		return finalizeReplicatorRunOperationArgs(builder, projectName, replicatorURL, runID)
 	}
 
 	// For restore operations the project URL is used as the primary entity URL because the instance may exist on the
@@ -628,10 +626,10 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 		}
 	}
 
-	return finalizeReplicatorRunOperationArgs(builder, projectName, replicatorURL, replicatorID)
+	return finalizeReplicatorRunOperationArgs(builder, projectName, replicatorURL, runID)
 }
 
-func finalizeReplicatorRunOperationArgs(builder *operations.BulkArgBuilder, projectName string, replicatorURL *api.URL, replicatorID int64) (*operations.OperationArgs, error) {
+func finalizeReplicatorRunOperationArgs(builder *operations.BulkArgBuilder, projectName string, replicatorURL *api.URL, runID int64) (*operations.OperationArgs, error) {
 	builder.IncrementStage()
 	err := builder.AddChildArgs(operations.OperationArgs{
 		ProjectName: projectName,
@@ -639,7 +637,7 @@ func finalizeReplicatorRunOperationArgs(builder *operations.BulkArgBuilder, proj
 		Class:       operationtype.OperationClassDurable,
 		EntityURL:   replicatorURL,
 	}, map[operations.InputKey]any{
-		durableOperationInputKeyReplicatorID: replicatorID,
+		durableOperationInputKeyReplicatorRunID: runID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("Failed preparing replicator finalization operation: %w", err)
@@ -921,9 +919,14 @@ func runScheduledReplicators(ctx context.Context, s *state.State) error {
 			return fmt.Errorf("Failed loading replicator configs: %w", err)
 		}
 
+		lastStatuses, err := dbCluster.GetLastReplicatorStatuses(ctx, tx.Tx(), nil)
+		if err != nil {
+			return fmt.Errorf("Failed loading last replicator statuses: %w", err)
+		}
+
 		apiReplicatorsTx := make([]*api.Replicator, 0, len(replicators))
 		for _, replicator := range replicators {
-			apiReplicatorsTx = append(apiReplicatorsTx, replicator.ToAPI(allConfigs))
+			apiReplicatorsTx = append(apiReplicatorsTx, replicator.ToAPI(allConfigs, lastStatuses))
 		}
 
 		apiReplicators = apiReplicatorsTx
@@ -1016,41 +1019,62 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 		return fmt.Errorf("Replicator %q has no cluster link configured", replicator.Name)
 	}
 
-	opArgs, err := prepareReplicatorRunOperationArgs(ctx, s, replicator.Project, replicator.Name, clusterLinkName, false, row.Row.ID)
-	if err != nil {
+	// Create a ReplicatorsStatusRow for the replicator to update when it finishes
+	var runID int64
+	err := s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		runID, err = dbCluster.CreateNewReplicatorStatus(ctx, tx.Tx(), row.Row.ID, time.Now(), api.ReplicatorStatusRunning, dbCluster.ReplicatorRunModeScheduled)
 		return err
-	}
-
-	// Set status to Running before scheduling the operation. The operation's RunHook writes
-	// the terminal status (Completed/Failed) when it finishes. If the project has no instances,
-	// the RunHook can complete synchronously inside ScheduleServerOperation before it returns,
-	// writing the terminal status first. By setting Running here, that terminal write always
-	// comes after Running, so the status is never left stuck at Running.
-	err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.UpdateReplicatorLastRun(ctx, tx.Tx(), row.Row.ID, time.Now(), api.ReplicatorStatusRunning)
 	})
 	if err != nil {
-		logger.Warn("Failed updating replicator last run status to running", logger.Ctx{"replicator": replicator.Name, "project": replicator.Project, "err": err})
+		logger.Warn("Failed creating replicator run status data", logger.Ctx{"replicator": replicator.Name, "project": replicator.Project, "err": err})
+		return fmt.Errorf("Failed creating replicator run status data: %w", err)
+	}
+
+	opArgs, err := prepareReplicatorRunOperationArgs(ctx, s, replicator.Project, replicator.Name, clusterLinkName, false, runID)
+	if err != nil {
+		handleReplicatorSchedulingError(s, replicator.Project, replicator.Name, runID, err)
+		return err
 	}
 
 	op, err := operations.ScheduleServerOperation(s, *opArgs)
 	if err != nil {
+		handleReplicatorSchedulingError(s, replicator.Project, replicator.Name, runID, err)
 		if api.StatusErrorCheck(err, http.StatusConflict) {
 			logger.Warn("Skipping scheduled replicator, a run is already in progress", logger.Ctx{"replicator": replicator.Name, "project": replicator.Project})
-			// Don't revert Running: another operation is in progress and owns the status;
-			// it will write its own terminal state when it completes.
 			return nil
 		}
-
-		// Revert Running to Failed so the status doesn't get stuck.
-		_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return dbCluster.UpdateReplicatorLastRunStatus(ctx, tx.Tx(), row.Row.ID, api.ReplicatorStatusFailed)
-		})
 
 		return fmt.Errorf("Failed scheduling replicator operation: %w", err)
 	}
 
 	return op.Wait(ctx)
+}
+
+// handleReplicatorSchedulingError finalizes or deletes the replicators_status row for the replicator run, depending on the error.
+// For conflict errors, a replicator is already running, so we don't want to pollute the API last_run_status of the replicator with a failure
+// while waiting for the running operation to finish. For all other errors, the row is set to a failure status and the time is recorded.
+func handleReplicatorSchedulingError(s *state.State, projectName string, replicatorName string, runID int64, err error) {
+	// If there is a conflict, the replicator is already running. In this case we don't want the last run status to be
+	// "failed", because it only failed due to an already running replication job. So we delete the replicators_status_row associated with the run.
+	if api.StatusErrorCheck(err, http.StatusConflict) {
+		err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+			return query.DeleteOne[dbCluster.ReplicatorsStatusRow](ctx, tx.Tx(), "WHERE id = ?", runID)
+		})
+		if err != nil {
+			logger.Warn("Failed deleting replicator status data when the operation failed to schedule due to conflict", logger.Ctx{"replicator": replicatorName, "project": projectName})
+		}
+
+		return
+	}
+
+	// Otherwise, we mark the run as failed, so that we know an attempt was made.
+	err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return dbCluster.FinalizeReplicatorStatus(ctx, tx.Tx(), runID, api.ReplicatorStatusFailed, time.Now())
+	})
+	if err != nil {
+		logger.Warn("Failed finalizing replicator status data when the operation failed to schedule", logger.Ctx{"replicator": replicatorName, "project": projectName})
+	}
 }
 
 // validateReplicatorModes checks the source and target replica modes for a run.
