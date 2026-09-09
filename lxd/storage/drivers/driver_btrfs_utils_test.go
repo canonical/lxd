@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -119,4 +120,65 @@ func Test_btrfs_validateSubVolumeHeader_snapshots(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Test_btrfs_resolveSubvolumeDest asserts that a symlink in the restored content cannot redirect a
+// subvolume to a destination outside the volume.
+func Test_btrfs_resolveSubvolumeDest(t *testing.T) {
+	driver := &btrfs{}
+
+	t.Run("Nested destination within the volume", func(t *testing.T) {
+		base := t.TempDir()
+		volRoot := filepath.Join(base, "vol")
+		require.NoError(t, os.Mkdir(volRoot, 0700))
+		require.NoError(t, os.Mkdir(filepath.Join(volRoot, "sub"), 0700))
+
+		src := filepath.Join(base, "src")
+		require.NoError(t, os.Mkdir(src, 0700))
+
+		dest, closer, err := driver.resolveSubvolumeDest(volRoot, "/sub/target")
+		require.NoError(t, err)
+		defer closer()
+
+		require.NoError(t, os.Rename(src, dest))
+		require.DirExists(t, filepath.Join(volRoot, "sub", "target"))
+	})
+
+	t.Run("Symlink escaping the volume is rejected", func(t *testing.T) {
+		base := t.TempDir()
+		volRoot := filepath.Join(base, "vol")
+		require.NoError(t, os.Mkdir(volRoot, 0700))
+
+		outside := filepath.Join(base, "outside")
+		require.NoError(t, os.Mkdir(outside, 0700))
+
+		require.NoError(t, os.Symlink("../outside", filepath.Join(volRoot, "evil")))
+
+		_, _, err := driver.resolveSubvolumeDest(volRoot, "/evil/planted")
+		require.Error(t, err)
+		require.NoDirExists(t, filepath.Join(outside, "planted"))
+	})
+
+	t.Run("In-bounds symlink is rejected", func(t *testing.T) {
+		base := t.TempDir()
+		volRoot := filepath.Join(base, "vol")
+		require.NoError(t, os.Mkdir(volRoot, 0700))
+		require.NoError(t, os.Mkdir(filepath.Join(volRoot, "real"), 0700))
+		require.NoError(t, os.Symlink("real", filepath.Join(volRoot, "link")))
+
+		_, _, err := driver.resolveSubvolumeDest(volRoot, "/link/target")
+		require.Error(t, err)
+	})
+
+	t.Run("Volume top destination", func(t *testing.T) {
+		base := t.TempDir()
+		volRoot := filepath.Join(base, "vol")
+		require.NoError(t, os.Mkdir(volRoot, 0700))
+
+		dest, closer, err := driver.resolveSubvolumeDest(volRoot, "/")
+		require.NoError(t, err)
+		defer closer()
+
+		require.Equal(t, volRoot, dest)
+	})
 }
