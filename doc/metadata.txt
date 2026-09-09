@@ -1831,6 +1831,34 @@ The content is used as seed value for `cloud-init`.
 ```
 
 <!-- config group instance-cloud-init end -->
+<!-- config group instance-microvm start -->
+```{config:option} microvm.initrd_path instance-microvm
+:condition: "microvm"
+:defaultdesc: "`/boot/initrd.img`"
+:liveupdate: "no"
+:shortdesc: "Path to the host initrd for booting"
+:type: "string"
+Path to the host initrd to use for booting the microvm.
+```
+
+```{config:option} microvm.kernel_append instance-microvm
+:condition: "microvm"
+:liveupdate: "no"
+:shortdesc: "Additional kernel command line arguments"
+:type: "string"
+Additional kernel command line arguments to pass when booting the microvm.
+```
+
+```{config:option} microvm.kernel_path instance-microvm
+:condition: "microvm"
+:defaultdesc: "`/boot/vmlinuz`"
+:liveupdate: "no"
+:shortdesc: "Path to the host kernel for booting"
+:type: "string"
+Path to the host kernel to use for booting the microvm.
+```
+
+<!-- config group instance-microvm end -->
 <!-- config group instance-migration start -->
 ```{config:option} migration.incremental.memory instance-migration
 :condition: "container"

@@ -28,6 +28,10 @@ import (
 // Feature identifies an unsupported, work-in-progress feature.
 type Feature string
 
+// MicroVM gates the microvm instance type, which boots a container image under a
+// lightweight hypervisor.
+const MicroVM Feature = "microvm"
+
 // EnvVar is the environment variable which holds the active features of LXD.
 const EnvVar = "LXD_FEATURES"
 

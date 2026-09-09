@@ -578,6 +578,13 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 
 // CreateInstance requests that LXD creates a new instance.
 func (r *ProtocolLXD) CreateInstance(instance api.InstancesPost) (Operation, error) {
+	if instance.Type == api.InstanceTypeMicroVM {
+		err := r.CheckExtension("instance_microvm")
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	path, _, err := r.instanceTypeToPath(instance.Type)
 	if err != nil {
 		return nil, err

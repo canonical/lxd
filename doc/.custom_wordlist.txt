@@ -135,6 +135,7 @@ incrementing
 intra
 InfiniBand
 init
+initrd
 IOPS
 IOV
 IPAM
@@ -158,6 +159,7 @@ Kubelet
 Kubelets
 KVM
 libbpf
+libkrun
 Libera
 liveness
 LogCLI

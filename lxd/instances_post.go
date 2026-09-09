@@ -39,11 +39,22 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
+
+// instanceTypeToImageType returns the image type to use for the given instance type.
+// MicroVM uses container images, so we return "container" for MicroVM.
+func instanceTypeToImageType(instType api.InstanceType) string {
+	if instType == api.InstanceTypeMicroVM {
+		return string(api.InstanceTypeContainer)
+	}
+
+	return string(instType)
+}
 
 func ensureDownloadedImageFitWithinBudget(ctx context.Context, s *state.State, op *operations.Operation, p api.Project, imgAlias string, source api.InstanceSource, imgType string) (*api.Image, error) {
 	var autoUpdate bool
@@ -118,7 +129,7 @@ func createFromImage(r *http.Request, s *state.State, p api.Project, profiles []
 		}
 
 		if req.Source.Server != "" {
-			img, err = ensureDownloadedImageFitWithinBudget(ctx, s, op, p, imgAlias, req.Source, string(req.Type))
+			img, err = ensureDownloadedImageFitWithinBudget(ctx, s, op, p, imgAlias, req.Source, instanceTypeToImageType(req.Type))
 			if err != nil {
 				return err
 			}
@@ -257,7 +268,7 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 		return nil, err
 	}
 
-	if dbType != instancetype.Container && dbType != instancetype.VM {
+	if dbType != instancetype.Container && dbType != instancetype.VM && dbType != instancetype.MicroVM {
 		return nil, fmt.Errorf("Instance type not supported %q", req.Type)
 	}
 
@@ -1384,6 +1395,10 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Type = api.InstanceTypeContainer // Default to container if not specified.
 	}
 
+	if req.Type == api.InstanceTypeMicroVM && !features.IsEnabled(features.MicroVM) {
+		return response.BadRequest(fmt.Errorf("Instance type %q requires the %q feature preview", req.Type, features.MicroVM))
+	}
+
 	if req.Devices == nil {
 		req.Devices = map[string]map[string]string{}
 	}
@@ -1562,7 +1577,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			// Try to resolve the source image from cache and perform authorization checks.
 			// This is needed to verify the caller has access to the image if it's from a different project,
 			// and to retrieve the image's metadata (such as profiles) so they can be applied to the instance.
-			sourceImage, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, string(req.Type))
+			sourceImage, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, instanceTypeToImageType(req.Type))
 			if err != nil {
 				return err
 			}

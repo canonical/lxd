@@ -3664,3 +3664,27 @@ Replication requires the remote cluster to authenticate the connection, so {ref}
 Introduces new operation class for durable operations.
 Durable operations are restarted on the DQLite raft leader if the member that is running the operation fails to respond to heartbeats.
 If the leader was running the operation and goes offline, the operation is restarted on the newly elected leader.
+
+(extension-instance-microvm)=
+## `instance_microvm`
+
+```{warning}
+This extension is still WIP and MUST NOT be enabled in production environments.
+```
+
+This extension adds a new `microvm` instance type that uses libkrun with direct kernel boot from the host.
+
+MicroVMs use container images but unpack them into an ext4 filesystem inside a disk image file. They boot using the host's kernel and initrd, making them faster to start than full virtual machines while providing stronger isolation than containers.
+
+This extension adds the following instance configuration keys:
+
+* {config:option}`instance-microvm:microvm.kernel_path` - Path to the host kernel to use for booting.
+* {config:option}`instance-microvm:microvm.initrd_path` - Path to the host initrd to use for booting.
+* {config:option}`instance-microvm:microvm.kernel_append` - Additional kernel command line arguments.
+
+Only the `dir` storage pool driver supports MicroVM instances initially. Snapshots and migrations are not supported.
+
+```{note}
+For testing it can be enabled by setting the feature `microvm` with the snap command `snap set lxd features=microvm` and restart the daemon with `snap restart lxd`.
+```
+

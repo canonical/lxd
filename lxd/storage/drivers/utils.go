@@ -894,6 +894,30 @@ func IsContentBlock(contentType ContentType) bool {
 	return contentType == ContentTypeBlock || contentType == ContentTypeISO
 }
 
+// EnsureSparseFile creates a sparse empty file at specified location with specified size.
+// This is an exported wrapper around ensureSparseFile for use by storage utils.
+func EnsureSparseFile(filePath string, sizeBytes int64) error {
+	return ensureSparseFile(filePath, sizeBytes)
+}
+
+// MakeFSType creates the provided filesystem on the given path.
+// This is an exported wrapper around makeFSType for use by storage utils.
+func MakeFSType(path string, fsType string, options *mkfsOptions) (string, error) {
+	return makeFSType(path, fsType, options)
+}
+
+// LoopDeviceSetup sets up a loop device for the provided sourcePath.
+// This is an exported wrapper around loopDeviceSetup for use by storage utils.
+func LoopDeviceSetup(sourcePath string) (string, error) {
+	return loopDeviceSetup(sourcePath)
+}
+
+// LoopDeviceAutoDetach enables auto detach mode for a loop device.
+// This is an exported wrapper around loopDeviceAutoDetach for use by storage utils.
+func LoopDeviceAutoDetach(loopDevPath string) error {
+	return loopDeviceAutoDetach(loopDevPath)
+}
+
 // roundAbove returns the next multiple of `above` greater than `val`.
 func roundAbove(above, val int64) int64 {
 	if val < above {

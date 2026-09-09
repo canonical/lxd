@@ -39,7 +39,7 @@ type VolumeType string
 
 // IsInstance indicates if the VolumeType represents an instance type.
 func (t VolumeType) IsInstance() bool {
-	if t == VolumeTypeContainer || t == VolumeTypeVM {
+	if t == VolumeTypeContainer || t == VolumeTypeVM || t == VolumeTypeMicroVM {
 		return true
 	}
 
@@ -60,6 +60,9 @@ const VolumeTypeContainer = VolumeType("containers")
 
 // VolumeTypeVM represents a virtual-machine storage volume.
 const VolumeTypeVM = VolumeType("virtual-machines")
+
+// VolumeTypeMicroVM represents a microvm storage volume.
+const VolumeTypeMicroVM = VolumeType("microvms")
 
 // ContentType indicates the format of the volume.
 type ContentType string
@@ -88,6 +91,7 @@ var BaseDirectories = map[VolumeType]baseDirectory{
 	VolumeTypeCustom:    {Paths: []string{"custom", "custom-snapshots"}, Mode: 0o700},
 	VolumeTypeImage:     {Paths: []string{"images"}, Mode: 0o700},
 	VolumeTypeVM:        {Paths: []string{"virtual-machines", "virtual-machines-snapshots"}, Mode: 0o700},
+	VolumeTypeMicroVM:   {Paths: []string{"microvms", "microvms-snapshots"}, Mode: 0o700},
 }
 
 // Volume represents a storage volume, and provides functions to mount and unmount it.

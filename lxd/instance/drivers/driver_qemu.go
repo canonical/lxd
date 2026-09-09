@@ -352,6 +352,53 @@ type qemu struct {
 // Callers should check that the instance is running (and therefore mounted) before caling this function,
 // otherwise the qmp.Connect call will fail to use the monitor socket file.
 func (d *qemu) getAgentClient() (*http.Client, error) {
+	// libkrun microVMs do not expose a QMP monitor socket, so reach the agent over the
+	// per-VM unix socket bridge created by forklibkrun instead of kernel vsock.
+	if d.Type() == instancetype.MicroVM {
+		agentSocketPath := filepath.Join(d.LogPath(), "libkrun.agent.sock")
+
+		agentCert, _, clientCert, clientKey, err := d.generateAgentCert()
+		if err != nil {
+			return nil, err
+		}
+
+		tlsConfig, err := shared.GetTLSConfigMem(clientCert, clientKey, "", agentCert, false)
+		if err != nil {
+			return nil, err
+		}
+
+		httpClient := &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: tlsConfig,
+				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+					return net.Dial("unix", agentSocketPath)
+				},
+				DisableKeepAlives:     true,
+				ExpectContinueTimeout: 30 * time.Second,
+				ResponseHeaderTimeout: time.Hour,
+				TLSHandshakeTimeout:   5 * time.Second,
+			},
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				req.Header = via[len(via)-1].Header
+				return nil
+			},
+		}
+
+		agent, err := lxd.ConnectLXDHTTP(nil, httpClient)
+		if err != nil {
+			return nil, err
+		}
+
+		defer agent.Disconnect()
+
+		_, _, err = agent.RawQuery(http.MethodGet, "/1.0", nil, "")
+		if err != nil {
+			return nil, errQemuAgentOffline
+		}
+
+		return httpClient, nil
+	}
+
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {

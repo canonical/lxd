@@ -24,8 +24,9 @@ import (
 
 // Instance driver definitions.
 var instanceDrivers = map[string]func() instance.Instance{
-	"lxc":  func() instance.Instance { return &lxc{} },
-	"qemu": func() instance.Instance { return &qemu{} },
+	"lxc":     func() instance.Instance { return &lxc{} },
+	"qemu":    func() instance.Instance { return &qemu{} },
+	"microvm": func() instance.Instance { return &microvm{} },
 }
 
 // DriverStatus definition.
@@ -65,6 +66,8 @@ func load(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instanc
 		inst, err = lxcLoad(s, args, p)
 	case instancetype.VM:
 		inst, err = qemuLoad(s, args, p)
+	case instancetype.MicroVM:
+		inst, err = microvmLoad(s, args, p)
 	default:
 		return nil, fmt.Errorf("Invalid type for instance %q", args.Name)
 	}
@@ -143,6 +146,8 @@ func create(ctx context.Context, s *state.State, args db.InstanceArgs, p api.Pro
 		return lxcCreate(ctx, s, args, p)
 	case instancetype.VM:
 		return qemuCreate(ctx, s, args, p)
+	case instancetype.MicroVM:
+		return microvmCreate(ctx, s, args, p)
 	}
 
 	return nil, nil, errors.New("Instance type invalid")
