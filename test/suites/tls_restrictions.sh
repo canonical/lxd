@@ -159,6 +159,31 @@ test_tls_restrictions() {
   # There should now be two volume URLs, one instance, one image, and one profile URL in the used-by list.
   [ "$(lxc_remote project list localhost: --format csv | cut -d, -f9)" = "5" ]
 
+  sub_test "Verify restricted client cannot copy a custom volume out of a project it cannot view"
+  # Use unique per-run names so lingering resources from a failed or parallel run cannot collide.
+  srcVol="restricted-source$$"
+  dstVol="stolen$$"
+
+  # Create a source volume in the default project, which the restricted client (limited to "blah") cannot view.
+  lxc storage volume create "${pool_name}" "${srcVol}" --project default
+  lxc storage volume set "${pool_name}" "${srcVol}" user.secret=confidential --project default
+
+  # The restricted client is denied with 403 when trying to view the source volume in the default project.
+  my_curl "https://${LXD_ADDR}/1.0/storage-pools/${pool_name}/volumes/custom/${srcVol}?project=default" | jq --exit-status '.error_code == 403'
+
+  # An explicit copy request naming the cross-project source is denied.
+  my_curl -X POST "https://${LXD_ADDR}/1.0/storage-pools/${pool_name}/volumes/custom?project=blah" \
+    -d '{"name":"'"${dstVol}"'","type":"custom","source":{"type":"copy","name":"'"${srcVol}"'","pool":"'"${pool_name}"'","project":"default"}}' | jq --exit-status '.error_code == 403'
+
+  # A copy request that omits source.type must be denied the same way.
+  my_curl -X POST "https://${LXD_ADDR}/1.0/storage-pools/${pool_name}/volumes/custom?project=blah" \
+    -d '{"name":"'"${dstVol}"'","type":"custom","source":{"name":"'"${srcVol}"'","pool":"'"${pool_name}"'","project":"default"}}' | jq --exit-status '.error_code == 403'
+
+  # Neither request created the volume
+  my_curl "https://${LXD_ADDR}/1.0/storage-pools/${pool_name}/volumes/custom/${dstVol}?project=blah" | jq --exit-status '.error_code == 404'
+
+  lxc storage volume delete "${pool_name}" "${srcVol}" --project default
+
   # Delete resources in project blah so that we can modify project features.
   lxc_remote delete localhost:blah-instance --project blah
   lxc_remote storage volume delete "localhost:${pool_name}" blah-volume --project blah
