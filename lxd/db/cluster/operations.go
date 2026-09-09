@@ -383,6 +383,13 @@ func GetOperation(ctx context.Context, tx *sql.Tx, operationUUID string) (*Opera
 	return query.SelectOne[Operation](ctx, tx, "WHERE operations.uuid = ?", operationUUID)
 }
 
+// GetRunningOperationByConflictReference gets the running or cancelling operation that holds the given conflict
+// reference. Finished operations keep their reference, so the status filter is what selects the single holder that
+// the operations_conflict_reference index keeps unique.
+func GetRunningOperationByConflictReference(ctx context.Context, tx *sql.Tx, conflictReference string) (*Operation, error) {
+	return query.SelectOne[Operation](ctx, tx, "WHERE operations.conflict_reference = ? AND operations.status_code IN (?, ?)", conflictReference, int64(api.Running), int64(api.Cancelling))
+}
+
 // GetOperationsWithParent gets all operations whose parent operation has the given ID.
 func GetOperationsWithParent(ctx context.Context, tx *sql.Tx, parentID int64) ([]Operation, error) {
 	return query.Select[Operation](ctx, tx, "WHERE operations.parent = ?", parentID)
