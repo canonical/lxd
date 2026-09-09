@@ -5582,6 +5582,22 @@ test_clustering_link_auth() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -cwF 'node1')" = 1 ]
 
+  sub_test "Check client tokens retain the core HTTPS address"
+
+  LXD_ONE_CORE_ADDR="127.0.0.1:$(local_tcp_port)"
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set core.https_address "${LXD_ONE_CORE_ADDR}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth identity create tls/link-address-client --quiet | base64 -d | jq --exit-status --arg address "${LXD_ONE_CORE_ADDR}" '.addresses == [$address]'
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth identity delete tls/link-address-client
+
+  sub_test "Check cluster link tokens work without a core HTTPS listener"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc config unset core.https_address
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create cluster-only --quiet | base64 -d | jq --exit-status --arg address "${LXD_ONE_ADDR}" '.addresses == [$address]'
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete cluster-only
+
+  # Keep the member address explicit while exposing the core API on all IPv4 interfaces.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set core.https_address "0.0.0.0:${LXD_ONE_ADDR##*:}"
+
   sub_test "Check local cluster link deletion with pending identity"
 
   # Create pending cluster link on LXD_ONE
@@ -5605,6 +5621,9 @@ test_clustering_link_auth() {
   # Create pending cluster link on LXD_ONE
   LXD_ONE_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --quiet)"
 
+  sub_test "Check cluster link token advertises only the cluster address"
+  echo "${LXD_ONE_TRUST_TOKEN}" | base64 -d | jq --exit-status --arg address "${LXD_ONE_ADDR}" '.addresses == [$address]'
+
   # Check that the cluster link identity on LXD_ONE is pending
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc auth identity list --format csv | grep -cF 'Cluster link certificate (pending)')" = 1 ]
 
@@ -5617,9 +5636,17 @@ test_clustering_link_auth() {
   # Get the address of LXD_TWO.
   LXD_TWO_ADDR="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get core.https_address)"
 
+  sub_test "Check standalone cluster link tokens use the core HTTPS address"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create standalone-address --quiet | base64 -d | jq --exit-status --arg address "${LXD_TWO_ADDR}" '.addresses == [$address]'
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link delete standalone-address
+
   # Enable clustering on LXD_TWO.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster enable node2
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -cwF 'node2')" = 1 ]
+
+  # Keep the member address explicit while exposing the core API on all IPv4 interfaces.
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set core.https_address "0.0.0.0:${LXD_TWO_ADDR##*:}"
 
   sub_test "Check failed cluster link activation rolls back local trust state"
 
@@ -5660,6 +5687,15 @@ test_clustering_link_auth() {
 
   # Check that LXD_ONE trusts LXD_TWO
   LXD_CONF="${LXD_TWO_DIR}" CERTNAME="cluster" CACERT="${LXD_ONE_DIR}/cluster.crt" trusted_curl "https://${LXD_ONE_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
+
+  sub_test "Check cluster link addresses after activation and refresh"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/cluster/links/lxd_two | jq --exit-status --arg address "${LXD_TWO_ADDR}" '.config["volatile.addresses"] == $address'
+  LXD_DIR="${LXD_TWO_DIR}" lxc query /1.0/cluster/links/lxd_one | jq --exit-status --arg address "${LXD_ONE_ADDR}" '.config["volatile.addresses"] == $address'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query -X POST --raw --wait /internal/testing/cluster/link/refresh-volatile-addresses
+  LXD_DIR="${LXD_TWO_DIR}" lxc query -X POST --raw --wait /internal/testing/cluster/link/refresh-volatile-addresses
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/cluster/links/lxd_two | jq --exit-status --arg address "${LXD_TWO_ADDR}" '.config["volatile.addresses"] == $address'
+  LXD_DIR="${LXD_TWO_DIR}" lxc query /1.0/cluster/links/lxd_one | jq --exit-status --arg address "${LXD_ONE_ADDR}" '.config["volatile.addresses"] == $address'
 
   sub_test "Check cluster link config get/set/unset"
 
@@ -5733,6 +5769,12 @@ test_clustering_link_info() {
   cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
   spawn_lxd_and_join_cluster "${cert}" 5 1 "${LXD_ONE_DIR}"
   LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --raw --wait /internal/testing/cluster/link/refresh-volatile-addresses
+
+  sub_test "Check refreshed link addresses match cluster membership"
+
+  local member_addresses
+  member_addresses="$(LXD_DIR="${LXD_ONE_DIR}" lxc query '/1.0/cluster/members?recursion=1' | jq --exit-status '[.[].url | ltrimstr("https://")] | sort')"
+  LXD_DIR="${LXD_THREE_DIR}" lxc query /1.0/cluster/links/lxd_one | jq --exit-status --argjson addresses "${member_addresses}" '(.config["volatile.addresses"] | split(",") | sort) == $addresses'
 
   sub_test "Check cluster link info reports active members"
 
