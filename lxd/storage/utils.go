@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/flosch/pongo2"
@@ -25,6 +27,7 @@ import (
 	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/project"
@@ -1492,3 +1495,72 @@ func VolumeDetermineNextSnapshotName(ctx context.Context, s *state.State, pool s
 
 	return pattern, nil
 }
+
+// nbdInstanceLockName returns the NBD lock name for sessions served by the QEMU process of an instance or by
+// qemu-nbd against its root volume.
+func nbdInstanceLockName(projectName string, instName string) string {
+	return "NBDInstanceOperation_" + project.Instance(projectName, instName)
+}
+
+// nbdVolumeLockName returns the NBD lock name for sessions served by qemu-nbd against a custom volume. On a
+// local pool the same volume name is a different volume on each member, so memberName scopes the lock to one
+// member. It is empty for a remote pool, whose volume is one shared entity across the cluster.
+func nbdVolumeLockName(memberName string, poolName string, projectName string, volName string) string {
+	lockName := drivers.OperationLockName("NBD", poolName, drivers.VolumeTypeCustom, drivers.ContentTypeBlock, project.StorageVolume(projectName, volName))
+	if memberName != "" {
+		return memberName + "/" + lockName
+	}
+
+	return lockName
+}
+
+// nbdConflictError returns the error for a request refused because an NBD session holds lockName, where
+// description names the locked instance or volume. A session takes its lock name as the conflict reference of the
+// operation that runs it, so that operation is named here whenever it is already registered.
+func nbdConflictError(s *state.State, lockName string, description string) error {
+	var holder *cluster.Operation
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		holder, err = cluster.GetRunningOperationByConflictReference(ctx, tx.Tx(), lockName)
+
+		return err
+	})
+	if err != nil {
+		// The lock is also held with no conflict reference while an instance starts, stops or restarts and while
+		// security.shared is updated, and before a session registers its operation.
+		return api.StatusErrorf(http.StatusConflict, "Another operation is already in progress for %s", description)
+	}
+
+	return api.StatusErrorf(http.StatusConflict, "Operation %q (%s) is already running for %s", holder.Row.UUID, holder.Row.Type.Description(), description)
+}
+
+// nbdLockedSession opens an NBD session with connect while holding the named NBD lock, where description
+// names the locked instance or volume in the error returned when the lock is held. The lock is released once
+// the returned cleanup function runs, so that a second session cannot start while the first still serves
+// connections. It returns the lock name, which the caller sets as the conflict reference of the operation
+// representing the session so that no other cluster member can start one for the same instance or volume.
+func nbdLockedSession(s *state.State, lockName string, description string, connect func() (net.Conn, func(), error)) (net.Conn, func(), string, error) {
+	unlock := locking.TryLock(lockName)
+	if unlock == nil {
+		return nil, nil, "", nbdConflictError(s, lockName, description)
+	}
+
+	conn, disconnect, err := connect()
+	if err != nil {
+		unlock()
+		return nil, nil, "", err
+	}
+
+	// Unlocking releases whatever entry holds the name at the time, so a repeated cleanup must not evict the
+	// lock of a newer session.
+	var once sync.Once
+	cleanup := func() {
+		once.Do(func() {
+			disconnect()
+			unlock()
+		})
+	}
+
+	return conn, cleanup, lockName, nil
+}
+
