@@ -35,6 +35,7 @@ import (
 	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/locking"
@@ -53,6 +54,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
@@ -3379,6 +3381,51 @@ func (b *lxdBackend) UpdateInstance(ctx context.Context, inst instance.Instance,
 			}
 		}
 
+		if shared.IsTrue(changedConfig["security.shared"]) && volDBType == cluster.StoragePoolVolumeTypeVM {
+			// Enabling security.shared lets another instance write to the volume, which an NBD
+			// export and a snapshot with a bitmap both assume they have exclusive access to.
+			// The export holds the NBD lock of the instance and the snapshot holds its operation.
+			// Refuse the change while either is held, and keep both for the rest of the update to
+			// keep either from starting in the meantime.
+			lockName := nbdInstanceLockName(inst.Project().Name, inst.Name())
+			unlock := locking.TryLock(lockName)
+			if unlock == nil {
+				return nbdConflictError(b.state, lockName, fmt.Sprintf("instance %q", inst.Name()))
+			}
+
+			defer unlock()
+
+			// Only a running instance can have a snapshot with a bitmap, and a stopped one cannot
+			// start while the NBD lock is held.
+			// The operation of a stopped instance is left alone, as a refresh holds it while it
+			// applies the config of the source volume.
+			if inst.IsRunning() {
+				op, err := operationlock.Create(inst.Project().Name, inst.Name(), operationlock.ActionUpdate, false, false)
+				if err != nil {
+					return err
+				}
+
+				defer op.Done(nil)
+			}
+
+			// The bitmaps record the writes of this instance only, and another instance can now write to the volume.
+			// An overlay left on the disk is committed before the image is deleted with it.
+			rootDiskName, _, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+			if err != nil {
+				return err
+			}
+
+			err = inst.CommitDiskOverlays([]string{rootDiskName})
+			if err != nil {
+				return err
+			}
+
+			err = inst.DeleteVolumeBitmaps(rootDiskName)
+			if err != nil {
+				return fmt.Errorf("Failed deleting bitmaps: %w", err)
+			}
+		}
+
 		// Generate the effective root device volume for instance.
 		volStorageName := project.Instance(inst.Project().Name, inst.Name())
 		curVol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
@@ -6067,7 +6114,8 @@ func (b *lxdBackend) UpdateCustomVolume(ctx context.Context, projectName string,
 	}
 
 	var instances []instance.Instance
-	err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+	instanceDevices := make(map[instance.Instance][]string)
+	err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 		inst, err := instance.Load(b.state, dbInst, project)
 		if err != nil {
 			return err
@@ -6080,6 +6128,7 @@ func (b *lxdBackend) UpdateCustomVolume(ctx context.Context, projectName string,
 		}
 
 		instances = append(instances, inst)
+		instanceDevices[inst] = usedByDevices
 		return nil
 	})
 	if err != nil {
@@ -6100,9 +6149,71 @@ func (b *lxdBackend) UpdateCustomVolume(ctx context.Context, projectName string,
 			}
 		}
 
+		isBlock := curVol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock
+		sharedEnabled := false
 		sharedVolume, ok := changedConfig["security.shared"]
-		if ok && shared.IsFalseOrEmpty(sharedVolume) && curVol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
-			err = allowRemoveSecurityShared(b.state, projectName, &curVol.StorageVolume)
+		if ok && isBlock {
+			if shared.IsFalseOrEmpty(sharedVolume) {
+				err = allowRemoveSecurityShared(b.state, projectName, &curVol.StorageVolume)
+				if err != nil {
+					return err
+				}
+			} else {
+				sharedEnabled = true
+
+				// Enabling security.shared lets another instance write to the volume, which an NBD
+				// export assumes it has exclusive access to.
+				// The export holds the volume's NBD lock.
+				// Refuse the change while it is held, and keep the lock for the rest of the update
+				// to keep an export from starting.
+				// A stopped instance cannot start while the lock is held.
+				lockName := nbdVolumeLockName(b.nbdVolumeLockMember(), b.name, projectName, volName)
+				unlock := locking.TryLock(lockName)
+				if unlock == nil {
+					return nbdConflictError(b.state, lockName, fmt.Sprintf("volume %q", b.name+"/"+volName))
+				}
+
+				defer unlock()
+			}
+		}
+
+		_, sizeChanged := changedConfig["size"]
+		sizeChanged = sizeChanged && isBlock
+
+		// Enabling security.shared and resizing the volume delete its bitmaps, which a snapshot
+		// with a bitmap in progress creates while it holds the operation of the attached running
+		// instance.
+		// Both changes are refused while such a snapshot runs, and hold the operation for the rest
+		// of the update to keep one from starting.
+		if sharedEnabled || sizeChanged {
+			for _, inst := range instances {
+				if !inst.IsRunning() {
+					continue
+				}
+
+				op, err := operationlock.Create(inst.Project().Name, inst.Name(), operationlock.ActionUpdate, false, false)
+				if err != nil {
+					return err
+				}
+
+				defer op.Done(nil)
+			}
+
+			err = b.commitAttachedVolumeDiskOverlays(instanceDevices)
+			if err != nil {
+				return err
+			}
+
+			// The bitmaps record the writes of the attached virtual machine only, and another
+			// instance can write to a shared volume.
+			// A resize changes the size of the volume, which its bitmaps and volume metadata image must match.
+			// The next snapshot with a bitmap creates the image again.
+			action := "resize the volume"
+			if sharedEnabled {
+				action = "enable security.shared"
+			}
+
+			err = b.deleteAttachedVolumeBitmaps(curVol, instanceDevices, action)
 			if err != nil {
 				return err
 			}
@@ -6160,6 +6271,58 @@ func (b *lxdBackend) UpdateCustomVolume(ctx context.Context, projectName string,
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeUpdated.Event(ctx, newVol, string(newVol.Type()), projectName, nil))
 
 	revert.Success()
+	return nil
+}
+
+// commitAttachedVolumeDiskOverlays commits the overlays that a failed commit left on the disks a
+// custom volume is attached through, before the volume metadata image of the volume is deleted
+// together with its overlay.
+func (b *lxdBackend) commitAttachedVolumeDiskOverlays(instanceDevices map[instance.Instance][]string) error {
+	for inst, deviceNames := range instanceDevices {
+		if inst.Type() != instancetype.VM || inst.Location() != b.state.ServerName {
+			continue
+		}
+
+		err := inst.CommitDiskOverlays(deviceNames)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// deleteAttachedVolumeBitmaps deletes the bitmaps of a custom volume from every virtual machine
+// and disk device the volume is attached through, before the volume is written by something other
+// than that virtual machine or once another instance can write to it.
+// Only the member of a virtual machine can access its QEMU process and config volume.
+// The request is therefore refused for a virtual machine on another member when the volume can
+// have bitmaps, and action names the request in that error.
+func (b *lxdBackend) deleteAttachedVolumeBitmaps(vol *db.StorageVolume, instanceDevices map[instance.Instance][]string, action string) error {
+	// Only a block volume that is not shared has bitmaps, and only while changed block tracking is enabled.
+	hasBitmaps := features.IsEnabled(features.ChangedBlockTracking) && vol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock && shared.IsFalseOrEmpty(vol.Config["security.shared"])
+
+	for inst, deviceNames := range instanceDevices {
+		if inst.Type() != instancetype.VM {
+			continue
+		}
+
+		if inst.Location() != b.state.ServerName {
+			if !hasBitmaps {
+				continue
+			}
+
+			return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to virtual machine %q, %s with its cluster member %q as the target", inst.Name(), action, inst.Location())
+		}
+
+		for _, deviceName := range deviceNames {
+			err := inst.DeleteVolumeBitmaps(deviceName)
+			if err != nil {
+				return fmt.Errorf("Failed deleting bitmaps: %w", err)
+			}
+		}
+	}
+
 	return nil
 }
 
