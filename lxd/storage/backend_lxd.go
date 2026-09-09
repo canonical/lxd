@@ -3128,6 +3128,20 @@ func (b *lxdBackend) UpdateInstance(ctx context.Context, inst instance.Instance,
 			}
 		}
 
+		if shared.IsTrue(changedConfig["security.shared"]) && volDBType == cluster.StoragePoolVolumeTypeVM {
+			// Enabling security.shared while an NBD export runs would let another instance write to a volume
+			// whose export assumes it has exclusive access. The export holds the NBD lock for its whole
+			// session, so refuse the change while the lock is held and keep it for the rest of the update so
+			// that no export can start in the meantime.
+			lockName := nbdInstanceLockName(inst.Project().Name, inst.Name())
+			unlock := locking.TryLock(lockName)
+			if unlock == nil {
+				return nbdConflictError(b.state, lockName, fmt.Sprintf("instance %q", inst.Name()))
+			}
+
+			defer unlock()
+		}
+
 		// Generate the effective root device volume for instance.
 		volStorageName := project.Instance(inst.Project().Name, inst.Name())
 		curVol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
@@ -6264,10 +6278,34 @@ func (b *lxdBackend) UpdateCustomVolume(ctx context.Context, projectName string,
 		}
 
 		sharedVolume, ok := changedConfig["security.shared"]
-		if ok && shared.IsFalseOrEmpty(sharedVolume) && curVol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
-			err = allowRemoveSecurityShared(b.state, projectName, &curVol.StorageVolume)
-			if err != nil {
-				return err
+		if ok && curVol.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
+			if shared.IsFalseOrEmpty(sharedVolume) {
+				err = allowRemoveSecurityShared(b.state, projectName, &curVol.StorageVolume)
+				if err != nil {
+					return err
+				}
+			} else {
+				// Enabling security.shared while an NBD export runs would let another instance write to a
+				// volume whose export assumes it has exclusive access. A writable export holds the volume's
+				// NBD lock and a read-only export holds the attached instance's, so refuse the change while
+				// either is held and keep them for the rest of the update so that no export can start.
+				lockName := nbdVolumeLockName(b.nbdVolumeLockMember(), b.name, projectName, volName)
+				unlock := locking.TryLock(lockName)
+				if unlock == nil {
+					return nbdConflictError(b.state, lockName, fmt.Sprintf("volume %q", b.name+"/"+volName))
+				}
+
+				defer unlock()
+
+				for _, inst := range instances {
+					instLockName := nbdInstanceLockName(inst.Project().Name, inst.Name())
+					instUnlock := locking.TryLock(instLockName)
+					if instUnlock == nil {
+						return nbdConflictError(b.state, instLockName, fmt.Sprintf("instance %q", inst.Name()))
+					}
+
+					defer instUnlock()
+				}
 			}
 		}
 
