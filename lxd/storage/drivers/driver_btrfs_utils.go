@@ -18,6 +18,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
@@ -426,8 +427,55 @@ func (d *btrfs) restorationHeader(vol Volume, snapshots []string) (*BTRFSMetaDat
 	return &migrationHeader, nil
 }
 
+// isLocalPath reports whether a volume relative path stays within the volume it belongs to. It
+// stands in for filepath.IsLocal, which this Go version does not provide.
+func isLocalPath(path string) bool {
+	if path == "" || filepath.IsAbs(path) {
+		return false
+	}
+
+	cleaned := filepath.Clean(path)
+
+	return cleaned != "." && cleaned != ".." && !strings.HasPrefix(cleaned, ".."+string(filepath.Separator))
+}
+
+// validateSubVolumeHeader rejects a metadata header whose subvolume paths or snapshot names could
+// escape the parent volume.
+func (d *btrfs) validateSubVolumeHeader(header BTRFSMetaDataHeader, expectedSnapshots []string) error {
+	for _, subVol := range header.Subvolumes {
+		if subVol.Snapshot != "" {
+			err := instancetype.ValidSnapName(subVol.Snapshot)
+			if err != nil {
+				return errors.Wrapf(err, "Invalid subvolume snapshot name %q", subVol.Snapshot)
+			}
+
+			// ValidSnapName accepts ".", which filepath.Clean collapses to the parent snapshot
+			// directory.
+			if subVol.Snapshot == "." {
+				return fmt.Errorf("Invalid subvolume snapshot name %q", subVol.Snapshot)
+			}
+
+			if expectedSnapshots != nil && !shared.StringInSlice(subVol.Snapshot, expectedSnapshots) {
+				return fmt.Errorf("Subvolume snapshot %q does not belong to the volume", subVol.Snapshot)
+			}
+		}
+
+		if subVol.Path == string(filepath.Separator) {
+			// The volume top ("/") is always in bounds.
+			continue
+		}
+
+		if !isLocalPath(strings.TrimPrefix(subVol.Path, string(filepath.Separator))) {
+			return fmt.Errorf("Subvolume path %q must be within the volume", subVol.Path)
+		}
+	}
+
+	return nil
+}
+
 // loadOptimizedBackupHeader extracts optimized backup header from a given ReadSeeker.
-func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker) (*BTRFSMetaDataHeader, error) {
+// Snapshot names in the header are validated against expectedSnapshots.
+func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, expectedSnapshots []string) (*BTRFSMetaDataHeader, error) {
 	header := BTRFSMetaDataHeader{}
 
 	// Extract.
@@ -450,6 +498,12 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker) (*BTRFSMetaDataHeader
 			err = yaml.NewDecoder(tr).Decode(&header)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Error parsing optimized backup header file")
+			}
+
+			// Defend against path traversal attacks.
+			err = d.validateSubVolumeHeader(header, expectedSnapshots)
+			if err != nil {
+				return nil, err
 			}
 
 			cancelFunc()

@@ -169,7 +169,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 	// Load optimized backup header file if specified.
 	var optimizedHeader *BTRFSMetaDataHeader
 	if *srcBackup.OptimizedHeader {
-		optimizedHeader, err = d.loadOptimizedBackupHeader(srcData)
+		optimizedHeader, err = d.loadOptimizedBackupHeader(srcData, srcBackup.Snapshots)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -461,6 +461,13 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 		err = json.Unmarshal(buf, &migrationHeader)
 		if err != nil {
 			return errors.Wrapf(err, "Failed decoding migration header")
+		}
+
+		// The header comes from the source peer and must be validated. The source sends exactly
+		// the negotiated snapshots, and any other snapshot name is rejected here.
+		err = d.validateSubVolumeHeader(migrationHeader, append([]string{}, volTargetArgs.Snapshots...))
+		if err != nil {
+			return err
 		}
 
 		d.logger.Debug("Received migration meta data header", log.Ctx{"name": vol.name})
