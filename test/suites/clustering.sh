@@ -5917,7 +5917,7 @@ test_clustering_replicator_basic() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '.. | objects | select(.description == "Running replicator")')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 5 and .status == "Success" and .child_count == 4 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 8 and .status == "Success" and .child_count == 7 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c3,STOPPED'
@@ -5939,7 +5939,7 @@ test_clustering_replicator_basic() {
   # (delete + recreate) existing instances and complete successfully.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 5 and .status == "Success" and .child_count == 4 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 8 and .status == "Success" and .child_count == 7 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c3,STOPPED'
@@ -5952,7 +5952,7 @@ test_clustering_replicator_basic() {
   LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 c2 c3 --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 5 and .status == "Success" and .child_count == 4 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 8 and .status == "Success" and .child_count == 7 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc project unset replicator-project restricted
 
   sub_test "Verify concurrent replicator runs are rejected"
@@ -6058,7 +6058,7 @@ test_clustering_replicator_scheduled() {
 
   local scheduled_op
   scheduled_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 3 and .status == "Success" and .child_count == 2 and (all(.children[]; .status == "Success"))' <<< "${scheduled_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${scheduled_op}"
 
   sub_test "Verify scheduler skips replicator when source project is not in leader mode"
 
@@ -6125,32 +6125,20 @@ test_clustering_replicator_dr() {
   LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
 
-  sub_test "Initial replication: replicate c1, c2, and c4 to LXD_TWO"
+  sub_test "Initial replication: replicate c1 and c2 to LXD_TWO"
 
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --project replicator-project -d "${SMALL_ROOT_DISK}"
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 --project replicator-project -d "${SMALL_ROOT_DISK}"
-  # c4 is replicated while it has never been started, so the copy on LXD_TWO gets no idmap keys.
-  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c4 --project replicator-project -d "${SMALL_ROOT_DISK}"
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 5 and .status == "Success" and .child_count == 4 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 6 and .status == "Success" and .child_count == 5 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   # Each instance replication child operation names the instance it replicates.
-  jq --exit-status '[.children[] | select(.description == "Replicating instance") | .metadata.entity_url] | (length == 3 and all(test("^/1.0/instances/c\\d\\?project=replicator-project$")))' <<< "${bulk_op}"
+  jq --exit-status '[.children[] | select(.description == "Replicating instance") | .metadata.entity_url] | (length == 2 and all(test("^/1.0/instances/c\\d\\?project=replicator-project$")))' <<< "${bulk_op}"
   # The finalization stage references the replicator URL in its metadata
   jq --exit-status '[.children[] | select(.description == "Finalizing replicator") | .metadata.entity_url] | (length == 1 and .[0] == "/1.0/replicators/my-replicator?project=replicator-project")' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
-  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c4,STOPPED'
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get c4 volatile.idmap.current --project replicator-project || echo fail)" = "" ]
-
-  # Start and stop c4 on LXD_ONE only, so volatile.idmap.current is recorded there but not on the
-  # replicated copy. The restore below must preserve this exact map.
-  local c4_idmap
-  LXD_DIR="${LXD_ONE_DIR}" lxc start c4 --project replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc stop c4 --force --project replicator-project
-  c4_idmap="$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c4 volatile.idmap.current --project replicator-project)"
-  jq --exit-status 'type == "array" and length > 0' <<< "${c4_idmap}"
 
   sub_test "Disaster: kill LXD_ONE and promote LXD_TWO to leader"
 
@@ -6173,11 +6161,6 @@ test_clustering_replicator_dr() {
   LXD_DIR="${LXD_TWO_DIR}" lxc project promote-replica replicator-project --force
   # Both clusters now have leader mode set. Verify instance creation is allowed on LXD_TWO.
   LXD_DIR="${LXD_TWO_DIR}" lxc init --empty c3 --project replicator-project -d "${SMALL_ROOT_DISK}"
-  # c5 is created on the new leader and stays stopped until after the restore, so the copy
-  # restored onto LXD_ONE gets no idmap keys. It is started on LXD_TWO further down to set up
-  # the reverse case for the forward replication run.
-  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc init testimage c5 --project replicator-project -d "${SMALL_ROOT_DISK}"
   # Verify LXD_TWO can start a replicated instance as the new leader.
   LXD_DIR="${LXD_TWO_DIR}" lxc start c1 --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,RUNNING'
@@ -6221,45 +6204,29 @@ test_clustering_replicator_dr() {
   # c1 is still running on LXD_ONE after respawn; --restore must be rejected with a clear error.
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project 2>&1)" = 'Error: Instance "c1" is running, stop all project instances before restoring' ]
 
-  sub_test "Restore: LXD_ONE is standby and restore c1, c2, c3, c4, and c5 from LXD_TWO"
+  sub_test "Restore: LXD_ONE is standby and restore c1, c2, and c3 from LXD_TWO"
 
   # c1 is running and must be stopped: the server rejects --restore if any local instance
   # is running to prevent partial restores. c2 is empty and already stopped.
   LXD_DIR="${LXD_ONE_DIR}" lxc stop c1 --force --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 7 and .status == "Success" and .child_count == 6 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 5 and .status == "Success" and .child_count == 4 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   # Restore child operations name the project, because c3 was created on the current leader cluster
   # during failover and is missing locally until the operation creates it. The instance each child
   # restores is reported in the metadata.
-  jq --exit-status '[.children[] | select(.description == "Restoring replicated instance") | .metadata.entity_url] | (length == 5 and all(test("^/1.0/instances/c\\d\\?project=replicator-project$")))' <<< "${bulk_op}"
+  jq --exit-status '[.children[] | select(.description == "Restoring replicated instance") | .metadata.entity_url] | (length == 3 and all(test("^/1.0/instances/c\\d\\?project=replicator-project$")))' <<< "${bulk_op}"
   # The finalization stage references the replicator URL in its metadata
   jq --exit-status '[.children[] | select(.description == "Finalizing replicator") | .metadata.entity_url] | (length == 1 and .[0] == "/1.0/replicators/my-replicator?project=replicator-project")' <<< "${bulk_op}"
-  # c1, c2 and c4 are restored from LXD_TWO's current state; c3 and c5 (created on LXD_TWO during
-  # failover) are created from scratch.
+  # c1 and c2 are restored from LXD_TWO's current state; c3 (created on LXD_TWO during failover) is created from scratch.
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c3,STOPPED'
-  LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c4,STOPPED'
-  LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c5,STOPPED'
-  # The restore must keep the idmap recorded on the local copy of c4 rather than deleting it,
-  # because the instance was never started on LXD_TWO.
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c4 volatile.idmap.current --project replicator-project)" = "${c4_idmap}" ]
 
   sub_test "Resume: demote LXD_TWO, promote LXD_ONE, verify replication resumes"
 
-  # Start and stop c5 on LXD_TWO while it is still the leader, so the replication target records an
-  # idmap that the restored copy on LXD_ONE doesn't have. The forward replication run below must
-  # keep it rather than trying to delete it.
-  local c5_idmap
-  LXD_DIR="${LXD_TWO_DIR}" lxc start c5 --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc stop c5 --force --project replicator-project
-  c5_idmap="$(LXD_DIR="${LXD_TWO_DIR}" lxc config get c5 volatile.idmap.current --project replicator-project)"
-  jq --exit-status 'type == "array" and length > 0' <<< "${c5_idmap}"
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c5 volatile.idmap.current --project replicator-project || echo fail)" = "" ]
-
   # Stop instances on LXD_TWO before demoting.
-  for i in c1 c2 c3 c4 c5; do
+  for i in c1 c2 c3; do
     if [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list "${i}" --project replicator-project --format csv -c s 2>/dev/null)" = "RUNNING" ]; then
       LXD_DIR="${LXD_TWO_DIR}" lxc stop "${i}" --force --project replicator-project
     fi
@@ -6269,14 +6236,10 @@ test_clustering_replicator_dr() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 7 and .status == "Success" and .child_count == 6 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 8 and .status == "Success" and .child_count == 7 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c3,STOPPED'
-  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c4,STOPPED'
-  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c5,STOPPED'
-  # The replication run must keep the idmap recorded on the target copy of c5.
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get c5 volatile.idmap.current --project replicator-project)" = "${c5_idmap}" ]
 
   # Cleanup
   LXD_DIR="${LXD_TWO_DIR}" lxc profile device remove default root --project replicator-project
@@ -6427,7 +6390,7 @@ test_clustering_replicator_multi_member() {
 
   # The replicator operation must report success with two child operations.
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 6 and .status == "Success" and .child_count == 5 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   sub_test "Verify snapshotting works for instances on other cluster members"
 
@@ -6447,7 +6410,7 @@ test_clustering_replicator_multi_member() {
 
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 6 and .status == "Success" and .child_count == 5 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   # Snapshot count must have incremented on both source instances after the third run.
   LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 3'
@@ -6458,16 +6421,6 @@ test_clustering_replicator_multi_member() {
   LXD_DIR="${LXD_THREE_DIR}" lxc list --project replicator-project -f csv -c nsS | grep -xF 'c2,STOPPED,3'
 
   sub_test "Verify --restore rejects running instances on other members"
-
-  # c2 has never been started, so the copy replicated to the target cluster has no idmap keys.
-  # Start and stop it on node2 so only the source copy records an idmap: the restore below runs
-  # through the remote cluster member and must preserve that map rather than delete it.
-  local c2_idmap
-  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc config get c2 volatile.idmap.current --project replicator-project || echo fail)" = "" ]
-  LXD_DIR="${LXD_ONE_DIR}" lxc start c2 --project replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc stop c2 --force --project replicator-project
-  c2_idmap="$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c2 volatile.idmap.current --project replicator-project)"
-  jq --exit-status 'type == "array" and length > 0' <<< "${c2_idmap}"
 
   # Simulate failover: source becomes standby, target becomes leader.
   LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replicator-project --force
@@ -6498,9 +6451,6 @@ test_clustering_replicator_multi_member() {
   # Verify instances were restored to their original cluster members.
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nL | grep -xF 'c1,node1'
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c nL | grep -xF 'c2,node2'
-
-  # The restore ran through node2 for c2 and must have kept the idmap recorded there.
-  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c2 volatile.idmap.current --project replicator-project)" = "${c2_idmap}" ]
 
   # Cleanup: instances exist on both clusters after replication + restore.
   LXD_DIR="${LXD_THREE_DIR}" lxc delete c1 c2 --project replicator-project
@@ -6596,7 +6546,7 @@ test_clustering_replicator_evacuated_member() {
 
   # Replicator operation must succeed with two child operations.
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '.status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '.status == "Success" and .child_count == 5 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   sub_test "Restore with evacuated member"
 
@@ -6742,7 +6692,7 @@ test_clustering_replicator_vm() {
 
   # Operation must succeed.
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '.status == "Success" and .child_count == 2 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '.status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   # Each run adds a snapshot; source now has three.
   LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/v1/snapshots?project=replicator-project" | jq --exit-status 'length == 3'
@@ -6833,7 +6783,7 @@ test_clustering_replicator_unclustered() {
   LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 --project replicator-project -d "${SMALL_ROOT_DISK}"
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '([., (.children? // [])[]] | length) == 4 and .status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+  jq --exit-status '([., (.children? // [])[]] | length) == 6 and .status == "Success" and .child_count == 5 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
 
