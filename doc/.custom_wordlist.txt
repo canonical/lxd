@@ -378,6 +378,7 @@ UID
 UIDs
 unconfigured
 unevictable
+unicast
 unixgram
 unmanaged
 unmount
