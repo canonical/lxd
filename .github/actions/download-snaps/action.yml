@@ -35,7 +35,9 @@ inputs:
     required: false
   microceph-channel:
     description: MicroCeph snap channel to seed the cache with
-    default: "latest/edge"
+    # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
+    # Revert to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
+    default: "tentacle/stable"
     required: false
   microovn-channel:
     description: MicroOVN snap channel to seed the cache with
