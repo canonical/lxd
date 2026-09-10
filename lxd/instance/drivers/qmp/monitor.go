@@ -42,6 +42,12 @@ type Monitor struct {
 	onDisconnectEvent bool
 }
 
+// TransactionAction represents a single action within a QMP transaction.
+type TransactionAction struct {
+	Type string         `json:"type"`
+	Data map[string]any `json:"data"`
+}
+
 // start handles the background goroutines for event handling and monitoring the ringbuffer.
 func (m *Monitor) start() error {
 	// Ringbuffer monitoring function.
@@ -159,6 +165,12 @@ func (m *Monitor) ping() error {
 	_, err := m.qmp.run(fmt.Appendf([]byte{},
 		`{"execute": "query-version", "id": %d}`, id), id)
 	if err != nil {
+		// A timed out query means QEMU is busy rather than gone, so the monitor stays cached and the
+		// caller keeps the error of its own command.
+		if errors.Is(err, ErrMonitorTimeout) {
+			return nil
+		}
+
 		m.Disconnect()
 		return ErrMonitorDisconnect
 	}
@@ -175,6 +187,11 @@ func (m *Monitor) runJSON(request []byte, resp any, id uint32) error {
 
 	out, err := m.qmp.run(request, id)
 	if err != nil {
+		// Keep the monitor cached on timeout so that a busy QEMU is not mistaken for a dead one.
+		if errors.Is(err, ErrMonitorTimeout) {
+			return err
+		}
+
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
 		if errPing != nil {
@@ -218,6 +235,22 @@ func (m *Monitor) run(cmd string, args any, resp any) error {
 	}
 
 	return m.runJSON(request, resp, id)
+}
+
+// RunTransaction executes a series of actions as a single atomic transaction.
+func (m *Monitor) RunTransaction(actions []TransactionAction) error {
+	var args struct {
+		Actions []TransactionAction `json:"actions"`
+	}
+
+	args.Actions = actions
+
+	err := m.run("transaction", args, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Connect creates or retrieves an existing QMP monitor for the path.

@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/flosch/pongo2"
@@ -24,6 +27,7 @@ import (
 	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/project"
@@ -1278,6 +1282,78 @@ func InstanceDiskBlockSize(pool Pool, inst instance.Instance, progressReporter i
 	return blockDiskSize, nil
 }
 
+// InstanceByVolumeName returns the instance that owns the volume and the name of the disk device through which
+// the instance attaches it. The instance is not required to be running.
+func InstanceByVolumeName(s *state.State, poolName string, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType) (instance.Instance, string, error) {
+	if volumeType == cluster.StoragePoolVolumeTypeVM {
+		inst, err := instance.LoadByProjectAndName(s, projectName, volumeName)
+		if err != nil {
+			return nil, "", err
+		}
+
+		rootDiskName, _, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+		if err != nil {
+			return nil, "", err
+		}
+
+		return inst, rootDiskName, nil
+	}
+
+	if volumeType != cluster.StoragePoolVolumeTypeCustom {
+		return nil, "", api.StatusErrorf(http.StatusBadRequest, "Volumes of type %q cannot be attached to an instance", volumeType)
+	}
+
+	pool, err := LoadByName(s, poolName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	dbVol, err := VolumeDBGet(pool, projectName, volumeName, drivers.VolumeTypeCustom)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var instArgs *db.InstanceArgs
+	var instProject api.Project
+	var deviceName string
+
+	err = VolumeUsedByInstanceDevices(s, pool.Name(), projectName, &dbVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		if dbInst.Type != instancetype.VM {
+			return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to container %q", dbInst.Name)
+		}
+
+		if instArgs != nil {
+			return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to multiple instances (%q and %q)", instArgs.Name, dbInst.Name)
+		}
+
+		// A bitmap or an NBD export sits on one QEMU block node, so a volume attached through several
+		// disk devices of the same instance has no single node to address.
+		if len(usedByDevices) > 1 {
+			return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to instance %q through multiple disk devices (%s)", dbInst.Name, strings.Join(usedByDevices, ", "))
+		}
+
+		instArgs = &dbInst
+		instProject = project
+		deviceName = usedByDevices[0]
+
+		return nil
+	})
+	if err != nil {
+		return nil, "", err
+	}
+
+	if instArgs == nil {
+		return nil, "", ErrVolumeNotAttached
+	}
+
+	inst, err := instance.Load(s, *instArgs, instProject)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return inst, deviceName, nil
+}
+
 // ComparableSnapshot is used when comparing snapshots on different pools to see whether they differ.
 type ComparableSnapshot struct {
 	// Name of the snapshot (without the parent name).
@@ -1418,4 +1494,176 @@ func VolumeDetermineNextSnapshotName(ctx context.Context, s *state.State, pool s
 	}
 
 	return pattern, nil
+}
+
+// nbdInstanceLockName returns the NBD lock name for sessions served by the QEMU process of an instance or by
+// qemu-nbd against its root volume.
+func nbdInstanceLockName(projectName string, instName string) string {
+	return "NBDInstanceOperation_" + project.Instance(projectName, instName)
+}
+
+// nbdVolumeLockName returns the NBD lock name for sessions served by qemu-nbd against a custom volume. On a
+// local pool the same volume name is a different volume on each member, so memberName scopes the lock to one
+// member. It is empty for a remote pool, whose volume is one shared entity across the cluster.
+func nbdVolumeLockName(memberName string, poolName string, projectName string, volName string) string {
+	lockName := drivers.OperationLockName("NBD", poolName, drivers.VolumeTypeCustom, drivers.ContentTypeBlock, project.StorageVolume(projectName, volName))
+	if memberName != "" {
+		return memberName + "/" + lockName
+	}
+
+	return lockName
+}
+
+// nbdConflictError returns the error for a request refused because an NBD session holds lockName, where
+// description names the locked instance or volume. A session takes its lock name as the conflict reference of the
+// operation that runs it, so that operation is named here whenever it is already registered.
+func nbdConflictError(s *state.State, lockName string, description string) error {
+	var holder *cluster.Operation
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		holder, err = cluster.GetRunningOperationByConflictReference(ctx, tx.Tx(), lockName)
+
+		return err
+	})
+	if err != nil {
+		// The lock is also held with no conflict reference while an instance starts, stops or restarts and while
+		// security.shared is updated, and before a session registers its operation.
+		return api.StatusErrorf(http.StatusConflict, "Another operation is already in progress for %s", description)
+	}
+
+	return api.StatusErrorf(http.StatusConflict, "Operation %q (%s) is already running for %s", holder.Row.UUID, holder.Row.Type.Description(), description)
+}
+
+// nbdLockedSession opens an NBD session with connect while holding the named NBD lock, where description
+// names the locked instance or volume in the error returned when the lock is held. The lock is released once
+// the returned cleanup function runs, so that a second session cannot start while the first still serves
+// connections. It returns the lock name, which the caller sets as the conflict reference of the operation
+// representing the session so that no other cluster member can start one for the same instance or volume.
+func nbdLockedSession(s *state.State, lockName string, description string, connect func() (net.Conn, func(), error)) (net.Conn, func(), string, error) {
+	unlock := locking.TryLock(lockName)
+	if unlock == nil {
+		return nil, nil, "", nbdConflictError(s, lockName, description)
+	}
+
+	conn, disconnect, err := connect()
+	if err != nil {
+		unlock()
+		return nil, nil, "", err
+	}
+
+	// Unlocking releases whatever entry holds the name at the time, so a repeated cleanup must not evict the
+	// lock of a newer session.
+	var once sync.Once
+	cleanup := func() {
+		once.Do(func() {
+			disconnect()
+			unlock()
+		})
+	}
+
+	return conn, cleanup, lockName, nil
+}
+
+// LockInstanceNBD acquires the NBD locks that guard an instance's root volume and each attached
+// custom block volume that qemu-nbd can export against conflicting operations, such as starting or
+// stopping the instance while NBD is active. ISO and shared volumes are skipped, as NBD refuses them.
+//
+// Note that these are the same locks the export sessions hold, so an ongoing export makes it return
+// a conflict error naming the operation that runs the session, and holding them keeps a new export
+// from starting until the returned cleanup function runs.
+func LockInstanceNBD(s *state.State, inst instance.Instance) (func(), error) {
+	var unlocks []func()
+	release := func() {
+		for _, unlock := range unlocks {
+			unlock()
+		}
+	}
+
+	lockName := nbdInstanceLockName(inst.Project().Name, inst.Name())
+	unlock := locking.TryLock(lockName)
+	if unlock == nil {
+		return nil, nbdConflictError(s, lockName, fmt.Sprintf("instance %q", inst.Name()))
+	}
+
+	unlocks = append(unlocks, unlock)
+
+	// An attached block volume can be exported directly by qemu-nbd while the instance is stopped, under a lock
+	// the root instance lock does not cover.
+	instProject := inst.Project()
+	volProject := project.StorageVolumeProjectFromRecord(&instProject, cluster.StoragePoolVolumeTypeCustom)
+
+	// Cache the pool per name so a pool used by several devices loads once.
+	pools := make(map[string]Pool)
+	for _, devConf := range inst.ExpandedDevices() {
+		if !filters.IsCustomVolumeBlockDisk(devConf) {
+			continue
+		}
+
+		poolName := devConf["pool"]
+		pool, ok := pools[poolName]
+		if !ok {
+			var err error
+			pool, err = LoadByName(s, poolName)
+			if err != nil {
+				release()
+				return nil, err
+			}
+
+			pools[poolName] = pool
+		}
+
+		// The root volume of another virtual machine is exported under that instance's lock.
+		if devConf["source.type"] == cluster.StoragePoolVolumeTypeNameVM {
+			dbVol, err := VolumeDBGet(pool, instProject.Name, devConf["source"], drivers.VolumeTypeVM)
+			if err != nil {
+				release()
+				return nil, err
+			}
+
+			// GetInstanceNBD refuses shared volumes, so leave them unlocked and let instances that share
+			// such a volume start at the same time.
+			if shared.IsTrue(dbVol.Config["security.shared"]) {
+				continue
+			}
+
+			lockName := nbdInstanceLockName(instProject.Name, devConf["source"])
+			unlock := locking.TryLock(lockName)
+			if unlock == nil {
+				release()
+				return nil, nbdConflictError(s, lockName, fmt.Sprintf("instance %q", devConf["source"]))
+			}
+
+			unlocks = append(unlocks, unlock)
+			continue
+		}
+
+		dbVol, err := VolumeDBGet(pool, volProject, devConf["source"], drivers.VolumeTypeCustom)
+		if err != nil {
+			release()
+			return nil, err
+		}
+
+		// GetCustomVolumeNBD refuses ISO and shared volumes, so leave them unlocked and let instances that
+		// share such a volume start at the same time.
+		if dbVol.ContentType != cluster.StoragePoolVolumeContentTypeNameBlock || shared.IsTrue(dbVol.Config["security.shared"]) {
+			continue
+		}
+
+		// On a local pool the same volume name is a different volume per member, so scope the lock to this member.
+		lockMember := ""
+		if !pool.Driver().Info().Remote {
+			lockMember = s.ServerName
+		}
+
+		lockName := nbdVolumeLockName(lockMember, poolName, volProject, devConf["source"])
+		unlock := locking.TryLock(lockName)
+		if unlock == nil {
+			release()
+			return nil, nbdConflictError(s, lockName, fmt.Sprintf("volume %q", poolName+"/"+devConf["source"]))
+		}
+
+		unlocks = append(unlocks, unlock)
+	}
+
+	return release, nil
 }

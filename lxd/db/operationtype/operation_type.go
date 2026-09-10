@@ -148,6 +148,12 @@ const (
 	ReplicatorRunInstanceRestore
 	ReplicatorFinalize
 	ReplicatorSnapshotInstance
+	InstanceNBDExport
+	VolumeNBDExport
+	VolumeNBDImport
+	InstanceBitmapCreate
+	VolumeBitmapCreate
+	VolumeBitmapDelete
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -405,6 +411,18 @@ func (t Type) Description() string {
 		return "Finalizing replicator"
 	case ReplicatorSnapshotInstance:
 		return "Snapshotting instance for replication"
+	case InstanceNBDExport:
+		return "Exporting instance over NBD"
+	case VolumeNBDExport:
+		return "Exporting storage volume over NBD"
+	case VolumeNBDImport:
+		return "Importing storage volume over NBD"
+	case InstanceBitmapCreate:
+		return "Creating instance bitmap"
+	case VolumeBitmapCreate:
+		return "Creating storage volume bitmap"
+	case VolumeBitmapDelete:
+		return "Deleting storage volume bitmap"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -439,7 +457,8 @@ func (t Type) EntityType() entity.Type {
 		return entity.TypeStorageBucket
 
 	// Volume operations.
-	case VolumeMigrate, VolumeMove, VolumeSnapshotCreate, CustomVolumeBackupCreate, VolumeCopy, VolumeUpdate, VolumeDelete:
+	case VolumeMigrate, VolumeMove, VolumeSnapshotCreate, CustomVolumeBackupCreate, VolumeCopy, VolumeUpdate, VolumeDelete,
+		VolumeNBDExport, VolumeNBDImport, VolumeBitmapCreate, VolumeBitmapDelete:
 		return entity.TypeStorageVolume
 
 	// Volume snapshot operations
@@ -450,7 +469,7 @@ func (t Type) EntityType() entity.Type {
 	case BackupCreate, ConsoleShow, InstanceFreeze, InstanceUpdate, InstanceUnfreeze,
 		InstanceStart, InstanceStop, InstanceRestart, InstanceRename, InstanceMigrate, InstanceLiveMigrate,
 		InstanceDelete, InstanceRebuild, SnapshotRestore, CommandExec, SnapshotCreate, InstanceCopy,
-		ReplicatorRunInstanceForward, ReplicatorSnapshotInstance:
+		ReplicatorRunInstanceForward, ReplicatorSnapshotInstance, InstanceNBDExport, InstanceBitmapCreate:
 		return entity.TypeInstance
 
 	// Instance backup operations.
@@ -540,6 +559,8 @@ func (t Type) ConflictAction() ConflictAction {
 		return ConflictActionFail // Enforces cluster-wide evacuation exclusivity when used with a shared ConflictReference; this prevents evacuation race conditions.
 	case ReplicatorRun:
 		return ConflictActionFail // Prevents concurrent runs of the same replicator; the replicator URL is used as the per-replicator conflict reference.
+	case InstanceNBDExport, VolumeNBDExport, VolumeNBDImport:
+		return ConflictActionFail // The session takes the NBD lock name of the exported instance or volume as its conflict reference, which extends that lock across the cluster.
 	}
 
 	return ConflictActionNone

@@ -31,6 +31,10 @@ type Feature string
 // EnvVar is the environment variable which holds the active features of LXD.
 const EnvVar = "LXD_FEATURES"
 
+// ChangedBlockTracking gates the changed block tracking preview: the dirty-bitmap and
+// NBD export endpoints on the server, and the lxc bitmap and nbd commands on the client.
+const ChangedBlockTracking Feature = "changed_block_tracking"
+
 var (
 	mu      sync.RWMutex
 	enabled = map[Feature]struct{}{}

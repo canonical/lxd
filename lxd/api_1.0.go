@@ -36,6 +36,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
@@ -164,6 +165,16 @@ var api10 = []APIEndpoint{
 	placementGroupCmd,
 }
 
+// changedBlockTrackingCmds are the API endpoints gated behind the changed_block_tracking
+// feature preview. restServer registers them only when the preview is enabled.
+var changedBlockTrackingCmds = []APIEndpoint{
+	instanceBitmapsCmd,
+	instanceNBDCmd,
+	storagePoolVolumeTypeBitmapsCmd,
+	storagePoolVolumeTypeBitmapCmd,
+	storagePoolVolumeTypeNBDCmd,
+}
+
 // swagger:operation GET /1.0?public server server_get_untrusted
 //
 //  Get the server environment
@@ -257,8 +268,18 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		authMethods = append(authMethods, api.AuthenticationMethodOIDC)
 	}
 
+	// The storage_volume_block_tracking extension stays in the compiled-in list so the
+	// cluster-wide API extension count is stable, but it is not advertised while the
+	// changed_block_tracking preview is disabled and its endpoints are unregistered.
+	apiExtensions := version.APIExtensions
+	if !features.IsEnabled(features.ChangedBlockTracking) {
+		apiExtensions = slices.DeleteFunc(slices.Clone(version.APIExtensions), func(ext string) bool {
+			return ext == "storage_volume_block_tracking"
+		})
+	}
+
 	srv := api.ServerUntrusted{
-		APIExtensions:     version.APIExtensions,
+		APIExtensions:     apiExtensions,
 		APIStatus:         "stable",
 		APIVersion:        version.APIVersion,
 		Public:            false,
