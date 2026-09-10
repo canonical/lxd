@@ -672,7 +672,7 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating status data for replicator run: %w", err))
 	}
 
-	opArgs, err := prepareReplicatorRunOperationArgs(r.Context(), s, projectName, name, clusterLinkName, restore, runID)
+	opArgs, err := prepareReplicatorRunOperationArgs(r.Context(), s, projectName, name, clusterLinkName, restore, dbReplicator.Row.ID, runID)
 	if err != nil {
 		handleReplicatorSchedulingError(s, projectName, name, runID, err)
 		return response.SmartError(err)

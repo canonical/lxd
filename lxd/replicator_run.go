@@ -15,6 +15,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/db/warningtype"
 	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -22,6 +23,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/util"
+	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -65,6 +67,9 @@ const (
 
 	// Finalization operation input. This updates the [cluster.ReplicatorsStatusRow] with the run status.
 	durableOperationInputKeyReplicatorRunID operations.InputKey = "replicator_run_id"
+
+	// Finalisation operation input. This is used to create a warning for the replicator if it failed, or to resolve warnings if it succeeded.
+	durableOperationInputKeyReplicatorID operations.InputKey = "replicator_id"
 )
 
 const (
@@ -149,6 +154,11 @@ func replicatorFinalizeDurableOperationRunHook(opCtx context.Context, op *operat
 	runID, err := operations.GetOperationInputValue[int64](op, durableOperationInputKeyReplicatorRunID)
 	if err != nil {
 		return fmt.Errorf("Failed getting replicator run ID from operation inputs: %w", err)
+	}
+
+	replicatorID, err := operations.GetOperationInputValue[int64](op, durableOperationInputKeyReplicatorID)
+	if err != nil {
+		return fmt.Errorf("Failed getting replicator ID from operation inputs: %w", err)
 	}
 
 	// Use a fresh context so the status write always completes, even if the operation context was cancelled.
@@ -267,10 +277,20 @@ func replicatorFinalizeDurableOperationRunHook(opCtx context.Context, op *operat
 		"duration_seconds": durationSeconds,
 	}
 
+	// The warning is recorded against the cluster as a whole rather than the member
+	// that happened to run the replicator, so that a later run on a different member
+	// can resolve it.
 	if runStatus == api.ReplicatorStatusCompleted {
 		logger.Info("Replicator run completed", logCtx)
+
+		err = warnings.ResolveWarningsByNodeAndProjectAndTypeAndEntity(s.DB.Cluster, "", projectName, warningtype.ReplicatorRunFailure, entity.TypeReplicator, int(replicatorID))
+		if err != nil {
+			logger.Warn("Failed resolving replicator run failure warning", logger.Ctx{"replicator": replicatorName, "project": projectName, "err": err})
+		}
 	} else {
 		logger.Error("Replicator run failed", logCtx)
+
+		replicatorRaiseRunFailureWarning(s, projectName, replicatorName, replicatorID, fmt.Sprintf("Replication of %d out of %d instances failed", instancesFailed, instancesTotal))
 	}
 
 	// Use the operation context here for getting requestor details. It doesn't matter that the context may already have
@@ -281,6 +301,21 @@ func replicatorFinalizeDurableOperationRunHook(opCtx context.Context, op *operat
 	return s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return dbCluster.FinalizeReplicatorStatus(ctx, tx.Tx(), runID, runStatus, completedAt, earliestSnapshotStarted, latestSnapshotFinished)
 	})
+}
+
+// replicatorRaiseRunFailureWarning records a warning for a failed replicator run.
+//
+// The warning is recorded against the cluster as a whole rather than the member that happened
+// to run the replicator, because a replicator is a cluster-wide entity and a later run may well
+// be picked up by a different member. A member scoped warning would never be resolved by that
+// run's success.
+func replicatorRaiseRunFailureWarning(s *state.State, projectName string, name string, replicatorID int64, message string) {
+	err := s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.UpsertWarning(ctx, "", projectName, entity.TypeReplicator, int(replicatorID), warningtype.ReplicatorRunFailure, message)
+	})
+	if err != nil {
+		logger.Warn("Failed creating replicator run failure warning", logger.Ctx{"replicator": name, "project": projectName, "err": err})
+	}
 }
 
 func extractSnapshotTimestamps(op *operations.Operation) (snapshotStarted *time.Time, snapshotFinished *time.Time, err error) {
@@ -638,7 +673,7 @@ func replicatorRunInstanceRestoreDurableOperationHook(ctx context.Context, op *o
 }
 
 // prepareReplicatorRunOperationArgs builds the operation used to run a replicator.
-func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, projectName string, name string, clusterLinkName string, restore bool, runID int64) (*operations.OperationArgs, error) {
+func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, projectName string, name string, clusterLinkName string, restore bool, replicatorID, runID int64) (*operations.OperationArgs, error) {
 	// Load all DB state in a single transaction before any network I/O.
 	var clusterLink *api.ClusterLink
 	var targetCert *x509.Certificate
@@ -801,7 +836,7 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 			}
 		}
 
-		return finalizeReplicatorRunOperationArgs(builder, projectName, replicatorURL, runID)
+		return finalizeReplicatorRunOperationArgs(builder, projectName, replicatorURL, replicatorID, runID)
 	}
 
 	// For restore operations the project URL is used as the primary entity URL because the instance may exist on the
@@ -826,10 +861,10 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 		}
 	}
 
-	return finalizeReplicatorRunOperationArgs(builder, projectName, replicatorURL, runID)
+	return finalizeReplicatorRunOperationArgs(builder, projectName, replicatorURL, replicatorID, runID)
 }
 
-func finalizeReplicatorRunOperationArgs(builder *operations.BulkArgBuilder, projectName string, replicatorURL *api.URL, runID int64) (*operations.OperationArgs, error) {
+func finalizeReplicatorRunOperationArgs(builder *operations.BulkArgBuilder, projectName string, replicatorURL *api.URL, replicatorID int64, runID int64) (*operations.OperationArgs, error) {
 	builder.IncrementStage()
 	err := builder.AddChildArgs(operations.OperationArgs{
 		ProjectName: projectName,
@@ -838,6 +873,7 @@ func finalizeReplicatorRunOperationArgs(builder *operations.BulkArgBuilder, proj
 		EntityURL:   replicatorURL,
 	}, map[operations.InputKey]any{
 		durableOperationInputKeyReplicatorRunID: runID,
+		durableOperationInputKeyReplicatorID:    replicatorID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("Failed preparing replicator finalization operation: %w", err)
@@ -1311,7 +1347,7 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 		return fmt.Errorf("Failed creating replicator run status data: %w", err)
 	}
 
-	opArgs, err := prepareReplicatorRunOperationArgs(ctx, s, replicator.Project, replicator.Name, clusterLinkName, false, runID)
+	opArgs, err := prepareReplicatorRunOperationArgs(ctx, s, replicator.Project, replicator.Name, clusterLinkName, false, row.Row.ID, runID)
 	if err != nil {
 		handleReplicatorSchedulingError(s, replicator.Project, replicator.Name, runID, err)
 		return err
