@@ -186,15 +186,18 @@ install_deps() (
     fi
 )
 
-# install_microceph: install MicroCeph snap.
+# install_microceph: install MicroCeph snap from the channel specified by
+# MICROCEPH_SNAP_CHANNEL. Defaults to tentacle/stable.
+# XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
+# Revert the default to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
 install_microceph() (
     # Wait for snapd seeding
     waitSnapdSeed
 
     if snap list microceph 2>/dev/null; then
-        snap refresh microceph --channel="${MICROCEPH_SNAP_CHANNEL:-latest/edge}" --cohort=+
+        snap refresh microceph --channel="${MICROCEPH_SNAP_CHANNEL:-tentacle/stable}" --cohort=+
     else
-        snap install microceph --channel="${MICROCEPH_SNAP_CHANNEL:-latest/edge}" --cohort=+
+        snap install microceph --channel="${MICROCEPH_SNAP_CHANNEL:-tentacle/stable}" --cohort=+
     fi
 )
 
