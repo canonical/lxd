@@ -508,10 +508,10 @@ EOF
       lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq --exit-status '.devices."block-vol".source == "block-vol"'
 
       # Try increasing block volume size while the volume is attached to a running VM (in use).
-      # Ensure the failed operation state is returned in the response metadata.
+      # Ensure the failed operation state is returned in the response.
       patchReq='{"config": {"size": "12MiB"}}'
       opID="$(lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X PATCH "lxd/1.0/storage-pools/${pool}/volumes/custom/block-vol" -d "${patchReq}" | jq --raw-output --exit-status .id)"
-      lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X GET "lxd/1.0/operations/${opID}/wait?timeout=5" -d "${patchReq}" | jq --exit-status '.metadata.status == "Failure" and .metadata.err == "In use"' >/dev/null
+      lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X GET "lxd/1.0/operations/${opID}/wait?timeout=5" -d "${patchReq}" | jq --exit-status '.status == "Failure" and .err == "In use"' >/dev/null
 
       # Detach device.
       detachReq='{"devices": {"block-vol": null}}'

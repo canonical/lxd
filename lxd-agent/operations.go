@@ -184,10 +184,12 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Wait for the operation.
-	// We intentionally ignore the error from op.Wait() here because we want
-	// to fetch and render the actual final state of the operation (which
-	// contains the Failure payload) rather than sending a secondary HTTP error.
-	_ = op.Wait(ctx)
+	// Return a deadline error when a timeout is specified, but otherwise render
+	// the final operation state (including operation failures) to the client.
+	err = op.Wait(ctx)
+	if err != nil && errors.Is(err, context.DeadlineExceeded) {
+		return response.SmartError(err)
+	}
 
 	_, opAPI := op.Render()
 	return response.SyncResponse(true, opAPI)
