@@ -1235,14 +1235,14 @@ func runScheduledReplicators(ctx context.Context, s *state.State) error {
 			return fmt.Errorf("Failed loading replicator configs: %w", err)
 		}
 
-		lastStatuses, err := dbCluster.GetLastReplicatorStatuses(ctx, tx.Tx(), nil)
+		statuses, err := dbCluster.GetReplicatorStatuses(ctx, tx.Tx(), nil)
 		if err != nil {
 			return fmt.Errorf("Failed loading last replicator statuses: %w", err)
 		}
 
 		apiReplicatorsTx := make([]*api.Replicator, 0, len(replicators))
 		for _, replicator := range replicators {
-			apiReplicatorsTx = append(apiReplicatorsTx, replicator.ToAPI(allConfigs, lastStatuses))
+			apiReplicatorsTx = append(apiReplicatorsTx, replicator.ToAPI(allConfigs, statuses))
 		}
 
 		apiReplicators = apiReplicatorsTx
