@@ -3,7 +3,10 @@
 package cluster
 
 import (
+	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -71,4 +74,21 @@ type InstanceFilter struct {
 	Name    *string
 	Node    *string
 	Type    *instancetype.Type
+}
+
+// GetMostRecentSnapshotCreationDate returns the creation date of the most recent snapshot of the instance with the given ID.
+// It returns nil if there are no snapshots.
+func GetMostRecentSnapshotCreationDate(ctx context.Context, tx *sql.Tx, instanceID int64) (*time.Time, error) {
+	var creationDate time.Time
+	row := tx.QueryRowContext(ctx, `SELECT creation_date FROM instances_snapshots WHERE instance_id = ? ORDER BY creation_date DESC LIMIT 1`, instanceID)
+	err := row.Scan(&creationDate)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("Failed getting last snapshot creation date: %w", err)
+		}
+
+		return nil, nil
+	}
+
+	return &creationDate, nil
 }
