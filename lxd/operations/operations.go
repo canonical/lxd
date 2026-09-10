@@ -758,7 +758,7 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 	}
 
 	if op.running.Err() != nil {
-		opErr := op.getErr()
+		opErr := op.Err()
 		if opErr != "" {
 			return nil, api.NewStatusError(int(op.errCode.Load()), "Failed connecting to operation: "+opErr)
 		}
@@ -820,7 +820,7 @@ func (op *Operation) Render() (string, *api.Operation) {
 		Metadata:    op.Metadata(),
 		MayCancel:   op.isCancellable(),
 		Location:    op.location,
-		Err:         op.getErr(),
+		Err:         op.Err(),
 		ErrCode:     op.errCode.Load(),
 		ChildCount:  int64(len(op.children)),
 	}
@@ -877,7 +877,8 @@ func (op *Operation) RenderFullWithoutProgress() (string, *api.OperationFull) {
 	return url, retOp
 }
 
-func (op *Operation) getErr() string {
+// Err returns the current operation error as a string. It should not be inspected.
+func (op *Operation) Err() string {
 	errAny := op.err.Load()
 	if errAny == nil {
 		return ""
@@ -896,7 +897,7 @@ func (op *Operation) getErr() string {
 func (op *Operation) Wait(ctx context.Context) error {
 	select {
 	case <-op.finished.Done():
-		opErr := op.getErr()
+		opErr := op.Err()
 		if opErr != "" {
 			// Custom error types can contain additional information about the failure.
 			// To ensure the error returned from the database is the same as error returned

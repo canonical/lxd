@@ -167,7 +167,7 @@ func persistOperation(ctx context.Context, op *Operation) error {
 	}
 
 	err := op.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.UpdatedAt(), op.Status(), op.Metadata(), op.getErr(), op.errCode.Load())
+		return cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.UpdatedAt(), op.Status(), op.Metadata(), op.Err(), op.errCode.Load())
 	})
 	if err != nil {
 		// Check the error code. For unexpected errors, flag the operations as having failed to persist.
@@ -570,7 +570,7 @@ func ensureLocalOperationsAreSynchronized(ctx context.Context, tx *db.ClusterTx,
 		// If the operation is not in sync, it could be due to a misbehaving database when the operation attempted to persist its data.
 		// Synchronize the operation now.
 		op.logger.Info("Resynchronizing operation")
-		err := cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.UpdatedAt(), op.Status(), op.Metadata(), op.getErr(), op.errCode.Load())
+		err := cluster.UpdateOperation(ctx, tx.Tx(), op.id, tx.GetNodeID(), op.UpdatedAt(), op.Status(), op.Metadata(), op.Err(), op.errCode.Load())
 		if err != nil {
 			errs = append(errs, err)
 			op.logger.Warn("Failed synchronizing operation with database", logger.Ctx{"err": err})
