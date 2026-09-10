@@ -30,7 +30,7 @@ This method prevents conflicting leases when copying an instance, and thus makes
 
 If you're using IPv6 for your bridge network, you should use a prefix size of 64.
 
-Larger subnets (i.e., using a prefix smaller than 64) should work properly too, but they aren't typically that useful for {abbr}`SLAAC (Stateless Address Auto-configuration)`.
+Larger subnets (i.e., using a prefix smaller than 64) should work properly too, but they aren't typically that useful for {abbr}`SLAAC` (Stateless Address Auto-configuration).
 
 Smaller subnets are in theory possible (when using stateful DHCPv6 for IPv6 allocation), but they aren't properly supported by `dnsmasq` and might cause problems.
 If you must create a smaller subnet, use static allocation or another standalone router advertisement daemon.

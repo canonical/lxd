@@ -88,7 +88,7 @@ Identity types are a superset of TLS certificate types and additionally include 
 
 The name column displays the name of the identity.
 For TLS clients, this will be the name of the certificate.
-For OIDC clients this will be the name of the client as given by the {abbr}`IdP (identity provider)` (requested via the [profile scope](https://openid.net/specs/openid-connect-basic-1_0.html#Scopes)).
+For OIDC clients this will be the name of the client as given by the {abbr}`IdP` (identity provider) (requested via the [profile scope](https://openid.net/specs/openid-connect-basic-1_0.html#Scopes)).
 
 The identifier column displays a unique identifier for the identity within that authentication method.
 For TLS clients, this will be the certificate fingerprint.
@@ -139,7 +139,7 @@ When an OIDC client makes a request to LXD, any groups that can be extracted fro
 
 To configure IdP group mappings in LXD, first configure your IdP to add groups to identity and access tokens as a custom claim.
 This configuration depends on your IdP.
-In [{spellexception}`Auth0`](https://auth0.com/), for example, you can enable [{abbr}`RBAC (role-based access control)`](https://auth0.com/docs/manage-users/access-control/rbac) which will add a "permissions" claim to tokens. Then, configure {ref}`automatic mapping to LXD authorization groups <oidc-auth0-automatic-group-mapping>`.
+In [{spellexception}`Auth0`](https://auth0.com/), for example, you can enable [{abbr}`RBAC` (role-based access control)](https://auth0.com/docs/manage-users/access-control/rbac) which will add a "permissions" claim to tokens. Then, configure {ref}`automatic mapping to LXD authorization groups <oidc-auth0-automatic-group-mapping>`.
 In Keycloak, you can define a [mapper](https://forum.keycloak.org/t/anyway-to-include-user-groups-into-my-jwt-token/8715) to set Keycloak groups in the token. In [Pocket ID](https://pocket-id.org/docs), you can set up {ref}`custom claims <oidc-pocket-id-automatic-group-mapping>` in your admin dashboard.
 
 Then configure LXD to extract this claim.

@@ -33,7 +33,7 @@ This approach was discarded to avoid issues with file descriptor limits for host
 (dev-lxd-implementation-vms)=
 ### Virtual machines
 
-LXD on the host starts a HTTPS {abbr}`Vsock (Virtual Socket)` server.
+LXD on the host starts a HTTPS {abbr}`Vsock` (Virtual Socket) server.
 The LXD agent on the virtual machine communicates securely with the Vsock server using a certificate mounted in the VM's configuration drive.
 The LXD agent creates the socket at `/dev/lxd/sock` and proxies requests to the Vsock server.
 

@@ -5,7 +5,7 @@ There are different ways to connect your instances to the Internet. The easiest 
 
 ## Network devices
 
-To grant direct network access to an instance, you must assign it at least one network device, also called {abbr}`NIC (Network Interface Controller)`.
+To grant direct network access to an instance, you must assign it at least one network device, also called {abbr}`NIC` (Network Interface Controller).
 You can configure the network device in one of the following ways:
 
 - Use the default network bridge that you set up during the LXD initialization.

@@ -3,7 +3,7 @@
 
 [HPE Alletra](https://www.hpe.com/emea_europe/en/hpe-alletra.html) is a storage solution. It offers the consumption of redundant block storage across the network.
 
-LXD supports connecting to HPE Alletra storage through {abbr}`NVMe/TCP (Non-Volatile Memory Express over Transmission Control Protocol)`.
+LXD supports connecting to HPE Alletra storage through {abbr}`NVMe/TCP` (Non-Volatile Memory Express over Transmission Control Protocol).
 In addition, HPE Alletra offers copy-on-write snapshots, thin provisioning, and other features.
 
 Using HPE Alletra with LXD requires a HPE Alletra WSAPI version `1`. Additionally, ensure that the required kernel modules for the selected protocol are installed on your host system.
@@ -36,7 +36,7 @@ On the other hand, using remote storage has significant advantages in a cluster 
 
 When creating a new storage pool using the `alletra` driver, LXD automatically discovers the array's qualified name and target address.
 Upon successful discovery, LXD attaches all volumes that are connected to the HPE Alletra host that is associated with a specific LXD server.
-HPE Alletra hosts and volume connections ({abbr}`vLUNs (virtual Logical Unit Numbers)`) are fully managed by LXD.
+HPE Alletra hosts and volume connections ({abbr}`vLUNs` (virtual Logical Unit Numbers)) are fully managed by LXD.
 
 Volume snapshots are also supported by HPE Alletra.
 When a volume with at least one snapshot is copied, LXD sequentially creates snapshots on the destination volume from snapshots on the source volume.

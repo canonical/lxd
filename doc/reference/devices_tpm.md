@@ -10,7 +10,7 @@ The `tpm` device type is supported for both containers and VMs.
 It supports hotplugging only for containers, not for VMs.
 ```
 
-TPM devices enable access to a {abbr}`TPM (Trusted Platform Module)` emulator.
+{abbr}`TPM` (Trusted Platform Module) devices enable access to a TPM emulator.
 
 TPM devices can be used to validate the boot process and ensure that no steps in the boot chain have been tampered with, and they can securely generate and store encryption keys.
 

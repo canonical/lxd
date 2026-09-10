@@ -6,12 +6,12 @@ discourse: lxc:[OVN&#32;high&#32;availability&#32;cluster&#32;tutorial](11033)
 # OVN network
 
 <!-- Include start OVN intro -->
-{abbr}`OVN (Open Virtual Network)` is a software-defined networking system that supports virtual network abstraction.
+{abbr}`OVN` (Open Virtual Network) is a software-defined networking system that supports virtual network abstraction.
 You can use it to build your own private cloud.
 See [`www.ovn.org`](https://www.ovn.org/) for more information.
 <!-- Include end OVN intro -->
 
-The `ovn` network type allows to create logical networks using the OVN {abbr}`SDN (software-defined networking)`.
+The `ovn` network type allows to create logical networks using the OVN {abbr}`SDN` (software-defined networking).
 This kind of network can be useful for labs and multi-tenant environments where the same logical subnets are used in multiple discrete networks.
 
 A LXD OVN network can be connected to an existing managed {ref}`network-bridge` or {ref}`network-physical` to gain access to the wider network.

@@ -9,7 +9,7 @@ discourse: lxc:[ZFS&#32;block&#32;mode](15872)
 :title: ZFS storage and LXD
 ```
 
-{abbr}`ZFS (Zettabyte file system)` combines both physical volume management and a file system.
+{abbr}`ZFS` (Zettabyte file system) combines both physical volume management and a file system.
 A ZFS installation can span across a series of storage devices and is very scalable, allowing you to add disks to expand the available space in the storage pool immediately.
 
 ZFS is a block-based file system that protects against data corruption by using checksums to verify, confirm and correct every operation.

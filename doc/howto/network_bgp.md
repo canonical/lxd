@@ -6,7 +6,7 @@ discourse: lxc:[BGP&#32;address/route&#32;advertisement](11567)
 # How to configure LXD as a BGP server
 
 ```{note}
-The BGP server feature is available for the {ref}`network-bridge` and the {ref}`network-physical`.
+The {abbr}`BGP` (Border Gateway Protocol) server feature is available for the {ref}`network-bridge` and the {ref}`network-physical`.
 These network types are often used as the uplink network for an {ref}`network-ovn`, and you must configure the BGP peers on the uplink network.
 See {ref}`network-bgp-ovn` for instructions.
 ```
@@ -15,7 +15,7 @@ See {ref}`network-bgp-ovn` for instructions.
 :title: LXD and BGP
 ```
 
-{abbr}`BGP (Border Gateway Protocol)` is a protocol that allows exchanging routing information between autonomous systems.
+BGP is a protocol that allows exchanging routing information between autonomous systems.
 
 If you want to directly route external addresses to specific LXD servers or instances, you can configure LXD as a BGP server.
 LXD will then act as a BGP peer and advertise relevant routes and next hops to external routers, for example, your network router.
@@ -47,7 +47,7 @@ If you need this, filter prefixes on the upstream routers.
 To configure LXD as a BGP server, set the following server configuration options on all cluster members:
 
 - {config:option}`server-core:core.bgp_address` - the IP address for the BGP server
-- {config:option}`server-core:core.bgp_asn` - the {abbr}`ASN (Autonomous System Number)` for the local server
+- {config:option}`server-core:core.bgp_asn` - the {abbr}`ASN` (Autonomous System Number) for the local server
 - {config:option}`server-core:core.bgp_routerid` - the unique identifier for the BGP server
 
 For example, set the following values:
@@ -76,7 +76,7 @@ Therefore, you must configure BGP peers on the uplink network that contain the i
 Set the following configuration options on the uplink network:
 
 - `bgp.peers.<name>.address` - the peer address to be used by the downstream networks
-- `bgp.peers.<name>.asn` - the {abbr}`ASN (Autonomous System Number)` for the local server
+- `bgp.peers.<name>.asn` - the ASN for the local server
 - `bgp.peers.<name>.password` - an optional password for the peer session
 - `bgp.peers.<name>.holdtime` - an optional hold time for the peer session (in seconds)
 

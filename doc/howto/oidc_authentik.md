@@ -62,7 +62,7 @@ This guide assumes that authentik is available over HTTPS, and that LXD is initi
 
    {config:option}`server-oidc:oidc.client.id` and {config:option}`server-oidc:oidc.client.secret` are used by the LXD UI, and {config:option}`server-oidc:oidc.device.client.id` is used by the LXD CLI. Setting `oidc.device.client.id` requires `oidc.client.id` to be set. {config:option}`server-oidc:oidc.audience` must be the client ID of the `LXD` provider, so that LXD accepts the tokens that authentik issues for both providers.
 
-Now you can access the LXD UI with any browser and use {abbr}`SSO (single sign-on)` login. Enter the credentials for authentik.
+Now you can access the LXD UI with any browser and use {abbr}`SSO` (single sign-on) login. Enter the credentials for authentik.
 
 To use OIDC on the LXD CLI, run:
 
