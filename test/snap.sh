@@ -72,10 +72,10 @@ fi
 ulimit -c unlimited
 echo '|/bin/sh -c $@ -- eval exec gzip --fast > /var/crash/%e.%p.gz' > /proc/sys/kernel/core_pattern
 
-if [ -n "${GOCOVERDIR:-}" ]; then
-    mkdir -p "${GOCOVERDIR}"
-    chmod 0777 "${GOCOVERDIR}"
-fi
+# Create GOCOVERDIR if needed and make it usable by non-root users.
+# shellcheck disable=SC1091
+. "${script_dir}/includes/coverage.sh"
+setup_gocoverdir
 
 test_name="$(basename "${test_script}")"
 
