@@ -114,7 +114,7 @@ graph TD
 The **`snap-tests`** job validates LXD's behavior as a snap package across the
 configured Ubuntu releases.
 
-* **Test execution**: Runs the executable scripts in `test/snap/` through `test/snap.sh`.
+* **Test execution**: Runs the executable scripts in `test/snap/` directly (each script sources `test/local-snap.sh` for environment setup).
 * **LXD binary integration**: Sideloads the binaries built during the current run into the selected LXD snap, ensuring the tests exercise the proposed code.
 * **Infrastructure preparation**: Dynamically configures **MicroCeph** and **MicroOVN** to provide clustered storage and networking services needed for the snap-based integration tests.
 * **Matrix Dimensions**:
@@ -150,7 +150,7 @@ graph TD
         InfraCheck -- No --> SetupOVN[Setup MicroOVN]
         SetupCeph --> SetupOVN
 
-        SetupOVN --> ExecTest[Execute test/snap.sh test/snap/matrix.test]
+        SetupOVN --> ExecTest[Execute test/snap/matrix.test]
 
         ExecTest --> Uploads[Upload reports, crash dumps, & coverage data]
     end

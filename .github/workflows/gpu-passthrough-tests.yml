@@ -7,7 +7,7 @@ on:
       - '.github/workflows/testflinger/**'
       - 'test/includes/snap-helpers.sh'
       - 'test/includes/snap.sh'
-      - 'test/snap.sh'
+      - 'test/local-snap.sh'
       - 'test/snap/**'
   schedule:
     - cron: '38 6 */5 * *'

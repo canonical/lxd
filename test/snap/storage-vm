@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091 # Runtime-resolved path; intentionally not followed.
+. "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../local-snap.sh" || return 1
 set -eux
 
 # testflinger_queue: hardhat
