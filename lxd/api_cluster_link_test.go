@@ -1,10 +1,13 @@
 package main
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -233,4 +236,49 @@ func TestClusterLinkValidateConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestClusterLinkListenAddresses(t *testing.T) {
+	tests := []struct {
+		name           string
+		clustered      bool
+		httpsAddress   string
+		clusterAddress string
+		want           []string
+		wantErr        string
+	}{
+		{name: "clustered wildcard HTTPS", clustered: true, httpsAddress: "0.0.0.0:8443", clusterAddress: "192.0.2.1:9443", want: []string{"192.0.2.1:9443"}},
+		{name: "clustered distinct HTTPS", clustered: true, httpsAddress: "192.0.2.2:8443", clusterAddress: "192.0.2.1:9443", want: []string{"192.0.2.1:9443"}},
+		{name: "clustered IPv6", clustered: true, httpsAddress: "[::]:8443", clusterAddress: "[2001:db8::1]:9443", want: []string{"[2001:db8::1]:9443"}},
+		{name: "clustered default port", clustered: true, clusterAddress: "192.0.2.1", want: []string{"192.0.2.1:8443"}},
+		{name: "clustered HTTPS disabled", clustered: true, clusterAddress: "192.0.2.1:9443", want: []string{"192.0.2.1:9443"}},
+		{name: "clustered missing address", clustered: true, httpsAddress: "0.0.0.0:8443", wantErr: "Cannot determine advertised address: \"cluster.https_address\" is not configured"},
+		{name: "standalone explicit HTTPS", httpsAddress: "192.0.2.2:9443", clusterAddress: "192.0.2.1:8443", want: []string{"192.0.2.2:9443"}},
+		{name: "standalone IPv6", httpsAddress: "[2001:db8::2]:9443", want: []string{"[2001:db8::2]:9443"}},
+		{name: "standalone default port", httpsAddress: "192.0.2.2", want: []string{"192.0.2.2:8443"}},
+		{name: "standalone HTTPS disabled", clusterAddress: "192.0.2.1:8443", wantErr: "Cannot determine advertised address: \"core.https_address\" is not configured"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addresses, err := clusterLinkListenAddresses(tt.clustered, tt.httpsAddress, tt.clusterAddress)
+			if tt.wantErr != "" {
+				require.EqualError(t, err, tt.wantErr)
+				assert.True(t, api.StatusErrorCheck(err, http.StatusBadRequest))
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, addresses)
+		})
+	}
+
+	t.Run("standalone wildcard retains listener discovery", func(t *testing.T) {
+		want, err := util.ListenAddresses("0.0.0.0:9443")
+		require.NoError(t, err)
+
+		addresses, err := clusterLinkListenAddresses(false, "0.0.0.0:9443", "192.0.2.1:8443")
+		require.NoError(t, err)
+		assert.ElementsMatch(t, want, addresses)
+	})
 }

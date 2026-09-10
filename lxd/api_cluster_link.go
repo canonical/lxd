@@ -990,6 +990,23 @@ func clusterLinkCreatePending(s *state.State, r *http.Request, req api.ClusterLi
 	return response.SyncResponseLocation(true, token, lc.Source)
 }
 
+// clusterLinkListenAddresses returns bootstrap addresses for cluster-link tokens and activation.
+// Clustered servers advertise their member address, while standalone servers use the HTTPS listener.
+func clusterLinkListenAddresses(clustered bool, httpsAddress string, clusterAddress string) ([]string, error) {
+	address := httpsAddress
+	configKey := "core.https_address"
+	if clustered {
+		address = clusterAddress
+		configKey = "cluster.https_address"
+	}
+
+	if address == "" {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Cannot determine advertised address: %q is not configured", configKey)
+	}
+
+	return util.ListenAddresses(address)
+}
+
 // clusterLinkCreateActive handles a request to create an active cluster link (name and trust token provided).
 // It validates the remote cluster certificate, creates the identity and cluster link locally, then activates the pending cluster link on the remote cluster.
 func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLinksPost, clusterLinkType dbCluster.ClusterLinkType, networkCert *shared.CertInfo, notify identityNotificationFunc, requestor *api.EventLifecycleRequestor, trustToken *api.CertificateAddToken) response.Response {
@@ -1017,6 +1034,11 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 	clusterCert := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
 
 	fingerprint, err := validateIdentityCert(networkCert, clusterCert)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	listenAddresses, err := clusterLinkListenAddresses(s.ServerClustered, s.LocalConfig.HTTPSAddress(), s.LocalConfig.ClusterAddress())
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1083,12 +1105,6 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 			logger.Warn("Failed cleaning up cluster link after activation failure", logger.Ctx{"err": err, "clusterLinkName": req.Name, "fingerprint": fingerprint})
 		}
 	})
-
-	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
-	listenAddresses, err := util.ListenAddresses(localHTTPSAddress)
-	if err != nil {
-		return response.InternalError(err)
-	}
 
 	activationErrs := make([]error, 0, len(trustToken.Addresses))
 

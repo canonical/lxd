@@ -10,6 +10,19 @@ myst:
 {ref}`Cluster links <exp-cluster-links>` connect separate LXD clusters.
 There are three link types (bidirectional, unidirectional, and public), each with a different creation flow.
 
+## Network addresses
+
+Cluster links use LXD's existing HTTPS listeners. On a clustered server, link trust tokens
+and bidirectional activation requests advertise the local member's `cluster.https_address`,
+including its port. Address refresh subsequently discovers the remote cluster's member addresses.
+These addresses must be reachable from the linked cluster.
+
+On a standalone server, bootstrap addresses come from `core.https_address`. A wildcard
+listener includes the host's global unicast addresses, which can include internal networks.
+Configure a specific `core.https_address` to restrict these advertised addresses. This also
+restricts the core HTTPS listener; cluster links do not create a separate listener or select
+an outbound source interface.
+
 (howto-cluster-links-auth)=
 ## Prepare authentication
 

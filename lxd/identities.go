@@ -787,17 +787,22 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, peerCertifica
 }
 
 func createCertificateAddToken(s *state.State, clientName string, identityType string) (*api.CertificateAddToken, error) {
-	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
+	var addresses []string
+	var err error
+	if identityType == api.IdentityTypeCertificateClusterLink {
+		addresses, err = clusterLinkListenAddresses(s.ServerClustered, s.LocalConfig.HTTPSAddress(), s.LocalConfig.ClusterAddress())
+	} else {
+		localHTTPSAddress := s.LocalConfig.HTTPSAddress()
 
-	// Tokens are useless if the server isn't listening (how will the untrusted client contact the server?)
-	if localHTTPSAddress == "" {
-		return nil, api.NewStatusError(http.StatusBadRequest, "Cannot issue token when server is not listening on network")
+		// Tokens are useless if the server is not listening on the network.
+		if localHTTPSAddress == "" {
+			return nil, api.NewStatusError(http.StatusBadRequest, "Cannot issue token when server is not listening on network")
+		}
+
+		// Include all HTTPS listener addresses so clients can find a reachable endpoint.
+		addresses, err = util.ListenAddresses(localHTTPSAddress)
 	}
 
-	// Get all addresses the server is listening on. This is encoded in the certificate token,
-	// so that the client will not have to specify a server address. The client will iterate
-	// through all these addresses until it can connect to one of them.
-	addresses, err := util.ListenAddresses(localHTTPSAddress)
 	if err != nil {
 		return nil, err
 	}
