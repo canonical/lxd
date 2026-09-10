@@ -25,7 +25,9 @@ lxc_user project list -f csv | grep '^user-5000.*,"User restricted project for "
 
 # Try to gracefully stop lxd-user daemon which allows coverage data to be
 # saved if needed.
-pkill -x lxd-user || pkill -x lxd-user.debug || true
+# Scope by user: this script's own process is also named "lxd-user" when
+# executed directly, and it runs as root so it must not be matched.
+pkill -x -u testuser lxd-user || pkill -x -u testuser lxd-user.debug || true
 
 # End the user session
 loginctl terminate-user testuser
