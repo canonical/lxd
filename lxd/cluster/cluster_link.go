@@ -2,11 +2,13 @@ package cluster
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 	"sync"
@@ -215,7 +217,14 @@ func LoadClusterLinkAndCert(ctx context.Context, tx *sql.Tx, name string) (id in
 
 // ConnectCluster connects to a linked cluster using the provided connection args, trying each address until one succeeds.
 func ConnectCluster(ctx context.Context, clusterLink api.ClusterLink, args *lxd.ConnectionArgs) (lxd.InstanceServer, error) {
-	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
+	// Pending or otherwise incomplete cluster links have no bootstrap addresses yet. Report that
+	// distinctly rather than as ErrClusterLinkUnreachable, so callers that tolerate an offline
+	// linked cluster do not silently accept a misconfigured link as one that has gone away.
+	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, true)
+	if len(addresses) == 0 {
+		return nil, fmt.Errorf("Cluster link %q has no known addresses", clusterLink.Name)
+	}
+
 	var errs []error
 	for _, address := range addresses {
 		client, err := lxd.ConnectLXD("https://"+address, args)
@@ -227,7 +236,71 @@ func ConnectCluster(ctx context.Context, clusterLink api.ClusterLink, args *lxd.
 		return client, nil
 	}
 
-	return nil, fmt.Errorf("Failed connecting to any address of cluster link %q: %w", clusterLink.Name, errors.Join(errs...))
+	// Only report the cluster as unreachable when every address failed for a reachability reason.
+	// If any address answered and rejected us, the cluster is up and the caller must not treat it
+	// as having gone away.
+	joined := errors.Join(errs...)
+	for _, e := range errs {
+		if !isUnreachableError(e) {
+			return nil, fmt.Errorf("Failed connecting to any address of cluster link %q: %w", clusterLink.Name, joined)
+		}
+	}
+
+	return nil, fmt.Errorf("%w: Failed connecting to any address of cluster link %q: %w", ErrClusterLinkUnreachable, clusterLink.Name, joined)
+}
+
+// isUnreachableError reports whether err means the cluster could not be contacted at all, as
+// opposed to one that answered and rejected us. ConnectLXD requests GET /1.0 before returning, so
+// its errors cover the whole exchange rather than just the dial.
+//
+// It is deliberately conservative: only recognised dial-level failures qualify, so an unrecognised
+// error fails a promotion rather than silently allowing one against a cluster that is still
+// running as leader.
+func isUnreachableError(err error) bool {
+	// Check certificate failures first. A TLS error arrives wrapped in *url.Error, which itself
+	// satisfies net.Error, so a looser check would misclassify a cluster that answered with a bad
+	// certificate as unreachable.
+	var certErr *tls.CertificateVerificationError
+	var hostErr x509.HostnameError
+	var authErr x509.UnknownAuthorityError
+	var invalidErr x509.CertificateInvalidError
+	if errors.As(err, &certErr) || errors.As(err, &hostErr) || errors.As(err, &authErr) || errors.As(err, &invalidErr) {
+		return false
+	}
+
+	var opErr *net.OpError
+	var dnsErr *net.DNSError
+	return errors.As(err, &opErr) || errors.As(err, &dnsErr) || errors.Is(err, context.DeadlineExceeded)
+}
+
+// ErrClusterLinkUnreachable is returned by [ConnectCluster] when none of the cluster link's
+// addresses could be reached. Callers that tolerate offline clusters (such as disaster recovery
+// paths) can check for it with [errors.Is].
+var ErrClusterLinkUnreachable = errors.New("Cluster link is unreachable")
+
+// ConnectClusterLinkByName loads the cluster link with the given name and connects to it.
+// If the link cannot be loaded the returned error describes the failure; if the link is loaded but
+// no address responds, the returned error wraps [ErrClusterLinkUnreachable].
+func ConnectClusterLinkByName(ctx context.Context, s *state.State, name string) (lxd.InstanceServer, error) {
+	var clusterLink *api.ClusterLink
+	var targetCert *x509.Certificate
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		_, clusterLink, targetCert, err = LoadClusterLinkAndCert(ctx, tx.Tx(), name)
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading cluster link %q: %w", name, err)
+	}
+
+	var args *lxd.ConnectionArgs
+	if clusterLink.Type == api.ClusterLinkTypePublic {
+		args = GetPublicClusterLinkConnectionArgs(targetCert)
+	} else {
+		args = GetClusterLinkConnectionArgs(s.Endpoints.NetworkCert(), targetCert)
+	}
+
+	return ConnectCluster(ctx, *clusterLink, args)
 }
 
 // RefreshClusterLinkVolatileAddresses refreshes the volatile addresses of a cluster link.
