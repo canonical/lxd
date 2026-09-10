@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
@@ -132,7 +133,7 @@ func loadSharedReplicatorDetails(ctx context.Context, op *operations.Operation) 
 	return projectName, clusterLink, targetCert, nodeAddressByName, nil
 }
 
-func replicatorFinalizeDurableOperationRunHook(_ context.Context, op *operations.Operation) error {
+func replicatorFinalizeDurableOperationRunHook(opCtx context.Context, op *operations.Operation) error {
 	// Get some details for the log context. Can't fail to parse the entity URL here because this is guaranteed by the operations package.
 	_, projectName, _, args, err := entity.ParseURL(op.EntityURL().URL)
 	if err != nil || len(args) != 1 {
@@ -231,7 +232,17 @@ func replicatorFinalizeDurableOperationRunHook(_ context.Context, op *operations
 		runStatus = api.ReplicatorStatusFailed
 	}
 
+	// Calculate run duration.
 	completedAt := time.Now()
+	durationSeconds := completedAt.Sub(status.StartedDate).Seconds()
+
+	var eventCtx = map[string]any{
+		"status":           runStatus,
+		"instances_total":  instancesTotal,
+		"instances_failed": instancesFailed,
+		"duration_seconds": durationSeconds,
+	}
+
 	if earliestSnapshotStarted != nil {
 		effectiveRPO := completedAt.Sub(*earliestSnapshotStarted).Seconds()
 
@@ -244,9 +255,10 @@ func replicatorFinalizeDurableOperationRunHook(_ context.Context, op *operations
 			"oldest_snapshot":       *earliestSnapshotStarted,
 			"effective_rpo_seconds": effectiveRPO,
 		})
+
+		eventCtx["effective_rpo_seconds"] = effectiveRPO
 	}
 
-	durationSeconds := status.StartedDate.Sub(completedAt).Seconds()
 	logCtx := logger.Ctx{
 		"replicator":       replicatorName,
 		"project":          projectName,
@@ -261,8 +273,12 @@ func replicatorFinalizeDurableOperationRunHook(_ context.Context, op *operations
 		logger.Error("Replicator run failed", logCtx)
 	}
 
+	// Use the operation context here for getting requestor details. It doesn't matter that the context may already have
+	// been cancelled, as it is not used for the call to SendLifecycle (it's only used for creating the event data).
+	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(opCtx, replicatorName, projectName, eventCtx))
+
 	// Use a fresh context so the status write always completes, even if the operation context was cancelled.
-	return op.State().DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+	return s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return dbCluster.FinalizeReplicatorStatus(ctx, tx.Tx(), runID, runStatus, completedAt, earliestSnapshotStarted, latestSnapshotFinished)
 	})
 }

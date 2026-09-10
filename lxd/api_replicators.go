@@ -684,8 +684,6 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(r.Context(), name, projectName, nil))
-
 	return response.OperationResponse(op)
 }
 
