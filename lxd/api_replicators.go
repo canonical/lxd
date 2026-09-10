@@ -674,13 +674,13 @@ func replicatorStatePut(d *Daemon, r *http.Request) response.Response {
 
 	opArgs, err := prepareReplicatorRunOperationArgs(r.Context(), s, projectName, name, clusterLinkName, restore, dbReplicator.Row.ID, runID)
 	if err != nil {
-		handleReplicatorSchedulingError(s, projectName, name, runID, err)
+		handleReplicatorSchedulingError(r.Context(), s, projectName, name, dbReplicator.Row.ID, runID, false, err)
 		return response.SmartError(err)
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, *opArgs)
 	if err != nil {
-		handleReplicatorSchedulingError(s, projectName, name, runID, err)
+		handleReplicatorSchedulingError(r.Context(), s, projectName, name, dbReplicator.Row.ID, runID, false, err)
 		return response.SmartError(err)
 	}
 

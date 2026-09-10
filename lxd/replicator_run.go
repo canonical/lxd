@@ -1349,13 +1349,13 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 
 	opArgs, err := prepareReplicatorRunOperationArgs(ctx, s, replicator.Project, replicator.Name, clusterLinkName, false, row.Row.ID, runID)
 	if err != nil {
-		handleReplicatorSchedulingError(s, replicator.Project, replicator.Name, runID, err)
+		handleReplicatorSchedulingError(ctx, s, replicator.Project, replicator.Name, row.Row.ID, runID, false, err)
 		return err
 	}
 
 	op, err := operations.ScheduleServerOperation(s, *opArgs)
 	if err != nil {
-		handleReplicatorSchedulingError(s, replicator.Project, replicator.Name, runID, err)
+		handleReplicatorSchedulingError(ctx, s, replicator.Project, replicator.Name, row.Row.ID, runID, false, err)
 		if api.StatusErrorCheck(err, http.StatusConflict) {
 			logger.Warn("Skipping scheduled replicator, a run is already in progress", logger.Ctx{"replicator": replicator.Name, "project": replicator.Project})
 			return nil
@@ -1370,11 +1370,14 @@ func triggerScheduledReplicator(ctx context.Context, s *state.State, replicator 
 // handleReplicatorSchedulingError finalizes or deletes the replicators_status row for the replicator run, depending on the error.
 // For conflict errors, a replicator is already running, so we don't want to pollute the API last_run_status of the replicator with a failure
 // while waiting for the running operation to finish. For all other errors, the row is set to a failure status and the time is recorded.
-func handleReplicatorSchedulingError(s *state.State, projectName string, replicatorName string, runID int64, err error) {
+func handleReplicatorSchedulingError(inCtx context.Context, s *state.State, projectName string, replicatorName string, replicatorID int64, runID int64, restore bool, scheduleErr error) {
+	// Use a background context for most cases. We need to handle this error even if the request context was cancelled.
+	ctx := context.Background()
+
 	// If there is a conflict, the replicator is already running. In this case we don't want the last run status to be
 	// "failed", because it only failed due to an already running replication job. So we delete the replicators_status_row associated with the run.
-	if api.StatusErrorCheck(err, http.StatusConflict) {
-		err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+	if api.StatusErrorCheck(scheduleErr, http.StatusConflict) {
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			return query.DeleteOne[dbCluster.ReplicatorsStatusRow](ctx, tx.Tx(), "WHERE id = ?", runID)
 		})
 		if err != nil {
@@ -1385,12 +1388,29 @@ func handleReplicatorSchedulingError(s *state.State, projectName string, replica
 	}
 
 	// Otherwise, we mark the run as failed, so that we know an attempt was made.
-	err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		return dbCluster.FinalizeReplicatorStatus(ctx, tx.Tx(), runID, api.ReplicatorStatusFailed, time.Now(), nil, nil)
 	})
 	if err != nil {
 		logger.Warn("Failed finalizing replicator status data when the operation failed to schedule", logger.Ctx{"replicator": replicatorName, "project": projectName})
 	}
+
+	// A restore is a failback rather than a replication run, so it only records its status.
+	if restore {
+		return
+	}
+
+	logger.Error("Replicator run failed to start", logger.Ctx{"replicator": replicatorName, "project": projectName, "err": scheduleErr})
+
+	replicatorRaiseRunFailureWarning(s, projectName, replicatorName, replicatorID, "Replicator run failed to start: "+scheduleErr.Error())
+
+	// Use the input context when creating the lifecycle event data so that the requestor is extracted (if present).
+	s.Events.SendLifecycle(projectName, lifecycle.ReplicatorRun.Event(inCtx, replicatorName, projectName, map[string]any{
+		"status":           api.ReplicatorStatusFailed,
+		"instances_total":  0,
+		"instances_failed": 0,
+		"err":              scheduleErr.Error(),
+	}))
 }
 
 // validateReplicatorModes checks the source and target replica modes for a run.
