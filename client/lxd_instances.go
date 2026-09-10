@@ -592,6 +592,13 @@ func (r *ProtocolLXD) CreateInstance(instance api.InstancesPost) (Operation, err
 		}
 	}
 
+	if instance.Source.DiskVolumesMode == api.DiskVolumesModeAllExclusive {
+		err := r.CheckExtension("replicator_custom_volumes")
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Send the request
 	op, _, err := r.queryOperation(http.MethodPost, path, instance, "", true)
 	if err != nil {
@@ -1055,6 +1062,13 @@ func (r *ProtocolLXD) MigrateInstance(name string, instance api.InstancePost) (O
 
 	if instance.AllowInconsistent {
 		err := r.CheckExtension("cluster_migration_inconsistent_copy")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if instance.DiskVolumesMode == api.DiskVolumesModeAllExclusive {
+		err := r.CheckExtension("replicator_custom_volumes")
 		if err != nil {
 			return nil, err
 		}
