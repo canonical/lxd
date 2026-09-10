@@ -502,6 +502,7 @@ var APIExtensions = []string{
 	"access_management_expiry",
 	"cluster_links_public",
 	"durable_operations",
+	"access_management_identity_effective_groups",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 	"time"
@@ -163,6 +164,36 @@ var bearerIdentityCmd = APIEndpoint{
 	Delete: APIEndpointAction{
 		Handler:       identityDelete,
 		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanDelete),
+	},
+}
+
+var tlsIdentityStateCmd = APIEndpoint{
+	Path:        "auth/identities/tls/{nameOrIdentifier}/state",
+	MetricsType: entity.TypeIdentity,
+
+	Get: APIEndpointAction{
+		Handler:       identityStateGet,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodTLS, auth.EntitlementCanView),
+	},
+}
+
+var oidcIdentityStateCmd = APIEndpoint{
+	Path:        "auth/identities/oidc/{nameOrIdentifier}/state",
+	MetricsType: entity.TypeIdentity,
+
+	Get: APIEndpointAction{
+		Handler:       identityStateGet,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodOIDC, auth.EntitlementCanView),
+	},
+}
+
+var bearerIdentityStateCmd = APIEndpoint{
+	Path:        "auth/identities/bearer/{nameOrIdentifier}/state",
+	MetricsType: entity.TypeIdentity,
+
+	Get: APIEndpointAction{
+		Handler:       identityStateGet,
+		AccessHandler: identityAccessHandler(api.AuthenticationMethodBearer, auth.EntitlementCanView),
 	},
 }
 
@@ -1020,6 +1051,44 @@ func tlsIdentityTokenValidate(ctx context.Context, s *state.State, token api.Cer
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 
+// swagger:operation GET /1.0/auth/identities?recursion=2 identities identities_get_recursion2
+//
+//	Get the identities
+//
+//	Returns a list of identities.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of identities
+//	          items:
+//	            $ref: "#/definitions/IdentityFull"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+
 // swagger:operation GET /1.0/auth/identities/bearer identities identities_get_bearer
 //
 //	Get the bearer identities
@@ -1306,6 +1375,8 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 		var identityURLs []string
 		var groupsByIdentityID map[int64][]string
 		var certificatesByIdentityID map[int64][]string
+		var mappedGroupsByIDPGroupName map[string][]string
+		idpGroupsByIdentityID := make(map[int64][]string, len(identities))
 		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var authMethodFilter *string
 			if authenticationMethod != "" {
@@ -1340,6 +1411,33 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 				return err
 			}
 
+			if recursion < 2 {
+				// No need to calculate effective groups if recursion is less than 2.
+				return nil
+			}
+
+			allIDPGroupNames := make(map[string]struct{}, len(identities))
+			for _, idRow := range identities {
+				if idRow.AuthMethod != api.AuthenticationMethodOIDC {
+					continue
+				}
+
+				metadata, err := idRow.OIDCMetadata()
+				if err != nil {
+					return fmt.Errorf("Failed reading OIDC identity metadata for %q: %w", idRow.Identifier, err)
+				}
+
+				idpGroupsByIdentityID[idRow.ID] = metadata.IdentityProviderGroups
+				for _, group := range metadata.IdentityProviderGroups {
+					allIDPGroupNames[group] = struct{}{}
+				}
+			}
+
+			mappedGroupsByIDPGroupName, err = dbCluster.GetAuthGroupNamesByIDPGroupNames(ctx, tx.Tx(), slices.Collect(maps.Keys(allIDPGroupNames)))
+			if err != nil {
+				return fmt.Errorf("Failed getting mapped groups from identity provider groups: %w", err)
+			}
+
 			return nil
 		})
 		if err != nil {
@@ -1352,25 +1450,51 @@ func identitiesGet(authenticationMethod string) func(d *Daemon, r *http.Request)
 		}
 
 		apiIdentities := make([]*api.Identity, 0, len(identities))
+		apiIdentitiesFull := make([]*api.IdentityFull, 0, len(identities))
 		urlToIdentity := make(map[*api.URL]auth.EntitlementReporter, len(identities))
+		urlToIdentityFull := make(map[*api.URL]auth.EntitlementReporter, len(identities))
+
 		for _, id := range identities {
 			apiIdentity, err := id.ToAPI(groupsByIdentityID, certificatesByIdentityID)
 			if err != nil {
 				return response.SmartError(err)
 			}
 
-			apiIdentities = append(apiIdentities, apiIdentity)
-			urlToIdentity[entity.IdentityURL(string(id.AuthMethod), id.Identifier)] = apiIdentity
+			// If recursion is less than 2, we don't need to calculate effective groups.
+			if recursion < 2 {
+				urlToIdentity[entity.IdentityURL(string(id.AuthMethod), id.Identifier)] = apiIdentity
+				apiIdentities = append(apiIdentities, apiIdentity)
+				continue
+			}
+
+			apiIdentityFull := &api.IdentityFull{
+				Identity:        *apiIdentity,
+				EffectiveGroups: id.ToAPIState(apiIdentity.Groups, idpGroupsByIdentityID[id.ID], mappedGroupsByIDPGroupName, canViewGroup).EffectiveGroups,
+			}
+
+			urlToIdentityFull[entity.IdentityURL(string(id.AuthMethod), id.Identifier)] = apiIdentityFull
+			apiIdentitiesFull = append(apiIdentitiesFull, apiIdentityFull)
+		}
+
+		if recursion < 2 {
+			if len(withEntitlements) > 0 {
+				err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeIdentity, withEntitlements, urlToIdentity)
+				if err != nil {
+					return response.SmartError(err)
+				}
+			}
+
+			return response.SyncResponse(true, apiIdentities)
 		}
 
 		if len(withEntitlements) > 0 {
-			err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeIdentity, withEntitlements, urlToIdentity)
+			err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeIdentity, withEntitlements, urlToIdentityFull)
 			if err != nil {
 				return response.SmartError(err)
 			}
 		}
 
-		return response.SyncResponse(true, apiIdentities)
+		return response.SyncResponse(true, apiIdentitiesFull)
 	}
 }
 
@@ -1537,6 +1661,159 @@ func identityGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.SyncResponseETag(true, apiIdentity, apiIdentity)
+}
+
+// swagger:operation GET /1.0/auth/identities/bearer/{nameOrIdentifier}/state identities identity_state_get_bearer
+//
+//	Get the bearer identity state
+//
+//	Gets the runtime state of a specific bearer identity.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/IdentityState"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/auth/identities/tls/{nameOrIdentifier}/state identities identity_state_get_tls
+//
+//	Get the TLS identity state
+//
+//	Gets the runtime state of a specific TLS identity.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/IdentityState"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/auth/identities/oidc/{nameOrIdentifier}/state identities identity_state_get_oidc
+//
+//	Get the OIDC identity state
+//
+//	Gets the runtime state of a specific OIDC identity.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/IdentityState"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func identityStateGet(d *Daemon, r *http.Request) response.Response {
+	id, err := request.GetContextValue[*dbCluster.IdentitiesRow](r.Context(), ctxClusterDBIdentity)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	s := d.State()
+	canViewGroup, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeAuthGroup)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	var groups map[int64][]string
+	var idpGroups []string
+	var mappedGroupsByIDPGroupName map[string][]string
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		groups, err = dbCluster.GetIdentityAuthGroupNames(ctx, tx.Tx(), &id.ID, func(row dbCluster.AuthGroupsRow) (bool, error) {
+			return canViewGroup(entity.AuthGroupURL(row.Name)), nil
+		})
+		if err != nil {
+			return err
+		}
+
+		// Only OIDC identities can be members of groups via identity provider group mappings.
+		if id.AuthMethod != api.AuthenticationMethodOIDC {
+			return nil
+		}
+
+		metadata, err := id.OIDCMetadata()
+		if err != nil {
+			return fmt.Errorf("Failed reading OIDC identity metadata for %q: %w", id.Identifier, err)
+		}
+
+		idpGroups = metadata.IdentityProviderGroups
+		mappedGroupsByIDPGroupName, err = dbCluster.GetAuthGroupNamesByIDPGroupNames(ctx, tx.Tx(), idpGroups)
+		if err != nil {
+			return fmt.Errorf("Failed getting mapped groups from identity provider groups: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, id.ToAPIState(groups[id.ID], idpGroups, mappedGroupsByIDPGroupName, canViewGroup))
 }
 
 // swagger:operation GET /1.0/auth/identities/current identities identity_get_current

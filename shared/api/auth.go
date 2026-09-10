@@ -136,6 +136,32 @@ func (i *Identity) SetWritable(put IdentityPut) {
 	i.TLSCertificate = put.TLSCertificate
 }
 
+// IdentityState has the effective group membership.
+//
+// swagger:model
+//
+// API extension: access_management_identity_effective_groups.
+type IdentityState struct {
+	// Effective groups is the combined and deduplicated list of LXD groups that the identity is a direct member of, and
+	// the LXD groups that the identity is an effective member of via identity provider group mappings.
+	// Example: ["foo", "bar"]
+	EffectiveGroups []string `json:"effective_groups" yaml:"effective_groups"`
+}
+
+// IdentityFull expands an Identity to include effective group membership.
+//
+// swagger:model
+//
+// API extension: access_management_identity_effective_groups.
+type IdentityFull struct {
+	Identity `yaml:",inline"`
+
+	// Effective groups is the combined and deduplicated list of LXD groups that the identity is a direct member of, and
+	// the LXD groups that the identity is an effective member of via identity provider group mappings.
+	// Example: ["foo", "bar"]
+	EffectiveGroups []string `json:"effective_groups" yaml:"effective_groups"`
+}
+
 // IdentityInfo expands an Identity to include effective group membership and effective permissions.
 // These fields can only be evaluated for the currently authenticated identity.
 //
