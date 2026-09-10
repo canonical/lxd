@@ -66,6 +66,14 @@ const (
 	durableOperationInputKeyReplicatorRunID operations.InputKey = "replicator_run_id"
 )
 
+const (
+	// replicatorMetadataSnapshotStarted is an operation metadata key used to get/set the time at which the instance snapshot was started.
+	replicatorMetadataSnapshotStarted = "snapshot_started"
+
+	// replicatorMetadataSnapshotFinished is an operation metadata key used to get/set the time at which the instance snapshot completed.
+	replicatorMetadataSnapshotFinished = "snapshot_finished"
+)
+
 func init() {
 	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorFinalize, replicatorFinalizeDurableOperationRunHook)
 	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorRunInstanceForward, replicatorRunInstanceForwardDurableOperationHook)
@@ -125,25 +133,182 @@ func loadSharedReplicatorDetails(ctx context.Context, op *operations.Operation) 
 }
 
 func replicatorFinalizeDurableOperationRunHook(_ context.Context, op *operations.Operation) error {
+	// Get some details for the log context. Can't fail to parse the entity URL here because this is guaranteed by the operations package.
+	_, projectName, _, args, err := entity.ParseURL(op.EntityURL().URL)
+	if err != nil || len(args) != 1 {
+		if err == nil {
+			err = fmt.Errorf("Replicator URL should contain 1 path argument but contains %d", len(args))
+		}
+
+		return fmt.Errorf("Failed parsing operation entity URL: %w", err)
+	}
+
+	replicatorName := args[0]
+
 	runID, err := operations.GetOperationInputValue[int64](op, durableOperationInputKeyReplicatorRunID)
 	if err != nil {
 		return fmt.Errorf("Failed getting replicator run ID from operation inputs: %w", err)
 	}
 
+	// Use a fresh context so the status write always completes, even if the operation context was cancelled.
+	ctx := context.Background()
+
+	// Get the current status so that we can compare start/finish times for metrics.
+	var status *dbCluster.ReplicatorsStatusRow
+	s := op.State()
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		status, err = query.SelectOne[dbCluster.ReplicatorsStatusRow](ctx, tx.Tx(), "WHERE id = ?", runID)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed getting replicator run status: %w", err)
+	}
+
 	// Iterate over all operations for the bulk replicator run.
 	// If any operations (that are not this one) have failed, then the replicator run has failed overall.
+	var inspectionErrs []error
 	runStatus := api.ReplicatorStatusCompleted
+	var earliestSnapshotStarted, latestSnapshotFinished *time.Time
+	var instancesTotal, instancesFailed uint
+	var oldestSnapshotInstanceName string
 	for _, child := range op.Parent().Children() {
-		if child.ID() != op.ID() && child.Status() != api.Success {
+		if child.ID() != op.ID() && child.Status() != api.Success && runStatus == api.ReplicatorStatusCompleted {
 			runStatus = api.ReplicatorStatusFailed
-			break
 		}
+
+		if child.Type() == operationtype.ReplicatorRunInstanceForward || child.Type() == operationtype.ReplicatorRunInstanceRestore {
+			instancesTotal++
+			if child.Status() != api.Success {
+				instancesFailed++
+
+				instanceName, err := operations.GetOperationInputValue[string](child, durableOperationInputKeyReplicatorInstanceName)
+				if err != nil {
+					logger.Warn("Instance name not found in forward or restore replication input arguments", logger.Ctx{"parent_operation": op.Parent().ID(), "child_operation": child.ID(), "err": err})
+					instanceName = "UNKNOWN"
+				}
+
+				// Log each failure individually so that a partial failure can be
+				// investigated without having to correlate the child operations by hand.
+				logger.Warn("Replicator failed replicating instance", logger.Ctx{
+					"replicator": replicatorName,
+					"project":    projectName,
+					"instance":   instanceName,
+					"status":     child.Status(),
+					"err":        child.Err(),
+				})
+			}
+		}
+
+		if child.Type() == operationtype.ReplicatorSnapshotInstance && child.Status() == api.Success {
+			snapshotStarted, snapshotFinished, err := extractSnapshotTimestamps(child)
+			if err != nil {
+				logger.Warn("Failed getting replicator snapshot operation telemetry", logger.Ctx{"parent_operation": op.Parent().ID(), "child_operation": child.ID(), "err": err})
+				inspectionErrs = append(inspectionErrs, err)
+				continue
+			}
+
+			if earliestSnapshotStarted == nil || earliestSnapshotStarted.After(*snapshotStarted) {
+				oldestSnapshotInstanceName, err = operations.GetOperationInputValue[string](child, durableOperationInputKeyReplicatorInstanceName)
+				if err != nil {
+					logger.Warn("Failed getting instance name for oldest snapshot", logger.Ctx{"parent_operation": op.Parent().ID(), "child_operation": child.ID(), "err": err})
+					inspectionErrs = append(inspectionErrs, err)
+				}
+
+				earliestSnapshotStarted = snapshotStarted
+			}
+
+			if latestSnapshotFinished == nil || latestSnapshotFinished.Before(*snapshotFinished) {
+				latestSnapshotFinished = snapshotFinished
+			}
+		}
+	}
+
+	// Set both values back to nil if there were any inspection errors. Prefer to not set values that might be wrong.
+	if len(inspectionErrs) > 0 {
+		latestSnapshotFinished, earliestSnapshotStarted = nil, nil
+
+		// Also set the run status to failed. We can't measure it.
+		runStatus = api.ReplicatorStatusFailed
+	}
+
+	completedAt := time.Now()
+	if earliestSnapshotStarted != nil {
+		effectiveRPO := completedAt.Sub(*earliestSnapshotStarted).Seconds()
+
+		// Surface the instance that determines the project's recovery point, since
+		// that is the one to look at when the RPO is worse than expected.
+		logger.Info("Replicator run recovery point", logger.Ctx{
+			"replicator":            replicatorName,
+			"project":               projectName,
+			"instance":              oldestSnapshotInstanceName,
+			"oldest_snapshot":       *earliestSnapshotStarted,
+			"effective_rpo_seconds": effectiveRPO,
+		})
+	}
+
+	durationSeconds := status.StartedDate.Sub(completedAt).Seconds()
+	logCtx := logger.Ctx{
+		"replicator":       replicatorName,
+		"project":          projectName,
+		"instances_total":  instancesTotal,
+		"instances_failed": instancesFailed,
+		"duration_seconds": durationSeconds,
+	}
+
+	if runStatus == api.ReplicatorStatusCompleted {
+		logger.Info("Replicator run completed", logCtx)
+	} else {
+		logger.Error("Replicator run failed", logCtx)
 	}
 
 	// Use a fresh context so the status write always completes, even if the operation context was cancelled.
 	return op.State().DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.FinalizeReplicatorStatus(ctx, tx.Tx(), runID, runStatus, time.Now())
+		return dbCluster.FinalizeReplicatorStatus(ctx, tx.Tx(), runID, runStatus, completedAt, earliestSnapshotStarted, latestSnapshotFinished)
 	})
+}
+
+func extractSnapshotTimestamps(op *operations.Operation) (snapshotStarted *time.Time, snapshotFinished *time.Time, err error) {
+	opMeta := op.Metadata()
+	snapshotStartedAny, ok := opMeta[replicatorMetadataSnapshotStarted]
+	if !ok {
+		return nil, nil, errors.New("Replicator snapshot operation did not contain a snapshot start timestamp")
+	}
+
+	snapshotFinishedAny, ok := opMeta[replicatorMetadataSnapshotFinished]
+	if !ok {
+		return nil, nil, errors.New("Replicator snapshot operation did not contain a snapshot finished timestamp")
+	}
+
+	// Time can be stored in metadata either as a time.Time or as a string. If the durable operation is restarted on another cluster member, then
+	// the time value is unmarshalled into a string. If the whole operation runs on one member, it is still in memory and therefore a time.Time.
+	getTime := func(tAny any) (*time.Time, error) {
+		t, ok := tAny.(time.Time)
+		if !ok {
+			tStr, ok := tAny.(string)
+			if !ok {
+				return nil, fmt.Errorf("Timestamp is of type %T (expected %T or %T)", snapshotStartedAny, time.Time{}, "")
+			}
+
+			t, err = time.Parse(time.RFC3339Nano, tStr)
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing timestamp: %w", err)
+			}
+		}
+
+		return &t, nil
+	}
+
+	started, err := getTime(snapshotStartedAny)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed getting snapshot start timestamp: %w", err)
+	}
+
+	finished, err := getTime(snapshotFinishedAny)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed getting snapshot finished timestamp: %w", err)
+	}
+
+	return started, finished, nil
 }
 
 func replicatorRunInstanceForwardSnapshotDurableOperationHook(ctx context.Context, op *operations.Operation) error {
@@ -157,7 +322,7 @@ func replicatorRunInstanceForwardSnapshotDurableOperationHook(ctx context.Contex
 		return fmt.Errorf("Failed loading replicator details: %w", err)
 	}
 
-	return snapshotInstance(ctx, op.State(), instanceID, memberAddresses)
+	return snapshotInstance(ctx, op, instanceID, memberAddresses)
 }
 
 func replicatorRunInstanceForwardDurableOperationHook(ctx context.Context, op *operations.Operation) error {
@@ -593,6 +758,9 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 				Class:       operationtype.OperationClassDurable,
 			}, map[operations.InputKey]any{
 				durableOperationInputKeyReplicatorInstanceID: inst.ID(),
+				// The instance name is not used for the snapshot stage. It is used by the finalization stage so that it
+				// can associate the oldest snapshot with a particular instance, for telemetry purposes.
+				durableOperationInputKeyReplicatorInstanceName: inst.Name(),
 			})
 			if err != nil {
 				return nil, fmt.Errorf("Failed preparing instance forward replication snapshot operation: %w", err)
@@ -608,6 +776,9 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 				Class:       operationtype.OperationClassDurable,
 			}, map[operations.InputKey]any{
 				durableOperationInputKeyReplicatorInstanceID: inst.ID(),
+				// The instance name is not used for the replication stage. It is used by the finalization stage so that it
+				// can log the instance name and an error message, for telemetry purposes.
+				durableOperationInputKeyReplicatorInstanceName: inst.Name(),
 			})
 			if err != nil {
 				return nil, fmt.Errorf("Failed preparing instance forward replication operation: %w", err)
@@ -685,7 +856,8 @@ func replicationDiskVolumesMode(projectConfig map[string]string) string {
 	return api.DiskVolumesModeAllExclusive
 }
 
-func snapshotInstance(ctx context.Context, s *state.State, instanceID int64, memberAddresses map[string]string) error {
+func snapshotInstance(ctx context.Context, op *operations.Operation, instanceID int64, memberAddresses map[string]string) error {
+	s := op.State()
 	inst, err := instance.LoadByID(s, int(instanceID))
 	if err != nil {
 		return err
@@ -715,8 +887,28 @@ func snapshotInstance(ctx context.Context, s *state.State, instanceID int64, mem
 		createSnapshot = len(inst.ExpandedDevices().Filter(filters.IsCustomVolumeDisk)) > 0
 	}
 
+	// If not creating a snapshot, get the most recent snapshot creation time so that we can record the RPO.
 	if !createSnapshot {
-		return nil
+		var snapshotCreationDate *time.Time
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			snapshotCreationDate, err = dbCluster.GetMostRecentSnapshotCreationDate(ctx, tx.Tx(), instanceID)
+			return err
+		})
+		if err != nil {
+			return fmt.Errorf("Failed determining snapshot creation time of instance with snapshot schedule: %w", err)
+		}
+
+		// If we found the latest snapshot creation date then a snapshot exists that we can use, and we can set the creation
+		// date as the snapshot creation time for this operation. Otherwise, the instance has a snapshot schedule but no
+		// snapshot has been created yet, so we need to create one.
+		if snapshotCreationDate != nil {
+			// Use the creation date for both the started and finished times, because we don't know when the snapshot
+			// finished or how long it took to complete.
+			return setInstanceSnapshotStartAndFinishTimestamps(op, *snapshotCreationDate, *snapshotCreationDate)
+		}
+
+		// If we didn't find the latest snapshot creation date then the instance has a schedule but no snapshot has been created yet.
+		// Continue to create one.
 	}
 
 	instanceLocation := inst.Location()
@@ -735,6 +927,7 @@ func snapshotInstance(ctx context.Context, s *state.State, instanceID int64, mem
 		memberClient = memberClient.UseProject(projectName)
 
 		// Create a snapshot on the hosting cluster member if needed.
+		snapStartedAt := time.Now()
 		snapOp, err := memberClient.CreateInstanceSnapshot(instName, api.InstanceSnapshotsPost{DiskVolumesMode: diskVolumesMode})
 		if err != nil {
 			return fmt.Errorf("Failed creating snapshot of instance %q on hosting cluster member: %w", instName, err)
@@ -745,7 +938,8 @@ func snapshotInstance(ctx context.Context, s *state.State, instanceID int64, mem
 			return fmt.Errorf("Failed waiting for snapshot of instance %q on hosting cluster member: %w", instName, err)
 		}
 
-		return nil
+		snapFinishedAt := time.Now()
+		return setInstanceSnapshotStartAndFinishTimestamps(op, snapStartedAt, snapFinishedAt)
 	}
 
 	snapName, err := instance.NextSnapshotName(s, inst, "snap%d")
@@ -753,9 +947,29 @@ func snapshotInstance(ctx context.Context, s *state.State, instanceID int64, mem
 		return fmt.Errorf("Failed generating snapshot name for instance %q: %w", instName, err)
 	}
 
+	snapStartedAt := time.Now()
 	err = inst.Snapshot(ctx, snapName, nil, false, diskVolumesMode, nil)
 	if err != nil {
 		return fmt.Errorf("Failed creating snapshot of instance %q: %w", instName, err)
+	}
+
+	snapFinishedAt := time.Now()
+	return setInstanceSnapshotStartAndFinishTimestamps(op, snapStartedAt, snapFinishedAt)
+}
+
+func setInstanceSnapshotStartAndFinishTimestamps(op *operations.Operation, startedAt time.Time, finishedAt time.Time) error {
+	err := op.ExtendMetadata(map[string]any{
+		replicatorMetadataSnapshotStarted:  startedAt,
+		replicatorMetadataSnapshotFinished: finishedAt,
+	})
+	if err != nil {
+		return fmt.Errorf("Failed set snapshot timestamps in operation metadata: %w", err)
+	}
+
+	// We need to persist the metadata because this is a durable operation and the information is relied upon in a later stage.
+	err = op.Persist()
+	if err != nil {
+		return fmt.Errorf("Failed persisting snapshot timestamps in operation metadata: %w", err)
 	}
 
 	return nil
@@ -1120,7 +1334,7 @@ func handleReplicatorSchedulingError(s *state.State, projectName string, replica
 
 	// Otherwise, we mark the run as failed, so that we know an attempt was made.
 	err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.FinalizeReplicatorStatus(ctx, tx.Tx(), runID, api.ReplicatorStatusFailed, time.Now())
+		return dbCluster.FinalizeReplicatorStatus(ctx, tx.Tx(), runID, api.ReplicatorStatusFailed, time.Now(), nil, nil)
 	})
 	if err != nil {
 		logger.Warn("Failed finalizing replicator status data when the operation failed to schedule", logger.Ctx{"replicator": replicatorName, "project": projectName})
