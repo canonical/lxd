@@ -83,6 +83,15 @@ const (
 
 	// identityTypeCertificateClusterLinkPending represents cluster links for which a token has been issued but who have not yet authenticated with a linked LXD cluster.
 	identityTypeCertificateClusterLinkPending int64 = 13
+
+	// identityTypeBearerClientPending is the code for [api.IdentityTypeBearerTokenClientPending].
+	identityTypeBearerClientPending int64 = 14
+
+	// identityTypeBearerDevLXDPending is the code for [api.IdentityTypeBearerTokenDevLXDPending].
+	identityTypeBearerDevLXDPending int64 = 15
+
+	// identityTypeBearerInitialUIPending is the code for [api.IdentityTypeBearerTokenInitialUIPending].
+	identityTypeBearerInitialUIPending int64 = 16
 )
 
 // types is a slice of all identity types that implement the [Type] interface.
@@ -98,8 +107,11 @@ var types = []Type{
 	CertificateMetricsUnrestricted{},
 	CertificateServer{},
 	TokenBearerDevLXD{},
+	TokenBearerDevLXDPending{},
 	TokenBearerClient{},
+	TokenBearerClientPending{},
 	TokenBearerInitialUI{},
+	TokenBearerInitialUIPending{},
 }
 
 var nameToType = make(map[string]Type, len(types))

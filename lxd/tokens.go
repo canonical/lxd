@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
+	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -47,7 +48,7 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 
 	var expiredPendingTLSIdentities []cluster.IdentitiesRow
 	if leaderInfo != nil && leaderInfo.Leader {
-		expiredPendingTLSIdentities, err = getExpiredPendingIdentities(ctx, s)
+		expiredPendingTLSIdentities, err = getExpiredPendingTLSIdentities(ctx, s)
 		if err != nil {
 			// Log warning but don't return here so that any local token operations are pruned.
 			logger.Warn("Failed retrieving expired pending TLS identities during removal of expired tokens task", logger.Ctx{"err": err})
@@ -108,19 +109,21 @@ func autoRemoveExpiredTokens(ctx context.Context, s *state.State) {
 	logger.Debug("Done removing expired tokens")
 }
 
-func getExpiredPendingIdentities(ctx context.Context, s *state.State) ([]cluster.IdentitiesRow, error) {
-	// Get a list of pending identity types.
+func getExpiredPendingTLSIdentities(ctx context.Context, s *state.State) ([]cluster.IdentitiesRow, error) {
+	// Get a list of pending TLS identity types. Only a pending TLS identity holds a token secret whose expiry is
+	// recorded in its metadata, so only it can expire and be removed. A pending bearer identity is never removed
+	// automatically, as it holds no token and becomes active again as soon as a token is issued for it.
 	types := identity.Types()
 	args := make([]any, 0, len(types))
 	for _, t := range types {
-		if !t.IsPending() {
+		if !t.IsPending() || t.AuthenticationMethod() != api.AuthenticationMethodTLS {
 			continue
 		}
 
 		args = append(args, cluster.IdentityType(t.Name()))
 	}
 
-	// Query only for pending identities.
+	// Query only for pending TLS identities.
 	var pendingIdentities []cluster.IdentitiesRow
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
