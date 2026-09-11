@@ -356,20 +356,13 @@ func (c *cmdReplicatorList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	const layout = "2006/01/02 15:04 MST"
-
 	data := [][]string{}
 	for _, replicator := range replicators {
 		details := []string{
 			replicator.Name,
 			replicator.Description,
 			replicator.Config["cluster"],
-		}
-
-		if shared.TimeIsSet(replicator.LastRunAt) {
-			details = append(details, replicator.LastRunAt.Local().Format(layout))
-		} else {
-			details = append(details, "")
+			formatTime(&replicator.LastRunAt, time.Local),
 		}
 
 		data = append(data, details)
@@ -849,8 +842,6 @@ func (c *cmdReplicatorInfo) run(cmd *cobra.Command, args []string) error {
 
 	sort.Strings(instanceNames)
 
-	const layout = "2006/01/02 15:04 MST"
-
 	fmt.Printf("Name: %s\n", replicator.Name)
 	if replicator.Description != "" {
 		fmt.Printf("Description: %s\n", replicator.Description)
@@ -865,7 +856,7 @@ func (c *cmdReplicatorInfo) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if shared.TimeIsSet(replicator.LastRunAt) {
-		fmt.Printf("Last run: %s\n", replicator.LastRunAt.Local().Format(layout))
+		fmt.Printf("Last run: %s\n", formatTime(&replicator.LastRunAt, time.Local))
 	}
 
 	if schedule != "" {
@@ -883,9 +874,7 @@ func (c *cmdReplicatorInfo) run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		if !nextRun.IsZero() {
-			fmt.Printf("Next run: %s\n", nextRun.Local().Format(layout))
-		}
+		printTimeIfSet(os.Stdout, "Next run:", &nextRun, nil, time.Local)
 	}
 
 	// Render instances as a table.

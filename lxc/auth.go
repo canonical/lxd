@@ -11,6 +11,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
@@ -1088,6 +1089,7 @@ func (c *cmdIdentityList) columns() []cli.ShorthandColumn[api.Identity] {
 		{Shorthand: 'n', Name: "NAME", Data: c.nameColumnData},
 		{Shorthand: 'i', Name: "IDENTIFIER", Data: c.identifierColumnData},
 		{Shorthand: 'g', Name: "GROUPS", Data: c.groupsColumnData},
+		{Shorthand: 'e', Name: "EXPIRY", Data: c.expiryColumnData},
 	}
 }
 
@@ -1167,6 +1169,11 @@ func (c *cmdIdentityList) groupsColumnData(identity api.Identity) string {
 	}
 
 	return strings.Join(identity.Groups, delimiter)
+}
+
+func (c *cmdIdentityList) expiryColumnData(identity api.Identity) string {
+	// Certificate not after times are typically displayed in UTC.
+	return formatTime(identity.ExpiresAt, time.UTC)
 }
 
 // Show.

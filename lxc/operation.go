@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
@@ -218,7 +219,7 @@ func (c *cmdOperationList) cancelableColumnData(op api.Operation) string {
 }
 
 func (c *cmdOperationList) createdColumnData(op api.Operation) string {
-	return op.CreatedAt.UTC().Format("2006/01/02 15:04 UTC")
+	return formatTime(&op.CreatedAt, time.Local)
 }
 
 func (c *cmdOperationList) locationColumnData(op api.Operation) string {

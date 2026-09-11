@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	yaml "go.yaml.in/yaml/v2"
@@ -198,11 +199,11 @@ func (c *cmdWarningList) countColumnData(warning api.Warning) string {
 }
 
 func (c *cmdWarningList) firstSeenColumnData(warning api.Warning) string {
-	return warning.FirstSeenAt.UTC().Format("Jan 2, 2006 at 3:04pm (MST)")
+	return formatTime(&warning.FirstSeenAt, time.Local)
 }
 
 func (c *cmdWarningList) lastSeenColumnData(warning api.Warning) string {
-	return warning.LastSeenAt.UTC().Format("Jan 2, 2006 at 3:04pm (MST)")
+	return formatTime(&warning.LastSeenAt, time.Local)
 }
 
 func (c *cmdWarningList) locationColumnData(warning api.Warning) string {
