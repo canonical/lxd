@@ -13,11 +13,28 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/canonical/lxd/lxc/config"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/version"
 )
+
+// The builtinImageRegistries list must stay in sync with the SimpleStreams entries of
+// config.StaticRemotes. The frozen list is intentionally separate so the updateFromV88 migration
+// stays deterministic, but the two must agree on the built-in registries.
+func TestBuiltinImageRegistriesMatchStaticRemotes(t *testing.T) {
+	staticSimpleStreams := map[string]string{}
+	for name, remote := range config.StaticRemotes {
+		if remote.Protocol != api.ImageRegistryProtocolSimpleStreams {
+			continue
+		}
+
+		staticSimpleStreams[name] = remote.Addr
+	}
+
+	assert.Equal(t, staticSimpleStreams, builtinImageRegistries)
+}
 
 // If the node is not clustered, the schema updates works normally.
 func TestEnsureSchema_NoClustered(t *testing.T) {
