@@ -61,6 +61,8 @@ const (
 	// OIDCAuthenticationUnavailable warnings are created when OIDC is configured on LXD but LXD is unable to use those
 	// settings to initialize the OIDC verifier.
 	OIDCAuthenticationUnavailable
+	// ReplicatorRunFailure represents a replicator run that did not complete successfully.
+	ReplicatorRunFailure
 )
 
 // TypeNames associates a warning code to its name.
@@ -92,6 +94,7 @@ var TypeNames = map[Type]string{
 	StoragePoolUnvailable:                  "Storage pool unavailable",
 	UnableToUpdateClusterCertificate:       "Cannot update cluster certificate",
 	OIDCAuthenticationUnavailable:          "Failed applying OIDC settings",
+	ReplicatorRunFailure:                   "Replicator run failed",
 }
 
 // Severity returns the severity of the warning type.
@@ -151,6 +154,8 @@ func (t Type) Severity() Severity {
 		return SeverityLow
 	case OIDCAuthenticationUnavailable:
 		return SeverityModerate
+	case ReplicatorRunFailure:
+		return SeverityHigh
 	}
 
 	return SeverityLow

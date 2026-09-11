@@ -43,9 +43,21 @@ type Replicator struct {
 	// Example: 2021-03-23T17:38:37.753398689-04:00
 	LastRunAt time.Time `json:"last_run_at" yaml:"last_run_at"`
 
-	// Status of the last replicator run (Pending, Completed, or Failed).
+	// Status of the last replicator run (Pending, Running, Completed, or Failed).
 	// Example: Completed
 	LastRunStatus string `json:"last_run_status" yaml:"last_run_status"`
+
+	// Timestamp when the replicator job last completed successfully.
+	// Example: 2021-03-23T17:38:37.753398689-04:00
+	//
+	// API extension: metrics_replicators.
+	LastSuccessAt time.Time `json:"last_success_at" yaml:"last_success_at"`
+
+	// Timestamp of the oldest snapshot replicated by the last successful run.
+	// Example: 2021-03-23T17:38:37.753398689-04:00
+	//
+	// API extension: metrics_replicators.
+	LastSuccessOldestSnapshotAt time.Time `json:"last_success_oldest_snapshot_at" yaml:"last_success_oldest_snapshot_at"`
 }
 
 // ReplicatorPut represents the modifiable fields of a replicator.

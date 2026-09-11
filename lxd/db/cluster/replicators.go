@@ -121,8 +121,9 @@ func (ReplicatorsStatusRow) APIPluralName() string {
 	return "Replicator statuses"
 }
 
-// ToAPI converts the [Replicator] to an [api.Replicator].
-func (r *Replicator) ToAPI(allConfigs map[int64]map[string]string, lastStatuses map[int64]ReplicatorsStatusRow) *api.Replicator {
+// ToAPI converts the [Replicator] to an [api.Replicator]. The map of last statuses is a map of replicator ID to slice
+// of replicators_status entries, which must be ordered with the most recent first (ORDER BY id DESC).
+func (r *Replicator) ToAPI(allConfigs map[int64]map[string]string, replicatorStatuses map[int64][]ReplicatorsStatusRow) *api.Replicator {
 	config := allConfigs[r.Row.ID]
 	if config == nil {
 		config = map[string]string{}
@@ -136,10 +137,17 @@ func (r *Replicator) ToAPI(allConfigs map[int64]map[string]string, lastStatuses 
 		LastRunStatus: api.ReplicatorStatusPending,
 	}
 
-	lastStatus, ok := lastStatuses[r.Row.ID]
-	if ok {
-		replicator.LastRunAt = lastStatus.StartedDate
-		replicator.LastRunStatus = lastStatus.Status
+	statuses, ok := replicatorStatuses[r.Row.ID]
+	if ok && len(statuses) > 0 {
+		replicator.LastRunAt = statuses[0].StartedDate
+		replicator.LastRunStatus = statuses[0].Status
+		for _, status := range statuses {
+			if status.Status == api.ReplicatorStatusCompleted {
+				replicator.LastSuccessAt = status.FinishedDate.Time
+				replicator.LastSuccessOldestSnapshotAt = status.SnapshotStartedDate.Time
+				break
+			}
+		}
 	}
 
 	return replicator
@@ -225,9 +233,9 @@ func CreateNewReplicatorStatus(ctx context.Context, tx *sql.Tx, replicatorID int
 }
 
 // FinalizeReplicatorStatus updates the [ReplicatorsStatusRow] with the given ID. It sets the status and finished_date columns.
-func FinalizeReplicatorStatus(ctx context.Context, tx *sql.Tx, runID int64, status string, finishedDate time.Time) error {
-	q := `UPDATE replicators_status SET status = ?, finished_date = ? WHERE id = ?`
-	res, err := tx.ExecContext(ctx, q, status, finishedDate, runID)
+func FinalizeReplicatorStatus(ctx context.Context, tx *sql.Tx, runID int64, status string, finishedDate time.Time, snapshotStartedDate *time.Time, snapshotFinishedDate *time.Time) error {
+	q := `UPDATE replicators_status SET status = ?, finished_date = ?, snapshot_started_date = ?, snapshot_finished_date = ? WHERE id = ?`
+	res, err := tx.ExecContext(ctx, q, status, finishedDate, snapshotStartedDate, snapshotFinishedDate, runID)
 
 	if err != nil {
 		return fmt.Errorf("Failed finalizing replicator run status: %w", err)
@@ -245,9 +253,8 @@ func FinalizeReplicatorStatus(ctx context.Context, tx *sql.Tx, runID int64, stat
 	return err
 }
 
-// GetLastReplicatorStatuses gets the most recent [ReplicatorsStatusRow] for all [Replicator] entries in the given project,
-// or for all projects if no project name is provided.
-func GetLastReplicatorStatuses(ctx context.Context, tx *sql.Tx, projectName *string) (map[int64]ReplicatorsStatusRow, error) {
+// GetReplicatorStatuses gets all [ReplicatorsStatusRow] entries (filtered by project) and returns a map of replicator ID to list of [ReplicatorsStatusRow] ordered by ID (DESC).
+func GetReplicatorStatuses(ctx context.Context, tx *sql.Tx, projectName *string) (map[int64][]ReplicatorsStatusRow, error) {
 	var b strings.Builder
 	var args []any
 
@@ -257,19 +264,16 @@ JOIN replicators ON replicators_status.replicator_id = replicators.id
 JOIN projects ON replicators.project_id = projects.id`)
 	}
 
-	b.WriteString(`
-WHERE replicators_status.id IN (
-	SELECT MAX(id) FROM replicators_status GROUP BY replicator_id
-)`)
-
 	if projectName != nil {
-		b.WriteString(" AND projects.name = ?")
+		b.WriteString(" WHERE projects.name = ? ")
 		args = []any{*projectName}
 	}
 
-	result := make(map[int64]ReplicatorsStatusRow)
+	b.WriteString("ORDER BY replicators_status.replicator_id, replicators_status.id DESC")
+
+	result := make(map[int64][]ReplicatorsStatusRow)
 	err := query.SelectFunc[ReplicatorsStatusRow](ctx, tx, b.String(), func(row ReplicatorsStatusRow) error {
-		result[row.ReplicatorID] = row
+		result[row.ReplicatorID] = append(result[row.ReplicatorID], row)
 		return nil
 	}, args...)
 	if err != nil {
@@ -279,7 +283,8 @@ WHERE replicators_status.id IN (
 	return result, nil
 }
 
-// GetLastReplicatorStatus gets the most recent [ReplicatorsStatusRow] for the [Replicator] with the given ID.
-func GetLastReplicatorStatus(ctx context.Context, tx *sql.Tx, replicatorID int64) (*ReplicatorsStatusRow, error) {
-	return query.SelectOne[ReplicatorsStatusRow](ctx, tx, "WHERE replicators_status.replicator_id = ? ORDER BY replicators_status.id DESC LIMIT 1", replicatorID)
+// GetReplicatorStatus all [ReplicatorsStatusRow] entries for the [Replicator] with the given ID.
+// The list is in descending order by ID (most recent first).
+func GetReplicatorStatus(ctx context.Context, tx *sql.Tx, replicatorID int64) ([]ReplicatorsStatusRow, error) {
+	return query.Select[ReplicatorsStatusRow](ctx, tx, "WHERE replicators_status.replicator_id = ? ORDER BY replicators_status.id DESC", replicatorID)
 }
