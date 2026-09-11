@@ -894,8 +894,12 @@ fine_grained_authorization() {
   # Check we are only able to view public configuration.
   # Here we explicitly a setting that contains an actual password.
   lxc config set loki.auth.password bar
-  lxc_remote query "${remote}:/1.0" | jq --exit-status '.config."oidc.issuer" == "'"${oidc_issuer}"'" and .config."oidc.device.client.id" == "device" and (.config | length) == 2'
-  curl -k "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata | .config."oidc.issuer" == "'"${oidc_issuer}"'" and .config."oidc.device.client.id" == "device" and (.config | length) == 2'
+
+  # Authenticated user sees the clusters volatile.uuid plus public OIDC configuration.
+  lxc_remote query "${remote}:/1.0" | jq --exit-status '.config."oidc.issuer" == "'"${oidc_issuer}"'" and .config."oidc.device.client.id" == "device" and (.config | length) == 3'
+
+  # Untrusted caller only sees the public OIDC configuration.
+  curl -k "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata | .config."oidc.issuer" == "'"${oidc_issuer}"'" and .config."oidc.device.client.id" == "device" and (.config | length) == 2' # Untrusted caller does not see volatile.uuid, but sees public OIDC config.
 
   # Check we are not able to set any server config currently.
   ! lxc_remote config set "${remote}:" loki.auth.password bar2 || false
