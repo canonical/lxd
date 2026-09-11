@@ -18,6 +18,14 @@ const (
 	PlacementRigorPermissive string = "permissive"
 )
 
+const (
+	// PlacementScopeHost applies the placement policy to individual cluster members.
+	PlacementScopeHost string = "host"
+
+	// PlacementScopeFailureDomain applies the placement policy to failure domains as a whole.
+	PlacementScopeFailureDomain string = "failure-domain"
+)
+
 // PlacementGroup represents a group of instances that should be scheduled.
 //
 // API extension: instance_placement_groups.

@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -292,6 +293,8 @@ func placementGroupsPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.BadRequest(err)
 	}
+
+	req.Config = placementGroupDefaultConfig(req.Config)
 
 	projectName := request.ProjectParam(r)
 	newGroup := cluster.PlacementGroupsRow{
@@ -628,6 +631,8 @@ func placementGroupPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	updatedConfig = placementGroupDefaultConfig(updatedConfig)
+
 	err = placementGroupValidateConfig(updatedConfig)
 	if err != nil {
 		return response.SmartError(err)
@@ -725,6 +730,28 @@ func placementGroupPost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseLocation(true, nil, entity.PlacementGroupURL(projectName, placementGroupName).String())
 }
 
+// placementGroupDefaultConfig fills in default values for optional placement group config keys
+// that are missing, so a group created or updated from here on always has an explicit value
+// stored rather than relying on the read path ([cluster.PlacementGroup.ToAPI]) to paper over an
+// absent key. Currently just scope, which defaults to "host" -- unset has always meant host, so
+// this makes that explicit at write time for every group going forward, on top of ToAPI already
+// normalizing it at read time for groups that predate this default (created before scope existed).
+//
+// Skipped entirely while the feature gate is off: scope is part of the failure-domain-aware
+// placement feature, and placementGroupValidateConfig rejects it as an unknown key in that case --
+// defaulting it in here first would make every group creation fail.
+func placementGroupDefaultConfig(config map[string]string) map[string]string {
+	if config == nil {
+		config = map[string]string{}
+	}
+
+	if features.IsEnabled(features.FailureDomainPlacement) && config["scope"] == "" {
+		config["scope"] = api.PlacementScopeHost
+	}
+
+	return config
+}
+
 // placementGroupValidateConfig validates the configuration keys/values for placement groups.
 func placementGroupValidateConfig(config map[string]string) error {
 	placementGroupConfigKeys := map[string]func(value string) error{
@@ -750,6 +777,23 @@ func placementGroupValidateConfig(config map[string]string) error {
 		//  required: "yes"
 		//  shortdesc: Enforcement level of the placement policy
 		"rigor": validate.IsOneOf(api.PlacementRigorStrict, api.PlacementRigorPermissive),
+	}
+
+	// scope is part of the failure-domain-aware placement feature, behind its own feature gate --
+	// while the gate is off it's rejected below as an unknown key, the same as it would be on a
+	// build that never had this feature at all.
+	if features.IsEnabled(features.FailureDomainPlacement) {
+		// lxdmeta:generate(entities=placement-group; group=placement-group; key=scope)
+		// Determines whether `policy`/`rigor` operate on individual cluster members
+		// (`host`) or on failure domains as a whole (`failure-domain`).
+		//
+		// Possible values are `host` and `failure-domain`. Unset defaults to `host`,
+		// reproducing today's member-level behavior.
+		// See {ref}`clustering-instance-placement` for more information.
+		// ---
+		//  type: string
+		//  shortdesc: Unit that the placement policy operates on
+		placementGroupConfigKeys["scope"] = validate.IsOneOf(api.PlacementScopeHost, api.PlacementScopeFailureDomain)
 	}
 
 	for k, v := range config {

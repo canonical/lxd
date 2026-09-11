@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/features"
 )
 
 // PlacementGroupsRow represents a single row of the placement_groups table.
@@ -100,9 +102,24 @@ func GetPlacementGroupsAndURLs(ctx context.Context, tx *sql.Tx, projectName *str
 
 // ToAPI converts the [PlacementGroup] to an [api.PlacementGroup], querying for extra data as necessary.
 func (p *PlacementGroup) ToAPI(configs map[int64]map[string]string) *api.PlacementGroup {
-	config := configs[p.Row.ID]
+	config := maps.Clone(configs[p.Row.ID])
 	if config == nil {
 		config = map[string]string{}
+	}
+
+	// scope is newer than policy/rigor and was never required, so a placement group created (or
+	// last updated) before it existed has no "scope" entry in its config — normalize that to the
+	// explicit "host" value here, matching what an absent scope has always meant, so callers never
+	// have to special-case "missing" versus "host" themselves. Cloned above rather than mutated in
+	// place: configs is also read by callers (e.g. placementGroupPut's PATCH merge) after this
+	// call, and must never see a synthesized key that was never actually persisted.
+	//
+	// Skipped while the failure-domain-aware placement feature gate is off: scope can never
+	// actually be stored in that case (the write path rejects it as an unknown key), and
+	// synthesizing it here anyway would leak the key into every group's API response even though
+	// the feature doesn't exist as far as a caller can tell.
+	if features.IsEnabled(features.FailureDomainPlacement) && config["scope"] == "" {
+		config["scope"] = api.PlacementScopeHost
 	}
 
 	return &api.PlacementGroup{
