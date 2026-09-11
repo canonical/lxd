@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -268,6 +269,24 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 		return fmt.Errorf("Failed connecting to target cluster link: %w", err)
 	}
 
+	// Get cluster UUID.
+	UUIDChanged := false
+	currentClusterUUID := clusterLink.Config["volatile.uuid"]
+	serverInfo, _, err := targetClient.GetServer()
+	if err != nil {
+		return fmt.Errorf("Failed getting server information from target cluster: %w", err)
+	}
+
+	targetClusterUUID, ok := serverInfo.Config["volatile.uuid"].(string)
+	if ok && currentClusterUUID != targetClusterUUID {
+		if currentClusterUUID != "" {
+			logger.Warn("Cluster link UUID changed", logger.Ctx{"clusterLink": name, "oldUUID": currentClusterUUID, "newUUID": targetClusterUUID})
+		}
+
+		clusterLink.Config["volatile.uuid"] = targetClusterUUID
+		UUIDChanged = true
+	}
+
 	// Get cluster members from the target cluster.
 	targetClusterMembers, err := targetClient.GetClusterMembers()
 	if err != nil {
@@ -283,7 +302,7 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 		newAddresses = append(newAddresses, strings.TrimPrefix(clusterMember.URL, "https://"))
 	}
 
-	if !addressSetChanged(addresses, newAddresses) {
+	if !addressSetChanged(addresses, newAddresses) && !UUIDChanged {
 		return nil
 	}
 
