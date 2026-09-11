@@ -153,7 +153,7 @@ Alternatively, click on a replicator name to view its detail page, then click on
 How-to guides:
 
 * {ref}`howto-replicators-setup`
-* {ref}`howto-replicators-dr`
+* {ref}`howto-disaster-recovery`
 
 Reference:
 

@@ -233,4 +233,4 @@ profile to automatically prune them, or delete them manually with `lxc snapshot 
 
 ## Next steps
 
-Once replicators are running, see {ref}`howto-replicators-manage` to view, configure, or delete replicators, and {ref}`howto-replicators-dr` to fail over to the standby cluster if the leader becomes unavailable.
+Once replicators are running, see {ref}`howto-replicators-manage` to view, configure, or delete replicators, and {ref}`howto-disaster-recovery-failover` to fail over to the standby cluster if the leader becomes unavailable.
