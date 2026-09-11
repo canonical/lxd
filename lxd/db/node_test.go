@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
+	"github.com/canonical/lxd/lxd/internal/datastructure/sets"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/osarch"
@@ -452,6 +453,40 @@ func TestUpdateNodeFailureDomain(t *testing.T) {
 	domains, err = tx.GetNodesFailureDomains(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, map[string]uint64{"0.0.0.0": 0, "1.2.3.4:666": 0}, domains)
+}
+
+func TestGetKnownFailureDomainNames(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	// No real domain has been assigned yet: the synthetic "default" entry is excluded.
+	names, err := tx.GetKnownFailureDomainNames(context.Background())
+	require.NoError(t, err)
+	assert.Empty(t, names)
+
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+	require.NoError(t, tx.UpdateNodeFailureDomain(context.Background(), id, "foo"))
+
+	names, err = tx.GetKnownFailureDomainNames(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, sets.New("foo"), names)
+
+	id2, err := tx.CreateNode("fizz", "1.2.3.5:666")
+	require.NoError(t, err)
+	require.NoError(t, tx.UpdateNodeFailureDomain(context.Background(), id2, "bar"))
+
+	// Known even before any consumer reads it back for the second member.
+	names, err = tx.GetKnownFailureDomainNames(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, sets.New("bar", "foo"), names)
+
+	// The registry is append-only: unassigning a member doesn't remove its domain name.
+	require.NoError(t, tx.UpdateNodeFailureDomain(context.Background(), id, "default"))
+
+	names, err = tx.GetKnownFailureDomainNames(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, sets.New("bar", "foo"), names)
 }
 
 func TestGetNodeWithLeastInstances_DefaultArch(t *testing.T) {
