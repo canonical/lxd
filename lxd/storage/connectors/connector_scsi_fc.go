@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -57,18 +58,46 @@ func (c *connectorSCSIFC) LoadModules() error {
 }
 
 // QualifiedName returns the World Wide Port Name (WWPN) of the first FC host initiator.
+//
+// A Fibre Channel host has one WWPN per host bus adapter port, so this reports only
+// part of the host's identity. Callers that register the host with a storage array
+// should use the exported [QualifiedNames] helper instead, so that every port is
+// registered and every path is usable.
 func (c *connectorSCSIFC) QualifiedName() (string, error) {
-	fcHostPath := "/sys/class/fc_host"
+	wwpns, err := c.QualifiedNames()
+	if err != nil {
+		return "", err
+	}
 
+	return wwpns[0], nil
+}
+
+// QualifiedNames returns the World Wide Port Names (WWPNs) of every FC host initiator,
+// sorted so that the result is stable across reboots and HBA re-enumeration.
+//
+// Unlike iSCSI and NVMe, where a host has a single qualified name, a Fibre Channel
+// host is identified by the WWPN of each of its host bus adapter ports. Registering
+// only one of them leaves the remaining ports unable to see the array's volumes.
+func (c *connectorSCSIFC) QualifiedNames() ([]string, error) {
+	return fcInitiatorWWPNs("/sys/class/fc_host")
+}
+
+// fcInitiatorWWPNs returns the normalized WWPNs of the FC host initiators found under
+// the given path, without duplicates and in a stable order.
+//
+// The path is a parameter so that the aggregation can be exercised without a Fibre
+// Channel host bus adapter being present.
+func fcInitiatorWWPNs(fcHostPath string) ([]string, error) {
 	hosts, err := os.ReadDir(fcHostPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return "", fmt.Errorf("No FC hosts found: Directory %q does not exist", fcHostPath)
+			return nil, fmt.Errorf("No FC hosts found: Directory %q does not exist", fcHostPath)
 		}
 
-		return "", fmt.Errorf("Failed reading FC hosts: %w", err)
+		return nil, fmt.Errorf("Failed reading FC hosts: %w", err)
 	}
 
+	wwpns := make([]string, 0, len(hosts))
 	for _, host := range hosts {
 		portNameBytes, err := os.ReadFile(filepath.Join(fcHostPath, host.Name(), "port_name"))
 		if err != nil {
@@ -76,10 +105,23 @@ func (c *connectorSCSIFC) QualifiedName() (string, error) {
 		}
 
 		wwpn := normalizeWWPN(string(portNameBytes))
-		return wwpn, nil
+		if wwpn == "" || slices.Contains(wwpns, wwpn) {
+			continue
+		}
+
+		wwpns = append(wwpns, wwpn)
 	}
 
-	return "", errors.New("No FC host initiators found")
+	if len(wwpns) == 0 {
+		return nil, errors.New("No FC host initiators found")
+	}
+
+	// os.ReadDir order is not guaranteed to be stable across reboots or HBA
+	// re-enumeration. Sort so that the reported identity of the host does not
+	// change between boots.
+	slices.Sort(wwpns)
+
+	return wwpns, nil
 }
 
 // Connect triggers a SCSI bus rescan on local hosts that have a remote FC port
