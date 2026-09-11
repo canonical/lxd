@@ -29,6 +29,12 @@ inputs:
   snap-cache-dir:
     description: Directory to use for the snap dependencies cache
     required: true
+  microceph-channel:
+    description: MicroCeph snap channel to use
+    # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
+    # Revert the default to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
+    default: "tentacle/stable"
+    required: false
 
 runs:
   using: composite
@@ -65,6 +71,7 @@ runs:
       uses: $/.github/actions/download-snaps
       with:
         snap-cache-dir: ${{ inputs.snap-cache-dir }}
+        microceph-channel: ${{ inputs.microceph-channel }}
 
     - name: Download system test dependencies
       if: ${{ inputs.sideload == 'true' }}
@@ -111,6 +118,7 @@ runs:
       with:
         osd-count: 3
         snap-cache-dir: ${{ inputs.snap-cache-dir }}
+        microceph-channel: ${{ inputs.microceph-channel }}
 
     - name: Setup MicroOVN
       uses: $/.github/actions/setup-microovn

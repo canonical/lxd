@@ -621,6 +621,7 @@ jobs:
           coverage: ${{ env.GOCOVERAGE }}
           image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+          microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
 
       - name: Tmate debugging session
         if: ${{ failure() && inputs.tmate-debug }}

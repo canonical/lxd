@@ -41,6 +41,9 @@ defaults:
 env:
   IMAGE_CACHE_DIR: "/home/runner/image-cache"
   SNAP_CACHE_DIR: "/home/runner/snap-cache"
+  # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
+  # Revert to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
+  MICROCEPH_SNAP_CHANNEL: "tentacle/stable"
 
 jobs:
   # Prime the images/snaps caches once so the (potentially large) snap-tests
@@ -66,6 +69,7 @@ jobs:
         with:
           prime-cache-only: true
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+          microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
 
   snap-tests:
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
@@ -252,6 +256,7 @@ jobs:
           os: ${{ matrix.os }}
           image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+          microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
 
       - name: Tmate debugging session
         if: ${{ failure() && inputs.tmate-debug }}
