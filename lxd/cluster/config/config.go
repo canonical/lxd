@@ -281,7 +281,7 @@ func (c *Config) Dump() map[string]string {
 
 // DumpPublic returns a map of publicly visible configuration keys and values ready to add to the public (or non-admin)
 // API response.
-func (c *Config) DumpPublic() map[string]any {
+func (c *Config) DumpPublic(trusted bool) map[string]any {
 	conf := make(map[string]any, 4)
 	issuer, _, _, _, audience, _, deviceClientID := c.OIDCServer()
 	if issuer != "" && deviceClientID != "" {
@@ -295,6 +295,13 @@ func (c *Config) DumpPublic() map[string]any {
 	userMicrocloud := c.m.GetString("user.microcloud")
 	if userMicrocloud != "" {
 		conf["user.microcloud"] = userMicrocloud
+	}
+
+	if trusted {
+		clusterUUID := c.ClusterUUID()
+		if clusterUUID != "" {
+			conf["volatile.uuid"] = clusterUUID
+		}
 	}
 
 	// Return nil if no public configuration.
