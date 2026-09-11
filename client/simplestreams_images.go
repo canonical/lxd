@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -202,8 +203,8 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 			return nil, err
 		}
 
-		parts := strings.Split(meta.Path, "/")
-		resp.MetaName = parts[len(parts)-1]
+		// Basename the server-provided name to prevent path traversal.
+		resp.MetaName = filepath.Base(meta.Path)
 		resp.MetaSize = size
 	}
 
@@ -300,8 +301,8 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 					return nil, err
 				}
 
-				parts := strings.Split(rootfs.Path, "/")
-				resp.RootfsName = parts[len(parts)-1]
+				// Basename the server-provided name to prevent path traversal.
+				resp.RootfsName = filepath.Base(rootfs.Path)
 				resp.RootfsSize = size
 				downloaded = true
 
@@ -317,8 +318,8 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 				return nil, err
 			}
 
-			parts := strings.Split(rootfs.Path, "/")
-			resp.RootfsName = parts[len(parts)-1]
+			// Basename the server-provided name to prevent path traversal.
+			resp.RootfsName = filepath.Base(rootfs.Path)
 			resp.RootfsSize = size
 		}
 	}
