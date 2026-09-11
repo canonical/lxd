@@ -62,7 +62,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 
 		// Get underlying btrfs mount options.
-		mountinfo, err := filesystem.GetMountinfo(volPath)
+		mountinfo, err := filesystem.GetMountinfo("/proc/self/mountinfo", volPath)
 		if err != nil {
 			return err
 		}
