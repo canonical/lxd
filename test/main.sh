@@ -22,8 +22,10 @@ fi
 # Create LXD_LOGS if needed
 [ -n "${LXD_LOGS:-}" ] && mkdir -p "${LXD_LOGS}"
 
-# Create GOCOVERDIR if needed and make it world-writable
-[ -n "${GOCOVERDIR:-}" ] && mkdir -p "${GOCOVERDIR}" && chmod 0777 "${GOCOVERDIR}"
+# Create GOCOVERDIR if needed and make it usable by non-root users
+# shellcheck disable=SC1091
+. "$(dirname "${0}")/includes/coverage.sh"
+setup_gocoverdir
 
 # === export needed environment variables with defaults === #
 # OVN
