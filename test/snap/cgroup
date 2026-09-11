@@ -206,7 +206,7 @@ IP=$(lxc network get lxdbr0 ipv4.address | cut -d/ -f1)
 lxc exec c1 -- apt-get update
 lxc exec c1 --env DEBIAN_FRONTEND=noninteractive -- apt-get install --no-install-recommends --yes iperf3
 
-iperf3 -s -D
+iperf3 --server --daemon --pidfile iperf.pid
 lxc exec c1 -- iperf3 -t 3 -c "${IP}" -J > iperf.json
 E1=$(($(jq .end.sum_sent.bits_per_second < iperf.json | cut -d. -f1)/1024/1024))
 lxc exec c1 -- iperf3 -t 3 -R -c "${IP}" -J > iperf.json
@@ -226,9 +226,11 @@ else
     [ "${E2}" -le "50" ]
     [ "${I2}" -le "200" ]
 
-    pkill -9 iperf3
     lxc config device set c1 eth0 limits.egress= limits.ingress=
 fi
+
+kill -9 "$(cat iperf.pid)"
+rm iperf.pid iperf.json
 
 echo "==> Testing disk limits"
 if [ -e /sys/fs/cgroup/init.scope/io.weight ]; then

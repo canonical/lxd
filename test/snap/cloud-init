@@ -56,7 +56,7 @@ if hasNeededAPIExtension "cloud_init_ssh_keys"; then
 fi
 
 # Cleanup
-rm ./profile-key ./profile-key.pub ./additional-key ./additional-key.pub
+rm ./profile-key ./profile-key.pub ./ignored-key ./ignored-key.pub ./additional-key ./additional-key.pub
 lxc profile unset default cloud-init.user-data
 lxc profile unset default cloud-init.ssh-keys.ignored
 lxc delete -f c1

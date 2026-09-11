@@ -479,8 +479,9 @@ setup_swap() {
         return
     fi
 
+    # Put the swapfile in /var/tmp as /tmp is sometimes a tmpfs which cannot back swapfiles
     SIZE="${1:-1G}"
-    LXD_CI_SWAPFILE="$(mktemp --tmpdir lxd-ci.swapfile.XXXXXXX)"
+    LXD_CI_SWAPFILE="$(mktemp --tmpdir=/var/tmp lxd-ci.swapfile.XXXXXXX)"
     fallocate -l "${SIZE}" "${LXD_CI_SWAPFILE}"
     chmod 0000 "${LXD_CI_SWAPFILE}"
     mkswap "${LXD_CI_SWAPFILE}"
