@@ -274,7 +274,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	// If not authenticated, return now.
 	if !requestor.IsTrusted() {
-		srv.Config = s.GlobalConfig.DumpPublic()
+		srv.Config = s.GlobalConfig.DumpPublic(false)
 		return response.SyncResponseETag(true, srv, nil)
 	}
 
@@ -445,7 +445,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		fullSrv.Config = s.GlobalConfig.DumpPublic()
+		fullSrv.Config = s.GlobalConfig.DumpPublic(true)
 	} else {
 		daemonConfig, err := daemonConfigRender(s)
 		if err != nil {
