@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -325,7 +326,8 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(
 	}
 
 	resp.MetaSize = size
-	resp.MetaName = filename
+	// Basename the server-provided name to prevent path traversal.
+	resp.MetaName = filepath.Base(filename)
 
 	// Check the hash
 	hash := hex.EncodeToString(sha256.Sum(nil))
