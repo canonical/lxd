@@ -4,7 +4,9 @@ description: Setup MicroCeph using loop device(s)
 inputs:
   microceph-channel:
     description: MicroCeph snap channel to install
-    default: "latest/edge"
+    # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
+    # Revert the default to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
+    default: "tentacle/stable"
     required: false
   osd-count:
     description: Number of OSDs to add to MicroCeph

@@ -9,6 +9,40 @@ inputs:
   snap-cache-dir:
     description: Where to save the snap dependencies
     required: true
+  snapd-channel:
+    description: snapd snap channel to seed the cache with
+    default: "latest/beta"
+    required: false
+  core26-channel:
+    description: core26 snap channel to seed the cache with
+    default: "latest/candidate"
+    required: false
+  core24-channel:
+    description: core24 snap channel to seed the cache with
+    default: "latest/candidate"
+    required: false
+  core22-channel:
+    description: core22 snap channel to seed the cache with
+    default: "latest/candidate"
+    required: false
+  lxd-lts-channel:
+    description: LXD LTS snap channel to seed the cache with
+    default: "5.21/edge"
+    required: false
+  lxd-channel:
+    description: LXD snap channel to seed the cache with
+    default: "latest/edge"
+    required: false
+  microceph-channel:
+    description: MicroCeph snap channel to seed the cache with
+    # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
+    # Revert to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
+    default: "tentacle/stable"
+    required: false
+  microovn-channel:
+    description: MicroOVN snap channel to seed the cache with
+    default: "latest/edge"
+    required: false
 
 runs:
   using: composite
@@ -43,6 +77,14 @@ runs:
       if: ${{ steps.cache-snaps.outputs.cache-hit != 'true' }}
       env:
         SNAP_CACHE_DIR: ${{ inputs.snap-cache-dir }}
+        INPUTS_SNAPD_CHANNEL: ${{ inputs.snapd-channel }}
+        INPUTS_CORE26_CHANNEL: ${{ inputs.core26-channel }}
+        INPUTS_CORE24_CHANNEL: ${{ inputs.core24-channel }}
+        INPUTS_CORE22_CHANNEL: ${{ inputs.core22-channel }}
+        INPUTS_LXD_LTS_CHANNEL: ${{ inputs.lxd-lts-channel }}
+        INPUTS_LXD_CHANNEL: ${{ inputs.lxd-channel }}
+        INPUTS_MICROCEPH_CHANNEL: ${{ inputs.microceph-channel }}
+        INPUTS_MICROOVN_CHANNEL: ${{ inputs.microovn-channel }}
       shell: bash
       run: |
         set -eux
@@ -62,14 +104,14 @@ runs:
         . test/includes/snap.sh
 
         # Seed the snap dependencies cache
-        download_snap snapd "latest/beta"
-        download_snap core26 "latest/candidate"
-        download_snap core24 "latest/candidate"
-        download_snap core22 "latest/candidate"
-        download_snap lxd "5.21/edge"
-        download_snap lxd
-        download_snap microceph
-        download_snap microovn
+        download_snap snapd "${INPUTS_SNAPD_CHANNEL}"
+        download_snap core26 "${INPUTS_CORE26_CHANNEL}"
+        download_snap core24 "${INPUTS_CORE24_CHANNEL}"
+        download_snap core22 "${INPUTS_CORE22_CHANNEL}"
+        download_snap lxd "${INPUTS_LXD_LTS_CHANNEL}"
+        download_snap lxd "${INPUTS_LXD_CHANNEL}"
+        download_snap microceph "${INPUTS_MICROCEPH_CHANNEL}"
+        download_snap microovn "${INPUTS_MICROOVN_CHANNEL}"
 
     # Only save if there wasn't an exact cache hit, AND the code is running on the main repo (not an untrusted fork)
     - name: Save snaps cache

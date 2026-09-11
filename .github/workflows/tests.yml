@@ -59,6 +59,9 @@ env:
   GOCOVERDIR: ''  # Later set to the fully qualified path if needed
   IMAGE_CACHE_DIR: "/home/runner/image-cache"
   SNAP_CACHE_DIR: "/home/runner/snap-cache"
+  # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
+  # Revert to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
+  MICROCEPH_SNAP_CHANNEL: "tentacle/stable"
 
 permissions:
   contents: read
@@ -241,6 +244,7 @@ jobs:
         with:
           prime-cache-only: true
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+          microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
 
       - name: Upload system test dependencies
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -350,6 +354,7 @@ jobs:
         uses: $/.github/actions/download-snaps
         with:
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+          microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
 
       - name: Download system test dependencies
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -368,6 +373,7 @@ jobs:
         if: ${{ contains(matrix.backends, 'ceph') || matrix.backends == 'all' }}
         uses: $/.github/actions/setup-microceph
         with:
+          microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
           osd-count: 3
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
@@ -628,6 +634,7 @@ jobs:
         uses: $/.github/actions/download-snaps
         with:
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+          microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
 
       - name: Download system test dependencies
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -663,6 +670,7 @@ jobs:
         if: ${{ matrix.test == 'conversion' || matrix.test == 'storage-buckets' || matrix.test == 'storage-vm ceph' || matrix.test == 'storage-volumes-vm' }}
         uses: $/.github/actions/setup-microceph
         with:
+          microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
           osd-count: 3
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
 
@@ -1142,6 +1150,8 @@ jobs:
 
       - name: Setup MicroCeph
         uses: $/.github/actions/setup-microceph
+        with:
+          microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
 
       - name: Setup MicroOVN
         uses: $/.github/actions/setup-microovn

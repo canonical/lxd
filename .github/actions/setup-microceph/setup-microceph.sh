@@ -10,6 +10,7 @@ install_microceph() {
       . test/includes/snap.sh
       install_snap snapd latest/beta
       install_snap core24 latest/candidate
+      install_snap core26 latest/candidate
       install_snap microceph "${channel}"
   else
     timeout 20m snap install microceph --channel="${channel}"
@@ -175,7 +176,9 @@ setup_microceph() {
     return 1
   fi
   local osd_count="${2:-1}"
-  local channel="${3:-latest/edge}"
+  # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
+  # Revert the default to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
+  local channel="${3:-tentacle/stable}"
 
   install_microceph "${channel}"
   configure_microceph "${disk}" "${osd_count}"
