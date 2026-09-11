@@ -62,6 +62,28 @@ func TestConfigLoad_Triggers(t *testing.T) {
 	}, config.Dump())
 }
 
+func TestConfig_DumpPublicUnauthenticated(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	config, err := clusterConfig.Load(context.Background(), tx)
+	require.NoError(t, err)
+
+	publicConfig := config.DumpPublic(false)
+	assert.NotContains(t, publicConfig, "volatile.uuid")
+}
+
+func TestConfig_DumpPublicAuthenticated(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	config, err := clusterConfig.Load(context.Background(), tx)
+	require.NoError(t, err)
+
+	publicConfig := config.DumpPublic(true)
+	assert.Equal(t, config.ClusterUUID(), publicConfig["volatile.uuid"])
+}
+
 // Offline threshold must be greater than the heartbeat interval.
 func TestConfigLoad_OfflineThresholdValidator(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
