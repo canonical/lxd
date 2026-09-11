@@ -739,7 +739,7 @@ jobs:
           # It is appended (not prepended) so the snap's lxc/lxd wrappers keep precedence; the snap
           # lxc/lxd/lxd-agent coverage is collected separately via the sideloaded *.debug binaries.
           export PATH="${PATH}:/home/runner/go/bin"
-          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./test/snap.sh "test/snap/${TEST_SCRIPT}" "${SNAP_TRACK}/${SNAP_RISK}" ${EXTRA_ARGS:-}
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" "./test/snap/${TEST_SCRIPT}" "${SNAP_TRACK}/${SNAP_RISK}" ${EXTRA_ARGS:-}
 
           # Cleanly stopping `snap.lxd.daemon.service` will ensure that any Go
           # coverage data is flushed to disk and can be collected by the upload

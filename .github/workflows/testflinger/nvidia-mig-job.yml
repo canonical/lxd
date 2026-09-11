@@ -90,4 +90,4 @@ test_data:
     wait-for-ssh --allow-degraded
 
     _run git clone --depth=1 https://github.com/canonical/lxd.git
-    _run "cd lxd && git fetch --depth=1 origin $LXD_REF && git checkout --detach FETCH_HEAD && sudo -E ./test/snap.sh test/snap/gpu-mig $SNAP_CHANNEL < /dev/null"
+    _run 'cd lxd && git fetch --depth=1 origin "${LXD_REF}" && git checkout --detach FETCH_HEAD && sudo -E ./test/snap/gpu-mig "${SNAP_CHANNEL}" < /dev/null'

@@ -18,11 +18,11 @@ sudo -E ./main.sh
 
 ## Snap integration tests
 
-Snap integration test scripts are in `test/snap/`. Run them from the repository
-root with `test/snap.sh`:
+Snap integration test scripts are in `test/snap/` and can be run directly
+from the repository root:
 
 ```sh
-sudo -E ./test/snap.sh test/snap/cgroup latest/edge
+sudo -E ./test/snap/cgroup latest/edge
 ```
 
 The snap channel is optional and defaults to `latest/edge`. The runner installs
@@ -30,14 +30,14 @@ the selected store snap by default. To remove the installed LXD snap before a
 test run, which is useful for repeated local testing, set `PURGE_LXD`:
 
 ```sh
-sudo -E env PURGE_LXD=1 ./test/snap.sh test/snap/interception latest/edge
+sudo -E env PURGE_LXD=1 ./test/snap/interception latest/edge
 ```
 
 To reuse an installed LXD snap without installing or refreshing it, set
 `KEEP_LXD`:
 
 ```sh
-sudo -E env KEEP_LXD=1 ./test/snap.sh test/snap/interception latest/edge
+sudo -E env KEEP_LXD=1 ./test/snap/interception latest/edge
 ```
 
 ### Test a source build
@@ -47,23 +47,23 @@ enable sideloading:
 
 ```sh
 make
-sudo -E env LXD_SNAP_SIDELOAD=1 ./test/snap.sh test/snap/interception latest/edge
+sudo -E env LXD_SNAP_SIDELOAD=1 ./test/snap/interception latest/edge
 ```
 
 Set `LXD_SNAP_BINARY_DIR` to use binaries from a directory other than
 `$(go env GOPATH)/bin`:
 
 ```sh
-sudo -E env LXD_SNAP_SIDELOAD=1 LXD_SNAP_BINARY_DIR=/path/to/bin ./test/snap.sh test/snap/interception latest/edge
+sudo -E env LXD_SNAP_SIDELOAD=1 LXD_SNAP_BINARY_DIR=/path/to/bin ./test/snap/interception latest/edge
 ```
 
 To sideload individual binaries while testing an installed store snap, set the
 corresponding path:
 
 ```sh
-sudo -E env LXD_SIDELOAD_PATH=/path/to/lxd ./test/snap.sh test/snap/interception latest/edge
-sudo -E env LXC_SIDELOAD_PATH=/path/to/lxc ./test/snap.sh test/snap/interception latest/edge
-sudo -E env LXD_AGENT_SIDELOAD_PATH=/path/to/lxd-agent ./test/snap.sh test/snap/vm latest/edge
+sudo -E env LXD_SIDELOAD_PATH=/path/to/lxd ./test/snap/interception latest/edge
+sudo -E env LXC_SIDELOAD_PATH=/path/to/lxc ./test/snap/interception latest/edge
+sudo -E env LXD_AGENT_SIDELOAD_PATH=/path/to/lxd-agent ./test/snap/vm latest/edge
 ```
 
 ### Test a local snap
@@ -71,14 +71,14 @@ sudo -E env LXD_AGENT_SIDELOAD_PATH=/path/to/lxd-agent ./test/snap.sh test/snap/
 To test a locally built snap, set `LXD_SNAP_PATH`:
 
 ```sh
-sudo -E env LXD_SNAP_PATH=/path/to/lxd_0+git_amd64.snap ./test/snap.sh test/snap/interception latest/edge
+sudo -E env LXD_SNAP_PATH=/path/to/lxd_0+git_amd64.snap ./test/snap/interception latest/edge
 ```
 
 To use the system's ZFS tools instead of the tools bundled in the LXD snap, set
 `LXD_ZFS_EXTERNAL`:
 
 ```sh
-sudo -E env LXD_ZFS_EXTERNAL=1 ./test/snap.sh test/snap/interception latest/edge
+sudo -E env LXD_ZFS_EXTERNAL=1 ./test/snap/interception latest/edge
 ```
 
 ### Test OVN
@@ -87,10 +87,10 @@ The `network-ovn` suite can use the host's OVN packages or a chosen MicroOVN
 snap channel:
 
 ```sh
-sudo -E env OVN_SOURCE=deb PURGE_LXD=1 ./test/snap.sh test/snap/network-ovn latest/edge
-sudo -E env OVN_SOURCE=22.03/edge PURGE_LXD=1 ./test/snap.sh test/snap/network-ovn latest/edge
-sudo -E env OVN_SOURCE=24.03/edge PURGE_LXD=1 ./test/snap.sh test/snap/network-ovn latest/edge
-sudo -E env PURGE_LXD=1 ./test/snap.sh test/snap/network-ovn latest/edge
+sudo -E env OVN_SOURCE=deb PURGE_LXD=1 ./test/snap/network-ovn latest/edge
+sudo -E env OVN_SOURCE=22.03/edge PURGE_LXD=1 ./test/snap/network-ovn latest/edge
+sudo -E env OVN_SOURCE=24.03/edge PURGE_LXD=1 ./test/snap/network-ovn latest/edge
+sudo -E env PURGE_LXD=1 ./test/snap/network-ovn latest/edge
 ```
 
 The test host must have snapd installed and the command must run as root.

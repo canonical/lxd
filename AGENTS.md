@@ -27,8 +27,8 @@ client/         Go client library
 shared/         Code shared across components
 test/
   suites/       Integration test suites (bash)
-  snap/         Snap integration test scripts
-  snap.sh       Snap integration test runner
+  snap/         Snap integration test scripts (run directly)
+  local-snap.sh Snap integration test runner (sourced by test/snap/* scripts)
   lint/         Lint scripts
   includes/
     snap-helpers.sh  Shared snap integration test helpers
@@ -102,7 +102,7 @@ MicroOVN. See `test/README.md` for full setup instructions.
 sudo ./test/main.sh <suite-name>
 
 # Run a snap integration suite
-sudo -E ./test/snap.sh test/snap/cgroup latest/edge
+sudo -E ./test/snap/cgroup latest/edge
 ```
 
 ## Key conventions
