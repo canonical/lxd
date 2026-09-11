@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"slices"
 
+	"google.golang.org/protobuf/proto"
+
 	backupConfig "github.com/canonical/lxd/lxd/backup/config"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -75,6 +77,16 @@ type VolumeTargetArgs struct {
 	ContentType           string
 	VolumeOnly            bool
 	ClusterMoveSourceName string
+
+	// DeferredCustomVolumes holds "pool/name" for the custom volumes the target could not validate yet because
+	// they are missing and expected from the source. The index header must list each of them, or the migration
+	// is refused before any data moves. Only used for instance migration.
+	DeferredCustomVolumes map[string]struct{}
+
+	// AttachedCustomVolumes holds "pool/name" for every custom volume the instance's effective devices on the
+	// target refer to. Every custom volume the index header lists must be in it, or the migration is refused
+	// before any data moves. Only used for instance migration.
+	AttachedCustomVolumes map[string]struct{}
 }
 
 // TypesToHeader converts one or more Types to a MigrationHeader. It uses the first type argument
@@ -249,4 +261,27 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 	}
 
 	return matchedTypes, nil
+}
+
+// VolumeSnapshotToProtobuf converts a custom volume snapshot into its migration header representation.
+func VolumeSnapshotToProtobuf(vol *api.StorageVolumeSnapshot) *Snapshot {
+	config := make([]*Config, 0, len(vol.Config))
+	for k, v := range vol.Config {
+		kCopy := string(k)
+		vCopy := string(v)
+		config = append(config, &Config{Key: &kCopy, Value: &vCopy})
+	}
+
+	return &Snapshot{
+		Name:         &vol.Name,
+		LocalConfig:  config,
+		Profiles:     []string{},
+		Ephemeral:    new(false),
+		LocalDevices: []*Device{},
+		Architecture: proto.Int32(0),
+		Stateful:     new(false),
+		CreationDate: new(vol.CreatedAt.Unix()),
+		LastUsedDate: proto.Int64(0),
+		ExpiryDate:   proto.Int64(0),
+	}
 }

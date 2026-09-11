@@ -4767,7 +4767,21 @@ func (d *lxc) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, pr
 		}
 	}
 
-	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, nil, progressReporter)
+	// The index frame lists the custom volumes that will follow the root volume, so the target can check the
+	// devices it deferred before any data moves. In root mode the list is empty and the frame is unchanged.
+	// A live request never carries custom volumes, so it lists none whatever the mode.
+	diskVolumesMode := args.DiskVolumesMode
+	if args.Live {
+		diskVolumesMode = api.DiskVolumesModeRoot
+	}
+
+	volsConfig, err := d.migrationCustomVolumes(d, pool, diskVolumesMode, args.Snapshots, progressReporter)
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, volsConfig, progressReporter)
 	if err != nil {
 		err := fmt.Errorf("Failed generating instance migration config: %w", err)
 		op.Done(err)
@@ -4931,6 +4945,14 @@ func (d *lxc) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, pr
 			}
 
 			d.logger.Debug("Finished final storage migration phase")
+		}
+
+		if respHeader.GetIndexHeaderVersion() >= migration.IndexHeaderVersionCustomVolumes && args.ClusterMoveSourceName == "" && !args.Live {
+			// The same list the index frame announced, so the target receives exactly what it was told to expect.
+			err := d.migrateSendCustomVolumes(filesystemConn, respHeader.GetIndexHeaderVersion(), args.Snapshots, volsConfig, progressReporter)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -5192,15 +5214,15 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 		args.Disconnect()
 	}()
 
-	// Start filesystem transfer routine and initialise a channel that is closed when the routine finishes.
-	fsTransferDone := make(chan struct{})
-	g.Go(func() error {
-		defer close(fsTransferDone)
+	// Start filesystem transfer routine and initialise a channel that carries its result. The routine's
+	// error reaches the error group only after the routine has returned, so a waiter woken by the routine
+	// finishing can still see an uncancelled context and mistake a failed transfer for a completed one.
+	fsTransferDone := make(chan error, 1)
+	g.Go(func() (err error) {
+		defer func() { fsTransferDone <- err }()
 
 		d.logger.Debug("Migrate receive filesystem transfer started")
 		defer d.logger.Debug("Migrate receive filesystem transfer finished")
-
-		var err error
 
 		// We do the fs receive in parallel so we don't have to reason about when to receive
 		// what. The sending side is smart enough to send the filesystem bits that it can
@@ -5254,6 +5276,8 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 			VolumeSize:            offerHeader.GetVolumeSize(), // Block size setting override.
 			VolumeOnly:            !args.Snapshots,
 			ClusterMoveSourceName: args.ClusterMoveSourceName,
+			DeferredCustomVolumes: args.DeferredVolumes,
+			AttachedCustomVolumes: args.AttachedVolumes,
 		}
 
 		// At this point we have already figured out the parent container's root
@@ -5329,6 +5353,14 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 			})
 		}
 
+		// Registered after the instance revert so the reverter removes the custom volumes first.
+		if respHeader.GetIndexHeaderVersion() >= migration.IndexHeaderVersionCustomVolumes && args.ClusterMoveSourceName == "" && !args.Live {
+			err = d.migrateReceiveCustomVolumes(ctx, d, filesystemConn, respHeader.GetIndexHeaderVersion(), args.Snapshots, args.AttachedVolumes, revert, progressReporter)
+			if err != nil {
+				return err
+			}
+		}
+
 		// For containers, the fs map of the source is sent as part of the migration
 		// stream, then at the end we need to record that map as last_state so that
 		// LXD can shift on startup if needed.
@@ -5359,11 +5391,11 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 
 	{
 		// Wait until the filesystem transfer and state transfer routines have finished.
-		<-fsTransferDone
+		fsTransferErr := <-fsTransferDone
 
-		// If context is cancelled by this stage, then an error has occurred.
+		// If the transfer failed or the context is cancelled by this stage, then an error has occurred.
 		// Wait for all routines to finish and collect the first error that occurred.
-		if ctx.Err() != nil {
+		if fsTransferErr != nil || ctx.Err() != nil {
 			err := g.Wait()
 
 			// Send failure response to source.

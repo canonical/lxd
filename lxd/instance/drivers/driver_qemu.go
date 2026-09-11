@@ -7078,7 +7078,21 @@ func (d *qemu) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, p
 	d.logger.Debug("Set migration offer volume size", logger.Ctx{"blockSize": blockSize})
 	offerHeader.VolumeSize = &blockSize
 
-	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, nil, progressReporter)
+	// The index frame lists the custom volumes that will follow the root volume, so the target can check the
+	// devices it deferred before any data moves. In root mode the list is empty and the frame is unchanged.
+	// A live request never carries custom volumes, so it lists none whatever the mode.
+	diskVolumesMode := args.DiskVolumesMode
+	if args.Live {
+		diskVolumesMode = api.DiskVolumesModeRoot
+	}
+
+	volsConfig, err := d.migrationCustomVolumes(d, pool, diskVolumesMode, args.Snapshots, progressReporter)
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, volsConfig, progressReporter)
 	if err != nil {
 		err := fmt.Errorf("Failed generating instance migration config: %w", err)
 		op.Done(err)
@@ -7262,6 +7276,17 @@ func (d *qemu) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, p
 			err = pool.MigrateInstance(ctx, d, filesystemConn, volSourceArgs, progressReporter)
 			if err != nil {
 				return err
+			}
+
+			// A live request keeps writing to the volumes, and a live request that falls back to a
+			// stateful stop still skips the device deferral on the target, so custom volumes never
+			// travel with a live migration.
+			if respHeader.GetIndexHeaderVersion() >= migration.IndexHeaderVersionCustomVolumes && args.ClusterMoveSourceName == "" && !args.Live {
+				// The same list the index frame announced, so the target receives exactly what it was told to expect.
+				err := d.migrateSendCustomVolumes(filesystemConn, respHeader.GetIndexHeaderVersion(), args.Snapshots, volsConfig, progressReporter)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -7844,15 +7869,15 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 		args.Disconnect()
 	}()
 
-	// Start filesystem transfer routine and initialise a channel that is closed when the routine finishes.
-	fsTransferDone := make(chan struct{})
-	g.Go(func() error {
-		defer close(fsTransferDone)
+	// Start filesystem transfer routine and initialise a channel that carries its result. The routine's
+	// error reaches the error group only after the routine has returned, so a waiter woken by the routine
+	// finishing can still see an uncancelled context and mistake a failed transfer for a completed one.
+	fsTransferDone := make(chan error, 1)
+	g.Go(func() (err error) {
+		defer func() { fsTransferDone <- err }()
 
 		d.logger.Debug("Migrate receive transfer started")
 		defer d.logger.Debug("Migrate receive transfer finished")
-
-		var err error
 
 		snapshots := make([]*migration.Snapshot, 0)
 
@@ -7899,6 +7924,8 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 			VolumeSize:            offerHeader.GetVolumeSize(), // Block size setting override.
 			VolumeOnly:            !args.Snapshots,
 			ClusterMoveSourceName: args.ClusterMoveSourceName,
+			DeferredCustomVolumes: args.DeferredVolumes,
+			AttachedCustomVolumes: args.AttachedVolumes,
 		}
 
 		// At this point we have already figured out the parent instances's root
@@ -8017,6 +8044,16 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 			})
 		}
 
+		// Registered after the instance revert so the reverter removes the custom volumes first.
+		// A live request keeps writing to the volumes, so those never travel with the instance. The
+		// condition matches the source so both sides agree on whether the frames are coming.
+		if respHeader.GetIndexHeaderVersion() >= migration.IndexHeaderVersionCustomVolumes && args.ClusterMoveSourceName == "" && !args.Live {
+			err = d.migrateReceiveCustomVolumes(ctx, d, filesystemConn, respHeader.GetIndexHeaderVersion(), args.Snapshots, args.AttachedVolumes, revert, progressReporter)
+			if err != nil {
+				return err
+			}
+		}
+
 		if args.ClusterMoveSourceName != d.name {
 			err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
 			if err != nil {
@@ -8063,11 +8100,11 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 
 	{
 		// Wait until the filesystem transfer routine has finished.
-		<-fsTransferDone
+		fsTransferErr := <-fsTransferDone
 
-		// If context is cancelled by this stage, then an error has occurred.
+		// If the transfer failed or the context is cancelled by this stage, then an error has occurred.
 		// Wait for all routines to finish and collect the first error that occurred.
-		if ctx.Err() != nil {
+		if fsTransferErr != nil || ctx.Err() != nil {
 			err := g.Wait()
 
 			// Send failure response to source.

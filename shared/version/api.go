@@ -503,6 +503,7 @@ var APIExtensions = []string{
 	"cluster_links_public",
 	"durable_operations",
 	"access_management_bearer_pending",
+	"replicator_custom_volumes",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

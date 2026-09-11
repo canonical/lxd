@@ -315,8 +315,9 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// When "features.storage.volumes" is disabled, only allow root disk to be snapshotted.
-	if shared.IsFalse(p.Config["features.storage.volumes"]) && req.DiskVolumesMode == api.DiskVolumesModeAllExclusive {
+	// A project that does not own its custom volumes has none to snapshot, so only allow the root disk.
+	// This is the rule the storage layer applies, so an unset key counts as inheriting.
+	if shared.IsFalseOrEmpty(p.Config["features.storage.volumes"]) && req.DiskVolumesMode == api.DiskVolumesModeAllExclusive {
 		return response.BadRequest(errors.New("Project does not have features.storage.volumes enabled"))
 	}
 
@@ -682,7 +683,7 @@ func snapshotPost(s *state.State, r *http.Request, snapInst instance.Instance) r
 			}
 		}
 
-		ws, err := newMigrationSource(snapInst, reqNew.Live, true, false, "", req.Target)
+		ws, err := newMigrationSource(snapInst, reqNew.Live, true, false, "", "", req.Target)
 		if err != nil {
 			return response.SmartError(err)
 		}

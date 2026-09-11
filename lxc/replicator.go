@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/termios"
+	"github.com/canonical/lxd/shared/version"
 )
 
 type cmdReplicator struct {
@@ -900,7 +902,148 @@ func (c *cmdReplicatorInfo) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return nil
+	// A server without the extension never transfers custom volumes, so listing them would
+	// misreport what the replicator covers.
+	if !resource.server.HasExtension("replicator_custom_volumes") {
+		return nil
+	}
+
+	// The replicator also replicates the project's custom volumes, so list them alongside
+	// the instances. Each volume's used_by is returned populated by the recursive fetch.
+	// A project without features.storage.volumes owns no custom volumes; the listing would
+	// show volumes inherited from the default project that the replicator never transfers,
+	// so skip the volumes section entirely for such projects.
+	proj, _, err := resource.server.GetProject(replicator.Project)
+	if err != nil {
+		return err
+	}
+
+	if shared.IsFalseOrEmpty(proj.Config["features.storage.volumes"]) {
+		return nil
+	}
+
+	volumes, err := resource.server.GetVolumesWithFilter([]string{"type=custom"})
+	if err != nil {
+		return err
+	}
+
+	// The replicator only moves the instances of its own project, so a volume whose sole user lives in a
+	// project that inherits these volumes never travels even though it is exclusive.
+	replicatorInstances := make(map[string]struct{}, len(instances))
+	for _, inst := range instances {
+		replicatorInstances[api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String()] = struct{}{}
+	}
+
+	// A volume's used_by names an instance only for a direct attachment; an instance that gets the volume
+	// through a profile shows up as that profile. Resolve profiles to the instances applying them, so a
+	// profile-attached volume is counted the way the server counts it. A volume in the default project can
+	// be used from a project that inherits its volumes, and listing profiles across projects is refused for
+	// a restricted client, so each profile is read on its own as it turns up.
+	profiles := make(map[string]*api.Profile)
+	getProfile := func(projectName string, profileName string) *api.Profile {
+		key := projectName + "/" + profileName
+		profile, cached := profiles[key]
+		if cached {
+			return profile
+		}
+
+		profile, _, err := resource.server.UseProject(projectName).GetProfile(profileName)
+		if err != nil {
+			profile = nil
+		}
+
+		profiles[key] = profile
+		return profile
+	}
+
+	// A device attaching a snapshot keeps its parent volume in use, and the server counts it against the
+	// parent when it decides what travels, so the users of a snapshot are collected under its parent. A
+	// profile that cannot be read leaves the users unknown, and such a volume is left out rather than
+	// listed on a guess.
+	type volumeUsers struct {
+		instances map[string]struct{}
+		unknown   bool
+	}
+
+	users := make(map[string]*volumeUsers)
+	for _, vol := range volumes {
+		parentName, _, _ := api.GetParentAndSnapshotName(vol.Name)
+		key := vol.Pool + "/" + parentName
+		entry := users[key]
+		if entry == nil {
+			entry = &volumeUsers{instances: make(map[string]struct{})}
+			users[key] = entry
+		}
+
+		for _, user := range vol.UsedBy {
+			if strings.HasPrefix(user, "/1.0/instances/") {
+				entry.instances[user] = struct{}{}
+				continue
+			}
+
+			profileURL, err := url.Parse(user)
+			if err != nil {
+				continue
+			}
+
+			profileName, found := strings.CutPrefix(profileURL.Path, "/1.0/profiles/")
+			if !found {
+				continue
+			}
+
+			projectName := profileURL.Query().Get("project")
+			if projectName == "" {
+				projectName = api.ProjectDefaultName
+			}
+
+			profile := getProfile(projectName, profileName)
+			if profile == nil {
+				entry.unknown = true
+				continue
+			}
+
+			for _, instanceURL := range profile.UsedBy {
+				entry.instances[instanceURL] = struct{}{}
+			}
+		}
+	}
+
+	// Only a volume used by exactly one instance travels with that instance, whether it is attached directly
+	// or through a profile, so listing anything else would claim coverage the replicator does not provide.
+	filteredVolumes := make([]api.StorageVolume, 0, len(volumes))
+	for _, vol := range volumes {
+		if shared.IsSnapshot(vol.Name) {
+			continue
+		}
+
+		entry := users[vol.Pool+"/"+vol.Name]
+		if entry.unknown || len(entry.instances) != 1 {
+			continue
+		}
+
+		soleUserReplicated := false
+		for user := range entry.instances {
+			_, soleUserReplicated = replicatorInstances[user]
+		}
+
+		if !soleUserReplicated {
+			continue
+		}
+
+		filteredVolumes = append(filteredVolumes, vol)
+	}
+
+	sort.Slice(filteredVolumes, func(i, j int) bool {
+		return filteredVolumes[i].Name < filteredVolumes[j].Name
+	})
+
+	volumeData := make([][]string, 0, len(filteredVolumes))
+	for _, vol := range filteredVolumes {
+		volumeData = append(volumeData, []string{vol.Name, vol.Pool, strings.Join(vol.UsedBy, "\n")})
+	}
+
+	fmt.Println("Volumes:")
+	return cli.RenderTable(cli.TableFormatTable, []string{"NAME", "POOL", "USED BY"}, volumeData, filteredVolumes)
 }
 
 // Rename.
