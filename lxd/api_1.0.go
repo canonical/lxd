@@ -979,9 +979,9 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		oldClusterConfig = newClusterConfig.Dump()
 
 		if patch {
-			clusterChanged, err = newClusterConfig.Patch(tx, stringReqConfig)
+			clusterChanged, err = newClusterConfig.Patch(ctx, tx, stringReqConfig)
 		} else {
-			clusterChanged, err = newClusterConfig.Replace(tx, stringReqConfig)
+			clusterChanged, err = newClusterConfig.Replace(ctx, tx, stringReqConfig)
 		}
 
 		return err
@@ -1004,7 +1004,7 @@ func doAPI10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 					return fmt.Errorf("Failed loading cluster config: %w", err)
 				}
 
-				_, err = newClusterConfig.Replace(tx, oldClusterConfig)
+				_, err = newClusterConfig.Replace(ctx, tx, oldClusterConfig)
 				if err != nil {
 					return fmt.Errorf("Failed updating cluster config: %w", err)
 				}
