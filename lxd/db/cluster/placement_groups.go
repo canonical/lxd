@@ -114,7 +114,7 @@ func (p *PlacementGroup) ToAPI(configs map[int64]map[string]string) *api.Placeme
 	// place: configs is also read by callers (e.g. placementGroupPut's PATCH merge) after this
 	// call, and must never see a synthesized key that was never actually persisted.
 	//
-	// Skipped while the failure-domain-aware placement feature gate is off: scope can never
+	// Skipped while the failure-domain-aware placement feature preview is off: scope can never
 	// actually be stored in that case (the write path rejects it as an unknown key), and
 	// synthesizing it here anyway would leak the key into every group's API response even though
 	// the feature doesn't exist as far as a caller can tell.

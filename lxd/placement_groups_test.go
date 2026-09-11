@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/canonical/lxd/lxd/internal/datastructure/sets"
 	"github.com/canonical/lxd/shared/features"
 )
 
@@ -24,6 +25,20 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(m.Run())
+}
+
+// TestPlacementGroupCalculatedFailureDomains confirms the GET-handler helper composes exactly the
+// same two-layer resolution the placement engine uses for its own hard allow-list -- both call
+// KnownFailureDomains.ResolveCalculated with the same inputs, so what's displayed can never drift
+// from what will actually be honored at the next scheduling decision.
+func TestPlacementGroupCalculatedFailureDomains(t *testing.T) {
+	known := sets.New("fd1", "fd2", "fd3")
+
+	// No override: calculated is the full known set.
+	assert.ElementsMatch(t, known.Slice(), placementGroupCalculatedFailureDomains(known, nil))
+
+	// Cluster-wide override narrows it.
+	assert.ElementsMatch(t, []string{"fd1", "fd2"}, placementGroupCalculatedFailureDomains(known, []string{"fd1", "fd2"}))
 }
 
 // TestPlacementGroupDefaultConfig confirms scope is always explicit in the config that ends up

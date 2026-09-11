@@ -3724,3 +3724,8 @@ Fibre Channel targets are discovered through the host bus adapter, so `pure.targ
 ## `cluster_failure_domains`
 
 Adds `GET /1.0/cluster/failure-domains`, returning the sorted list of failure domain names any cluster member currently has assigned. This is a read-only view of the same registry `lxc cluster failure-domain set` already writes to — it grows as new domain names are assigned to members, and is never pruned when a member is later unassigned or removed. The `default` pseudo-domain (used by members with no failure domain assigned) is not included, since it is not a real, referenceable domain.
+
+(extension-placement-group-calculated-failure-domains)=
+## `placement_group_calculated_failure_domains`
+
+Adds a read-only `calculated_failure_domains` field to the placement group API response. It is the result of resolving the known failure domains and the cluster-wide `cluster.failure_domains` override into the actual set of failure domains the group is currently eligible to schedule into — computed by the same resolution function the scheduler itself uses, so it can never drift from what will actually be honored. There is no per-group failure-domain override, so this value is the same across every placement group in the cluster at any given moment.
