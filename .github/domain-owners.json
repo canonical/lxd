@@ -5,6 +5,7 @@
       "label": "d/build-test",
       "description": "Everything around the LXD build system, including snap packaging, general test systems and GitHub workflows.",
       "owners": [
+        "jrtorsella",
         "simondeziel",
         "tomponline",
         "kadinsayani"
