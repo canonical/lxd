@@ -6,19 +6,19 @@ discourse: lxc:[Network&#32;ACL&#32;logging](13223)
 # How to configure network ACLs
 
 ```{note}
-Network ACLs are available for the {ref}`OVN NIC type <nic-ovn>`, the {ref}`network-ovn` and the {ref}`network-bridge` (with some exceptions; see {ref}`network-acls-bridge-limitations`).
+Network {abbr}`ACLs` (Access Control Lists) are available for the [OVN {abbr}`NIC` (Network Interface Controller) type](nic-ovn), the {ref}`network-ovn` and the {ref}`network-bridge` (with some exceptions; see {ref}`network-acls-bridge-limitations`).
 ```
 
 ```{youtube} https://www.youtube.com/watch?v=mu34G0cX6Io
 :title: LXD network ACLs
 ```
 
-Network {abbr}`ACLs (Access Control Lists)` define rules for controlling traffic:
+Network ACLs define rules for controlling traffic:
 
 - Between instances connected to the same network
 - To and from other networks
 
-Network ACLs can be assigned directly to the {abbr}`NIC (Network Interface Controller)` of an instance, or to a network. When assigned to a network, the ACL applies indirectly to all NICs connected to that network.
+Network ACLs can be assigned directly to the NIC of an instance, or to a network. When assigned to a network, the ACL applies indirectly to all NICs connected to that network.
 
 When an ACL is assigned to multiple instance NICs, either directly or indirectly, those NICs form a logical port group. You can use the name of that ACL to refer to that group in the traffic rules of other ACLs. For more information, see: {ref}`network-acls-selectors-subject-name`.
 
@@ -901,7 +901,7 @@ You can assign an ACL to a bridge or OVN network when {ref}`creating <network-cr
 
 ### Assign an ACL to the OVN NIC of an instance
 
-For {abbr}`NICs (Network Interface Cards)`, ACLs can only be used with the {ref}`OVN NIC type <nic-ovn>`.
+For NICs, ACLs can only be used with the {ref}`OVN NIC type <nic-ovn>`.
 
 An NIC is considered a type of instance {ref}`device <devices>`. For general information about configuring instance devices, see: {ref}`instances-configure-devices`.
 

@@ -10,7 +10,7 @@ discourse: lxc:[Introducing&#32;MicroCeph](15457)
 ```
 
 <!-- Include start Ceph intro -->
-[Ceph](https://ceph.io/en/) is an open-source storage platform that stores its data in a storage cluster based on {abbr}`RADOS (Reliable Autonomic Distributed Object Store)`.
+[Ceph](https://ceph.io/en/) is an open-source storage platform that stores its data in a storage cluster based on {abbr}`RADOS` (Reliable Autonomic Distributed Object Store).
 It is highly scalable and, as a distributed system without a single point of failure, very reliable.
 
 ```{tip}
@@ -20,14 +20,14 @@ If you want to quickly set up a basic Ceph cluster, check out [MicroCeph](https:
 Ceph provides different components for block storage and for file systems.
 <!-- Include end Ceph intro -->
 
-Ceph {abbr}`RBD (RADOS Block Device)` is Ceph's block storage component that distributes data and workload across the Ceph cluster.
+Ceph {abbr}`RBD` (RADOS Block Device) is Ceph's block storage component that distributes data and workload across the Ceph cluster.
 It uses thin provisioning, which means that it is possible to over-commit resources.
 
 ## Terminology
 
 <!-- Include start Ceph terminology -->
 Ceph uses the term *object* for the data that it stores.
-The daemon that is responsible for storing and managing data is the *Ceph {abbr}`OSD (Object Storage Daemon)`*.
+The daemon that is responsible for storing and managing data is the *Ceph {abbr}`OSD` (Object Storage Daemon)*.
 Ceph's storage is divided into *pools*, which are logical partitions for storing objects.
 They are also referred to as *data pools*, *storage pools* or *OSD pools*.
 <!-- Include end Ceph terminology -->

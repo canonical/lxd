@@ -3,7 +3,7 @@
 
 ## Overview
 
-The {config:option}`instance-security:security.delegate_bpf` option enables the {abbr}`BPF (Berkeley Packet Filter)` functionality delegation mechanism, using a [BPF Token](https://docs.ebpf.io/linux/concepts/token). When enabled, LXD mounts a BPF File System (BPFFS) inside a container instance. This file system is configured with the `security.delegate_bpf.*` settings.
+The {config:option}`instance-security:security.delegate_bpf` option enables the {abbr}`BPF` (Berkeley Packet Filter) functionality delegation mechanism, using a [BPF Token](https://docs.ebpf.io/linux/concepts/token). When enabled, LXD mounts a BPF File System (BPFFS) inside a container instance. This file system is configured with the `security.delegate_bpf.*` settings.
 For example:
 
 ```
@@ -88,7 +88,7 @@ interface: lo        protocol: ICMP        127.0.0.1:2048(src) -> 127.0.0.1:4616
 interface: lo        protocol: ICMP        127.0.0.1:0(src) -> 127.0.0.1:48211(dst)
 ```
 
-We can see from this sample output that the ICMP packets were captured by the {abbr}`eBPF (extended Berkeley Capture Filter)` program and logged.
+We can see from this sample output that the ICMP packets were captured by the {abbr}`eBPF` (extended Berkeley Capture Filter) program and logged.
 
 ## Finding the right configuration
 

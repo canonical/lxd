@@ -4,7 +4,7 @@ discourse: "[LXD&#32;VM&#32;instance&#32;EFI&#32;Variables&#32;edit&#32;CLI](423
 
 # UEFI variables for VMs
 
-{abbr}`UEFI (Unified Extensible Firmware Interface)` variables store and represent configuration settings of the UEFI firmware.
+{abbr}`UEFI` (Unified Extensible Firmware Interface) variables store and represent configuration settings of the UEFI firmware.
 See [UEFI](https://en.wikipedia.org/wiki/UEFI) for more information.
 
 You can see a list of UEFI variables on your system by running `ls -l /sys/firmware/efi/efivars/`.

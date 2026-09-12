@@ -15,7 +15,7 @@ discourse: lxc:[Introducing&#32;MicroCeph](15457)
     :end-before: <!-- Include end Ceph intro -->
 ```
 
-{abbr}`CephFS (Ceph File System)` is Ceph's file system component that provides a robust, fully-featured POSIX-compliant distributed file system.
+{abbr}`CephFS` (Ceph File System) is Ceph's file system component that provides a robust, fully-featured POSIX-compliant distributed file system.
 Internally, it maps files to Ceph objects and stores file metadata (for example, file ownership, directory paths, access permissions) in a separate data pool.
 
 ## Terminology
