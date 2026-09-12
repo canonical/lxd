@@ -41,7 +41,7 @@ func CheckClusterLinkCertificate(ctx context.Context, addresses []string, finger
 	if !ok {
 		// Set default timeout of 30s if no deadline context provided.
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(30*time.Second))
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 	}
 
@@ -140,6 +140,105 @@ func VerifyClusterLinkServer(ctx context.Context, address string, cert *x509.Cer
 	return nil
 }
 
+// GetNextMemberClient starts a connection attempt against every given address in parallel and returns
+// a generator handing out the connected clients in the order in which they became available.
+//
+// The first call to the generator returns as soon as any address connects, without waiting for the
+// slower attempts. Those attempts are kept running, so a subsequent call (used to retry an operation
+// against another cluster member) hands out the next client without opening any new connection. Each
+// client is returned at most once. Once no client is left the generator returns an error which wraps
+// the failures of all addresses that could not be connected to.
+//
+// The returned cleanup function must be called once the caller is done with every handed out client.
+// It aborts the outstanding attempts and disconnects all clients, including the ones already returned.
+func GetNextMemberClient(ctx context.Context, addresses []string, args *lxd.ConnectionArgs) (next func() (lxd.InstanceServer, string, error), cleanup func()) {
+	type connectionResult struct {
+		client  lxd.InstanceServer
+		address string
+		err     error
+	}
+
+	// Each attempt shares one cancelable context which is only canceled by the cleanup function, as the
+	// clients handed out by the generator keep using it for their subsequent requests.
+	connCtx, cancel := context.WithCancel(ctx)
+
+	resultCh := make(chan connectionResult, len(addresses))
+	for _, address := range addresses {
+		go func() {
+			fullAddress := "https://" + util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
+			client, err := lxd.ConnectLXDWithContext(connCtx, fullAddress, args)
+			if err != nil {
+				resultCh <- connectionResult{address: address, err: fmt.Errorf("Failed connecting to remote cluster address %q: %w", address, err)}
+				return
+			}
+
+			resultCh <- connectionResult{address: address, client: client}
+		}()
+	}
+
+	var mu sync.Mutex
+	var handedOut []lxd.InstanceServer
+	var errs []error
+	pending := len(addresses)
+
+	next = func() (lxd.InstanceServer, string, error) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		for pending > 0 {
+			result := <-resultCh
+			pending--
+
+			if result.err != nil {
+				errs = append(errs, result.err)
+				continue
+			}
+
+			handedOut = append(handedOut, result.client)
+
+			return result.client, result.address, nil
+		}
+
+		var zero lxd.InstanceServer
+		err := errors.New("Failed connecting to any remaining cluster member")
+		if len(errs) > 0 {
+			err = fmt.Errorf("%w: %w", err, errors.Join(errs...))
+		}
+
+		return zero, "", err
+	}
+
+	cleanup = func() {
+		cancel()
+
+		mu.Lock()
+		defer mu.Unlock()
+
+		for _, client := range handedOut {
+			client.Disconnect()
+		}
+
+		handedOut = nil
+
+		remaining := pending
+		pending = 0
+
+		// Drain the attempts that were never handed out so that any client which connected in the
+		// meantime gets disconnected instead of being leaked. This runs in the background because an
+		// attempt may still take a moment to notice its canceled context.
+		go func() {
+			for range remaining {
+				result := <-resultCh
+				if result.err == nil {
+					result.client.Disconnect()
+				}
+			}
+		}()
+	}
+
+	return next, cleanup
+}
+
 // GetClusterLinkConnectionArgs builds connection args for cluster-to-cluster communication.
 func GetClusterLinkConnectionArgs(clusterCert *shared.CertInfo, targetCert *x509.Certificate) *lxd.ConnectionArgs {
 	targetCertStr := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: targetCert.Raw}))
@@ -213,18 +312,70 @@ func LoadClusterLinkAndCert(ctx context.Context, tx *sql.Tx, name string) (id in
 	return dbLink.ID, clusterLink, cert, nil
 }
 
-// ConnectCluster connects to a linked cluster using the provided connection args, trying each address until one succeeds.
+// ConnectCluster connects to a linked cluster using the provided connection args, trying all addresses in parallel and returning the first successful connection.
 func ConnectCluster(ctx context.Context, clusterLink api.ClusterLink, args *lxd.ConnectionArgs) (lxd.InstanceServer, error) {
 	addresses := shared.SplitNTrimSpace(clusterLink.Config["volatile.addresses"], ",", -1, false)
+	if len(addresses) == 0 {
+		return nil, fmt.Errorf("Failed connecting to any address of cluster link %q: no addresses available", clusterLink.Name)
+	}
+
+	type connectionResult struct {
+		index  int
+		client lxd.InstanceServer
+		err    error
+	}
+
+	// Start a connection attempt to every address concurrently. Each attempt gets its own
+	// cancelable context so the losing attempts can be aborted once one of them succeeds.
+	// The winning client keeps its context as it is used for all of its subsequent requests.
+	resultCh := make(chan connectionResult, len(addresses))
+	cancels := make([]context.CancelFunc, len(addresses))
+	for i, address := range addresses {
+		connCtx, cancel := context.WithCancel(ctx)
+		cancels[i] = cancel
+
+		go func() {
+			client, err := lxd.ConnectLXDWithContext(connCtx, "https://"+address, args)
+			if err != nil {
+				resultCh <- connectionResult{index: i, err: fmt.Errorf("Failed connecting to %q: %w", address, err)}
+				return
+			}
+
+			resultCh <- connectionResult{index: i, client: client}
+		}()
+	}
+
+	// Return the first successful connection. The losing attempts are canceled and their
+	// results drained in the background so that any client which connected in the meantime
+	// gets disconnected instead of being leaked.
 	var errs []error
-	for _, address := range addresses {
-		client, err := lxd.ConnectLXD("https://"+address, args)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("Failed connecting to %q: %w", address, err))
+	for i := range addresses {
+		r := <-resultCh
+		if r.err != nil {
+			cancels[r.index]()
+			errs = append(errs, r.err)
 			continue
 		}
 
-		return client, nil
+		for j, cancel := range cancels {
+			if j != r.index {
+				cancel()
+			}
+		}
+
+		remaining := len(addresses) - i - 1
+		if remaining > 0 {
+			go func() {
+				for range remaining {
+					extra := <-resultCh
+					if extra.client != nil {
+						extra.client.Disconnect()
+					}
+				}
+			}()
+		}
+
+		return r.client, nil
 	}
 
 	return nil, fmt.Errorf("Failed connecting to any address of cluster link %q: %w", clusterLink.Name, errors.Join(errs...))
@@ -233,7 +384,9 @@ func ConnectCluster(ctx context.Context, clusterLink api.ClusterLink, args *lxd.
 // RefreshClusterLinkVolatileAddresses refreshes the volatile addresses of a cluster link.
 // It connects to the linked cluster and retrieves its current cluster members. If the addresses
 // have changed, [CheckClusterLinkCertificate] is called to ensure the cluster certificate remains valid.
-func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, name string) error {
+// If targetClient is non-nil it is used instead of establishing a new connection to the linked cluster.
+// The caller retains ownership of targetClient and remains responsible for disconnecting it.
+func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, name string, targetClient lxd.InstanceServer) error {
 	// Fetch the cluster link and identity cert in a single transaction so we have everything needed
 	// for connecting and cert validation without any further DB queries.
 	var clusterLink *api.ClusterLink
@@ -255,17 +408,22 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 		return nil
 	}
 
-	var args *lxd.ConnectionArgs
-	if api.ClusterLinkTypePresentsClientCertificate(clusterLink.Type) {
-		clusterCert := s.Endpoints.NetworkCert()
-		args = GetClusterLinkConnectionArgs(clusterCert, targetCert)
-	} else {
-		args = GetPublicClusterLinkConnectionArgs(targetCert)
-	}
+	if targetClient == nil {
+		var args *lxd.ConnectionArgs
+		if api.ClusterLinkTypePresentsClientCertificate(clusterLink.Type) {
+			clusterCert := s.Endpoints.NetworkCert()
+			args = GetClusterLinkConnectionArgs(clusterCert, targetCert)
+		} else {
+			args = GetPublicClusterLinkConnectionArgs(targetCert)
+		}
 
-	targetClient, err := ConnectCluster(ctx, *clusterLink, args)
-	if err != nil {
-		return fmt.Errorf("Failed connecting to target cluster link: %w", err)
+		var err error
+		targetClient, err = ConnectCluster(ctx, *clusterLink, args)
+		if err != nil {
+			return fmt.Errorf("Failed connecting to target cluster link: %w", err)
+		}
+
+		defer targetClient.Disconnect()
 	}
 
 	// Get cluster members from the target cluster.

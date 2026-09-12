@@ -1117,23 +1117,27 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 		},
 	}
 
-	// Send POST to remote /1.0/cluster/links to activate pending cluster link using token.
-	for _, address := range trustToken.Addresses {
-		args := &lxd.ConnectionArgs{
-			TLSServerCert: clusterCert,
-			UserAgent:     version.UserAgent,
-		}
+	args := &lxd.ConnectionArgs{
+		TLSServerCert: clusterCert,
+		UserAgent:     version.UserAgent,
+	}
 
-		clusterAddress := util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
-		client, err := lxd.ConnectLXD("https://"+clusterAddress, args)
+	nextMemberClient, disconnectMemberClients := cluster.GetNextMemberClient(r.Context(), trustToken.Addresses, args)
+	defer disconnectMemberClients()
+
+	// Send POST to remote /1.0/cluster/links to activate pending cluster link using token.
+	for {
+		client, clusterAddress, err := nextMemberClient()
 		if err != nil {
-			activationErrs = append(activationErrs, fmt.Errorf("Failed connecting to remote cluster address %q: %w", clusterAddress, err))
-			continue
+			activationErrs = append(activationErrs, err)
+			// error getting client for next address, so no more addresses to try
+			break
 		}
 
 		err = client.CreateClusterLink(clusterLinksPost)
 		if err != nil {
 			activationErrs = append(activationErrs, fmt.Errorf("Remote cluster address %q: %w", clusterAddress, err))
+			// error creating cluster link on remote, so try next address
 			continue
 		}
 
@@ -1146,7 +1150,9 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 			return response.SmartError(err)
 		}
 
-		err = cluster.RefreshClusterLinkVolatileAddresses(r.Context(), s, req.Name)
+		// The client used above does not present our cluster certificate, so it is not trusted by the
+		// remote cluster and cannot be reused for listing its cluster members.
+		err = cluster.RefreshClusterLinkVolatileAddresses(r.Context(), s, req.Name, nil)
 		if err != nil {
 			logger.Warn("Failed refreshing cluster link addresses after link creation", logger.Ctx{"err": err, "clusterLinkName": req.Name})
 		}
@@ -1173,7 +1179,7 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 	}
 
 	if statusErr != nil {
-		return response.SmartError(fmt.Errorf("Failed activating cluster link %q after trying %d address(es): %w", req.Name, len(activationErrs), statusErr))
+		return response.SmartError(fmt.Errorf("Failed activating cluster link %q after trying %d address(es): %w", req.Name, len(trustToken.Addresses), statusErr))
 	}
 
 	return response.SmartError(api.StatusErrorf(http.StatusBadGateway, "Failed activating cluster link %q: %s", req.Name, strings.Join(errStrings, "; ")))
@@ -1256,7 +1262,7 @@ func clusterLinkActivate(s *state.State, r *http.Request, req api.ClusterLinksPo
 		return response.SmartError(err)
 	}
 
-	err = cluster.RefreshClusterLinkVolatileAddresses(r.Context(), s, clusterLinkName)
+	err = cluster.RefreshClusterLinkVolatileAddresses(r.Context(), s, clusterLinkName, nil)
 	if err != nil {
 		logger.Warn("Failed refreshing cluster link addresses after link activation", logger.Ctx{"err": err, "clusterLinkName": clusterLinkName})
 	}
@@ -1518,7 +1524,7 @@ func autoRefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State
 	}
 
 	for _, name := range names {
-		err := cluster.RefreshClusterLinkVolatileAddresses(ctx, s, name)
+		err := cluster.RefreshClusterLinkVolatileAddresses(ctx, s, name, nil)
 		if err != nil {
 			logger.Warn("Failed refreshing cluster link addresses", logger.Ctx{"err": err, "clusterLinkName": name})
 		}
@@ -1739,19 +1745,21 @@ func clusterLinkCreateUnidirectional(s *state.State, r *http.Request, req api.Cl
 		TrustToken: trustToken.String(),
 	}
 
-	for _, address := range trustToken.Addresses {
-		args := &lxd.ConnectionArgs{
-			TLSServerCert: remotePEM,
-			TLSClientCert: string(networkCert.PublicKey()),
-			TLSClientKey:  string(networkCert.PrivateKey()),
-			UserAgent:     version.UserAgent,
-		}
+	args := &lxd.ConnectionArgs{
+		TLSServerCert: remotePEM,
+		TLSClientCert: string(networkCert.PublicKey()),
+		TLSClientKey:  string(networkCert.PrivateKey()),
+		UserAgent:     version.UserAgent,
+	}
 
-		clusterAddress := util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
-		client, err := lxd.ConnectLXD("https://"+clusterAddress, args)
+	nextMemberClient, disconnectMemberClients := cluster.GetNextMemberClient(r.Context(), trustToken.Addresses, args)
+	defer disconnectMemberClients()
+
+	for {
+		client, clusterAddress, err := nextMemberClient()
 		if err != nil {
-			activationErrs = append(activationErrs, fmt.Errorf("Failed connecting to remote cluster address %q: %w", clusterAddress, err))
-			continue
+			activationErrs = append(activationErrs, err)
+			break
 		}
 
 		err = client.CreateIdentityTLS(identityReq)
@@ -1762,7 +1770,9 @@ func clusterLinkCreateUnidirectional(s *state.State, r *http.Request, req api.Cl
 
 		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterLinkCreated.Event(req.Name, requestor, nil))
 
-		err = cluster.RefreshClusterLinkVolatileAddresses(r.Context(), s, req.Name)
+		// The identity was just activated for our cluster certificate, which this client presents, so
+		// the established connection is now trusted and can be reused for listing the cluster members.
+		err = cluster.RefreshClusterLinkVolatileAddresses(r.Context(), s, req.Name, client)
 		if err != nil {
 			logger.Warn("Failed refreshing cluster link addresses after link creation", logger.Ctx{"err": err, "clusterLinkName": req.Name})
 		}
@@ -1789,7 +1799,7 @@ func clusterLinkCreateUnidirectional(s *state.State, r *http.Request, req api.Cl
 	}
 
 	if statusErr != nil {
-		return response.SmartError(fmt.Errorf("Failed activating unidirectional cluster link %q after trying %d address(es): %w", req.Name, len(activationErrs), statusErr))
+		return response.SmartError(fmt.Errorf("Failed activating unidirectional cluster link %q after trying %d address(es): %w", req.Name, len(trustToken.Addresses), statusErr))
 	}
 
 	return response.SmartError(api.StatusErrorf(http.StatusBadGateway, "Failed activating unidirectional cluster link %q: %s", req.Name, strings.Join(errStrings, "; ")))
