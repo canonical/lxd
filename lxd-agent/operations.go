@@ -183,8 +183,11 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(err)
 	}
 
+	// Wait for the operation.
+	// Return a deadline error when a timeout is specified, but otherwise render
+	// the final operation state (including operation failures) to the client.
 	err = op.Wait(ctx)
-	if err != nil {
+	if err != nil && errors.Is(err, context.DeadlineExceeded) {
 		return response.SmartError(err)
 	}
 

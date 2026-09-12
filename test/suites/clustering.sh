@@ -2004,7 +2004,7 @@ test_clustering_join_api() {
   # Therefore replace the valid name in the token with 'none'.
   malicious_token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add valid --quiet | base64 -d | jq --exit-status '.server_name |= "none"' | base64 --wrap=0)"
   op="$(curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" --fail-with-body -H 'Content-Type: application/json' -X PUT "lxd/1.0/cluster" -d '{"server_name":"valid","enabled":true,"member_config":[{"entity": "storage-pool","name":"data","key":"source","value":""}],"server_address":"100.64.1.102:8443","cluster_address":"100.64.1.101:8443","cluster_certificate":'"${cert_json}"',"cluster_token":"'"${malicious_token}"'"}' | jq --exit-status --raw-output '.operation')"
-  curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait" | jq --exit-status '.error_code == 403'
+  curl --silent --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait" | jq --exit-status '.metadata.status == "Failure"' >/dev/null
 
   # Check that the server cannot be joined using a valid token by changing it's name to 'none'.
   token="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add valid2 --quiet)"
