@@ -1,0 +1,267 @@
+name: Snap channel tests
+
+on:
+  schedule:
+    - cron: '38 6 * * *'
+  workflow_dispatch:
+    inputs:
+      snap-channel:
+        description: Snap channel to test, e.g. "4.0/edge" or "5.21/candidate".
+        type: string
+        required: false
+        default: 'latest/edge'
+      ubuntu-releases:
+        description: Ubuntu releases to run the tests against. In JSON format, i.e. '["24.04", "26.04"]'.
+        type: choice
+        default: '["26.04"]'
+        options:
+          - '["22.04"]'
+          - '["24.04"]'
+          - '["26.04"]'
+          - '["24.04", "26.04"]'
+      tmate-debug:
+        description: Use tmate debugging session on integration test failure.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.snap-channel }}-${{ inputs.ubuntu-releases }}
+  # XXX: scheduled runs should not cancel manually triggered ones
+  cancel-in-progress: ${{ !contains(github.event_name, 'schedule')}}
+
+defaults:
+  run:
+    # Make sure bash is always invoked with `-eo pipefail`
+    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+    shell: bash
+
+env:
+  IMAGE_CACHE_DIR: "/home/runner/image-cache"
+  SNAP_CACHE_DIR: "/home/runner/snap-cache"
+  # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
+  # Revert to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
+  MICROCEPH_SNAP_CHANNEL: "tentacle/stable"
+
+jobs:
+  # Prime the images/snaps caches once so the (potentially large) snap-tests
+  # matrix below doesn't stampede on cache misses.
+  prime-caches:
+    if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
+    name: Prime caches
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prime cache with external test images
+        uses: $/.github/actions/download-images
+        with:
+          prime-cache-only: true
+          image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
+
+      - name: Prime cache with snap dependencies
+        uses: $/.github/actions/download-snaps
+        with:
+          prime-cache-only: true
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+          microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
+
+  snap-tests:
+    if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
+    needs: prime-caches
+    name: Snap
+    runs-on: ubuntu-${{ matrix.os }}
+    # avoid runaway test burning 6 hours of CI
+    timeout-minutes: 60
+    permissions:
+      actions: write  # to save caches (only runs from the canonical repo, not fork PRs)
+      contents: read  # for private repos or higher API rate limits
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.ubuntu-releases || (github.event_name == 'schedule' && '["22.04", "24.04", "26.04"]') || '["26.04"]') }}
+        channel: ${{ fromJSON(inputs.snap-channel && format('["{0}"]', inputs.snap-channel) || (github.event_name == 'schedule' && '["6/edge", "5.21/edge", "5.0/edge"]') || '["latest/edge"]') }}
+        test:
+          - bgp
+          - cgroup
+          - cloud-init
+          - cluster
+          - container
+          - container-copy
+          - container-nesting
+          - conversion
+          - cpu-vm
+          - csi
+          - devlxd
+          - docker
+          - efi-vm
+          - lxd-consumers
+          - lxd-installer
+          - lxd-user
+          - interception
+          - network-bridge-firewall
+          - network-ovn ovn:deb
+          - network-ovn ovn:latest/edge
+          - network-routed
+          - pylxd
+          - qemu-external-vm
+          - snapd
+          - storage-buckets
+          - storage-disks-vm
+          - storage-metadata
+          - storage-vm btrfs
+          - storage-vm ceph
+          - storage-vm dir
+          - storage-vm lvm
+          - storage-vm lvm-thin
+          - storage-vm zfs
+          - storage-volumes-vm
+          - tpm-vm
+          - ui chromium
+          - ui firefox
+          - vm
+          - vm-migration
+          - vm-nesting
+        exclude:
+          # csi is not compatible with 4.0/*, 5.0/* or 5.21/*, nor with 22.04
+          - channel: "4.0/edge"
+            test: csi
+          - channel: "5.0/edge"
+            test: csi
+          - channel: "5.21/edge"
+            test: csi
+          - os: 22.04
+            test: csi
+          # not compatible with 4.0/*
+          - channel: "4.0/edge"
+            test: bgp
+          - channel: "4.0/edge"
+            test: cloud-init
+          - channel: "4.0/edge"
+            test: container-copy
+          - channel: "4.0/edge"
+            test: container-nesting
+          - channel: "4.0/edge"
+            test: conversion
+          - channel: "4.0/edge"
+            test: cpu-vm
+          - channel: "4.0/edge"
+            test: docker
+          - channel: "4.0/edge"
+            test: lxd-installer
+          - channel: "4.0/edge"
+            test: lxd-user
+          - channel: "4.0/edge"
+            test: network-ovn ovn:deb
+          - channel: "4.0/edge"
+            test: network-ovn ovn:latest/edge
+          - channel: "4.0/edge"
+            test: qemu-external-vm
+          - channel: "4.0/edge"
+            test: lxd-consumers
+          - channel: "4.0/edge"
+            test: storage-buckets
+          - channel: "4.0/edge"
+            test: storage-disks-vm
+          - channel: "4.0/edge"
+            test: storage-metadata
+          - channel: "4.0/edge"
+            test: storage-vm btrfs
+          - channel: "4.0/edge"
+            test: storage-vm ceph
+          - channel: "4.0/edge"
+            test: storage-vm dir
+          - channel: "4.0/edge"
+            test: storage-vm lvm
+          - channel: "4.0/edge"
+            test: storage-vm lvm-thin
+          - channel: "4.0/edge"
+            test: storage-vm zfs
+          - channel: "4.0/edge"
+            test: storage-volumes-vm
+          - channel: "4.0/edge"
+            test: tpm-vm
+          - channel: "4.0/edge"
+            test: ui chromium
+          - channel: "4.0/edge"
+            test: ui firefox
+          - channel: "4.0/edge"
+            test: vm-migration
+          # not compatible with 5.0/*
+          - channel: "5.0/edge"
+            test: cloud-init
+          - channel: "5.0/edge"
+            test: docker
+          - channel: "5.0/edge"
+            test: lxd-installer
+          - channel: "5.0/edge"
+            test: network-ovn ovn:latest/edge
+          - channel: "5.0/edge"
+            test: qemu-external-vm
+          - channel: "5.0/edge"
+            test: lxd-consumers
+          - channel: "5.0/edge"
+            test: vm-migration
+          # not compatible with 5.21/*
+          - channel: "5.21/edge"
+            test: lxd-installer
+          - channel: "5.21/edge"
+            test: qemu-external-vm
+          - channel: "5.21/edge"
+            test: lxd-consumers
+          # some tests are not worth testing on specific OSes
+          - os: 22.04
+            test: bgp
+          - os: 22.04
+            test: lxd-installer
+          - os: 22.04
+            test: qemu-external-vm
+          - os: 22.04
+            test: lxd-consumers
+          # skip channel/os combinations that are too far apart
+          - os: 24.04
+            channel: "4.0/edge"
+          - os: 24.04
+            channel: "5.0/edge"
+          - os: 26.04
+            channel: "4.0/edge"
+          - os: 26.04
+            channel: "5.0/edge"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Tune disk performance
+        uses: $/.github/actions/tune-disk-performance
+
+      - name: Reclaim some memory
+        uses: $/.github/actions/reclaim-memory
+
+      - name: Remove docker
+        uses: $/.github/actions/disable-docker
+
+      - name: ${{ matrix.test }}
+        uses: $/.github/actions/snap-test
+        with:
+          test: ${{ matrix.test }}
+          channel: ${{ matrix.channel }}
+          os: ${{ matrix.os }}
+          image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+          microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
+
+      - name: Tmate debugging session
+        if: ${{ failure() && inputs.tmate-debug }}
+        timeout-minutes: 30
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3.24
+        with:
+          # Never allow public SSH access
+          limit-access-to-actor: true
