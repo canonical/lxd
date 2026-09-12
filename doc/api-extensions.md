@@ -3629,7 +3629,7 @@ Adds a `child_count` field to the `Operation` struct, indicating the number of c
 (extension-storage-driver-powerstore-nvme)=
 ## `storage_driver_powerstore_nvme`
 
-Adds NVMe/TCP support to the Dell PowerStore storage driver.
+Adds NVMe/TCP and NVMe/FC support to the Dell PowerStore storage driver.
 NVMe/TCP is now the default PowerStore mode when `powerstore.mode` is not set.
 
 (extension-access-management-expiry)=
