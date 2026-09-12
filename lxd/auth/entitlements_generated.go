@@ -327,55 +327,55 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 	entity.TypeCertificate: {
 		// Grants permission to view the certificate.
 		EntitlementCanView,
-		// Grants permission to edit the certificate.
+		// Grants permission to view and edit the certificate.
 		EntitlementCanEdit,
-		// Grants permission to delete the certificate.
+		// Grants permission to view and delete the certificate.
 		EntitlementCanDelete,
 	},
 	entity.TypeClusterLink: {
 		// Grants permission to view the cluster link.
 		EntitlementCanView,
-		// Grants permission to edit the cluster link.
+		// Grants permission to view and edit the cluster link.
 		EntitlementCanEdit,
-		// Grants permission to delete the cluster link.
+		// Grants permission to view and delete the cluster link.
 		EntitlementCanDelete,
 	},
 	entity.TypeAuthGroup: {
 		// Grants permission to view the group. Identities can always view groups that they are a member of.
 		EntitlementCanView,
-		// Grants permission to edit the group.
+		// Grants permission to view and edit the group.
 		EntitlementCanEdit,
-		// Grants permission to delete the group.
+		// Grants permission to view and delete the group.
 		EntitlementCanDelete,
 	},
 	entity.TypeIdentity: {
 		// Grants permission to view the identity.
 		EntitlementCanView,
-		// Grants permission to edit the identity. To edit an identity, it is additionally required that the caller is able to view all groups that the identity is a member of.
+		// Grants permission to view and edit the identity. To edit an identity, it is additionally required that the caller is able to view all groups that the identity is a member of.
 		EntitlementCanEdit,
-		// Grants permission to delete the identity.
+		// Grants permission to view and delete the identity.
 		EntitlementCanDelete,
 	},
 	entity.TypeIdentityProviderGroup: {
 		// Grants permission to view the identity provider group.
 		EntitlementCanView,
-		// Grants permission to edit the identity provider group.
+		// Grants permission to view and edit the identity provider group.
 		EntitlementCanEdit,
-		// Grants permission to delete the identity provider group.
+		// Grants permission to view and delete the identity provider group.
 		EntitlementCanDelete,
 	},
 	entity.TypeImage: {
-		// Grants permission to edit the image.
+		// Grants permission to view and edit the image.
 		EntitlementCanEdit,
-		// Grants permission to delete the image.
+		// Grants permission to view and delete the image.
 		EntitlementCanDelete,
 		// Grants permission to view the image.
 		EntitlementCanView,
 	},
 	entity.TypeImageAlias: {
-		// Grants permission to edit the image alias.
+		// Grants permission to view and edit the image alias.
 		EntitlementCanEdit,
-		// Grants permission to delete the image alias.
+		// Grants permission to view and delete the image alias.
 		EntitlementCanDelete,
 		// Grants permission to view the image alias.
 		EntitlementCanView,
@@ -385,9 +385,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementUser,
 		// Grants permission to view the instance, to access files, start a terminal or console session, and to manage snapshots and backups.
 		EntitlementOperator,
-		// Grants permission to edit the instance.
+		// Grants permission to view and edit the instance.
 		EntitlementCanEdit,
-		// Grants permission to delete the instance.
+		// Grants permission to view and delete the instance.
 		EntitlementCanDelete,
 		// Grants permission to view the instance and any snapshots or backups it might have.
 		EntitlementCanView,
@@ -407,41 +407,41 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanExec,
 	},
 	entity.TypeNetwork: {
-		// Grants permission to edit the network.
+		// Grants permission to view and edit the network.
 		EntitlementCanEdit,
-		// Grants permission to delete the network.
+		// Grants permission to view and delete the network.
 		EntitlementCanDelete,
 		// Grants permission to view the network.
 		EntitlementCanView,
 	},
 	entity.TypeNetworkACL: {
-		// Grants permission to edit the network ACL.
+		// Grants permission to view and edit the network ACL.
 		EntitlementCanEdit,
-		// Grants permission to delete the network ACL.
+		// Grants permission to view and delete the network ACL.
 		EntitlementCanDelete,
 		// Grants permission to view the network ACL.
 		EntitlementCanView,
 	},
 	entity.TypeNetworkZone: {
-		// Grants permission to edit the network zone.
+		// Grants permission to view and edit the network zone.
 		EntitlementCanEdit,
-		// Grants permission to delete the network zone.
+		// Grants permission to view and delete the network zone.
 		EntitlementCanDelete,
 		// Grants permission to view the network zone.
 		EntitlementCanView,
 	},
 	entity.TypePlacementGroup: {
-		// Grants permission to edit the placement group.
+		// Grants permission to view and edit the placement group.
 		EntitlementCanEdit,
-		// Grants permission to delete the placement group.
+		// Grants permission to view and delete the placement group.
 		EntitlementCanDelete,
 		// Grants permission to view the placement group.
 		EntitlementCanView,
 	},
 	entity.TypeProfile: {
-		// Grants permission to edit the profile.
+		// Grants permission to view and edit the profile.
 		EntitlementCanEdit,
-		// Grants permission to delete the profile.
+		// Grants permission to view and delete the profile.
 		EntitlementCanDelete,
 		// Grants permission to view the profile.
 		EntitlementCanView,
@@ -453,9 +453,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementViewer,
 		// Grants permission to view the project.
 		EntitlementCanView,
-		// Grants permission to edit the project.
+		// Grants permission to view and edit the project.
 		EntitlementCanEdit,
-		// Grants permission to delete the project.
+		// Grants permission to view and delete the project.
 		EntitlementCanDelete,
 		// Grants permission to create, view, edit, and delete all images belonging to the project.
 		EntitlementImageManager,
@@ -463,9 +463,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateImages,
 		// Grants permission to view images.
 		EntitlementCanViewImages,
-		// Grants permission to edit images.
+		// Grants permission to view and edit images.
 		EntitlementCanEditImages,
-		// Grants permission to delete images.
+		// Grants permission to view and delete images.
 		EntitlementCanDeleteImages,
 		// Grants permission to create, view, edit, and delete all image aliases belonging to the project.
 		EntitlementImageAliasManager,
@@ -473,9 +473,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateImageAliases,
 		// Grants permission to view image aliases.
 		EntitlementCanViewImageAliases,
-		// Grants permission to edit image aliases.
+		// Grants permission to view and edit image aliases.
 		EntitlementCanEditImageAliases,
-		// Grants permission to delete image aliases.
+		// Grants permission to view and delete image aliases.
 		EntitlementCanDeleteImageAliases,
 		// Grants permission to create, view, edit, and delete all instances belonging to the project.
 		EntitlementInstanceManager,
@@ -483,9 +483,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateInstances,
 		// Grants permission to view instances.
 		EntitlementCanViewInstances,
-		// Grants permission to edit instances.
+		// Grants permission to view and edit instances.
 		EntitlementCanEditInstances,
-		// Grants permission to delete instances.
+		// Grants permission to view and delete instances.
 		EntitlementCanDeleteInstances,
 		// Grants permission to view instances, manage their state, manage their snapshots and backups, start terminal or console sessions, and access their files.
 		EntitlementCanOperateInstances,
@@ -495,9 +495,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateNetworks,
 		// Grants permission to view networks.
 		EntitlementCanViewNetworks,
-		// Grants permission to edit networks.
+		// Grants permission to view and edit networks.
 		EntitlementCanEditNetworks,
-		// Grants permission to delete networks.
+		// Grants permission to view and delete networks.
 		EntitlementCanDeleteNetworks,
 		// Grants permission to create, view, edit, and delete all network ACLs belonging to the project.
 		EntitlementNetworkACLManager,
@@ -505,9 +505,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateNetworkACLs,
 		// Grants permission to view network ACLs.
 		EntitlementCanViewNetworkACLs,
-		// Grants permission to edit network ACLs.
+		// Grants permission to view and edit network ACLs.
 		EntitlementCanEditNetworkACLs,
-		// Grants permission to delete network ACLs.
+		// Grants permission to view and delete network ACLs.
 		EntitlementCanDeleteNetworkACLs,
 		// Grants permission to create, view, edit, and delete all network zones belonging to the project.
 		EntitlementNetworkZoneManager,
@@ -515,9 +515,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateNetworkZones,
 		// Grants permission to view network zones.
 		EntitlementCanViewNetworkZones,
-		// Grants permission to edit network zones.
+		// Grants permission to view and edit network zones.
 		EntitlementCanEditNetworkZones,
-		// Grants permission to delete network zones.
+		// Grants permission to view and delete network zones.
 		EntitlementCanDeleteNetworkZones,
 		// Grants permission to create, view, edit, and delete all profiles belonging to the project.
 		EntitlementProfileManager,
@@ -525,9 +525,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateProfiles,
 		// Grants permission to view profiles.
 		EntitlementCanViewProfiles,
-		// Grants permission to edit profiles.
+		// Grants permission to view and edit profiles.
 		EntitlementCanEditProfiles,
-		// Grants permission to delete profiles.
+		// Grants permission to view and delete profiles.
 		EntitlementCanDeleteProfiles,
 		// Grants permission to create, view, edit, and delete all storage volumes belonging to the project.
 		EntitlementStorageVolumeManager,
@@ -535,9 +535,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateStorageVolumes,
 		// Grants permission to view storage volumes.
 		EntitlementCanViewStorageVolumes,
-		// Grants permission to edit storage volumes.
+		// Grants permission to view and edit storage volumes.
 		EntitlementCanEditStorageVolumes,
-		// Grants permission to delete storage volumes.
+		// Grants permission to view and delete storage volumes.
 		EntitlementCanDeleteStorageVolumes,
 		// Grants permission to create, view, edit, and delete all storage buckets belonging to the project.
 		EntitlementStorageBucketManager,
@@ -545,9 +545,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateStorageBuckets,
 		// Grants permission to view storage buckets.
 		EntitlementCanViewStorageBuckets,
-		// Grants permission to edit storage buckets.
+		// Grants permission to view and edit storage buckets.
 		EntitlementCanEditStorageBuckets,
-		// Grants permission to delete storage buckets.
+		// Grants permission to view and delete storage buckets.
 		EntitlementCanDeleteStorageBuckets,
 		// Grants permission to create, view, edit, and delete all placement groups belonging to the project.
 		EntitlementPlacementGroupManager,
@@ -555,9 +555,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreatePlacementGroups,
 		// Grants permission to view placement groups.
 		EntitlementCanViewPlacementGroups,
-		// Grants permission to edit placement groups.
+		// Grants permission to view and edit placement groups.
 		EntitlementCanEditPlacementGroups,
-		// Grants permission to delete placement groups.
+		// Grants permission to view and delete placement groups.
 		EntitlementCanDeletePlacementGroups,
 		// Grants permission to create, view, edit, and delete all replicators belonging to the project.
 		EntitlementReplicatorManager,
@@ -565,9 +565,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateReplicators,
 		// Grants permission to view replicators.
 		EntitlementCanViewReplicators,
-		// Grants permission to edit replicators.
+		// Grants permission to view and edit replicators.
 		EntitlementCanEditReplicators,
-		// Grants permission to delete replicators.
+		// Grants permission to view and delete replicators.
 		EntitlementCanDeleteReplicators,
 		// Grants permission to view operations relating to the project.
 		EntitlementCanViewOperations,
@@ -577,9 +577,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanViewMetrics,
 	},
 	entity.TypeReplicator: {
-		// Grants permission to edit the replicator.
+		// Grants permission to view and edit the replicator.
 		EntitlementCanEdit,
-		// Grants permission to delete the replicator.
+		// Grants permission to view and delete the replicator.
 		EntitlementCanDelete,
 		// Grants permission to view the replicator.
 		EntitlementCanView,
@@ -599,25 +599,25 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateIdentities,
 		// Grants permission to view identities.
 		EntitlementCanViewIdentities,
-		// Grants permission to edit identities. Note that clients with this permission are able to elevate their own privileges.
+		// Grants permission to view and edit identities. Note that clients with this permission are able to elevate their own privileges.
 		EntitlementCanEditIdentities,
-		// Grants permission to delete identities.
+		// Grants permission to view and delete identities.
 		EntitlementCanDeleteIdentities,
 		// Grants permission to create authorization groups.
 		EntitlementCanCreateGroups,
 		// Grants permission to view authorization groups.
 		EntitlementCanViewGroups,
-		// Grants permission to edit authorization groups. Note that clients with this permission are able to elevate their own privileges.
+		// Grants permission to view and edit authorization groups. Note that clients with this permission are able to elevate their own privileges.
 		EntitlementCanEditGroups,
-		// Grants permission to delete authorization groups.
+		// Grants permission to view and delete authorization groups.
 		EntitlementCanDeleteGroups,
 		// Grants permission to create identity provider groups.
 		EntitlementCanCreateIdentityProviderGroups,
 		// Grants permission to view identity provider groups.
 		EntitlementCanViewIdentityProviderGroups,
-		// Grants permission to edit identity provider groups. Note that clients with this permission are able to elevate their own privileges.
+		// Grants permission to view and edit identity provider groups. Note that clients with this permission are able to elevate their own privileges.
 		EntitlementCanEditIdentityProviderGroups,
-		// Grants permission to delete identity provider groups.
+		// Grants permission to view and delete identity provider groups.
 		EntitlementCanDeleteIdentityProviderGroups,
 		// Grants permission to create, edit, and delete storage pools.
 		EntitlementStoragePoolManager,
@@ -633,9 +633,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateProjects,
 		// Grants permission to view projects, and all resources within those projects.
 		EntitlementCanViewProjects,
-		// Grants permission to edit projects, and all resources within those projects.
+		// Grants permission to view and edit projects, and all resources within those projects.
 		EntitlementCanEditProjects,
-		// Grants permission to delete projects.
+		// Grants permission to view and delete projects.
 		EntitlementCanDeleteProjects,
 		// If a project is configured with `restricted.cluster.target`, clients with this permission can override the restriction.
 		EntitlementCanOverrideClusterTargetRestriction,
@@ -655,15 +655,15 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanCreateClusterLinks,
 		// Grants permission to view cluster links.
 		EntitlementCanViewClusterLinks,
-		// Grants permission to edit cluster links.
+		// Grants permission to view and edit cluster links.
 		EntitlementCanEditClusterLinks,
-		// Grants permission to delete cluster links.
+		// Grants permission to view and delete cluster links.
 		EntitlementCanDeleteClusterLinks,
 	},
 	entity.TypeStorageBucket: {
-		// Grants permission to edit the storage bucket.
+		// Grants permission to view and edit the storage bucket.
 		EntitlementCanEdit,
-		// Grants permission to delete the storage bucket.
+		// Grants permission to view and delete the storage bucket.
 		EntitlementCanDelete,
 		// Grants permission to view the storage bucket.
 		EntitlementCanView,
@@ -675,9 +675,9 @@ var EntityTypeToEntitlements = map[entity.Type][]Entitlement{
 		EntitlementCanDelete,
 	},
 	entity.TypeStorageVolume: {
-		// Grants permission to edit the storage volume.
+		// Grants permission to view and edit the storage volume.
 		EntitlementCanEdit,
-		// Grants permission to delete the storage volume.
+		// Grants permission to view and delete the storage volume.
 		EntitlementCanDelete,
 		// Grants permission to view the storage volume and any snapshots or backups it might have.
 		EntitlementCanView,

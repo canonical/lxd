@@ -7201,10 +7201,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view the certificate.
 
 `can_edit`
-: Grants permission to edit the certificate.
+: Grants permission to view and edit the certificate.
 
 `can_delete`
-: Grants permission to delete the certificate.
+: Grants permission to view and delete the certificate.
 
 
 <!-- entity group certificate end -->
@@ -7213,10 +7213,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view the cluster link.
 
 `can_edit`
-: Grants permission to edit the cluster link.
+: Grants permission to view and edit the cluster link.
 
 `can_delete`
-: Grants permission to delete the cluster link.
+: Grants permission to view and delete the cluster link.
 
 
 <!-- entity group cluster_link end -->
@@ -7225,10 +7225,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view the group. Identities can always view groups that they are a member of.
 
 `can_edit`
-: Grants permission to edit the group.
+: Grants permission to view and edit the group.
 
 `can_delete`
-: Grants permission to delete the group.
+: Grants permission to view and delete the group.
 
 
 <!-- entity group group end -->
@@ -7237,10 +7237,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view the identity.
 
 `can_edit`
-: Grants permission to edit the identity. To edit an identity, it is additionally required that the caller is able to view all groups that the identity is a member of.
+: Grants permission to view and edit the identity. To edit an identity, it is additionally required that the caller is able to view all groups that the identity is a member of.
 
 `can_delete`
-: Grants permission to delete the identity.
+: Grants permission to view and delete the identity.
 
 
 <!-- entity group identity end -->
@@ -7249,19 +7249,19 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view the identity provider group.
 
 `can_edit`
-: Grants permission to edit the identity provider group.
+: Grants permission to view and edit the identity provider group.
 
 `can_delete`
-: Grants permission to delete the identity provider group.
+: Grants permission to view and delete the identity provider group.
 
 
 <!-- entity group identity_provider_group end -->
 <!-- entity group image start -->
 `can_edit`
-: Grants permission to edit the image.
+: Grants permission to view and edit the image.
 
 `can_delete`
-: Grants permission to delete the image.
+: Grants permission to view and delete the image.
 
 `can_view`
 : Grants permission to view the image.
@@ -7270,10 +7270,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 <!-- entity group image end -->
 <!-- entity group image_alias start -->
 `can_edit`
-: Grants permission to edit the image alias.
+: Grants permission to view and edit the image alias.
 
 `can_delete`
-: Grants permission to delete the image alias.
+: Grants permission to view and delete the image alias.
 
 `can_view`
 : Grants permission to view the image alias.
@@ -7288,10 +7288,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view the instance, to access files, start a terminal or console session, and to manage snapshots and backups.
 
 `can_edit`
-: Grants permission to edit the instance.
+: Grants permission to view and edit the instance.
 
 `can_delete`
-: Grants permission to delete the instance.
+: Grants permission to view and delete the instance.
 
 `can_view`
 : Grants permission to view the instance and any snapshots or backups it might have.
@@ -7321,10 +7321,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 <!-- entity group instance end -->
 <!-- entity group network start -->
 `can_edit`
-: Grants permission to edit the network.
+: Grants permission to view and edit the network.
 
 `can_delete`
-: Grants permission to delete the network.
+: Grants permission to view and delete the network.
 
 `can_view`
 : Grants permission to view the network.
@@ -7333,10 +7333,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 <!-- entity group network end -->
 <!-- entity group network_acl start -->
 `can_edit`
-: Grants permission to edit the network ACL.
+: Grants permission to view and edit the network ACL.
 
 `can_delete`
-: Grants permission to delete the network ACL.
+: Grants permission to view and delete the network ACL.
 
 `can_view`
 : Grants permission to view the network ACL.
@@ -7345,10 +7345,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 <!-- entity group network_acl end -->
 <!-- entity group network_zone start -->
 `can_edit`
-: Grants permission to edit the network zone.
+: Grants permission to view and edit the network zone.
 
 `can_delete`
-: Grants permission to delete the network zone.
+: Grants permission to view and delete the network zone.
 
 `can_view`
 : Grants permission to view the network zone.
@@ -7357,10 +7357,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 <!-- entity group network_zone end -->
 <!-- entity group placement_group start -->
 `can_edit`
-: Grants permission to edit the placement group.
+: Grants permission to view and edit the placement group.
 
 `can_delete`
-: Grants permission to delete the placement group.
+: Grants permission to view and delete the placement group.
 
 `can_view`
 : Grants permission to view the placement group.
@@ -7369,10 +7369,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 <!-- entity group placement_group end -->
 <!-- entity group profile start -->
 `can_edit`
-: Grants permission to edit the profile.
+: Grants permission to view and edit the profile.
 
 `can_delete`
-: Grants permission to delete the profile.
+: Grants permission to view and delete the profile.
 
 `can_view`
 : Grants permission to view the profile.
@@ -7390,10 +7390,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view the project.
 
 `can_edit`
-: Grants permission to edit the project.
+: Grants permission to view and edit the project.
 
 `can_delete`
-: Grants permission to delete the project.
+: Grants permission to view and delete the project.
 
 `image_manager`
 : Grants permission to create, view, edit, and delete all images belonging to the project.
@@ -7405,10 +7405,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view images.
 
 `can_edit_images`
-: Grants permission to edit images.
+: Grants permission to view and edit images.
 
 `can_delete_images`
-: Grants permission to delete images.
+: Grants permission to view and delete images.
 
 `image_alias_manager`
 : Grants permission to create, view, edit, and delete all image aliases belonging to the project.
@@ -7420,10 +7420,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view image aliases.
 
 `can_edit_image_aliases`
-: Grants permission to edit image aliases.
+: Grants permission to view and edit image aliases.
 
 `can_delete_image_aliases`
-: Grants permission to delete image aliases.
+: Grants permission to view and delete image aliases.
 
 `instance_manager`
 : Grants permission to create, view, edit, and delete all instances belonging to the project.
@@ -7435,10 +7435,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view instances.
 
 `can_edit_instances`
-: Grants permission to edit instances.
+: Grants permission to view and edit instances.
 
 `can_delete_instances`
-: Grants permission to delete instances.
+: Grants permission to view and delete instances.
 
 `can_operate_instances`
 : Grants permission to view instances, manage their state, manage their snapshots and backups, start terminal or console sessions, and access their files.
@@ -7453,10 +7453,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view networks.
 
 `can_edit_networks`
-: Grants permission to edit networks.
+: Grants permission to view and edit networks.
 
 `can_delete_networks`
-: Grants permission to delete networks.
+: Grants permission to view and delete networks.
 
 `network_acl_manager`
 : Grants permission to create, view, edit, and delete all network ACLs belonging to the project.
@@ -7468,10 +7468,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view network ACLs.
 
 `can_edit_network_acls`
-: Grants permission to edit network ACLs.
+: Grants permission to view and edit network ACLs.
 
 `can_delete_network_acls`
-: Grants permission to delete network ACLs.
+: Grants permission to view and delete network ACLs.
 
 `network_zone_manager`
 : Grants permission to create, view, edit, and delete all network zones belonging to the project.
@@ -7483,10 +7483,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view network zones.
 
 `can_edit_network_zones`
-: Grants permission to edit network zones.
+: Grants permission to view and edit network zones.
 
 `can_delete_network_zones`
-: Grants permission to delete network zones.
+: Grants permission to view and delete network zones.
 
 `profile_manager`
 : Grants permission to create, view, edit, and delete all profiles belonging to the project.
@@ -7498,10 +7498,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view profiles.
 
 `can_edit_profiles`
-: Grants permission to edit profiles.
+: Grants permission to view and edit profiles.
 
 `can_delete_profiles`
-: Grants permission to delete profiles.
+: Grants permission to view and delete profiles.
 
 `storage_volume_manager`
 : Grants permission to create, view, edit, and delete all storage volumes belonging to the project.
@@ -7513,10 +7513,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view storage volumes.
 
 `can_edit_storage_volumes`
-: Grants permission to edit storage volumes.
+: Grants permission to view and edit storage volumes.
 
 `can_delete_storage_volumes`
-: Grants permission to delete storage volumes.
+: Grants permission to view and delete storage volumes.
 
 `storage_bucket_manager`
 : Grants permission to create, view, edit, and delete all storage buckets belonging to the project.
@@ -7528,10 +7528,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view storage buckets.
 
 `can_edit_storage_buckets`
-: Grants permission to edit storage buckets.
+: Grants permission to view and edit storage buckets.
 
 `can_delete_storage_buckets`
-: Grants permission to delete storage buckets.
+: Grants permission to view and delete storage buckets.
 
 `placement_group_manager`
 : Grants permission to create, view, edit, and delete all placement groups belonging to the project.
@@ -7543,10 +7543,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view placement groups.
 
 `can_edit_placement_groups`
-: Grants permission to edit placement groups.
+: Grants permission to view and edit placement groups.
 
 `can_delete_placement_groups`
-: Grants permission to delete placement groups.
+: Grants permission to view and delete placement groups.
 
 `replicator_manager`
 : Grants permission to create, view, edit, and delete all replicators belonging to the project.
@@ -7558,10 +7558,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view replicators.
 
 `can_edit_replicators`
-: Grants permission to edit replicators.
+: Grants permission to view and edit replicators.
 
 `can_delete_replicators`
-: Grants permission to delete replicators.
+: Grants permission to view and delete replicators.
 
 `can_view_operations`
 : Grants permission to view operations relating to the project.
@@ -7576,10 +7576,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 <!-- entity group project end -->
 <!-- entity group replicator start -->
 `can_edit`
-: Grants permission to edit the replicator.
+: Grants permission to view and edit the replicator.
 
 `can_delete`
-: Grants permission to delete the replicator.
+: Grants permission to view and delete the replicator.
 
 `can_view`
 : Grants permission to view the replicator.
@@ -7609,10 +7609,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view identities.
 
 `can_edit_identities`
-: Grants permission to edit identities. Note that clients with this permission are able to elevate their own privileges.
+: Grants permission to view and edit identities. Note that clients with this permission are able to elevate their own privileges.
 
 `can_delete_identities`
-: Grants permission to delete identities.
+: Grants permission to view and delete identities.
 
 `can_create_groups`
 : Grants permission to create authorization groups.
@@ -7621,10 +7621,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view authorization groups.
 
 `can_edit_groups`
-: Grants permission to edit authorization groups. Note that clients with this permission are able to elevate their own privileges.
+: Grants permission to view and edit authorization groups. Note that clients with this permission are able to elevate their own privileges.
 
 `can_delete_groups`
-: Grants permission to delete authorization groups.
+: Grants permission to view and delete authorization groups.
 
 `can_create_identity_provider_groups`
 : Grants permission to create identity provider groups.
@@ -7633,10 +7633,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view identity provider groups.
 
 `can_edit_identity_provider_groups`
-: Grants permission to edit identity provider groups. Note that clients with this permission are able to elevate their own privileges.
+: Grants permission to view and edit identity provider groups. Note that clients with this permission are able to elevate their own privileges.
 
 `can_delete_identity_provider_groups`
-: Grants permission to delete identity provider groups.
+: Grants permission to view and delete identity provider groups.
 
 `storage_pool_manager`
 : Grants permission to create, edit, and delete storage pools.
@@ -7660,10 +7660,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view projects, and all resources within those projects.
 
 `can_edit_projects`
-: Grants permission to edit projects, and all resources within those projects.
+: Grants permission to view and edit projects, and all resources within those projects.
 
 `can_delete_projects`
-: Grants permission to delete projects.
+: Grants permission to view and delete projects.
 
 `can_override_cluster_target_restriction`
 : If a project is configured with `restricted.cluster.target`, clients with this permission can override the restriction.
@@ -7693,19 +7693,19 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 : Grants permission to view cluster links.
 
 `can_edit_cluster_links`
-: Grants permission to edit cluster links.
+: Grants permission to view and edit cluster links.
 
 `can_delete_cluster_links`
-: Grants permission to delete cluster links.
+: Grants permission to view and delete cluster links.
 
 
 <!-- entity group server end -->
 <!-- entity group storage_bucket start -->
 `can_edit`
-: Grants permission to edit the storage bucket.
+: Grants permission to view and edit the storage bucket.
 
 `can_delete`
-: Grants permission to delete the storage bucket.
+: Grants permission to view and delete the storage bucket.
 
 `can_view`
 : Grants permission to view the storage bucket.
@@ -7723,10 +7723,10 @@ When enabled, if the source volume is a clone, the new volume will be promoted t
 <!-- entity group storage_pool end -->
 <!-- entity group storage_volume start -->
 `can_edit`
-: Grants permission to edit the storage volume.
+: Grants permission to view and edit the storage volume.
 
 `can_delete`
-: Grants permission to delete the storage volume.
+: Grants permission to view and delete the storage volume.
 
 `can_view`
 : Grants permission to view the storage volume and any snapshots or backups it might have.
