@@ -44,7 +44,13 @@ test_tls_restrictions() {
 
   # Confirm client with restricted certificate cannot see server configuration.
   lxc config set user.foo bar
-  lxc_remote query localhost:/1.0 | jq --exit-status '.config == null'
+
+  # Unrestricted admin caller can view server configuration.
+  lxc query /1.0 | jq --exit-status '.config."user.foo" == "bar"'
+
+  # Restricted client is authenticated so it receives public configuration (volatile.uuid),
+  # but cannot see server configuration.
+  lxc_remote query localhost:/1.0 | jq --exit-status '(.config | length) == 1 and .config."volatile.uuid" != null'
   lxc_remote query localhost:/1.0 | jq --exit-status '.config."user.foo" == null'
   lxc config unset user.foo
 
