@@ -268,6 +268,22 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 		return fmt.Errorf("Failed connecting to target cluster link: %w", err)
 	}
 
+	// Get cluster uuid
+	UUIDChanged := false
+	_, UUIDExists := clusterLink.Config["volatile.uuid"]
+	if !UUIDExists {
+		serverInfo, _, err := targetClient.GetServer()
+		if err != nil {
+			return fmt.Errorf("Failed getting server information from target cluster: %w", err)
+		}
+
+		targetClusterUUID, ok := serverInfo.Config["volatile.uuid"].(string)
+		if ok {
+			clusterLink.Config["volatile.uuid"] = targetClusterUUID
+			UUIDChanged = true
+		}
+	}
+
 	// Get cluster members from the target cluster.
 	targetClusterMembers, err := targetClient.GetClusterMembers()
 	if err != nil {
@@ -283,7 +299,7 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 		newAddresses = append(newAddresses, strings.TrimPrefix(clusterMember.URL, "https://"))
 	}
 
-	if !addressSetChanged(addresses, newAddresses) {
+	if !addressSetChanged(addresses, newAddresses) && !UUIDChanged {
 		return nil
 	}
 
