@@ -2282,7 +2282,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 			}
 
 			// Read the template, ensuring the template file cannot escape the templates directory.
-			tplFullPath, err := securePathJoin(templatesPath, tpl.Template, true)
+			tplFullPath, err := shared.SecurePathJoin(templatesPath, tpl.Template, true)
 			if err != nil {
 				return fmt.Errorf("Invalid template file path: %w", err)
 			}

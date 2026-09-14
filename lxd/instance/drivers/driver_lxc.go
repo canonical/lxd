@@ -5274,7 +5274,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			}
 
 			// Open the file to template, create if needed
-			fullpath, err := securePathJoin(rootfsPath, tplPath, false)
+			fullpath, err := shared.SecurePathJoin(rootfsPath, tplPath, false)
 			if err != nil {
 				return fmt.Errorf("Invalid template output path: %w", err)
 			}
@@ -5306,7 +5306,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			defer w.Close()
 
 			// Read the template, ensuring the template file cannot escape the templates directory.
-			tplFullPath, err := securePathJoin(templatesPath, tpl.Template, true)
+			tplFullPath, err := shared.SecurePathJoin(templatesPath, tpl.Template, true)
 			if err != nil {
 				return fmt.Errorf("Invalid template file path: %w", err)
 			}
