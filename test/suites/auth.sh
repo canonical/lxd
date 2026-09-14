@@ -1742,6 +1742,8 @@ entities_enrichment_with_entitlements() {
   lxc delete test-bar
 
   # Storage pool
+  local pool_name
+  pool_name="$(lxc storage list -f csv | cut -d, -f1)"
   lxc storage create foo dir
   lxc storage create bar dir
   lxc auth group permission add test-group storage_pool "${pool_name}" can_edit
