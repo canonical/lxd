@@ -40,7 +40,7 @@ See {ref}`ref-releases-snap` for the currently supported releases as well as inf
 (security-daemon-access)=
 ## Access to the LXD daemon
 
-LXD is a daemon that can be accessed locally over a Unix socket or, if configured, remotely over a {abbr}`TLS (Transport Layer Security)` socket.
+LXD is a daemon that can be accessed locally over a Unix socket or, if configured, remotely over a {abbr}`TLS` (Transport Layer Security) socket.
 Anyone with access to the socket can fully control LXD, which includes the ability to attach host devices and file systems or to tweak the security features for all instances.
 
 Therefore, make sure to restrict the access to the daemon to trusted users.
@@ -62,7 +62,7 @@ The root user and all members of the `lxd` group can interact with the local dae
 (security_remote_access)=
 ### Access to the remote API
 
-By default, access to the daemon is only possible locally, but you can also {ref}`expose LXD to the network <server-expose>` on a {abbr}`TLS` (Transport Layer Security) socket. 
+By default, access to the daemon is only possible locally, but you can also {ref}`expose LXD to the network <server-expose>` on a TLS socket.
 Remote clients can then connect to LXD and access any image that is marked for public use.
 
 There are several ways to authenticate remote clients as trusted clients to allow them to access the API.
@@ -87,7 +87,7 @@ It has extra rights only on resources that it owns itself.
 This mechanism ensures that most security issues (for example, container escape or resource abuse) that might occur in a container apply just as well to a random unprivileged user, which means they are a generic kernel security bug rather than a LXD issue.
 
 ```{tip}
-If data sharing between containers isn't needed, you can enable {config:option}`instance-security:security.idmap.isolated`, which will use non-overlapping UID/GID maps for each container, preventing potential {abbr}`DoS (Denial of Service)` attacks on other containers.
+If data sharing between containers isn't needed, you can enable {config:option}`instance-security:security.idmap.isolated`, which will use non-overlapping UID/GID maps for each container, preventing potential {abbr}`DoS` (Denial of Service) attacks on other containers.
 ```
 
 ### Privileged containers
@@ -130,7 +130,7 @@ In this default configuration, whilst DNS names cannot not be spoofed, the insta
 In the default configuration, it is also possible for instances connected to the bridge to modify the LXD host's IPv6 routing table by sending (potentially malicious) IPv6 router advertisements to the bridge.
 This is because the `lxdbr0` interface is created with `/proc/sys/net/ipv6/conf/lxdbr0/accept_ra` set to `2`, meaning that the LXD host will accept router advertisements even though `forwarding` is enabled (see [`/proc/sys/net/ipv4/*` Variables](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt) for more information).
 
-However, LXD offers several bridged {abbr}`NIC (Network interface controller)` security features that can be used to control the type of traffic that an instance is allowed to send onto the network.
+However, LXD offers several bridged {abbr}`NIC` (Network interface controller) security features that can be used to control the type of traffic that an instance is allowed to send onto the network.
 These NIC settings should be added to the profile that the instance is using, or they can be added to individual instances, as shown below.
 
 The following security features are available for bridged NICs:

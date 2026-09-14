@@ -23,7 +23,7 @@ The following authentication methods are supported:
 :title: LXD token based remote authentication
 ```
 
-When using {abbr}`TLS (Transport Layer Security)` client certificates for authentication, both the client and the server will generate a key pair the first time they're launched.
+When using {abbr}`TLS` (Transport Layer Security) client certificates for authentication, both the client and the server will generate a key pair the first time they're launched.
 The server will use that key pair for all HTTPS connections to the LXD socket.
 The client will use its certificate as a client certificate for any client-server communication.
 
@@ -62,12 +62,12 @@ See {ref}`server-expose` and {ref}`server-authenticate` for instructions on how 
 (authentication-pki)=
 ### Using a PKI system
 
-In a {abbr}`PKI (Public key infrastructure)` setup, a system administrator manages a central PKI that issues client certificates for all the LXD clients and server certificates for all the LXD daemons.
+In a {abbr}`PKI` (Public key infrastructure) setup, a system administrator manages a central PKI that issues client certificates for all the LXD clients and server certificates for all the LXD daemons.
 
-In PKI mode, TLS authentication requires that client certificates are signed be the {abbr}`CA (Certificate authority)`.
-This requirement does not apply to clients that authenticate via [OIDC](authentication-openid).
+In PKI mode, TLS authentication requires that client certificates are signed be the {abbr}`CA` (Certificate authority).
+This requirement does not apply to clients that authenticate via [{abbr}`OIDC` (OpenID Connect)](authentication-openid).
 
-The steps for enabling PKI mode differ slightly depending on whether you use an ACME provider in addition (see {ref}`authentication-server-certificate`).
+The steps for enabling PKI mode differ slightly depending on whether you use an {abbr}`ACME` (Automatic Certificate Management Environment) provider in addition (see {ref}`authentication-server-certificate`).
 
 `````{tabs}
 ````{group-tab} Only PKI
@@ -129,7 +129,7 @@ A client with a CA-signed certificate that has been revoked, and is present in `
 (authentication-openid)=
 ## OpenID Connect authentication
 
-LXD supports using [OpenID Connect](https://openid.net/developers/how-connect-works/) to authenticate users through an {abbr}`OIDC (OpenID Connect)` Identity Provider.
+LXD supports using [OpenID Connect](https://openid.net/developers/how-connect-works/) to authenticate users through an OIDC Identity Provider.
 
 To configure LXD to use OIDC authentication, set the [`oidc.*`](server-options-oidc) server configuration options.
 See the {ref}`how-to guides <howto-oidc>` for more information.
@@ -149,7 +149,7 @@ OIDC clients must be granted access by an administrator, see {ref}`fine-grained-
 (authentication-server-certificate)=
 ## TLS server certificate
 
-LXD supports issuing server certificates using {abbr}`ACME (Automatic Certificate Management Environment)` services, for example, [Let's Encrypt](https://letsencrypt.org/).
+LXD supports issuing server certificates using ACME services, for example, [Let's Encrypt](https://letsencrypt.org/).
 
 To enable this feature, set the following server configuration:
 
@@ -314,7 +314,7 @@ In the following scenarios, authentication is expected to fail.
 The server certificate might change in the following cases:
 
 - The server was fully reinstalled and therefore got a new certificate.
-- The connection is being intercepted ({abbr}`MITM (Machine in the middle)`).
+- The connection is being intercepted ({abbr}`MITM` (Machine in the middle)).
 
 In such cases, the client will refuse to connect to the server because the certificate fingerprint does not match the fingerprint in the configuration for this remote.
 

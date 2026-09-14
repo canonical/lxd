@@ -2,7 +2,7 @@
 # SR-IOV network
 
 <!-- Include start SR-IOV intro -->
-{abbr}`SR-IOV (Single root I/O virtualization)` is a hardware standard that allows a single network card port to appear as several virtual network interfaces in a virtualized environment.
+{abbr}`SR-IOV` (Single root I/O virtualization) is a hardware standard that allows a single network card port to appear as several virtual network interfaces in a virtualized environment.
 <!-- Include end SR-IOV intro -->
 
 The `sriov` network type allows to specify presets to use when connecting instances to a parent interface.

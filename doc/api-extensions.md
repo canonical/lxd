@@ -3550,7 +3550,7 @@ LXD CLI (`lxc`). For this reason, if the client configured for LXD in the identi
 client cannot be used by CLI users.
 
 This extension adds a new {config:option}`server-oidc:oidc.device.client.id` configuration key for the CLI to use. An
-administrator can create two clients in the identity provider, one for LXD UI requiring a secret (and {abbr}`PKCE <Proof Key for Code Exchange>`),
+administrator can create two clients in the identity provider, one for the LXD UI requiring a secret and {abbr}`PKCE` (Proof Key for Code Exchange),
 and one for the CLI that enables the device authorization grant and does not require a secret. The device client ID will
 be public to the CLI, falling back to {config:option}`server-oidc:oidc.client.id`. This configuration option cannot be
 set unless {config:option}`server-oidc:oidc.client.id` is set.

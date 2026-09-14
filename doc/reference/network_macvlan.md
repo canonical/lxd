@@ -2,7 +2,7 @@
 # Macvlan network
 
 <!-- Include start macvlan intro -->
-Macvlan is a virtual {abbr}`LAN (Local Area Network)` that you can use if you want to assign several IP addresses to the same network interface, basically splitting up the network interface into several sub-interfaces with their own IP addresses.
+Macvlan is a virtual {abbr}`LAN` (Local Area Network) that you can use if you want to assign several IP addresses to the same network interface, basically splitting up the network interface into several sub-interfaces with their own IP addresses.
 You can then assign IP addresses based on the randomly generated MAC addresses.
 <!-- Include end macvlan intro -->
 

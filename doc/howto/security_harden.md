@@ -33,7 +33,7 @@ Also see {ref}`howto-security-harden-restricted-group`.
 (howto-security-harden-remote)=
 ### Harden remote API access
 
-For {ref}`authentication`, LXD can use either {abbr}`TLS (Transport Layer Security)` client certificates or OpenID Connect:
+For {ref}`authentication`, LXD can use either {abbr}`TLS` (Transport Layer Security) client certificates or OpenID Connect:
 
 - Client certificates:
    - Ensure that only clients with certificates issued by your trusted Certificate Authority (CA) can connect. The {config:option}`server-core:core.trust_ca_certificates` option is `false` by default. To prevent auto-trusting of CA-signed certificates, ensure it remains disabled.
@@ -107,7 +107,7 @@ By default, LXD containers are unprivileged. If you need to use privileged conta
 (howto-security-harden-instance-resource-limits)=
 ### Set instance resource limits
 
-There are multiple {ref}`instance-options-limits` that can be configured for instances. To decrease the potential damage from DoS attacks, set reasonable limits.
+There are multiple {ref}`instance-options-limits` that can be configured for instances. To decrease the potential damage from {abbr}`DoS` (Denial of Service) attacks, set reasonable limits.
 
 This is especially important for containers and their {config:option}`instance-resource-limits:limits.cpu`, {config:option}`instance-resource-limits:limits.memory`, and {config:option}`instance-resource-limits:limits.processes` options, which by default are set without limits. Review the {ref}`instance-options-limits` reference guide for other options you might want to restrict.
 
@@ -121,7 +121,7 @@ Setting this option to `true` is especially dangerous in combination with {confi
 (howto-security-harden-isolate)=
 ### Isolate containers
 
-If a set of containers do not need to share data with each other, enable the instance option {config:option}`instance-security:security.idmap.isolated` on each one. This configures them to use unique UID/GID maps, preventing potential {abbr}`DoS (Denial of Service)` attacks from one container to another. Only unprivileged containers can use this option.
+If a set of containers do not need to share data with each other, enable the instance option {config:option}`instance-security:security.idmap.isolated` on each one. This configures them to use unique UID/GID maps, preventing potential DoS attacks from one container to another. Only unprivileged containers can use this option.
 
 (howto-security-profiles)=
 ### Use profiles

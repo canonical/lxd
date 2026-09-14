@@ -54,7 +54,7 @@ Pocket ID is a modern, self-hosted OIDC provider distributed as a single Go bina
     - From the {guilabel}`Users` section, select the user created in step 6 to the group and click {guilabel}`Save`.
     - From the {guilabel}`Allowed OIDC Clients` section, select the client created in step 4 and click {guilabel}`Save`.
 
-Now you can access the LXD UI with any browser and use {abbr}`SSO (single sign-on)` login. To use OIDC on the LXD CLI, run `lxc remote add <remote-name> <LXD address> --auth-type oidc` and point a browser to the displayed URL to authenticate.
+Now you can access the LXD UI with any browser and use {abbr}`SSO` (single sign-on) login. To use OIDC on the LXD CLI, run `lxc remote add <remote-name> <LXD address> --auth-type oidc` and point a browser to the displayed URL to authenticate.
 
 By default, Pocket ID only has an admin user. Follow the [Pocket ID guide](https://pocket-id.org/docs/setup/user-management) to add users manually or sync with an LDAP source.
 

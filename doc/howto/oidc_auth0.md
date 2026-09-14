@@ -35,7 +35,7 @@ Auth0 is a flexible, drop-in solution to add authentication and authorization se
          lxc config set oidc.client.id=<Client ID>
          lxc config set oidc.client.secret=<Client Secret>
 
-   - Now you can access the LXD UI with any browser and use {abbr}`SSO (single sign-on)` login. Enter the credentials for Auth0.
+   - Now you can access the LXD UI with any browser and use {abbr}`SSO` (single sign-on) login. Enter the credentials for Auth0.
 
 1. Now create an application to be used by the LXD CLI. To do this, go back to {guilabel}`Applications` > {guilabel}`Applications` in the side panel and click {guilabel}`+ Create Application`.
    - Give the application a name, e.g. `LXD CLI`.

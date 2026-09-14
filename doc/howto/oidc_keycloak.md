@@ -47,6 +47,6 @@ Keycloak is a self-hosted open source tool for authentication. Keycloak supports
 
        lxc config set oidc.client.secret=<keycloak-client-secret>
 
-Now you can access the LXD UI with any browser and use {abbr}`SSO (single sign-on)` login. To use OIDC on the LXD CLI, run `lxc remote add <remote-name> <LXD address> --auth-type oidc` and point a browser to the displayed URL (with user_code) to authenticate.
+Now you can access the LXD UI with any browser and use {abbr}`SSO` (single sign-on) login. To use OIDC on the LXD CLI, run `lxc remote add <remote-name> <LXD address> --auth-type oidc` and point a browser to the displayed URL (with user_code) to authenticate.
 
 Users authenticated through Keycloak have no default permissions in the LXD UI. Set up {ref}`LXD authorization groups <manage-permissions>` to grant access to projects and instances and map a LXD authorization group to the user. Note that the user object in LXD is only created on the first login of that user to LXD.

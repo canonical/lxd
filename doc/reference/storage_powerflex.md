@@ -17,14 +17,14 @@ LXD supports both PowerFlex 4 and 5.
 
 ## Terminology
 
-PowerFlex groups various so-called {abbr}`SDS (storage data servers)` under logical groups within a protection domain.
+PowerFlex groups various so-called {abbr}`SDS` (storage data servers) under logical groups within a protection domain.
 Those SDS are the hosts that contribute storage capacity to the PowerFlex cluster.
 A *protection domain* contains storage pools, which represent a set of physical storage devices from different SDS.
 LXD creates its volumes in those storage pools.
 
 You can take a snapshot of any volume in PowerFlex, which will create an independent copy of the parent volume.
 PowerFlex volumes get added as a drive to the respective LXD host the volume got mapped to.
-In case of NVMe/TCP, the LXD host connects to one or multiple NVMe {abbr}`SDT (storage data targets)` provided by PowerFlex.
+In case of NVMe/TCP, the LXD host connects to one or multiple NVMe {abbr}`SDT` (storage data targets) provided by PowerFlex.
 Those SDT run as components on the PowerFlex storage layer.
 In case of SDC, the LXD hosts don't set up any connection by themselves.
 Instead they depend on the SDC to make the volumes available on the system for consumption.

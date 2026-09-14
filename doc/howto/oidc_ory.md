@@ -27,7 +27,7 @@ Ory Hydra is an easy solution to authenticate users for the LXD UI. It supports 
 
        lxc config set oidc.issuer=https://<ory-id>.projects.oryapis.com
 
-Now you can access the LXD UI with any browser and use {abbr}`SSO (single sign-on)` login.
+Now you can access the LXD UI with any browser and use {abbr}`SSO` (single sign-on) login.
 
 No users exist within ORY by default. New users can use the sign-up link during login. Alternatively, configure Google, Facebook, Microsoft, GitHub, Apple, or another social sign-in provider as described in the [ORY documentation](https://www.ory.com/docs/kratos/social-signin/overview).
 

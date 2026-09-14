@@ -37,7 +37,7 @@ Containers
 : Containers are the default type for instances. They are implemented through the use of `liblxc` (LXC).
 
 Virtual machines
-: {abbr}`Virtual machines (VMs)` are natively supported since version 4.0 of LXD.
+: Virtual machines ({abbr}`VMs`) are natively supported since version 4.0 of LXD.
   Thanks to a built-in agent, they can be used almost like containers, with a similar set of features.
 
   LXD uses `qemu` to provide the VM functionality.
