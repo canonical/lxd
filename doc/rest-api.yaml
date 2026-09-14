@@ -7614,6 +7614,76 @@ definitions:
                 x-go-name: Config
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    ServerState:
+        properties:
+            buffer_ram:
+                description: Buffered system memory in bytes.
+                example: 2147483648
+                format: uint64
+                type: integer
+                x-go-name: BufferRAM
+            free_ram:
+                description: Free system memory in bytes.
+                example: 129744588800
+                format: uint64
+                type: integer
+                x-go-name: FreeRAM
+            free_swap:
+                description: Free swap memory in bytes.
+                example: 2147479552
+                format: uint64
+                type: integer
+                x-go-name: FreeSwap
+            load_averages:
+                description: Load averages for the last 1, 5, and 15 minutes.
+                example:
+                    - 0.12
+                    - 0.34
+                    - 0.56
+                items:
+                    format: double
+                    type: number
+                type: array
+                x-go-name: LoadAverages
+            logical_cpus:
+                description: Total number of CPU threads.
+                example: 8
+                format: uint64
+                type: integer
+                x-go-name: LogicalCPUs
+            processes:
+                description: Number of processes.
+                example: 1234
+                format: uint64
+                type: integer
+                x-go-name: Processes
+            shared_ram:
+                description: Shared system memory in bytes.
+                example: 1048576
+                format: uint64
+                type: integer
+                x-go-name: SharedRAM
+            total_ram:
+                description: Total system memory in bytes.
+                example: 687194767360
+                format: uint64
+                type: integer
+                x-go-name: TotalRAM
+            total_swap:
+                description: Total swap memory in bytes.
+                example: 2147479552
+                format: uint64
+                type: integer
+                x-go-name: TotalSwap
+            uptime:
+                description: Server uptime in seconds.
+                example: 12345
+                format: int64
+                type: integer
+                x-go-name: Uptime
+        title: ServerState represents the current server state.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     ServerStorageDriverInfo:
         description: ServerStorageDriverInfo represents the read-only info about a storage driver
         properties:
@@ -18410,6 +18480,42 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Get system resources information
+            tags:
+                - server
+    /1.0/state:
+        get:
+            description: Gets the current system state of the LXD server.
+            operationId: state_get
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Current server state
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ServerState'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get server state
             tags:
                 - server
     /1.0/storage-pools:
