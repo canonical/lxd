@@ -98,6 +98,23 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 	return &resources, nil
 }
 
+// GetServerState returns the current state of a given LXD server.
+func (r *ProtocolLXD) GetServerState() (*api.ServerState, error) {
+	err := r.CheckExtension("server_state")
+	if err != nil {
+		return nil, err
+	}
+
+	state := api.ServerState{}
+
+	_, err = r.queryStruct(http.MethodGet, "/state", nil, "", &state)
+	if err != nil {
+		return nil, err
+	}
+
+	return &state, nil
+}
+
 // UseProject returns a client that will use a specific project.
 func (r *ProtocolLXD) UseProject(name string) InstanceServer {
 	server := *r
