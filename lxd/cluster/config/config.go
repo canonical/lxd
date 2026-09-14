@@ -196,7 +196,7 @@ func (c *Config) InstancesMigrationStateful() bool {
 }
 
 // LokiServer returns all the Loki settings needed to connect to a server.
-func (c *Config) LokiServer() (apiURL string, authUsername string, authPassword string, apiCACert string, instance string, logLevel string, labels []string, types []string) {
+func (c *Config) LokiServer() (apiURL string, apiCheckReady bool, authUsername string, authPassword string, apiCACert string, instance string, logLevel string, labels []string, types []string) {
 	if c.m.GetString("loki.types") != "" {
 		types = strings.Split(c.m.GetString("loki.types"), ",")
 	}
@@ -205,7 +205,15 @@ func (c *Config) LokiServer() (apiURL string, authUsername string, authPassword 
 		labels = strings.Split(c.m.GetString("loki.labels"), ",")
 	}
 
-	return c.m.GetString("loki.api.url"), c.m.GetString("loki.auth.username"), c.m.GetString("loki.auth.password"), c.m.GetString("loki.api.ca_cert"), c.m.GetString("loki.instance"), c.m.GetString("loki.loglevel"), labels, types
+	apiURL = c.m.GetString("loki.api.url")
+	apiCheckReady = c.m.GetBool("loki.api.check_ready")
+	authUsername = c.m.GetString("loki.auth.username")
+	authPassword = c.m.GetString("loki.auth.password")
+	apiCACert = c.m.GetString("loki.api.ca_cert")
+	instance = c.m.GetString("loki.instance")
+	logLevel = c.m.GetString("loki.loglevel")
+
+	return apiURL, apiCheckReady, authUsername, authPassword, apiCACert, instance, logLevel, labels, types
 }
 
 // ACME returns all ACME settings needed for certificate renewal.
