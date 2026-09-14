@@ -693,6 +693,15 @@ var ConfigSchema = config.Schema{
 		//  shortdesc: URL to the Loki server
 		"loki.api.url": {},
 
+		// lxdmeta:generate(entities=server; group=loki; key=loki.api.check_ready)
+		// Specify whether to check if the Loki server is ready before sending logs. Disabling it may be necessary for endpoints that don't expose Loki readiness checks.
+		// ---
+		//  type: bool
+		//  scope: global
+		//  defaultdesc: `true`
+		//  shortdesc: Loki server readiness check
+		"loki.api.check_ready": {Type: config.Bool, Default: "true"},
+
 		// lxdmeta:generate(entities=server; group=loki; key=loki.instance)
 		// This allows replacing the default instance value (server host name) by a more relevant value like a cluster identifier.
 		// ---
