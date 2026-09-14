@@ -3714,3 +3714,12 @@ The `Replicator` API type gains two read-only fields, `last_success_at` and `las
 Four gauges are added to the {ref}`metrics API <metrics>`: `lxd_replicators`, `lxd_replicator_last_run_status`, `lxd_replicator_last_success_timestamp` and `lxd_replicator_last_success_oldest_snapshot_timestamp`.
 
 The `replicator-run` lifecycle event now fires when a run completes rather than when a manual run starts, so it covers scheduled runs as well, and carries the run outcome in its context.
+
+(extension-server-state)=
+## `server_state`
+
+This adds support for the `GET /1.0/state` endpoint, which reports the current runtime state of the LXD server.
+
+The response contains the server uptime, load averages, total and free memory and swap, number of processes, and number of logical CPUs.
+
+This endpoint is not available on clustered servers where the cluster member api already exposes similar information.
