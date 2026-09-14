@@ -181,7 +181,7 @@ fi
 # Hot plug cloud-init:config ISO.
 lxc config device add v1 cloudinit disk source=cloud-init:config
 sleep 3
-BLOCK_SPECIAL_FILE="$(readlink -f /dev/disk/by-id/scsi-0QEMU_QEMU_CD-ROM_lxd_cloudinit)"
+BLOCK_SPECIAL_FILE="$(lxc exec v1 -- readlink -f /dev/disk/by-id/scsi-0QEMU_QEMU_CD-ROM_lxd_cloudinit)"
 lxc exec v1 -- test -b "${BLOCK_SPECIAL_FILE}"
 lxc exec v1 -- mount -t iso9660 -o ro /dev/disk/by-id/scsi-0QEMU_QEMU_CD-ROM_lxd_cloudinit /mnt
 lxc exec v1 -- umount /dev/disk/by-id/scsi-0QEMU_QEMU_CD-ROM_lxd_cloudinit
