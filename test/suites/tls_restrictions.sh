@@ -113,8 +113,9 @@ test_tls_restrictions() {
   kill_go_proc "${mon_root_pid}" || true
   kill_go_proc "${mon_restricted_pid}" || true
 
-  # The events for the restricted caller should have only the profile creation lifecycle event because this occurred
-  # "blah". The storage volume creation event should not be visible because it occurred in "default".
+  # The events for the restricted caller should have only the profile creation lifecycle event because the profile
+  # was created in project "blah". The storage volume creation event should not be visible because it occurred in
+  # project "default".
   jq --exit-status --slurp 'length == 1 and .[0].type == "lifecycle" and .[0].metadata.action == "profile-created"' "${monfile_restricted}"
 
   # Whereas events for the root user will contain both storage volume and profile creation events.
