@@ -1379,7 +1379,7 @@ auth_project_features() {
   # Members of test-group cannot edit the network zone.
   ! lxc_remote network zone set "${remote}:${zoneName}" user.foo=bar --project blah || false
 
-  # Members of test-group can delete the network zone.
+  # Members of test-group cannot delete the network zone.
   ! lxc_remote network zone delete "${remote}:${zoneName}" --project blah || false
 
   # Members of test-group cannot create network zones unless they have can_create_network_zones in the default project.
@@ -1518,7 +1518,7 @@ auth_project_features() {
   lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group project default can_view_storage_volumes
 
-  # Members of test-group can't view it via project default and project blah.
+  # Members of test-group can view it via project default and project blah.
   lxc_remote storage volume show "${remote}:${pool_name}" "${volName}" --project default
   lxc_remote storage volume list "${remote}:${pool_name}" --project default | grep -F "${volName}"
   lxc_remote storage volume show "${remote}:${pool_name}" "${volName}" --project blah
