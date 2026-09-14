@@ -2077,7 +2077,6 @@ test_ui_initial_access_link() {
     -H "User-Agent: Mozilla" \
     -H "Cookie: token_bearer_session=${cookie}" \
     -H "Content-Type: application/json" \
-    -H "Content-Length: 52" \
     -d '{"name":"initial-tls-user", "groups":["admins"]}' \
     --cert "${TEST_DIR}/initial-tls-user.crt" \
     --key "${TEST_DIR}/initial-tls-user.key" \
