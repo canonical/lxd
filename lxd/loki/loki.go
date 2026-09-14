@@ -71,7 +71,7 @@ type Client struct {
 }
 
 // NewClient returns a Client.
-func NewClient(ctx context.Context, u *url.URL, username string, password string, caCert string, instance string, location string, hostname string, hostIP string, port string, clusterIdentifier string, logLevel string, labels []string, types []string) (*Client, error) {
+func NewClient(ctx context.Context, u *url.URL, checkReady bool, username string, password string, caCert string, instance string, location string, hostname string, hostIP string, port string, clusterIdentifier string, logLevel string, labels []string, types []string) (*Client, error) {
 	client := Client{
 		cfg: config{
 			batchSize:         10 * 1024,
@@ -117,9 +117,11 @@ func NewClient(ctx context.Context, u *url.URL, username string, password string
 		defer cancel()
 	}
 
-	err := client.checkLoki(ctx)
-	if err != nil {
-		return nil, err
+	if checkReady {
+		err := client.checkLoki(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	client.wg.Add(1)
