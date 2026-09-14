@@ -46,6 +46,13 @@ The address that was contacted and verified for a pending public cluster link, a
 The PEM-encoded certificate fetched for a pending public cluster link, awaiting confirmation.
 ```
 
+```{config:option} volatile.uuid cluster-link-volatile-conf
+:scope: "global"
+:shortdesc: "Remote cluster UUID."
+:type: "string"
+The UUID of the remote cluster.
+```
+
 <!-- config group cluster-link-volatile-conf end -->
 <!-- config group cluster-link-properties start -->
 ```{config:option} config cluster-link-properties
