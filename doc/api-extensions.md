@@ -3719,3 +3719,12 @@ The `replicator-run` lifecycle event now fires when a run completes rather than 
 
 Adds SCSI/FC support to the Pure Storage storage driver.
 Fibre Channel targets are discovered through the host bus adapter, so `pure.target` has no effect when `pure.mode` is set to `scsi/fc`.
+
+(extension-server-state)=
+## `server_state`
+
+This adds support for the `GET /1.0/state` endpoint, which reports the current runtime state of the LXD server.
+
+The response contains the server uptime, load averages, total and free memory and swap, number of processes, and number of logical CPUs.
+
+This endpoint is not available on clustered servers where the cluster member api already exposes similar information.
