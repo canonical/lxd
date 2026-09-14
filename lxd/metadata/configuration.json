@@ -5472,6 +5472,15 @@
 						}
 					},
 					{
+						"loki.api.check_ready": {
+							"defaultdesc": "`true`",
+							"longdesc": "Specify whether to check if the Loki server is ready before sending logs. Disabling it may be necessary for endpoints that don't expose Loki readiness checks.",
+							"scope": "global",
+							"shortdesc": "Loki server readiness check",
+							"type": "bool"
+						}
+					},
+					{
 						"loki.api.url": {
 							"longdesc": "Specify the protocol, name or IP and port. For example `https://loki.example.com:3100`. LXD will automatically add the `/loki/api/v1/push` suffix so there's no need to add it here.",
 							"scope": "global",
