@@ -11,10 +11,10 @@ require (
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
 	github.com/dustinkirkland/golang-petname v0.0.0-20260215035315-f0c533e9ce9b
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
-	github.com/fvbommel/sortorder v1.1.0
+	github.com/fvbommel/sortorder v1.2.0
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/go-chi/chi/v5 v5.3.2
-	github.com/go-jose/go-jose/v4 v4.1.4
+	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
@@ -27,7 +27,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/lxc/go-lxc v0.0.0-20260316180011-3af4ce000ed7
 	github.com/mattn/go-colorable v0.1.15
-	github.com/mattn/go-sqlite3 v1.14.50
+	github.com/mattn/go-sqlite3 v1.14.52
 	github.com/mdlayher/ndp v1.1.0
 	github.com/mdlayher/netx v0.0.0-20230430222610-7e21880baee8
 	github.com/mdlayher/vsock v1.3.0
@@ -47,7 +47,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/vishvananda/netlink v1.3.1
-	github.com/zitadel/oidc/v3 v3.49.4
+	github.com/zitadel/oidc/v3 v3.49.6
 	go.uber.org/zap v1.28.0
 	go.yaml.in/yaml/v2 v2.4.4
 	golang.org/x/crypto v0.56.0
@@ -60,8 +60,8 @@ require (
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
-	tags.cncf.io/container-device-interface v1.1.0
-	tags.cncf.io/container-device-interface/specs-go v1.1.0
+	tags.cncf.io/container-device-interface v1.1.1
+	tags.cncf.io/container-device-interface/specs-go v1.1.1
 )
 
 require (
@@ -106,7 +106,6 @@ require (
 	github.com/opencontainers/cgroups v0.0.9 // indirect
 	github.com/opencontainers/runc v1.5.1 // indirect
 	github.com/opencontainers/runtime-spec v1.3.0 // indirect
-	github.com/opencontainers/runtime-tools v0.9.1-0.20251114084447-edf4cb3d2116 // indirect
 	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -147,5 +146,4 @@ require (
 	google.golang.org/grpc v1.83.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	sigs.k8s.io/yaml v1.6.0 // indirect
 )
