@@ -513,6 +513,7 @@ var APIExtensions = []string{
 	"project_replica_mode_optional",
 	"image_registries",
 	"loki_config_api_check_ready",
+	"server_state",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

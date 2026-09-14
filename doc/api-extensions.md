@@ -3781,3 +3781,12 @@ This also adds a new project-level configuration key:
 Adds a new {config:option}`server-loki:loki.api.check_ready` server configuration key to configure whether or not
 LXD should probe the Loki API's `/ready` endpoint. By default it is set to `true`.
 Disabling the check allows using an OTLP forwarder which only implements the `/loki/api/v1/push` endpoint.
+
+(extension-server-state)=
+## `server_state`
+
+This adds support for the `GET /1.0/state` endpoint, which reports the current runtime state of the LXD server.
+
+The response contains the server uptime, load averages, total and free memory and swap, number of processes, and number of logical CPUs.
+
+This endpoint is not available on clustered servers where the cluster member api already exposes similar information.
