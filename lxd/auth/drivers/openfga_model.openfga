@@ -5,13 +5,13 @@ type identity
     define server: [server]
 
     # Grants permission to view the identity.
-    define can_view: [identity, service_account, group#member] or can_view_identities from server
+    define can_view: [identity, service_account, group#member] or can_edit or can_delete or can_view_identities from server
 
-    # Grants permission to edit the identity. To edit an identity, it is additionally required that the caller is
+    # Grants permission to view and edit the identity. To edit an identity, it is additionally required that the caller is
     # able to view all groups that the identity is a member of.
     define can_edit: [identity, service_account, group#member] or can_edit_identities from server
 
-    # Grants permission to delete the identity.
+    # Grants permission to view and delete the identity.
     define can_delete: [identity, service_account, group#member] or can_delete_identities from server
 type service_account
 type group
@@ -20,24 +20,24 @@ type group
     define member: [identity, service_account]
 
     # Grants permission to view the group. Identities can always view groups that they are a member of.
-    define can_view: [identity, service_account, group#member] or member or can_view_groups from server
+    define can_view: [identity, service_account, group#member] or member or can_edit or can_delete or can_view_groups from server
 
-    # Grants permission to edit the group.
+    # Grants permission to view and edit the group.
     define can_edit: [identity, service_account, group#member] or can_edit_groups from server
 
-    # Grants permission to delete the group.
+    # Grants permission to view and delete the group.
     define can_delete: [identity, service_account, group#member] or can_delete_groups from server
 type identity_provider_group
   relations
     define server: [server]
 
     # Grants permission to view the identity provider group.
-    define can_view: [identity, service_account, group#member] or can_view_identity_provider_groups from server
+    define can_view: [identity, service_account, group#member] or can_edit or can_delete or can_view_identity_provider_groups from server
 
-    # Grants permission to edit the identity provider group.
+    # Grants permission to view and edit the identity provider group.
     define can_edit: [identity, service_account, group#member] or can_edit_identity_provider_groups from server
 
-    # Grants permission to delete the identity provider group.
+    # Grants permission to view and delete the identity provider group.
     define can_delete: [identity, service_account, group#member] or can_delete_identity_provider_groups from server
 type server
   relations
@@ -66,10 +66,10 @@ type server
     # Grants permission to view identities.
     define can_view_identities: [identity, service_account, group#member] or permission_manager or admin or viewer
 
-    # Grants permission to edit identities. Note that clients with this permission are able to elevate their own privileges.
+    # Grants permission to view and edit identities. Note that clients with this permission are able to elevate their own privileges.
     define can_edit_identities: [identity, service_account, group#member] or permission_manager or admin
 
-    # Grants permission to delete identities.
+    # Grants permission to view and delete identities.
     define can_delete_identities: [identity, service_account, group#member] or permission_manager or admin
 
     # Grants permission to create authorization groups.
@@ -78,11 +78,11 @@ type server
     # Grants permission to view authorization groups.
     define can_view_groups: [identity, service_account, group#member] or permission_manager or admin or viewer
 
-    # Grants permission to edit authorization groups. Note that clients with this permission are able to elevate their
+    # Grants permission to view and edit authorization groups. Note that clients with this permission are able to elevate their
     # own privileges.
     define can_edit_groups: [identity, service_account, group#member] or permission_manager or admin
 
-    # Grants permission to delete authorization groups.
+    # Grants permission to view and delete authorization groups.
     define can_delete_groups: [identity, service_account, group#member] or permission_manager or admin
 
     # Grants permission to create identity provider groups.
@@ -91,11 +91,11 @@ type server
     # Grants permission to view identity provider groups.
     define can_view_identity_provider_groups: [identity, service_account, group#member] or permission_manager or admin or viewer
 
-    # Grants permission to edit identity provider groups. Note that clients with this permission are able to elevate
+    # Grants permission to view and edit identity provider groups. Note that clients with this permission are able to elevate
     # their own privileges.
     define can_edit_identity_provider_groups: [identity, service_account, group#member] or permission_manager or admin
 
-    # Grants permission to delete identity provider groups.
+    # Grants permission to view and delete identity provider groups.
     define can_delete_identity_provider_groups: [identity, service_account, group#member] or permission_manager or admin
 
     # Grants permission to create, edit, and delete storage pools.
@@ -119,10 +119,10 @@ type server
     # Grants permission to view projects, and all resources within those projects.
     define can_view_projects: [identity, service_account, group#member] or project_manager or viewer or admin
 
-    # Grants permission to edit projects, and all resources within those projects.
+    # Grants permission to view and edit projects, and all resources within those projects.
     define can_edit_projects: [identity, service_account, group#member] or project_manager or admin
 
-    # Grants permission to delete projects.
+    # Grants permission to view and delete projects.
     define can_delete_projects: [identity, service_account, group#member] or project_manager or admin
 
     # If a project is configured with `restricted.cluster.target`, clients with this permission can override the restriction.
@@ -152,10 +152,10 @@ type server
     # Grants permission to view cluster links.
     define can_view_cluster_links: [identity, service_account, group#member] or admin or viewer
 
-    # Grants permission to edit cluster links.
+    # Grants permission to view and edit cluster links.
     define can_edit_cluster_links: [identity, service_account, group#member] or admin
 
-    # Grants permission to delete cluster links.
+    # Grants permission to view and delete cluster links.
     define can_delete_cluster_links: [identity, service_account, group#member] or admin
 type certificate
   relations
@@ -164,10 +164,10 @@ type certificate
     # Grants permission to view the certificate.
     define can_view: [identity, service_account, group#member] or can_edit or can_delete or can_view_identities from server
 
-    # Grants permission to edit the certificate.
+    # Grants permission to view and edit the certificate.
     define can_edit: [identity, service_account, group#member] or can_edit_identities from server
 
-    # Grants permission to delete the certificate.
+    # Grants permission to view and delete the certificate.
     define can_delete: [identity, service_account, group#member] or can_delete_identities from server
 type cluster_link
   relations
@@ -176,10 +176,10 @@ type cluster_link
     # Grants permission to view the cluster link.
     define can_view: [identity, service_account, group#member] or can_edit or can_delete or can_view_cluster_links from server
 
-    # Grants permission to edit the cluster link.
+    # Grants permission to view and edit the cluster link.
     define can_edit: [identity, service_account, group#member] or can_edit_cluster_links from server
 
-    # Grants permission to delete the cluster link.
+    # Grants permission to view and delete the cluster link.
     define can_delete: [identity, service_account, group#member] or can_delete_cluster_links from server
 type storage_pool
   relations
@@ -202,12 +202,12 @@ type project
     define viewer: [identity, service_account, group#member]
 
     # Grants permission to view the project.
-    define can_view: [identity, service_account, group#member] or viewer or operator or can_view_projects from server
+    define can_view: [identity, service_account, group#member] or viewer or operator or can_edit or can_delete or can_view_projects from server
 
-    # Grants permission to edit the project.
+    # Grants permission to view and edit the project.
     define can_edit: [identity, service_account, group#member] or can_edit_projects from server
 
-    # Grants permission to delete the project.
+    # Grants permission to view and delete the project.
     define can_delete: [identity, service_account, group#member] or can_delete_projects from server
 
     # Grants permission to create, view, edit, and delete all images belonging to the project.
@@ -219,10 +219,10 @@ type project
     # Grants permission to view images.
     define can_view_images: [identity, service_account, group#member] or operator or viewer or image_manager or can_view_projects from server
 
-    # Grants permission to edit images.
+    # Grants permission to view and edit images.
     define can_edit_images: [identity, service_account, group#member] or operator or image_manager or can_edit_projects from server
 
-    # Grants permission to delete images.
+    # Grants permission to view and delete images.
     define can_delete_images: [identity, service_account, group#member] or operator or image_manager or can_edit_projects from server
 
     # Grants permission to create, view, edit, and delete all image aliases belonging to the project.
@@ -234,10 +234,10 @@ type project
     # Grants permission to view image aliases.
     define can_view_image_aliases: [identity, service_account, group#member] or operator or viewer or image_alias_manager or can_view_projects from server
 
-    # Grants permission to edit image aliases.
+    # Grants permission to view and edit image aliases.
     define can_edit_image_aliases: [identity, service_account, group#member] or operator or image_alias_manager or can_edit_projects from server
 
-    # Grants permission to delete image aliases.
+    # Grants permission to view and delete image aliases.
     define can_delete_image_aliases: [identity, service_account, group#member] or operator or image_alias_manager or can_edit_projects from server
 
     # Grants permission to create, view, edit, and delete all instances belonging to the project.
@@ -249,10 +249,10 @@ type project
     # Grants permission to view instances.
     define can_view_instances: [identity, service_account, group#member] or operator or viewer or instance_manager or can_view_projects from server
 
-    # Grants permission to edit instances.
+    # Grants permission to view and edit instances.
     define can_edit_instances: [identity, service_account, group#member] or operator or instance_manager or can_edit_projects from server
 
-    # Grants permission to delete instances.
+    # Grants permission to view and delete instances.
     define can_delete_instances: [identity, service_account, group#member] or operator or instance_manager or can_edit_projects from server
 
     # Grants permission to view instances, manage their state, manage their snapshots and backups, start terminal or console sessions, and access their files.
@@ -267,10 +267,10 @@ type project
     # Grants permission to view networks.
     define can_view_networks: [identity, service_account, group#member] or operator or viewer or network_manager or can_view_projects from server
 
-    # Grants permission to edit networks.
+    # Grants permission to view and edit networks.
     define can_edit_networks: [identity, service_account, group#member] or operator or network_manager or can_edit_projects from server
 
-    # Grants permission to delete networks.
+    # Grants permission to view and delete networks.
     define can_delete_networks: [identity, service_account, group#member] or operator or network_manager or can_edit_projects from server
 
     # Grants permission to create, view, edit, and delete all network ACLs belonging to the project.
@@ -282,10 +282,10 @@ type project
     # Grants permission to view network ACLs.
     define can_view_network_acls: [identity, service_account, group#member] or operator or viewer or network_acl_manager or can_view_projects from server
 
-    # Grants permission to edit network ACLs.
+    # Grants permission to view and edit network ACLs.
     define can_edit_network_acls: [identity, service_account, group#member] or operator or network_acl_manager or can_edit_projects from server
 
-    # Grants permission to delete network ACLs.
+    # Grants permission to view and delete network ACLs.
     define can_delete_network_acls: [identity, service_account, group#member] or operator or network_acl_manager or can_edit_projects from server
 
     # Grants permission to create, view, edit, and delete all network zones belonging to the project.
@@ -297,10 +297,10 @@ type project
     # Grants permission to view network zones.
     define can_view_network_zones: [identity, service_account, group#member] or operator or viewer or network_zone_manager or can_view_projects from server
 
-    # Grants permission to edit network zones.
+    # Grants permission to view and edit network zones.
     define can_edit_network_zones: [identity, service_account, group#member] or operator or network_zone_manager or can_edit_projects from server
 
-    # Grants permission to delete network zones.
+    # Grants permission to view and delete network zones.
     define can_delete_network_zones: [identity, service_account, group#member] or operator or network_zone_manager or can_edit_projects from server
 
     # Grants permission to create, view, edit, and delete all profiles belonging to the project.
@@ -312,10 +312,10 @@ type project
     # Grants permission to view profiles.
     define can_view_profiles: [identity, service_account, group#member] or operator or viewer or profile_manager or can_view_projects from server
 
-    # Grants permission to edit profiles.
+    # Grants permission to view and edit profiles.
     define can_edit_profiles: [identity, service_account, group#member] or operator or profile_manager or can_edit_projects from server
 
-    # Grants permission to delete profiles.
+    # Grants permission to view and delete profiles.
     define can_delete_profiles: [identity, service_account, group#member] or operator or profile_manager or can_edit_projects from server
 
     # Grants permission to create, view, edit, and delete all storage volumes belonging to the project.
@@ -327,10 +327,10 @@ type project
     # Grants permission to view storage volumes.
     define can_view_storage_volumes: [identity, service_account, group#member] or operator or viewer or storage_volume_manager or can_view_projects from server
 
-    # Grants permission to edit storage volumes.
+    # Grants permission to view and edit storage volumes.
     define can_edit_storage_volumes: [identity, service_account, group#member] or operator or storage_volume_manager or can_edit_projects from server
 
-    # Grants permission to delete storage volumes.
+    # Grants permission to view and delete storage volumes.
     define can_delete_storage_volumes: [identity, service_account, group#member] or operator or storage_volume_manager or can_edit_projects from server
 
     # Grants permission to create, view, edit, and delete all storage buckets belonging to the project.
@@ -342,10 +342,10 @@ type project
     # Grants permission to view storage buckets.
     define can_view_storage_buckets: [identity, service_account, group#member] or operator or viewer or storage_bucket_manager or can_view_projects from server
 
-    # Grants permission to edit storage buckets.
+    # Grants permission to view and edit storage buckets.
     define can_edit_storage_buckets: [identity, service_account, group#member] or operator or storage_bucket_manager or can_edit_projects from server
 
-    # Grants permission to delete storage buckets.
+    # Grants permission to view and delete storage buckets.
     define can_delete_storage_buckets: [identity, service_account, group#member] or operator or storage_bucket_manager or can_edit_projects from server
 
 	# Grants permission to create, view, edit, and delete all placement groups belonging to the project.
@@ -357,10 +357,10 @@ type project
     # Grants permission to view placement groups.
     define can_view_placement_groups: [identity, service_account, group#member] or operator or viewer or placement_group_manager or can_view_projects from server
 
-    # Grants permission to edit placement groups.
+    # Grants permission to view and edit placement groups.
     define can_edit_placement_groups: [identity, service_account, group#member] or operator or placement_group_manager or can_edit_projects from server
 
-    # Grants permission to delete placement groups.
+    # Grants permission to view and delete placement groups.
     define can_delete_placement_groups: [identity, service_account, group#member] or operator or placement_group_manager or can_edit_projects from server
 
     # Grants permission to create, view, edit, and delete all replicators belonging to the project.
@@ -372,10 +372,10 @@ type project
     # Grants permission to view replicators.
     define can_view_replicators: [identity, service_account, group#member] or operator or viewer or replicator_manager or can_view_projects from server
 
-    # Grants permission to edit replicators.
+    # Grants permission to view and edit replicators.
     define can_edit_replicators: [identity, service_account, group#member] or operator or replicator_manager or can_edit_projects from server
 
-    # Grants permission to delete replicators.
+    # Grants permission to view and delete replicators.
     define can_delete_replicators: [identity, service_account, group#member] or operator or replicator_manager or can_edit_projects from server
 
     # Grants permission to view operations relating to the project.
@@ -390,10 +390,10 @@ type image
   relations
     define project: [project]
 
-    # Grants permission to edit the image.
+    # Grants permission to view and edit the image.
     define can_edit: [identity, service_account, group#member] or can_edit_images from project
 
-    # Grants permission to delete the image.
+    # Grants permission to view and delete the image.
     define can_delete: [identity, service_account, group#member] or can_delete_images from project
 
     # Grants permission to view the image.
@@ -402,10 +402,10 @@ type image_alias
   relations
     define project: [project]
 
-    # Grants permission to edit the image alias.
+    # Grants permission to view and edit the image alias.
     define can_edit: [identity, service_account, group#member] or can_edit_image_aliases from project
 
-    # Grants permission to delete the image alias.
+    # Grants permission to view and delete the image alias.
     define can_delete: [identity, service_account, group#member] or can_delete_image_aliases from project
 
     # Grants permission to view the image alias.
@@ -420,10 +420,10 @@ type instance
     # Grants permission to view the instance, to access files, start a terminal or console session, and to manage snapshots and backups.
     define operator: [identity, service_account, group#member]
 
-    # Grants permission to edit the instance.
+    # Grants permission to view and edit the instance.
     define can_edit: [identity, service_account, group#member] or can_edit_instances from project
 
-    # Grants permission to delete the instance.
+    # Grants permission to view and delete the instance.
     define can_delete: [identity, service_account, group#member] or can_delete_instances from project
 
     # Grants permission to view the instance and any snapshots or backups it might have.
@@ -468,10 +468,10 @@ type network
   relations
     define project: [project]
 
-    # Grants permission to edit the network.
+    # Grants permission to view and edit the network.
     define can_edit: [identity, service_account, group#member] or can_edit_networks from project
 
-    # Grants permission to delete the network.
+    # Grants permission to view and delete the network.
     define can_delete: [identity, service_account, group#member] or can_delete_networks from project
 
     # Grants permission to view the network.
@@ -480,10 +480,10 @@ type network_acl
   relations
     define project: [project]
 
-    # Grants permission to edit the network ACL.
+    # Grants permission to view and edit the network ACL.
     define can_edit: [identity, service_account, group#member] or can_edit_network_acls from project
 
-    # Grants permission to delete the network ACL.
+    # Grants permission to view and delete the network ACL.
     define can_delete: [identity, service_account, group#member] or can_delete_network_acls from project
 
     # Grants permission to view the network ACL.
@@ -492,10 +492,10 @@ type network_zone
   relations
     define project: [project]
 
-    # Grants permission to edit the network zone.
+    # Grants permission to view and edit the network zone.
     define can_edit: [identity, service_account, group#member] or can_edit_network_zones from project
 
-    # Grants permission to delete the network zone.
+    # Grants permission to view and delete the network zone.
     define can_delete: [identity, service_account, group#member] or can_delete_network_zones from project
 
     # Grants permission to view the network zone.
@@ -504,10 +504,10 @@ type profile
   relations
     define project: [project]
 
-    # Grants permission to edit the profile.
+    # Grants permission to view and edit the profile.
     define can_edit: [identity, service_account, group#member] or can_edit_profiles from project
 
-    # Grants permission to delete the profile.
+    # Grants permission to view and delete the profile.
     define can_delete: [identity, service_account, group#member] or can_delete_profiles from project
 
     # Grants permission to view the profile.
@@ -516,10 +516,10 @@ type storage_volume
   relations
     define project: [project]
 
-    # Grants permission to edit the storage volume.
+    # Grants permission to view and edit the storage volume.
     define can_edit: [identity, service_account, group#member] or can_edit_storage_volumes from project
 
-    # Grants permission to delete the storage volume.
+    # Grants permission to view and delete the storage volume.
     define can_delete: [identity, service_account, group#member] or can_delete_storage_volumes from project
 
     # Grants permission to view the storage volume and any snapshots or backups it might have.
@@ -549,10 +549,10 @@ type storage_bucket
   relations
     define project: [project]
 
-    # Grants permission to edit the storage bucket.
+    # Grants permission to view and edit the storage bucket.
     define can_edit: [identity, service_account, group#member] or can_edit_storage_buckets from project
 
-    # Grants permission to delete the storage bucket.
+    # Grants permission to view and delete the storage bucket.
     define can_delete: [identity, service_account, group#member] or can_delete_storage_buckets from project
 
     # Grants permission to view the storage bucket.
@@ -562,10 +562,10 @@ type placement_group
   relations
     define project: [project]
 
-    # Grants permission to edit the placement group.
+    # Grants permission to view and edit the placement group.
     define can_edit: [identity, service_account, group#member] or can_edit_placement_groups from project
 
-    # Grants permission to delete the placement group.
+    # Grants permission to view and delete the placement group.
     define can_delete: [identity, service_account, group#member] or can_delete_placement_groups from project
 
     # Grants permission to view the placement group.
@@ -575,10 +575,10 @@ type replicator
   relations
     define project: [project]
 
-    # Grants permission to edit the replicator.
+    # Grants permission to view and edit the replicator.
     define can_edit: [identity, service_account, group#member] or can_edit_replicators from project
 
-    # Grants permission to delete the replicator.
+    # Grants permission to view and delete the replicator.
     define can_delete: [identity, service_account, group#member] or can_delete_replicators from project
 
     # Grants permission to view the replicator.
