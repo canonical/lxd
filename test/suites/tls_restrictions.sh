@@ -359,28 +359,28 @@ test_tls_restrictions() {
   lxc_remote init testimage localhost:bar --network "${networkName}" --project blah
 
   # The restricted client can't view allocations in the default project
-  ! lxc network list-allocations localhost: || false
-  ! lxc network list-allocations localhost: --project default || false
+  ! lxc_remote network list-allocations localhost: || false
+  ! lxc_remote network list-allocations localhost: --project default || false
 
   # The restricted client can't view allocations for all projects
-  ! lxc network list-allocations localhost: --all-projects || false
+  ! lxc_remote network list-allocations localhost: --all-projects || false
 
   # The restricted client can view allocations for the blah project. Since blah doesn't have networks enabled, the client
   # should see allocations for the default project, but they can't see the foo instance
   # The allocations for the default lxdbr0 are ignored due to being visible by
   # all users and this network often being present due to other tests.
   # shellcheck disable=SC2126
-  [ "$(lxc network list-allocations localhost: --project blah --format csv | grep -vF '/1.0/networks/lxdbr0,' | wc -l)" = 3 ]
-  ! lxc network list-allocations localhost: --project blah --format csv | grep 'instances/foo' || false
+  [ "$(lxc_remote network list-allocations localhost: --project blah --format csv | grep -vF '/1.0/networks/lxdbr0,' | wc -l)" = 3 ]
+  ! lxc_remote network list-allocations localhost: --project blah --format csv | grep 'instances/foo' || false
 
   # Check restrictions when using blah as current project.
-  lxc project switch localhost:blah
+  lxc_remote project switch localhost:blah
   # shellcheck disable=SC2126
-  [ "$(lxc network list-allocations localhost: --format csv | grep -vF '/1.0/networks/lxdbr0,' | wc -l)" = 3 ]
-  ! lxc network list-allocations localhost: --format csv | grep 'instances/foo' || false
+  [ "$(lxc_remote network list-allocations localhost: --format csv | grep -vF '/1.0/networks/lxdbr0,' | wc -l)" = 3 ]
+  ! lxc_remote network list-allocations localhost: --format csv | grep 'instances/foo' || false
 
   # Can't switch back to default while restricted to blah, so we need to modify the config file.
-  ! lxc project switch localhost:default || false
+  ! lxc_remote project switch localhost:default || false
   sed -i 's/project: blah/project: default/g' "${LXD_CONF}/config.yml"
 
   # Clean up
