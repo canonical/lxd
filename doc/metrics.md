@@ -23,6 +23,7 @@ The instance metrics are updated when calling the `/1.0/metrics` endpoint.
 To handle multiple scrapers, they are cached for 8 seconds.
 Fetching metrics is a relatively expensive operation for LXD to perform, so if the impact is too high, consider scraping at a higher than default interval.
 
+(metrics-query-data)=
 ## Query the raw data
 
 To view the raw data that LXD collects, use the [`lxc query`](lxc_query.md) command to query the `/1.0/metrics` endpoint:
@@ -93,6 +94,7 @@ lxd_disk_read_bytes_total{device="nvme0n1",name="c",project="default",type="cont
 ...
 ```
 
+(metrics-prometheus)=
 ## Set up Prometheus
 
 To gather and store the raw metrics, you should set up [Prometheus](https://prometheus.io/).
