@@ -1111,7 +1111,7 @@ func (d *Daemon) Init() error {
 	return d.init()
 }
 
-func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, instanceName string, logLevel string, labels []string, types []string) error {
+func (d *Daemon) setupLoki(URL string, checkReady bool, cert string, key string, caCert string, instanceName string, logLevel string, labels []string, types []string) error {
 	// Stop any existing loki client.
 	if d.lokiClient != nil {
 		d.internalListener.RemoveHandler("loki")
@@ -1164,7 +1164,7 @@ func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, i
 	}
 
 	// Start a new client.
-	d.lokiClient, err = loki.NewClient(d.shutdownCtx, u, cert, key, caCert, instanceName, location, hostname, hostIP, port, clusterIdentifier, logLevel, labels, types)
+	d.lokiClient, err = loki.NewClient(d.shutdownCtx, u, checkReady, cert, key, caCert, instanceName, location, hostname, hostIP, port, clusterIdentifier, logLevel, labels, types)
 	if err != nil {
 		return err
 	}
@@ -1800,7 +1800,7 @@ func (d *Daemon) init() (err error) {
 	d.proxy = shared.ProxyFromConfig(d.globalConfig.ProxyHTTPS(), d.globalConfig.ProxyHTTP(), d.globalConfig.ProxyIgnoreHosts())
 
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
-	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := d.globalConfig.LokiServer()
+	lokiURL, lokiCheckReady, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := d.globalConfig.LokiServer()
 	syslogSocketEnabled := d.localConfig.SyslogSocket()
 
 	d.endpoints.NetworkUpdateTrustedProxy(d.globalConfig.HTTPSTrustedProxy())
@@ -1808,7 +1808,7 @@ func (d *Daemon) init() (err error) {
 
 	// Setup Loki logger.
 	if lokiURL != "" {
-		err = d.setupLoki(lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes)
+		err = d.setupLoki(lokiURL, lokiCheckReady, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes)
 		if err != nil {
 			logger.Warn("Failed setting up Loki", logger.Ctx{"err": err})
 		}
