@@ -1114,6 +1114,8 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			bgpChanged = true
 		case "loki.api.url":
 			fallthrough
+		case "loki.api.check_ready":
+			fallthrough
 		case "loki.auth.username":
 			fallthrough
 		case "loki.auth.password":
