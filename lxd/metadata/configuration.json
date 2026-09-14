@@ -56,6 +56,14 @@
 							"shortdesc": "Pending public cluster link certificate.",
 							"type": "string"
 						}
+					},
+					{
+						"volatile.uuid": {
+							"longdesc": "The UUID of the linked cluster.",
+							"scope": "global",
+							"shortdesc": "Linked cluster UUID.",
+							"type": "string"
+						}
 					}
 				]
 			}
