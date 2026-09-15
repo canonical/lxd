@@ -1111,7 +1111,7 @@ func (d *Daemon) Init() error {
 	return d.init()
 }
 
-func (d *Daemon) setupLoki(URL string, checkReady bool, cert string, key string, caCert string, instanceName string, logLevel string, labels []string, types []string) error {
+func (d *Daemon) setupLoki(URL string, checkReady bool, username string, password string, caCert string, instanceName string, logLevel string, labels []string, types []string) error {
 	// Stop any existing loki client.
 	if d.lokiClient != nil {
 		d.internalListener.RemoveHandler("loki")
@@ -1164,7 +1164,7 @@ func (d *Daemon) setupLoki(URL string, checkReady bool, cert string, key string,
 	}
 
 	// Start a new client.
-	d.lokiClient, err = loki.NewClient(d.shutdownCtx, u, checkReady, cert, key, caCert, instanceName, location, hostname, hostIP, port, clusterIdentifier, logLevel, labels, types)
+	d.lokiClient, err = loki.NewClient(d.shutdownCtx, u, checkReady, username, password, caCert, instanceName, location, hostname, hostIP, port, clusterIdentifier, logLevel, labels, types)
 	if err != nil {
 		return err
 	}
