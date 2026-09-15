@@ -130,6 +130,16 @@ func (b *mockBackend) GetVolume(volType drivers.VolumeType, contentType drivers.
 	return drivers.Volume{}
 }
 
+// MirrorProjectVolumes ...
+func (b *mockBackend) MirrorProjectVolumes(ctx context.Context, projectName string) error {
+	return nil
+}
+
+// ConfirmProjectVolumeMirrors ...
+func (b *mockBackend) ConfirmProjectVolumeMirrors(ctx context.Context, projectName string) ([]string, error) {
+	return nil, nil
+}
+
 // CreateInstance ...
 func (b *mockBackend) CreateInstance(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error {
 	return nil
