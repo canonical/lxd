@@ -505,6 +505,7 @@ var APIExtensions = []string{
 	"access_management_bearer_pending",
 	"replicator_custom_volumes",
 	"metrics_replicators",
+	"loki_config_api_check_ready",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
