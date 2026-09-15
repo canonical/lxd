@@ -9,7 +9,7 @@ install_lxd
 # Configure LXD
 lxd init --auto
 
-IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:26.04}"
 
 CNAME="docker-$$"
 
@@ -40,15 +40,6 @@ for BIN in docker dockerd docker-init docker-proxy; do
     wget --no-verbose "https://master.dockerproject.org/linux/x86_64/\${BIN}" -O "/usr/bin/\${BIN}" && \
         chmod +x "/usr/bin/\${BIN}"
 done
-
-# XXX: Workaround Apparmor/kernel bug: https://bugs.launchpad.net/bugs/2067900
-if [ -e /etc/apparmor.d/runc ]; then
-  cat << EOF2 > /etc/apparmor.d/local/runc
-# Workaround https://bugs.launchpad.net/bugs/2067900
-  pivot_root,
-EOF2
-  apparmor_parser -rTW /etc/apparmor.d/runc
-fi
 
 unset https_proxy
 
