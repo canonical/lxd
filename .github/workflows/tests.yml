@@ -236,14 +236,6 @@ jobs:
           # reclaim some space
           sudo apt-get clean
 
-          mkdir -p "$(go env GOPATH)/bin"
-          curl -sSfL https://dl.min.io/server/minio/release/linux-amd64/minio --output "$(go env GOPATH)/bin/minio"
-          chmod +x "$(go env GOPATH)/bin/minio"
-
-          # Also grab the latest minio client to maintain compatibility with the server.
-          curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc --output "$(go env GOPATH)/bin/mc"
-          chmod +x "$(go env GOPATH)/bin/mc"
-
       - name: Download go dependencies
         run: |
           set -eux
