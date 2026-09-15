@@ -24,6 +24,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/placement"
+	"github.com/canonical/lxd/lxd/placement/filters"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -1951,7 +1952,7 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 				return err
 			}
 
-			filteredCandidates, err := placement.Filter(ctx, tx, candidateMembers, *apiPlacementGroup, true)
+			filteredCandidates, err := filters.Filter(ctx, tx, candidateMembers, *apiPlacementGroup, true)
 			if err != nil {
 				// If no candidates remain due to placement constraints, signal not found so caller can skip instance during evacuation.
 				if api.StatusErrorCheck(err, http.StatusConflict) {

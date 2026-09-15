@@ -31,7 +31,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/operations"
-	"github.com/canonical/lxd/lxd/placement"
+	placementFilters "github.com/canonical/lxd/lxd/placement/filters"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
@@ -2027,7 +2027,7 @@ func instancesPostSelectClusterMember(ctx context.Context, tx *db.ClusterTx, pla
 
 	apiPlacementGroup := placementGroup.ToAPI(configs)
 
-	filteredCandidates, err := placement.Filter(ctx, tx, candidateMembers, *apiPlacementGroup, false)
+	filteredCandidates, err := placementFilters.Filter(ctx, tx, candidateMembers, *apiPlacementGroup, false)
 	if err != nil {
 		return nil, err
 	}
