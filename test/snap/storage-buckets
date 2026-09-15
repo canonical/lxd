@@ -61,15 +61,9 @@ if [ "${needsMinio}" = "true" ]; then
 
   # Clean up the build dir in case it hung around from a failed test.
   rm -rf /opt/minio
-  mkdir -p /opt/minio
 
-  # Download the minio server.
-  curl -sSfL "https://dl.min.io/server/minio/release/linux-${arch}/minio" --output "/opt/minio/minio"
-  chmod +x "/opt/minio/minio"
-
-  # Also grab the latest minio client to maintain compatibility with the server.
-  curl -sSfL "https://dl.min.io/client/mc/release/linux-${arch}/mc" --output "/opt/minio/mc"
-  chmod +x "/opt/minio/mc"
+  # Download the minio server and client binaries.
+  ARCH="${arch}" download_minio /opt/minio
 
   # Set the snap config key for minio and restart LXD to have it take effect.
   snap set lxd minio.path=/opt/minio
