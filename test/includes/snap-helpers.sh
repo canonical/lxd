@@ -664,6 +664,12 @@ cleanup() {
         rm /var/crash/fuse_worker*
     fi
 
+    # Ignore do-release-upgrade crashes seen on older releases.
+    if compgen -G "/var/crash/_usr_bin_do-release-upgrade*" > /dev/null 2>&1; then
+        echo "::notice::==> CORE: do-release-upgrade core dump ignored"
+        rm /var/crash/_usr_bin_do-release-upgrade*
+    fi
+
     if [ -n "$(ls -A /var/crash/)" ]; then
         echo "CORE: coredump found during cleanup, forcing failure"
         FAIL=1
