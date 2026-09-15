@@ -408,6 +408,20 @@ runsMinimumKernel() (
     return 0
 )
 
+# download_minio: downloads the minio server and mc client binaries into the
+# given directory (default /opt/minio), retrying on transient network failures.
+download_minio() (
+    local dir="${1:-/opt/minio}"
+    local arch="${ARCH:-$(dpkg --print-architecture || echo "amd64")}"
+
+    mkdir -p "${dir}"
+
+    curl --show-error --silent --retry 3 --retry-delay 5 --location --fail \
+        --continue-at - "https://dl.min.io/server/minio/release/linux-${arch}/minio" --output "${dir}/minio" \
+        --continue-at - "https://dl.min.io/client/mc/release/linux-${arch}/mc" --output "${dir}/mc"
+    chmod +x "${dir}/minio" "${dir}/mc"
+)
+
 # createPowerFlexPool: creates a new storage pool using the PowerFlex driver.
 createPowerFlexPool() (
   lxc storage create "${1}" powerflex \
