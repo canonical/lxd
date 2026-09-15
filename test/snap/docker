@@ -9,7 +9,7 @@ install_lxd
 # Configure LXD
 lxd init --auto
 
-IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:26.04}"
 
 CNAME="docker-$$"
 
