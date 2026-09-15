@@ -1080,7 +1080,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 
 			// Refuse to replace a directory with a symlink, consistent with cp -r behaviour.
 			if fi.IsDir() {
-				return fmt.Errorf("Cannot overwrite directory %q with symlink", absTarget)
+				return fmt.Errorf(i18n.G("Cannot overwrite directory %q with symlink"), absTarget)
 			}
 
 			// Remove the existing symlink or file and recreate it with the correct target.
