@@ -1114,6 +1114,8 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			bgpChanged = true
 		case "loki.api.url":
 			fallthrough
+		case "loki.api.check_ready":
+			fallthrough
 		case "loki.auth.username":
 			fallthrough
 		case "loki.auth.password":
@@ -1255,7 +1257,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if lokiChanged {
-		lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := newClusterConfig.LokiServer()
+		lokiURL, lokiCheckReady, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes := newClusterConfig.LokiServer()
 
 		if lokiURL == "" || lokiLoglevel == "" || len(lokiTypes) == 0 {
 			if d.lokiClient != nil {
@@ -1270,7 +1272,7 @@ func doAPI10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 				d.lokiClient = nil
 			}
 		} else {
-			err := d.setupLoki(lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes)
+			err := d.setupLoki(lokiURL, lokiCheckReady, lokiUsername, lokiPassword, lokiCACert, lokiInstance, lokiLoglevel, lokiLabels, lokiTypes)
 			if err != nil {
 				return err
 			}
