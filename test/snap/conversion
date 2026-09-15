@@ -324,7 +324,7 @@ ${LXD_CONVERT_TOOL} --non-interactive --type vm --source "${IMAGE_PATH}" \
     --config "${vm_secureboot_config}"
 query="$(lxc query /1.0/instances/vm-ni-unix-default)"
 [ "$(jq -r '.profiles[]' <<< "${query}")" = "default" ]       # Ensure default profile is applied.
-[ "$(jq -r .devices <<< "${query}")" = "{}" ]                 # Ensure no dierct devices.
+[ "$(jq -r .devices <<< "${query}")" = "{}" ]                 # Ensure no direct devices.
 [ "$(jq -r '.expanded_devices | length' <<< "${query}")" = "2" ] # Ensure there are 2 devices from profile.
 testImportedInstance vm-ni-unix-default
 
@@ -472,7 +472,7 @@ if hasNeededAPIExtension instance_import_conversion; then
     lxc storage volume delete backups-pool backups-vol
     lxc storage delete backups-pool
 else
-    echo "===> SKIP: VM image conversion skipped. Server does not support API extenison 'instance_import_conversion'"
+    echo "===> SKIP: VM image conversion skipped. Server does not support API extension 'instance_import_conversion'"
 fi
 
 # Remove the locally cached Alpine conversion image (always downloaded above).
