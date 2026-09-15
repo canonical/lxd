@@ -79,6 +79,22 @@ ARCH="$(dpkg --print-architecture || echo "amd64")"
 export ARCH
 
 export LXD_VM_TESTS="${LXD_VM_TESTS:-1}"
+
+# enable_feature_preview adds the given feature preview to LXD_FEATURES, unless already present.
+enable_feature_preview() {
+  local feature="$1"
+
+  LXD_FEATURES="${LXD_FEATURES:-}"
+  case ",${LXD_FEATURES}," in
+    *,"${feature}",*) ;;
+    *) LXD_FEATURES="${LXD_FEATURES:+${LXD_FEATURES},}${feature}" ;;
+  esac
+
+  export LXD_FEATURES
+}
+
+# TODO: Turns on failure-domain-aware placement feature. To be eventually removed alongside feature flag.
+enable_feature_preview failure_domain_placement
 export CLIENT_DEBUG="" SERVER_DEBUG="" SHELL_TRACING=""
 if [ "${LXD_VERBOSE:-0}" != "0" ]; then
   if [ "${LXD_VERBOSE}" = "client" ]; then
