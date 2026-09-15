@@ -808,6 +808,14 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 
 		defer func() { _ = f.Close() }()
 
+		// If file exists, root.OpenFile would not apply the source file mode.
+		// root.Chmod used in this case to make sure the destination file maintains
+		// the same file mode as the source.
+		err = root.Chmod(relTarget, os.FileMode(resp.Mode))
+		if err != nil {
+			return err
+		}
+
 		progress := cli.ProgressRenderer{
 			Format: fmt.Sprintf(i18n.G("Pulling %s from %s: %%s"), p, absTarget),
 			Quiet:  c.global.flagQuiet,
