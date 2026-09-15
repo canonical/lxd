@@ -1,4 +1,4 @@
-package placement
+package filters
 
 import (
 	"context"

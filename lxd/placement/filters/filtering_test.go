@@ -1,4 +1,4 @@
-package placement
+package filters
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/placement"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -600,7 +601,7 @@ func (s *filteringSuite) TestFilter() {
 	}
 
 	// Prepare a placement group cache to avoid reloading the same group repeatedly.
-	pgCache := NewCache()
+	pgCache := placement.NewCache()
 
 	for i, tt := range tests {
 		s.T().Logf("Case %d: %s", i, tt.name)
