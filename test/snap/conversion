@@ -250,7 +250,7 @@ conversion() {
         echo "${instTypeCode}" # Instance type (1 == container, 2 == virtual-machine).
 
         if [ "$(lxc project ls -f csv | wc -l)" -gt 1 ]; then
-            echo "default"     # Project name (required if there is more then 1 project)
+            echo "default"     # Project name (required if there is more than 1 project)
         fi
 
         echo "${instName}"     # Instance name.

@@ -23,10 +23,12 @@ HARDWARE_ONLY_TESTS="gpu-container gpu-mig network network-sriov"
 ALL_SCRIPTS="$(mktemp)"
 EXPECTED_TESTS="$(mktemp)"
 MATRIX_TESTS="$(mktemp)"
-trap 'rm -f "${ALL_SCRIPTS}" "${EXPECTED_TESTS}" "${MATRIX_TESTS}"' EXIT
+HARDWARE_ONLY_LIST="$(mktemp)"
+trap 'rm -f "${ALL_SCRIPTS}" "${EXPECTED_TESTS}" "${MATRIX_TESTS}" "${HARDWARE_ONLY_LIST}"' EXIT
 
 find test/snap -maxdepth 1 -type f ! -name COPYING ! -name '.*' -printf '%f\n' | sort -u > "${ALL_SCRIPTS}"
-comm -23 "${ALL_SCRIPTS}" <(echo "${HARDWARE_ONLY_TESTS}" | tr ' ' '\n' | sort -u) > "${EXPECTED_TESTS}"
+echo "${HARDWARE_ONLY_TESTS}" | tr ' ' '\n' | sort -u > "${HARDWARE_ONLY_LIST}"
+comm -23 "${ALL_SCRIPTS}" "${HARDWARE_ONLY_LIST}" > "${EXPECTED_TESTS}"
 
 RC=0
 for workflow in .github/workflows/tests.yml .github/workflows/snap.yml; do
@@ -46,6 +48,14 @@ for workflow in .github/workflows/tests.yml .github/workflows/snap.yml; do
     if [ -n "${PHANTOM}" ]; then
         echo "FAIL: ${workflow}'s snap-tests matrix references non-existent test/snap/ scripts:" >&2
         echo "${PHANTOM}" >&2
+        RC=1
+    fi
+
+    # Hardware-only tests must not be present in snap-tests matrices.
+    FORBIDDEN="$(comm -12 "${HARDWARE_ONLY_LIST}" "${MATRIX_TESTS}")"
+    if [ -n "${FORBIDDEN}" ]; then
+        echo "FAIL: ${workflow}'s snap-tests matrix includes hardware-only test/snap/ scripts:" >&2
+        echo "${FORBIDDEN}" >&2
         RC=1
     fi
 done
