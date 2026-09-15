@@ -80,6 +80,7 @@ readonly test_group_replicator_storage=(
     "clustering_replicator_container"
     "clustering_replicator_unclustered"
     "clustering_replicator_volumes"
+    "clustering_replicator_ceph_mirror"
 )
 
 readonly test_group_instance=(
