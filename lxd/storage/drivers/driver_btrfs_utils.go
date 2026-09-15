@@ -526,6 +526,29 @@ func (d *btrfs) getSubVolumeReceivedUUID(vol Volume) (string, error) {
 	return "", nil
 }
 
+// selectSubvolumesToSync returns the snapshots and subvolumes from a migration refresh header that the
+// target still needs. localSubvolumes maps each target snapshot to its received UUID.
+func (d *btrfs) selectSubvolumesToSync(subvolumes []BTRFSSubVolume, localSubvolumes map[string]string) ([]string, []BTRFSSubVolume) {
+	snapshots := []string{}
+	var syncSubvolumes []BTRFSSubVolume
+
+	for _, migrationSnap := range subvolumes {
+		receivedUUID, ok := localSubvolumes[migrationSnap.Snapshot]
+		// Skip this snapshot as it exists on both the source and target, and has the same GUID.
+		if ok && receivedUUID == migrationSnap.UUID {
+			continue
+		}
+
+		if migrationSnap.Path == "/" && migrationSnap.Snapshot != "" {
+			snapshots = append(snapshots, migrationSnap.Snapshot)
+		}
+
+		syncSubvolumes = append(syncSubvolumes, BTRFSSubVolume{Path: migrationSnap.Path, Snapshot: migrationSnap.Snapshot, UUID: migrationSnap.UUID})
+	}
+
+	return snapshots, syncSubvolumes
+}
+
 // BTRFSMetaDataHeader is the meta data header about the volumes being sent/stored.
 // Note: This is used by both migration and backup subsystems so do not modify without considering both!
 type BTRFSMetaDataHeader struct {

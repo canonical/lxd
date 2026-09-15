@@ -599,9 +599,6 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 			return err
 		}
 
-		// Reset list of snapshots which are to be received.
-		volTargetArgs.Snapshots = []string{}
-
 		// Map of local subvolumes with their received UUID.
 		localSubvolumes := make(map[string]string)
 
@@ -617,19 +614,7 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 		}
 
 		// Figure out which snapshots need to be copied by comparing the UUIDs and received UUIDs from the migration header.
-		for _, migrationSnap := range migrationHeader.Subvolumes {
-			receivedUUID, ok := localSubvolumes[migrationSnap.Snapshot]
-			// Skip this snapshot as it exists on both the source and target, and has the same GUID.
-			if ok && receivedUUID == migrationSnap.UUID {
-				continue
-			}
-
-			if migrationSnap.Path == "/" && migrationSnap.Snapshot != "" {
-				volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, migrationSnap.Snapshot)
-			}
-
-			syncSubvolumes = append(syncSubvolumes, BTRFSSubVolume{Path: migrationSnap.Path, Snapshot: migrationSnap.Snapshot, UUID: migrationSnap.UUID})
-		}
+		volTargetArgs.Snapshots, syncSubvolumes = d.selectSubvolumesToSync(migrationHeader.Subvolumes, localSubvolumes)
 
 		migrationHeader = BTRFSMetaDataHeader{Subvolumes: syncSubvolumes}
 
