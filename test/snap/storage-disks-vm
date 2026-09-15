@@ -309,7 +309,7 @@ if [[ "${LXD_SNAP_CHANNEL}" =~ ^([45]\.0|5\.21)/ ]]; then
     LONG_DEVICE_NAME="notSoLongName"
 fi
 
-# XXX: LXD releases 5.0 and earlier don't hotplugging
+# XXX: LXD releases 5.0 and earlier don't support hotplugging
 if [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\.0/ ]]; then
   DEVICE_HOTPLUG="0"
 fi
