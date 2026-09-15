@@ -92,7 +92,8 @@ lxc exec v1 -- mount -o remount,rw /srv/ro
 lxc exec v1 -- mount | grep -xF 'lxd_dir1ro on /srv/ro type virtiofs (rw,relatime)'
 ! lxc exec v1 -- touch /srv/ro/lxd-test-ro || false
 ! lxc exec v1 -- mkdir /srv/ro/lxd-test-ro || false
-! lxc exec v1 -- rm /srv/ro/lxd-test.txt || false
+lxc exec v1 -- stat /srv/ro/lxd-test
+! lxc exec v1 -- rm /srv/ro/lxd-test || false
 ! lxc exec v1 -- chmod 777 /srv/ro || false
 
 # LXD 5.21 and older have shared directory exported both as virtiofs and 9p
@@ -104,7 +105,8 @@ if [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
   lxc exec v1 -- mount | grep -x 'lxd_dir1ro on /srv/ro9p type 9p (rw,.*,access=client,trans=virtio)'
   ! lxc exec v1 -- touch /srv/ro9p/lxd-test-ro || false
   ! lxc exec v1 -- mkdir /srv/ro9p/lxd-test-ro || false
-  ! lxc exec v1 -- rm /srv/ro9p/lxd-test.txt || false
+  lxc exec v1 -- stat /srv/ro9p/lxd-test
+  ! lxc exec v1 -- rm /srv/ro9p/lxd-test || false
   ! lxc exec v1 -- chmod 777 /srv/ro9p || false
 else
   ## 9p mounts should all fail
