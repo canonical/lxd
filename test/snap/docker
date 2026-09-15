@@ -41,15 +41,6 @@ for BIN in docker dockerd docker-init docker-proxy; do
         chmod +x "/usr/bin/\${BIN}"
 done
 
-# XXX: Workaround Apparmor/kernel bug: https://bugs.launchpad.net/bugs/2067900
-if [ -e /etc/apparmor.d/runc ]; then
-  cat << EOF2 > /etc/apparmor.d/local/runc
-# Workaround https://bugs.launchpad.net/bugs/2067900
-  pivot_root,
-EOF2
-  apparmor_parser -rTW /etc/apparmor.d/runc
-fi
-
 unset https_proxy
 
 # Start docker again
