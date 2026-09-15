@@ -8061,3 +8061,103 @@ _clustering_replicator_volume_restore() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${vol_pool}" replicated-vol --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${vol_pool}" replicated-vol --project replicator-project
 }
+
+test_clustering_replicator_ceph_mirror() {
+  # The suite runs each backend in turn and, under random, every spawned daemon draws its own. The
+  # guard reads the backend of the current run so the two daemons cannot end up on different ones.
+  if [ "${LXD_BACKEND}" != "ceph" ]; then
+    echo "==> SKIP: Ceph RBD mirroring needs the ceph backend"
+    return
+  fi
+
+  # Two standalone clustered LXD daemons on the one MicroCeph cluster CI provides. Enrollment and the
+  # trigger act on the images for real; nothing replays them, so the run fails at the confirm.
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_ONE_DIR}" true
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  spawn_lxd "${LXD_TWO_DIR}" true
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster enable node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project create replicator-project
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  LXD_ONE_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --quiet --auth-group replicator-group)"
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group create replicator-group
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project operator
+  LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}" --auth-group replicator-group
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_two --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
+
+  local pool_one pool_two osd_pool_one peer_uuid
+  pool_one="lxdtest-$(basename "${LXD_ONE_DIR}")"
+  pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
+  osd_pool_one="$(LXD_DIR="${LXD_ONE_DIR}" lxc storage get "${pool_one}" ceph.osd.pool_name)"
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
+
+  sub_test "A mirrored project enrolls its volumes and fails the run when the peer never replays"
+
+  # Image mode is the only mode the replicator supports. A registered rx-tx peer is what lets Ceph accept
+  # a mirror snapshot; no rbd-mirror daemon runs here, so the peer never reports a replay.
+  rbd mirror pool enable "${osd_pool_one}" image
+  peer_uuid="$(rbd mirror pool peer add "${osd_pool_one}" client.admin@site-b --direction rx-tx)"
+  # Containers are clones of their image by default, and Ceph refuses to mirror a clone whose parent is
+  # not mirrored. Set before the first container is created.
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage set "${pool_one}" ceph.rbd.clone_copy=false
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage set "${pool_one}" ceph.replicator.replicator-project=site-b
+
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --project replicator-project -d "${SMALL_ROOT_DISK}"
+
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project || false
+  local bulk_op
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  # Snapshot, mirror and finalize children, and no instance push.
+  jq --exit-status '.status == "Failure" and .child_count == 3 and ([.children[].description] | sort == ["Finalizing replicator", "Mirroring replicated volumes", "Snapshotting instance for replication"])' <<< "${bulk_op}"
+  jq --exit-status '.children[] | select(.description == "Mirroring replicated volumes") | .status == "Failure" and (.err | test("peer site"; "i"))' <<< "${bulk_op}"
+  # The LXD snapshot was taken, the image is enrolled and carries the triggered mirror snapshot.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 1'
+  rbd --format json info "${osd_pool_one}/container_replicator-project_c1" | jq --exit-status '.mirroring.mode == "snapshot" and .mirroring.primary == true'
+  rbd --format json snap ls --all "${osd_pool_one}/container_replicator-project_c1" | jq --exit-status 'any(.[]; .namespace.type == "mirror")'
+  # Nothing was pushed to the standby.
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv || echo fail)" = "" ]
+
+  sub_test "Restore, rename and an unmirrored attached volume are refused on a mirrored project"
+
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project 2>&1)" = 'Error: Project "replicator-project" is mirrored through Ceph, promote its volumes instead of restoring them' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc project rename replicator-project renamed 2>&1)" = 'Error: Project "replicator-project" is mirrored by a storage pool, unset its ceph.replicator.replicator-project key first' ]
+  # A volume attached only to c1 would have travelled inside its migration, which a mirrored project
+  # does not run, so it has to be on a mirrored pool too.
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create unmirrored dir
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create unmirrored v1 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device add c1 v1 disk pool=unmirrored source=v1 path=/mnt/v1 --project replicator-project
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project 2>&1)" = 'Error: Instance "c1" attaches volume "v1" from storage pool "unmirrored", which does not carry ceph.replicator.replicator-project while the project is mirrored' ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device remove c1 v1 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete unmirrored v1 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage delete unmirrored
+
+  sub_test "A pool without the key keeps the migration variant"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage unset "${pool_one}" ceph.replicator.replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns ns | grep -xF 'c1,STOPPED'
+
+  # Cleanup. Pool mirroring cannot be disabled while an image is enrolled or a peer is registered.
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 --project replicator-project
+  rbd mirror image disable "${osd_pool_one}/container_replicator-project_c1"
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 --force --project replicator-project
+  rbd mirror pool peer remove "${osd_pool_one}" "${peer_uuid}"
+  rbd mirror pool disable "${osd_pool_one}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile device remove default root --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile device remove default root --project replicator-project
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_ONE_DIR}"
+}
