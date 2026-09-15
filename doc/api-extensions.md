@@ -3774,3 +3774,10 @@ It includes the following new endpoints (see {ref}`rest-api` for details):
 This also adds a new project-level configuration key:
 
 * {config:option}`project-restricted:restricted.registries` - Comma separated list of allowed image registries for use in a project.
+
+(extension-loki-config-api-check-ready)=
+## `loki_config_api_check_ready`
+
+Adds a new {config:option}`server-loki:loki.api.check_ready` server configuration key to configure whether or not
+LXD should probe the Loki API's `/ready` endpoint. By default it is set to `true`.
+Disabling the check allows using an OTLP forwarder which only implements the `/loki/api/v1/push` endpoint.
