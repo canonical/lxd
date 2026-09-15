@@ -386,7 +386,7 @@ fine_grained: true"
 
   lxc auth identity delete bearer/tmp
 
-  # Ensure DevLXD token cannot be to authenticate with main LXD API.
+  # Ensure DevLXD token cannot be used to authenticate with main LXD API.
   lxc auth identity create devlxd/tmp
   devlxd_identity_token="$(lxc auth identity token issue devlxd/tmp --quiet)"
   # Issuing a token promotes the DevLXD identity to its active type.
