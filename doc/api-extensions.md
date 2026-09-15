@@ -3714,8 +3714,16 @@ The `Replicator` API type gains two read-only fields, `last_success_at` and `las
 Four gauges are added to the {ref}`metrics API <metrics>`: `lxd_replicators`, `lxd_replicator_last_run_status`, `lxd_replicator_last_success_timestamp` and `lxd_replicator_last_success_oldest_snapshot_timestamp`.
 
 The `replicator-run` lifecycle event now fires when a run completes rather than when a manual run starts, so it covers scheduled runs as well, and carries the run outcome in its context.
+
 (extension-storage-driver-pure-scsifc)=
 ## `storage_driver_pure_scsifc`
 
 Adds SCSI/FC support to the Pure Storage storage driver.
 Fibre Channel targets are discovered through the host bus adapter, so `pure.target` has no effect when `pure.mode` is set to `scsi/fc`.
+
+(extension-loki-config-api-check-ready)=
+## `loki_config_api_check_ready`
+
+Adds a new {config:option}`server-loki:loki.api.check_ready` server configuration key to configure whether or not
+LXD should probe the Loki API's `/ready` endpoint. By default it is set to `true`.
+Disabling the check allows using an OTLP forwarder which only implements the `/loki/api/v1/push` endpoint.
