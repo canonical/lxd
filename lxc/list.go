@@ -41,6 +41,10 @@ type cmdList struct {
 	flagAllProjects bool
 
 	shorthandFilters map[string]func(*api.Instance, *api.InstanceState, string) bool
+
+	// failureDomainsByLocation maps a cluster member's ServerName to its FailureDomain,
+	// populated once in run() only if the Z column was actually requested.
+	failureDomainsByLocation map[string]string
 }
 
 func (c *cmdList) command() *cobra.Command {
@@ -109,6 +113,7 @@ Pre-defined column shorthand chars:
   t - Type (container or virtual-machine, ephemeral indicated if applicable)
   u - CPU usage (in seconds)
   L - Location of the instance (e.g. its cluster member)
+  Z - Failure domain of the instance's location (clustered only)
   f - Base Image Fingerprint (short)
   F - Base Image Fingerprint (long)
 
@@ -494,6 +499,26 @@ func (c *cmdList) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Only fetch cluster members (an extra API round trip) if the failure-domain column was
+	// actually requested.
+	for _, col := range columns {
+		if col.Name != "FAILURE DOMAIN" {
+			continue
+		}
+
+		members, err := d.GetClusterMembers()
+		if err != nil {
+			return err
+		}
+
+		c.failureDomainsByLocation = make(map[string]string, len(members))
+		for _, member := range members {
+			c.failureDomainsByLocation[member.ServerName] = member.FailureDomain
+		}
+
+		break
+	}
+
 	// The ipv4 and ipv6 filters are applied client side against the instance's network state.
 	filtersNeedNetwork := c.filtersNeedNetwork(filters)
 	if filtersNeedNetwork {
@@ -621,13 +646,21 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 	if clustered {
 		columnsShorthandMap['L'] = column{
 			"LOCATION", c.locationColumnData, false, false, false, false}
+		columnsShorthandMap['Z'] = column{
+			"FAILURE DOMAIN", c.failureDomainColumnData, false, false, false, false}
 	} else {
 		if c.flagColumns != defaultColumns && c.flagColumns != defaultColumnsAllProjects {
 			if strings.ContainsAny(c.flagColumns, "L") {
 				return nil, false, errors.New("Cannot specify column L when not clustered")
 			}
+
+			if strings.ContainsAny(c.flagColumns, "Z") {
+				return nil, false, errors.New("Cannot specify column Z when not clustered")
+			}
 		}
+
 		c.flagColumns = strings.ReplaceAll(c.flagColumns, "L", "")
+		c.flagColumns = strings.ReplaceAll(c.flagColumns, "Z", "")
 	}
 
 	columnList := strings.Split(c.flagColumns, ",")
@@ -959,6 +992,10 @@ func (c *cmdList) numberOfProcessesColumnData(cInfo api.InstanceFull) string {
 
 func (c *cmdList) locationColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Location
+}
+
+func (c *cmdList) failureDomainColumnData(cInfo api.InstanceFull) string {
+	return c.failureDomainsByLocation[cInfo.Location]
 }
 
 func (c *cmdList) matchByType(cInfo *api.Instance, _ *api.InstanceState, query string) bool {
