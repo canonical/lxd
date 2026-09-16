@@ -6026,41 +6026,6 @@ test_clustering_replicator_basic() {
   # Unset schedule so it does not interfere with the rest of the test.
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator unset my-replicator schedule --project replicator-project
 
-  sub_test "Verify the standby's storage is left to Ceph on a mirrored pool"
-
-  # A standby project whose pool carries its ceph.replicator key holds mirrors that Ceph owns.
-  # The guards here keep LXD off those images: no backup file write, no pre-filler, and no delete
-  # when a receive fails part way. The backup file is the one guarded write that reaches storage on
-  # every run, and it is the only one observable without a second Ceph cluster.
-  if [ "$(storage_backend "${LXD_TWO_DIR}")" = "ceph" ]; then
-    # The key is only accepted on a pool that copies images rather than cloning them.
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage set "${pool_two}" ceph.rbd.clone_copy=false
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage set "${pool_two}" ceph.replicator.replicator-project=peer-site
-
-    local logLinesBefore=0
-    if [ -n "${SERVER_DEBUG:-}" ]; then
-      logLinesBefore=$(wc -l < "${LXD_TWO_DIR}/lxd.log")
-    fi
-
-    LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 c2 c3 --project replicator-project
-    LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
-    bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-    jq --exit-status '([., (.children? // [])[]] | length) == 8 and .status == "Success" and .child_count == 7 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
-    LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
-    LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
-    LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c3,STOPPED'
-
-    # The skip only reaches lxd.log when the daemon runs verbose.
-    if [ -n "${SERVER_DEBUG:-}" ]; then
-      local newLogs
-      newLogs="$(tail --lines="+$((logLinesBefore + 1))" "${LXD_TWO_DIR}/lxd.log")"
-      grep -qF "Skipping the backup file write of a standby replica" <<< "${newLogs}"
-    fi
-
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage unset "${pool_two}" ceph.replicator.replicator-project
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage unset "${pool_two}" ceph.rbd.clone_copy
-  fi
-
   sub_test "Verify cluster link cannot be deleted while referenced by a replicator"
 
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete lxd_two 2>&1)" = 'Error: Error deleting "lxd_two" from database: Cluster link is currently in use' ]
@@ -8133,12 +8098,16 @@ test_clustering_replicator_ceph_mirror() {
 
   local pool_one pool_two osd_pool_one peer_uuid
   pool_one="lxdtest-$(basename "${LXD_ONE_DIR}")"
-  pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
+  # The pushed records name the pool an attached volume lives on, so the standby's pool carries the
+  # leader's name, as it would across two sites. One Ceph cluster backs both daemons here, so the OSD
+  # pool behind it is its own.
+  pool_two="${pool_one}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage create "${pool_two}" ceph "ceph.osd.pool_name=lxdtest-$(basename "${LXD_TWO_DIR}")-mirror"
   osd_pool_one="$(LXD_DIR="${LXD_ONE_DIR}" lxc storage get "${pool_one}" ceph.osd.pool_name)"
   LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
 
-  sub_test "A mirrored project enrolls its volumes and fails the run when the peer never replays"
+  sub_test "A mirrored project pushes its records and fails the run when the peer never replays"
 
   # Image mode is the only mode the replicator supports. A registered rx-tx peer is what lets Ceph accept
   # a mirror snapshot; no rbd-mirror daemon runs here, so the peer never reports a replay.
@@ -8147,29 +8116,90 @@ test_clustering_replicator_ceph_mirror() {
   # Containers are clones of their image by default, and Ceph refuses to mirror a clone whose parent is
   # not mirrored. Set before the first container is created.
   LXD_DIR="${LXD_ONE_DIR}" lxc storage set "${pool_one}" ceph.rbd.clone_copy=false ceph.replicator.replicator-project=site-b
+  # The standby's pool carries the key too. That is what makes it ask for the records alone.
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage set "${pool_two}" ceph.rbd.clone_copy=false ceph.replicator.replicator-project=site-a
 
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --project replicator-project -d "${SMALL_ROOT_DISK}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${pool_one}" vol1 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 --project replicator-project -d "${SMALL_ROOT_DISK}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device add c1 vol1 disk pool="${pool_one}" source=vol1 path=/mnt/vol1 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 user.foo=bar --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc snapshot c1 snap0 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc start c1 --project replicator-project
+
+  # Nothing replays onto the standby's pool here, so empty images of the names the mirror would have
+  # used stand in for the replicas. The receive only checks that they exist, and the guards keep it from
+  # writing to them. The snapshot on c1's stand-in is what lets a later refresh reach the deletion guard.
+  local osd_pool_two
+  osd_pool_two="$(LXD_DIR="${LXD_TWO_DIR}" lxc storage get "${pool_two}" ceph.osd.pool_name)"
+  rbd create --size 1M "${osd_pool_two}/container_replicator-project_c1"
+  rbd snap create "${osd_pool_two}/container_replicator-project_c1@snapshot_snap0"
+  rbd create --size 1M "${osd_pool_two}/custom_replicator-project_vol1"
+
+  local logLinesBefore=0
+  if [ -n "${SERVER_DEBUG:-}" ]; then
+    logLinesBefore=$(wc -l < "${LXD_TWO_DIR}/lxd.log")
+  fi
 
   ! LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project || false
   local bulk_op
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  # Snapshot, mirror and finalize children, and no instance push.
-  jq --exit-status '.status == "Failure" and .child_count == 3 and ([.children[].description] | sort == ["Finalizing replicator", "Mirroring replicated volumes", "Snapshotting instance for replication"])' <<< "${bulk_op}"
+  # Snapshot, forward, mirror and finalize children. The push succeeds and the confirm fails.
+  jq --exit-status '.status == "Failure" and .child_count == 4 and ([.children[].description] | sort == ["Finalizing replicator", "Mirroring replicated volumes", "Replicating instance", "Snapshotting instance for replication"])' <<< "${bulk_op}"
+  jq --exit-status '.children[] | select(.description == "Replicating instance") | .status == "Success"' <<< "${bulk_op}"
   jq --exit-status '.children[] | select(.description == "Mirroring replicated volumes") | .status == "Failure" and (.err | test("peer site"; "i"))' <<< "${bulk_op}"
-  # The LXD snapshot was taken, the image is enrolled and carries the triggered mirror snapshot.
-  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 1'
+  # The LXD snapshot was taken, the images are enrolled and carry the triggered mirror snapshot.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 2'
   rbd --format json info "${osd_pool_one}/container_replicator-project_c1" | jq --exit-status '.mirroring.mode == "snapshot" and .mirroring.primary == true'
   rbd --format json snap ls --all "${osd_pool_one}/container_replicator-project_c1" | jq --exit-status 'any(.[]; .namespace.type == "mirror")'
-  # Nothing was pushed to the standby.
-  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv || echo fail)" = "" ]
+  rbd --format json info "${osd_pool_one}/custom_replicator-project_vol1" | jq --exit-status '.mirroring.mode == "snapshot" and .mirroring.primary == true'
+  # The standby holds the records: the instance with its config and snapshots, and the attached volume.
+  # Both keep the leader's volume UUID, so they describe the mirrored images rather than volumes of
+  # their own.
+  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns ns | grep -xF 'c1,STOPPED'
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get c1 user.foo --project replicator-project)" = "bar" ]
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 2'
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc storage volume get "${pool_two}" container/c1 volatile.uuid --project replicator-project)" = "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume get "${pool_one}" container/c1 volatile.uuid --project replicator-project)" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc storage volume get "${pool_two}" vol1 volatile.uuid --project replicator-project)" = "$(LXD_DIR="${LXD_ONE_DIR}" lxc storage volume get "${pool_one}" vol1 volatile.uuid --project replicator-project)" ]
+  # The backup file is the one guarded write that reaches storage on every run. The skip only reaches
+  # lxd.log when the daemon runs verbose.
+  if [ -n "${SERVER_DEBUG:-}" ]; then
+    local newLogs
+    newLogs="$(tail --lines="+$((logLinesBefore + 1))" "${LXD_TWO_DIR}/lxd.log")"
+    grep -qF "Skipping the backup file write of a standby replica" <<< "${newLogs}"
+  fi
+
+  sub_test "A second run refreshes the records and an absent image fails the push"
+
+  # The refresh carries a config change over and drops the record of a snapshot the leader deleted. The
+  # snapshot is still on the stand-in image, so the driver would be asked to remove it from a replica
+  # if the guard did not keep the deletion to the record.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 user.foo=baz --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1/snap0 --project replicator-project
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project || false
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc config get c1 user.foo --project replicator-project)" = "baz" ]
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 2 and all(.[]; endswith("/snap0") | not)'
+  rbd --format json snap ls "${osd_pool_two}/container_replicator-project_c1" | jq --exit-status 'any(.[]; .name == "snapshot_snap0")'
+
+  # Without the image the records would point at nothing, so the push fails and the mirror stage is
+  # not reached.
+  rbd snap purge "${osd_pool_two}/container_replicator-project_c1"
+  rbd rm "${osd_pool_two}/container_replicator-project_c1"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project || false
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  jq --exit-status '.children[] | select(.description == "Replicating instance") | .status == "Failure"' <<< "${bulk_op}"
+  jq --exit-status '.children[] | select(.description == "Mirroring replicated volumes") | .status == "Cancelled"' <<< "${bulk_op}"
+  # The target cuts the data connections as soon as its receive fails, so the source only sees the
+  # dropped connection. The reason is in the standby's log, where the quotes around the name are escaped.
+  grep -F 'Metadata-only migration requires volume \"replicator-project_c1\" to already exist on storage' "${LXD_TWO_DIR}/lxd.log"
+  # The stand-in goes back so that the records can be removed the ordinary way later.
+  rbd create --size 1M "${osd_pool_two}/container_replicator-project_c1"
 
   sub_test "Restore, rename and an unmirrored attached volume are refused on a mirrored project"
 
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project 2>&1)" = 'Error: Project "replicator-project" is mirrored through Ceph, promote its volumes instead of restoring them' ]
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc project rename replicator-project renamed 2>&1)" = 'Error: Project "replicator-project" is mirrored by a storage pool, unset its ceph.replicator.replicator-project key first' ]
-  # A volume attached only to c1 would have travelled inside its migration, which a mirrored project
-  # does not run, so it has to be on a mirrored pool too.
+  # A volume attached only to c1 travels inside its migration, so it has to be on a mirrored pool too.
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create unmirrored dir
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create unmirrored v1 --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc config device add c1 v1 disk pool=unmirrored source=v1 path=/mnt/v1 --project replicator-project
@@ -8178,20 +8208,38 @@ test_clustering_replicator_ceph_mirror() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete unmirrored v1 --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete unmirrored
 
+  sub_test "A standby that asks for the records is refused by a pool without the key"
+
+  # The standby still carries the key, so it asks for the records alone. The leader's pool no longer
+  # mirrors the project, so nothing would have carried the data, and the source refuses.
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage unset "${pool_one}" ceph.replicator.replicator-project
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project || false
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  jq --exit-status '.child_count == 3 and (.children[] | select(.description == "Replicating instance") | .status == "Failure" and (.err | test("does not carry ceph.replicator.replicator-project")))' <<< "${bulk_op}"
+
   sub_test "A pool without the key keeps the migration variant"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage unset "${pool_one}" ceph.replicator.replicator-project
+  # The standby's records describe the stand-in images, so they go before the ordinary transfer
+  # creates the volumes for real.
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${pool_two}" vol1 --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage unset "${pool_two}" ceph.replicator.replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns ns | grep -xF 'c1,STOPPED'
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show "${pool_two}" vol1 --project replicator-project
 
   # Cleanup. Pool mirroring cannot be disabled while an image is enrolled or a peer is registered.
   LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${pool_two}" vol1 --project replicator-project
   rbd mirror image disable "${osd_pool_one}/container_replicator-project_c1"
+  rbd mirror image disable "${osd_pool_one}/custom_replicator-project_vol1"
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 --force --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${pool_one}" vol1 --project replicator-project
   rbd mirror pool peer remove "${osd_pool_one}" "${peer_uuid}"
   rbd mirror pool disable "${osd_pool_one}"
   LXD_DIR="${LXD_TWO_DIR}" lxc profile device remove default root --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc profile device remove default root --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage delete "${pool_two}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_ONE_DIR}"
 }
