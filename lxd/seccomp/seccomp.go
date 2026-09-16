@@ -1511,11 +1511,13 @@ func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
 func (s *Server) resolveTaskIdmap(c Instance, ctx logger.Ctx, siov *Iovec, pid int) (uid int64, gid int64, fsuid int64, fsgid int64, idmapset *idmap.IdmapSet, errno int, ok bool) {
 	uid, gid, fsuid, fsgid, err := TaskIDs(pid)
 	if err != nil {
+		ctx["err"] = fmt.Sprintf("Failed getting task ids for pid %d: %s", pid, err)
 		return 0, 0, 0, 0, nil, s.continueOrErrno(ctx, siov, int(-C.EPERM)), false
 	}
 
 	idmapset, err = c.CurrentIdmap()
 	if err != nil {
+		ctx["err"] = fmt.Sprintf("Failed getting current idmap for pid %d: %s", pid, err)
 		return 0, 0, 0, 0, nil, s.continueOrErrno(ctx, siov, int(-C.EINVAL)), false
 	}
 
