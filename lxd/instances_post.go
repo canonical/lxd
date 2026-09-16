@@ -31,7 +31,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/operations"
-	placementFilters "github.com/canonical/lxd/lxd/placement/filters"
+	"github.com/canonical/lxd/lxd/placement"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
@@ -2008,37 +2008,34 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 // instancesPostSelectClusterMember determines which cluster member to use for placing an instance during creation or migration.
 // It first checks whether the instance belongs to a placement group and, if so, applies the placement group’s policy and rigor to filter the available members.
 // Among the remaining candidates, the member with the fewest existing instances is selected.
-// If the instance does not belong to a placement group, the member with the fewest instances is chosen from all candidates.
 func instancesPostSelectClusterMember(ctx context.Context, tx *db.ClusterTx, placementGroupName string, candidateMembers []db.NodeInfo, projectName string) (*db.NodeInfo, error) {
-	// Check if instance is using a placement group.
-	if placementGroupName == "" {
-		return tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+	var apiPlacementGroup *api.PlacementGroup
+	if placementGroupName != "" {
+		placementGroup, err := dbCluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, projectName)
+		if err != nil {
+			return nil, err
+		}
+
+		configs, err := dbCluster.PlacementGroupsConfigStore().GetByEntityIDs(ctx, tx.Tx(), placementGroup.Row.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		apiPlacementGroup = placementGroup.ToAPI(configs)
 	}
 
-	placementGroup, err := dbCluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, projectName)
+	// Cluster-group filtering already happened upstream, via GetCandidateMembers's own
+	// targetClusterGroup parameter, so PlaceInstance's cluster-group stage is a no-op here.
+	selected, err := placement.PlaceInstance(ctx, tx, candidateMembers, apiPlacementGroup, "", false)
 	if err != nil {
+		if errors.Is(err, placement.ErrNoEligibleCandidate) {
+			return nil, api.StatusErrorf(http.StatusConflict, "Failed filtering candidate cluster members using placement group %q: %w", placementGroupName, err)
+		}
+
 		return nil, err
 	}
 
-	configs, err := dbCluster.PlacementGroupsConfigStore().GetByEntityIDs(ctx, tx.Tx(), placementGroup.Row.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	apiPlacementGroup := placementGroup.ToAPI(configs)
-
-	filteredCandidates, err := placementFilters.Filter(ctx, tx, candidateMembers, *apiPlacementGroup, false)
-	if err != nil {
-		return nil, err
-	}
-
-	// Early return if only a single candidate.
-	if len(filteredCandidates) == 1 {
-		return &filteredCandidates[0], nil
-	}
-
-	// Use filtered candidates to pick the node with least instances.
-	return tx.GetNodeWithLeastInstances(ctx, filteredCandidates)
+	return selected, nil
 }
 
 func instanceFindStoragePool(s *state.State, projectName string, req *api.InstancesPost) (storagePool string, storagePoolProfile string, localRootDiskDeviceKey string, localRootDiskDevice map[string]string, err error) {

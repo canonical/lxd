@@ -24,7 +24,6 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/placement"
-	"github.com/canonical/lxd/lxd/placement/filters"
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
@@ -1945,44 +1944,24 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 			return err
 		}
 
+		var apiPlacementGroup *api.PlacementGroup
 		if ok {
-			// Filter candidates by placement group.
-			apiPlacementGroup, err := pgCache.Get(ctx, tx, placementGroupName, inst.Project().Name)
+			// Placement group filtering is applied below, as part of the single PlaceInstance call.
+			apiPlacementGroup, err = pgCache.Get(ctx, tx, placementGroupName, inst.Project().Name)
 			if err != nil {
 				return err
 			}
-
-			filteredCandidates, err := filters.Filter(ctx, tx, candidateMembers, *apiPlacementGroup, true)
-			if err != nil {
-				// If no candidates remain due to placement constraints, signal not found so caller can skip instance during evacuation.
-				if api.StatusErrorCheck(err, http.StatusConflict) {
-					return api.StatusErrorf(http.StatusNotFound, "No eligible target cluster members after applying placement group %q", apiPlacementGroup.Name)
-				}
-
-				return err
-			}
-
-			// If placement group filtering returns candidates, use them.
-			if len(filteredCandidates) > 0 {
-				candidateMembers = filteredCandidates
-			}
-		} else if clusterGroupName != "" {
-			// Filter candidates by cluster group.
-			newMembers := make([]db.NodeInfo, 0, len(candidateMembers))
-			for _, member := range candidateMembers {
-				if !slices.Contains(member.Groups, clusterGroupName) {
-					continue
-				}
-
-				newMembers = append(newMembers, member)
-			}
-
-			candidateMembers = newMembers
 		}
 
-		// Find the least loaded cluster member which supports the instance's architecture.
-		targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+		// Narrow by cluster group or placement group (whichever applies), then pick the least
+		// loaded cluster member which supports the instance's architecture among whatever remains.
+		targetMemberInfo, err = placement.PlaceInstance(ctx, tx, candidateMembers, apiPlacementGroup, clusterGroupName, true)
 		if err != nil {
+			// If no candidates remain due to placement constraints, signal not found so caller can skip instance during evacuation.
+			if errors.Is(err, placement.ErrNoEligibleCandidate) {
+				return api.StatusErrorf(http.StatusNotFound, "No eligible target cluster members: %w", err)
+			}
+
 			return err
 		}
 
