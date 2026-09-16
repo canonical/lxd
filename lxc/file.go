@@ -302,7 +302,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 					targetIsDir = true
 				}
 
-				err := c.file.recursivePullFile(resource.server, pathSpec[0], pathSpec[1], target)
+				err := c.file.recursivePullFile(resource.server, pathSpec[0], pathSpec[1], target, target)
 				if err != nil {
 					return err
 				}
@@ -315,7 +315,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 
 		var targetPath string
 		if targetIsDir {
-			targetPath = path.Join(target, path.Base(pathSpec[1]))
+			targetPath = filepath.Join(target, filepath.Base(pathSpec[1]))
 		} else {
 			targetPath = target
 		}
@@ -659,17 +659,47 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string, targetDir string) error {
+func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string, targetDir string, basePath string) error {
 	buf, resp, err := d.GetInstanceFile(inst, p)
 	if err != nil {
 		return err
 	}
 
 	target := filepath.Join(targetDir, filepath.Base(p))
+
+	// Check if the target path is within the base directory.
+	err = shared.SecurePathCheck(basePath, target, false)
+	if err != nil {
+		return err
+	}
+
 	logger.Infof("Pulling %s from %s (%s)", target, p, resp.Type)
 
 	if resp.Type == "directory" {
-		err := os.Mkdir(target, os.FileMode(resp.Mode))
+		// If symlink exist locally with the name, delete it before proceeding.
+		fi, err := os.Lstat(target)
+
+		// If error is "file does not exist", return it.
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+		if err == nil && fi.Mode()&os.ModeSymlink != 0 {
+			logger.Infof("Removing existing symlink at %s", target)
+			err = os.Remove(target)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = os.MkdirAll(target, os.FileMode(resp.Mode))
+		if err != nil {
+			return err
+		}
+
+		// Explicit Chmod so permissions match the source even when the directory
+		// already existed (os.MkdirAll does not update permissions on existing dirs).
+		err = os.Chmod(target, os.FileMode(resp.Mode))
 		if err != nil {
 			return err
 		}
@@ -677,7 +707,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 		for _, ent := range resp.Entries {
 			nextP := path.Join(p, ent)
 
-			err := c.recursivePullFile(d, inst, nextP, target)
+			err := c.recursivePullFile(d, inst, nextP, target, basePath)
 			if err != nil {
 				return err
 			}
@@ -718,6 +748,21 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 		}
 		progress.Done("")
 	} else if resp.Type == "symlink" {
+		// If target already exists and is a directory, refuse to overwrite.
+		// If it's a file or symlink, remove and recreate:
+		fi, err := os.Lstat(target)
+		if err == nil {
+			if fi.IsDir() {
+				return fmt.Errorf(i18n.G("Cannot overwrite directory %q with symlink"), target)
+			}
+
+			// Remove the existing symlink or file and recreate it with the correct target.
+			err = os.Remove(target)
+			if err != nil {
+				return err
+			}
+		}
+
 		linkTarget, err := ioutil.ReadAll(buf)
 		if err != nil {
 			return err
