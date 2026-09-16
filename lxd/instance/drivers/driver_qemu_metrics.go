@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/drivers/qmp"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/metrics"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/units"
 )
@@ -190,7 +191,7 @@ func (d *qemu) getQemuCPUMetrics(monitor *qmp.Monitor) (map[string]metrics.CPUMe
 	for i, threadID := range threadIDs {
 		statFile := fmt.Sprintf("/proc/%d/task/%d/stat", pid, threadID)
 
-		content, err := os.ReadFile(statFile)
+		fields, err := util.ProcStatFields(statFile)
 		if err != nil {
 			// Ignore PID or TID disappearing.
 			if errors.Is(err, os.ErrNotExist) {
@@ -199,8 +200,6 @@ func (d *qemu) getQemuCPUMetrics(monitor *qmp.Monitor) (map[string]metrics.CPUMe
 
 			return nil, err
 		}
-
-		fields := strings.Fields(string(content))
 
 		if len(fields) < 43 {
 			return nil, fmt.Errorf("Expected at least 43 fields in %q, got %d", statFile, len(fields))
