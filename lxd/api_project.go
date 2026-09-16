@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -36,6 +37,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/validate"
 	"github.com/canonical/lxd/shared/version"
@@ -2196,6 +2198,23 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 			// Rejected here rather than during promotion or demotion.
 			return validateReplicationClusterLink(ctx, s, value)
 		}),
+	}
+
+	// limits.max_hosts is part of the failure-domain-aware placement feature, behind its own
+	// feature preview -- while the gate is off it's rejected below as an unknown key, the same as it
+	// would be on a build that never had this feature at all.
+	if features.IsEnabled(features.FailureDomainPlacement) {
+		// lxdmeta:generate(entities=project; group=limits; key=limits.max_hosts)
+		// Maximum number of distinct cluster members any instance in the project may
+		// collectively occupy — the union of hosts running every instance in the project,
+		// whether or not it belongs to a placement group. Applied on top of, and
+		// independently from, any placement group's own `max_hosts` bound; enforcement is
+		// always strict, regardless of an individual placement group's `rigor`. Unset means
+		// no project-wide cap.
+		// ---
+		//  type: integer
+		//  shortdesc: Maximum distinct hosts any instance in the project may collectively occupy
+		projectConfigKeys["limits.max_hosts"] = validate.Optional(validate.IsInRange(1, math.MaxInt32))
 	}
 
 	// Add the storage pool keys.

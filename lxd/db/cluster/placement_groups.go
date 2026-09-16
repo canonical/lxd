@@ -263,3 +263,39 @@ AND COALESCE(
 
 	return result, nil
 }
+
+// GetInstancesInProject returns a map of member (node) ID to a slice of instance IDs for every
+// instance in the given project, regardless of placement group membership — the project-wide
+// analog of GetInstancesInPlacementGroup, used to enforce a project's limits.max_hosts bound.
+// Instances located on the optional node ID are excluded if the node ID is not nil.
+func GetInstancesInProject(ctx context.Context, tx *sql.Tx, projectName string, nodeID *int64) (map[int64][]int64, error) {
+	args := []any{projectName}
+
+	q := `SELECT instances.id, instances.node_id
+FROM instances
+JOIN projects ON instances.project_id = projects.id
+WHERE projects.name = ?`
+
+	if nodeID != nil {
+		q += " AND instances.node_id != ?"
+		args = append(args, *nodeID)
+	}
+
+	result := make(map[int64][]int64)
+	err := query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
+		var instID int64
+		var nodeID int64
+		err := scan(&instID, &nodeID)
+		if err != nil {
+			return err
+		}
+
+		result[nodeID] = append(result[nodeID], instID)
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}

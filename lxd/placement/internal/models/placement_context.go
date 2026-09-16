@@ -26,4 +26,11 @@ type PlacementContext struct {
 	// and write them.
 	MemberToInst  map[int64][]int64
 	MemberDomains MemberFailureDomains
+
+	// Consulted by FilterByProjectFootprint. ProjectMaxHosts == 0 is the sentinel for "unset" — the
+	// limits.max_hosts config key validator requires a value >= 1, so 0 can never be a legitimately
+	// configured value — and FilterByProjectFootprint is a no-op passthrough when it's unset.
+	ProjectName     string
+	ProjectMaxHosts int
+	ExcludeNodeID   *int64
 }

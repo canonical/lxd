@@ -2023,16 +2023,21 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 		var apiPlacementGroup *api.PlacementGroup
 		if ok {
 			// Placement group filtering is applied below, as part of the single PlaceInstance call.
-			apiPlacementGroup, err = pgCache.Get(ctx, tx, placementGroupName, inst.Project().Name)
+			apiPlacementGroup, err = pgCache.Get(ctx, tx, placementGroupName, instProject.Name)
 			if err != nil {
 				return err
 			}
 		}
 
-		// Narrow by cluster group or placement group (whichever applies), then by the cluster-wide
-		// failure-domain override (if a placement group is set), then pick the least loaded
-		// cluster member which supports the instance's architecture among whatever remains.
-		targetMemberInfo, err = placement.PlaceInstance(ctx, tx, candidateMembers, apiPlacementGroup, clusterGroupName, s.GlobalConfig.FailureDomains(), true)
+		// Excluding the source member from the project's own host-footprint accounting is only
+		// ever consulted once PlaceInstance's project-footprint stage is actually active, so it's
+		// safe to always compute regardless of whether limits.max_hosts is configured.
+		sourceMemberID := tx.GetNodeID()
+
+		// Narrow by cluster group or placement group (whichever applies), then by the project's
+		// host footprint limit (if set), then pick the least loaded cluster member which supports
+		// the instance's architecture among whatever remains.
+		targetMemberInfo, err = placement.PlaceInstance(ctx, tx, candidateMembers, apiPlacementGroup, clusterGroupName, s.GlobalConfig.FailureDomains(), instProject, &sourceMemberID, true)
 		if err != nil {
 			// If no candidates remain due to placement constraints, signal not found so caller can skip instance during evacuation.
 			if errors.Is(err, placement.ErrNoEligibleCandidate) {
