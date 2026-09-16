@@ -242,6 +242,10 @@ type pureConnection struct {
 	// the iSCSI and SCSI/FC modes, whereas NVMe addresses namespaces by NSID and has no
 	// LUN at all. Of the modes that do get one, only SCSI/FC consumes it, to scope the
 	// SCSI bus rescan.
+	//
+	// Pure Storage assigns LUNs from 1 to 4095, so a non-positive value means the array
+	// reported none: a response omitting "lun" unmarshals to 0, which is not a LUN the
+	// array can ever have assigned.
 	LUN int `json:"lun"`
 }
 
@@ -1170,6 +1174,11 @@ func (p *pureClient) getConnectionLUN(poolName string, volName string, hostName 
 func (p *pureClient) connectHostToVolume(poolName string, volName string, hostName string) (lun int, connCreated bool, err error) {
 	var resp pureResponse[pureConnection]
 
+	connector, err := p.driver.connector()
+	if err != nil {
+		return 0, false, err
+	}
+
 	url := api.NewURL().Path("connections").WithQuery("host_names", hostName).WithQuery("volume_names", poolName+"::"+volName)
 
 	err = p.requestAuthenticated(http.MethodPost, url.URL, nil, &resp)
@@ -1180,6 +1189,10 @@ func (p *pureClient) connectHostToVolume(poolName string, volName string, hostNa
 			lun, err = p.getConnectionLUN(poolName, volName, hostName)
 			if err != nil {
 				return 0, false, err
+			}
+
+			if connector.Type() == connectors.TypeSCSIFC && lun <= 0 {
+				return 0, false, fmt.Errorf("Existing connection between volume %q and host %q reports no LUN, which SCSI/FC requires", volName, hostName)
 			}
 
 			return lun, false, nil
@@ -1198,7 +1211,17 @@ func (p *pureClient) connectHostToVolume(poolName string, volName string, hostNa
 		return 0, false, fmt.Errorf("Failed retrieving LUN after connecting volume %q with host %q", volName, hostName)
 	}
 
-	return resp.Items[0].LUN, true, nil
+	lun = resp.Items[0].LUN
+	if connector.Type() == connectors.TypeSCSIFC && lun <= 0 {
+		// Without a LUN the connector cannot scope the SCSI bus rescan, and would scan
+		// LUN 0 instead and quietly find nothing. Remove the connection just created
+		// rather than leave it behind on the array.
+		_ = p.disconnectHostFromVolume(poolName, volName, hostName)
+
+		return 0, false, fmt.Errorf("Connection between volume %q and host %q reports no LUN, which SCSI/FC requires", volName, hostName)
+	}
+
+	return lun, true, nil
 }
 
 // disconnectHostFromVolume deletes a connection between a host and volume.
