@@ -1623,7 +1623,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 // with the given serial number, which differs depending on the Pure Storage mode.
 func pureDiskSuffix(mode string, serial string) (string, error) {
 	// Ensure the serial number is exactly 24 characters long, as it uniquely
-	// identifies the device. This check should never succeed, but prevents
+	// identifies the device. This check should never fail, but prevents
 	// out-of-bounds errors when slicing the string later.
 	if len(serial) != 24 {
 		return "", fmt.Errorf("Unexpected length of serial number %q (%d)", serial, len(serial))
