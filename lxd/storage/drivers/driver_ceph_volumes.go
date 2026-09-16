@@ -685,7 +685,10 @@ func (d *ceph) createVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *ceph) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, progressReporter ioprogress.ProgressReporter) error {
-	if volTargetArgs.ClusterMoveSourceName != "" {
+	// A cluster member move shares the image and a metadata-only migration has it mirrored, so
+	// neither receives any data. The mount path is a local directory, so creating it is safe on a
+	// non-primary replica.
+	if volTargetArgs.ClusterMoveSourceName != "" || volTargetArgs.MetadataOnly {
 		err := vol.EnsureMountPath()
 		if err != nil {
 			return err
@@ -1711,8 +1714,10 @@ func (d *ceph) RenameVolume(vol Volume, newVolName string, progressReporter iopr
 
 // MigrateVolume sends a volume for migration.
 func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
-	if volSrcArgs.ClusterMove {
-		return nil // When performing a cluster member move don't do anything on the source member.
+	// A cluster member move shares the image and a metadata-only migration has it mirrored, so
+	// there is nothing to send.
+	if volSrcArgs.ClusterMove || volSrcArgs.MetadataOnly {
+		return nil
 	}
 
 	// Handle simple rsync and block_and_rsync through generic.
