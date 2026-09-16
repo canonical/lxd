@@ -59,6 +59,12 @@ func HoldsCephReplicasByName(ctx context.Context, s *state.State, pool Pool, pro
 	return HoldsCephReplicas(pool, *proj), nil
 }
 
+// PoolMirrorsProject reports whether a pool carries a project's `ceph.replicator.<project>` key.
+// A migration source uses it to refuse a metadata-only push from a pool that mirrors nothing.
+func PoolMirrorsProject(pool Pool, projectName string) bool {
+	return poolMirrorsProject(pool.ToAPI().Config, projectName)
+}
+
 // poolMirrorsProject reports whether a pool carries a project's `ceph.replicator.<project>` key.
 func poolMirrorsProject(poolConfig map[string]string, projectName string) bool {
 	_, mirrored := poolConfig[drivers.CephReplicatorPoolKey(projectName)]

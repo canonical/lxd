@@ -4834,6 +4834,15 @@ func (d *lxc) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, pr
 		return err
 	}
 
+	// The target only asks for the records when it holds a mirror of this instance, and it can only
+	// hold one if this pool mirrors the project. Without the key nothing carried the data, so the
+	// records would describe an image the target does not have.
+	if respHeader.GetMetadataOnly() && !storagePools.PoolMirrorsProject(pool, d.Project().Name) {
+		err := fmt.Errorf("The target holds a mirror of instance %q but storage pool %q does not carry %s", d.Name(), pool.Name(), storageDrivers.CephReplicatorPoolKey(d.Project().Name))
+		op.Done(err)
+		return err
+	}
+
 	volSourceArgs := &migration.VolumeSourceArgs{
 		IndexHeaderVersion: respHeader.GetIndexHeaderVersion(), // Enable index header frame if supported.
 		Name:               d.Name(),
@@ -4845,6 +4854,7 @@ func (d *lxc) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, pr
 		VolumeOnly:         !args.Snapshots,
 		Info:               &migration.Info{Config: srcConfig},
 		ClusterMove:        args.ClusterMoveSourceName != "",
+		MetadataOnly:       respHeader.GetMetadataOnly(),
 	}
 
 	rootVol, err := volSourceArgs.Info.Config.RootVolume()
