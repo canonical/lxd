@@ -2555,9 +2555,11 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
 	var vol drivers.Volume
-	if isRemoteClusterMove || args.Refresh {
+	if isRemoteClusterMove || args.Refresh || args.MetadataOnly {
 		// In case it's a cluster move don't instantiate a new volume.
 		// Instead load the existing volume and config from the database.
+		// A metadata-only receive keeps the leader's volatile.uuid the same way, so the standby's
+		// record describes the mirrored image rather than a volume of its own.
 		vol = b.GetVolume(volType, contentType, volStorageName, volumeConfig)
 	} else {
 		vol = b.GetNewVolume(volType, contentType, volStorageName, volumeConfig)
@@ -2581,8 +2583,17 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 		return err
 	}
 
+	// A metadata-only receive describes a volume Ceph has already mirrored, so the records would
+	// point at nothing if it is absent. The image name carries the project name, so this is what a
+	// project named differently on the two clusters looks like.
+	if args.MetadataOnly && !volExists {
+		return fmt.Errorf("Metadata-only migration requires volume %q to already exist on storage", vol.Name())
+	}
+
 	// Check for inconsistencies between database and storage before continuing.
-	if dbVol == nil && volExists {
+	// A metadata-only receive is exempt because this is the state every first replicator run is in:
+	// the mirrored image exists because Ceph put it there, and creating its record is the point of the run.
+	if dbVol == nil && volExists && !args.MetadataOnly {
 		return errors.New("Volume already exists on storage but not in database")
 	}
 
@@ -2601,7 +2612,9 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 	defer revert.Fail()
 
 	if !args.Refresh {
-		if volExists {
+		// A cluster move skips the record creation because the records already exist. A metadata-only
+		// receive needs the opposite: the volume is present on storage and the record is what is missing.
+		if volExists && !args.MetadataOnly {
 			if !isRemoteClusterMove {
 				return errors.New("Cannot create volume, already exists on migration target storage")
 			}
