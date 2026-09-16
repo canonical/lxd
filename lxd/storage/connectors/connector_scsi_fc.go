@@ -75,7 +75,7 @@ func (c *connectorSCSIFC) QualifiedName() (string, error) {
 			continue
 		}
 
-		wwpn := normalizeWWPN(string(portNameBytes))
+		wwpn := block.NormalizeWWN(string(portNameBytes))
 		return wwpn, nil
 	}
 
@@ -96,7 +96,7 @@ func (c *connectorSCSIFC) Connect(ctx context.Context, wwpn string, luns ...stri
 		return nil, errors.New("At least one LUN must be provided to connect to an FC target")
 	}
 
-	wwpn = normalizeWWPN(wwpn)
+	wwpn = block.NormalizeWWN(wwpn)
 
 	type scanTarget struct {
 		host    string
@@ -111,7 +111,7 @@ func (c *connectorSCSIFC) Connect(ctx context.Context, wwpn string, luns ...stri
 			continue
 		}
 
-		portName := normalizeWWPN(string(portNameBytes))
+		portName := block.NormalizeWWN(string(portNameBytes))
 		if portName != wwpn {
 			continue
 		}
@@ -206,12 +206,12 @@ func (c *connectorSCSIFC) Discover(ctx context.Context, wwpns ...string) ([]any,
 			continue
 		}
 
-		portName := normalizeWWPN(string(portNameBytes))
+		portName := block.NormalizeWWN(string(portNameBytes))
 
 		if len(wwpns) > 0 {
 			found := false
 			for _, wwpn := range wwpns {
-				if strings.EqualFold(portName, normalizeWWPN(wwpn)) {
+				if portName == block.NormalizeWWN(wwpn) {
 					found = true
 					break
 				}
@@ -234,7 +234,7 @@ func (c *connectorSCSIFC) Discover(ctx context.Context, wwpns ...string) ([]any,
 		}
 
 		record := FCDiscoveryRecord{
-			PortName: normalizeWWPN(portName),
+			PortName: portName,
 		}
 
 		result = append(result, record)
@@ -429,15 +429,4 @@ func (c *connectorSCSIFC) WaitDiskDeviceResize(ctx context.Context, devicePath s
 	}
 
 	return block.WaitDiskDeviceResize(ctx, devicePath, newSizeBytes)
-}
-
-// normalizeWWPN normalizes the WWPN string to make it comparable regardless of the format
-// it's provided in. Linux sysfs reports WWPNs as "0x" with 16 hex chars ("0x210034800d7035b3"),
-// while storage array might report it using colon-separated byte format ("21:00:34:80:0d:70:35:b3").
-func normalizeWWPN(wwpn string) string {
-	wwpn = strings.TrimSpace(wwpn)
-	wwpn = strings.ToLower(wwpn)
-	wwpn = strings.TrimPrefix(wwpn, "0x")
-	wwpn = strings.ReplaceAll(wwpn, ":", "")
-	return wwpn
 }
