@@ -4111,7 +4111,12 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, progressRepo
 		return err
 	}
 
-	if volExists {
+	// A standby's image is non-primary, so the driver cannot remove the snapshot from it, and it
+	// does not need to: the mirror replay carries the leader's deletion over. Only the record is
+	// left to delete, which is what a refresh of the standby's records needs.
+	if volExists && HoldsCephReplicas(b, inst.Project()) {
+		l.Debug("Skipping the storage snapshot deletion of a standby replica")
+	} else if volExists {
 		err = b.driver.DeleteVolumeSnapshot(vol, progressReporter)
 		if err != nil {
 			return err
@@ -6805,7 +6810,16 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(ctx context.Context, projectName
 		return err
 	}
 
-	if volExists {
+	// Same as for an instance snapshot: a standby's image is non-primary and the mirror replay
+	// already carries the deletion over, so only the record goes.
+	holdsReplicas, err := HoldsCephReplicasByName(ctx, b.state, b, projectName)
+	if err != nil {
+		return err
+	}
+
+	if volExists && holdsReplicas {
+		l.Debug("Skipping the storage snapshot deletion of a standby replica")
+	} else if volExists {
 		err := b.driver.DeleteVolumeSnapshot(vol, progressReporter)
 		if err != nil {
 			return err
