@@ -1491,7 +1491,7 @@ func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
 	cPathBuf := [unix.PathMax]C.char{}
 	_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&cPathBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[1]))
 	if err != nil {
-		ctx["err"] = "Failed reading memory for mknodat syscall: %s"
+		ctx["err"] = fmt.Sprintf("Failed reading memory for mknodat syscall: %s", err)
 		if s.s.OS.SeccompListenerContinue {
 			ctx["syscall_continue"] = "true"
 			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
