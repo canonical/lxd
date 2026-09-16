@@ -22,6 +22,8 @@ func TestSecurePathJoin(t *testing.T) {
 		templatesDir, err := os.MkdirTemp("", "lxd-templates-")
 		require.NoError(t, err)
 		defer os.RemoveAll(templatesDir)
+		templatesDir, err = filepath.EvalSymlinks(templatesDir)
+		require.NoError(t, err)
 
 		// Regular template file within the templates directory.
 		require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "hostname.tpl"), []byte("{{ instance.name }}"), 0644))
@@ -80,6 +82,8 @@ func TestSecurePathJoin(t *testing.T) {
 		rootfsDir, err := os.MkdirTemp("", "lxd-rootfs-")
 		require.NoError(t, err)
 		defer os.RemoveAll(rootfsDir)
+		rootfsDir, err = filepath.EvalSymlinks(rootfsDir)
+		require.NoError(t, err)
 
 		// Create some nested directories in the rootfs for valid test paths.
 		require.NoError(t, os.MkdirAll(filepath.Join(rootfsDir, "etc"), 0755))
@@ -97,6 +101,7 @@ func TestSecurePathJoin(t *testing.T) {
 			"etc/sub/nested",
 			"/etc/resolv.conf",
 			"/root/.bashrc",
+			"./",
 		}
 
 		for _, name := range validPaths {
