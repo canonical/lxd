@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/shared/api"
@@ -31,6 +32,31 @@ func HoldsCephReplicas(pool Pool, proj api.Project) bool {
 	}
 
 	return poolMirrorsProject(pool.ToAPI().Config, proj.Name)
+}
+
+// HoldsCephReplicasByName is HoldsCephReplicas for callers that only have the project's name. The
+// pool key is checked first so that the project record is only loaded when the pool is mirrored,
+// which keeps the ordinary paths free of the extra query.
+func HoldsCephReplicasByName(ctx context.Context, s *state.State, pool Pool, projectName string) (bool, error) {
+	if !poolMirrorsProject(pool.ToAPI().Config, projectName) {
+		return false, nil
+	}
+
+	var proj *api.Project
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
+
+		proj, err = dbProject.ToAPI(ctx, tx.Tx())
+		return err
+	})
+	if err != nil {
+		return false, fmt.Errorf("Failed loading project %q: %w", projectName, err)
+	}
+
+	return HoldsCephReplicas(pool, *proj), nil
 }
 
 // poolMirrorsProject reports whether a pool carries a project's `ceph.replicator.<project>` key.
