@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/spf13/cobra"
 
@@ -19,6 +20,10 @@ func (c *cmdClusterFailureDomain) command() *cobra.Command {
 	cmd.Use = usage("failure-domain")
 	cmd.Short = "Manage cluster member failure domains"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	// List
+	clusterFailureDomainListCmd := cmdClusterFailureDomainList{global: c.global, cluster: c.cluster, clusterFailureDomain: c}
+	cmd.AddCommand(clusterFailureDomainListCmd.command())
 
 	// Get
 	clusterFailureDomainGetCmd := cmdClusterFailureDomainGet{global: c.global, cluster: c.cluster, clusterFailureDomain: c}
@@ -211,4 +216,72 @@ func (c *cmdClusterFailureDomainUnset) run(cmd *cobra.Command, args []string) er
 	}
 
 	return nil
+}
+
+type cmdClusterFailureDomainList struct {
+	global               *cmdGlobal
+	cluster              *cmdCluster
+	clusterFailureDomain *cmdClusterFailureDomain
+
+	flagFormat string
+}
+
+func (c *cmdClusterFailureDomainList) command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("list", "[<remote>:]")
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = "List the cluster's known failure domains"
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
+
+	cmd.RunE = c.run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return c.global.cmpRemotes(toComplete, ":", false, instanceServerRemoteCompletionFilters(*c.global.conf)...)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+func (c *cmdClusterFailureDomainList) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	remote := ""
+	if len(args) == 1 {
+		remote = args[0]
+	}
+
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Get the known failure domains.
+	names, err := resource.server.GetClusterFailureDomains()
+	if err != nil {
+		return err
+	}
+
+	// Render the table.
+	data := make([][]string, 0, len(names))
+	for _, name := range names {
+		data = append(data, []string{name})
+	}
+
+	sort.Sort(cli.SortColumnsNaturally(data))
+
+	header := []string{"NAME"}
+
+	return cli.RenderTable(c.flagFormat, header, data, names)
 }

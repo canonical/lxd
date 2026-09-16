@@ -56,6 +56,7 @@ var api10 = []APIEndpoint{
 	certificateCmd,
 	certificatesCmd,
 	clusterCmd,
+	clusterFailureDomainsCmd,
 	clusterGroupCmd,
 	clusterGroupsCmd,
 	clusterMemberCmd,

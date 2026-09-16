@@ -15,9 +15,13 @@ import (
 // clients while features.FailureDomainPlacement is disabled, and that every other extension --
 // and the full list once the feature is enabled -- passes through unchanged.
 //
-// gatedAPIExtensions is empty at this point in history -- nothing has registered itself yet -- so
-// this registers a real, pre-existing extension name temporarily to exercise the mechanism,
-// restoring it afterward so this test doesn't leak state into any other test in this package.
+// gatedAPIExtensions already holds whatever every other file in this package registered via its
+// own init() (e.g. cluster_failure_domains, placement_group_calculated_failure_domains) by the
+// time this test runs, since it's now the same package-level var those files write to -- unlike
+// when this test lived in shared/features, in a build that never linked those init() calls at
+// all. This registers one more, real, pre-existing extension name temporarily to exercise the
+// mechanism on top of whatever's already there, restoring it afterward so this test doesn't leak
+// state into any other test in this package.
 func TestVisibleAPIExtensions(t *testing.T) {
 	// features.IsEnabled reads a cached snapshot populated by features.LoadFromEnv, not the
 	// environment directly -- unlike t.Setenv, which only restores the variable itself.
@@ -37,7 +41,7 @@ func TestVisibleAPIExtensions(t *testing.T) {
 
 	got := visibleAPIExtensions()
 	assert.NotContains(t, got, testExtension)
-	assert.Len(t, got, len(version.APIExtensions)-1)
+	assert.Len(t, got, len(version.APIExtensions)-gatedAPIExtensions.Len())
 
 	t.Setenv(features.EnvVar, string(features.FailureDomainPlacement))
 	require.NoError(t, features.LoadFromEnv(features.EnvVar))

@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
+	"github.com/canonical/lxd/lxd/internal/datastructure/sets"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/placement"
@@ -32,6 +33,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
@@ -80,6 +82,80 @@ var clusterMemberStateCmd = APIEndpoint{
 
 	Get:  APIEndpointAction{Handler: clusterMemberStateGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: clusterMemberStatePost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+}
+
+var clusterFailureDomainsCmd = APIEndpoint{
+	Path:        "cluster/failure-domains",
+	MetricsType: entity.TypeClusterMember,
+
+	Get: APIEndpointAction{Handler: clusterFailureDomainsGet, AccessHandler: allowAuthenticated},
+}
+
+func init() {
+	gatedAPIExtensions.Add("cluster_failure_domains")
+}
+
+// swagger:operation GET /1.0/cluster/failure-domains cluster cluster_failure_domains_get
+//
+//	Get the cluster's known failure domains
+//
+//	Returns the sorted list of failure domain names any cluster member currently has assigned.
+//	Physical failure-domain topology is not treated as sensitive: this is readable the same way
+//	a cluster member's own failure domain already is as part of GET /1.0/cluster/members/{name}.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of known failure domain names
+//	          items:
+//	            type: string
+//	          example: ["rack1", "rack2"]
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func clusterFailureDomainsGet(d *Daemon, r *http.Request) response.Response {
+	if !features.IsEnabled(features.FailureDomainPlacement) {
+		return response.NotFound(nil)
+	}
+
+	s := d.State()
+
+	var known sets.Set[string]
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		known, err = tx.GetKnownFailureDomainNames(ctx)
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	names := known.Slice()
+	slices.Sort(names)
+
+	return response.SyncResponse(true, names)
 }
 
 // swagger:operation GET /1.0/cluster/members cluster cluster_members_get
