@@ -2643,6 +2643,10 @@ func (d *common) migrateReceiveCustomVolumes(ctx context.Context, inst instance.
 		respHeader := migration.TypesToHeader(respTypes...)
 		respHeader.Refresh = &exists
 		respHeader.IndexHeaderVersion = &indexHeaderVersion
+
+		// A standby's custom volumes are mirrors that Ceph owns, so only their records are received.
+		metadataOnly := storagePools.HoldsCephReplicas(volPool, inst.Project())
+		respHeader.MetadataOnly = &metadataOnly
 		respHeader.Snapshots = offer.Snapshots
 		respHeader.SnapshotNames = offer.SnapshotNames
 
@@ -2670,6 +2674,7 @@ func (d *common) migrateReceiveCustomVolumes(ctx context.Context, inst instance.
 			Refresh:            exists,
 			ContentType:        vol.ContentType,
 			VolumeOnly:         !snapshots,
+			MetadataOnly:       metadataOnly,
 		}
 
 		// A zero length Snapshots slice indicates volume only migration in VolumeTargetArgs, so it is only
@@ -2687,7 +2692,7 @@ func (d *common) migrateReceiveCustomVolumes(ctx context.Context, inst instance.
 		// state like the root volume does.
 		// A standby's custom volumes are mirrors that Ceph owns, so a receive that fails part way
 		// must leave them alone rather than delete the data it was describing.
-		if !exists && !storagePools.HoldsCephReplicas(volPool, inst.Project()) {
+		if !exists && !metadataOnly {
 			reverter.Add(func() {
 				// The errgroup context is already cancelled when reverts run.
 				_ = volPool.DeleteCustomVolume(context.Background(), storageProject, vol.Name, nil)
