@@ -826,20 +826,29 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		waitResponse := func(w http.ResponseWriter) error {
 			defer cancel()
 
-			// Write header to avoid client side timeouts.
-			w.Header().Set("Connection", "keep-alive")
-			w.Header().Set("Content-Type", "application/json")
-			w.Header().Set("X-Content-Type-Options", "nosniff")
-			w.WriteHeader(http.StatusOK)
-			f, ok := w.(http.Flusher)
-			if ok {
-				f.Flush()
+			_, hasDeadline := ctx.Deadline()
+			if !hasDeadline {
+				// Write header to avoid client side timeouts.
+				w.Header().Set("Connection", "keep-alive")
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("X-Content-Type-Options", "nosniff")
+				w.WriteHeader(http.StatusOK)
+				f, ok := w.(http.Flusher)
+				if ok {
+					f.Flush()
+				}
 			}
 
 			// Wait for the operation.
+			// Render operation failures using the final operation state. If the wait
+			// context ends, only render a deadline error because a canceled request can
+			// no longer receive a response.
 			err = op.Wait(ctx)
-			if err != nil {
-				_ = response.SmartError(err).Render(w, r)
+			if err != nil && ctx.Err() != nil {
+				if errors.Is(err, context.DeadlineExceeded) {
+					_ = response.SmartError(err).Render(w, r)
+				}
+
 				return nil
 			}
 

@@ -26,7 +26,7 @@ test_storage_volume_import() {
 
     # Confirm the operation failed because the name was rejected for containing a slash rather
     # than being turned into a path.
-    curl --unix-socket "${LXD_DIR}/unix.socket" "lxd${op}/wait" | jq --exit-status '.error_code == 500 and (.error | test("Cannot contain slashes"))'
+    curl --unix-socket "${LXD_DIR}/unix.socket" "lxd${op}/wait" | jq --exit-status '.metadata.err_code == 500 and (.metadata.err | test("Cannot contain slashes"))'
   done
 
   # import ISO as storage volume
