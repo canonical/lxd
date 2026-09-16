@@ -1513,6 +1513,35 @@ func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
 	return s.doDeviceSyscall(c, &args, siov)
 }
 
+// resolveTaskIdmap fetches the calling task's ids and the instance's current idmap. On failure
+// it applies the seccomp-continue-or-EPERM/EINVAL fallback shared by all callers; ok is false in
+// that case and errno already holds the value the caller should return (0 for "continue").
+func (s *Server) resolveTaskIdmap(c Instance, ctx logger.Ctx, siov *Iovec, pid int) (uid int64, gid int64, fsuid int64, fsgid int64, idmapset *idmap.IdmapSet, errno int, ok bool) {
+	uid, gid, fsuid, fsgid, err := TaskIDs(pid)
+	if err != nil {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0, 0, 0, 0, nil, 0, false
+		}
+
+		return 0, 0, 0, 0, nil, int(-C.EPERM), false
+	}
+
+	idmapset, err = c.CurrentIdmap()
+	if err != nil {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0, 0, 0, 0, nil, 0, false
+		}
+
+		return 0, 0, 0, 0, nil, int(-C.EINVAL), false
+	}
+
+	return uid, gid, fsuid, fsgid, idmapset, 0, true
+}
+
 // SetxattrArgs arguments for setxattr.
 type SetxattrArgs struct {
 	nsuid   int64
@@ -1551,26 +1580,9 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 		defer func() { _ = pidFd.Close() }()
 	}
 
-	uid, gid, fsuid, fsgid, err := TaskIDs(args.pid)
-	if err != nil {
-		if s.s.OS.SeccompListenerContinue {
-			ctx["syscall_continue"] = "true"
-			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
-			return 0
-		}
-
-		return int(-C.EPERM)
-	}
-
-	idmapset, err := c.CurrentIdmap()
-	if err != nil {
-		if s.s.OS.SeccompListenerContinue {
-			ctx["syscall_continue"] = "true"
-			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
-			return 0
-		}
-
-		return int(-C.EINVAL)
+	uid, gid, fsuid, fsgid, idmapset, errno, ok := s.resolveTaskIdmap(c, ctx, siov, args.pid)
+	if !ok {
+		return errno
 	}
 
 	args.nsuid, args.nsgid = idmapset.ShiftFromNs(uid, gid)
@@ -1578,7 +1590,7 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 
 	// const char *path
 	cBuf := [unix.PathMax]C.char{}
-	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&cBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[0]))
+	_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&cBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[0]))
 	if err != nil {
 		ctx["err"] = fmt.Sprintf("Failed reading memory for setxattr syscall: %s", err)
 		if s.s.OS.SeccompListenerContinue {
@@ -1702,26 +1714,9 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 		defer func() { _ = pidFd.Close() }()
 	}
 
-	uid, gid, _, _, err := TaskIDs(args.pidCaller)
-	if err != nil {
-		if s.s.OS.SeccompListenerContinue {
-			ctx["syscall_continue"] = "true"
-			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
-			return 0
-		}
-
-		return int(-C.EPERM)
-	}
-
-	idmapset, err := c.CurrentIdmap()
-	if err != nil {
-		if s.s.OS.SeccompListenerContinue {
-			ctx["syscall_continue"] = "true"
-			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
-			return 0
-		}
-
-		return int(-C.EINVAL)
+	uid, gid, _, _, idmapset, errno, ok := s.resolveTaskIdmap(c, ctx, siov, args.pidCaller)
+	if !ok {
+		return errno
 	}
 
 	// Only care about userns root for now.
@@ -1776,7 +1771,7 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 	args.policy = C.int(siov.req.data.args[1])
 
 	schedParamArgs := C.struct_sched_param{}
-	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&schedParamArgs), C.LXD_SCHED_PARAM_SIZE, C.off_t(siov.req.data.args[2]))
+	_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&schedParamArgs), C.LXD_SCHED_PARAM_SIZE, C.off_t(siov.req.data.args[2]))
 	if err != nil {
 		if s.s.OS.SeccompListenerContinue {
 			ctx["syscall_continue"] = "true"
