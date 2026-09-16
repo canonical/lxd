@@ -350,7 +350,7 @@ func (d *alletra) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.H
 	}
 
 	// Ensure the NGUID is exactly 32 characters long, as it uniquely
-	// identifies the device. This check should never succeed, but prevents
+	// identifies the device. This check should never fail, but prevents
 	// out-of-bounds errors when slicing the string later.
 	if len(hpeVol.NGUID) != 32 {
 		return "", nil, fmt.Errorf("Failed locating device for volume %q: Unexpected length of NGUID %q (%d)", vol.name, hpeVol.NGUID, len(hpeVol.NGUID))
