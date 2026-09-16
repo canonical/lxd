@@ -1315,6 +1315,24 @@ func (s *Server) HandleInvalid(fd int, siov *Iovec) {
 	siov.PutSeccompIovec()
 }
 
+// checkDeviceAllowed validates that dev/mode identify an allowed device node, applying the
+// seccomp-continue-or-errno fallback on failure. ok is false if the caller should return errno.
+func (s *Server) checkDeviceAllowed(ctx logger.Ctx, siov *Iovec, dev C.dev_t, mode C.mode_t) (errno int, ok bool) {
+	siov.resp.error = C.device_allowed(dev, mode)
+	if siov.resp.error != 0 {
+		ctx["err"] = "Device not allowed"
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0, false
+		}
+
+		return int(siov.resp.error), false
+	}
+
+	return 0, true
+}
+
 // MknodArgs arguments for mknod.
 type MknodArgs struct {
 	cMode C.mode_t
@@ -1396,15 +1414,9 @@ func (s *Server) HandleMknodSyscall(c Instance, siov *Iovec) int {
 		}
 	}
 
-	if C.device_allowed(C.dev_t(siov.req.data.args[2]), C.mode_t(siov.req.data.args[1])) < 0 {
-		ctx["err"] = "Device not allowed"
-		if s.s.OS.SeccompListenerContinue {
-			ctx["syscall_continue"] = "true"
-			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
-			return 0
-		}
-
-		return int(siov.resp.error)
+	errno, ok := s.checkDeviceAllowed(ctx, siov, C.dev_t(siov.req.data.args[2]), C.mode_t(siov.req.data.args[1]))
+	if !ok {
+		return errno
 	}
 
 	cPathBuf := [unix.PathMax]C.char{}
@@ -1476,16 +1488,9 @@ func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
 		return int(-C.EINVAL)
 	}
 
-	siov.resp.error = C.device_allowed(C.dev_t(siov.req.data.args[3]), C.mode_t(siov.req.data.args[2]))
-	if siov.resp.error != 0 {
-		ctx["err"] = "Device not allowed"
-		if s.s.OS.SeccompListenerContinue {
-			ctx["syscall_continue"] = "true"
-			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
-			return 0
-		}
-
-		return int(siov.resp.error)
+	errno, ok := s.checkDeviceAllowed(ctx, siov, C.dev_t(siov.req.data.args[3]), C.mode_t(siov.req.data.args[2]))
+	if !ok {
+		return errno
 	}
 
 	cPathBuf := [unix.PathMax]C.char{}
