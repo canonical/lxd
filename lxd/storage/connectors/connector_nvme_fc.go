@@ -5,9 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -255,39 +252,19 @@ func nvmeFCTransportAddress(nodeName string, portName string) string {
 // ("nn-<wwnn>:pn-<wwpn>") of the local FC HBA ports that are online. These are
 // used as host transport addresses when discovering and connecting to targets.
 func nvmeLocalFCTransportAddresses() ([]string, error) {
-	fcHostBasePath := "/sys/class/fc_host"
-
-	hosts, err := os.ReadDir(fcHostBasePath)
+	hostPorts, err := fcHostPorts()
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, errors.New("No FC host adapters found")
-		}
-
-		return nil, fmt.Errorf("Failed reading FC hosts: %w", err)
+		return nil, err
 	}
 
-	var addresses []string
-	for _, host := range hosts {
-		hostPath := filepath.Join(fcHostBasePath, host.Name())
-
+	addresses := make([]string, 0, len(hostPorts))
+	for _, hostPort := range hostPorts {
 		// Skip ports that are not online.
-		stateBytes, err := os.ReadFile(filepath.Join(hostPath, "port_state"))
-		if err != nil || strings.TrimSpace(string(stateBytes)) != "Online" {
+		if hostPort.portState != "Online" {
 			continue
 		}
 
-		nodeName, err := os.ReadFile(filepath.Join(hostPath, "node_name"))
-		if err != nil {
-			return nil, err
-		}
-
-		portName, err := os.ReadFile(filepath.Join(hostPath, "port_name"))
-		if err != nil {
-			return nil, err
-		}
-
-		address := nvmeFCTransportAddress(string(nodeName), string(portName))
-		addresses = append(addresses, address)
+		addresses = append(addresses, nvmeFCTransportAddress(hostPort.nodeName, hostPort.portName))
 	}
 
 	if len(addresses) == 0 {
