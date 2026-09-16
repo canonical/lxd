@@ -34,6 +34,31 @@ func HoldsCephReplicas(pool Pool, proj api.Project) bool {
 	return poolMirrorsProject(pool.ToAPI().Config, proj.Name)
 }
 
+// HoldsCephReplicasByName reports whether the volumes a project keeps on a pool are mirrors that
+// Ceph owns, for callers that only have the project's name. The pool key is checked first, so the
+// project is only loaded when the pool is mirrored.
+func HoldsCephReplicasByName(ctx context.Context, s *state.State, pool Pool, projectName string) (bool, error) {
+	if !poolMirrorsProject(pool.ToAPI().Config, projectName) {
+		return false, nil
+	}
+
+	var proj *api.Project
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
+
+		proj, err = dbProject.ToAPI(ctx, tx.Tx())
+		return err
+	})
+	if err != nil {
+		return false, fmt.Errorf("Failed loading project %q: %w", projectName, err)
+	}
+
+	return HoldsCephReplicas(pool, *proj), nil
+}
+
 // poolMirrorsProject reports whether a pool carries a project's `ceph.replicator.<project>` key.
 func poolMirrorsProject(poolConfig map[string]string, projectName string) bool {
 	_, mirrored := poolConfig[drivers.CephReplicatorPoolKey(projectName)]
