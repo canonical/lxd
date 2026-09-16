@@ -281,3 +281,14 @@ func LoopDeviceSetupAlign(sourcePath string) (string, error) {
 
 	return strings.TrimSpace(out), nil
 }
+
+// NormalizeWWN normalizes the world wide name (WWN) string to make it comparable regardless of the
+// format it's provided in. For example, Linux sysfs reports WWNs in hex format ("0x210034800d7035b3"),
+// while storage array might report it using colon-separated byte format ("21:00:34:80:0d:70:35:b3").
+func NormalizeWWN(wwn string) string {
+	wwn = strings.TrimSpace(wwn)
+	wwn = strings.ToLower(wwn)
+	wwn = strings.TrimPrefix(wwn, "0x")
+	wwn = strings.ReplaceAll(wwn, ":", "")
+	return wwn
+}
