@@ -166,8 +166,8 @@ test_metrics() {
 
   echo "==> Test lxd_api_requests_ongoing increment and decrement"
   previous="$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | awk '/^lxd_api_requests_ongoing{entity_type="instance"}/ {print $2}')"
-  lxc exec c1 -- sleep 0.5 &
-  sleep 0.1
+  lxc exec c1 -- sleep 3 &
+  sleep 0.5
   [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | awk '/^lxd_api_requests_ongoing{entity_type="instance"}/ {print $2}')" -eq $((previous+1)) ]
   wait $!
   [ "$(curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | awk '/^lxd_api_requests_ongoing{entity_type="instance"}/ {print $2}')" -eq "$previous" ]
