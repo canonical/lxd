@@ -60,6 +60,7 @@ require (
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
+	pgregory.net/rapid v1.3.0
 	tags.cncf.io/container-device-interface v1.1.1
 	tags.cncf.io/container-device-interface/specs-go v1.1.1
 )
