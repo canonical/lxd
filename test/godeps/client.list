@@ -16,6 +16,7 @@ github.com/cespare/xxhash/v2
 github.com/flosch/pongo2
 github.com/go-jose/go-jose/v4
 github.com/go-jose/go-jose/v4/cipher
+github.com/go-jose/go-jose/v4/cryptosigner
 github.com/go-jose/go-jose/v4/json
 github.com/go-logr/logr
 github.com/go-logr/logr/funcr
