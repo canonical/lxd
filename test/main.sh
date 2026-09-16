@@ -353,8 +353,12 @@ cleanup() {
   fi
 
   # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
-  if [ -n "${GITHUB_ACTIONS:-}" ] && is_matrix_final_step; then
-    echo "==> Skipping cleanup (final step)"
+  if [ -n "${GITHUB_ACTIONS:-}" ] && { is_matrix_final_step || [ "${TEST_RESULT}" != "success" ]; }; then
+    if [ "${TEST_RESULT}" != "success" ]; then
+      echo "==> Skipping cleanup (failed test)"
+    else
+      echo "==> Skipping cleanup (final step)"
+    fi
   else
     echo "==> Cleaning up"
 
