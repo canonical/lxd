@@ -213,10 +213,10 @@ func (h pureHost) matchesQualifiedName(mode string, qn string) bool {
 	case connectors.TypeSCSIFC:
 		// Pure Storage reports host WWNs in uppercase, whereas the connector reports the
 		// local initiator WWPN in lowercase. Therefore compare them in normalized form.
-		normalizedQN := pureNormalizeWWN(qn)
+		normalizedQN := block.NormalizeWWN(qn)
 
 		for _, wwn := range h.WWNs {
-			if pureNormalizeWWN(wwn) == normalizedQN {
+			if block.NormalizeWWN(wwn) == normalizedQN {
 				return true
 			}
 		}
@@ -258,7 +258,7 @@ func fcTargetWWNs(ports []purePort) []string {
 			continue
 		}
 
-		wwn := pureNormalizeWWN(port.WWN)
+		wwn := block.NormalizeWWN(port.WWN)
 		if slices.Contains(wwns, wwn) {
 			continue
 		}
@@ -267,24 +267,6 @@ func fcTargetWWNs(ports []purePort) []string {
 	}
 
 	return wwns
-}
-
-// pureNormalizeWWN normalizes a World Wide Name so that it can be compared regardless of the
-// format it is reported in. Pure Storage reports host WWNs in uppercase without separators
-// ("10000000C9A1B2C3") and array port WWNs in colon-separated byte format
-// ("21:00:34:80:0d:70:35:b3"), whereas the SCSI/FC connector reports the local initiator
-// WWPN in lowercase without separators.
-//
-// This deliberately duplicates the logic of the connector's own normalizeWWPN rather than
-// sharing it. The connector keeps that helper unexported so that each driver normalizes the
-// formats its own array reports, which differ between vendors, and exporting it for a single
-// caller would turn a connector implementation detail into API. See the discussion on
-// PR #18817.
-func pureNormalizeWWN(wwn string) string {
-	wwn = strings.TrimSpace(wwn)
-	wwn = strings.ToLower(wwn)
-	wwn = strings.TrimPrefix(wwn, "0x")
-	return strings.ReplaceAll(wwn, ":", "")
 }
 
 // pureClient holds the Pure Storage HTTP client and an access token.
