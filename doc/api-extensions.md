@@ -3719,3 +3719,9 @@ The `replicator-run` lifecycle event now fires when a run completes rather than 
 
 Adds SCSI/FC support to the Pure Storage storage driver.
 Fibre Channel targets are discovered through the host bus adapter, so `pure.target` has no effect when `pure.mode` is set to `scsi/fc`.
+
+(extension-storage-driver-pure-nvmefc)=
+## `storage_driver_pure_nvmefc`
+
+Adds NVMe/FC support to the Pure Storage storage driver.
+Like SCSI/FC, Fibre Channel targets are discovered through the host bus adapter, so `pure.target` has no effect when `pure.mode` is set to `nvme/fc`.
