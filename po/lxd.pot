@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-        "POT-Creation-Date: 2024-07-05 16:53-0400\n"
+        "POT-Creation-Date: 2026-09-16 14:12+0000\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -172,7 +172,7 @@ msgstr  ""
 msgid   "%s (%d more)"
 msgstr  ""
 
-#: lxc/file.go:855
+#: lxc/file.go:900
 #, c-format
 msgid   "%s is not a directory"
 msgstr  ""
@@ -182,7 +182,7 @@ msgstr  ""
 msgid   "%v (interrupt two more times to force)"
 msgstr  ""
 
-#: lxc/file.go:749
+#: lxc/file.go:794
 #, c-format
 msgid   "'%s' isn't a supported file type"
 msgstr  ""
@@ -597,6 +597,11 @@ msgstr  ""
 
 #: lxc/remote.go:103
 msgid   "Candid domain to use"
+msgstr  ""
+
+#: lxc/file.go:756
+#, c-format
+msgid   "Cannot overwrite directory %q with symlink"
 msgstr  ""
 
 #: lxc/info.go:395 lxc/info.go:407
@@ -1214,7 +1219,7 @@ msgstr  ""
 msgid   "Failed to remove alias %s"
 msgstr  ""
 
-#: lxc/file.go:744
+#: lxc/file.go:789
 #, c-format
 msgid   "Failed to walk path for %s: %s"
 msgstr  ""
@@ -2454,7 +2459,7 @@ msgstr  ""
 msgid   "Pull files from instances"
 msgstr  ""
 
-#: lxc/file.go:375 lxc/file.go:698
+#: lxc/file.go:375 lxc/file.go:728
 #, c-format
 msgid   "Pulling %s from %s: %%s"
 msgstr  ""
@@ -2463,7 +2468,7 @@ msgstr  ""
 msgid   "Push files into instances"
 msgstr  ""
 
-#: lxc/file.go:634 lxc/file.go:790
+#: lxc/file.go:634 lxc/file.go:835
 #, c-format
 msgid   "Pushing %s to %s: %%s"
 msgstr  ""
@@ -3271,7 +3276,7 @@ msgstr  ""
 msgid   "Unknown column shorthand char '%c' in '%s'"
 msgstr  ""
 
-#: lxc/file.go:731
+#: lxc/file.go:776
 #, c-format
 msgid   "Unknown file type '%s'"
 msgstr  ""
