@@ -921,22 +921,6 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 
 		builder.IncrementStage()
 
-		if mirrored {
-			// Ceph carries the data of a mirrored project, so nothing is pushed. The records follow once
-			// the metadata-only receive exists; until then the run enrolls, triggers and confirms.
-			err = builder.AddChildArgs(operations.OperationArgs{
-				ProjectName: projectName,
-				EntityURL:   replicatorURL,
-				Type:        operationtype.ReplicatorRunMirror,
-				Class:       operationtype.OperationClassDurable,
-			}, map[operations.InputKey]any{})
-			if err != nil {
-				return nil, fmt.Errorf("Failed preparing replicator mirror operation: %w", err)
-			}
-
-			return finalizeReplicatorRunOperationArgs(builder, projectName, replicatorURL, replicatorID, runID)
-		}
-
 		for _, inst := range allInsts {
 			err = builder.AddChildArgs(operations.OperationArgs{
 				ProjectName: projectName,
@@ -951,6 +935,23 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 			})
 			if err != nil {
 				return nil, fmt.Errorf("Failed preparing instance forward replication operation: %w", err)
+			}
+		}
+
+		if mirrored {
+			// Ceph carries the data of a mirrored project, so the push above moved only the records. The
+			// mirror stage then enrolls, triggers and confirms. It comes after the push so that a run
+			// whose images fail to confirm is marked failed rather than leaving the standby without
+			// records, and the per-run snapshots keep the standby's restore points coherent either way.
+			builder.IncrementStage()
+			err = builder.AddChildArgs(operations.OperationArgs{
+				ProjectName: projectName,
+				EntityURL:   replicatorURL,
+				Type:        operationtype.ReplicatorRunMirror,
+				Class:       operationtype.OperationClassDurable,
+			}, map[operations.InputKey]any{})
+			if err != nil {
+				return nil, fmt.Errorf("Failed preparing replicator mirror operation: %w", err)
 			}
 		}
 
