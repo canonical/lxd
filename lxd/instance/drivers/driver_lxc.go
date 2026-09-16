@@ -5101,6 +5101,11 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 	respHeader.Snapshots = offerHeader.Snapshots
 	respHeader.Refresh = &args.Refresh
 
+	// A standby project on a mirrored pool already holds the data, so only the records are
+	// transferred. The target decides because only it knows it is such a standby.
+	metadataOnly := storagePools.HoldsCephReplicas(pool, d.Project())
+	respHeader.MetadataOnly = &metadataOnly
+
 	if args.Refresh {
 		// Get the remote snapshots on the source.
 		sourceSnapshots := offerHeader.GetSnapshots()
@@ -5296,6 +5301,7 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 			VolumeSize:            offerHeader.GetVolumeSize(), // Block size setting override.
 			VolumeOnly:            !args.Snapshots,
 			ClusterMoveSourceName: args.ClusterMoveSourceName,
+			MetadataOnly:          metadataOnly,
 			DeferredCustomVolumes: args.DeferredVolumes,
 			AttachedCustomVolumes: args.AttachedVolumes,
 			BeforeTransferStart:   beforeTransferStart,
