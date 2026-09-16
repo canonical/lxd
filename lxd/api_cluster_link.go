@@ -1425,6 +1425,14 @@ func clusterLinkValidateConfig(config map[string]string) error {
 
 			return validate.IsNetworkPort(portStr)
 		},
+
+		// lxdmeta:generate(entities=cluster; group=link-volatile-conf; key=volatile.uuid)
+		// The UUID of the linked cluster.
+		// ---
+		//  type: string
+		//  shortdesc: Linked cluster UUID.
+		//  scope: global
+		"volatile.uuid": validate.IsUUID,
 	}
 
 	for k, v := range config {
