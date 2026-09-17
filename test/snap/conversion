@@ -298,7 +298,7 @@ fi
 
 # Create an instance and export it to get raw image.
 lxc init alpine-edge-vm tmp --vm --device root,size=4GiB
-lxc export tmp --compression=none --quiet - | tar --occurrence=1 -xf - -C "${tmpdir}" "backup/virtual-machine.img"
+lxc export tmp --compression=none --quiet - | tar --occurrence=1 --sparse -xf - -C "${tmpdir}" "backup/virtual-machine.img"
 lxc delete tmp
 
 IMAGE_PATH="${tmpdir}/backup/virtual-machine.img"
@@ -453,7 +453,7 @@ if hasNeededAPIExtension instance_import_conversion; then
 
         # Export instance and extract raw image.
         lxc stop v1
-        lxc export v1 --compression=none --quiet - | tar --occurrence=1 -xf - -C "${tmpdir}" "backup/virtual-machine.img"
+        lxc export v1 --compression=none --quiet - | tar --occurrence=1 --sparse -xf - -C "${tmpdir}" "backup/virtual-machine.img"
 
         # Ensure instance does not boot without virtio_scsi drivers.
         lxc start v1
