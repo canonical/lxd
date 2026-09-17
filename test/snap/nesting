@@ -253,7 +253,9 @@ test_nesting_vm() {
     if [ "${VM_IN_CTN}" = "1" ]; then
         echo "==> Test ${nestedVMs} containers each with one nested VM"
         init "${nestedVMs}"
-        conf "${nestedVMs}" security.devlxd.images=true
+        if hasNeededAPIExtension devlxd_images_vm; then
+            conf "${nestedVMs}" security.devlxd.images=true
+        fi
         device_add "${nestedVMs}" kvm unix-char source=/dev/kvm
         device_add "${nestedVMs}" vhost-net unix-char source=/dev/vhost-net
         device_add "${nestedVMs}" vhost-vsock unix-char source=/dev/vhost-vsock
