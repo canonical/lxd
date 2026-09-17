@@ -93,7 +93,6 @@ jobs:
           - cluster
           - container
           - container-copy
-          - container-nesting
           - conversion
           - cpu-vm
           - csi
@@ -104,6 +103,7 @@ jobs:
           - lxd-installer
           - lxd-user
           - interception
+          - nesting
           - network-bridge-firewall
           - network-ovn ovn:deb
           - network-ovn ovn:latest/edge
@@ -126,7 +126,6 @@ jobs:
           - ui firefox
           - vm
           - vm-migration
-          - vm-nesting
         exclude:
           # csi is not compatible with 4.0/*, 5.0/* or 5.21/*, nor with 22.04
           - channel: "4.0/edge"
@@ -144,8 +143,6 @@ jobs:
             test: cloud-init
           - channel: "4.0/edge"
             test: container-copy
-          - channel: "4.0/edge"
-            test: container-nesting
           - channel: "4.0/edge"
             test: conversion
           - channel: "4.0/edge"

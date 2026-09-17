@@ -546,7 +546,6 @@ jobs:
           - cluster
           - container
           - container-copy
-          - container-nesting
           - conversion
           - cpu-vm
           - csi
@@ -557,6 +556,7 @@ jobs:
           - lxd-installer
           - lxd-user
           - interception
+          - nesting
           - network-bridge-firewall
           - network-ovn ovn:deb
           - network-ovn ovn:latest/edge
@@ -579,7 +579,6 @@ jobs:
           - ui firefox
           - vm
           - vm-migration
-          - vm-nesting
         exclude:
           # some tests are not worth testing on specific OSes
           - os: 22.04
