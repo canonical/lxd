@@ -41,6 +41,7 @@ func PlaceInstance(ctx context.Context, tx *db.ClusterTx, candidates []db.NodeIn
 
 	selected, err := engine.New(ctx, tx, pctx, candidates).
 		Apply(filters.FilterByClusterGroup).
+		Apply(filters.LoadPlacementGroupMembers).
 		Apply(filters.FilterByPlacementGroup).
 		Apply(filters.SelectLeastLoaded).
 		Result()

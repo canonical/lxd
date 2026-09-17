@@ -19,13 +19,16 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-// applyPlacementGroupStage runs FilterByPlacementGroup directly, via a one-stage engine — so
-// these tests can assert on the full narrowed candidate set, not just PlaceInstance's single
-// winner (PlaceInstance always additionally applies the terminal least-loaded pick).
-func applyPlacementGroupStage(ctx context.Context, tx *db.ClusterTx, apiPlacementGroup *api.PlacementGroup, candidates []db.NodeInfo) ([]db.NodeInfo, error) {
+// applyPlacementGroupStages runs the same placement-group FilterStage chain PlaceInstance
+// composes, minus the terminal least-loaded pick — so these tests can assert on the full narrowed
+// candidate set, not just PlaceInstance's single winner.
+func applyPlacementGroupStages(ctx context.Context, tx *db.ClusterTx, apiPlacementGroup *api.PlacementGroup, candidates []db.NodeInfo) ([]db.NodeInfo, error) {
 	pctx := &models.PlacementContext{PlacementGroup: *apiPlacementGroup}
 
-	return engine.New(ctx, tx, pctx, candidates).Apply(filters.FilterByPlacementGroup).Result()
+	return engine.New(ctx, tx, pctx, candidates).
+		Apply(filters.LoadPlacementGroupMembers).
+		Apply(filters.FilterByPlacementGroup).
+		Result()
 }
 
 type filteringSuite struct {
@@ -628,7 +631,7 @@ func (s *filteringSuite) TestFilter() {
 				return err
 			}
 
-			got, err := applyPlacementGroupStage(ctx, tx, apiPlacementGroup, tt.args.candidates)
+			got, err := applyPlacementGroupStages(ctx, tx, apiPlacementGroup, tt.args.candidates)
 			if tt.wantErr {
 				s.Error(err)
 				return nil

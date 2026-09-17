@@ -7,7 +7,6 @@ import (
 	"slices"
 
 	"github.com/canonical/lxd/lxd/db"
-	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/placement/internal/models"
 	"github.com/canonical/lxd/shared/api"
 )
@@ -17,9 +16,9 @@ import (
 var errNoEligiblePlacementGroupCandidate = errors.New("No eligible candidate cluster member for the placement group")
 
 // FilterByPlacementGroup filters the provided slice of candidate cluster members using
-// pctx.PlacementGroup. Only applies when pctx.PlacementGroup is actually set (a real placement
-// group's Name is never empty) — an instance with no placement group has nothing to filter by
-// here.
+// pctx.PlacementGroup, and pctx.MemberToInst (populated by LoadPlacementGroupMembers, earlier in
+// the chain). Only applies when pctx.PlacementGroup is actually set (a real placement group's
+// Name is never empty) — an instance with no placement group has nothing to filter by here.
 func FilterByPlacementGroup(ctx context.Context, tx *db.ClusterTx, pctx *models.PlacementContext, candidates []db.NodeInfo) ([]db.NodeInfo, error) {
 	apiPlacementGroup := pctx.PlacementGroup
 	if apiPlacementGroup.Name == "" {
@@ -30,21 +29,8 @@ func FilterByPlacementGroup(ctx context.Context, tx *db.ClusterTx, pctx *models.
 	policy := apiPlacementGroup.Config["policy"]
 	rigor := apiPlacementGroup.Config["rigor"]
 
-	// If this is an evacuation request, exclude instances on the source cluster member.
-	// This allows placement decisions to be made based on where instances will be, not where they currently are.
-	var memberID *int64
-	if pctx.Evacuation {
-		sourceMemberID := tx.GetNodeID()
-		memberID = &sourceMemberID
-	}
-
-	memberToInst, err := cluster.GetInstancesInPlacementGroup(ctx, tx.Tx(), apiPlacementGroup.Name, apiPlacementGroup.Project, memberID)
-	if err != nil {
-		return nil, err
-	}
-
 	// Get compliant cluster members using the placement group.
-	filteredCandidates, err := getCompliantMembers(policy, rigor, candidates, memberToInst)
+	filteredCandidates, err := getCompliantMembers(policy, rigor, candidates, pctx.MemberToInst)
 	if err != nil {
 		return nil, fmt.Errorf("%w: policy %q, rigor %q: %w", errNoEligiblePlacementGroupCandidate, policy, rigor, err)
 	}

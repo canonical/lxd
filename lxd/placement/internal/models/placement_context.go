@@ -18,4 +18,8 @@ type PlacementContext struct {
 	// group's own scope/policy/rigor takes precedence over the coarser cluster-group membership
 	// check.
 	ClusterGroupName string
+
+	// Populated by LoadPlacementGroupMembers; consulted by FilterByPlacementGroup. Exported so
+	// lxd/placement/internal/filters, a separate package, can read and write it.
+	MemberToInst map[int64][]int64
 }
