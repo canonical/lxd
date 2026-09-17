@@ -288,7 +288,10 @@ lxc delete -f c1
 sed -i '/images\.lxd\.canonical\.com/d' /etc/hosts
 systemctl restart systemd-resolved.service
 
-tmpdir="$(mktemp -d)"
+# Put tmpdir in /var/tmp as /tmp is often a tmpfs with limited space on smaller
+# CI runners, which would exhaust /tmp when extracting multi-GiB VM images.
+# virt-v2v-in-place also requires >= 1GiB free in /tmp.
+tmpdir="$(mktemp -d -p /var/tmp)"
 
 # Download and cache the image to avoid re-downloading it multiple times.
 # Skip the copy if the image already exists locally so reruns stay idempotent.
