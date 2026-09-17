@@ -355,12 +355,12 @@ for vers in "latest" "5.21" "5.0"; do
 
     lxc storage volume delete c1:default foo
 
+    rm -rf "${tmpdir}"
     lxc remote remove c1
     lxc delete -f c1
 done
 
 echo "==> Cleanup"
-rm -rf "${tmpdir}"
 lxc profile device remove default eth0
 lxc profile device remove default root
 lxc storage delete "${poolName}"
