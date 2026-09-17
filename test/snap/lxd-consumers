@@ -9,11 +9,33 @@ set -eux
 if [ "${#}" -gt 0 ]; then
     products=("${@}")
 else
-    products=(snapcraft workshop charmcraft)
+    products=(snapcraft workshop charmcraft pylxd)
 fi
+
+# skipUnsupportedConsumer: returns success (i.e. skip the caller) if the current
+# channel or host OS is known to be incompatible with snapcraft/workshop/charmcraft.
+skipUnsupportedConsumer() {
+    if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/|^5\.0/|^5\.21/ ]]; then
+        echo "Skipping ${1} on ${LXD_SNAP_CHANNEL}, not supported"
+        return 0
+    fi
+
+    . /etc/os-release
+    if [ "${VERSION_ID}" = "22.04" ]; then
+        echo "Skipping ${1} on Ubuntu ${VERSION_ID}, not supported"
+        return 0
+    fi
+
+    return 1
+}
 
 # test_snapcraft: pack a minimal snap and confirm snapcraft used the LXD backend.
 test_snapcraft() {
+    # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
+    if skipUnsupportedConsumer snapcraft; then
+        return 0
+    fi
+
     # Install snapcraft (use latest/candidate to help catch regressions in LXD/snapcraft earlier).
     snap install snapcraft --classic --channel=latest/candidate
 
@@ -72,6 +94,11 @@ EOF
 
 # test_workshop: launch a minimal workshop and confirm it successfully used LXD.
 test_workshop() {
+    # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
+    if skipUnsupportedConsumer workshop; then
+        return 0
+    fi
+
     # Install Workshop (use latest/edge to help catch regressions in LXD/Workshop earlier).
     snap install workshop --classic --channel=latest/edge
 
@@ -113,6 +140,11 @@ EOF
 
 # test_charmcraft: pack a minimal charm and confirm charmcraft used the LXD backend.
 test_charmcraft() {
+    # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
+    if skipUnsupportedConsumer charmcraft; then
+        return 0
+    fi
+
     # Install charmcraft (use latest/candidate to help catch regressions in LXD/charmcraft earlier).
     snap install charmcraft --classic --channel=latest/candidate
 
@@ -156,6 +188,21 @@ EOF
     rm -rf "${tmpdir}"
 }
 
+# test_pylxd: run the pylxd client integration test suite against LXD.
+test_pylxd() {
+    if [ ! -d pylxd ]; then
+        command -v git || install_deps git
+        git clone --depth=1 https://github.com/canonical/pylxd
+    fi
+
+    (
+        cd pylxd
+        export DEBIAN_FRONTEND=noninteractive
+        export HOME=/root
+        integration/run-integration-tests
+    )
+}
+
 # Install and setup LXD.
 install_lxd
 lxd init --auto
@@ -170,6 +217,9 @@ for product in "${products[@]}"; do
             ;;
         charmcraft)
             test_charmcraft
+            ;;
+        pylxd)
+            test_pylxd
             ;;
         *)
             echo "Unknown product: ${product}" >&2
