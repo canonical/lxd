@@ -72,6 +72,25 @@ func MirrorProjectVolumes(ctx context.Context, s *state.State, projectName strin
 	return nil
 }
 
+// PromoteProjectVolumes makes the volumes a project holds on its mirrored pools writable.
+// Ceph promotes individual images and knows nothing of projects, so the pools a project is
+// mirrored from have to be found in LXD before the driver can act on them.
+func PromoteProjectVolumes(ctx context.Context, s *state.State, projectName string, force bool) error {
+	pools, err := cephReplicaPools(ctx, s, projectName)
+	if err != nil {
+		return err
+	}
+
+	for _, pool := range pools {
+		err := pool.PromoteProjectVolumes(ctx, projectName, force)
+		if err != nil {
+			return fmt.Errorf("Failed promoting the volumes of storage pool %q: %w", pool.Name(), err)
+		}
+	}
+
+	return nil
+}
+
 // ConfirmProjectVolumeMirrors returns, as "pool/volume", the volumes on the project's mirrored pools
 // that the peer has not replayed yet.
 func ConfirmProjectVolumeMirrors(ctx context.Context, s *state.State, projectName string) ([]string, error) {
