@@ -108,16 +108,15 @@ echo "==> Running ${test_name} against ${lxd_snap_channel}" >&2
 status=0
 bash -euo pipefail -c '
     . "$1"
-    . "$2"
 
     export DEBIAN_FRONTEND=noninteractive
     FAIL=1
     trap cleanup EXIT HUP INT TERM
 
-    test_script="$3"
-    shift 3
+    test_script="$2"
+    shift 2
     . "${test_script}" "$@"
-' bash "${repo_root}/test/includes/snap.sh" "${repo_root}/test/includes/snap-helpers.sh" "${test_script}" "${@}" || status=$?
+' bash "${repo_root}/test/includes/snap-helpers.sh" "${test_script}" "${@}" || status=$?
 
 # This script is sourced by the test script: exit here so the test script
 # body does not run again in the calling shell. The EXIT trap above handles
