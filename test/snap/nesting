@@ -69,7 +69,7 @@ test_nesting_container() {
             # To use ZFS within a nested container, a ZFS version must be greater than
             # or equal to 2.2, and ZFS delegation must be enabled.
             zfsVersion="$(modinfo -F version zfs)"
-            if dpkg --compare-versions "${zfsVersion}" gt "2.2"; then
+            if dpkg --compare-versions "${zfsVersion}" ge "2.2"; then
                 lxc storage set "${poolName}" volume.zfs.delegate=true
                 nestedPoolDriverList+=" zfs"
 
