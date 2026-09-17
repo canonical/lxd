@@ -213,10 +213,10 @@ func (h pureHost) matchesQualifiedName(mode string, qn string) bool {
 	case connectors.TypeSCSIFC:
 		// Pure Storage reports host WWNs in uppercase, whereas the connector reports the
 		// local initiator WWPN in lowercase. Therefore compare them in normalized form.
-		normalizedQN := pureNormalizeWWN(qn)
+		normalizedQN := block.NormalizeWWN(qn)
 
 		for _, wwn := range h.WWNs {
-			if pureNormalizeWWN(wwn) == normalizedQN {
+			if block.NormalizeWWN(wwn) == normalizedQN {
 				return true
 			}
 		}
@@ -225,6 +225,22 @@ func (h pureHost) matchesQualifiedName(mode string, qn string) bool {
 	default:
 		return false
 	}
+}
+
+// matchesAnyQualifiedName returns true if the host is configured with any of the given
+// initiator qualified names for the given Pure Storage mode.
+//
+// A Fibre Channel host has one WWPN per host bus adapter port, and all of them are
+// registered on a single Pure Storage host, so a match on any one of them identifies
+// the host.
+func (h pureHost) matchesAnyQualifiedName(mode string, qns []string) bool {
+	for _, qn := range qns {
+		if h.matchesQualifiedName(mode, qn) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // purePort represents a port in Pure Storage.
@@ -258,7 +274,7 @@ func fcTargetWWNs(ports []purePort) []string {
 			continue
 		}
 
-		wwn := pureNormalizeWWN(port.WWN)
+		wwn := block.NormalizeWWN(port.WWN)
 		if slices.Contains(wwns, wwn) {
 			continue
 		}
@@ -267,24 +283,6 @@ func fcTargetWWNs(ports []purePort) []string {
 	}
 
 	return wwns
-}
-
-// pureNormalizeWWN normalizes a World Wide Name so that it can be compared regardless of the
-// format it is reported in. Pure Storage reports host WWNs in uppercase without separators
-// ("10000000C9A1B2C3") and array port WWNs in colon-separated byte format
-// ("21:00:34:80:0d:70:35:b3"), whereas the SCSI/FC connector reports the local initiator
-// WWPN in lowercase without separators.
-//
-// This deliberately duplicates the logic of the connector's own normalizeWWPN rather than
-// sharing it. The connector keeps that helper unexported so that each driver normalizes the
-// formats its own array reports, which differ between vendors, and exporting it for a single
-// caller would turn a connector implementation detail into API. See the discussion on
-// PR #18817.
-func pureNormalizeWWN(wwn string) string {
-	wwn = strings.TrimSpace(wwn)
-	wwn = strings.ToLower(wwn)
-	wwn = strings.TrimPrefix(wwn, "0x")
-	return strings.ReplaceAll(wwn, ":", "")
 }
 
 // pureClient holds the Pure Storage HTTP client and an access token.
@@ -1046,7 +1044,9 @@ func (p *pureClient) getCurrentHost() (*pureHost, error) {
 		return nil, err
 	}
 
-	qn, err := connector.QualifiedName()
+	// A Fibre Channel host has one WWPN per host bus adapter port, all registered on a
+	// single Pure Storage host, so match on any of them.
+	qns, err := connectors.QualifiedNames(connector)
 	if err != nil {
 		return nil, err
 	}
@@ -1059,12 +1059,12 @@ func (p *pureClient) getCurrentHost() (*pureHost, error) {
 	mode := connector.Type()
 
 	for _, host := range hosts {
-		if host.matchesQualifiedName(mode, qn) {
+		if host.matchesAnyQualifiedName(mode, qns) {
 			return &host, nil
 		}
 	}
 
-	return nil, api.StatusErrorf(http.StatusNotFound, "Host with qualified name %q not found", qn)
+	return nil, api.StatusErrorf(http.StatusNotFound, "Host with qualified names %v not found", qns)
 }
 
 // createHost creates a new host with provided initiator qualified names that can be associated
@@ -1399,8 +1399,11 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 		return "", nil, err
 	}
 
-	// Get the qualified name of the host.
-	qn, err := connector.QualifiedName()
+	// Get every initiator qualified name of the host. iSCSI and NVMe hosts have a
+	// single IQN or NQN, whereas a Fibre Channel host has one WWPN per host bus
+	// adapter port. All of them must be registered, otherwise the array does not
+	// present its volumes to the unregistered ports and those paths stay unused.
+	qns, err := connectors.QualifiedNames(connector)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1419,14 +1422,14 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 			return "", nil, err
 		}
 
-		err = d.client().createHost(hostname, []string{qn})
+		err = d.client().createHost(hostname, qns)
 		if err != nil {
 			if !api.StatusErrorCheck(err, http.StatusConflict) {
 				return "", nil, err
 			}
 
 			// The host with the given name already exists, update it instead.
-			err = d.client().updateHost(hostname, []string{qn})
+			err = d.client().updateHost(hostname, qns)
 			if err != nil {
 				return "", nil, err
 			}
@@ -1641,7 +1644,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 // with the given serial number, which differs depending on the Pure Storage mode.
 func pureDiskSuffix(mode string, serial string) (string, error) {
 	// Ensure the serial number is exactly 24 characters long, as it uniquely
-	// identifies the device. This check should never succeed, but prevents
+	// identifies the device. This check should never fail, but prevents
 	// out-of-bounds errors when slicing the string later.
 	if len(serial) != 24 {
 		return "", fmt.Errorf("Unexpected length of serial number %q (%d)", serial, len(serial))

@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
+	"slices"
 	"time"
 
 	"github.com/canonical/lxd/lxd/storage/block"
@@ -39,12 +38,12 @@ func (c *connectorSCSIFC) Transport() TransportType {
 
 // Version returns a non-empty string if FC host adapters are present on the system, error otherwise.
 func (c *connectorSCSIFC) Version() (string, error) {
-	entries, err := os.ReadDir("/sys/class/fc_host")
+	ports, err := fcHostPorts()
 	if err != nil {
-		return "", fmt.Errorf("No FC host adapters found: %w", err)
+		return "", err
 	}
 
-	if len(entries) == 0 {
+	if len(ports) == 0 {
 		return "", errors.New("No FC host adapters found")
 	}
 
@@ -57,46 +56,60 @@ func (c *connectorSCSIFC) LoadModules() error {
 }
 
 // QualifiedName returns the World Wide Port Name (WWPN) of the first FC host initiator.
+//
+// A Fibre Channel host has one WWPN per host bus adapter port, so this reports only
+// part of the host's identity. Callers that register the host with a storage array
+// should use the package-level [QualifiedNames] helper instead, so that every port is
+// registered and every path is usable. That helper takes a [Connector], so it is
+// reachable from other packages, which the method of the same name on this unexported
+// type is not.
 func (c *connectorSCSIFC) QualifiedName() (string, error) {
-	fcHostPath := "/sys/class/fc_host"
-
-	hosts, err := os.ReadDir(fcHostPath)
+	wwpns, err := c.QualifiedNames()
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return "", fmt.Errorf("No FC hosts found: Directory %q does not exist", fcHostPath)
-		}
-
-		return "", fmt.Errorf("Failed reading FC hosts: %w", err)
+		return "", err
 	}
 
-	for _, host := range hosts {
-		portNameBytes, err := os.ReadFile(filepath.Join(fcHostPath, host.Name(), "port_name"))
-		if err != nil {
-			continue
-		}
+	return wwpns[0], nil
+}
 
-		wwpn := normalizeWWPN(string(portNameBytes))
-		return wwpn, nil
+// QualifiedNames returns the World Wide Port Names (WWPNs) of every FC host initiator,
+// sorted so that the result is stable across reboots and HBA re-enumeration.
+//
+// Unlike iSCSI and NVMe, where a host has a single qualified name, a Fibre Channel
+// host is identified by the WWPN of each of its host bus adapter ports. Registering
+// only one of them leaves the remaining ports unable to see the array's volumes.
+func (c *connectorSCSIFC) QualifiedNames() ([]string, error) {
+	ports, err := fcHostPorts()
+	if err != nil {
+		return nil, err
 	}
 
-	return "", errors.New("No FC host initiators found")
+	if len(ports) == 0 {
+		return nil, errors.New("No FC host initiators found")
+	}
+
+	wwpns := make([]string, len(ports))
+	for i, port := range ports {
+		wwpns[i] = block.NormalizeWWN(port.portName)
+	}
+
+	return wwpns, nil
 }
 
 // Connect triggers a SCSI bus rescan on local hosts that have a remote FC port
 // matching WWPN. The HBA driver handles fabric login automatically; the rescan
 // makes newly mapped LUNs visible to the host.
 func (c *connectorSCSIFC) Connect(ctx context.Context, wwpn string, luns ...string) (revert.Hook, error) {
-	rportBasePath := "/sys/class/fc_remote_ports"
-	rports, err := os.ReadDir(rportBasePath)
-	if err != nil {
-		return nil, fmt.Errorf("Failed reading FC remote ports: %w", err)
-	}
-
 	if len(luns) == 0 {
 		return nil, errors.New("At least one LUN must be provided to connect to an FC target")
 	}
 
-	wwpn = normalizeWWPN(wwpn)
+	remotePorts, err := fcRemotePorts()
+	if err != nil {
+		return nil, err
+	}
+
+	wwpn = block.NormalizeWWN(wwpn)
 
 	type scanTarget struct {
 		host    string
@@ -105,48 +118,21 @@ func (c *connectorSCSIFC) Connect(ctx context.Context, wwpn string, luns ...stri
 	}
 
 	var scanTargets []scanTarget
-	for _, rport := range rports {
-		portNameBytes, err := os.ReadFile(filepath.Join(rportBasePath, rport.Name(), "port_name"))
-		if err != nil {
+	for _, port := range remotePorts {
+		if block.NormalizeWWN(port.portName) != wwpn {
 			continue
 		}
 
-		portName := normalizeWWPN(string(portNameBytes))
-		if portName != wwpn {
-			continue
-		}
-
-		// rport directory name has form "rport-H:C-R":
-		// H = local SCSI host index, C = channel, R = rport index.
-		name := strings.TrimPrefix(rport.Name(), "rport-")
-		hostIdx, rest, ok := strings.Cut(name, ":")
-		if !ok {
-			continue
-		}
-
-		channel, _, ok := strings.Cut(rest, "-")
-		if !ok {
-			// Unexpected format, skip
-			continue
-		}
-
-		targetBytes, err := os.ReadFile(filepath.Join(rportBasePath, rport.Name(), "scsi_target_id"))
-		if err != nil {
-			// Attribute missing, skip
-			continue
-		}
-
-		target := strings.TrimSpace(string(targetBytes))
-
-		// If target is -1 or empty, the FC transport class is not bound to a SCSI target yet.
-		if target == "-1" || target == "" {
+		// If the SCSI target id is -1 or empty, the FC transport class is not bound
+		// to a SCSI target yet.
+		if port.scsiTargetID == "-1" || port.scsiTargetID == "" {
 			continue
 		}
 
 		scanTarget := scanTarget{
-			host:    "host" + hostIdx,
-			channel: channel,
-			target:  target,
+			host:    port.host,
+			channel: port.channel,
+			target:  port.scsiTargetID,
 		}
 
 		scanTargets = append(scanTargets, scanTarget)
@@ -185,56 +171,38 @@ func (c *connectorSCSIFC) findSession(targetQN string) (*session, error) {
 	return nil, nil
 }
 
-// Discover returns the FC target ports visible on the fabric.
-// If WWPNs are provided they act as an allowlist.
+// Discover returns the FC target ports that are visible on the fabric and whose
+// port name matches one of the allowed WWPNs.
 func (c *connectorSCSIFC) Discover(ctx context.Context, wwpns ...string) ([]any, error) {
-	rportBasePath := "/sys/class/fc_remote_ports"
-
-	rports, err := os.ReadDir(rportBasePath)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, errors.New("No FC remote ports found")
-		}
-
-		return nil, fmt.Errorf("Failed reading FC remote ports: %w", err)
+	if len(wwpns) == 0 {
+		return nil, errors.New("No FC target WWPNs provided")
 	}
 
-	result := make([]any, 0, len(rports))
-	for _, rport := range rports {
-		portNameBytes, err := os.ReadFile(filepath.Join(rportBasePath, rport.Name(), "port_name"))
-		if err != nil {
+	remotePorts, err := fcRemotePorts()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]any, 0, len(remotePorts))
+	for _, port := range remotePorts {
+		portName := block.NormalizeWWN(port.portName)
+
+		portFound := slices.ContainsFunc(wwpns, func(wwpn string) bool {
+			return portName == block.NormalizeWWN(wwpn)
+		})
+
+		if !portFound {
+			// Skip ports that are not in the list of WWPNs that should be scanned.
 			continue
 		}
 
-		portName := normalizeWWPN(string(portNameBytes))
-
-		if len(wwpns) > 0 {
-			found := false
-			for _, wwpn := range wwpns {
-				if strings.EqualFold(portName, normalizeWWPN(wwpn)) {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				continue
-			}
-		}
-
-		stateBytes, err := os.ReadFile(filepath.Join(rportBasePath, rport.Name(), "port_state"))
-		if err != nil {
-			continue
-		}
-
-		state := strings.TrimSpace(string(stateBytes))
-		if state != "Online" {
+		if port.portState != "Online" {
 			// Skip offline or blocked ports, as they are not usable.
 			continue
 		}
 
 		record := FCDiscoveryRecord{
-			PortName: normalizeWWPN(portName),
+			PortName: portName,
 		}
 
 		result = append(result, record)
@@ -429,15 +397,4 @@ func (c *connectorSCSIFC) WaitDiskDeviceResize(ctx context.Context, devicePath s
 	}
 
 	return block.WaitDiskDeviceResize(ctx, devicePath, newSizeBytes)
-}
-
-// normalizeWWPN normalizes the WWPN string to make it comparable regardless of the format
-// it's provided in. Linux sysfs reports WWPNs as "0x" with 16 hex chars ("0x210034800d7035b3"),
-// while storage array might report it using colon-separated byte format ("21:00:34:80:0d:70:35:b3").
-func normalizeWWPN(wwpn string) string {
-	wwpn = strings.TrimSpace(wwpn)
-	wwpn = strings.ToLower(wwpn)
-	wwpn = strings.TrimPrefix(wwpn, "0x")
-	wwpn = strings.ReplaceAll(wwpn, ":", "")
-	return wwpn
 }
