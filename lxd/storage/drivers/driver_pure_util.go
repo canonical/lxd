@@ -279,7 +279,9 @@ func fcTargetWWNs(ports []purePort) []string {
 // NVMe/FC target ports among the given ports.
 //
 // An NVMe/FC target port reports both an NQN and a WWN, the inverse of the SCSI/FC ports
-// selected by [fcTargetWWNs]. All of the array's ports share a single subsystem NQN.
+// selected by [fcTargetWWNs]. All of the array's ports share a single subsystem NQN, and
+// the returned addresses are those of the ports that serve the returned NQN, so the two
+// return values always describe one subsystem.
 //
 // On Pure Storage the NVMe/FC target node name equals the target port WWN, so both halves
 // of the transport address are built from the same value.
@@ -291,8 +293,14 @@ func nvmeFCTargets(ports []purePort) (targetNQN string, targetAddrs []string) {
 			continue
 		}
 
+		// A Pure Storage array exposes a single NVMe subsystem, so every NVMe/FC port
+		// reports the same NQN. Pin the first one and ignore a port that disagrees, so
+		// that every returned address is known to serve the returned subsystem. A
+		// mismatch does not make the remaining ports unusable, so it is not an error.
 		if targetNQN == "" {
 			targetNQN = port.NQN
+		} else if port.NQN != targetNQN {
+			continue
 		}
 
 		wwn := block.NormalizeWWN(port.WWN)

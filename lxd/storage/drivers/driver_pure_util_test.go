@@ -389,6 +389,19 @@ func Test_nvmeFCTargets(t *testing.T) {
 			WantAddrs: []string{"nn-0x524a937156b86f01:pn-0x524a937156b86f01"},
 		},
 		{
+			// A Pure Storage array exposes one subsystem, so this should not occur. If it
+			// ever does, the addresses returned must still all serve the returned NQN -
+			// otherwise the connector would be given an address that cannot reach the
+			// subsystem it was told to connect to.
+			Name: "Ports of another subsystem are excluded",
+			Ports: []purePort{
+				{Name: "CT0.FC1", WWN: "52:4A:93:71:56:B8:6F:01", NQN: subsystemNQN},
+				{Name: "CT1.FC1", WWN: "52:4A:93:71:56:B8:6F:11", NQN: "nqn.2010-06.com.purestorage:flasharray.5678"},
+			},
+			WantNQN:   subsystemNQN,
+			WantAddrs: []string{"nn-0x524a937156b86f01:pn-0x524a937156b86f01"},
+		},
+		{
 			Name:      "No ports at all",
 			Ports:     []purePort{},
 			WantNQN:   "",
