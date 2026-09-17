@@ -34,7 +34,11 @@ var ErrNoEligibleCandidate = errors.New("No eligible candidate cluster member")
 // with errors.Is), wrapping the specific underlying reason. Converting that to a status code and a
 // caller-appropriate message is entirely up to the caller.
 func PlaceInstance(ctx context.Context, tx *db.ClusterTx, candidates []db.NodeInfo, placementGroup *api.PlacementGroup, clusterGroupName string, clusterFailureDomains []string, evacuation bool) (*db.NodeInfo, error) {
-	pctx := &models.PlacementContext{ClusterFailureDomains: clusterFailureDomains, ClusterGroupName: clusterGroupName, Evacuation: evacuation}
+	pctx := &models.PlacementContext{
+		ClusterFailureDomains: clusterFailureDomains,
+		ClusterGroupName:      clusterGroupName,
+		Evacuation:            evacuation,
+	}
 
 	if placementGroup != nil {
 		pctx.PlacementGroup = *placementGroup
@@ -45,6 +49,7 @@ func PlaceInstance(ctx context.Context, tx *db.ClusterTx, candidates []db.NodeIn
 		Apply(filters.LoadPlacementGroupMembers).
 		Apply(filters.FilterByClusterFailureDomains).
 		Apply(filters.FilterByPolicyAndRigor).
+		Apply(filters.FilterBySpreadWithinDomain).
 		Apply(filters.SelectLeastLoaded).
 		Result()
 	if err != nil {

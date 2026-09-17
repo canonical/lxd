@@ -22,8 +22,8 @@ var errNoEligiblePolicyAndRigor = errors.New("No eligible candidate cluster memb
 // per-domain instance counts derived from pctx.MemberToInst — a candidate with no assigned failure
 // domain can never belong to any domain bucket and is excluded regardless of any allow-list
 // already applied. Any other scope buckets candidates directly by cluster member. Either way, this
-// only decides which domain(s)/member(s) comply — host selection within compliant domain(s) is a
-// separate, later stage.
+// only decides which domain(s)/member(s) comply — for scope=failure-domain, host selection within
+// whichever domain(s) comply is a separate stage, FilterBySpreadWithinDomain.
 //
 // Only applies when pctx.PlacementGroup is actually set (a real placement group's Name is never
 // empty) — an instance with no placement group has no policy/rigor to enforce.
