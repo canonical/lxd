@@ -184,7 +184,8 @@ test_nesting_vm() {
     }
 
     function conf() {
-        parallel "$1" lxc config set "t{}" "$2"
+        # Supports setting multiple key=value pairs in a single call.
+        parallel "$1" lxc config set "t{}" "${@:2}"
     }
 
     function device_add() {
