@@ -2,6 +2,7 @@
 
 # shellcheck disable=SC1091 # Runtime-resolved path relative to this file.
 helpers_dir="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+. "${helpers_dir}/net.sh"
 . "${helpers_dir}/snap.sh"
 unset helpers_dir
 
