@@ -405,6 +405,7 @@ if hasNeededAPIExtension instance_import_conversion; then
 
     lxc image export alpine-edge-vm "${IMAGE_PATH}" --vm
     conversion_vm alpine-qcow2 zfs "${IMAGE_PATH}.root" "no"
+    rm -f "${IMAGE_PATH}" "${IMAGE_PATH}.root"
 
     # Download and cache the image to avoid re-downloading it multiple times.
     # Skip the copy if the image already exists locally so reruns stay idempotent.
@@ -430,6 +431,11 @@ if hasNeededAPIExtension instance_import_conversion; then
 
     conversion_vm u24-vmdk-bupvol dir "${IMAGE_PATH}" "yes"
     conversion_vm u24-vmdk-bupvol zfs "${IMAGE_PATH}" "yes"
+
+    rm -f "${IMAGE_PATH}"
+    lxc config unset storage.backups_volume
+    lxc storage volume delete backups-pool backups-vol
+    lxc storage delete backups-pool
 
     # Test virtio conversion if virt-v2v-in-place is installed.
     if ! command -v virt-v2v-in-place > /dev/null; then
@@ -463,17 +469,17 @@ if hasNeededAPIExtension instance_import_conversion; then
 
         # Ensure that virtio conversion adds the needed virtio_scsi module back into the initramfs.
         conversion_vm centos-missing-driver zfs "${tmpdir}/backup/virtual-machine.img" "no" "virtio"
+        rm -rf "${tmpdir}/backup"
     fi
 
     # Cleanup.
-    rm -rf "${tmpdir}"
     lxc image delete centos-9-stream-vm
-    lxc config unset storage.backups_volume
-    lxc storage volume delete backups-pool backups-vol
-    lxc storage delete backups-pool
 else
     echo "===> SKIP: VM image conversion skipped. Server does not support API extension 'instance_import_conversion'"
 fi
+
+# Cleanup temporary directory.
+rm -rf "${tmpdir}"
 
 # Remove the locally cached Alpine conversion image (always downloaded above).
 lxc image delete alpine-edge-vm
