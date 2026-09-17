@@ -129,7 +129,9 @@ for vers in "latest" "5.21" "5.0"; do
     token="$(lxc exec c1 -- lxc config trust add --name host --quiet)"
     lxc remote add c1 "${token}"
 
-    tmpdir="$(mktemp -d)"
+    # Put tmpdir in /var/tmp as /tmp is often a tmpfs with limited space on smaller
+    # CI runners, which would exhaust /tmp when exporting multi-GiB VM instances.
+    tmpdir="$(mktemp -d -p /var/tmp)"
 
     # Check if instance backups from ${versStr} can be imported into present version of LXD.
     for type in container vm; do
