@@ -1330,6 +1330,11 @@ func (s *Server) tryContinue(ctx logger.Ctx, siov *Iovec) bool {
 // continueOrErrno applies the seccomp-continue-or-errno fallback used throughout the syscall
 // handlers: it returns 0 if the syscall was allowed to continue, otherwise it returns errno.
 func (s *Server) continueOrErrno(ctx logger.Ctx, siov *Iovec, errno int) int {
+	if errno == 0 {
+		// A zero errno here would report a bogus success for a syscall that was never performed.
+		panic("continueOrErrno called with errno == 0")
+	}
+
 	if s.tryContinue(ctx, siov) {
 		return 0
 	}
