@@ -260,6 +260,72 @@ func Test_pureHost_matchesAnyQualifiedName(t *testing.T) {
 	}
 }
 
+func Test_pureHost_missingQualifiedNames(t *testing.T) {
+	// A host object that was not created with the full set of initiators keeps matching
+	// on the one it carries while missing the rest.
+	host := pureHost{
+		Name: "server01-scsi-fc",
+		WWNs: []string{"21000024FF43B10C"},
+	}
+
+	tests := []struct {
+		Name string
+		Mode string
+		QNs  []string
+		Want []string
+	}{
+		{
+			// An adapter added after the host object was created.
+			Name: "Unregistered initiator is reported",
+			Mode: connectors.TypeSCSIFC,
+			QNs:  []string{"21000024ff43b10c", "21000024ff43b10d"},
+			Want: []string{"21000024ff43b10d"},
+		},
+		{
+			// A registered initiator must never be reported, or every mapping would
+			// patch the host again.
+			Name: "Registered initiator is not reported",
+			Mode: connectors.TypeSCSIFC,
+			QNs:  []string{"21000024ff43b10c"},
+			Want: nil,
+		},
+		{
+			// The array reports WWNs in uppercase and the connector in lowercase, so a
+			// comparison that is not normalized would report every initiator as missing.
+			Name: "Case does not make an initiator look missing",
+			Mode: connectors.TypeSCSIFC,
+			QNs:  []string{"21:00:00:24:FF:43:B1:0C"},
+			Want: nil,
+		},
+		{
+			Name: "All initiators unregistered",
+			Mode: connectors.TypeSCSIFC,
+			QNs:  []string{"21000024ff43b1fe", "21000024ff43b1ff"},
+			Want: []string{"21000024ff43b1fe", "21000024ff43b1ff"},
+		},
+		{
+			Name: "Empty initiator list reports nothing",
+			Mode: connectors.TypeSCSIFC,
+			QNs:  []string{},
+			Want: nil,
+		},
+		{
+			// A host carries one protocol, so an iSCSI IQN is missing from a Fibre
+			// Channel host. The mode is what keeps the two from being compared.
+			Name: "Other transports are reported against their own field",
+			Mode: connectors.TypeISCSI,
+			QNs:  []string{"iqn.2005-03.org.open-iscsi:abcdef123456"},
+			Want: []string{"iqn.2005-03.org.open-iscsi:abcdef123456"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			assert.Equal(t, test.Want, host.missingQualifiedNames(test.Mode, test.QNs))
+		})
+	}
+}
+
 func Test_pureDiskSuffix(t *testing.T) {
 	// A Pure Storage volume serial number is always 24 characters long.
 	const serial = "8726B5033AF2433D00014196"
