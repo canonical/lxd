@@ -615,6 +615,11 @@ func (d *btrfs) validateSubVolumeHeader(header BTRFSMetaDataHeader, expectedSnap
 				return fmt.Errorf("Invalid subvolume snapshot name %q: %w", subVol.Snapshot, err)
 			}
 
+			// ValidSnapName accepts ".", which filepath.Clean collapses to the parent snapshot directory.
+			if subVol.Snapshot == "." {
+				return fmt.Errorf("Invalid subvolume snapshot name %q", subVol.Snapshot)
+			}
+
 			if expectedSnapshots != nil && !slices.Contains(expectedSnapshots, subVol.Snapshot) {
 				return fmt.Errorf("Subvolume snapshot %q does not belong to the volume", subVol.Snapshot)
 			}

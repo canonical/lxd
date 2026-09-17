@@ -170,6 +170,11 @@ func Test_btrfs_validateSubVolumeHeader_snapshots(t *testing.T) {
 			snapshot:  "snap0",
 			wantError: "",
 		},
+		{
+			name:      "Dot as the snapshot name is rejected",
+			snapshot:  ".",
+			wantError: `Invalid subvolume snapshot name "."`,
+		},
 	}
 
 	for _, test := range tests {
