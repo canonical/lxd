@@ -59,3 +59,69 @@ func Test_formatQN(t *testing.T) {
 		})
 	}
 }
+
+func Test_PowerStoreHost_MissingQualifiedNames(t *testing.T) {
+	// A host object that was not created with the full set of initiators keeps matching
+	// on the one it carries while missing the rest.
+	host := PowerStoreHost{
+		Name: "server01-scsi-fc",
+		Initiators: []*PowerStoreHostInitiator{
+			{PortName: "21:00:00:24:ff:43:b1:0c", PortType: "FC"},
+		},
+	}
+
+	tests := []struct {
+		name          string
+		connectorType string
+		qns           []string
+		want          []string
+	}{
+		{
+			// An adapter added after the host object was created.
+			name:          "Unregistered initiator is reported",
+			connectorType: connectors.TypeSCSIFC,
+			qns:           []string{"21000024ff43b10c", "21000024ff43b10d"},
+			want:          []string{"21000024ff43b10d"},
+		},
+		{
+			// A registered initiator must never be reported, or every mapping would
+			// patch the host again.
+			name:          "Registered initiator is not reported",
+			connectorType: connectors.TypeSCSIFC,
+			qns:           []string{"21000024ff43b10c"},
+			want:          nil,
+		},
+		{
+			name:          "Port name is normalizied and registered initiator is not reported",
+			connectorType: connectors.TypeSCSIFC,
+			qns:           []string{"0x21000024FF43B10C"},
+			want:          nil,
+		},
+		{
+			name:          "All initiators unregistered and reported",
+			connectorType: connectors.TypeSCSIFC,
+			qns:           []string{"21000024ff43b1fe", "21000024ff43b1ff"},
+			want:          []string{"21000024ff43b1fe", "21000024ff43b1ff"},
+		},
+		{
+			name:          "Empty initiator list reports nothing",
+			connectorType: connectors.TypeSCSIFC,
+			qns:           []string{},
+			want:          nil,
+		},
+		{
+			name:          "Other transports are reported against their own port type",
+			connectorType: connectors.TypeISCSI,
+			qns:           []string{"iqn.2005-03.org.open-iscsi:abcdef123456"},
+			want:          []string{"iqn.2005-03.org.open-iscsi:abcdef123456"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			missing, err := host.MissingQualifiedNames(test.connectorType, test.qns)
+			assert.NoError(t, err)
+			assert.Equal(t, test.want, missing)
+		})
+	}
+}

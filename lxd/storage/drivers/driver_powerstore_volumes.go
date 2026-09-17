@@ -590,7 +590,7 @@ func (d *powerstore) DeleteVolume(vol Volume, progressReporter ioprogress.Progre
 		return err
 	}
 
-	qn, err := connector.QualifiedName()
+	qns, err := connectors.QualifiedNames(connector)
 	if err != nil {
 		return err
 	}
@@ -604,7 +604,7 @@ func (d *powerstore) DeleteVolume(vol Volume, progressReporter ioprogress.Progre
 		return err
 	}
 
-	host, err := client.GetCurrentHost(connector.Type(), qn)
+	host, err := client.GetCurrentHost(connector.Type(), qns)
 	if err != nil {
 		// If the host doesn't exist, continue with the deletion of the volume and
 		// do not try to delete the volume mapping as it cannot exist.
@@ -1490,9 +1490,9 @@ func (d *powerstore) getVolumeID(vol Volume) (string, error) {
 	return volID, nil
 }
 
-// ensureHost returns ID of the host configured with the given qualified name.
-// If no such host exists, it creates a new host using the server name with the
-// mode appended as the host name.
+// ensureHost returns the ID of the host that is configured with the local initiator
+// qualified names, registering any that are missing from it. If no such host exists,
+// it creates a new host using the server name with the mode appended as the host name.
 func (d *powerstore) ensureHost() (hostID string, cleanup revert.Hook, err error) {
 	client := d.client()
 
@@ -1504,14 +1504,17 @@ func (d *powerstore) ensureHost() (hostID string, cleanup revert.Hook, err error
 		return "", nil, err
 	}
 
-	// Get the qualified name of the host.
-	qn, err := connector.QualifiedName()
+	// Get every initiator qualified name of the host. iSCSI and NVMe hosts have a
+	// single IQN or NQN, whereas a Fibre Channel host has one WWPN per host bus
+	// adapter port. All of them must be registered, otherwise the array does not
+	// present its volumes to the unregistered ports and those paths stay unused.
+	qns, err := connectors.QualifiedNames(connector)
 	if err != nil {
 		return "", nil, err
 	}
 
 	// Fetch an existing host entry on a storage array.
-	host, err := client.GetCurrentHost(connector.Type(), qn)
+	host, err := client.GetCurrentHost(connector.Type(), qns)
 	if err != nil {
 		if !api.StatusErrorCheck(err, http.StatusNotFound) {
 			return "", nil, err
@@ -1524,15 +1527,32 @@ func (d *powerstore) ensureHost() (hostID string, cleanup revert.Hook, err error
 			return "", nil, err
 		}
 
-		hostID, err = client.CreateHost(hostname, connector.Type(), qn)
+		hostID, err = client.CreateHost(hostname, connector.Type(), qns)
 		if err != nil {
 			return "", nil, fmt.Errorf("Failed creating host %q: %w", hostname, err)
 		}
 
 		revert.Add(func() { _ = client.DeleteHost(hostID) })
 	} else {
-		// Hostname already exists with the given qualified name.
+		// The host already exists with one of the qualified names.
 		hostID = host.ID
+
+		// The host is identified by a match on any one of its initiators.
+		// Register the ones it is missing, otherwise the array never presents its volumes
+		// to those ports and their paths stay unused.
+		missingQNs, err := host.MissingQualifiedNames(connector.Type(), qns)
+		if err != nil {
+			return "", nil, err
+		}
+
+		if len(missingQNs) > 0 {
+			d.logger.Info("Registering additional initiators with PowerStore host", logger.Ctx{"host": host.Name, "initiators": missingQNs})
+
+			err = client.AddHostInitiators(hostID, connector.Type(), missingQNs)
+			if err != nil {
+				return "", nil, err
+			}
+		}
 	}
 
 	cleanup = revert.Clone().Fail
@@ -1708,7 +1728,7 @@ func (d *powerstore) unmapVolume(vol Volume) error {
 		return err
 	}
 
-	qn, err := connector.QualifiedName()
+	qns, err := connectors.QualifiedNames(connector)
 	if err != nil {
 		return err
 	}
@@ -1725,7 +1745,7 @@ func (d *powerstore) unmapVolume(vol Volume) error {
 
 	defer unlock()
 
-	host, err := client.GetCurrentHost(connector.Type(), qn)
+	host, err := client.GetCurrentHost(connector.Type(), qns)
 	if err != nil {
 		return err
 	}
