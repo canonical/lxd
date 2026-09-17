@@ -10,7 +10,7 @@ install_lxd
 lxc network create lxdbr0
 lxc profile device add default eth0 nic network=lxdbr0
 
-IMAGE="${TEST_IMG:-ubuntu-minimal-daily:24.04}"
+IMAGE="${TEST_IMG:-ubuntu-minimal-daily:26.04}"
 
 # checkNestedInstanceDNS checks if the nested instance can resolve DNS names.
 checkNestedInstanceDNS() {
