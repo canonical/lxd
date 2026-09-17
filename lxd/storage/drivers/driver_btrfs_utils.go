@@ -545,7 +545,6 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, expectedSnapshots []s
 				return nil, err
 			}
 
-			cancelFunc()
 			return &header, nil
 		}
 	}
