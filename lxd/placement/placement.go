@@ -44,7 +44,7 @@ func PlaceInstance(ctx context.Context, tx *db.ClusterTx, candidates []db.NodeIn
 		Apply(filters.FilterByClusterGroup).
 		Apply(filters.LoadPlacementGroupMembers).
 		Apply(filters.FilterByClusterFailureDomains).
-		Apply(filters.FilterByPlacementGroup).
+		Apply(filters.FilterByPolicyAndRigor).
 		Apply(filters.SelectLeastLoaded).
 		Result()
 	if err != nil {

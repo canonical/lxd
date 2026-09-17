@@ -9,7 +9,7 @@ import "github.com/canonical/lxd/shared/api"
 // actually use.
 type PlacementContext struct {
 	// Consulted by the placement-group stages (LoadPlacementGroupMembers,
-	// FilterByClusterFailureDomains, FilterByPlacementGroup). PlacementGroup.Name == "" is the
+	// FilterByClusterFailureDomains, FilterByPolicyAndRigor). PlacementGroup.Name == "" is the
 	// sentinel for "no placement group" — a real placement group's name is never empty — so every
 	// one of these stages is a no-op passthrough unless it's set.
 	PlacementGroup        api.PlacementGroup

@@ -28,7 +28,7 @@ func applyPlacementGroupStages(ctx context.Context, tx *db.ClusterTx, apiPlaceme
 	return engine.New(ctx, tx, pctx, candidates).
 		Apply(filters.LoadPlacementGroupMembers).
 		Apply(filters.FilterByClusterFailureDomains).
-		Apply(filters.FilterByPlacementGroup).
+		Apply(filters.FilterByPolicyAndRigor).
 		Result()
 }
 

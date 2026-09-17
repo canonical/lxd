@@ -12,14 +12,15 @@ import (
 	"github.com/canonical/lxd/shared/api"
 )
 
-// TestUnsetFootprintPreservesLegacySpreadPermissiveTieBreak locks in why Filter's unset max_hosts
-// case calls getCompliantMembers directly instead of routing through ResolveHostWithinBucket with
-// an unbounded (math.MaxInt) default: once every candidate already has at least one instance of
-// this group (so none are "unused" by the footprint's binary distinction), the footprint formula
-// can't reproduce spread+permissive's finer preference for members with the *fewest* instances --
-// it only ever restricts to "used" or "unused", not by count. This is a real, deliberately-chosen
-// divergence point, not an oversight; this test exists so nobody "simplifies" Filter back to
-// formula-only without re-deriving this.
+// TestUnsetFootprintPreservesLegacySpreadPermissiveTieBreak locks in why FilterByPolicyAndRigor's
+// scope=host branch narrows by per-member instance count (via filterByPolicyAndRigor) directly
+// instead of routing through ResolveHostWithinBucket with an unbounded (math.MaxInt) default: once
+// every candidate already has at least one instance of this group (so none are "unused" by the
+// footprint's binary distinction), the footprint formula can't reproduce spread+permissive's finer
+// preference for members with the *fewest* instances -- it only ever restricts to "used" or
+// "unused", not by count. This is a real, deliberately-chosen divergence point, not an oversight;
+// this test exists so nobody "simplifies" PlaceInstance back to formula-only without re-deriving
+// this.
 func TestUnsetFootprintPreservesLegacySpreadPermissiveTieBreak(t *testing.T) {
 	candidates := []db.NodeInfo{
 		{ID: 1, Name: "host1"},
@@ -39,8 +40,21 @@ func TestUnsetFootprintPreservesLegacySpreadPermissiveTieBreak(t *testing.T) {
 		5: {109},
 	}
 
-	legacy, err := getCompliantMembers(api.PlacementPolicySpread, api.PlacementRigorPermissive, candidates, memberToInst)
+	legacyIDs, err := filterByPolicyAndRigor(api.PlacementPolicySpread, api.PlacementRigorPermissive, nodeIDs(candidates), memberToInst)
 	assert.NoError(t, err)
+
+	legacyCompliant := make(map[int64]bool, len(legacyIDs))
+	for _, id := range legacyIDs {
+		legacyCompliant[id] = true
+	}
+
+	var legacy []db.NodeInfo
+	for _, c := range candidates {
+		if legacyCompliant[c.ID] {
+			legacy = append(legacy, c)
+		}
+	}
+
 	assert.ElementsMatch(t, []db.NodeInfo{candidates[3], candidates[4]}, legacy, "legacy per-member-count logic should narrow to the two members tied at the minimum count (1 each)")
 
 	usedHosts := make(map[int64]struct{}, len(candidates))
