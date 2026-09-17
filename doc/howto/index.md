@@ -46,6 +46,7 @@ For production deployments, clusters of LXD servers help support higher loads. T
 
 /clustering
 /production-setup
+/howto/disaster_recovery
 ```
 
 ## Perform server administration
@@ -53,9 +54,11 @@ For production deployments, clusters of LXD servers help support higher loads. T
 ```{toctree}
 :titlesonly:
 :maxdepth: 1
+
 Manage the snap </howto/snap>
 Harden security </howto/security_harden>
 /howto/troubleshoot
+Decommission LXD </howto/decommission>
 ```
 
 ## Authenticate to the APIs
