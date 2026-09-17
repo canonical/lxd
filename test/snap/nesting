@@ -40,7 +40,7 @@ test_nesting_container() {
 
     local poolDriverList="btrfs dir lvm zfs"
     local poolDriver poolName instName
-    local nestedPoolDriverList nestedPoolDriver nestedPoolName nestedInstName
+    local nestedPoolDriverList nestedPoolDriver nestedPoolName nestedInstName nestedSource
     local zfsVersion zfsPerm
 
     lxc profile create container-nesting
@@ -104,8 +104,12 @@ test_nesting_container() {
 
             # Create nested storage pool.
             if [ "${nestedPoolDriver}" = "btrfs" ]; then
-                # BTRFS pool must use a directory as a source.
-                lxc exec "${instName}" -- lxc storage create "${nestedPoolName}" "${nestedPoolDriver}" source="$(mktemp -d)"
+                # BTRFS pool must use a directory as a source. The path must not already exist
+                # (LXD creates the subvolume itself), so only generate a unique name (inside the
+                # instance, not the host) rather than actually creating the directory. Anchored
+                # under /root rather than /tmp, since the latter may be a separate tmpfs mount.
+                nestedSource="$(lxc exec "${instName}" -- mktemp -u -d -p /root)"
+                lxc exec "${instName}" -- lxc storage create "${nestedPoolName}" "${nestedPoolDriver}" source="${nestedSource}"
             elif [ "${nestedPoolDriver}" = "zfs" ]; then
                 # Create a custom volume and attach it to the instance.
                 lxc storage volume create "${poolName}" vol1
