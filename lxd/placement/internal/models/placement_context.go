@@ -8,18 +8,22 @@ import "github.com/canonical/lxd/shared/api"
 // builds one PlacementContext per placement decision and sets only the fields the stages it runs
 // actually use.
 type PlacementContext struct {
-	// Consulted by FilterByPlacementGroup. PlacementGroup.Name == "" is the sentinel for "no
-	// placement group" — a real placement group's name is never empty — so FilterByPlacementGroup
-	// is a no-op passthrough unless it's set.
-	PlacementGroup api.PlacementGroup
-	Evacuation     bool
+	// Consulted by the placement-group stages (LoadPlacementGroupMembers,
+	// FilterByClusterFailureDomains, FilterByPlacementGroup). PlacementGroup.Name == "" is the
+	// sentinel for "no placement group" — a real placement group's name is never empty — so every
+	// one of these stages is a no-op passthrough unless it's set.
+	PlacementGroup        api.PlacementGroup
+	Evacuation            bool
+	ClusterFailureDomains []string
 
 	// Consulted by FilterByClusterGroup. Only applies when PlacementGroup is unset — a placement
 	// group's own scope/policy/rigor takes precedence over the coarser cluster-group membership
 	// check.
 	ClusterGroupName string
 
-	// Populated by LoadPlacementGroupMembers; consulted by FilterByPlacementGroup. Exported so
-	// lxd/placement/internal/filters, a separate package, can read and write it.
-	MemberToInst map[int64][]int64
+	// Populated by LoadPlacementGroupMembers; consulted by the placement-group stages that follow
+	// it in the chain. Exported so lxd/placement/internal/filters, a separate package, can read
+	// and write them.
+	MemberToInst  map[int64][]int64
+	MemberDomains MemberFailureDomains
 }

@@ -25,15 +25,16 @@ var ErrNoEligibleCandidate = errors.New("No eligible candidate cluster member")
 // Apply calls around them. models.PlacementContext/engine.PlacementEngine are this function's own
 // implementation detail — callers never construct or see them.
 //
-// evacuation marks this placement decision as choosing an evacuation target rather than a
-// create/migrate destination, so the placement-group stage excludes the source member from its
-// own instance counting — instances about to move away from it shouldn't count against it.
+// clusterFailureDomains is consulted only when placementGroup is set. evacuation marks this
+// placement decision as choosing an evacuation target rather than a create/migrate destination, so
+// the placement-group stage excludes the source member from its own instance counting — instances
+// about to move away from it shouldn't count against it.
 //
 // PlaceInstance never returns an API error: on failure it returns ErrNoEligibleCandidate (check
 // with errors.Is), wrapping the specific underlying reason. Converting that to a status code and a
 // caller-appropriate message is entirely up to the caller.
-func PlaceInstance(ctx context.Context, tx *db.ClusterTx, candidates []db.NodeInfo, placementGroup *api.PlacementGroup, clusterGroupName string, evacuation bool) (*db.NodeInfo, error) {
-	pctx := &models.PlacementContext{ClusterGroupName: clusterGroupName, Evacuation: evacuation}
+func PlaceInstance(ctx context.Context, tx *db.ClusterTx, candidates []db.NodeInfo, placementGroup *api.PlacementGroup, clusterGroupName string, clusterFailureDomains []string, evacuation bool) (*db.NodeInfo, error) {
+	pctx := &models.PlacementContext{ClusterFailureDomains: clusterFailureDomains, ClusterGroupName: clusterGroupName, Evacuation: evacuation}
 
 	if placementGroup != nil {
 		pctx.PlacementGroup = *placementGroup
@@ -42,6 +43,7 @@ func PlaceInstance(ctx context.Context, tx *db.ClusterTx, candidates []db.NodeIn
 	selected, err := engine.New(ctx, tx, pctx, candidates).
 		Apply(filters.FilterByClusterGroup).
 		Apply(filters.LoadPlacementGroupMembers).
+		Apply(filters.FilterByClusterFailureDomains).
 		Apply(filters.FilterByPlacementGroup).
 		Apply(filters.SelectLeastLoaded).
 		Result()

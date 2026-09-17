@@ -26,7 +26,7 @@ func TestPlaceInstanceSkipsStagesWithNoInputs(t *testing.T) {
 	require.NoError(t, err)
 
 	err = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-		selected, err := PlaceInstance(ctx, tx, []db.NodeInfo{candidate}, nil, "", false)
+		selected, err := PlaceInstance(ctx, tx, []db.NodeInfo{candidate}, nil, "", nil, false)
 		require.NoError(t, err)
 		require.Equal(t, candidate, *selected)
 		return nil
@@ -41,7 +41,7 @@ func TestPlaceInstanceWrapsFilterStageFailure(t *testing.T) {
 	defer cleanup()
 
 	err := testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, err := PlaceInstance(ctx, tx, nil, nil, "", false)
+		_, err := PlaceInstance(ctx, tx, nil, nil, "", nil, false)
 		require.ErrorIs(t, err, ErrNoEligibleCandidate)
 		return nil
 	})

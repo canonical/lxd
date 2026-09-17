@@ -22,11 +22,12 @@ import (
 // applyPlacementGroupStages runs the same placement-group FilterStage chain PlaceInstance
 // composes, minus the terminal least-loaded pick — so these tests can assert on the full narrowed
 // candidate set, not just PlaceInstance's single winner.
-func applyPlacementGroupStages(ctx context.Context, tx *db.ClusterTx, apiPlacementGroup *api.PlacementGroup, candidates []db.NodeInfo) ([]db.NodeInfo, error) {
-	pctx := &models.PlacementContext{PlacementGroup: *apiPlacementGroup}
+func applyPlacementGroupStages(ctx context.Context, tx *db.ClusterTx, apiPlacementGroup *api.PlacementGroup, clusterFailureDomains []string, candidates []db.NodeInfo) ([]db.NodeInfo, error) {
+	pctx := &models.PlacementContext{PlacementGroup: *apiPlacementGroup, ClusterFailureDomains: clusterFailureDomains}
 
 	return engine.New(ctx, tx, pctx, candidates).
 		Apply(filters.LoadPlacementGroupMembers).
+		Apply(filters.FilterByClusterFailureDomains).
 		Apply(filters.FilterByPlacementGroup).
 		Result()
 }
@@ -631,7 +632,7 @@ func (s *filteringSuite) TestFilter() {
 				return err
 			}
 
-			got, err := applyPlacementGroupStages(ctx, tx, apiPlacementGroup, tt.args.candidates)
+			got, err := applyPlacementGroupStages(ctx, tx, apiPlacementGroup, nil, tt.args.candidates)
 			if tt.wantErr {
 				s.Error(err)
 				return nil

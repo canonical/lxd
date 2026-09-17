@@ -9,8 +9,9 @@ import (
 )
 
 // LoadPlacementGroupMembers fetches this placement group's current per-member instance counts
-// (pctx.MemberToInst) once, up front, for every later placement-group stage to reuse rather than
-// re-querying.
+// (pctx.MemberToInst) and, if the cluster-wide failure-domain allow-list is in effect, each
+// candidate's assigned failure domain (pctx.MemberDomains) once, up front, for every later
+// placement-group stage to reuse rather than re-querying.
 //
 // Only applies when pctx.PlacementGroup is actually set (a real placement group's Name is never
 // empty) — an instance with no placement group has nothing here to load.
@@ -36,6 +37,13 @@ func LoadPlacementGroupMembers(ctx context.Context, tx *db.ClusterTx, pctx *mode
 	}
 
 	pctx.MemberToInst = memberToInst
+
+	if len(pctx.ClusterFailureDomains) > 0 {
+		pctx.MemberDomains, err = models.LoadMemberFailureDomains(ctx, tx)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return candidates, nil
 }

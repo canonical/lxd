@@ -2029,9 +2029,10 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 			}
 		}
 
-		// Narrow by cluster group or placement group (whichever applies), then pick the least
-		// loaded cluster member which supports the instance's architecture among whatever remains.
-		targetMemberInfo, err = placement.PlaceInstance(ctx, tx, candidateMembers, apiPlacementGroup, clusterGroupName, true)
+		// Narrow by cluster group or placement group (whichever applies), then by the cluster-wide
+		// failure-domain override (if a placement group is set), then pick the least loaded
+		// cluster member which supports the instance's architecture among whatever remains.
+		targetMemberInfo, err = placement.PlaceInstance(ctx, tx, candidateMembers, apiPlacementGroup, clusterGroupName, s.GlobalConfig.FailureDomains(), true)
 		if err != nil {
 			// If no candidates remain due to placement constraints, signal not found so caller can skip instance during evacuation.
 			if errors.Is(err, placement.ErrNoEligibleCandidate) {

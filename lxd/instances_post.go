@@ -1879,7 +1879,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 			expandedConfig := instancetype.ExpandInstanceConfig(s.GlobalConfig.Dump(), req.Config, profiles)
 			placementGroupName = expandedConfig["placement.group"]
-			targetMemberInfo, err = instancesPostSelectClusterMember(ctx, tx, placementGroupName, candidateMembers, targetProject.Name)
+			targetMemberInfo, err = instancesPostSelectClusterMember(ctx, tx, placementGroupName, candidateMembers, targetProject.Name, s.GlobalConfig.FailureDomains())
 			if err != nil {
 				return err
 			}
@@ -2008,7 +2008,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 // instancesPostSelectClusterMember determines which cluster member to use for placing an instance during creation or migration.
 // It first checks whether the instance belongs to a placement group and, if so, applies the placement group’s policy and rigor to filter the available members.
 // Among the remaining candidates, the member with the fewest existing instances is selected.
-func instancesPostSelectClusterMember(ctx context.Context, tx *db.ClusterTx, placementGroupName string, candidateMembers []db.NodeInfo, projectName string) (*db.NodeInfo, error) {
+func instancesPostSelectClusterMember(ctx context.Context, tx *db.ClusterTx, placementGroupName string, candidateMembers []db.NodeInfo, projectName string, clusterFailureDomains []string) (*db.NodeInfo, error) {
 	var apiPlacementGroup *api.PlacementGroup
 	if placementGroupName != "" {
 		placementGroup, err := dbCluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, projectName)
@@ -2026,7 +2026,7 @@ func instancesPostSelectClusterMember(ctx context.Context, tx *db.ClusterTx, pla
 
 	// Cluster-group filtering already happened upstream, via GetCandidateMembers's own
 	// targetClusterGroup parameter, so PlaceInstance's cluster-group stage is a no-op here.
-	selected, err := placement.PlaceInstance(ctx, tx, candidateMembers, apiPlacementGroup, "", false)
+	selected, err := placement.PlaceInstance(ctx, tx, candidateMembers, apiPlacementGroup, "", clusterFailureDomains, false)
 	if err != nil {
 		if errors.Is(err, placement.ErrNoEligibleCandidate) {
 			return nil, api.StatusErrorf(http.StatusConflict, "Failed filtering candidate cluster members using placement group %q: %w", placementGroupName, err)
