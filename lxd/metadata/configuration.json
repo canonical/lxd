@@ -7535,7 +7535,7 @@
 					{
 						"pure.target": {
 							"defaultdesc": "all available targets",
-							"longdesc": "A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.\nThis option has no effect in the Fibre Channel modes (`scsi/fc` and `nvme/fc`), because their targets are identified by WWPN rather than by network address.",
+							"longdesc": "A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.\nThis option has no effect in the Fibre Channel modes (`scsi/fc` and `nvme/fc`), because their targets are addressed by World Wide Name rather than by network address.",
 							"shortdesc": "List of target addresses.",
 							"type": "string"
 						}
