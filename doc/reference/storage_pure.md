@@ -3,7 +3,7 @@
 
 [Pure Storage](https://www.everpuredata.com/) is a software-defined storage solution. It offers the consumption of redundant block storage across the network.
 
-LXD supports connecting to Pure Storage storage clusters through four modes: {abbr}`iSCSI (Internet Small Computer Systems Interface)`, {abbr}`NVMe/TCP (Non-Volatile Memory Express over Transmission Control Protocol)`, and NVMe or SCSI over {abbr}`FC (Fibre Channel)`.
+LXD supports connecting to Pure Storage storage clusters through four modes: {abbr}`iSCSI (Internet Small Computer Systems Interface)` (`iscsi`), {abbr}`NVMe/TCP (Non-Volatile Memory Express over Transmission Control Protocol)` (`nvme/tcp`), and NVMe or SCSI over {abbr}`FC (Fibre Channel)` (`nvme/fc` and `scsi/fc`).
 In addition, Pure Storage offers copy-on-write snapshots, thin provisioning, and other features.
 
 To use Pure Storage with LXD requires a Pure Storage API version of at least `2.21`, corresponding to a minimum Purity//FA version of `6.4.2`.
@@ -42,7 +42,8 @@ As a result, and depending on the internal network, storage access might be a bi
 On the other hand, using remote storage has significant advantages in a cluster setup: all cluster members have access to the same storage pools with the exact same contents, without the need to synchronize them.
 
 When creating a new storage pool using the `pure` driver in either `iscsi` or `nvme/tcp` mode, LXD automatically discovers the array's qualified name and target address (portal).
-In the Fibre Channel modes, LXD instead discovers the online Fibre Channel target ports through the local host bus adapter, because Fibre Channel targets are identified by {abbr}`WWPN (World Wide Port Name)` rather than by network address.
+In the Fibre Channel modes, LXD instead discovers the online Fibre Channel target ports through the local host bus adapter, because Fibre Channel targets are addressed by {abbr}`WWN (World Wide Name)` rather than by network address.
+In `scsi/fc` mode a target is the port's {abbr}`WWPN (World Wide Port Name)` itself, whereas in `nvme/fc` mode the target is the array's subsystem NQN reached at a Fibre Channel transport address that is derived from the port's WWN.
 An array can present Fibre Channel ports for both modes at the same time, so LXD selects the ports matching the configured mode: for `scsi/fc` those reporting a WWN and no {abbr}`NQN (NVMe Qualified Name)`, and for `nvme/fc` those reporting both.
 Consequently, {config:option}`storage-pure-pool-conf:pure.target` has no effect in either Fibre Channel mode, and, instead, fabric zoning determines which targets are reachable.
 

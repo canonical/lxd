@@ -158,7 +158,7 @@ func (d *pure) Validate(config map[string]string) error {
 		"pure.gateway.verify": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.target)
 		// A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
-		// This option has no effect in the Fibre Channel modes (`scsi/fc` and `nvme/fc`), because their targets are identified by WWPN rather than by network address.
+		// This option has no effect in the Fibre Channel modes (`scsi/fc` and `nvme/fc`), because their targets are addressed by World Wide Name rather than by network address.
 		// ---
 		//  type: string
 		//  defaultdesc: all available targets
