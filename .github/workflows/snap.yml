@@ -108,7 +108,6 @@ jobs:
           - network-ovn ovn:deb
           - network-ovn ovn:latest/edge
           - network-routed
-          - pylxd
           - qemu-external-vm
           - snapd
           - storage-buckets
@@ -160,8 +159,6 @@ jobs:
           - channel: "4.0/edge"
             test: qemu-external-vm
           - channel: "4.0/edge"
-            test: lxd-consumers
-          - channel: "4.0/edge"
             test: storage-buckets
           - channel: "4.0/edge"
             test: storage-disks-vm
@@ -201,16 +198,12 @@ jobs:
           - channel: "5.0/edge"
             test: qemu-external-vm
           - channel: "5.0/edge"
-            test: lxd-consumers
-          - channel: "5.0/edge"
             test: vm-migration
           # not compatible with 5.21/*
           - channel: "5.21/edge"
             test: lxd-installer
           - channel: "5.21/edge"
             test: qemu-external-vm
-          - channel: "5.21/edge"
-            test: lxd-consumers
           # some tests are not worth testing on specific OSes
           - os: 22.04
             test: bgp
@@ -218,8 +211,6 @@ jobs:
             test: lxd-installer
           - os: 22.04
             test: qemu-external-vm
-          - os: 22.04
-            test: lxd-consumers
           # skip channel/os combinations that are too far apart
           - os: 24.04
             channel: "4.0/edge"

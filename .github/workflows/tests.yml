@@ -561,7 +561,6 @@ jobs:
           - network-ovn ovn:deb
           - network-ovn ovn:latest/edge
           - network-routed
-          - pylxd
           - qemu-external-vm
           - snapd
           - storage-buckets
