@@ -506,6 +506,7 @@ var APIExtensions = []string{
 	"replicator_custom_volumes",
 	"metrics_replicators",
 	"storage_driver_pure_scsifc",
+	"loki_config_api_check_ready",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
