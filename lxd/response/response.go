@@ -175,6 +175,7 @@ func DevLXDOperationResponse(op api.Operation) Response {
 		Status:     op.Status,
 		StatusCode: op.StatusCode,
 		Err:        op.Err,
+		ErrCode:    op.ErrCode,
 	}
 
 	return &devLXDResponse{

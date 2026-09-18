@@ -3719,3 +3719,9 @@ The `replicator-run` lifecycle event now fires when a run completes rather than 
 
 Adds SCSI/FC support to the Pure Storage storage driver.
 Fibre Channel targets are discovered through the host bus adapter, so `pure.target` has no effect when `pure.mode` is set to `scsi/fc`.
+
+(extension-devlxd-operation-err-code)=
+## `devlxd_operation_err_code`
+
+The DevLXD wait endpoint (`GET /1.0/operations/{id}/wait`) now returns HTTP status `200` when the wait itself succeeds, even if the operation it waited on failed.
+When the server supports this extension, the DevLXD operation has a new `err_code` field that carries the HTTP status code associated with the failed operation.

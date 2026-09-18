@@ -46,6 +46,11 @@ func (op *devLXDOperation) WaitContext(ctx context.Context) error {
 	op.DevLXDOperation = *opAPI
 
 	if opAPI.Err != "" {
+		if opAPI.ErrCode != 0 {
+			return api.NewStatusError(int(opAPI.ErrCode), opAPI.Err)
+		}
+
+		// The server sent no operation error code.
 		return errors.New(opAPI.Err)
 	}
 
