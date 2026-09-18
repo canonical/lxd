@@ -506,6 +506,8 @@ var APIExtensions = []string{
 	"replicator_custom_volumes",
 	"metrics_replicators",
 	"storage_driver_pure_scsifc",
+	"cluster_failure_domains",
+	"placement_group_calculated_failure_domains",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

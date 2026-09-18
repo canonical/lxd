@@ -18,6 +18,14 @@ const (
 	PlacementRigorPermissive string = "permissive"
 )
 
+const (
+	// PlacementScopeHost applies the placement policy to individual cluster members.
+	PlacementScopeHost string = "host"
+
+	// PlacementScopeFailureDomain applies the placement policy to failure domains as a whole.
+	PlacementScopeFailureDomain string = "failure-domain"
+)
+
 // PlacementGroup represents a group of instances that should be scheduled.
 //
 // API extension: instance_placement_groups.
@@ -43,6 +51,17 @@ type PlacementGroup struct {
 	// List of URLs of objects using this placement group.
 	// Example: ["/1.0/instances/c1", "/1.0/profiles/default"]
 	UsedBy []string `json:"used_by" yaml:"used_by"`
+
+	// CalculatedFailureDomains is the read-only result of resolving the known failure domains
+	// and the cluster-wide cluster.failure_domains override into the actual set of failure
+	// domains this group is currently eligible to schedule into. It is computed by the same
+	// resolution function the scheduler itself calls, so it can never drift from what will
+	// actually be honored. There is no per-group failure-domain override, so this value is the
+	// same across every placement group in the cluster at any given moment.
+	// Example: ["fd1", "fd2"]
+	//
+	// API extension: placement_group_calculated_failure_domains.
+	CalculatedFailureDomains []string `json:"calculated_failure_domains" yaml:"calculated_failure_domains"`
 }
 
 // PlacementGroupsPost represents the fields required to create a new placement group.

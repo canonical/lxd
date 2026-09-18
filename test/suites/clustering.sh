@@ -3207,6 +3207,15 @@ test_clustering_failure_domains() {
   # Test the get subcommand
   [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster failure-domain get node2)" = "az2" ]
 
+  # Test the list subcommand: the known set is deduplicated (three domains shared across six
+  # members) and sorted.
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster failure-domain list --format csv)" = "$(printf 'az1\naz2\naz3')" ]
+
+  # Unassigning a member does not remove its domain from the known set (append-only registry).
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster failure-domain unset node1
+  [ "$(LXD_DIR="${LXD_THREE_DIR}" lxc cluster failure-domain list --format csv)" = "$(printf 'az1\naz2\naz3')" ]
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster failure-domain set node1 az1
+
   # Shutdown a node in az2, its replacement is picked from az2.
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   sleep 3
@@ -5316,6 +5325,20 @@ test_clustering_placement_groups() {
   # Verify original values unchanged after failed sets
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc placement-group get pg-invalid-test policy)" = "spread" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc placement-group get pg-invalid-test rigor)" = "strict" ]
+  # pg-invalid-test was created without scope -- it's defaulted to "host" and persisted as such
+  # at create time, not left blank (unset has always meant host, but is now stored explicitly).
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc placement-group get pg-invalid-test scope)" = "host" ]
+  # Invalid scope value is rejected, valid values are unaffected
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc placement-group set pg-invalid-test scope invalid || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc placement-group set pg-invalid-test scope member || false
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc placement-group get pg-invalid-test scope)" = "host" ]
+  # There is no more per-group failure_domains override key -- setting it is simply rejected as
+  # an unknown placement group key.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc placement-group set pg-invalid-test failure_domains rack-a || false
+  # There is no more placement-group-level max_hosts key either -- limits.max_hosts at the
+  # project level is the only host-footprint bound now, so setting max_hosts on a placement
+  # group is simply rejected as an unknown key.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc placement-group set pg-invalid-test max_hosts 5 || false
   # Clean up
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group delete pg-invalid-test
 
@@ -5324,6 +5347,80 @@ test_clustering_placement_groups() {
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group rename pg-old pg-new
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group list | grep pg-new
   ! LXD_DIR="${LXD_ONE_DIR}" lxc placement-group list | grep pg-old || false
+
+  echo "==> Test scope=failure-domain scheduling"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster failure-domain set node1 rack-a
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster failure-domain set node2 rack-a
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster failure-domain set node3 rack-b
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster failure-domain set node4 rack-b
+  # node5 is left unassigned deliberately, to confirm it's never selected below.
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-fd-spread-strict policy=spread rigor=strict scope=failure-domain
+
+  echo "First instance lands in either domain, never on the unassigned node5"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty fd-c1 -c placement.group=pg-fd-spread-strict
+  fd_c1_node=$(LXD_DIR="${LXD_ONE_DIR}" lxc list fd-c1 -f csv -c L)
+  [ "${fd_c1_node}" = "node1" ] || [ "${fd_c1_node}" = "node2" ] || [ "${fd_c1_node}" = "node3" ] || [ "${fd_c1_node}" = "node4" ]
+
+  echo "Second instance lands in the other domain (strict: at most one instance per domain)"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty fd-c2 -c placement.group=pg-fd-spread-strict
+  fd_c2_node=$(LXD_DIR="${LXD_ONE_DIR}" lxc list fd-c2 -f csv -c L)
+  if [ "${fd_c1_node}" = "node1" ] || [ "${fd_c1_node}" = "node2" ]; then
+    [ "${fd_c2_node}" = "node3" ] || [ "${fd_c2_node}" = "node4" ]
+  else
+    [ "${fd_c2_node}" = "node1" ] || [ "${fd_c2_node}" = "node2" ]
+  fi
+
+  echo "Third instance fails: every domain already has an instance"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc init --empty fd-c3 -c placement.group=pg-fd-spread-strict || false
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete fd-c1 fd-c2
+  LXD_DIR="${LXD_ONE_DIR}" lxc placement-group delete pg-fd-spread-strict
+
+  echo "==> Test cluster.failure_domains narrows scope=failure-domain scheduling cluster-wide"
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.failure_domains=rack-b
+  LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-fd-cluster-override policy=spread rigor=strict scope=failure-domain
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty fd-c5 -c placement.group=pg-fd-cluster-override
+  fd_c5_node=$(LXD_DIR="${LXD_ONE_DIR}" lxc list fd-c5 -f csv -c L)
+  [ "${fd_c5_node}" = "node3" ] || [ "${fd_c5_node}" = "node4" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete fd-c5
+  LXD_DIR="${LXD_ONE_DIR}" lxc placement-group delete pg-fd-cluster-override
+  LXD_DIR="${LXD_ONE_DIR}" lxc config unset cluster.failure_domains
+
+  echo "==> Test calculated_failure_domains reflects the cluster.failure_domains override"
+  LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-calculated policy=spread rigor=permissive scope=failure-domain
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-calculated" | jq -e '(.calculated_failure_domains | sort) == ["rack-a", "rack-b"]'
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.failure_domains=rack-a
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-calculated" | jq -e '.calculated_failure_domains == ["rack-a"]'
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/placement-groups/pg-calculated?recursion=1" | jq -e '.[] | select(.name == "pg-calculated") | .calculated_failure_domains == ["rack-a"]'
+  LXD_DIR="${LXD_ONE_DIR}" lxc config unset cluster.failure_domains
+  LXD_DIR="${LXD_ONE_DIR}" lxc placement-group delete pg-calculated
+
+  echo "==> Test project-level limits.max_hosts caps the total footprint across placement groups and ungrouped instances alike"
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create fp-project -c features.images=false
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set fp-project limits.max_hosts=2
+  LXD_DIR="${LXD_ONE_DIR}" lxc placement-group create pg-project-footprint policy=spread rigor=permissive --project fp-project
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty fp-p1 -c placement.group=pg-project-footprint --project fp-project
+  echo "An ungrouped instance still counts toward the same project-wide footprint"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty fp-p2 --project fp-project
+  fp_project_nodes=$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c nL --project fp-project | grep "^fp-p[12]," | cut -d, -f2 | sort -u | wc -l)
+  [ "${fp_project_nodes}" = "2" ]
+
+  echo "A 3rd instance is forced to reuse one of the 2 hosts already in the project's footprint, even though the placement group's own policy is spread with no group-level max_hosts"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty fp-p3 -c placement.group=pg-project-footprint --project fp-project
+  fp_project_nodes_after=$(LXD_DIR="${LXD_ONE_DIR}" lxc list -f csv -c nL --project fp-project | grep "^fp-p[123]," | cut -d, -f2 | sort -u | wc -l)
+  [ "${fp_project_nodes_after}" = "2" ]
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete fp-p1 fp-p2 fp-p3 --project fp-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc placement-group delete pg-project-footprint --project fp-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete fp-project
+
+  # Clean up failure domains.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster failure-domain unset node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster failure-domain unset node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster failure-domain unset node3
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster failure-domain unset node4
 
   # Clean up
   LXD_DIR="${LXD_ONE_DIR}" lxc placement-group delete pg-new

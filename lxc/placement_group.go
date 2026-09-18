@@ -88,6 +88,7 @@ func (c *cmdPlacementGroupList) columns() []cli.ShorthandColumn[api.PlacementGro
 		{Shorthand: 'd', Name: "DESCRIPTION", Data: c.descriptionColumnData},
 		{Shorthand: 'p', Name: "POLICY", Data: c.policyColumnData},
 		{Shorthand: 'r', Name: "RIGOR", Data: c.rigorColumnData},
+		{Shorthand: 's', Name: "SCOPE", Data: c.scopeColumnData},
 		{Shorthand: 'u', Name: "USED BY", Data: c.usedByColumnData},
 	}
 }
@@ -160,6 +161,12 @@ func (c *cmdPlacementGroupList) run(cmd *cobra.Command, args []string) error {
 	// Add project column so shorthand 'e' is always valid.
 	cols = append(cols, cli.ShorthandColumn[api.PlacementGroup]{Shorthand: 'e', Name: "PROJECT", Data: c.projectColumnData})
 
+	// Opt-in only columns: often unset, so not shown by default to avoid cluttering the table
+	// for ordinary scope=host groups.
+	cols = append(cols,
+		cli.ShorthandColumn[api.PlacementGroup]{Shorthand: 'C', Name: "CALCULATED FAILURE DOMAINS", Data: c.calculatedFailureDomainsColumnData},
+	)
+
 	if c.flagAllProjects {
 		if c.flagColumns == defaultColumns {
 			c.flagColumns = "e" + defaultColumns
@@ -200,6 +207,14 @@ func (c *cmdPlacementGroupList) rigorColumnData(placementGroup api.PlacementGrou
 
 func (c *cmdPlacementGroupList) usedByColumnData(placementGroup api.PlacementGroup) string {
 	return strconv.Itoa(len(placementGroup.UsedBy))
+}
+
+func (c *cmdPlacementGroupList) scopeColumnData(placementGroup api.PlacementGroup) string {
+	return placementGroup.Config["scope"]
+}
+
+func (c *cmdPlacementGroupList) calculatedFailureDomainsColumnData(placementGroup api.PlacementGroup) string {
+	return strings.Join(placementGroup.CalculatedFailureDomains, ",")
 }
 
 // Show.

@@ -1,4 +1,4 @@
-package placement
+package filters_test
 
 import (
 	"context"
@@ -12,8 +12,26 @@ import (
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/placement"
+	"github.com/canonical/lxd/lxd/placement/internal/engine"
+	"github.com/canonical/lxd/lxd/placement/internal/filters"
+	"github.com/canonical/lxd/lxd/placement/internal/models"
 	"github.com/canonical/lxd/shared/api"
 )
+
+// applyPlacementGroupStages runs the same placement-group FilterStage chain PlaceInstance
+// composes, minus the terminal least-loaded pick — so these tests can assert on the full narrowed
+// candidate set, not just PlaceInstance's single winner.
+func applyPlacementGroupStages(ctx context.Context, tx *db.ClusterTx, apiPlacementGroup *api.PlacementGroup, clusterFailureDomains []string, candidates []db.NodeInfo) ([]db.NodeInfo, error) {
+	pctx := &models.PlacementContext{PlacementGroup: *apiPlacementGroup, ClusterFailureDomains: clusterFailureDomains}
+
+	return engine.New(ctx, tx, pctx, candidates).
+		Apply(filters.LoadPlacementGroupMembers).
+		Apply(filters.FilterByClusterFailureDomains).
+		Apply(filters.FilterByPolicyAndRigor).
+		Apply(filters.FilterBySpreadWithinDomain).
+		Result()
+}
 
 type filteringSuite struct {
 	suite.Suite
@@ -600,7 +618,7 @@ func (s *filteringSuite) TestFilter() {
 	}
 
 	// Prepare a placement group cache to avoid reloading the same group repeatedly.
-	pgCache := NewCache()
+	pgCache := placement.NewCache()
 
 	for i, tt := range tests {
 		s.T().Logf("Case %d: %s", i, tt.name)
@@ -615,7 +633,7 @@ func (s *filteringSuite) TestFilter() {
 				return err
 			}
 
-			got, err := Filter(ctx, tx, tt.args.candidates, *apiPlacementGroup, false)
+			got, err := applyPlacementGroupStages(ctx, tx, apiPlacementGroup, nil, tt.args.candidates)
 			if tt.wantErr {
 				s.Error(err)
 				return nil
@@ -630,4 +648,146 @@ func (s *filteringSuite) TestFilter() {
 			tt.caseTearDown()
 		}
 	}
+}
+
+// TestFilterScopeFailureDomain covers scope=failure-domain domain-level bucketing (unmodified
+// filterByPolicyAndRigor logic, now keyed by domain instead of member), the unassigned-member
+// exclusion rule (a candidate with no failure domain assigned is never domain-bucketable), and the
+// cluster.failure_domains hard allow-list, which applies regardless of scope. There is no more
+// per-group failure_domains override to test — it was removed following review feedback.
+func (s *filteringSuite) TestFilterScopeFailureDomain() {
+	testCluster, cleanup := db.NewTestCluster(s.T())
+	defer cleanup()
+
+	// 5 candidates: member01/02 in fd1, member03/04 in fd2, member05 unassigned.
+	nodeNames := []string{"member01", "member02", "member03", "member04", "member05"}
+	nodeDomains := map[string]string{
+		"member01": "fd1",
+		"member02": "fd1",
+		"member03": "fd2",
+		"member04": "fd2",
+	}
+
+	candidates := make([]db.NodeInfo, 0, len(nodeNames))
+	for i, nodeName := range nodeNames {
+		candidates = append(candidates, db.NodeInfo{Name: nodeName, Address: fmt.Sprintf("198.51.100.%d", i)})
+	}
+
+	candidatesOnly := func(members ...string) []db.NodeInfo {
+		filtered := make([]db.NodeInfo, 0, len(members))
+		for _, candidate := range candidates {
+			if slices.Contains(members, candidate.Name) {
+				filtered = append(filtered, candidate)
+			}
+		}
+
+		return filtered
+	}
+
+	err := testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+		for i, node := range candidates {
+			id, err := tx.CreateNode(node.Name, node.Address)
+			s.Require().NoError(err)
+			candidates[i].ID = id
+
+			domain, ok := nodeDomains[node.Name]
+			if ok {
+				err = tx.UpdateNodeFailureDomain(ctx, id, domain)
+				s.Require().NoError(err)
+			}
+		}
+
+		return nil
+	})
+	s.Require().NoError(err)
+
+	pgCache := placement.NewCache()
+
+	createGroup := func(name, policy, rigor, scope string) {
+		_ = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+			pgID, err := query.Create(ctx, tx.Tx(), cluster.PlacementGroupsRow{
+				ProjectID: 1,
+				Name:      name,
+			})
+			s.Require().NoError(err)
+
+			config := map[string]string{
+				"policy": policy,
+				"rigor":  rigor,
+			}
+			if scope != "" {
+				config["scope"] = scope
+			}
+
+			err = cluster.PlacementGroupsConfigStore().Set(ctx, tx.Tx(), pgID, config)
+			s.Require().NoError(err)
+
+			return nil
+		})
+	}
+
+	placeInstance := func(name, node, group string) {
+		_ = testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+			instanceID, err := cluster.CreateInstance(ctx, tx.Tx(), cluster.Instance{
+				Name:    name,
+				Node:    node,
+				Project: "default",
+				Type:    instancetype.Container,
+			})
+			s.Require().NoError(err)
+
+			err = cluster.CreateInstanceConfig(ctx, tx.Tx(), instanceID, map[string]string{
+				"placement.group": group,
+			})
+			s.Require().NoError(err)
+
+			return nil
+		})
+	}
+
+	filter := func(group string, clusterFailureDomains []string) ([]db.NodeInfo, error) {
+		var got []db.NodeInfo
+		err := testCluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+			apiPlacementGroup, err := pgCache.Get(ctx, tx, group, "default")
+			if err != nil {
+				return err
+			}
+
+			got, err = applyPlacementGroupStages(ctx, tx, apiPlacementGroup, clusterFailureDomains, candidates)
+			return err
+		})
+
+		return got, err
+	}
+
+	// scope=failure-domain, spread/strict, no instances yet: both domains are compliant, but the
+	// unassigned member05 is never domain-bucketable and is excluded regardless.
+	createGroup("pg-fd-spread-strict", api.PlacementPolicySpread, api.PlacementRigorStrict, api.PlacementScopeFailureDomain)
+	got, err := filter("pg-fd-spread-strict", nil)
+	s.Require().NoError(err)
+	s.ElementsMatch(candidatesOnly("member01", "member02", "member03", "member04"), got)
+
+	// One instance lands in fd1: strict spread now excludes fd1 entirely (at most one instance
+	// per domain), leaving only fd2's members compliant.
+	placeInstance("c1", "member01", "pg-fd-spread-strict")
+	got, err = filter("pg-fd-spread-strict", nil)
+	s.Require().NoError(err)
+	s.ElementsMatch(candidatesOnly("member03", "member04"), got)
+
+	// scope=failure-domain, compact/strict: the domain with the most instances is selected (fd1,
+	// unmodified domain-level logic), but host selection within it always defaults to spreading,
+	// unconditionally -- so the only compliant host is member02, the one not yet used, even
+	// though the group's own policy is compact.
+	createGroup("pg-fd-compact-strict", api.PlacementPolicyCompact, api.PlacementRigorStrict, api.PlacementScopeFailureDomain)
+	placeInstance("c2", "member01", "pg-fd-compact-strict")
+	got, err = filter("pg-fd-compact-strict", nil)
+	s.Require().NoError(err)
+	s.ElementsMatch(candidatesOnly("member02"), got)
+
+	// cluster.failure_domains hard-filters candidates regardless of scope: a scope=host group
+	// only sees members in the cluster-wide allowed set, never the unassigned member.
+	createGroup("pg-host-no-override", api.PlacementPolicySpread, api.PlacementRigorPermissive, "")
+	got, err = filter("pg-host-no-override", []string{"fd2"})
+	s.Require().NoError(err)
+	s.ElementsMatch(candidatesOnly("member03", "member04"), got)
 }

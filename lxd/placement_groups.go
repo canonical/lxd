@@ -6,12 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/internal/datastructure/sets"
+	"github.com/canonical/lxd/lxd/internal/failuredomain"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
@@ -20,6 +23,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -175,6 +179,7 @@ func placementGroupsGet(d *Daemon, r *http.Request) response.Response {
 	var placementGroupURLs []string
 	var allConfigs map[int64]map[string]string
 	var usedByURLs map[string]map[string][]string
+	var knownFailureDomains sets.Set[string]
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var projectNameFilter *string
 		if !allProjects {
@@ -208,6 +213,17 @@ func placementGroupsGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		// Fetched once per request and reused for every group below: both are a shared
+		// prefix of the effective-domains computation, not a per-group cost. Skipped
+		// entirely while the feature preview is off, since no group can have a calculated set
+		// worth computing.
+		if features.IsEnabled(features.FailureDomainPlacement) {
+			knownFailureDomains, err = tx.GetKnownFailureDomainNames(ctx)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -218,11 +234,16 @@ func placementGroupsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, placementGroupURLs)
 	}
 
+	clusterFailureDomains := s.GlobalConfig.FailureDomains()
+
 	entitlementReportingMap := make(map[*api.URL]auth.EntitlementReporter)
 	apiGroups := make([]*api.PlacementGroup, 0, len(placementGroups))
 	for _, placementGroup := range placementGroups {
 		u := entity.PlacementGroupURL(placementGroup.ProjectName, placementGroup.Row.Name)
 		apiGroup := placementGroup.ToAPI(allConfigs)
+		if features.IsEnabled(features.FailureDomainPlacement) {
+			apiGroup.CalculatedFailureDomains = placementGroupCalculatedFailureDomains(knownFailureDomains, clusterFailureDomains)
+		}
 
 		// If no placement groups in the project are in use, the usedByURLs map may have a nil value for the project.
 		usedBy, ok := usedByURLs[placementGroup.ProjectName]
@@ -292,6 +313,8 @@ func placementGroupsPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.BadRequest(err)
 	}
+
+	req.Config = placementGroupDefaultConfig(req.Config)
 
 	projectName := request.ProjectParam(r)
 	newGroup := cluster.PlacementGroupsRow{
@@ -453,6 +476,7 @@ func placementGroupGet(d *Daemon, r *http.Request) response.Response {
 	var placementGroup *cluster.PlacementGroup
 	var configs map[int64]map[string]string
 	var usedBy map[string]map[string][]string
+	var knownFailureDomains sets.Set[string]
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		placementGroup, err = cluster.GetPlacementGroup(ctx, tx.Tx(), placementGroupName, projectName)
 		if err != nil {
@@ -474,6 +498,13 @@ func placementGroupGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		if features.IsEnabled(features.FailureDomainPlacement) {
+			knownFailureDomains, err = tx.GetKnownFailureDomainNames(ctx)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -482,6 +513,9 @@ func placementGroupGet(d *Daemon, r *http.Request) response.Response {
 
 	apiGroup := placementGroup.ToAPI(configs)
 	apiGroup.UsedBy = project.FilterUsedBy(r.Context(), s.Authorizer, usedBy[projectName][placementGroupName])
+	if features.IsEnabled(features.FailureDomainPlacement) {
+		apiGroup.CalculatedFailureDomains = placementGroupCalculatedFailureDomains(knownFailureDomains, s.GlobalConfig.FailureDomains())
+	}
 
 	if len(withEntitlements) > 0 {
 		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypePlacementGroup, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.PlacementGroupURL(projectName, placementGroupName): apiGroup})
@@ -628,6 +662,8 @@ func placementGroupPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	updatedConfig = placementGroupDefaultConfig(updatedConfig)
+
 	err = placementGroupValidateConfig(updatedConfig)
 	if err != nil {
 		return response.SmartError(err)
@@ -725,6 +761,46 @@ func placementGroupPost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseLocation(true, nil, entity.PlacementGroupURL(projectName, placementGroupName).String())
 }
 
+// placementGroupCalculatedFailureDomains resolves a group's calculated failure-domain set by
+// calling the exact same function the placement engine uses for its own hard allow-list, so what's
+// displayed can never drift from what will actually be honored at the next scheduling decision.
+// There's no more group-level override to intersect — every group's calculated set is the same
+// cluster-wide known ∩ cluster.failure_domains value, computed once per request (see call sites)
+// rather than once per group. The result is sorted for deterministic API responses —
+// failuredomain.ResolveCalculatedFailureDomains itself returns an unordered Set.
+func placementGroupCalculatedFailureDomains(known sets.Set[string], clusterFailureDomains []string) []string {
+	calculated := failuredomain.ResolveCalculatedFailureDomains(known, clusterFailureDomains).Slice()
+	slices.Sort(calculated)
+
+	return calculated
+}
+
+func init() {
+	gatedAPIExtensions.Add("placement_group_calculated_failure_domains")
+}
+
+// placementGroupDefaultConfig fills in default values for optional placement group config keys
+// that are missing, so a group created or updated from here on always has an explicit value
+// stored rather than relying on the read path ([cluster.PlacementGroup.ToAPI]) to paper over an
+// absent key. Currently just scope, which defaults to "host" -- unset has always meant host, so
+// this makes that explicit at write time for every group going forward, on top of ToAPI already
+// normalizing it at read time for groups that predate this default (created before scope existed).
+//
+// Skipped entirely while the feature preview is off: scope is part of the failure-domain-aware
+// placement feature, and placementGroupValidateConfig rejects it as an unknown key in that case --
+// defaulting it in here first would make every group creation fail.
+func placementGroupDefaultConfig(config map[string]string) map[string]string {
+	if config == nil {
+		config = map[string]string{}
+	}
+
+	if features.IsEnabled(features.FailureDomainPlacement) && config["scope"] == "" {
+		config["scope"] = api.PlacementScopeHost
+	}
+
+	return config
+}
+
 // placementGroupValidateConfig validates the configuration keys/values for placement groups.
 func placementGroupValidateConfig(config map[string]string) error {
 	placementGroupConfigKeys := map[string]func(value string) error{
@@ -750,6 +826,23 @@ func placementGroupValidateConfig(config map[string]string) error {
 		//  required: "yes"
 		//  shortdesc: Enforcement level of the placement policy
 		"rigor": validate.IsOneOf(api.PlacementRigorStrict, api.PlacementRigorPermissive),
+	}
+
+	// scope is part of the failure-domain-aware placement feature, behind its own feature preview --
+	// while the gate is off it's rejected below as an unknown key, the same as it would be on a
+	// build that never had this feature at all.
+	if features.IsEnabled(features.FailureDomainPlacement) {
+		// lxdmeta:generate(entities=placement-group; group=placement-group; key=scope)
+		// Determines whether `policy`/`rigor` operate on individual cluster members
+		// (`host`) or on failure domains as a whole (`failure-domain`).
+		//
+		// Possible values are `host` and `failure-domain`. Unset defaults to `host`,
+		// reproducing today's member-level behavior.
+		// See {ref}`clustering-instance-placement` for more information.
+		// ---
+		//  type: string
+		//  shortdesc: Unit that the placement policy operates on
+		placementGroupConfigKeys["scope"] = validate.IsOneOf(api.PlacementScopeHost, api.PlacementScopeFailureDomain)
 	}
 
 	for k, v := range config {

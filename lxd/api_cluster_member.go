@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
 	instanceDrivers "github.com/canonical/lxd/lxd/instance/drivers"
+	"github.com/canonical/lxd/lxd/internal/datastructure/sets"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/placement"
@@ -32,6 +33,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
@@ -80,6 +82,80 @@ var clusterMemberStateCmd = APIEndpoint{
 
 	Get:  APIEndpointAction{Handler: clusterMemberStateGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: clusterMemberStatePost, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
+}
+
+var clusterFailureDomainsCmd = APIEndpoint{
+	Path:        "cluster/failure-domains",
+	MetricsType: entity.TypeClusterMember,
+
+	Get: APIEndpointAction{Handler: clusterFailureDomainsGet, AccessHandler: allowAuthenticated},
+}
+
+func init() {
+	gatedAPIExtensions.Add("cluster_failure_domains")
+}
+
+// swagger:operation GET /1.0/cluster/failure-domains cluster cluster_failure_domains_get
+//
+//	Get the cluster's known failure domains
+//
+//	Returns the sorted list of failure domain names any cluster member currently has assigned.
+//	Physical failure-domain topology is not treated as sensitive: this is readable the same way
+//	a cluster member's own failure domain already is as part of GET /1.0/cluster/members/{name}.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of known failure domain names
+//	          items:
+//	            type: string
+//	          example: ["rack1", "rack2"]
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+func clusterFailureDomainsGet(d *Daemon, r *http.Request) response.Response {
+	if !features.IsEnabled(features.FailureDomainPlacement) {
+		return response.NotFound(nil)
+	}
+
+	s := d.State()
+
+	var known sets.Set[string]
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		known, err = tx.GetKnownFailureDomainNames(ctx)
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	names := known.Slice()
+	slices.Sort(names)
+
+	return response.SyncResponse(true, names)
 }
 
 // swagger:operation GET /1.0/cluster/members cluster cluster_members_get
@@ -1944,44 +2020,30 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, inst insta
 			return err
 		}
 
+		var apiPlacementGroup *api.PlacementGroup
 		if ok {
-			// Filter candidates by placement group.
-			apiPlacementGroup, err := pgCache.Get(ctx, tx, placementGroupName, inst.Project().Name)
+			// Placement group filtering is applied below, as part of the single PlaceInstance call.
+			apiPlacementGroup, err = pgCache.Get(ctx, tx, placementGroupName, instProject.Name)
 			if err != nil {
 				return err
 			}
-
-			filteredCandidates, err := placement.Filter(ctx, tx, candidateMembers, *apiPlacementGroup, true)
-			if err != nil {
-				// If no candidates remain due to placement constraints, signal not found so caller can skip instance during evacuation.
-				if api.StatusErrorCheck(err, http.StatusConflict) {
-					return api.StatusErrorf(http.StatusNotFound, "No eligible target cluster members after applying placement group %q", apiPlacementGroup.Name)
-				}
-
-				return err
-			}
-
-			// If placement group filtering returns candidates, use them.
-			if len(filteredCandidates) > 0 {
-				candidateMembers = filteredCandidates
-			}
-		} else if clusterGroupName != "" {
-			// Filter candidates by cluster group.
-			newMembers := make([]db.NodeInfo, 0, len(candidateMembers))
-			for _, member := range candidateMembers {
-				if !slices.Contains(member.Groups, clusterGroupName) {
-					continue
-				}
-
-				newMembers = append(newMembers, member)
-			}
-
-			candidateMembers = newMembers
 		}
 
-		// Find the least loaded cluster member which supports the instance's architecture.
-		targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+		// Excluding the source member from the project's own host-footprint accounting is only
+		// ever consulted once PlaceInstance's project-footprint stage is actually active, so it's
+		// safe to always compute regardless of whether limits.max_hosts is configured.
+		sourceMemberID := tx.GetNodeID()
+
+		// Narrow by cluster group or placement group (whichever applies), then by the project's
+		// host footprint limit (if set), then pick the least loaded cluster member which supports
+		// the instance's architecture among whatever remains.
+		targetMemberInfo, err = placement.PlaceInstance(ctx, tx, candidateMembers, apiPlacementGroup, clusterGroupName, s.GlobalConfig.FailureDomains(), instProject, &sourceMemberID, true)
 		if err != nil {
+			// If no candidates remain due to placement constraints, signal not found so caller can skip instance during evacuation.
+			if errors.Is(err, placement.ErrNoEligibleCandidate) {
+				return api.StatusErrorf(http.StatusNotFound, "No eligible target cluster members: %w", err)
+			}
+
 			return err
 		}
 

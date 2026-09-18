@@ -79,6 +79,12 @@ ARCH="$(dpkg --print-architecture || echo "amd64")"
 export ARCH
 
 export LXD_VM_TESTS="${LXD_VM_TESTS:-1}"
+
+# The failure-domain-aware placement feature is off by default for real installs; every LXD
+# daemon spawned by this test suite turns it on so clustering.sh can exercise it end to end.
+# Appended rather than overwritten, so any other LXD_FEATURES preview an external caller already
+# set stays enabled too.
+export LXD_FEATURES="${LXD_FEATURES:+${LXD_FEATURES},}failure_domain_placement"
 export CLIENT_DEBUG="" SERVER_DEBUG="" SHELL_TRACING=""
 if [ "${LXD_VERBOSE:-0}" != "0" ]; then
   if [ "${LXD_VERBOSE}" = "client" ]; then

@@ -152,7 +152,7 @@ func TestShouldShow(t *testing.T) {
 }
 
 // Used by TestColumns and TestInvalidColumns.
-const shorthand = "46abcdDefFlmMnNpPsStuL"
+const shorthand = "46abcdDefFlmMnNpPsStuLZ"
 const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 func TestColumns(t *testing.T) {
@@ -282,7 +282,7 @@ func TestColumns(t *testing.T) {
 
 			list := cmdList{flagColumns: raw}
 
-			clustered := strings.Contains(raw, "L")
+			clustered := strings.Contains(raw, "L") || strings.Contains(raw, "Z")
 			columns, _, err := list.parseColumns(clustered)
 			if err != nil {
 				t.Errorf("Failed parsing columns string.  Input: %s, Error: %s", raw, err)
@@ -330,4 +330,38 @@ func TestInvalidColumns(t *testing.T) {
 	run("config:")
 	run("config:image")
 	run("devices:eth0")
+}
+
+// TestFailureDomainColumn covers the new Z column: it's rejected when not clustered (matching L's
+// existing behavior), and once populated it looks up each instance's location in
+// failureDomainsByLocation, rendering empty for a location with no assigned failure domain rather
+// than erroring.
+func TestFailureDomainColumn(t *testing.T) {
+	list := cmdList{flagColumns: "Z"}
+	_, _, err := list.parseColumns(false)
+	if err == nil {
+		t.Error("Expected error requesting column Z when not clustered, received nil")
+	}
+
+	list = cmdList{flagColumns: "nZ"}
+	columns, _, err := list.parseColumns(true)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing column Z when clustered: %s", err)
+	}
+
+	if len(columns) != 2 {
+		t.Fatalf("Expected 2 columns, got %d", len(columns))
+	}
+
+	list.failureDomainsByLocation = map[string]string{"node1": "rack-a"}
+
+	assigned := api.InstanceFull{Instance: api.Instance{Location: "node1"}}
+	if list.failureDomainColumnData(assigned) != "rack-a" {
+		t.Errorf("Expected \"rack-a\" for an assigned location, got %q", list.failureDomainColumnData(assigned))
+	}
+
+	unassigned := api.InstanceFull{Instance: api.Instance{Location: "node2"}}
+	if list.failureDomainColumnData(unassigned) != "" {
+		t.Errorf("Expected empty string for a location with no assigned failure domain, got %q", list.failureDomainColumnData(unassigned))
+	}
 }

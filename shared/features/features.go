@@ -31,6 +31,14 @@ type Feature string
 // EnvVar is the environment variable which holds the active features of LXD.
 const EnvVar = "LXD_FEATURES"
 
+// FailureDomainPlacement previews the failure-domain-aware placement feature: placement-group
+// scope=failure-domain, the cluster-wide cluster.failure_domains override, the
+// calculated_failure_domains API field, and the project-wide limits.max_hosts host-footprint
+// bound. Not ready for real installs yet -- enable it via LXD_FEATURES=failure_domain_placement;
+// unit and integration tests do this so the feature can be exercised end to end before it's
+// exposed to users.
+const FailureDomainPlacement Feature = "failure_domain_placement"
+
 var (
 	mu      sync.RWMutex
 	enabled = map[Feature]struct{}{}

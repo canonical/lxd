@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/google/uuid"
@@ -10,7 +11,23 @@ import (
 
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/shared/features"
 )
+
+// TestMain turns the failure-domain-aware placement feature preview on for every test in this
+// package -- it's off by default for real installs, but TestConfigLoad_FailureDomainsValidator
+// exercises cluster.failure_domains directly, which validateClusterFailureDomains rejects as an
+// unknown key while the preview is off.
+func TestMain(m *testing.M) {
+	os.Setenv(features.EnvVar, string(features.FailureDomainPlacement))
+
+	err := features.LoadFromEnv(features.EnvVar)
+	if err != nil {
+		panic(err)
+	}
+
+	os.Exit(m.Run())
+}
 
 // The server configuration is initially empty.
 func TestConfigLoad_Initial(t *testing.T) {
@@ -92,7 +109,7 @@ func TestConfigLoad_OfflineThresholdValidator(t *testing.T) {
 	config, err := clusterConfig.Load(context.Background(), tx)
 	require.NoError(t, err)
 
-	_, err = config.Patch(tx, map[string]string{"cluster.offline_threshold": "2"})
+	_, err = config.Patch(context.Background(), tx, map[string]string{"cluster.offline_threshold": "2"})
 	require.EqualError(t, err, `Cannot set "cluster.offline_threshold" to "2": Value must be greater than 10`)
 }
 
@@ -104,8 +121,55 @@ func TestConfigLoad_MaxVotersValidator(t *testing.T) {
 	config, err := clusterConfig.Load(context.Background(), tx)
 	require.NoError(t, err)
 
-	_, err = config.Patch(tx, map[string]string{"cluster.max_voters": "4"})
+	_, err = config.Patch(context.Background(), tx, map[string]string{"cluster.max_voters": "4"})
 	require.EqualError(t, err, `Cannot set "cluster.max_voters" to "4": Value must be an odd number equal to or higher than 3`)
+}
+
+// cluster.failure_domains is validated against the known-domains registry: unknown names are
+// rejected, and names already assigned to a cluster member are accepted.
+func TestConfigLoad_FailureDomainsValidator(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	config, err := clusterConfig.Load(context.Background(), tx)
+	require.NoError(t, err)
+
+	_, err = config.Patch(context.Background(), tx, map[string]string{"cluster.failure_domains": "az1"})
+	require.EqualError(t, err, `Invalid value for "cluster.failure_domains": ["az1"] are not known failure domains`)
+
+	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+	require.NoError(t, tx.UpdateNodeFailureDomain(context.Background(), id, "az1"))
+
+	changed, err := config.Patch(context.Background(), tx, map[string]string{"cluster.failure_domains": "az1"})
+	require.NoError(t, err)
+	assert.Equal(t, "az1", changed["cluster.failure_domains"])
+	assert.Equal(t, []string{"az1"}, config.FailureDomains())
+}
+
+// TestConfigLoad_FailureDomainsFeatureGate confirms cluster.failure_domains is rejected outright
+// while FailureDomainPlacement is disabled (the real-install default, overridden by this
+// package's TestMain for every other test in the suite) -- indistinguishable from a build that
+// never had this key at all, not merely "value not accepted."
+func TestConfigLoad_FailureDomainsFeatureGate(t *testing.T) {
+	// IsEnabled reads a cached snapshot populated by LoadFromEnv, not the environment directly --
+	// registered before t.Setenv so this cleanup (which runs last, since t.Cleanup unwinds
+	// last-registered-first) re-syncs the snapshot only after t.Setenv restores the environment.
+	t.Cleanup(func() {
+		require.NoError(t, features.LoadFromEnv(features.EnvVar))
+	})
+
+	t.Setenv(features.EnvVar, "")
+	require.NoError(t, features.LoadFromEnv(features.EnvVar))
+
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	config, err := clusterConfig.Load(context.Background(), tx)
+	require.NoError(t, err)
+
+	_, err = config.Patch(context.Background(), tx, map[string]string{"cluster.failure_domains": "az1"})
+	require.EqualError(t, err, "Unknown key")
 }
 
 // If some previously set values are missing from the ones passed to Replace(),
@@ -117,7 +181,7 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 	config, err := clusterConfig.Load(context.Background(), tx)
 	require.NoError(t, err)
 
-	changed, err := config.Replace(tx, map[string]string{"core.proxy_http": "foo.bar"})
+	changed, err := config.Replace(context.Background(), tx, map[string]string{"core.proxy_http": "foo.bar"})
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]string{
 		"core.proxy_http": "foo.bar",
@@ -125,7 +189,7 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 		"volatile.uuid": "",
 	}, changed)
 
-	_, err = config.Replace(tx, map[string]string{})
+	_, err = config.Replace(context.Background(), tx, map[string]string{})
 	assert.NoError(t, err)
 
 	assert.Empty(t, config.ProxyHTTP())
@@ -144,10 +208,10 @@ func TestConfig_PatchKeepsValues(t *testing.T) {
 	config, err := clusterConfig.Load(context.Background(), tx)
 	require.NoError(t, err)
 
-	_, err = config.Replace(tx, map[string]string{"core.proxy_http": "foo.bar"})
+	_, err = config.Replace(context.Background(), tx, map[string]string{"core.proxy_http": "foo.bar"})
 	assert.NoError(t, err)
 
-	_, err = config.Patch(tx, map[string]string{})
+	_, err = config.Patch(context.Background(), tx, map[string]string{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, "foo.bar", config.ProxyHTTP())

@@ -379,6 +379,7 @@ type InstanceServer interface {
 	DeleteClusterMember(name string, force bool) (err error)
 	GetClusterMemberNames() (names []string, err error)
 	GetClusterMembers() (members []api.ClusterMember, err error)
+	GetClusterFailureDomains() (names []string, err error)
 	GetClusterMember(name string) (member *api.ClusterMember, ETag string, err error)
 	UpdateClusterMember(name string, member api.ClusterMemberPut, ETag string) (err error)
 	RenameClusterMember(name string, member api.ClusterMemberPost) (err error)

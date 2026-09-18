@@ -110,6 +110,25 @@ func (r *ProtocolLXD) GetClusterMembers() ([]api.ClusterMember, error) {
 	return members, nil
 }
 
+// GetClusterFailureDomains returns the sorted list of failure domain names any cluster member
+// currently has assigned.
+func (r *ProtocolLXD) GetClusterFailureDomains() ([]string, error) {
+	err := r.CheckExtension("cluster_failure_domains")
+	if err != nil {
+		return nil, err
+	}
+
+	// Capacity 4 covers the common case (3 AZs plus the default) without over-allocating.
+	names := make([]string, 0, 4)
+	u := api.NewURL().Path("cluster", "failure-domains")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &names)
+	if err != nil {
+		return nil, err
+	}
+
+	return names, nil
+}
+
 // GetClusterMember returns information about the given member.
 func (r *ProtocolLXD) GetClusterMember(name string) (*api.ClusterMember, string, error) {
 	err := r.CheckExtension("clustering")
