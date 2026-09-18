@@ -573,7 +573,7 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 
 			// Follow the symlink
 			if targetPath != "-" && !c.file.flagRecursive {
-				err = os.Symlink(strings.TrimSpace(string(linkTarget)), targetPath)
+				err = os.Symlink(string(linkTarget), targetPath)
 				if err != nil {
 					return err
 				}
@@ -583,7 +583,7 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 
 			i := 0
 			for {
-				newPath := strings.TrimSuffix(string(linkTarget), "\n")
+				newPath := string(linkTarget)
 				if !strings.HasPrefix(newPath, "/") {
 					newPath = filepath.Clean(filepath.Join(filepath.Dir(pathSpec[1]), newPath))
 				}
@@ -1012,7 +1012,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 			return err
 		}
 
-		symlinkTarget := strings.TrimSpace(string(linkTarget))
+		symlinkTarget := string(linkTarget)
 
 		// Create symlink within the sandboxed root.
 		err = root.Symlink(symlinkTarget, relTarget)
