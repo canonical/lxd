@@ -52,22 +52,27 @@ func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (io.Rea
 	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, os.Interrupt)
 
-	var buf io.ReadCloser
-	var resp *lxd.InstanceFileResponse
-	var err error
+	// Result type to carry the goroutine's output over a channel instead of
+	// closed-over variables, so an early return can't race with the goroutine
+	// still writing to them.
+	type result struct {
+		buf  io.ReadCloser
+		resp *lxd.InstanceFileResponse
+		err  error
+	}
 
 	// Operation handling
-	chDone := make(chan bool)
+	chDone := make(chan result, 1)
 	go func() {
-		buf, resp, err = server.GetInstanceFile(inst, path)
-		close(chDone)
+		buf, resp, err := server.GetInstanceFile(inst, path)
+		chDone <- result{buf, resp, err}
 	}()
 
 	count := 0
 	for {
 		select {
-		case <-chDone:
-			return buf, resp, err
+		case res := <-chDone:
+			return res.buf, res.resp, res.err
 		case <-chSignal:
 			count++
 
