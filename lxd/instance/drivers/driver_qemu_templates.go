@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared/osarch"
 )
@@ -519,7 +518,7 @@ type qemuNumaEntry struct {
 type qemuCPUOpts struct {
 	architecture        int
 	cpuCount            int
-	cpuRequested        int
+	cpuMaxCPUs          int
 	cpuSockets          int
 	cpuCores            int
 	cpuThreads          int
@@ -573,24 +572,9 @@ func qemuCPU(opts *qemuCPUOpts, pinning bool) []cfgSection {
 		}, cfgEntry{
 			key: "threads", value: strconv.Itoa(opts.cpuThreads),
 		})
-	} else {
-		cpu, err := resources.GetCPU()
-		if err != nil {
-			return nil
-		}
-
-		// Cap the maxCPU number of CPUs to 64 unless directly assigned more.
-		maxCPU := 64
-		if int(cpu.Total) < maxCPU {
-			maxCPU = int(cpu.Total)
-		} else if opts.cpuRequested > maxCPU {
-			maxCPU = opts.cpuRequested
-		} else if opts.cpuCount > maxCPU {
-			maxCPU = opts.cpuCount
-		}
-
+	} else if opts.cpuMaxCPUs > 0 {
 		entries = append(entries, cfgEntry{
-			key: "maxcpus", value: strconv.Itoa(maxCPU),
+			key: "maxcpus", value: strconv.Itoa(opts.cpuMaxCPUs),
 		})
 	}
 
