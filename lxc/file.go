@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -1551,8 +1552,11 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 						ok := false
 						switch req.Type {
 						case "subsystem":
-							if string(req.Payload[4:]) == "sftp" {
-								ok = true
+							if len(req.Payload) >= 4 {
+								nameLen := int(binary.BigEndian.Uint32(req.Payload[:4]))
+								if len(req.Payload) == 4+nameLen && string(req.Payload[4:4+nameLen]) == "sftp" {
+									ok = true
+								}
 							}
 						}
 
