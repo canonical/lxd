@@ -47,7 +47,6 @@ var apiInternal = []APIEndpoint{
 	internalClusterAcceptCmd,
 	internalClusterAssignCmd,
 	internalClusterHandoverCmd,
-	internalClusterHealCmd,
 	internalClusterLinkRefreshVolatileAddressesCmd,
 	internalReplicatorRunSchedulerCmd,
 	internalClusterRaftNodeCmd,
@@ -129,12 +128,6 @@ var internalImageRefreshCmd = APIEndpoint{
 	Path: "testing/image-refresh",
 
 	Get: APIEndpointAction{Handler: internalTestingRefreshImage, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
-}
-
-var internalClusterHealCmd = APIEndpoint{
-	Path: "testing/cluster/heal",
-
-	Post: APIEndpointAction{Handler: internalTestingHealCluster, AccessHandler: allowPermission(entity.TypeServer, auth.EntitlementCanEdit)},
 }
 
 var internalClusterLinkRefreshVolatileAddressesCmd = APIEndpoint{
@@ -258,17 +251,6 @@ func internalTestingRefreshImage(d *Daemon, _ *http.Request) response.Response {
 	}
 
 	return response.EmptySyncResponse
-}
-
-func internalTestingHealCluster(d *Daemon, r *http.Request) response.Response {
-	s := d.State()
-
-	op, err := autoHealCluster(s.ShutdownCtx, s, d.gateway)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	return response.OperationResponse(op)
 }
 
 func internalTestingRefreshClusterLinkVolatileAddresses(d *Daemon, r *http.Request) response.Response {
