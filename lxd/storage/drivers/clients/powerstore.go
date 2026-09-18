@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/connectors"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/revert"
@@ -1065,9 +1066,7 @@ func formatQN(connectorType string, qn string) string {
 	}
 
 	// Normalize into a plain 16-hex-char WWPN.
-	normalized := strings.ToLower(strings.TrimSpace(qn))
-	normalized = strings.TrimPrefix(normalized, "0x")
-	normalized = strings.ReplaceAll(normalized, ":", "")
+	normalized := block.NormalizeWWN(qn)
 
 	// PowerStore identifies initiators on the FC fabric using the colon-separated byte format
 	// ("21:00:34:80:0d:70:35:b3"). If we do not have exactly 8 bytes, do not attempt to reformat.
