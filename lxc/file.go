@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -52,22 +53,27 @@ func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (io.Rea
 	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, os.Interrupt)
 
-	var buf io.ReadCloser
-	var resp *lxd.InstanceFileResponse
-	var err error
+	// Result type to carry the goroutine's output over a channel instead of
+	// closed-over variables, so an early return can't race with the goroutine
+	// still writing to them.
+	type result struct {
+		buf  io.ReadCloser
+		resp *lxd.InstanceFileResponse
+		err  error
+	}
 
 	// Operation handling
-	chDone := make(chan bool)
+	chDone := make(chan result, 1)
 	go func() {
-		buf, resp, err = server.GetInstanceFile(inst, path)
-		close(chDone)
+		buf, resp, err := server.GetInstanceFile(inst, path)
+		chDone <- result{buf, resp, err}
 	}()
 
 	count := 0
 	for {
 		select {
-		case <-chDone:
-			return buf, resp, err
+		case res := <-chDone:
+			return res.buf, res.resp, res.err
 		case <-chSignal:
 			count++
 
@@ -568,7 +574,7 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 
 			// Follow the symlink
 			if targetPath != "-" && !c.file.flagRecursive {
-				err = os.Symlink(strings.TrimSpace(string(linkTarget)), targetPath)
+				err = os.Symlink(string(linkTarget), targetPath)
 				if err != nil {
 					return err
 				}
@@ -578,7 +584,7 @@ func (c *cmdFilePull) run(cmd *cobra.Command, args []string) error {
 
 			i := 0
 			for {
-				newPath := strings.TrimSuffix(string(linkTarget), "\n")
+				newPath := string(linkTarget)
 				if !strings.HasPrefix(newPath, "/") {
 					newPath = filepath.Clean(filepath.Join(filepath.Dir(pathSpec[1]), newPath))
 				}
@@ -1007,7 +1013,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 			return err
 		}
 
-		symlinkTarget := strings.TrimSpace(string(linkTarget))
+		symlinkTarget := string(linkTarget)
 
 		// Create symlink within the sandboxed root.
 		err = root.Symlink(symlinkTarget, relTarget)
@@ -1473,6 +1479,16 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 		return fmt.Errorf("Failed listening for connection: %w", err)
 	}
 
+	// Scope cancellation to this call so the watcher goroutine below always exits,
+	// even if we return for a reason unrelated to ctx being canceled.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func() {
+		<-ctx.Done()
+		_ = listener.Close()
+	}()
+
 	fmt.Printf("SSH SFTP listening on %v\n", listener.Addr())
 	fmt.Printf("SSH host key fingerprint: %s\n", ssh.FingerprintSHA256(private.PublicKey()))
 
@@ -1486,6 +1502,10 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 		// Wait for new SSH connections.
 		nConn, err := listener.Accept()
 		if err != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
+
 			return fmt.Errorf("Failed accepting incoming connection: %w", err)
 		}
 
@@ -1532,8 +1552,11 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 						ok := false
 						switch req.Type {
 						case "subsystem":
-							if string(req.Payload[4:]) == "sftp" {
-								ok = true
+							if len(req.Payload) >= 4 {
+								nameLen := int(binary.BigEndian.Uint32(req.Payload[:4]))
+								if len(req.Payload) == 4+nameLen && string(req.Payload[4:4+nameLen]) == "sftp" {
+									ok = true
+								}
 							}
 						}
 

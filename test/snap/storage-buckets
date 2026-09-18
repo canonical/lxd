@@ -13,18 +13,6 @@ if ! hasNeededAPIExtension storage_buckets; then
   exit 0
 fi
 
-# Grab the architecture so we can install the correct pre-built minio.
-arch="$(uname -m)"
-if [ "${arch}" = "x86_64" ]; then
-  arch="amd64"
-elif [ "${arch}" = "aarch64" ]; then
-  arch="arm64"
-elif [ "${arch}" = "ppc64el" ]; then
-  arch="ppc64le"
-elif [ "${arch}" = "armhf" ]; then
-  arch="arm"
-fi
-
 poolDriverList="${1:-dir btrfs lvm lvm-thin zfs ceph}"
 
 # Without storage_buckets_local, only ceph/cephobject is supported.
@@ -52,8 +40,8 @@ for driver in $poolDriverList; do
 done
 
 if [ "${needsMinio}" = "true" ]; then
-  if [ "${arch}" = "riscv64" ]; then
-    echo "Skipping test as not supported by architecture ${arch}"
+  if [ "$(uname -m)" = "riscv64" ]; then
+    echo "Skipping test as not supported on riscv64"
     # shellcheck disable=SC2034
     FAIL=0
     exit 0
@@ -63,7 +51,7 @@ if [ "${needsMinio}" = "true" ]; then
   rm -rf /opt/minio
 
   # Download the minio server and client binaries.
-  ARCH="${arch}" download_minio /opt/minio
+  download_minio /opt/minio
 
   # Set the snap config key for minio and restart LXD to have it take effect.
   snap set lxd minio.path=/opt/minio
