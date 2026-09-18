@@ -227,6 +227,39 @@ func (h pureHost) matchesQualifiedName(mode string, qn string) bool {
 	}
 }
 
+// matchesAnyQualifiedName returns true if the host is configured with any of the given
+// initiator qualified names for the given Pure Storage mode.
+//
+// A Fibre Channel host has one WWPN per host bus adapter port, and all of them are
+// registered on a single Pure Storage host, so a match on any one of them identifies
+// the host.
+func (h pureHost) matchesAnyQualifiedName(mode string, qns []string) bool {
+	for _, qn := range qns {
+		if h.matchesQualifiedName(mode, qn) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// missingQualifiedNames returns the given initiator qualified names that the host is not
+// configured with for the given Pure Storage mode.
+//
+// The host is identified by a match on any one of its initiators, so a host that was not
+// created with the full set keeps matching while missing the rest.
+func (h pureHost) missingQualifiedNames(mode string, qns []string) []string {
+	var missing []string
+
+	for _, qn := range qns {
+		if !h.matchesQualifiedName(mode, qn) {
+			missing = append(missing, qn)
+		}
+	}
+
+	return missing
+}
+
 // purePort represents a port in Pure Storage.
 type purePort struct {
 	Name string `json:"name"`
@@ -1028,7 +1061,9 @@ func (p *pureClient) getCurrentHost() (*pureHost, error) {
 		return nil, err
 	}
 
-	qn, err := connector.QualifiedName()
+	// A Fibre Channel host has one WWPN per host bus adapter port, all registered on a
+	// single Pure Storage host, so match on any of them.
+	qns, err := connectors.QualifiedNames(connector)
 	if err != nil {
 		return nil, err
 	}
@@ -1041,12 +1076,12 @@ func (p *pureClient) getCurrentHost() (*pureHost, error) {
 	mode := connector.Type()
 
 	for _, host := range hosts {
-		if host.matchesQualifiedName(mode, qn) {
+		if host.matchesAnyQualifiedName(mode, qns) {
 			return &host, nil
 		}
 	}
 
-	return nil, api.StatusErrorf(http.StatusNotFound, "Host with qualified name %q not found", qn)
+	return nil, api.StatusErrorf(http.StatusNotFound, "Host with qualified names %v not found", qns)
 }
 
 // createHost creates a new host with provided initiator qualified names that can be associated
@@ -1108,6 +1143,46 @@ func (p *pureClient) updateHost(hostName string, qns []string) error {
 	err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
 	if err != nil {
 		return fmt.Errorf("Failed updating host %q: %w", hostName, err)
+	}
+
+	return nil
+}
+
+// addHostQualifiedNames registers additional initiator qualified names on an existing host,
+// leaving the ones it is already configured with in place.
+//
+// This adds rather than replaces on purpose. The qualified names are read from the local
+// system, so replacing the list would deregister an initiator whenever its port is
+// temporarily absent - after a host bus adapter driver reload, for example - and the array
+// would immediately stop presenting volumes over a path that was working. Removing an
+// initiator that no longer exists is left to the administrator.
+func (p *pureClient) addHostQualifiedNames(hostName string, qns []string) error {
+	if len(qns) == 0 {
+		return nil
+	}
+
+	req := make(map[string]any, 1)
+
+	connector, err := p.driver.connector()
+	if err != nil {
+		return err
+	}
+
+	switch connector.Type() {
+	case connectors.TypeISCSI:
+		req["add_iqns"] = qns
+	case connectors.TypeNVMeTCP:
+		req["add_nqns"] = qns
+	case connectors.TypeSCSIFC:
+		req["add_wwns"] = qns
+	default:
+		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
+	}
+
+	url := api.NewURL().Path("hosts").WithQuery("names", hostName)
+	err = p.requestAuthenticated(http.MethodPatch, url.URL, req, nil)
+	if err != nil {
+		return fmt.Errorf("Failed adding initiator qualified names to host %q: %w", hostName, err)
 	}
 
 	return nil
@@ -1366,10 +1441,10 @@ func (p *pureClient) getTarget() (targetQN string, targetAddrs []string, err err
 	return nq, targetAddrs, nil
 }
 
-// ensureHost returns a name of the host that is configured with a given IQN. If such host
-// does not exist, a new one is created, where host's name equals to the server name with a
-// mode included as a suffix because Pure Storage does not allow mixing IQNs, NQNs, and WWNs
-// on a single host.
+// ensureHost returns the name of the host that is configured with the local initiator
+// qualified names, registering any that are missing from it. If no such host exists, a new
+// one is created, where host's name equals to the server name with a mode included as a
+// suffix because Pure Storage does not allow mixing IQNs, NQNs, and WWNs on a single host.
 func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 	var hostname string
 
@@ -1381,8 +1456,11 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 		return "", nil, err
 	}
 
-	// Get the qualified name of the host.
-	qn, err := connector.QualifiedName()
+	// Get every initiator qualified name of the host. iSCSI and NVMe hosts have a
+	// single IQN or NQN, whereas a Fibre Channel host has one WWPN per host bus
+	// adapter port. All of them must be registered, otherwise the array does not
+	// present its volumes to the unregistered ports and those paths stay unused.
+	qns, err := connectors.QualifiedNames(connector)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1401,14 +1479,14 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 			return "", nil, err
 		}
 
-		err = d.client().createHost(hostname, []string{qn})
+		err = d.client().createHost(hostname, qns)
 		if err != nil {
 			if !api.StatusErrorCheck(err, http.StatusConflict) {
 				return "", nil, err
 			}
 
 			// The host with the given name already exists, update it instead.
-			err = d.client().updateHost(hostname, []string{qn})
+			err = d.client().updateHost(hostname, qns)
 			if err != nil {
 				return "", nil, err
 			}
@@ -1416,8 +1494,22 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 			revert.Add(func() { _ = d.client().deleteHost(hostname) })
 		}
 	} else {
-		// Hostname already exists with the given IQN.
+		// A host already exists for one of the local initiator qualified names.
 		hostname = host.Name
+
+		// The host is identified by a match on any one of its initiators, so it need
+		// not carry all of them. Register the ones it is missing, otherwise the array
+		// never presents its volumes to those ports and their paths stay unused for
+		// as long as the host object exists.
+		missingQNs := host.missingQualifiedNames(connector.Type(), qns)
+		if len(missingQNs) > 0 {
+			d.logger.Info("Registering additional initiators with Pure Storage host", logger.Ctx{"host": hostname, "initiators": missingQNs})
+
+			err = d.client().addHostQualifiedNames(hostname, missingQNs)
+			if err != nil {
+				return "", nil, err
+			}
+		}
 	}
 
 	cleanup = revert.Clone().Fail
