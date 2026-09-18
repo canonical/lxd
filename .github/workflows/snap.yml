@@ -93,7 +93,6 @@ jobs:
           - cluster
           - container
           - container-copy
-          - container-nesting
           - conversion
           - cpu-vm
           - csi
@@ -104,11 +103,11 @@ jobs:
           - lxd-installer
           - lxd-user
           - interception
+          - nesting
           - network-bridge-firewall
           - network-ovn ovn:deb
           - network-ovn ovn:latest/edge
           - network-routed
-          - pylxd
           - qemu-external-vm
           - snapd
           - storage-buckets
@@ -126,7 +125,6 @@ jobs:
           - ui firefox
           - vm
           - vm-migration
-          - vm-nesting
         exclude:
           # csi is not compatible with 4.0/*, 5.0/* or 5.21/*, nor with 22.04
           - channel: "4.0/edge"
@@ -145,8 +143,6 @@ jobs:
           - channel: "4.0/edge"
             test: container-copy
           - channel: "4.0/edge"
-            test: container-nesting
-          - channel: "4.0/edge"
             test: conversion
           - channel: "4.0/edge"
             test: cpu-vm
@@ -162,8 +158,6 @@ jobs:
             test: network-ovn ovn:latest/edge
           - channel: "4.0/edge"
             test: qemu-external-vm
-          - channel: "4.0/edge"
-            test: lxd-consumers
           - channel: "4.0/edge"
             test: storage-buckets
           - channel: "4.0/edge"
@@ -204,16 +198,12 @@ jobs:
           - channel: "5.0/edge"
             test: qemu-external-vm
           - channel: "5.0/edge"
-            test: lxd-consumers
-          - channel: "5.0/edge"
             test: vm-migration
           # not compatible with 5.21/*
           - channel: "5.21/edge"
             test: lxd-installer
           - channel: "5.21/edge"
             test: qemu-external-vm
-          - channel: "5.21/edge"
-            test: lxd-consumers
           # some tests are not worth testing on specific OSes
           - os: 22.04
             test: bgp
@@ -221,8 +211,6 @@ jobs:
             test: lxd-installer
           - os: 22.04
             test: qemu-external-vm
-          - os: 22.04
-            test: lxd-consumers
           # skip channel/os combinations that are too far apart
           - os: 24.04
             channel: "4.0/edge"

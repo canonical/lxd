@@ -135,11 +135,9 @@ graph TD
         S_Node --- S2[cloud-init]
         S_Node --- S3[cluster]
         S_Node --- S4[container]
-        S_Node --- S5_36[...]
-        S_Node --- S37[ui chromium]
+        S_Node --- S5_37[...]
         S_Node --- S38[vm]
-        S_Node --- S39[vm-nesting]
-        S_Node --- S40[vm-migration]
+        S_Node --- S39[vm-migration]
     end
     subgraph ST [Snap tests]
         direction TB
