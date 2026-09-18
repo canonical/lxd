@@ -2796,14 +2796,14 @@ test_clustering_ha() {
   [ "$(curl -s -o /dev/null -w "%{redirect_url}" "http://${HOSTNAME}/.well-known/acme-challenge/")" = "https://${HOSTNAME}/.well-known/acme-challenge/" ]
 
   echo "Verify direct connectivity to a member that will later be removed"
-  nc -zv "${LXD_ONE_HOST}" "${LXD_ONE_PORT}"
+  waitTCPPort "${LXD_ONE_HOST}" "${LXD_ONE_PORT}"
 
   echo "Remove one of the cluster members"
   lxc cluster remove ha-cluster:node1 --yes
   sleep 0.5
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   rm -f "${LXD_ONE_DIR}/unix.socket"
-  ! nc -zv "${LXD_ONE_HOST}" "${LXD_ONE_PORT}" || false
+  waitTCPPort "${LXD_ONE_HOST}" "${LXD_ONE_PORT}" closed
 
   # Allow time for dqlite to reshuffle roles.
   sleep 0.5

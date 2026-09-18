@@ -1,5 +1,11 @@
 # shellcheck shell=bash
 
+# shellcheck disable=SC1091 # Runtime-resolved path relative to this file.
+helpers_dir="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+. "${helpers_dir}/net.sh"
+. "${helpers_dir}/snap.sh"
+unset helpers_dir
+
 # waitSnapdSeed: wait for snapd to be seeded and installed/refreshed.
 # Optional argument: snapd channel to install from (default: latest/beta).
 waitSnapdSeed() (
@@ -408,6 +414,21 @@ runsMinimumKernel() (
     return 0
 )
 
+# download_minio: downloads the minio server and mc client binaries into the
+# given directory (default /opt/minio), retrying on transient network failures.
+download_minio() (
+    local dir="${1:-/opt/minio}"
+    local arch="${ARCH:-$(dpkg --print-architecture || echo "amd64")}"
+
+    mkdir -p "${dir}"
+
+    # Download minio and mc binaries
+    curl --show-error --silent --retry 3 --retry-delay 5 --location --fail \
+        --continue-at - "https://github.com/minio/minio/releases/download/RELEASE.2025-09-07T16-13-09Z/minio.linux-${arch}.RELEASE.2025-09-07T16-13-09Z" --output "${dir}/minio" \
+        --continue-at - "https://github.com/minio/mc/releases/download/RELEASE.2025-08-13T08-35-41Z/mc.linux-${arch}.RELEASE.2025-08-13T08-35-41Z"       --output "${dir}/mc"
+    chmod +x "${dir}/minio" "${dir}/mc"
+)
+
 # createPowerFlexPool: creates a new storage pool using the PowerFlex driver.
 createPowerFlexPool() (
   lxc storage create "${1}" powerflex \
@@ -647,6 +668,12 @@ cleanup() {
     if compgen -G "/var/crash/fuse_worker*" > /dev/null 2>&1; then
         echo "::notice::==> CORE: fuse_worker core dump ignored"
         rm /var/crash/fuse_worker*
+    fi
+
+    # Ignore do-release-upgrade crashes seen on older releases.
+    if compgen -G "/var/crash/_usr_bin_do-release-upgrade*" > /dev/null 2>&1; then
+        echo "::notice::==> CORE: do-release-upgrade core dump ignored"
+        rm /var/crash/_usr_bin_do-release-upgrade*
     fi
 
     if [ -n "$(ls -A /var/crash/)" ]; then
