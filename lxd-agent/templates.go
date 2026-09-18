@@ -55,26 +55,28 @@ func templatesApply(path string) ([]string, error) {
 			}
 
 			var w *os.File
-			if tpl.CreateOnly {
-				// Only create the file if it doesn't already exist.
-				w, err = os.OpenFile(tplPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
-				if err != nil {
-					if os.IsExist(err) {
-						return nil
-					}
-
-					return err
-				}
-			} else {
-				w, err = os.OpenFile(tplPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-				if err != nil {
-					return fmt.Errorf("Failed creating template file: %w", err)
-				}
-
+			// Try creating the target first so that an existing file can be opened
+			// without changing its permissions.
+			w, err = os.OpenFile(tplPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+			switch {
+			case err == nil:
 				err = w.Chmod(0644)
 				if err != nil {
 					return fmt.Errorf("Failed setting template file permissions: %w", err)
 				}
+
+			case os.IsExist(err):
+				if tpl.CreateOnly {
+					return nil
+				}
+
+				w, err = os.OpenFile(tplPath, os.O_WRONLY|os.O_TRUNC, 0)
+				if err != nil {
+					return fmt.Errorf("Failed opening template file: %w", err)
+				}
+
+			default:
+				return fmt.Errorf("Failed creating template file: %w", err)
 			}
 
 			defer func() { _ = w.Close() }()
