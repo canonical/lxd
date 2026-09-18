@@ -492,7 +492,7 @@ lxd_shutdown_restart() {
 }
 
 # create_instances creates a specified number of instances in the background.
-# The instance are called i1, i2, i3, etc.
+# The instances are called i1, i2, i3, etc.
 create_instances() {
   local n="${1}"  # Number of instances to create.
 
