@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/google/uuid"
@@ -10,7 +11,20 @@ import (
 
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/shared/features"
 )
+
+// TestMain turns the failure-domain-aware placement feature preview on for tests.
+func TestMain(m *testing.M) {
+	_ = os.Setenv(features.EnvVar, string(features.FailureDomainPlacement))
+
+	err := features.LoadFromEnv(features.EnvVar)
+	if err != nil {
+		panic(err)
+	}
+
+	os.Exit(m.Run())
+}
 
 // The server configuration is initially empty.
 func TestConfigLoad_Initial(t *testing.T) {
