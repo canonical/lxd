@@ -1551,7 +1551,9 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 						ok := false
 						switch req.Type {
 						case "subsystem":
-							if string(req.Payload[4:]) == "sftp" {
+							// 4-byte length prefix + "sftp"; requiring the exact total length
+							// implicitly validates the prefix without needing to decode it.
+							if len(req.Payload) == 8 && string(req.Payload[4:8]) == "sftp" {
 								ok = true
 							}
 						}
