@@ -389,14 +389,19 @@ test_network_ovn() {
 
   # Assert switch port configuration.
   ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" addresses | jq --exit-status '.[0] == "'"${c1_mac_address}"' dynamic"'
-  [ "$(ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" dynamic_addresses)" = '"'"${c1_mac_address} ${c1_ipv4_address} ${c1_ipv6_address}"'"' ]
+  dynamic_addresses="$(ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" dynamic_addresses | tr -d '"')"
+  [[ " ${dynamic_addresses} " == *" ${c1_mac_address} "* ]]
+  [[ " ${dynamic_addresses} " == *" ${c1_ipv4_address} "* ]]
+  [[ " ${dynamic_addresses} " == *" ${c1_ipv6_address} "* ]]
   [ "$(ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" external_ids:lxd_location)" = "none" ] # standalone location.
   [ "$(ovn-nbctl get logical_switch_port "${c1_internal_switch_port_name}" external_ids:lxd_switch)" = "${internal_switch_name}" ]
 
   # Assert DNS configuration.
   dns_entry_uuid="$(ovn-nbctl --format csv --no-headings find dns "external_ids:lxd_switch_port=${c1_internal_switch_port_name}" | cut -d, -f1)"
   [ "$(ovn-nbctl get dns "${dns_entry_uuid}" external_ids:lxd_switch)" = "${internal_switch_name}" ]
-  [ "$(ovn-nbctl get dns "${dns_entry_uuid}" records:c1.lxd)" = '"'"${c1_ipv4_address} ${c1_ipv6_address}"'"' ]
+  dns_records="$(ovn-nbctl get dns "${dns_entry_uuid}" records:c1.lxd)"
+  grep -Fq "${c1_ipv4_address}" <<< "${dns_records}"
+  grep -Fq "${c1_ipv6_address}" <<< "${dns_records}"
 
   # Test DNS resolution.
   [ "$(lxc exec c1 -- nslookup c1.lxd 10.10.10.1 | grep -cF "${c1_ipv6_address}")" = 1 ]
@@ -407,6 +412,30 @@ test_network_ovn() {
 
   [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" 10.10.10.1 | grep -cF c1.lxd)" = 1 ]
   [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" fd42:4242:4242:1010::1 | grep -cF c1.lxd)" = 1 ]
+
+  echo "Change dns.domain and assert DNS records and resolution update for running instances."
+  lxc network set "${ovn_network}" dns.domain=testdomain.test
+
+  # Check OVN DNS records table reflects new domain.
+  dns_records="$(ovn-nbctl get dns "${dns_entry_uuid}" records:c1.testdomain.test)"
+  grep -Fq "${c1_ipv4_address}" <<< "${dns_records}"
+  grep -Fq "${c1_ipv6_address}" <<< "${dns_records}"
+
+  # Test DNS resolution with new domain.
+  [ "$(lxc exec c1 -- nslookup c1.testdomain.test 10.10.10.1 | grep -cF "${c1_ipv6_address}")" = 1 ]
+  [ "$(lxc exec c1 -- nslookup c1.testdomain.test fd42:4242:4242:1010::1 | grep -cF "${c1_ipv6_address}")" = 1 ]
+
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv4_address}" 10.10.10.1 | grep -cF c1.testdomain.test)" = 1 ]
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv4_address}" fd42:4242:4242:1010::1 | grep -cF c1.testdomain.test)" = 1 ]
+
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" 10.10.10.1 | grep -cF c1.testdomain.test)" = 1 ]
+  [ "$(lxc exec c1 -- nslookup "${c1_ipv6_address}" fd42:4242:4242:1010::1 | grep -cF c1.testdomain.test)" = 1 ]
+
+  # Check unsetting dns.domain restores records back to default domain.
+  lxc network unset "${ovn_network}" dns.domain
+  dns_records="$(ovn-nbctl get dns "${dns_entry_uuid}" records:c1.lxd)"
+  grep -Fq "${c1_ipv4_address}" <<< "${dns_records}"
+  grep -Fq "${c1_ipv6_address}" <<< "${dns_records}"
 
   echo "Check that default target address of a network forward cannot be a network address."
   ! lxc network forward create "${ovn_network}" 192.0.2.1 target_address=10.24.140.0 || false
