@@ -1506,6 +1506,19 @@ auth_project_features() {
   # Unset the storage volumes feature (the default is false).
   lxc project unset blah features.storage.volumes
 
+  sub_test "Project operator can view instance root volumes when custom storage is shared"
+
+  # Instance root volumes still belong to the requested project, even when custom volumes are shared with the default project.
+  rootVolumeInstance="root-volume-instance"
+  lxc init --empty "${rootVolumeInstance}" --project blah --storage "${pool_name}"
+
+  # A project operator should see the instance root volume through both storage volume list endpoints.
+  rootVolumePath="/1.0/storage-pools/${pool_name}/volumes/container/${rootVolumeInstance}"
+  lxc_remote query "${remote}:/1.0/storage-volumes?project=blah" | jq --exit-status --arg path "${rootVolumePath}" 'any(.[]; startswith($path))'
+  lxc_remote query "${remote}:/1.0/storage-volumes?project=blah&recursion=1" | jq --exit-status --arg name "${rootVolumeInstance}" 'any(.[]; .type == "container" and .name == $name and .project == "blah")'
+
+  lxc delete "${rootVolumeInstance}" --project blah
+
   # Create a storage volume in the default project.
   volName="vol$$"
   lxc storage volume create "${pool_name}" "${volName}" --project default
