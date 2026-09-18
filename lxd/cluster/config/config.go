@@ -253,26 +253,6 @@ func (c *Config) OIDCSessionExpiry() (expiry string) {
 	return c.m.GetString("oidc.session.expiry")
 }
 
-// ClusterHealingThreshold returns the configured healing threshold, i.e. the
-// number of seconds after which an offline node will be evacuated automatically. If the config key
-// is set but its value is lower than cluster.offline_threshold it returns
-// the value of cluster.offline_threshold instead. If this feature is disabled, it returns 0.
-func (c *Config) ClusterHealingThreshold() time.Duration {
-	n := c.m.GetInt64("cluster.healing_threshold")
-	if n == 0 {
-		return 0
-	}
-
-	healingThreshold := time.Duration(n) * time.Second
-	offlineThreshold := c.OfflineThreshold()
-
-	if healingThreshold < offlineThreshold {
-		return offlineThreshold
-	}
-
-	return healingThreshold
-}
-
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]string {
@@ -406,16 +386,6 @@ var ConfigSchema = config.Schema{
 		//  defaultdesc: `3`
 		//  shortdesc: Number of cluster members that replicate an image
 		"cluster.images_minimal_replica": {Type: config.Int64, Default: "3", Validator: imageMinimalReplicaValidator},
-
-		// lxdmeta:generate(entities=server; group=cluster; key=cluster.healing_threshold)
-		// Specify the number of seconds after which an offline cluster member is to be evacuated.
-		// To disable evacuating offline members, set this option to `0`.
-		// ---
-		//  type: integer
-		//  scope: global
-		//  defaultdesc: `0`
-		//  shortdesc: Threshold when to evacuate an offline cluster member
-		"cluster.healing_threshold": {Type: config.Int64, Default: "0"},
 
 		// lxdmeta:generate(entities=server; group=cluster; key=cluster.join_token_expiry)
 		//

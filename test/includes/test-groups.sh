@@ -46,7 +46,6 @@ readonly test_group_cluster=(
     "clustering_uuid"
     "clustering_trust_add"
     "clustering_waitready"
-    "clustering_heal_networks_stop"
     "clustering_placement_groups"
     "clustering_force_removal"
     "clustering_project_limits"
