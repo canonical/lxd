@@ -9,6 +9,10 @@ import (
 // init disallows import of the package if any Type is not well-defined.
 func init() {
 	for t := Type(1); t < upperBound; t++ {
+		if t.deprecated() {
+			continue
+		}
+
 		if t.Description() == "" {
 			panic(fmt.Sprintf("Operation type #%d does not have a description", t))
 		}
@@ -91,7 +95,7 @@ const (
 	RemoveOrphanedOperations
 	RenewServerCertificate
 	RemoveExpiredTokens
-	ClusterHeal
+	_deprecatedClusterHeal
 	RemoveExpiredOIDCSessions
 	ProfileUpdate
 	VolumeUpdate
@@ -165,6 +169,15 @@ func Validate(operationTypeCode Type) error {
 	}
 
 	return fmt.Errorf("Unknown operation type code %d", operationTypeCode)
+}
+
+func (t Type) deprecated() bool {
+	switch t {
+	case _deprecatedClusterHeal:
+		return true
+	default:
+		return false
+	}
 }
 
 // Description return a human-readable description of the operation type.
@@ -300,8 +313,6 @@ func (t Type) Description() string {
 		return "Renewing server certificate"
 	case RemoveExpiredTokens:
 		return "Remove expired tokens"
-	case ClusterHeal:
-		return "Healing cluster"
 	case ClusterJoinToken:
 		return "Cluster join token"
 	case CertificateAddToken:
@@ -433,9 +444,8 @@ func (t Type) EntityType() entity.Type {
 		ImagesSynchronize, RemoveExpiredOIDCSessions, RemoveExpiredTokens, RemoveOrphanedOperations,
 		WarningsPruneResolved, ClusterMemberEvacuate, ClusterMemberRestore, LogsExpire, InstanceTypesUpdate,
 		BackupsExpire, SnapshotsExpire, ClusterJoinToken, CertificateAddToken, RenewServerCertificate,
-		ClusterHeal, ImagesUpdate, VolumeSnapshotsCreateScheduled, SnapshotsCreateScheduled,
-		SynchronizeOperations, RefreshClusterLinkVolatileAddresses,
-		StoragePoolCreate, Wait, ImageRegistryCreate:
+		ImagesUpdate, VolumeSnapshotsCreateScheduled, SnapshotsCreateScheduled, SynchronizeOperations,
+		RefreshClusterLinkVolatileAddresses, StoragePoolCreate, Wait, ImageRegistryCreate:
 		return entity.TypeServer
 
 	// Project level operations.
