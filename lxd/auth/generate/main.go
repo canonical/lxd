@@ -56,6 +56,7 @@ func snakeToPascal(str string) string {
 	knownAcronyms := map[string]string{
 		"Acl":  "ACL",
 		"Sftp": "SFTP",
+		"Nbd":  "NBD",
 	}
 
 	s := b.String()

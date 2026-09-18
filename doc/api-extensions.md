@@ -3719,3 +3719,45 @@ The `replicator-run` lifecycle event now fires when a run completes rather than 
 
 Adds SCSI/FC support to the Pure Storage storage driver.
 Fibre Channel targets are discovered through the host bus adapter, so `pure.target` has no effect when `pure.mode` is set to `scsi/fc`.
+(extension-storage-volume-block-tracking)=
+
+## `storage_volume_block_tracking`
+
+Adds changed block tracking for block volumes of running virtual machines, implemented as named QEMU dirty bitmaps, and exports volume data over NBD tunneled through the LXD API.
+
+The following endpoints manage bitmaps. The `POST` and `DELETE` requests return an operation:
+
+* `GET /1.0/storage-pools/{pool}/volumes/{type}/{volume}/bitmaps` lists the bitmaps on a volume.
+* `POST /1.0/storage-pools/{pool}/volumes/{type}/{volume}/bitmaps` creates a bitmap on a volume.
+* `GET /1.0/storage-pools/{pool}/volumes/{type}/{volume}/bitmaps/{name}` shows one bitmap with its name, dirty byte count, granularity and busy state.
+* `DELETE /1.0/storage-pools/{pool}/volumes/{type}/{volume}/bitmaps/{name}` deletes one bitmap.
+* `POST /1.0/instances/{name}/bitmaps` creates one bitmap of the given name on the instance root disk and on every non-shared block disk device in a single QEMU transaction, so that all of them start recording at the same instant.
+
+The following endpoints expose volume data over NBD. Each is reached with the `Upgrade: nbd` header and returns `101 Switching Protocols`, after which the connection carries the NBD protocol. The `GET` requests carry a body of the form `{"reuse": false}`. With `reuse` set to `true` the request attaches to the session already open for the volume or instance instead of opening a new one, so that several clients read the same point in time.
+
+* `GET /1.0/storage-pools/{pool}/volumes/{type}/{volume}/nbd` exports one block volume read-only.
+* `POST /1.0/storage-pools/{pool}/volumes/{type}/{volume}/nbd` imports one block volume through a writable NBD connection, for restoring a backup.
+* `GET /1.0/instances/{name}/nbd` exports every non-shared block disk of the instance read-only, each under an NBD export named after its disk device.
+
+The bitmap endpoints and the read-only exports require virtual machine to be running because bitmaps exists only inside the QEMU process.
+The writable import runs against the volume directly and requires the instance to be stopped.
+Shared block volumes are skipped by the instance bitmap endpoint, because no single QEMU process sees every write to them.
+
+While a read-only export is open, QEMU sets up a copy-before-write overlay on the instance's config volume, so the export serves a frozen point-in-time view of the volume while the guest keeps writing.
+
+Bitmaps are transient. They are lost when the QEMU process exits, for example when the instance is stopped or restarted or the host reboots, and the next backup must then be a full one.
+
+A new `can_connect_nbd` entitlement on instances and storage volumes governs access to the NBD endpoints.
+
+New `lxc` commands for managing bitmaps:
+* `bitmap` - Creates bitmap on all non-shared virtual machine volumes.
+* `storage volume bitmap list` - Lists existing bitmaps for a given volume.
+* `storage volume bitmap show` - Show volume bitmap information.
+* `storage volume bitmap create` - Creates new bitmap for a given volume
+* `storage volume bitmap delete` - Deletes bitmap for a given volume.
+
+New `lxc` commands for exporting volume content:
+* `lxc nbd` - Export all instance volumes over NBD.
+* `storage volume nbd` - Export specific volume over NBD.
+
+
