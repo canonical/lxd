@@ -3,15 +3,16 @@
 
 [Pure Storage](https://www.everpuredata.com/) is a software-defined storage solution. It offers the consumption of redundant block storage across the network.
 
-LXD supports connecting to Pure Storage storage clusters through three protocols: {abbr}`iSCSI (Internet Small Computer Systems Interface)`, {abbr}`NVMe/TCP (Non-Volatile Memory Express over Transmission Control Protocol)`, or {abbr}`FC (Fibre Channel)`.
+LXD supports connecting to Pure Storage storage clusters through four modes: {abbr}`iSCSI (Internet Small Computer Systems Interface)` (`iscsi`), {abbr}`NVMe/TCP (Non-Volatile Memory Express over Transmission Control Protocol)` (`nvme/tcp`), and NVMe or SCSI over {abbr}`FC (Fibre Channel)` (`nvme/fc` and `scsi/fc`).
 In addition, Pure Storage offers copy-on-write snapshots, thin provisioning, and other features.
 
 To use Pure Storage with LXD requires a Pure Storage API version of at least `2.21`, corresponding to a minimum Purity//FA version of `6.4.2`.
 
 Additionally, ensure that the required kernel modules for the selected protocol are installed on your host system.
 For iSCSI, the iSCSI CLI named `iscsiadm` needs to be installed in addition to the required kernel modules.
-For Fibre Channel, the `scsi_transport_fc` kernel module is required, along with a Fibre Channel {abbr}`HBA (host bus adapter)` that is zoned to the array.
-Fibre Channel volumes are always accessed through multipath, therefore `multipath-tools` must be installed and the multipath daemon must be running.
+For both Fibre Channel modes, a Fibre Channel {abbr}`HBA (host bus adapter)` that is zoned to the array is required.
+For `scsi/fc`, the `scsi_transport_fc` kernel module is needed, and volumes are always accessed through multipath, so `multipath-tools` must be installed and the multipath daemon must be running.
+For `nvme/fc`, the `nvme_fc` kernel module and the `nvme` CLI are needed, and multipath is handled by the NVMe subsystem rather than by `multipath-tools`.
 
 ## Terminology
 
@@ -32,7 +33,7 @@ The `pure` driver in LXD uses Pure Storage volumes for custom storage volumes, i
 All created volumes are thin-provisioned block volumes. If required (for example, for containers and custom file system volumes), LXD formats the volume with a desired file system.
 
 LXD expects Pure Storage to be pre-configured with a specific service (e.g. iSCSI) on network interfaces whose address is provided during storage pool configuration.
-This does not apply in `scsi/fc` mode, because Fibre Channel target ports are not network interfaces.
+This does not apply in the Fibre Channel modes, because Fibre Channel target ports are not network interfaces.
 Furthermore, LXD assumes that it has full control over the Pure Storage pods it manages.
 Therefore, you should never maintain any volumes in Pure Storage pods that are not owned by LXD because LXD might disconnect or even delete them.
 
@@ -41,8 +42,10 @@ As a result, and depending on the internal network, storage access might be a bi
 On the other hand, using remote storage has significant advantages in a cluster setup: all cluster members have access to the same storage pools with the exact same contents, without the need to synchronize them.
 
 When creating a new storage pool using the `pure` driver in either `iscsi` or `nvme/tcp` mode, LXD automatically discovers the array's qualified name and target address (portal).
-In `scsi/fc` mode, LXD instead discovers the online Fibre Channel target ports through the local host bus adapter, because Fibre Channel targets are identified by {abbr}`WWPN (World Wide Port Name)` rather than by network address.
-Consequently, {config:option}`storage-pure-pool-conf:pure.target` has no effect in `scsi/fc` mode, and, instead, fabric zoning determines which targets are reachable.
+In the Fibre Channel modes, LXD instead discovers the online Fibre Channel target ports through the local host bus adapter, because Fibre Channel targets are addressed by {abbr}`WWN (World Wide Name)` rather than by network address.
+In `scsi/fc` mode a target is the port's {abbr}`WWPN (World Wide Port Name)` itself, whereas in `nvme/fc` mode the target is the array's subsystem NQN reached at a Fibre Channel transport address that is derived from the port's WWN.
+An array can present Fibre Channel ports for both modes at the same time, so LXD selects the ports matching the configured mode: for `scsi/fc` those reporting a WWN and no {abbr}`NQN (NVMe Qualified Name)`, and for `nvme/fc` those reporting both.
+Consequently, {config:option}`storage-pure-pool-conf:pure.target` has no effect in either Fibre Channel mode, and, instead, fabric zoning determines which targets are reachable.
 
 Upon successful discovery, LXD attaches all volumes that are connected to the Pure Storage host that is associated with a specific LXD server.
 Pure Storage hosts and volume connections are fully managed by LXD.
