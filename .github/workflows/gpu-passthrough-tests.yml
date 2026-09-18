@@ -54,8 +54,8 @@ env:
 jobs:
   uc-nvidia-cdi:
     runs-on: [self-hosted, self-hosted-linux-amd64-noble-private-endpoint-small]
-    # LXD 5.0 does not support CDI, only `nvidia.runtime`.
-    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && !contains(inputs.snap-track, '5.0/') }}
+    # Ubuntu Core CDI passthrough is not supported on LXD 5.0 or 5.21.
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && !contains(inputs.snap-track, '5.0/') && !contains(inputs.snap-track, '5.21/') }}
     strategy:
       matrix:
         track: ${{ fromJSON(inputs.snap-track || '["latest/edge"]') }}
