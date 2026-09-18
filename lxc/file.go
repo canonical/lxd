@@ -1478,6 +1478,16 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 		return fmt.Errorf("Failed listening for connection: %w", err)
 	}
 
+	// Scope cancellation to this call so the watcher goroutine below always exits,
+	// even if we return for a reason unrelated to ctx being canceled.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func() {
+		<-ctx.Done()
+		_ = listener.Close()
+	}()
+
 	fmt.Printf("SSH SFTP listening on %v\n", listener.Addr())
 	fmt.Printf("SSH host key fingerprint: %s\n", ssh.FingerprintSHA256(private.PublicKey()))
 
@@ -1491,6 +1501,10 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 		// Wait for new SSH connections.
 		nConn, err := listener.Accept()
 		if err != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
+
 			return fmt.Errorf("Failed accepting incoming connection: %w", err)
 		}
 
