@@ -3,7 +3,9 @@ _instance_apparmor() {
 
   echo "Create and start a test container"
   lxc launch testimage c1
-  dmesg -c
+
+  # Clear and don't write to stdout to not fill up buffer.
+  dmesg -C
 
   echo "==> Test /sys/kernel/* access"
 
