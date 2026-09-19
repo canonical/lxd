@@ -24,6 +24,15 @@ import (
 var cephVersion string
 var cephLoaded bool
 
+// cephReplicatorPoolKeyPrefix prefixes the pool config key naming the peer site a project is
+// mirrored to. The full key is `ceph.replicator.<project>`.
+const cephReplicatorPoolKeyPrefix = "ceph.replicator."
+
+// CephReplicatorPoolKey returns the pool config key naming the peer site a project is mirrored to.
+func CephReplicatorPoolKey(projectName string) string {
+	return cephReplicatorPoolKeyPrefix + projectName
+}
+
 var cephPoolConfigPolicy = api.ConfigKeyPolicy{
 	Immutable: []string{
 		// Changing the cluster name does not work as the volume's won't be moved to the new cluster.
@@ -397,6 +406,42 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  shortdesc: Whether the pool was empty on creation time
 		//  scope: global
 		"volatile.pool.pristine": validate.IsAny,
+	}
+
+	// The project name is part of the key, so a fixed rule cannot express it.
+	for k := range config {
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.replicator.<project>)
+		// This option specifies the peer site, as registered in Ceph, that the volumes of the
+		// given project are mirrored to. One OSD pool can back several projects, each replicating
+		// to a different peer.
+		//
+		// Setting it requires `ceph.rbd.clone_copy=false`, set before any container is created on
+		// the pool, because Ceph cannot mirror a volume that is a clone of its image.
+		// ---
+		//  type: string
+		//  shortdesc: Name of the peer Ceph site to mirror a project to
+		//  scope: global
+		projectName, isReplicatorKey := strings.CutPrefix(k, cephReplicatorPoolKeyPrefix)
+		if !isReplicatorKey {
+			continue
+		}
+
+		// Naming no project would leave config that nothing ever reads, so say which shape is
+		// expected rather than reporting the key as unknown.
+		if projectName == "" {
+			return fmt.Errorf("Invalid option %q, expected %s<project>", k, cephReplicatorPoolKeyPrefix)
+		}
+
+		// A container volume is a clone of its image unless the pool copies instead, and Ceph refuses
+		// to mirror a clone whose parent is not mirrored. Volumes created before the mode changed keep
+		// their parent, which is why the mode has to be in place first. An empty value is an unset.
+		if config[k] != "" && shared.IsTrueOrEmpty(config["ceph.rbd.clone_copy"]) {
+			return fmt.Errorf("%s requires ceph.rbd.clone_copy=false, set before any container is created on the pool", k)
+		}
+
+		// An empty value is how the key is unset, and the database drops such a key rather than
+		// storing it, so there is nothing left for a stricter rule to reject.
+		rules[k] = validate.IsAny
 	}
 
 	for configOption, configOptionValue := range config {
