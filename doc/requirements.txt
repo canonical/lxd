@@ -1,7 +1,7 @@
 # From starter pack requirements.txt 
 
 ## Canonical theme (needed for Furo theme and custom templates)
-canonical-sphinx==0.6.0
+canonical-sphinx==0.7.0
 
 ## External extensions
 myst-parser==4.0.1 # v5.0.0 causes version conflicts
@@ -28,10 +28,10 @@ sphinx-sitemap==2.9.0
 sphinx-llm~=1.0
 
 ## Vale dependencies 
-vale==3.19.0.0
+vale==3.20.0.0
 
 # LXD custom dependencies
-gitpython==3.1.61
+gitpython==3.1.62
 linkify-it-py==2.2.0
 pyyaml==6.0.3
 sphinx-copybutton==0.5.2
