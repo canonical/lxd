@@ -350,6 +350,15 @@ func Test_pureConnection_unmarshal(t *testing.T) {
 			WantLen: 1,
 		},
 		{
+			// Pure Storage assigns LUNs from 1 to 4095, so a response without a
+			// "lun" unmarshals to 0, a value the array never assigns. That is why
+			// connectHostToVolume rejects a non-positive LUN in scsi/fc mode.
+			Name:    "Connection without a LUN, as reported for the NVMe modes",
+			Body:    `{"items":[{"host":{"name":"server01-nvme-fc"},"volume":{"name":"pool::vol"}}]}`,
+			WantLUN: 0,
+			WantLen: 1,
+		},
+		{
 			Name:    "Response without items",
 			Body:    `{"items":[]}`,
 			WantLen: 0,
