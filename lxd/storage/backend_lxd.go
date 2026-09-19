@@ -369,6 +369,107 @@ func (b *lxdBackend) GetVolume(volType drivers.VolumeType, contentType drivers.C
 	return drivers.NewVolume(b.driver, b.name, volType, contentType, volName, volConfig, b.db.Config).Clone()
 }
 
+// forEachProjectVolume runs fn against the driver volume of every instance and custom volume a
+// project holds on this pool.
+// Snapshots are left out because a replica carries them along with the volume they belong to.
+// Image volumes are left out because nothing writes to one after it is unpacked, so a replica has
+// nothing to gain from it.
+func (b *lxdBackend) forEachProjectVolume(ctx context.Context, projectName string, fn func(vol drivers.Volume) error) error {
+	volTypeContainer := cluster.StoragePoolVolumeTypeContainer
+	volTypeVM := cluster.StoragePoolVolumeTypeVM
+	volTypeCustom := cluster.StoragePoolVolumeTypeCustom
+
+	var dbVolumes []*db.StorageVolume
+
+	err := b.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		dbVolumes, err = tx.GetStorageVolumes(ctx, false,
+			db.StorageVolumeFilter{Project: &projectName, PoolID: &b.id, Type: &volTypeContainer},
+			db.StorageVolumeFilter{Project: &projectName, PoolID: &b.id, Type: &volTypeVM},
+			db.StorageVolumeFilter{Project: &projectName, PoolID: &b.id, Type: &volTypeCustom},
+		)
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed loading the volumes of project %q: %w", projectName, err)
+	}
+
+	for _, dbVolume := range dbVolumes {
+		if shared.IsSnapshot(dbVolume.Name) {
+			continue
+		}
+
+		dbVolType, err := cluster.StoragePoolVolumeTypeFromName(dbVolume.Type)
+		if err != nil {
+			return fmt.Errorf("Failed reading the type of volume %q: %w", dbVolume.Name, err)
+		}
+
+		dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(dbVolume.ContentType)
+		if err != nil {
+			return fmt.Errorf("Failed reading the content type of volume %q: %w", dbVolume.Name, err)
+		}
+
+		volType := VolumeDBTypeToType(dbVolType)
+
+		// Custom volumes carry the project in their storage name everywhere, instance volumes
+		// only outside the default project, and either way it ends up in the volume name the
+		// driver acts on.
+		volStorageName := project.StorageVolume(dbVolume.Project, dbVolume.Name)
+		if volType != drivers.VolumeTypeCustom {
+			volStorageName = project.Instance(dbVolume.Project, dbVolume.Name)
+		}
+
+		err = fn(b.GetVolume(volType, VolumeDBContentTypeToContentType(dbContentType), volStorageName, dbVolume.Config))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// MirrorProjectVolumes enrolls the volumes a project holds on this pool into replication and sends
+// their current state to the peer.
+func (b *lxdBackend) MirrorProjectVolumes(ctx context.Context, projectName string) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName})
+	l.Debug("MirrorProjectVolumes started")
+	defer l.Debug("MirrorProjectVolumes finished")
+
+	return b.forEachProjectVolume(ctx, projectName, func(vol drivers.Volume) error {
+		err := b.driver.EnableVolumeMirroring(vol)
+		if err != nil {
+			return err
+		}
+
+		return b.driver.CreateVolumeMirrorSnapshot(vol)
+	})
+}
+
+// ConfirmProjectVolumeMirrors returns the volumes a project holds on this pool whose newest mirror
+// snapshot the peer has not replayed yet. The peer is the one the pool's ceph.replicator key names.
+func (b *lxdBackend) ConfirmProjectVolumeMirrors(ctx context.Context, projectName string) ([]string, error) {
+	peerSite := b.db.Config[drivers.CephReplicatorPoolKey(projectName)]
+
+	var pending []string
+
+	err := b.forEachProjectVolume(ctx, projectName, func(vol drivers.Volume) error {
+		replayed, err := b.driver.VolumeMirrorReplayed(vol, peerSite)
+		if err != nil {
+			return err
+		}
+
+		if !replayed {
+			pending = append(pending, vol.Name())
+		}
+
+		return nil
+	})
+
+	return pending, err
+}
+
 // GetResources returns utilisation information about the pool.
 func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	l := b.logger.AddContext(nil)
@@ -2446,12 +2547,19 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 	isRemoteClusterMove := args.ClusterMoveSourceName != "" && b.driver.Info().Remote
 
+	// A replica arrives through Ceph rather than through this transfer. The pre-filler and the
+	// delete on failure are kept off it here; the receive itself is made record-only by the
+	// metadata-only migration mode.
+	holdsReplicas := HoldsCephReplicas(b, inst.Project())
+
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
 	var vol drivers.Volume
-	if isRemoteClusterMove || args.Refresh {
+	if isRemoteClusterMove || args.Refresh || args.MetadataOnly {
 		// In case it's a cluster move don't instantiate a new volume.
 		// Instead load the existing volume and config from the database.
+		// A metadata-only receive keeps the leader's volatile.uuid the same way, so the standby's
+		// record describes the mirrored image rather than a volume of its own.
 		vol = b.GetVolume(volType, contentType, volStorageName, volumeConfig)
 	} else {
 		vol = b.GetNewVolume(volType, contentType, volStorageName, volumeConfig)
@@ -2475,8 +2583,17 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 		return err
 	}
 
+	// A metadata-only receive describes a volume Ceph has already mirrored, so the records would
+	// point at nothing if it is absent. The image name carries the project name, so this is what a
+	// project named differently on the two clusters looks like.
+	if args.MetadataOnly && !volExists {
+		return fmt.Errorf("Metadata-only migration requires volume %q to already exist on storage", vol.Name())
+	}
+
 	// Check for inconsistencies between database and storage before continuing.
-	if dbVol == nil && volExists {
+	// A metadata-only receive is exempt because this is the state every first replicator run is in:
+	// the mirrored image exists because Ceph put it there, and creating its record is the point of the run.
+	if dbVol == nil && volExists && !args.MetadataOnly {
 		return errors.New("Volume already exists on storage but not in database")
 	}
 
@@ -2495,7 +2612,9 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 	defer revert.Fail()
 
 	if !args.Refresh {
-		if volExists {
+		// A cluster move skips the record creation because the records already exist. A metadata-only
+		// receive needs the opposite: the volume is present on storage and the record is what is missing.
+		if volExists && !args.MetadataOnly {
 			if !isRemoteClusterMove {
 				return errors.New("Cannot create volume, already exists on migration target storage")
 			}
@@ -2580,7 +2699,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 	var preFiller drivers.VolumeFiller
 
-	if !args.Refresh && !isRemoteClusterMove {
+	if !args.Refresh && !isRemoteClusterMove && !holdsReplicas {
 		// If the negotiated migration method is rsync and the instance's base image is
 		// already on the host then setup a pre-filler that will unpack the local image
 		// to try and speed up the rsync of the incoming volume by avoiding the need to
@@ -2661,7 +2780,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 		return err
 	}
 
-	if !isRemoteClusterMove {
+	if !isRemoteClusterMove && !holdsReplicas {
 		revert.Add(func() { _ = b.DeleteInstance(inst, progressReporter) })
 	}
 
@@ -4005,7 +4124,12 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, progressRepo
 		return err
 	}
 
-	if volExists {
+	// A standby's image is non-primary, so the driver cannot remove the snapshot from it, and it
+	// does not need to: the mirror replay carries the leader's deletion over. Only the record is
+	// left to delete, which is what a refresh of the standby's records needs.
+	if volExists && HoldsCephReplicas(b, inst.Project()) {
+		l.Debug("Skipping the storage snapshot deletion of a standby replica")
+	} else if volExists {
 		err = b.driver.DeleteVolumeSnapshot(vol, progressReporter)
 		if err != nil {
 			return err
@@ -5514,7 +5638,9 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(ctx context.Context, projec
 	// Check if the volume exists on storage.
 	var vol drivers.Volume
 	volStorageName := project.StorageVolume(projectName, args.Name)
-	if args.Refresh {
+	// A metadata-only receive keeps the leader's volatile.uuid the same way a refresh does, so the
+	// standby's record describes the mirrored image rather than a volume of its own.
+	if args.Refresh || args.MetadataOnly {
 		vol = b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
 	} else {
 		vol = b.GetNewVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
@@ -5525,8 +5651,15 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(ctx context.Context, projec
 		return err
 	}
 
+	// A metadata-only receive describes a volume Ceph has already mirrored, so the records would
+	// point at nothing if it is absent.
+	if args.MetadataOnly && !volExists {
+		return fmt.Errorf("Metadata-only migration requires volume %q to already exist on storage", args.Name)
+	}
+
 	// Check for inconsistencies between database and storage before continuing.
-	if dbVol == nil && volExists {
+	// A metadata-only receive is exempt because this is the state every first replicator run is in.
+	if dbVol == nil && volExists && !args.MetadataOnly {
 		return errors.New("Volume already exists on storage but not in database")
 	}
 
@@ -5537,9 +5670,10 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(ctx context.Context, projec
 	// Disable refresh mode if volume doesn't exist yet.
 	// Unlike in CreateInstanceFromMigration there is no existing check for if the volume exists, so we must do
 	// it here and disable refresh mode if the volume doesn't exist.
+	// A metadata-only receive always has the volume on storage, so it takes the create branch instead.
 	if args.Refresh && !volExists {
 		args.Refresh = false
-	} else if !args.Refresh && volExists {
+	} else if !args.Refresh && volExists && !args.MetadataOnly {
 		return errors.New("Cannot create volume, already exists on migration target storage")
 	}
 
@@ -6699,7 +6833,16 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(ctx context.Context, projectName
 		return err
 	}
 
-	if volExists {
+	// Same as for an instance snapshot: a standby's image is non-primary and the mirror replay
+	// already carries the deletion over, so only the record goes.
+	holdsReplicas, err := HoldsCephReplicasByName(ctx, b.state, b, projectName)
+	if err != nil {
+		return err
+	}
+
+	if volExists && holdsReplicas {
+		l.Debug("Skipping the storage snapshot deletion of a standby replica")
+	} else if volExists {
 		err := b.driver.DeleteVolumeSnapshot(vol, progressReporter)
 		if err != nil {
 			return err
@@ -7042,6 +7185,15 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 
 	// We only write backup files out for actual instances.
 	if inst.IsSnapshot() {
+		return nil
+	}
+
+	// Writing the backup file mounts the volume, and a replica is non-primary, so the map fails on
+	// a kernel feature set mismatch rather than on permissions. Every caller reaches the writer
+	// through here, including the ordinary instance update a refresh goes through, so the skip
+	// belongs here rather than at each call site.
+	if HoldsCephReplicas(b, inst.Project()) {
+		l.Info("Skipping the backup file write of a standby replica")
 		return nil
 	}
 

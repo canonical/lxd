@@ -7153,6 +7153,15 @@ func (d *qemu) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, p
 		return err
 	}
 
+	// The target only asks for the records when it holds a mirror of this instance, and it can only
+	// hold one if this pool mirrors the project. Without the key nothing carried the data, so the
+	// records would describe an image the target does not have.
+	if respHeader.GetMetadataOnly() && !storagePools.PoolMirrorsProject(pool, d.Project().Name) {
+		err := fmt.Errorf("The target holds a mirror of instance %q but storage pool %q does not carry %s", d.Name(), pool.Name(), storageDrivers.CephReplicatorPoolKey(d.Project().Name))
+		op.Done(err)
+		return err
+	}
+
 	volSourceArgs := &migration.VolumeSourceArgs{
 		IndexHeaderVersion: respHeader.GetIndexHeaderVersion(), // Enable index header frame if supported.
 		Name:               d.Name(),
@@ -7164,6 +7173,7 @@ func (d *qemu) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, p
 		VolumeOnly:         !args.Snapshots,
 		Info:               &migration.Info{Config: srcConfig},
 		ClusterMove:        args.ClusterMoveSourceName != "",
+		MetadataOnly:       respHeader.GetMetadataOnly(),
 	}
 
 	// Only send the snapshots that the target requests when refreshing.
@@ -7745,6 +7755,11 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 	respHeader.Snapshots = offerHeader.Snapshots
 	respHeader.Refresh = &args.Refresh
 
+	// A standby replica on a mirrored pool already holds the data, so it asks the source for the
+	// records alone. This side is the one that knows it is such a standby, so it decides.
+	metadataOnly := storagePools.HoldsCephReplicas(pool, d.Project())
+	respHeader.MetadataOnly = &metadataOnly
+
 	if args.Refresh {
 		// Get the remote snapshots on the source.
 		sourceSnapshots := offerHeader.GetSnapshots()
@@ -7924,6 +7939,7 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 			VolumeSize:            offerHeader.GetVolumeSize(), // Block size setting override.
 			VolumeOnly:            !args.Snapshots,
 			ClusterMoveSourceName: args.ClusterMoveSourceName,
+			MetadataOnly:          metadataOnly,
 			DeferredCustomVolumes: args.DeferredVolumes,
 			AttachedCustomVolumes: args.AttachedVolumes,
 		}
@@ -8027,10 +8043,14 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 			}
 		}
 
+		// A standby's images are mirrors that Ceph owns, so a receive that fails part way must
+		// leave them alone rather than delete the data it was describing.
+		holdsReplicas := storagePools.HoldsCephReplicas(pool, d.Project())
+
 		// Only delete all instance volumes on error if the pool volume creation has succeeded to
 		// avoid deleting an existing conflicting volume.
 		isRemoteClusterMove := args.ClusterMoveSourceName != "" && poolInfo.Remote
-		if !volTargetArgs.Refresh && !isRemoteClusterMove {
+		if !volTargetArgs.Refresh && !isRemoteClusterMove && !holdsReplicas {
 			revert.Add(func() {
 				snapshots, _ := d.Snapshots()
 				snapshotCount := len(snapshots)
