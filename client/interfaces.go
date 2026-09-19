@@ -435,6 +435,7 @@ type InstanceServer interface {
 	GetIdentities() (identities []api.Identity, err error)
 	GetIdentitiesByAuthenticationMethod(authenticationMethod string) (identities []api.Identity, err error)
 	GetIdentity(authenticationMethod string, nameOrIdentifier string) (identity *api.Identity, ETag string, err error)
+	GetIdentityState(authenticationMethod string, nameOrIdentifier string) (identityState *api.IdentityState, ETag string, err error)
 	GetCurrentIdentityInfo() (identityInfo *api.IdentityInfo, ETag string, err error)
 	UpdateIdentity(authenticationMethod string, nameOrIdentifier string, identityPut api.IdentityPut, ETag string) error
 	DeleteIdentity(authenticationMethod string, nameOrIdentifier string) error

@@ -506,6 +506,7 @@ var APIExtensions = []string{
 	"replicator_custom_volumes",
 	"metrics_replicators",
 	"storage_driver_pure_scsifc",
+	"access_management_identity_effective_groups",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
