@@ -467,6 +467,21 @@ func (d *common) RenameVolume(vol Volume, newVolName string, progressReporter io
 	return ErrNotSupported
 }
 
+// EnableVolumeMirroring enrolls a volume into replication to the pool's peer.
+func (d *common) EnableVolumeMirroring(vol Volume) error {
+	return ErrNotSupported
+}
+
+// CreateVolumeMirrorSnapshot sends the volume's current state to the peer.
+func (d *common) CreateVolumeMirrorSnapshot(vol Volume) error {
+	return ErrNotSupported
+}
+
+// VolumeMirrorReplayed reports whether the peer site holds the volume's newest mirror snapshot.
+func (d *common) VolumeMirrorReplayed(vol Volume, peerSite string) (bool, error) {
+	return false, ErrNotSupported
+}
+
 // MigrateVolume streams the volume (with or without snapshots).
 func (d *common) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	return ErrNotSupported
