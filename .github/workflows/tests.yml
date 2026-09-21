@@ -97,7 +97,7 @@ jobs:
       #      useful feedback in the PR through github-code-scanning bot
       - id: ShellCheck
         name: Differential ShellCheck
-        uses: redhat-plumbers-in-action/differential-shellcheck@d965e66ec0b3b2f821f75c8eff9b12442d9a7d1e # v5.5.6
+        uses: redhat-plumbers-in-action/differential-shellcheck@f51c7c0d32777d00de777131d25918617a246415 # v5.5.7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           strict-check-on-push: true
@@ -785,7 +785,7 @@ jobs:
           gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
-        uses: tiobe/tics-github-action@333078bc527399e5916a166bd1a3a788be5a01a9 # v3.12.0
+        uses: tiobe/tics-github-action@06afa6781ba53ab58efbe766d41d84febad1f683 # v4.0.0
         with:
           mode: qserver
           project: LXD
