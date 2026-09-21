@@ -12,7 +12,7 @@ fi
 
 # Install dependencies
 install_deps jq ubuntu-drivers-common
-RECOMMENDED_DRIVER="$(ubuntu-drivers --gpgpu devices | awk '/-server-open/ {print $3}' | sort -V -r | head -n1)"
+RECOMMENDED_DRIVER="$(ubuntu-drivers devices | awk '/-server-open/ {print $3}' | sort -V -r | head -n1)"
 INSTALL_RECOMMENDS=yes install_deps "${RECOMMENDED_DRIVER}"
 
 # Reload nvidia kernel module
