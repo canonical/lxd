@@ -173,6 +173,11 @@ llms_txt_description = textwrap.dedent(
 if os.environ.get("READTHEDOCS"):
     markdown_http_base = html_baseurl
 
+# Suppress warnings about unknown nodes when building the Markdown for llms.txt.
+# Note that, as per the `sphinx_llm` docs, unknown node subtrees are still
+# omitted from the Markdown.
+llms_txt_suppress_unknown_node_warnings = True
+
 ###########################
 # Link checker exceptions #
 ###########################
