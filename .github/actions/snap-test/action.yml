@@ -41,7 +41,7 @@ runs:
   steps:
     - name: Reclaim disk space
       # This can take multiple minutes if the runner is busy/slow so only run it when/where absolutely needed.
-      if: ${{ inputs.test == 'conversion' || inputs.test == 'vm-nesting' || startsWith(inputs.test, 'storage-') }}
+      if: ${{ inputs.test == 'conversion' || inputs.test == 'nesting' || startsWith(inputs.test, 'storage-') }}
       uses: $/.github/actions/reclaim-disk-space
 
     - name: "Disable br_netfilter"
