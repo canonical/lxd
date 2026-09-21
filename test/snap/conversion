@@ -288,7 +288,10 @@ lxc delete -f c1
 sed -i '/images\.lxd\.canonical\.com/d' /etc/hosts
 systemctl restart systemd-resolved.service
 
-tmpdir="$(mktemp -d)"
+# Put tmpdir in /var/tmp as /tmp is often a tmpfs with limited space on smaller
+# CI runners, which would exhaust /tmp when extracting multi-GiB VM images.
+# virt-v2v-in-place also requires >= 1GiB free in /tmp.
+tmpdir="$(mktemp -d -p /var/tmp)"
 
 # Download and cache the image to avoid re-downloading it multiple times.
 # Skip the copy if the image already exists locally so reruns stay idempotent.
@@ -298,7 +301,7 @@ fi
 
 # Create an instance and export it to get raw image.
 lxc init alpine-edge-vm tmp --vm --device root,size=4GiB
-lxc export tmp --compression=none --quiet - | tar --occurrence=1 -xf - -C "${tmpdir}" "backup/virtual-machine.img"
+lxc export tmp --compression=none --quiet - | tar --occurrence=1 --sparse -xf - -C "${tmpdir}" "backup/virtual-machine.img"
 lxc delete tmp
 
 IMAGE_PATH="${tmpdir}/backup/virtual-machine.img"
@@ -405,6 +408,7 @@ if hasNeededAPIExtension instance_import_conversion; then
 
     lxc image export alpine-edge-vm "${IMAGE_PATH}" --vm
     conversion_vm alpine-qcow2 zfs "${IMAGE_PATH}.root" "no"
+    rm -f "${IMAGE_PATH}" "${IMAGE_PATH}.root"
 
     # Download and cache the image to avoid re-downloading it multiple times.
     # Skip the copy if the image already exists locally so reruns stay idempotent.
@@ -431,6 +435,11 @@ if hasNeededAPIExtension instance_import_conversion; then
     conversion_vm u24-vmdk-bupvol dir "${IMAGE_PATH}" "yes"
     conversion_vm u24-vmdk-bupvol zfs "${IMAGE_PATH}" "yes"
 
+    rm -f "${IMAGE_PATH}"
+    lxc config unset storage.backups_volume
+    lxc storage volume delete backups-pool backups-vol
+    lxc storage delete backups-pool
+
     # Test virtio conversion if virt-v2v-in-place is installed.
     if ! command -v virt-v2v-in-place > /dev/null; then
         echo "===> SKIP: The virt-v2v-in-place is not installed"
@@ -453,7 +462,7 @@ if hasNeededAPIExtension instance_import_conversion; then
 
         # Export instance and extract raw image.
         lxc stop v1
-        lxc export v1 --compression=none --quiet - | tar --occurrence=1 -xf - -C "${tmpdir}" "backup/virtual-machine.img"
+        lxc export v1 --compression=none --quiet - | tar --occurrence=1 --sparse -xf - -C "${tmpdir}" "backup/virtual-machine.img"
 
         # Ensure instance does not boot without virtio_scsi drivers.
         lxc start v1
@@ -463,17 +472,17 @@ if hasNeededAPIExtension instance_import_conversion; then
 
         # Ensure that virtio conversion adds the needed virtio_scsi module back into the initramfs.
         conversion_vm centos-missing-driver zfs "${tmpdir}/backup/virtual-machine.img" "no" "virtio"
+        rm -rf "${tmpdir}/backup"
     fi
 
     # Cleanup.
-    rm -rf "${tmpdir}"
     lxc image delete centos-9-stream-vm
-    lxc config unset storage.backups_volume
-    lxc storage volume delete backups-pool backups-vol
-    lxc storage delete backups-pool
 else
     echo "===> SKIP: VM image conversion skipped. Server does not support API extension 'instance_import_conversion'"
 fi
+
+# Cleanup temporary directory.
+rm -rf "${tmpdir}"
 
 # Remove the locally cached Alpine conversion image (always downloaded above).
 lxc image delete alpine-edge-vm
