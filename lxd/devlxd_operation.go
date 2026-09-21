@@ -57,14 +57,7 @@ func devLXDOperationsWaitHandler(d *Daemon, r *http.Request) response.Response {
 		return response.DevLXDErrorResponse(err)
 	}
 
-	respOp := api.DevLXDOperation{
-		ID:         op.ID,
-		Status:     op.Status,
-		StatusCode: op.StatusCode,
-		Err:        op.Err,
-	}
-
-	return response.DevLXDResponse(http.StatusOK, respOp, "json")
+	return response.DevLXDOperationResponse(*op)
 }
 
 func devLXDOperationDeleteHandler(d *Daemon, r *http.Request) response.Response {

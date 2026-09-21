@@ -508,17 +508,28 @@ EOF
       lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance get "${inst}" | jq --exit-status '.devices."block-vol".source == "block-vol"'
 
       # Try increasing block volume size while the volume is attached to a running VM (in use).
-      # Ensure the failed operation state is returned in the response.
       patchReq='{"config": {"size": "12MiB"}}'
       opID="$(lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X PATCH "lxd/1.0/storage-pools/${pool}/volumes/custom/block-vol" -d "${patchReq}" | jq --raw-output --exit-status .id)"
-      lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X GET "lxd/1.0/operations/${opID}/wait?timeout=5" -d "${patchReq}" | jq --exit-status '.status == "Failure" and .err == "In use"' >/dev/null
+      if hasNeededAPIExtension devlxd_operation_err_code; then
+        # Ensure the failed operation state is returned with status code 200 and error code 423 (StatusLocked).
+        lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X GET "lxd/1.0/operations/${opID}/wait?timeout=5" -w '\n%{http_code}' | jq --slurp --exit-status '.[1] == 200 and (.[0] | .status == "Failure" and .err == "In use" and .err_code == 423)' >/dev/null
+      else
+        # Ensure the returned status code is 423 (StatusLocked).
+        [ "$(lxc exec "${inst}" --project "${project}" -- curl -s -o /dev/null -w "%{http_code}" --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X GET "lxd/1.0/operations/${opID}/wait?timeout=5")" = "423" ]
+      fi
 
       # Detach device.
       detachReq='{"devices": {"block-vol": null}}'
       lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client instance update "${inst}" "${detachReq}"
 
-      # Delete volume.
-      lxc exec "${inst}" --project "${project}" --env DEVLXD_BEARER_TOKEN="${token}" -- devlxd-client storage delete-volume "${pool}" custom block-vol
+      # Delete volume and ensure the wait endpoint returns the successful operation state.
+      # The HTTP status code is appended to the body and read by jq as the second JSON value.
+      opID="$(lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X DELETE "lxd/1.0/storage-pools/${pool}/volumes/custom/block-vol" | jq --raw-output --exit-status .id)"
+      waitResp="$(lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X GET "lxd/1.0/operations/${opID}/wait?timeout=5" -w '\n%{http_code}')"
+      jq --slurp --exit-status '.[1] == 200 and (.[0] | .status == "Success" and .err == "")' <<< "${waitResp}" >/dev/null
+      if hasNeededAPIExtension devlxd_operation_err_code; then
+        jq --slurp --exit-status '.[0].err_code == 0' <<< "${waitResp}" >/dev/null
+      fi
     fi
 
     # Cleanup.
