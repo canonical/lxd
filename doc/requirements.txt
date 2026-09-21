@@ -25,7 +25,7 @@ packaging==26.3
 sphinxcontrib-svg2pdfconverter[CairoSVG]==2.1.0
 sphinx-last-updated-by-git==0.3.8
 sphinx-sitemap==2.9.0
-sphinx-llm~=1.0
+sphinx-llm==1.1.0
 
 ## Vale dependencies 
 vale==3.19.0.0
