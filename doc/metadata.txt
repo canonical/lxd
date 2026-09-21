@@ -4950,6 +4950,14 @@ Specify the number of days after which the unused cached image expires.
 
 ```
 
+```{config:option} loki.api.check_ready server-loki
+:defaultdesc: "`true`"
+:scope: "global"
+:shortdesc: "Loki server readiness check"
+:type: "bool"
+Specify whether to check if the Loki server is ready before sending logs. Disabling it may be necessary for endpoints that don't expose Loki readiness checks.
+```
+
 ```{config:option} loki.api.url server-loki
 :scope: "global"
 :shortdesc: "URL to the Loki server"
