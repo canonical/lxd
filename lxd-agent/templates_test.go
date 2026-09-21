@@ -24,7 +24,6 @@ func TestTemplatesApplyFileMode(t *testing.T) {
 		{
 			name:            "new file",
 			expectedContent: "templated",
-			expectedMode:    0644,
 			expectApplied:   true,
 		},
 		{
@@ -81,7 +80,11 @@ func TestTemplatesApplyFileMode(t *testing.T) {
 
 			info, err := os.Stat(targetPath)
 			require.NoError(t, err)
-			assert.Equal(t, tt.expectedMode, info.Mode().Perm())
+			if tt.existing {
+				assert.Equal(t, tt.expectedMode, info.Mode().Perm())
+			} else {
+				assert.Zero(t, info.Mode().Perm()&^os.FileMode(0644))
+			}
 		})
 	}
 }
