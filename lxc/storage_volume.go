@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/termios"
 	"github.com/canonical/lxd/shared/units"
@@ -75,6 +76,12 @@ Unless specified through a prefix, all volume operations affect "custom" (user c
 	storageVolumeAttachProfileCmd := cmdStorageVolumeAttachProfile{global: c.global, storage: c.storage, storageVolume: c}
 	cmd.AddCommand(storageVolumeAttachProfileCmd.command())
 
+	// Bitmap, gated behind the changed_block_tracking feature preview
+	if features.IsEnabled(features.ChangedBlockTracking) {
+		storageVolumeBitmapCmd := cmdStorageVolumeBitmap{global: c.global, storage: c.storage, storageVolume: c}
+		cmd.AddCommand(storageVolumeBitmapCmd.command())
+	}
+
 	// Copy
 	storageVolumeCopyCmd := cmdStorageVolumeCopy{global: c.global, storage: c.storage, storageVolume: c}
 	cmd.AddCommand(storageVolumeCopyCmd.command())
@@ -126,6 +133,12 @@ Unless specified through a prefix, all volume operations affect "custom" (user c
 	// Move
 	storageVolumeMoveCmd := cmdStorageVolumeMove{global: c.global, storage: c.storage, storageVolume: c, storageVolumeCopy: &storageVolumeCopyCmd, storageVolumeRename: &storageVolumeRenameCmd}
 	cmd.AddCommand(storageVolumeMoveCmd.command())
+
+	// NBD, gated behind the changed_block_tracking feature preview
+	if features.IsEnabled(features.ChangedBlockTracking) {
+		storageVolumeNBDCmd := cmdStorageVolumeNBD{global: c.global, storage: c.storage, storageVolume: c}
+		cmd.AddCommand(storageVolumeNBDCmd.command())
+	}
 
 	// Set
 	storageVolumeSetCmd := cmdStorageVolumeSet{global: c.global, storage: c.storage, storageVolume: c}
