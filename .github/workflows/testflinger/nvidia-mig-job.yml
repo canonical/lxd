@@ -46,7 +46,7 @@ test_data:
 
     # Find the recommended NVIDIA server-open version
     _run install_packages ubuntu-drivers-common
-    NVIDIA_DRIVER="$(_run ubuntu-drivers --gpgpu devices | awk '/-server-open/ {print $3}' | sort -V -r | head -n1)"
+    NVIDIA_DRIVER="$(_run ubuntu-drivers devices | awk '/-server-open/ {print $3}' | sort -V -r | head -n1)"
     NVIDIA_DRIVER_VERSION="$(echo "${NVIDIA_DRIVER}" | sed 's/.*-\([0-9]\+\)-server-open$/\1/')"
 
     # install NVIDIA drivers and user space utilities
