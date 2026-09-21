@@ -6265,6 +6265,13 @@ test_clustering_replicator_dr() {
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c2,STOPPED'
   LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c3,STOPPED'
 
+  sub_test "Restore: a second restore is accepted while c1 runs on LXD_TWO"
+
+  # c1 is running on LXD_TWO. That power state belongs to LXD_TWO, so the restored copy must not
+  # record it, otherwise the next restore refuses the stopped copy as running.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c1 volatile.last_state.power --project replicator-project)" = "STOPPED" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project
+
   sub_test "Resume: demote LXD_TWO, promote LXD_ONE, verify replication resumes"
 
   # Stop instances on LXD_TWO before demoting.

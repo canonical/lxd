@@ -445,6 +445,17 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 				})
 			}
 
+			// The request carries the source's volatile state, which describes the source and not this
+			// instance. Keeping the power state of a source that was running would mark a stopped
+			// instance as running here, so it would start with the daemon and block a replicator restore.
+			// The idmap keys belong to the target as well, so this uses the same policy the client
+			// applies to its own refresh requests.
+			if args.Config == nil {
+				args.Config = map[string]string{}
+			}
+
+			api.InstanceRefreshConfigKeyPolicy.Apply(args.Config, inst.LocalConfig())
+
 			err = inst.Update(ctx, *args, instance.UpdateActionUserRefresh)
 			if err != nil {
 				return nil, fmt.Errorf("Failed applying refresh target instance config: %w", err)
