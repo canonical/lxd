@@ -12,14 +12,12 @@ Active-passive disaster recovery with storage replication requires advance prepa
 If the primary deployment becomes unavailable, you can follow these steps to fail over to the secondary deployment, and then fail back when the primary deployment comes back online.
 
 (disaster-recovery-replication-promote)=
-## Promote secondary location after disaster
+## Promote the secondary location
 
 If the primary location becomes unreachable, the secondary location can be promoted to become the new source of truth. The method to promote the secondary storage array depends on the storage vendor. For links to vendor guides, see: {ref}`disaster-recovery-replication-setup`.
 
-```{admonition} Potential data loss
-:class: important
-
-If there is non-replicated data remaining on the primary location, promoting the secondary array might cause some data loss. Consult the {ref}`storage vendor's documentation <disaster-recovery-replication-setup>` for further information.
+```{important}
+Promoting the secondary array might result in data loss if there is data on the primary location that has not been replicated. Consult the {ref}`storage vendor's documentation <disaster-recovery-replication-setup>` for further information.
 ```
 
 (disaster-recovery-replication-recover)=
@@ -32,7 +30,7 @@ When prompted to choose the pools to scan for unknown volumes, select the storag
 The instances and custom storage volumes are then recovered on the secondary LXD deployment. Use `lxc start` to bring up the instances that were originally running on the primary deployment.
 
 (disaster-recovery-replication-add-pool)=
-### Add missing pool
+### Add missing storage pool
 
 If the LXD storage pool at the secondary location exists only in the storage array and has not yet been created in LXD (as described in {ref}`disaster-recovery-replication-entities-pool`), you must recover it first.
 
@@ -46,14 +44,12 @@ LXD's {ref}`Ceph RBD driver <storage-ceph>` uses a _placeholder_ volume to reser
 When creating the storage pool in a LXD cluster, make sure to add the `source.recover=true` setting when creating the pending storage pools per cluster member as this setting is cluster member specific.
 
 (disaster-recovery-replication-failback)=
-## Demote secondary and fail back to primary location
+## Fail back to the primary location
 
-Once the primary location is back online, the storage layer ensures data consistency because the secondary storage array
-now acts as the source of truth and no longer receives updates from the primary array. As long as this replication flow is not reversed, the running instances and custom volumes on the secondary location are protected.
+Once the primary location is back online, the storage layer ensures data consistency because the secondary storage array now acts as the source of truth and no longer receives updates from the primary array. As long as this replication flow is not reversed, the running instances and custom volumes on the secondary location are protected.
 
-```{admonition} Risk of network conflicts
-:class: warning
-Network collisions might occur if the primary location comes back online and LXD automatically starts up any instances. This issue is outside the scope of storage replication, but you must place appropriate measures to prevent such conflicts.
+```{warning}
+Network collisions might occur if the primary location comes back online and LXD automatically starts up any instances. This issue is outside the scope of storage replication, but you must take appropriate measures to prevent such conflicts.
 ```
 
 Service failback to the primary location can be performed in two ways. In both cases, the operations on the storage layer are identical, but the correct approach depends on the state of the instances and custom volumes on the secondary location:
