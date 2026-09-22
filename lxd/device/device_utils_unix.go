@@ -310,12 +310,12 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 		devName := ent.Name()
 
 		// Remove the LXD device type and name prefix, leaving just the encoded dest path.
-		idx := strings.LastIndex(devName, ".")
-		if idx == -1 {
+		_, after, ok := strings.CutLast(devName, ".")
+		if !ok {
 			return fmt.Errorf("Invalid device name %q", devName)
 		}
 
-		encRelDestFile := devName[idx+1:]
+		encRelDestFile := after
 
 		// If the encoded relative path of the device file matches the encoded relative dest
 		// path of our new device then return as we do not want to instruct LXD to mount
@@ -448,24 +448,24 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 	encRelDevFiles := []string{}
 	for _, otherDev := range otherDevs {
 		// Remove the LXD device type and name prefix, leaving just the encoded dest path.
-		idx := strings.LastIndex(otherDev, ".")
-		if idx == -1 {
+		_, after, ok := strings.CutLast(otherDev, ".")
+		if !ok {
 			return fmt.Errorf("Invalid device name %q", otherDev)
 		}
 
-		encRelDestFile := otherDev[idx+1:]
+		encRelDestFile := after
 		encRelDevFiles = append(encRelDevFiles, encRelDestFile)
 	}
 
 	// Check that none of our devices are in use by another LXD device.
 	for _, ourDev := range ourDevs {
 		// Remove the LXD device type and name prefix, leaving just the encoded dest path.
-		idx := strings.LastIndex(ourDev, ".")
-		if idx == -1 {
+		_, after, ok := strings.CutLast(ourDev, ".")
+		if !ok {
 			return fmt.Errorf("Invalid device name %q", ourDev)
 		}
 
-		ourEncRelDestFile := ourDev[idx+1:]
+		ourEncRelDestFile := after
 
 		// Look for devices for other LXD devices that match the same path.
 		dupe := slices.Contains(encRelDevFiles, ourEncRelDestFile)

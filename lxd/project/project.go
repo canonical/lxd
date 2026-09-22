@@ -85,15 +85,15 @@ func DNS(projectName string, instanceName string) string {
 // Note: This should only be used with Instance names (because they cannot contain the project separator) and this
 // function relies on this rule as project names can contain the project separator.
 func InstanceParts(projectInstanceName string) (projectName string, instanceName string) {
-	i := strings.LastIndex(projectInstanceName, separator)
-	if i < 0 {
+	before, after, ok := strings.CutLast(projectInstanceName, separator)
+	if !ok {
 		// This string is not project prefixed or is part of default project.
 		return api.ProjectDefaultName, projectInstanceName
 	}
 
 	// As project names can container separator, we effectively split once from the right hand side as
 	// Instance names are not allowed to container the separator value.
-	return projectInstanceName[0:i], projectInstanceName[i+1:]
+	return before, after
 }
 
 // StorageVolume adds the "<project>_prefix" to the storage volume name. Even if the project name is "default".
