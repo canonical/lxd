@@ -1691,7 +1691,7 @@ func clusterCopyContainerInternal(ctx context.Context, s *state.State, source in
 		pullReq := api.InstancePost{
 			Migration:     true,
 			Live:          req.Source.Live,
-			ContainerOnly: instanceOnly,
+			ContainerOnly: instanceOnly, //nolint:staticcheck
 			InstanceOnly:  instanceOnly,
 			Name:          req.Name,
 		}
