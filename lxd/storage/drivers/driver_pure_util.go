@@ -1217,7 +1217,7 @@ func (p *pureClient) addHostQualifiedNames(hostName string, qns []string) error 
 	switch connector.Type() {
 	case connectors.TypeISCSI:
 		req["add_iqns"] = qns
-	case connectors.TypeNVMeTCP:
+	case connectors.TypeNVMeTCP, connectors.TypeNVMeFC:
 		req["add_nqns"] = qns
 	case connectors.TypeSCSIFC:
 		req["add_wwns"] = qns
