@@ -2180,7 +2180,7 @@ func clusterCopyContainerInternal(r *http.Request, s *state.State, source instan
 		pullReq := api.InstancePost{
 			Migration:     true,
 			Live:          req.Source.Live,
-			ContainerOnly: instanceOnly,
+			ContainerOnly: instanceOnly, //nolint:staticcheck
 			InstanceOnly:  instanceOnly,
 			Name:          req.Name,
 		}
