@@ -111,7 +111,7 @@ func (d *pure) Info() Info {
 		OptimizedImages:              true,
 		PreservesInodes:              false,
 		Remote:                       d.isRemote(),
-		VolumeTypes:                  []VolumeType{VolumeTypeCustom, VolumeTypeVM, VolumeTypeContainer, VolumeTypeImage},
+		VolumeTypes:                  []VolumeType{VolumeTypeCustom, VolumeTypeVM, VolumeTypeMicroVM, VolumeTypeContainer, VolumeTypeImage},
 		BlockBacking:                 true,
 		RunningCopyFreeze:            true,
 		DirectIO:                     true,

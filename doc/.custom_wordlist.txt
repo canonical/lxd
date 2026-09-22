@@ -158,6 +158,7 @@ Kubelet
 Kubelets
 KVM
 libbpf
+libkrun
 Libera
 liveness
 LogCLI

@@ -3725,3 +3725,20 @@ Fibre Channel targets are discovered through the host bus adapter, so `pure.targ
 
 The DevLXD wait endpoint (`GET /1.0/operations/{id}/wait`) now returns HTTP status `200` when the wait itself succeeds, even if the operation it waited on failed.
 When the server supports this extension, the DevLXD operation has a new `err_code` field that carries the HTTP status code associated with the failed operation.
+
+(extension-instance-microvm)=
+## `instance_microvm`
+
+```{warning}
+**Do not** enable this extension in production environments. It is a feature preview.
+```
+
+MicroVM instances use libkrun with direct kernel boot from the host.
+
+MicroVMs use container images, unpacked into an ext4 filesystem on top of a block volume. They boot using the host's kernel, which is bind-mounted into a fixed location; MicroVMs do not support a separate initrd.
+
+MicroVM instances are supported on the same storage pool drivers as virtual machines. Migrations are not supported.
+
+```{note}
+To test this extension, enable the feature with `snap set lxd features=microvm`, then restart the daemon with `snap restart --reload lxd`.
+```

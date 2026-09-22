@@ -507,6 +507,7 @@ var APIExtensions = []string{
 	"metrics_replicators",
 	"storage_driver_pure_scsifc",
 	"devlxd_operation_err_code",
+	"instance_microvm",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
