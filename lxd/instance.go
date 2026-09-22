@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"net/http"
 	"strings"
 	"sync"
@@ -287,37 +286,6 @@ type instanceCreateAsCopyOpts struct {
 	overrideSnapshotProfiles bool              // Copy the target instance profiles to the instance snapshots
 }
 
-// instanceRefreshRestoreHook returns a hook that puts an existing instance back to the state it is in when the
-// hook is created. A refresh rewrites the instance with the source's config before any data has moved, so a
-// refresh that then fails would otherwise leave the source's config, profiles and description on an instance
-// whose disks were never refreshed.
-func instanceRefreshRestoreHook(inst instance.Instance) revert.Hook {
-	config := make(map[string]string, len(inst.LocalConfig()))
-	maps.Copy(config, inst.LocalConfig())
-
-	args := db.InstanceArgs{
-		Architecture: inst.Architecture(),
-		Config:       config,
-		Description:  inst.Description(),
-		Devices:      inst.LocalDevices().Clone(),
-		Ephemeral:    inst.IsEphemeral(),
-		Profiles:     inst.Profiles(),
-		Project:      inst.Project().Name,
-		Type:         inst.Type(),
-	}
-
-	return func() {
-		// A transfer that got far enough records the state of the received disk in these keys, so they
-		// follow the instance as it is now and not as it was.
-		api.ConfigKeyPolicy{Immutable: api.InstanceRefreshConfigKeyPolicy.Immutable}.Apply(args.Config, inst.LocalConfig())
-
-		err := inst.Update(context.Background(), args, instance.UpdateActionUserRefresh)
-		if err != nil {
-			logger.Warn("Failed restoring instance after failed refresh", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
-		}
-	}
-}
-
 // instanceCreateAsCopy create a new instance by copying from an existing instance.
 func instanceCreateAsCopy(ctx context.Context, s *state.State, opts instanceCreateAsCopyOpts, op *operations.Operation) (instance.Instance, error) {
 	var inst instance.Instance
@@ -338,8 +306,6 @@ func instanceCreateAsCopy(ctx context.Context, s *state.State, opts instanceCrea
 
 			opts.refresh = false // Instance doesn't exist, so switch to copy mode.
 		} else {
-			revert.Add(instanceRefreshRestoreHook(inst))
-
 			// Validate and apply refresh target config before the storage refresh.
 			err = inst.Update(ctx, opts.targetInstance, instance.UpdateActionUserRefresh)
 			if err != nil {
