@@ -1,7 +1,6 @@
 package qmp
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -171,11 +170,16 @@ func (qmp *qemuMachineProtocol) getEvents(context.Context) (<-chan qmpEvent, err
 func (qmp *qemuMachineProtocol) listen(r io.Reader, events chan<- qmpEvent, replies *sync.Map) {
 	defer close(events)
 
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		var e qmpEvent
+	var errDecode error
+	decoder := json.NewDecoder(r)
+	for {
+		var b json.RawMessage
+		errDecode = decoder.Decode(&b)
+		if errDecode != nil {
+			break
+		}
 
-		b := scanner.Bytes()
+		var e qmpEvent
 		err := json.Unmarshal(b, &e)
 		if err != nil {
 			continue
@@ -223,9 +227,8 @@ func (qmp *qemuMachineProtocol) listen(r io.Reader, events chan<- qmpEvent, repl
 		events <- e
 	}
 
-	err := scanner.Err()
-	if err == nil {
-		err = errors.New("Monitor has exited")
+	if errors.Is(errDecode, io.EOF) {
+		errDecode = errors.New("Monitor has exited")
 	}
 
 	// Return the error to all existing requests.
@@ -238,7 +241,7 @@ func (qmp *qemuMachineProtocol) listen(r io.Reader, events chan<- qmpEvent, repl
 			return true
 		}
 
-		reply <- rawResponse{err: err}
+		reply <- rawResponse{err: errDecode}
 
 		return true
 	})
