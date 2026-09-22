@@ -21,6 +21,6 @@ type DevLXDOperation struct {
 	// Operation error code
 	// Example: 423
 	//
-	// API extension: devlxd_operation_err_code
+	// API extension: operation_wait_status_code
 	ErrCode int64 `json:"err_code" yaml:"err_code"`
 }
