@@ -2,7 +2,7 @@ name: lxd
 base: ubuntu@24.04
 sdks:
   - name: go
-    channel: 1.26/stable
+    channel: 1.27/stable
   - name: project-dev-tools
 
 actions:
