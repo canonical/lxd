@@ -24,7 +24,7 @@ func ValueOf(obj any, field string) any {
 	if valueKind == reflect.Map {
 		switch reflect.TypeOf(obj).Elem().Kind() {
 		case reflect.String:
-			m, ok := value.Interface().(map[string]string)
+			m, ok := reflect.TypeAssert[map[string]string](value)
 			if !ok {
 				return nil
 			}
