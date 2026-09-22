@@ -1844,14 +1844,12 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 
 	// Base request
 	req := api.InstancesPost{
-		Name: cName,
-		InstancePut: api.InstancePut{
-			Architecture: snapshot.Architecture,
-			Config:       snapshot.Config,
-			Devices:      snapshot.Devices,
-			Ephemeral:    snapshot.Ephemeral,
-			Profiles:     snapshot.Profiles,
-		},
+		Name:         cName,
+		Architecture: snapshot.Architecture,
+		Config:       snapshot.Config,
+		Devices:      snapshot.Devices,
+		Ephemeral:    snapshot.Ephemeral,
+		Profiles:     snapshot.Profiles,
 	}
 
 	if snapshot.Stateful && args != nil && args.Live {

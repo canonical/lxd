@@ -592,11 +592,11 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 			VolumeOnly: args != nil && args.VolumeOnly,
 			Refresh:    args != nil && args.Refresh,
 		},
-	}
 
-	req.Config = volume.Config
-	req.Description = volume.Description
-	req.ContentType = volume.ContentType
+		Config:      volume.Config,
+		Description: volume.Description,
+		ContentType: volume.ContentType,
+	}
 
 	sourceInfo, err := source.GetConnectionInfo()
 	if err != nil {
