@@ -3725,3 +3725,8 @@ Fibre Channel targets are discovered through the host bus adapter, so `pure.targ
 
 The LXD and DevLXD operation wait endpoints (`GET /1.0/operations/{id}/wait`) now return HTTP status `200` when the wait itself succeeds, even if the operation it waited on failed.
 When the server supports this extension, the DevLXD operation also has a new `err_code` field that carries the HTTP status code associated with the failed operation.
+
+(extension-vm-volatile-maxcpus)=
+## `vm_volatile_maxcpus`
+
+Adds a new volatile VM configuration key {config:option}`instance-volatile:volatile.cpu.maxcpus` that records the vCPU hotplug limit (SMP `maxcpus`) used when the VM booted. The value is reused on stateful start (stateful resume or live migration target) so that the QEMU SMP topology matches on both ends of a live migration regardless of the CPU count on each host.

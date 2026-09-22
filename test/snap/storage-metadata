@@ -247,6 +247,11 @@ for vers in "latest" "5.21" "5.0"; do
             lxc config set i1 volatile.bus.mode="" volatile.eth0.bus=""
         fi
 
+        # Unset incompatible volatile key if remote version of LXD doesn't support vm_volatile_maxcpus.
+        if [ "${type}" = "vm" ] && hasNeededAPIExtension vm_volatile_maxcpus && ! lxc exec c1 -- sh -c "$(declare -f hasNeededAPIExtension); hasNeededAPIExtension vm_volatile_maxcpus"; then
+            lxc config set i1 volatile.cpu.maxcpus=""
+        fi
+
         echo "==> Check the ${type} can be migrated from LXD ${LXD_SNAP_CHANNEL} to ${versStr}"
         lxc move i1 c1:i1
         lxc query "c1:/1.0/instances/i1?recursion=1" | jq --exit-status '.snapshots | length == 1'
