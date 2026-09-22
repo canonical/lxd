@@ -7911,13 +7911,17 @@ _clustering_replicator_volume_forward() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${vol_pool}" shared-vol --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc config device add c1 shareddisk disk pool="${vol_pool}" source=shared-vol path=/share --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc config device add c2 shareddisk disk pool="${vol_pool}" source=shared-vol path=/share --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 user.leader-change=1 --project replicator-project
 
   # The standby defers the shared device as if the volume were exclusive, then finds it absent from the
   # source's index header and refuses both instances before their root disks are sent: c2 is never
-  # created there and the c1 copy keeps its previous devices.
+  # created there and the c1 copy keeps its previous devices and config, because the standby applies the
+  # leader's config before the refusal and has to put its own back.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project || false
   ! LXD_DIR="${LXD_TWO_DIR}" lxc info c2 --project replicator-project || false
   ! LXD_DIR="${LXD_TWO_DIR}" lxc config device get c1 shareddisk source --project replicator-project || false
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/instances/c1?project=replicator-project" \
+    | jq --exit-status '.config | has("user.leader-change") | not'
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' \
     | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '
@@ -7934,6 +7938,8 @@ _clustering_replicator_volume_forward() {
   # Both instances replicate against the pre-created shared volume, which the run leaves alone:
   # the all-exclusive snapshot skips it on the leader and the standby copy stays as created.
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns ns | grep -xF 'c2,STOPPED'
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/instances/c1?project=replicator-project" \
+    | jq --exit-status '.config["user.leader-change"] == "1"'
   LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/shared-vol?project=replicator-project" \
     | jq --exit-status '.used_by | length == 2'
   LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/shared-vol/snapshots?project=replicator-project" \
