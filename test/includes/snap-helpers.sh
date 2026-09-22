@@ -123,7 +123,7 @@ isSystemdUnitFailed() {
 }
 
 # isSystemdClean: wait for instance to be booted and check for systemd failures.
-# ==> Returns 1 if systemd state is clean (no failure), 1 otherwise.
+# ==> Returns 0 if systemd state is clean (no failure), 1 otherwise.
 isSystemdClean() (
   { set +x; } 2>/dev/null
   instName="$1"
