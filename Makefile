@@ -283,8 +283,11 @@ endif
 	@# Update Go SDK channel in .workshop/lxd.yaml
 	sed -i "s/^\( *channel: \)[0-9.]\+\/stable/\1$$(echo "$(NEW_GOMIN)" | sed 's/\.[0-9]*$$//')\/stable/" .workshop/lxd.yaml
 
+	@# Update Go build-snaps channel in snap/snapcraft.yaml
+	sed -i "s/^\( *- go\/\)[0-9.]\+\/stable/\1$$(echo "$(NEW_GOMIN)" | sed 's/\.[0-9]*$$//')\/stable/" snap/snapcraft.yaml
+
 	@echo "Go minimum version updated to $(NEW_GOMIN)"
-	@./scripts/check-and-commit.sh "Makefile go.mod tools/go.mod doc/requirements.md $(shell find . -name 'AGENTS.md' -not -path './.git/*') .github/copilot-instructions.md .workshop/lxd.yaml" "go: Update Go minimum version to $(NEW_GOMIN)"
+	@./scripts/check-and-commit.sh "Makefile go.mod tools/go.mod doc/requirements.md $(shell find . -name 'AGENTS.md' -not -path './.git/*') .github/copilot-instructions.md .workshop/lxd.yaml snap/snapcraft.yaml" "go: Update Go minimum version to $(NEW_GOMIN)"
 
 .PHONY: update-gomod
 update-gomod:
