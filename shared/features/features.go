@@ -49,7 +49,7 @@ func loadFromEnv(envVar string) error {
 
 	// If the environment variable is not empty, parse the feature names
 	if value != "" {
-		for _, name := range strings.Split(value, ",") {
+		for name := range strings.SplitSeq(value, ",") {
 			// Check if feature name pattern in acceptable form
 			if !namePattern.MatchString(name) {
 				return fmt.Errorf("Invalid feature preview %q", name)
