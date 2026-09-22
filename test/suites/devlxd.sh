@@ -510,7 +510,7 @@ EOF
       # Try increasing block volume size while the volume is attached to a running VM (in use).
       patchReq='{"config": {"size": "12MiB"}}'
       opID="$(lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X PATCH "lxd/1.0/storage-pools/${pool}/volumes/custom/block-vol" -d "${patchReq}" | jq --raw-output --exit-status .id)"
-      if hasNeededAPIExtension devlxd_operation_err_code; then
+      if hasNeededAPIExtension operation_wait_status_code; then
         # Ensure the failed operation state is returned with status code 200 and error code 423 (StatusLocked).
         lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X GET "lxd/1.0/operations/${opID}/wait?timeout=5" -w '\n%{http_code}' | jq --slurp --exit-status '.[1] == 200 and (.[0] | .status == "Failure" and .err == "In use" and .err_code == 423)' >/dev/null
       else
@@ -527,7 +527,7 @@ EOF
       opID="$(lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X DELETE "lxd/1.0/storage-pools/${pool}/volumes/custom/block-vol" | jq --raw-output --exit-status .id)"
       waitResp="$(lxc exec "${inst}" --project "${project}" -- curl -s --unix-socket /dev/lxd/sock -H "Authorization: Bearer ${token}" -X GET "lxd/1.0/operations/${opID}/wait?timeout=5" -w '\n%{http_code}')"
       jq --slurp --exit-status '.[1] == 200 and (.[0] | .status == "Success" and .err == "")' <<< "${waitResp}" >/dev/null
-      if hasNeededAPIExtension devlxd_operation_err_code; then
+      if hasNeededAPIExtension operation_wait_status_code; then
         jq --slurp --exit-status '.[0].err_code == 0' <<< "${waitResp}" >/dev/null
       fi
     fi
