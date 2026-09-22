@@ -689,7 +689,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 				gainTrust = func() error {
 					return d.(lxd.InstanceServer).CreateCertificate(api.CertificatesPost{
 						Type:     api.CertificateTypeClient,
-						Password: c.flagPassword,
+						Password: c.flagPassword, //nolint:staticcheck
 					})
 				}
 			}
