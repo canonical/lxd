@@ -22,10 +22,8 @@ type DevLXDServer struct {
 // NewDevLXDServer returns a new devlxd event server.
 func NewDevLXDServer(debug bool, verbose bool) *DevLXDServer {
 	server := &DevLXDServer{
-		serverCommon: serverCommon{
-			debug:   debug,
-			verbose: verbose,
-		},
+		debug:     debug,
+		verbose:   verbose,
 		listeners: map[string]*DevLXDListener{},
 	}
 
@@ -35,13 +33,11 @@ func NewDevLXDServer(debug bool, verbose bool) *DevLXDServer {
 // AddListener creates and returns a new event listener.
 func (s *DevLXDServer) AddListener(instanceID int, connection EventListenerConnection, messageTypes []string) (*DevLXDListener, error) {
 	listener := &DevLXDListener{
-		listenerCommon: listenerCommon{
-			EventListenerConnection: connection,
-			messageTypes:            messageTypes,
-			done:                    cancel.New(),
-			id:                      uuid.New().String(),
-		},
-		instanceID: instanceID,
+		EventListenerConnection: connection,
+		messageTypes:            messageTypes,
+		done:                    cancel.New(),
+		id:                      uuid.New().String(),
+		instanceID:              instanceID,
 	}
 
 	s.lock.Lock()

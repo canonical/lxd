@@ -20,11 +20,9 @@ func newAgentCertTestInstance(t *testing.T) (*qemu, string) {
 	t.Setenv("LXD_DIR", t.TempDir())
 
 	d := &qemu{
-		common: common{
-			dbType:  instancetype.VM,
-			name:    "v1",
-			project: api.Project{Name: api.ProjectDefaultName},
-		},
+		dbType:  instancetype.VM,
+		name:    "v1",
+		project: api.Project{Name: api.ProjectDefaultName},
 	}
 
 	instancePath := d.Path()

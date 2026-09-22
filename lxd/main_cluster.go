@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/canonical/go-dqlite/v3/client"
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
 	"golang.org/x/sys/unix"
@@ -97,11 +96,9 @@ type ClusterConfig struct {
 // ToRaftNode converts a ClusterConfig struct to a RaftNode struct.
 func (c ClusterMember) ToRaftNode() (*db.RaftNode, error) {
 	node := &db.RaftNode{
-		NodeInfo: client.NodeInfo{
-			ID:      c.ID,
-			Address: c.Address,
-		},
-		Name: c.Name,
+		ID:      c.ID,
+		Address: c.Address,
+		Name:    c.Name,
 	}
 
 	var role db.RaftRole

@@ -293,9 +293,7 @@ func (c *Client) HandleEvent(event api.Event) {
 			"location": location,
 			"instance": c.cfg.instance,
 		},
-		Entry: Entry{
-			Timestamp: event.Timestamp,
-		},
+		Timestamp: event.Timestamp,
 	}
 
 	context := make(map[string]string)

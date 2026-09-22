@@ -1661,9 +1661,7 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 	// Create veth pair if needed.
 	if !InterfaceExists(vars.uplinkEnd) && !InterfaceExists(vars.ovsEnd) {
 		veth := &ip.Veth{
-			Link: ip.Link{
-				Name: vars.uplinkEnd,
-			},
+			Name: vars.uplinkEnd,
 			Peer: ip.Link{
 				Name: vars.ovsEnd,
 			},

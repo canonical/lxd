@@ -7735,14 +7735,12 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 	}
 
 	customVol := &backupConfig.Volume{
-		StorageVolume: api.StorageVolume{
-			Pool:        b.name,
-			Project:     projectName,
-			Name:        volName,
-			Type:        cluster.StoragePoolVolumeTypeNameCustom,
-			ContentType: apiContentType,
-			Config:      vol.Config(),
-		},
+		Pool:        b.name,
+		Project:     projectName,
+		Name:        volName,
+		Type:        cluster.StoragePoolVolumeTypeNameCustom,
+		ContentType: apiContentType,
+		Config:      vol.Config(),
 	}
 
 	// Populate snapshot volumes.
@@ -8057,10 +8055,8 @@ func (b *lxdBackend) CreateCustomVolumeFromISO(ctx context.Context, projectName 
 	// Check whether we are allowed to create volumes.
 	req := api.StorageVolumesPost{
 		Name: volName,
-		StorageVolumePut: api.StorageVolumePut{
-			Config: map[string]string{
-				"size": strconv.FormatInt(size, 10),
-			},
+		Config: map[string]string{
+			"size": strconv.FormatInt(size, 10),
 		},
 	}
 
@@ -8136,10 +8132,8 @@ func (b *lxdBackend) CreateCustomVolumeFromTarball(ctx context.Context, projectN
 
 	// Check whether we are allowed to create volumes.
 	req := api.StorageVolumesPost{
-		Name: volName,
-		StorageVolumePut: api.StorageVolumePut{
-			Config: map[string]string{},
-		},
+		Name:   volName,
+		Config: map[string]string{},
 	}
 
 	err = b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -8270,10 +8264,8 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(ctx context.Context, srcBackup
 
 	// Check whether we are allowed to create volumes.
 	req := api.StorageVolumesPost{
-		StorageVolumePut: api.StorageVolumePut{
-			Config: customVol.Config,
-		},
-		Name: srcBackup.Name,
+		Config: customVol.Config,
+		Name:   srcBackup.Name,
 	}
 
 	err = b.state.DB.Cluster.Transaction(b.state.ShutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {

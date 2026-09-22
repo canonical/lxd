@@ -253,10 +253,8 @@ func devLXDStoragePoolVolumesPostHandler(d *Daemon, r *http.Request) response.Re
 		Name:        vol.Name,
 		Type:        volType,
 		ContentType: vol.ContentType,
-		StorageVolumePut: api.StorageVolumePut{
-			Config:      vol.Config,
-			Description: vol.Description,
-		},
+		Config:      vol.Config,
+		Description: vol.Description,
 	}
 
 	// Configure volume source, if provided in the request.

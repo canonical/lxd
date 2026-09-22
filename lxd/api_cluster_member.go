@@ -1217,8 +1217,10 @@ func clusterMemberDelete(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		put := api.ClusterPut{}
-		put.Enabled = false
+		put := api.ClusterPut{
+			Enabled: false,
+		}
+
 		_, err = client.UpdateCluster(put, "")
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed cleaning up the member: %w", err))

@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/canonical/go-dqlite/v3/client"
 	"github.com/canonical/go-dqlite/v3/driver"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -79,8 +78,8 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 
 	_ = state.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodes := []db.RaftNode{
-			{NodeInfo: client.NodeInfo{ID: 1, Address: "0.0.0.0:666"}},
-			{NodeInfo: client.NodeInfo{ID: 2, Address: "1.2.3.4:666"}},
+			{ID: 1, Address: "0.0.0.0:666"},
+			{ID: 2, Address: "1.2.3.4:666"},
 		}
 
 		err := tx.ReplaceRaftNodes(nodes)

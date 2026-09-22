@@ -153,9 +153,7 @@ func devLXDAPIGetHandler(d *Daemon, r *http.Request) response.Response {
 		InstanceType:            inst.Type().String(),
 		Auth:                    clientAuth,
 		SupportedStorageDrivers: supportedStorageDrivers,
-		DevLXDPut: api.DevLXDPut{
-			State: state.String(),
-		},
+		State:                   state.String(),
 	}
 
 	if !requestor.IsTrusted() {

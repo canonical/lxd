@@ -9,8 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/canonical/go-dqlite/v3/client"
-
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/state"
@@ -191,12 +189,10 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 		raftNodeIDs[id] = true
 
 		info := db.RaftNode{
-			NodeInfo: client.NodeInfo{
-				ID:      id,
-				Address: member.Address,
-				Role:    db.RaftSpare,
-			},
-			Name: "",
+			ID:      id,
+			Address: member.Address,
+			Role:    db.RaftSpare,
+			Name:    "",
 		}
 
 		logger.Info("Add spare dqlite node", logger.Ctx{"id": info.ID, "address": info.Address})

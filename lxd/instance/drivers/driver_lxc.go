@@ -111,27 +111,25 @@ func lxcCreate(ctx context.Context, s *state.State, args db.InstanceArgs, p api.
 
 	// Create the container struct
 	d := &lxc{
-		common: common{
-			state: s,
+		state: s,
 
-			architecture: args.Architecture,
-			creationDate: args.CreationDate,
-			dbType:       args.Type,
-			description:  args.Description,
-			ephemeral:    args.Ephemeral,
-			expiryDate:   args.ExpiryDate,
-			id:           args.ID,
-			lastUsedDate: args.LastUsedDate,
-			localConfig:  args.Config,
-			localDevices: args.Devices,
-			logger:       logger.AddContext(logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
-			name:         args.Name,
-			node:         args.Node,
-			profiles:     args.Profiles,
-			project:      p,
-			isSnapshot:   args.Snapshot,
-			stateful:     args.Stateful,
-		},
+		architecture: args.Architecture,
+		creationDate: args.CreationDate,
+		dbType:       args.Type,
+		description:  args.Description,
+		ephemeral:    args.Ephemeral,
+		expiryDate:   args.ExpiryDate,
+		id:           args.ID,
+		lastUsedDate: args.LastUsedDate,
+		localConfig:  args.Config,
+		localDevices: args.Devices,
+		logger:       logger.AddContext(logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
+		name:         args.Name,
+		node:         args.Node,
+		profiles:     args.Profiles,
+		project:      p,
+		isSnapshot:   args.Snapshot,
+		stateful:     args.Stateful,
 	}
 
 	// Cleanup the zero values
@@ -316,27 +314,25 @@ func (d *lxc) release() {
 // Create a container struct without initializing it.
 func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices, p api.Project) instance.Instance {
 	d := &lxc{
-		common: common{
-			state: s,
+		state: s,
 
-			architecture: args.Architecture,
-			creationDate: args.CreationDate,
-			dbType:       args.Type,
-			description:  args.Description,
-			ephemeral:    args.Ephemeral,
-			expiryDate:   args.ExpiryDate,
-			id:           args.ID,
-			lastUsedDate: args.LastUsedDate,
-			localConfig:  args.Config,
-			localDevices: args.Devices,
-			logger:       logger.AddContext(logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
-			name:         args.Name,
-			node:         args.Node,
-			profiles:     args.Profiles,
-			project:      p,
-			isSnapshot:   args.Snapshot,
-			stateful:     args.Stateful,
-		},
+		architecture: args.Architecture,
+		creationDate: args.CreationDate,
+		dbType:       args.Type,
+		description:  args.Description,
+		ephemeral:    args.Ephemeral,
+		expiryDate:   args.ExpiryDate,
+		id:           args.ID,
+		lastUsedDate: args.LastUsedDate,
+		localConfig:  args.Config,
+		localDevices: args.Devices,
+		logger:       logger.AddContext(logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
+		name:         args.Name,
+		node:         args.Node,
+		profiles:     args.Profiles,
+		project:      p,
+		isSnapshot:   args.Snapshot,
+		stateful:     args.Stateful,
 	}
 
 	// Cleanup the zero values
@@ -2225,7 +2221,8 @@ func (d *lxc) Start(ctx context.Context, stateful bool, progressReporter ioprogr
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate,
-		"stateful":  stateful}
+		"stateful":  stateful,
+	}
 
 	if op.Action() == "start" {
 		d.logger.Info("Starting instance", ctxMap)
@@ -2543,7 +2540,8 @@ func (d *lxc) Stop(ctx context.Context, stateful bool) error {
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate,
-		"stateful":  stateful}
+		"stateful":  stateful,
+	}
 
 	if op.Action() == "stop" {
 		d.logger.Info("Stopping instance", ctxMap)
@@ -2686,7 +2684,8 @@ func (d *lxc) Shutdown(ctx context.Context, timeout time.Duration) error {
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate,
-		"timeout":   timeout}
+		"timeout":   timeout,
+	}
 
 	if op.Action() == "stop" {
 		d.logger.Info("Shutting down instance", ctxMap)
@@ -2976,7 +2975,8 @@ func (d *lxc) Freeze(ctx context.Context) error {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
-		"used":      d.lastUsedDate}
+		"used":      d.lastUsedDate,
+	}
 
 	// Check that we're running
 	if !d.IsRunning() {
@@ -3027,7 +3027,8 @@ func (d *lxc) Unfreeze(ctx context.Context) error {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
-		"used":      d.lastUsedDate}
+		"used":      d.lastUsedDate,
+	}
 
 	// Check that we're running
 	if !d.IsRunning() {
@@ -3378,7 +3379,8 @@ func (d *lxc) delete(ctx context.Context, force bool) error {
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
-		"used":      d.lastUsedDate}
+		"used":      d.lastUsedDate,
+	}
 
 	if d.isSnapshot {
 		d.logger.Info("Deleting instance snapshot", ctxMap)
@@ -3495,7 +3497,8 @@ func (d *lxc) Rename(ctx context.Context, newName string, applyTemplateTrigger b
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate,
-		"newname":   newName}
+		"newname":   newName,
+	}
 
 	d.logger.Info("Renaming instance", ctxMap)
 
@@ -4437,7 +4440,8 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
-		"used":      d.lastUsedDate}
+		"used":      d.lastUsedDate,
+	}
 
 	meta := api.ImageMetadata{}
 

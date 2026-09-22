@@ -503,11 +503,9 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 
 		// Create admin key for new bucket.
 		adminKeyReq := api.StorageBucketKeysPost{
-			StorageBucketKeyPut: api.StorageBucketKeyPut{
-				Role:        "admin",
-				Description: "Admin user",
-			},
-			Name: "admin",
+			Role:        "admin",
+			Description: "Admin user",
+			Name:        "admin",
 		}
 
 		adminKey, err := pool.CreateBucketKey(bucketProjectName, req.Name, adminKeyReq)

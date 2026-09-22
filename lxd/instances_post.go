@@ -1197,17 +1197,15 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			}
 
 			snapshotReq := api.InstancesPost{
-				InstancePut: api.InstancePut{
-					Architecture: snapshot.Architecture,
-					Config:       snapshot.Config,
-					Devices:      snapshot.Devices,
-					Ephemeral:    snapshot.Ephemeral,
-					Profiles:     snapshot.Profiles,
-					Stateful:     snapshot.Stateful,
-				},
-				Name:   bInfo.Name + "/" + snapshot.Name,
-				Source: api.InstanceSource{}, // Only relevant for "copy" or "migration", but may not be nil.
-				Type:   api.InstanceType(bInfo.Config.Instance.Type),
+				Architecture: snapshot.Architecture,
+				Config:       snapshot.Config,
+				Devices:      snapshot.Devices,
+				Ephemeral:    snapshot.Ephemeral,
+				Profiles:     snapshot.Profiles,
+				Stateful:     snapshot.Stateful,
+				Name:         bInfo.Name + "/" + snapshot.Name,
+				Source:       api.InstanceSource{}, // Only relevant for "copy" or "migration", but may not be nil.
+				Type:         api.InstanceType(bInfo.Config.Instance.Type),
 			}
 
 			err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, snapshotReq)

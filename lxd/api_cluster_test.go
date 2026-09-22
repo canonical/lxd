@@ -26,9 +26,11 @@ func TestCluster_Bootstrap(t *testing.T) {
 
 	client := f.ClientUnix(daemon)
 
-	cluster := api.ClusterPut{}
-	cluster.ServerName = "buzz"
-	cluster.Enabled = true
+	cluster := api.ClusterPut{
+		ServerName: "buzz",
+		Enabled:    true,
+	}
+
 	op, err := client.UpdateCluster(cluster, "")
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
@@ -63,9 +65,11 @@ func TestCluster_RenameNode(t *testing.T) {
 
 	client := f.ClientUnix(daemon)
 
-	cluster := api.ClusterPut{}
-	cluster.ServerName = "buzz"
-	cluster.Enabled = true
+	cluster := api.ClusterPut{
+		ServerName: "buzz",
+		Enabled:    true,
+	}
+
 	op, err := client.UpdateCluster(cluster, "")
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())

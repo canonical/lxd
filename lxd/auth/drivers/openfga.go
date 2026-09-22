@@ -59,9 +59,7 @@ var dummyDatastoreULID = ulid.Make().String()
 func (e *embeddedOpenFGA) load(ctx context.Context, opts Opts) error {
 	// Use the TLS driver for TLS authenticated users for now.
 	tlsDriver := &tls{
-		commonAuthorizer: commonAuthorizer{
-			logger: e.logger,
-		},
+		logger: e.logger,
 	}
 
 	err := tlsDriver.load(ctx, opts)

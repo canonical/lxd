@@ -567,17 +567,15 @@ func replicatorRunInstanceRestoreDurableOperationHook(ctx context.Context, op *o
 
 	// Set up a push-mode migration sink locally so the leader pushes data to us.
 	migrateReq := &api.InstancesPost{
-		InstancePut: api.InstancePut{
-			Architecture: freshInst.Architecture,
-			Config:       freshInst.Config,
-			Devices:      freshInst.Devices,
-			Description:  freshInst.Description,
-			Ephemeral:    freshInst.Ephemeral,
-			Profiles:     freshInst.Profiles,
-			Stateful:     freshInst.Stateful,
-		},
-		Name: instName,
-		Type: api.InstanceType(freshInst.Type),
+		Architecture: freshInst.Architecture,
+		Config:       freshInst.Config,
+		Devices:      freshInst.Devices,
+		Description:  freshInst.Description,
+		Ephemeral:    freshInst.Ephemeral,
+		Profiles:     freshInst.Profiles,
+		Stateful:     freshInst.Stateful,
+		Name:         instName,
+		Type:         api.InstanceType(freshInst.Type),
 		Source: api.InstanceSource{
 			Type:            api.SourceTypeMigration,
 			Mode:            "push",

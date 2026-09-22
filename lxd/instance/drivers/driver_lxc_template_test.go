@@ -65,15 +65,13 @@ func newTemplateTestInstance(t *testing.T, meta api.ImageMetadata) (d *lxc, root
 	}
 
 	d = &lxc{
-		common: common{
-			architecture:    osarch.ARCH_64BIT_INTEL_X86,
-			dbType:          instancetype.Container,
-			name:            instName,
-			project:         api.Project{Name: api.ProjectDefaultName},
-			expandedConfig:  map[string]string{},
-			expandedDevices: deviceConfig.Devices{},
-			localConfig:     map[string]string{"volatile.last_state.idmap": string(idmapJSON)},
-		},
+		architecture:    osarch.ARCH_64BIT_INTEL_X86,
+		dbType:          instancetype.Container,
+		name:            instName,
+		project:         api.Project{Name: api.ProjectDefaultName},
+		expandedConfig:  map[string]string{},
+		expandedDevices: deviceConfig.Devices{},
+		localConfig:     map[string]string{"volatile.last_state.idmap": string(idmapJSON)},
 	}
 
 	return d, rootfsDir, templatesDir

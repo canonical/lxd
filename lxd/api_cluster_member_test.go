@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/canonical/go-dqlite/v3/client"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -25,7 +24,7 @@ func TestCheckEvacuationQuorum(t *testing.T) {
 
 	// node builds a db.RaftNode with the given index, address, and role.
 	node := func(i int, role db.RaftRole) db.RaftNode {
-		return db.RaftNode{NodeInfo: client.NodeInfo{ID: uint64(i), Address: addr(i), Role: role}}
+		return db.RaftNode{ID: uint64(i), Address: addr(i), Role: role}
 	}
 
 	tests := []struct {

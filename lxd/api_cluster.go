@@ -16,8 +16,6 @@ import (
 	"sync"
 	"time"
 
-	dqlite "github.com/canonical/go-dqlite/v3/client"
-
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/certificate"
@@ -616,12 +614,10 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 					}
 
 					internalNetwork := api.InitNetworksProjectPost{
-						NetworksPost: api.NetworksPost{
-							NetworkPut: network.Writable(),
-							Name:       network.Name,
-							Type:       network.Type,
-						},
-						Project: p.Name,
+						NetworkPut: network.Writable(),
+						Name:       network.Name,
+						Type:       network.Type,
+						Project:    p.Name,
 					}
 
 					networks = append(networks, internalNetwork)
@@ -695,11 +691,9 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		nodes := make([]db.RaftNode, 0, len(info.RaftNodes))
 		for _, node := range info.RaftNodes {
 			nodes = append(nodes, db.RaftNode{
-				NodeInfo: dqlite.NodeInfo{
-					ID:      node.ID,
-					Address: node.Address,
-					Role:    db.RaftRole(node.Role),
-				},
+				ID:      node.ID,
+				Address: node.Address,
+				Role:    db.RaftRole(node.Role),
 			})
 		}
 
@@ -973,11 +967,9 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 
 		// Request that the project be created first before the project specific networks.
 		data.Projects = append(data.Projects, api.ProjectsPost{
-			Name: p.Name,
-			ProjectPut: api.ProjectPut{
-				Description: p.Description,
-				Config:      p.Config,
-			},
+			Name:        p.Name,
+			Description: p.Description,
+			Config:      p.Config,
 		})
 
 		// Fetch all project specific networks currently defined in the cluster for the project.
@@ -994,12 +986,10 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 			}
 
 			post := api.InitNetworksProjectPost{
-				NetworksPost: api.NetworksPost{
-					NetworkPut: network.Writable(),
-					Name:       network.Name,
-					Type:       network.Type,
-				},
-				Project: p.Name,
+				NetworkPut: network.Writable(),
+				Name:       network.Name,
+				Type:       network.Type,
+				Project:    p.Name,
 			}
 
 			// Apply the node-specific config supplied by the user for networks in the default project.
@@ -1382,12 +1372,10 @@ func internalClusterPostAssign(d *Daemon, r *http.Request) response.Response {
 	nodes := make([]db.RaftNode, 0, len(req.RaftNodes))
 	for _, node := range req.RaftNodes {
 		nodes = append(nodes, db.RaftNode{
-			NodeInfo: dqlite.NodeInfo{
-				ID:      node.ID,
-				Address: node.Address,
-				Role:    db.RaftRole(node.Role),
-			},
-			Name: node.Name,
+			ID:      node.ID,
+			Address: node.Address,
+			Role:    db.RaftRole(node.Role),
+			Name:    node.Name,
 		})
 	}
 

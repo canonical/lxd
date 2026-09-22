@@ -82,14 +82,12 @@ func GetOIDCSessionToken(secret []byte, sessionID uuid.UUID, clusterUUID string,
 // - Server certificate fingerprint (server_cert_fingerprint): The given serverCertFingerprint, if not empty.
 func getToken(secret []byte, salt []byte, subject string, clusterUUID string, audienceFunc func(string) string, expiresAt time.Time, serverCertFingerprint string) (string, error) {
 	claims := lxd.ClientBearerTokenClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    Issuer(clusterUUID),
-			Subject:   subject,
-			Audience:  jwt.ClaimStrings{audienceFunc(clusterUUID)},
-			NotBefore: jwt.NewNumericDate(time.Now().UTC()),
-			IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
-			ExpiresAt: jwt.NewNumericDate(expiresAt.UTC()),
-		},
+		Issuer:    Issuer(clusterUUID),
+		Subject:   subject,
+		Audience:  jwt.ClaimStrings{audienceFunc(clusterUUID)},
+		NotBefore: jwt.NewNumericDate(time.Now().UTC()),
+		IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
+		ExpiresAt: jwt.NewNumericDate(expiresAt.UTC()),
 	}
 
 	// If server certificate fingerprint is provided, include it in the claims.

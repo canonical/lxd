@@ -1248,14 +1248,12 @@ func checkTargetProjectRestrictions(ctx context.Context, s *state.State, inst in
 	maps.Copy(instConfigCopy, instConfig)
 
 	instReq := api.InstancesPost{
-		InstancePut: api.InstancePut{
-			Config:   instConfigCopy,
-			Devices:  instDevices,
-			Profiles: instProfiles,
-		},
-		Name:   targetName,
-		Type:   api.InstanceType(inst.Type().String()),
-		Source: api.InstanceSource{Type: api.SourceTypeMigration},
+		Config:   instConfigCopy,
+		Devices:  instDevices,
+		Profiles: instProfiles,
+		Name:     targetName,
+		Type:     api.InstanceType(inst.Type().String()),
+		Source:   api.InstanceSource{Type: api.SourceTypeMigration},
 	}
 
 	err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, instReq)
@@ -1297,14 +1295,12 @@ func checkTargetProjectRestrictions(ctx context.Context, s *state.State, inst in
 		maps.Copy(snapConfig, snap.LocalConfig())
 
 		snapReq := api.InstancesPost{
-			InstancePut: api.InstancePut{
-				Config:   snapConfig,
-				Devices:  adjustSnapRootDiskPool(snap.LocalDevices(), snap.ExpandedDevices(), rootDevKey, rootDevPool).CloneNative(),
-				Profiles: profileNames,
-			},
-			Name:   targetName + shared.SnapshotDelimiter + snapName,
-			Type:   api.InstanceType(inst.Type().String()),
-			Source: api.InstanceSource{Type: api.SourceTypeMigration},
+			Config:   snapConfig,
+			Devices:  adjustSnapRootDiskPool(snap.LocalDevices(), snap.ExpandedDevices(), rootDevKey, rootDevPool).CloneNative(),
+			Profiles: profileNames,
+			Name:     targetName + shared.SnapshotDelimiter + snapName,
+			Type:     api.InstanceType(inst.Type().String()),
+			Source:   api.InstanceSource{Type: api.SourceTypeMigration},
 		}
 
 		err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, snapReq)
