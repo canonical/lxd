@@ -425,9 +425,25 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 		// For refresh requests, validate and apply target config before migration transfer starts.
 		// Skip this during internal cluster move requests, where config update semantics differ.
 		if req.Source.Refresh && clusterMoveSourceName == "" {
-			// Taken before the update so the transfer or the later device restoration failing puts the
-			// instance back, masked devices included.
-			rev.Add(instanceRefreshRestoreHook(inst))
+			// Masking a device rewrites the existing instance, so remember the devices it had and
+			// put them back if the transfer or the later device restoration fails. The source's
+			// devices cannot be used here because one of them is what failed to validate.
+			if len(deferredDevices) > 0 {
+				preRefreshDevices := inst.LocalDevices().Clone()
+
+				rev.Add(func() {
+					_ = inst.Update(context.Background(), db.InstanceArgs{
+						Architecture: inst.Architecture(),
+						Config:       inst.LocalConfig(),
+						Description:  inst.Description(),
+						Devices:      preRefreshDevices,
+						Ephemeral:    inst.IsEphemeral(),
+						Profiles:     inst.Profiles(),
+						Project:      inst.Project().Name,
+						Type:         inst.Type(),
+					}, instance.UpdateActionUserRefresh)
+				})
+			}
 
 			// The request carries the source's volatile state, which describes the source and not this
 			// instance. Keeping the power state of a source that was running would mark a stopped
