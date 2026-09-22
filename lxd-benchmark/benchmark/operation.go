@@ -19,9 +19,9 @@ func createContainer(c lxd.InstanceServer, fingerprint string, name string, priv
 			Type:        api.SourceTypeImage,
 			Fingerprint: fingerprint,
 		},
-	}
 
-	req.Config = config
+		Config: config,
+	}
 
 	op, err := c.CreateInstance(req)
 	if err != nil {
