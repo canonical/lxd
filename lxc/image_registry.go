@@ -119,10 +119,11 @@ func (c *cmdImageRegistryCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create the image registry.
-	imageRegistry := api.ImageRegistriesPost{}
-	imageRegistry.Name = registryName
-	imageRegistry.Description = c.flagDescription
-	imageRegistry.Config = map[string]string{}
+	imageRegistry := api.ImageRegistriesPost{
+		Name:        registryName,
+		Description: c.flagDescription,
+		Config:      map[string]string{},
+	}
 
 	// Populate config.
 	for i := 1; i < len(args); i++ {

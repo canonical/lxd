@@ -292,11 +292,10 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 		InstanceType: c.flagType,
 		Type:         instanceDBType,
 		Start:        launch,
+		Config:       configMap,
+		Ephemeral:    c.flagEphemeral,
+		Description:  stdinData.Description,
 	}
-
-	req.Config = configMap
-	req.Ephemeral = c.flagEphemeral
-	req.Description = stdinData.Description
 
 	if !c.flagNoProfiles && len(profiles) == 0 {
 		if len(stdinData.Profiles) > 0 {

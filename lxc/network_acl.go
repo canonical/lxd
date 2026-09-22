@@ -457,9 +457,7 @@ func (c *cmdNetworkACLCreate) run(cmd *cobra.Command, args []string) error {
 
 	// Create the network ACL.
 	acl := api.NetworkACLsPost{
-		NetworkACLPost: api.NetworkACLPost{
-			Name: resource.name,
-		},
+		Name:          resource.name,
 		NetworkACLPut: aclPut,
 	}
 

@@ -1412,10 +1412,8 @@ func (c *cmdNetworkLoadBalancerPool) runCreate(cmd *cobra.Command, args []string
 	client := resource.server
 
 	loadBalancerPool := api.NetworkLoadBalancerPoolsPost{
-		Name: args[1],
-		NetworkLoadBalancerPoolPut: api.NetworkLoadBalancerPoolPut{
-			Config: make(map[string]string, 1),
-		},
+		Name:   args[1],
+		Config: make(map[string]string, 1),
 	}
 
 	keys, err := getConfig(args[2:]...)

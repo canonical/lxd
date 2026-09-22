@@ -168,11 +168,12 @@ func (c *cmdProjectCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create the project
-	project := api.ProjectsPost{}
-	project.Name = resource.name
-	project.ProjectPut = stdinData
-	project.StoragePool = c.flagStorage
-	project.Network = c.flagNetwork
+	project := api.ProjectsPost{
+		Name:        resource.name,
+		ProjectPut:  stdinData,
+		StoragePool: c.flagStorage,
+		Network:     c.flagNetwork,
+	}
 
 	if project.Config == nil {
 		project.Config = map[string]string{}

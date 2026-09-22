@@ -129,9 +129,10 @@ func (c *cmdGroupCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create the group
-	group := api.AuthGroupsPost{}
-	group.Name = resource.name
-	group.Description = c.flagDescription
+	group := api.AuthGroupsPost{
+		Name:        resource.name,
+		Description: c.flagDescription,
+	}
 
 	err = resource.server.CreateAuthGroup(group)
 	if err != nil {

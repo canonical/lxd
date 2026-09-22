@@ -745,9 +745,11 @@ func (c *cmdClusterEnable) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Enable clustering.
-	req := api.ClusterPut{}
-	req.ServerName = name
-	req.Enabled = true
+	req := api.ClusterPut{
+		ServerName: name,
+		Enabled:    true,
+	}
+
 	op, err := resource.server.UpdateCluster(req, etag)
 	if err != nil {
 		return fmt.Errorf("Failed configuring cluster: %w", err)

@@ -217,9 +217,9 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 			Name: cName,
 		},
 		CompressionAlgorithm: c.flagCompressionAlgorithm,
-	}
 
-	req.Properties = properties
+		Properties: properties,
+	}
 
 	if shared.IsSnapshot(cName) {
 		req.Source.Type = "snapshot"
