@@ -231,18 +231,18 @@ func (s *sessionHandler) GetIdentityBySessionID(ctx context.Context, sessionID u
 	}
 
 	return &oidc.AuthenticationResult{
-			IdentityType:           api.IdentityTypeOIDCClient,
-			Subject:                metadata.Subject,
-			Email:                  identity.Identifier,
-			Name:                   identity.Name,
-			IdentityProviderGroups: metadata.IdentityProviderGroups,
-		}, &zitadelOIDC.Tokens[*zitadelOIDC.IDTokenClaims]{
-			Token: &oauth2.Token{
-				RefreshToken: session.RefreshToken,
-				AccessToken:  session.AccessToken,
-			},
-			IDToken: session.IDToken,
-		}, &session.ExpiryDate, nil
+		IdentityType:           api.IdentityTypeOIDCClient,
+		Subject:                metadata.Subject,
+		Email:                  identity.Identifier,
+		Name:                   identity.Name,
+		IdentityProviderGroups: metadata.IdentityProviderGroups,
+	}, &zitadelOIDC.Tokens[*zitadelOIDC.IDTokenClaims]{
+		Token: &oauth2.Token{
+			RefreshToken: session.RefreshToken,
+			AccessToken:  session.AccessToken,
+		},
+		IDToken: session.IDToken,
+	}, &session.ExpiryDate, nil
 }
 
 // DeleteSession deletes a single OIDC session by its ID.
