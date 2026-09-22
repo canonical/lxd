@@ -1159,16 +1159,16 @@ parts:
     prime:
       - bin/virtiofsd*
     override-stage: |-
-      [ "${CRAFT_TARGET_ARCH}" != "amd64" ] && exit 0
+      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
       craftctl default
     override-prime: |-
-      [ "${CRAFT_TARGET_ARCH}" != "amd64" ] && exit 0
+      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "${CRAFT_TARGET_ARCH}" != "amd64" ] && exit 0
+      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
       craftctl default
     override-build: |-
-      [ "${CRAFT_TARGET_ARCH}" != "amd64" ] && exit 0
+      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
       craftctl default
 
   xfs:
