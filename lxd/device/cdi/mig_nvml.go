@@ -41,7 +41,7 @@ func MIGDeviceUUID(pciAddress string, gi, ci int) (string, error) {
 		return "", fmt.Errorf("Failed getting MIG device count for GPU at %q: %v", pciAddress, ret)
 	}
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		migDevice, ret := device.GetMigDeviceHandleByIndex(i)
 		if ret == nvml.ERROR_NOT_FOUND || ret == nvml.ERROR_INVALID_ARGUMENT {
 			continue
