@@ -127,6 +127,40 @@ type Connector interface {
 	findSession(targetName string) (*session, error)
 }
 
+// MultiInitiatorConnector is implemented by connectors whose host has more than one
+// initiator qualified name.
+//
+// iSCSI and NVMe hosts have a single IQN or NQN, which [Connector.QualifiedName]
+// describes completely. A Fibre Channel host instead has one WWPN per host bus adapter
+// port, and a storage array only presents volumes to the ports it has been told about,
+// so a driver that registers a single WWPN leaves the remaining ports idle.
+//
+// Drivers should prefer [QualifiedNames] over [Connector.QualifiedName] when
+// registering a host with a storage array.
+type MultiInitiatorConnector interface {
+	QualifiedNames() ([]string, error)
+}
+
+// QualifiedNames returns every initiator qualified name of the host for the given
+// connector.
+//
+// Connectors that implement [MultiInitiatorConnector] report all of their initiators.
+// For all others the single [Connector.QualifiedName] is returned, so callers can use
+// this uniformly regardless of transport.
+func QualifiedNames(connector Connector) ([]string, error) {
+	multi, ok := connector.(MultiInitiatorConnector)
+	if ok {
+		return multi.QualifiedNames()
+	}
+
+	qn, err := connector.QualifiedName()
+	if err != nil {
+		return nil, err
+	}
+
+	return []string{qn}, nil
+}
+
 // NewConnector instantiates a new connector of the given type, returning an error for unknown types.
 func NewConnector(connectorType string, serverUUID string) (Connector, error) {
 	common := common{
