@@ -1401,6 +1401,256 @@ func InstanceDiskBlockSize(pool Pool, inst instance.Instance, progressReporter i
 	return blockDiskSize, nil
 }
 
+// qcow2ImageOpts returns the image options that open the metadata image at path with the null-co
+// driver as its data file, for the qemu-img commands that read or change only its metadata.
+// The data file recorded in the image is a temporary file that no longer exists.
+func qcow2ImageOpts(path string) string {
+	return "driver=qcow2,file.filename=" + qcow2EscapeOpt(path) + ",data-file.driver=null-co"
+}
+
+// qcow2EscapeOpt escapes a value for use in a qemu-img option string, where a comma separates options.
+func qcow2EscapeOpt(value string) string {
+	return strings.ReplaceAll(value, ",", ",,")
+}
+
+// qcow2FilePath returns the path that a qemu-img process opens the file at the given index of the
+// files it inherits under. The images are opened through an [os.Root] and passed to qemu-img.
+// This keeps qemu-img from resolving a name on the config volume, where a symlink could point outside the root.
+func qcow2FilePath(index int) string {
+	return "/proc/self/fd/" + strconv.Itoa(3+index)
+}
+
+// qcow2CreateFile creates an empty file of the given name in root for qemu-img to write an image into.
+// An existing entry is removed and the file is created exclusively.
+// This replaces a symlink rather than following it.
+func qcow2CreateFile(root *os.Root, name string) (*os.File, error) {
+	err := root.Remove(name)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+
+	return root.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+}
+
+// Qcow2Create creates an empty qcow2 image of the given virtual size with the given name in root,
+// replacing any existing file.
+func Qcow2Create(root *os.Root, name string, size int64) error {
+	image, err := qcow2CreateFile(root, name)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = image.Close() }()
+
+	_, err = shared.RunCommandInheritFds(context.TODO(), []*os.File{image}, "qemu-img", "create", "-f", "qcow2", qcow2FilePath(0), strconv.FormatInt(size, 10))
+	if err != nil {
+		// A failed creation can leave a partially written file behind.
+		_ = root.Remove(name)
+		return fmt.Errorf("Failed creating image %q: %w", image.Name(), err)
+	}
+
+	return nil
+}
+
+// Qcow2CreateMetadataImage creates a metadata image of the given virtual size with the given name
+// in root, replacing any existing file. The image stores bitmaps only.
+// It is created with an external data file, which lets it be opened with a null block device in
+// place of the volume whose bitmaps it stores.
+// Without data_file_raw, no table is preallocated for the data.
+// The data file is a temporary file, because qemu-img opens and truncates the data file it is
+// given and must not open the volume itself.
+// The clusters are 64 KiB, as every bitmap data cluster is written whole and a small cluster keeps
+// a bitmap with few set bits small.
+func Qcow2CreateMetadataImage(root *os.Root, name string, size int64) error {
+	image, err := qcow2CreateFile(root, name)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = image.Close() }()
+
+	dataName := name + ".data"
+	dataFile, err := qcow2CreateFile(root, dataName)
+	if err != nil {
+		_ = root.Remove(name)
+		return err
+	}
+
+	defer func() {
+		_ = dataFile.Close()
+		_ = root.Remove(dataName)
+	}()
+
+	files := []*os.File{image, dataFile}
+	_, err = shared.RunCommandInheritFds(context.TODO(), files, "qemu-img", "create", "-f", "raw", qcow2FilePath(1), strconv.FormatInt(size, 10))
+	if err != nil {
+		_ = root.Remove(name)
+		return fmt.Errorf("Failed creating temporary data file %q: %w", dataFile.Name(), err)
+	}
+
+	options := "data_file=" + qcow2FilePath(1) + ",cluster_size=64K"
+	_, err = shared.RunCommandInheritFds(context.TODO(), files, "qemu-img", "create", "-f", "qcow2", "-o", options, qcow2FilePath(0), strconv.FormatInt(size, 10))
+	if err == nil {
+		// The image records the path of its data file.
+		// Replace the descriptor path, which names an unrelated file in any other process that
+		// opens the image, with the name of the temporary file, which is removed on return.
+		_, err = shared.RunCommandInheritFds(context.TODO(), files, "qemu-img", "amend", "-f", "qcow2", "-o", "data_file="+qcow2EscapeOpt(dataName), qcow2FilePath(0))
+	}
+
+	if err != nil {
+		// A failed creation can leave a partially written file behind.
+		_ = root.Remove(name)
+		return fmt.Errorf("Failed creating metadata image %q: %w", image.Name(), err)
+	}
+
+	return nil
+}
+
+// Qcow2Bitmap describes a bitmap stored in a qcow2 image.
+type Qcow2Bitmap struct {
+	// Name of the bitmap.
+	Name string
+
+	// Size in bytes of the block represented by one bit of the bitmap.
+	Granularity int64
+
+	// Whether the bitmap recorded every write since it was created.
+	// A bitmap with the "in-use" flag was loaded by a QEMU process that did not write it back.
+	// This means it missed writes.
+	Valid bool
+}
+
+// qcow2Info is the part of the output of qemu-img info that describes a qcow2 image.
+type qcow2Info struct {
+	VirtualSize    int64 `json:"virtual-size"`
+	FormatSpecific struct {
+		Data struct {
+			Bitmaps []struct {
+				Name        string   `json:"name"`
+				Granularity int64    `json:"granularity"`
+				Flags       []string `json:"flags"`
+			} `json:"bitmaps"`
+		} `json:"data"`
+	} `json:"format-specific"`
+}
+
+// bitmaps returns the bitmaps of the image.
+func (info *qcow2Info) bitmaps() []Qcow2Bitmap {
+	bitmaps := make([]Qcow2Bitmap, 0, len(info.FormatSpecific.Data.Bitmaps))
+	for _, bitmap := range info.FormatSpecific.Data.Bitmaps {
+		bitmaps = append(bitmaps, Qcow2Bitmap{
+			Name:        bitmap.Name,
+			Granularity: bitmap.Granularity,
+			Valid:       !slices.Contains(bitmap.Flags, "in-use"),
+		})
+	}
+
+	return bitmaps
+}
+
+// qcow2ImageInfo reads the image with qemu-img info, opened with the given qemu-img arguments,
+// which name the image by qcow2FilePath(0).
+func qcow2ImageInfo(image *os.File, imageArgs ...string) (*qcow2Info, error) {
+	output, err := shared.RunCommandInheritFds(context.TODO(), []*os.File{image}, "qemu-img", append([]string{"info", "--output=json"}, imageArgs...)...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed reading image %q: %w", image.Name(), err)
+	}
+
+	var info qcow2Info
+	err = json.Unmarshal([]byte(output), &info)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing image %q: %w", image.Name(), err)
+	}
+
+	return &info, nil
+}
+
+// Qcow2VirtualSize returns the virtual size of the metadata image with the given name in root.
+func Qcow2VirtualSize(root *os.Root, name string) (int64, error) {
+	image, err := root.Open(name)
+	if err != nil {
+		return 0, err
+	}
+
+	defer func() { _ = image.Close() }()
+
+	info, err := qcow2ImageInfo(image, "--image-opts", qcow2ImageOpts(qcow2FilePath(0)))
+	if err != nil {
+		return 0, err
+	}
+
+	return info.VirtualSize, nil
+}
+
+// Qcow2Bitmaps returns the bitmaps stored in the metadata image with the given name in root.
+func Qcow2Bitmaps(root *os.Root, name string) ([]Qcow2Bitmap, error) {
+	image, err := root.Open(name)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = image.Close() }()
+
+	info, err := qcow2ImageInfo(image, "--image-opts", qcow2ImageOpts(qcow2FilePath(0)))
+	if err != nil {
+		return nil, err
+	}
+
+	return info.bitmaps(), nil
+}
+
+// Qcow2RemoveBitmap removes the named bitmap from the metadata image with the given name in root.
+func Qcow2RemoveBitmap(root *os.Root, name string, bitmapName string) error {
+	image, err := root.OpenFile(name, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = image.Close() }()
+
+	_, err = shared.RunCommandInheritFds(context.TODO(), []*os.File{image}, "qemu-img", "bitmap", "--remove", "--image-opts", qcow2ImageOpts(qcow2FilePath(0)), bitmapName)
+	if err != nil {
+		return fmt.Errorf("Failed removing bitmap %q from %q: %w", bitmapName, image.Name(), err)
+	}
+
+	return nil
+}
+
+// Qcow2Commit commits the overlay with the given name in root into the block volume at devicePath.
+// The overlay has no backing file of its own. The volume is therefore given as its backing file.
+func Qcow2Commit(root *os.Root, overlayName string, devicePath string) error {
+	info, err := os.Stat(devicePath)
+	if err != nil {
+		return err
+	}
+
+	backingDriver := "file"
+	if shared.IsBlockdev(info.Mode()) {
+		backingDriver = "host_device"
+	}
+
+	overlay, err := root.OpenFile(overlayName, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = overlay.Close() }()
+
+	options := []string{
+		"driver=qcow2",
+		"file.filename=" + qcow2FilePath(0),
+		"backing.driver=" + backingDriver,
+		"backing.filename=" + qcow2EscapeOpt(devicePath),
+	}
+
+	_, err = shared.RunCommandInheritFds(context.TODO(), []*os.File{overlay}, "qemu-img", "commit", "--image-opts", strings.Join(options, ","))
+	if err != nil {
+		return fmt.Errorf("Failed committing overlay %q: %w", overlay.Name(), err)
+	}
+
+	return nil
+}
+
 // ComparableSnapshot is used when comparing snapshots on different pools to see whether they differ.
 type ComparableSnapshot struct {
 	// Name of the snapshot (without the parent name).
