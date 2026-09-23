@@ -831,6 +831,166 @@ func (d *qemu) removeBitmapPair(monitor *qmp.Monitor, disk bitmapDisk, pair bitm
 	return nil
 }
 
+// restoreBitmaps creates on the disk node the disk bitmap of every bitmap that loaded on the
+// metadata disk node of the disk, before the guest runs.
+// A bitmap that loaded inconsistent, because the process that loaded it did not write it back,
+// missed writes and gets no disk bitmap.
+// It stays on the metadata disk node until the next snapshot with a bitmap removes it.
+// A process that waits for the state of the guest loads the bitmaps only after the state is restored.
+// Its bitmaps are therefore read from the volume metadata image, where a bitmap that is in use
+// loads inconsistent.
+func (d *qemu) restoreBitmaps(monitor *qmp.Monitor, disk bitmapDisk) error {
+	status, err := monitor.Status()
+	if err != nil {
+		return err
+	}
+
+	var storeBitmaps []qmp.BlockDirtyInfo
+	if status == "inmigrate" {
+		imageName, err := volumeMetadataImageName(disk.volume.UUID)
+		if err != nil {
+			return err
+		}
+
+		err = d.withBitmapsDir(func(root *os.Root) error {
+			imageBitmaps, err := storagePools.Qcow2Bitmaps(root, imageName)
+			if err != nil {
+				return err
+			}
+
+			for _, bitmap := range imageBitmaps {
+				storeBitmaps = append(storeBitmaps, qmp.BlockDirtyInfo{Name: bitmap.Name, Granularity: int(bitmap.Granularity), Inconsistent: !bitmap.Valid})
+			}
+
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("Failed reading bitmaps of the volume metadata image of disk %q: %w", disk.deviceName, err)
+		}
+	} else {
+		storeBitmaps, err = monitor.QueryNodeDirtyBitmaps(disk.metadataDiskNodeName())
+		if err != nil {
+			return fmt.Errorf("Failed querying bitmaps of the volume metadata image of disk %q: %w", disk.deviceName, err)
+		}
+	}
+
+	actions := make([]qmp.TransactionAction, 0, len(storeBitmaps))
+	for _, bitmap := range storeBitmaps {
+		if bitmap.Inconsistent {
+			d.logger.Warn("Bitmap missed writes and is not restored", logger.Ctx{"device": disk.deviceName, "bitmap": bitmap.Name})
+			continue
+		}
+
+		actions = append(actions, qmp.BlockDirtyBitmapAddAction(disk.nodeName(), bitmap.Name, bitmap.Granularity, false, false))
+	}
+
+	if len(actions) == 0 {
+		return nil
+	}
+
+	err = monitor.RunTransaction(actions)
+	if err != nil {
+		return fmt.Errorf("Failed restoring bitmaps of disk %q: %w", disk.deviceName, err)
+	}
+
+	return nil
+}
+
+// persistBitmaps merges the disk bitmap of every pair of the given disks into its store bitmap.
+// QEMU writes the store bitmaps into the volume metadata image when the metadata disk node closes,
+// and the guest must not write in between, as such a write is not recorded.
+// A store bitmap whose merge fails is removed.
+// All store bitmaps of a disk with an overlay node are removed as well, as its disk bitmaps lack
+// the writes in the overlay. This keeps the image from storing a bitmap that lacks writes.
+// A disk without both nodes is skipped.
+func (d *qemu) persistBitmaps(monitor *qmp.Monitor, disks []bitmapDisk) error {
+	nodeNames, err := monitor.QueryNamedBlockNodes()
+	if err != nil {
+		return err
+	}
+
+	var errs []error
+	for _, disk := range disks {
+		if !slices.Contains(nodeNames, disk.nodeName()) || !slices.Contains(nodeNames, disk.metadataDiskNodeName()) {
+			continue
+		}
+
+		pairs, err := d.queryBitmapPairs(monitor, disk)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		hasOverlay := slices.Contains(nodeNames, overlayNodeName(disk.deviceName))
+		if hasOverlay {
+			d.logger.Warn("Removing bitmaps of a disk with an uncommitted overlay", logger.Ctx{"device": disk.deviceName})
+		}
+
+		for _, pair := range pairs {
+			if pair.store == nil || (pair.disk == nil && !hasOverlay) {
+				continue
+			}
+
+			if !hasOverlay {
+				err = monitor.BlockDirtyBitmapMerge(disk.metadataDiskNodeName(), pair.name, []qmp.BlockDirtyBitmapSource{{Node: disk.nodeName(), Name: pair.name}})
+				if err == nil {
+					continue
+				}
+
+				d.logger.Error("Failed persisting bitmap, removing it", logger.Ctx{"device": disk.deviceName, "bitmap": pair.name, "err": err})
+			}
+
+			err = monitor.RemoveDirtyBitmap(disk.metadataDiskNodeName(), pair.name)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("Failed removing bitmap %q of the volume metadata image of disk %q: %w", pair.name, disk.deviceName, err))
+			}
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// pauseAndPersist pauses the guest, adds back the missing metadata disk nodes and persists the
+// bitmaps of every disk.
+// An overlay is not committed here.
+// Its file stays on the config volume for the next start or offline commit.
+func (d *qemu) pauseAndPersist(monitor *qmp.Monitor) error {
+	err := monitor.Pause()
+	if err != nil {
+		return fmt.Errorf("Failed pausing instance: %w", err)
+	}
+
+	disks, err := d.disksSupportingBitmaps()
+	if err != nil {
+		return err
+	}
+
+	err = d.addMissingMetadataDiskNodes(monitor, disks)
+	if err != nil {
+		d.logger.Error("Failed adding volume metadata images back", logger.Ctx{"err": err})
+	}
+
+	err = d.persistBitmaps(monitor, disks)
+	if err != nil {
+		return fmt.Errorf("Failed persisting bitmaps: %w", err)
+	}
+
+	return nil
+}
+
+// persistAndQuit persists the bitmaps of every disk of the paused guest and asks QEMU to quit,
+// which closes the metadata disk nodes and writes the images.
+// When pauseAndPersist fails, the process is left for the caller to kill, and the image keeps its
+// bitmaps marked in use instead of storing bitmaps that lack writes.
+func (d *qemu) persistAndQuit(monitor *qmp.Monitor) error {
+	err := d.pauseAndPersist(monitor)
+	if err != nil {
+		return err
+	}
+
+	return monitor.Quit()
+}
+
 // pruneMetadataImages deletes from the bitmaps directory every file that is not the volume
 // metadata image or the overlay of a volume attached through one of the given disks.
 // A snapshot bitmap file left on the config volume by a failed snapshot and the volume metadata
