@@ -103,7 +103,11 @@ func (h *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	err = w.WriteMsg(&msg)
 	if err != nil {
-		logger.Errorf("Failed sending response for %s: %v", r.Question[0].Name, err)
+		if len(r.Question) > 0 {
+			logger.Errorf("Failed sending response for %s: %v", r.Question[0].Name, err)
+		} else {
+			logger.Errorf("Failed sending response: %v", err)
+		}
 	}
 }
 
