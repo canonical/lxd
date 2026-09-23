@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -218,12 +219,8 @@ func (c *Client) sendBatch(batch *batch) {
 		status, err = c.send(ctx, buf)
 		cancel()
 
-		if err != nil {
-			return
-		}
-
-		// Only retry 429s, 500s and connection-level errors.
-		if status > 0 && status != 429 && status/100 != 5 {
+		// Only retry transient transport errors, 429s and 5xx responses.
+		if !shouldRetrySend(status, err) {
 			return
 		}
 
@@ -234,6 +231,33 @@ func (c *Client) sendBatch(batch *batch) {
 		case <-time.After(c.cfg.timeout):
 		}
 	}
+}
+
+func shouldRetrySend(status int, err error) bool {
+	if status > 0 {
+		return status == http.StatusTooManyRequests || status/100 == 5
+	}
+
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+
+	dnsErr, ok := errors.AsType[*net.DNSError](err)
+	if ok {
+		return dnsErr.IsTimeout || dnsErr.IsTemporary
+	}
+
+	_, ok = errors.AsType[*net.OpError](err)
+	if ok {
+		return true
+	}
+
+	netErr, ok := errors.AsType[net.Error](err)
+	return ok && netErr.Timeout()
 }
 
 func (c *Client) send(ctx context.Context, buf []byte) (int, error) {
