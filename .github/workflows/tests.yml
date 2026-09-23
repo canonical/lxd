@@ -579,7 +579,12 @@ jobs:
           - vm
           - vm-migration
         exclude:
+          # csi is not compatible with 22.04
+          - os: 22.04
+            test: csi
           # some tests are not worth testing on specific OSes
+          - os: 22.04
+            test: bgp
           - os: 22.04
             test: lxd-installer
           - os: 22.04
