@@ -2173,10 +2173,14 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 		"restricted.networks.zones": validate.IsListOf(validate.IsAny),
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.registries)
 		// Specify a comma-delimited list of image registry names that are allowed for use in this project.
-		// If this option is not set, no image registries are accessible.
+		// The value can also be one of the keywords `allow`, `block`, or `builtin`.
+		//
+		// - When set to `allow`, there is no restriction on which image registries can be used.
+		// - When set to `block`, this option prevents using all image registries, including the built-in ones.
+		// - When set to `builtin`, the built-in image registries are excluded from the restriction. This keyword can also be included in the comma-delimited list.
 		// ---
 		//  type: string
-		//  defaultdesc: `block`
+		//  defaultdesc: `builtin`
 		//  shortdesc: Which image registries can be used in this project
 		"restricted.registries": validate.Optional(validate.IsListOf(validate.IsAny)),
 		// lxdmeta:generate(entities=project; group=restricted; key=restricted.snapshots)
