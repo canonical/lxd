@@ -819,8 +819,9 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 	}
 
 	var createArgs *lxd.ImageCreateArgs
-	image := api.ImagesPost{}
-	image.Public = c.flagPublic
+	image := api.ImagesPost{
+		Public: c.flagPublic,
+	}
 
 	// Handle properties
 	for _, entry := range properties {

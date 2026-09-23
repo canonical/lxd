@@ -417,9 +417,10 @@ func (c *cmdProfileCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create the profile
-	profile := api.ProfilesPost{}
-	profile.Name = resource.name
-	profile.ProfilePut = stdinData
+	profile := api.ProfilesPost{
+		Name:       resource.name,
+		ProfilePut: stdinData,
+	}
 
 	err = resource.server.CreateProfile(profile)
 	if err != nil {

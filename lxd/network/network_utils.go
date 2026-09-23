@@ -1136,10 +1136,8 @@ func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string, gvrp b
 	}
 
 	vlan := &ip.Vlan{
-		Link: ip.Link{
-			Name:   vlanDevice,
-			Parent: parent,
-		},
+		Name:   vlanDevice,
+		Parent: parent,
 		VlanID: vlanID,
 		Gvrp:   gvrp,
 	}

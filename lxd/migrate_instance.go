@@ -22,10 +22,8 @@ import (
 
 func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool, diskVolumesMode string, clusterMoveSourceName string, pushTarget *api.InstancePostTarget) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{
-		migrationFields: migrationFields{
-			instance:          inst,
-			allowInconsistent: allowInconsistent,
-		},
+		instance:              inst,
+		allowInconsistent:     allowInconsistent,
 		clusterMoveSourceName: clusterMoveSourceName,
 		diskVolumesMode:       diskVolumesMode,
 	}
@@ -129,24 +127,22 @@ func (s *migrationSourceWs) Do(ctx context.Context, state *state.State, migrateO
 	}
 
 	err = s.instance.MigrateSend(ctx, instance.MigrateSendArgs{
-		MigrateArgs: instance.MigrateArgs{
-			ControlSend:    s.send,
-			ControlReceive: s.recv,
-			StateConn:      stateConnFunc,
-			FilesystemConn: filesystemConnFunc,
-			Snapshots:      !s.instanceOnly,
-			Live:           s.live,
-			Disconnect: func() {
-				for connName, conn := range s.conns {
-					if connName != api.SecretNameControl {
-						conn.Close()
-					}
+		ControlSend:    s.send,
+		ControlReceive: s.recv,
+		StateConn:      stateConnFunc,
+		FilesystemConn: filesystemConnFunc,
+		Snapshots:      !s.instanceOnly,
+		Live:           s.live,
+		Disconnect: func() {
+			for connName, conn := range s.conns {
+				if connName != api.SecretNameControl {
+					conn.Close()
 				}
-			},
-			ClusterMoveSourceName: s.clusterMoveSourceName,
+			}
 		},
-		AllowInconsistent: s.allowInconsistent,
-		DiskVolumesMode:   s.diskVolumesMode,
+		ClusterMoveSourceName: s.clusterMoveSourceName,
+		AllowInconsistent:     s.allowInconsistent,
+		DiskVolumesMode:       s.diskVolumesMode,
 	}, migrateOp)
 	if err != nil {
 		l.Error("Failed migration on source", logger.Ctx{"err": err})
@@ -158,11 +154,9 @@ func (s *migrationSourceWs) Do(ctx context.Context, state *state.State, migrateO
 
 func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		migrationFields: migrationFields{
-			instance:     args.instance,
-			instanceOnly: args.instanceOnly,
-			live:         args.live,
-		},
+		instance:              args.instance,
+		instanceOnly:          args.instanceOnly,
+		live:                  args.live,
 		url:                   args.url,
 		clusterMoveSourceName: args.clusterMoveSourceName,
 		push:                  args.push,
@@ -259,26 +253,24 @@ func (c *migrationSink) Do(ctx context.Context, instOpLock *operationlock.Instan
 	}
 
 	err = c.instance.MigrateReceive(ctx, instance.MigrateReceiveArgs{
-		MigrateArgs: instance.MigrateArgs{
-			ControlSend:    c.send,
-			ControlReceive: c.recv,
-			StateConn:      stateConnFunc,
-			FilesystemConn: filesystemConnFunc,
-			Snapshots:      !c.instanceOnly,
-			Live:           c.live,
-			Disconnect: func() {
-				for connName, conn := range c.conns {
-					if connName != api.SecretNameControl {
-						conn.Close()
-					}
+		ControlSend:    c.send,
+		ControlReceive: c.recv,
+		StateConn:      stateConnFunc,
+		FilesystemConn: filesystemConnFunc,
+		Snapshots:      !c.instanceOnly,
+		Live:           c.live,
+		Disconnect: func() {
+			for connName, conn := range c.conns {
+				if connName != api.SecretNameControl {
+					conn.Close()
 				}
-			},
-			ClusterMoveSourceName: c.clusterMoveSourceName,
+			}
 		},
-		InstanceOperation: instOpLock,
-		Refresh:           c.refresh,
-		AttachedVolumes:   c.attachedVolumes,
-		DeferredVolumes:   c.deferredVolumes,
+		ClusterMoveSourceName: c.clusterMoveSourceName,
+		InstanceOperation:     instOpLock,
+		Refresh:               c.refresh,
+		AttachedVolumes:       c.attachedVolumes,
+		DeferredVolumes:       c.deferredVolumes,
 	}, migrateOp)
 	if err != nil {
 		l.Error("Failed migration on target", logger.Ctx{"err": err})

@@ -208,9 +208,11 @@ func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fin
 
 	// Create new aliases.
 	for _, alias := range aliases {
-		aliasPost := api.ImageAliasesPost{}
-		aliasPost.Name = alias.Name
-		aliasPost.Target = fingerprint
+		aliasPost := api.ImageAliasesPost{
+			Name:   alias.Name,
+			Target: fingerprint,
+		}
+
 		err := client.CreateImageAlias(aliasPost)
 		if err != nil {
 			return fmt.Errorf("Failed creating alias %s: %w", alias.Name, err)

@@ -365,10 +365,11 @@ func (c *cmdNetworkCreate) run(cmd *cobra.Command, args []string) error {
 	client := resource.server
 
 	// Create the network
-	network := api.NetworksPost{}
-	network.Name = resource.name
-	network.Config = map[string]string{}
-	network.Type = c.network.flagType
+	network := api.NetworksPost{
+		Name:   resource.name,
+		Config: map[string]string{},
+		Type:   c.network.flagType,
+	}
 
 	for i := 1; i < len(args); i++ {
 		entry := strings.SplitN(args[i], "=", 2)

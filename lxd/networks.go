@@ -865,12 +865,10 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 
 		// Create fresh request based on existing network to send to node.
 		nodeReq := api.NetworksPost{
-			NetworkPut: api.NetworkPut{
-				Config:      nodeConfig,
-				Description: n.Description(),
-			},
-			Name: n.Name(),
-			Type: n.Type(),
+			Config:      nodeConfig,
+			Description: n.Description(),
+			Name:        n.Name(),
+			Type:        n.Type(),
 		}
 
 		op, err := client.UseProject(n.Project()).CreateNetwork(nodeReq)

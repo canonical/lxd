@@ -2612,12 +2612,10 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 	for _, node := range hbData.Members {
 		if node.RaftID > 0 {
 			raftNodes = append(raftNodes, db.RaftNode{
-				NodeInfo: dqliteClient.NodeInfo{
-					ID:      node.RaftID,
-					Address: node.Address,
-					Role:    db.RaftRole(node.RaftRole),
-				},
-				Name: node.Name,
+				ID:      node.RaftID,
+				Address: node.Address,
+				Role:    db.RaftRole(node.RaftRole),
+				Name:    node.Name,
 			})
 		}
 	}

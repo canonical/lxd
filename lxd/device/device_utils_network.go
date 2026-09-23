@@ -254,10 +254,8 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 	var err error
 
 	veth := &ip.Veth{
-		Link: ip.Link{
-			Name: hostName,
-			Up:   true,
-		},
+		Name: hostName,
+		Up:   true,
 		Peer: ip.Link{
 			Name: network.RandomDevName("veth"),
 		},
@@ -514,19 +512,19 @@ func networkSetupHostVethLimits(d *deviceCommon, oldConfig deviceConfig.Device, 
 
 	// Apply new limits
 	if d.config["limits.ingress"] != "" {
-		qdiscHTB := &ip.QdiscHTB{Qdisc: ip.Qdisc{Dev: veth, Handle: "1:0", Root: true}, Default: "10"}
+		qdiscHTB := &ip.QdiscHTB{Dev: veth, Handle: "1:0", Root: true, Default: "10"}
 		err := qdiscHTB.Add()
 		if err != nil {
 			return fmt.Errorf("Failed creating root tc qdisc: %s", err)
 		}
 
-		classHTB := &ip.ClassHTB{Class: ip.Class{Dev: veth, Parent: "1:0", Classid: "1:10"}, Rate: fmt.Sprint(ingressInt, "bit")}
+		classHTB := &ip.ClassHTB{Dev: veth, Parent: "1:0", Classid: "1:10", Rate: fmt.Sprint(ingressInt, "bit")}
 		err = classHTB.Add()
 		if err != nil {
 			return fmt.Errorf("Failed creating limit tc class: %s", err)
 		}
 
-		filter := &ip.U32Filter{Filter: ip.Filter{Dev: veth, Parent: "1:0", Protocol: "all", Flowid: "1:1"}, Value: "0", Mask: "0"}
+		filter := &ip.U32Filter{Dev: veth, Parent: "1:0", Protocol: "all", Flowid: "1:1", Value: "0", Mask: "0"}
 		err = filter.Add()
 		if err != nil {
 			return fmt.Errorf("Failed creating tc filter: %s", err)
@@ -541,7 +539,7 @@ func networkSetupHostVethLimits(d *deviceCommon, oldConfig deviceConfig.Device, 
 		}
 
 		police := &ip.ActionPolice{Rate: fmt.Sprint(egressInt, "bit"), Burst: "1024k", Mtu: "64kb", Drop: true}
-		filter := &ip.U32Filter{Filter: ip.Filter{Dev: veth, Parent: "ffff:0", Protocol: "all"}, Value: "0", Mask: "0", Actions: []ip.Action{police}}
+		filter := &ip.U32Filter{Dev: veth, Parent: "ffff:0", Protocol: "all", Value: "0", Mask: "0", Actions: []ip.Action{police}}
 		err = filter.Add()
 		if err != nil {
 			return fmt.Errorf("Failed creating ingress tc filter: %s", err)

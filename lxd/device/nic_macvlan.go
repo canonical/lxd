@@ -176,11 +176,9 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 
 	// Create MACVLAN interface.
 	link := &ip.Macvlan{
-		Link: ip.Link{
-			Name:   saveData["host_name"],
-			Parent: actualParentName,
-		},
-		Mode: "bridge",
+		Name:   saveData["host_name"],
+		Parent: actualParentName,
+		Mode:   "bridge",
 	}
 
 	// Set the MAC address.

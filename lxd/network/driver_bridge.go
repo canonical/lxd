@@ -1307,10 +1307,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Build up the bridge interface's settings.
 	bridge := ip.Bridge{
-		Link: ip.Link{
-			Name: n.name,
-			MTU:  bridgeMTUDefault,
-		},
+		Name: n.name,
+		MTU:  bridgeMTUDefault,
 	}
 
 	// Get a list of tunnels.
@@ -1472,10 +1470,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Attempt to add a dummy device to the bridge to force the MTU.
 	if bridge.MTU != bridgeMTUDefault && n.config["bridge.driver"] != "openvswitch" {
 		dummy := &ip.Dummy{
-			Link: ip.Link{
-				Name: n.name + "-mtu",
-				MTU:  bridge.MTU,
-			},
+			Name: n.name + "-mtu",
+			MTU:  bridge.MTU,
 		}
 
 		err = dummy.Add()
@@ -1937,7 +1933,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Setup the tunnel.
 		vxlanID := strconv.FormatUint(uint64(binary.BigEndian.Uint32(overlaySubnet.IP.To4())>>8), 10)
 		vxlan := &ip.Vxlan{
-			Link:    ip.Link{Name: tunName},
+			Name:    tunName,
 			VxlanID: vxlanID,
 			DevName: devName,
 			DstPort: "0",
@@ -2015,7 +2011,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 
 			gretap := &ip.Gretap{
-				Link:   ip.Link{Name: tunName},
+				Name:   tunName,
 				Local:  tunLocal,
 				Remote: tunRemote,
 			}
@@ -2029,7 +2025,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			tunInterface := getConfig("interface")
 
 			vxlan := &ip.Vxlan{
-				Link: ip.Link{Name: tunName},
+				Name: tunName,
 			}
 
 			if tunLocal != "" && tunRemote != "" {

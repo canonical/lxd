@@ -99,9 +99,10 @@ func (c *cmdImageAliasCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create the alias
-	alias := api.ImageAliasesPost{}
-	alias.Name = resource.name
-	alias.Target = args[1]
+	alias := api.ImageAliasesPost{
+		Name:   resource.name,
+		Target: args[1],
+	}
 
 	return resource.server.CreateImageAlias(alias)
 }

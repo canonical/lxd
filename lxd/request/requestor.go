@@ -332,14 +332,12 @@ func SetRequestor(req *http.Request, hook RequestorHook, args RequestorArgs) err
 	}
 
 	r := &Requestor{
-		RequestorAuditor: RequestorAuditor{
-			Username:      args.Username,
-			Protocol:      args.Protocol,
-			OriginAddress: req.RemoteAddr,
-		},
-		isTrusted:  args.Trusted,
-		clientType: clientType,
-		expiresAt:  args.ExpiresAt,
+		Username:      args.Username,
+		Protocol:      args.Protocol,
+		OriginAddress: req.RemoteAddr,
+		isTrusted:     args.Trusted,
+		clientType:    clientType,
+		expiresAt:     args.ExpiresAt,
 	}
 
 	err := r.setForwardingDetails(req)

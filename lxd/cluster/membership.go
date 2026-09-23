@@ -294,12 +294,10 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	}
 
 	node := db.RaftNode{
-		NodeInfo: client.NodeInfo{
-			ID:      uint64(id),
-			Address: address,
-			Role:    db.RaftSpare,
-		},
-		Name: name,
+		ID:      uint64(id),
+		Address: address,
+		Role:    db.RaftSpare,
+		Name:    name,
 	}
 
 	// Bound check the values before converting to int. The conversion is safe

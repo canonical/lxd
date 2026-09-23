@@ -4939,9 +4939,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 				Secret:      req.Secret,
 				Mode:        "push",
 			},
-			ImagePut: api.ImagePut{
-				Profiles: req.Profiles,
-			},
+			Profiles: req.Profiles,
 		}
 
 		if req.Project != "" {

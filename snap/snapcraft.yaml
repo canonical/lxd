@@ -236,7 +236,7 @@ parts:
     source-type: git
     plugin: go
     build-snaps:
-      - go/1.26/stable
+      - go/1.27/stable
     build-environment:
       - GOTOOLCHAIN: "local"
       - GOFLAGS: "-trimpath"
@@ -719,7 +719,7 @@ parts:
         - lsb-release
         - libtirpc-dev
     build-snaps:
-      - go/1.26/stable
+      - go/1.27/stable
     override-stage: |-
       case "${CRAFT_TARGET_ARCH}" in
           amd64|arm64) ;;
@@ -775,7 +775,7 @@ parts:
     source-commit: 5505e2f94d9aaa08561490db974ba3cd676af209 # v1.20.0
     source-type: git
     build-snaps:
-      - go/1.26/stable
+      - go/1.27/stable
     plugin: make
     override-stage: |-
       [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
@@ -1559,7 +1559,7 @@ parts:
       - python3-pip
       - python3-venv
     build-snaps:
-      - go/1.26/stable
+      - go/1.27/stable
     stage-packages:
       - acl
       - attr

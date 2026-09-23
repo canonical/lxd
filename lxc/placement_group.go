@@ -325,9 +325,10 @@ func (c *cmdPlacementGroupCreate) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create the placement group.
-	placementGroup := api.PlacementGroupsPost{}
-	placementGroup.Name = resource.name
-	placementGroup.PlacementGroupPut = stdinData
+	placementGroup := api.PlacementGroupsPost{
+		Name:              resource.name,
+		PlacementGroupPut: stdinData,
+	}
 
 	if placementGroup.Config == nil {
 		placementGroup.Config = map[string]string{}

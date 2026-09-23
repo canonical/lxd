@@ -33,16 +33,14 @@ type InstanceBackup struct {
 // NewInstanceBackup instantiates a new InstanceBackup struct.
 func NewInstanceBackup(state *state.State, inst Instance, ID int, name string, creationDate time.Time, expiryDate time.Time, instanceOnly bool, optimizedStorage bool) *InstanceBackup {
 	return &InstanceBackup{
-		CommonBackup: CommonBackup{
-			state:            state,
-			id:               ID,
-			name:             name,
-			creationDate:     creationDate,
-			expiryDate:       expiryDate,
-			optimizedStorage: optimizedStorage,
-		},
-		instance:     inst,
-		instanceOnly: instanceOnly,
+		state:            state,
+		id:               ID,
+		name:             name,
+		creationDate:     creationDate,
+		expiryDate:       expiryDate,
+		optimizedStorage: optimizedStorage,
+		instance:         inst,
+		instanceOnly:     instanceOnly,
 	}
 }
 

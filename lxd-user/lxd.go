@@ -66,9 +66,10 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 	}
 
 	if len(pools) == 0 {
-		pool := api.StoragePoolsPost{}
-		pool.Config = map[string]string{}
-		pool.Name = "default"
+		pool := api.StoragePoolsPost{
+			Config: map[string]string{},
+			Name:   "default",
+		}
 
 		// Check if ZFS supported.
 		if slices.Contains(availableBackends, "zfs") {
@@ -118,10 +119,11 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 
 	if !found {
 		// Create lxdbr0.
-		network := api.NetworksPost{}
-		network.Config = map[string]string{}
-		network.Type = "bridge"
-		network.Name = "lxdbr0"
+		network := api.NetworksPost{
+			Config: map[string]string{},
+			Type:   "bridge",
+			Name:   "lxdbr0",
+		}
 
 		op, err := client.CreateNetwork(network)
 		if err == nil {
@@ -204,25 +206,23 @@ func lxdSetupUser(uid uint32) error {
 	if !slices.Contains(projects, projectName) {
 		// Create the project.
 		err := client.CreateProject(api.ProjectsPost{
-			Name: projectName,
-			ProjectPut: api.ProjectPut{
-				Description: fmt.Sprintf("User restricted project for %q (%s)", pw[0], pw[2]),
-				Config: map[string]string{
-					"features.images":               "true",
-					"features.networks":             "false",
-					"features.networks.zones":       "true",
-					"features.profiles":             "true",
-					"features.storage.volumes":      "true",
-					"features.storage.buckets":      "true",
-					"restricted":                    "true",
-					"restricted.containers.nesting": "allow",
-					"restricted.devices.disk":       "allow",
-					"restricted.devices.disk.paths": pw[5],
-					"restricted.devices.gpu":        "allow",
-					"restricted.idmap.uid":          pw[2],
-					"restricted.idmap.gid":          pw[3],
-					"restricted.networks.access":    networkName,
-				},
+			Name:        projectName,
+			Description: fmt.Sprintf("User restricted project for %q (%s)", pw[0], pw[2]),
+			Config: map[string]string{
+				"features.images":               "true",
+				"features.networks":             "false",
+				"features.networks.zones":       "true",
+				"features.profiles":             "true",
+				"features.storage.volumes":      "true",
+				"features.storage.buckets":      "true",
+				"restricted":                    "true",
+				"restricted.containers.nesting": "allow",
+				"restricted.devices.disk":       "allow",
+				"restricted.devices.disk.paths": pw[5],
+				"restricted.devices.gpu":        "allow",
+				"restricted.idmap.uid":          pw[2],
+				"restricted.idmap.gid":          pw[3],
+				"restricted.networks.access":    networkName,
 			},
 		})
 		if err != nil {
@@ -258,11 +258,12 @@ func lxdSetupUser(uid uint32) error {
 	revert.Add(func() { _ = client.DeleteCertificate(shared.CertFingerprint(x509Cert)) })
 
 	// Create user-specific bridge.
-	network := api.NetworksPost{}
-	network.Config = map[string]string{}
-	network.Type = "bridge"
-	network.Name = networkName
-	network.Description = fmt.Sprint("Network for user restricted project user-", projectName)
+	network := api.NetworksPost{
+		Config:      map[string]string{},
+		Type:        "bridge",
+		Name:        networkName,
+		Description: fmt.Sprint("Network for user restricted project user-", projectName),
+	}
 
 	networkOp, err := client.CreateNetwork(network)
 	if err == nil {

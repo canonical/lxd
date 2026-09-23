@@ -32,12 +32,13 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 			continue
 		}
 
-		networksPost := api.InitNetworksProjectPost{}
-		networksPost.Config = network.Config
-		networksPost.Description = network.Description
-		networksPost.Name = network.Name
-		networksPost.Type = network.Type
-		networksPost.Project = api.ProjectDefaultName
+		networksPost := api.InitNetworksProjectPost{
+			Config:      network.Config,
+			Description: network.Description,
+			Name:        network.Name,
+			Type:        network.Type,
+			Project:     api.ProjectDefaultName,
+		}
 
 		config.Networks = append(config.Networks, networksPost)
 	}
@@ -48,11 +49,12 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 	}
 
 	for _, storagePool := range storagePools {
-		storagePoolsPost := api.StoragePoolsPost{}
-		storagePoolsPost.Config = storagePool.Config
-		storagePoolsPost.Description = storagePool.Description
-		storagePoolsPost.Name = storagePool.Name
-		storagePoolsPost.Driver = storagePool.Driver
+		storagePoolsPost := api.StoragePoolsPost{
+			Config:      storagePool.Config,
+			Description: storagePool.Description,
+			Name:        storagePool.Name,
+			Driver:      storagePool.Driver,
+		}
 
 		config.StoragePools = append(config.StoragePools, storagePoolsPost)
 	}
@@ -63,11 +65,12 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 	}
 
 	for _, profile := range profiles {
-		profilesPost := api.ProfilesPost{}
-		profilesPost.Config = profile.Config
-		profilesPost.Description = profile.Description
-		profilesPost.Devices = profile.Devices
-		profilesPost.Name = profile.Name
+		profilesPost := api.ProfilesPost{
+			Config:      profile.Config,
+			Description: profile.Description,
+			Devices:     profile.Devices,
+			Name:        profile.Name,
+		}
 
 		config.Profiles = append(config.Profiles, profilesPost)
 	}
@@ -78,10 +81,11 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 	}
 
 	for _, project := range projects {
-		projectsPost := api.ProjectsPost{}
-		projectsPost.Config = project.Config
-		projectsPost.Description = project.Description
-		projectsPost.Name = project.Name
+		projectsPost := api.ProjectsPost{
+			Config:      project.Config,
+			Description: project.Description,
+			Name:        project.Name,
+		}
 
 		config.Projects = append(config.Projects, projectsPost)
 	}

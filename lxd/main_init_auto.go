@@ -58,8 +58,9 @@ func (c *cmdInit) RunAuto(args []string, d lxd.InstanceServer, server *api.Serve
 	}
 
 	// Fill in the node configuration
-	config := api.InitLocalPreseed{}
-	config.Config = map[string]any{}
+	config := api.InitLocalPreseed{
+		Config: map[string]any{},
+	}
 
 	// Network listening
 	if c.flagNetworkAddress != "" {
@@ -72,9 +73,8 @@ func (c *cmdInit) RunAuto(args []string, d lxd.InstanceServer, server *api.Serve
 		pool := api.StoragePoolsPost{
 			Name:   "default",
 			Driver: c.flagStorageBackend,
-		}
 
-		pool.Config = map[string]string{}
+			Config: map[string]string{}}
 
 		if c.flagStorageDevice != "" {
 			pool.Config["source"] = c.flagStorageDevice
@@ -94,13 +94,11 @@ func (c *cmdInit) RunAuto(args []string, d lxd.InstanceServer, server *api.Serve
 		// Profile entry
 		config.Profiles = []api.ProfilesPost{{
 			Name: "default",
-			ProfilePut: api.ProfilePut{
-				Devices: map[string]map[string]string{
-					"root": {
-						"type": "disk",
-						"path": "/",
-						"pool": pool.Name,
-					},
+			Devices: map[string]map[string]string{
+				"root": {
+					"type": "disk",
+					"path": "/",
+					"pool": pool.Name,
 				},
 			},
 		}}
@@ -146,22 +144,22 @@ func (c *cmdInit) RunAuto(args []string, d lxd.InstanceServer, server *api.Serve
 		}
 
 		// Define the new network
-		network := api.InitNetworksProjectPost{}
-		network.Name = fmt.Sprintf("lxdbr%d", idx)
-		network.Project = api.ProjectDefaultName
+		network := api.InitNetworksProjectPost{
+			Name:    fmt.Sprintf("lxdbr%d", idx),
+			Project: api.ProjectDefaultName,
+		}
+
 		config.Networks = append(config.Networks, network)
 
 		// Add it to the profile
 		if config.Profiles == nil {
 			config.Profiles = []api.ProfilesPost{{
 				Name: "default",
-				ProfilePut: api.ProfilePut{
-					Devices: map[string]map[string]string{
-						"eth0": {
-							"type":    "nic",
-							"network": network.Name,
-							"name":    "eth0",
-						},
+				Devices: map[string]map[string]string{
+					"eth0": {
+						"type":    "nic",
+						"network": network.Name,
+						"name":    "eth0",
 					},
 				},
 			}}

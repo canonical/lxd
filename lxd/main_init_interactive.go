@@ -39,11 +39,9 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 	config.Node.StoragePools = []api.StoragePoolsPost{}
 	config.Node.Profiles = []api.ProfilesPost{
 		{
-			Name: "default",
-			ProfilePut: api.ProfilePut{
-				Config:  map[string]string{},
-				Devices: map[string]map[string]string{},
-			},
+			Name:    "default",
+			Config:  map[string]string{},
+			Devices: map[string]map[string]string{},
 		},
 	}
 
@@ -416,12 +414,12 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 
 			if fan {
 				// Define the network
-				networkPost := api.InitNetworksProjectPost{}
-				networkPost.Name = "lxdfan0"
-				networkPost.Project = api.ProjectDefaultName
-				networkPost.Config = map[string]string{
-					"bridge.mode": "fan",
-				}
+				networkPost := api.InitNetworksProjectPost{
+					Name:    "lxdfan0",
+					Project: api.ProjectDefaultName,
+					Config: map[string]string{
+						"bridge.mode": "fan",
+					}}
 
 				// Select the underlay
 				networkPost.Config["fan.underlay_subnet"], err = c.global.asker.AskString("What subnet should be used as the Fan underlay? [default=auto]: ", "auto", func(value string) error {
@@ -473,9 +471,10 @@ func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) e
 
 	for {
 		// Define the network
-		net := api.InitNetworksProjectPost{}
-		net.Config = map[string]string{}
-		net.Project = api.ProjectDefaultName
+		net := api.InitNetworksProjectPost{
+			Config:  map[string]string{},
+			Project: api.ProjectDefaultName,
+		}
 
 		// Network name
 		net.Name, err = c.global.asker.AskString("What should the new bridge be called? [default=lxdbr0]: ", "lxdbr0", func(netName string) error {
@@ -622,8 +621,9 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 
 	for {
 		// Define the pool
-		pool := api.StoragePoolsPost{}
-		pool.Config = map[string]string{}
+		pool := api.StoragePoolsPost{
+			Config: map[string]string{},
+		}
 
 		if poolType == util.PoolTypeAny {
 			pool.Name, err = c.global.asker.AskString("Name of the new storage pool [default=default]: ", "default", nil)

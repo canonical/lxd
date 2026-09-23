@@ -2010,12 +2010,10 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, details stor
 		// cross-project move as a plain creation in the target project.
 		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			limitsReq := api.StorageVolumesPost{
-				StorageVolumePut: api.StorageVolumePut{
-					Description: vol.Description,
-					Config:      vol.Config,
-				},
-				Name: newVol.Name,
-				Type: vol.Type,
+				Description: vol.Description,
+				Config:      vol.Config,
+				Name:        newVol.Name,
+				Type:        vol.Type,
 			}
 
 			return limits.AllowVolumeMove(ctx, s.GlobalConfig, tx, effectiveProjectName, details.pool.Name(), vol.Name, targetProjectName, newPool.Name(), limitsReq)

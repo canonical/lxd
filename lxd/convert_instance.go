@@ -88,10 +88,8 @@ func (s *conversionSink) Do(state *state.State, instOp *operationlock.InstanceOp
 	}
 
 	args := instance.ConversionReceiveArgs{
-		ConversionArgs: instance.ConversionArgs{
-			FilesystemConn: filesystemConnFunc,
-			Disconnect:     func() { s.fsConn.Close() },
-		},
+		FilesystemConn:    filesystemConnFunc,
+		Disconnect:        func() { s.fsConn.Close() },
 		SourceDiskSize:    s.sourceDiskSize,
 		ConversionOptions: s.conversionOptions,
 	}

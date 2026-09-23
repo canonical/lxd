@@ -14,9 +14,9 @@ import (
 // mode is inactive, the LXD-specific adjust logic matches go-dqlite's default.
 func TestAdjustRoles_InactiveMatchesGeneric(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{
@@ -44,9 +44,9 @@ func TestAdjustRoles_InactiveMatchesGeneric(t *testing.T) {
 // control-plane mode is active, non-control-plane promotion candidates are ignored.
 func TestAdjustRoles_ActiveSkipsNonControlPlanePromotion(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{
@@ -73,10 +73,10 @@ func TestAdjustRoles_ActiveSkipsNonControlPlanePromotion(t *testing.T) {
 // control-plane replacement can be promoted safely.
 func TestAdjustRoles_ActiveDemotesNonControlPlaneVoterWhenReplacementExists(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter},
+		{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{
@@ -104,10 +104,10 @@ func TestAdjustRoles_ActiveDemotesNonControlPlaneVoterWhenReplacementExists(t *t
 // replacement exists.
 func TestAdjustRoles_ActiveSkipsVoterDemotionWithoutControlPlaneReplacement(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter},
+		{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{
@@ -134,10 +134,10 @@ func TestAdjustRoles_ActiveSkipsVoterDemotionWithoutControlPlaneReplacement(t *t
 // non-control-plane standbys are demoted to spare when control-plane mode is active.
 func TestAdjustRoles_ActiveDemotesNonControlPlaneStandby(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftStandBy}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter},
+		{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftStandBy},
 	}
 
 	connectivity := map[string]bool{
@@ -166,12 +166,12 @@ func TestAdjustRoles_ActiveDemotesNonControlPlaneStandby(t *testing.T) {
 // is available to fill the gap.
 func TestAdjustRoles_ActiveDemotesNonControlPlaneStandbyBelowTarget(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftStandBy}},
-		{NodeInfo: client.NodeInfo{ID: 5, Address: "10.0.0.5:8443", Role: db.RaftSpare}},
-		{NodeInfo: client.NodeInfo{ID: 6, Address: "10.0.0.6:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter},
+		{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftStandBy},
+		{ID: 5, Address: "10.0.0.5:8443", Role: db.RaftSpare},
+		{ID: 6, Address: "10.0.0.6:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{
@@ -205,11 +205,11 @@ func TestAdjustRoles_ActiveDemotesNonControlPlaneStandbyBelowTarget(t *testing.T
 // demoted, then control-plane spares are promoted before the next demotion.
 func TestAdjustRoles_ActiveInterleavesDemotionsAndPromotions(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare}},
-		{NodeInfo: client.NodeInfo{ID: 5, Address: "10.0.0.5:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter},
+		{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare},
+		{ID: 5, Address: "10.0.0.5:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{
@@ -248,9 +248,9 @@ func TestAdjustRoles_ActiveInterleavesDemotionsAndPromotions(t *testing.T) {
 // still be promoted to database roles.
 func TestAdjustRoles_InactiveAllowsNonControlPlanePromotion(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{
@@ -276,10 +276,10 @@ func TestAdjustRoles_InactiveAllowsNonControlPlanePromotion(t *testing.T) {
 // are excluded from voter promotion even when they are otherwise eligible.
 func TestAdjustRoles_EvacuatedMemberIsNeverPromoted(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftSpare}},
-		{NodeInfo: client.NodeInfo{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftSpare},
+		{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{
@@ -304,10 +304,10 @@ func TestAdjustRoles_EvacuatedMemberIsNeverPromoted(t *testing.T) {
 // promotes a replacement voter and then demotes the evacuated member.
 func TestAdjustRoles_EvacuatedVoterPromotionFirst(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter},
+		{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{
@@ -340,8 +340,8 @@ func TestAdjustRoles_EvacuatedVoterPromotionFirst(t *testing.T) {
 // evacuated voter is still demoted when no replacement candidate exists.
 func TestAdjustRoles_EvacuatedVoterDemotedWithoutReplacement(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
 	}
 
 	connectivity := map[string]bool{
@@ -367,9 +367,9 @@ func TestAdjustRoles_EvacuatedVoterDemotedWithoutReplacement(t *testing.T) {
 // voter from being demoted.
 func TestAdjustRoles_EvacuatedVoterDemotedWithStandbyTarget(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter},
 	}
 
 	connectivity := map[string]bool{
@@ -396,9 +396,9 @@ func TestAdjustRoles_EvacuatedVoterDemotedWithStandbyTarget(t *testing.T) {
 // evacuated standby is still demoted when no replacement candidate exists.
 func TestAdjustRoles_EvacuatedStandbyDemotedWithoutReplacement(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftStandBy}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftStandBy},
 	}
 
 	connectivity := map[string]bool{
@@ -423,10 +423,10 @@ func TestAdjustRoles_EvacuatedStandbyDemotedWithoutReplacement(t *testing.T) {
 // first before the evacuated standby is demoted.
 func TestAdjustRoles_EvacuatedStandbyReplacedWhenSpareAvailable(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftStandBy}},
-		{NodeInfo: client.NodeInfo{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftStandBy},
+		{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{
@@ -464,9 +464,9 @@ func TestAdjustRoles_EvacuatedStandbyReplacedWhenSpareAvailable(t *testing.T) {
 // standby demotion.
 func TestAdjustRoles_EvacuatedStandbyNotBlockedByVoterPromotion(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftStandBy}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftStandBy},
 	}
 
 	connectivity := map[string]bool{
@@ -493,10 +493,10 @@ func TestAdjustRoles_EvacuatedStandbyNotBlockedByVoterPromotion(t *testing.T) {
 // for demotion.
 func TestAdjustRoles_ExtraVotersDemoteEvacuatedFirst(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftVoter}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter},
+		{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftVoter},
 	}
 
 	connectivity := map[string]bool{
@@ -524,9 +524,9 @@ func TestAdjustRoles_ExtraVotersDemoteEvacuatedFirst(t *testing.T) {
 // demoted to spare when no standby or spare is available for promotion.
 func TestAdjustRoles_OfflineVoterDemoted(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter},
 	}
 
 	connectivity := map[string]bool{
@@ -546,10 +546,10 @@ func TestAdjustRoles_OfflineVoterDemoted(t *testing.T) {
 // when the cluster is below the standby target.
 func TestAdjustRoles_StandbyPromoted(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter},
+		{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{
@@ -571,10 +571,10 @@ func TestAdjustRoles_StandbyPromoted(t *testing.T) {
 // control-plane mode is active.
 func TestAdjustRoles_EvacuatedVoterWithControlPlaneActive(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter},
+		{ID: 4, Address: "10.0.0.4:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{
@@ -618,9 +618,9 @@ func TestAdjustRoles_EvacuatedVoterWithControlPlaneActive(t *testing.T) {
 // demoted in a subsequent rebalance cycle.
 func TestAdjustRoles_EvacuatedLeaderSignalsTransfer(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
+		{ID: 3, Address: "10.0.0.3:8443", Role: db.RaftVoter},
 	}
 
 	connectivity := map[string]bool{
@@ -759,8 +759,8 @@ func TestPrioritizeNonControlPlane_AllControlPlane(t *testing.T) {
 
 func TestIsLeaderEvacuated_LeaderEvacuated(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
 	}
 
 	connectivity := map[string]bool{"10.0.0.1:8443": true, "10.0.0.2:8443": true}
@@ -771,8 +771,8 @@ func TestIsLeaderEvacuated_LeaderEvacuated(t *testing.T) {
 
 func TestIsLeaderEvacuated_NonLeaderEvacuated(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
 	}
 
 	connectivity := map[string]bool{"10.0.0.1:8443": true, "10.0.0.2:8443": true}
@@ -783,7 +783,7 @@ func TestIsLeaderEvacuated_NonLeaderEvacuated(t *testing.T) {
 
 func TestIsLeaderEvacuated_NoEvacuatedMembers(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
 	}
 
 	connectivity := map[string]bool{"10.0.0.1:8443": true}
@@ -796,8 +796,8 @@ func TestIsLeaderEvacuated_NoEvacuatedMembers(t *testing.T) {
 // evacuated and a second voter exists, that voter is demoted to spare.
 func TestRolesAdjustBelowQuorum_DemoteExcessVoter(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
 	}
 
 	connectivity := map[string]bool{"10.0.0.1:8443": true, "10.0.0.2:8443": true}
@@ -814,8 +814,8 @@ func TestRolesAdjustBelowQuorum_DemoteExcessVoter(t *testing.T) {
 // voter, no role change is needed.
 func TestRolesAdjustBelowQuorum_NoChangesNeeded(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{"10.0.0.1:8443": true, "10.0.0.2:8443": true}
@@ -833,8 +833,8 @@ func TestRolesAdjustBelowQuorum_NoChangesNeeded(t *testing.T) {
 // can be transferred to it.
 func TestRolesAdjustBelowQuorum_EvacuatedLeader_PromoteSpare(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftSpare}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftSpare},
 	}
 
 	connectivity := map[string]bool{"10.0.0.1:8443": true, "10.0.0.2:8443": true}
@@ -853,8 +853,8 @@ func TestRolesAdjustBelowQuorum_EvacuatedLeader_PromoteSpare(t *testing.T) {
 // transfer is signaled so the evacuated leader can be demoted in the next rebalance cycle.
 func TestRolesAdjustBelowQuorum_EvacuatedLeader_ReplacementExists(t *testing.T) {
 	nodes := []db.RaftNode{
-		{NodeInfo: client.NodeInfo{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter}},
-		{NodeInfo: client.NodeInfo{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter}},
+		{ID: 1, Address: "10.0.0.1:8443", Role: db.RaftVoter},
+		{ID: 2, Address: "10.0.0.2:8443", Role: db.RaftVoter},
 	}
 
 	connectivity := map[string]bool{"10.0.0.1:8443": true, "10.0.0.2:8443": true}

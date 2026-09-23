@@ -30,12 +30,12 @@ func processStartTime(pid int) (int64, error) {
 		return 0, err
 	}
 
-	i := bytes.LastIndexByte(data, ')')
-	if i < 0 {
+	_, after, ok := bytes.CutLast(data, []byte{')'})
+	if !ok {
 		return 0, fmt.Errorf("Malformed /proc/%d/stat", pid)
 	}
 
-	fields := strings.Fields(string(data[i+1:]))
+	fields := strings.Fields(string(after))
 	if len(fields) < 20 {
 		return 0, fmt.Errorf("Malformed /proc/%d/stat", pid)
 	}

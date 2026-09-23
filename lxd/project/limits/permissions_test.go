@@ -376,10 +376,8 @@ func TestAllowVolumeCreation_PoolOnlyLimitEnforced(t *testing.T) {
 	require.NoError(t, err)
 
 	req := api.StorageVolumesPost{
-		StorageVolumePut: api.StorageVolumePut{
-			Config: map[string]string{"size": "8MiB"},
-		},
-		Name: "vol2",
+		Config: map[string]string{"size": "8MiB"},
+		Name:   "vol2",
 	}
 
 	err = limits.AllowVolumeCreation(ctx, nil, tx, "p1", "pool1", req)
@@ -410,10 +408,8 @@ func TestAllowVolumeMove_SameProjectAvoidsDoubleCounting(t *testing.T) {
 	require.NoError(t, err)
 
 	req := api.StorageVolumesPost{
-		StorageVolumePut: api.StorageVolumePut{
-			Config: map[string]string{"size": "10MiB"},
-		},
-		Name: "vol1",
+		Config: map[string]string{"size": "10MiB"},
+		Name:   "vol1",
 	}
 
 	// Relocating the volume's pre-move (pool, name) entry rather than duplicating it
@@ -457,10 +453,8 @@ func TestAllowVolumeMove_CrossProjectDoesNotCancelTargetVolume(t *testing.T) {
 	// exceeds its 100MiB quota, so the move must be rejected. The source volume's (pool, name)
 	// identity must NOT cancel out dst-proj's own same-named volume.
 	req := api.StorageVolumesPost{
-		StorageVolumePut: api.StorageVolumePut{
-			Config: map[string]string{"size": "50MiB"},
-		},
-		Name: "vol2",
+		Config: map[string]string{"size": "50MiB"},
+		Name:   "vol2",
 	}
 
 	err = limits.AllowVolumeMove(ctx, nil, tx, "src-proj", "pool1", "vol", "dst-proj", "pool1", req)

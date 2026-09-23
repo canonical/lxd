@@ -197,11 +197,9 @@ func getPermissions(d *Daemon, r *http.Request) response.Response {
 			for _, entitlement := range auth.EntitlementsByEntityType(entityType) {
 				if recursion == "1" {
 					permissionInfo := api.PermissionInfo{
-						Permission: api.Permission{
-							EntityType:      string(entityType),
-							EntityReference: entityURL.String(),
-							Entitlement:     string(entitlement),
-						},
+						EntityType:      string(entityType),
+						EntityReference: entityURL.String(),
+						Entitlement:     string(entitlement),
 						// Get the groups from the assigned permissions map. We don't have the permission ID or group ID
 						// in scope here. That's why we set it to zero above.
 						Groups: assignedPermissions[cluster.Permission{

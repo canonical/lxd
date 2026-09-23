@@ -48,10 +48,8 @@ func NewHMACArgon2(password []byte, salt []byte, conf HMACConf) (HMACFormatter, 
 	var keyLen uint32 = 32
 
 	return &HMACArgon2{
-		HMAC: HMAC{
-			conf: conf,
-			key:  argon2.IDKey(password, salt, time, memory, threads, keyLen),
-		},
+		conf: conf,
+		key:  argon2.IDKey(password, salt, time, memory, threads, keyLen),
 
 		salt:     salt,
 		password: password,

@@ -212,12 +212,10 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 
 func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		migrationFields: migrationFields{
-			volumeOnly: args.volumeOnly,
-		},
-		url:     args.url,
-		push:    args.push,
-		refresh: args.refresh,
+		volumeOnly: args.volumeOnly,
+		url:        args.url,
+		push:       args.push,
+		refresh:    args.refresh,
 	}
 
 	secretNames := []string{api.SecretNameControl, api.SecretNameFilesystem}

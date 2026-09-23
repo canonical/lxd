@@ -58,10 +58,8 @@ func NewServer(debug bool, verbose bool, notify NotifyFunc) (*Server, error) {
 	}
 
 	server := &Server{
-		serverCommon: serverCommon{
-			debug:   debug,
-			verbose: verbose,
-		},
+		debug:     debug,
+		verbose:   verbose,
 		listeners: map[string]*Listener{},
 		notify:    notify,
 		logger:    eventServerLogger,
@@ -106,13 +104,11 @@ func (s *Server) AddListener(projectName string, allProjects bool, filter func(l
 	}
 
 	listener := &Listener{
-		listenerCommon: listenerCommon{
-			EventListenerConnection: connection,
-			messageTypes:            messageTypes,
-			done:                    cancel.New(),
-			id:                      uuid.New().String(),
-			recvFunc:                recvFunc,
-		},
+		EventListenerConnection: connection,
+		messageTypes:            messageTypes,
+		done:                    cancel.New(),
+		id:                      uuid.New().String(),
+		recvFunc:                recvFunc,
 
 		allProjects:      allProjects,
 		projectName:      projectName,

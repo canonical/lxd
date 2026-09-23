@@ -639,9 +639,10 @@ func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOpe
 
 			// Add the aliases
 			for _, entry := range req.Aliases {
-				alias := api.ImageAliasesPost{}
-				alias.Name = entry.Name
-				alias.Target = fingerprint
+				alias := api.ImageAliasesPost{
+					Name:   entry.Name,
+					Target: fingerprint,
+				}
 
 				err := r.CreateImageAlias(alias)
 				if err != nil {
@@ -871,9 +872,10 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 				return nil, err
 			}
 
-			imagePost := api.ImagesPost{}
-			imagePost.Public = args.Public
-			imagePost.Profiles = image.Profiles
+			imagePost := api.ImagesPost{
+				Public:   args.Public,
+				Profiles: image.Profiles,
+			}
 
 			if args.CopyAliases {
 				imagePost.Aliases = image.Aliases
@@ -935,11 +937,9 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 			Mode:        "pull",
 			Type:        api.SourceTypeImage,
 		},
-		ImagePut: api.ImagePut{
-			Profiles:   image.Profiles,
-			Properties: image.Properties,
-		},
-		Filename: image.Filename,
+		Profiles:   image.Profiles,
+		Properties: image.Properties,
+		Filename:   image.Filename,
 	}
 
 	if source != nil {

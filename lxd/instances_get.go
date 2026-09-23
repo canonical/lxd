@@ -317,14 +317,12 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 		logger.Error("Failed getting instance info", logger.Ctx{"err": err, "project": inst.Project, "instance": inst.Name})
 
 		instFull := &api.InstanceFull{
-			Instance: api.Instance{
-				Name:       inst.Name,
-				Status:     api.Error.String(),
-				StatusCode: api.Error,
-				Location:   inst.Location,
-				Project:    inst.Project,
-				Type:       inst.Type.String(),
-			},
+			Name:       inst.Name,
+			Status:     api.Error.String(),
+			StatusCode: api.Error,
+			Location:   inst.Location,
+			Project:    inst.Project,
+			Type:       inst.Type.String(),
 		}
 
 		resultMu.Lock()
@@ -413,11 +411,11 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 
 		if !mustLoadObjects {
 			for _, inst := range instances {
-				resultFullListAppend(&api.InstanceFull{Instance: api.Instance{
+				resultFullListAppend(&api.InstanceFull{
 					Project:  inst.Project,
 					Name:     inst.Name,
 					Location: inst.Location,
-				}})
+				})
 			}
 		} else {
 			threads := min(len(instances), 4)

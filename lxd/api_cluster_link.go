@@ -1112,9 +1112,7 @@ func clusterLinkCreateActive(s *state.State, r *http.Request, req api.ClusterLin
 		TrustToken:         trustToken.String(),
 		Type:               req.Type,
 		ClusterCertificate: string(networkCert.PublicKey()),
-		ClusterLinkPut: api.ClusterLinkPut{
-			Config: map[string]string{"volatile.addresses": strings.Join(listenAddresses, ",")},
-		},
+		Config:             map[string]string{"volatile.addresses": strings.Join(listenAddresses, ",")},
 	}
 
 	// Send POST to remote /1.0/cluster/links to activate pending cluster link using token.

@@ -119,11 +119,9 @@ func Recover(database *db.Node) error {
 	err = database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodes := []db.RaftNode{
 			{
-				NodeInfo: client.NodeInfo{
-					ID:      info.ID,
-					Address: info.Address,
-				},
-				Name: info.Name,
+				ID:      info.ID,
+				Address: info.Address,
+				Name:    info.Name,
 			},
 		}
 
