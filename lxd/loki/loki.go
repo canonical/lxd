@@ -254,6 +254,8 @@ func (c *Client) send(ctx context.Context, buf []byte) (int, error) {
 		return -1, err
 	}
 
+	defer resp.Body.Close()
+
 	if resp.StatusCode/100 != 2 {
 		scanner := bufio.NewScanner(io.LimitReader(resp.Body, maxErrMsgLen))
 		line := ""
