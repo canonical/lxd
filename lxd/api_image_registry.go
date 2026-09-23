@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/auth"
@@ -997,6 +998,10 @@ func imageRegistryValidate(registry api.ImageRegistry) error {
 // otherwise contain only alphanumeric characters, dashes, dots, and underscores.
 var imageRegistryNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
 
+// imageRegistryReservedNames are names that cannot be used for image registries because they are
+// special keywords of the "restricted.registries" project configuration key.
+var imageRegistryReservedNames = []string{"builtin", "allow", "block"}
+
 // imageRegistryValidateName checks that the image registry name contains only allowed characters.
 func imageRegistryValidateName(name string) error {
 	if name == "" {
@@ -1005,6 +1010,10 @@ func imageRegistryValidateName(name string) error {
 
 	if !imageRegistryNameRegexp.MatchString(name) {
 		return api.NewStatusError(http.StatusBadRequest, "Image registry name must start with an alphanumeric character and can only contain alphanumeric characters, dashes, dots, and underscores")
+	}
+
+	if slices.Contains(imageRegistryReservedNames, strings.ToLower(name)) {
+		return api.StatusErrorf(http.StatusBadRequest, "Image registry name %q is reserved", name)
 	}
 
 	return nil

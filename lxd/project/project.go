@@ -270,16 +270,18 @@ func NetworkAllowed(reqProjectConfig map[string]string, networkName string, isMa
 }
 
 // RegistryAllowed returns whether access is allowed to a particular image registry based on projectConfig.
-func RegistryAllowed(reqProjectConfig map[string]string, registryName string) bool {
+// The registryBuiltin argument indicates whether the registry is a built-in image registry, which the
+// special "builtin" keyword excludes from the restriction.
+func RegistryAllowed(reqProjectConfig map[string]string, registryName string, registryBuiltin bool) bool {
 	// If project is not restricted, then access to registry is allowed.
 	if shared.IsFalseOrEmpty(reqProjectConfig["restricted"]) {
 		return true
 	}
 
-	// By default when restricted=true, registries are blocked.
+	// By default when restricted=true, only built-in image registries are allowed.
 	registries := reqProjectConfig["restricted.registries"]
 	if registries == "" {
-		registries = "block"
+		registries = "builtin"
 	}
 
 	if registries == "allow" {
@@ -288,12 +290,20 @@ func RegistryAllowed(reqProjectConfig map[string]string, registryName string) bo
 	}
 
 	if registries == "block" {
-		// All registries are blocked.
+		// All registries are blocked, including built-in ones.
 		return false
 	}
 
-	// Check if requested registry is in the list of allowed registries.
+	// Otherwise the value is a comma-separated list of allowed registry names, which may also
+	// contain the special "builtin" keyword.
 	allowedRestrictedRegistries := shared.SplitNTrimSpace(registries, ",", -1, true)
+
+	// The "builtin" keyword excludes built-in image registries from the restriction.
+	if registryBuiltin && slices.Contains(allowedRestrictedRegistries, "builtin") {
+		return true
+	}
+
+	// Check if requested registry is in the list of allowed registries.
 	return slices.Contains(allowedRestrictedRegistries, registryName)
 }
 

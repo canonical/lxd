@@ -24,6 +24,13 @@ func TestImageRegistryValidateName(t *testing.T) {
 		{name: "single char", input: "a", wantErr: false},
 		{name: "all allowed specials after alphanumeric", input: "a-b.c_d", wantErr: false},
 
+		// Reserved keyword names.
+		{name: "reserved builtin", input: "builtin", wantErr: true},
+		{name: "reserved allow", input: "allow", wantErr: true},
+		{name: "reserved block", input: "block", wantErr: true},
+		{name: "reserved builtin uppercase", input: "Builtin", wantErr: true},
+		{name: "reserved block uppercase", input: "BLOCK", wantErr: true},
+
 		// Empty.
 		{name: "empty", input: "", wantErr: true},
 
