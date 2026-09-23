@@ -129,9 +129,21 @@ jobs:
           # csi is not compatible with 4.0/*, 5.0/* or 5.21/*, nor with 22.04
           - channel: "4.0/edge"
             test: csi
+          - channel: "4.0/candidate"
+            test: csi
+          - channel: "4.0/stable"
+            test: csi
           - channel: "5.0/edge"
             test: csi
+          - channel: "5.0/candidate"
+            test: csi
+          - channel: "5.0/stable"
+            test: csi
           - channel: "5.21/edge"
+            test: csi
+          - channel: "5.21/candidate"
+            test: csi
+          - channel: "5.21/stable"
             test: csi
           - os: 22.04
             test: csi
