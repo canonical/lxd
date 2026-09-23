@@ -89,6 +89,8 @@ func (b *VolumeBackup) Rename(newName string) error {
 		return err
 	}
 
+	// Keep in-memory state consistent with filesystem and DB rename.
+	b.name = newName
 	revert.Success()
 	return nil
 }
