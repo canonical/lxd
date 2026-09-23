@@ -18,16 +18,21 @@ import (
 
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/warningtype"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/drivers/qmp"
 	"github.com/canonical/lxd/lxd/project"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
+	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/entity"
 	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/validate"
 )
 
@@ -40,6 +45,9 @@ const qemuOverlayNodePrefix = "lxdoverlay_"
 // qemuMetadataDiskNodePrefix used as part of the name given the metadata disk node of a disk, the
 // QEMU block node over its volume metadata image, and to the fd set that passes the image to QEMU.
 const qemuMetadataDiskNodePrefix = "lxdimage_"
+
+// qemuBitmapGranularity is the size in bytes of the block that one bit of a bitmap LXD creates covers.
+const qemuBitmapGranularity = 65536
 
 // blockNodeName returns the QEMU block node name of a disk device, which the guest device is attached to.
 func blockNodeName(deviceName string) string {
@@ -257,6 +265,20 @@ func (d *qemu) readSnapshotBitmapFile(snapshotUUID string) (*snapshotBitmapFile,
 	}
 
 	return found, nil
+}
+
+// RemoveSnapshotBitmapFile deletes the snapshot bitmap file of the instance snapshot of the given
+// UUID from the config volume.
+// The config volume snapshot keeps its copy.
+func (d *qemu) RemoveSnapshotBitmapFile(snapshotUUID string) error {
+	fileName, err := snapshotBitmapFileName(snapshotUUID)
+	if err != nil {
+		return err
+	}
+
+	return d.withConfigVolume(func() error {
+		return d.removeMetadataImagesFiles(fileName)
+	})
 }
 
 // bitmapsEnabled reports whether this QEMU process stores the bitmaps of its block disks in their
@@ -851,6 +873,373 @@ func (d *qemu) pruneMetadataImages(disks []bitmapDisk) error {
 	})
 }
 
+// commitOverlay commits the overlay of a disk into its volume, removes the overlay node and deletes the overlay file.
+// The bitmaps of the volume record the committed writes.
+// The commit is retried, because the guest writes to the overlay until it succeeds.
+func (d *qemu) commitOverlay(monitor *qmp.Monitor, disk bitmapDisk) error {
+	overlayNode := overlayNodeName(disk.deviceName)
+
+	var err error
+	for attempt := range 3 {
+		if attempt > 0 {
+			time.Sleep(time.Second)
+		}
+
+		err = monitor.BlockCommit(overlayNode)
+		if err == nil {
+			// BlockCommit returns once the job is completed, before the job concludes and moves
+			// the disk device back to the disk node.
+			err = monitor.BlockJobWaitGone(overlayNode)
+		}
+
+		if err == nil {
+			break
+		}
+
+		d.logger.Warn("Failed committing overlay", logger.Ctx{"device": disk.deviceName, "attempt": attempt + 1, "err": err})
+	}
+
+	if err != nil {
+		d.raiseOverlayWarning(disk)
+		return fmt.Errorf("Failed committing overlay of disk %q: %w", disk.deviceName, err)
+	}
+
+	// The overlay node stays in use while the guest writes to it.
+	// A failed removal therefore means that the commit did not take effect, and the overlay file is kept.
+	err = monitor.RemoveBlockDevice(overlayNode)
+	if err != nil {
+		d.raiseOverlayWarning(disk)
+		return fmt.Errorf("Failed removing overlay node of disk %q: %w", disk.deviceName, err)
+	}
+
+	err = monitor.RemoveFDFromFDSet(overlayNode)
+	if err != nil {
+		d.logger.Warn("Failed removing file descriptor set", logger.Ctx{"node": overlayNode, "err": err})
+	}
+
+	overlayName, err := overlayFileName(disk.volume.UUID)
+	if err != nil {
+		return err
+	}
+
+	err = d.removeMetadataImagesFiles(overlayName)
+	if err != nil {
+		return fmt.Errorf("Failed removing overlay of disk %q: %w", disk.deviceName, err)
+	}
+
+	d.resolveOverlayWarning()
+
+	return nil
+}
+
+// raiseOverlayWarning raises the warning of a failed commit.
+// Until a commit succeeds the volume lacks the writes of the guest.
+// This means every storage snapshot, copy and backup of it is inconsistent.
+func (d *qemu) raiseOverlayWarning(disk bitmapDisk) {
+	_ = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		return tx.UpsertWarning(ctx, d.node, d.project.Name, entity.TypeInstance, d.ID(), warningtype.InstanceDiskOverlayNotCommitted, fmt.Sprintf("The volume of disk %q lacks the writes of the guest since the last snapshot with a bitmap", disk.deviceName))
+	})
+}
+
+// resolveOverlayWarning resolves the warning of a failed commit once no disk of the instance has an overlay file.
+// A successful commit deletes the overlay file.
+func (d *qemu) resolveOverlayWarning() {
+	disks, err := d.disksSupportingBitmaps()
+	if err != nil {
+		return
+	}
+
+	// A disk whose volume UUID is invalid cannot have an overlay file, as overlayFileName rejects
+	// it before one is created.
+	hasOverlay := false
+	err = d.withBitmapsDir(func(root *os.Root) error {
+		for _, disk := range disks {
+			overlayName, err := overlayFileName(disk.volume.UUID)
+			if err != nil {
+				continue
+			}
+
+			hasOverlay, err = rootEntryExists(root, overlayName)
+			if err != nil || hasOverlay {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil || hasOverlay {
+		return
+	}
+
+	_ = warnings.ResolveWarningsByNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.node, d.project.Name, warningtype.InstanceDiskOverlayNotCommitted, entity.TypeInstance, d.ID())
+}
+
+// addMissingMetadataDiskNodes adds back the metadata disk node of every given disk that has an image but no node.
+// CreateSnapshotBitmaps removes these nodes to write the images for the storage snapshot, while
+// the disk bitmaps keep recording.
+// With the node back, the next persist merges the writes of the whole run.
+// The image of a disk whose node cannot be added back is removed, as its bitmaps lack the writes
+// recorded since the node was removed.
+func (d *qemu) addMissingMetadataDiskNodes(monitor *qmp.Monitor, disks []bitmapDisk) error {
+	if !d.bitmapsEnabled() {
+		return nil
+	}
+
+	nodeNames, err := monitor.QueryNamedBlockNodes()
+	if err != nil {
+		return err
+	}
+
+	var errs []error
+	for _, disk := range disks {
+		if !slices.Contains(nodeNames, disk.nodeName()) || slices.Contains(nodeNames, disk.metadataDiskNodeName()) {
+			continue
+		}
+
+		_, err := d.addMetadataDiskNode(monitor, disk, false)
+		if err == nil || errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+
+		d.logger.Error("Failed adding volume metadata image back, removing it", logger.Ctx{"device": disk.deviceName, "err": err})
+		imageName, err := volumeMetadataImageName(disk.volume.UUID)
+		if err == nil {
+			err = d.removeMetadataImagesFiles(imageName)
+		}
+
+		if err != nil {
+			errs = append(errs, fmt.Errorf("Failed removing volume metadata image of disk %q: %w", disk.deviceName, err))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// commitOverlays adds the missing metadata disk nodes of the given disks back and commits the
+// overlays of the disks that have one.
+func (d *qemu) commitOverlays(monitor *qmp.Monitor, disks []bitmapDisk) error {
+	var errs []error
+	err := d.addMissingMetadataDiskNodes(monitor, disks)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	nodeNames, err := monitor.QueryNamedBlockNodes()
+	if err != nil {
+		return errors.Join(append(errs, err)...)
+	}
+
+	for _, disk := range disks {
+		if !slices.Contains(nodeNames, overlayNodeName(disk.deviceName)) {
+			continue
+		}
+
+		err := d.commitOverlay(monitor, disk)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// disksWithOverlayFiles returns the disks whose volume has an overlay file on the config volume,
+// which a commit that failed or did not run left there. The config volume must be mounted.
+func (d *qemu) disksWithOverlayFiles() ([]bitmapDisk, error) {
+	disks, err := d.disksSupportingBitmaps()
+	if err != nil {
+		return nil, err
+	}
+
+	withOverlay := make([]bitmapDisk, 0, len(disks))
+	err = d.withBitmapsDir(func(root *os.Root) error {
+		for _, disk := range disks {
+			overlayName, err := overlayFileName(disk.volume.UUID)
+			if err != nil {
+				return err
+			}
+
+			exists, err := rootEntryExists(root, overlayName)
+			if err != nil {
+				return err
+			}
+
+			if exists {
+				withOverlay = append(withOverlay, disk)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return withOverlay, nil
+}
+
+// diskDevicePath returns the path of the block device of the volume of a disk of the stopped
+// instance, with the volume mounted until the returned function runs.
+// rootDevicePath is the block device of the root volume, which the caller mounted.
+func (d *qemu) diskDevicePath(disk bitmapDisk, rootDevicePath string) (string, func(), error) {
+	if disk.volume.Type != dbCluster.StoragePoolVolumeTypeNameCustom {
+		if rootDevicePath == "" {
+			return "", nil, errors.New("Instance mount has no block device path")
+		}
+
+		return rootDevicePath, func() {}, nil
+	}
+
+	pool, err := storagePools.LoadByName(d.state, disk.volume.Pool)
+	if err != nil {
+		return "", nil, err
+	}
+
+	volProject := disk.volumeProject(&d.project)
+	_, err = pool.MountCustomVolume(volProject, disk.volume.Name, nil)
+	if err != nil {
+		return "", nil, err
+	}
+
+	unmount := func() {
+		_, err := pool.UnmountCustomVolume(volProject, disk.volume.Name, nil)
+		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
+			d.logger.Warn("Failed unmounting volume", logger.Ctx{"device": disk.deviceName, "err": err})
+		}
+	}
+
+	// Mounting a custom volume activates its block device without reporting its path.
+	dbVol, err := storagePools.VolumeDBGet(pool, volProject, disk.volume.Name, storageDrivers.VolumeTypeCustom)
+	if err != nil {
+		unmount()
+		return "", nil, err
+	}
+
+	vol := pool.GetVolume(storageDrivers.VolumeTypeCustom, storageDrivers.ContentTypeBlock, project.StorageVolume(volProject, disk.volume.Name), dbVol.Config)
+	devicePath, err := pool.Driver().GetVolumeDiskPath(vol)
+	if err != nil {
+		unmount()
+		return "", nil, err
+	}
+
+	return devicePath, unmount, nil
+}
+
+// commitOverlayFiles commits the overlay file of every given disk of the stopped instance into its
+// volume and deletes the file. A disk without an overlay file is skipped.
+func (d *qemu) commitOverlayFiles(disks []bitmapDisk) error {
+	return d.withInstanceMounted(func(mountInfo *storagePools.MountInfo) error {
+		rootDevicePath := ""
+		if mountInfo != nil {
+			devSource, ok := mountInfo.DevSource.(deviceConfig.DevSourcePath)
+			if ok {
+				rootDevicePath = devSource.Path
+			}
+		}
+
+		return d.withBitmapsDir(func(root *os.Root) error {
+			var errs []error
+			for _, disk := range disks {
+				overlayName, err := overlayFileName(disk.volume.UUID)
+				if err != nil {
+					errs = append(errs, err)
+					continue
+				}
+
+				exists, err := rootEntryExists(root, overlayName)
+				if err != nil {
+					errs = append(errs, err)
+					continue
+				}
+
+				if !exists {
+					continue
+				}
+
+				err = d.commitOverlayFile(root, disk, overlayName, rootDevicePath)
+				if err != nil {
+					d.raiseOverlayWarning(disk)
+					errs = append(errs, err)
+				}
+			}
+
+			return errors.Join(errs...)
+		})
+	})
+}
+
+// commitOverlayFile commits the overlay file of the given name in root, the bitmaps directory, of
+// a disk of the stopped instance into its volume and deletes it.
+// The bitmaps of the volume lack the writes in the overlay.
+// The volume metadata image of the disk is therefore deleted first, even if the commit then fails halfway.
+// The next snapshot with a bitmap creates the image again.
+func (d *qemu) commitOverlayFile(root *os.Root, disk bitmapDisk, overlayName string, rootDevicePath string) error {
+	imageName, err := volumeMetadataImageName(disk.volume.UUID)
+	if err != nil {
+		return err
+	}
+
+	err = root.Remove(imageName)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("Failed removing volume metadata image of disk %q: %w", disk.deviceName, err)
+	}
+
+	devicePath, unmount, err := d.diskDevicePath(disk, rootDevicePath)
+	if err != nil {
+		return fmt.Errorf("Failed committing leftover snapshot disk overlay %q: Failed getting block device path of the volume: %w", disk.deviceName, err)
+	}
+
+	defer unmount()
+
+	err = storagePools.Qcow2Commit(root, overlayName, devicePath)
+	if err != nil {
+		return fmt.Errorf("Failed committing leftover snapshot disk overlay %q: %w. Removing the overlay loses the recent disk writes and must be done manually, or the instance must be restored from a snapshot or a backup", disk.deviceName, err)
+	}
+
+	err = root.Remove(overlayName)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("Failed removing overlay of disk %q: %w", disk.deviceName, err)
+	}
+
+	d.resolveOverlayWarning()
+
+	return nil
+}
+
+// CommitDiskOverlays commits the overlays of the given disk devices into their volumes.
+// While the instance runs, the overlays are committed through their disk nodes.
+// While it is stopped, the overlay files are committed through the block devices of the volumes,
+// which deletes their volume metadata images. A device without an overlay is skipped.
+func (d *qemu) CommitDiskOverlays(deviceNames []string) error {
+	// A snapshot has no overlay to commit.
+	// The overlay files in its config volume snapshot contain guest writes made after the snapshot,
+	// which the instance commits into its own volumes.
+	if d.IsSnapshot() {
+		return nil
+	}
+
+	disks, err := d.disksSupportingBitmaps()
+	if err != nil {
+		return err
+	}
+
+	disks = selectDisks(disks, deviceNames)
+	if len(disks) == 0 {
+		return nil
+	}
+
+	monitor, err := d.runningMonitor()
+	if err != nil {
+		return err
+	}
+
+	if monitor == nil {
+		return d.commitOverlayFiles(disks)
+	}
+
+	return d.commitOverlays(monitor, disks)
+}
+
 // instanceSnapshotUUIDs returns the instance snapshot UUID of every snapshot of the instance by
 // snapshot name, which is the UUID of the root volume snapshot of the instance snapshot.
 func (d *qemu) instanceSnapshotUUIDs() (map[string]string, error) {
@@ -871,6 +1260,97 @@ func (d *qemu) instanceSnapshotUUIDs() (map[string]string, error) {
 	}
 
 	return uuids, nil
+}
+
+// snapshotBitmapNames returns the names of the instance snapshots a bitmap of the disk can belong to.
+// On the root disk these are the instance snapshots.
+// On a custom volume they are the instance snapshots that record a snapshot of the volume in
+// volatile.attached_volumes and whose recorded snapshot still exists.
+func (d *qemu) snapshotBitmapNames(disk bitmapDisk) (map[string]struct{}, error) {
+	snapshots, err := d.Snapshots()
+	if err != nil {
+		return nil, err
+	}
+
+	names := make(map[string]struct{}, len(snapshots))
+	if disk.volume.Type != dbCluster.StoragePoolVolumeTypeNameCustom {
+		for _, snapshot := range snapshots {
+			_, snapName, _ := api.GetParentAndSnapshotName(snapshot.Name())
+			names[snapName] = struct{}{}
+		}
+
+		return names, nil
+	}
+
+	pool, err := storagePools.LoadByName(d.state, disk.volume.Pool)
+	if err != nil {
+		return nil, err
+	}
+
+	dbVolSnaps, err := storagePools.VolumeDBSnapshotsGet(pool, disk.volumeProject(&d.project), disk.volume.Name, storageDrivers.VolumeTypeCustom)
+	if err != nil {
+		return nil, err
+	}
+
+	volSnapUUIDs := make([]string, 0, len(dbVolSnaps))
+	for _, dbVolSnap := range dbVolSnaps {
+		volSnapUUIDs = append(volSnapUUIDs, dbVolSnap.Config["volatile.uuid"])
+	}
+
+	for _, snapshot := range snapshots {
+		attachedVolumes, err := parseVolatileAttachedVolumes(snapshot)
+		if err != nil {
+			return nil, err
+		}
+
+		// The volume is attached through one device, whose name may have changed since the snapshot.
+		// The snapshot is therefore matched by the volume snapshot UUIDs in its
+		// volatile.attached_volumes rather than by device.
+		for _, snapshotUUID := range attachedVolumes {
+			if slices.Contains(volSnapUUIDs, snapshotUUID) {
+				_, snapName, _ := api.GetParentAndSnapshotName(snapshot.Name())
+				names[snapName] = struct{}{}
+				break
+			}
+		}
+	}
+
+	return names, nil
+}
+
+// removeStaleBitmaps removes from both nodes of the disk every bitmap that is not valid, and every
+// bitmap that a failed snapshot left behind.
+// Such a bitmap has a name that matches no snapshot the bitmap can belong to, or the name of the
+// snapshot being created, whose database record exists already.
+func (d *qemu) removeStaleBitmaps(monitor *qmp.Monitor, disk bitmapDisk, newBitmapName string) error {
+	pairs, err := d.queryBitmapPairs(monitor, disk)
+	if err != nil {
+		return err
+	}
+
+	if len(pairs) == 0 {
+		return nil
+	}
+
+	names, err := d.snapshotBitmapNames(disk)
+	if err != nil {
+		return err
+	}
+
+	for _, pair := range pairs {
+		_, found := names[pair.name]
+		if found && pair.name != newBitmapName && pair.valid() {
+			continue
+		}
+
+		d.logger.Info("Removing stale bitmap", logger.Ctx{"device": disk.deviceName, "bitmap": pair.name, "valid": pair.valid(), "snapshot": found})
+		err = d.removeBitmapPair(monitor, disk, pair)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // snapshotMetadataImage is the snapshot metadata image of a volume snapshot, the volume metadata
@@ -1471,4 +1951,234 @@ func (d *qemu) RemoveAllMetadataImages() error {
 
 		return root.RemoveAll(qemuBitmapsDir)
 	})
+}
+
+// CreateSnapshotBitmaps creates the bitmap of a snapshot on the volumes attached through the given disk devices.
+// A missing volume metadata image is created first and kept when a later step fails.
+// One QEMU transaction merges every valid disk bitmap into its store bitmap, creates the new
+// bitmap and adds an overlay to each volume.
+// The guest then writes to the overlays, which keeps the volumes as they were at the transaction
+// for the storage snapshots taken afterwards.
+// Removing the metadata disk nodes writes the images, and the snapshot bitmap file is written next to them.
+// CommitDiskOverlays commits the overlays and adds the metadata disk nodes back.
+// A device whose volume does not support bitmaps is skipped, and the devices that got an overlay are returned.
+func (d *qemu) CreateSnapshotBitmaps(snapshotUUID string, deviceNames []string, bitmapName string) ([]string, error) {
+	if !d.IsRunning() {
+		return nil, api.StatusErrorf(http.StatusBadRequest, "Instance is not running")
+	}
+
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return nil, err
+	}
+
+	nodeNames, err := monitor.QueryNamedBlockNodes()
+	if err != nil {
+		return nil, err
+	}
+
+	disks, err := d.disksSupportingBitmaps()
+	if err != nil {
+		return nil, err
+	}
+
+	type snapshotDisk struct {
+		bitmapDisk
+		bitmaps []qmp.BlockDirtyInfo // The store bitmaps of the valid pairs, which the image is written with.
+	}
+
+	selected := make([]snapshotDisk, 0, len(deviceNames))
+	for _, disk := range selectDisks(disks, deviceNames) {
+		if !slices.Contains(nodeNames, disk.nodeName()) {
+			continue
+		}
+
+		// An overlay left by a failed commit is committed before a new overlay is added.
+		if slices.Contains(nodeNames, overlayNodeName(disk.deviceName)) {
+			err = d.commitOverlay(monitor, disk)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// The first snapshot with a bitmap that covers the disk creates its volume metadata image.
+		// The disk bitmaps that the disk kept without a metadata disk node lack their store half
+		// and are removed as stale.
+		if !slices.Contains(nodeNames, disk.metadataDiskNodeName()) {
+			_, err = d.addMetadataDiskNode(monitor, disk, true)
+			if err != nil {
+				return nil, fmt.Errorf("Failed adding volume metadata image of disk %q: %w", disk.deviceName, err)
+			}
+		}
+
+		err = d.removeStaleBitmaps(monitor, disk, bitmapName)
+		if err != nil {
+			return nil, err
+		}
+
+		pairs, err := d.queryBitmapPairs(monitor, disk)
+		if err != nil {
+			return nil, err
+		}
+
+		bitmaps := make([]qmp.BlockDirtyInfo, 0, len(pairs))
+		for _, pair := range pairs {
+			bitmaps = append(bitmaps, *pair.store)
+		}
+
+		selected = append(selected, snapshotDisk{bitmapDisk: disk, bitmaps: bitmaps})
+	}
+
+	if len(selected) == 0 {
+		return []string{}, nil
+	}
+
+	uuids, err := d.instanceSnapshotUUIDs()
+	if err != nil {
+		return nil, err
+	}
+
+	root, err := d.openBitmapsDir()
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = root.Close() }()
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	file := &snapshotBitmapFile{
+		Snapshot: snapshotBitmapFileSnapshot{UUID: snapshotUUID},
+		Volumes:  make(map[string]snapshotBitmapFileVolume, len(selected)),
+	}
+
+	overlayDevices := make([]string, 0, len(selected))
+	actions := make([]qmp.TransactionAction, 0, len(selected)*3)
+	for _, disk := range selected {
+		size, err := monitor.BlockNodeSize(disk.nodeName())
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting size of disk %q: %w", disk.deviceName, err)
+		}
+
+		overlayNode := overlayNodeName(disk.deviceName)
+		overlayName, err := overlayFileName(disk.volume.UUID)
+		if err != nil {
+			return nil, err
+		}
+
+		removeOverlay, err := d.createQcow2Node(monitor, overlayNode, root, overlayName, size, map[string]any{"backing": nil})
+		if err != nil {
+			return nil, fmt.Errorf("Failed creating overlay of disk %q: %w", disk.deviceName, err)
+		}
+
+		revert.Add(func() {
+			removeOverlay()
+			_ = d.removeMetadataImagesFiles(overlayName)
+		})
+
+		overlayDevices = append(overlayDevices, disk.deviceName)
+
+		// Merging in the same transaction that adds the overlay persists every write up to the instant of the snapshot.
+		volume := snapshotBitmapFileVolume{UUID: disk.volume.UUID, Bitmaps: make([]snapshotBitmapFileBitmap, 0, len(disk.bitmaps))}
+		for _, bitmap := range disk.bitmaps {
+			actions = append(actions, qmp.BlockDirtyBitmapMergeAction(disk.metadataDiskNodeName(), bitmap.Name, []qmp.BlockDirtyBitmapSource{{Node: disk.nodeName(), Name: bitmap.Name}}))
+			volume.Bitmaps = append(volume.Bitmaps, snapshotBitmapFileBitmap{Name: bitmap.Name, UUID: uuids[bitmap.Name], Granularity: int64(bitmap.Granularity)})
+		}
+
+		file.Volumes[disk.deviceName] = volume
+
+		// The new bitmap is created on the disk node rather than on the overlay.
+		// This lets it record the writes committed from the overlay.
+		// Its store bitmap is created at the same instant.
+		actions = append(actions,
+			qmp.BlockDirtyBitmapAddAction(disk.metadataDiskNodeName(), bitmapName, qemuBitmapGranularity, true, true),
+			qmp.BlockDirtyBitmapAddAction(disk.nodeName(), bitmapName, qemuBitmapGranularity, false, false),
+			qmp.BlockDevSnapshotAction(disk.nodeName(), overlayNode))
+	}
+
+	err = monitor.RunTransaction(actions)
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating bitmaps: %w", err)
+	}
+
+	// From here on the guest writes to the overlays, which only a commit may remove.
+	revert.Success()
+
+	// QEMU writes the bitmaps into the volume metadata image when the metadata disk node is
+	// removed, and reports a failed write on its standard error only.
+	// Therefore, every image is read back.
+	// The disk bitmaps record the writes of the run until the commit of the overlays adds the metadata disk nodes back.
+	for _, disk := range selected {
+		d.removeQcow2Node(monitor, disk.metadataDiskNodeName())
+	}
+
+	for _, disk := range selected {
+		err = d.verifySnapshotMetadataImage(root, disk.bitmapDisk, disk.bitmaps, bitmapName)
+		if err != nil {
+			break
+		}
+	}
+
+	if err == nil {
+		err = d.writeSnapshotBitmapFile(file)
+		if err != nil {
+			err = fmt.Errorf("Failed writing snapshot bitmap file: %w", err)
+		}
+	}
+
+	if err != nil {
+		// Undo the snapshot as the caller does when a later step fails.
+		// Committing the overlays adds the metadata disk nodes back.
+		selectedDisks := make([]bitmapDisk, 0, len(selected))
+		for _, disk := range selected {
+			selectedDisks = append(selectedDisks, disk.bitmapDisk)
+		}
+
+		commitErr := d.commitOverlays(monitor, selectedDisks)
+		if commitErr != nil {
+			d.logger.Error("Failed committing overlays", logger.Ctx{"err": commitErr})
+		}
+
+		removeErr := d.removeLiveBitmaps(monitor, selectedDisks, func(name string) bool { return name == bitmapName })
+		if removeErr != nil {
+			d.logger.Warn("Failed removing bitmap", logger.Ctx{"bitmap": bitmapName, "err": removeErr})
+		}
+
+		_ = d.RemoveSnapshotBitmapFile(snapshotUUID)
+
+		return nil, err
+	}
+
+	return overlayDevices, nil
+}
+
+// verifySnapshotMetadataImage checks that the volume metadata image of the disk in root, the
+// bitmaps directory, stores every given bitmap and the bitmap of the given name, and that none is
+// in use, before the storage snapshot of the config volume.
+func (d *qemu) verifySnapshotMetadataImage(root *os.Root, disk bitmapDisk, bitmaps []qmp.BlockDirtyInfo, bitmapName string) error {
+	imageName, err := volumeMetadataImageName(disk.volume.UUID)
+	if err != nil {
+		return err
+	}
+
+	stored, err := storagePools.Qcow2Bitmaps(root, imageName)
+	if err != nil {
+		return err
+	}
+
+	names := make([]string, 0, len(bitmaps)+1)
+	for _, bitmap := range bitmaps {
+		names = append(names, bitmap.Name)
+	}
+
+	names = append(names, bitmapName)
+	for _, name := range names {
+		index := slices.IndexFunc(stored, func(bitmap storagePools.Qcow2Bitmap) bool { return bitmap.Name == name })
+		if index < 0 || !stored[index].Valid {
+			return fmt.Errorf("Failed writing the volume metadata image of disk %q: Bitmap %q is missing or in use", disk.deviceName, name)
+		}
+	}
+
+	return nil
 }
