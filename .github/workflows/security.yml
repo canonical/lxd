@@ -60,7 +60,7 @@ jobs:
             mv trivy-modified.sarif "${SARIF_FILE}"
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
         with:
           sarif_file: ${{ env.SARIF_FILE }}
           sha: ${{ github.sha }}
@@ -135,7 +135,7 @@ jobs:
           mv ${{ matrix.branch }}-modified.sarif ${{ matrix.branch }}.sarif
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
         with:
           sarif_file: ${{ matrix.branch }}.sarif
           sha: ${{ steps.branch-sha.outputs.sha }}
@@ -167,7 +167,7 @@ jobs:
           output-file: govulncheck-results.sarif
 
       - name: Upload SARIF results to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
         with:
           sarif_file: govulncheck-results.sarif
           sha: ${{ github.sha }}
