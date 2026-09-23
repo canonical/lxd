@@ -62,6 +62,8 @@ test_image_registries_basic() {
   echo "${registry_show}" | grep -F "source_project: default"
 
   # Listing images through the registry connects via the public cluster link and returns the public image.
+  # LXD_DIR is provided by the test harness; the disable silences a false near-miss against LXD2_DIR below.
+  # shellcheck disable=SC2153
   registry_images="$(curl --silent --unix-socket "${LXD_DIR}/unix.socket" "lxd/1.0/image-registries/test-lxd-public/images")"
   echo "${registry_images}" | jq --exit-status --arg fp "${testimage_fingerprint}" '.metadata | any(.fingerprint == $fp)'
 
@@ -260,4 +262,79 @@ test_image_registries_list_images_compression() {
   # Parse and sort both responses, verifying valid JSON, then compare.
   diff -u <(jq --exit-status -S . "${uncompressed_file}") <(zcat "${compressed_file}" | jq --exit-status -S .)
   rm "${uncompressed_file}" "${compressed_file}"
+}
+
+test_image_registries_download() {
+  # Exercise downloading images through an LXD image registry backed by an authenticated
+  # (unidirectional) cluster link, and verify alias handling on copy.
+  #
+  # Spawn a second LXD to act as the remote image host. A unidirectional cluster link authenticates
+  # to it using a cluster-link identity, which makes the resulting image registry private.
+  local LXD2_DIR
+  LXD2_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  spawn_lxd "${LXD2_DIR}" true
+
+  # Import a public test image with an extra alias on the remote host.
+  LXD_DIR="${LXD2_DIR}" deps/import-busybox --alias testimage --public
+  fingerprint="$(LXD_DIR="${LXD2_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
+  LXD_DIR="${LXD2_DIR}" lxc image alias create testimage-extra "${fingerprint}"
+
+  sub_test "Create a private LXD image registry via a unidirectional cluster link"
+  # On the remote host, grant a cluster-link identity permission to view images, then issue its token.
+  LXD_DIR="${LXD2_DIR}" lxc auth group create img-viewers
+  LXD_DIR="${LXD2_DIR}" lxc auth group permission add img-viewers project default can_view
+  LXD_DIR="${LXD2_DIR}" lxc auth group permission add img-viewers project default can_view_images
+  link_token="$(LXD_DIR="${LXD2_DIR}" lxc auth identity create cluster-link/registry-downloader --group img-viewers --quiet)"
+
+  # On this server, consume the token to create a unidirectional link to the remote host.
+  lxc cluster link create private-link --token "${link_token}" --unidirectional
+  lxc cluster link show private-link | grep -xF 'type: unidirectional'
+
+  lxc image registry create test-lxd-private cluster=private-link source_project=default
+
+  # The registry is reported as private because its cluster link is not public.
+  registry_show="$(lxc image registry show test-lxd-private)"
+  echo "${registry_show}" | grep -xF "protocol: lxd"
+  echo "${registry_show}" | grep -xF "public: false"
+
+  sub_test "Download an image from a private LXD image registry"
+  lxc project create download-target
+  lxc image copy test-lxd-private:testimage local: --alias private-copy --target-project download-target
+
+  # The image now exists locally in the target project with the requested alias and was downloaded.
+  lxc image info private-copy --project download-target | grep -F "Fingerprint: ${fingerprint}"
+  lxc image alias list --project download-target --format csv | grep -wF "private-copy"
+  stat --terse "${LXD_DIR}/images/${fingerprint}"
+  lxc image delete private-copy --project download-target
+
+  sub_test "Copy image aliases from a registry with --copy-aliases"
+  # --copy-aliases brings the source image's aliases across.
+  lxc image copy test-lxd-private:testimage local: --copy-aliases --target-project download-target
+  lxc image alias list --project download-target --format csv | grep -wF "testimage"
+  lxc image alias list --project download-target --format csv | grep -wF "testimage-extra"
+  # Deleting the image removes its aliases too, leaving a clean slate for the next case.
+  lxc image delete testimage --project download-target
+
+  sub_test "Without --copy-aliases only the user-provided alias is applied"
+  lxc image copy test-lxd-private:testimage local: --alias user-only --target-project download-target
+  lxc image alias list --project download-target --format csv | grep -wF "user-only"
+  if lxc image alias list --project download-target --format csv | grep -wF "testimage-extra"; then
+    echo "ERROR: source alias unexpectedly copied without --copy-aliases" >&2
+    exit 1
+  fi
+  lxc image delete user-only --project download-target
+
+  sub_test "A user alias and --copy-aliases coexist"
+  lxc image copy test-lxd-private:testimage local: --alias user-plus --copy-aliases --target-project download-target
+  lxc image alias list --project download-target --format csv | grep -wF "user-plus"
+  lxc image alias list --project download-target --format csv | grep -wF "testimage"
+  lxc image alias list --project download-target --format csv | grep -wF "testimage-extra"
+  lxc image delete user-plus --project download-target
+
+  sub_test "Clean up"
+  lxc project delete download-target
+  lxc image registry delete test-lxd-private
+  lxc cluster link delete private-link
+  LXD_DIR="${LXD2_DIR}" lxc auth identity delete cluster-link/registry-downloader
+  kill_lxd "${LXD2_DIR}"
 }
