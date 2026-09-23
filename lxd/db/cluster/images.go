@@ -226,12 +226,7 @@ WHERE images_source.image_id=?
 }
 
 // GetCachedImageWithSource gets a cached image with the given fingerprint and source details.
-func GetCachedImageWithSource(ctx context.Context, tx *sql.Tx, fingerprint string, server string, protocol string, alias string, certificate string) (int, *api.Image, error) {
-	protocolCode, ok := imageSourceProtocolCode[protocol]
-	if !ok {
-		return -1, nil, api.StatusErrorf(http.StatusBadRequest, "Unknown protocol %q", protocol)
-	}
-
+func GetCachedImageWithSource(ctx context.Context, tx *sql.Tx, fingerprint string, imageRegistry string, alias string) (int, *api.Image, error) {
 	q := `
 SELECT
 	images.id,
@@ -250,10 +245,11 @@ SELECT
 FROM images
 JOIN projects ON images.project_id = projects.id
 JOIN images_source ON images.id = images_source.image_id
-WHERE images.cached = 1 AND images.fingerprint = ? AND images_source.server = ? AND images_source.protocol = ? AND images_source.alias = ? AND images_source.certificate = ?`
+JOIN image_registries ON images_source.image_registry_id = image_registries.id
+WHERE images.cached = 1 AND images.fingerprint = ? AND image_registries.name = ? AND images_source.alias = ?`
 
 	var image Image
-	row := tx.QueryRowContext(ctx, q, fingerprint, server, protocolCode, alias, certificate)
+	row := tx.QueryRowContext(ctx, q, fingerprint, imageRegistry, alias)
 	err := row.Scan(&image.ID, &image.Project, &image.Fingerprint, &image.Type, &image.Size, &image.Public, &image.Architecture, &image.CreationDate, &image.ExpiryDate, &image.UploadDate, &image.Cached, &image.LastUseDate, &image.AutoUpdate)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
