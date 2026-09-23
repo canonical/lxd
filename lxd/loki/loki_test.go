@@ -1,12 +1,87 @@
 package loki
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"net"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/canonical/lxd/shared/api"
 )
+
+func TestShouldRetrySend(t *testing.T) {
+	_, malformedRequestErr := http.NewRequest(http.MethodPost, "http://%", nil)
+	if malformedRequestErr == nil {
+		t.Fatal("Expected malformed request URL to return an error")
+	}
+
+	tests := []struct {
+		name   string
+		status int
+		err    error
+		want   bool
+	}{
+		{
+			name:   "malformed request URL",
+			status: -1,
+			err:    malformedRequestErr,
+			want:   false,
+		},
+		{
+			name:   "permanent DNS error",
+			status: -1,
+			err:    &net.DNSError{Err: "no such host", Name: "loki.example", IsNotFound: true},
+			want:   false,
+		},
+		{
+			name:   "connection error",
+			status: -1,
+			err:    &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("connection refused")},
+			want:   true,
+		},
+		{
+			name:   "deadline exceeded",
+			status: -1,
+			err:    context.DeadlineExceeded,
+			want:   true,
+		},
+		{
+			name:   "too many requests",
+			status: http.StatusTooManyRequests,
+			err:    errors.New("HTTP error"),
+			want:   true,
+		},
+		{
+			name:   "server error",
+			status: http.StatusServiceUnavailable,
+			err:    errors.New("HTTP error"),
+			want:   true,
+		},
+		{
+			name:   "bad request",
+			status: http.StatusBadRequest,
+			err:    errors.New("HTTP error"),
+			want:   false,
+		},
+		{
+			name:   "success",
+			status: http.StatusNoContent,
+			want:   false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := shouldRetrySend(test.status, test.err)
+			if got != test.want {
+				t.Errorf("shouldRetrySend() = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
 
 // newBenchClient returns a Client with a buffered entries channel, used by benchmarks to avoid
 // blocking on the send at the end of HandleEvent without starting the background run() goroutine.
