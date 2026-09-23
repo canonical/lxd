@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -235,6 +236,16 @@ func instancesStart(ctx context.Context, s *state.State, instances []instance.In
 
 	// Start the instances
 	for _, inst := range instances {
+		// A virtual machine that stores bitmaps and whose guest powered off while LXD was not
+		// running is paused by QEMU until LXD persists its bitmaps and ends the process, which the
+		// stop does.
+		if inst.Type() == instancetype.VM && strings.EqualFold(inst.State(), api.Stopping.String()) {
+			err := inst.Stop(ctx, false)
+			if err != nil {
+				logger.Warn("Failed stopping instance left paused by a guest shutdown", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
+			}
+		}
+
 		if !instanceShouldAutoStart(inst) {
 			continue
 		}
