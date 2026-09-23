@@ -270,16 +270,16 @@ parts:
       usr/bin/: bin/
       usr/lib/: lib/
     override-stage: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-prime: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-build: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     prime:
       - bin/ceph
@@ -439,25 +439,25 @@ parts:
         - rsync
         - uuid-dev
     override-stage: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           amd64|arm64|riscv64) ;;
           *) exit 0 ;;
       esac
       craftctl default
     override-prime: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           amd64|arm64|riscv64) ;;
           *) exit 0 ;;
       esac
       craftctl default
     override-pull: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           amd64|arm64|riscv64) ;;
           *) exit 0 ;;
       esac
       craftctl default
     override-build: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           amd64|arm64|riscv64) ;;
           *) exit 0 ;;
       esac
@@ -490,7 +490,7 @@ parts:
       # Install files destination
       mkdir -p "${CRAFT_PART_INSTALL}/share/qemu/"
 
-      if [ "${CRAFT_TARGET_ARCH}" = "amd64" ]; then
+      if [ "${CRAFT_ARCH_BUILD_FOR}" = "amd64" ]; then
           DSC="OvmfPkg/OvmfPkgX64.dsc"
           BUILD_TARGETS="install-ovmf-secboot install-ovmf-no-secboot"
           SRC_DIR="debian/tmp/usr/share/OVMF"
@@ -509,7 +509,7 @@ parts:
           # = 0x8000004F
           # Adding 0x00400000 (DEBUG_VERBOSE) gives 0x8040004F
           SED_EXPR="s#PcdDebugPrintErrorLevel|0x8000004F#PcdDebugPrintErrorLevel|0x8040004F#g"
-      elif [ "${CRAFT_TARGET_ARCH}" = "arm64" ]; then
+      elif [ "${CRAFT_ARCH_BUILD_FOR}" = "arm64" ]; then
           DSC="ArmVirtPkg/ArmVirt.dsc.inc"
           BUILD_TARGETS="install-qemu-efi-aarch64-secboot install-qemu-efi-aarch64-no-secboot"
           SRC_DIR="debian/tmp/usr/share/AAVMF"
@@ -526,7 +526,7 @@ parts:
           DST_VARS_MS="AAVMF_VARS.ms"
           # See note in `x86_64` section for DEBUG_VERBOSE explanation
           SED_EXPR="s#DEBUG_PRINT_ERROR_LEVEL = 0x8000004F#DEBUG_PRINT_ERROR_LEVEL = 0x8040004F#g"
-      elif [ "${CRAFT_TARGET_ARCH}" = "riscv64" ]; then
+      elif [ "${CRAFT_ARCH_BUILD_FOR}" = "riscv64" ]; then
           DSC="OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc"
           BUILD_TARGETS="install-qemu-efi-riscv64"
           SRC_DIR="debian/tmp/usr/share/qemu-efi-riscv64"
@@ -583,7 +583,7 @@ parts:
       run_build RELEASE ""
 
       # RISC-V build is already very slow and adding a DEBUG build makes it even slower, so skip it.
-      if [ "${CRAFT_TARGET_ARCH}" != "riscv64" ]; then
+      if [ "${CRAFT_ARCH_BUILD_FOR}" != "riscv64" ]; then
         # Build Debug (silence the copious build output to avoid doubling it)
         run_build DEBUG ".debug" > /dev/null
       fi
@@ -596,13 +596,13 @@ parts:
   libatomic:
     plugin: nil
     override-stage: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           riscv64|s390x) ;;
           *) exit 0 ;;
       esac
       craftctl default
     override-prime: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           riscv64|s390x) ;;
           *) exit 0 ;;
       esac
@@ -721,25 +721,25 @@ parts:
     build-snaps:
       - go/1.27/stable
     override-stage: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           amd64|arm64) ;;
           *) exit 0 ;;
       esac
       craftctl default
     override-prime: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           amd64|arm64) ;;
           *) exit 0 ;;
       esac
       craftctl default
     override-pull: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           amd64|arm64) ;;
           *) exit 0 ;;
       esac
       craftctl default
     override-build: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           amd64|arm64) ;;
           *) exit 0 ;;
       esac
@@ -778,20 +778,20 @@ parts:
       - go/1.27/stable
     plugin: make
     override-stage: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
-      [ "${CRAFT_TARGET_ARCH}" = "riscv64" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "riscv64" ] && exit 0
       craftctl default
     override-prime: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
-      [ "${CRAFT_TARGET_ARCH}" = "riscv64" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "riscv64" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
-      [ "${CRAFT_TARGET_ARCH}" = "riscv64" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "riscv64" ] && exit 0
       craftctl default
     override-build: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
-      [ "${CRAFT_TARGET_ARCH}" = "riscv64" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "riscv64" ] && exit 0
       set -ex
 
       # Setup build environment
@@ -825,16 +825,16 @@ parts:
         - openvswitch-common
         - openvswitch-switch
     override-stage: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-prime: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-build: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     organize:
       usr/bin/: bin/
@@ -854,16 +854,16 @@ parts:
       - else:
         - ovn-common
     override-stage: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-prime: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-build: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     organize:
       usr/bin/: bin/
@@ -909,16 +909,16 @@ parts:
         - libjpeg-turbo8
         - libpixman-1-0
     override-stage: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-prime: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-build: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
 
       # Apply patches from Ubuntu sources.
       cd ../src
@@ -1047,17 +1047,17 @@ parts:
         - seabios # This is needed due to --disable-install-blobs.
         - qemu-system-data # This is needed due to --disable-install-blobs.
     override-stage: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-prime: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
 
     override-build: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       set -ex
       # If configure finds a `.git` dir, it enables -Werror (`--enable-werror` and Git submodules are validated).
       # When building the deb on LP, this `.git` dir is not present because a tarball is used.
@@ -1065,11 +1065,11 @@ parts:
       [ -d .git ] && rm -rf .git
 
       # Mangle the configure a bit
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           amd64) QEMUARCH="x86_64" ;;
           arm64) QEMUARCH="aarch64" ;;
           ppc64el) QEMUARCH="ppc64" ;;
-          *) QEMUARCH="${CRAFT_TARGET_ARCH}" ;;
+          *) QEMUARCH="${CRAFT_ARCH_BUILD_FOR}" ;;
       esac
 
       # Apply patches from Ubuntu sources.
@@ -1159,16 +1159,16 @@ parts:
     prime:
       - bin/virtiofsd*
     override-stage: |-
-      [ "${CRAFT_TARGET_ARCH}" != "amd64" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-prime: |-
-      [ "${CRAFT_TARGET_ARCH}" != "amd64" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "${CRAFT_TARGET_ARCH}" != "amd64" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-build: |-
-      [ "${CRAFT_TARGET_ARCH}" != "amd64" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
 
   xfs:
@@ -1235,16 +1235,16 @@ parts:
         - zlib1g-dev
         - libtirpc-dev
     override-stage: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-prime: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-build: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       set -ex
       RAW_VER="${CRAFT_PART_NAME#zfs-}"
       ZFS_VER="${RAW_VER/-/.}"
@@ -1276,16 +1276,16 @@ parts:
         - zlib1g-dev
         - libtirpc-dev
     override-stage: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-prime: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-build: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       set -ex
       RAW_VER="${CRAFT_PART_NAME#zfs-}"
       ZFS_VER="${RAW_VER/-/.}"
@@ -1317,16 +1317,16 @@ parts:
         - zlib1g-dev
         - libtirpc-dev
     override-stage: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-prime: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-build: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       set -ex
       RAW_VER="${CRAFT_PART_NAME#zfs-}"
       ZFS_VER="${RAW_VER/-/.}"
@@ -1497,25 +1497,25 @@ parts:
       - to arm64:
         - python3-uefivars
     override-stage: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           amd64|arm64) ;;
           *) exit 0 ;;
       esac
       craftctl default
     override-prime: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           amd64|arm64) ;;
           *) exit 0 ;;
       esac
       craftctl default
     override-pull: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           amd64|arm64) ;;
           *) exit 0 ;;
       esac
       craftctl default
     override-build: |-
-      case "${CRAFT_TARGET_ARCH}" in
+      case "${CRAFT_ARCH_BUILD_FOR}" in
           amd64|arm64) ;;
           *) exit 0 ;;
       esac
@@ -1628,7 +1628,7 @@ parts:
 
       # Some python dependencies are not available for armhf or just require a build from source.
       # Not worth the effort for now.
-      if [ "${CRAFT_TARGET_ARCH}" != "armhf" ]; then
+      if [ "${CRAFT_ARCH_BUILD_FOR}" != "armhf" ]; then
         # Build the static website
         # XXX: needed for snapcraft 8.x only
         PATH="/usr/bin:${PATH}" make doc # ensure python3 is found in PATH
@@ -1698,14 +1698,14 @@ parts:
       - nodejs
       - npm
     override-prime: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
     override-pull: |-
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
 
       craftctl default
     override-build: |
-      [ "${CRAFT_TARGET_ARCH}" = "armhf" ] && exit 0
+      [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
 
       craftctl default
 
