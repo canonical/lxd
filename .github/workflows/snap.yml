@@ -227,6 +227,10 @@ jobs:
           - os: 22.04
             test: qemu-external-vm
           # skip track/os combinations that are too far apart
+          - os: 22.04
+            track: "latest"
+          - os: 22.04
+            track: "6"
           - os: 24.04
             track: "4.0"
           - os: 24.04
