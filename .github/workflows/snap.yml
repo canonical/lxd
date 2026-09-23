@@ -5,11 +5,24 @@ on:
     - cron: '38 6 * * *'
   workflow_dispatch:
     inputs:
-      snap-channel:
-        description: Snap channel to test, e.g. "4.0/edge" or "5.21/candidate".
-        type: string
-        required: false
-        default: 'latest/edge'
+      snap-track:
+        description: Snap track to test.
+        type: choice
+        default: 'latest'
+        options:
+          - 'latest'
+          - '6'
+          - '5.21'
+          - '5.0'
+          - '4.0'
+      snap-risk:
+        description: Snap risk level, `edge`, `candidate` or `stable`.
+        type: choice
+        default: 'edge'
+        options:
+          - 'edge'
+          - 'candidate'
+          - 'stable'
       ubuntu-releases:
         description: Ubuntu releases to run the tests against. In JSON format, i.e. '["24.04", "26.04"]'.
         type: choice
@@ -28,7 +41,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.snap-channel }}-${{ inputs.ubuntu-releases }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.snap-track }}-${{ inputs.snap-risk }}-${{ inputs.ubuntu-releases }}
   # XXX: scheduled runs should not cancel manually triggered ones
   cancel-in-progress: ${{ !contains(github.event_name, 'schedule')}}
 
@@ -74,7 +87,7 @@ jobs:
   snap-tests:
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     needs: prime-caches
-    name: Snap
+    name: ${{ matrix.test }} (${{ matrix.track }}/${{ matrix.risk }} - ${{ matrix.os }})
     runs-on: ubuntu-${{ matrix.os }}
     # avoid runaway test burning 6 hours of CI
     timeout-minutes: 60
@@ -85,7 +98,9 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.ubuntu-releases || (github.event_name == 'schedule' && '["22.04", "24.04", "26.04"]') || '["26.04"]') }}
-        channel: ${{ fromJSON(inputs.snap-channel && format('["{0}"]', inputs.snap-channel) || (github.event_name == 'schedule' && '["6/edge", "5.21/edge", "5.0/edge"]') || '["latest/edge"]') }}
+        track: ${{ fromJSON(inputs.snap-track && format('["{0}"]', inputs.snap-track) || (github.event_name == 'schedule' && '["6", "5.21", "5.0"]') || '["latest"]') }}
+        risk:
+          - ${{ inputs.snap-risk || 'edge' }}
         test:
           - bgp
           - cgroup
@@ -127,94 +142,82 @@ jobs:
           - vm-migration
         exclude:
           # csi is not compatible with 4.0/*, 5.0/* or 5.21/*, nor with 22.04
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: csi
-          - channel: "4.0/candidate"
+          - track: "5.0"
             test: csi
-          - channel: "4.0/stable"
-            test: csi
-          - channel: "5.0/edge"
-            test: csi
-          - channel: "5.0/candidate"
-            test: csi
-          - channel: "5.0/stable"
-            test: csi
-          - channel: "5.21/edge"
-            test: csi
-          - channel: "5.21/candidate"
-            test: csi
-          - channel: "5.21/stable"
+          - track: "5.21"
             test: csi
           - os: 22.04
             test: csi
           # not compatible with 4.0/*
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: bgp
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: cloud-init
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: container-copy
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: conversion
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: cpu-vm
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: docker
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: lxd-installer
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: lxd-user
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: network-ovn ovn:deb
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: network-ovn ovn:latest/edge
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: qemu-external-vm
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: storage-buckets
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: storage-disks-vm
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: storage-metadata
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: storage-vm btrfs
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: storage-vm ceph
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: storage-vm dir
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: storage-vm lvm
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: storage-vm lvm-thin
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: storage-vm zfs
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: storage-volumes-vm
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: tpm-vm
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: ui chromium
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: ui firefox
-          - channel: "4.0/edge"
+          - track: "4.0"
             test: vm-migration
           # not compatible with 5.0/*
-          - channel: "5.0/edge"
+          - track: "5.0"
             test: cloud-init
-          - channel: "5.0/edge"
+          - track: "5.0"
             test: docker
-          - channel: "5.0/edge"
+          - track: "5.0"
             test: lxd-installer
-          - channel: "5.0/edge"
+          - track: "5.0"
             test: network-ovn ovn:latest/edge
-          - channel: "5.0/edge"
+          - track: "5.0"
             test: qemu-external-vm
-          - channel: "5.0/edge"
+          - track: "5.0"
             test: vm-migration
           # not compatible with 5.21/*
-          - channel: "5.21/edge"
+          - track: "5.21"
             test: lxd-installer
-          - channel: "5.21/edge"
+          - track: "5.21"
             test: qemu-external-vm
           # some tests are not worth testing on specific OSes
           - os: 22.04
@@ -223,15 +226,19 @@ jobs:
             test: lxd-installer
           - os: 22.04
             test: qemu-external-vm
-          # skip channel/os combinations that are too far apart
+          # skip track/os combinations that are too far apart
+          - os: 22.04
+            track: "latest"
+          - os: 22.04
+            track: "6"
           - os: 24.04
-            channel: "4.0/edge"
+            track: "4.0"
           - os: 24.04
-            channel: "5.0/edge"
+            track: "5.0"
           - os: 26.04
-            channel: "4.0/edge"
+            track: "4.0"
           - os: 26.04
-            channel: "5.0/edge"
+            track: "5.0"
 
     steps:
       - name: Checkout
@@ -252,7 +259,7 @@ jobs:
         uses: $/.github/actions/snap-test
         with:
           test: ${{ matrix.test }}
-          channel: ${{ matrix.channel }}
+          channel: ${{ matrix.track }}/${{ matrix.risk }}
           os: ${{ matrix.os }}
           image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
