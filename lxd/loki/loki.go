@@ -224,7 +224,7 @@ func (c *Client) sendBatch(batch *batch) {
 			return
 		}
 
-		// Retry every 10s, but exit if Stop() is called.
+		// Retry every timeout interval, but exit if Stop() is called.
 		select {
 		case <-c.cancel.Done():
 			return
