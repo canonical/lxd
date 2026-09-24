@@ -160,6 +160,14 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Install LXD build dependencies
+        uses: $/.github/actions/install-lxd-builddeps
+
+      - name: Build or restore dqlite/liblxc dependencies
+        uses: $/.github/actions/cache-dqlite-liblxc
+        with:
+          export-env: true
+
       - name: Run govulncheck (SARIF output)
         uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1.1.0
         with:
