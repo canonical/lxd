@@ -42,7 +42,7 @@ test_storage_pools() {
   # is that the kernel module for the selected connection mode can be loaded.
   sub_test "PowerStore pools can be created and deleted with placeholder config"
   local modeSpec modeName module poolName
-  for modeSpec in "iscsi:iscsi_tcp" "nvme/tcp:nvme_tcp" "scsi/fc:scsi_transport_fc"; do
+  for modeSpec in "iscsi:iscsi_tcp" "nvme/tcp:nvme_tcp" "nvme/fc:nvme_fc" "scsi/fc:scsi_transport_fc"; do
     modeName="${modeSpec%:*}"
     module="${modeSpec#*:}"
 
