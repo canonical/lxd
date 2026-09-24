@@ -2323,6 +2323,11 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 		for volKey := range args.DeferredCustomVolumes {
 			_, ok := listed[volKey]
 			if !ok {
+				// A per member pool holds the volume on one member only, so say which one was checked.
+				if b.state.ServerClustered {
+					return fmt.Errorf("Custom volume %q is missing on the target member %q and the source will not transfer it", volKey, b.state.ServerName)
+				}
+
 				return fmt.Errorf("Custom volume %q is missing on the target and the source will not transfer it", volKey)
 			}
 		}
