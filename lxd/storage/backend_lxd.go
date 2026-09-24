@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -6257,6 +6258,57 @@ func (b *lxdBackend) commitAttachedVolumeDiskOverlays(instanceDevices map[instan
 		err := inst.CommitDiskOverlays(deviceNames)
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// deleteAttachedVolumeSnapshotBitmaps removes from a custom volume the bitmaps created with its
+// volume snapshot of the given UUID, on every virtual machine and disk device the volume is
+// attached through.
+// These are the bitmaps named after the instance snapshots that record the volume snapshot in
+// volatile.attached_volumes.
+// A virtual machine on another member is skipped, and the bitmaps are removed by its next snapshot with a bitmap.
+func (b *lxdBackend) deleteAttachedVolumeSnapshotBitmaps(instanceDevices map[instance.Instance][]string, snapshotUUID string) error {
+	for inst, deviceNames := range instanceDevices {
+		if inst.Type() != instancetype.VM {
+			continue
+		}
+
+		if inst.Location() != b.state.ServerName {
+			b.logger.Warn("Skipping bitmap removal of a virtual machine on another cluster member", logger.Ctx{"instance": inst.Name(), "location": inst.Location(), "snapshotUUID": snapshotUUID})
+			continue
+		}
+
+		snapshots, err := inst.Snapshots()
+		if err != nil {
+			return err
+		}
+
+		for _, snapshot := range snapshots {
+			value := snapshot.LocalConfig()["volatile.attached_volumes"]
+			if value == "" {
+				continue
+			}
+
+			var attachedVolumes map[string]string
+			err = json.Unmarshal([]byte(value), &attachedVolumes)
+			if err != nil {
+				return fmt.Errorf(`Failed parsing "volatile.attached_volumes" of snapshot %q: %w`, snapshot.Name(), err)
+			}
+
+			if !slices.Contains(slices.Collect(maps.Values(attachedVolumes)), snapshotUUID) {
+				continue
+			}
+
+			_, snapName, _ := api.GetParentAndSnapshotName(snapshot.Name())
+			for _, deviceName := range deviceNames {
+				err = inst.DeleteDiskBitmap(deviceName, snapName)
+				if err != nil {
+					return fmt.Errorf("Failed deleting bitmap %q: %w", snapName, err)
+				}
+			}
 		}
 	}
 
