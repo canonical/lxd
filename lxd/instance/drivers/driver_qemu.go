@@ -7217,6 +7217,15 @@ func (d *qemu) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, p
 		return err
 	}
 
+	// An NBD export changes the volumes that the migration transfers.
+	unlockNBD, err := storagePools.LockInstanceNBD(d.state, d)
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	defer unlockNBD()
+
 	// Wait for essential migration connections before negotiation.
 	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
