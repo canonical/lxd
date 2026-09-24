@@ -194,6 +194,7 @@ type migrationSink struct {
 	refresh               bool
 	attachedVolumes       map[string]struct{}
 	deferredVolumes       map[string]struct{}
+	transferStarted       func()
 }
 
 // migrationSinkArgs arguments to configure migration sink.
@@ -213,6 +214,7 @@ type migrationSinkArgs struct {
 	snapshots             []*migration.Snapshot
 	attachedVolumes       map[string]struct{}
 	deferredVolumes       map[string]struct{}
+	transferStarted       func()
 
 	// Storage specific fields
 	volumeOnly bool

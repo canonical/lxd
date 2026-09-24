@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -7851,6 +7852,18 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Set from the storage backend right before the first volume write, when a caller that restores the
+	// instance record on failure asked to be told. A failure after that point is reported to the source with
+	// the reason the caller records, so the operator sees it on the side that ran the migration too.
+	transferStarted := false
+	var transferStartedHook func()
+	if args.TransferStarted != nil {
+		transferStartedHook = sync.OnceFunc(func() {
+			transferStarted = true
+			args.TransferStarted()
+		})
+	}
+
 	g, ctx := errgroup.WithContext(ctx)
 
 	// Start control connection monitor.
@@ -7948,7 +7961,7 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 			ClusterMoveSourceName: args.ClusterMoveSourceName,
 			DeferredCustomVolumes: args.DeferredVolumes,
 			AttachedCustomVolumes: args.AttachedVolumes,
-			TransferStarted:       args.TransferStarted,
+			TransferStarted:       transferStartedHook,
 		}
 
 		// At this point we have already figured out the parent instances's root
@@ -8129,6 +8142,9 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 		// Wait for all routines to finish and collect the first error that occurred.
 		if fsTransferErr != nil || ctx.Err() != nil {
 			err := g.Wait()
+			if err != nil && transferStarted {
+				err = fmt.Errorf("Instance keeps the received config because the transfer had started and its disks may be partly refreshed: %w", err)
+			}
 
 			// Send failure response to source.
 			msg := migration.MigrationControl{
