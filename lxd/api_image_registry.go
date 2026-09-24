@@ -851,6 +851,19 @@ func imageRegistryDelete(d *Daemon, r *http.Request) response.Response {
 			return api.NewStatusError(http.StatusBadRequest, "Built-in image registry cannot be deleted")
 		}
 
+		// Refuse to delete a registry that any image still references as its source. Deleting it
+		// would cascade away those image sources (ON DELETE CASCADE), leaving the affected cached
+		// images with no record of where they came from and no way to restore the link. This applies
+		// to every referencing image, whether or not auto-update is enabled for it.
+		count, err := dbCluster.GetImageRegistryUsageCount(ctx, tx.Tx(), name)
+		if err != nil {
+			return fmt.Errorf("Failed checking image registry usage: %w", err)
+		}
+
+		if count > 0 {
+			return api.StatusErrorf(http.StatusBadRequest, "Image registry %q is in use by %d image(s)", name, count)
+		}
+
 		return nil
 	})
 	if err != nil {
