@@ -666,7 +666,7 @@ migration() {
   lxc_remote project delete l1:restricted
 
   # Check snapshot creation dates after migration.
-  lxc_remote init testimage l1:c1
+  lxc_remote init --empty l1:c1
   lxc_remote snapshot l1:c1
   lxc_remote storage volume show "l1:${remote_pool1}" container/c1 | grep '^created_at: 2'
   lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | grep '^created_at: 2'
