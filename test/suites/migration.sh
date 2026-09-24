@@ -81,6 +81,8 @@ test_migration() {
   lxc_remote snapshot l1:u1 snap
 
   lxc_remote copy l1:u1 l2: -d eth1,ipv4.address=10.100.100.10 -d eth1,network=foonet2
+  [ "$(lxc_remote config device get l1:u1 eth1 ipv4.address)" = "10.100.10.10" ]
+  [ "$(lxc_remote config device get l2:u1 eth1 ipv4.address)" = "10.100.100.10" ]
 
   lxc_remote delete l1:u1 l2:u1
   lxc_remote network delete l1:foonet
