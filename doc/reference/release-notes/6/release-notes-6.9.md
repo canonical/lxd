@@ -227,6 +227,17 @@ The following bug fixes are included in this release.
 - [{spellexception}`Work with modern LVM`](https://github.com/canonical/lxd/pull/18463)
 - [{spellexception}`Add missing content types for storage volume POST`](https://github.com/canonical/lxd/pull/18457)
 
+### Security fixes in interim snap release `6.9-bf243da`
+
+The following security issues were fixed in the interim snap release `6.9-`:
+
+- [{spellexception}`Arbitrary file write on host via symlink in migration stream (CVE-2026-87799)`](https://github.com/canonical/lxd/security/advisories/GHSA-fmc3-3cpq-6whr)
+- [{spellexception}`Project restriction bypass for custom volume copy with omitted source type (CVE-2026-97335)`](https://github.com/canonical/lxd/security/advisories/GHSA-p456-92fx-44xh)
+- [{spellexception}`btrfs optimized backup/migration: unvalidated subvolume path enables root arbitrary file delete/write (RCE ceiling) (CVE-2026-85185)`](https://github.com/canonical/lxd/security/advisories/GHSA-27q7-qwhm-c34p)
+- [{spellexception}`Path traversal via btrfs optimized-backup subvolumes[].path enables root file/dir manipulation (CVE-2026-85526)`](https://github.com/canonical/lxd/security/advisories/GHSA-h85r-gjgx-g2rv)
+- [{spellexception}`Restricted client can import a private image from another project (CVE-2026-86335)`](https://github.com/canonical/lxd/security/advisories/GHSA-j7p3-5g2v-69j8)
+- [{spellexception}`CLI path traversal when exporting an image from a malicious server (CVE-2026-86334)`](https://github.com/canonical/lxd/security/advisories/GHSA-g4cm-f533-78hq)
+
 ### Security fixes in interim snap release `6.9-ab8fad2`
 
 The following security issues were fixed in the interim snap release `6.9-ab8fad2`:
