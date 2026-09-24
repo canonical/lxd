@@ -338,3 +338,108 @@ test_image_registries_download() {
   LXD_DIR="${LXD2_DIR}" lxc auth identity delete cluster-link/registry-downloader
   kill_lxd "${LXD2_DIR}"
 }
+
+test_image_registries_restricted() {
+  # Verify that the restricted.registries project setting gates image downloads through image
+  # registries, including the "builtin" keyword that exempts built-in registries from the restriction.
+  #
+  # A second LXD acts as the remote image host behind a custom (non-built-in) image registry reached
+  # via an authenticated unidirectional cluster link. The registry's built-in flag is toggled directly
+  # in the database to exercise the built-in exemption without relying on a network-reachable built-in
+  # registry.
+  local LXD2_DIR
+  LXD2_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  spawn_lxd "${LXD2_DIR}" true
+
+  LXD_DIR="${LXD2_DIR}" deps/import-busybox --alias testimage --public
+
+  # On the remote host, grant a cluster-link identity permission to view images, then issue its token.
+  LXD_DIR="${LXD2_DIR}" lxc auth group create img-viewers
+  LXD_DIR="${LXD2_DIR}" lxc auth group permission add img-viewers project default can_view
+  LXD_DIR="${LXD2_DIR}" lxc auth group permission add img-viewers project default can_view_images
+  link_token="$(LXD_DIR="${LXD2_DIR}" lxc auth identity create cluster-link/restricted-downloader --group img-viewers --quiet)"
+
+  # On this server, consume the token to create a unidirectional link and a custom image registry.
+  lxc cluster link create restricted-link --token "${link_token}" --unidirectional
+  lxc image registry create restricted-registry cluster=restricted-link source_project=default
+
+  # Create a restricted project to consume the registry from.
+  lxc project create restricted-consumer -c restricted=true
+
+  # Assert that copying the image into the restricted project is blocked by restricted.registries.
+  registry_copy_blocked() {
+    local out
+    if out="$(lxc image copy restricted-registry:testimage local: --alias restricted-check --target-project restricted-consumer 2>&1)"; then
+      echo "ERROR: image copy through restricted-registry unexpectedly succeeded" >&2
+      exit 1
+    fi
+
+    echo "${out}" | grep -F "is not allowed in this project"
+  }
+
+  # Assert that copying the image into the restricted project succeeds, then remove the copy.
+  registry_copy_allowed() {
+    lxc image copy restricted-registry:testimage local: --alias restricted-check --target-project restricted-consumer
+    lxc image delete restricted-check --project restricted-consumer
+  }
+
+  sub_test "Custom registries are blocked by the builtin default"
+  # With restricted=true and restricted.registries unset, the default "builtin" value blocks custom registries.
+  registry_copy_blocked
+
+  sub_test "restricted.registries=allow permits a custom registry"
+  lxc project set restricted-consumer restricted.registries=allow
+  registry_copy_allowed
+
+  sub_test "restricted.registries=block denies a custom registry"
+  lxc project set restricted-consumer restricted.registries=block
+  registry_copy_blocked
+
+  sub_test "restricted.registries can allowlist a registry by name"
+  lxc project set restricted-consumer restricted.registries=restricted-registry
+  registry_copy_allowed
+
+  sub_test "restricted.registries=builtin does not allow custom registries"
+  lxc project set restricted-consumer restricted.registries=builtin
+  registry_copy_blocked
+
+  sub_test "restricted.registries combines builtin with an allowlist"
+  lxc project set restricted-consumer restricted.registries=builtin,restricted-registry
+  registry_copy_allowed
+
+  # Toggle the built-in flag so the same registry is treated as a built-in image registry.
+  lxd sql global "UPDATE image_registries SET builtin = 1 WHERE name = 'restricted-registry'" | grep -xF "Rows affected: 1"
+
+  sub_test "restricted.registries=builtin exempts built-in registries"
+  lxc project set restricted-consumer restricted.registries=builtin
+  registry_copy_allowed
+
+  sub_test "restricted.registries=block also denies built-in registries"
+  lxc project set restricted-consumer restricted.registries=block
+  registry_copy_blocked
+
+  sub_test "A name-only allowlist does not exempt built-in registries"
+  lxc project set restricted-consumer restricted.registries=some-other-registry
+  registry_copy_blocked
+
+  # Restore the built-in flag so the registry can be deleted through the API.
+  lxd sql global "UPDATE image_registries SET builtin = 0 WHERE name = 'restricted-registry'" | grep -xF "Rows affected: 1"
+
+  sub_test "Restriction is enforced on the instance creation path"
+  # The same check gates instance creation from a registry image; a blocked registry fails early.
+  lxc project set restricted-consumer restricted.registries=block
+  local out
+  if out="$(lxc init restricted-registry:testimage restricted-c1 --project restricted-consumer 2>&1)"; then
+    echo "ERROR: instance creation through a blocked registry unexpectedly succeeded" >&2
+    exit 1
+  fi
+
+  echo "${out}" | grep -F "is not allowed in this project"
+
+  sub_test "Clean up"
+  lxc project delete restricted-consumer
+  lxc image registry delete restricted-registry
+  lxc cluster link delete restricted-link
+  LXD_DIR="${LXD2_DIR}" lxc auth identity delete cluster-link/restricted-downloader
+  kill_lxd "${LXD2_DIR}"
+}

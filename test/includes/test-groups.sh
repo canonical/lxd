@@ -127,6 +127,7 @@ readonly test_group_image=(
     "image_registries_basic"
     "image_registries_list_images_compression"
     "image_registries_download"
+    "image_registries_restricted"
     "projects_images"
     "projects_images_default"
     "projects_instance_creation"
