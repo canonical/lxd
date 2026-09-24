@@ -6906,77 +6906,64 @@ test_clustering_replicator_evacuated_member() {
 }
 
 test_clustering_replicator_vm() {
+  # The volume pair helper wires the two clusters and creates "volpool" on both, which the custom
+  # volumes need because a replicated volume must live on a pool of the same name on each side.
+  local vol_pool
+  setup_replicator_volume_test vm-replicator
+
   # Neither dir nor lvm has an optimized migration, so every snapshot arrives on the standby as a full
   # copy of the 3.5 GiB root, and dir also copies it in full for every local snapshot. The replicator
-  # snapshots on every run, so a real VM root does not fit the test directory on either driver.
+  # snapshots on every run, so a real VM root does not fit the test directory on either driver. The
+  # random backend lets each spawned daemon pick its own driver, so the check covers both test daemons
+  # rather than the outer one.
   local lxd_backend
-  lxd_backend="$(storage_backend "${LXD_DIR}")"
-  if [ "${lxd_backend}" = "dir" ] || [ "${lxd_backend}" = "lvm" ]; then
-    export TEST_UNMET_REQUIREMENT="every replicator snapshot is a full copy of the VM root on ${lxd_backend}"
-    return 0
-  fi
-
-  # Two standalone clustered LXD daemons simulating separate clusters.
-  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_ONE_DIR}" true
-
-  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_TWO_DIR}" true
-
-  # Enable clustering on both.
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster enable node2
-
-  # Create projects on both clusters.
-  LXD_DIR="${LXD_ONE_DIR}" lxc project create replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc project create replicator-project
-
-  # Setup auth groups and cluster links.
-  LXD_DIR="${LXD_ONE_DIR}" lxc auth group create replicator-group
-  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project operator
-  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
-  LXD_ONE_TRUST_TOKEN="$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --quiet --auth-group replicator-group)"
-
-  LXD_DIR="${LXD_TWO_DIR}" lxc auth group create replicator-group
-  LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project operator
-  LXD_DIR="${LXD_TWO_DIR}" lxc auth group permission add replicator-group project replicator-project can_edit
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link create lxd_one --token "${LXD_ONE_TRUST_TOKEN}" --auth-group replicator-group
-
-  # Configure replica project settings: standby sets replica.cluster, leader creates replicator.
-  LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one
-  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create vm-replicator cluster=lxd_two --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
-
-  # Setup storage on both clusters.
-  local pool_one pool_two
-  pool_one="lxdtest-$(basename "${LXD_ONE_DIR}")"
-  pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
-  LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="${pool_one}" --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc profile device add default root disk path="/" pool="${pool_two}" --project replicator-project
+  for lxd_backend in "$(storage_backend "${LXD_ONE_DIR}")" "$(storage_backend "${LXD_TWO_DIR}")"; do
+    if [ "${lxd_backend}" = "dir" ] || [ "${lxd_backend}" = "lvm" ]; then
+      teardown_replicator_volume_test
+      export TEST_UNMET_REQUIREMENT="every replicator snapshot is a full copy of the VM root on ${lxd_backend}"
+      return 0
+    fi
+  done
 
   # Block backends create the test pools with a volume size far below a VM root disk, so lift it where set.
-  local orig_volume_size
+  local pool_one pool_two orig_volume_size
+  pool_one="lxdtest-$(basename "${LXD_ONE_DIR}")"
+  pool_two="lxdtest-$(basename "${LXD_TWO_DIR}")"
   orig_volume_size="$(LXD_DIR="${LXD_ONE_DIR}" lxc storage get "${pool_one}" volume.size)"
   if [ -n "${orig_volume_size}" ]; then
     LXD_DIR="${LXD_ONE_DIR}" lxc storage set "${pool_one}" volume.size="${SMALLEST_VM_ROOT_DISK}"
     LXD_DIR="${LXD_TWO_DIR}" lxc storage set "${pool_two}" volume.size="${SMALLEST_VM_ROOT_DISK}"
   fi
 
-  sub_test "Verify VM replication carries the root disk data"
+  sub_test "Verify VM replication carries the root disk and the exclusive volumes"
 
   # A running VM with data on its root disk rather than an empty one, so the run moves real blocks and
-  # the refresh below carries a real delta. The checksum is compared once the copy boots on the standby.
-  local payload_sum
+  # the refresh below carries a real delta. Both kinds of custom volume a VM can carry are attached as
+  # well: the block volume reaches the guest as a disk and the filesystem volume over virtiofs. The
+  # checksums are compared once the copy boots on the standby.
+  local blk_dev='/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_lxd_blkdisk'
+  local payload_sum blk_sum
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_ubuntu_vm_image replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch ubuntu-vm v1 --vm --config limits.memory=384MiB --device "${SMALL_VM_ROOT_DISK}" --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc init ubuntu-vm v1 --vm --config limits.memory=384MiB --device "${SMALL_VM_ROOT_DISK}" --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${vol_pool}" vm-blk --type block size=16MiB --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${vol_pool}" vm-fs --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device add v1 blkdisk disk pool="${vol_pool}" source=vm-blk --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device add v1 fsdisk disk pool="${vol_pool}" source=vm-fs path=/mnt --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc start v1 --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" waitInstanceReady v1 replicator-project
   payload_sum="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 --project replicator-project -- sh -c 'dd if=/dev/urandom of=/root/payload.bin bs=1M count=8 status=none && sync && sha256sum /root/payload.bin')"
+  blk_sum="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 --project replicator-project -- sh -c "dd if=/dev/urandom of=${blk_dev} bs=1M count=8 conv=fsync status=none && sha256sum ${blk_dev}")"
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 --project replicator-project -- sh -c 'echo run1 > /mnt/marker && sync'
 
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run vm-replicator --project replicator-project
 
   # VM must appear on the target cluster with its snapshot (the first run snapshots unconditionally).
+  # Both volumes travel inside its migration and come out attached to the copy.
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns ntS | grep -xF 'v1,VIRTUAL-MACHINE,1'
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/vm-blk?project=replicator-project" \
+    | jq --exit-status '.used_by == ["/1.0/instances/v1?project=replicator-project"]'
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/vm-fs?project=replicator-project" \
+    | jq --exit-status '.used_by == ["/1.0/instances/v1?project=replicator-project"]'
 
   sub_test "Verify VM replication creates a snapshot"
 
@@ -6991,20 +6978,26 @@ test_clustering_replicator_vm() {
 
   sub_test "Verify idempotent second run for VM replication"
 
-  # Overwrite the payload so the refresh has a delta to carry, then run again without deleting anything;
-  # this exercises the refresh (Refresh: true) path which previously failed with backup file write errors (#18205).
+  # Overwrite the payload, the block volume and the marker so the refresh has a delta to carry, then run
+  # again without deleting anything; this exercises the refresh (Refresh: true) path which previously
+  # failed with backup file write errors (#18205).
   payload_sum="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 --project replicator-project -- sh -c 'dd if=/dev/urandom of=/root/payload.bin bs=1M count=8 status=none && sync && sha256sum /root/payload.bin')"
+  blk_sum="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 --project replicator-project -- sh -c "dd if=/dev/urandom of=${blk_dev} bs=1M count=8 conv=fsync status=none && sha256sum ${blk_dev}")"
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec v1 --project replicator-project -- sh -c 'echo run2 > /mnt/marker && sync'
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run vm-replicator --project replicator-project
 
-  # Operation must succeed.
+  # Operation must succeed. The volumes travel inside the instance child, so the run has no volume children.
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
   jq --exit-status '.status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
 
   # Each run adds a snapshot; source now has three.
   LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/v1/snapshots?project=replicator-project" | jq --exit-status 'length == 3'
 
-  # VM must still exist with all three snapshots on the target.
+  # VM must still exist with all three snapshots on the target. The all-exclusive snapshot covers the
+  # volumes too, and their snapshots travel with them, so the standby copies hold three each as well.
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns ntS | grep -xF 'v1,VIRTUAL-MACHINE,3'
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/vm-blk/snapshots?project=replicator-project" | jq --exit-status 'length == 3'
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/vm-fs/snapshots?project=replicator-project" | jq --exit-status 'length == 3'
 
   sub_test "Verify the replicated VM boots on the promoted standby with the leader's data"
 
@@ -7016,14 +7009,17 @@ test_clustering_replicator_vm() {
   LXD_DIR="${LXD_TWO_DIR}" lxc start v1 --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" waitInstanceReady v1 replicator-project
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc exec v1 --project replicator-project -- sha256sum /root/payload.bin)" = "${payload_sum}" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc exec v1 --project replicator-project -- sha256sum "${blk_dev}")" = "${blk_sum}" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc exec v1 --project replicator-project -- cat /mnt/marker)" = "run2" ]
 
   # Cleanup
   LXD_DIR="${LXD_TWO_DIR}" lxc delete v1 --force --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc delete v1 --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc profile device remove default root --project replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc profile device remove default root --project replicator-project
-  kill_lxd "${LXD_TWO_DIR}"
-  kill_lxd "${LXD_ONE_DIR}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${vol_pool}" vm-blk --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${vol_pool}" vm-fs --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${vol_pool}" vm-blk --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${vol_pool}" vm-fs --project replicator-project
+  teardown_replicator_volume_test
 }
 
 test_clustering_replicator_unclustered() {
