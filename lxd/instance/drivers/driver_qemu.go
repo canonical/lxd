@@ -7319,6 +7319,12 @@ func (d *qemu) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, p
 
 	defer unlockNBD()
 
+	err = storagePools.CommitInstanceDiskOverlays(d)
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
 	// Wait for essential migration connections before negotiation.
 	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()

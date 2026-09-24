@@ -187,6 +187,11 @@ func backupCreate(ctx context.Context, s *state.State, args db.InstanceBackup, s
 		return fmt.Errorf("Error writing backup index file: %w", err)
 	}
 
+	err = storagePools.CommitInstanceDiskOverlays(sourceInst)
+	if err != nil {
+		return err
+	}
+
 	err = pool.BackupInstance(sourceInst, tarWriter, b.OptimizedStorage(), !b.InstanceOnly(), version, nil)
 	if err != nil {
 		return fmt.Errorf("Backup create: %w", err)

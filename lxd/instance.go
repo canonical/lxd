@@ -480,6 +480,11 @@ func instanceCreateAsCopy(ctx context.Context, s *state.State, opts instanceCrea
 		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
+	err = storagePools.CommitInstanceDiskOverlays(opts.sourceInstance)
+	if err != nil {
+		return nil, err
+	}
+
 	if opts.refresh {
 		err = pool.RefreshInstance(ctx, inst, opts.sourceInstance, snapshots, opts.allowInconsistent, op)
 		if err != nil {
