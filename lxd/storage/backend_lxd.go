@@ -1616,6 +1616,26 @@ func (b *lxdBackend) RefreshCustomVolume(ctx context.Context, projectName, srcPr
 		return err
 	}
 
+	// The refresh writes the volume, and the bitmaps persisted at the last stop do not record its writes.
+	instanceDevices := make(map[instance.Instance][]string)
+	err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &dbVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		inst, err := instance.Load(b.state, dbInst, project)
+		if err != nil {
+			return err
+		}
+
+		instanceDevices[inst] = usedByDevices
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	err = b.deleteAttachedVolumeBitmaps(instanceDevices, "refresh the volume")
+	if err != nil {
+		return err
+	}
+
 	// Only send the snapshots that the target needs when refreshing.
 	// There is currently no recorded creation timestamp, so we can only detect changes based on name.
 	var snapshotNames []string
@@ -7036,15 +7056,17 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(ctx context.Context, projectName
 	}
 
 	var instances []instance.Instance
+	instanceDevices := make(map[instance.Instance][]string)
 
 	// Fetch all instances which are currently using the custom volume in one of their devices.
-	err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &parentVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+	err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &parentVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 		inst, err := instance.Load(b.state, dbInst, project)
 		if err != nil {
 			return err
 		}
 
 		instances = append(instances, inst)
+		instanceDevices[inst] = usedByDevices
 		return nil
 	})
 	if err != nil {
@@ -7053,6 +7075,12 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(ctx context.Context, projectName
 
 	// Delete the snapshot from the storage device.
 	// Must come before DB VolumeDBDelete so that the volume ID is still available.
+	// The bitmaps created with this volume snapshot have no snapshot to belong to once it is deleted.
+	err = b.deleteAttachedVolumeSnapshotBitmaps(instanceDevices, volume.Config["volatile.uuid"])
+	if err != nil {
+		return err
+	}
+
 	volExists, err := b.driver.HasVolume(vol)
 	if err != nil {
 		return err
@@ -7104,7 +7132,8 @@ func (b *lxdBackend) RestoreCustomVolume(ctx context.Context, projectName string
 	}
 
 	// Check that the volume isn't in use by running instances.
-	err = VolumeUsedByInstanceDevices(b.state, b.Name(), projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, _ []string) error {
+	instanceDevices := make(map[instance.Instance][]string)
+	err = VolumeUsedByInstanceDevices(b.state, b.Name(), projectName, &curVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 		inst, err := instance.Load(b.state, dbInst, project)
 		if err != nil {
 			return err
@@ -7114,8 +7143,15 @@ func (b *lxdBackend) RestoreCustomVolume(ctx context.Context, projectName string
 			return errors.New("Cannot restore custom volume used by running instances")
 		}
 
+		instanceDevices[inst] = usedByDevices
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	// The restore writes the volume, and the bitmaps persisted at the last stop do not record its writes.
+	err = b.deleteAttachedVolumeBitmaps(instanceDevices, "restore the volume")
 	if err != nil {
 		return err
 	}

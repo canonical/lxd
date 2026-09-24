@@ -1512,6 +1512,13 @@ func (d *common) restoreCommon(ctx context.Context, inst instance.Instance, sour
 		}
 	}
 
+	// The config volume is restored with the metadata images of the snapshot, whose bitmaps record
+	// neither the writes since the snapshot nor the restore of the volumes.
+	err = inst.RemoveAllMetadataImages()
+	if err != nil {
+		return false, nil, fmt.Errorf("Failed removing metadata images: %w", err)
+	}
+
 	return wasRunning, op, nil
 }
 

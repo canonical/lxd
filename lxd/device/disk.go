@@ -1537,6 +1537,21 @@ func (d *disk) applyQuota(remount bool) error {
 		return err
 	}
 
+	// A resize changes the size of the root volume, which its bitmaps and volume metadata image must match.
+	// The next snapshot with a bitmap creates the image again.
+	// An overlay left on the disk is committed first.
+	if d.inst.Type() == instancetype.VM {
+		err = d.inst.CommitDiskOverlays([]string{rootDisk})
+		if err != nil {
+			return err
+		}
+
+		err = d.inst.DeleteVolumeBitmaps(rootDisk)
+		if err != nil {
+			return fmt.Errorf("Failed deleting bitmaps: %w", err)
+		}
+	}
+
 	return nil
 }
 

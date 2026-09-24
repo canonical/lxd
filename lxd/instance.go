@@ -502,6 +502,13 @@ func instanceCreateAsCopy(ctx context.Context, s *state.State, opts instanceCrea
 		}
 	}
 
+	// The config volume is copied with the metadata images of the source, whose bitmaps record
+	// neither the writes to the copy nor its snapshots.
+	err = inst.RemoveAllMetadataImages()
+	if err != nil {
+		return nil, fmt.Errorf("Failed removing metadata images: %w", err)
+	}
+
 	err = inst.UpdateBackupFile()
 	if err != nil {
 		return nil, err
