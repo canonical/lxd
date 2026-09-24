@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
+	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/warnings"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -243,6 +244,15 @@ func instancesStart(ctx context.Context, s *state.State, instances []instance.In
 			err := inst.Stop(ctx, false)
 			if err != nil {
 				logger.Warn("Failed stopping instance left paused by a guest shutdown", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
+			}
+		}
+
+		// A snapshot with a bitmap that LXD did not finish leaves an overlay on the disks of a
+		// running virtual machine, and the guest writes to the overlay until it is committed.
+		if inst.Type() == instancetype.VM && inst.IsRunning() {
+			err := storagePools.CommitInstanceDiskOverlays(inst)
+			if err != nil {
+				logger.Error("Failed committing disk overlays", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
 			}
 		}
 
