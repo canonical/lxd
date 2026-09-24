@@ -87,6 +87,12 @@ type VolumeTargetArgs struct {
 	// target refer to. Every custom volume the index header lists must be in it, or the migration is refused
 	// before any data moves. Only used for instance migration.
 	AttachedCustomVolumes map[string]struct{}
+
+	// TransferStarted is called at most once per receive, after the index header has been accepted and right
+	// before the driver takes over the connection to receive the first volume. A failure after it may or may
+	// not have written to disk, which is what separates a refusal from a failed transfer for the caller. Only
+	// used for instance migration.
+	TransferStarted func()
 }
 
 // TypesToHeader converts one or more Types to a MigrationHeader. It uses the first type argument

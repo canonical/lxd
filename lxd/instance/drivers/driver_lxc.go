@@ -5282,6 +5282,7 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 			ClusterMoveSourceName: args.ClusterMoveSourceName,
 			DeferredCustomVolumes: args.DeferredVolumes,
 			AttachedCustomVolumes: args.AttachedVolumes,
+			TransferStarted:       args.TransferStarted,
 		}
 
 		// At this point we have already figured out the parent container's root

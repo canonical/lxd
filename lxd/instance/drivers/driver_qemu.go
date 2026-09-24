@@ -7948,6 +7948,7 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 			ClusterMoveSourceName: args.ClusterMoveSourceName,
 			DeferredCustomVolumes: args.DeferredVolumes,
 			AttachedCustomVolumes: args.AttachedVolumes,
+			TransferStarted:       args.TransferStarted,
 		}
 
 		// At this point we have already figured out the parent instances's root
