@@ -74,6 +74,36 @@ func (PowerStoreHost) selector() string {
 	return "id,name,os_type,initiators(id,port_name,port_type),mapped_hosts(id,host_id,volume_id,logical_unit_number)"
 }
 
+// MissingQualifiedNames returns the given initiator qualified names that the host is not
+// configured with for the given connector type.
+//
+// The host is identified by a match on any one of its initiators, so a host that was not
+// created with the full set keeps matching while missing the rest.
+func (h PowerStoreHost) MissingQualifiedNames(connectorType string, qns []string) ([]string, error) {
+	portType, err := powerStoreConnectorToPortType(connectorType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Compare port names in the format PowerStore expects, so the WWPN byte separators
+	// and letter case reported by the array and the connector do not matter.
+	registered := make([]string, 0, len(h.Initiators))
+	for _, initiator := range h.Initiators {
+		if initiator.PortType == portType {
+			registered = append(registered, formatQN(connectorType, initiator.PortName))
+		}
+	}
+
+	var missing []string
+	for _, qn := range qns {
+		if !slices.Contains(registered, formatQN(connectorType, qn)) {
+			missing = append(missing, qn)
+		}
+	}
+
+	return missing, nil
+}
+
 // PowerStoreVolume represents a PowerStore volume.
 type PowerStoreVolume struct {
 	ID          string `json:"id,omitempty"`
@@ -87,6 +117,21 @@ type PowerStoreVolume struct {
 
 func (PowerStoreVolume) selector() string {
 	return "id,name,type,size,logical_used,wwn,nguid"
+}
+
+// PowerStoreFCPort represents a Fibre Channel port on a PowerStore appliance.
+type PowerStoreFCPort struct {
+	ID        string   `json:"id,omitempty"`
+	Name      string   `json:"name,omitempty"`
+	WWN       string   `json:"wwn,omitempty"`
+	WWNNode   string   `json:"wwn_node,omitempty"`
+	WWNNVMe   string   `json:"wwn_nvme,omitempty"`
+	IsLinkUp  bool     `json:"is_link_up,omitempty"`
+	Protocols []string `json:"protocols,omitempty"`
+}
+
+func (PowerStoreFCPort) selector() string {
+	return "id,name,wwn,wwn_node,wwn_nvme,is_link_up,protocols"
 }
 
 // PowerStoreApplianceMetrics represents metrics collected from a PowerStore appliance.
@@ -515,6 +560,23 @@ func parsePaginationOffset(headers http.Header) (newOffset uint64, hasMore bool,
 // DiscoveryAddresses retrieves list of discovery addresses used to discover storage targets for
 // the provided connector type.
 func (c *PowerStoreClient) DiscoveryAddresses(connectorType string) ([]string, error) {
+	switch connectorType {
+	case connectors.TypeNVMeFC, connectors.TypeSCSIFC:
+		// The FC transports discover targets through the array's FC ports.
+		return c.fcDiscoveryAddresses(connectorType)
+
+	case connectors.TypeISCSI, connectors.TypeNVMeTCP:
+		// The TCP/IP transports discover targets through the array's IP portals.
+		return c.tcpDiscoveryAddresses(connectorType)
+
+	default:
+		return nil, fmt.Errorf("Unsupported connector type: %q", connectorType)
+	}
+}
+
+// tcpDiscoveryAddresses retrieves the array's IP discovery portal addresses whose purpose
+// matches the given TCP/IP connector type (iSCSI or NVMe/TCP).
+func (c *PowerStoreClient) tcpDiscoveryAddresses(connectorType string) ([]string, error) {
 	var resp = []struct {
 		Address  string   `json:"address,omitempty"`
 		Purposes []string `json:"purposes,omitempty"`
@@ -557,50 +619,118 @@ func (c *PowerStoreClient) DiscoveryAddresses(connectorType string) ([]string, e
 	return addresses, nil
 }
 
+// fcDiscoveryAddresses retrieves the addresses of the array's Fibre Channel target ports.
+// For SCSI/FC it is the port's SCSI WWN, which differs from the NVMe one.
+// For NVMe/FC the address is the port's transport address ("nn-<wwnn>:pn-<wwpn>") built from
+// the node WWN and the port's dedicated NVMe WWN.
+func (c *PowerStoreClient) fcDiscoveryAddresses(connectorType string) ([]string, error) {
+	// Select the port protocol to match and how to build a single port's address.
+	// The builder returns false when the port does not expose the required WWN.
+	var protocol string
+	var buildAddress func(port PowerStoreFCPort) (string, bool)
+	switch connectorType {
+	case connectors.TypeNVMeFC:
+		protocol = "NVMe"
+		buildAddress = func(port PowerStoreFCPort) (string, bool) {
+			if port.WWNNode == "" || port.WWNNVMe == "" {
+				return "", false
+			}
+
+			return "nn-0x" + block.NormalizeWWN(port.WWNNode) + ":pn-0x" + block.NormalizeWWN(port.WWNNVMe), true
+		}
+
+	case connectors.TypeSCSIFC:
+		protocol = "SCSI"
+		buildAddress = func(port PowerStoreFCPort) (string, bool) {
+			if port.WWN == "" {
+				return "", false
+			}
+
+			return "0x" + block.NormalizeWWN(port.WWN), true
+		}
+
+	default:
+		return nil, fmt.Errorf("Unsupported FC connector type: %q", connectorType)
+	}
+
+	url := api.NewURL().Path("api", "rest", "fc_port")
+	url = url.WithQuery("select", PowerStoreFCPort{}.selector())
+
+	var fcPorts []PowerStoreFCPort
+	err := c.requestAuthenticated(http.MethodGet, url.URL, nil, &fcPorts, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed retrieving PowerStore FC ports: %w", err)
+	}
+
+	var addresses []string
+	for _, port := range fcPorts {
+		if !port.IsLinkUp || !slices.Contains(port.Protocols, protocol) {
+			continue
+		}
+
+		address, ok := buildAddress(port)
+		if !ok {
+			continue
+		}
+
+		if slices.Contains(addresses, address) {
+			continue
+		}
+
+		addresses = append(addresses, address)
+	}
+
+	return addresses, nil
+}
+
 // GetCurrentHost retrieves the PowerStore host linked to the current LXD host.
-// The PowerStore host is considered a match if it includes the fully qualified
-// name of the LXD host that is determined by the configured mode.
-func (c *PowerStoreClient) GetCurrentHost(connectorType string, qn string) (*PowerStoreHost, error) {
+// The PowerStore host is considered a match if it includes any of the fully qualified
+// names of the LXD host that are determined by the configured mode.
+//
+// A Fibre Channel host has one WWPN per host bus adapter port, and all of them are
+// registered on a single PowerStore host, so a match on any one of them identifies
+// the host.
+func (c *PowerStoreClient) GetCurrentHost(connectorType string, qns []string) (*PowerStoreHost, error) {
 	portType, err := powerStoreConnectorToPortType(connectorType)
 	if err != nil {
 		return nil, err
 	}
 
-	qn = formatQN(connectorType, qn)
+	if len(qns) == 0 {
+		return nil, errors.New("At least one qualified name is required to retrieve the PowerStore host")
+	}
 
-	// Find initiator with the provided port type (connector type) and name (qualified name),
-	// and retrieve the ID of the host it belongs to.
-	var initiator PowerStoreHostInitiator
+	portNames := make([]string, 0, len(qns))
+	for _, qn := range qns {
+		portNames = append(portNames, formatQN(connectorType, qn))
+	}
 
+	// Find the initiators with the provided port type (connector type) and names (qualified
+	// names), and retrieve the ID of the host they belong to.
 	url := api.NewURL().Path("api", "rest", "initiator")
-	url = url.WithQuery("select", initiator.selector())
+	url = url.WithQuery("select", PowerStoreHostInitiator{}.selector())
 	url = url.WithQuery("port_type", "eq."+string(portType))
-	url = url.WithQuery("port_name", "eq."+qn)
+	url = url.WithQuery("port_name", "in.("+strings.Join(portNames, ",")+")")
 
 	var initiators []PowerStoreHostInitiator
 	err = c.requestAuthenticated(http.MethodGet, url.URL, nil, &initiators, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Failed retrieving PowerStore host initiator: %w", err)
+		return nil, fmt.Errorf("Failed retrieving PowerStore host initiators: %w", err)
 	}
 
-	switch len(initiators) {
-	case 0:
-		return nil, api.StatusErrorf(http.StatusNotFound, "Host initiator with port name %q and type %q not found", qn, portType)
-	case 1:
-		initiator = initiators[0]
-	default:
-		return nil, fmt.Errorf("Multiple host initiators found with port name %q and type %q", qn, portType)
+	if len(initiators) == 0 {
+		return nil, api.StatusErrorf(http.StatusNotFound, "Host initiator with port names %v and type %q not found", portNames, portType)
 	}
 
 	// Retrieve the actual host.
 	var host PowerStoreHost
-	url = api.NewURL().Path("api", "rest", "host", initiator.HostID)
+	url = api.NewURL().Path("api", "rest", "host", initiators[0].HostID)
 	url = url.WithQuery("select", host.selector())
 
 	err = c.requestAuthenticated(http.MethodGet, url.URL, nil, &host, nil)
 	if err != nil {
 		if isPowerStoreError(err, http.StatusNotFound) {
-			return nil, api.StatusErrorf(http.StatusNotFound, "Host with initiator port name %q and type %q not found", qn, portType)
+			return nil, api.StatusErrorf(http.StatusNotFound, "Host with initiator port names %v and type %q not found", portNames, portType)
 		}
 
 		return nil, fmt.Errorf("Failed retrieving PowerStore host: %w", err)
@@ -628,24 +758,21 @@ func (c *PowerStoreClient) GetHost(hostID string) (*PowerStoreHost, error) {
 	return &host, nil
 }
 
-// CreateHost creates new host and returns its ID.
-func (c *PowerStoreClient) CreateHost(hostName string, connectorType string, qn string) (string, error) {
-	portType, err := powerStoreConnectorToPortType(connectorType)
+// CreateHost creates new host with the provided initiator qualified names and returns its ID.
+func (c *PowerStoreClient) CreateHost(hostName string, connectorType string, qns []string) (string, error) {
+	if len(qns) == 0 {
+		return "", errors.New("At least one qualified name is required to create a PowerStore host")
+	}
+
+	initiators, err := powerStoreHostInitiators(connectorType, qns)
 	if err != nil {
 		return "", err
 	}
 
-	qn = formatQN(connectorType, qn)
-
 	req := map[string]any{
-		"name":    hostName,
-		"os_type": "Linux", // Required by PowerStore API.
-		"initiators": []map[string]any{
-			{
-				"port_name": qn,
-				"port_type": portType,
-			},
-		},
+		"name":       hostName,
+		"os_type":    "Linux", // Required by PowerStore API.
+		"initiators": initiators,
 	}
 
 	var resp powerStoreResourceID
@@ -657,6 +784,40 @@ func (c *PowerStoreClient) CreateHost(hostName string, connectorType string, qn 
 	}
 
 	return resp.ID, nil
+}
+
+// AddHostInitiators registers additional initiator qualified names on an existing host,
+// leaving the ones it is already configured with in place.
+//
+// The qualified names are read from the local system, so an initiator whose port is
+// temporarily absent, after a host bus adapter driver reload for example, must not be
+// removed here, otherwise the array would stop presenting volumes over a path that was
+// working. Removing an initiator that no longer exists is left to the administrator.
+func (c *PowerStoreClient) AddHostInitiators(hostID string, connectorType string, qns []string) error {
+	if len(qns) == 0 {
+		return nil
+	}
+
+	initiators, err := powerStoreHostInitiators(connectorType, qns)
+	if err != nil {
+		return err
+	}
+
+	req := map[string]any{
+		"add_initiators": initiators,
+	}
+
+	url := api.NewURL().Path("api", "rest", "host", hostID)
+	err = c.requestAuthenticated(http.MethodPatch, url.URL, req, nil, nil)
+	if err != nil {
+		if isPowerStoreError(err, http.StatusNotFound) {
+			return api.StatusErrorf(http.StatusNotFound, "Host with ID %q not found", hostID)
+		}
+
+		return fmt.Errorf("Failed adding initiators to PowerStore host: %w", err)
+	}
+
+	return nil
 }
 
 // DeleteHost deletes host using its ID.
@@ -1049,13 +1210,34 @@ func powerStoreConnectorToPortType(connectorType string) (string, error) {
 	switch connectorType {
 	case connectors.TypeISCSI:
 		return "iSCSI", nil
-	case connectors.TypeNVMeTCP:
+	case connectors.TypeNVMeTCP, connectors.TypeNVMeFC:
+		// PowerStore identifies NVMe initiators by their host NQN regardless of
+		// the underlying transport (TCP or Fibre Channel).
 		return "NVMe", nil
 	case connectors.TypeSCSIFC:
 		return "FC", nil
 	default:
 		return "", fmt.Errorf("Unsupported connector type: %q", connectorType)
 	}
+}
+
+// powerStoreHostInitiators returns the initiator entries of a host request for the given connector
+// type and qualified names.
+func powerStoreHostInitiators(connectorType string, qns []string) ([]map[string]any, error) {
+	portType, err := powerStoreConnectorToPortType(connectorType)
+	if err != nil {
+		return nil, err
+	}
+
+	initiators := make([]map[string]any, 0, len(qns))
+	for _, qn := range qns {
+		initiators = append(initiators, map[string]any{
+			"port_name": formatQN(connectorType, qn),
+			"port_type": portType,
+		})
+	}
+
+	return initiators, nil
 }
 
 // formatQN formats the qualified name (or WWPN in case of FC) into PowerStore expected format
