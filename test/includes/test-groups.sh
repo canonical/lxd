@@ -64,6 +64,7 @@ readonly test_group_cluster_storage=(
     "clustering_publish"
     "clustering_recovery"
     "clustering_storage"
+    "clustering_storage_block_tracking_vm"
     "clustering_storage_single_node"
 )
 
@@ -305,6 +306,7 @@ readonly test_group_standalone_storage=(
     "storage_buckets"
     "storage_volume_import"
     "storage_volume_initial_config"
+    "storage_block_tracking_vm"
 )
 
 # shellcheck disable=SC2034
