@@ -6030,6 +6030,12 @@ func (d *qemu) Rename(ctx context.Context, newName string, applyTemplateTrigger 
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
+	// An export has the volume snapshots and the config volume snapshot of an instance snapshot mounted.
+	err = storagePools.NBDExportInUse(pool.Name(), storageDrivers.VolumeTypeVM, d.project.Name, oldName)
+	if err != nil {
+		return err
+	}
+
 	if d.IsSnapshot() {
 		parentName, oldSnapName, _ := api.GetParentAndSnapshotName(oldName)
 		_, newSnapName, _ := api.GetParentAndSnapshotName(newName)
