@@ -1183,8 +1183,12 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		}()
 	}
 
+	// Pick the UUID of the root volume snapshot up front, as the snapshot bitmap file of a
+	// snapshot with a bitmap records it as the instance snapshot UUID.
+	rootSnapshotUUID := uuid.New().String()
+
 	// Snapshot root disk.
-	err = pool.CreateInstanceSnapshot(snap, inst, progressReporter)
+	err = pool.CreateInstanceSnapshot(snap, inst, rootSnapshotUUID, progressReporter)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance root volume snapshot: %w", err)
 	}
