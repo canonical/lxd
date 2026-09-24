@@ -2113,6 +2113,90 @@ func (d *qemu) RemoveAllMetadataImages() error {
 	})
 }
 
+// removeDetachedMetadataImages deletes the volume metadata images of the volumes that were
+// attached through the given removed devices and are no longer attached through any device.
+// A device rename removes and adds the device while the volume stays attached.
+// The image of its volume is therefore kept.
+// On a stopped instance an overlay left on the volume is committed first, as the overlay is deleted with the image.
+func (d *qemu) removeDetachedMetadataImages(removeDevices deviceConfig.Devices) error {
+	disks, err := d.disksSupportingBitmaps()
+	if err != nil {
+		return err
+	}
+
+	attached := make([]string, 0, len(disks))
+	for _, disk := range disks {
+		attached = append(attached, disk.volume.UUID)
+	}
+
+	detached := []bitmapDisk{}
+	for deviceName, devConf := range removeDevices {
+		if !filters.IsCustomVolumeBlockDisk(devConf) {
+			continue
+		}
+
+		volume, err := d.diskVolume(deviceName, devConf, false, make(map[string]storagePools.Pool))
+		if err != nil {
+			return err
+		}
+
+		if volume == nil || slices.Contains(attached, volume.UUID) {
+			continue
+		}
+
+		detached = append(detached, bitmapDisk{deviceName: deviceName, volume: *volume})
+	}
+
+	if len(detached) == 0 {
+		return nil
+	}
+
+	return d.withInstanceMounted(func(mountInfo *storagePools.MountInfo) error {
+		rootDevicePath := ""
+		if mountInfo != nil {
+			devSource, ok := mountInfo.DevSource.(deviceConfig.DevSourcePath)
+			if ok {
+				rootDevicePath = devSource.Path
+			}
+		}
+
+		return d.withBitmapsDir(func(root *os.Root) error {
+			for _, disk := range detached {
+				imageName, err := volumeMetadataImageName(disk.volume.UUID)
+				if err != nil {
+					return err
+				}
+
+				overlayName, err := overlayFileName(disk.volume.UUID)
+				if err != nil {
+					return err
+				}
+
+				hasOverlay, err := rootEntryExists(root, overlayName)
+				if err != nil {
+					return err
+				}
+
+				if !d.IsRunning() && hasOverlay {
+					err := d.commitOverlayFile(root, disk, overlayName, rootDevicePath)
+					if err != nil {
+						return err
+					}
+				}
+
+				for _, name := range []string{imageName, overlayName} {
+					err := root.Remove(name)
+					if err != nil && !errors.Is(err, fs.ErrNotExist) {
+						return fmt.Errorf("Failed removing metadata image of disk %q: %w", disk.deviceName, err)
+					}
+				}
+			}
+
+			return nil
+		})
+	})
+}
+
 // CreateSnapshotBitmaps creates the bitmap of a snapshot on the volumes attached through the given disk devices.
 // A missing volume metadata image is created first and kept when a later step fails.
 // One QEMU transaction merges every valid disk bitmap into its store bitmap, creates the new
