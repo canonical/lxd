@@ -465,12 +465,18 @@ lxd_dir_from_index() {
 # backend under test is exercised while the LXD pool name is kept identical. Sets the
 # global LXD_ONE_DIR, LXD_TWO_DIR and vol_pool for the caller.
 setup_replicator_volume_test() {
+  # The replicator name is optional so a scenario can keep a name that says what it replicates.
+  local replicator_name="${1:-my-replicator}"
+
   # Create two standalone clustered LXD daemons to simulate two separate clusters.
   LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD_ONE_DIR}" true
 
+  # The standby gets the same driver as the source. With the random backend each daemon would otherwise
+  # pick its own, and a mismatched pair falls back to generic migration, where every snapshot is a full
+  # dense copy that does not fit the test directory for a VM root.
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-  spawn_lxd "${LXD_TWO_DIR}" true
+  LXD_BACKEND="$(storage_backend "${LXD_ONE_DIR}")" spawn_lxd "${LXD_TWO_DIR}" true
 
   # Enable clustering on both.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster enable node1
@@ -494,7 +500,7 @@ setup_replicator_volume_test() {
 
   # Configure replica project settings: standby sets replica.cluster, leader creates replicator.
   LXD_DIR="${LXD_TWO_DIR}" lxc project set replicator-project replica.cluster=lxd_one
-  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create my-replicator cluster=lxd_two --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator create "${replicator_name}" cluster=lxd_two --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc project demote-replica replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
 
