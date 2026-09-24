@@ -3293,13 +3293,17 @@ func (d *lxc) snapshot(ctx context.Context, name string, expiry *time.Time, disk
 	// Wait for any file operations to complete to have a more consistent snapshot.
 	d.StopForkFile(false)
 
-	return d.snapshotCommon(ctx, d, name, expiry, false, diskVolumesMode, progressReporter)
+	return d.snapshotCommon(ctx, d, name, expiry, false, diskVolumesMode, false, progressReporter)
 }
 
 // Snapshot takes a new snapshot.
-func (d *lxc) Snapshot(ctx context.Context, name string, expiry *time.Time, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
+func (d *lxc) Snapshot(ctx context.Context, name string, expiry *time.Time, stateful bool, diskVolumesMode string, bitmap bool, progressReporter ioprogress.ProgressReporter) error {
 	if stateful {
 		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshots are not supported for containers")
+	}
+
+	if bitmap {
+		return api.StatusErrorf(http.StatusBadRequest, "Dirty bitmaps are not supported for containers")
 	}
 
 	unlock, err := d.updateBackupFileLock(context.Background())

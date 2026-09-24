@@ -107,7 +107,7 @@ type Instance interface {
 
 	// Snapshots & migration & backups.
 	Restore(ctx context.Context, source Instance, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error
-	Snapshot(ctx context.Context, name string, expiry *time.Time, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error
+	Snapshot(ctx context.Context, name string, expiry *time.Time, stateful bool, diskVolumesMode string, bitmap bool, progressReporter ioprogress.ProgressReporter) error
 	Snapshots() ([]Instance, error)
 	Backups() ([]backup.InstanceBackup, error)
 	UpdateBackupFile() error
