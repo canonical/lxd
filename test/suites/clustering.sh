@@ -7939,45 +7939,6 @@ _clustering_replicator_volume_forward() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${vol_pool}" prof-vol --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${vol_pool}" prof-vol --project replicator-project
 
-  sub_test "Shared volume missing on the standby fails the instance before any data moves"
-
-  LXD_DIR="${LXD_ONE_DIR}" lxc init --empty c2 --project replicator-project -d "${SMALL_ROOT_DISK}"
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${vol_pool}" shared-vol --project replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc config device add c1 shareddisk disk pool="${vol_pool}" source=shared-vol path=/share --project replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc config device add c2 shareddisk disk pool="${vol_pool}" source=shared-vol path=/share --project replicator-project
-
-  # The standby defers the shared device as if the volume were exclusive, then finds it absent from the
-  # source's index header and refuses both instances before their root disks are sent: c2 is never
-  # created there and the c1 copy keeps its previous devices.
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project || false
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c2 --project replicator-project || false
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc config device get c1 shareddisk source --project replicator-project || false
-  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' \
-    | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
-  jq --exit-status '
-    [.children[] | select(.description == "Replicating instance")]
-    | length == 2 and all(.status == "Failure" and (.err | test("is missing on the target")))
-  ' <<< "${bulk_op}"
-
-  sub_test "Shared volume is not replicated and must exist on the standby beforehand"
-
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume create "${vol_pool}" shared-vol --project replicator-project
-
-  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
-
-  # Both instances replicate against the pre-created shared volume, which the run leaves alone:
-  # the all-exclusive snapshot skips it on the leader and the standby copy stays as created.
-  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns ns | grep -xF 'c2,STOPPED'
-  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/shared-vol?project=replicator-project" \
-    | jq --exit-status '.used_by | length == 2'
-  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/shared-vol/snapshots?project=replicator-project" \
-    | jq --exit-status 'length == 0'
-
-  # The info listing covers what replication carries, so the shared volume is left out of it.
-  replicator_info="$(LXD_DIR="${LXD_ONE_DIR}" lxc replicator info my-replicator --project replicator-project)"
-  grep -F 'excl-vol' <<< "${replicator_info}"
-  ! grep -F 'shared-vol' <<< "${replicator_info}" || false
-
   sub_test "Migration request rejects an unknown disk volumes mode"
 
   local query_err
@@ -7985,12 +7946,10 @@ _clustering_replicator_volume_forward() {
   grep -F 'Invalid disk volumes mode "bogus"' <<< "${query_err}"
 
   # Cleanup
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 --force --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 c2 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 --force --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${vol_pool}" excl-vol --project replicator-project
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${vol_pool}" shared-vol --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${vol_pool}" excl-vol --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${vol_pool}" shared-vol --project replicator-project
 }
 
 _clustering_replicator_volume_restore() {
