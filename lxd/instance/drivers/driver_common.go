@@ -832,6 +832,22 @@ func (d *common) deleteCommon(ctx context.Context, inst instance.Instance, force
 		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
 	}
 
+	// An export has the volume snapshots and the config volume snapshot of an instance snapshot mounted.
+	// A virtual machine without a storage pool has no export.
+	if inst.Type() == instancetype.VM {
+		pool, err := d.getStoragePool()
+		if err != nil && !response.IsNotFoundError(err) {
+			return err
+		}
+
+		if pool != nil {
+			err = storagePools.NBDExportInUse(pool.Name(), storageDrivers.VolumeTypeVM, d.project.Name, inst.Name())
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	var parent instance.Instance
 	if isSnapshot {
 		parentName, snapName, _ := api.GetParentAndSnapshotName(inst.Name())
