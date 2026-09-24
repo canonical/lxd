@@ -1129,6 +1129,12 @@ func instancePostClusteringMigrateWithRemoteStorage(s *state.State, srcPool stor
 			return fmt.Errorf("Failed creating mount point of instance on target node: %w", err)
 		}
 
+		// A move to another member removes the metadata images, also when no data is copied.
+		err = srcInst.RemoveAllMetadataImages()
+		if err != nil {
+			return fmt.Errorf("Failed removing metadata images: %w", err)
+		}
+
 		// Record the cluster group record if needed.
 		if targetGroupName != "" {
 			err = srcInst.VolatileSet(map[string]string{"volatile.cluster.group": targetGroupName})
