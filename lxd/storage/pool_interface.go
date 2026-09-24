@@ -109,7 +109,7 @@ type Pool interface {
 	UnmountInstance(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error
 
 	// Instance snapshots.
-	CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, progressReporter ioprogress.ProgressReporter) error
+	CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, snapshotUUID string, progressReporter ioprogress.ProgressReporter) error
 	RenameInstanceSnapshot(inst instance.Instance, newName string, progressReporter ioprogress.ProgressReporter) error
 	DeleteInstanceSnapshot(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error
 	RestoreInstanceSnapshot(ctx context.Context, inst instance.Instance, src instance.Instance, progressReporter ioprogress.ProgressReporter) error

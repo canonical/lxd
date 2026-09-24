@@ -282,7 +282,7 @@ func (b *mockBackend) UnmountInstance(inst instance.Instance, progressReporter i
 }
 
 // CreateInstanceSnapshot ...
-func (b *mockBackend) CreateInstanceSnapshot(i instance.Instance, src instance.Instance, progressReporter ioprogress.ProgressReporter) error {
+func (b *mockBackend) CreateInstanceSnapshot(i instance.Instance, src instance.Instance, snapshotUUID string, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
