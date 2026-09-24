@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -2048,4 +2049,28 @@ func LockInstanceNBD(s *state.State, inst instance.Instance) (func(), error) {
 	}
 
 	return release, nil
+}
+
+// CommitInstanceDiskOverlays commits the overlays that a failed commit left on the disks of a
+// virtual machine, before a storage snapshot, a copy, a backup or a migration reads the volumes.
+// Until then the volumes lack the guest's writes since the last snapshot with a bitmap.
+func CommitInstanceDiskOverlays(inst instance.Instance) error {
+	if inst.Type() != instancetype.VM {
+		return nil
+	}
+
+	return inst.CommitDiskOverlays(slices.Collect(maps.Keys(inst.ExpandedDevices())))
+}
+
+// CommitCustomVolumeDiskOverlay commits the overlay that a failed commit left on the disk of the
+// virtual machine a custom volume is attached to, before the volume is read by a storage snapshot,
+// a copy, a backup or a migration, or written by an NBD export.
+// A volume that is not attached to a virtual machine on this member is skipped.
+func CommitCustomVolumeDiskOverlay(s *state.State, poolName string, projectName string, volName string) error {
+	inst, deviceName, err := InstanceByVolumeName(s, poolName, projectName, volName, cluster.StoragePoolVolumeTypeCustom)
+	if err != nil || inst.Location() != s.ServerName {
+		return nil
+	}
+
+	return inst.CommitDiskOverlays([]string{deviceName})
 }
