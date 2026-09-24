@@ -85,7 +85,12 @@ snapshots() {
         ;;
     esac
 
-    ! lxc config edit foo/snap0 < "$tmp_yaml" 2>&1 | grep -xF "$ERROR_MSG" || false
+    local output
+    if output="$(CLIENT_DEBUG="" SHELL_TRACING="" lxc config edit foo/snap0 < "$tmp_yaml" 2>&1)"; then
+      false
+    else
+      echo "$output" | grep -xF "$ERROR_MSG"
+    fi
   done
   rm "${tmp_yaml}"
 
