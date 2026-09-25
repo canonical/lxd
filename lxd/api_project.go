@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -1555,27 +1554,15 @@ func projectStatePut(d *Daemon, r *http.Request) response.Response {
 // It checks that the source cluster's project is no longer in leader mode, and that all
 // replicator target clusters have their project in standby mode.
 func validateProjectPromote(ctx context.Context, s *state.State, projectName string, project *api.Project, replicators []dbCluster.Replicator, allConfigs map[int64]map[string]string) error {
-	clusterCert := s.Endpoints.NetworkCert()
-
 	// Check the old leader (identified by replica.cluster config) is unreachable or already demoted.
 	sourceClusterLinkName := project.Config["replica.cluster"]
 	if sourceClusterLinkName != "" {
-		var clusterLink *api.ClusterLink
-		var targetCert *x509.Certificate
-		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			var err error
-			_, clusterLink, targetCert, err = cluster.LoadClusterLinkAndCert(ctx, tx.Tx(), sourceClusterLinkName)
-			return err
-		})
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link %q: %w", sourceClusterLinkName, err)
-		}
-
-		args := cluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
-		sourceClient, err := cluster.ConnectCluster(ctx, *clusterLink, args)
-		if err != nil {
+		sourceClient, err := cluster.ConnectClusterLinkByName(ctx, s, sourceClusterLinkName)
+		if errors.Is(err, cluster.ErrClusterLinkUnreachable) {
 			// Source cluster is unreachable, allow failover promotion.
 			logger.Warn("Failed connecting to source cluster, allowing failover promotion", logger.Ctx{"clusterLink": sourceClusterLinkName, "err": err})
+		} else if err != nil {
+			return err
 		} else {
 			defer sourceClient.Disconnect()
 
@@ -1598,23 +1585,13 @@ func validateProjectPromote(ctx context.Context, s *state.State, projectName str
 			continue
 		}
 
-		var clusterLink *api.ClusterLink
-		var targetCert *x509.Certificate
-		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			var err error
-			_, clusterLink, targetCert, err = cluster.LoadClusterLinkAndCert(ctx, tx.Tx(), clusterLinkName)
-			return err
-		})
-		if err != nil {
-			return fmt.Errorf("Failed loading cluster link %q: %w", clusterLinkName, err)
-		}
-
-		args := cluster.GetClusterLinkConnectionArgs(clusterCert, targetCert)
-		targetClient, err := cluster.ConnectCluster(ctx, *clusterLink, args)
-		if err != nil {
+		targetClient, err := cluster.ConnectClusterLinkByName(ctx, s, clusterLinkName)
+		if errors.Is(err, cluster.ErrClusterLinkUnreachable) {
 			// Skip unreachable clusters to allow for disaster recovery failover.
 			logger.Warn("Failed connecting to target cluster, skipping validation", logger.Ctx{"clusterLink": clusterLinkName, "err": err})
 			continue
+		} else if err != nil {
+			return err
 		}
 
 		targetProject, _, err := targetClient.GetProject(projectName)
