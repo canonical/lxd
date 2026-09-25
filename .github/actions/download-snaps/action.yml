@@ -9,6 +9,10 @@ inputs:
   snap-cache-dir:
     description: Where to save the snap dependencies
     required: true
+  cache-key-suffix:
+    description: Optional suffix to isolate the cache key and disable fallback restores
+    default: ""
+    required: false
   snapd-channel:
     description: snapd snap channel to seed the cache with
     default: "latest/beta"
@@ -50,15 +54,23 @@ runs:
     - name: snaps cache key
       id: snaps-cache-key
       shell: bash
+      env:
+        INPUTS_CACHE_KEY_SUFFIX: ${{ inputs.cache-key-suffix }}
       run: |
         set -eux
         ARCH="$(dpkg --print-architecture)"
         DATE="$(date --utc '+%Y%m%d')"
         YESTERDAY="$(date --utc '+%Y%m%d' --date=yesterday)"
+        CACHE_KEY_SUFFIX="${INPUTS_CACHE_KEY_SUFFIX}"
 
         # i.e: snaps-amd64-${DATE}
-        echo "KEY=snaps-${ARCH}-${DATE}" >> $GITHUB_OUTPUT
-        echo "FALLBACK_KEY=snaps-${ARCH}-${YESTERDAY}" >> $GITHUB_OUTPUT
+        KEY="snaps-${ARCH}-${DATE}"
+        if [ -n "${CACHE_KEY_SUFFIX}" ]; then
+          KEY="${KEY}-${CACHE_KEY_SUFFIX}"
+        fi
+
+        echo "KEY=${KEY}" >> "${GITHUB_OUTPUT}"
+        echo "FALLBACK_KEY=snaps-${ARCH}-${YESTERDAY}" >> "${GITHUB_OUTPUT}"
 
     # GitHub will remove any cache entries that have not been accessed in over 7 days.
     # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#usage-limits-and-eviction-policy
@@ -69,8 +81,7 @@ runs:
       with:
         path: ${{ inputs.snap-cache-dir }}
         key: ${{ steps.snaps-cache-key.outputs.KEY }}
-        restore-keys: |
-          ${{ steps.snaps-cache-key.outputs.FALLBACK_KEY }}
+        restore-keys: ${{ inputs.cache-key-suffix == '' && steps.snaps-cache-key.outputs.FALLBACK_KEY || '' }}
         lookup-only: ${{ inputs.prime-cache-only == 'true' }}
 
     - name: Download snaps

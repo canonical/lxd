@@ -29,6 +29,10 @@ inputs:
   snap-cache-dir:
     description: Directory to use for the snap dependencies cache
     required: true
+  snap-cache-key-suffix:
+    description: Optional suffix to isolate the snap dependency cache
+    default: ""
+    required: false
   microceph-channel:
     description: MicroCeph snap channel to use
     # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
@@ -71,6 +75,7 @@ runs:
       uses: $/.github/actions/download-snaps
       with:
         snap-cache-dir: ${{ inputs.snap-cache-dir }}
+        cache-key-suffix: ${{ inputs.snap-cache-key-suffix }}
         microceph-channel: ${{ inputs.microceph-channel }}
 
     - name: Download system test dependencies
