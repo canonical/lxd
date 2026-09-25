@@ -7022,6 +7022,88 @@ test_clustering_replicator_vm() {
   teardown_replicator_volume_test
 }
 
+test_clustering_replicator_container() {
+  # The volume pair helper wires the two clusters and creates "volpool" on both, which the custom
+  # volume needs because a replicated volume must live on a pool of the same name on each side.
+  local vol_pool
+  setup_replicator_volume_test
+
+  sub_test "Verify container replication carries the rootfs and the exclusive volume"
+
+  # The VM scenario moves its root as a block volume and skips dir and lvm, so the rootfs of a container
+  # is a different path: a filesystem volume that dir and lvm copy with rsync and the other backends send
+  # as a stream. A running container with data on its rootfs covers that path on every backend, and the
+  # refresh below carries a real delta through it. A container cannot carry a block volume, so only a
+  # filesystem volume is attached, and it reaches the container as a bind mount rather than over virtiofs.
+  # The checksum is compared once the copy starts on the standby.
+  local payload_sum
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 --device "${SMALL_ROOT_DISK}" --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${vol_pool}" ct-fs --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device add c1 fsdisk disk pool="${vol_pool}" source=ct-fs path=/mnt --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc start c1 --project replicator-project
+  payload_sum="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 --project replicator-project -- sh -c 'dd if=/dev/urandom of=/root/payload.bin bs=1M count=4 status=none && sync && sha256sum /root/payload.bin')"
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 --project replicator-project -- sh -c 'echo run1 > /mnt/marker && sync'
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+
+  # Container must appear on the target cluster with its snapshot (the first run snapshots unconditionally).
+  # The volume travels inside its migration and comes out attached to the copy.
+  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns ntS | grep -xF 'c1,CONTAINER,1'
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/ct-fs?project=replicator-project" \
+    | jq --exit-status '.used_by == ["/1.0/instances/c1?project=replicator-project"]'
+
+  sub_test "Verify container replication creates a snapshot"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+
+  # Source now has two snapshots: one from the first run, one from this run.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 2'
+
+  # Container and both snapshots must be on the target.
+  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns ntS | grep -xF 'c1,CONTAINER,2'
+
+  sub_test "Verify idempotent second run for container replication"
+
+  # Overwrite the payload and the marker so the refresh has a delta to carry, then run again without
+  # deleting anything; this exercises the refresh (Refresh: true) path.
+  payload_sum="$(LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 --project replicator-project -- sh -c 'dd if=/dev/urandom of=/root/payload.bin bs=1M count=4 status=none && sync && sha256sum /root/payload.bin')"
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 --project replicator-project -- sh -c 'echo run2 > /mnt/marker && sync'
+  LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+
+  # Operation must succeed. The volume travels inside the instance child, so the run has no volume children.
+  local bulk_op
+  bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+  jq --exit-status '.status == "Success" and .child_count == 3 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
+
+  # Each run adds a snapshot; source now has three.
+  LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/instances/c1/snapshots?project=replicator-project" | jq --exit-status 'length == 3'
+
+  # Container must still exist with all three snapshots on the target. The all-exclusive snapshot covers
+  # the volume too, and its snapshots travel with it, so the standby copy holds three as well.
+  LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns ntS | grep -xF 'c1,CONTAINER,3'
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/ct-fs/snapshots?project=replicator-project" | jq --exit-status 'length == 3'
+
+  sub_test "Verify the replicated container starts on the promoted standby with the leader's data"
+
+  # The standby cannot start instances, so the roles are swapped first. The leader carries no
+  # replica.cluster, hence the forced demote; the standby then passes promote validation on its own.
+  LXD_DIR="${LXD_ONE_DIR}" lxc stop c1 --force --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replicator-project --force
+  LXD_DIR="${LXD_TWO_DIR}" lxc project promote-replica replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc start c1 --project replicator-project
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc exec c1 --project replicator-project -- sha256sum /root/payload.bin)" = "${payload_sum}" ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc exec c1 --project replicator-project -- cat /mnt/marker)" = "run2" ]
+
+  # Cleanup
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 --force --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${vol_pool}" ct-fs --project replicator-project
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${vol_pool}" ct-fs --project replicator-project
+  teardown_replicator_volume_test
+}
+
 test_clustering_replicator_unclustered() {
   # Create two standalone LXD daemons.  Neither enables clustering so each
   # node's DB address remains the unclustered sentinel "0.0.0.0".  This
