@@ -13,7 +13,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/placement"
-	"github.com/canonical/lxd/lxd/placement/filters"
+	"github.com/canonical/lxd/lxd/placement/internal/filters"
 	"github.com/canonical/lxd/lxd/placement/internal/models"
 	"github.com/canonical/lxd/shared/api"
 )
