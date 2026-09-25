@@ -507,7 +507,7 @@ var APIExtensions = []string{
 	"metrics_replicators",
 	"storage_driver_pure_scsifc",
 	"operation_wait_status_code",
-	"vm_volatile_maxcpus",
+	"server_state",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

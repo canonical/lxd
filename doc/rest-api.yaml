@@ -7609,6 +7609,62 @@ definitions:
                 x-go-name: Config
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
+    ServerState:
+        properties:
+            storage_pools:
+                additionalProperties:
+                    type: object
+                type: object
+                x-go-name: StoragePools
+            sysinfo:
+                properties:
+                    buffered_ram:
+                        format: uint64
+                        type: integer
+                        x-go-name: BufferRAM
+                    free_ram:
+                        format: uint64
+                        type: integer
+                        x-go-name: FreeRAM
+                    free_swap:
+                        format: uint64
+                        type: integer
+                        x-go-name: FreeSwap
+                    load_averages:
+                        items:
+                            format: double
+                            type: number
+                        type: array
+                        x-go-name: LoadAverages
+                    logical_cpus:
+                        format: uint64
+                        type: integer
+                        x-go-name: LogicalCPUs
+                    processes:
+                        format: uint16
+                        type: integer
+                        x-go-name: Processes
+                    shared_ram:
+                        format: uint64
+                        type: integer
+                        x-go-name: SharedRAM
+                    total_ram:
+                        format: uint64
+                        type: integer
+                        x-go-name: TotalRAM
+                    total_swap:
+                        format: uint64
+                        type: integer
+                        x-go-name: TotalSwap
+                    uptime:
+                        format: int64
+                        type: integer
+                        x-go-name: Uptime
+                type: object
+                x-go-name: SysInfo
+        title: ServerState represents the current server state in an unclustered environment.
+        type: object
+        x-go-package: github.com/canonical/lxd/shared/api
     ServerStorageDriverInfo:
         description: ServerStorageDriverInfo represents the read-only info about a storage driver
         properties:
@@ -18686,6 +18742,42 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Get system resources information
+            tags:
+                - server
+    /1.0/state:
+        get:
+            description: Gets the current system state of the LXD server.
+            operationId: state_get
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Current server state
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ServerState'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get server state
             tags:
                 - server
     /1.0/storage-pools:
