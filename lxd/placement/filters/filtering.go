@@ -46,6 +46,29 @@ func FilterByPlacementGroup(ctx context.Context, tx *db.ClusterTx, pctx *models.
 	return filteredCandidates, nil
 }
 
+// FilterByClusterGroup narrows candidates to members of pctx.ClusterGroupName. It's a no-op
+// unless pctx.ClusterGroupName is set and pctx.PlacementGroup isn't.
+func FilterByClusterGroup(ctx context.Context, tx *db.ClusterTx, pctx *models.PlacementContext, candidates []db.NodeInfo) ([]db.NodeInfo, error) {
+	if pctx.ClusterGroupName == "" || pctx.PlacementGroup.Name != "" {
+		return candidates, nil
+	}
+
+	filtered := make([]db.NodeInfo, 0, len(candidates))
+	for _, member := range candidates {
+		if !slices.Contains(member.Groups, pctx.ClusterGroupName) {
+			continue
+		}
+
+		filtered = append(filtered, member)
+	}
+
+	if len(filtered) == 0 && len(candidates) > 0 {
+		return nil, &NoCandidatesError{Func: "FilterByClusterGroup", Reason: fmt.Sprintf("no candidate belongs to cluster group %q", pctx.ClusterGroupName)}
+	}
+
+	return filtered, nil
+}
+
 // Filter narrows candidates using the given placement group. It keeps the pre-engine entry point
 // and its Conflict status for the existing callers until they move to PlaceInstance.
 func Filter(ctx context.Context, tx *db.ClusterTx, candidates []db.NodeInfo, apiPlacementGroup api.PlacementGroup, evacuation bool) ([]db.NodeInfo, error) {
