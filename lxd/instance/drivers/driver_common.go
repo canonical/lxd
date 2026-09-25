@@ -856,6 +856,12 @@ func (d *common) deleteCommon(ctx context.Context, inst instance.Instance, force
 			return err
 		}
 
+	case *microvm:
+		err = s.delete(ctx, force)
+		if err != nil {
+			return err
+		}
+
 	default:
 		d.logger.Error("Failed deleting instance")
 	}
@@ -1194,6 +1200,8 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		case *lxc:
 			_ = s.delete(context.Background(), true)
 		case *qemu:
+			_ = s.delete(context.Background(), true)
+		case *microvm:
 			_ = s.delete(context.Background(), true)
 		default:
 			d.logger.Error("Failed deleting snapshot during revert", logger.Ctx{"snapshot": snap.Name()})
@@ -2508,18 +2516,18 @@ func (d *common) validateConfig(allUpdatedDeviceKeys []string, addDevices device
 		// If security.protection.start is being removed, we need to make sure that
 		// our root disk device is not attached to another instance.
 		if shared.IsTrue(oldExpandedConfig["security.protection.start"]) && shared.IsFalseOrEmpty(d.expandedConfig["security.protection.start"]) {
-			var dbVolType dbCluster.StoragePoolVolumeType
-			switch d.dbType {
-			case instancetype.Container:
-				dbVolType = dbCluster.StoragePoolVolumeTypeContainer
-			case instancetype.VM:
-				dbVolType = dbCluster.StoragePoolVolumeTypeVM
-			default:
-				return fmt.Errorf(`Unknown instance type %q for checking "security.protection.start" removal`, d.dbType)
+			volType, err := storagePools.InstanceTypeToVolumeType(d.dbType)
+			if err != nil {
+				return err
+			}
+
+			dbVolType, err := storagePools.VolumeTypeToDBType(volType)
+			if err != nil {
+				return err
 			}
 
 			// Proceed to allow removing security.protection.start.
-			err := allowRemoveSecurityProtectionStart(d.state, newRootDev["pool"], dbVolType, d.name, &d.project)
+			err = allowRemoveSecurityProtectionStart(d.state, newRootDev["pool"], dbVolType, d.name, &d.project)
 			if err != nil {
 				return err
 			}
