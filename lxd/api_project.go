@@ -1579,9 +1579,10 @@ func getProjectAndReplicatorLinks(ctx context.Context, s *state.State, projectNa
 // validateProjectPromote validates that a project is ready to be promoted to leader mode.
 // It checks that the source cluster's project is no longer in leader mode, and that all
 // replicator target clusters have their project in standby mode.
-func validateProjectPromote(ctx context.Context, s *state.State, projectName string, project *api.Project, replicators []dbCluster.Replicator, allConfigs map[int64]map[string]string) error {
-	// Check the old leader (identified by replica.cluster config) is unreachable or already demoted.
+func validateProjectPromote(ctx context.Context, s *state.State, projectName string, project *api.Project, clusterLinkNames []string) error {
 	sourceClusterLinkName := project.Config["replica.cluster"]
+
+	// Check the old leader (identified by replica.cluster config) is unreachable or already demoted.
 	if sourceClusterLinkName != "" {
 		sourceClient, err := cluster.ConnectClusterLinkByName(ctx, s, sourceClusterLinkName)
 		if errors.Is(err, cluster.ErrClusterLinkUnreachable) {
@@ -1604,13 +1605,7 @@ func validateProjectPromote(ctx context.Context, s *state.State, projectName str
 	}
 
 	// Check all replicator targets are in standby mode.
-	for _, replicator := range replicators {
-		config := allConfigs[replicator.Row.ID]
-		clusterLinkName := config["cluster"]
-		if clusterLinkName == "" {
-			continue
-		}
-
+	for _, clusterLinkName := range clusterLinkNames {
 		targetClient, err := cluster.ConnectClusterLinkByName(ctx, s, clusterLinkName)
 		if errors.Is(err, cluster.ErrClusterLinkUnreachable) {
 			// Skip unreachable clusters to allow for disaster recovery failover.
@@ -1639,39 +1634,7 @@ func validateProjectPromote(ctx context.Context, s *state.State, projectName str
 
 // projectPromote promotes the project to leader mode for replication.
 func projectPromote(ctx context.Context, s *state.State, projectName string, force bool) error {
-	var project *api.Project
-	var replicators []dbCluster.Replicator
-	var allConfigs map[int64]map[string]string
-
-	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
-		if err != nil {
-			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
-		}
-
-		project, err = dbProject.ToAPI(ctx, tx.Tx())
-		if err != nil {
-			return err
-		}
-
-		// Load all replicators for this project.
-		replicators, _, err = dbCluster.GetReplicatorsAndURLs(ctx, tx.Tx(), &projectName, func(_ dbCluster.Replicator) bool { return true })
-		if err != nil {
-			return fmt.Errorf("Failed loading replicators for project %q: %w", projectName, err)
-		}
-
-		replicatorIDList := make([]int64, 0, len(replicators))
-		for _, r := range replicators {
-			replicatorIDList = append(replicatorIDList, r.Row.ID)
-		}
-
-		allConfigs, err = dbCluster.ReplicatorsConfigStore().GetByEntityIDs(ctx, tx.Tx(), replicatorIDList...)
-		if err != nil {
-			return fmt.Errorf("Failed loading replicator configs: %w", err)
-		}
-
-		return nil
-	})
+	project, clusterLinkNames, err := getProjectAndReplicatorLinks(ctx, s, projectName)
 	if err != nil {
 		return err
 	}
@@ -1681,7 +1644,7 @@ func projectPromote(ctx context.Context, s *state.State, projectName string, for
 	}
 
 	if !force {
-		err = validateProjectPromote(ctx, s, projectName, project, replicators, allConfigs)
+		err = validateProjectPromote(ctx, s, projectName, project, clusterLinkNames)
 		if err != nil {
 			return err
 		}
@@ -1703,7 +1666,6 @@ func projectPromote(ctx context.Context, s *state.State, projectName string, for
 // projectDemote demotes the project to standby mode for replication.
 func projectDemote(ctx context.Context, s *state.State, projectName string, force bool) error {
 	var project *api.Project
-
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
@@ -1711,11 +1673,7 @@ func projectDemote(ctx context.Context, s *state.State, projectName string, forc
 		}
 
 		project, err = dbProject.ToAPI(ctx, tx.Tx())
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return err
 	})
 	if err != nil {
 		return err
