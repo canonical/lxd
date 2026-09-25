@@ -1067,6 +1067,14 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Currently not allowed to create storage volumes of type %q", req.Type))
 	}
 
+	// Backward compatibility: a request that names a source volume but omits the source type is a copy.
+	// Normalize it here so the source authorization check below and the switch arm that performs the
+	// copy both observe the same source type. Otherwise a request that omits the source type reaches the
+	// copy code path (via the empty case of the switch below) without the source volume's can_view check.
+	if req.Source.Type == "" && req.Source.Name != "" {
+		req.Source.Type = api.SourceTypeCopy
+	}
+
 	if req.Source.Type == api.SourceTypeCopy {
 		if req.Source.Name == "" {
 			return response.BadRequest(errors.New("No source volume name supplied"))
