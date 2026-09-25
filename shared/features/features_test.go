@@ -6,6 +6,10 @@ import (
 
 func TestLoadFromEnv(t *testing.T) {
 	const envVar = "LXD_TEST_FEATURES"
+	originalEnabledFeaturePrevs := enabledFeaturePrevs
+	t.Cleanup(func() {
+		enabledFeaturePrevs = originalEnabledFeaturePrevs
+	})
 
 	tests := []struct {
 		name         string
