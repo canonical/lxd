@@ -41,6 +41,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -50,7 +51,9 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
+	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/backup"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
@@ -400,6 +403,14 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 
 	cmd.Stdout = stdout
 
+	// Setup AppArmor confinement for the btrfs command.
+	cleanup, err := apparmor.BtrfsWrapper(d.state.OS, cmd, path, "", GetPoolMountPath(d.name))
+	if err != nil {
+		return err
+	}
+
+	defer cleanup()
+
 	// Run the command.
 	err = cmd.Start()
 	if err != nil {
@@ -596,8 +607,97 @@ func (d *btrfs) restorationHeader(vol Volume, snapshots []string) (*BTRFSMetaDat
 	return &migrationHeader, nil
 }
 
+// validateSubVolumeHeader rejects a metadata header whose subvolume paths or snapshot names could
+// escape the parent volume.
+func (d *btrfs) validateSubVolumeHeader(header BTRFSMetaDataHeader, expectedSnapshots []string) error {
+	for _, subVol := range header.Subvolumes {
+		if subVol.Snapshot != "" {
+			err := instancetype.ValidSnapName(subVol.Snapshot)
+			if err != nil {
+				return fmt.Errorf("Invalid subvolume snapshot name %q: %w", subVol.Snapshot, err)
+			}
+
+			// ValidSnapName accepts ".", which filepath.Clean collapses to the parent snapshot directory.
+			if subVol.Snapshot == "." {
+				return fmt.Errorf("Invalid subvolume snapshot name %q", subVol.Snapshot)
+			}
+
+			if expectedSnapshots != nil && !slices.Contains(expectedSnapshots, subVol.Snapshot) {
+				return fmt.Errorf("Subvolume snapshot %q does not belong to the volume", subVol.Snapshot)
+			}
+		}
+
+		if subVol.Path == string(filepath.Separator) {
+			// The volume top ("/") is always in bounds.
+			continue
+		}
+
+		if !filepath.IsLocal(strings.TrimPrefix(subVol.Path, string(filepath.Separator))) {
+			return fmt.Errorf("Subvolume path %q must be within the volume", subVol.Path)
+		}
+	}
+
+	return nil
+}
+
+// validateReturnedSubvolumes rejects a migration refresh reply whose subvolume entries were not
+// among those the source offered.
+func (d *btrfs) validateReturnedSubvolumes(sent []BTRFSSubVolume, returned []BTRFSSubVolume) error {
+	type subVolKey struct {
+		Snapshot string
+		Path     string
+		UUID     string
+	}
+
+	offered := make(map[subVolKey]struct{}, len(sent))
+	for _, subVol := range sent {
+		offered[subVolKey{Snapshot: subVol.Snapshot, Path: subVol.Path, UUID: subVol.UUID}] = struct{}{}
+	}
+
+	for _, subVol := range returned {
+		_, ok := offered[subVolKey{Snapshot: subVol.Snapshot, Path: subVol.Path, UUID: subVol.UUID}]
+		if !ok {
+			return fmt.Errorf("Returned subvolume path %q (snapshot %q) was not offered by the source", subVol.Path, subVol.Snapshot)
+		}
+	}
+
+	return nil
+}
+
+// resolveSubvolumeDest resolves subVolPath within the volume rooted at volRoot to a destination
+// path that cannot escape the volume via a symlink in the restored content, which a lexical check
+// on the header path cannot catch. The returned path is valid until closer is called.
+func (d *btrfs) resolveSubvolumeDest(volRoot string, subVolPath string) (dest string, closer func(), err error) {
+	rel := strings.TrimPrefix(subVolPath, string(filepath.Separator))
+	if rel == "" {
+		// The destination is the volume root itself, whose parent is the trusted pool directory.
+		return volRoot, func() {}, nil
+	}
+
+	root, err := os.OpenRoot(volRoot)
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed opening volume root %q: %w", volRoot, err)
+	}
+
+	parent, err := root.Open(filepath.Dir(rel))
+	if err != nil {
+		_ = root.Close()
+		return "", nil, fmt.Errorf("Failed resolving subvolume path %q within volume %q: %w", subVolPath, volRoot, err)
+	}
+
+	// Address the final component through the verified parent fd rather than re-walking the path.
+	dest = filepath.Join("/proc/self/fd", strconv.Itoa(int(parent.Fd())), filepath.Base(rel))
+	closer = func() {
+		_ = parent.Close()
+		_ = root.Close()
+	}
+
+	return dest, closer, nil
+}
+
 // loadOptimizedBackupHeader extracts optimized backup header from a given ReadSeeker.
-func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*BTRFSMetaDataHeader, error) {
+// Snapshot names in the header are validated against expectedSnapshots.
+func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string, expectedSnapshots []string) (*BTRFSMetaDataHeader, error) {
 	header := BTRFSMetaDataHeader{}
 
 	// Extract.
@@ -624,6 +724,12 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*B
 				return nil, fmt.Errorf("Error parsing optimized backup header file: %w", err)
 			}
 
+			// Defend against path traversal attacks.
+			err = d.validateSubVolumeHeader(header, expectedSnapshots)
+			if err != nil {
+				return nil, err
+			}
+
 			cancelFunc()
 			return &header, nil
 		}
@@ -648,9 +754,33 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string, tracker *iopro
 		}
 	}
 
-	err = shared.RunCommandWithFds(d.state.ShutdownCtx, stdin, nil, "btrfs", "receive", "-e", receivePath)
+	// -C confines the receive process to receivePath using chroot, as an extra layer of
+	// confinement on top of the AppArmor profile applied below.
+	args := []string{"receive", "-e", "-C", receivePath}
+
+	cmd := exec.Command("btrfs", args...)
+	cmd.Stdin = stdin
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+
+	// The pool's mount point still needs to be granted to the AppArmor profile since btrfs
+	// receive scans the filesystem (including reading /proc/self/mounts) to auto-detect the
+	// mount point and to find the parent subvolume for incremental receives.
+	poolMountPath := GetPoolMountPath(d.name)
+
+	// Setup AppArmor confinement for the btrfs command.
+	cleanup, err := apparmor.BtrfsWrapper(d.state.OS, cmd, "", receivePath, poolMountPath)
 	if err != nil {
 		return "", err
+	}
+
+	defer cleanup()
+
+	err = cmd.Run()
+	if err != nil {
+		return "", shared.NewRunError("btrfs", args, err, &stdout, &stderr)
 	}
 
 	// Check contents of target path is expected after receive.
