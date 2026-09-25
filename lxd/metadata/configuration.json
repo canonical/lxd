@@ -5231,15 +5231,6 @@
 			"cluster": {
 				"keys": [
 					{
-						"cluster.healing_threshold": {
-							"defaultdesc": "`0`",
-							"longdesc": "Specify the number of seconds after which an offline cluster member is to be evacuated.\nTo disable evacuating offline members, set this option to `0`.",
-							"scope": "global",
-							"shortdesc": "Threshold when to evacuate an offline cluster member",
-							"type": "integer"
-						}
-					},
-					{
 						"cluster.https_address": {
 							"longdesc": "See {ref}`cluster-https-address`.",
 							"scope": "local",

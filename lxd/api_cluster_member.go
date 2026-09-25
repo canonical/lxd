@@ -1757,16 +1757,13 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 		instances = append(instances, inst)
 	}
 
-	skipRoleRebalance := mode == api.ClusterEvacuateModeHeal
-	if !skipRoleRebalance {
-		err = ensureEvacuationLeadershipHandover(ctx, s, gateway, name)
-		if err != nil {
-			if !force {
-				return err
-			}
-
-			logger.Warn("Leadership handover failed during forced evacuation; rebalance will promote a non-evacuated standby or spare to voter to take over from the evacuated leader", logger.Ctx{"err": err, "member": name})
+	err = ensureEvacuationLeadershipHandover(ctx, s, gateway, name)
+	if err != nil {
+		if !force {
+			return err
 		}
+
+		logger.Warn("Leadership handover failed during forced evacuation; rebalance will promote a non-evacuated standby or spare to voter to take over from the evacuated leader", logger.Ctx{"err": err, "member": name})
 	}
 
 	// Set node status to EVACUATED.
@@ -1781,36 +1778,34 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 		return fmt.Errorf("%w (cluster member remains evacuated)", err)
 	}
 
-	if !skipRoleRebalance {
-		// Trigger a raft rebalance now that the member is marked EVACUATED, before
-		// migrating workloads. The rebalance demotes the evacuated member's voter or
-		// standby role and promotes a replacement. It must run after the member is
-		// marked EVACUATED: rolesAdjust reads the member state and only excludes
-		// evacuated members from promotion candidacy (and prioritizes demoting them)
-		// once the state is committed. If we rebalanced first, the member could be
-		// re-selected as a voter/standby.
+	// Trigger a raft rebalance now that the member is marked EVACUATED, before
+	// migrating workloads. The rebalance demotes the evacuated member's voter or
+	// standby role and promotes a replacement. It must run after the member is
+	// marked EVACUATED: rolesAdjust reads the member state and only excludes
+	// evacuated members from promotion candidacy (and prioritizes demoting them)
+	// once the state is committed. If we rebalanced first, the member could be
+	// re-selected as a voter/standby.
+	err = triggerClusterRebalance(ctx, s)
+	if err != nil {
+		if !force {
+			return evacuationCommittedError(err)
+		}
+
+		logger.Warn("Proceeding with forced evacuation after role rebalance failure", logger.Ctx{"err": err, "member": name})
+	}
+
+	// If leadership was transferred during the rebalance (e.g. this node was
+	// the leader and got evacuated), trigger a second rebalance on the new
+	// leader so it can demote this node before the API returns.
+	leaderInfo, leaderInfoErr := s.LeaderInfo()
+	if leaderInfoErr == nil && leaderInfo.Clustered && !leaderInfo.Leader {
 		err = triggerClusterRebalance(ctx, s)
 		if err != nil {
 			if !force {
 				return evacuationCommittedError(err)
 			}
 
-			logger.Warn("Proceeding with forced evacuation after role rebalance failure", logger.Ctx{"err": err, "member": name})
-		}
-
-		// If leadership was transferred during the rebalance (e.g. this node was
-		// the leader and got evacuated), trigger a second rebalance on the new
-		// leader so it can demote this node before the API returns.
-		leaderInfo, leaderInfoErr := s.LeaderInfo()
-		if leaderInfoErr == nil && leaderInfo.Clustered && !leaderInfo.Leader {
-			err = triggerClusterRebalance(ctx, s)
-			if err != nil {
-				if !force {
-					return evacuationCommittedError(err)
-				}
-
-				logger.Warn("Proceeding with forced evacuation after follow-up rebalance failure", logger.Ctx{"err": err, "member": name})
-			}
+			logger.Warn("Proceeding with forced evacuation after follow-up rebalance failure", logger.Ctx{"err": err, "member": name})
 		}
 	}
 
@@ -1830,14 +1825,10 @@ func evacuateClusterMember(ctx context.Context, s *state.State, gateway *cluster
 		return evacuationCommittedError(err)
 	}
 
-	// Evacuate networks too, but not during healing.
-	if mode != api.ClusterEvacuateModeHeal {
-		networkStop(s, true)
-	}
+	// Evacuate networks too.
+	networkStop(s, true)
 
-	if mode != api.ClusterEvacuateModeHeal {
-		s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberEvacuated.Event(name, op.EventLifecycleRequestor(), nil))
-	}
+	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberEvacuated.Event(name, op.EventLifecycleRequestor(), nil))
 
 	return nil
 }
@@ -1860,8 +1851,6 @@ func evacuateInstances(ctx context.Context, opts evacuateOpts) error {
 		// Apply overrides.
 		if opts.mode != "" {
 			switch opts.mode {
-			case api.ClusterEvacuateModeHeal:
-				live = false // The source member is offline when healing.
 			case api.ClusterEvacuateModeStop:
 				migrate = false
 				live = false

@@ -4687,15 +4687,6 @@ User keys can be used in search.
 
 <!-- config group server-acme end -->
 <!-- config group server-cluster start -->
-```{config:option} cluster.healing_threshold server-cluster
-:defaultdesc: "`0`"
-:scope: "global"
-:shortdesc: "Threshold when to evacuate an offline cluster member"
-:type: "integer"
-Specify the number of seconds after which an offline cluster member is to be evacuated.
-To disable evacuating offline members, set this option to `0`.
-```
-
 ```{config:option} cluster.https_address server-cluster
 :scope: "local"
 :shortdesc: "Address to use for clustering traffic"

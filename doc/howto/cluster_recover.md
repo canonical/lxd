@@ -3,7 +3,7 @@
 
 It might happen that one or several members of your cluster go offline or become unreachable.
 If too many cluster members go offline, no operations will be possible on the cluster.
-See {ref}`clustering-offline-members` and {ref}`cluster-automatic-evacuation` for more information.
+See {ref}`clustering-offline-members` for more information.
 
 If you can bring the offline cluster members back up, operation resumes as normal.
 If the cluster members are lost permanently (e.g. disk failure), it is possible

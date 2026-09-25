@@ -315,9 +315,6 @@ const (
 	// ClusterEvacuateModeAuto indicates that the system should automatically choose the best evacuation method for the instance based on instance type and device capabilities.
 	ClusterEvacuateModeAuto = "auto"
 
-	// ClusterEvacuateModeHeal is used internally to indicate that instances should be evacuated during automatic cluster healing.
-	ClusterEvacuateModeHeal = "heal"
-
 	// ClusterRestoreModeSkip indicates that cluster member status should be restored without starting local instances or migrating back evacuated instances.
 	ClusterRestoreModeSkip = "skip"
 
