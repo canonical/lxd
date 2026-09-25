@@ -1,7 +1,7 @@
 ---
 myst:
   html_meta:
-    description: An index of how-to guides for LXD production deployment setup, including optimizing performance, monitoring metrics, and backup and recovery operations.
+    description: An index of how-to guides for LXD production deployment setup, including optimizing performance and monitoring metrics.
 ---
 
 # Production setup
@@ -30,27 +30,6 @@ Monitor metrics </metrics>
 Monitor security events </howto/security_events>
 Send logs to Loki </howto/logs_loki>
 Set up Grafana </howto/grafana>
-```
-
-## Back up and recover
-
-Full and partial server backups protect against data loss. Instance recovery and disaster recovery options are available for different failure scenarios.
-
-```{toctree}
-:titlesonly:
-
-Back up a server </backup>
-Recover LXD database records </howto/disaster_recovery>
-Disaster recovery with storage replication </howto/disaster_recovery_replication>
-Disaster recovery with replicators </howto/replicators_dr>
-```
-
-## Decommission
-
-```{toctree}
-:titlesonly:
-
-Decommission LXD </howto/decommission>
 ```
 
 
