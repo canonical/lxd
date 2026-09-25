@@ -1118,19 +1118,19 @@ func (c *ClusterTx) GetCandidateMembers(ctx context.Context, allMembers []NodeIn
 	return candidateMembers, nil
 }
 
-// GetNodeWithLeastInstances returns the name of the member with the least number of instances that are either
-// already created or being created with an operation.
-func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, members []NodeInfo) (*NodeInfo, error) {
-	if len(members) == 0 {
-		return nil, api.StatusErrorf(http.StatusNotFound, "No suitable cluster member could be found")
-	}
-
+// GetNodesInstanceCounts returns, for each of the given members, the number of instances that are
+// either already created on it or being created on it by a running operation.
+func (c *ClusterTx) GetNodesInstanceCounts(ctx context.Context, members []NodeInfo) (map[int64]int64, error) {
 	// Initialize member instance counts and get a slice of member IDs for use in query.
 	memberIDs := make([]int64, 0, len(members))
-	counts := make(map[int64]int64)
+	counts := make(map[int64]int64, len(members))
 	for _, nodeInfo := range members {
 		memberIDs = append(memberIDs, nodeInfo.ID)
 		counts[nodeInfo.ID] = 0
+	}
+
+	if len(memberIDs) == 0 {
+		return counts, nil
 	}
 
 	// Create a union query for instances and running instance create operations.
@@ -1156,6 +1156,21 @@ func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, members []Nod
 	}, operationtype.InstanceCreate, api.Running)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting instance count: %w", err)
+	}
+
+	return counts, nil
+}
+
+// GetNodeWithLeastInstances returns the name of the member with the least number of instances that are either
+// already created or being created with an operation.
+func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, members []NodeInfo) (*NodeInfo, error) {
+	if len(members) == 0 {
+		return nil, api.StatusErrorf(http.StatusNotFound, "No suitable cluster member could be found")
+	}
+
+	counts, err := c.GetNodesInstanceCounts(ctx, members)
+	if err != nil {
+		return nil, err
 	}
 
 	// Iterate over the given members to find the one with the lowest instance (or pending instance) count.
