@@ -163,6 +163,9 @@ See [`PATCH /1.0/cluster/links/{name}`](swagger:/cluster-links/{name}/cluster_li
 (howto-cluster-links-delete)=
 ## Delete a cluster link
 
+A cluster link cannot be deleted or renamed while a replicator, an image registry, or a project's {config:option}`project-replica:replica.cluster` setting references it.
+The link's `used_by` field lists these references.
+
 `````{tabs}
 ````{group-tab} CLI
 To delete a cluster link, run:

@@ -6021,6 +6021,19 @@ test_clustering_replicator_basic() {
 
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link delete lxd_two 2>&1)" = 'Error: Error deleting "lxd_two" from database: Cluster link is currently in use' ]
 
+  sub_test "Verify cluster link cannot be deleted or renamed while referenced by a project's replica.cluster"
+
+  # The standby project on LXD_TWO is the only thing that references the link to the leader.
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/cluster/links/lxd_one" \
+    | jq --exit-status '.used_by == ["/1.0/projects/replicator-project"]'
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc cluster link delete lxd_one 2>&1)" = 'Error: Error deleting "lxd_one" from database: Cluster link is currently in use' ]
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_TWO_DIR}" lxc cluster link rename lxd_one lxd_one_renamed 2>&1)" = 'Error: Cluster link is currently in use' ]
+
+  # Once the project no longer references the link it can be deleted.
+  LXD_DIR="${LXD_TWO_DIR}" lxc project unset replicator-project replica.cluster
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/cluster/links/lxd_one" | jq --exit-status '.used_by | length == 0'
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster link delete lxd_one
+
   # Cleanup
   LXD_DIR="${LXD_TWO_DIR}" lxc profile device remove default root --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc profile device remove default root --project replicator-project

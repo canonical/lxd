@@ -143,21 +143,24 @@ func RenameClusterLink(ctx context.Context, tx *sql.Tx, name string, to string) 
 	return query.UpdateByPrimaryKey(ctx, tx, *link)
 }
 
-// clusterConfigRef describes an entity type whose config table may reference a cluster link via the 'cluster' key.
+// clusterConfigRef describes an entity type whose config table may reference a cluster link by name.
+// Only the value stored under configKey is treated as a reference; other config entries are not scanned.
 // To support a new entity type, add an entry here.
 type clusterConfigRef struct {
 	typeCode    int64
 	configTable string // e.g. "replicators_config"
+	configKey   string // Config key whose value is a cluster link name, e.g. "cluster"
 	idColumn    string // Foreign key column in configTable, e.g. "replicator_id"
 	entityTable string // e.g. "replicators"
 	hasProject  bool   // Whether the entity is project-scoped or global.
 }
 
-// clusterConfigRefs lists every entity type whose config may contain a 'cluster' key referencing a cluster link.
+// clusterConfigRefs lists every entity type whose config may contain a key referencing a cluster link.
 var clusterConfigRefs = []clusterConfigRef{
 	{
 		typeCode:    entityTypeCodeReplicator,
 		configTable: "replicators_config",
+		configKey:   "cluster",
 		idColumn:    "replicator_id",
 		entityTable: "replicators",
 		hasProject:  true,
@@ -165,13 +168,23 @@ var clusterConfigRefs = []clusterConfigRef{
 	{
 		typeCode:    entityTypeCodeImageRegistry,
 		configTable: "image_registries_config",
+		configKey:   "cluster",
 		idColumn:    "image_registry_id",
 		entityTable: "image_registries",
 		hasProject:  false,
 	},
+	{
+		// A standby project names the cluster link that is allowed to replicate into it.
+		typeCode:    entityTypeCodeProject,
+		configTable: "projects_config",
+		configKey:   "replica.cluster",
+		idColumn:    "project_id",
+		entityTable: "projects",
+		hasProject:  false,
+	},
 }
 
-// GetClusterLinksUsedBy returns a map of cluster link name to list of URLs of all entities that reference the cluster link via the 'cluster' config key.
+// GetClusterLinksUsedBy returns a map of cluster link name to list of URLs of all entities that reference the cluster link in their config.
 // If clusterLinkName is non-nil, only references to that cluster link are returned.
 // If firstOnly is true then the search stops after the first match overall (LIMIT 1 applied globally); only meaningful when clusterLinkName is non-nil.
 func GetClusterLinksUsedBy(ctx context.Context, tx *sql.Tx, clusterLinkName *string, firstOnly bool) (map[string][]string, error) {
@@ -218,7 +231,8 @@ JOIN projects ON `)
 		b.WriteString(`
 WHERE `)
 		b.WriteString(ref.configTable)
-		b.WriteString(`.key = 'cluster'`)
+		b.WriteString(`.key = ?`)
+		args = append(args, ref.configKey)
 
 		if clusterLinkName != nil {
 			b.WriteString(` AND `)
@@ -247,6 +261,8 @@ WHERE `)
 			urls[linkName] = append(urls[linkName], entity.ReplicatorURL(pName, eName).String())
 		case entity.TypeImageRegistry:
 			urls[linkName] = append(urls[linkName], entity.ImageRegistryURL(eName).String())
+		case entity.TypeProject:
+			urls[linkName] = append(urls[linkName], entity.ProjectURL(eName).String())
 		default:
 			return errors.New("Unexpected entity type in cluster link usage query")
 		}
