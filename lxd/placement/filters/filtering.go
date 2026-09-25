@@ -2,9 +2,7 @@ package filters
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
 	"slices"
 
 	"github.com/canonical/lxd/lxd/db"
@@ -64,24 +62,6 @@ func FilterByClusterGroup(ctx context.Context, tx *db.ClusterTx, pctx *models.Pl
 
 	if len(filtered) == 0 && len(candidates) > 0 {
 		return nil, &NoCandidatesError{Func: "FilterByClusterGroup", Reason: fmt.Sprintf("no candidate belongs to cluster group %q", pctx.ClusterGroupName)}
-	}
-
-	return filtered, nil
-}
-
-// Filter narrows candidates using the given placement group. It keeps the pre-engine entry point
-// and its Conflict status for the existing callers until they move to PlaceInstance.
-func Filter(ctx context.Context, tx *db.ClusterTx, candidates []db.NodeInfo, apiPlacementGroup api.PlacementGroup, evacuation bool) ([]db.NodeInfo, error) {
-	pctx := &models.PlacementContext{PlacementGroup: apiPlacementGroup, Evacuation: evacuation}
-
-	filtered, err := FilterByPlacementGroup(ctx, tx, pctx, candidates)
-	if err != nil {
-		var noCandidates *NoCandidatesError
-		if errors.As(err, &noCandidates) {
-			return nil, api.StatusErrorf(http.StatusConflict, "Failed filtering candidate cluster members using placement group %q: %w", apiPlacementGroup.Name, err)
-		}
-
-		return nil, err
 	}
 
 	return filtered, nil
