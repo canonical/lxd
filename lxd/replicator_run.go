@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/canonical/lxd/client"
@@ -21,6 +23,8 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/state"
+	storagePools "github.com/canonical/lxd/lxd/storage"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/lxd/warnings"
@@ -80,11 +84,21 @@ const (
 	replicatorMetadataSnapshotFinished = "snapshot_finished"
 )
 
+const (
+	// cephMirrorConfirmInterval is how often the mirror stage asks Ceph whether the peer has replayed.
+	cephMirrorConfirmInterval = 5 * time.Second
+
+	// cephMirrorConfirmTimeout bounds the wait for the peer. An hour covers the first full sync of a
+	// large image.
+	cephMirrorConfirmTimeout = time.Hour
+)
+
 func init() {
 	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorFinalize, replicatorFinalizeDurableOperationRunHook)
 	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorRunInstanceForward, replicatorRunInstanceForwardDurableOperationHook)
 	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorRunInstanceRestore, replicatorRunInstanceRestoreDurableOperationHook)
 	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorSnapshotInstance, replicatorRunInstanceForwardSnapshotDurableOperationHook)
+	operations.RegisterDurableOperationRunHook(operationtype.ReplicatorRunMirror, replicatorRunMirrorDurableOperationHook)
 }
 
 // loadSharedReplicatorDetails loads the target project, cluster link, target cluster certificate, and a map of cluster member name to address.
@@ -360,6 +374,49 @@ func extractSnapshotTimestamps(op *operations.Operation) (snapshotStarted *time.
 	}
 
 	return started, finished, nil
+}
+
+// replicatorRunMirrorDurableOperationHook enrolls the project's volumes into RBD mirroring, sends
+// their current state to the peer and returns once the peer has replayed every one of them.
+func replicatorRunMirrorDurableOperationHook(ctx context.Context, op *operations.Operation) error {
+	parentOp := op
+	if parentOp.Parent() != nil {
+		parentOp = parentOp.Parent()
+	}
+
+	projectName, err := operations.GetOperationInputValue[string](parentOp, durableOperationInputKeyReplicatorTargetProjectName)
+	if err != nil {
+		return fmt.Errorf("Failed loading project name from operation inputs: %w", err)
+	}
+
+	s := op.State()
+
+	err = storagePools.MirrorProjectVolumes(ctx, s, projectName)
+	if err != nil {
+		return err
+	}
+
+	deadline := time.Now().Add(cephMirrorConfirmTimeout)
+	for {
+		pending, err := storagePools.ConfirmProjectVolumeMirrors(ctx, s, projectName)
+		if err != nil {
+			return err
+		}
+
+		if len(pending) == 0 {
+			return nil
+		}
+
+		if time.Now().After(deadline) {
+			return fmt.Errorf("Peer site has not replayed the mirror snapshots of: %s", strings.Join(pending, ", "))
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(cephMirrorConfirmInterval):
+		}
+	}
 }
 
 func replicatorRunInstanceForwardSnapshotDurableOperationHook(ctx context.Context, op *operations.Operation) error {
@@ -728,6 +785,50 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 		return nil, fmt.Errorf("Failed loading replicator state: %w", err)
 	}
 
+	mirroredPools, err := storagePools.CephReplicaPoolNames(ctx, s, projectName)
+	if err != nil {
+		return nil, err
+	}
+
+	mirrored := len(mirroredPools) > 0
+
+	// A mirrored project's data moves through Ceph and nothing is pushed. A restore would transfer data
+	// onto the mirrored images, and an instance, or a volume the forward stage would have carried with
+	// it, on a pool without the key would be left behind silently, so both are refused.
+	if mirrored {
+		if restore {
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Project %q is mirrored through Ceph, promote its volumes instead of restoring them", projectName)
+		}
+
+		// The forward stage carries the volumes attached to one instance only, and none at all for a
+		// project that inherits its volumes, so those are the attachments that have to be mirrored.
+		attachments := make(map[string]int)
+		if replicationDiskVolumesMode(sourceProject.Config) == api.DiskVolumesModeAllExclusive {
+			for _, inst := range allInsts {
+				for _, dev := range inst.ExpandedDevices().Filter(filters.IsCustomVolumeDisk) {
+					attachments[dev["pool"]+"/"+dev["source"]]++
+				}
+			}
+		}
+
+		for _, inst := range allInsts {
+			poolName, err := inst.StoragePool()
+			if err != nil {
+				return nil, fmt.Errorf("Failed getting the storage pool of instance %q: %w", inst.Name(), err)
+			}
+
+			if !slices.Contains(mirroredPools, poolName) {
+				return nil, api.StatusErrorf(http.StatusBadRequest, "Instance %q is on storage pool %q, which does not carry %s while the project is mirrored", inst.Name(), poolName, storageDrivers.CephReplicatorPoolKey(projectName))
+			}
+
+			for _, dev := range inst.ExpandedDevices().Filter(filters.IsCustomVolumeDisk) {
+				if attachments[dev["pool"]+"/"+dev["source"]] == 1 && !slices.Contains(mirroredPools, dev["pool"]) {
+					return nil, api.StatusErrorf(http.StatusBadRequest, "Instance %q attaches volume %q from storage pool %q, which does not carry %s while the project is mirrored", inst.Name(), dev["source"], dev["pool"], storageDrivers.CephReplicatorPoolKey(projectName))
+				}
+			}
+		}
+	}
+
 	clusterCert := s.Endpoints.NetworkCert()
 
 	// Mutual TLS is safe to assume here: replicatorValidateConfig rejects public cluster links, which
@@ -817,6 +918,7 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 		}
 
 		builder.IncrementStage()
+
 		for _, inst := range allInsts {
 			err = builder.AddChildArgs(operations.OperationArgs{
 				ProjectName: projectName,
@@ -831,6 +933,23 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 			})
 			if err != nil {
 				return nil, fmt.Errorf("Failed preparing instance forward replication operation: %w", err)
+			}
+		}
+
+		if mirrored {
+			// Ceph carries the data of a mirrored project, so the push above moved only the records. The
+			// mirror stage then enrolls, triggers and confirms. It comes after the push so that a run
+			// whose images fail to confirm is marked failed rather than leaving the standby without
+			// records, and the per-run snapshots keep the standby's restore points coherent either way.
+			builder.IncrementStage()
+			err = builder.AddChildArgs(operations.OperationArgs{
+				ProjectName: projectName,
+				EntityURL:   replicatorURL,
+				Type:        operationtype.ReplicatorRunMirror,
+				Class:       operationtype.OperationClassDurable,
+			}, map[operations.InputKey]any{})
+			if err != nil {
+				return nil, fmt.Errorf("Failed preparing replicator mirror operation: %w", err)
 			}
 		}
 

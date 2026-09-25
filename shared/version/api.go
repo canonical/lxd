@@ -508,6 +508,7 @@ var APIExtensions = []string{
 	"storage_driver_pure_scsifc",
 	"operation_wait_status_code",
 	"vm_volatile_maxcpus",
+	"storage_ceph_replicator",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
