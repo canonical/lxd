@@ -25,13 +25,6 @@ jobs:
   copilot-setup-steps:
     runs-on: ubuntu-26.04
 
-    env:
-      CGO_CFLAGS: "-I/home/runner/go/deps/dqlite/include/ -I/home/runner/go/deps/liblxc/include/"
-      CGO_LDFLAGS: "-L/home/runner/go/deps/dqlite/.libs/"
-      LD_LIBRARY_PATH: "/home/runner/go/deps/dqlite/.libs/"
-      LD_RUN_PATH: "/home/runner/go/deps/dqlite/.libs/"
-      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
-
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

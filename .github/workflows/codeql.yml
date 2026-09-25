@@ -51,13 +51,6 @@ jobs:
       actions: read
       contents: read
 
-    env:
-      CGO_CFLAGS: "-I/home/runner/go/deps/dqlite/include/ -I/home/runner/go/deps/liblxc/include/"
-      CGO_LDFLAGS: "-L/home/runner/go/deps/dqlite/.libs/"
-      LD_LIBRARY_PATH: "/home/runner/go/deps/dqlite/.libs/"
-      LD_RUN_PATH: "/home/runner/go/deps/dqlite/.libs/"
-      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
-
     strategy:
       fail-fast: false
       matrix:

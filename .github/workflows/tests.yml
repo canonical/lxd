@@ -81,11 +81,6 @@ jobs:
     outputs:
       fast-backend: ${{ steps.pick-fast-backend.outputs.fast-backend }}
     env:
-      CGO_CFLAGS: "-I/home/runner/go/deps/dqlite/include/ -I/home/runner/go/deps/liblxc/include/"
-      CGO_LDFLAGS: "-L/home/runner/go/deps/dqlite/.libs/"
-      LD_LIBRARY_PATH: "/home/runner/go/deps/dqlite/.libs/"
-      LD_RUN_PATH: "/home/runner/go/deps/dqlite/.libs/"
-      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
       SUDO_PRESERVE_ENV: "CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,GOCOVERDIR,PKG_CONFIG_PATH,LD_LIBRARY_PATH,PATH"
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: Code
@@ -638,12 +633,6 @@ jobs:
     name: Tiobe TICS
     runs-on: ubuntu-26.04
     needs: [client, system-tests, snap-tests, ui-e2e-tests]
-    env:
-      CGO_CFLAGS: "-I/home/runner/go/deps/dqlite/include/ -I/home/runner/go/deps/liblxc/include/"
-      CGO_LDFLAGS: "-L/home/runner/go/deps/dqlite/.libs/"
-      LD_LIBRARY_PATH: "/home/runner/go/deps/dqlite/.libs/"
-      LD_RUN_PATH: "/home/runner/go/deps/dqlite/.libs/"
-      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
     if: ${{ ( github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ) && github.ref_name == 'main' && github.repository == 'canonical/lxd' }}
     steps:
       - name: Checkout

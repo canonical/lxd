@@ -1,4 +1,4 @@
-name: Vulnerability Scanning with Trivy
+name: Vulnerability Scanning
 on:
   workflow_dispatch:
   schedule:
@@ -159,6 +159,14 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: 'go.mod'
+
+      - name: Install LXD build dependencies
+        uses: $/.github/actions/install-lxd-builddeps
+
+      - name: Build or restore dqlite/liblxc dependencies
+        uses: $/.github/actions/cache-dqlite-liblxc
+        with:
+          export-env: true
 
       - name: Run govulncheck (SARIF output)
         uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1.1.0
