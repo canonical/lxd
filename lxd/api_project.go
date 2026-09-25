@@ -1550,6 +1550,32 @@ func projectStatePut(d *Daemon, r *http.Request) response.Response {
 	return response.OperationResponse(op)
 }
 
+// getProjectAndReplicatorLinks loads a project along with the names of the cluster links targeted by
+// its replicators.
+func getProjectAndReplicatorLinks(ctx context.Context, s *state.State, projectName string) (*api.Project, []string, error) {
+	var project *api.Project
+	var clusterLinkNames []string
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
+		}
+
+		project, err = dbProject.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		clusterLinkNames, err = replicatorClusterLinkNames(ctx, tx, projectName)
+		return err
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return project, clusterLinkNames, nil
+}
+
 // validateProjectPromote validates that a project is ready to be promoted to leader mode.
 // It checks that the source cluster's project is no longer in leader mode, and that all
 // replicator target clusters have their project in standby mode.
