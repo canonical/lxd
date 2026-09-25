@@ -28,6 +28,14 @@ const envVar = "LXD_FEATURES"
 // enabledFeaturePrevs holds the status of supported feature previews.
 var enabledFeaturePrevs = map[Feature]struct{}{}
 
+// FailureDomainPlacement previews failure-domain-aware placement. Enabling it (via
+// LXD_FEATURES=failure_domain_placement) turns on:
+//   - the placement-group scope=failure-domain policy
+//   - the cluster-wide instances.placement.failure_domain.exclude list
+//   - the project-wide limits.placement.hosts.max limit on how many distinct hosts an instance's
+//     placement may span
+const FailureDomainPlacement Feature = "failure_domain_placement"
+
 func init() {
 	err := loadFromEnv(envVar)
 	if err != nil {
