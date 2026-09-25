@@ -135,6 +135,188 @@ var updates = map[int]schema.Update{
 	89: updateFromV88,
 	90: updateFromV89,
 	91: updateFromV90,
+	92: updateFromV91,
+}
+
+func updateFromV91(ctx context.Context, tx *sql.Tx) error {
+	// Create the new "images_source" table that uses "image_registry_id".
+	// The original "images_source" table stored the server URL, protocol, and certificate directly.
+	// With the introduction of the image registries feature, we now need to link an image source
+	// to an existing image registry record instead. We do this by creating a new table with an
+	// "image_registry_id" foreign key, and then we migrate the data before swapping the tables.
+	_, err := tx.ExecContext(ctx, `
+CREATE TABLE images_source_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	image_id INTEGER NOT NULL,
+	image_registry_id INTEGER NOT NULL,
+	alias TEXT NOT NULL,
+	FOREIGN KEY (image_id) REFERENCES "images" (id) ON DELETE CASCADE,
+	FOREIGN KEY (image_registry_id) REFERENCES "image_registries" (id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		return fmt.Errorf("Failed creating images_source_new table: %w", err)
+	}
+
+	// Load existing registries that expose a source URL so legacy SimpleStreams sources can be
+	// matched against them (including the built-in "ubuntu"/"images" registries) instead of
+	// creating duplicates. Only SimpleStreams registries have a "url" config key. LXD registries
+	// reference a cluster link, so they never appear here.
+	type registryInfo struct {
+		id  int64
+		url string
+	}
+
+	registries := []registryInfo{}
+
+	rows, err := tx.QueryContext(ctx, `
+		SELECT r.id, c.value
+		FROM image_registries r
+		JOIN image_registries_config c ON r.id = c.image_registry_id AND c.key = 'url'
+	`)
+	if err != nil {
+		return fmt.Errorf("Failed loading existing image registries: %w", err)
+	}
+
+	for rows.Next() {
+		var registry registryInfo
+
+		err := rows.Scan(&registry.id, &registry.url)
+		if err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("Failed scanning image_registries rows: %w", err)
+		}
+
+		registries = append(registries, registry)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		_ = rows.Close()
+		return fmt.Errorf("Got an image_registries row error: %w", err)
+	}
+
+	// Close the registries result set before reusing "rows" for the image sources query below.
+	err = rows.Close()
+	if err != nil {
+		return fmt.Errorf("Failed closing image_registries rows: %w", err)
+	}
+
+	// Load the legacy image sources to migrate.
+	type imageSource struct {
+		id       int64
+		imageID  int64
+		server   string
+		protocol int64
+		alias    string
+	}
+
+	sources := []imageSource{}
+
+	rows, err = tx.QueryContext(ctx, "SELECT id, image_id, server, protocol, alias FROM images_source")
+	if err != nil {
+		return fmt.Errorf("Failed loading existing image sources: %w", err)
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var src imageSource
+
+		err := rows.Scan(&src.id, &src.imageID, &src.server, &src.protocol, &src.alias)
+		if err != nil {
+			return fmt.Errorf("Failed scanning images_source rows: %w", err)
+		}
+
+		sources = append(sources, src)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return fmt.Errorf("Got an images_source row error: %w", err)
+	}
+
+	// Only SimpleStreams sources can be represented as image registries during migration. An LXD
+	// image registry requires a cluster link (a pinned remote certificate and identity) that cannot
+	// be synthesized safely here, so legacy "lxd" and deprecated "direct" sources are dropped: the
+	// cached image is kept, but it loses its source record and simply will not auto-update.
+	//
+	// The protocol codes below are frozen historical values, inlined so this migration never
+	// depends on constants that may later be renamed or removed. The legacy images_source table
+	// encodes the protocol as lxd = 0, direct = 1, simplestreams = 2, whereas the image_registries
+	// table uses a different encoding of simplestreams = 0, lxd = 1.
+	const (
+		legacySimpleStreamsProtocol   = 2
+		registrySimpleStreamsProtocol = 0
+	)
+
+	// Track auto-created registries keyed by their normalized server URL so identical sources reuse
+	// a single registry.
+	migratedRegistries := make(map[string]int64)
+	migratedCount := 1
+
+	for _, s := range sources {
+		if s.protocol != legacySimpleStreamsProtocol {
+			continue
+		}
+
+		var matchingRegistryID int64
+
+		// Strip a trailing slash so URLs stored with or without one match cleanly.
+		serverURL := strings.TrimSuffix(s.server, "/")
+		for _, r := range registries {
+			if strings.TrimSuffix(r.url, "/") == serverURL {
+				matchingRegistryID = r.id
+				break
+			}
+		}
+
+		if matchingRegistryID == 0 {
+			id, ok := migratedRegistries[serverURL]
+			if ok {
+				matchingRegistryID = id
+			} else {
+				// No existing registry matches this source's URL, so create a dedicated
+				// SimpleStreams registry for it.
+				registryName := fmt.Sprintf("auto-migrated-%03d", migratedCount)
+				migratedCount++
+
+				res, err := tx.ExecContext(ctx, "INSERT INTO image_registries (name, description, protocol, builtin) VALUES (?, ?, ?, 0)", registryName, "Auto-migrated legacy image source", registrySimpleStreamsProtocol)
+				if err != nil {
+					return fmt.Errorf("Failed creating an image_registries record: %w", err)
+				}
+
+				matchingRegistryID, err = res.LastInsertId()
+				if err != nil {
+					return fmt.Errorf("Failed loading image registry ID: %w", err)
+				}
+
+				_, err = tx.ExecContext(ctx, "INSERT INTO image_registries_config (image_registry_id, key, value) VALUES (?, 'url', ?)", matchingRegistryID, serverURL)
+				if err != nil {
+					return fmt.Errorf(`Failed adding "url" key to image_registries_config: %w`, err)
+				}
+
+				migratedRegistries[serverURL] = matchingRegistryID
+			}
+		}
+
+		_, err = tx.ExecContext(ctx, "INSERT INTO images_source_new (id, image_id, image_registry_id, alias) VALUES (?, ?, ?, ?)", s.id, s.imageID, matchingRegistryID, s.alias)
+		if err != nil {
+			return fmt.Errorf("Failed creating an images_source_new record: %w", err)
+		}
+	}
+
+	_, err = tx.ExecContext(ctx, "DROP TABLE images_source")
+	if err != nil {
+		return fmt.Errorf("Failed deleting old images_source table: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, "ALTER TABLE images_source_new RENAME TO images_source")
+	if err != nil {
+		return fmt.Errorf("Failed renaming images_source_new table: %w", err)
+	}
+
+	return nil
 }
 
 func updateFromV90(ctx context.Context, tx *sql.Tx) error {

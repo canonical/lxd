@@ -9,12 +9,14 @@ If you are using the UI or the API, you can interact with different remotes by u
 
 By default, the command-line client interacts with the local LXD daemon, but you can add other servers or clusters to interact with.
 
-One use case for remote servers is to distribute images that can be used to create instances on local servers.
-See {ref}`remote-image-servers` for more information.
-
-You can also add a full LXD server as a remote server to your client.
-In this case, you can interact with the remote server in the same way as with your local daemon.
+When you add a full LXD server as a remote server, you can interact with it in the same way as with your local daemon.
 For example, you can manage instances or update the server configuration on the remote server.
+
+```{note}
+Remotes are no longer used to source images.
+To download images, LXD uses {ref}`image registries <ref-image-registries>`.
+See {ref}`remote-image-servers` for the built-in image registries and {ref}`howto-image-registries` for how to manage your own.
+```
 
 ## Authentication
 
