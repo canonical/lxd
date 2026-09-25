@@ -248,10 +248,11 @@ LXD (|lxd-listen-anchor-open|\ ``[lɛks'di:]``\ |lxd-listen-anchor-close|) is a 
 
       .. slice:: Disaster recovery
 
+         :doc:`Overview <explanation/disaster_recovery>` slice
          :doc:`Perform disaster recovery with replicators <howto/replicators_dr>`
+         :doc:`Perform disaster recovery with storage replication <howto/disaster_recovery_replication>`
          :doc:`Back up a server <backup>`
          :doc:`Recover LXD database records <howto/disaster_recovery>`
-         :doc:`Disaster recovery with storage replication <howto/disaster_recovery_replication>`
 
 How this documentation is organized
 -----------------------------------
