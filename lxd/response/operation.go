@@ -155,6 +155,11 @@ func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter, req *http.Re
 		return err
 	}
 
+	// ws.Proxy forwards data frames only, so keep both proxied connections alive here: the
+	// client (target) and the member running the operation (r.source).
+	ws.StartKeepAlive(target)
+	ws.StartKeepAlive(r.source)
+
 	// Start proxying between sockets.
 	<-ws.Proxy(r.source, target)
 
