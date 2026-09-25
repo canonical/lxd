@@ -278,6 +278,13 @@ type MigrateReceiveArgs struct {
 	// DeferredVolumes holds "pool/name" for the attached custom volumes whose device was masked because
 	// the volume is missing on the target. The source's index header must list each of them.
 	DeferredVolumes map[string]struct{}
+
+	// TransferStarted is called at most once per receive, when the target has accepted the source's offer and
+	// hands the connection to the storage driver for the first volume. Nothing on disk has changed before it
+	// runs. Once it has run, a failure is reported to the source and returned as one that keeps the received
+	// config, because the disks may no longer match the previous record and the operator has to run the
+	// refresh again or repair the instance by hand. Optional.
+	TransferStarted func()
 }
 
 // ConversionArgs represent arguments for instance conversion send and receive.

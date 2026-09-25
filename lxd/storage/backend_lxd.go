@@ -2323,6 +2323,11 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 		for volKey := range args.DeferredCustomVolumes {
 			_, ok := listed[volKey]
 			if !ok {
+				// A per member pool holds the volume on one member only, so say which one was checked.
+				if b.state.ServerClustered {
+					return fmt.Errorf("Custom volume %q is missing on the target member %q and the source will not transfer it", volKey, b.state.ServerName)
+				}
+
 				return fmt.Errorf("Custom volume %q is missing on the target and the source will not transfer it", volKey)
 			}
 		}
@@ -2655,6 +2660,13 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 	}
 
 	volCopy := drivers.NewVolumeCopy(vol, targetSnapshots...)
+
+	// Everything so far only read the offer and prepared records. The driver takes the connection from here
+	// and may write at any point, so a caller that puts the instance record back on failure must stop doing
+	// so now: there is no later point shared by all drivers, and the source is already sending.
+	if args.TransferStarted != nil {
+		args.TransferStarted()
+	}
 
 	err = b.driver.CreateVolumeFromMigration(volCopy, conn, args, &preFiller, progressReporter)
 	if err != nil {

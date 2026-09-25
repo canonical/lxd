@@ -296,6 +296,40 @@ migration() {
   [ "$(lxc_remote config get l2:c2 volatile.idmap.next)" = "${c2_idmap_next_before}" ]
   [ "$(lxc_remote config get l2:c2 volatile.last_state.power)" = "${c2_last_state_power_before}" ]
 
+  sub_test "Refresh that fails before the transfer starts leaves the target record alone"
+
+  # The target applies the request's config, description and profiles to the existing instance before it
+  # connects to the source, so a refresh that fails before any data moves has to put the record back. The
+  # request is built the way the client builds it, from the source instance, with an operation URL nothing
+  # listens on so the connection fails before the first write.
+  local c2_before source_cert refresh_req refused_err
+  c2_before="$(lxc_remote query l2:/1.0/instances/c2 | jq --exit-status --sort-keys '{config, description, devices, profiles}')"
+  source_cert="$(lxc_remote query l1:/1.0 | jq --exit-status --raw-output '.environment.certificate')"
+  refresh_req="$(lxc_remote query l1:/1.0/instances/c1 | jq --exit-status --compact-output --arg cert "${source_cert}" '{
+      name: "c2",
+      architecture,
+      type,
+      profiles,
+      devices,
+      config: (.config + {"user.refresh-refused": "leaked"}),
+      description: "leaked",
+      source: {
+        type: "migration",
+        mode: "pull",
+        refresh: true,
+        certificate: $cert,
+        operation: "https://127.0.0.1:1/1.0/operations/00000000-0000-0000-0000-000000000000",
+        secrets: {control: "unused", fs: "unused"}
+      }
+    }')"
+  if refused_err="$(lxc_remote query l2:/1.0/instances --request POST --wait --data "${refresh_req}" 2>&1)"; then
+    echo "ERROR: refresh from an unreachable source succeeded"
+    exit 1
+  fi
+
+  grep -F 'Error transferring instance data' <<< "${refused_err}"
+  [ "$(lxc_remote query l2:/1.0/instances/c2 | jq --exit-status --sort-keys '{config, description, devices, profiles}')" = "${c2_before}" ]
+
   # Create test file in c1 (source)
   echo test | lxc_remote file push - l1:c1/root/testfile1
 
