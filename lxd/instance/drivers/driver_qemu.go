@@ -651,7 +651,7 @@ func (d *qemu) onStop(target string) error {
 	}
 
 	// Unload the apparmor profile
-	err = apparmor.InstanceUnload(d.state, d)
+	err = apparmor.InstanceUnload(d.state.OS, d)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -1384,7 +1384,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	// Load the AppArmor profile
-	err = apparmor.InstanceLoad(d.state, d)
+	err = apparmor.InstanceLoad(d.state.OS, d)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -2282,7 +2282,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 			}
 
 			// Read the template, ensuring the template file cannot escape the templates directory.
-			tplFullPath, err := securePathJoin(templatesPath, tpl.Template, true)
+			tplFullPath, err := shared.SecurePathJoin(templatesPath, tpl.Template, true)
 			if err != nil {
 				return fmt.Errorf("Invalid template file path: %w", err)
 			}
@@ -3991,7 +3991,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// If apparmor changed, re-validate the apparmor profile (even if not running).
 	if shared.StringInSlice("raw.apparmor", changedConfig) {
-		err = apparmor.InstanceValidate(d.state, d)
+		err = apparmor.InstanceValidate(d.state.OS, d)
 		if err != nil {
 			return errors.Wrap(err, "Parse AppArmor profile")
 		}
@@ -4394,7 +4394,7 @@ func (d *qemu) cleanup() {
 	d.removeDiskDevices()
 
 	// Remove the security profiles
-	apparmor.InstanceDelete(d.state, d)
+	apparmor.InstanceDelete(d.state.OS, d)
 
 	// Remove the devices path
 	os.Remove(d.DevicesPath())

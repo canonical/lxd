@@ -169,7 +169,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 	// Load optimized backup header file if specified.
 	var optimizedHeader *BTRFSMetaDataHeader
 	if *srcBackup.OptimizedHeader {
-		optimizedHeader, err = d.loadOptimizedBackupHeader(srcData)
+		optimizedHeader, err = d.loadOptimizedBackupHeader(srcData, srcBackup.Snapshots)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -265,11 +265,17 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 				return err
 			}
 
-			// Clear the target for the subvol to use.
-			os.Remove(subVolTargetPath)
-
 			// Move unpacked subvolume into its final location.
-			err = os.Rename(unpackedSubVolPath, subVolTargetPath)
+			dest, closer, err := d.resolveSubvolumeDest(v.MountPath(), subVol.Path)
+			if err != nil {
+				return err
+			}
+
+			// Clear the target for the subvol to use.
+			os.Remove(dest)
+
+			err = os.Rename(unpackedSubVolPath, dest)
+			closer()
 			if err != nil {
 				return err
 			}
@@ -463,6 +469,13 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 			return errors.Wrapf(err, "Failed decoding migration header")
 		}
 
+		// The header comes from the source peer and must be validated. The source sends exactly
+		// the negotiated snapshots, and any other snapshot name is rejected here.
+		err = d.validateSubVolumeHeader(migrationHeader, append([]string{}, volTargetArgs.Snapshots...))
+		if err != nil {
+			return err
+		}
+
 		d.logger.Debug("Received migration meta data header", log.Ctx{"name": vol.name})
 	} else {
 		// Populate the migrationHeader subvolumes with root volumes only to support older LXD sources.
@@ -497,11 +510,19 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 				return err
 			}
 
+			// Move the received subvolume to its final location beneath the volume root, refusing
+			// any symlink in the received stream that would redirect it outside the volume.
+			dest, closer, err := d.resolveSubvolumeDest(v.MountPath(), subVol.Path)
+			if err != nil {
+				return err
+			}
+
 			// Clear the target for the subvol to use.
-			os.Remove(subVolTargetPath)
+			os.Remove(dest)
 
 			// And move it to the target path.
-			err = os.Rename(subVolRecvPath, subVolTargetPath)
+			err = os.Rename(subVolRecvPath, dest)
+			closer()
 			if err != nil {
 				return errors.Wrapf(err, "Failed to rename '%s' to '%s'", subVolRecvPath, subVolTargetPath)
 			}

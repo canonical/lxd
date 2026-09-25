@@ -262,6 +262,31 @@ test_backup_import_with_project() {
     lxc delete --force c1
   fi
 
+  if [ "$lxd_backend" = "btrfs" ]; then
+    # A custom subvolume path in optimized_header.yaml must not be able to traverse out of the
+    # volume mount point. Repack the backup unchanged first and require it to import. Afterwards,
+    # replace the path and ensure import rejects it.
+    mkdir "${LXD_DIR}/backup-tamper"
+    tar -xzf "${LXD_DIR}/c1-optimized.tar.gz" -C "${LXD_DIR}/backup-tamper"
+
+    tar -czf "${LXD_DIR}/c1-repacked-optimized.tar.gz" -C "${LXD_DIR}/backup-tamper" backup
+    lxc import "${LXD_DIR}/c1-repacked-optimized.tar.gz"
+    lxc delete --force c1
+
+    sed -i 's|^- path: /$|- path: ../../../../etc/cron.d|' "${LXD_DIR}/backup-tamper/backup/optimized_header.yaml"
+    tar -czf "${LXD_DIR}/c1-traversal-optimized.tar.gz" -C "${LXD_DIR}/backup-tamper" backup
+
+    OUTPUT="$(! lxc import "${LXD_DIR}/c1-traversal-optimized.tar.gz" 2>&1 || false)"
+    if ! echo "${OUTPUT}" | grep -qF 'Subvolume path "../../../../etc/cron.d" must be within the volume' ; then
+      echo "path-traversal subvolume path was not rejected on import"
+      false
+    fi
+
+    ! lxc info c1 || false
+
+    rm -rf "${LXD_DIR}/backup-tamper" "${LXD_DIR}/c1-repacked-optimized.tar.gz" "${LXD_DIR}/c1-traversal-optimized.tar.gz"
+  fi
+
   # A crafted index.yaml name containing ../ must be rejected before it becomes the volume path.
   mkdir "${LXD_DIR}/traversal"
   tar -xzf "${LXD_DIR}/c1.tar.gz" -C "${LXD_DIR}/traversal"

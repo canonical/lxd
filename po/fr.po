@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-07-05 16:53-0400\n"
+"POT-Creation-Date: 2026-09-16 10:36+0000\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -305,7 +305,7 @@ msgstr "%s (%d de plus)"
 msgid "%s (%d more)"
 msgstr "%s (%d de plus)"
 
-#: lxc/file.go:855
+#: lxc/file.go:900
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s n'est pas un répertoire"
@@ -315,7 +315,7 @@ msgstr "%s n'est pas un répertoire"
 msgid "%v (interrupt two more times to force)"
 msgstr "%v (interrompre encore deux fois pour forcer)"
 
-#: lxc/file.go:749
+#: lxc/file.go:794
 #, fuzzy, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' n'est pas un format de fichier pris en charge."
@@ -777,6 +777,11 @@ msgstr ""
 
 #: lxc/remote.go:103
 msgid "Candid domain to use"
+msgstr ""
+
+#: lxc/file.go:756
+#, c-format
+msgid "Cannot overwrite directory %q with symlink"
 msgstr ""
 
 #: lxc/info.go:395 lxc/info.go:407
@@ -1558,7 +1563,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/file.go:744
+#: lxc/file.go:789
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -2985,7 +2990,7 @@ msgstr "Ignorer l'état du conteneur (seulement pour start)"
 msgid "Pull files from instances"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:375 lxc/file.go:698
+#: lxc/file.go:375 lxc/file.go:728
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr ""
@@ -2995,7 +3000,7 @@ msgstr ""
 msgid "Push files into instances"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:634 lxc/file.go:790
+#: lxc/file.go:634 lxc/file.go:835
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr ""
@@ -3915,7 +3920,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/file.go:731
+#: lxc/file.go:776
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
