@@ -9,7 +9,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
-	"github.com/canonical/lxd/lxd/placement/filters"
+	"github.com/canonical/lxd/lxd/placement/internal/filters"
 	"github.com/canonical/lxd/lxd/placement/internal/models"
 )
 
