@@ -26,6 +26,7 @@ var pureVersion = ""
 var pureSupportedConnectors = []string{
 	connectors.TypeISCSI,
 	connectors.TypeNVMeTCP,
+	connectors.TypeNVMeFC,
 	connectors.TypeSCSIFC,
 }
 
@@ -157,7 +158,7 @@ func (d *pure) Validate(config map[string]string) error {
 		"pure.gateway.verify": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.target)
 		// A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
-		// This option has no effect when `pure.mode` is set to `scsi/fc`, because Fibre Channel targets are identified by WWPN rather than by network address.
+		// This option has no effect in the Fibre Channel modes (`scsi/fc` and `nvme/fc`), because their targets are addressed by World Wide Name rather than by network address.
 		// ---
 		//  type: string
 		//  defaultdesc: all available targets
@@ -165,7 +166,7 @@ func (d *pure) Validate(config map[string]string) error {
 		"pure.target": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.mode)
 		// The mode to use to map Pure Storage volumes to the local server.
-		// Supported values are `iscsi`, `nvme/tcp`, and `scsi/fc`.
+		// Supported values are `iscsi`, `nvme/tcp`, `nvme/fc`, and `scsi/fc`.
 		// ---
 		//  type: string
 		//  defaultdesc: `nvme/tcp`
