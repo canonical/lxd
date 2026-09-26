@@ -167,6 +167,20 @@ func (m *Monitor) CloseFile(name string) error {
 
 // SendFileWithFDSet adds a new file descriptor to an FD set.
 func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (*AddFdInfo, error) {
+	return m.addFD(nil, name, file, readonly)
+}
+
+// AddFileToFDSet adds a file descriptor to the existing FD set of the given ID.
+// QEMU dups the file descriptor of the set whose access mode matches the one it opens the set with.
+// A set that contains a read-only and a read-write descriptor of the same file therefore lets QEMU
+// reopen its node in either mode.
+func (m *Monitor) AddFileToFDSet(fdSetID int, name string, file *os.File, readonly bool) error {
+	_, err := m.addFD(&fdSetID, name, file, readonly)
+	return err
+}
+
+// addFD adds a file descriptor to the FD set of the given ID, or to a new FD set when the ID is nil.
+func (m *Monitor) addFD(fdSetID *int, name string, file *os.File, readonly bool) (*AddFdInfo, error) {
 	// Check if disconnected.
 	if m.disconnected || m.qmp == nil {
 		return nil, ErrMonitorDisconnect
@@ -177,13 +191,19 @@ func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (
 		permissions = "rdonly"
 	}
 
+	args := map[string]any{
+		"opaque": permissions + ":" + name,
+	}
+
+	if fdSetID != nil {
+		args["fdset-id"] = *fdSetID
+	}
+
 	id := m.qmp.qmpIncreaseID()
 	req := &qmpCommand{
-		ID:      id,
-		Execute: "add-fd",
-		Arguments: map[string]any{
-			"opaque": permissions + ":" + name,
-		},
+		ID:        id,
+		Execute:   "add-fd",
+		Arguments: args,
 	}
 
 	reqJSON, err := json.Marshal(req)
@@ -252,6 +272,9 @@ func (m *Monitor) RemoveFDFromFDSet(name string) error {
 				if err != nil {
 					return fmt.Errorf("Failed removing fd from fd set: %w", err)
 				}
+
+				// Removing an fd set without an fd removes all of its fds.
+				break
 			}
 		}
 	}
@@ -1021,6 +1044,37 @@ func (m *Monitor) blockJobWaitReady(jobID string) error {
 	}
 }
 
+// BlockJobWaitGone waits until the specified jobID is no longer listed, which happens once a job
+// that is dismissed automatically has concluded.
+func (m *Monitor) BlockJobWaitGone(jobID string) error {
+	for {
+		var resp struct {
+			Return []struct {
+				Device string `json:"device"`
+			} `json:"return"`
+		}
+
+		err := m.run("query-block-jobs", nil, &resp)
+		if err != nil {
+			return err
+		}
+
+		found := false
+		for _, job := range resp.Return {
+			if job.Device == jobID {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return nil
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
 // BlockCommit merges a snapshot device back into its parent device.
 func (m *Monitor) BlockCommit(deviceNodeName string) error {
 	var args struct {
@@ -1223,6 +1277,17 @@ func BlockDirtyBitmapMergeAction(nodeName string, bitmapName string, sources []B
 		Type: "block-dirty-bitmap-merge",
 		Data: blockDirtyBitmapMergeArgs(nodeName, bitmapName, sources),
 	}
+}
+
+// BlockDirtyBitmapMerge merges the source bitmaps into the target bitmap, as
+// BlockDirtyBitmapMergeAction does in a transaction.
+func (m *Monitor) BlockDirtyBitmapMerge(nodeName string, bitmapName string, sources []BlockDirtyBitmapSource) error {
+	err := m.run("block-dirty-bitmap-merge", blockDirtyBitmapMergeArgs(nodeName, bitmapName, sources), nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // RemoveDirtyBitmap removes a dirty bitmap from a block node.
