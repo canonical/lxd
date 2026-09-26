@@ -433,6 +433,7 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 		TLSClientConfig:  httpTransport.TLSClientConfig,
 		Proxy:            httpTransport.Proxy,
 		HandshakeTimeout: time.Second * 5,
+		Jar:              r.http.Jar,
 	}
 
 	// Create temporary http.Request using the http url, not the ws one, so that we can add the client headers
