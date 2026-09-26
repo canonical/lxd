@@ -1425,6 +1425,9 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogr
 
 // RenameVolumeSnapshot renames a volume snapshot.
 func (d *lvm) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, progressReporter ioprogress.ProgressReporter) error {
+	revert := revert.New()
+	defer revert.Fail()
+
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, snapVol.name)
 
 	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
@@ -1435,6 +1438,8 @@ func (d *lvm) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, progr
 		return fmt.Errorf("Error renaming LVM logical volume: %w", err)
 	}
 
+	revert.Add(func() { _ = d.renameLogicalVolume(newVolDevPath, volDevPath) })
+
 	oldPath := snapVol.MountPath()
 	newPath := GetVolumeMountPath(d.name, snapVol.volType, newSnapVolName)
 	err = os.Rename(oldPath, newPath)
@@ -1442,5 +1447,21 @@ func (d *lvm) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, progr
 		return fmt.Errorf("Error renaming snapshot mount path from %q to %q: %w", oldPath, newPath, err)
 	}
 
+	revert.Add(func() { _ = os.Rename(newPath, oldPath) })
+
+	// For VMs, also rename the filesystem volume, which shares the mount path renamed above.
+	if snapVol.IsVMBlock() {
+		fsVol := snapVol.NewVMBlockFilesystemVolume()
+		fsVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], fsVol.volType, fsVol.contentType, fsVol.name)
+		newFsVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], fsVol.volType, fsVol.contentType, newSnapVolName)
+		err = d.renameLogicalVolume(fsVolDevPath, newFsVolDevPath)
+		if err != nil {
+			return fmt.Errorf("Error renaming VM filesystem LVM logical volume from %q to %q: %w", fsVolDevPath, newFsVolDevPath, err)
+		}
+
+		revert.Add(func() { _ = d.renameLogicalVolume(newFsVolDevPath, fsVolDevPath) })
+	}
+
+	revert.Success()
 	return nil
 }
