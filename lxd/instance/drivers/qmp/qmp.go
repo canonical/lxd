@@ -261,6 +261,7 @@ const heavyCommandTimeout = 30 * time.Second
 var commandTimeouts = map[string]time.Duration{
 	"block-commit":              blockCommandTimeout,
 	"block-dirty-bitmap-add":    blockCommandTimeout,
+	"block-dirty-bitmap-merge":  blockCommandTimeout,
 	"block-dirty-bitmap-remove": blockCommandTimeout,
 	"block-export-add":          blockCommandTimeout,
 	"block-export-del":          blockCommandTimeout,
