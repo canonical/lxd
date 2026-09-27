@@ -100,6 +100,12 @@ readonly test_group_instance=(
     "exec"
     "exec_exit_code"
     "lxd_benchmark_basic"
+    "microvm_devices_disk"
+    "microvm_devices_nic"
+    "microvm_feature_preview"
+    "microvm_lifecycle"
+    "microvm_missing_kernel"
+    "microvm_negative"
     "vm_empty"
     "vm_pcie_bus"
 )

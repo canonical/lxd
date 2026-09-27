@@ -86,6 +86,12 @@ spawn_lxd() {
     "$lxd_backend"_setup "${LXD_DIR}"
     echo "$lxd_backend" > "${LXD_DIR}/lxd.backend"
 
+    # Setup microvm kernel if available
+    if [ -n "${LXD_MICROVM_KERNEL:-}" ] && [ -f "${LXD_MICROVM_KERNEL}" ]; then
+        mkdir -p "${LXD_DIR}/microvm"
+        cp "${LXD_MICROVM_KERNEL}" "${LXD_DIR}/microvm/vmlinuz"
+    fi
+
     echo "==> Spawning lxd in ${LXD_DIR}"
 
     if [ "${LXD_NETNS}" = "" ]; then
