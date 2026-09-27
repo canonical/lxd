@@ -2355,7 +2355,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 					return err
 				}
 			}
-		case cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM:
+		case cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, cluster.StoragePoolVolumeTypeMicroVM:
 			inst, err := instance.LoadByProjectAndName(s, effectiveProjectName, dbVolume.Name)
 			if err != nil {
 				return err

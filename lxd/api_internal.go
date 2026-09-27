@@ -780,7 +780,7 @@ func internalImportFromBackup(ctx context.Context, s *state.State, bInfo *backup
 	instanceVolType := storageDrivers.VolumeTypeContainer
 	instanceDBVolType := cluster.StoragePoolVolumeTypeContainer
 
-	for _, volType := range []storageDrivers.VolumeType{storageDrivers.VolumeTypeVM, storageDrivers.VolumeTypeContainer} {
+	for _, volType := range []storageDrivers.VolumeType{storageDrivers.VolumeTypeVM, storageDrivers.VolumeTypeMicroVM, storageDrivers.VolumeTypeContainer} {
 		for _, poolName := range storagePoolNames {
 			volStorageName := project.Instance(projectName, instName)
 			instanceMntPoint := storageDrivers.GetVolumeMountPath(poolName, volType, volStorageName)
@@ -790,10 +790,14 @@ func internalImportFromBackup(ctx context.Context, s *state.State, bInfo *backup
 				instancePoolName = poolName
 				instanceVolType = volType
 
-				if volType == storageDrivers.VolumeTypeVM {
+				switch volType {
+				case storageDrivers.VolumeTypeVM:
 					instanceType = instancetype.VM
 					instanceDBVolType = cluster.StoragePoolVolumeTypeVM
-				} else {
+				case storageDrivers.VolumeTypeMicroVM:
+					instanceType = instancetype.MicroVM
+					instanceDBVolType = cluster.StoragePoolVolumeTypeMicroVM
+				default:
 					instanceType = instancetype.Container
 					instanceDBVolType = cluster.StoragePoolVolumeTypeContainer
 				}
