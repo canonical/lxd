@@ -120,6 +120,7 @@ Name                                       | Default                   | Descrip
 `LXD_NIC_BRIDGED_DRIVER`                   | ""                        | Specifies bridged NIC driver for tests (either native or openvswitch, defaults to native)
 `LXD_REQUIRED_TESTS`                       | ""                        | Space-delimited list of test names that must not be skipped if their prerequisites are not met
 `LXD_VM_TESTS`                             | 1                         | Enables tests using VMs and the on-demand installation of the needed tools
+`LXD_MICROVM_TESTS`                        | 1                         | Enables tests using MicroVMs (skipped when KVM, libkrun or a MicroVM kernel is missing)
 
 ## Recommendations
 
