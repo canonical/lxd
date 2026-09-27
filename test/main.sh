@@ -106,6 +106,12 @@ enable_feature_preview failure_domain_placement
 # storage_block_tracking.sh and auth.sh exercise.
 enable_feature_preview changed_block_tracking
 
+export LXD_MICROVM_TESTS="${LXD_MICROVM_TESTS:-0}"
+if [ "${LXD_MICROVM_TESTS}" != "0" ]; then
+  # The microvm instance type is gated behind a feature preview for both client and daemon.
+  enable_feature_preview microvm
+fi
+
 export CLIENT_DEBUG="" SERVER_DEBUG="" SHELL_TRACING=""
 if [ "${LXD_VERBOSE:-0}" != "0" ]; then
   if [ "${LXD_VERBOSE}" = "client" ]; then
@@ -750,6 +756,8 @@ run_test() {
     # If LXD_VM_TESTS=1, then VM tests can be run.
     if [[ "${test_name}" =~ ^.*_vm.*$ ]] && [ "${LXD_VM_TESTS}" = "0" ]; then
       TEST_UNMET_REQUIREMENT="VM test currently disabled due to LXD_VM_TESTS=0"
+    elif [[ "${test_name}" =~ ^.*microvm.*$ ]] && [ "${LXD_MICROVM_TESTS}" = "0" ]; then
+      TEST_UNMET_REQUIREMENT="MicroVM test currently disabled due to LXD_MICROVM_TESTS=0"
     else
       # Check for any core dump before running the test
       # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
