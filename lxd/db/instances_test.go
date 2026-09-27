@@ -484,6 +484,43 @@ func TestGetInstancePool(t *testing.T) {
 
 		assert.Equal(t, "default", poolName)
 
+		_, err = tx.CreateStoragePoolVolume(ctx, "default", "m1", "", cluster.StoragePoolVolumeTypeMicroVM, poolID, nil, cluster.StoragePoolVolumeContentTypeFS, time.Now())
+		if err != nil {
+			return err
+		}
+
+		microvm := cluster.Instance{
+			Project: "default",
+			Name:    "m1",
+			Node:    "none",
+			Type:    instancetype.MicroVM,
+		}
+
+		mID, err := cluster.CreateInstance(context.TODO(), tx.Tx(), microvm)
+		if err != nil {
+			return err
+		}
+
+		err = cluster.CreateInstanceDevices(context.TODO(), tx.Tx(), mID, map[string]cluster.Device{
+			"root": {
+				Name: "root",
+				Config: map[string]string{"path": "/",
+					"pool": "default",
+					"type": "disk",
+				},
+			},
+		})
+		if err != nil {
+			return err
+		}
+
+		poolName, err = tx.GetInstancePool(ctx, "default", "m1")
+		if err != nil {
+			return err
+		}
+
+		assert.Equal(t, "default", poolName)
+
 		return nil
 	})
 	require.NoError(t, err)
