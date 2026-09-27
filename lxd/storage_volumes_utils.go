@@ -18,7 +18,7 @@ import (
 	"github.com/canonical/lxd/shared/version"
 )
 
-var supportedVolumeTypes = []cluster.StoragePoolVolumeType{cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, cluster.StoragePoolVolumeTypeCustom, cluster.StoragePoolVolumeTypeImage}
+var supportedVolumeTypes = []cluster.StoragePoolVolumeType{cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, cluster.StoragePoolVolumeTypeMicroVM, cluster.StoragePoolVolumeTypeCustom, cluster.StoragePoolVolumeTypeImage}
 
 func storagePoolVolumeUpdateUsers(ctx context.Context, s *state.State, projectName string, oldPoolName string, oldVol *api.StorageVolume, newPoolName string, newVol *api.StorageVolume) (revert.Hook, error) {
 	revert := revert.New()
@@ -142,7 +142,7 @@ func storagePoolVolumeUpdateUsers(ctx context.Context, s *state.State, projectNa
 
 // storagePoolVolumeUsedByGet returns a list of URL resources that use the volume.
 func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, vol *db.StorageVolume) ([]string, error) {
-	if vol.Type == cluster.StoragePoolVolumeTypeNameContainer {
+	if vol.Type == cluster.StoragePoolVolumeTypeNameContainer || vol.Type == cluster.StoragePoolVolumeTypeNameMicroVM {
 		volName, snapName, isSnap := api.GetParentAndSnapshotName(vol.Name)
 		if isSnap {
 			return []string{api.NewURL().Path(version.APIVersion, "instances", volName, "snapshots", snapName).Project(vol.Project).String()}, nil
