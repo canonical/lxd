@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"slices"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db/cluster"
@@ -93,7 +92,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Check that the storage volume type is valid.
-	if !slices.Contains([]cluster.StoragePoolVolumeType{cluster.StoragePoolVolumeTypeCustom, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM}, volumeType) {
+	if !isSupportedNonImageVolumeType(volumeType) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
