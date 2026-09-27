@@ -42,7 +42,7 @@ func parseVolume(defaultType string, name string) (volName string, volType strin
 	fields := strings.SplitN(name, "/", 2)
 	if len(fields) == 1 {
 		volName, volType = fields[0], defaultType
-	} else if len(fields) == 2 && !slices.Contains([]string{"custom", "image", "container", "virtual-machine"}, fields[0]) {
+	} else if len(fields) == 2 && !slices.Contains([]string{"custom", "image", "container", "virtual-machine", "microvm"}, fields[0]) {
 		volName, volType = name, defaultType
 	} else {
 		volName, volType = fields[1], fields[0]
@@ -1631,7 +1631,7 @@ Column shorthand chars:
     e - Project name
     L - Location of the instance (e.g. its cluster member)
     n - Name
-    t - Type of volume (custom, image, container or virtual-machine)
+    t - Type of volume (custom, image, container, virtual-machine or microvm)
     u - Number of references (used by)
     U - Current disk usage`)
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", cli.FormatStringFlagLabel("Format (csv|json|table|yaml|compact)"))
