@@ -23,6 +23,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -339,7 +340,11 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 		instancetype.VM:        shared.VarPath("virtual-machines"),
 	}
 
-	instanceTypeNames := make(map[instancetype.Type][]os.DirEntry, 2)
+	if features.IsEnabled(features.MicroVM) {
+		instancePaths[instancetype.MicroVM] = shared.VarPath("microvms")
+	}
+
+	instanceTypeNames := make(map[instancetype.Type][]os.DirEntry, len(instancePaths))
 
 	instanceTypeNames[instancetype.Container], err = os.ReadDir(instancePaths[instancetype.Container])
 	if err != nil && !os.IsNotExist(err) {
@@ -351,7 +356,14 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 		return nil, err
 	}
 
-	instances := make([]instance.Instance, 0, len(instanceTypeNames[instancetype.Container])+len(instanceTypeNames[instancetype.VM]))
+	if features.IsEnabled(features.MicroVM) {
+		instanceTypeNames[instancetype.MicroVM], err = os.ReadDir(instancePaths[instancetype.MicroVM])
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
+
+	instances := make([]instance.Instance, 0, len(instanceTypeNames[instancetype.Container])+len(instanceTypeNames[instancetype.VM])+len(instanceTypeNames[instancetype.MicroVM]))
 	for instanceType, instanceNames := range instanceTypeNames {
 		for _, file := range instanceNames {
 			// Convert file name to project name and instance name.
