@@ -8151,6 +8151,31 @@ test_clustering_replicator_ceph_mirror() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete unmirrored v1 --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete unmirrored
 
+  sub_test "Demote and promote the mirrored project's volumes"
+
+  local osd_image="${osd_pool_one}/container_replicator-project_c1"
+
+  # Demoting an image out from under a running guest is refused.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set replicator-project replica.cluster=lxd_two
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replicator-project 2>&1)" = 'Error: Instance "c1" is running, stop all project instances before demoting' ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc stop c1 --force --project replicator-project
+
+  # The mode flips first, then the image goes non-primary.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replicator-project | jq --exit-status '.replica_mode == "standby"'
+  rbd --format json info "${osd_image}" | jq --exit-status '.mirroring.primary == false'
+
+  # A demotion can be run again on a project that is already standby, which is how one that failed
+  # part way is completed. The driver tolerates the image being non-primary already.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project demote-replica replicator-project
+
+  # An unforced promotion succeeds because no peer holds the primary, and the image is writable again.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project promote-replica replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/projects/replicator-project | jq --exit-status '.replica_mode == "leader"'
+  rbd --format json info "${osd_image}" | jq --exit-status '.mirroring.primary == true'
+  LXD_DIR="${LXD_ONE_DIR}" lxc start c1 --project replicator-project
+  LXD_DIR="${LXD_ONE_DIR}" lxc list --project replicator-project --format csv --columns ns | grep -xF 'c1,RUNNING'
+
   sub_test "A pool without the key keeps the migration variant"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc storage unset "${pool_one}" ceph.replicator.replicator-project
