@@ -1121,17 +1121,20 @@ parts:
       - lib/*/liburing.so*
       - lib/*/libusbredir*so*
       - lib/*/libusb*so*
-      - lib/*/libfdt*.so*
       - to amd64:
+        - lib/*/libfdt*.so*
         - share/qemu/bios-256k.bin
         - share/qemu/efi-virtio.rom
         - share/qemu/kvmvapic.bin
         - share/qemu/vgabios-virtio.bin
       - to arm64:
+        - lib/*/libfdt*.so*
         - share/qemu/vgabios-virtio.bin
       - to ppc64el:
+        - lib/*/libfdt*.so*
         - share/qemu/slof.bin
       - to riscv64:
+        - lib/*/libfdt*.so*
         - share/qemu/opensbi-riscv64-generic-fw_dynamic.bin
       - to s390x:
         - share/qemu/s390-ccw.img
