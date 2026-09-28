@@ -81,6 +81,8 @@ test_migration() {
   lxc_remote snapshot l1:u1 snap
 
   lxc_remote copy l1:u1 l2: -d eth1,ipv4.address=10.100.100.10 -d eth1,network=foonet2
+  [ "$(lxc_remote config device get l1:u1 eth1 ipv4.address)" = "10.100.10.10" ]
+  [ "$(lxc_remote config device get l2:u1 eth1 ipv4.address)" = "10.100.100.10" ]
 
   lxc_remote delete l1:u1 l2:u1
   lxc_remote network delete l1:foonet
@@ -430,6 +432,15 @@ migration() {
   lxc_remote storage volume snapshot l1:"$remote_pool1" vol1 snapremove
   lxc_remote storage volume set l1:"$remote_pool1" vol1 user.foo=postsnap1vol1
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --refresh
+
+  # Refreshing the same snapshots should preserve their UUIDs.
+  local old_uuid old_snap0_uuid
+  old_uuid="$(lxc_remote storage volume get l2:"$remote_pool2" vol2 volatile.uuid)"
+  old_snap0_uuid="$(lxc_remote storage volume get l2:"$remote_pool2" vol2/snap0 volatile.uuid)"
+  lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --refresh
+  [ "$(lxc_remote storage volume get l2:"$remote_pool2" vol2 volatile.uuid)" = "${old_uuid}" ]
+  [ "$(lxc_remote storage volume get l2:"$remote_pool2" vol2/snap0 volatile.uuid)" = "${old_snap0_uuid}" ]
+
   lxc_remote storage volume delete l1:"$remote_pool1" vol1
 
   [ "$(lxc_remote storage volume get l2:"$remote_pool2" vol2 user.foo)" = "postsnap1vol1" ]
@@ -457,18 +468,6 @@ migration() {
   [ "$(lxc_remote storage volume get l2:"$remote_pool2" vol2/snap2 user.foo)" = "snap2vol3" ]
   ! lxc_remote storage volume show l2:"$remote_pool2" vol2/snapremove || false
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
-
-  # check that a refresh doesn't change the volume's and snapshot's UUID.
-  lxc_remote storage volume create l1:"$remote_pool1" vol1 size="${minimal_size}"
-  lxc_remote storage volume snapshot l1:"$remote_pool1" vol1
-  lxc_remote storage volume copy l1:"$remote_pool1"/vol1 l2:"$remote_pool2"/vol2
-  old_uuid="$(lxc storage volume get l2:"$remote_pool2" vol2 volatile.uuid)"
-  old_snap0_uuid="$(lxc storage volume get l2:"$remote_pool2" vol2/snap0 volatile.uuid)"
-  lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --refresh
-  [ "$(lxc storage volume get l2:"$remote_pool2" vol2 volatile.uuid)" = "${old_uuid}" ]
-  [ "$(lxc storage volume get l2:"$remote_pool2" vol2/snap0 volatile.uuid)" = "${old_snap0_uuid}" ]
-  lxc_remote storage volume delete l2:"$remote_pool2" vol2
-  lxc_remote storage volume delete l1:"$remote_pool1" vol1
 
   # remote storage volume migration in "push" mode
   lxc_remote storage volume create l1:"$remote_pool1" vol1 size="${minimal_size}"
@@ -669,7 +668,7 @@ migration() {
   lxc_remote project delete l1:restricted
 
   # Check snapshot creation dates after migration.
-  lxc_remote init testimage l1:c1
+  lxc_remote init --empty l1:c1
   lxc_remote snapshot l1:c1
   lxc_remote storage volume show "l1:${remote_pool1}" container/c1 | grep '^created_at: 2'
   lxc_remote storage volume show "l1:${remote_pool1}" container/c1/snap0 | grep '^created_at: 2'
