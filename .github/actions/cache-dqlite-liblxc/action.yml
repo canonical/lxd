@@ -96,6 +96,7 @@ runs:
       run: | # zizmor: ignore[github-env]
         set -eux
 
+        unset PKG_CONFIG_PATH  # avoid inheriting the caller's PKG_CONFIG_PATH
         eval "$(make -s env)"
         export LD_RUN_PATH="${LD_LIBRARY_PATH}" # Ensure linked binaries can find the libraries at runtime
         for variable in CGO_CFLAGS CGO_LDFLAGS CGO_LDFLAGS_ALLOW LD_LIBRARY_PATH PKG_CONFIG_PATH LD_RUN_PATH; do
