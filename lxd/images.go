@@ -1511,6 +1511,37 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(errors.New("Invalid images JSON"))
 	}
 
+	// For a local image copy that reuses an image cached in another project, verify the caller is
+	// allowed to view the source image. A private image in a different project requires the CanView
+	// entitlement on it, mirroring the authorization performed when creating or rebuilding an
+	// instance from an image. Public images and same-project sources need no additional check.
+	// Cluster-internal requests (member-to-member replication) are already trusted and skipped.
+	if !imageUpload && req.Source.Type == api.SourceTypeImage && req.Source.ImageRegistry == "" && !isClusterNotification {
+		var imageAuthorizationChecker func(ctx context.Context) error
+		var sourceImageRef string
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			instSource := api.InstanceSource{
+				Type:        api.SourceTypeImage,
+				Alias:       req.Source.Alias,
+				Fingerprint: req.Source.Fingerprint,
+				Project:     req.Source.Project,
+			}
+
+			_, imageAuthorizationChecker, err = resolveSourceImageFromCache(r, s, tx, dbProject.Name, instSource, &sourceImageRef, "")
+			return err
+		})
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return response.SmartError(err)
+		}
+
+		if imageAuthorizationChecker != nil {
+			err = imageAuthorizationChecker(r.Context())
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+	}
+
 	if req.CompressionAlgorithm != "" {
 		err = validate.IsCompressionAlgorithm(req.CompressionAlgorithm)
 		if err != nil {
