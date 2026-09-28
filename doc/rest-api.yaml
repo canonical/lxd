@@ -1428,7 +1428,7 @@ definitions:
                 x-go-name: Groups
             tls_certificate:
                 description: |-
-                    TLSCertificate is a base64 encoded x509 certificate. This can only be set if the authentication method of the identity is AuthenticationMethodTLS.
+                    TLSCertificate is a PEM encoded x509 certificate. This can only be set if the authentication method of the identity is AuthenticationMethodTLS.
 
                     API extension: access_management_tls.
                 type: string
