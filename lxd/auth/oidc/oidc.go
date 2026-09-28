@@ -2,6 +2,8 @@ package oidc
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +11,7 @@ import (
 	"net/mail"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -74,6 +77,41 @@ type Verifier struct {
 	// expireConfig is used to expiry the relying party configuration before it is next used. This is so that proxy
 	// configurations (core.https_proxy) can be applied to the HTTP client used to call the IdP.
 	expireConfig bool
+
+	// Map of sha256 hashes of sent access tokens to the expiry of their associated sessions.
+	// This is used so that we can tell if a client is resending the same access token and omitting the session cookie.
+	accessTokens   map[string]time.Time
+	accessTokensMu sync.Mutex
+}
+
+// observeAccessTokenUse hashes the given token and checks the accessTokens map for an entry.
+// If it finds an entry and the associated session has not expired, then the client is causing LXD to reach out to the
+// IdP for authentication unnecessarily. In this case, a warning is logged containing the email address of the client.
+// Note that we already log email addresses for lifecycle and security events, so confidentiality is not a concern.
+// After this check, this function iterates over all (hashed) tokens and removes any whose associated session has expired
+// (preventing the map from growing indefinitely).
+func (o *Verifier) observeAccessTokenUse(token string, email string, sessionExpiry time.Time) {
+	sum := sha256.Sum256([]byte(token))
+	hash := hex.EncodeToString(sum[:])
+	now := time.Now()
+
+	o.accessTokensMu.Lock()
+	defer o.accessTokensMu.Unlock()
+
+	expiry, ok := o.accessTokens[hash]
+	if ok && !now.After(expiry) {
+		logger.Warn("Access token sent without session data but an associated session has not expired - the session may have been manually revoked", logger.Ctx{"email": email})
+	}
+
+	o.accessTokens[hash] = sessionExpiry
+
+	// For logging purposes we only care about access tokens with associated non-expired sessions that were unaccompanied
+	// by session credentials. Delete any map entries whose associated sessions have expired to ensure the map remains bounded.
+	for h, exp := range o.accessTokens {
+		if now.After(exp) {
+			delete(o.accessTokens, h)
+		}
+	}
 }
 
 // AuthenticationResult represents an authenticated OIDC client.
@@ -120,7 +158,7 @@ func (o *Verifier) Auth(w http.ResponseWriter, r *http.Request) (*Authentication
 	// If a bearer token is provided, it must be valid.
 	bearerToken, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if ok && bearerToken != "" {
-		return o.authenticateBearerToken(r, w, bearerToken)
+		return o.authenticateBearerToken(r, w, bearerToken, false)
 	}
 
 	// Return an AuthError, instructing the daemon to write OIDC headers for the client to use to obtain a token via the
@@ -150,7 +188,7 @@ func (o *Verifier) userInfo(ctx context.Context, token string) (*oidc.UserInfo, 
 
 // authenticateBearerToken calls the /userinfo endpoint with the given token to retrieve information about the user. Then
 // starts a new session.
-func (o *Verifier) authenticateBearerToken(r *http.Request, w http.ResponseWriter, accessToken string) (*AuthenticationResult, error) {
+func (o *Verifier) authenticateBearerToken(r *http.Request, w http.ResponseWriter, accessToken string, sessionCookiePresent bool) (*AuthenticationResult, error) {
 	agent, err := request.ParseUserAgent(r.UserAgent())
 	if err != nil {
 		return nil, api.StatusErrorf(http.StatusBadRequest, "Failed parsing user agent to determine persistent cookie feature: %w", err)
@@ -175,9 +213,13 @@ func (o *Verifier) authenticateBearerToken(r *http.Request, w http.ResponseWrite
 		return nil, fmt.Errorf("Failed parsing user info response: %w", err)
 	}
 
-	err = o.startSession(r, w, *res, nil, nil)
+	exp, err := o.startSession(r, w, *res, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed starting a new session: %w", err)
+	}
+
+	if !sessionCookiePresent {
+		o.observeAccessTokenUse(accessToken, res.Email, *exp)
 	}
 
 	return res, nil
@@ -211,7 +253,7 @@ func (o *Verifier) verifySession(r *http.Request, w http.ResponseWriter, session
 		// If not found, check if the caller already sent a bearer token to reverify.
 		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 		if ok && token != "" {
-			return o.authenticateBearerToken(r, w, token)
+			return o.authenticateBearerToken(r, w, token, true)
 		}
 
 		// Otherwise, the session was revoked.
@@ -220,7 +262,7 @@ func (o *Verifier) verifySession(r *http.Request, w http.ResponseWriter, session
 
 	// If we signed the session with a key derived from an old cluster secret, start a new session and override the expiry.
 	if startNewSession {
-		err = o.startSession(r, w, *res, tokens, expiry)
+		_, err = o.startSession(r, w, *res, tokens, expiry)
 		if err != nil {
 			return nil, fmt.Errorf("Failed starting a new session: %w", err)
 		}
@@ -256,17 +298,19 @@ func (o *Verifier) handleExpiredSession(r *http.Request, w http.ResponseWriter, 
 
 		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 		if ok && token != "" {
-			return o.authenticateBearerToken(r, w, token)
+			return o.authenticateBearerToken(r, w, token, true)
 		}
 
 		return nil, AuthError{Err: errors.New("Session expired or revoked, please log in again")}
 	}
 
-	// If no access token in session. Return an auth error so that the oidc headers are sent for them to obtain a new token from the IdP.
+	// If no access token in session, then the session was started by sending a bearer token.
+	// Check if the bearer token is still present and valid (its lifetime may be longer than the session lifetime).
+	// Otherwise, return an auth error so that the oidc headers are sent for them to obtain a new token from the IdP.
 	if tokens.AccessToken == "" {
 		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 		if ok && token != "" {
-			return o.authenticateBearerToken(r, w, token)
+			return o.authenticateBearerToken(r, w, token, true)
 		}
 
 		return nil, AuthError{Err: errors.New("Session expired, please log in again")}
@@ -285,7 +329,7 @@ func (o *Verifier) handleExpiredSession(r *http.Request, w http.ResponseWriter, 
 			return nil, err
 		}
 
-		err = o.startSession(r, w, *res, tokens, nil)
+		_, err = o.startSession(r, w, *res, tokens, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -314,7 +358,7 @@ func (o *Verifier) handleExpiredSession(r *http.Request, w http.ResponseWriter, 
 		return nil, fmt.Errorf("Failed parsing user info response: %w", err)
 	}
 
-	err = o.startSession(r, w, *res, refreshedTokens, nil)
+	_, err = o.startSession(r, w, *res, refreshedTokens, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed starting a new session: %w", err)
 	}
@@ -539,7 +583,7 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 			return fmt.Errorf("Failed parsing user info response: %w", err)
 		}
 
-		err = o.startSession(r, w, *res, tokens, nil)
+		_, err = o.startSession(r, w, *res, tokens, nil)
 		if err != nil {
 			return fmt.Errorf("Failed starting a new session: %w", err)
 		}
@@ -669,20 +713,20 @@ func (o *Verifier) setRelyingParty(ctx context.Context, host string) error {
 
 // startSession starts a new session via the [SessionHandler]. It then issues a token and sets it as a cookie for future
 // authentication.
-func (o *Verifier) startSession(r *http.Request, w http.ResponseWriter, res AuthenticationResult, tokens *oidc.Tokens[*oidc.IDTokenClaims], expiryOverride *time.Time) error {
+func (o *Verifier) startSession(r *http.Request, w http.ResponseWriter, res AuthenticationResult, tokens *oidc.Tokens[*oidc.IDTokenClaims], expiryOverride *time.Time) (*time.Time, error) {
 	secrets, err := o.secretsFunc(r.Context())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	sessionID, expiry, err := o.sessionHandler.StartSession(r, res, tokens, expiryOverride)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	token, err := encryption.GetOIDCSessionToken(secrets[0].Value, *sessionID, o.clusterUUID, *expiry)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	http.SetCookie(w, &http.Cookie{
@@ -697,7 +741,7 @@ func (o *Verifier) startSession(r *http.Request, w http.ResponseWriter, res Auth
 		Expires: expiry.Add(SessionCookieExpiryBuffer),
 	})
 
-	return nil
+	return expiry, nil
 }
 
 // deleteSessionCookie deletes the session cookie.
@@ -795,6 +839,7 @@ func NewVerifier(ctx context.Context, issuer string, clientID string, clientSecr
 		secretsFunc:    secretsFunc,
 		httpClientFunc: httpClientFunc,
 		sessionHandler: sessionHandler,
+		accessTokens:   make(map[string]time.Time),
 	}
 
 	// Ensure configuration is valid with daemon's network address.
