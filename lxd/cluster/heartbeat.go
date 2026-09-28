@@ -486,47 +486,6 @@ func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 	// Check if context has been cancelled.
 	ctxErr := ctx.Err()
 
-	// Look for any new node which appeared since sending last heartbeat.
-	if ctxErr == nil {
-		var currentMembers []db.NodeInfo
-		err = g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			var err error
-			currentMembers, err = tx.GetNodes(ctx)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			logger.Warn("Failed getting current cluster members", logger.Ctx{"err": err, "mode": modeStr, "local": localClusterAddress})
-			return
-		}
-
-		newMembers := []db.NodeInfo{}
-		for _, currentMember := range currentMembers {
-			existing := false
-			for _, member := range members {
-				if member.Address == currentMember.Address && member.ID == currentMember.ID {
-					existing = true
-					break
-				}
-			}
-
-			if !existing {
-				// We found a new node
-				members = append(members, currentMember)
-				newMembers = append(newMembers, currentMember)
-			}
-		}
-
-		// If any new nodes found, send heartbeat to just them (with full node state).
-		if len(newMembers) > 0 {
-			hbState.Update(true, raftNodes, members, offlineThreshold)
-			hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, newMembers, 0)
-		}
-	}
-
 	// Initialise slice to indicate to HeartbeatNodeHook that its being called from leader.
 	unavailableMembers := make([]string, 0)
 
