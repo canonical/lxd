@@ -3,8 +3,8 @@ module github.com/canonical/lxd
 go 1.27.1
 
 require (
-	github.com/NVIDIA/go-nvml v0.13.3-1
-	github.com/NVIDIA/nvidia-container-toolkit v1.20.0
+	github.com/NVIDIA/go-nvml v0.13.4-0
+	github.com/NVIDIA/nvidia-container-toolkit v1.20.1
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.1.0
 	github.com/canonical/go-dqlite/v3 v3.0.4
@@ -37,8 +37,8 @@ require (
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openfga/api/proto v0.0.0-20260723150800-6981fff8d33b
-	github.com/openfga/language/pkg/go v0.3.2-0.20260730144454-83fedf8a4e70
-	github.com/openfga/openfga v1.20.0
+	github.com/openfga/language/pkg/go v0.3.2-0.20260818192608-0d2ad7fb7c40
+	github.com/openfga/openfga v1.21.0
 	github.com/osrg/gobgp/v4 v4.9.0
 	github.com/pkg/sftp v1.13.11
 	github.com/pkg/xattr v0.4.12
@@ -47,7 +47,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/vishvananda/netlink v1.3.1
-	github.com/zitadel/oidc/v3 v3.51.0
+	github.com/zitadel/oidc/v3 v3.51.3
 	go.uber.org/zap v1.28.0
 	go.yaml.in/yaml/v2 v2.4.4
 	golang.org/x/crypto v0.57.0
@@ -104,7 +104,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/natefinch/wrap v0.2.0 // indirect
 	github.com/opencontainers/cgroups v0.0.9 // indirect
-	github.com/opencontainers/runc v1.5.1 // indirect
 	github.com/opencontainers/runtime-spec v1.3.0 // indirect
 	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
