@@ -1249,35 +1249,41 @@ func (p *pureClient) connectHostToVolume(poolName string, volName string, hostNa
 			}
 
 			if connector.Type() == connectors.TypeSCSIFC && lun <= 0 {
-				return 0, false, fmt.Errorf("Existing connection between volume %q and host %q reports no LUN, which SCSI/FC requires", volName, hostName)
+				return 0, false, fmt.Errorf("Existing connection between volume %q and host %q reports no LUN, which SCSI/FC requires", poolName+"::"+volName, hostName)
 			}
 
 			return lun, false, nil
 		}
 
-		return 0, false, fmt.Errorf("Failed connecting volume %q with host %q: %w", volName, hostName, err)
+		return 0, false, fmt.Errorf("Failed connecting volume %q with host %q: %w", poolName+"::"+volName, hostName, err)
 	}
+
+	// The connection now exists on the array. Remove it again if this function returns an
+	// error, rather than leaving behind a connection whose LUN the caller never received.
+	//
+	// This is deliberately armed only after the request succeeded: the "already exists"
+	// branch above returns earlier, and that connection was not created here, so it must
+	// not be disconnected.
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	reverter.Add(func() { _ = p.disconnectHostFromVolume(poolName, volName, hostName) })
 
 	if len(resp.Items) == 0 {
 		// Pure Storage returns the created connection, including its LUN, so this should
 		// not happen. It is guarded because a connection without a known LUN cannot be
 		// mapped for SCSI/FC and would otherwise be silently left behind on the array.
-		// Remove it again rather than proceed.
-		_ = p.disconnectHostFromVolume(poolName, volName, hostName)
-
-		return 0, false, fmt.Errorf("Failed retrieving LUN after connecting volume %q with host %q", volName, hostName)
+		return 0, false, fmt.Errorf("Failed retrieving LUN after connecting volume %q with host %q", poolName+"::"+volName, hostName)
 	}
 
 	lun = resp.Items[0].LUN
 	if connector.Type() == connectors.TypeSCSIFC && lun <= 0 {
 		// Without a LUN the connector cannot scope the SCSI bus rescan, and would scan
-		// LUN 0 instead and quietly find nothing. Remove the connection just created
-		// rather than leave it behind on the array.
-		_ = p.disconnectHostFromVolume(poolName, volName, hostName)
-
-		return 0, false, fmt.Errorf("Connection between volume %q and host %q reports no LUN, which SCSI/FC requires", volName, hostName)
+		// LUN 0 instead and quietly find nothing.
+		return 0, false, fmt.Errorf("Connection between volume %q and host %q reports no LUN, which SCSI/FC requires", poolName+"::"+volName, hostName)
 	}
 
+	reverter.Success()
 	return lun, true, nil
 }
 
