@@ -1343,7 +1343,7 @@ type cmdIdentityEdit struct {
 
 func (c *cmdIdentityEdit) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("edit", "[<remote>:]<group>")
+	cmd.Use = usage("edit", "[<remote>:]<type>/<name_or_identifier>")
 	cmd.Short = "Edit an identity as YAML"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 	cmd.Example = cli.FormatSection("", `lxc auth identity edit <type>/<name_or_identifier> < identity.yaml
