@@ -92,7 +92,7 @@ func Test_PowerStoreHost_MissingQualifiedNames(t *testing.T) {
 			want:          nil,
 		},
 		{
-			name:          "Port name is normalizied and registered initiator is not reported",
+			name:          "Port name is normalized and registered initiator is not reported",
 			connectorType: connectors.TypeSCSIFC,
 			qns:           []string{"0x21000024FF43B10C"},
 			want:          nil,
