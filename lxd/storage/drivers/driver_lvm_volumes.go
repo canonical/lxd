@@ -1425,29 +1425,36 @@ func (d *lvm) RestoreVolume(vol Volume, snapVol Volume, progressReporter ioprogr
 
 // RenameVolumeSnapshot renames a volume snapshot.
 func (d *lvm) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, progressReporter ioprogress.ProgressReporter) error {
+	snapshotDir := GetVolumeSnapshotDir(d.name, snapVol.volType, snapVol.name)
+	snapshotDirRoot, err := os.OpenRoot(snapshotDir)
+	if err != nil {
+		return fmt.Errorf("Failed opening snapshot directory %q: %w", snapshotDir, err)
+	}
+
+	// Closed after the deferred revert, which renames within the root.
+	defer func() { _ = snapshotDirRoot.Close() }()
+
 	revert := revert.New()
 	defer revert.Fail()
 
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, snapVol.name)
 
-	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
+	parentName, oldSnapshotName, _ := api.GetParentAndSnapshotName(snapVol.name)
 	newSnapVolName := GetSnapshotVolumeName(parentName, newSnapshotName)
 	newVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, newSnapVolName)
-	err := d.renameLogicalVolume(volDevPath, newVolDevPath)
+	err = d.renameLogicalVolume(volDevPath, newVolDevPath)
 	if err != nil {
 		return fmt.Errorf("Error renaming LVM logical volume: %w", err)
 	}
 
 	revert.Add(func() { _ = d.renameLogicalVolume(newVolDevPath, volDevPath) })
 
-	oldPath := snapVol.MountPath()
-	newPath := GetVolumeMountPath(d.name, snapVol.volType, newSnapVolName)
-	err = os.Rename(oldPath, newPath)
+	err = snapshotDirRoot.Rename(oldSnapshotName, newSnapshotName)
 	if err != nil {
-		return fmt.Errorf("Error renaming snapshot mount path from %q to %q: %w", oldPath, newPath, err)
+		return fmt.Errorf("Error renaming snapshot mount path from %q to %q in %q: %w", oldSnapshotName, newSnapshotName, snapshotDir, err)
 	}
 
-	revert.Add(func() { _ = os.Rename(newPath, oldPath) })
+	revert.Add(func() { _ = snapshotDirRoot.Rename(newSnapshotName, oldSnapshotName) })
 
 	// For VMs, also rename the filesystem volume, which shares the mount path renamed above.
 	if snapVol.IsVMBlock() {
