@@ -23,6 +23,7 @@ defaults:
 jobs:
   # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
   copilot-setup-steps:
+    if: github.repository_owner == 'canonical' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-26.04
 
     steps:
