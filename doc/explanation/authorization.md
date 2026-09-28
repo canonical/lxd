@@ -158,10 +158,16 @@ Next, configure a mapping between an IdP group and a LXD group as follows:
 
 IdP groups can be mapped to multiple LXD groups, and multiple IdP groups can be mapped to the same LXD group.
 
-```{important}
-LXD does not store the identity provider groups that are extracted from identity or access tokens.
-This can obfuscate the true permissions of an identity.
-For example, if an identity belongs to LXD group "foo", an administrator can view the permissions of group "foo" to determine the level of access of the identity.
-However, if identity provider group mappings are configured, direct group membership alone does not determine their level of access.
-The command `lxc auth identity info` can be run by any identity to view a full list of their own effective groups and permissions as granted directly or indirectly via IdP groups.
-```
+LXD caches IdP groups in identity metadata each time a new OIDC session starts.
+When an identity has multiple sessions, LXD uses the groups cached from the most recently started session.
+As a result, effective group membership and permissions do not reflect changes to group membership at the IdP until the start of a new session.
+
+Any identity can run `lxc auth identity info` to view its effective groups and permissions.
+An administrator can run `lxc auth identity show oidc/<identity>` to view an identity's cached IdP groups and effective group membership.
+
+To refresh the cached groups before a session expires, an administrator can revoke all of an identity's active OIDC sessions to require a new login.
+To view an identity's active sessions, run:
+
+    lxc auth oidc-session list | grep <email_address>
+
+Delete each session separately by running `lxc auth oidc-session delete <session_uuid>` with the session UUID from the list.
