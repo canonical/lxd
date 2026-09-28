@@ -51,6 +51,8 @@ func NotifyUpgradeCompleted(state *state.State, networkCert *shared.CertInfo, se
 			return fmt.Errorf("failed notifying node about completed upgrade: %w", err)
 		}
 
+		defer func() { _ = response.Body.Close() }()
+
 		if response.StatusCode != http.StatusOK {
 			return fmt.Errorf("database upgrade notification failed: %s", response.Status)
 		}
