@@ -1756,7 +1756,7 @@ func (c *cmdIdentityTokenRevoke) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if method != api.AuthenticationMethodBearer {
-		return fmt.Errorf("Cannot issue tokens for identities with authentication method %q", method)
+		return fmt.Errorf("Cannot revoke tokens for identities with authentication method %q", method)
 	}
 
 	server, err := c.global.conf.GetInstanceServer(remote)
