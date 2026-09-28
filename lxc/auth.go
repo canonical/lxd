@@ -865,6 +865,10 @@ func (c *cmdIdentityCreate) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if len(args) == 2 && (method != api.AuthenticationMethodTLS || idType == api.IdentityTypeCertificateClusterLink) {
+		return errors.New("Certificate path can only be specified when creating TLS identities other than cluster links")
+	}
+
 	switch method {
 	case api.AuthenticationMethodTLS:
 		if idType == api.IdentityTypeCertificateClusterLink {
