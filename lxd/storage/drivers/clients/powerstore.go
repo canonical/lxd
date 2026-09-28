@@ -243,11 +243,6 @@ type PowerStoreClient struct {
 	username           string
 	password           string
 	resourceNamePrefix string
-
-	// currentSession holds the current session, which is set after successful login
-	// and used for subsequent requests. Use [PowerStoreClient.session] to retrieve
-	// the current session.
-	currentSession *powerStoreSession
 }
 
 // NewPowerStoreClient creates a new instance of the PowerStore HTTP API client.
@@ -266,25 +261,17 @@ func (c *PowerStoreClient) sessionKey() string {
 	return c.url + c.username + c.password
 }
 
-// session retrieves the current session.
-func (c *PowerStoreClient) session() *powerStoreSession {
-	if c.currentSession != nil {
-		return c.currentSession
-	}
-
+// session retrieves a copy of the current session and reports whether it exists. Returning the
+// session by value avoids allocating a pointer to the map-value copy and avoids implying that
+// callers share the cache entry.
+func (c *PowerStoreClient) session() (powerStoreSession, bool) {
 	key := c.sessionKey()
 
 	powerStoreSessionsLock.RLock()
 	defer powerStoreSessionsLock.RUnlock()
 
 	session, ok := powerStoreSessions[key]
-	if ok {
-		s := session
-		c.currentSession = &s
-		return c.currentSession
-	}
-
-	return nil
+	return session, ok
 }
 
 // setSession sets the current session.
@@ -295,7 +282,6 @@ func (c *PowerStoreClient) setSession(session powerStoreSession) {
 	defer powerStoreSessionsLock.Unlock()
 
 	powerStoreSessions[key] = session
-	c.currentSession = &session
 }
 
 // invalidateSession invalidates the current session.
@@ -306,15 +292,14 @@ func (c *PowerStoreClient) invalidateSession() {
 	defer powerStoreSessionsLock.Unlock()
 
 	delete(powerStoreSessions, key)
-	c.currentSession = nil
 }
 
 // login initiates request() using PowerStore username and password.
-// If successful, the session key is retrieved and stored within client structure.
-// Once stored, the session key is reused for further requests.
-func (c *PowerStoreClient) login() (*powerStoreSession, error) {
-	session := c.session()
-	if session != nil {
+// If successful, the session is stored in the shared session cache and reused for subsequent
+// requests.
+func (c *PowerStoreClient) login() (powerStoreSession, error) {
+	session, ok := c.session()
+	if ok {
 		return session, nil
 	}
 
@@ -335,16 +320,16 @@ func (c *PowerStoreClient) login() (*powerStoreSession, error) {
 
 	err := c.request(http.MethodGet, url.URL, nil, reqHeaders, &respBody, respHeaders)
 	if err != nil {
-		return nil, fmt.Errorf("Failed logging into PowerStore: %w", err)
+		return powerStoreSession{}, fmt.Errorf("Failed logging into PowerStore: %w", err)
 	}
 
 	if len(respBody) < 1 {
-		return nil, errors.New("Failed logging into PowerStore: Login response is missing session information")
+		return powerStoreSession{}, errors.New("Failed logging into PowerStore: Login response is missing session information")
 	}
 
 	sessionInfo := respBody[0]
 	if sessionInfo.IsPasswordChangeRequired {
-		return nil, errors.New("Failed logging into PowerStore: Password change required")
+		return powerStoreSession{}, errors.New("Failed logging into PowerStore: Password change required")
 	}
 
 	resp := &http.Response{Header: respHeaders}
@@ -352,7 +337,7 @@ func (c *PowerStoreClient) login() (*powerStoreSession, error) {
 	// Parse CSRF token from response headers.
 	csrf := resp.Header.Get(powerStoreCSRFHeaderName)
 	if csrf == "" {
-		return nil, errors.New("Failed logging into PowerStore: Login response missing CSRF token")
+		return powerStoreSession{}, errors.New("Failed logging into PowerStore: Login response missing CSRF token")
 	}
 
 	// Parse auth cookie.
@@ -367,17 +352,17 @@ func (c *PowerStoreClient) login() (*powerStoreSession, error) {
 	}
 
 	if authCookie == nil {
-		return nil, errors.New("Starting PowerStore session: Missing PowerStore authorization cookie")
+		return powerStoreSession{}, errors.New("Starting PowerStore session: Missing PowerStore authorization cookie")
 	}
 
 	// Cache new session.
-	session = &powerStoreSession{
+	session = powerStoreSession{
 		ID:        sessionInfo.ID,
 		AuthToken: authCookie.Value,
 		CSRFToken: csrf,
 	}
 
-	c.setSession(*session)
+	c.setSession(session)
 	return session, nil
 }
 

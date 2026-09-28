@@ -1,12 +1,44 @@
 package clients
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/canonical/lxd/lxd/storage/connectors"
 )
+
+func Test_PowerStoreClient_sessionCache(t *testing.T) {
+	client := NewPowerStoreClient("https://127.0.0.1", "user", "password", false, "")
+	otherClient := NewPowerStoreClient("https://127.0.0.1", "user", "password", false, "")
+	defer client.invalidateSession()
+
+	firstSession := powerStoreSession{ID: "first"}
+	client.setSession(firstSession)
+	session, ok := otherClient.session()
+	assert.True(t, ok)
+	assert.Equal(t, firstSession, session)
+
+	client.invalidateSession()
+	_, ok = otherClient.session()
+	assert.False(t, ok)
+
+	var waitGroup sync.WaitGroup
+	for range 8 {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			for range 100 {
+				client.setSession(firstSession)
+				_, _ = otherClient.session()
+				client.invalidateSession()
+			}
+		}()
+	}
+
+	waitGroup.Wait()
+}
 
 func Test_formatQN(t *testing.T) {
 	tests := []struct {
