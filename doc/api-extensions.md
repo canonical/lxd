@@ -3830,3 +3830,10 @@ New `lxc` commands:
 Adds support for `recursion=2` on `GET /1.0/cluster/members`. In addition to the cluster member information returned with `recursion=1`, each entry contains a `state` field with the member state (as returned by `GET /1.0/cluster/members/{name}/state`).
 
 The state of all members is fetched in parallel by the member handling the request. The `state` field is `null` for offline members and for members whose state could not be retrieved.
+
+(extension-nic-routes-external-wait-ready)=
+## `nic_routes_external_wait_ready`
+
+Adds {config:option}`device-nic-bridged-device-conf:ipv4.routes.external.wait_ready` and {config:option}`device-nic-bridged-device-conf:ipv6.routes.external.wait_ready` configuration keys for `bridged` NIC devices.
+
+When enabled, the corresponding `ipv4.routes.external`/`ipv6.routes.external` routes are only added to the host (and published over BGP) once the instance reports itself as ready (see {ref}`extension-instance-ready-state`), and are removed again if the instance reverts to the running state.
