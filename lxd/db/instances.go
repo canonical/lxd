@@ -857,10 +857,10 @@ func (c *ClusterTx) GetLocalInstanceWithVsockID(ctx context.Context, vsockID int
 	q := `
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id JOIN instances_config ON instances.id = instances_config.instance_id
-  WHERE instances.node_id = ? AND instances.type = ? AND instances_config.key = "volatile.vsock_id" AND instances_config.value = ? LIMIT 1
+  WHERE instances.node_id = ? AND instances.type IN (?, ?) AND instances_config.key = "volatile.vsock_id" AND instances_config.value = ? LIMIT 1
   `
 
-	inargs := []any{c.nodeID, instancetype.VM, vsockID}
+	inargs := []any{c.nodeID, instancetype.VM, instancetype.MicroVM, vsockID}
 	inst := cluster.Instance{}
 
 	err := c.tx.QueryRowContext(ctx, q, inargs...).Scan(&inst.ID, &inst.Project, &inst.Name, &inst.Node, &inst.Type, &inst.Architecture, &inst.Ephemeral, &inst.CreationDate, &inst.Stateful, &inst.LastUseDate, &inst.Description, &inst.ExpiryDate)
@@ -894,12 +894,12 @@ SELECT storage_pools.name FROM storage_pools
   JOIN projects ON projects.id=instances.project_id
  WHERE projects.name=?
    AND storage_volumes_all.name=?
-   AND storage_volumes_all.type IN (?,?)
+   AND storage_volumes_all.type IN (?,?,?)
    AND storage_volumes_all.project_id = instances.project_id
    AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN ` + query.Params(len(remoteDrivers)) + `)`
 
 	//nolint:prealloc
-	inargs := []any{projectName, instanceName, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, c.nodeID}
+	inargs := []any{projectName, instanceName, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, cluster.StoragePoolVolumeTypeMicroVM, c.nodeID}
 	//nolint:prealloc
 	outargs := []any{&poolName}
 

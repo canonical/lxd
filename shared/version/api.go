@@ -509,6 +509,7 @@ var APIExtensions = []string{
 	"operation_wait_status_code",
 	"vm_volatile_maxcpus",
 	"access_management_identity_effective_groups",
+	"instance_microvm",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

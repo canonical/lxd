@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"path/filepath"
 
 	"github.com/mdlayher/vsock"
 	"golang.org/x/sys/unix"
@@ -33,6 +34,28 @@ func createVsockListener(cert *shared.CertInfo) (net.Listener, error) {
 	}
 
 	return nil, errors.New("Failed finding free listen port for vsock listener")
+}
+
+func createVsockUnixListener(dir string, cert *shared.CertInfo) (net.Listener, error) {
+	path := filepath.Join(dir, "vsock-unix.socket")
+
+	err := shared.RemoveUnixSocket(path)
+	if err != nil {
+		return nil, err
+	}
+
+	listener, err := shared.ListenUnix(path)
+	if err != nil {
+		return nil, err
+	}
+
+	err = shared.SetUnixSocketPermissions(path, 0600)
+	if err != nil {
+		_ = listener.Close()
+		return nil, err
+	}
+
+	return listeners.NewFancyTLSListener(listener, cert), nil
 }
 
 // VsockAddress returns the network address of the vsock endpoint, or nil if there's no vsock endpoint.

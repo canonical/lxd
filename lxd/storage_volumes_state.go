@@ -93,7 +93,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Check that the storage volume type is valid.
-	if !slices.Contains([]cluster.StoragePoolVolumeType{cluster.StoragePoolVolumeTypeCustom, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM}, volumeType) {
+	if !slices.Contains([]cluster.StoragePoolVolumeType{cluster.StoragePoolVolumeTypeCustom, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, cluster.StoragePoolVolumeTypeMicroVM}, volumeType) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
