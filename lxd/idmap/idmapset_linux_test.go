@@ -193,6 +193,30 @@ func TestIdmapSetIntersects(t *testing.T) {
 		t.Error("ranges intersect")
 		return
 	}
+
+	lastNsid := IdmapEntry{Isuid: true, Hostid: 100000, Nsid: 65535, Maprange: 1}
+	if !lastNsid.Intersects(lastNsid) {
+		t.Error("ranges do not intersect")
+		return
+	}
+	if !orig.Intersects(lastNsid) {
+		t.Error("ranges do not intersect")
+		return
+	}
+	if !lastNsid.Intersects(orig.Idmap[0]) {
+		t.Error("ranges do not intersect")
+		return
+	}
+
+	lastHostid := IdmapEntry{Isuid: true, Hostid: 231071, Nsid: 100000, Maprange: 1}
+	if !orig.Intersects(lastHostid) {
+		t.Error("ranges do not intersect")
+		return
+	}
+	if !lastHostid.Intersects(orig.Idmap[0]) {
+		t.Error("ranges do not intersect")
+		return
+	}
 }
 
 func TestIdmapHostIDMapRange(t *testing.T) {
