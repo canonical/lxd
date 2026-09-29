@@ -37,7 +37,7 @@ All local storage drivers support the following features:
 * {ref}`storage-available-init`
 * {ref}`storage-volume-recovery`
 
-Only the LVM driver supports the {ref}`storage-block-based` storage feature.[^2]
+Only the LVM driver supports the {ref}`storage-block-backed` storage feature.[^2]
 
 ```{table} Local storage feature comparison
 :name: storage-drivers-features-local
@@ -92,7 +92,7 @@ All remote storage drivers support the following features:
 * {ref}`storage-optimized-snapshot-creation`
 * {ref}`storage-restore-older-snapshots`
 * {ref}`storage-quotas`
-* {ref}`storage-block-based`
+* {ref}`storage-block-backed`
 
 Only the Ceph RBD driver supports these features: {ref}`storage-available-init` and {ref}`storage-optimized-volume-transfer`[^5].
 
@@ -183,10 +183,10 @@ For this reason, it is currently recommended to either have dedicated disk devic
 
 Shows whether the storage driver can be selected during `lxd init` (interactive or preseed). Drivers that depend on external storage systems require those systems to be set up first.
 
-(storage-block-based)=
-### Block-based
+(storage-block-backed)=
+### Block-backed
 
-Block-based storage presents volumes as block devices rather than mounted file systems. If a file system is needed, LXD can format the block volume for containers and custom file system volumes, or the instance can format it (for example, for virtual machines). See {ref}`Pure Storage <storage-pure>`, {ref}`HPE Alletra <storage-alletra>`, and {ref}`Ceph RBD <storage-ceph>` for driver-specific details.
+Block-backed storage presents volumes as block devices rather than mounted file systems. If a file system is needed (such as for containers or custom file system volumes), LXD formats the volumes and mounts them on the host. Block volumes attached to virtual machines must be formatted by the guest instance. See {ref}`Pure Storage <storage-pure>`, {ref}`HPE Alletra <storage-alletra>`, and {ref}`Ceph RBD <storage-ceph>` for driver-specific details.
 
 (storage-instant-cloning)=
 ### Instant cloning
