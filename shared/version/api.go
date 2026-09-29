@@ -360,7 +360,6 @@ var APIExtensions = []string{
 	"oidc",
 	"network_ovn_l3only",
 	"ovn_nic_acceleration_vdpa",
-	"cluster_healing",
 	"instances_state_total",
 	"auth_user",
 	"security_csm",

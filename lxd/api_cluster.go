@@ -14,7 +14,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
@@ -24,7 +23,6 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
-	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/node"
@@ -32,8 +30,6 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
-	storagePools "github.com/canonical/lxd/lxd/storage"
-	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -1646,170 +1642,5 @@ func triggerClusterRebalance(ctx context.Context, s *state.State) error {
 		return fmt.Errorf("Failed triggering cluster rebalance: %w", err)
 	}
 
-	return nil
-}
-
-func autoHealClusterTask(stateFunc func() *state.State, gateway *cluster.Gateway) (task.Func, task.Schedule) {
-	f := func(ctx context.Context) {
-		op, err := autoHealCluster(ctx, stateFunc(), gateway)
-		if err != nil {
-			return
-		}
-
-		err = op.Wait(ctx)
-		if err != nil {
-			logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})
-			return
-		}
-	}
-
-	return f, task.Every(time.Minute)
-}
-
-func autoHealCluster(ctx context.Context, s *state.State, gateway *cluster.Gateway) (*operations.Operation, error) {
-	healingThreshold := s.GlobalConfig.ClusterHealingThreshold()
-	if healingThreshold == 0 {
-		return nil, errors.New("Skipping healing cluster instances as cluster healing is disabled")
-	}
-
-	leaderInfo, err := s.LeaderInfo()
-	if err != nil {
-		return nil, fmt.Errorf("Failed determining cluster leader: %w", err)
-	}
-
-	if !leaderInfo.Clustered || !leaderInfo.Leader {
-		return nil, errors.New("Skipping healing cluster instances on non-leader member")
-	}
-
-	var offlineMembers []db.NodeInfo
-	{
-		var members []db.NodeInfo
-		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			members, err = tx.GetNodes(ctx)
-			if err != nil {
-				return fmt.Errorf("Failed getting cluster members: %w", err)
-			}
-
-			return nil
-		})
-		if err != nil {
-			return nil, fmt.Errorf("Failed healing cluster instances: %w", err)
-		}
-
-		for _, member := range members {
-			// Ignore members which have been evacuated, and those which haven't exceeded the
-			// healing offline trigger threshold.
-			if member.State == db.ClusterMemberStateEvacuated || !member.IsOffline(healingThreshold) {
-				continue
-			}
-
-			offlineMembers = append(offlineMembers, member)
-		}
-	}
-
-	if len(offlineMembers) == 0 {
-		return nil, errors.New("Skipping healing cluster instances as there are no cluster members to evacuate")
-	}
-
-	opRun := func(ctx context.Context, op *operations.Operation) error {
-		for _, member := range offlineMembers {
-			err := healClusterMember(s, gateway, op, member.Name)
-			if err != nil {
-				logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})
-				return err
-			}
-		}
-
-		return nil
-	}
-
-	args := operations.OperationArgs{
-		Type:    operationtype.ClusterHeal,
-		Class:   operationtype.OperationClassTask,
-		RunHook: opRun,
-	}
-
-	op, err := operations.ScheduleServerOperation(s, args)
-	if err != nil {
-		return nil, fmt.Errorf("Failed creating cluster instances heal operation: %w", err)
-	}
-
-	return op, nil
-}
-
-func healClusterMember(s *state.State, gateway *cluster.Gateway, op *operations.Operation, name string) error {
-	logger.Info("Starting cluster healing", logger.Ctx{"member": name})
-	defer logger.Info("Completed cluster healing", logger.Ctx{"member": name})
-
-	migrateFunc := func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, op *operations.Operation) error {
-		// This returns an error if the instance's storage pool is local.
-		// Since we only care about remote backed instances, this can be ignored and return nil instead.
-		poolName, err := inst.StoragePool()
-		if err != nil {
-			if api.StatusErrorCheck(err, http.StatusNotFound) {
-				return nil // We only care about remote backed instances.
-			}
-
-			return err
-		}
-
-		pool, err := storagePools.LoadByName(s, poolName)
-		if err != nil {
-			return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
-		}
-
-		// Ignore instances on local storage pools.
-		if !pool.Driver().Info().Remote {
-			return nil
-		}
-
-		// Migrate the instance.
-		req := api.InstancePost{
-			Migration: true,
-		}
-
-		dest, err := cluster.Connect(ctx, targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
-		if err != nil {
-			return err
-		}
-
-		dest = dest.UseProject(inst.Project().Name)
-		dest = dest.UseTarget(targetMemberInfo.Name)
-
-		migrateOp, err := dest.MigrateInstance(inst.Name(), req)
-		if err != nil {
-			return err
-		}
-
-		err = migrateOp.Wait()
-		if err != nil {
-			return err
-		}
-
-		if !startInstance || live {
-			return nil
-		}
-
-		// Start it back up on target.
-		startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
-		if err != nil {
-			return err
-		}
-
-		err = startOp.Wait()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	err := evacuateClusterMember(context.Background(), s, gateway, op, name, api.ClusterEvacuateModeHeal, false, nil, migrateFunc)
-	if err != nil {
-		logger.Error("Failed healing cluster member", logger.Ctx{"member": name, "err": err})
-		return err
-	}
-
-	s.Events.SendLifecycle(api.ProjectDefaultName, lifecycle.ClusterMemberHealed.Event(name, op.EventLifecycleRequestor(), nil))
 	return nil
 }

@@ -14,7 +14,6 @@ const (
 	EventLifecycleClusterGroupUpdated               = "cluster-group-updated"
 	EventLifecycleClusterMemberAdded                = "cluster-member-added"
 	EventLifecycleClusterMemberEvacuated            = "cluster-member-evacuated"
-	EventLifecycleClusterMemberHealed               = "cluster-member-healed"
 	EventLifecycleClusterMemberRemoved              = "cluster-member-removed"
 	EventLifecycleClusterMemberRenamed              = "cluster-member-renamed"
 	EventLifecycleClusterMemberRestored             = "cluster-member-restored"

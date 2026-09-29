@@ -2162,9 +2162,6 @@ func (d *Daemon) startClusterTasks() {
 	// Remove orphaned operations
 	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d.State))
 
-	// Perform automatic evacuation for offline cluster members
-	d.clusterTasks.Add(autoHealClusterTask(d.State, d.gateway))
-
 	// Remove expired OIDC sessions
 	d.clusterTasks.Add(pruneExpiredOIDCSessionsTask(d.State))
 

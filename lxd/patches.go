@@ -135,6 +135,7 @@ var patches = []patch{
 	{name: "replicators_remove_snapshot_config_key", stage: patchPreLoadClusterConfig, run: patchReplicatorsRemoveSnapshotConfigKey},
 	{name: "config_remove_legacy_nvidia_keys", stage: patchPreLoadClusterConfig, run: patchRemoveLegacyNvidiaConfigKeys},
 	{name: "instance_reattach_shared_devlxd_shmounts", stage: patchPostInstancesLoaded, run: patchReattachSharedDevLXDMounts},
+	{name: "config_remove_cluster_healing_threshold", stage: patchPreLoadClusterConfig, run: patchRemoveClusterHealingThreshold},
 }
 
 type patch struct {
@@ -2472,6 +2473,20 @@ func patchReplicatorsRemoveSnapshotConfigKey(_ string, d *Daemon) error {
 		_, err := tx.Tx().ExecContext(ctx, `DELETE FROM replicators_config WHERE key = 'snapshot'`)
 		if err != nil {
 			return fmt.Errorf("Failed removing replicator snapshot config: %w", err)
+		}
+
+		return nil
+	})
+}
+
+// patchRemoveClusterHealingThreshold removes the cluster.healing_threshold global config key that
+// was used by the (now-removed) cluster healing feature. The key is no longer recognized by LXD, so
+// this avoids an unknown-key warning when loading the cluster configuration.
+func patchRemoveClusterHealingThreshold(_ string, d *Daemon) error {
+	return d.State().DB.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		_, err := tx.Tx().ExecContext(ctx, `DELETE FROM config WHERE key = 'cluster.healing_threshold'`)
+		if err != nil {
+			return fmt.Errorf("Failed removing cluster.healing_threshold config: %w", err)
 		}
 
 		return nil

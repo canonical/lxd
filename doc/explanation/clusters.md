@@ -100,8 +100,6 @@ You can tweak the amount of seconds after which a non-responding member is consi
 The default value is 20 seconds.
 The minimum value is 10 seconds.
 
-To automatically {ref}`evacuate <cluster-evacuate>` instances from an offline member, set the {config:option}`server-cluster:cluster.healing_threshold` configuration to a non-zero value.
-
 See {ref}`cluster-recover` for more information.
 
 (clustering-failure-domains)=
@@ -304,9 +302,6 @@ LXD clusters enable HA of workloads (instances) in multiple ways:
 
 Cluster evacuation
 : Instances can be manually evacuated from one cluster member to another, providing planned high availability during maintenance. This includes live migration for virtual machines. See: {ref}`cluster-evacuate`.
-
-Cluster healing
-: If a cluster member fails and {config:option}`server-cluster:cluster.healing_threshold` is set, it automatically restarts instances on that member on a healthy member of the cluster. See: {ref}`cluster-healing`.
 
 Virtual networking
 : On clusters using {ref}`OVN networking <network-ovn>`, logical switches/routers are distributed across the cluster. This means that instance NICs remain reachable even if the server hosting one OVN chassis goes offline.
