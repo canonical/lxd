@@ -109,6 +109,11 @@ test_vm_empty() {
   ! lxc snapshot v1 "\\\\" || false
   ! lxc snapshot v1 "/" || false
   [ "$(lxc list -f csv -c S v1)" = "1" ]
+
+  sub_test "Restore a renamed VM snapshot"
+  lxc move v1/snap0 v1/s0
+  lxc restore v1 s0
+
   lxc start v1
   lxc snapshot v1
   [ "$(lxc list -f csv -c S v1)" = "2" ]
