@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -75,6 +77,104 @@ func TestHeartbeat(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// A member that appears in the database while a heartbeat round is in progress must not change the round's
+// results for the existing members. Regression test for #19071: re-reading the member list mid-round reset
+// every existing member's heartbeat result, so the leader reported all of them, itself included, as unavailable.
+func TestHeartbeatMemberAddedMidRound(t *testing.T) {
+	f := heartbeatFixture{t: t}
+	defer f.Cleanup()
+
+	f.Bootstrap()
+	f.Grow() // Returns once the join's notification heartbeats have completed.
+
+	leader := f.Leader()
+	leaderState := f.State(leader)
+
+	// Artificially mark all members as down, so that the heartbeat times written by the round can be checked.
+	var existingAddresses []string
+	err := leaderState.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		members, err := tx.GetNodes(ctx)
+		require.NoError(t, err)
+		for _, member := range members {
+			existingAddresses = append(existingAddresses, member.Address)
+			err := tx.SetNodeHeartbeat(member.Address, time.Now().Add(-time.Minute))
+			require.NoError(t, err)
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+	require.Len(t, existingAddresses, 2)
+
+	// When the follower receives the leader's heartbeat, add a member to the database before replying.
+	// This leaves the database as a join landing mid-round would. The member's address refuses connections.
+	var addMember sync.Once
+	f.SetRequestHook(func(r *http.Request) {
+		if r.Method != http.MethodPut || r.URL.Path != "/internal/database" {
+			return
+		}
+
+		addMember.Do(func() {
+			err := leaderState.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				_, err := tx.CreateNode("joiner", "127.0.0.1:1")
+				return err
+			})
+			assert.NoError(t, err)
+		})
+	})
+
+	// Capture what the round passes to the leader's member refresh task.
+	var hookCalled bool
+	var unavailableMembers []string
+	var hookMembers map[int64]cluster.APIHeartbeatMember
+	leader.HeartbeatNodeHook = func(heartbeatData *cluster.APIHeartbeat, isLeader bool, unavailable []string, mode cluster.HeartbeatMode) {
+		hookCalled = true
+		unavailableMembers = unavailable
+		hookMembers = heartbeatData.Members
+	}
+
+	// Perform a heartbeat round. The heartbeat interval is half the offline threshold, and a normal round
+	// spreads its heartbeats over the interval minus 3s, so this threshold sends them all at once.
+	leader.HeartbeatOfflineThreshold = 6 * time.Second
+	leader.Cluster = leaderState.DB.Cluster
+	heartbeat, _ := cluster.HeartbeatTask(leader)
+	heartbeat(context.Background())
+
+	// The member must have been added during the round, or this test checks nothing.
+	err = leaderState.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		members, err := tx.GetNodes(ctx)
+		require.NoError(t, err)
+		assert.Len(t, members, 3)
+		return nil
+	})
+	require.NoError(t, err)
+
+	// Every existing member answered, so none is unavailable and all are online.
+	require.True(t, hookCalled)
+	assert.Empty(t, unavailableMembers)
+	for _, member := range hookMembers {
+		assert.True(t, member.Online, "member %q is not online", member.Address)
+	}
+
+	// The heartbeat times of the existing members got written.
+	err = leaderState.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		members, err := tx.GetNodes(ctx)
+		require.NoError(t, err)
+
+		offlineThreshold, err := tx.GetNodeOfflineThreshold(ctx)
+		require.NoError(t, err)
+
+		for _, member := range members {
+			if slices.Contains(existingAddresses, member.Address) {
+				assert.False(t, member.IsOffline(offlineThreshold), "member %q is offline", member.Address)
+			}
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
 // Helper for testing heartbeat-related code.
 type heartbeatFixture struct {
 	t        *testing.T
@@ -82,6 +182,8 @@ type heartbeatFixture struct {
 	states   map[*cluster.Gateway]*state.State     // gateway to its state handle
 	servers  map[*cluster.Gateway]*httptest.Server // gateway to its HTTP server
 	cleanups []func()
+
+	requestHook atomic.Pointer[func(*http.Request)] // Runs before every request to any member's HTTP server.
 }
 
 // Bootstrap the first node of the cluster.
@@ -214,7 +316,7 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	f.cleanups = append(f.cleanups, func() { _ = gateway.Shutdown() })
 
 	mux := http.NewServeMux()
-	server := newServer(serverCert, mux)
+	server := newServer(serverCert, f.withRequestHook(mux))
 
 	for path, handler := range gateway.HandlerFuncs(nil, &identity.Cache{}) {
 		mux.HandleFunc(path, handler)
@@ -260,6 +362,28 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	f.servers[gateway] = server
 
 	return state, gateway, address
+}
+
+// SetRequestHook sets a function that runs before every request to any member's HTTP server is handled.
+func (f *heartbeatFixture) SetRequestHook(hook func(*http.Request)) {
+	if hook == nil {
+		f.requestHook.Store(nil)
+		return
+	}
+
+	f.requestHook.Store(&hook)
+}
+
+// withRequestHook wraps a member's HTTP handler so that it runs the hook set by SetRequestHook first.
+func (f *heartbeatFixture) withRequestHook(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hook := f.requestHook.Load()
+		if hook != nil {
+			(*hook)(r)
+		}
+
+		handler.ServeHTTP(w, r)
+	})
 }
 
 func (f *heartbeatFixture) Cleanup() {
