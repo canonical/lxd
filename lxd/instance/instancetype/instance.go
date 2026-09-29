@@ -27,6 +27,23 @@ const (
 // ConfigVolatilePrefix indicates the prefix used for volatile config keys.
 const ConfigVolatilePrefix = "volatile."
 
+// ValidSnapName validates a snapshot instance name which must not include the instance prefix.
+func ValidSnapName(snapshotName string) error {
+	if snapshotName == "" {
+		return fmt.Errorf("Invalid instance snapshot name, cannot be empty")
+	}
+
+	if snapshotName == ".." {
+		return fmt.Errorf("Invalid instance snapshot name %q", snapshotName)
+	}
+
+	if strings.ContainsAny(snapshotName, "* /\\") {
+		return fmt.Errorf("Invalid instance snapshot name %q: Cannot contain *, spaces, forward or back slashes", snapshotName)
+	}
+
+	return nil
+}
+
 // IsRootDiskDevice returns true if the given device representation is configured as root disk for
 // an instance. It typically get passed a specific entry of api.Instance.Devices.
 func IsRootDiskDevice(device map[string]string) bool {
