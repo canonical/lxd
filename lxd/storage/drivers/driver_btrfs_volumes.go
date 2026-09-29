@@ -197,7 +197,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 	// Load optimized backup header file if specified.
 	var optimizedHeader *BTRFSMetaDataHeader
 	if *srcBackup.OptimizedHeader {
-		optimizedHeader, err = d.loadOptimizedBackupHeader(srcData, GetVolumeMountPath(d.name, vol.volType, ""))
+		optimizedHeader, err = d.loadOptimizedBackupHeader(srcData, GetVolumeMountPath(d.name, vol.volType, ""), srcBackup.Snapshots)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -269,8 +269,9 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 	}
 
 	type btrfsCopyOp struct {
-		src  string
-		dest string
+		src        string
+		volRoot    string
+		subVolPath string
 	}
 
 	var copyOps []btrfsCopyOp
@@ -311,8 +312,9 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 			}
 
 			copyOps = append(copyOps, btrfsCopyOp{
-				src:  unpackedSubVolPath,
-				dest: subVolTargetPath,
+				src:        unpackedSubVolPath,
+				volRoot:    v.MountPath(),
+				subVolPath: subVol.Path,
 			})
 		}
 
@@ -381,11 +383,17 @@ func (d *btrfs) CreateVolumeFromBackup(vol VolumeCopy, srcBackup backup.Info, sr
 			return nil, nil, err
 		}
 
-		// Clear the target for the subvol to use.
-		_ = os.Remove(copyOp.dest)
-
 		// Move unpacked subvolume into its final location.
-		err = os.Rename(copyOp.src, copyOp.dest)
+		dest, closer, err := d.resolveSubvolumeDest(copyOp.volRoot, copyOp.subVolPath)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Clear the target for the subvol to use.
+		_ = os.Remove(dest)
+
+		err = os.Rename(copyOp.src, dest)
+		closer()
 		if err != nil {
 			return nil, nil, err
 		}
@@ -575,6 +583,22 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 			return fmt.Errorf("Failed decoding BTRFS migration header: %w", err)
 		}
 
+		// The header comes from the source peer and must be validated.
+		// A normal copy sends exactly the negotiated snapshots, and any other snapshot
+		// name is rejected here.
+		// A refresh sends the source's whole snapshot list, letting the target skip the
+		// ones it already has. Each snapshot is then checked as it is chosen for transfer
+		// in the loop below.
+		var expectedSnapshots []string
+		if !volTargetArgs.Refresh {
+			expectedSnapshots = append([]string{}, volTargetArgs.Snapshots...)
+		}
+
+		err = d.validateSubVolumeHeader(migrationHeader, expectedSnapshots)
+		if err != nil {
+			return err
+		}
+
 		d.logger.Debug("Received BTRFS migration meta data header", logger.Ctx{"name": vol.name})
 	} else {
 		// Populate the migrationHeader subvolumes with root volumes only to support older LXD sources.
@@ -599,9 +623,6 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 			return err
 		}
 
-		// Reset list of snapshots which are to be received.
-		volTargetArgs.Snapshots = []string{}
-
 		// Map of local subvolumes with their received UUID.
 		localSubvolumes := make(map[string]string)
 
@@ -617,18 +638,9 @@ func (d *btrfs) CreateVolumeFromMigration(vol VolumeCopy, conn io.ReadWriteClose
 		}
 
 		// Figure out which snapshots need to be copied by comparing the UUIDs and received UUIDs from the migration header.
-		for _, migrationSnap := range migrationHeader.Subvolumes {
-			receivedUUID, ok := localSubvolumes[migrationSnap.Snapshot]
-			// Skip this snapshot as it exists on both the source and target, and has the same GUID.
-			if ok && receivedUUID == migrationSnap.UUID {
-				continue
-			}
-
-			if migrationSnap.Path == "/" && migrationSnap.Snapshot != "" {
-				volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, migrationSnap.Snapshot)
-			}
-
-			syncSubvolumes = append(syncSubvolumes, BTRFSSubVolume{Path: migrationSnap.Path, Snapshot: migrationSnap.Snapshot, UUID: migrationSnap.UUID})
+		volTargetArgs.Snapshots, syncSubvolumes, err = d.selectSubvolumesToSync(migrationHeader.Subvolumes, localSubvolumes, volTargetArgs.Snapshots)
+		if err != nil {
+			return err
 		}
 
 		migrationHeader = BTRFSMetaDataHeader{Subvolumes: syncSubvolumes}
@@ -662,7 +674,8 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 
 	type btrfsCopyOp struct {
 		src          string
-		dest         string
+		volRoot      string
+		subVolPath   string
 		receivedUUID string
 	}
 
@@ -713,7 +726,8 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 			// Record the copy operations we need to do after having received all subvolumes.
 			copyOps = append(copyOps, btrfsCopyOp{
 				src:          subVolRecvPath,
-				dest:         subVolTargetPath,
+				volRoot:      v.MountPath(),
+				subVolPath:   subVol.Path,
 				receivedUUID: UUID,
 			})
 		}
@@ -778,16 +792,25 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 			return err
 		}
 
-		// Clear the target for the subvol to use. During refresh the destination may already
-		// be a btrfs subvolume which os.Remove cannot delete.
-		if d.isSubvolume(op.dest) {
-			_ = d.deleteSubvolume(op.dest, true)
-		} else {
-			_ = os.Remove(op.dest)
+		// Move the received subvolume to its final location beneath the volume root, refusing any
+		// symlink in the received stream that would redirect it outside the volume.
+		dest, closeDest, err := d.resolveSubvolumeDest(op.volRoot, op.subVolPath)
+		if err != nil {
+			return err
 		}
 
-		err = os.Rename(op.src, op.dest)
+		// Clear the target for the subvol to use. During refresh the destination may already be a
+		// btrfs subvolume which os.Remove cannot delete. Delete via the lexical pool path, already
+		// confined by resolveSubvolumeDest, since getSubvolumes rejects the /proc/self/fd form of dest.
+		if d.isSubvolume(dest) {
+			_ = d.deleteSubvolume(filepath.Join(op.volRoot, op.subVolPath), true)
+		} else {
+			_ = os.Remove(dest)
+		}
+
+		err = os.Rename(op.src, dest)
 		if err != nil {
+			closeDest()
 			return err
 		}
 
@@ -797,10 +820,13 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 		// incremental streams (error: "cannot find parent subvolume").
 		// Setting the "Received UUID" field to the value of the received subvolume (before making
 		// it rw) solves this issue.
-		err = setReceivedUUID(op.dest, op.receivedUUID)
+		err = setReceivedUUID(dest, op.receivedUUID)
 		if err != nil {
+			closeDest()
 			return fmt.Errorf("Failed setting received UUID: %w", err)
 		}
+
+		closeDest()
 	}
 
 	// Restore readonly property on subvolumes that need it.
@@ -1256,6 +1282,10 @@ func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArg
 	}
 
 	if volSrcArgs.Refresh && slices.Contains(volSrcArgs.MigrationType.Features, migration.BTRFSFeatureSubvolumeUUIDs) {
+		// The target replies with the subset of the subvolumes the source just offered that
+		// it still needs. Keep the offered set so the reply can be validated against it.
+		sentSubvolumes := migrationHeader.Subvolumes
+
 		migrationHeader = &BTRFSMetaDataHeader{}
 
 		buf, err := io.ReadAll(conn)
@@ -1266,6 +1296,14 @@ func (d *btrfs) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArg
 		err = json.Unmarshal(buf, &migrationHeader)
 		if err != nil {
 			return fmt.Errorf("Failed decoding BTRFS migration header: %w", err)
+		}
+
+		// Defend against path traversal attacks. migrateVolumeOptimized btrfs-sends exactly
+		// the paths in the returned header, so require every returned entry to match one
+		// the source offered.
+		err = d.validateReturnedSubvolumes(sentSubvolumes, migrationHeader.Subvolumes)
+		if err != nil {
+			return err
 		}
 
 		d.logger.Debug("Received BTRFS migration meta data header", logger.Ctx{"name": vol.name})

@@ -22,6 +22,11 @@ This is a maintenance release for the 4.0 LTS series. It focuses on build reliab
 The following bug fixes are included in this release.
 
 - [{spellexception}`Avoid pulling Go modules from Bazaar VCS during source builds`](https://github.com/canonical/lxd/pull/19013)
+- [{spellexception}`Arbitrary file write on host via symlink in migration stream (CVE-2026-87799)`](https://github.com/canonical/lxd/security/advisories/GHSA-fmc3-3cpq-6whr)
+- [{spellexception}`btrfs optimized backup/migration: unvalidated subvolume path enables root arbitrary file delete/write (RCE ceiling) (CVE-2026-85185)`](https://github.com/canonical/lxd/security/advisories/GHSA-27q7-qwhm-c34p)
+- [{spellexception}`Path traversal via btrfs optimized-backup subvolumes[].path enables root file/dir manipulation (CVE-2026-85526)`](https://github.com/canonical/lxd/security/advisories/GHSA-h85r-gjgx-g2rv)
+- [{spellexception}`Malicious agent in a VM can escape the target directory of a recursive file pull (CVE-2026-87798)`](https://github.com/canonical/lxd/security/advisories/GHSA-mr8v-hx34-hfvf)
+- [{spellexception}`CLI path traversal when exporting an image from a malicious server (CVE-2026-86334)`](https://github.com/canonical/lxd/security/advisories/GHSA-g4cm-f533-78hq)
 
 (ref-release-notes-4.0.14-changelog)=
 ## Change log
