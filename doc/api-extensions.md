@@ -3744,3 +3744,9 @@ When the server supports this extension, the DevLXD operation also has a new `er
 ## `vm_volatile_maxcpus`
 
 Adds a new volatile VM configuration key {config:option}`instance-volatile:volatile.cpu.maxcpus` that records the vCPU hotplug limit (SMP `maxcpus`) used when the VM booted. The value is reused on stateful start (stateful resume or live migration target) so that the QEMU SMP topology matches on both ends of a live migration regardless of the CPU count on each host.
+
+(extension-storage-driver-pure-nvmefc)=
+## `storage_driver_pure_nvmefc`
+
+Adds NVMe/FC support to the Pure Storage storage driver.
+Like SCSI/FC, Fibre Channel targets are discovered through the host bus adapter, so `pure.target` has no effect when `pure.mode` is set to `nvme/fc`.

@@ -7534,7 +7534,7 @@
 					{
 						"pure.mode": {
 							"defaultdesc": "`nvme/tcp`",
-							"longdesc": "The mode to use to map Pure Storage volumes to the local server.\nSupported values are `iscsi`, `nvme/tcp`, and `scsi/fc`.",
+							"longdesc": "The mode to use to map Pure Storage volumes to the local server.\nSupported values are `iscsi`, `nvme/tcp`, `nvme/fc`, and `scsi/fc`.",
 							"shortdesc": "How volumes are mapped to the local server",
 							"type": "string"
 						}
@@ -7542,7 +7542,7 @@
 					{
 						"pure.target": {
 							"defaultdesc": "all available targets",
-							"longdesc": "A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.\nThis option has no effect when `pure.mode` is set to `scsi/fc`, because Fibre Channel targets are identified by WWPN rather than by network address.",
+							"longdesc": "A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.\nThis option has no effect in the Fibre Channel modes (`scsi/fc` and `nvme/fc`), because their targets are addressed by World Wide Name rather than by network address.",
 							"shortdesc": "List of target addresses.",
 							"type": "string"
 						}
