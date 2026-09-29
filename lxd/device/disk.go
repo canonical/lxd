@@ -899,33 +899,6 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 
 		isBlockVolume := false
 
-		// If pool is specified then load the volume record so we can check whether owner
-		// shifting should be enabled and determine the volume's content type.
-		if d.config["pool"] != "" {
-			volumeName, _, dbVolumeType, err := d.sourceVolumeFields()
-			if err != nil {
-				return nil, err
-			}
-
-			instProj := d.inst.Project()
-			storageProjectName := project.StorageVolumeProjectFromRecord(&instProj, dbVolumeType)
-
-			var dbVolume *db.StorageVolume
-			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, dbVolumeType, volumeName, true)
-				return err
-			})
-			if err != nil {
-				return nil, err
-			}
-
-			isBlockVolume = dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock
-
-			if ownerShift == deviceConfig.MountOwnerShiftNone && shared.IsTrue(dbVolume.Config["security.shifted"]) {
-				ownerShift = deviceConfig.MountOwnerShiftDynamic
-			}
-		}
-
 		options := []string{}
 		if isReadOnly || d.config["source.snapshot"] != "" {
 			options = append(options, "ro")
@@ -946,13 +919,22 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			var err error
 			var revertFunc func()
 			var mountInfo *storagePools.MountInfo
+			var dbVolume *db.StorageVolume
 
-			revertFunc, srcPath, mountInfo, err = d.mountPoolVolume()
+			revertFunc, srcPath, mountInfo, dbVolume, err = d.mountPoolVolume()
 			if err != nil {
 				return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 			}
 
 			revert.Add(revertFunc)
+
+			isBlockVolume = dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock
+
+			// If ownerShift wasn't already forced on and the volume has owner shifting
+			// enabled, enable shifting on this device too.
+			if ownerShift == deviceConfig.MountOwnerShiftNone && shared.IsTrue(dbVolume.Config["security.shifted"]) {
+				ownerShift = deviceConfig.MountOwnerShiftDynamic
+			}
 
 			// Handle post hooks.
 			runConf.PostHooks = append(runConf.PostHooks, func() error {
@@ -1207,7 +1189,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					mount.OwnerShift = deviceConfig.MountOwnerShiftDynamic
 				}
 
-				revertFunc, mountedPath, _, err := d.mountPoolVolume()
+				revertFunc, mountedPath, _, _, err := d.mountPoolVolume()
 				if err != nil {
 					return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 				}
@@ -1653,7 +1635,7 @@ func (w *cgroupWriter) Set(version cgroup.Backend, controller string, key string
 //
 // Returns the mount path and MountInfo struct. If d.inst type is container the
 // volume will be shifted if needed.
-func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error) {
+func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, *db.StorageVolume, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1661,12 +1643,12 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	var dbVolume *db.StorageVolume
 
 	if filepath.IsAbs(d.config["source"]) {
-		return nil, "", nil, errors.New(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
+		return nil, "", nil, nil, errors.New(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
 	}
 
 	volumeName, volumeType, dbVolumeType, err := d.sourceVolumeFields()
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", nil, nil, err
 	}
 
 	instProj := d.inst.Project()
@@ -1676,18 +1658,18 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		return err
 	})
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("Failed loading local storage volume record: %w", err)
+		return nil, "", nil, nil, fmt.Errorf("Failed loading local storage volume record: %w", err)
 	}
 
 	volStorageName, err := volumeStorageName(storageProjectName, volumeName, dbVolume)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", nil, nil, err
 	}
 
 	if dbVolumeType == cluster.StoragePoolVolumeTypeVM {
 		diskInst, err := instance.LoadByProjectAndName(d.state, d.inst.Project().Name, volumeName)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, "", nil, nil, err
 		}
 
 		if d.config["source.snapshot"] != "" {
@@ -1697,7 +1679,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		}
 
 		if err != nil {
-			return nil, "", nil, err
+			return nil, "", nil, nil, err
 		}
 
 		revert.Add(func() {
@@ -1713,7 +1695,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 			snapVol := d.pool.GetVolume(volumeType, storageDrivers.ContentType(dbVolume.ContentType), volStorageName, dbVolume.Config)
 			err = d.pool.Driver().MountVolumeSnapshot(snapVol, nil)
 			if err != nil {
-				return nil, "", nil, fmt.Errorf(`Failed mounting storage volume snapshot "%s/%s" from storage pool %q: %w`, dbVolumeType, snapVol.Name(), d.pool.Name(), err)
+				return nil, "", nil, nil, fmt.Errorf(`Failed mounting storage volume snapshot "%s/%s" from storage pool %q: %w`, dbVolumeType, snapVol.Name(), d.pool.Name(), err)
 			}
 
 			mountInfo = &storagePools.MountInfo{}
@@ -1721,7 +1703,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		} else {
 			mountInfo, err = d.pool.MountCustomVolume(storageProjectName, volumeName, nil)
 			if err != nil {
-				return nil, "", nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
+				return nil, "", nil, nil, fmt.Errorf(`Failed mounting storage volume "%s/%s" from storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
 			}
 
 			revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
@@ -1732,7 +1714,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 
 	if d.inst.Type() == instancetype.Container {
 		if dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
-			return nil, "", nil, errors.New("Custom ISO volumes cannot be used on containers")
+			return nil, "", nil, nil, errors.New("Custom ISO volumes cannot be used on containers")
 		}
 
 		// Block volumes are attached as raw block devices further down and have no concept of
@@ -1740,7 +1722,7 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 		if dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameFS {
 			err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, dbVolumeType, srcPath)
 			if err != nil {
-				return nil, "", nil, fmt.Errorf(`Failed shifting storage volume "%s/%s" on storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
+				return nil, "", nil, nil, fmt.Errorf(`Failed shifting storage volume "%s/%s" on storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
 			}
 		}
 	}
@@ -1750,13 +1732,13 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 
 		srcPath, err = d.pool.Driver().GetVolumeDiskPath(volume)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("Failed getting disk path: %w", err)
+			return nil, "", nil, nil, fmt.Errorf("Failed getting disk path: %w", err)
 		}
 	}
 
 	cleanup := revert.Clone().Fail // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return cleanup, srcPath, mountInfo, err
+	return cleanup, srcPath, mountInfo, dbVolume, err
 }
 
 // volumeStorageName returns the storage volume name for the given project and DB volume.
