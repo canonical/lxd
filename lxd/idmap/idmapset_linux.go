@@ -86,9 +86,9 @@ func (e *IdmapEntry) HostidsIntersect(i IdmapEntry) bool {
 			return true
 		case isBetween(i.Hostid, e.Hostid, e.Hostid+e.Maprange):
 			return true
-		case isBetween(e.Hostid+e.Maprange, i.Hostid, i.Hostid+i.Maprange):
+		case isBetween(e.Hostid+e.Maprange-1, i.Hostid, i.Hostid+i.Maprange):
 			return true
-		case isBetween(i.Hostid+i.Maprange, e.Hostid, e.Hostid+e.Maprange):
+		case isBetween(i.Hostid+i.Maprange-1, e.Hostid, e.Hostid+e.Maprange):
 			return true
 		}
 	}
