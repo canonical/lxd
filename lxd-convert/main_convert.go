@@ -47,6 +47,10 @@ type cmdConvert struct {
 	flagConfig       []string
 	flagSource       string
 
+	// Custom storage volumes.
+	flagStorageVolumes         []string
+	flagStorageVolumesFromPath []string
+
 	// Target server.
 	flagServer   string
 	flagToken    string
@@ -87,6 +91,8 @@ func (c *cmdConvert) command() *cobra.Command {
 	cmd.Flags().StringArrayVar(&c.flagMountPaths, "mount-path", nil, cli.FormatStringFlagLabel("Additional container mount paths"))
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, cli.FormatStringFlagLabel("Config key/value to apply to the new instance"))
 	cmd.Flags().StringVar(&c.flagSource, "source", "", cli.FormatStringFlagLabel("Path to the root filesystem for containers, or to the block device or disk image file for virtual machines"))
+	cmd.Flags().StringArrayVar(&c.flagStorageVolumes, "storage-volume", nil, cli.FormatStringFlagLabel("Attach an existing custom filesystem volume, format: <device>,pool=<pool>,source=<volume>,path=<path>"))
+	cmd.Flags().StringArrayVar(&c.flagStorageVolumesFromPath, "storage-volume-from-path", nil, cli.FormatStringFlagLabel("Create a custom filesystem volume from a local directory and attach it, format: <device>,pool=<pool>,volume=<name>,source-path=<path>,path=<path>"))
 	// Target server.
 	cmd.Flags().StringVar(&c.flagServer, "server", "", cli.FormatStringFlagLabel("Unix or HTTPS URL of the target server"))
 	cmd.Flags().StringVar(&c.flagToken, "token", "", cli.FormatStringFlagLabel("Authentication token for HTTPS remote"))
@@ -521,6 +527,12 @@ func (c *cmdConvert) newConvertData(server lxd.InstanceServer) (*cmdConvertData,
 
 			config.Mounts = append(config.Mounts, path)
 		}
+	}
+
+	// Configure additional custom storage volumes from flags.
+	err := c.applyStorageVolumeFlags(server, config)
+	if err != nil {
+		return nil, err
 	}
 
 	return config, nil
