@@ -996,7 +996,7 @@ func kernelDefaultMap() (*IdmapSet, error) {
 		}
 
 		// Check if we have enough ids
-		if entry.Endid-entry.Startid < 65536 {
+		if entry.Endid-entry.Startid < 65535 {
 			continue
 		}
 
@@ -1020,13 +1020,13 @@ func kernelDefaultMap() (*IdmapSet, error) {
 			continue
 		}
 
-		// Don't use the first 65536 ids
+		// Don't use the first 100000 ids
 		if entry.Startid < 100000 {
 			entry.Startid = 100000
 		}
 
 		// Check if we have enough ids
-		if entry.Endid-entry.Startid < 65536 {
+		if entry.Endid-entry.Startid < 65535 {
 			continue
 		}
 
