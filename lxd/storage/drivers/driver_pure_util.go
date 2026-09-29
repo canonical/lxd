@@ -276,6 +276,10 @@ type pureConnection struct {
 	// the iSCSI and SCSI/FC modes, whereas NVMe addresses namespaces by NSID and has no
 	// LUN at all. Of the modes that do get one, only SCSI/FC consumes it, to scope the
 	// SCSI bus rescan.
+	//
+	// Pure Storage assigns LUNs from 1 to 4095, so a non-positive value means the array
+	// reported none: a response omitting "lun" unmarshals to 0, which is not a LUN the
+	// array can ever have assigned.
 	LUN int `json:"lun"`
 }
 
@@ -1273,6 +1277,11 @@ func (p *pureClient) getConnectionLUN(poolName string, volName string, hostName 
 func (p *pureClient) connectHostToVolume(poolName string, volName string, hostName string) (lun int, connCreated bool, err error) {
 	var resp pureResponse[pureConnection]
 
+	connector, err := p.driver.connector()
+	if err != nil {
+		return 0, false, err
+	}
+
 	url := api.NewURL().Path("connections").WithQuery("host_names", hostName).WithQuery("volume_names", poolName+"::"+volName)
 
 	err = p.requestAuthenticated(http.MethodPost, url.URL, nil, &resp)
@@ -1285,23 +1294,43 @@ func (p *pureClient) connectHostToVolume(poolName string, volName string, hostNa
 				return 0, false, err
 			}
 
+			if connector.Type() == connectors.TypeSCSIFC && lun <= 0 {
+				return 0, false, fmt.Errorf("Existing connection between volume %q and host %q reports no LUN, which SCSI/FC requires", poolName+"::"+volName, hostName)
+			}
+
 			return lun, false, nil
 		}
 
-		return 0, false, fmt.Errorf("Failed connecting volume %q with host %q: %w", volName, hostName, err)
+		return 0, false, fmt.Errorf("Failed connecting volume %q with host %q: %w", poolName+"::"+volName, hostName, err)
 	}
+
+	// The connection now exists on the array. Remove it again if this function returns an
+	// error, rather than leaving behind a connection whose LUN the caller never received.
+	//
+	// This is deliberately armed only after the request succeeded: the "already exists"
+	// branch above returns earlier, and that connection was not created here, so it must
+	// not be disconnected.
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	reverter.Add(func() { _ = p.disconnectHostFromVolume(poolName, volName, hostName) })
 
 	if len(resp.Items) == 0 {
 		// Pure Storage returns the created connection, including its LUN, so this should
 		// not happen. It is guarded because a connection without a known LUN cannot be
 		// mapped for SCSI/FC and would otherwise be silently left behind on the array.
-		// Remove it again rather than proceed.
-		_ = p.disconnectHostFromVolume(poolName, volName, hostName)
-
-		return 0, false, fmt.Errorf("Failed retrieving LUN after connecting volume %q with host %q", volName, hostName)
+		return 0, false, fmt.Errorf("Failed retrieving LUN after connecting volume %q with host %q", poolName+"::"+volName, hostName)
 	}
 
-	return resp.Items[0].LUN, true, nil
+	lun = resp.Items[0].LUN
+	if connector.Type() == connectors.TypeSCSIFC && lun <= 0 {
+		// Without a LUN the connector cannot scope the SCSI bus rescan, and would scan
+		// LUN 0 instead and quietly find nothing.
+		return 0, false, fmt.Errorf("Connection between volume %q and host %q reports no LUN, which SCSI/FC requires", poolName+"::"+volName, hostName)
+	}
+
+	reverter.Success()
+	return lun, true, nil
 }
 
 // disconnectHostFromVolume deletes a connection between a host and volume.
