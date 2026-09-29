@@ -3744,3 +3744,8 @@ Like SCSI/FC, Fibre Channel targets are discovered through the host bus adapter,
 This introduces the `ceph.replicator.<project>` configuration key on `ceph` storage pools.
 It records the peer Ceph site to which a project's volumes on the pool are mirrored.
 If a project with a replicator holds volumes on a Ceph pool configured with this key, then the replicator enrolls those volumes in RBD mirroring, triggers a mirror snapshot of each volume on every replication run, and completes the run only after the peer site confirms that it has received every snapshot.
+
+(extension-storage-block-volume-containers)=
+## `storage_block_volume_containers`
+
+Custom storage volumes with {ref}`content type <storage-content-types>` `block` can now be attached to containers, not just virtual machines. Unlike virtual machines, where the device is automatically discovered on the virtual disk bus and no path can be set, containers require an explicit path defining where the resulting block device appears.
