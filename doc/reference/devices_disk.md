@@ -12,7 +12,7 @@ It supports hotplugging for both containers and VMs.
 
 Disk devices supply additional storage to instances.
 
-For containers, they are essentially mount points inside the instance (either as a bind-mount of an existing file or directory on the host, or, if the source is a block device, a regular mount).
+For containers, they are essentially mount points inside the instance (either as a bind-mount of an existing file or directory on the host, or, if the source is a block device, a regular mount), except for custom storage volumes with content type `block`, which appear as a block device inside the container instead.
 Virtual machines share host-side mounts or directories through `9p` or `virtiofs` (if available), or as VirtIO disks for block-based disks.
 
 (devices-disk-types)=
@@ -108,7 +108,8 @@ Storage volume
 
       lxc config device add <instance_name> <device_name> disk pool=<pool_name> source=<volume_name> [path=<path_in_instance>]
 
-  The path is required for file system volumes, but not for block volumes.
+  The path is required for file system volumes.
+  For custom storage volumes with content type `block`, the path is required when attaching to a container (this is where the resulting block device appears), but must not be set when attaching to a VM (where the device is automatically discovered on the virtual disk bus).
 
   Alternatively, you can use the [`lxc storage volume attach`](lxc_storage_volume_attach.md) command to {ref}`storage-attach-volume`.
   Both commands use the same mechanism to add a storage volume as a disk device.

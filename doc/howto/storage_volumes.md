@@ -102,7 +102,8 @@ After creating a custom storage volume, you can add it to one or more instances 
 
 The following restrictions apply:
 
-- Storage volumes of {ref}`content type <storage-content-types>` `block` or `iso` cannot be attached to containers, only to virtual machines.
+- Storage volumes of {ref}`content type <storage-content-types>` `iso` cannot be attached to containers, only to virtual machines.
+- Storage volumes of {ref}`content type <storage-content-types>` `block` can be attached to both containers and virtual machines. When attaching to a container, a path must be given, as this is where the resulting block device appears. When attaching to a virtual machine, no path can be given, as the device is automatically discovered on the virtual disk bus instead.
 - Storage volumes of {ref}`content type <storage-content-types>` `block` that don't have `security.shared` enabled cannot be attached to more than one instance at the same time.
   Attaching a `block` volume to more than one instance at a time risks data corruption.
 - Storage volumes of {ref}`content type <storage-content-types>` `iso` are always read-only, and can therefore be attached to more than one virtual machine at a time without corrupting data.
@@ -117,12 +118,16 @@ Use the following command to attach a custom storage volume `fs-vol` with conten
 
     lxc storage volume attach my-pool fs-vol c1 /data
 
-Custom storage volumes with the content type `block` do not take a mount point:
+When attached to a virtual machine, custom storage volumes with the content type `block` do not take a mount point:
 
     lxc storage volume attach my-pool bl-vol vm1
 
+When attached to a container, a `block` volume requires both a device name and a path (this is where the resulting block device appears):
+
+    lxc storage volume attach my-pool bl-vol c1 block-volume /dev/lxd_bl-vol
+
 By default, custom storage volumes are added to the instance with the volume name as the {ref}`device <devices>` name.
-If you want to use a different device name, you can add it to the command:
+If you want to use a different device name for a `filesystem` volume or a `block` volume attached to a VM, you can add it to the command:
 
     lxc storage volume attach my-pool fs-vol c1 filesystem-volume /data
     lxc storage volume attach my-pool bl-vol vm1 block-volume
@@ -134,6 +139,7 @@ The following commands have the same effect as the corresponding commands above:
 
     lxc config device add c1 filesystem-volume disk pool=my-pool source=fs-vol path=/data
     lxc config device add vm1 block-volume disk pool=my-pool source=bl-vol
+    lxc config device add c1 block-volume disk pool=my-pool source=bl-vol path=/dev/lxd_bl-vol
 
 This allows adding further configuration for the device.
 See {ref}`disk device <devices-disk>` for all available device options.
