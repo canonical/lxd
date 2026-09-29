@@ -70,7 +70,7 @@ func CompressWrapper(s *state.State, cmd *exec.Cmd, dstPath string, extraAllowed
 		return nil, fmt.Errorf("Failed loading compression profile: %w", err)
 	}
 
-	cleanup := func() { _ = deleteProfile(s, profileName, profileName) }
+	cleanup := func() { _ = deleteProfile(s.OS, profileName, profileName) }
 	fail := true
 	defer func() {
 		if fail {
@@ -122,7 +122,7 @@ func compressProfileLoad(s *state.State, allowedCommandPaths []string, dstPath s
 	}()
 
 	// Load it.
-	err = loadProfile(s, name)
+	err = loadProfile(s.OS, name)
 	if err != nil {
 		return "", err
 	}

@@ -2574,7 +2574,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 	d.fromHook = true
 
 	// Load the container AppArmor profile
-	err := apparmor.InstanceLoad(d.state, d)
+	err := apparmor.InstanceLoad(d.state.OS, d)
 	if err != nil {
 		return err
 	}
@@ -2585,21 +2585,21 @@ func (d *lxc) onStart(_ map[string]string) error {
 		// Run any template that needs running
 		err = d.templateApplyNow(instance.TemplateTrigger(d.localConfig[key]))
 		if err != nil {
-			apparmor.InstanceUnload(d.state, d)
+			apparmor.InstanceUnload(d.state.OS, d)
 			return err
 		}
 
 		// Remove the volatile key from the DB
 		err := d.state.Cluster.DeleteInstanceConfigKey(d.id, key)
 		if err != nil {
-			apparmor.InstanceUnload(d.state, d)
+			apparmor.InstanceUnload(d.state.OS, d)
 			return err
 		}
 	}
 
 	err = d.templateApplyNow("start")
 	if err != nil {
-		apparmor.InstanceUnload(d.state, d)
+		apparmor.InstanceUnload(d.state.OS, d)
 		return err
 	}
 
@@ -3022,7 +3022,7 @@ func (d *lxc) onStop(args map[string]string) error {
 		}
 
 		// Unload the apparmor profile
-		err = apparmor.InstanceUnload(d.state, d)
+		err = apparmor.InstanceUnload(d.state.OS, d)
 		if err != nil {
 			op.Done(errors.Wrap(err, "Failed to destroy apparmor namespace"))
 			return
@@ -3638,7 +3638,7 @@ func (d *lxc) cleanup() {
 	d.removeDiskDevices()
 
 	// Remove the security profiles
-	apparmor.InstanceDelete(d.state, d)
+	apparmor.InstanceDelete(d.state.OS, d)
 	seccomp.DeleteProfile(d)
 
 	// Remove the devices path
@@ -4172,7 +4172,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// If apparmor changed, re-validate the apparmor profile (even if not running).
 	if shared.StringInSlice("raw.apparmor", changedConfig) || shared.StringInSlice("security.nesting", changedConfig) {
-		err = apparmor.InstanceValidate(d.state, d)
+		err = apparmor.InstanceValidate(d.state.OS, d)
 		if err != nil {
 			return errors.Wrap(err, "Parse AppArmor profile")
 		}
@@ -4245,7 +4245,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 			if key == "raw.apparmor" || key == "security.nesting" {
 				// Update the AppArmor profile
-				err = apparmor.InstanceLoad(d.state, d)
+				err = apparmor.InstanceLoad(d.state.OS, d)
 				if err != nil {
 					return err
 				}
@@ -5274,7 +5274,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			}
 
 			// Open the file to template, create if needed
-			fullpath, err := securePathJoin(rootfsPath, tplPath, false)
+			fullpath, err := shared.SecurePathJoin(rootfsPath, tplPath, false)
 			if err != nil {
 				return fmt.Errorf("Invalid template output path: %w", err)
 			}
@@ -5306,7 +5306,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			defer w.Close()
 
 			// Read the template, ensuring the template file cannot escape the templates directory.
-			tplFullPath, err := securePathJoin(templatesPath, tpl.Template, true)
+			tplFullPath, err := shared.SecurePathJoin(templatesPath, tpl.Template, true)
 			if err != nil {
 				return fmt.Errorf("Invalid template file path: %w", err)
 			}

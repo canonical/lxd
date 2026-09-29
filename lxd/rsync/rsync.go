@@ -1,6 +1,7 @@
 package rsync
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -20,6 +21,51 @@ import (
 
 // Debug controls additional debugging in rsync output.
 var Debug bool
+
+// RunWrapper is an optional function that's used to wrap rsync, useful for confinement like AppArmor.
+// It returns a cleanup function that will close the wrapper's environment, and should be called after the command has completed.
+var RunWrapper func(cmd *exec.Cmd, source string, destination string) (func(), error)
+
+// rsync is a wrapper for the rsync command which will respect RunWrapper.
+func rsync(args ...string) (string, error) {
+	if len(args) < 2 {
+		return "", fmt.Errorf("rsync call expects a minimum of two arguments (source and destination)")
+	}
+
+	// Setup the command.
+	cmd := exec.Command("rsync", args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+
+	// Call the wrapper if defined.
+	if RunWrapper != nil {
+		source := args[len(args)-2]
+		destination := args[len(args)-1]
+
+		cleanup, err := RunWrapper(cmd, source, destination)
+		if err != nil {
+			return "", err
+		}
+
+		defer cleanup()
+	}
+
+	// Run the command.
+	err := cmd.Run()
+	if err != nil {
+		err := shared.RunError{
+			Msg:    fmt.Sprintf("Failed to run: rsync %s: %s", strings.Join(args, " "), strings.TrimSpace(stderr.String())),
+			Stdout: stdout.String(),
+			Stderr: stderr.String(),
+			Err:    err,
+		}
+		return stdout.String(), err
+	}
+
+	return stdout.String(), nil
+}
 
 // LocalCopy copies a directory using rsync (with the --devices option).
 func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArgs ...string) (string, error) {
@@ -63,7 +109,7 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 		shared.AddSlash(source),
 		dest)
 
-	msg, err := shared.RunCommand("rsync", args...)
+	msg, err := rsync(args...)
 	if err != nil {
 		runError, ok := err.(shared.RunError)
 		if ok {
@@ -80,7 +126,9 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 	return msg, nil
 }
 
-func sendSetup(name string, path string, bwlimit string, execPath string, features []string, rsyncArgs ...string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
+// Send sets up the sending half of an rsync, to recursively send the
+// directory pointed to by path over the websocket.
+func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker, features []string, bwlimit string, execPath string, rsyncArgs ...string) error {
 	/*
 	 * The way rsync works, it invokes a subprocess that does the actual
 	 * talking (given to it by a -E argument). Since there isn't an easy
@@ -103,7 +151,7 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 	}
 	l, err := net.Listen("unix", auds)
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
 	defer l.Close()
 
@@ -112,13 +160,8 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 	 * rsync thinks we are syncing to a remote host (in this case, the
 	 * other end of the lxd websocket), and so the path specified on the
 	 * --server instance of rsync takes precedence.
-	 *
-	 * Additionally, we use sh -c instead of just calling nc directly
-	 * because rsync passes a whole bunch of arguments to the wrapper
-	 * command (i.e. the command to run on --server). However, we're
-	 * hardcoding that at the other end, so we can just ignore it.
 	 */
-	rsyncCmd := fmt.Sprintf("sh -c \"%s netcat %s %s\"", execPath, auds, name)
+	rsyncCmd := fmt.Sprintf("%s netcat %s %s --", execPath, auds, name)
 
 	args := []string{
 		"-ar",
@@ -148,56 +191,57 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 
 	cmd := exec.Command("rsync", args...)
 
+	// Call the wrapper if defined.
+	if RunWrapper != nil {
+		cleanup, err := RunWrapper(cmd, path, "")
+		if err != nil {
+			return err
+		}
+
+		defer cleanup()
+	}
+
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
 
-	if err := cmd.Start(); err != nil {
-		return nil, nil, nil, err
+	err = cmd.Start()
+	if err != nil {
+		return err
 	}
 
-	var conn *net.Conn
+	var ncConn *net.Conn
 	chConn := make(chan *net.Conn, 1)
 
 	go func() {
-		conn, err := l.Accept()
+		ncConn, err := l.Accept()
 		if err != nil {
 			chConn <- nil
 			return
 		}
 
-		chConn <- &conn
+		chConn <- &ncConn
 	}()
 
 	select {
-	case conn = <-chConn:
-		if conn == nil {
-			output, _ := ioutil.ReadAll(stderr)
-			cmd.Process.Kill()
-			cmd.Wait()
-			return nil, nil, nil, fmt.Errorf("Failed to connect to rsync socket (%s)", string(output))
+	case ncConn = <-chConn:
+		if ncConn == nil {
+			output, _ := io.ReadAll(stderr)
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+			return fmt.Errorf("Failed to ncConnect to rsync socket (%s)", string(output))
 		}
 
 	case <-time.After(10 * time.Second):
-		output, _ := ioutil.ReadAll(stderr)
-		cmd.Process.Kill()
-		cmd.Wait()
-		return nil, nil, nil, fmt.Errorf("rsync failed to spawn after 10s (%s)", string(output))
-	}
-
-	return cmd, *conn, stderr, nil
-}
-
-// Send sets up the sending half of an rsync, to recursively send the
-// directory pointed to by path over the websocket.
-func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker, features []string, bwlimit string, execPath string, rsyncArgs ...string) error {
-	cmd, netcatConn, stderr, err := sendSetup(name, path, bwlimit, execPath, features, rsyncArgs...)
-	if err != nil {
-		return err
+		output, _ := io.ReadAll(stderr)
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return fmt.Errorf("rsync failed to spawn after 10s (%s)", string(output))
 	}
 
 	// Setup progress tracker.
+	netcatConn := *ncConn
 	readNetcatPipe := io.ReadCloser(netcatConn)
 	if tracker != nil {
 		readNetcatPipe = &ioprogress.ProgressReader{
@@ -277,6 +321,16 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 	args = append(args, []string{".", path}...)
 
 	cmd := exec.Command("rsync", args...)
+
+	// Call the wrapper if defined.
+	if RunWrapper != nil {
+		cleanup, err := RunWrapper(cmd, "", path)
+		if err != nil {
+			return err
+		}
+
+		defer cleanup()
+	}
 
 	// Forward from rsync to source.
 	stdout, err := cmd.StdoutPipe()

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxd@lists.canonical.com\n"
-"POT-Creation-Date: 2024-07-05 16:53-0400\n"
+"POT-Creation-Date: 2026-09-16 10:36+0000\n"
 "PO-Revision-Date: 2019-12-12 14:53+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -311,7 +311,7 @@ msgstr "%s (%d mehr)"
 msgid "%s (%d more)"
 msgstr "%s (%d mehr)"
 
-#: lxc/file.go:855
+#: lxc/file.go:900
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s ist kein Verzeichnis"
@@ -321,7 +321,7 @@ msgstr "%s ist kein Verzeichnis"
 msgid "%v (interrupt two more times to force)"
 msgstr "%v (zwei weitere Male unterbrechen, um zu erzwingen)"
 
-#: lxc/file.go:749
+#: lxc/file.go:794
 #, c-format
 msgid "'%s' isn't a supported file type"
 msgstr ""
@@ -790,6 +790,11 @@ msgstr ""
 
 #: lxc/remote.go:103
 msgid "Candid domain to use"
+msgstr ""
+
+#: lxc/file.go:756
+#, c-format
+msgid "Cannot overwrite directory %q with symlink"
 msgstr ""
 
 #: lxc/info.go:395 lxc/info.go:407
@@ -1547,7 +1552,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/file.go:744
+#: lxc/file.go:789
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -2918,7 +2923,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Pull files from instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:375 lxc/file.go:698
+#: lxc/file.go:375 lxc/file.go:728
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr ""
@@ -2928,7 +2933,7 @@ msgstr ""
 msgid "Push files into instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:634 lxc/file.go:790
+#: lxc/file.go:634 lxc/file.go:835
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr ""
@@ -3811,7 +3816,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/file.go:731
+#: lxc/file.go:776
 #, fuzzy, c-format
 msgid "Unknown file type '%s'"
 msgstr "Unbekannter Befehl %s für Abbild"
