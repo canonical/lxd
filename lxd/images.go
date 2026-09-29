@@ -2766,7 +2766,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 	}
 
 	// Remove main image file and rootfs file from disk.
-	err = imageDeleteFromDisk(s.ImagesStoragePath(projectName), fingerprint)
+	err = imageDeleteFromDisk(s.LocalConfig.StorageImagesVolume(projectName), fingerprint)
 	if err != nil {
 		logger.Error("Failed deleting image from disk", logger.Ctx{"project": projectName, "fingerprint": fingerprint, "err": err})
 	}
