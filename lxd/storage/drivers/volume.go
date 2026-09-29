@@ -230,6 +230,30 @@ func (v Volume) MountInUse() bool {
 // EnsureMountPath creates the volume's mount path if missing, then sets the correct permission for the type.
 // If permission setting fails and the volume is a snapshot then the error is ignored as snapshots are read only.
 func (v Volume) EnsureMountPath() error {
+	err := ValidPoolName(v.pool)
+	if err != nil {
+		return fmt.Errorf("Invalid storage pool name %q: %w", v.pool, err)
+	}
+
+	if v.mountCustomPath == "" {
+		parentName, snapshotName, isSnapshot := api.GetParentAndSnapshotName(v.name)
+		if !isSnapshot {
+			parentName = v.name
+		}
+
+		err = ValidVolumeName(parentName)
+		if err != nil {
+			return fmt.Errorf("Invalid volume name %q: %w", parentName, err)
+		}
+
+		if isSnapshot {
+			err = ValidVolumeName(snapshotName)
+			if err != nil {
+				return fmt.Errorf("Invalid volume snapshot name %q: %w", snapshotName, err)
+			}
+		}
+	}
+
 	volPath := v.MountPath()
 
 	revert := revert.New()
@@ -245,7 +269,7 @@ func (v Volume) EnsureMountPath() error {
 	}
 
 	// Create volume's mount path if missing, with any created directories set to 0711.
-	err := os.Mkdir(volPath, 0711)
+	err = os.Mkdir(volPath, 0711)
 	if err != nil && !os.IsExist(err) {
 		return fmt.Errorf("Failed creating mount directory %q: %w", volPath, err)
 	}

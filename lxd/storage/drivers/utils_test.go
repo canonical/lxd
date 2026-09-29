@@ -42,6 +42,23 @@ func TestGetVolumeMountPath(t *testing.T) {
 	assert.Equal(t, expected, path)
 }
 
+func TestEnsureMountPathRejectsUnsafeNames(t *testing.T) {
+	testCases := []struct {
+		name          string
+		poolName      string
+		expectedError string
+	}{
+		{name: "../outside", poolName: "testpool", expectedError: `Invalid volume name ".."`},
+		{name: "volume/../outside", poolName: "testpool", expectedError: `Invalid volume snapshot name "../outside"`},
+		{name: "volume/snapshot", poolName: "../outside", expectedError: `Invalid storage pool name`},
+	}
+
+	for _, testCase := range testCases {
+		volume := NewVolume(nil, testCase.poolName, VolumeTypeCustom, ContentTypeFS, testCase.name, nil, nil)
+		assert.ErrorContains(t, volume.EnsureMountPath(), testCase.expectedError)
+	}
+}
+
 // Test addNoRecoveryMountOption.
 func TestAddNoRecoveryMountOption(t *testing.T) {
 	// Test unsupported FS.
@@ -111,6 +128,7 @@ func TestValidVolumeName(t *testing.T) {
 
 	// Test invalid volume names.
 	assert.Error(t, ValidVolumeName(""))
+	assert.Error(t, ValidVolumeName("."))
 	assert.Error(t, ValidVolumeName(".."))
 	assert.Error(t, ValidVolumeName("invalid volume"))
 	assert.Error(t, ValidVolumeName("invalid/volume"))

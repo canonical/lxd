@@ -985,6 +985,10 @@ func ValidVolumeName(volumeName string) error {
 		return errors.New("Cannot be empty")
 	}
 
+	if volumeName == "." {
+		return errors.New(`Cannot be "."`)
+	}
+
 	if volumeName == ".." {
 		return errors.New(`Cannot be ".."`)
 	}

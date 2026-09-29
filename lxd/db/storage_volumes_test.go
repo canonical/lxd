@@ -4,12 +4,16 @@ package db_test
 
 import (
 	"context"
+	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/shared/api"
 )
 
 // Addresses of all nodes with matching volume name are returned.
@@ -48,6 +52,39 @@ func TestGetStorageVolumeNodes(t *testing.T) {
 	}, nodes)
 }
 
+func TestGetAndRenameStoragePoolVolumeBackup(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	poolID1 := addPool(t, tx, "pool1")
+	poolID2 := addPool(t, tx, "pool2")
+	volumeID1 := addVolume(t, tx, poolID1, 1, "volume1")
+	volumeID2 := addVolume(t, tx, poolID2, 1, "volume1")
+	_, err := tx.Tx().Exec("UPDATE storage_volumes SET type=? WHERE id IN (?, ?)", cluster.StoragePoolVolumeTypeCustom, volumeID1, volumeID2)
+	require.NoError(t, err)
+
+	creationDate := time.Now().Unix()
+	_, err = tx.Tx().Exec("INSERT INTO storage_volumes_backups (storage_volume_id, name, creation_date, expiry_date) VALUES (?, ?, ?, ?), (?, ?, ?, ?)", volumeID1, "volume1/backup", creationDate, creationDate, volumeID2, "volume1/backup", creationDate, creationDate)
+	require.NoError(t, err)
+
+	backup1, err := tx.GetStoragePoolVolumeBackup(context.Background(), "default", "pool1", "volume1/backup")
+	require.NoError(t, err)
+	backup2, err := tx.GetStoragePoolVolumeBackup(context.Background(), "default", "pool2", "volume1/backup")
+	require.NoError(t, err)
+	assert.NotEqual(t, backup1.ID, backup2.ID)
+
+	err = tx.RenameVolumeBackup(context.Background(), -1, "volume1/renamed")
+	assert.True(t, api.StatusErrorCheck(err, http.StatusNotFound))
+
+	err = tx.RenameVolumeBackup(context.Background(), backup1.ID, "volume1/renamed")
+	require.NoError(t, err)
+
+	_, err = tx.GetStoragePoolVolumeBackup(context.Background(), "default", "pool1", "volume1/renamed")
+	require.NoError(t, err)
+	_, err = tx.GetStoragePoolVolumeBackup(context.Background(), "default", "pool2", "volume1/backup")
+	require.NoError(t, err)
+}
+
 func addPool(t *testing.T, tx *db.ClusterTx, name string) int64 {
 	stmt := `
 INSERT INTO storage_pools(name, driver, description) VALUES (?, 'dir', '')
@@ -61,10 +98,15 @@ INSERT INTO storage_pools(name, driver, description) VALUES (?, 'dir', '')
 	return id
 }
 
-func addVolume(t *testing.T, tx *db.ClusterTx, poolID, nodeID int64, name string) {
+func addVolume(t *testing.T, tx *db.ClusterTx, poolID, nodeID int64, name string) int64 {
 	stmt := `
 INSERT INTO storage_volumes(storage_pool_id, node_id, name, type, project_id, description) VALUES (?, ?, ?, 1, 1, '')
 `
-	_, err := tx.Tx().Exec(stmt, poolID, nodeID, name)
+	result, err := tx.Tx().Exec(stmt, poolID, nodeID, name)
 	require.NoError(t, err)
+
+	id, err := result.LastInsertId()
+	require.NoError(t, err)
+
+	return id
 }

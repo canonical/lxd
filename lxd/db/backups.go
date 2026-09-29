@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -479,9 +480,10 @@ SELECT
 FROM storage_volumes_backups AS backups
 JOIN storage_volumes ON storage_volumes.id=backups.storage_volume_id
 JOIN projects ON projects.id=storage_volumes.project_id
-WHERE projects.name=? AND backups.name=?
+JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id
+WHERE projects.name=? AND storage_pools.name=? AND storage_volumes.type=? AND backups.name=?
 `
-	arg1 := []any{projectName, backupName}
+	arg1 := []any{projectName, poolName, cluster.StoragePoolVolumeTypeCustom, backupName}
 	outfmt := []any{&args.ID, &args.VolumeID, &args.Name, &args.CreationDate, &args.ExpiryDate, &args.VolumeOnly, &args.OptimizedStorage}
 
 	err := dbQueryRowScan(ctx, c, q, arg1, outfmt)
@@ -528,10 +530,9 @@ WHERE backups.id=?
 	return args, nil
 }
 
-// RenameVolumeBackup renames a volume backup from the given current name
-// to the new one.
-func (c *ClusterTx) RenameVolumeBackup(ctx context.Context, oldName, newName string) error {
-	str := "UPDATE storage_volumes_backups SET name = ? WHERE name = ?"
+// RenameVolumeBackup renames the volume backup with the given ID.
+func (c *ClusterTx) RenameVolumeBackup(ctx context.Context, backupID int, newName string) error {
+	str := "UPDATE storage_volumes_backups SET name = ? WHERE id = ?"
 	stmt, err := c.tx.Prepare(str)
 	if err != nil {
 		return err
@@ -542,12 +543,21 @@ func (c *ClusterTx) RenameVolumeBackup(ctx context.Context, oldName, newName str
 	logger.Debug(
 		"Calling SQL Query",
 		logger.Ctx{
-			"query":   "UPDATE storage_volumes_backups SET name = ? WHERE name = ?",
-			"oldName": oldName,
-			"newName": newName})
-	_, err = stmt.Exec(newName, oldName)
+			"query":    "UPDATE storage_volumes_backups SET name = ? WHERE id = ?",
+			"backupID": backupID,
+			"newName":  newName})
+	result, err := stmt.Exec(newName, backupID)
 	if err != nil {
 		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected <= 0 {
+		return api.StatusErrorf(http.StatusNotFound, "Storage volume backup not found")
 	}
 
 	return nil
