@@ -280,7 +280,7 @@ waitFRRSession down
 lxc network delete "${BGP_NET}"
 lxc config set core.bgp_asn="" core.bgp_routerid=""
 lxc storage delete default
-systemctl stop frr
+systemctl disable --now frr
 ip link delete bgp0
 
 # shellcheck disable=SC2034
