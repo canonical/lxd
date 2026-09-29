@@ -295,6 +295,7 @@ readonly test_group_standalone_storage=(
     "storage_profiles"
     "storage_volume_attach"
     "storage_volume_attach_vm"
+    "storage_volume_attach_block_container"
     "storage_driver_btrfs"
     "storage_driver_ceph"
     "storage_driver_cephfs"

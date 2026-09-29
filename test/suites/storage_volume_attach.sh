@@ -211,3 +211,37 @@ test_storage_volume_attach_vm() {
     lxc storage set "${pool}" volume.size "${orig_volume_size}"
   fi
 }
+
+test_storage_volume_attach_block_container() {
+  local pool
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  ensure_import_testimage
+
+  # Creating storage volume
+  lxc storage volume create "${pool}" blockvol size=1MiB --type block
+
+  lxc launch testimage c1
+
+  # Unlike VMs (where the device is auto-discovered on the virtual disk bus and no path
+  # can be set), a block volume attached to a container needs an explicit path defining
+  # where the resulting block device should appear.
+  ! lxc config device add c1 blockdev disk pool="${pool}" source=blockvol || false
+
+  lxc config device add c1 blockdev disk pool="${pool}" source=blockvol path=/dev/lxd_blockvol
+
+  # Verify the device node exists inside the container and is a block device.
+  [ "$(lxc exec c1 -- stat -c %F /dev/lxd_blockvol)" = "block special file" ]
+
+  # Verify the block device can actually be read from and written to.
+  lxc exec c1 -- dd if=/dev/zero of=/dev/lxd_blockvol bs=1024 count=1
+  lxc exec c1 -- dd if=/dev/lxd_blockvol of=/dev/null bs=1024 count=1
+
+  # Detach and verify the device node is gone.
+  lxc config device remove c1 blockdev
+  ! lxc exec c1 -- stat /dev/lxd_blockvol || false
+
+  # Cleanup.
+  lxc delete -f c1
+  lxc storage volume delete "${pool}" blockvol
+}

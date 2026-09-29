@@ -578,14 +578,17 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 					return errors.New("Custom volume is already attached to an instance on a different cluster member")
 				}
 
-				// Check that block volumes are *only* attached to VM instances.
+				// Custom block volumes can be attached to both containers and VMs. VMs expose
+				// them as an automatically discovered disk, so no path can be set, but
+				// containers need an explicit path defining where the resulting block device
+				// should appear.
 				if dbCustomVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
-					if instConf.Type() == instancetype.Container {
-						return errors.New("Custom block volumes cannot be used on containers")
+					if instConf.Type() == instancetype.VM && d.config["path"] != "" {
+						return errors.New("Custom block volumes cannot have a path defined for VMs")
 					}
 
-					if d.config["path"] != "" {
-						return errors.New("Custom block volumes cannot have a path defined")
+					if instConf.Type() == instancetype.Container && d.config["path"] == "" {
+						return errors.New("Custom block volumes require a path to be defined for containers")
 					}
 				} else if dbCustomVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
 					if instConf.Type() == instancetype.Container {
@@ -894,9 +897,11 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			ownerShift = deviceConfig.MountOwnerShiftDynamic
 		}
 
-		// If ownerShift is none and pool is specified then check whether the volume
-		// has owner shifting enabled, and if so enable shifting on this device too.
-		if ownerShift == deviceConfig.MountOwnerShiftNone && d.config["pool"] != "" {
+		isBlockVolume := false
+
+		// If pool is specified then load the volume record so we can check whether owner
+		// shifting should be enabled and determine the volume's content type.
+		if d.config["pool"] != "" {
 			volumeName, _, dbVolumeType, err := d.sourceVolumeFields()
 			if err != nil {
 				return nil, err
@@ -914,7 +919,9 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 				return nil, err
 			}
 
-			if shared.IsTrue(dbVolume.Config["security.shifted"]) {
+			isBlockVolume = dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock
+
+			if ownerShift == deviceConfig.MountOwnerShiftNone && shared.IsTrue(dbVolume.Config["security.shifted"]) {
 				ownerShift = deviceConfig.MountOwnerShiftDynamic
 			}
 		}
@@ -958,6 +965,23 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 
 				return nil
 			})
+		}
+
+		// Custom block volumes have no filesystem for LXD to bind-mount, so attach them as a
+		// raw unix-block device instead of going through the regular bind-mount path below.
+		if isBlockVolume {
+			_, major, minor, err := unixDeviceAttributes(srcPath)
+			if err != nil {
+				return nil, fmt.Errorf("Failed getting block device attributes for %q: %w", srcPath, err)
+			}
+
+			err = unixDeviceSetupBlockNum(d.state, d.inst.DevicesPath(), "disk", d.name, d.config, major, minor, destPath, true, &runConf)
+			if err != nil {
+				return nil, err
+			}
+
+			revert.Success()
+			return &runConf, nil
 		}
 
 		// Mount the source in the instance devices directory.
@@ -1707,13 +1731,17 @@ func (d *disk) mountPoolVolume() (func(), string, *storagePools.MountInfo, error
 	srcPath := storageDrivers.GetVolumeMountPath(d.config["pool"], volumeType, volStorageName)
 
 	if d.inst.Type() == instancetype.Container {
-		if dbVolume.ContentType != cluster.StoragePoolVolumeContentTypeNameFS {
-			return nil, "", nil, errors.New("Only filesystem volumes are supported for containers")
+		if dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
+			return nil, "", nil, errors.New("Custom ISO volumes cannot be used on containers")
 		}
 
-		err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, dbVolumeType, srcPath)
-		if err != nil {
-			return nil, "", nil, fmt.Errorf(`Failed shifting storage volume "%s/%s" on storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
+		// Block volumes are attached as raw block devices further down and have no concept of
+		// ownership shifting, so only filesystem volumes need their ownership shifted here.
+		if dbVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameFS {
+			err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, dbVolumeType, srcPath)
+			if err != nil {
+				return nil, "", nil, fmt.Errorf(`Failed shifting storage volume "%s/%s" on storage pool %q: %w`, dbVolumeType, volumeName, d.pool.Name(), err)
+			}
 		}
 	}
 
