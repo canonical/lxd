@@ -3744,3 +3744,10 @@ Like SCSI/FC, Fibre Channel targets are discovered through the host bus adapter,
 This introduces the `ceph.replicator.<project>` configuration key on `ceph` storage pools.
 It records the peer Ceph site to which a project's volumes on the pool are mirrored.
 If a project with a replicator holds volumes on a Ceph pool configured with this key, then the replicator enrolls those volumes in RBD mirroring, triggers a mirror snapshot of each volume on every replication run, and completes the run only after the peer site confirms that it has received every snapshot.
+
+(extension-nic-routes-external-wait-ready)=
+## `nic_routes_external_wait_ready`
+
+Adds {config:option}`device-nic-bridged-device-conf:ipv4.routes.external.wait_ready` and {config:option}`device-nic-bridged-device-conf:ipv6.routes.external.wait_ready` configuration keys for `bridged` NIC devices.
+
+When enabled, the corresponding `ipv4.routes.external`/`ipv6.routes.external` routes are only added to the host (and published over BGP) once the instance reports itself as ready (see {ref}`extension-instance-ready-state`), and are removed again if the instance reverts to the running state.
