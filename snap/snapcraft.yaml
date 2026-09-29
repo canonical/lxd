@@ -1117,6 +1117,8 @@ parts:
       - bin/mkisofs*
       - bin/qemu-system-*
       - bin/qemu-img*
+      - bin/qemu-nbd
+      - bin/qemu-storage-daemon
       - lib/*/libatomic.so*
       - lib/*/libmagic*so*
       - lib/*/libnuma*so*
