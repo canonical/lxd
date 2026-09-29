@@ -844,6 +844,9 @@ parts:
       - bin/ovs-vsctl
       - lib/*/libunbound*so*
       - share/openvswitch/vswitch.ovsschema
+      - to riscv64:
+        # libbpf.so is also needed but comes from the core base
+        - lib/*/libxdp.so*
 
   ovn:
     after:
