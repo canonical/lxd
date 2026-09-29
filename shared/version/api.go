@@ -514,6 +514,7 @@ var APIExtensions = []string{
 	"image_registries",
 	"loki_config_api_check_ready",
 	"server_state",
+	"nic_routes_external_wait_ready",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
