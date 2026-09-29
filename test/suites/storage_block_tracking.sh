@@ -326,6 +326,12 @@ test_storage_block_tracking_vm() {
   local lxd_backend
 
   lxd_backend=$(storage_backend "${LXD_DIR}")
+  if [ "${lxd_backend}" = "dir" ]; then
+    # Don't run VM changed block tracking tests on storage drivers that perform snapshots by copying entire volume.
+    # This takes a lot of space and time.
+    export TEST_UNMET_REQUIREMENT="Changed block tracking is not tested on the ${lxd_backend} backend"
+    return
+  fi
 
   check_dependencies nbdinfo nbdcopy qemu-img qemu-io qemu-nbd qemu-storage-daemon
 
@@ -1326,6 +1332,10 @@ EOF
 test_clustering_storage_block_tracking_vm() {
   local poolDriver pool cert blk_dev blk_checksum blk_copy s1_uuid operation_uuid import_src fingerprint
   poolDriver="$(storage_backend "${LXD_INITIAL_DIR}")"
+  if [ "${poolDriver}" = "dir" ]; then
+    export TEST_UNMET_REQUIREMENT="Changed block tracking is not tested on the ${poolDriver} backend"
+    return
+  fi
 
   check_dependencies nbdinfo nbdcopy qemu-img qemu-nbd qemu-storage-daemon
 
