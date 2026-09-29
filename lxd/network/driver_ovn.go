@@ -35,6 +35,7 @@ import (
 	"github.com/canonical/lxd/lxd/network/openvswitch"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -195,15 +196,51 @@ func (n *ovn) State() (*api.NetworkState, error) {
 		mtu = 1500
 	}
 
+	counters, err := n.counters()
+	if err != nil {
+		return nil, err
+	}
+
 	return &api.NetworkState{
 		Addresses: addresses,
-		Counters:  api.NetworkStateCounters{},
+		Counters:  counters,
 		Hwaddr:    hwaddr,
 		Mtu:       mtu,
 		State:     "up",
 		Type:      "broadcast",
 		OVN:       &api.NetworkStateOVN{Chassis: chassis},
 	}, nil
+}
+
+// counters returns the aggregated traffic counters for the OVN network from the instance NICs attached
+// to the current member.
+func (n *ovn) counters() (api.NetworkStateCounters, error) {
+	counters := api.NetworkStateCounters{}
+	filter := dbCluster.InstanceFilter{Node: &n.state.ServerName}
+
+	err := UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+		hostName := inst.Config[fmt.Sprintf("volatile.%s.host_name", nicName)]
+		if hostName == "" {
+			return nil
+		}
+
+		hostCounters, err := resources.GetNetworkCounters(hostName)
+		if err != nil {
+			return fmt.Errorf("Failed getting network counters for %q: %w", hostName, err)
+		}
+
+		counters.BytesReceived += hostCounters.BytesReceived
+		counters.BytesSent += hostCounters.BytesSent
+		counters.PacketsReceived += hostCounters.PacketsReceived
+		counters.PacketsSent += hostCounters.PacketsSent
+
+		return nil
+	}, filter)
+	if err != nil {
+		return counters, err
+	}
+
+	return counters, nil
 }
 
 // uplinkRoutes parses ipv4.routes and ipv6.routes settings for an uplink network into a slice of *net.IPNet.
