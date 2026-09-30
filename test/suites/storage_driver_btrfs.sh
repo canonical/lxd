@@ -100,6 +100,28 @@ test_storage_driver_btrfs() {
     lxc exec c1pool2 -- touch /a/b/c/w.txt
     lxc delete -f c1pool2
 
+    sub_test "Refresh a cross-pool copy with nested subvolumes"
+    lxc copy c1pool1 c1pool2 -s "lxdtest-$(basename "${LXD_DIR}")-pool2"
+    lxc exec c1pool1 -- touch /a/a3.txt /a/b/c/c3.txt
+    lxc snapshot c1pool1 snap3
+    lxc copy --refresh c1pool1 c1pool2
+    lxc query /1.0/instances/c1pool2/snapshots | jq --exit-status 'length == 4'
+    lxc start c1pool2
+    lxc exec c1pool2 -- stat /a/a2.txt /a/b/b2.txt /a/b/c/c2.txt
+    lxc exec c1pool2 -- stat /a/a3.txt /a/b/c/c3.txt
+
+    # Test readonly property has been propagated after refresh.
+    lxc exec c1pool2 -- touch /a/w.txt
+    if lxc exec c1pool2 -- touch /a/b/w.txt; then
+      echo "ERROR: /a/b should be readonly after refresh"
+      exit 1
+    fi
+
+    lxc exec c1pool2 -- touch /a/b/c/w.txt
+    lxc delete -f c1pool2
+    lxc exec c1pool1 -- rm /a/a3.txt /a/b/c/c3.txt
+    lxc delete c1pool1/snap3
+
     # Delete /a in c1pool1 and restore snap 1.
     btrfs property set "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool1/containers/c1pool1/rootfs/a/b" ro false
     btrfs subvol delete "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")-pool1/containers/c1pool1/rootfs/a/b/c"
