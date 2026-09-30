@@ -65,6 +65,7 @@ import (
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
@@ -1166,6 +1167,13 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 
 	// Cache UEFI support for this architecture.
 	supportsUEFI := d.architectureSupportsUEFI(d.architecture)
+
+	if d.useTCG() {
+		err = limits.AllowVMEmulation(&d.project)
+		if err != nil {
+			return err
+		}
+	}
 
 	// Ensure secure boot is disabled for images that don't support it.
 	bootMode := d.effectiveBootMode()
