@@ -2,8 +2,12 @@ package drivers
 
 import (
 	"encoding/json"
+	"errors"
+	"net/http"
+	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -647,4 +651,275 @@ func Test_pureConnection_unmarshal(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_pureError_Error(t *testing.T) {
+	newErr := func(messages ...string) *pureError {
+		perr := &pureError{}
+		for _, message := range messages {
+			perr.Errors = append(perr.Errors, struct {
+				Context string `json:"context"`
+				Message string `json:"message"`
+			}{Message: message})
+		}
+
+		return perr
+	}
+
+	tests := []struct {
+		Name string
+		Err  *pureError
+		Want string
+	}{
+		{
+			Name: "Nil error",
+			Err:  nil,
+			Want: "",
+		},
+		{
+			Name: "No errors reported",
+			Err:  newErr(),
+			Want: "",
+		},
+		{
+			Name: "Trailing dot is removed",
+			Err:  newErr("Volume does not exist."),
+			Want: "Volume does not exist",
+		},
+		{
+			Name: "Message without a trailing dot is kept as is",
+			Err:  newErr("Volume does not exist"),
+			Want: "Volume does not exist",
+		},
+		{
+			Name: "Only the first message is reported",
+			Err:  newErr("First failure.", "Second failure."),
+			Want: "First failure",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			assert.Equal(t, test.Want, test.Err.Error())
+		})
+	}
+}
+
+func Test_isPureErrorOf(t *testing.T) {
+	newErr := func(statusCode int, messages ...string) *pureError {
+		perr := &pureError{statusCode: statusCode}
+		for _, message := range messages {
+			perr.Errors = append(perr.Errors, struct {
+				Context string `json:"context"`
+				Message string `json:"message"`
+			}{Message: message})
+		}
+
+		return perr
+	}
+
+	tests := []struct {
+		Name       string
+		Err        error
+		StatusCode int
+		Substrings []string
+		Want       bool
+	}{
+		{
+			Name:       "Nil error",
+			Err:        nil,
+			StatusCode: http.StatusBadRequest,
+			Want:       false,
+		},
+		{
+			Name:       "Error of another type",
+			Err:        errors.New("Not found"),
+			StatusCode: http.StatusBadRequest,
+			Substrings: []string{"Not found"},
+			Want:       false,
+		},
+		{
+			Name:       "Status code match without substrings",
+			Err:        newErr(http.StatusBadRequest, "Anything"),
+			StatusCode: http.StatusBadRequest,
+			Want:       true,
+		},
+		{
+			Name:       "Status code mismatch",
+			Err:        newErr(http.StatusUnauthorized, "Not found"),
+			StatusCode: http.StatusBadRequest,
+			Substrings: []string{"Not found"},
+			Want:       false,
+		},
+		{
+			Name:       "Substring match ignores case",
+			Err:        newErr(http.StatusBadRequest, "Volume DOES NOT EXIST."),
+			StatusCode: http.StatusBadRequest,
+			Substrings: []string{"does not exist"},
+			Want:       true,
+		},
+		{
+			Name:       "Any of the substrings is enough",
+			Err:        newErr(http.StatusBadRequest, "Host not found"),
+			StatusCode: http.StatusBadRequest,
+			Substrings: []string{"does not exist", "not found"},
+			Want:       true,
+		},
+		{
+			Name:       "Any of the messages is enough",
+			Err:        newErr(http.StatusBadRequest, "Unrelated failure", "Host not found"),
+			StatusCode: http.StatusBadRequest,
+			Substrings: []string{"not found"},
+			Want:       true,
+		},
+		{
+			Name:       "No substring matches",
+			Err:        newErr(http.StatusBadRequest, "Unrelated failure"),
+			StatusCode: http.StatusBadRequest,
+			Substrings: []string{"not found", "does not exist"},
+			Want:       false,
+		},
+		{
+			Name:       "Substrings given but no messages reported",
+			Err:        newErr(http.StatusBadRequest),
+			StatusCode: http.StatusBadRequest,
+			Substrings: []string{"not found"},
+			Want:       false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			assert.Equal(t, test.Want, isPureErrorOf(test.Err, test.StatusCode, test.Substrings...))
+		})
+	}
+}
+
+func Test_isPureErrorNotFound(t *testing.T) {
+	newErr := func(statusCode int, message string) *pureError {
+		perr := &pureError{statusCode: statusCode}
+		perr.Errors = append(perr.Errors, struct {
+			Context string `json:"context"`
+			Message string `json:"message"`
+		}{Message: message})
+
+		return perr
+	}
+
+	tests := []struct {
+		Name string
+		Err  error
+		Want bool
+	}{
+		{
+			Name: "Not found",
+			Err:  newErr(http.StatusBadRequest, "Volume not found."),
+			Want: true,
+		},
+		{
+			Name: "Does not exist",
+			Err:  newErr(http.StatusBadRequest, "Host does not exist."),
+			Want: true,
+		},
+		{
+			Name: "No such volume or snapshot",
+			Err:  newErr(http.StatusBadRequest, "No such volume or snapshot: pool::vol."),
+			Want: true,
+		},
+		{
+			// A missing resource is reported as a bad request, never as HTTP 404.
+			Name: "Not found message with another status code",
+			Err:  newErr(http.StatusNotFound, "Volume not found."),
+			Want: false,
+		},
+		{
+			Name: "Bad request for another reason",
+			Err:  newErr(http.StatusBadRequest, "Volume already exists."),
+			Want: false,
+		},
+		{
+			Name: "Error of another type",
+			Err:  errors.New("Volume not found"),
+			Want: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			assert.Equal(t, test.Want, isPureErrorNotFound(test.Err))
+		})
+	}
+}
+
+func Test_pure_getUUIDFromVolumeName(t *testing.T) {
+	tests := []struct {
+		Name      string
+		VolName   string
+		Want      string
+		WantError string
+	}{
+		{
+			Name:    "UUID without hyphens",
+			VolName: "a5289556c903409a8aa04af18a46738d",
+			Want:    "a5289556-c903-409a-8aa0-4af18a46738d",
+		},
+		{
+			Name:    "Uppercase UUID",
+			VolName: "A5289556C903409A8AA04AF18A46738D",
+			Want:    "a5289556-c903-409a-8aa0-4af18a46738d",
+		},
+		{
+			Name:      "Empty name",
+			VolName:   "",
+			WantError: `Failed parsing UUID from volume name "": `,
+		},
+		{
+			Name:      "Name that is too short",
+			VolName:   "a5289556c903409a",
+			WantError: `Failed parsing UUID from volume name "a5289556c903409a": `,
+		},
+		{
+			Name:      "Non-hexadecimal characters",
+			VolName:   "g5289556c903409a8aa04af18a46738d",
+			WantError: `Failed parsing UUID from volume name "g5289556c903409a8aa04af18a46738d": `,
+		},
+		{
+			// The caller is expected to strip the type prefix and content type suffix.
+			Name:      "Name with type prefix",
+			VolName:   "c-a5289556c903409a8aa04af18a46738d",
+			WantError: `Failed parsing UUID from volume name "c-a5289556c903409a8aa04af18a46738d": `,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			d := &pure{}
+
+			volUUID, err := d.getUUIDFromVolumeName(test.VolName)
+			if test.WantError != "" {
+				assert.ErrorContains(t, err, test.WantError)
+				assert.Equal(t, uuid.Nil, volUUID)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, test.Want, volUUID.String())
+		})
+	}
+}
+
+func Test_pure_getVolumeName_roundTrip(t *testing.T) {
+	const volUUID = "a5289556-c903-409a-8aa0-4af18a46738d"
+
+	d := &pure{}
+
+	vol := NewVolume(nil, "testpool", VolumeTypeCustom, ContentTypeFS, "custom-fs", map[string]string{"volatile.uuid": volUUID}, nil)
+
+	volName, err := d.getVolumeName(vol)
+	require.NoError(t, err)
+
+	// Strip the type prefix that getVolumeName prepends.
+	parsedUUID, err := d.getUUIDFromVolumeName(strings.TrimPrefix(volName, pureVolTypePrefixes[VolumeTypeCustom]+"-"))
+	require.NoError(t, err)
+	assert.Equal(t, volUUID, parsedUUID.String())
 }
