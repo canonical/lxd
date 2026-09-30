@@ -950,30 +950,31 @@ var allInstanceAggregateLimits = []string{
 
 // allRestrictions lists all available 'restrict.*' config keys along with their default setting.
 var allRestrictions = map[string]string{
-	"restricted.backups":                   "block",
-	"restricted.cluster.groups":            "",
-	"restricted.cluster.target":            "block",
-	"restricted.containers.nesting":        "block",
-	"restricted.containers.interception":   "block",
-	"restricted.containers.lowlevel":       "block",
-	"restricted.containers.privilege":      "unprivileged",
-	"restricted.virtual-machines.lowlevel": "block",
-	"restricted.devices.unix-char":         "block",
-	"restricted.devices.unix-block":        "block",
-	"restricted.devices.unix-hotplug":      "block",
-	"restricted.devices.infiniband":        "block",
-	"restricted.devices.gpu":               "block",
-	"restricted.devices.usb":               "block",
-	"restricted.devices.pci":               "block",
-	"restricted.devices.proxy":             "block",
-	"restricted.devices.nic":               "managed",
-	"restricted.devices.disk":              "managed",
-	"restricted.devices.disk.paths":        "",
-	"restricted.idmap.uid":                 "",
-	"restricted.idmap.gid":                 "",
-	"restricted.networks.access":           "",
-	"restricted.snapshots":                 "block",
-	"restricted.registries":                "builtin",
+	"restricted.backups":                    "block",
+	"restricted.cluster.groups":             "",
+	"restricted.cluster.target":             "block",
+	"restricted.containers.nesting":         "block",
+	"restricted.containers.interception":    "block",
+	"restricted.containers.lowlevel":        "block",
+	"restricted.containers.privilege":       "unprivileged",
+	"restricted.virtual-machines.lowlevel":  "block",
+	"restricted.virtual-machines.emulation": "block",
+	"restricted.devices.unix-char":          "block",
+	"restricted.devices.unix-block":         "block",
+	"restricted.devices.unix-hotplug":       "block",
+	"restricted.devices.infiniband":         "block",
+	"restricted.devices.gpu":                "block",
+	"restricted.devices.usb":                "block",
+	"restricted.devices.pci":                "block",
+	"restricted.devices.proxy":              "block",
+	"restricted.devices.nic":                "managed",
+	"restricted.devices.disk":               "managed",
+	"restricted.devices.disk.paths":         "",
+	"restricted.idmap.uid":                  "",
+	"restricted.idmap.gid":                  "",
+	"restricted.networks.access":            "",
+	"restricted.snapshots":                  "block",
+	"restricted.registries":                 "builtin",
 }
 
 // allowableIntercept lists all syscall interception keys which may be allowed.
@@ -1688,6 +1689,15 @@ func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
 func AllowSnapshotCreation(p *api.Project) error {
 	if projectHasRestriction(p, "restricted.snapshots", "block") {
 		return fmt.Errorf("Project %q does not allow for snapshot creation", p.Name)
+	}
+
+	return nil
+}
+
+// AllowVMEmulation returns an error if the project does not allow virtual machines using emulation.
+func AllowVMEmulation(p *api.Project) error {
+	if projectHasRestriction(p, "restricted.virtual-machines.emulation", "block") {
+		return fmt.Errorf("Project %q does not allow virtual machines using emulation", p.Name)
 	}
 
 	return nil
