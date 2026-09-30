@@ -50,6 +50,7 @@ The workflow to authenticate with the server is similar to that of SSH, where an
 
 1. When the user adds a server with [`lxc remote add`](lxc_remote_add.md), the server is contacted over HTTPS, its certificate is downloaded and the fingerprint is shown to the user.
 1. The user is asked to confirm that this is indeed the server's fingerprint, which they can manually check by connecting to the server or by asking someone with access to the server to run the info command and compare the fingerprints.
+   To skip the prompt in scripts, pass the expected fingerprint with `--accept-certificate=<fingerprint>`; the server is added only if its certificate matches.
 1. The server attempts to authenticate the client:
 
    - If the client certificate is in the server's trust store, the connection is granted.
