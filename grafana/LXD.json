@@ -3826,7 +3826,7 @@
             "uid": "${DS_LOKI}"
           },
           "editorMode": "code",
-          "expr": "{app=\"lxd\", type=\"lifecycle\", instance=\"$job\", project=~\"|$project\"}",
+          "expr": "{app=\"lxd\", type=\"lifecycle\", instance=~\"${loki_instance:regex}\", project=~\"|$project\"}",
           "queryType": "range",
           "refId": "A"
         }
@@ -3863,7 +3863,7 @@
             "uid": "${DS_LOKI}"
           },
           "editorMode": "code",
-          "expr": "{app=\"lxd\", type=\"logging\", instance=\"$job\", project=~\"|$project\"}",
+          "expr": "{app=\"lxd\", type=\"logging\", instance=~\"${loki_instance:regex}\", project=~\"|$project\"}",
           "queryType": "range",
           "refId": "A"
         }
@@ -3892,6 +3892,33 @@
         "options": [],
         "query": {
           "query": "label_values(lxd_procs_total, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(lxd_procs_total{job=\"$job\"}, instance)",
+        "description": "Internal lookup: maps the selected $job to its corresponding Loki 'instance' label value(s) (cluster member hostname(s)). Not shown in the UI.",
+        "hide": 2,
+        "includeAll": true,
+        "multi": true,
+        "label": "Loki Instance",
+        "name": "loki_instance",
+        "options": [],
+        "query": {
+          "query": "label_values(lxd_procs_total{job=\"$job\"}, instance)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,

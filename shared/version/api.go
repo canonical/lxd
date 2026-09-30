@@ -509,6 +509,7 @@ var APIExtensions = []string{
 	"vm_volatile_maxcpus",
 	"access_management_identity_effective_groups",
 	"storage_driver_pure_nvmefc",
+	"loki_config_api_check_ready",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
