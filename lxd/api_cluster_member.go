@@ -42,7 +42,7 @@ import (
 type evacuateStopFunc func(ctx context.Context, inst instance.Instance) error
 type evacuateMigrateFunc func(ctx context.Context, s *state.State, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, op *operations.Operation) error
 
-const clusterMemberEvacuateConflictReference = "cluster-member-evacuation"
+const clusterMemberEvacuateRestoreConflictReference = "cluster-member-evacuation"
 
 type evacuateOpts struct {
 	s               *state.State
@@ -1442,7 +1442,7 @@ func clusterMemberStatePost(d *Daemon, r *http.Request) response.Response {
 			Class:       operationtype.OperationClassTask,
 			RunHook:     run,
 			// Use ConflictReference to enforce cluster-wide evacuation exclusivity; this prevents evacuation race conditions.
-			ConflictReference: clusterMemberEvacuateConflictReference,
+			ConflictReference: clusterMemberEvacuateRestoreConflictReference,
 		}
 
 		op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
@@ -2230,11 +2230,13 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 		Type:        operationtype.ClusterMemberRestore,
 		Class:       operationtype.OperationClassTask,
 		RunHook:     run,
+		// Shared with evacuations so a restore cannot run concurrently with an evacuation or another restore.
+		ConflictReference: clusterMemberEvacuateRestoreConflictReference,
 	}
 
 	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
 	if err != nil {
-		return response.InternalError(err)
+		return response.SmartError(err)
 	}
 
 	return response.OperationResponse(op)
