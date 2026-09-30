@@ -984,7 +984,7 @@ parts:
       - --disable-qed
       - --disable-sdl
       - --disable-slirp
-      - --disable-tcg  # TCG is not used (nor supported) at runtime
+      - --disable-tcg  # TCG is only enabled for riscv64 (required) and amd64 (cross-architecture emulation)
       - --disable-user
       - --disable-vde
       - --disable-vdi
@@ -1078,11 +1078,18 @@ parts:
       # Apply patches from Ubuntu sources.
       QUILT_PATCHES=debian/patches quilt push -a
 
-      sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
+      TARGET_LIST="${QEMUARCH}-softmmu"
+      if [ "${QEMUARCH}" = "x86_64" ]; then
+          # Emulators for running riscv64 and armhf VMs through TCG.
+          TARGET_LIST="${TARGET_LIST} riscv64-softmmu arm-softmmu"
+      fi
+
+      sed -i "s/^unset target_list$/target_list=\"${TARGET_LIST}\"/" configure
       sed -i 's#libseccomp_minver=".*#libseccomp_minver="0.0"#g' configure
 
       # As of May 2026 QEMU for riscv64 does not support building with --disable-tcg
-      if [ "${QEMUARCH}" = "riscv64" ]; then
+      # and amd64 needs TCG for its cross-architecture targets.
+      if [ "${QEMUARCH}" = "riscv64" ] || [ "${QEMUARCH}" = "x86_64" ]; then
           # `set -- "$@"`: preserve arguments passed to `configure` and append
           # `--enable-tcg` at the end to override the previous `--disable-tcg`.
           sed -i '1 a set -- "$@" --enable-tcg' configure
