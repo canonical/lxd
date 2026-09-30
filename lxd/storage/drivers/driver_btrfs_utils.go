@@ -86,9 +86,16 @@ func (d *btrfs) getMountOptions() string {
 }
 
 func (d *btrfs) isSubvolume(path string) bool {
+	// A non-Btrfs filesystem can also use inode 256.
+	statfs := unix.Statfs_t{}
+	err := unix.Statfs(path, &statfs)
+	if err != nil || statfs.Type != unix.BTRFS_SUPER_MAGIC {
+		return false
+	}
+
 	// Stat the path.
 	fs := unix.Stat_t{}
-	err := unix.Lstat(path, &fs)
+	err = unix.Lstat(path, &fs)
 	if err != nil {
 		return false
 	}
