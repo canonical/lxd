@@ -283,9 +283,8 @@ const ctxImageDetails request.CtxKey = "image-details"
 // imageDetails contains fields that are determined prior to the access check. This is set in the request context when
 // addImageDetailsToRequestContext is called.
 type imageDetails struct {
-	imageFingerprintPrefix string
-	imageID                int
-	image                  api.Image
+	imageID int
+	image   api.Image
 }
 
 // addImageDetailsToRequestContext sets the effective project in the request.Info and sets ctxImageDetails (imageDetails)
@@ -321,9 +320,8 @@ func addImageDetailsToRequestContext(s *state.State, r *http.Request) error {
 
 	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
 	request.SetContextValue(r, ctxImageDetails, imageDetails{
-		imageFingerprintPrefix: imageFingerprintPrefix,
-		imageID:                imageID,
-		image:                  *image,
+		imageID: imageID,
+		image:   *image,
 	})
 
 	return nil
@@ -5139,7 +5137,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 		var nodes []db.NodeInfo
 
 		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			nodeAddresses, err := tx.GetNodesWithImageAndAutoUpdate(ctx, details.imageFingerprintPrefix, true)
+			nodeAddresses, err := tx.GetNodesWithImageAndAutoUpdate(ctx, details.image.Fingerprint, true)
 			if err != nil {
 				return fmt.Errorf("Failed getting cluster members with auto-update images: %w", err)
 			}
@@ -5156,17 +5154,17 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 			return nil
 		})
 		if err != nil {
-			return fmt.Errorf("Error getting cluster members for refreshing image %q in project %q: %w", details.imageFingerprintPrefix, projectName, err)
+			return fmt.Errorf("Error getting cluster members for refreshing image %q in project %q: %w", details.image.Fingerprint, projectName, err)
 		}
 
 		newImage, err := autoUpdateImage(ctx, s, op, details.imageID, &details.image, projectName, true)
 		if err != nil {
-			return fmt.Errorf("Failed updating image %q in project %q: %w", details.imageFingerprintPrefix, projectName, err)
+			return fmt.Errorf("Failed updating image %q in project %q: %w", details.image.Fingerprint, projectName, err)
 		}
 
 		if newImage != nil {
 			if len(nodes) > 1 {
-				err := distributeImage(ctx, s, nodes, details.imageFingerprintPrefix, newImage)
+				err := distributeImage(ctx, s, nodes, details.image.Fingerprint, newImage)
 				if err != nil {
 					return fmt.Errorf("Failed distributing new image %q: %w", newImage.Fingerprint, err)
 				}
@@ -5177,7 +5175,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 				return tx.DeleteImage(ctx, details.imageID)
 			})
 			if err != nil {
-				logger.Error("Error deleting old image from database", logger.Ctx{"err": err, "fingerprint": details.imageFingerprintPrefix, "ID": details.imageID})
+				logger.Error("Error deleting old image from database", logger.Ctx{"err": err, "fingerprint": details.image.Fingerprint, "ID": details.imageID})
 			}
 		}
 
