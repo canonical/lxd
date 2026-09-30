@@ -160,10 +160,11 @@ runs:
     - name: ${{ inputs.test }}
       shell: bash
       env:
-        SUDO_PRESERVE_ENV: "PATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,OVN_SOURCE,LXD_SNAP_SIDELOAD,LXD_SNAP_BINARY_DIR"
+        SUDO_PRESERVE_ENV: "PATH,GOCOVERDIR,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,IMAGE_CACHE_DIR,OVN_SOURCE,LXD_SNAP_SIDELOAD,LXD_SNAP_BINARY_DIR"
         LXD_SNAP_SIDELOAD: ${{ inputs.sideload == 'true' && '1' || '' }}
         LXD_SNAP_BINARY_DIR: ${{ inputs.binary-dir }}
         GOCOVERDIR: ${{ steps.make-gocoverdir.outputs.dir }}
+        IMAGE_CACHE_DIR: ${{ inputs.image-cache-dir }}
         INPUT_TEST: ${{ inputs.test }}
         INPUT_CHANNEL: ${{ inputs.channel }}
       run: |
