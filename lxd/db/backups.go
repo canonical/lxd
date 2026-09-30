@@ -398,7 +398,7 @@ ORDER BY storage_volumes_backups.id`
 
 // CreateStoragePoolVolumeBackup creates a new storage volume backup.
 func (c *ClusterTx) CreateStoragePoolVolumeBackup(ctx context.Context, args StoragePoolVolumeBackup) error {
-	_, err := c.getStoragePoolVolumeBackupID(ctx, args.Name)
+	_, err := c.getStoragePoolVolumeBackupID(ctx, args.VolumeID, args.Name)
 	if err == nil {
 		return api.StatusErrorf(http.StatusConflict, "Backup for storage volume %q already exists", args.Name)
 	}
@@ -435,11 +435,11 @@ func (c *ClusterTx) CreateStoragePoolVolumeBackup(ctx context.Context, args Stor
 	return nil
 }
 
-// Returns the ID of the storage volume backup with the given name.
-func (c *ClusterTx) getStoragePoolVolumeBackupID(ctx context.Context, name string) (int, error) {
-	q := "SELECT id FROM storage_volumes_backups WHERE name=?"
+// Returns the ID of the backup with the given name belonging to the given storage volume.
+func (c *ClusterTx) getStoragePoolVolumeBackupID(ctx context.Context, volumeID int64, name string) (int, error) {
+	q := "SELECT id FROM storage_volumes_backups WHERE storage_volume_id=? AND name=?"
 	id := -1
-	arg1 := []any{name}
+	arg1 := []any{volumeID, name}
 	arg2 := []any{&id}
 
 	err := dbQueryRowScan(ctx, c, q, arg1, arg2)

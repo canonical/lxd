@@ -105,6 +105,24 @@ func TestGetRenameAndDeleteStoragePoolVolumeBackup(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestCreateStoragePoolVolumeBackupConflict(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	volumeID1 := addVolume(t, tx, addPool(t, tx, "pool1"), 1, "volume1")
+	volumeID2 := addVolume(t, tx, addPool(t, tx, "pool2"), 1, "volume1")
+
+	err := tx.CreateStoragePoolVolumeBackup(context.Background(), db.StoragePoolVolumeBackup{VolumeID: volumeID1, Name: "volume1/backup"})
+	require.NoError(t, err)
+
+	// The same backup name on a volume in another pool does not conflict.
+	err = tx.CreateStoragePoolVolumeBackup(context.Background(), db.StoragePoolVolumeBackup{VolumeID: volumeID2, Name: "volume1/backup"})
+	require.NoError(t, err)
+
+	err = tx.CreateStoragePoolVolumeBackup(context.Background(), db.StoragePoolVolumeBackup{VolumeID: volumeID1, Name: "volume1/backup"})
+	assert.True(t, api.StatusErrorCheck(err, http.StatusConflict))
+}
+
 func addPool(t *testing.T, tx *db.ClusterTx, name string) int64 {
 	stmt := `
 INSERT INTO storage_pools(name, driver, description) VALUES (?, 'dir', '')
