@@ -68,5 +68,44 @@ fi
 prepare_vm_for_hard_stop v1
 lxc delete -f v1
 
+if [ "$(uname -m)" != "x86_64" ]; then
+    echo "==> SKIP: emulated VMs are only supported on x86_64"
+elif ! lxc query /1.0 | jq --exit-status '(.environment.vm_emulated_architectures // []) | contains(["riscv64", "armv7l"])'; then
+    echo "==> SKIP: the LXD snap does not support emulated riscv64 and armv7l VMs"
+else
+    for pair in riscv64:riscv64 armhf:armv7l; do
+        IFS=: read -r image_arch lxd_arch <<< "${pair}"
+        echo "==> Test emulated ${lxd_arch} VM"
+
+        image="ubuntu-daily:26.04/${image_arch}"
+        if [ -e "${IMAGE_CACHE_DIR:-}/ubuntu-${image_arch}.img" ]; then
+            image="ubuntu-vm-${image_arch}"
+            lxc image import --quiet "${IMAGE_CACHE_DIR}/ubuntu-${image_arch}.metadata" "${IMAGE_CACHE_DIR}/ubuntu-${image_arch}.img" --alias "${image}"
+        fi
+
+        lxc launch "${image}" v-emu --vm -c boot.mode=uefi-nosecureboot -c limits.cpu=2
+        lxc query /1.0/instances/v-emu | jq --exit-status --arg arch "${lxd_arch}" '.architecture == $arch'
+        grep -xF 'accel = "tcg"' /var/snap/lxd/common/lxd/logs/v-emu/qemu.conf
+
+        # Without a working lxd-agent, the IPv4 address comes from the DHCP leases and SSH shows the guest booted.
+        ipv4=""
+        for _ in $(seq 300); do
+            ipv4="$(lxc list -f csv -c 4 v-emu | cut -d' ' -f1)"
+            [ -n "${ipv4}" ] && break
+            sleep 1
+        done
+
+        if [ -z "${ipv4}" ] || ! waitTCPPort "${ipv4}" 22 open 300 1; then
+            echo "::error::Emulated ${lxd_arch} VM did not become reachable over SSH"
+            lxc console v-emu --show-log || true
+            false
+        fi
+
+        fingerprint="$(lxc config get v-emu volatile.base_image)"
+        lxc delete -f v-emu
+        lxc image delete "${fingerprint}"
+    done
+fi
+
 # shellcheck disable=SC2034
 FAIL=0
