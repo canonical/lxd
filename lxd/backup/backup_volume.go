@@ -72,15 +72,6 @@ func (b *VolumeBackup) Rename(newName string) error {
 
 	revert.Add(func() { _ = os.Rename(newBackupPath, oldBackupPath) })
 
-	// Check if we can remove the old parent directory.
-	empty, _ := shared.PathIsEmpty(oldParentBackupsPath)
-	if empty {
-		err := os.Remove(oldParentBackupsPath)
-		if err != nil {
-			return err
-		}
-	}
-
 	// Rename the database record.
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.RenameVolumeBackup(ctx, b.id, newName)
@@ -92,6 +83,13 @@ func (b *VolumeBackup) Rename(newName string) error {
 	// Keep in-memory state consistent with filesystem and DB rename.
 	b.name = newName
 	revert.Success()
+
+	// Only remove the old parent once the rename is committed, as the revert needs it to move the backup back.
+	empty, _ := shared.PathIsEmpty(oldParentBackupsPath)
+	if empty {
+		_ = os.Remove(oldParentBackupsPath)
+	}
+
 	return nil
 }
 
