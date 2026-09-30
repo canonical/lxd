@@ -3326,6 +3326,28 @@ test_clustering_image_refresh() {
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"')" = "${new_fingerprint}" ]
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${new_fingerprint}'")" = 2 ]
 
+  # Modify public testimage again and refresh it through the API using a fingerprint prefix.
+  echo "${RANDOM}" | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/bar
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --reuse --public
+  refreshed_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image info testimage | awk '/^Fingerprint:/ {print $2}')"
+  [ "${refreshed_fingerprint}" != "${new_fingerprint}" ]
+
+  # Record the members holding the image with auto update enabled. There must be at least two for the refreshed image to be distributed.
+  member_ids="$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT DISTINCT images_nodes.node_id FROM images_nodes JOIN images ON images.id = images_nodes.image_id WHERE images.fingerprint = '${new_fingerprint}' AND images.auto_update = 1" | paste -sd,)"
+  [ -n "${member_ids}" ]
+  member_count="$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM nodes WHERE id IN (${member_ids})")"
+  [ "${member_count}" -ge 2 ]
+
+  for project in default bar; do
+    LXD_DIR="${LXD_ONE_DIR}" lxc query -X POST --wait "/1.0/images/${new_fingerprint:0:12}/refresh?project=${project}"
+  done
+
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="default"')" = "${refreshed_fingerprint}" ]
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv 'SELECT images.fingerprint FROM images JOIN projects ON images.project_id=projects.id WHERE projects.name="bar"')" = "${refreshed_fingerprint}" ]
+
+  # The refreshed image must have been distributed to all members which held the previous one.
+  [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(DISTINCT images_nodes.node_id) FROM images_nodes JOIN images ON images.id = images_nodes.image_id WHERE images.fingerprint = '${refreshed_fingerprint}' AND images_nodes.node_id IN (${member_ids})")" = "${member_count}" ]
+
   # Clean up everything
   for project in default foo bar; do
     # shellcheck disable=SC2046
