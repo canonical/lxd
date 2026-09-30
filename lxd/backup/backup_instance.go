@@ -144,8 +144,13 @@ func (b *InstanceBackup) Delete(ctx context.Context) error {
 
 // Render returns an InstanceBackup struct of the backup.
 func (b *InstanceBackup) Render() *api.InstanceBackup {
+	_, name, found := strings.Cut(b.name, "/")
+	if !found {
+		name = b.name
+	}
+
 	return &api.InstanceBackup{
-		Name:             strings.SplitN(b.name, "/", 2)[1],
+		Name:             name,
 		CreatedAt:        b.creationDate,
 		ExpiresAt:        b.expiryDate,
 		InstanceOnly:     b.instanceOnly,

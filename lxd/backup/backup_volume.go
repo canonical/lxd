@@ -126,8 +126,13 @@ func (b *VolumeBackup) Delete() error {
 
 // Render returns a VolumeBackup struct of the backup.
 func (b *VolumeBackup) Render() *api.StoragePoolVolumeBackup {
+	_, name, found := strings.Cut(b.name, "/")
+	if !found {
+		name = b.name
+	}
+
 	return &api.StoragePoolVolumeBackup{
-		Name:             strings.SplitN(b.name, "/", 2)[1],
+		Name:             name,
 		CreatedAt:        b.creationDate,
 		ExpiresAt:        b.expiryDate,
 		VolumeOnly:       b.volumeOnly,
