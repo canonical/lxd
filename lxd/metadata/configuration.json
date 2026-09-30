@@ -5093,6 +5093,14 @@
 						}
 					},
 					{
+						"restricted.virtual-machines.emulation": {
+							"defaultdesc": "`block`",
+							"longdesc": "Possible values are `allow` or `block`.\nWhen set to `allow`, virtual machines can use architectures that the host only supports through emulation.\nEmulation does not provide the isolation guarantees of hardware virtualization.\nSee {ref}`architectures-vm-emulation` for more information.",
+							"shortdesc": "When set to `block`, using emulated virtual machine architectures is prevented",
+							"type": "string"
+						}
+					},
+					{
 						"restricted.virtual-machines.lowlevel": {
 							"defaultdesc": "`block`",
 							"longdesc": "Possible values are `allow` or `block`.\nWhen set to `allow`, low-level VM options like {config:option}`instance-raw:raw.qemu`, `volatile.*`, etc. can be used.",
