@@ -1183,7 +1183,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 
 	// Check restrictions/limits if defined on project.
 	if restrictions != nil {
-		err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, req)
+		err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, req, s.OS.VMArchitectures)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1213,7 +1213,7 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 				Type:         api.InstanceType(bInfo.Config.Instance.Type),
 			}
 
-			err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, snapshotReq)
+			err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, snapshotReq, s.OS.VMArchitectures)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -1909,7 +1909,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 			// Check restrictions/limits if defined on project.
 			if restrictions != nil {
-				err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, req)
+				err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, req, s.OS.VMArchitectures)
 				if err != nil {
 					return err
 				}

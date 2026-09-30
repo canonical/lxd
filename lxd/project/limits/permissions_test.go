@@ -45,7 +45,7 @@ func TestAllowInstanceCreation_NotConfigured(t *testing.T) {
 		Type: api.InstanceTypeContainer,
 	}
 
-	err = limits.AllowInstanceCreation(nil, *info, req)
+	err = limits.AllowInstanceCreation(nil, *info, req, nil)
 	assert.NoError(t, err)
 }
 
@@ -79,7 +79,7 @@ func TestAllowInstanceCreation_Below(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, info)
 
-	err = limits.AllowInstanceCreation(nil, *info, req)
+	err = limits.AllowInstanceCreation(nil, *info, req, nil)
 	assert.NoError(t, err)
 }
 
@@ -114,7 +114,7 @@ func TestAllowInstanceCreation_Above(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, info)
 
-	err = limits.AllowInstanceCreation(nil, *info, req)
+	err = limits.AllowInstanceCreation(nil, *info, req, nil)
 	assert.EqualError(t, err, `Reached maximum number of instances of type "container" in project "p1"`)
 }
 
@@ -149,7 +149,7 @@ func TestAllowInstanceCreation_DifferentType(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, info)
 
-	err = limits.AllowInstanceCreation(nil, *info, req)
+	err = limits.AllowInstanceCreation(nil, *info, req, nil)
 	assert.NoError(t, err)
 }
 
@@ -184,7 +184,7 @@ func TestAllowInstanceCreation_AboveInstances(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, info)
 
-	err = limits.AllowInstanceCreation(nil, *info, req)
+	err = limits.AllowInstanceCreation(nil, *info, req, nil)
 	assert.EqualError(t, err, `Reached maximum number of instances in project "p1"`)
 }
 

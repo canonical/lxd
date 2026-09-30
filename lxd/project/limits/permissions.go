@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -63,7 +64,8 @@ func HiddenStoragePools(ctx context.Context, tx *db.ClusterTx, projectName strin
 
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
-func AllowInstanceCreation(globalConfig *clusterConfig.Config, info ProjectInfo, req api.InstancesPost) error {
+// The emulatedArchitectures are the VM architectures the host only supports through emulation.
+func AllowInstanceCreation(globalConfig *clusterConfig.Config, info ProjectInfo, req api.InstancesPost, emulatedArchitectures []int) error {
 	var instanceType instancetype.Type
 	switch req.Type {
 	case api.InstanceTypeContainer:
@@ -81,6 +83,17 @@ func AllowInstanceCreation(globalConfig *clusterConfig.Config, info ProjectInfo,
 	err := checkSourceAllowed(info.Project.Config, req.Source.Type, req.Source.Mode)
 	if err != nil {
 		return err
+	}
+
+	// The architecture is often unknown at this point (e.g. image sources) so this is re-checked on creation.
+	if instanceType == instancetype.VM && req.Architecture != "" {
+		architecture, err := osarch.ArchitectureId(req.Architecture)
+		if err == nil && slices.Contains(emulatedArchitectures, architecture) {
+			err = AllowVMEmulation(&info.Project)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	err = checkInstanceCountLimit(&info, instanceType)
