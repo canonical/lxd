@@ -44,14 +44,26 @@ test_authorization() {
   # Instance permissions.
   ! lxc auth group permission add test-group instance c1 can_exec project=default || false # Not found
   lxc init --empty c1
-  ! lxc auth group permission add test-group instance c1 can_exec || false # No project
-  ! lxc auth group permission add test-group instance c1 can_exec project=default || false # Cannot view default project
+
+  # Cannot grant can_view on the instance while the project cannot be viewed.
+  [ "$("${_LXC}" auth group permission add test-group instance c1 can_view project=default 2>&1 >/dev/null)" = 'Error: Entitlement "can_view" on entity type "instance" references "/1.0/projects/default", but the entity cannot be viewed by the group' ]
   lxc auth group permission add test-group project default can_view
+
+  # Cannot grant can_exec without can_view on the instance.
+  [ "$("${_LXC}" auth group permission add test-group instance c1 can_exec project=default 2>&1 >/dev/null)" = 'Error: Entitlement "can_exec" on entity type "instance" references "/1.0/instances/c1?project=default", but the entity cannot be viewed by the group' ]
+  lxc auth group permission add test-group instance c1 can_view project=default # Valid
   lxc auth group permission add test-group instance c1 can_exec project=default # Valid
+
+  # Cannot remove can_view from instance while can_exec is still granted
+  [ "$("${_LXC}" auth group permission remove test-group instance c1 can_view project=default 2>&1 >/dev/null)" = 'Error: Entitlement "can_exec" on entity type "instance" references "/1.0/instances/c1?project=default", but the entity cannot be viewed by the group' ]
   lxc auth group permission remove test-group instance c1 can_exec project=default # Valid
   ! lxc auth group permission remove test-group instance c1 can_exec project=default || false # Already removed
   ! lxc auth group permission add test-group instance c1 not_an_instance_entitlement project=default || false # Invalid entitlement
-  lxc auth group permission remove test-group project default can_view
+
+  # Cannot removed can_view on the project while can_view is still granted on the instance.
+  [ "$("${_LXC}" auth group permission remove test-group project default can_view 2>&1 >/dev/null)" = 'Error: Entitlement "can_view" on entity type "instance" references "/1.0/projects/default", but the entity cannot be viewed by the group' ]
+  lxc auth group permission remove test-group instance c1 can_view project=default # Valid
+  lxc auth group permission remove test-group project default can_view # Valid
 
   # Instance snapshot permissions, these are not valid because permissions can only be granted on the parent instance.
   lxc snapshot c1 c1-snap
@@ -81,9 +93,9 @@ test_authorization() {
 
   # Test permission is removed automatically when instance is removed.
   lxc auth group permission add test-group project default can_view
-  lxc auth group permission add test-group instance c1 can_exec project=default # Valid
+  lxc auth group permission add test-group instance c1 can_edit project=default # Valid
   lxc rm c1 --force
-  [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM auth_groups_permissions WHERE entitlement = 'can_exec'")" = 0 ] # Permission should be removed when instance is removed.
+  [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM auth_groups_permissions WHERE entitlement = 'can_edit'")" = 0 ] # Permission should be removed when instance is removed.
   lxc auth group permission remove test-group project default can_view
 
   # Network permissions
