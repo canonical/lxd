@@ -1989,9 +1989,6 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 	s := d.State()
 
 	originName := r.PathValue("name")
-	var err error
-	var instances []instance.Instance
-	var localInstances []instance.Instance
 
 	skipInstances := false
 	if mode != "" {
@@ -2003,42 +2000,46 @@ func restoreClusterMember(d *Daemon, r *http.Request, mode string) response.Resp
 		}
 	}
 
-	if !skipInstances {
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			err = tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
-				inst, err := instance.Load(s, dbInst, p)
+	run := func(ctx context.Context, op *operations.Operation) error {
+		var instances []instance.Instance
+		var localInstances []instance.Instance
+
+		// List inside the operation, once it holds the conflict reference, so the locations cannot go stale.
+		if !skipInstances {
+			err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				err := tx.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
+					inst, err := instance.Load(s, dbInst, p)
+					if err != nil {
+						return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
+					}
+
+					if dbInst.Node == originName {
+						localInstances = append(localInstances, inst)
+
+						return nil
+					}
+
+					// Only consider instances where "volatile.evacuate.origin" is set to the node which needs to be restored.
+					val, ok := inst.LocalConfig()["volatile.evacuate.origin"]
+					if !ok || val != originName {
+						return nil
+					}
+
+					instances = append(instances, inst)
+
+					return nil
+				})
 				if err != nil {
-					return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
+					return fmt.Errorf("Failed getting instances: %w", err)
 				}
-
-				if dbInst.Node == originName {
-					localInstances = append(localInstances, inst)
-
-					return nil
-				}
-
-				// Only consider instances where "volatile.evacuate.origin" is set to the node which needs to be restored.
-				val, ok := inst.LocalConfig()["volatile.evacuate.origin"]
-				if !ok || val != originName {
-					return nil
-				}
-
-				instances = append(instances, inst)
 
 				return nil
 			})
 			if err != nil {
-				return fmt.Errorf("Failed getting instances: %w", err)
+				return err
 			}
-
-			return nil
-		})
-		if err != nil {
-			return response.SmartError(err)
 		}
-	}
 
-	run := func(ctx context.Context, op *operations.Operation) error {
 		// Setup a reverter.
 		revert := revert.New()
 		defer revert.Fail()
