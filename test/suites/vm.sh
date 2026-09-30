@@ -399,4 +399,26 @@ _vm_emulated_architectures() {
 
     lxc delete -f v1
   done
+
+  if [ "${emulated}" = "false" ]; then
+    return 0
+  fi
+
+  sub_test "Emulated VMs require an explicit opt-in in restricted projects"
+  lxc project create emul -c restricted=true
+  output="$(! lxc query -X POST --wait "/1.0/instances?project=emul" -d "${req}" 2>&1 || false)"
+  echo "${output}" | grep -F 'Project "emul" does not allow virtual machines using emulation'
+
+  lxc project set emul restricted.virtual-machines.emulation=allow
+  lxc query -X POST --wait "/1.0/instances?project=emul" -d "${req}"
+  lxc start v1 --project emul
+  lxc stop -f v1 --project emul
+
+  # Existing emulated VMs cannot start once emulation is blocked again.
+  lxc project set emul restricted.virtual-machines.emulation=block
+  output="$(! lxc start v1 --project emul 2>&1 || false)"
+  echo "${output}" | grep -F 'Project "emul" does not allow virtual machines using emulation'
+
+  lxc delete v1 --project emul
+  lxc project delete emul
 }
