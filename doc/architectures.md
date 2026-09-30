@@ -44,3 +44,28 @@ LXD only supports running virtual machines on the following host architectures:
 
 The virtual machine guest architecture can usually be the 32bit personality of the host architecture,
 so long as the virtual machine firmware is capable of booting it.
+
+(architectures-vm-emulation)=
+### Emulated architectures
+
+When LXD runs from the snap on an `x86_64` host, it can also run `riscv64` and `armv7l` virtual machines through QEMU's software emulation (TCG).
+Those architectures are listed in the `vm_emulated_architectures` field of the server environment:
+
+```bash
+lxc query /1.0 | jq .environment.vm_emulated_architectures
+```
+
+For example, to launch emulated virtual machines from the official Ubuntu images:
+
+```bash
+lxc launch ubuntu:26.04/riscv64 v1 --vm -c boot.mode=uefi-nosecureboot
+lxc launch ubuntu:26.04/armhf v2 --vm -c boot.mode=uefi-nosecureboot
+```
+
+Emulated virtual machines have the following limitations:
+
+- They are considerably slower than virtual machines using hardware virtualization.
+- Secure Boot is not available, so {config:option}`instance-boot:boot.mode` must be set to `uefi-nosecureboot`.
+- The LXD agent is not available, so commands like `lxc exec` and `lxc file` do not work.
+- Automatic cluster placement does not consider emulated architectures, so use `--target` to create such instances in a cluster.
+- `armv7l` virtual machines boot using `U-Boot` firmware and default to `virtio-blk` for their disks.

@@ -354,6 +354,7 @@ sysfs
 syslog
 SystemAdmin
 Tbit
+TCG
 TCP
 TensorRT
 Tegra
