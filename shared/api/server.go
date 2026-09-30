@@ -139,6 +139,12 @@ type ServerEnvironment struct {
 
 	// List of supported storage drivers
 	StorageSupportedDrivers []ServerStorageDriverInfo `json:"storage_supported_drivers" yaml:"storage_supported_drivers"`
+
+	// List of additional architectures supported for virtual machines through emulation
+	// Example: ["riscv64", "armv7l"]
+	//
+	// API extension: vm_emulated_architectures
+	VMEmulatedArchitectures []string `json:"vm_emulated_architectures" yaml:"vm_emulated_architectures"`
 }
 
 // ServerStorageDriverInfo represents the read-only info about a storage driver
