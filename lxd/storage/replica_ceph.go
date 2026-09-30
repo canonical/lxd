@@ -201,3 +201,28 @@ func validateCephReplicatorProjects(ctx context.Context, s *state.State, poolCon
 
 	return nil
 }
+
+// RemoveCephReplicatorPoolKey removes a project's `ceph.replicator.<project>` key from every pool
+// carrying it. It takes the transaction so that the key can go together with the project's own
+// record, which leaves no moment where a pool names a project that is gone.
+func RemoveCephReplicatorPoolKey(ctx context.Context, tx *db.ClusterTx, projectName string) error {
+	poolRecords, _, err := tx.GetStoragePools(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("Failed loading storage pools: %w", err)
+	}
+
+	for _, poolRecord := range poolRecords {
+		if !poolMirrorsProject(poolRecord.Config, projectName) {
+			continue
+		}
+
+		delete(poolRecord.Config, drivers.CephReplicatorPoolKey(projectName))
+
+		err := tx.UpdateStoragePool(ctx, poolRecord.Name, poolRecord.Description, poolRecord.Config)
+		if err != nil {
+			return fmt.Errorf("Failed updating storage pool %q: %w", poolRecord.Name, err)
+		}
+	}
+
+	return nil
+}
