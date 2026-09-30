@@ -71,7 +71,8 @@ lxc delete -f v1
 if [ "$(uname -m)" != "x86_64" ]; then
     echo "==> SKIP: emulated VMs are only supported on x86_64"
 elif ! lxc query /1.0 | jq --exit-status '(.environment.vm_emulated_architectures // []) | contains(["riscv64", "armv7l"])'; then
-    echo "==> SKIP: the LXD snap does not support emulated riscv64 and armv7l VMs"
+    # Warn rather than fail as sideloaded binaries may run on a snap predating the emulators.
+    echo "::warning::SKIP: the LXD snap does not support emulated riscv64 and armv7l VMs"
 else
     for pair in riscv64:riscv64 armhf:armv7l; do
         IFS=: read -r image_arch lxd_arch <<< "${pair}"
@@ -102,7 +103,12 @@ else
         fi
 
         fingerprint="$(lxc config get v-emu volatile.base_image)"
-        lxc delete -f v-emu
+
+        echo "==> Test cleanly stopping an emulated ${lxd_arch} VM"
+        lxc stop v-emu --timeout 180
+        [ "$(lxc list -f csv -c s v-emu)" = "STOPPED" ]
+
+        lxc delete v-emu
         lxc image delete "${fingerprint}"
     done
 fi
