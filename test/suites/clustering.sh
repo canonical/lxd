@@ -3348,6 +3348,12 @@ test_clustering_image_refresh() {
   # The refreshed image must have been distributed to all members which held the previous one.
   [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(DISTINCT images_nodes.node_id) FROM images_nodes JOIN images ON images.id = images_nodes.image_id WHERE images.fingerprint = '${refreshed_fingerprint}' AND images_nodes.node_id IN (${member_ids})")" = "${member_count}" ]
 
+  if [ "${poolDriver}" != "dir" ]; then
+    # The storage volumes of the previous image must have been removed from all members.
+    # The dir driver is skipped as it has no optimized image volumes to begin with.
+    [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM storage_volumes WHERE name = '${new_fingerprint}'")" = 0 ]
+  fi
+
   # Clean up everything
   for project in default foo bar; do
     # shellcheck disable=SC2046
