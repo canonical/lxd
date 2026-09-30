@@ -316,6 +316,13 @@ test_remote_usage() {
   ! lxc_remote image show lxd2:foo || false
   lxc_remote image delete "lxd2:${sum}"
 
+  # Push an image using the raw API with an upload token requested without any property.
+  lxd2_cert="$(lxc_remote query lxd2:/1.0 | jq --exit-status --raw-output '.environment.certificate')"
+  push_secret="$(lxc_remote query -X POST lxd2:/1.0/images --data "$(jq --null-input --exit-status --arg fp "${sum}" '{source: {fingerprint: $fp, mode: "push"}}')" | jq --exit-status --raw-output '.metadata.secret')"
+  lxc_remote query -X POST --wait localhost:"/1.0/images/${sum}/export" --data "$(jq --null-input --exit-status --arg target "https://${LXD2_ADDR}" --arg secret "${push_secret}" --arg cert "${lxd2_cert}" '{target: $target, secret: $secret, certificate: $cert}')"
+  lxc_remote image show lxd2:"${sum}"
+  lxc_remote image delete "lxd2:${sum}"
+
   lxc_remote image copy --quiet "localhost:${sum}" lxd2: --mode=push --copy-aliases --public
   lxc_remote image show lxd2:"${sum}"
   lxc_remote image show lxd2:"${sum}" | grep -xF 'public: true'
