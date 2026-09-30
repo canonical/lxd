@@ -65,6 +65,7 @@ lxc launch ubuntu:26.04/armhf v2 --vm -c boot.mode=uefi-nosecureboot
 
 Emulated virtual machines have the following limitations:
 
+- QEMU does not provide security guarantees when emulating, so {config:option}`project-restricted:restricted` projects can only use emulated architectures if {config:option}`project-restricted:restricted.virtual-machines.emulation` is set to `allow`.
 - They are considerably slower than virtual machines using hardware virtualization.
 - Secure Boot is not available, so {config:option}`instance-boot:boot.mode` must be set to `uefi-nosecureboot`.
 - The LXD agent is not available, so commands like `lxc exec` and `lxc file` do not work.
