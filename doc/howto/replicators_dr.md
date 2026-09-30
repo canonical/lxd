@@ -9,6 +9,10 @@ myst:
 
 Once you have {ref}`set up replicators <howto-replicators-setup>` for active-passive replication, you can use them to fail over to the standby cluster if the leader cluster becomes unavailable, and to restore the original replication direction when the leader comes back online.
 
+```{note}
+If the project is {ref}`mirrored with Ceph RBD <howto-replicators-ceph>`, follow the steps in {ref}`howto-replicators-dr-ceph` instead.
+```
+
 ## Failover process
 
 If the leader cluster becomes unavailable, you can manually fail over to the standby cluster.
@@ -159,6 +163,139 @@ Select the {guilabel}`Replication` tab, then, under {guilabel}`Replica mode`, cl
 `````
 
 Your original active-passive disaster recovery setup is now restored. You can restart your instances on the leader cluster and resume your scheduled replicator runs.
+
+(howto-replicators-dr-ceph)=
+## Disaster recovery with Ceph RBD mirroring
+
+If the project is {ref}`mirrored with Ceph RBD <howto-replicators-ceph>`, LXD promotes and demotes the project's volumes in Ceph together with the project.
+The steps differ from the ones above in these ways:
+
+- If the leader cluster is unavailable, you must promote the standby project with `--force`.
+- If the leader cluster is available, you must demote its project before you promote the standby project.
+- You cannot run a replicator in restore mode.
+  To recover the original leader cluster, you demote its project twice, which discards its volumes and copies them again from the new leader cluster, and then replicate from the new leader cluster.
+
+(howto-replicators-dr-ceph-failover)=
+### Fail over to the standby cluster
+
+If the leader cluster becomes unavailable, promote the project on the standby cluster and start the instances:
+
+```bash
+lxc project promote-replica <project_name> --force
+lxc start --all --project <project_name>
+```
+
+The `--force` flag is required because the leader cluster cannot demote its volumes while it is unavailable.
+Without the flag, Ceph refuses the promotion and the command fails.
+
+The instances start from the last mirror snapshot that reached the standby cluster.
+Changes made on the leader cluster after the last successful replicator run are lost.
+
+```{warning}
+Use `--force` only if the leader cluster is unavailable.
+A forced promotion makes the volumes on the two clusters diverge, and the volumes on the original leader cluster must then be discarded and copied again.
+If both clusters are available, follow {ref}`howto-replicators-dr-ceph-switchover` instead.
+```
+
+(howto-replicators-dr-ceph-return)=
+### Recover the original leader cluster
+
+When the original leader cluster comes back online, its project is still in leader mode, and its volumes have diverged from the volumes on the new leader cluster.
+LXD might also have restarted the instances that were running when the cluster became unavailable.
+
+1. On the original leader cluster, stop all instances in the project:
+
+   ```bash
+   lxc stop --all --force --project <project_name>
+   ```
+
+1. On the original leader cluster, allow the new leader cluster to replicate to the project, and demote the project:
+
+   ```bash
+   lxc project set <project_name> replica.cluster=<new_leader_cluster_link_name>
+   lxc project demote-replica <project_name>
+   ```
+
+   This makes the project's volumes on this cluster read-only.
+
+1. Wait until Ceph reports that the volumes have diverged from the volumes on the new leader cluster.
+   To check, run the following command against the original leader's Ceph cluster:
+
+   ```bash
+   rbd mirror pool status <osd_pool_name> --verbose
+   ```
+
+   Within about a minute of the demotion, the project's volumes show the state `up+error` with the description `split-brain`.
+
+1. On the original leader cluster, demote the project again:
+
+   ```bash
+   lxc project demote-replica <project_name>
+   ```
+
+   LXD discards every volume of the project that Ceph reports as `split-brain`, and Ceph copies it again in full from the new leader cluster.
+   Changes that did not reach the standby cluster before the failover are lost.
+
+1. Wait until Ceph has copied the volumes.
+   To check the progress, run the `rbd mirror pool status` command again.
+   The project's volumes are ready when their state is `up+replaying`.
+
+1. On the new leader cluster, create a replicator that targets the original leader cluster, and run it:
+
+   ```bash
+   lxc replicator create <replicator_name> cluster=<original_leader_cluster_link_name> --project <project_name>
+   lxc replicator run <replicator_name> --project <project_name>
+   ```
+
+   The instances on the new leader cluster can keep running.
+   If the run fails because Ceph has not finished copying the volumes, wait and run the replicator again.
+   If the run fails because it reports a volume as `split-brain`, demote the project on the original leader cluster again.
+
+The original leader cluster is now a standby replica of the new leader cluster.
+To move the instances back to it, follow {ref}`howto-replicators-dr-ceph-switchover`.
+
+```{note}
+If you deleted an instance or a custom volume on the new leader cluster while the original leader cluster was unavailable, Ceph removes its volume from the original leader cluster when it copies the volumes again, but the record remains there.
+Delete the record on the original leader cluster yourself.
+```
+
+(howto-replicators-dr-ceph-switchover)=
+### Switch the leader cluster while both clusters are available
+
+Use these steps for a planned takeover, or to return to the original leader cluster after you have recovered it.
+No data is lost.
+
+1. On the leader cluster, stop all instances in the project:
+
+   ```bash
+   lxc stop --all --project <project_name>
+   ```
+
+1. On the leader cluster, run the replicator one more time, so that the final state reaches the standby cluster:
+
+   ```bash
+   lxc replicator run <replicator_name> --project <project_name>
+   ```
+
+1. On the leader cluster, make sure that {config:option}`project-replica:replica.cluster` is set to the cluster link of the other cluster, and demote the project:
+
+   ```bash
+   lxc project set <project_name> replica.cluster=<standby_cluster_link_name>
+   lxc project demote-replica <project_name>
+   ```
+
+   The command fails if any instance in the project is still running.
+
+1. On the standby cluster, promote the project without `--force` and start the instances:
+
+   ```bash
+   lxc project promote-replica <project_name>
+   lxc start --all --project <project_name>
+   ```
+
+   If the promotion fails because the demotion has not reached this cluster yet, wait a moment and try again.
+
+To replicate in the new direction, create a replicator on the new leader cluster that targets the other cluster, or run the one that already exists there.
 
 
 ## Related topics
