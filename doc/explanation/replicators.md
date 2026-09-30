@@ -87,6 +87,8 @@ Instead, you create a replicator on the new leader cluster that targets the orig
 Because the two clusters must agree on which one holds the writable volumes, do not force promote a mirrored project while the leader cluster is still available.
 Demote the leader project first, and then promote the standby project without force.
 
+See {ref}`howto-replicators-ceph` for the setup.
+
 (exp-replicators-vs-storage-replication)=
 ## Replicators vs. storage replication
 
