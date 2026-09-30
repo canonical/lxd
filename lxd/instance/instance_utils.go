@@ -751,7 +751,7 @@ func CreateInternal(ctx context.Context, s *state.State, args db.InstanceArgs, c
 		return nil, nil, nil, err
 	}
 
-	if !slices.Contains(s.OS.Architectures, args.Architecture) {
+	if !slices.Contains(s.OS.Architectures, args.Architecture) && (args.Type != instancetype.VM || !slices.Contains(s.OS.VMArchitectures, args.Architecture)) {
 		return nil, nil, nil, errors.New("Requested architecture is not supported by this host")
 	}
 
