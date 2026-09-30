@@ -335,15 +335,68 @@ test_snap_vm_empty() {
   _vm_emulated_architectures
 }
 
-# _vm_emulated_architectures checks that emulated VM architectures are reported only on x86_64
+# _vm_emulated_architectures checks that emulated VM architectures are reported and usable only on x86_64
 # and only if the snap ships the matching emulators.
 _vm_emulated_architectures() {
   echo "==> Emulated VM architectures"
 
+  local emulated=false
   local want="[]"
   if [ "$(uname -m)" = "x86_64" ] && [ -x /snap/lxd/current/bin/qemu-system-riscv64 ] && [ -x /snap/lxd/current/bin/qemu-system-arm ]; then
+    emulated=true
     want='["riscv64","armv7l"]'
   fi
 
   lxc query /1.0 | jq --exit-status --argjson want "${want}" '.environment.vm_emulated_architectures == $want'
+
+  local pool output
+  pool="$(lxc profile device get default root pool)"
+
+  sub_test "Emulated architectures are rejected for containers"
+  output="$(! lxc query -X POST --wait /1.0/instances -d '{"name":"c1","type":"container","architecture":"riscv64","source":{"type":"none"}}' 2>&1 || false)"
+  echo "${output}" | grep -F "Requested architecture is not supported by this host"
+
+  local arch vars req inst_dir inode
+  for arch in riscv64 armv7l; do
+    req="$(jq --exit-status --compact-output --null-input --arg arch "${arch}" --arg pool "${pool}" --arg size "${SMALL_ROOT_DISK#root,size=}" '{
+      name: "v1",
+      type: "virtual-machine",
+      architecture: $arch,
+      source: {type: "none"},
+      config: {"boot.mode": "uefi-nosecureboot", "limits.memory": "256MiB"},
+      devices: {root: {type: "disk", path: "/", pool: $pool, size: $size}}
+    }')"
+
+    if [ "${emulated}" = "false" ]; then
+      sub_test "Emulated ${arch} VMs are rejected without the emulators"
+      output="$(! lxc query -X POST --wait /1.0/instances -d "${req}" 2>&1 || false)"
+      echo "${output}" | grep -F "Requested architecture is not supported by this host"
+      continue
+    fi
+
+    sub_test "Start and restart an empty emulated ${arch} VM"
+    lxc query -X POST --wait /1.0/instances -d "${req}"
+    lxc start v1
+    grep -xF 'accel = "tcg"' "${LXD_DIR}/logs/v1/qemu.conf"
+
+    vars="RISCV_VIRT_VARS.fd"
+    if [ "${arch}" = "armv7l" ]; then
+      vars="UBOOT_ARM_VARS.fd"
+
+      # U-Boot cannot boot from virtio-scsi so the root disk defaults to virtio-blk which uses a PCIe port.
+      [ -n "$(lxc config get v1 volatile.root.bus)" ]
+    else
+      [ "$(lxc config get v1 volatile.root.bus || echo fail)" = "" ]
+    fi
+
+    inst_dir="${LXD_DIR}/virtual-machines/v1"
+    [ "$(readlink "${inst_dir}/qemu.nvram")" = "${vars}" ]
+    inode="$(stat -c %i "${inst_dir}/${vars}")"
+
+    # The NVRAM vars file must be preserved, not regenerated, across restarts.
+    lxc restart -f v1
+    [ "$(stat -c %i "${inst_dir}/${vars}")" = "${inode}" ]
+
+    lxc delete -f v1
+  done
 }
