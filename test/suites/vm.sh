@@ -405,7 +405,7 @@ _vm_emulated_architectures() {
   fi
 
   sub_test "Emulated VMs require an explicit opt-in in restricted projects"
-  lxc project create emul -c restricted=true
+  lxc project create emul -c restricted=true -c restricted.backups=allow
   output="$(! lxc query -X POST --wait "/1.0/instances?project=emul" -d "${req}" 2>&1 || false)"
   echo "${output}" | grep -F 'Project "emul" does not allow virtual machines using emulation'
 
@@ -413,11 +413,17 @@ _vm_emulated_architectures() {
   lxc query -X POST --wait "/1.0/instances?project=emul" -d "${req}"
   lxc start v1 --project emul
   lxc stop -f v1 --project emul
+  lxc export v1 "${TEST_DIR}/emul.tar.gz" --project emul --instance-only
 
   # Existing emulated VMs cannot start once emulation is blocked again.
   lxc project set emul restricted.virtual-machines.emulation=block
   output="$(! lxc start v1 --project emul 2>&1 || false)"
   echo "${output}" | grep -F 'Project "emul" does not allow virtual machines using emulation'
+
+  # Restoring a backup of an emulated VM is also blocked.
+  output="$(! lxc import "${TEST_DIR}/emul.tar.gz" v2 --project emul 2>&1 || false)"
+  echo "${output}" | grep -F 'Project "emul" does not allow virtual machines using emulation'
+  rm "${TEST_DIR}/emul.tar.gz"
 
   lxc delete v1 --project emul
   lxc project delete emul
