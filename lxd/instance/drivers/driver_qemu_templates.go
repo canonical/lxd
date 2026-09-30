@@ -135,6 +135,7 @@ func qemuDefaultRAMObject(architecture int) string {
 
 type qemuBaseOpts struct {
 	architecture int
+	tcg          bool
 }
 
 func qemuBase(opts *qemuBaseOpts) []cfgSection {
@@ -142,8 +143,17 @@ func qemuBase(opts *qemuBaseOpts) []cfgSection {
 	gicVersion := ""
 	capLargeDecr := ""
 	acpi := ""
+	accel := "kvm"
 
 	switch opts.architecture {
+	case osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN:
+		if opts.tcg {
+			// GICv2 is limited to 8 vCPUs.
+			gicVersion = "3"
+			// 32-bit ARM Linux does not support ACPI.
+			acpi = "off"
+		}
+
 	case osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN:
 		gicVersion = "max"
 	case osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN:
@@ -153,12 +163,16 @@ func qemuBase(opts *qemuBaseOpts) []cfgSection {
 		acpi = "off"
 	}
 
+	if opts.tcg {
+		accel = "tcg"
+	}
+
 	entries := []cfgEntry{
 		{key: "graphics", value: "off"},
 		{key: "type", value: machineType},
 		{key: "gic-version", value: gicVersion},
 		{key: "cap-large-decr", value: capLargeDecr},
-		{key: "accel", value: "kvm"},
+		{key: "accel", value: accel},
 		{key: "acpi", value: acpi},
 		{key: "usb", value: "off"},
 	}
