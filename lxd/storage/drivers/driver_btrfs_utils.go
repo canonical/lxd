@@ -558,7 +558,7 @@ func (d *btrfs) selectSubvolumesToSync(subvolumes []BTRFSSubVolume, localSubvolu
 			snapshots = append(snapshots, migrationSnap.Snapshot)
 		}
 
-		syncSubvolumes = append(syncSubvolumes, BTRFSSubVolume{Path: migrationSnap.Path, Snapshot: migrationSnap.Snapshot, UUID: migrationSnap.UUID})
+		syncSubvolumes = append(syncSubvolumes, migrationSnap)
 	}
 
 	return snapshots, syncSubvolumes, nil

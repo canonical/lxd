@@ -23,11 +23,17 @@ func Test_btrfs_selectSubvolumesToSync(t *testing.T) {
 		wantError           string
 	}{
 		{
-			name:            "Main volume is always synced",
-			subvolumes:      []BTRFSSubVolume{{Snapshot: "", Path: "/", UUID: "uuid-root"}},
+			name: "Main volume is always synced with its nested subvolumes",
+			subvolumes: []BTRFSSubVolume{
+				{Snapshot: "", Path: "/", UUID: "uuid-root"},
+				{Snapshot: "", Path: "/a/b", UUID: "uuid-root-a-b", Readonly: true},
+			},
 			localSubvolumes: map[string]string{},
 			wantSnapshots:   []string{},
-			wantSubvolumes:  []BTRFSSubVolume{{Snapshot: "", Path: "/", UUID: "uuid-root"}},
+			wantSubvolumes: []BTRFSSubVolume{
+				{Snapshot: "", Path: "/", UUID: "uuid-root"},
+				{Snapshot: "", Path: "/a/b", UUID: "uuid-root-a-b", Readonly: true},
+			},
 		},
 		{
 			name:            "Snapshot with a matching received UUID is skipped",
@@ -38,15 +44,15 @@ func Test_btrfs_selectSubvolumesToSync(t *testing.T) {
 		{
 			name: "Snapshot missing on the target is synced with its nested subvolumes",
 			subvolumes: []BTRFSSubVolume{
-				{Snapshot: "snap1", Path: "/", UUID: "uuid-snap1"},
-				{Snapshot: "snap1", Path: "/foo", UUID: "uuid-snap1-foo"},
+				{Snapshot: "snap1", Path: "/", UUID: "uuid-snap1", Readonly: true},
+				{Snapshot: "snap1", Path: "/foo", UUID: "uuid-snap1-foo", Readonly: true},
 			},
 			localSubvolumes:     map[string]string{},
 			negotiatedSnapshots: []string{"snap1"},
 			wantSnapshots:       []string{"snap1"},
 			wantSubvolumes: []BTRFSSubVolume{
-				{Snapshot: "snap1", Path: "/", UUID: "uuid-snap1"},
-				{Snapshot: "snap1", Path: "/foo", UUID: "uuid-snap1-foo"},
+				{Snapshot: "snap1", Path: "/", UUID: "uuid-snap1", Readonly: true},
+				{Snapshot: "snap1", Path: "/foo", UUID: "uuid-snap1-foo", Readonly: true},
 			},
 		},
 		{
