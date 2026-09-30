@@ -4445,6 +4445,11 @@ func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, busName string, busAllocate 
 func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	// Check if the user has overridden the bus.
 	busName := "virtio-scsi"
+	if d.architecture == osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN {
+		// The 32-bit ARM firmware (U-Boot) has no virtio-scsi driver so cannot boot from it.
+		busName = "virtio-blk"
+	}
+
 	for _, opt := range driveConf.Opts {
 		name, found := strings.CutPrefix(opt, "bus=")
 		if found {
