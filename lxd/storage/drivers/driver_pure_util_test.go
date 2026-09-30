@@ -3,6 +3,7 @@ package drivers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -734,6 +735,27 @@ func Test_isPureErrorOf(t *testing.T) {
 		{
 			Name:       "Error of another type",
 			Err:        errors.New("Not found"),
+			StatusCode: http.StatusBadRequest,
+			Substrings: []string{"Not found"},
+			Want:       false,
+		},
+		{
+			Name:       "Wrapped Pure Storage error",
+			Err:        fmt.Errorf("Failed getting volume: %w", newErr(http.StatusBadRequest, "Volume not found.")),
+			StatusCode: http.StatusBadRequest,
+			Substrings: []string{"not found"},
+			Want:       true,
+		},
+		{
+			Name:       "Wrapped Pure Storage error with another status code",
+			Err:        fmt.Errorf("Failed getting volume: %w", newErr(http.StatusUnauthorized, "Volume not found.")),
+			StatusCode: http.StatusBadRequest,
+			Substrings: []string{"not found"},
+			Want:       false,
+		},
+		{
+			Name:       "Wrapped error of another type",
+			Err:        fmt.Errorf("Failed getting volume: %w", errors.New("Not found")),
 			StatusCode: http.StatusBadRequest,
 			Substrings: []string{"Not found"},
 			Want:       false,
