@@ -331,4 +331,19 @@ test_snap_vm_empty() {
 
   # The NVRAM vars file rename migration only happens inside the snap.
   _nvram_rename
+
+  _vm_emulated_architectures
+}
+
+# _vm_emulated_architectures checks that emulated VM architectures are reported only on x86_64
+# and only if the snap ships the matching emulators.
+_vm_emulated_architectures() {
+  echo "==> Emulated VM architectures"
+
+  local want="[]"
+  if [ "$(uname -m)" = "x86_64" ] && [ -x /snap/lxd/current/bin/qemu-system-riscv64 ] && [ -x /snap/lxd/current/bin/qemu-system-arm ]; then
+    want='["riscv64","armv7l"]'
+  fi
+
+  lxc query /1.0 | jq --exit-status --argjson want "${want}" '.environment.vm_emulated_architectures == $want'
 }
