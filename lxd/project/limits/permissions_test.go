@@ -460,3 +460,46 @@ func TestAllowVolumeMove_CrossProjectDoesNotCancelTargetVolume(t *testing.T) {
 	err = limits.AllowVolumeMove(ctx, nil, tx, "src-proj", "pool1", "vol", "dst-proj", "pool1", req)
 	assert.EqualError(t, err, `Failed checking if volume move allowed: Reached maximum aggregate value "100MiB" for "limits.disk" in project "dst-proj"`)
 }
+
+func TestAllowVMEmulation(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  map[string]string
+		wantErr bool
+	}{
+		{
+			name:   "unrestricted project",
+			config: map[string]string{},
+		},
+		{
+			name:    "restricted project blocks emulation by default",
+			config:  map[string]string{"restricted": "true"},
+			wantErr: true,
+		},
+		{
+			name:    "restricted project explicitly blocking emulation",
+			config:  map[string]string{"restricted": "true", "restricted.virtual-machines.emulation": "block"},
+			wantErr: true,
+		},
+		{
+			name:   "restricted project allowing emulation",
+			config: map[string]string{"restricted": "true", "restricted.virtual-machines.emulation": "allow"},
+		},
+		{
+			name:   "emulation block ignored when unrestricted",
+			config: map[string]string{"restricted": "false", "restricted.virtual-machines.emulation": "block"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := limits.AllowVMEmulation(&api.Project{Name: "p1", Config: tc.config})
+			if tc.wantErr {
+				assert.EqualError(t, err, `Project "p1" does not allow virtual machines using emulation`)
+				return
+			}
+
+			assert.NoError(t, err)
+		})
+	}
+}
