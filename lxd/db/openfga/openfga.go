@@ -62,6 +62,15 @@ type RequestCache struct {
 	permissionsByGroupMu sync.RWMutex
 }
 
+// requestIsContextualOnly returns true if the request already contained all the required tuples. This is used for checking
+// group consistency before actually writing any permissions, so the datastore should not perform any reads at all (return no tuples).
+func requestIsContextualOnly(ctx context.Context) bool {
+	// If the request is intended for contextual tuples only, the caller has indicated that it has passed all relevant information
+	// to perform the check. Don't return any data.
+	contextualOnly, err := request.GetContextValue[bool](ctx, request.CtxOpenFGAContextualTuplesOnly)
+	return err == nil && contextualOnly
+}
+
 // Read reads multiple tuples from the store. Various predicates are applied based on the given key.
 //
 // Observations:
@@ -85,6 +94,11 @@ type RequestCache struct {
 //   - If we change our design to use entity IDs directly, this method will need to change so that we can return the correct project ID.
 //     (Currently we don't need to as the project name is already in the URL).
 func (o *openfgaStore) Read(ctx context.Context, s string, key storage.ReadFilter, options storage.ReadOptions) (storage.TupleIterator, error) {
+	// Don't return any data if the request already contained all tuples in context.
+	if requestIsContextualOnly(ctx) {
+		return storage.NewStaticTupleIterator(nil), nil
+	}
+
 	obj := key.Object
 	relation := key.Relation
 	user := key.User
@@ -213,6 +227,11 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key storage.ReadFilte
 //   - The tuples that this method is meant to return have been passed in contextually. So validate the input matches
 //     what is expected and return nil.
 func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, filter storage.ReadUserTupleFilter, options storage.ReadUserTupleOptions) (*openfgav1.Tuple, error) {
+	// Don't return any data if the request already contained all tuples in context.
+	if requestIsContextualOnly(ctx) {
+		return nil, nil
+	}
+
 	// Expect the User field to be present.
 	user := filter.User
 	if user == "" {
@@ -338,6 +357,11 @@ func (o *openfgaStore) ensureCacheLoaded(ctx context.Context, cache *RequestCach
 //     that is defined for `server` `can_view`, which allows all identities access to `GET /1.0` and `GET /1.0/storage`.
 //     We check for this case before making any DB queries.
 func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filter storage.ReadUsersetTuplesFilter, options storage.ReadUsersetTuplesOptions) (storage.TupleIterator, error) {
+	// Don't return any data if the request already contained all tuples in context.
+	if requestIsContextualOnly(ctx) {
+		return storage.NewStaticTupleIterator(nil), nil
+	}
+
 	// Expect both an object and a relation.
 	if filter.Object == "" || filter.Relation == "" {
 		return nil, errors.New("ReadUsersetTuples: Filter must include both an object and a relation")
@@ -497,6 +521,11 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 //   - In the third case, we need to get all permissions with the given entity type and entitlement that are associated with the given group.
 //   - For the fourth case we return nil, since we expect direct entitlements for identities to be passed in contextually.
 func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, filter storage.ReadStartingWithUserFilter, options storage.ReadStartingWithUserOptions) (storage.TupleIterator, error) {
+	// Don't return any data if the request already contained all tuples in context.
+	if requestIsContextualOnly(ctx) {
+		return storage.NewStaticTupleIterator(nil), nil
+	}
+
 	// Example expected input, case 1:
 	// filter.ObjectType = "certificate"
 	// filter.Relation = "server"
