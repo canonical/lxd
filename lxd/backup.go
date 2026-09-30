@@ -57,16 +57,28 @@ func backupCreate(ctx context.Context, s *state.State, args db.InstanceBackup, s
 	}
 
 	// Create the database entry.
+	var backupRow db.InstanceBackup
+
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.CreateInstanceBackup(ctx, args)
+		err := tx.CreateInstanceBackup(ctx, args)
+		if err != nil {
+			return fmt.Errorf("Failed creating instance backup record: %w", err)
+		}
+
+		backupRow, err = tx.GetInstanceBackup(ctx, projectName, args.Name)
+		if err != nil {
+			return fmt.Errorf("Failed getting instance backup record: %w", err)
+		}
+
+		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed creating instance backup record: %w", err)
+		return err
 	}
 
 	revert.Add(func() {
 		_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.DeleteInstanceBackup(ctx, args.Name)
+			return tx.DeleteInstanceBackup(ctx, backupRow.ID)
 		})
 	})
 

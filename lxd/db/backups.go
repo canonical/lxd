@@ -39,11 +39,11 @@ type StoragePoolVolumeBackup struct {
 	CompressionAlgorithm string
 }
 
-// Returns the ID of the instance backup with the given name.
-func (c *ClusterTx) getInstanceBackupID(ctx context.Context, name string) (int, error) {
-	q := "SELECT id FROM instances_backups WHERE name=?"
+// Returns the ID of the backup with the given name belonging to the given instance.
+func (c *ClusterTx) getInstanceBackupID(ctx context.Context, instanceID int, name string) (int, error) {
+	q := "SELECT id FROM instances_backups WHERE instance_id=? AND name=?"
 	id := -1
-	arg1 := []any{name}
+	arg1 := []any{instanceID, name}
 	arg2 := []any{&id}
 
 	err := dbQueryRowScan(ctx, c, q, arg1, arg2)
@@ -164,7 +164,7 @@ WHERE projects.name=? AND instances.name=?`
 
 // CreateInstanceBackup creates a new backup.
 func (c *ClusterTx) CreateInstanceBackup(ctx context.Context, args InstanceBackup) error {
-	_, err := c.getInstanceBackupID(ctx, args.Name)
+	_, err := c.getInstanceBackupID(ctx, args.InstanceID, args.Name)
 	if err == nil {
 		return api.StatusErrorf(http.StatusConflict, "Backup for instance %q already exists", args.Name)
 	}
@@ -201,25 +201,28 @@ func (c *ClusterTx) CreateInstanceBackup(ctx context.Context, args InstanceBacku
 	return nil
 }
 
-// DeleteInstanceBackup removes the instance backup with the given name from the database.
-func (c *ClusterTx) DeleteInstanceBackup(ctx context.Context, name string) error {
-	id, err := c.getInstanceBackupID(ctx, name)
+// DeleteInstanceBackup removes the instance backup with the given ID from the database.
+func (c *ClusterTx) DeleteInstanceBackup(ctx context.Context, backupID int) error {
+	result, err := c.tx.ExecContext(ctx, "DELETE FROM instances_backups WHERE id=?", backupID)
 	if err != nil {
 		return err
 	}
 
-	_, err = c.tx.ExecContext(ctx, "DELETE FROM instances_backups WHERE id=?", id)
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
+	}
+
+	if rowsAffected <= 0 {
+		return api.StatusErrorf(http.StatusNotFound, "Instance backup not found")
 	}
 
 	return nil
 }
 
-// RenameInstanceBackup renames an instance backup from the given current name
-// to the new one.
-func (c *ClusterTx) RenameInstanceBackup(ctx context.Context, oldName, newName string) error {
-	str := "UPDATE instances_backups SET name = ? WHERE name = ?"
+// RenameInstanceBackup renames the instance backup with the given ID.
+func (c *ClusterTx) RenameInstanceBackup(ctx context.Context, backupID int, newName string) error {
+	str := "UPDATE instances_backups SET name = ? WHERE id = ?"
 	stmt, err := c.tx.PrepareContext(ctx, str)
 	if err != nil {
 		return err
@@ -230,12 +233,21 @@ func (c *ClusterTx) RenameInstanceBackup(ctx context.Context, oldName, newName s
 	logger.Debug(
 		"Calling SQL Query",
 		logger.Ctx{
-			"query":   "UPDATE instances_backups SET name = ? WHERE name = ?",
-			"oldName": oldName,
-			"newName": newName})
-	_, err = stmt.ExecContext(ctx, newName, oldName)
+			"query":    "UPDATE instances_backups SET name = ? WHERE id = ?",
+			"backupID": backupID,
+			"newName":  newName})
+	result, err := stmt.ExecContext(ctx, newName, backupID)
 	if err != nil {
 		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected <= 0 {
+		return api.StatusErrorf(http.StatusNotFound, "Instance backup not found")
 	}
 
 	return nil
@@ -245,14 +257,15 @@ func (c *ClusterTx) RenameInstanceBackup(ctx context.Context, oldName, newName s
 func (c *ClusterTx) GetExpiredInstanceBackups(ctx context.Context) ([]InstanceBackup, error) {
 	var expiredInstanceBackups []InstanceBackup
 
-	q := `SELECT instances_backups.name, instances_backups.expiry_date, instances_backups.instance_id FROM instances_backups`
+	q := `SELECT instances_backups.id, instances_backups.name, instances_backups.expiry_date, instances_backups.instance_id FROM instances_backups`
 
 	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var id int
 		var name string
 		var expiryDate string
 		var instanceID int
 
-		err := scan(&name, &expiryDate, &instanceID)
+		err := scan(&id, &name, &expiryDate, &instanceID)
 		if err != nil {
 			return err
 		}
@@ -273,6 +286,7 @@ func (c *ClusterTx) GetExpiredInstanceBackups(ctx context.Context) ([]InstanceBa
 		// Backup has expired
 		if time.Now().Unix()-backupExpiry.Unix() >= 0 {
 			expiredInstanceBackups = append(expiredInstanceBackups, InstanceBackup{
+				ID:         id,
 				Name:       name,
 				InstanceID: instanceID,
 				ExpiryDate: backupExpiry,

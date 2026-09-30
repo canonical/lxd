@@ -88,7 +88,7 @@ func (b *InstanceBackup) Rename(ctx context.Context, newName string) error {
 
 	// Rename the database record.
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.RenameInstanceBackup(ctx, b.name, newName)
+		return tx.RenameInstanceBackup(ctx, b.id, newName)
 	})
 	if err != nil {
 		return err
@@ -131,7 +131,7 @@ func (b *InstanceBackup) Delete(ctx context.Context) error {
 
 	// Remove the database record.
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.DeleteInstanceBackup(ctx, b.name)
+		return tx.DeleteInstanceBackup(ctx, b.id)
 	})
 	if err != nil {
 		return err

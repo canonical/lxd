@@ -5,6 +5,7 @@ package db_test
 import (
 	"context"
 	"database/sql"
+	"net/http"
 	"testing"
 	"time"
 
@@ -544,6 +545,69 @@ func TestGetLocalInstancesInProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, c3Config)
 	assert.Equal(t, map[string]map[string]string{"root": {"type": "disk", "x": "y"}}, cluster.DevicesToAPI(c3Devices))
+}
+
+func TestInstanceBackupWithSameNameInDifferentProjects(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	projectID, err := cluster.CreateProject(ctx, tx.Tx(), cluster.Project{Name: "other"})
+	require.NoError(t, err)
+
+	stmt := "INSERT INTO instances(node_id, name, architecture, type, project_id, description) VALUES (1, 'c1', 1, ?, ?, '')"
+	result, err := tx.Tx().Exec(stmt, instancetype.Container, 1)
+	require.NoError(t, err)
+	instanceID1, err := result.LastInsertId()
+	require.NoError(t, err)
+	result, err = tx.Tx().Exec(stmt, instancetype.Container, projectID)
+	require.NoError(t, err)
+	instanceID2, err := result.LastInsertId()
+	require.NoError(t, err)
+
+	err = tx.CreateInstanceBackup(ctx, db.InstanceBackup{InstanceID: int(instanceID1), Name: "c1/backup"})
+	require.NoError(t, err)
+
+	// The same backup name on an instance in another project does not conflict.
+	err = tx.CreateInstanceBackup(ctx, db.InstanceBackup{InstanceID: int(instanceID2), Name: "c1/backup", ExpiryDate: time.Now().Add(-time.Hour)})
+	require.NoError(t, err)
+
+	err = tx.CreateInstanceBackup(ctx, db.InstanceBackup{InstanceID: int(instanceID1), Name: "c1/backup"})
+	assert.True(t, api.StatusErrorCheck(err, http.StatusConflict))
+
+	backup1, err := tx.GetInstanceBackup(ctx, "default", "c1/backup")
+	require.NoError(t, err)
+	backup2, err := tx.GetInstanceBackup(ctx, "other", "c1/backup")
+	require.NoError(t, err)
+	assert.NotEqual(t, backup1.ID, backup2.ID)
+
+	expired, err := tx.GetExpiredInstanceBackups(ctx)
+	require.NoError(t, err)
+	require.Len(t, expired, 1)
+	assert.Equal(t, backup2.ID, expired[0].ID)
+
+	err = tx.RenameInstanceBackup(ctx, -1, "c1/renamed")
+	assert.True(t, api.StatusErrorCheck(err, http.StatusNotFound))
+
+	err = tx.RenameInstanceBackup(ctx, backup1.ID, "c1/renamed")
+	require.NoError(t, err)
+
+	_, err = tx.GetInstanceBackup(ctx, "default", "c1/renamed")
+	require.NoError(t, err)
+	_, err = tx.GetInstanceBackup(ctx, "other", "c1/backup")
+	require.NoError(t, err)
+
+	err = tx.DeleteInstanceBackup(ctx, -1)
+	assert.True(t, api.StatusErrorCheck(err, http.StatusNotFound))
+
+	err = tx.DeleteInstanceBackup(ctx, backup2.ID)
+	require.NoError(t, err)
+
+	_, err = tx.GetInstanceBackup(ctx, "other", "c1/backup")
+	assert.True(t, api.StatusErrorCheck(err, http.StatusNotFound))
+	_, err = tx.GetInstanceBackup(ctx, "default", "c1/renamed")
+	require.NoError(t, err)
 }
 
 func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {
