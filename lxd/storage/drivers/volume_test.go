@@ -141,3 +141,25 @@ func Test_NewVMBlockFilesystemVolume(t *testing.T) {
 		assert.Equal(t, test.parentUUID, vol.parentUUID)
 	}
 }
+
+// Test Clone preserves all fields and deep copies the config maps.
+func Test_Volume_Clone(t *testing.T) {
+	vol := NewVolume(&dir{}, "pool", VolumeTypeCustom, ContentTypeFS, "foo/snap0", map[string]string{"size": "1GiB"}, map[string]string{"volume.size": "2GiB"})
+	vol.SetMountCustomPath("/custom")
+	vol.SetMountFilesystemProbe(true)
+	vol.SetHasSource(true)
+	vol.SetParentUUID("b9e0b32f-5bb7-4782-8993-9f0c458fde75")
+
+	clone := vol.Clone()
+	assert.Equal(t, vol, clone)
+
+	clone.config["size"] = "3GiB"
+	clone.poolConfig["volume.size"] = "4GiB"
+	assert.Equal(t, "1GiB", vol.config["size"])
+	assert.Equal(t, "2GiB", vol.poolConfig["volume.size"])
+
+	// Nil maps are cloned as empty maps so callers can write to them.
+	clone = Volume{}.Clone()
+	assert.NotNil(t, clone.config)
+	assert.NotNil(t, clone.poolConfig)
+}
