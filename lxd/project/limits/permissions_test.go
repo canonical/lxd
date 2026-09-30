@@ -20,6 +20,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
+	"github.com/canonical/lxd/shared/osarch"
 )
 
 func init() {
@@ -494,6 +495,66 @@ func TestAllowVMEmulation(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			err := limits.AllowVMEmulation(&api.Project{Name: "p1", Config: tc.config})
+			if tc.wantErr {
+				assert.EqualError(t, err, `Project "p1" does not allow virtual machines using emulation`)
+				return
+			}
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestAllowInstanceCreation_Emulation(t *testing.T) {
+	emulatedArchitectures := []int{osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN}
+
+	tests := []struct {
+		name         string
+		emulation    string
+		instanceType api.InstanceType
+		architecture string
+		wantErr      bool
+	}{
+		{
+			name:         "emulated VM blocked by default",
+			instanceType: api.InstanceTypeVM,
+			architecture: "riscv64",
+			wantErr:      true,
+		},
+		{
+			name:         "emulated VM allowed",
+			emulation:    "allow",
+			instanceType: api.InstanceTypeVM,
+			architecture: "riscv64",
+		},
+		{
+			name:         "native VM",
+			instanceType: api.InstanceTypeVM,
+			architecture: "x86_64",
+		},
+		{
+			name:         "unknown architecture is checked on creation instead",
+			instanceType: api.InstanceTypeVM,
+		},
+		{
+			name:         "containers are never emulated",
+			instanceType: api.InstanceTypeContainer,
+			architecture: "riscv64",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			config := map[string]string{"restricted": "true"}
+			if tc.emulation != "" {
+				config["restricted.virtual-machines.emulation"] = tc.emulation
+			}
+
+			info := limits.ProjectInfo{Project: api.Project{Name: "p1", Config: config}}
+			req := api.InstancesPost{Name: "v1", Type: tc.instanceType}
+			req.Architecture = tc.architecture
+
+			err := limits.AllowInstanceCreation(nil, info, req, emulatedArchitectures)
 			if tc.wantErr {
 				assert.EqualError(t, err, `Project "p1" does not allow virtual machines using emulation`)
 				return
