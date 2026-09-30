@@ -202,19 +202,31 @@ func Test_pureHost_matchesQualifiedName(t *testing.T) {
 func Test_pureHost_matchesAnyQualifiedName(t *testing.T) {
 	// A Fibre Channel host registers one WWPN per host bus adapter port on a single
 	// Pure Storage host, so a match on any of them identifies the host.
-	host := pureHost{
+	fcHost := pureHost{
 		Name: "server01-scsi-fc",
 		WWNs: []string{"21000024FF43B10C", "21000024FF43B10D"},
 	}
 
+	iscsiHost := pureHost{
+		Name: "server01-iscsi",
+		IQNs: []string{"iqn.2005-03.org.open-iscsi:abcdef123456"},
+	}
+
+	nvmeHost := pureHost{
+		Name: "server01-nvme-tcp",
+		NQNs: []string{"nqn.2014-08.org.nvmexpress:uuid:abcdef12-3456-7890-abcd-ef1234567890"},
+	}
+
 	tests := []struct {
 		Name string
+		Host pureHost
 		Mode string
 		QNs  []string
 		Want bool
 	}{
 		{
 			Name: "All local initiators registered",
+			Host: fcHost,
 			Mode: connectors.TypeSCSIFC,
 			QNs:  []string{"21000024ff43b10c", "21000024ff43b10d"},
 			Want: true,
@@ -222,6 +234,7 @@ func Test_pureHost_matchesAnyQualifiedName(t *testing.T) {
 		{
 			// Matters when a port is added after the host object was created.
 			Name: "Only the second local initiator is registered",
+			Host: fcHost,
 			Mode: connectors.TypeSCSIFC,
 			QNs:  []string{"21000024ff43b1ff", "21000024ff43b10d"},
 			Want: true,
@@ -229,25 +242,64 @@ func Test_pureHost_matchesAnyQualifiedName(t *testing.T) {
 		{
 			// The reason enumeration order must not change host identity.
 			Name: "Registration order does not matter",
+			Host: fcHost,
 			Mode: connectors.TypeSCSIFC,
 			QNs:  []string{"21000024ff43b10d", "21000024ff43b10c"},
 			Want: true,
 		},
 		{
 			Name: "No local initiator is registered",
+			Host: fcHost,
 			Mode: connectors.TypeSCSIFC,
 			QNs:  []string{"21000024ff43b1fe", "21000024ff43b1ff"},
 			Want: false,
 		},
 		{
 			Name: "Empty initiator list never matches",
+			Host: fcHost,
 			Mode: connectors.TypeSCSIFC,
 			QNs:  []string{},
 			Want: false,
 		},
 		{
-			Name: "Single-initiator transports still match",
+			Name: "iSCSI IQN match",
+			Host: iscsiHost,
 			Mode: connectors.TypeISCSI,
+			QNs:  []string{"iqn.2005-03.org.open-iscsi:abcdef123456"},
+			Want: true,
+		},
+		{
+			Name: "iSCSI IQN mismatch",
+			Host: iscsiHost,
+			Mode: connectors.TypeISCSI,
+			QNs:  []string{"iqn.2005-03.org.open-iscsi:000000000000"},
+			Want: false,
+		},
+		{
+			Name: "NVMe/TCP NQN match",
+			Host: nvmeHost,
+			Mode: connectors.TypeNVMeTCP,
+			QNs:  []string{"nqn.2014-08.org.nvmexpress:uuid:abcdef12-3456-7890-abcd-ef1234567890"},
+			Want: true,
+		},
+		{
+			Name: "NVMe/FC NQN match",
+			Host: nvmeHost,
+			Mode: connectors.TypeNVMeFC,
+			QNs:  []string{"nqn.2014-08.org.nvmexpress:uuid:abcdef12-3456-7890-abcd-ef1234567890"},
+			Want: true,
+		},
+		{
+			Name: "NVMe NQN mismatch",
+			Host: nvmeHost,
+			Mode: connectors.TypeNVMeTCP,
+			QNs:  []string{"nqn.2014-08.org.nvmexpress:uuid:00000000-0000-0000-0000-000000000000"},
+			Want: false,
+		},
+		{
+			Name: "Qualified name of another mode does not match",
+			Host: iscsiHost,
+			Mode: connectors.TypeNVMeTCP,
 			QNs:  []string{"iqn.2005-03.org.open-iscsi:abcdef123456"},
 			Want: false,
 		},
@@ -255,7 +307,7 @@ func Test_pureHost_matchesAnyQualifiedName(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			assert.Equal(t, test.Want, host.matchesAnyQualifiedName(test.Mode, test.QNs))
+			assert.Equal(t, test.Want, test.Host.matchesAnyQualifiedName(test.Mode, test.QNs))
 		})
 	}
 }
