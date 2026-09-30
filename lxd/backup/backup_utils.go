@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/archive"
@@ -40,6 +41,10 @@ func TarReader(s *state.State, r io.ReadSeeker, outputPath string) (*tar.Reader,
 // If the name is legal, then the legal name and a nil error are returned.
 // If the name is illegal, then an empty string and an error are returned.
 func ValidateBackupName(backupName string) (string, error) {
+	if backupName == "." || !filepath.IsLocal(backupName) {
+		return "", errors.New("Backup name must be a non-empty relative name and not '.'")
+	}
+
 	if strings.Contains(backupName, "/") {
 		return "", errors.New("Backup name must not contain forward slashes")
 	}
