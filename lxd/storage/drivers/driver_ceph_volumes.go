@@ -1783,14 +1783,41 @@ func (d *ceph) PromoteMirroredVolume(vol Volume, force bool) error {
 // DemoteMirroredVolume makes a volume's RBD image non-primary so that its peer can be promoted.
 // An image that is already non-primary is left alone, so that a demotion covering many images which
 // failed part way can be run again to completion.
+// An image that rbd-mirror reports as split-brain is rebuilt from the peer. That is what a forced
+// promotion on the peer leaves here: the image has a history the peer does not share, and rbd-mirror
+// refuses to replay onto it until the local copy is thrown away. rbd-mirror only finds that out once
+// the image is demoted, so it is normally a second demotion that requests the rebuild.
 func (d *ceph) DemoteMirroredVolume(vol Volume) error {
-	_, err := d.rbd(context.Background(), "mirror", "image", "demote", "--image", d.getRBDVolumeName(vol, "", false, false))
+	imageName := d.getRBDVolumeName(vol, "", false, false)
+
+	_, err := d.rbd(context.Background(), "mirror", "image", "demote", "--image", imageName)
 	if err != nil {
 		if !cephMirrorErrorSays(err, "not primary") {
 			return fmt.Errorf("Failed demoting volume %q: %w", vol.name, err)
 		}
 
 		d.logger.Warn("Volume is already non-primary", logger.Ctx{"volume": vol.name})
+	}
+
+	// The status query is read-only, so it gets the bound the driver's other read-only rbd calls
+	// have. The demotion and the resync stay unbounded, since cutting a mutating command short can
+	// leave the image halfway.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	status, err := d.mirrorImageStatus(ctx, vol, imageName)
+	if err != nil {
+		return err
+	}
+
+	if status.inSplitBrain() {
+		_, err = d.rbd(context.Background(), "mirror", "image", "resync", "--image", imageName)
+		if err != nil {
+			return fmt.Errorf("Failed requesting a resync of volume %q: %w", vol.name, err)
+		}
+
+		// The rebuild throws the local copy away, so the log names every image it was asked for.
+		d.logger.Warn("Volume is in a split-brain, requested its rebuild from the peer", logger.Ctx{"volume": vol.name})
 	}
 
 	// For VMs, also demote the filesystem volume, as the peer cannot promote a config drive that

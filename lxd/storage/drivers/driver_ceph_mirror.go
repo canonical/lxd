@@ -40,9 +40,21 @@ type cephMirrorPeerSite struct {
 
 // cephMirrorImageStatus is `rbd mirror image status --format json`, cut down to what is read.
 type cephMirrorImageStatus struct {
-	Name      string               `json:"name"`
-	State     string               `json:"state"`
-	PeerSites []cephMirrorPeerSite `json:"peer_sites"`
+	Name        string               `json:"name"`
+	State       string               `json:"state"`
+	Description string               `json:"description"`
+	PeerSites   []cephMirrorPeerSite `json:"peer_sites"`
+}
+
+// cephMirrorSplitBrain is how rbd-mirror describes an image it stopped on because the image has a
+// history the primary does not share.
+const cephMirrorSplitBrain = "split-brain"
+
+// inSplitBrain reports whether rbd-mirror stopped replaying onto the local image because of a
+// split-brain. Only the local description counts. A peer site reporting one describes the peer's
+// copy, and the local copy is then the one to keep.
+func (s cephMirrorImageStatus) inSplitBrain() bool {
+	return strings.Contains(s.Description, cephMirrorSplitBrain)
 }
 
 // cephSnapshotEntry is one entry of an rbd snapshot listing.
@@ -122,6 +134,13 @@ func (s cephMirrorImageStatus) hasReplayed(siteName string, snapshotTimestamp in
 			return false, nil
 		}
 
+		// rbd-mirror stops on an image whose peer copy has a history it does not share, which is
+		// what a forced promotion leaves on the site that comes back. A second demotion on that
+		// site rebuilds the image, so the message says so.
+		if strings.Contains(peer.Description, cephMirrorSplitBrain) {
+			return false, fmt.Errorf("Peer site %q reports a split-brain on image %q, demote the project there again to rebuild its volumes from this site", siteName, s.Name)
+		}
+
 		return false, fmt.Errorf("Peer site %q reports no replay state for image %q: %q", siteName, s.Name, peer.Description)
 	}
 
@@ -188,6 +207,23 @@ func (d *ceph) CreateVolumeMirrorSnapshot(vol Volume) error {
 	return nil
 }
 
+// mirrorImageStatus returns the mirror status rbd reports for one of a volume's RBD images.
+func (d *ceph) mirrorImageStatus(ctx context.Context, vol Volume, imageName string) (*cephMirrorImageStatus, error) {
+	msg, err := d.rbd(ctx, "--format", "json", "mirror", "image", "status", imageName)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting the mirror status of volume %q: %w", vol.name, err)
+	}
+
+	var status cephMirrorImageStatus
+
+	err = json.Unmarshal([]byte(msg), &status)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing the mirror status of volume %q: %w", vol.name, err)
+	}
+
+	return &status, nil
+}
+
 // VolumeMirrorReplayed reports whether the peer site has replayed the newest mirror snapshot of a
 // volume's RBD image. The newest snapshot is the one this run triggered or a later one, and a later
 // one only makes the check stricter.
@@ -210,16 +246,9 @@ func (d *ceph) VolumeMirrorReplayed(vol Volume, peerSite string) (bool, error) {
 		return false, fmt.Errorf("Failed identifying the mirror snapshot of volume %q: %w", vol.name, err)
 	}
 
-	msg, err := d.rbd(ctx, "--format", "json", "mirror", "image", "status", imageName)
+	status, err := d.mirrorImageStatus(ctx, vol, imageName)
 	if err != nil {
-		return false, fmt.Errorf("Failed getting the mirror status of volume %q: %w", vol.name, err)
-	}
-
-	var status cephMirrorImageStatus
-
-	err = json.Unmarshal([]byte(msg), &status)
-	if err != nil {
-		return false, fmt.Errorf("Failed parsing the mirror status of volume %q: %w", vol.name, err)
+		return false, err
 	}
 
 	replayed, err := status.hasReplayed(peerSite, snapshotTimestamp)
