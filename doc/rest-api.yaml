@@ -7689,6 +7689,18 @@ definitions:
                 example: 1 | 0.8.4-1ubuntu11
                 type: string
                 x-go-name: StorageVersion
+            vm_emulated_architectures:
+                description: |-
+                    List of additional architectures supported for virtual machines through emulation
+
+                    API extension: vm_emulated_architectures
+                example:
+                    - riscv64
+                    - armv7l
+                items:
+                    type: string
+                type: array
+                x-go-name: VMEmulatedArchitectures
         title: ServerEnvironment represents the read-only environment fields of a LXD server.
         type: object
         x-go-package: github.com/canonical/lxd/shared/api
