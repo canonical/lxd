@@ -414,28 +414,30 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	}
 
 	// Create the database entry.
+	var backupRow db.StoragePoolVolumeBackup
+
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.CreateStoragePoolVolumeBackup(ctx, args)
+		err := tx.CreateStoragePoolVolumeBackup(ctx, args)
+		if err != nil {
+			return fmt.Errorf("Failed creating storage volume backup record: %w", err)
+		}
+
+		backupRow, err = tx.GetStoragePoolVolumeBackup(ctx, projectName, poolName, args.Name)
+		if err != nil {
+			return fmt.Errorf("Failed getting backup record: %w", err)
+		}
+
+		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed creating storage volume backup record: %w", err)
+		return err
 	}
 
 	revert.Add(func() {
 		_ = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.DeleteStoragePoolVolumeBackup(ctx, args.Name)
+			return tx.DeleteStoragePoolVolumeBackup(ctx, backupRow.ID)
 		})
 	})
-
-	var backupRow db.StoragePoolVolumeBackup
-
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		backupRow, err = tx.GetStoragePoolVolumeBackup(ctx, projectName, poolName, args.Name)
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed getting backup record: %w", err)
-	}
 
 	// Detect compression method.
 	var compress string

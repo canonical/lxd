@@ -52,7 +52,7 @@ func TestGetStorageVolumeNodes(t *testing.T) {
 	}, nodes)
 }
 
-func TestGetAndRenameStoragePoolVolumeBackup(t *testing.T) {
+func TestGetRenameAndDeleteStoragePoolVolumeBackup(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -73,6 +73,15 @@ func TestGetAndRenameStoragePoolVolumeBackup(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEqual(t, backup1.ID, backup2.ID)
 
+	expired, err := tx.GetExpiredStorageVolumeBackups(context.Background())
+	require.NoError(t, err)
+	expiredIDs := make([]int, 0, len(expired))
+	for _, b := range expired {
+		expiredIDs = append(expiredIDs, b.ID)
+	}
+
+	assert.ElementsMatch(t, []int{backup1.ID, backup2.ID}, expiredIDs)
+
 	err = tx.RenameVolumeBackup(context.Background(), -1, "volume1/renamed")
 	assert.True(t, api.StatusErrorCheck(err, http.StatusNotFound))
 
@@ -82,6 +91,17 @@ func TestGetAndRenameStoragePoolVolumeBackup(t *testing.T) {
 	_, err = tx.GetStoragePoolVolumeBackup(context.Background(), "default", "pool1", "volume1/renamed")
 	require.NoError(t, err)
 	_, err = tx.GetStoragePoolVolumeBackup(context.Background(), "default", "pool2", "volume1/backup")
+	require.NoError(t, err)
+
+	err = tx.DeleteStoragePoolVolumeBackup(context.Background(), -1)
+	assert.True(t, api.StatusErrorCheck(err, http.StatusNotFound))
+
+	err = tx.DeleteStoragePoolVolumeBackup(context.Background(), backup2.ID)
+	require.NoError(t, err)
+
+	_, err = tx.GetStoragePoolVolumeBackup(context.Background(), "default", "pool2", "volume1/backup")
+	assert.True(t, api.StatusErrorCheck(err, http.StatusNotFound))
+	_, err = tx.GetStoragePoolVolumeBackup(context.Background(), "default", "pool1", "volume1/renamed")
 	require.NoError(t, err)
 }
 

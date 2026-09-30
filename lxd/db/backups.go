@@ -292,13 +292,13 @@ func (c *ClusterTx) GetExpiredInstanceBackups(ctx context.Context) ([]InstanceBa
 func (c *ClusterTx) GetExpiredStorageVolumeBackups(ctx context.Context) ([]StoragePoolVolumeBackup, error) {
 	var backups []StoragePoolVolumeBackup
 
-	q := `SELECT storage_volumes_backups.name, storage_volumes_backups.expiry_date, storage_volumes_backups.storage_volume_id FROM storage_volumes_backups`
+	q := `SELECT storage_volumes_backups.id, storage_volumes_backups.name, storage_volumes_backups.expiry_date, storage_volumes_backups.storage_volume_id FROM storage_volumes_backups`
 
 	err := query.Scan(ctx, c.Tx(), q, func(scan func(dest ...any) error) error {
 		var b StoragePoolVolumeBackup
 		var expiryTime sql.NullTime
 
-		err := scan(&b.Name, &expiryTime, &b.VolumeID)
+		err := scan(&b.ID, &b.Name, &expiryTime, &b.VolumeID)
 		if err != nil {
 			return err
 		}
@@ -450,16 +450,20 @@ func (c *ClusterTx) getStoragePoolVolumeBackupID(ctx context.Context, name strin
 	return id, err
 }
 
-// DeleteStoragePoolVolumeBackup removes the storage volume backup with the given name from the database.
-func (c *ClusterTx) DeleteStoragePoolVolumeBackup(ctx context.Context, name string) error {
-	id, err := c.getStoragePoolVolumeBackupID(ctx, name)
+// DeleteStoragePoolVolumeBackup removes the storage volume backup with the given ID from the database.
+func (c *ClusterTx) DeleteStoragePoolVolumeBackup(ctx context.Context, backupID int) error {
+	result, err := c.tx.ExecContext(ctx, "DELETE FROM storage_volumes_backups WHERE id=?", backupID)
 	if err != nil {
 		return err
 	}
 
-	_, err = c.tx.ExecContext(ctx, "DELETE FROM storage_volumes_backups WHERE id=?", id)
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
+	}
+
+	if rowsAffected <= 0 {
+		return api.StatusErrorf(http.StatusNotFound, "Storage volume backup not found")
 	}
 
 	return nil
