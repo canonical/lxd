@@ -9464,6 +9464,16 @@ func (d *qemu) Info() instance.Info {
 		return data
 	}
 
+	// Cross-architecture emulation is only supported with the QEMU binaries and firmware shipped in the snap.
+	if shared.InSnap() {
+		for _, arch := range qemuEmulatedArchitectures[hostArch] {
+			_, _, err := qemuArchConfig(hostArch, arch)
+			if err == nil {
+				data.EmulatedArchitectures = append(data.EmulatedArchitectures, arch)
+			}
+		}
+	}
+
 	data.Error = nil
 
 	return data
