@@ -12,8 +12,9 @@ LXD requires the Go version listed in `doc/requirements.md` or higher and is onl
   make deps
   ```
 
-  This populates `vendor/` with the native libraries. Set the environment variables
-  printed by `make env` if you build outside of `make`.
+  This builds the native libraries under `$(go env GOPATH)/deps` (or `vendor/` in a
+  release tarball). Set the environment variables printed by `make env` if you build
+  outside of `make`.
 
 - The `client` (lxc CLI) and some test binaries build without CGO and have no native deps.
 
