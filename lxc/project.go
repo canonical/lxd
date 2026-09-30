@@ -1207,7 +1207,9 @@ func (c *cmdProjectDemote) command() *cobra.Command {
 	cmd.Long = cli.FormatSection("Description",
 		`Demotes the project to standby mode for replication.
 
-The project must have replica.cluster config set to identify which cluster can replicate to it, unless --force is specified.`)
+The project must have replica.cluster config set to identify which cluster can replicate to it, unless --force is specified.
+
+If a leader cluster was promoted with --force, it is possible that replication back to a standby can fail with a "split-brain" error. Demote the standby again to resolve the failure.`)
 
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Skip validation of replica.cluster config")
 
