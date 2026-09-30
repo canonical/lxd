@@ -4909,7 +4909,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 
 	run := func(ctx context.Context, op *operations.Operation) error {
 		createArgs := &lxd.ImageCreateArgs{}
-		imageMetaPath := filepath.Join(s.ImagesStoragePath(projectName), details.imageFingerprintPrefix)
+		imageMetaPath := filepath.Join(s.ImagesStoragePath(projectName), details.image.Fingerprint)
 		imageRootfsPath := imageMetaPath + ".rootfs"
 
 		metaFile, err := os.Open(imageMetaPath)
@@ -4935,7 +4935,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		image := api.ImagesPost{
 			Filename: createArgs.MetaName,
 			Source: &api.ImagesPostSource{
-				Fingerprint: details.imageFingerprintPrefix,
+				Fingerprint: details.image.Fingerprint,
 				Secret:      req.Secret,
 				Mode:        "push",
 			},
@@ -4972,7 +4972,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed operation %q: %q", opWaitAPI.Status, opWaitAPI.Err)
 		}
 
-		s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(details.imageFingerprintPrefix, projectName, op.EventLifecycleRequestor(), logger.Ctx{"target": req.Target}))
+		s.Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(details.image.Fingerprint, projectName, op.EventLifecycleRequestor(), logger.Ctx{"target": req.Target}))
 
 		return nil
 	}
