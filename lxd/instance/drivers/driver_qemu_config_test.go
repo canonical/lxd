@@ -120,6 +120,33 @@ func TestQemuConfigTemplates(t *testing.T) {
 
 			[boot-opts]
 			strict = "on"`,
+		}, {
+			qemuBaseOpts{architecture: osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN, tcg: true},
+			`# Machine
+			[machine]
+			graphics = "off"
+			type = "virt"
+			accel = "tcg"
+			acpi = "off"
+			usb = "off"
+			memory-backend = "riscv_virt_board.ram"
+
+			[boot-opts]
+			strict = "on"`,
+		}, {
+			qemuBaseOpts{architecture: osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN, tcg: true},
+			`# Machine
+			[machine]
+			graphics = "off"
+			type = "virt"
+			gic-version = "3"
+			accel = "tcg"
+			acpi = "off"
+			usb = "off"
+			memory-backend = "mach-virt.ram"
+
+			[boot-opts]
+			strict = "on"`,
 		}}
 
 		for _, tc := range testCases {
