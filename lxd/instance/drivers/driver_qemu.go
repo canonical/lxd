@@ -2155,6 +2155,7 @@ func (d *qemu) AgentCertificate() *x509.Certificate {
 
 func (d *qemu) architectureSupportsUEFI(arch int) bool {
 	return slices.Contains([]int{osarch.ARCH_64BIT_INTEL_X86,
+		osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN,
 		osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN,
 		osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN},
 		arch)
