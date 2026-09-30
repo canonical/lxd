@@ -514,7 +514,8 @@ type ClusterLinksPost struct {
 	//  shortdesc: Type of the cluster link
 
 	// Type of the cluster link.
-	// Currently only "bidirectional" is supported.
+	// Valid types are "bidirectional", "unidirectional" (API extension: cluster_links_unidirectional)
+	// and "public" (API extension: cluster_links_public).
 	// Example: bidirectional
 	Type string `json:"type" yaml:"type"`
 
