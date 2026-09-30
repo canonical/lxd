@@ -40,6 +40,7 @@ LXD only supports running virtual machines on the following host architectures:
 - `x86_64`
 - `aarch64`
 - `ppc64le`
+- `riscv64`
 - `s390x`
 
 The virtual machine guest architecture can usually be the 32bit personality of the host architecture,
