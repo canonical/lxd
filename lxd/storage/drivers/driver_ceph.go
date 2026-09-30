@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/ioprogress"
@@ -23,6 +24,21 @@ import (
 
 var cephVersion string
 var cephLoaded bool
+
+// cephReplicatorPoolKeyPrefix prefixes the pool config key naming the peer site a project is
+// mirrored to. The full key is `ceph.replicator.<project>`.
+const cephReplicatorPoolKeyPrefix = "ceph.replicator."
+
+// CephReplicatorPoolKey returns the pool config key naming the peer site a project is mirrored to.
+func CephReplicatorPoolKey(projectName string) string {
+	return cephReplicatorPoolKeyPrefix + projectName
+}
+
+// CephReplicatorPoolKeyProject returns the project a pool config key names a peer site for, and
+// whether the key is such a key at all.
+func CephReplicatorPoolKeyProject(key string) (string, bool) {
+	return strings.CutPrefix(key, cephReplicatorPoolKeyPrefix)
+}
 
 var cephPoolConfigPolicy = api.ConfigKeyPolicy{
 	Immutable: []string{
@@ -397,6 +413,46 @@ func (d *ceph) Validate(config map[string]string) error {
 		//  shortdesc: Whether the pool was empty on creation time
 		//  scope: global
 		"volatile.pool.pristine": validate.IsAny,
+	}
+
+	// The project name is part of the key, so a fixed rule cannot express it.
+	for k := range config {
+		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.replicator.<project>)
+		// This option specifies the peer site, as registered in Ceph, that the volumes of the
+		// given project are mirrored to. One OSD pool can back several projects, each replicating
+		// to a different peer.
+		//
+		// `ceph.rbd.clone_copy` must also be set to `false` before any container is created on the
+		// pool, because Ceph cannot mirror a volume that is a clone of its image.
+		//
+		// The project must exist before this option is set. Deleting the project with `--force`
+		// removes the option from the pool.
+		// ---
+		//  type: string
+		//  shortdesc: Name of the peer Ceph site to mirror a project to
+		//  scope: global
+		projectName, isReplicatorKey := CephReplicatorPoolKeyProject(k)
+		if !isReplicatorKey {
+			continue
+		}
+
+		// A key naming no project, or a name no project can have, would leave config that nothing
+		// ever reads, so say what is wrong with the name rather than reporting the key as unknown.
+		err := project.ValidName(projectName)
+		if err != nil {
+			return fmt.Errorf("Invalid option %q, expected %s<project>: %w", k, cephReplicatorPoolKeyPrefix, err)
+		}
+
+		// A container volume is a clone of its image unless the pool copies instead, and Ceph refuses
+		// to mirror a clone whose parent is not mirrored. Volumes created before the mode changed keep
+		// their parent, which is why the mode has to be in place first. An empty value is an unset.
+		if config[k] != "" && shared.IsTrueOrEmpty(config["ceph.rbd.clone_copy"]) {
+			return fmt.Errorf("%s requires ceph.rbd.clone_copy=false, set before any container is created on the pool", k)
+		}
+
+		// An empty value is how the key is unset, and the database drops such a key rather than
+		// storing it, so there is nothing left for a stricter rule to reject.
+		rules[k] = validate.IsAny
 	}
 
 	for configOption, configOptionValue := range config {

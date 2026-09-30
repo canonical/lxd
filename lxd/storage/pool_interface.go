@@ -66,6 +66,14 @@ type Pool interface {
 
 	GetVolume(volumeType drivers.VolumeType, contentType drivers.ContentType, name string, config map[string]string) drivers.Volume
 
+	// MirrorProjectVolumes enrolls the volumes a project holds on this pool into replication and sends
+	// their current state to the peer.
+	MirrorProjectVolumes(ctx context.Context, projectName string) error
+
+	// ConfirmProjectVolumeMirrors returns the volumes a project holds on this pool that the peer has
+	// not replayed yet.
+	ConfirmProjectVolumeMirrors(ctx context.Context, projectName string) ([]string, error)
+
 	// Instances.
 	CreateInstance(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error
 	CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) (func(instance.Instance) error, revert.Hook, error)

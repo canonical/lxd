@@ -156,6 +156,7 @@ const (
 	ImageRegistryUpdate
 	ImageRegistryDelete
 	ImageRegistryRename
+	ReplicatorRunMirror
 
 	// upperBound is used only to enforce consistency in the package on init.
 	// Make sure it's always the last item in this list.
@@ -428,6 +429,8 @@ func (t Type) Description() string {
 		return "Deleting image registry"
 	case ImageRegistryRename:
 		return "Renaming image registry"
+	case ReplicatorRunMirror:
+		return "Mirroring replicated volumes"
 
 	// It should never be possible to reach the default clause.
 	// See the init function.
@@ -527,7 +530,7 @@ func (t Type) EntityType() entity.Type {
 	case NetworkZoneUpdate, NetworkZoneDelete, NetworkZoneRecordCreate, NetworkZoneRecordUpdate, NetworkZoneRecordDelete:
 		return entity.TypeNetworkZone
 	// Replicator operations.
-	case ReplicatorRun, ReplicatorFinalize:
+	case ReplicatorRun, ReplicatorFinalize, ReplicatorRunMirror:
 		return entity.TypeReplicator
 
 	// It should never be possible to reach the default clause.

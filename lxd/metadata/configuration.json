@@ -6219,6 +6219,14 @@
 						}
 					},
 					{
+						"ceph.replicator.\u003cproject\u003e": {
+							"longdesc": "This option specifies the peer site, as registered in Ceph, that the volumes of the\ngiven project are mirrored to. One OSD pool can back several projects, each replicating\nto a different peer.\n\n`ceph.rbd.clone_copy` must also be set to `false` before any container is created on the\npool, because Ceph cannot mirror a volume that is a clone of its image.\n\nThe project must exist before this option is set. Deleting the project with `--force`\nremoves the option from the pool.",
+							"scope": "global",
+							"shortdesc": "Name of the peer Ceph site to mirror a project to",
+							"type": "string"
+						}
+					},
+					{
 						"ceph.user.name": {
 							"defaultdesc": "`admin`",
 							"longdesc": "",

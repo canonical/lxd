@@ -3737,3 +3737,10 @@ Adds a new volatile VM configuration key {config:option}`instance-volatile:volat
 
 Adds NVMe/FC support to the Pure Storage storage driver.
 Like SCSI/FC, Fibre Channel targets are discovered through the host bus adapter, so `pure.target` has no effect when `pure.mode` is set to `nvme/fc`.
+
+(extension-storage-ceph-replicator)=
+## `storage_ceph_replicator`
+
+This introduces the `ceph.replicator.<project>` configuration key on `ceph` storage pools.
+It records the peer Ceph site to which a project's volumes on the pool are mirrored.
+If a project with a replicator holds volumes on a Ceph pool configured with this key, then the replicator enrolls those volumes in RBD mirroring, triggers a mirror snapshot of each volume on every replication run, and completes the run only after the peer site confirms that it has received every snapshot.

@@ -106,7 +106,13 @@ func (b *lxdBackend) ValidateName(value string) error {
 
 // Validate storage pool config.
 func (b *lxdBackend) Validate(config map[string]string) error {
-	return b.Driver().Validate(config)
+	err := b.Driver().Validate(config)
+	if err != nil {
+		return err
+	}
+
+	// The driver sees the pool config alone, so what its keys name in the database is checked here.
+	return validateCephReplicatorProjects(context.TODO(), b.state, config)
 }
 
 // validateSource checks whether or not the provided underlying source (based on the config) can be used.
@@ -367,6 +373,107 @@ func (b *lxdBackend) GetNewVolume(volType drivers.VolumeType, contentType driver
 // GetVolume returns a drivers.Volume containing copies of the supplied volume config and the pools config.
 func (b *lxdBackend) GetVolume(volType drivers.VolumeType, contentType drivers.ContentType, volName string, volConfig map[string]string) drivers.Volume {
 	return drivers.NewVolume(b.driver, b.name, volType, contentType, volName, volConfig, b.db.Config).Clone()
+}
+
+// forEachProjectVolume runs fn against the driver volume of every instance and custom volume a
+// project holds on this pool.
+// Snapshots are left out because a replica carries them along with the volume they belong to.
+// Image volumes are left out because nothing writes to one after it is unpacked, so a replica has
+// nothing to gain from it.
+func (b *lxdBackend) forEachProjectVolume(ctx context.Context, projectName string, fn func(vol drivers.Volume) error) error {
+	volTypeContainer := cluster.StoragePoolVolumeTypeContainer
+	volTypeVM := cluster.StoragePoolVolumeTypeVM
+	volTypeCustom := cluster.StoragePoolVolumeTypeCustom
+
+	var dbVolumes []*db.StorageVolume
+
+	err := b.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		dbVolumes, err = tx.GetStorageVolumes(ctx, false,
+			db.StorageVolumeFilter{Project: &projectName, PoolID: &b.id, Type: &volTypeContainer},
+			db.StorageVolumeFilter{Project: &projectName, PoolID: &b.id, Type: &volTypeVM},
+			db.StorageVolumeFilter{Project: &projectName, PoolID: &b.id, Type: &volTypeCustom},
+		)
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed loading the volumes of project %q: %w", projectName, err)
+	}
+
+	for _, dbVolume := range dbVolumes {
+		if shared.IsSnapshot(dbVolume.Name) {
+			continue
+		}
+
+		dbVolType, err := cluster.StoragePoolVolumeTypeFromName(dbVolume.Type)
+		if err != nil {
+			return fmt.Errorf("Failed reading the type of volume %q: %w", dbVolume.Name, err)
+		}
+
+		dbContentType, err := cluster.StoragePoolVolumeContentTypeFromName(dbVolume.ContentType)
+		if err != nil {
+			return fmt.Errorf("Failed reading the content type of volume %q: %w", dbVolume.Name, err)
+		}
+
+		volType := VolumeDBTypeToType(dbVolType)
+
+		// Custom volumes carry the project in their storage name everywhere, instance volumes
+		// only outside the default project, and either way it ends up in the volume name the
+		// driver acts on.
+		volStorageName := project.StorageVolume(dbVolume.Project, dbVolume.Name)
+		if volType != drivers.VolumeTypeCustom {
+			volStorageName = project.Instance(dbVolume.Project, dbVolume.Name)
+		}
+
+		err = fn(b.GetVolume(volType, VolumeDBContentTypeToContentType(dbContentType), volStorageName, dbVolume.Config))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// MirrorProjectVolumes enrolls the volumes a project holds on this pool into replication and sends
+// their current state to the peer.
+func (b *lxdBackend) MirrorProjectVolumes(ctx context.Context, projectName string) error {
+	l := b.logger.AddContext(logger.Ctx{"project": projectName})
+	l.Debug("MirrorProjectVolumes started")
+	defer l.Debug("MirrorProjectVolumes finished")
+
+	return b.forEachProjectVolume(ctx, projectName, func(vol drivers.Volume) error {
+		err := b.driver.EnableVolumeMirroring(vol)
+		if err != nil {
+			return err
+		}
+
+		return b.driver.CreateVolumeMirrorSnapshot(vol)
+	})
+}
+
+// ConfirmProjectVolumeMirrors returns the volumes a project holds on this pool whose newest mirror
+// snapshot the peer has not replayed yet. The peer is the one the pool's ceph.replicator key names.
+func (b *lxdBackend) ConfirmProjectVolumeMirrors(ctx context.Context, projectName string) ([]string, error) {
+	peerSite := b.db.Config[drivers.CephReplicatorPoolKey(projectName)]
+
+	var pending []string
+
+	err := b.forEachProjectVolume(ctx, projectName, func(vol drivers.Volume) error {
+		replayed, err := b.driver.VolumeMirrorReplayed(vol, peerSite)
+		if err != nil {
+			return err
+		}
+
+		if !replayed {
+			pending = append(pending, vol.Name())
+		}
+
+		return nil
+	})
+
+	return pending, err
 }
 
 // GetResources returns utilisation information about the pool.

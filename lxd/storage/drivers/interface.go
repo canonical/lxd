@@ -81,6 +81,16 @@ type Driver interface {
 	GetVolumeDiskPath(vol Volume) (string, error)
 	ListVolumes() ([]Volume, error)
 
+	// EnableVolumeMirroring enrolls a volume into replication to the pool's peer. Enrolling an enrolled
+	// volume is a no-op, so a caller can offer every volume on every run.
+	EnableVolumeMirroring(vol Volume) error
+
+	// CreateVolumeMirrorSnapshot sends the volume's current state to the peer.
+	CreateVolumeMirrorSnapshot(vol Volume) error
+
+	// VolumeMirrorReplayed reports whether the peer site holds the volume's newest mirror snapshot.
+	VolumeMirrorReplayed(vol Volume, peerSite string) (bool, error)
+
 	// MountVolume mounts a storage volume (if not mounted) and increments reference counter.
 	MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error
 

@@ -32,6 +32,8 @@ import (
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/state"
+	storagePools "github.com/canonical/lxd/lxd/storage"
+	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -970,6 +972,15 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
+	mirrored, err := storagePools.ProjectMirrorsToCeph(r.Context(), s, name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if mirrored {
+		return response.BadRequest(fmt.Errorf("Project %q is mirrored by a storage pool, unset its %s key first", name, storageDrivers.CephReplicatorPoolKey(name)))
+	}
+
 	// Perform the rename.
 	run := func(ctx context.Context, op *operations.Operation) error {
 		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1300,6 +1311,20 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// A forced delete removes every volume the project holds, so nothing is left for the key to
+	// describe and it is removed together with the project. Without force the key has to be unset
+	// first, so that an ordinary delete does not change the config of a pool on its own.
+	if !force {
+		mirrored, err := storagePools.ProjectMirrorsToCeph(r.Context(), s, name)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		if mirrored {
+			return response.BadRequest(fmt.Errorf("Project %q is mirrored by a storage pool, unset its %s key first", name, storageDrivers.CephReplicatorPoolKey(name)))
+		}
+	}
+
 	isDefaultProfile := func(u url.URL) bool {
 		return strings.HasSuffix(u.Path, "projects/"+url.PathEscape(project.Name)+"/profiles/default")
 	}
@@ -1387,6 +1412,12 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			// A key left behind would be inherited by a project later created under this name.
+			err := storagePools.RemoveCephReplicatorPoolKey(ctx, tx, name)
+			if err != nil {
+				return err
+			}
+
 			return dbCluster.DeleteProject(ctx, tx.Tx(), name)
 		})
 		if err != nil {
