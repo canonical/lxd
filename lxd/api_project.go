@@ -1778,6 +1778,9 @@ func projectDemote(ctx context.Context, s *state.State, projectName string, forc
 		// The mode is already standby, so only the storage half can be outstanding. The driver
 		// tolerates images that are already non-primary, so a rerun finishes a demotion that
 		// stopped part way. The guests must be stopped for it, as for the first attempt.
+		// A rerun is also the return path of a site whose peer was force-promoted. Ceph reports
+		// the split-brain on its images only after they are demoted, and the driver rebuilds the
+		// images that report one from the peer.
 		err = checkProjectInstancesStopped(ctx, s, projectName)
 		if err != nil {
 			return err
