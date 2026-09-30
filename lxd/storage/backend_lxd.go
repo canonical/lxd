@@ -106,7 +106,13 @@ func (b *lxdBackend) ValidateName(value string) error {
 
 // Validate storage pool config.
 func (b *lxdBackend) Validate(config map[string]string) error {
-	return b.Driver().Validate(config)
+	err := b.Driver().Validate(config)
+	if err != nil {
+		return err
+	}
+
+	// The driver sees the pool config alone, so what its keys name in the database is checked here.
+	return validateCephReplicatorProjects(context.TODO(), b.state, config)
 }
 
 // validateSource checks whether or not the provided underlying source (based on the config) can be used.

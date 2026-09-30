@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/shared/api"
@@ -153,4 +154,50 @@ func cephReplicaPoolRecords(ctx context.Context, s *state.State, projectName str
 	})
 
 	return replicaPools, nil
+}
+
+// validateCephReplicatorProjects checks that every `ceph.replicator.<project>` key of a pool config
+// names a project that exists. A key naming no project would be picked up by whichever project is
+// later created under that name, which would then be mirrored without anyone having asked for it.
+func validateCephReplicatorProjects(ctx context.Context, s *state.State, poolConfig map[string]string) error {
+	var keys []string
+
+	for key, value := range poolConfig {
+		_, isReplicatorKey := drivers.CephReplicatorPoolKeyProject(key)
+
+		// An empty value is how the key is unset.
+		if isReplicatorKey && value != "" {
+			keys = append(keys, key)
+		}
+	}
+
+	// Most pools carry no such key, and they are spared the query.
+	if len(keys) == 0 {
+		return nil
+	}
+
+	var projectNames []string
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		projectNames, err = cluster.GetProjectNames(ctx, tx.Tx())
+
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed loading project names: %w", err)
+	}
+
+	// The keys come out of a map, so order them to report the same one each time.
+	slices.Sort(keys)
+
+	for _, key := range keys {
+		projectName, _ := drivers.CephReplicatorPoolKeyProject(key)
+		if !slices.Contains(projectNames, projectName) {
+			return fmt.Errorf("Invalid option %q, project %q does not exist", key, projectName)
+		}
+	}
+
+	return nil
 }
