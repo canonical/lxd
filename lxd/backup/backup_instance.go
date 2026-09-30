@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,6 +58,10 @@ func (b *InstanceBackup) Instance() Instance {
 
 // Rename renames an instance backup.
 func (b *InstanceBackup) Rename(ctx context.Context, newName string) error {
+	if !filepath.IsLocal(b.name) || !filepath.IsLocal(newName) {
+		return fmt.Errorf("Invalid backup name %q", newName)
+	}
+
 	backupsPath := b.state.BackupsStoragePath(b.instance.Project().Name)
 	oldBackupPath := filepath.Join(backupsPath, "instances", project.Instance(b.instance.Project().Name, b.name))
 	newBackupPath := filepath.Join(backupsPath, "instances", project.Instance(b.instance.Project().Name, newName))
@@ -110,6 +115,10 @@ func (b *InstanceBackup) Rename(ctx context.Context, newName string) error {
 
 // Delete removes an instance backup.
 func (b *InstanceBackup) Delete(ctx context.Context) error {
+	if !filepath.IsLocal(b.name) {
+		return fmt.Errorf("Invalid backup name %q", b.name)
+	}
+
 	backupsPathBase := b.state.BackupsStoragePath(b.instance.Project().Name)
 	backupPath := filepath.Join(backupsPathBase, "instances", project.Instance(b.instance.Project().Name, b.name))
 

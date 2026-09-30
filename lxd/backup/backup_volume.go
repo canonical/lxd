@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,6 +44,10 @@ func NewVolumeBackup(state *state.State, projectName, poolName, volumeName strin
 
 // Rename renames a volume backup.
 func (b *VolumeBackup) Rename(newName string) error {
+	if !filepath.IsLocal(b.name) || !filepath.IsLocal(newName) {
+		return fmt.Errorf("Invalid backup name %q", newName)
+	}
+
 	backupsPath := b.state.BackupsStoragePath(b.projectName)
 	oldBackupPath := filepath.Join(backupsPath, "custom", b.poolName, project.StorageVolume(b.projectName, b.name))
 	newBackupPath := filepath.Join(backupsPath, "custom", b.poolName, project.StorageVolume(b.projectName, newName))
@@ -95,6 +100,10 @@ func (b *VolumeBackup) Rename(newName string) error {
 
 // Delete removes a volume backup.
 func (b *VolumeBackup) Delete() error {
+	if !filepath.IsLocal(b.name) {
+		return fmt.Errorf("Invalid backup name %q", b.name)
+	}
+
 	backupsPathBase := b.state.BackupsStoragePath(b.projectName)
 	backupPath := filepath.Join(backupsPathBase, "custom", b.poolName, project.StorageVolume(b.projectName, b.name))
 	// Delete the on-disk data.
