@@ -932,6 +932,9 @@ test_server_info() {
     lxc query /1.0 | jq --exit-status '.environment.instance_types | contains(["virtual-machine"])'
   fi
 
+  # Emulated VM architectures are only reported by the snap.
+  lxc query /1.0 | jq --exit-status '.environment.vm_emulated_architectures == []'
+
   # Ensure the version number has the format (X.Y.Z for LTSes and X.Y otherwise)
   if lxc query /1.0 | jq --exit-status '.environment.server_lts == true'; then
     lxc query /1.0 | jq --exit-status --raw-output '.environment.server_version' | grep -xE '[0-9]+\.[0-9]+\.[0-9]+'
