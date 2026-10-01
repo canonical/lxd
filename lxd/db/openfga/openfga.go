@@ -668,7 +668,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 					return nil, fmt.Errorf("Received invalid user URL %q with %q parent-child relation", userURL, filter.Relation)
 				}
 
-				if userURLPathArguments[0] != pathArgs[0] && userURLPathArguments[1] != pathArgs[1] && userURLPathArguments[2] != pathArgs[2] {
+				if userURLPathArguments[0] != pathArgs[0] || userURLPathArguments[1] != pathArgs[1] || userURLPathArguments[2] != pathArgs[2] {
 					// We're returning the parent storage volume of snapshots or backups here.
 					// It's only a parent if it has the same storage pool, volume type, and volume name.
 					continue
