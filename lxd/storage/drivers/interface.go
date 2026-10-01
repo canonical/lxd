@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"io"
 	"net/url"
 
@@ -89,7 +90,7 @@ type Driver interface {
 	CreateVolumeMirrorSnapshot(vol Volume) error
 
 	// VolumeMirrorReplayed reports whether the peer site holds the volume's newest mirror snapshot.
-	VolumeMirrorReplayed(vol Volume, peerSite string) (bool, error)
+	VolumeMirrorReplayed(ctx context.Context, vol Volume, peerSite string) (bool, error)
 
 	// PromoteMirroredVolume makes a replicated volume primary so that it can be written to.
 	PromoteMirroredVolume(vol Volume, force bool) error
