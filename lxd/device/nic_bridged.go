@@ -1801,13 +1801,41 @@ func (d *nicBridged) getHostMTU() (int, error) {
 
 // Register sets up anything needed on LXD startup.
 func (d *nicBridged) Register() error {
+	if shared.IsTrue(d.config["ipv4.routes.external.wait_ready"]) || shared.IsTrue(d.config["ipv6.routes.external.wait_ready"]) {
+		ready := shared.IsTrue(d.inst.LocalConfig()["volatile.last_state.ready"])
+
+		// If the instance isn't currently ready, proactively remove any gated route that
+		// may still be present from a previous LXD daemon lifetime (the ready state is
+		// always reset to false when LXD starts, but a host route added before the
+		// restart would otherwise survive it), and reset the "routes active" bookkeeping
+		// to match. Without this, a later ready notification with no actual state change
+		// (e.g. the instance re-affirming it is still ready after LXD restarted) would be
+		// treated as a no-op by readyStateChanged() and never restore the BGP
+		// announcement, which does not survive a daemon restart.
+		if !ready {
+			var gatedRoutes []string
+			if shared.IsTrue(d.config["ipv4.routes.external.wait_ready"]) {
+				gatedRoutes = append(gatedRoutes, shared.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
+			}
+
+			if shared.IsTrue(d.config["ipv6.routes.external.wait_ready"]) {
+				gatedRoutes = append(gatedRoutes, shared.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
+			}
+
+			networkNICRouteDelete(d.config["parent"], gatedRoutes...)
+		}
+
+		err := d.volatileSet(map[string]string{"last_state.ready_routes_active": strconv.FormatBool(ready)})
+		if err != nil {
+			return err
+		}
+
+		readyStateRegisterHandler(d.inst, d.name, d.readyStateChanged)
+	}
+
 	err := bgpAddPrefix(&d.deviceCommon, d.network, d.externalRoutesConfig())
 	if err != nil {
 		return err
-	}
-
-	if shared.IsTrue(d.config["ipv4.routes.external.wait_ready"]) || shared.IsTrue(d.config["ipv6.routes.external.wait_ready"]) {
-		readyStateRegisterHandler(d.inst, d.name, d.readyStateChanged)
 	}
 
 	return nil
