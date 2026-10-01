@@ -1055,7 +1055,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 	}
 
 	properties, ok := metadata["properties"]
-	if ok {
+	if ok && properties != nil {
 		propertiesMap, ok := properties.(map[string]any)
 		if !ok {
 			return nil, errors.New("Invalid type for field \"properties\"")
