@@ -47,6 +47,13 @@ func (device Device) Validate(rules map[string]func(value string) error) error {
 		}
 
 		// Allow user.* configuration.
+
+		// lxdmeta:generate(entities=device-disk,device-gpu-{mdev+mig+physical+sriov},device-infiniband,device-nic-{bridged+ipvlan+macvlan+ovn+p2p+physical+routed+sriov},device-pci,device-proxy,device-tpm,device-unix-{block+char+hotplug+usb}; group=device-conf; key=user.*)
+		//
+		// ---
+		//  type: string
+		//  required: no
+		//  shortdesc: User-provided free-form key/value pairs
 		if strings.HasPrefix(k, "user.") {
 			continue
 		}
