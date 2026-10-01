@@ -478,7 +478,7 @@ func (d *common) CreateVolumeMirrorSnapshot(vol Volume) error {
 }
 
 // VolumeMirrorReplayed reports whether the peer site holds the volume's newest mirror snapshot.
-func (d *common) VolumeMirrorReplayed(vol Volume, peerSite string) (bool, error) {
+func (d *common) VolumeMirrorReplayed(ctx context.Context, vol Volume, peerSite string) (bool, error) {
 	return false, ErrNotSupported
 }
 

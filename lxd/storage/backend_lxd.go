@@ -461,7 +461,7 @@ func (b *lxdBackend) ConfirmProjectVolumeMirrors(ctx context.Context, projectNam
 	var pending []string
 
 	err := b.forEachProjectVolume(ctx, projectName, func(vol drivers.Volume) error {
-		replayed, err := b.driver.VolumeMirrorReplayed(vol, peerSite)
+		replayed, err := b.driver.VolumeMirrorReplayed(ctx, vol, peerSite)
 		if err != nil {
 			return err
 		}

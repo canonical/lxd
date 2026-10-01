@@ -191,16 +191,24 @@ func (d *ceph) CreateVolumeMirrorSnapshot(vol Volume) error {
 // VolumeMirrorReplayed reports whether the peer site has replayed the newest mirror snapshot of a
 // volume's RBD image. The newest snapshot is the one this run triggered or a later one, and a later
 // one only makes the check stricter.
-func (d *ceph) VolumeMirrorReplayed(vol Volume, peerSite string) (bool, error) {
+func (d *ceph) VolumeMirrorReplayed(ctx context.Context, vol Volume, peerSite string) (bool, error) {
 	imageName := d.getRBDVolumeName(vol, "", false, false)
 
 	// Both queries are read-only, so they get the bound the driver's other read-only rbd calls have.
 	// The enable and the snapshot trigger stay unbounded, since cutting a mutating command short can
-	// leave the image halfway.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// leave the image halfway. A caller that brings its own deadline keeps it, and the bound only
+	// applies when it brings none. Either way a caller that gives up stops the query at once.
+	queryCtx := ctx
 
-	listing, err := d.rbd(ctx, "--format", "json", "snap", "ls", "--all", imageName)
+	_, hasDeadline := ctx.Deadline()
+	if !hasDeadline {
+		var cancel context.CancelFunc
+
+		queryCtx, cancel = context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+	}
+
+	listing, err := d.rbd(queryCtx, "--format", "json", "snap", "ls", "--all", imageName)
 	if err != nil {
 		return false, fmt.Errorf("Failed listing the snapshots of volume %q: %w", vol.name, err)
 	}
@@ -210,7 +218,7 @@ func (d *ceph) VolumeMirrorReplayed(vol Volume, peerSite string) (bool, error) {
 		return false, fmt.Errorf("Failed identifying the mirror snapshot of volume %q: %w", vol.name, err)
 	}
 
-	msg, err := d.rbd(ctx, "--format", "json", "mirror", "image", "status", imageName)
+	msg, err := d.rbd(queryCtx, "--format", "json", "mirror", "image", "status", imageName)
 	if err != nil {
 		return false, fmt.Errorf("Failed getting the mirror status of volume %q: %w", vol.name, err)
 	}
@@ -228,7 +236,7 @@ func (d *ceph) VolumeMirrorReplayed(vol Volume, peerSite string) (bool, error) {
 	}
 
 	if vol.IsVMBlock() {
-		return d.VolumeMirrorReplayed(vol.NewVMBlockFilesystemVolume(), peerSite)
+		return d.VolumeMirrorReplayed(ctx, vol.NewVMBlockFilesystemVolume(), peerSite)
 	}
 
 	return true, nil
