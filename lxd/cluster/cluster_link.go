@@ -257,7 +257,8 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 	}
 
 	var args *lxd.ConnectionArgs
-	if api.ClusterLinkTypePresentsClientCertificate(clusterLink.Type) {
+	clusterLinkTypePresentsClientCertificate := api.ClusterLinkTypePresentsClientCertificate(clusterLink.Type)
+	if clusterLinkTypePresentsClientCertificate {
 		clusterCert := s.Endpoints.NetworkCert()
 		args = GetClusterLinkConnectionArgs(clusterCert, targetCert)
 	} else {
@@ -285,6 +286,11 @@ func RefreshClusterLinkVolatileAddresses(ctx context.Context, s *state.State, na
 
 		clusterLink.Config["volatile.uuid"] = targetClusterUUID
 		UUIDChanged = true
+	}
+
+	// We are not presenting a certificate so we cannot authenticate to the linked cluster to get any more details.
+	if !clusterLinkTypePresentsClientCertificate {
+		return nil
 	}
 
 	// Get cluster members from the target cluster.
