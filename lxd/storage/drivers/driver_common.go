@@ -290,6 +290,12 @@ func (d *common) HasPatch(name string) bool {
 	return ok && patch != nil
 }
 
+// ProjectVolumesAreReadonly reports whether the volumes a project keeps on the pool are read-only.
+// A pool's volumes are LXD's own to write to unless its driver knows otherwise.
+func (d *common) ProjectVolumesAreReadonly(proj api.Project) bool {
+	return false
+}
+
 // moveGPTAltHeader moves the GPT alternative header to the end of the disk device supplied.
 // If the device supplied is not detected as a GPT disk then no action is taken and nil is returned.
 // If the required sgdisk command is not available a warning is logged, but no error is returned, as really it is
