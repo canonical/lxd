@@ -221,7 +221,7 @@ func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprint
 	case 1:
 		object = images[0]
 	default:
-		return -1, nil, errors.New("More than one image matches")
+		return -1, nil, api.StatusErrorf(http.StatusBadRequest, "More than one image matches")
 	}
 
 	img, err := object.ToAPI(ctx, c.Tx(), profileProject)

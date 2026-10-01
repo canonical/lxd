@@ -4,6 +4,7 @@ package db_test
 
 import (
 	"context"
+	"net/http"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/shared/api"
 )
 
 func TestLocateImage(t *testing.T) {
@@ -96,6 +98,7 @@ func TestGetImage(t *testing.T) {
 		// 'public' is ignored if 'false', returning both entries
 		_, _, err = tx.GetImage(ctx, "a", cluster.ImageFilter{Project: &project})
 		require.Error(t, err)
+		assert.True(t, api.StatusErrorCheck(err, http.StatusBadRequest))
 
 		public := true
 		id, img, err = tx.GetImage(ctx, "a", cluster.ImageFilter{Project: &project, Public: &public})
