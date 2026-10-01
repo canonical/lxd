@@ -6800,6 +6800,13 @@ func (n *ovn) loadBalancerPoolValidate(ctx context.Context, tx *db.ClusterTx, po
 		//  required: no
 		//  shortdesc: Number of failed probe attempts after which an instance is considered unhealthy.
 		"healthcheck.failure_count": validate.Optional(validate.IsUint64),
+
+		// lxdmeta:generate(entities=network-load-balancer-pool; group=properties; key=user.*)
+		//
+		// ---
+		//  type: string
+		//  required: no
+		//  shortdesc: User-provided free-form key/value pairs
 	}
 
 	// Run the validator against each field.
