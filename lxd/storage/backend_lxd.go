@@ -509,6 +509,30 @@ func (b *lxdBackend) ProjectVolumesAreReadonly(proj api.Project) bool {
 	return proj.ReplicaMode == api.ReplicatorProjectModeStandby && b.driver.ReplicatesProject(proj.Name)
 }
 
+// projectVolumesAreReadonlyByName answers ProjectVolumesAreReadonly for callers that only have the
+// project's name. The driver is asked first, so the project is only loaded when it is replicated.
+func (b *lxdBackend) projectVolumesAreReadonlyByName(ctx context.Context, projectName string) (bool, error) {
+	if !b.driver.ReplicatesProject(projectName) {
+		return false, nil
+	}
+
+	var proj *api.Project
+	err := b.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
+
+		proj, err = dbProject.ToAPI(ctx, tx.Tx())
+		return err
+	})
+	if err != nil {
+		return false, fmt.Errorf("Failed loading project %q: %w", projectName, err)
+	}
+
+	return b.ProjectVolumesAreReadonly(*proj), nil
+}
+
 // GetResources returns utilisation information about the pool.
 func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	l := b.logger.AddContext(nil)
@@ -2597,10 +2621,9 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 	isRemoteClusterMove := args.ClusterMoveSourceName != "" && b.driver.Info().Remote
 
-	// A replica arrives through Ceph rather than through this transfer. The pre-filler and the
-	// delete on failure are kept off it here; the receive itself is made record-only by the
-	// metadata-only migration mode.
-	holdsReplicas := HoldsCephReplicas(b, inst.Project())
+	// A read-only volume, such as a standby's Ceph mirror, arrives by other means than this
+	// transfer, so the pre-filler and the delete on failure are kept off it.
+	volumesReadonly := b.ProjectVolumesAreReadonly(inst.Project())
 
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
@@ -2750,7 +2773,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 	var preFiller drivers.VolumeFiller
 
-	if !args.Refresh && !isRemoteClusterMove && !holdsReplicas {
+	if !args.Refresh && !isRemoteClusterMove && !volumesReadonly {
 		// If the negotiated migration method is rsync and the instance's base image is
 		// already on the host then setup a pre-filler that will unpack the local image
 		// to try and speed up the rsync of the incoming volume by avoiding the need to
@@ -2842,7 +2865,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 		return err
 	}
 
-	if !isRemoteClusterMove && !holdsReplicas {
+	if !isRemoteClusterMove && !volumesReadonly {
 		revert.Add(func() { _ = b.DeleteInstance(inst, progressReporter) })
 	}
 
@@ -4235,7 +4258,7 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, progressRepo
 
 	// A standby's image is non-primary, so the driver cannot delete the snapshot from it. Ceph
 	// deletes it when it replays the leader's deletion, so only the record is deleted here.
-	if volExists && HoldsCephReplicas(b, inst.Project()) {
+	if volExists && b.ProjectVolumesAreReadonly(inst.Project()) {
 		l.Debug("Skipping the storage snapshot deletion of a standby replica")
 	} else if volExists {
 		err = b.driver.DeleteVolumeSnapshot(vol, progressReporter)
@@ -7159,12 +7182,12 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(ctx context.Context, projectName
 
 	// A standby's image is non-primary, so the driver cannot delete the snapshot from it. Ceph
 	// deletes it when it replays the leader's deletion, so only the record is deleted here.
-	holdsReplicas, err := HoldsCephReplicasByName(ctx, b.state, b, projectName)
+	volumesReadonly, err := b.projectVolumesAreReadonlyByName(ctx, projectName)
 	if err != nil {
 		return err
 	}
 
-	if volExists && holdsReplicas {
+	if volExists && volumesReadonly {
 		l.Debug("Skipping the storage snapshot deletion of a standby replica")
 	} else if volExists {
 		err := b.driver.DeleteVolumeSnapshot(vol, progressReporter)
@@ -7520,12 +7543,11 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 		return nil
 	}
 
-	// Writing the backup file mounts the volume, and a replica is non-primary, so the map fails on
-	// a kernel feature set mismatch rather than on permissions. Every caller reaches the writer
-	// through here, including the ordinary instance update a refresh goes through, so the skip
-	// belongs here rather than at each call site.
-	if HoldsCephReplicas(b, inst.Project()) {
-		l.Info("Skipping the backup file write of a standby replica")
+	// Writing the backup file mounts the volume and writes to it, which a read-only volume cannot
+	// take. Every caller reaches the writer through here, including the ordinary instance update a
+	// refresh goes through, so the skip belongs here rather than at each call site.
+	if b.ProjectVolumesAreReadonly(inst.Project()) {
+		l.Info("Skipping the backup file write of a read-only volume")
 		return nil
 	}
 
