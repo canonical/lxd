@@ -433,6 +433,7 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 		TLSClientConfig:  httpTransport.TLSClientConfig,
 		Proxy:            httpTransport.Proxy,
 		HandshakeTimeout: time.Second * 5,
+		Jar:              r.http.Jar,
 	}
 
 	// Create temporary http.Request using the http url, not the ws one, so that we can add the client headers
@@ -441,13 +442,25 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 	r.addClientHeaders(req)
 
 	// Establish the connection
-	conn, resp, err := dialer.Dial(url, req.Header)
+	var conn *websocket.Conn
+	var resp *http.Response
+	if r.oidcClient != nil {
+		conn, resp, err = r.oidcClient.websocketDial(dialer, url, req.Header, r.HasExtension("oidc_scopes"))
+	} else {
+		conn, resp, err = dialer.Dial(url, req.Header)
+	}
+
 	if err != nil {
-		if resp != nil {
-			_, _, err = lxdParseResponse(resp)
+		if resp == nil || !errors.Is(err, websocket.ErrBadHandshake) {
+			return nil, err
 		}
 
-		return nil, err
+		_, _, respErr := lxdParseResponse(resp)
+		if respErr == nil {
+			return nil, fmt.Errorf("Received OK response from server but failed to connect websocket: %w", err)
+		}
+
+		return nil, respErr
 	}
 
 	// Set TCP timeout options.

@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
 	httphelper "github.com/zitadel/oidc/v3/pkg/http"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
@@ -113,21 +114,75 @@ func (o *oidcClient) do(req *http.Request, oidcScopesExtensionPresent bool) (*ht
 		return resp, nil
 	}
 
+	// We got a 401, so reauthenticate.
+	err = o.handleUnauthorizedErr(resp, oidcScopesExtensionPresent)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the new access token in the header.
+	req.Header.Set("Authorization", "Bearer "+o.tokens.AccessToken)
+	resp, err = o.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (o *oidcClient) websocketDial(dialer websocket.Dialer, url string, header http.Header, oidcScopesExtensionPresent bool) (*websocket.Conn, *http.Response, error) {
+	// Try to establish the connection, if successful, return immediately since we don't need to reauthenticate.
+	conn, resp, err := dialer.Dial(url, header)
+	if err == nil {
+		return conn, resp, err
+	}
+
+	// On failure, check if we got a response. If we didn't, or the status code is not 401, return.
+	// The 401 is the only status code that indicates we need to reauthenticate.
+	if resp == nil || resp.StatusCode != http.StatusUnauthorized {
+		return nil, resp, err
+	}
+
+	// We got a 401, so reauthenticate.
+	err = o.handleUnauthorizedErr(resp, oidcScopesExtensionPresent)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Set the new access token in the header.
+	header.Set("Authorization", "Bearer "+o.tokens.AccessToken)
+	return dialer.Dial(url, header)
+}
+
+// handleUnauthorizedErr should be called when an initial response from the LXD server returns a 401. In this case
+// we expect headers to be set containing login information, which is then used to get an access token via device flow
+// (or refresh if a refresh token is present). The new access token is stored in the tokens field.
+// This function also drains and closes the initial response body so that the connection from the first request can be reused.
+func (o *oidcClient) handleUnauthorizedErr(resp *http.Response, oidcScopesExtensionPresent bool) error {
+	// Only the headers of the response are needed. Drain and close the response body now, allowing any return path to
+	// reuse the connection.
+	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
+
 	issuer := resp.Header.Get("X-LXD-OIDC-issuer")
 	clientID := resp.Header.Get("X-LXD-OIDC-clientid")
 	audience := resp.Header.Get("X-LXD-OIDC-audience")
+
+	if issuer == "" || clientID == "" {
+		return errors.New("LXD server did not return OIDC issuer or client ID")
+	}
 
 	var scopes []string
 	if oidcScopesExtensionPresent {
 		// If we have the `oidc_scopes` extension, get the scopes from the header and ignore the groups claim header.
 		scopesJSON := resp.Header.Get("X-LXD-OIDC-scopes")
 		if scopesJSON == "" {
-			return nil, errors.New("LXD server did not return OIDC scopes")
+			return errors.New("LXD server did not return OIDC scopes")
 		}
 
-		err = json.Unmarshal([]byte(scopesJSON), &scopes)
+		err := json.Unmarshal([]byte(scopesJSON), &scopes)
 		if err != nil {
-			return nil, fmt.Errorf("Failed parsing OIDC scopes: %w", err)
+			return fmt.Errorf("Failed parsing OIDC scopes: %w", err)
 		}
 	} else {
 		// Otherwise, use the default scopes from before the API extension was added, and append the groups claim header
@@ -139,23 +194,15 @@ func (o *oidcClient) do(req *http.Request, oidcScopesExtensionPresent bool) (*ht
 		}
 	}
 
-	err = o.refresh(issuer, clientID, scopes)
+	err := o.refresh(issuer, clientID, scopes)
 	if err != nil {
 		err = o.authenticate(issuer, clientID, audience, scopes)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	// Set the new access token in the header.
-	req.Header.Set("Authorization", "Bearer "+o.tokens.AccessToken)
-
-	resp, err = o.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return nil
 }
 
 // getProvider initializes a new OpenID Connect Relying Party for a given issuer and clientID.
