@@ -502,6 +502,13 @@ func (b *lxdBackend) DemoteProjectVolumes(ctx context.Context, projectName strin
 	})
 }
 
+// ProjectVolumesAreReadonly reports whether the volumes a project keeps on this pool must be left
+// as they are, neither written to nor deleted. A standby's replicated volumes are non-primary copies
+// the driver's replication owns. A leader writes to its own volumes even while they are replicated.
+func (b *lxdBackend) ProjectVolumesAreReadonly(proj api.Project) bool {
+	return proj.ReplicaMode == api.ReplicatorProjectModeStandby && b.driver.ReplicatesProject(proj.Name)
+}
+
 // GetResources returns utilisation information about the pool.
 func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	l := b.logger.AddContext(nil)

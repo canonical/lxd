@@ -81,6 +81,10 @@ type Pool interface {
 	// DemoteProjectVolumes makes the replicated volumes a project holds on this pool read-only.
 	DemoteProjectVolumes(ctx context.Context, projectName string) error
 
+	// ProjectVolumesAreReadonly reports whether the volumes a project keeps on this pool must be left
+	// as they are, neither written to nor deleted.
+	ProjectVolumesAreReadonly(proj api.Project) bool
+
 	// Instances.
 	CreateInstance(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error
 	CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, progressReporter ioprogress.ProgressReporter) (func(instance.Instance) error, revert.Hook, error)
