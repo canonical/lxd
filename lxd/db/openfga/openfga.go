@@ -491,7 +491,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 		return nil
 	})
 	if err != nil {
-		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			// If we have a not found error then there are no tuples to return, but the datastore shouldn't return an error.
 			return nil, nil
 		}
