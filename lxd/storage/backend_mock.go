@@ -151,6 +151,11 @@ func (b *mockBackend) DemoteProjectVolumes(ctx context.Context, projectName stri
 	return nil
 }
 
+// ProjectVolumesAreReadonly ...
+func (b *mockBackend) ProjectVolumesAreReadonly(proj api.Project) bool {
+	return false
+}
+
 // CreateInstance ...
 func (b *mockBackend) CreateInstance(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error {
 	return nil

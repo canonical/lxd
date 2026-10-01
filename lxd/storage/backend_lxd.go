@@ -502,6 +502,13 @@ func (b *lxdBackend) DemoteProjectVolumes(ctx context.Context, projectName strin
 	})
 }
 
+// ProjectVolumesAreReadonly reports whether the volumes a project keeps on this pool must be left
+// as they are, neither written to nor deleted. Who owns a volume depends on what the driver stores,
+// so the driver answers.
+func (b *lxdBackend) ProjectVolumesAreReadonly(proj api.Project) bool {
+	return b.driver.ProjectVolumesAreReadonly(proj)
+}
+
 // GetResources returns utilisation information about the pool.
 func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	l := b.logger.AddContext(nil)
