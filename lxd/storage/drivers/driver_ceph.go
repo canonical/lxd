@@ -529,6 +529,22 @@ func (d *ceph) Unmount() (bool, error) {
 	return true, nil
 }
 
+// ProjectVolumesAreReadonly reports whether the volumes a project keeps on the pool are mirrors that
+// Ceph owns rather than images LXD may write to, which is the case for a standby project on a pool
+// carrying its `ceph.replicator.<project>` key. Such an image is non-primary, so it cannot even be
+// mapped: the map fails on a kernel feature set mismatch rather than on permissions.
+// Both halves are needed. A leader writes to its own images even while it replicates them, and a
+// standby whose pool is not mirrored holds ordinary copies.
+func (d *ceph) ProjectVolumesAreReadonly(proj api.Project) bool {
+	if proj.ReplicaMode != api.ReplicatorProjectModeStandby {
+		return false
+	}
+
+	_, mirrored := d.config[CephReplicatorPoolKey(proj.Name)]
+
+	return mirrored
+}
+
 // GetResources returns the pool resource usage information.
 func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 	var stdout bytes.Buffer
