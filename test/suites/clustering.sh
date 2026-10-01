@@ -5956,7 +5956,7 @@ test_clustering_replicator_basic() {
     if [ -n "${SERVER_DEBUG:-}" ]; then
       local newLogs
       newLogs="$(tail --lines="+$((logLinesBefore + 1))" "${LXD_TWO_DIR}/lxd.log")"
-      grep -qF "Skipping the backup file write of a standby replica" <<< "${newLogs}"
+      grep -qF "Skipping the backup file write of a read-only volume" <<< "${newLogs}"
     fi
 
     LXD_DIR="${LXD_TWO_DIR}" lxc storage set "${pool_two}" ceph.rbd.clone_copy="" ceph.replicator.replicator-project=""
