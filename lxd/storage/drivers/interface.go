@@ -55,6 +55,10 @@ type Driver interface {
 	ApplyPatch(name string) error
 	HasPatch(name string) bool
 
+	// ReplicatesProject reports whether the driver itself replicates a project's volumes to a linked
+	// cluster, so that their data is not LXD's to transfer.
+	ReplicatesProject(projectName string) bool
+
 	// Buckets.
 	ValidateBucket(bucket Volume) error
 	GetBucketURL(bucketName string) *url.URL
