@@ -525,11 +525,9 @@ func FileCopy(source string, dest string) error {
 			return err
 		}
 
-		if PathExists(dest) {
-			err = os.Remove(dest)
-			if err != nil {
-				return err
-			}
+		err = os.Remove(dest)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
 		}
 
 		err = os.Symlink(target, dest)
