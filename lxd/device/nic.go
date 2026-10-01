@@ -544,6 +544,22 @@ func nicValidationRules(requiredFields []string, optionalFields []string, instCo
 		//  managed: no
 		//  shortdesc: IPv6 static routes to route to NIC
 		"ipv6.routes.external": validate.Optional(validate.IsListOf(validate.IsNetworkV6)),
+		// lxdmeta:generate(entities=device-nic-bridged; group=device-conf; key=ipv4.routes.external.wait_ready)
+		// If enabled, {config:option}`device-nic-bridged-device-conf:ipv4.routes.external` is only added to the host (and published over BGP) once the instance reports itself as ready, and removed again if the instance reverts to the running state. See {ref}`extension-instance-ready-state` for how instances report themselves as ready.
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  managed: no
+		//  shortdesc: Wait for the instance to be ready before adding `ipv4.routes.external`
+		"ipv4.routes.external.wait_ready": validate.Optional(validate.IsBool),
+		// lxdmeta:generate(entities=device-nic-bridged; group=device-conf; key=ipv6.routes.external.wait_ready)
+		// If enabled, {config:option}`device-nic-bridged-device-conf:ipv6.routes.external` is only added to the host (and published over BGP) once the instance reports itself as ready, and removed again if the instance reverts to the running state. See {ref}`extension-instance-ready-state` for how instances report themselves as ready.
+		// ---
+		//  type: bool
+		//  defaultdesc: `false`
+		//  managed: no
+		//  shortdesc: Wait for the instance to be ready before adding `ipv6.routes.external`
+		"ipv6.routes.external.wait_ready": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=device-nic-ovn; group=device-conf; key=nested)
 		// See also {config:option}`device-nic-ovn-device-conf:vlan`.
 		// ---
