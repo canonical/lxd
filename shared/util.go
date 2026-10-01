@@ -511,7 +511,7 @@ func FileMove(oldPath string, newPath string) error {
 }
 
 // FileCopy copies a file, overwriting the target if it exists.
-func FileCopy(source string, dest string) error {
+func FileCopy(source string, dest string) (err error) {
 	fi, err := os.Lstat(source)
 	if err != nil {
 		return err
@@ -561,6 +561,13 @@ func FileCopy(source string, dest string) error {
 		}
 	}
 
+	defer func() {
+		closeErr := d.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
+
 	_, err = io.Copy(d, s)
 	if err != nil {
 		return err
@@ -574,7 +581,7 @@ func FileCopy(source string, dest string) error {
 		}
 	}
 
-	return d.Close()
+	return nil
 }
 
 // DirCopy copies a directory recursively, overwriting the target if it exists.
