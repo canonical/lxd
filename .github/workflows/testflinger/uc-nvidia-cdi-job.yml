@@ -56,7 +56,7 @@ test_data:
     wait-for-snap-changes
 
     # refresh to the new kernel
-    _run sudo snap refresh pc-kernel --channel "${CORE_VERSION}/candidate" --no-wait
+    _run sudo snap refresh pc-kernel --channel "${CORE_VERSION}/edge" --no-wait
     # Add some extra time to ensure that machine has rebooted after updating the kernel
     sleep 30
     wait-for-snap-changes
@@ -93,7 +93,7 @@ test_data:
     fi
 
     # install mesa snap
-    _run_retry sudo snap install "mesa-${GPU_VERSION}" --channel latest/candidate --no-wait
+    _run_retry sudo snap install "mesa-${GPU_VERSION}" --channel latest/edge --no-wait
     wait-for-snap-changes
 
     # check for auto connection of kernel-gpu-XXYY content interface being populated
