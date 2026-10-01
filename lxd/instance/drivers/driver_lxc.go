@@ -5178,6 +5178,22 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Track whether the data transfer has started, because a failure after that point may leave the disks
+	// partly written. The caller's hook runs first, as it can still abort the receive.
+	transferStarted := false
+	beforeTransferStart := sync.OnceValue(func() error {
+		if args.BeforeTransferStart != nil {
+			err := args.BeforeTransferStart()
+			if err != nil {
+				return err
+			}
+		}
+
+		transferStarted = true
+
+		return nil
+	})
+
 	g, ctx := errgroup.WithContext(ctx)
 
 	// Start control connection monitor.
@@ -5282,6 +5298,7 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 			ClusterMoveSourceName: args.ClusterMoveSourceName,
 			DeferredCustomVolumes: args.DeferredVolumes,
 			AttachedCustomVolumes: args.AttachedVolumes,
+			BeforeTransferStart:   beforeTransferStart,
 		}
 
 		// At this point we have already figured out the parent container's root
@@ -5401,6 +5418,11 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 		// Wait for all routines to finish and collect the first error that occurred.
 		if fsTransferErr != nil || ctx.Err() != nil {
 			err := g.Wait()
+
+			// Tell the source and the caller that the disks may be partly written.
+			if err != nil && transferStarted {
+				err = fmt.Errorf("%w: %w", instance.ErrMigrationTransferStarted, err)
+			}
 
 			// Send failure response to source.
 			msg := migration.MigrationControl{
