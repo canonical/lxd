@@ -2749,7 +2749,7 @@ func (d *common) migrateReceiveCustomVolumes(ctx context.Context, inst instance.
 		respHeader.IndexHeaderVersion = &indexHeaderVersion
 
 		// A standby's custom volumes are already mirrored by Ceph, so only their records are transferred.
-		metadataOnly := storagePools.HoldsCephReplicas(volPool, inst.Project())
+		metadataOnly := volPool.ProjectVolumesAreReadonly(inst.Project())
 		respHeader.MetadataOnly = &metadataOnly
 		respHeader.Snapshots = offer.Snapshots
 		respHeader.SnapshotNames = offer.SnapshotNames
