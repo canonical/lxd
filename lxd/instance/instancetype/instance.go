@@ -1349,25 +1349,25 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.pci.driver)
 		// Name of driver device was using on host.
-		// --
+		// ---
 		//  type: string
 		//  shortdesc: Name of driver device was using on host
 		if strings.HasSuffix(key, ".last_state.pci.driver") {
 			return validate.IsAny, nil
 		}
 
-		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.<name>.last_state.usb.bus)
+		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.usb.bus)
 		// USB Bus Number.
-		// --
+		// ---
 		//  type: string
 		//  shortdesc: USB Bus Number
 		if strings.HasSuffix(key, ".last_state.usb.bus") {
 			return validate.IsAny, nil
 		}
 
-		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.<name>.last_state.usb.device)
+		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.usb.device)
 		// USB Device Number.
-		// --
+		// ---
 		//  type: string
 		//  shortdesc: USB Device Number
 		if strings.HasSuffix(key, ".last_state.usb.device") {
