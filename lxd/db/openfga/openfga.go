@@ -798,6 +798,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 	args := []any{relation, cluster.EntityType(entityType), groupName}
 
 	var entityURLs map[entity.Type]map[int]*api.URL
+	var validPermissions []cluster.Permission
 	var permissions []cluster.Permission
 	err := o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		rows, err := tx.Tx().QueryContext(ctx, q, args...)
@@ -817,7 +818,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 
 		// Get the URLs of the permissions we've queried for and filter out any invalid ones.
 		// Ignore the dangling permissions to make as few queries as possible.
-		_, entityURLs, err = cluster.GetPermissionEntityURLs(ctx, tx.Tx(), permissions)
+		validPermissions, entityURLs, err = cluster.GetPermissionEntityURLs(ctx, tx.Tx(), permissions)
 		if err != nil {
 			return err
 		}
@@ -828,8 +829,8 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 		return nil, err
 	}
 
-	entityURLStrs := make([]string, 0, len(permissions))
-	for _, permission := range permissions {
+	entityURLStrs := make([]string, 0, len(validPermissions))
+	for _, permission := range validPermissions {
 		entityURLStrs = append(entityURLStrs, entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String())
 	}
 
