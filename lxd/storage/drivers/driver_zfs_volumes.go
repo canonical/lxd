@@ -26,7 +26,9 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instancewriter"
 	"github.com/canonical/lxd/lxd/linux"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/storage/block"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -3556,19 +3558,35 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 			return nil, errors.New("Parent block volume needs to be mounted first")
 		}
 
-		// Check if snapdev already set visible.
-		parentSnapdevMode, err := d.getDatasetProperty(parentDataset, "snapdev")
-		if err != nil {
-			return nil, err
-		}
+		// Wrap visibility into a function to ensure the snapdevLock is released as soon as possible.
+		err = func() error {
+			unlock, err := d.snapdevLock(parentVol)
+			if err != nil {
+				return err
+			}
 
-		if parentSnapdevMode != "visible" {
+			defer unlock()
+
+			// Check if snapdev already set visible.
+			parentSnapdevMode, err := d.getDatasetProperty(parentDataset, "snapdev")
+			if err != nil {
+				return err
+			}
+
+			if parentSnapdevMode == "visible" {
+				return nil
+			}
+
 			err = d.setDatasetProperties(parentDataset, "snapdev=visible")
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			d.logger.Debug("Activated ZFS snapshot volume", logger.Ctx{"dev": snapshotDataset})
+			return nil
+		}()
+		if err != nil {
+			return nil, err
 		}
 
 		if snapVol.contentType != ContentTypeBlock && d.isBlockBacked(snapVol) && !filesystem.IsMountPoint(mountPath) {
@@ -3734,6 +3752,13 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.
 		parentVol := NewVolume(d, d.Name(), snapVol.volType, snapVol.contentType, parent, snapVol.config, snapVol.poolConfig)
 		parentDataset := d.dataset(parentVol, false)
 
+		unlockSnapdev, err := d.snapdevLock(parentVol)
+		if err != nil {
+			return false, err
+		}
+
+		defer unlockSnapdev()
+
 		current, err := d.getDatasetProperty(parentDataset, "snapdev")
 		if err != nil {
 			return false, err
@@ -3745,9 +3770,22 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.
 				return false, ErrInUse
 			}
 
-			err := d.setDatasetProperties(parentDataset, "snapdev=hidden")
+			// Get the path before hiding the device, as ZFS can remove the device before a lookup that follows.
+			// The wait only protects a mount that follows, so a failed lookup skips it instead of failing the unmount.
+			diskPath, err := d.getVolumeDiskPathFromDataset(snapshotDataset)
+			if err != nil {
+				d.logger.Warn("Failed locating ZFS snapshot volume, not waiting for it to disappear", logger.Ctx{"dev": snapshotDataset, "err": err})
+			}
+
+			err = d.setDatasetProperties(parentDataset, "snapdev=hidden")
 			if err != nil {
 				return false, err
+			}
+
+			if diskPath != "" && !block.WaitDiskDeviceGone(context.Background(), diskPath) {
+				// Release the parent volume mounted by mountVolumeSnapshot, as the snapshot is no longer mounted.
+				_, _ = d.UnmountVolume(parentVol, false, progressReporter)
+				return false, fmt.Errorf("Timeout exceeded waiting for ZFS snapshot volume %q to disappear on path %q", snapVol.name, diskPath)
 			}
 
 			d.logger.Debug("Deactivated ZFS snapshot volume", logger.Ctx{"dev": snapshotDataset})
@@ -4029,4 +4067,11 @@ func (d *zfs) ImageVolumeConfigMatch(vol1, vol2 Volume) bool {
 	}
 
 	return true
+}
+
+// snapdevLock locks the snapdev property of a volume, which applies to all of its snapshots.
+// This ensures that one snapshot mount does not set snapdev=visible while the unmount of another
+// snapshot waits for its device to be removed.
+func (d *zfs) snapdevLock(parentVol Volume) (locking.UnlockFunc, error) {
+	return locking.Lock(context.Background(), OperationLockName("Snapdev", d.name, parentVol.volType, parentVol.contentType, parentVol.name))
 }
