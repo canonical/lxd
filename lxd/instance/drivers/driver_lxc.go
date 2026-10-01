@@ -5341,9 +5341,14 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 
 		isRemoteClusterMove := args.ClusterMoveSourceName != "" && pool.Driver().Info().Remote
 
+		// Read-only volumes, such as the mirrors Ceph owns on a standby, are not LXD's to delete, so
+		// a receive that fails part way must leave them alone rather than delete the data it was
+		// describing.
+		volumesReadonly := pool.ProjectVolumesAreReadonly(d.Project())
+
 		// Only delete all instance volumes on error if the pool volume creation has succeeded to
 		// avoid deleting an existing conflicting volume.
-		if !volTargetArgs.Refresh && !isRemoteClusterMove {
+		if !volTargetArgs.Refresh && !isRemoteClusterMove && !volumesReadonly {
 			revert.Add(func() {
 				snapshots, _ := d.Snapshots()
 				snapshotCount := len(snapshots)

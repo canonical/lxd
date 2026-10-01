@@ -140,6 +140,11 @@ func (b *mockBackend) ConfirmProjectVolumeMirrors(ctx context.Context, projectNa
 	return nil, nil
 }
 
+// ProjectVolumesAreReadonly ...
+func (b *mockBackend) ProjectVolumesAreReadonly(proj api.Project) bool {
+	return false
+}
+
 // CreateInstance ...
 func (b *mockBackend) CreateInstance(inst instance.Instance, progressReporter ioprogress.ProgressReporter) error {
 	return nil

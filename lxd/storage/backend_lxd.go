@@ -476,6 +476,13 @@ func (b *lxdBackend) ConfirmProjectVolumeMirrors(ctx context.Context, projectNam
 	return pending, err
 }
 
+// ProjectVolumesAreReadonly reports whether the volumes a project keeps on this pool must be left
+// as they are, neither written to nor deleted. Who owns a volume depends on what the driver stores,
+// so the driver answers.
+func (b *lxdBackend) ProjectVolumesAreReadonly(proj api.Project) bool {
+	return b.driver.ProjectVolumesAreReadonly(proj)
+}
+
 // GetResources returns utilisation information about the pool.
 func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	l := b.logger.AddContext(nil)
@@ -2553,6 +2560,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 	isRemoteClusterMove := args.ClusterMoveSourceName != "" && b.driver.Info().Remote
 
+	// A read-only volume, such as a standby's Ceph mirror, arrives by other means than this
+	// transfer, so the pre-filler and the delete on failure are kept off it.
+	volumesReadonly := b.driver.ProjectVolumesAreReadonly(inst.Project())
+
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
 	var vol drivers.Volume
@@ -2687,7 +2698,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 	var preFiller drivers.VolumeFiller
 
-	if !args.Refresh && !isRemoteClusterMove {
+	if !args.Refresh && !isRemoteClusterMove && !volumesReadonly {
 		// If the negotiated migration method is rsync and the instance's base image is
 		// already on the host then setup a pre-filler that will unpack the local image
 		// to try and speed up the rsync of the incoming volume by avoiding the need to
@@ -2768,7 +2779,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 		return err
 	}
 
-	if !isRemoteClusterMove {
+	if !isRemoteClusterMove && !volumesReadonly {
 		revert.Add(func() { _ = b.DeleteInstance(inst, progressReporter) })
 	}
 
@@ -7149,6 +7160,14 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 
 	// We only write backup files out for actual instances.
 	if inst.IsSnapshot() {
+		return nil
+	}
+
+	// Writing the backup file mounts the volume and writes to it, which a read-only volume cannot
+	// take. Every caller reaches the writer through here, including the ordinary instance update a
+	// refresh goes through, so the skip belongs here rather than at each call site.
+	if b.driver.ProjectVolumesAreReadonly(inst.Project()) {
+		l.Info("Skipping the backup file write of a read-only volume")
 		return nil
 	}
 

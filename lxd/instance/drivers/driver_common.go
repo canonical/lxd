@@ -2685,7 +2685,10 @@ func (d *common) migrateReceiveCustomVolumes(ctx context.Context, inst instance.
 
 		// Only volumes created by this transfer are removed on failure, refreshed volumes keep their partial
 		// state like the root volume does.
-		if !exists {
+		// Read-only volumes, such as the mirrors Ceph owns on a standby, are not LXD's to delete, so
+		// a receive that fails part way must leave them alone rather than delete the data it was
+		// describing.
+		if !exists && !volPool.ProjectVolumesAreReadonly(inst.Project()) {
 			reverter.Add(func() {
 				// The errgroup context is already cancelled when reverts run.
 				_ = volPool.DeleteCustomVolume(context.Background(), storageProject, vol.Name, nil)
