@@ -21,6 +21,13 @@ const cephMirrorSnapshotNamespace = "mirror"
 // replay state: bootstrapping the image, and replaying before it has seen a mirror snapshot on the
 // remote. A peer in one of them has not replayed yet, while any other state without a replay state is
 // stuck.
+//
+// The Ceph documentation shows the status command without listing the states it can report:
+// https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#mirror-status
+// The names follow the rbd_mirror_image_status_state_t enum of librbd's public header, prefixed with
+// whether the peer's daemon is up. Ceph makes no written promise about them, but that enum is public
+// API and cannot change without breaking its users:
+// https://github.com/ceph/ceph/blob/main/src/include/rbd/librbd.h
 var cephMirrorPendingStates = []string{"up+starting_replay", "up+syncing", "up+replaying"}
 
 // cephMirrorPeerState is the replay state rbd embeds as JSON inside the peer site description
