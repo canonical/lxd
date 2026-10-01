@@ -1422,6 +1422,12 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		return validate.IsAny, nil
 	}
 
+	// lxdmeta:generate(entities=instance; group=miscellaneous; key=image.*)
+	// A property of the image that the instance was created from (not set if the instance was not created from an image).
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  shortdesc: Property of the base image
 	knownPrefixes := append(ConfigKeyPrefixesAny, ConfigKeyPrefixesContainer...)
 	if shared.StringHasPrefix(key, knownPrefixes...) {
 		return validate.IsAny, nil
