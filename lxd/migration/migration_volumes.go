@@ -87,6 +87,11 @@ type VolumeTargetArgs struct {
 	// target refer to. Every custom volume the index header lists must be in it, or the migration is refused
 	// before any data moves. Only used for instance migration.
 	AttachedCustomVolumes map[string]struct{}
+
+	// BeforeTransferStart is called once, right before the storage driver receives the first volume, when
+	// nothing has been written to disk yet. Returning an error aborts the receive. Only used for instance
+	// migration.
+	BeforeTransferStart func() error
 }
 
 // TypesToHeader converts one or more Types to a MigrationHeader. It uses the first type argument

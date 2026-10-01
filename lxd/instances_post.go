@@ -397,6 +397,9 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 		}
 	}()
 
+	// Set for a refresh only, as only a refresh has an instance record to restore.
+	var beforeTransferStart func() error
+
 	// We keep the ContainerOnly for backward compatibility.
 	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
 
@@ -425,24 +428,20 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 		// For refresh requests, validate and apply target config before migration transfer starts.
 		// Skip this during internal cluster move requests, where config update semantics differ.
 		if req.Source.Refresh && clusterMoveSourceName == "" {
-			// Masking a device rewrites the existing instance, so remember the devices it had and
-			// put them back if the transfer or the later device restoration fails. The source's
-			// devices cannot be used here because one of them is what failed to validate.
-			if len(deferredDevices) > 0 {
-				preRefreshDevices := inst.LocalDevices().Clone()
+			// The update below applies the source's record to the instance before any data moves.
+			// If the refresh fails before data is written, restore the previous record, as the disks
+			// still match it. After that the disks may be partly refreshed, so keep the new record.
+			// To achieve this we:
+			// 1. Add the restore to its own reverter, and that reverter's fail hook to the migration's.
+			// 2. Call success on the restore reverter right before the data transfer starts, so a later
+			//    failure no longer restores the record.
+			restoreRevert := revert.New()
+			restoreRevert.Add(instanceRefreshRestoreHook(inst))
+			rev.Add(restoreRevert.Fail)
+			beforeTransferStart = func() error {
+				restoreRevert.Success()
 
-				rev.Add(func() {
-					_ = inst.Update(context.Background(), db.InstanceArgs{
-						Architecture: inst.Architecture(),
-						Config:       inst.LocalConfig(),
-						Description:  inst.Description(),
-						Devices:      preRefreshDevices,
-						Ephemeral:    inst.IsEphemeral(),
-						Profiles:     inst.Profiles(),
-						Project:      inst.Project().Name,
-						Type:         inst.Type(),
-					}, instance.UpdateActionUserRefresh)
-				})
+				return nil
 			}
 
 			// The request carries the source's volatile state, which describes the source and not this
@@ -492,6 +491,7 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 		instanceOnly:          instanceOnly,
 		clusterMoveSourceName: clusterMoveSourceName,
 		refresh:               req.Source.Refresh,
+		beforeTransferStart:   beforeTransferStart,
 		attachedVolumes:       attachedVolumes,
 		deferredVolumes:       deferredVolumes,
 	}
@@ -510,6 +510,11 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 		// And finally run the migration.
 		err = sink.Do(ctx, instOp, op)
 		if err != nil {
+			// A refresh that fails after the data transfer started keeps the source's record, so say so.
+			if beforeTransferStart != nil && errors.Is(err, instance.ErrMigrationTransferStarted) {
+				err = fmt.Errorf("Instance configuration was not restored because its disks may be partly refreshed: %w", err)
+			}
+
 			err = fmt.Errorf("Error transferring instance data: %w", err)
 			instOp.Done(err) // Complete operation that was created earlier, to release lock.
 

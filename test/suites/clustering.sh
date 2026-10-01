@@ -7929,6 +7929,9 @@ _clustering_replicator_volume_forward() {
   LXD_DIR="${LXD_ONE_DIR}" lxc profile add c1 volprofile --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc profile create volprofile --project replicator-project
 
+  # Set a key on the leader to detect its config leaking to the standby copy.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 user.leader-change=1 --project replicator-project
+
   # c1 alone uses prof-vol, so it is exclusive and the leader lists it in the index header. The standby's
   # copy of the profile has no device for it, so nothing in c1's effective config there references the
   # volume and the migration is refused at the header, before any data moves.
@@ -7941,6 +7944,10 @@ _clustering_replicator_volume_forward() {
     | length == 1 and all(.status == "Failure" and (.err | test("no device of the instance or its profiles on the target references it")))
   ' <<< "${bulk_op}"
 
+  # The refused run leaves the standby copy without the new key and profile.
+  LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/instances/c1?project=replicator-project" \
+    | jq --exit-status '(.config | has("user.leader-change") | not) and .profiles == ["default"]'
+
   # A profile device validates against an existing volume, so the standby is prepared by creating the
   # volume first and then adding the device. The run then refreshes the empty volume from the leader, with
   # its snapshots, and c1 reaches it through the profile rather than through a leftover local device.
@@ -7951,7 +7958,7 @@ _clustering_replicator_volume_forward() {
   LXD_DIR="${LXD_TWO_DIR}" lxc profile device add volprofile profdisk disk pool="${vol_pool}" source=prof-vol path=/prof --project replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/instances/c1?project=replicator-project" \
-    | jq --exit-status '.expanded_devices.profdisk.source == "prof-vol" and (.devices | has("profdisk") | not)'
+    | jq --exit-status '.expanded_devices.profdisk.source == "prof-vol" and (.devices | has("profdisk") | not) and .config["user.leader-change"] == "1" and .profiles == ["default", "volprofile"]'
   LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/prof-vol?project=replicator-project" \
     | jq --exit-status '.used_by == ["/1.0/profiles/volprofile?project=replicator-project"]'
   LXD_DIR="${LXD_ONE_DIR}" lxc query "/1.0/storage-pools/${vol_pool}/volumes/custom/prof-vol/snapshots?project=replicator-project" \
@@ -7960,6 +7967,44 @@ _clustering_replicator_volume_forward() {
     | jq --exit-status 'length == 2'
   replicator_info="$(LXD_DIR="${LXD_ONE_DIR}" lxc replicator info my-replicator --project replicator-project)"
   grep -F 'prof-vol' <<< "${replicator_info}"
+
+  sub_test "Refresh that fails after the transfer started keeps the received config"
+
+  # Only dir exposes the standby rootfs as a directory, so a read-only bind mount can fail the write after
+  # the header is accepted. The new file gives the refresh something to write.
+  if [ "$(storage_backend "${LXD_DIR}")" = "dir" ]; then
+    local standby_rootfs run_rc
+    standby_rootfs="${LXD_TWO_DIR}/storage-pools/lxdtest-$(basename "${LXD_TWO_DIR}")/containers/replicator-project_c1/rootfs"
+    LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 user.leader-change=2 --project replicator-project
+    LXD_DIR="${LXD_ONE_DIR}" lxc exec c1 --project replicator-project -- sh -c 'echo changed > /root/changed'
+    mount --bind "${standby_rootfs}" "${standby_rootfs}"
+    mount -o remount,bind,ro "${standby_rootfs}"
+    # Unmount before checking the outcome, so a failure does not leave the rootfs read-only.
+    run_rc=0
+    LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project || run_rc=$?
+    umount "${standby_rootfs}"
+    if [ "${run_rc}" = "0" ]; then
+      echo "ERROR: replicator run succeeded with a read-only standby rootfs"
+      exit 1
+    fi
+
+    # Data had started moving, so the copy keeps the leader's key and the standby's operation says why.
+    LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/instances/c1?project=replicator-project" \
+      | jq --exit-status '.config["user.leader-change"] == "2"'
+    LXD_DIR="${LXD_TWO_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' \
+      | jq --exit-status '[.. | objects | select(.description == "Creating instance")] | max_by(.created_at) | .status == "Failure" and (.err | test("configuration was not restored")) and (.err | test("transfer had started"))'
+
+    # The leader's operation says the transfer had started.
+    LXD_DIR="${LXD_ONE_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' \
+      | jq --exit-status '
+        [.. | objects | select(.description == "Running replicator")] | max_by(.created_at)
+        | [.children[] | select(.description == "Replicating instance")]
+        | length == 1 and all(.status == "Failure" and (.err | test("transfer had started")))
+      '
+
+    # The next run refreshes the copy.
+    LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+  fi
 
   LXD_DIR="${LXD_ONE_DIR}" lxc profile remove c1 volprofile --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc profile remove c1 volprofile --project replicator-project
