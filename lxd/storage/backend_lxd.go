@@ -2763,6 +2763,17 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 
 	volCopy := drivers.NewVolumeCopy(vol, targetSnapshots...)
 
+	// We have read the offer and prepared the records but nothing has been written to disk yet.
+	// The next step passes the connection to the storage driver, which may perform writes.
+	// Call the BeforeTransferStart hook if present. This is the caller's last chance to abort the receive
+	// with the disks untouched.
+	if args.BeforeTransferStart != nil {
+		err = args.BeforeTransferStart()
+		if err != nil {
+			return err
+		}
+	}
+
 	err = b.driver.CreateVolumeFromMigration(volCopy, conn, args, &preFiller, progressReporter)
 	if err != nil {
 		return err
