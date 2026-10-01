@@ -30,6 +30,7 @@ For bridge networks, the following addresses and networks are being advertised:
 - Network `ipv4.nat.address` or `ipv6.nat.address` subnets (if the matching `nat` property is set to `true`)
 - Network forward addresses
 - Addresses or subnets specified in `ipv4.routes.external` or `ipv6.routes.external` on an instance NIC that is connected to the bridge network
+  (if {config:option}`device-nic-bridged-device-conf:ipv4.routes.external.wait_ready` or {config:option}`device-nic-bridged-device-conf:ipv6.routes.external.wait_ready` is enabled on the NIC, those routes are only advertised once the instance reports itself as ready)
 
 Make sure to add your subnets to the respective configuration options.
 Otherwise, they won't be advertised.
