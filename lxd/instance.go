@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -284,6 +286,35 @@ type instanceCreateAsCopyOpts struct {
 	applyTemplateTrigger     bool              // Apply deferred TemplateTriggerCopy.
 	allowInconsistent        bool              // Ignore some copy errors
 	overrideSnapshotProfiles bool              // Copy the target instance profiles to the instance snapshots
+}
+
+// instanceRefreshRestoreHook returns a hook that restores the instance record as it is now. A refresh applies
+// the source's record before any data moves, so a refresh that fails before the data transfer starts has to
+// put the previous record back.
+func instanceRefreshRestoreHook(inst instance.Instance) revert.Hook {
+	config := make(map[string]string, len(inst.LocalConfig()))
+	maps.Copy(config, inst.LocalConfig())
+
+	args := db.InstanceArgs{
+		Architecture: inst.Architecture(),
+		Config:       config,
+		Description:  inst.Description(),
+		Devices:      inst.LocalDevices().Clone(),
+		Ephemeral:    inst.IsEphemeral(),
+		Profiles:     slices.Clone(inst.Profiles()),
+		Project:      inst.Project().Name,
+		Type:         inst.Type(),
+	}
+
+	return func() {
+		// These keys describe the disks, so keep their current values.
+		api.ConfigKeyPolicy{Immutable: api.InstanceRefreshConfigKeyPolicy.Immutable}.Apply(args.Config, inst.LocalConfig())
+
+		err := inst.Update(context.Background(), args, instance.UpdateActionUserRefresh)
+		if err != nil {
+			logger.Warn("Failed restoring instance after failed refresh", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
+		}
+	}
 }
 
 // instanceCreateAsCopy create a new instance by copying from an existing instance.
