@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/cloudinit"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/device"
 	"github.com/canonical/lxd/lxd/events"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/lifecycle"
@@ -203,6 +204,10 @@ func devLXDAPIPatchHandler(d *Daemon, r *http.Request) response.Response {
 	if state == api.Ready {
 		s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceReady.Event(r.Context(), inst, nil))
 	}
+
+	// Notify any devices (such as NICs with a "wait_ready" routes config) that are registered to
+	// react to this instance's ready state changing.
+	device.ReadyStateChanged(inst)
 
 	return response.DevLXDResponse(http.StatusOK, "", "raw")
 }
