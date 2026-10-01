@@ -636,7 +636,19 @@ func (n *ovn) Validate(config map[string]string) error {
 		//  shortdesc: User-provided free-form key/value pairs
 
 		// Volatile keys populated automatically as needed.
+
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=volatile.network.ipv4.address)
+		// If not set, LXD allocates an address from the `ipv4.ovn.ranges` of the uplink network.
+		// ---
+		//  type: string
+		//  shortdesc: IPv4 address for the OVN network router on the uplink network
 		ovnVolatileUplinkIPv4: validate.Optional(validate.IsNetworkAddressV4),
+		// lxdmeta:generate(entities=network-ovn; group=network-conf; key=volatile.network.ipv6.address)
+		// If not set, LXD allocates an address from the `ipv6.ovn.ranges` of the uplink network.
+		// If the uplink network has no `ipv6.ovn.ranges`, LXD derives the address from the MAC address of the OVN network router.
+		// ---
+		//  type: string
+		//  shortdesc: IPv6 address for the OVN network router on the uplink network
 		ovnVolatileUplinkIPv6: validate.Optional(validate.IsNetworkAddressV6),
 	}
 
