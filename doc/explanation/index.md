@@ -58,7 +58,7 @@ For scalable, reliable, and secure LXD deployments, these guides help you unders
 :titlesonly:
 
 /explanation/clusters
-/explanation/replicators
+/explanation/disaster_recovery
 /explanation/performance_tuning
 /explanation/security
 /explanation/bpf
