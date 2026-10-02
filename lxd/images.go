@@ -4090,7 +4090,10 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
 		return err
 	})
-	if err != nil {
+	if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
+		// Return a generic not found error so that project existence is not disclosed.
+		return response.NotFound(nil)
+	} else if err != nil {
 		return response.SmartError(err)
 	}
 
@@ -4260,6 +4263,12 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
 		return err
 	})
+	if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
+		// Return a generic not found error so that project existence is not disclosed.
+		return response.NotFound(nil)
+	} else if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Set `userCanViewImageAlias` to true only when the caller is authenticated and can view the alias.
 	// We don't abort the request if this is false because the image alias may be for a public image.
