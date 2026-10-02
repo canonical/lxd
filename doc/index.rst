@@ -121,9 +121,6 @@ LXD (|lxd-listen-anchor-open|\ ``[lɛks'di:]``\ |lxd-listen-anchor-close|) is a 
          :doc:`Create cluster links <howto/cluster_links_create>`
          :doc:`Manage cluster links <howto/cluster_links_manage>`
          :doc:`Cluster link configuration options <reference/cluster_link_config>`
-         :doc:`Create replicators <howto/replicators_create>`
-         :doc:`Manage replicators <howto/replicators_manage>`
-         :doc:`Replicator configuration options <reference/replicator_config>`
 
    Storage and networks
    ~~~~~~~~~~~~~~~~~~~~
@@ -247,10 +244,14 @@ LXD (|lxd-listen-anchor-open|\ ``[lɛks'di:]``\ |lxd-listen-anchor-close|) is a 
 
       .. slice:: Disaster recovery
 
-         :doc:`Perform disaster recovery with replicators <howto/replicators_dr>`
+         :doc:`Set up replicators <howto/replicators_create>`
+         :doc:`Manage replicators <howto/replicators_manage>`
+         :doc:`Perform disaster recovery with replicators <howto/disaster_recovery_replicators>`
+         :doc:`Set up storage replication <howto/storage_replication_setup>`
+         :doc:`Perform disaster recovery with storage replication <howto/disaster_recovery_replication>`
          :doc:`Back up a server <backup>`
-         :doc:`Recover LXD database records <howto/disaster_recovery>`
-         :doc:`Disaster recovery with storage replication <howto/disaster_recovery_replication>`
+         :doc:`Recover LXD database records <howto/database_recovery>`
+         :doc:`Replicator configuration options <reference/replicator_config>`
 
 How this documentation is organized
 -----------------------------------

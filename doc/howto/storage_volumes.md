@@ -264,7 +264,9 @@ For example, to set the default volume size for `my-pool`, use the following com
 
     lxc storage set my-pool volume.size=15GiB
 
+(storage-volumes-attach-vm)=
 ## Attach instance root volumes to other instances
+
 Virtual-machine root volumes can be attached as disk devices to other virtual machines.
 In order to prevent concurrent access, `security.protection.start` must be set on
 an instance before its root volume can be attached to another virtual-machine.
