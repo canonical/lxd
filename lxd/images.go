@@ -4190,7 +4190,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	var responseMap []*api.ImageAliasesEntry
 	urlToImageAlias := make(map[*api.URL]auth.EntitlementReporter)
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		names, err := tx.GetImageAliases(ctx, projectName)
+		names, err := tx.GetImageAliases(ctx, effectiveProjectName)
 		if err != nil {
 			return err
 		}
@@ -4202,20 +4202,20 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, name := range names {
-			if !userHasPermission(entity.ImageAliasURL(projectName, name)) {
+			if !userHasPermission(entity.ImageAliasURL(effectiveProjectName, name)) {
 				continue
 			}
 
 			if recursion == 0 {
 				responseStr = append(responseStr, api.NewURL().Path(version.APIVersion, "images", "aliases", name).String())
 			} else {
-				_, alias, err := tx.GetImageAlias(ctx, projectName, name, true)
+				_, alias, err := tx.GetImageAlias(ctx, effectiveProjectName, name, true)
 				if err != nil {
 					continue
 				}
 
 				responseMap = append(responseMap, &alias)
-				urlToImageAlias[entity.ImageAliasURL(projectName, name)] = &alias
+				urlToImageAlias[entity.ImageAliasURL(effectiveProjectName, name)] = &alias
 			}
 		}
 
@@ -4359,7 +4359,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	// We don't abort the request if this is false because the image alias may be for a public image.
 	var userCanViewImageAlias bool
 	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(projectName, name), auth.EntitlementCanView)
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(effectiveProjectName, name), auth.EntitlementCanView)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
@@ -4369,7 +4369,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	var alias api.ImageAliasesEntry
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// If `userCanViewImageAlias` is false, the query will be restricted to public images only.
-		_, alias, err = tx.GetImageAlias(ctx, projectName, name, userCanViewImageAlias)
+		_, alias, err = tx.GetImageAlias(ctx, effectiveProjectName, name, userCanViewImageAlias)
 
 		return err
 	})
@@ -4381,7 +4381,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImageAlias, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageAliasURL(projectName, name): &alias})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImageAlias, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageAliasURL(effectiveProjectName, name): &alias})
 		if err != nil {
 			return response.SmartError(err)
 		}
