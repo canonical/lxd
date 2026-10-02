@@ -40,17 +40,6 @@ See {ref}`ref-releases-snap` for the currently supported releases as well as inf
 (security-daemon-access)=
 ## Access to the LXD daemon
 
-LXD is a daemon that can be accessed locally over a Unix socket or, if configured, remotely over a {abbr}`TLS (Transport Layer Security)` socket.
-Anyone with access to the socket can fully control LXD, which includes the ability to attach host devices and file systems or to tweak the security features for all instances.
-
-Therefore, make sure to restrict the access to the daemon to trusted users.
-
-### Local access to the LXD daemon
-
-The LXD daemon runs as root and provides a Unix socket for local communication.
-Access control for LXD is based on group membership.
-The root user and all members of the `lxd` group can interact with the local daemon.
-
 ````{important}
 % Include content from [../../README.md](../../README.md)
 ```{include} ../../README.md
@@ -58,6 +47,28 @@ The root user and all members of the `lxd` group can interact with the local dae
     :end-before: <!-- Include end security note -->
 ```
 ````
+
+LXD is a daemon that can be accessed locally over a Unix socket or, if configured, remotely over a {abbr}`TLS (Transport Layer Security)` socket.
+The DevLXD API also allows limited interaction between guest instances and the host.
+
+The {ref}`access-lxd-diagram` diagram illustrates access to the LXD API and DevLXD API, as well as log aggregation by Loki.
+For details about communication between LXD and remote image sources, see {ref}`about-images`.
+
+(access-lxd-diagram)=
+```{figure} /images/security/access-lxd.svg
+:width: 100%
+:alt: Illustration of access to the LXD daemon from the host user space, over the network, and from within workloads.
+
+Access to LXD
+```
+
+(security-local-access)=
+### Local access to the LXD daemon
+
+The LXD daemon runs as root and provides a Unix socket for local communication.
+Access control for LXD is based on group membership.
+The root user and all members of the `lxd` group can interact with the local daemon.
+If you install LXD as a snap, you can also set the `daemon.user.group` configuration option to {ref}`confine members of a user group to a project via the Unix socket <projects-confine-users>`.
 
 (security_remote_access)=
 ### Access to the remote API
@@ -69,6 +80,12 @@ There are several ways to authenticate remote clients as trusted clients to allo
 See {ref}`authentication` for details.
 To increase your security posture in a production setup, you can also {ref}`harden remote API access <howto-security-harden-remote>` and {ref}`configure your firewall <network-bridge-firewall>`.
 
+(security-devlxd-access)=
+### Access to the DevLXD API
+
+The DevLXD API is available inside each LXD guest as a Unix socket for communication with the host.
+Queries on the socket only return information related to the requesting instance.
+For details about the DevLXD implementation and authentication, see {ref}`dev-lxd`.
 
 (container-security)=
 ## Container security
