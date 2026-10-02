@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // Instance represents the backup relevant subset of a LXD instance.
@@ -56,6 +58,10 @@ func (b *InstanceBackup) Instance() Instance {
 
 // Rename renames an instance backup.
 func (b *InstanceBackup) Rename(ctx context.Context, newName string) error {
+	if !filepath.IsLocal(b.name) || !filepath.IsLocal(newName) {
+		return fmt.Errorf("Invalid backup name %q", newName)
+	}
+
 	backupsPath := b.state.BackupsStoragePath(b.instance.Project().Name)
 	oldBackupPath := filepath.Join(backupsPath, "instances", project.Instance(b.instance.Project().Name, b.name))
 	newBackupPath := filepath.Join(backupsPath, "instances", project.Instance(b.instance.Project().Name, newName))
@@ -67,6 +73,9 @@ func (b *InstanceBackup) Rename(ctx context.Context, newName string) error {
 	oldParentBackupsPath := filepath.Join(backupsPath, "instances", project.Instance(b.instance.Project().Name, oldParentName))
 	newParentName, _, _ := api.GetParentAndSnapshotName(newName)
 	newParentBackupsPath := filepath.Join(backupsPath, "instances", project.Instance(b.instance.Project().Name, newParentName))
+
+	reverter := revert.New()
+	defer reverter.Fail()
 
 	// Create the new backup path if doesn't exist.
 	err := os.MkdirAll(newParentBackupsPath, 0700)
@@ -80,21 +89,22 @@ func (b *InstanceBackup) Rename(ctx context.Context, newName string) error {
 		return err
 	}
 
-	// Check if we can remove the old parent directory.
-	empty, _ := shared.PathIsEmpty(oldParentBackupsPath)
-	if empty {
-		err := os.Remove(oldParentBackupsPath)
-		if err != nil {
-			return err
-		}
-	}
+	reverter.Add(func() { _ = os.Rename(newBackupPath, oldBackupPath) })
 
 	// Rename the database record.
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.RenameInstanceBackup(ctx, b.name, newName)
+		return tx.RenameInstanceBackup(ctx, b.id, newName)
 	})
 	if err != nil {
 		return err
+	}
+
+	reverter.Success()
+
+	// Only remove the old parent once the rename is committed, as the revert needs it to move the backup back.
+	empty, _ := shared.PathIsEmpty(oldParentBackupsPath)
+	if empty {
+		_ = os.Remove(oldParentBackupsPath)
 	}
 
 	oldName := b.name
@@ -105,6 +115,10 @@ func (b *InstanceBackup) Rename(ctx context.Context, newName string) error {
 
 // Delete removes an instance backup.
 func (b *InstanceBackup) Delete(ctx context.Context) error {
+	if !filepath.IsLocal(b.name) {
+		return fmt.Errorf("Invalid backup name %q", b.name)
+	}
+
 	backupsPathBase := b.state.BackupsStoragePath(b.instance.Project().Name)
 	backupPath := filepath.Join(backupsPathBase, "instances", project.Instance(b.instance.Project().Name, b.name))
 
@@ -126,7 +140,7 @@ func (b *InstanceBackup) Delete(ctx context.Context) error {
 
 	// Remove the database record.
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.DeleteInstanceBackup(ctx, b.name)
+		return tx.DeleteInstanceBackup(ctx, b.id)
 	})
 	if err != nil {
 		return err
@@ -139,8 +153,13 @@ func (b *InstanceBackup) Delete(ctx context.Context) error {
 
 // Render returns an InstanceBackup struct of the backup.
 func (b *InstanceBackup) Render() *api.InstanceBackup {
+	_, name, found := strings.Cut(b.name, "/")
+	if !found {
+		name = b.name
+	}
+
 	return &api.InstanceBackup{
-		Name:             strings.SplitN(b.name, "/", 2)[1],
+		Name:             name,
 		CreatedAt:        b.creationDate,
 		ExpiresAt:        b.expiryDate,
 		InstanceOnly:     b.instanceOnly,

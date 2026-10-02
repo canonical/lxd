@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,6 +44,10 @@ func NewVolumeBackup(state *state.State, projectName, poolName, volumeName strin
 
 // Rename renames a volume backup.
 func (b *VolumeBackup) Rename(newName string) error {
+	if !filepath.IsLocal(b.name) || !filepath.IsLocal(newName) {
+		return fmt.Errorf("Invalid backup name %q", newName)
+	}
+
 	backupsPath := b.state.BackupsStoragePath(b.projectName)
 	oldBackupPath := filepath.Join(backupsPath, "custom", b.poolName, project.StorageVolume(b.projectName, b.name))
 	newBackupPath := filepath.Join(backupsPath, "custom", b.poolName, project.StorageVolume(b.projectName, newName))
@@ -72,15 +77,6 @@ func (b *VolumeBackup) Rename(newName string) error {
 
 	revert.Add(func() { _ = os.Rename(newBackupPath, oldBackupPath) })
 
-	// Check if we can remove the old parent directory.
-	empty, _ := shared.PathIsEmpty(oldParentBackupsPath)
-	if empty {
-		err := os.Remove(oldParentBackupsPath)
-		if err != nil {
-			return err
-		}
-	}
-
 	// Rename the database record.
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.RenameVolumeBackup(ctx, b.id, newName)
@@ -92,11 +88,22 @@ func (b *VolumeBackup) Rename(newName string) error {
 	// Keep in-memory state consistent with filesystem and DB rename.
 	b.name = newName
 	revert.Success()
+
+	// Only remove the old parent once the rename is committed, as the revert needs it to move the backup back.
+	empty, _ := shared.PathIsEmpty(oldParentBackupsPath)
+	if empty {
+		_ = os.Remove(oldParentBackupsPath)
+	}
+
 	return nil
 }
 
 // Delete removes a volume backup.
 func (b *VolumeBackup) Delete() error {
+	if !filepath.IsLocal(b.name) {
+		return fmt.Errorf("Invalid backup name %q", b.name)
+	}
+
 	backupsPathBase := b.state.BackupsStoragePath(b.projectName)
 	backupPath := filepath.Join(backupsPathBase, "custom", b.poolName, project.StorageVolume(b.projectName, b.name))
 	// Delete the on-disk data.
@@ -117,7 +124,7 @@ func (b *VolumeBackup) Delete() error {
 
 	// Remove the database record.
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.DeleteStoragePoolVolumeBackup(ctx, b.name)
+		return tx.DeleteStoragePoolVolumeBackup(ctx, b.id)
 	})
 	if err != nil {
 		return err
@@ -128,8 +135,13 @@ func (b *VolumeBackup) Delete() error {
 
 // Render returns a VolumeBackup struct of the backup.
 func (b *VolumeBackup) Render() *api.StoragePoolVolumeBackup {
+	_, name, found := strings.Cut(b.name, "/")
+	if !found {
+		name = b.name
+	}
+
 	return &api.StoragePoolVolumeBackup{
-		Name:             strings.SplitN(b.name, "/", 2)[1],
+		Name:             name,
 		CreatedAt:        b.creationDate,
 		ExpiresAt:        b.expiryDate,
 		VolumeOnly:       b.volumeOnly,
