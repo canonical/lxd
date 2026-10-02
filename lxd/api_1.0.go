@@ -52,6 +52,7 @@ var api10Cmd = APIEndpoint{
 
 var api10 = []APIEndpoint{
 	api10Cmd,
+	api10StateCmd,
 	api10ResourcesCmd,
 	certificateCmd,
 	certificatesCmd,

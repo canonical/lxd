@@ -3744,3 +3744,12 @@ Like SCSI/FC, Fibre Channel targets are discovered through the host bus adapter,
 This introduces the `ceph.replicator.<project>` configuration key on `ceph` storage pools.
 It records the peer Ceph site to which a project's volumes on the pool are mirrored.
 If a project with a replicator holds volumes on a Ceph pool configured with this key, then the replicator enrolls those volumes in RBD mirroring, triggers a mirror snapshot of each volume on every replication run, and completes the run only after the peer site confirms that it has received every snapshot.
+
+(extension-server-state)=
+## `server_state`
+
+This adds support for the `GET /1.0/state` endpoint, which reports the current runtime state of the LXD server.
+
+The response contains the server uptime, load averages, total and free memory and swap, number of processes, and number of logical CPUs.
+
+This endpoint is not available on clustered servers where the cluster member api already exposes similar information.
