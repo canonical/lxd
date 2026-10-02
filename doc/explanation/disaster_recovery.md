@@ -106,6 +106,23 @@ When the primary cluster comes back online, you can synchronize the projects by 
 
 See {ref}`howto-replicators-dr` for step-by-step instructions.
 
+(exp-storage-replication)=
+## Storage replication
+
+Replication at the storage array layer is possible with remote storage drivers that support volume recovery.
+You must configure replication outside of LXD, through a process that depends on the remote storage vendor.
+
+For detailed instructions and information about storage providers that support storage replication, refer to {ref}`disaster-recovery-replication`.
+
+(exp-storage-failover)=
+### Failover with storage replication
+
+In the event of a disaster, you must manage promotion of the secondary cluster outside of LXD, through the remote storage provider.
+Once you have promoted the secondary cluster, you can use the LXD recovery tool (`lxd recover`) to recover instances and custom volumes from the replicated data.
+Infrastructure as code ({abbr}`IaC`) can facilitate redeployment of the original resources and configuration.
+
+For instructions on how to use the recovery tool, see {ref}`disaster-recovery`.
+
 (exp-disaster-recovery-lxd-recover)=
 ## LXD database recovery with `lxd recover`
 
