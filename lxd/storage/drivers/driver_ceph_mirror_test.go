@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -152,7 +153,7 @@ func Test_ceph_cephMirrorImageStatus_hasReplayed(t *testing.T) {
 		{"Peer site bootstrapping the image", bootstrapping, "site-b", 1786366837, false, false},
 		{"Peer site still copying the image over", syncing, "site-b", 1786366837, false, false},
 		{"Peer site that has not picked the image up yet", notPickedUp, "site-b", 1786366837, false, false},
-		{"Peer site in error without a replay state", splitBrain, "site-b", 1786366837, false, true},
+		{"Peer site in a split-brain", splitBrain, "site-b", 1786366837, false, true},
 	}
 
 	for _, tt := range tests {
@@ -164,6 +165,55 @@ func Test_ceph_cephMirrorImageStatus_hasReplayed(t *testing.T) {
 
 			if got != tt.want {
 				t.Errorf("Reached the wrong replay verdict: %t != %t", got, tt.want)
+			}
+		})
+	}
+
+	// A split-brain is the one error state with a known fix, so the message has to name it.
+	_, err = splitBrain.hasReplayed("site-b", 1786366837)
+	if err == nil || !strings.Contains(err.Error(), "demote the project there again") {
+		t.Errorf("A split-brain should point at the second demotion: %v", err)
+	}
+}
+
+func Test_ceph_cephMirrorImageStatus_inSplitBrain(t *testing.T) {
+	// What rbd reports for a demoted image on a site that returned after its peer was force-promoted.
+	demotedAfterForcedPromotion := `{
+  "name": "container_dr_web01",
+  "state": "up+error",
+  "description": "split-brain",
+  "peer_sites": [{"site_name": "site-b", "state": "up+stopped", "description": "local image is primary"}]
+}`
+
+	// The same image seen from the site that took over. Its own copy is the one to keep.
+	primaryWithPeerInSplitBrain := `{
+  "name": "container_dr_web01",
+  "state": "up+stopped",
+  "description": "local image is primary",
+  "peer_sites": [{"site_name": "site-a", "state": "up+error", "description": "split-brain"}]
+}`
+
+	tests := []struct {
+		name   string
+		status string
+		want   bool
+	}{
+		{"Demoted image the peer's history has diverged from", demotedAfterForcedPromotion, true},
+		{"Primary image whose peer is in a split-brain", primaryWithPeerInSplitBrain, false},
+		{"Primary image with a healthy peer", cephMirrorImageStatusJSON, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var status cephMirrorImageStatus
+
+			err := json.Unmarshal([]byte(tt.status), &status)
+			if err != nil {
+				t.Fatalf("Failed parsing the fixture: %v", err)
+			}
+
+			if status.inSplitBrain() != tt.want {
+				t.Errorf("Reached the wrong split-brain verdict: %t != %t", status.inSplitBrain(), tt.want)
 			}
 		})
 	}

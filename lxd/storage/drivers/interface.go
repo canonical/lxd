@@ -91,6 +91,12 @@ type Driver interface {
 	// VolumeMirrorReplayed reports whether the peer site holds the volume's newest mirror snapshot.
 	VolumeMirrorReplayed(vol Volume, peerSite string) (bool, error)
 
+	// PromoteMirroredVolume makes a replicated volume primary so that it can be written to.
+	PromoteMirroredVolume(vol Volume, force bool) error
+
+	// DemoteMirroredVolume makes a replicated volume non-primary so that its peer can be promoted.
+	DemoteMirroredVolume(vol Volume) error
+
 	// MountVolume mounts a storage volume (if not mounted) and increments reference counter.
 	MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error
 

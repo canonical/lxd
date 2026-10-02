@@ -1709,6 +1709,129 @@ func (d *ceph) RenameVolume(vol Volume, newVolName string, progressReporter iopr
 	}, false, progressReporter)
 }
 
+// cephMirrorErrorSays reports whether a failed rbd command printed the given message.
+// Ceph gives no exit status of its own for an image that is already in the mirror state asked for,
+// so the message it prints is what identifies it.
+func cephMirrorErrorSays(err error, message string) bool {
+	var runErr shared.RunError
+
+	isRunErr := errors.As(err, &runErr)
+	if !isRunErr {
+		return false
+	}
+
+	return strings.Contains(runErr.StdErr().String(), message)
+}
+
+// cephMirrorExitStatus returns the exit status of a failed rbd command, or -1 for an error that
+// carries none. rbd exits with the error number librbd returned. That number is part of librbd's
+// API, so it identifies a failure across Ceph releases where the wording of a log line may not.
+func cephMirrorExitStatus(err error) int {
+	var exitErr *exec.ExitError
+
+	isExitErr := errors.As(err, &exitErr)
+	if !isExitErr {
+		return -1
+	}
+
+	return exitErr.ExitCode()
+}
+
+// PromoteMirroredVolume makes a volume's RBD image primary so that it can be written to.
+// The forced variant is for disaster recovery, where the site holding the primary image is gone and
+// so cannot be demoted first.
+// An image that is already primary is left alone, so that a promotion covering many images which
+// failed part way can be run again to completion.
+func (d *ceph) PromoteMirroredVolume(vol Volume, force bool) error {
+	args := []string{"mirror", "image", "promote", "--image", d.getRBDVolumeName(vol, "", false, false)}
+	if force {
+		args = append(args, "--force")
+	}
+
+	_, err := d.rbd(context.Background(), args...)
+	if err != nil {
+		// Ceph refuses an unforced promotion while the peer still holds the primary image, or while
+		// the peer's demotion has not been replayed here yet. librbd returns EBUSY for the first.
+		// The second shows as EROFS, from the promote snapshot failing on the image, which is
+		// still read-only. What rbd prints for either says nothing an operator can act on, so it
+		// goes to the debug log and a sentinel goes up.
+		exitStatus := cephMirrorExitStatus(err)
+		if !force && (exitStatus == int(unix.EBUSY) || exitStatus == int(unix.EROFS)) {
+			d.logger.Debug("Ceph refused the promotion", logger.Ctx{"volume": vol.name, "err": err})
+			return fmt.Errorf("Failed promoting volume %q: %w", vol.name, ErrPeerPrimary)
+		}
+
+		if !cephMirrorErrorSays(err, "already primary") {
+			return fmt.Errorf("Failed promoting volume %q: %w", vol.name, err)
+		}
+
+		d.logger.Warn("Volume is already primary", logger.Ctx{"volume": vol.name})
+	}
+
+	// For VMs, also promote the filesystem volume, as a config drive that stayed read-only
+	// stops the instance from starting.
+	if vol.IsVMBlock() {
+		err := d.PromoteMirroredVolume(vol.NewVMBlockFilesystemVolume(), force)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DemoteMirroredVolume makes a volume's RBD image non-primary so that its peer can be promoted.
+// An image that is already non-primary is left alone, so that a demotion covering many images which
+// failed part way can be run again to completion.
+// An image that rbd-mirror reports as split-brain is rebuilt from the peer. That is what a forced
+// promotion on the peer leaves here: the image has a history the peer does not share, and rbd-mirror
+// refuses to replay onto it until the local copy is thrown away. rbd-mirror only finds that out once
+// the image is demoted, so it is normally a second demotion that requests the rebuild.
+func (d *ceph) DemoteMirroredVolume(vol Volume) error {
+	imageName := d.getRBDVolumeName(vol, "", false, false)
+
+	_, err := d.rbd(context.Background(), "mirror", "image", "demote", "--image", imageName)
+	if err != nil {
+		if !cephMirrorErrorSays(err, "not primary") {
+			return fmt.Errorf("Failed demoting volume %q: %w", vol.name, err)
+		}
+
+		d.logger.Warn("Volume is already non-primary", logger.Ctx{"volume": vol.name})
+	}
+
+	// The status query is read-only, so it gets the bound the driver's other read-only rbd calls
+	// have. The demotion and the resync stay unbounded, since cutting a mutating command short can
+	// leave the image halfway.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	status, err := d.mirrorImageStatus(ctx, vol, imageName)
+	if err != nil {
+		return err
+	}
+
+	if status.inSplitBrain() {
+		_, err = d.rbd(context.Background(), "mirror", "image", "resync", "--image", imageName)
+		if err != nil {
+			return fmt.Errorf("Failed requesting a resync of volume %q: %w", vol.name, err)
+		}
+
+		// The rebuild throws the local copy away, so the log names every image it was asked for.
+		d.logger.Warn("Volume is in a split-brain, requested its rebuild from the peer", logger.Ctx{"volume": vol.name})
+	}
+
+	// For VMs, also demote the filesystem volume, as the peer cannot promote a config drive that
+	// is still primary here.
+	if vol.IsVMBlock() {
+		err := d.DemoteMirroredVolume(vol.NewVMBlockFilesystemVolume())
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // MigrateVolume sends a volume for migration.
 func (d *ceph) MigrateVolume(vol VolumeCopy, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, progressReporter ioprogress.ProgressReporter) error {
 	if volSrcArgs.ClusterMove {
