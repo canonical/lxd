@@ -1012,28 +1012,6 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		info.Type = imageType
 	}
 
-	imgfname := filepath.Join(s.ImagesStoragePath(project), info.Fingerprint)
-	err = shared.FileMove(imageTmpFilename, imgfname)
-	if err != nil {
-		l.Error("Failed moving the image tarfile", logger.Ctx{
-			"err":    err,
-			"source": imageTmpFilename,
-			"dest":   imgfname})
-		return nil, err
-	}
-
-	if rootfsTmpFilename != "" {
-		rootfsfname := imgfname + ".rootfs"
-		err = shared.FileMove(rootfsTmpFilename, rootfsfname)
-		if err != nil {
-			l.Error("Failed moving the rootfs tarfile", logger.Ctx{
-				"err":    err,
-				"source": rootfsTmpFilename,
-				"dest":   imgfname})
-			return nil, err
-		}
-	}
-
 	info.Architecture = imageMeta.Architecture
 	info.CreatedAt = time.Unix(imageMeta.CreationDate, 0)
 
@@ -1119,22 +1097,66 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		return nil, err
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return nil, err
-	}
-
 	if exists {
-		// Do not create a database entry if the request is coming from the internal
-		// cluster communications for image synchronization
+		// Cluster sync associates the existing image with this member instead of creating a duplicate image record.
+		requestor, err := request.GetRequestor(r.Context())
+		if err != nil {
+			return nil, err
+		}
+
 		if !requestor.IsClusterNotification() {
 			return &info, errors.New("Image with same fingerprint already exists")
 		}
+	}
 
+	imgfname := filepath.Join(s.ImagesStoragePath(project), info.Fingerprint)
+	rootfsfname := imgfname + ".rootfs"
+	imageFileExisted := shared.PathExists(imgfname)
+	rootfsFileExisted := false
+	if rootfsTmpFilename != "" {
+		rootfsFileExisted = shared.PathExists(rootfsfname)
+	}
+
+	cleanupMovedFiles := func() {
+		if !imageFileExisted {
+			_ = os.Remove(imgfname)
+		}
+
+		if rootfsTmpFilename != "" && !rootfsFileExisted {
+			_ = os.Remove(rootfsfname)
+		}
+	}
+
+	err = shared.FileMove(imageTmpFilename, imgfname)
+	if err != nil {
+		cleanupMovedFiles()
+
+		l.Error("Failed moving the image tarfile", logger.Ctx{
+			"err":    err,
+			"source": imageTmpFilename,
+			"dest":   imgfname})
+		return nil, err
+	}
+
+	if rootfsTmpFilename != "" {
+		err = shared.FileMove(rootfsTmpFilename, rootfsfname)
+		if err != nil {
+			cleanupMovedFiles()
+
+			l.Error("Failed moving the rootfs tarfile", logger.Ctx{
+				"err":    err,
+				"source": rootfsTmpFilename,
+				"dest":   rootfsfname})
+			return nil, err
+		}
+	}
+
+	if exists {
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.AddImageToLocalNode(ctx, project, info.Fingerprint)
 		})
 		if err != nil {
+			cleanupMovedFiles()
 			return nil, err
 		}
 	} else {
@@ -1143,6 +1165,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 			return tx.CreateImage(ctx, project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, profileIDs)
 		})
 		if err != nil {
+			cleanupMovedFiles()
 			return nil, err
 		}
 	}
@@ -3226,9 +3249,9 @@ func doImageDelete(isClusterNotification bool, opCreator operations.OperationSch
 				}
 
 				// See if any other project with this image has the same storage volume
-				projectImagesVolume := s.LocalConfig.StorageImagesVolume(requestProjectName)
+				projectImagesVolume := s.LocalConfig.StorageImagesVolume(effectiveProjectName)
 				for _, project := range projects {
-					if project == requestProjectName {
+					if project == effectiveProjectName {
 						continue
 					}
 
@@ -3316,7 +3339,7 @@ func doImageDelete(isClusterNotification bool, opCreator operations.OperationSch
 		}
 
 		// Remove main image file from disk.
-		err = imageDeleteFromDisk(s.LocalConfig.StorageImagesVolume(requestProjectName), fingerprint)
+		err = imageDeleteFromDisk(s.LocalConfig.StorageImagesVolume(effectiveProjectName), fingerprint)
 		if err != nil {
 			return err
 		}
@@ -4090,7 +4113,10 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
 		return err
 	})
-	if err != nil {
+	if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
+		// Return a generic not found error so that project existence is not disclosed.
+		return response.NotFound(nil)
+	} else if err != nil {
 		return response.SmartError(err)
 	}
 
@@ -4104,7 +4130,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	var responseMap []*api.ImageAliasesEntry
 	urlToImageAlias := make(map[*api.URL]auth.EntitlementReporter)
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		names, err := tx.GetImageAliases(ctx, projectName)
+		names, err := tx.GetImageAliases(ctx, effectiveProjectName)
 		if err != nil {
 			return err
 		}
@@ -4116,20 +4142,20 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, name := range names {
-			if !userHasPermission(entity.ImageAliasURL(projectName, name)) {
+			if !userHasPermission(entity.ImageAliasURL(effectiveProjectName, name)) {
 				continue
 			}
 
 			if recursion == 0 {
 				responseStr = append(responseStr, api.NewURL().Path(version.APIVersion, "images", "aliases", name).String())
 			} else {
-				_, alias, err := tx.GetImageAlias(ctx, projectName, name, true)
+				_, alias, err := tx.GetImageAlias(ctx, effectiveProjectName, name, true)
 				if err != nil {
 					continue
 				}
 
 				responseMap = append(responseMap, &alias)
-				urlToImageAlias[entity.ImageAliasURL(projectName, name)] = &alias
+				urlToImageAlias[entity.ImageAliasURL(effectiveProjectName, name)] = &alias
 			}
 		}
 
@@ -4260,12 +4286,18 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
 		return err
 	})
+	if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
+		// Return a generic not found error so that project existence is not disclosed.
+		return response.NotFound(nil)
+	} else if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Set `userCanViewImageAlias` to true only when the caller is authenticated and can view the alias.
 	// We don't abort the request if this is false because the image alias may be for a public image.
 	var userCanViewImageAlias bool
 	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(projectName, name), auth.EntitlementCanView)
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(effectiveProjectName, name), auth.EntitlementCanView)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
@@ -4275,7 +4307,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	var alias api.ImageAliasesEntry
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// If `userCanViewImageAlias` is false, the query will be restricted to public images only.
-		_, alias, err = tx.GetImageAlias(ctx, projectName, name, userCanViewImageAlias)
+		_, alias, err = tx.GetImageAlias(ctx, effectiveProjectName, name, userCanViewImageAlias)
 
 		return err
 	})
@@ -4287,7 +4319,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImageAlias, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageAliasURL(projectName, name): &alias})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImageAlias, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageAliasURL(effectiveProjectName, name): &alias})
 		if err != nil {
 			return response.SmartError(err)
 		}
