@@ -8,6 +8,7 @@ myst:
 # Replicators
 
 Replicators are LXD entities that periodically copy instances from one cluster to another across a {ref}`cluster link <exp-cluster-links>`. They are designed for active-passive disaster recovery, where a leader cluster runs all workloads and a standby cluster stays ready to take over if the leader fails.
+On Ceph RBD storage pools, a replicator can let Ceph RBD mirroring copy the data, and send only the instance and volume records over the cluster link.
 
 (exp-replicators-concepts)=
 ## Leader and standby projects
@@ -42,21 +43,68 @@ When the original leader comes back online, it can be re-synced from the new lea
 
 See {ref}`howto-replicators-dr` for step-by-step instructions.
 
+(exp-replicators-ceph)=
+## Replicators with Ceph RBD mirroring
+
+By default, a replicator copies the data of every instance over the cluster link.
+If both clusters keep the project on {ref}`Ceph RBD <storage-ceph>` storage pools, Ceph can copy the data instead, through [RBD mirroring](https://docs.ceph.com/en/reef/rbd/rbd-mirroring/) between the two Ceph clusters.
+LXD still manages replication, failover, and failback, so you do not need to promote volumes in Ceph or use the `lxd recover` command after a disaster.
+
+You enable this behavior per project with the {config:option}`ceph.replicator <storage-ceph-pool-conf:ceph.replicator.<project>>` storage pool configuration key, which names the peer Ceph site.
+A project with this key set on one of its storage pools is a mirrored project.
+
+When a replicator runs for a mirrored project, LXD:
+
+1. Creates the pre-replication snapshots, as for any replicator.
+1. Enrolls each volume that the project holds on the storage pool in RBD mirroring, and triggers a mirror snapshot of each volume.
+1. Waits until the peer Ceph site confirms that it has received every mirror snapshot.
+1. Sends the records of the instances, and of the custom volumes attached only to one instance, to the standby project over the cluster link, without the data.
+
+The first run copies every volume in full.
+Later runs copy only the changes since the previous mirror snapshot.
+
+The standby cluster treats the volumes of a mirrored standby project as replicas that belong to Ceph.
+It keeps their records in its database, but it does not create, change, or delete them on storage.
+
+(exp-replicators-ceph-failover)=
+### Failover and recovery with Ceph RBD mirroring
+
+When you promote a mirrored standby project, LXD also promotes its volumes in Ceph, so that instances can be started.
+When you demote a mirrored leader project, LXD also demotes its volumes, so that the other cluster can take over.
+All instances in the project must be stopped before you demote it.
+
+If the leader cluster fails, it cannot demote its volumes.
+In this case, you must "force" promote the standby project.
+The instances then start from the last mirror snapshot that reached the standby cluster.
+
+After a forced promotion, the volumes on the two clusters diverge.
+When the original leader cluster comes back online, you must demote its project twice.
+The first demotion makes its volumes read-only, and Ceph then reports that they have diverged.
+The second demotion discards the diverged volumes and copies them again from the new leader cluster.
+"Restore" mode is not available for a mirrored project.
+Instead, you create a replicator on the new leader cluster that targets the original leader cluster.
+
+Because the two clusters must agree on which one holds the writable volumes, do not force promote a mirrored project while the leader cluster is still available.
+Demote the leader project first, and then promote the standby project without force.
+
+See {ref}`howto-replicators-ceph` for the setup and {ref}`howto-replicators-dr-ceph` for step-by-step instructions.
+
 (exp-replicators-vs-storage-replication)=
 ## Replicators vs. storage replication
 
 LXD supports two distinct approaches to cross-site disaster recovery:
 
-| | Replicators | Storage replication |
-|---|---|---|
-| **Level** | LXD instance layer | Storage array layer |
-| **Mechanism** | Incremental instance refresh over cluster links | Vendor storage replication (Ceph RBD mirroring, PowerFlex RCG, etc.) |
-| **Scheduling** | Controlled by LXD ({config:option}`replicator-conf:schedule` config key) | Controlled by the storage vendor |
-| **Requires cluster link** | Yes | No |
-| **Recovery method** | Promote standby project with `lxc project promote-replica` | Promote storage array, then run `lxd recover` |
-| **Snapshot support** | Automatic pre-replication snapshots | Depends on storage vendor |
+| | Replicators | Replicators with Ceph RBD mirroring | Storage replication |
+|---|---|---|---|
+| **Level** | LXD instance layer | LXD instance layer for the records, Ceph for the data | Storage array layer |
+| **Mechanism** | Incremental instance refresh over cluster links | Ceph RBD mirroring, triggered by LXD on every run | Vendor storage replication (Ceph RBD mirroring, PowerFlex RCG, etc.) |
+| **Scheduling** | Controlled by LXD ({config:option}`replicator-conf:schedule` config key) | Controlled by LXD ({config:option}`replicator-conf:schedule` config key) | Controlled by the storage vendor |
+| **Requires cluster link** | Yes | Yes | No |
+| **Recovery method** | Promote standby project with `lxc project promote-replica` | Promote standby project with `lxc project promote-replica` | Promote storage array, then run `lxd recover` |
+| **Snapshot support** | Automatic pre-replication snapshots | Automatic pre-replication snapshots | Depends on storage vendor |
 
 Use replicators when you want LXD to manage replication end-to-end across two clusters without dependency on a specific storage backend. Use {ref}`storage replication <disaster-recovery-replication>` when you need replication at the storage array level, or when you are not using cluster links.
+For Ceph RBD, LXD can also manage the replication itself, as described in {ref}`exp-replicators-ceph`.
 
 ## Related topics
 

@@ -21,6 +21,8 @@ Before setting up replicators:
 1. A {ref}`cluster link must be established <howto-cluster-links-create>` between the two clusters.
 1. Network connectivity must exist between the clusters.
 
+To let Ceph RBD mirroring copy the data instead of LXD, your setup must also meet the {ref}`prerequisites for Ceph RBD mirroring <howto-replicators-ceph-prereqs>`.
+
 (howto-replicators-auth)=
 ## Prepare authentication
 
@@ -116,6 +118,75 @@ This ensures that new instances are not created on a standby cluster between rep
 If a target cluster is unreachable, promotion still proceeds to allow disaster recovery scenarios where the target may be offline.
 ```
 
+(howto-replicators-ceph)=
+## Replicate the data with Ceph RBD mirroring
+
+By default, a replicator copies the data of every instance over the cluster link.
+If both clusters keep the project on {ref}`Ceph RBD <storage-ceph>` storage pools, you can let Ceph copy the data through RBD mirroring.
+LXD then sends only the instance and volume records over the cluster link.
+See {ref}`exp-replicators-ceph` for details.
+
+Skip this section if you do not want to use Ceph RBD mirroring.
+
+(howto-replicators-ceph-prereqs)=
+### Prerequisites for Ceph RBD mirroring
+
+Make sure that your setup meets these prerequisites:
+
+- Both clusters support the {ref}`extension-storage-ceph-replicator` API extension.
+- Each cluster uses its own Ceph cluster.
+- The LXD storage pool has the same name on both clusters, and so does the OSD pool behind it.
+  Ceph mirrors a volume to the OSD pool of the same name, and the instance records refer to the storage pool by name.
+- The standby cluster's storage pool is a regular storage pool.
+  Do not create it with {config:option}`storage-ceph-pool-conf:source.recover`, which is meant for {ref}`storage replication <disaster-recovery-replication-add-pool-cephrbd>` of a whole OSD pool.
+- RBD mirroring is enabled in `image` mode on the OSD pool in both Ceph clusters.
+  In `pool` mode, Ceph would mirror every volume in the OSD pool, including the volumes of other projects.
+- The two Ceph clusters are peers of each other in both directions (`rx-tx`), and the `rbd-mirror` daemon runs in both.
+  After a failover, the clusters swap roles, so each Ceph cluster must be able to receive data from the other.
+- The profiles that the project's instances use exist on the standby cluster with the same devices, including a root disk device on the mirrored storage pool.
+
+See the [RBD mirroring](https://docs.ceph.com/en/reef/rbd/rbd-mirroring/) documentation for how to enable mirroring and add the peers.
+
+(howto-replicators-ceph-pools)=
+### Configure the storage pools
+
+On each cluster, the {config:option}`ceph.replicator <storage-ceph-pool-conf:ceph.replicator.<project>>` key on the storage pool names the peer Ceph site, which is the Ceph cluster that the other cluster uses.
+To see the site names, run the following command against either Ceph cluster:
+
+```bash
+rbd mirror pool info <osd_pool_name>
+```
+
+1. On the leader cluster, set the key to the site name of the standby's Ceph cluster:
+
+   ```bash
+   lxc storage set <pool_name> ceph.rbd.clone_copy=false ceph.replicator.<project_name>=<standby_ceph_site_name>
+   ```
+
+1. On the standby cluster, set the key to the site name of the leader's Ceph cluster:
+
+   ```bash
+   lxc storage set <pool_name> ceph.rbd.clone_copy=false ceph.replicator.<project_name>=<leader_ceph_site_name>
+   ```
+
+The project must exist before you can set the key.
+
+```{important}
+Set {config:option}`storage-ceph-pool-conf:ceph.rbd.clone_copy` to `false` before you create any container on the storage pool.
+Ceph cannot mirror a volume that is a clone of its image.
+This setting applies to all projects that use the storage pool.
+```
+
+While the key is set, the following rules apply to the project:
+
+- Every instance, and every custom volume attached only to one instance, must be on a storage pool that has the key.
+  Otherwise, the replicator refuses to run.
+- Ceph mirrors all instance volumes and custom volumes that the project holds on the storage pool.
+  The standby cluster, however, only receives records for instances and for custom volumes attached only to one instance.
+  Do not attach a custom volume to more than one instance in a mirrored project: unlike with other replicators, you cannot create it in advance on the standby cluster.
+- You cannot rename the project.
+- To delete the project, unset the key first, or delete the project with `--force`, which also removes the key.
+
 (howto-replicators-create)=
 ## Create a replicator
 
@@ -187,6 +258,11 @@ To manually trigger a replicator run:
 `````
 
 This syncs all instances in the source project, together with the custom volumes attached only to them, to the standby cluster.
+
+If the project is {ref}`mirrored with Ceph RBD <howto-replicators-ceph>`, the run completes only after the standby's Ceph cluster has received the data.
+The first run copies every volume in full, so it can take a long time.
+If Ceph needs more than one hour, the run fails, but Ceph continues to copy the data.
+In this case, run the replicator again later.
 
 To schedule replication automatically, set the `schedule` configuration key with a cron expression:
 
