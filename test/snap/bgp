@@ -59,6 +59,7 @@ frrPrefixNexthops() (
 )
 
 # waitFRRPrefix: wait until FRR received (or no longer has) a prefix, optionally via a given next-hop.
+# With "absent" and a next-hop, only that next-hop must be gone; other next-hops may remain.
 # Usage: waitFRRPrefix <4|6> <prefix> <present|absent> [next-hop]
 waitFRRPrefix() (
     { set +x; } 2>/dev/null
@@ -73,6 +74,10 @@ waitFRRPrefix() (
         nexthops="$(frrPrefixNexthops "${family}" "${prefix}")"
         if [ "${wanted}" = "absent" ]; then
             if [ -z "${nexthops}" ]; then
+                return 0 # Success.
+            fi
+
+            if [ -n "${nexthop}" ] && ! grep -qxF "${nexthop}" <<< "${nexthops}"; then
                 return 0 # Success.
             fi
         elif [ -n "${nexthops}" ]; then
@@ -212,10 +217,14 @@ echo "==> Checking next-hop changes are re-advertised"
 lxc network set "${BGP_NET}" bgp.ipv4.nexthop="${ALT_NEXTHOP4}" bgp.ipv6.nexthop="${ALT_NEXTHOP6}"
 waitFRRPrefix 4 "${NET_SUBNET4}" present "${ALT_NEXTHOP4}"
 waitFRRPrefix 6 "${NET_SUBNET6}" present "${ALT_NEXTHOP6}"
+waitFRRPrefix 4 "${NET_SUBNET4}" absent "${NEXTHOP4}"
+waitFRRPrefix 6 "${NET_SUBNET6}" absent "${NEXTHOP6}"
 
 lxc network set "${BGP_NET}" bgp.ipv4.nexthop="${NEXTHOP4}" bgp.ipv6.nexthop="${NEXTHOP6}"
 waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
 waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
+waitFRRPrefix 4 "${NET_SUBNET4}" absent "${ALT_NEXTHOP4}"
+waitFRRPrefix 6 "${NET_SUBNET6}" absent "${ALT_NEXTHOP6}"
 
 echo "==> Checking external routes of a running instance are advertised"
 lxc init "${IMAGE}" c1 -s default -c limits.memory=512MiB
