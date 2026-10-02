@@ -28,24 +28,7 @@ Only use this tool for disaster recovery.
 You must run the tool interactively; do not use the tool in automated scripts.
 ```
 
-## Recovery process
-
-When you run `lxd recover`, the recovery tool scans all storage pools that exist in the database and identifies missing volumes that can be recovered.
-The tool also scans volumes on the known storage pools and, in the process, may discover additional storage pools that exist on disk but are missing from the LXD database.
-In such cases, the tool prints information about the storage pools so that you can re-create their database records manually.
-Concrete recovery examples for each storage driver can be found in {ref}`howto-storage-pools-recover`.
-The tool then mounts any unmounted storage pools and continues scanning for volumes that may be associated with LXD.
-
-Through this scan, the recovery tool can identify some custom volumes by name.
-Some {ref}`remote storage drivers <storage-drivers-remote>`, however, such as the {ref}`PowerFlex <storage-powerflex>`, {ref}`PowerStore <storage-powerstore>`, and {ref}`Pure <storage-pure>` drivers, use transformed volume names, and the recovery tool is unable to discover these volumes from their name alone.
-Instead, these volumes can only be discovered if they are attached to an instance.
-
-LXD maintains a `backup.yaml` file in each instance's storage volume, which contains all necessary information to recover a given instance.
-The recovery tool compares the `backup.yaml` file with what is actually on disk (such as matching snapshots) and, if this consistency check passes, re-creates the database records.
-The tool can also use the `backup.yaml` file to gather information about profiles, storage pools, and attached devices (such as storage volumes with transformed names).
-Based on this information, the tool will prompt you to re-create missing entities, but it will not display information about how those entities were configured, unless they are storage pools.
-For example, if an instance used a bridge network attached to a profile, the tool will notify you that the two entities are missing from the database, but it will not direct you to attach the network to the profile.
-
+(howto-recovery-tool)=
 ## How to use the recovery tool
 
 ```{note}

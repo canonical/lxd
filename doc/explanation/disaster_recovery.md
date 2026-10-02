@@ -105,6 +105,28 @@ When the primary cluster comes back online, you can synchronize the projects by 
 
 See {ref}`howto-replicators-dr` for step-by-step instructions.
 
+(exp-disaster-recovery-lxd-recover)=
+## LXD database recovery with `lxd recover`
+
+The LXD recovery tool, `lxd recover`, facilitates recovery of LXD instances and custom volumes when a LXD database is lost or corrupted.
+You can also use this tool to recover resources when {ref}`performing disaster recovery with storage replication <disaster-recovery-replication>`.
+
+When you run `lxd recover`, the recovery tool scans all storage pools that exist in the database and identifies missing volumes that can be recovered.
+The tool also scans volumes on the known storage pools and, in the process, may discover additional storage pools that exist on disk but are missing from the LXD database.
+In such cases, the tool prints information about the storage pools so that you can re-create their database records manually.
+Concrete recovery examples for each storage driver can be found in {ref}`howto-storage-pools-recover`.
+The tool then mounts any unmounted storage pools and continues scanning for volumes that may be associated with LXD.
+
+Through this scan, the recovery tool can identify some custom volumes by name.
+Some {ref}`remote storage drivers <storage-drivers-remote>`, however, such as the {ref}`PowerFlex <storage-powerflex>`, {ref}`PowerStore <storage-powerstore>`, and {ref}`Pure <storage-pure>` drivers, use transformed volume names, and the recovery tool is unable to discover these volumes from their name alone.
+Instead, these volumes can only be discovered if they are attached to an instance.
+
+LXD maintains a `backup.yaml` file in each instance's storage volume, which contains all necessary information to recover a given instance.
+The recovery tool compares the `backup.yaml` file with what is actually on disk (such as matching snapshots) and, if this consistency check passes, re-creates the database records.
+The tool can also use the `backup.yaml` file to gather information about profiles, storage pools, and attached devices (such as storage volumes with transformed names).
+Based on this information, the tool will prompt you to re-create missing entities, but it will not display information about how those entities were configured, unless they are storage pools.
+For example, if an instance used a bridge network attached to a profile, the tool will notify you that the two entities are missing from the database, but it will not direct you to attach the network to the profile.
+
 ## Related topics
 
 How-to guides:
