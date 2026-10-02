@@ -1397,6 +1397,11 @@ func (d *Daemon) init() (err error) {
 		}
 	}
 
+	vmDriver, ok := drivers[instancetype.VM]
+	if ok && vmDriver.Supported {
+		d.os.VMArchitectures = vmDriver.Info.EmulatedArchitectures
+	}
+
 	// Validate the devices storage.
 	testDev := shared.VarPath("devices", ".test")
 	testDevNum := int(unix.Mkdev(0, 0))

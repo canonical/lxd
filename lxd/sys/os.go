@@ -59,6 +59,7 @@ type OS struct {
 
 	// Daemon environment
 	Architectures   []int           // Cache of detected system architectures
+	VMArchitectures []int           // Additional architectures supported for VMs through emulation
 	BackingFS       string          // Backing filesystem of $LXD_DIR/containers
 	ExecPath        string          // Absolute path to the LXD executable
 	IdmapSet        *idmap.IdmapSet // Information about user/group ID mapping

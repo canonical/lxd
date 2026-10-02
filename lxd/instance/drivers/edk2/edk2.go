@@ -123,6 +123,15 @@ var architectureInstallations = map[int][]Installation{
 			},
 		},
 	}},
+	osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN: {{
+		// EDK2 dropped 32-bit ARM support so U-Boot (padded to the virt machine flash bank size) provides UEFI.
+		Paths: GetenvEdk2Paths("/usr/share/qemu"),
+		Usage: map[FirmwareUsage][]FirmwarePair{
+			GENERIC: {
+				{Code: "UBOOT_ARM_CODE.fd", Vars: "UBOOT_ARM_VARS.fd"},
+			},
+		},
+	}},
 	osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN: {{
 		Paths: GetenvEdk2Paths("/usr/share/AAVMF"),
 		Usage: map[FirmwareUsage][]FirmwarePair{

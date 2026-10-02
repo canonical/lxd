@@ -28,6 +28,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/version"
 )
 
@@ -1247,16 +1248,22 @@ func checkTargetProjectRestrictions(ctx context.Context, s *state.State, inst in
 	instConfigCopy := make(map[string]string, len(instConfig))
 	maps.Copy(instConfigCopy, instConfig)
 
-	instReq := api.InstancesPost{
-		Config:   instConfigCopy,
-		Devices:  instDevices,
-		Profiles: instProfiles,
-		Name:     targetName,
-		Type:     api.InstanceType(inst.Type().String()),
-		Source:   api.InstanceSource{Type: api.SourceTypeMigration},
+	archName, err := osarch.ArchitectureName(inst.Architecture())
+	if err != nil {
+		return err
 	}
 
-	err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, instReq)
+	instReq := api.InstancesPost{
+		Architecture: archName,
+		Config:       instConfigCopy,
+		Devices:      instDevices,
+		Profiles:     instProfiles,
+		Name:         targetName,
+		Type:         api.InstanceType(inst.Type().String()),
+		Source:       api.InstanceSource{Type: api.SourceTypeMigration},
+	}
+
+	err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, instReq, s.OS.VMArchitectures)
 	if err != nil {
 		return fmt.Errorf("Instance cannot be placed in project %q: %w", targetProject, err)
 	}
@@ -1303,7 +1310,7 @@ func checkTargetProjectRestrictions(ctx context.Context, s *state.State, inst in
 			Source:   api.InstanceSource{Type: api.SourceTypeMigration},
 		}
 
-		err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, snapReq)
+		err = limits.AllowInstanceCreation(s.GlobalConfig, *restrictions, snapReq, s.OS.VMArchitectures)
 		if err != nil {
 			return fmt.Errorf("Snapshot %q cannot be placed in project %q: %w", snap.Name(), targetProject, err)
 		}

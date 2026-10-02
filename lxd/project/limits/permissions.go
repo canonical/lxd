@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/units"
 	"github.com/canonical/lxd/shared/validate"
 )
@@ -63,7 +64,8 @@ func HiddenStoragePools(ctx context.Context, tx *db.ClusterTx, projectName strin
 
 // AllowInstanceCreation returns an error if any project-specific limit or
 // restriction is violated when creating a new instance.
-func AllowInstanceCreation(globalConfig *clusterConfig.Config, info ProjectInfo, req api.InstancesPost) error {
+// The emulatedArchitectures are the VM architectures the host only supports through emulation.
+func AllowInstanceCreation(globalConfig *clusterConfig.Config, info ProjectInfo, req api.InstancesPost, emulatedArchitectures []int) error {
 	var instanceType instancetype.Type
 	switch req.Type {
 	case api.InstanceTypeContainer:
@@ -81,6 +83,17 @@ func AllowInstanceCreation(globalConfig *clusterConfig.Config, info ProjectInfo,
 	err := checkSourceAllowed(info.Project.Config, req.Source.Type, req.Source.Mode)
 	if err != nil {
 		return err
+	}
+
+	// The architecture is often unknown at this point (e.g. image sources) so this is re-checked on creation.
+	if instanceType == instancetype.VM && req.Architecture != "" {
+		architecture, err := osarch.ArchitectureId(req.Architecture)
+		if err == nil && slices.Contains(emulatedArchitectures, architecture) {
+			err = AllowVMEmulation(&info.Project)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	err = checkInstanceCountLimit(&info, instanceType)
@@ -950,30 +963,31 @@ var allInstanceAggregateLimits = []string{
 
 // allRestrictions lists all available 'restrict.*' config keys along with their default setting.
 var allRestrictions = map[string]string{
-	"restricted.backups":                   "block",
-	"restricted.cluster.groups":            "",
-	"restricted.cluster.target":            "block",
-	"restricted.containers.nesting":        "block",
-	"restricted.containers.interception":   "block",
-	"restricted.containers.lowlevel":       "block",
-	"restricted.containers.privilege":      "unprivileged",
-	"restricted.virtual-machines.lowlevel": "block",
-	"restricted.devices.unix-char":         "block",
-	"restricted.devices.unix-block":        "block",
-	"restricted.devices.unix-hotplug":      "block",
-	"restricted.devices.infiniband":        "block",
-	"restricted.devices.gpu":               "block",
-	"restricted.devices.usb":               "block",
-	"restricted.devices.pci":               "block",
-	"restricted.devices.proxy":             "block",
-	"restricted.devices.nic":               "managed",
-	"restricted.devices.disk":              "managed",
-	"restricted.devices.disk.paths":        "",
-	"restricted.idmap.uid":                 "",
-	"restricted.idmap.gid":                 "",
-	"restricted.networks.access":           "",
-	"restricted.snapshots":                 "block",
-	"restricted.registries":                "builtin",
+	"restricted.backups":                    "block",
+	"restricted.cluster.groups":             "",
+	"restricted.cluster.target":             "block",
+	"restricted.containers.nesting":         "block",
+	"restricted.containers.interception":    "block",
+	"restricted.containers.lowlevel":        "block",
+	"restricted.containers.privilege":       "unprivileged",
+	"restricted.virtual-machines.lowlevel":  "block",
+	"restricted.virtual-machines.emulation": "block",
+	"restricted.devices.unix-char":          "block",
+	"restricted.devices.unix-block":         "block",
+	"restricted.devices.unix-hotplug":       "block",
+	"restricted.devices.infiniband":         "block",
+	"restricted.devices.gpu":                "block",
+	"restricted.devices.usb":                "block",
+	"restricted.devices.pci":                "block",
+	"restricted.devices.proxy":              "block",
+	"restricted.devices.nic":                "managed",
+	"restricted.devices.disk":               "managed",
+	"restricted.devices.disk.paths":         "",
+	"restricted.idmap.uid":                  "",
+	"restricted.idmap.gid":                  "",
+	"restricted.networks.access":            "",
+	"restricted.snapshots":                  "block",
+	"restricted.registries":                 "builtin",
 }
 
 // allowableIntercept lists all syscall interception keys which may be allowed.
@@ -1688,6 +1702,15 @@ func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
 func AllowSnapshotCreation(p *api.Project) error {
 	if projectHasRestriction(p, "restricted.snapshots", "block") {
 		return fmt.Errorf("Project %q does not allow for snapshot creation", p.Name)
+	}
+
+	return nil
+}
+
+// AllowVMEmulation returns an error if the project does not allow virtual machines using emulation.
+func AllowVMEmulation(p *api.Project) error {
+	if projectHasRestriction(p, "restricted.virtual-machines.emulation", "block") {
+		return fmt.Errorf("Project %q does not allow virtual machines using emulation", p.Name)
 	}
 
 	return nil

@@ -88,6 +88,35 @@ func TestGetArchitectureFirmwareVarsCandidates(t *testing.T) {
 	if !slices.Contains(armCandidates, "AAVMF_VARS.fd") {
 		t.Error("arm64 vars candidates missing AAVMF_VARS.fd")
 	}
+
+	emulatedVars := map[int]string{
+		osarch.ARCH_64BIT_RISCV_LITTLE_ENDIAN: "RISCV_VIRT_VARS.fd",
+		osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN: "UBOOT_ARM_VARS.fd",
+	}
+
+	for arch, want := range emulatedVars {
+		if !slices.Contains(GetArchitectureFirmwareVarsCandidates(arch), want) {
+			t.Errorf("Architecture %d vars candidates missing %q", arch, want)
+		}
+	}
+}
+
+// TestArchitectureInstallationsARMv7 asserts that 32-bit ARM only offers the generic U-Boot
+// firmware so that secure boot requests fail rather than selecting an unrelated firmware.
+func TestArchitectureInstallationsARMv7(t *testing.T) {
+	installations := architectureInstallations[osarch.ARCH_32BIT_ARMV7_LITTLE_ENDIAN]
+	if len(installations) != 1 {
+		t.Fatalf("Expected a single armv7l installation, got %d", len(installations))
+	}
+
+	want := map[FirmwareUsage][]FirmwarePair{
+		GENERIC: {{Code: "UBOOT_ARM_CODE.fd", Vars: "UBOOT_ARM_VARS.fd"}},
+	}
+
+	got := installations[0].Usage
+	if len(got) != len(want) || !slices.Equal(got[GENERIC], want[GENERIC]) {
+		t.Errorf("Unexpected armv7l firmware usage: %+v", got)
+	}
 }
 
 // TestArchitectureInstallationsPreferenceOrder asserts that the firmware catalog lists the

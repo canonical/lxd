@@ -26,6 +26,7 @@ import (
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/sys"
@@ -751,7 +752,8 @@ func CreateInternal(ctx context.Context, s *state.State, args db.InstanceArgs, c
 		return nil, nil, nil, err
 	}
 
-	if !slices.Contains(s.OS.Architectures, args.Architecture) {
+	emulated := !slices.Contains(s.OS.Architectures, args.Architecture)
+	if emulated && (args.Type != instancetype.VM || !slices.Contains(s.OS.VMArchitectures, args.Architecture)) {
 		return nil, nil, nil, errors.New("Requested architecture is not supported by this host")
 	}
 
@@ -760,8 +762,26 @@ func CreateInternal(ctx context.Context, s *state.State, args db.InstanceArgs, c
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Validate profiles.
 		profiles, err = tx.GetProfileNames(ctx, args.Project)
+		if err != nil {
+			return err
+		}
 
-		return err
+		// Snapshots of existing emulated VMs are not subject to the emulation restriction.
+		if !emulated || args.Snapshot {
+			return nil
+		}
+
+		dbProject, err := cluster.GetProject(ctx, tx.Tx(), args.Project)
+		if err != nil {
+			return err
+		}
+
+		apiProject, err := dbProject.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		return limits.AllowVMEmulation(apiProject)
 	})
 	if err != nil {
 		return nil, nil, nil, err

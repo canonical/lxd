@@ -86,9 +86,24 @@ download_test_images() {
 
         # For containers: .squashfs (rootfs) and the -lxd.tar.xz (metadata) files are needed.
         # For VMs: .img (primary disk) and the -lxd.tar.xz (metadata) files are needed.
-        exec curl --show-error --silent --retry 3 --retry-delay 5 \
-          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}-lxd.tar.xz" --output "ubuntu.metadata" \
+        local downloads=(
+          --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}-lxd.tar.xz" --output "ubuntu.metadata"
           --continue-at - "${base_url}/${distro}-minimal-cloudimg-${arch}.img"        --output "ubuntu.img"
+        )
+
+        # Images for emulated VMs on amd64. Minimal images are not built for those architectures.
+        if [ "${arch}" = "amd64" ]; then
+            local emulated_url="https://cloud-images.ubuntu.com/daily/server/resolute/current"
+            local emulated_arch
+            for emulated_arch in riscv64 armhf; do
+                downloads+=(
+                  --continue-at - "${emulated_url}/resolute-server-cloudimg-${emulated_arch}-lxd.tar.xz" --output "ubuntu-${emulated_arch}.metadata"
+                  --continue-at - "${emulated_url}/resolute-server-cloudimg-${emulated_arch}.img"        --output "ubuntu-${emulated_arch}.img"
+                )
+            done
+        fi
+
+        exec curl --show-error --silent --retry 3 --retry-delay 5 "${downloads[@]}"
     )
 }
 

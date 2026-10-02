@@ -4578,6 +4578,16 @@ The value can also be one of the keywords `allow`, `block`, or `builtin`.
 
 ```
 
+```{config:option} restricted.virtual-machines.emulation project-restricted
+:defaultdesc: "`block`"
+:shortdesc: "When set to `block`, using emulated virtual machine architectures is prevented"
+:type: "string"
+Possible values are `allow` or `block`.
+When set to `allow`, virtual machines can use architectures that the host only supports through emulation.
+Emulation does not provide the isolation guarantees of hardware virtualization.
+See {ref}`architectures-vm-emulation` for more information.
+```
+
 ```{config:option} restricted.virtual-machines.lowlevel project-restricted
 :defaultdesc: "`block`"
 :shortdesc: "When set to `block`, using low-level VM options is prevented"

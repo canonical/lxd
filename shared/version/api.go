@@ -511,6 +511,7 @@ var APIExtensions = []string{
 	"storage_driver_pure_nvmefc",
 	"storage_ceph_replicator",
 	"project_replica_mode_optional",
+	"vm_emulated_architectures",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -338,6 +338,16 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		architectures = append(architectures, architectureName)
 	}
 
+	vmEmulatedArchitectures := make([]string, 0, len(s.OS.VMArchitectures))
+	for _, architecture := range s.OS.VMArchitectures {
+		architectureName, err := osarch.ArchitectureName(architecture)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		vmEmulatedArchitectures = append(vmEmulatedArchitectures, architectureName)
+	}
+
 	projectName := r.FormValue("project")
 	if projectName == "" {
 		projectName = api.ProjectDefaultName
@@ -363,6 +373,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		ServerEventMode:            string(cluster.ServerEventMode()),
 		ServerName:                 serverName,
 		Firewall:                   s.Firewall.String(),
+		VMEmulatedArchitectures:    vmEmulatedArchitectures,
 	}
 
 	env.KernelFeatures = map[string]string{

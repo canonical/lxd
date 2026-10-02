@@ -984,7 +984,7 @@ parts:
       - --disable-qed
       - --disable-sdl
       - --disable-slirp
-      - --disable-tcg  # TCG is not used (nor supported) at runtime
+      - --disable-tcg  # TCG is only enabled for riscv64 (required) and amd64 (cross-architecture emulation)
       - --disable-user
       - --disable-vde
       - --disable-vdi
@@ -1049,6 +1049,9 @@ parts:
         - opensbi # This is needed due to --disable-install-blobs.
         - seabios # This is needed due to --disable-install-blobs.
         - qemu-system-data # This is needed due to --disable-install-blobs.
+      - to amd64:
+        - qemu-efi-riscv64 # Firmware for emulated riscv64 VMs.
+        - u-boot-qemu # Firmware for emulated armhf VMs.
     override-stage: |-
       [ "${CRAFT_ARCH_BUILD_FOR}" = "armhf" ] && exit 0
       craftctl default
@@ -1078,11 +1081,18 @@ parts:
       # Apply patches from Ubuntu sources.
       QUILT_PATCHES=debian/patches quilt push -a
 
-      sed -i "s/^unset target_list$/target_list=\"${QEMUARCH}-softmmu\"/" configure
+      TARGET_LIST="${QEMUARCH}-softmmu"
+      if [ "${QEMUARCH}" = "x86_64" ]; then
+          # Emulators for running riscv64 and armhf VMs through TCG.
+          TARGET_LIST="${TARGET_LIST} riscv64-softmmu arm-softmmu"
+      fi
+
+      sed -i "s/^unset target_list$/target_list=\"${TARGET_LIST}\"/" configure
       sed -i 's#libseccomp_minver=".*#libseccomp_minver="0.0"#g' configure
 
       # As of May 2026 QEMU for riscv64 does not support building with --disable-tcg
-      if [ "${QEMUARCH}" = "riscv64" ]; then
+      # and amd64 needs TCG for its cross-architecture targets.
+      if [ "${QEMUARCH}" = "riscv64" ] || [ "${QEMUARCH}" = "x86_64" ]; then
           # `set -- "$@"`: preserve arguments passed to `configure` and append
           # `--enable-tcg` at the end to override the previous `--disable-tcg`.
           sed -i '1 a set -- "$@" --enable-tcg' configure
@@ -1091,9 +1101,20 @@ parts:
       # opensbi provides `fw_dynamic.bin` and `qemu-system-riscv` creates a
       # symlink. Manually moving the binary into place avoids pulling the QEMU
       # package just for the symlink.
-      if [ "${QEMUARCH}" = "riscv64" ]; then
+      if [ "${QEMUARCH}" = "riscv64" ] || [ "${QEMUARCH}" = "x86_64" ]; then
           mkdir -p "${CRAFT_PART_INSTALL}"/share/qemu/
           mv "${CRAFT_PART_INSTALL}"/usr/lib/riscv64-linux-gnu/opensbi/generic/fw_dynamic.bin "${CRAFT_PART_INSTALL}"/share/qemu/opensbi-riscv64-generic-fw_dynamic.bin
+      fi
+
+      if [ "${QEMUARCH}" = "x86_64" ]; then
+          cp -L "${CRAFT_PART_INSTALL}"/usr/share/qemu-efi-riscv64/RISCV_VIRT_CODE.fd "${CRAFT_PART_INSTALL}"/share/qemu/
+          cp -L "${CRAFT_PART_INSTALL}"/usr/share/qemu-efi-riscv64/RISCV_VIRT_VARS.fd "${CRAFT_PART_INSTALL}"/share/qemu/
+
+          # EDK2 dropped 32-bit ARM support so U-Boot is used instead. The arm virt
+          # machine requires both flash banks (code and vars) to be exactly 64MiB.
+          cp -L "${CRAFT_PART_INSTALL}"/usr/lib/u-boot/qemu_arm/u-boot.bin "${CRAFT_PART_INSTALL}"/share/qemu/UBOOT_ARM_CODE.fd
+          truncate -s 64M "${CRAFT_PART_INSTALL}"/share/qemu/UBOOT_ARM_CODE.fd
+          truncate -s 64M "${CRAFT_PART_INSTALL}"/share/qemu/UBOOT_ARM_VARS.fd
       fi
 
       set +ex
@@ -1130,6 +1151,11 @@ parts:
         - share/qemu/efi-virtio.rom
         - share/qemu/kvmvapic.bin
         - share/qemu/vgabios-virtio.bin
+        - share/qemu/opensbi-riscv64-generic-fw_dynamic.bin
+        - share/qemu/RISCV_VIRT_CODE.fd
+        - share/qemu/RISCV_VIRT_VARS.fd
+        - share/qemu/UBOOT_ARM_CODE.fd
+        - share/qemu/UBOOT_ARM_VARS.fd
       - to arm64:
         - lib/*/libfdt*.so*
         - share/qemu/vgabios-virtio.bin
