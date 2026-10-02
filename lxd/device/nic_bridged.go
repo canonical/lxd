@@ -30,6 +30,7 @@ import (
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/network/openvswitch"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -687,9 +688,11 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 
 // postStart is run after the device is added to the instance.
 func (d *nicBridged) postStart() error {
-	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
-	if err != nil {
-		return err
+	if d.network != nil {
+		err := bgpAddPrefix(&d.deviceCommon, d.network, d.network, d.config)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -790,14 +793,31 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 	}
 
 	// If an external address changed, update the BGP advertisements.
-	err = bgpRemovePrefix(&d.deviceCommon, oldConfig)
-	if err != nil {
-		return err
+	oldNetwork := d.network
+	if oldConfig["network"] != "" && oldConfig["network"] != d.config["network"] {
+		networkProjectName, _, err := project.NetworkProject(d.state.DB.Cluster, d.inst.Project().Name)
+		if err != nil {
+			return fmt.Errorf("Failed loading network project name: %w", err)
+		}
+
+		oldNetwork, err = network.LoadByName(d.state, networkProjectName, oldConfig["network"])
+		if err != nil {
+			return fmt.Errorf("Failed loading old network %q: %w", oldConfig["network"], err)
+		}
 	}
 
-	err = bgpAddPrefix(&d.deviceCommon, d.network, d.config)
-	if err != nil {
-		return err
+	if oldNetwork != nil {
+		err = bgpRemovePrefix(&d.deviceCommon, oldNetwork)
+		if err != nil {
+			return err
+		}
+	}
+
+	if d.network != nil {
+		err = bgpAddPrefix(&d.deviceCommon, d.network, d.network, d.config)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
@@ -807,15 +827,17 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 // Stop is run when the device is removed from the instance.
 func (d *nicBridged) Stop() (*deviceConfig.RunConfig, error) {
 	// Remove BGP announcements.
-	err := bgpRemovePrefix(&d.deviceCommon, d.config)
-	if err != nil {
-		return nil, err
+	if d.network != nil {
+		err := bgpRemovePrefix(&d.deviceCommon, d.network)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Populate device config with volatile fields (hwaddr and host_name) if needed.
 	networkVethFillFromVolatile(d.config, d.volatileGet())
 
-	err = networkClearHostVethLimits(&d.deviceCommon)
+	err := networkClearHostVethLimits(&d.deviceCommon)
 	if err != nil {
 		return nil, err
 	}
@@ -1794,9 +1816,11 @@ func (d *nicBridged) getHostMTU() (int, error) {
 
 // Register sets up anything needed on LXD startup.
 func (d *nicBridged) Register() error {
-	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
-	if err != nil {
-		return err
+	if d.network != nil {
+		err := bgpAddPrefix(&d.deviceCommon, d.network, d.network, d.config)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
