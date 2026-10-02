@@ -1,4 +1,5 @@
 test_bgp() {
+  ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   local BGP_ADDR="127.0.0.1"
@@ -8,6 +9,9 @@ test_bgp() {
   BGP_PORT_ALT="$(local_tcp_port)"
   local BGP_ROUTER_ID="192.0.2.1"
   local BGP_ASN="65000"
+
+  sub_test "Verify BGP debug endpoint reports server not running"
+  lxc query /internal/testing/bgp | jq --exit-status '.server.running == false'
 
   sub_test "Configure BGP listener and verify it is listening on the expected address and port"
   lxc config set core.bgp_address="${BGP_ADDR}:${BGP_PORT}" core.bgp_routerid="${BGP_ROUTER_ID}" core.bgp_asn="${BGP_ASN}"
@@ -79,4 +83,7 @@ test_bgp() {
     echo "ERROR: BGP listener is still up on ${BGP_ADDR}:${BGP_PORT_ALT} after unconfiguration, aborting" >&2
     exit 1
   fi
+
+  sub_test "Verify BGP debug endpoint reports server not running after unconfiguration"
+  lxc query /internal/testing/bgp | jq --exit-status '.server.running == false'
 }

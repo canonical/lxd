@@ -174,7 +174,7 @@ func TestAddRemovePeer(t *testing.T) {
 	s := NewServer()
 	addr := mustParseIP("192.168.1.1")
 
-	err := s.AddPeer(addr, 65000, "", 0)
+	err := s.AddPeer(addr, 65000, "", 0, "owner")
 	require.NoError(t, err)
 	require.Len(t, s.peers, 1)
 
@@ -199,11 +199,11 @@ func TestAddPeerRefcount(t *testing.T) {
 	s := NewServer()
 	addr := mustParseIP("192.168.1.1")
 
-	err := s.AddPeer(addr, 65000, "", 0)
+	err := s.AddPeer(addr, 65000, "", 0, "owner")
 	require.NoError(t, err)
 	require.Equal(t, 1, s.peers[addr.String()].count)
 
-	err = s.AddPeer(addr, 65000, "", 0)
+	err = s.AddPeer(addr, 65000, "", 0, "owner")
 	require.NoError(t, err)
 	require.Equal(t, 2, s.peers[addr.String()].count)
 
@@ -225,10 +225,10 @@ func TestAddPeerConflictASN(t *testing.T) {
 	s := NewServer()
 	addr := mustParseIP("192.168.1.1")
 
-	err := s.AddPeer(addr, 65000, "", 0)
+	err := s.AddPeer(addr, 65000, "", 0, "owner")
 	require.NoError(t, err)
 
-	err = s.AddPeer(addr, 65001, "", 0)
+	err = s.AddPeer(addr, 65001, "", 0, "owner")
 	require.Error(t, err)
 }
 
@@ -238,9 +238,158 @@ func TestAddPeerConflictPassword(t *testing.T) {
 	s := NewServer()
 	addr := mustParseIP("192.168.1.1")
 
-	err := s.AddPeer(addr, 65000, "secret", 0)
+	err := s.AddPeer(addr, 65000, "secret", 0, "owner")
 	require.NoError(t, err)
 
-	err = s.AddPeer(addr, 65000, "different", 0)
+	err = s.AddPeer(addr, 65000, "different", 0, "owner")
 	require.Error(t, err)
+}
+
+// TestDebugNotRunning verifies that Debug returns a payload with Running=false
+// when the BGP server is not running.
+func TestDebugNotRunning(t *testing.T) {
+	s := NewServer()
+	debug := s.Debug()
+	require.False(t, debug.Server.Running)
+	require.Empty(t, debug.Peers)
+	require.Empty(t, debug.Prefixes)
+}
+
+// TestDebugRunning verifies that Debug returns accurate GoBGP RIB paths,
+// peers, and server status when the server is running.
+func TestDebugRunning(t *testing.T) {
+	s := NewServer()
+	err := s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = s.stop()
+	})
+
+	v4Subnet := mustParseCIDR("192.0.2.0/24")
+	v4Nexthop := mustParseIP("192.0.2.1")
+	v6Subnet := mustParseCIDR("2001:db8:bbbb::/64")
+	v6Nexthop := mustParseIP("2001:db8:bbbb::1")
+	peerAddr := mustParseIP("127.0.0.2")
+
+	err = s.AddPrefix(v4Subnet, v4Nexthop, "test-owner")
+	require.NoError(t, err)
+
+	err = s.AddPrefix(v6Subnet, v6Nexthop, "test-owner")
+	require.NoError(t, err)
+
+	err = s.AddPeer(peerAddr, 65001, "secret", 30, "test-owner")
+	require.NoError(t, err)
+
+	debug := s.Debug()
+
+	require.True(t, debug.Server.Running)
+	require.Equal(t, uint32(65000), debug.Server.ASN)
+	require.Equal(t, "192.0.2.1", debug.Server.RouterID)
+
+	require.Len(t, debug.Peers, 1)
+	require.Equal(t, peerAddr.String(), debug.Peers[0].Address)
+	require.Equal(t, uint32(65001), debug.Peers[0].ASN)
+	require.Equal(t, "secret", debug.Peers[0].Password)
+	require.Equal(t, uint64(30), debug.Peers[0].HoldTime)
+
+	require.Len(t, debug.Prefixes, 2)
+	prefixMap := map[string]DebugInfoPrefix{}
+	for _, p := range debug.Prefixes {
+		prefixMap[p.Prefix] = p
+	}
+
+	p4, ok := prefixMap["192.0.2.0/24"]
+	require.True(t, ok)
+	require.Equal(t, "192.0.2.1", p4.Nexthop)
+	require.Equal(t, "test-owner", p4.Owner)
+
+	p6, ok := prefixMap["2001:db8:bbbb::/64"]
+	require.True(t, ok)
+	require.Equal(t, "2001:db8:bbbb::1", p6.Nexthop)
+	require.Equal(t, "test-owner", p6.Owner)
+}
+
+// TestMultiNetworkExportPolicy verifies that routes from multiple networks with different
+// next-hops are properly isolated and associated per peer based on network owner as reported
+// by Server.Debug().
+func TestMultiNetworkExportPolicy(t *testing.T) {
+	s := NewServer()
+	err := s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = s.stop()
+	})
+
+	net1Subnet := mustParseCIDR("10.10.0.0/24")
+	net1Default := mustParseCIDR("0.0.0.0/0")
+	net1Nexthop := mustParseIP("192.168.1.1")
+	peer1Addr := mustParseIP("127.0.0.2")
+
+	net2Subnet := mustParseCIDR("10.20.0.0/24")
+	net2Default := mustParseCIDR("0.0.0.0/0")
+	net2Nexthop := mustParseIP("192.168.2.1")
+	peer2Addr := mustParseIP("127.0.0.3")
+
+	// Add prefixes for network 1
+	err = s.AddPrefix(net1Subnet, net1Nexthop, "network_1")
+	require.NoError(t, err)
+	err = s.AddPrefix(net1Default, net1Nexthop, "network_1")
+	require.NoError(t, err)
+
+	// Add prefixes for network 2
+	err = s.AddPrefix(net2Subnet, net2Nexthop, "network_2")
+	require.NoError(t, err)
+	err = s.AddPrefix(net2Default, net2Nexthop, "network_2")
+	require.NoError(t, err)
+
+	// Add peers for network 1 and network 2
+	err = s.AddPeer(peer1Addr, 65001, "", 30, "network_1")
+	require.NoError(t, err)
+	err = s.AddPeer(peer2Addr, 65002, "", 30, "network_2")
+	require.NoError(t, err)
+
+	debug := s.Debug()
+	require.Len(t, debug.Peers, 2)
+
+	// Verify peer 1 only receives network 1 routes with network 1 next-hop.
+	var peer1Routes, peer2Routes []DebugInfoPrefix
+	for _, p := range debug.Peers {
+		switch p.Address {
+		case "127.0.0.2":
+			peer1Routes = p.Routes
+		case "127.0.0.3":
+			peer2Routes = p.Routes
+		}
+	}
+
+	require.Len(t, peer1Routes, 2)
+	require.Contains(t, peer1Routes, DebugInfoPrefix{Owner: "network_1", Prefix: "10.10.0.0/24", Nexthop: "192.168.1.1"})
+	require.Contains(t, peer1Routes, DebugInfoPrefix{Owner: "network_1", Prefix: "0.0.0.0/0", Nexthop: "192.168.1.1"})
+
+	// Verify peer 2 only receives network 2 routes with network 2 next-hop.
+	require.Len(t, peer2Routes, 2)
+	require.Contains(t, peer2Routes, DebugInfoPrefix{Owner: "network_2", Prefix: "10.20.0.0/24", Nexthop: "192.168.2.1"})
+	require.Contains(t, peer2Routes, DebugInfoPrefix{Owner: "network_2", Prefix: "0.0.0.0/0", Nexthop: "192.168.2.1"})
+
+	// Also test IPv6 default route (::/0) isolation.
+	net1DefaultV6 := mustParseCIDR("::/0")
+	net1NexthopV6 := mustParseIP("2001:db8:1111::1")
+	net2DefaultV6 := mustParseCIDR("::/0")
+	net2NexthopV6 := mustParseIP("2001:db8:2222::1")
+
+	err = s.AddPrefix(net1DefaultV6, net1NexthopV6, "network_1")
+	require.NoError(t, err)
+	err = s.AddPrefix(net2DefaultV6, net2NexthopV6, "network_2")
+	require.NoError(t, err)
+
+	debug = s.Debug()
+
+	for _, p := range debug.Peers {
+		switch p.Address {
+		case "127.0.0.2":
+			require.Contains(t, p.Routes, DebugInfoPrefix{Owner: "network_1", Prefix: "::/0", Nexthop: "2001:db8:1111::1"})
+		case "127.0.0.3":
+			require.Contains(t, p.Routes, DebugInfoPrefix{Owner: "network_2", Prefix: "::/0", Nexthop: "2001:db8:2222::1"})
+		}
+	}
 }

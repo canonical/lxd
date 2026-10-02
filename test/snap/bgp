@@ -92,6 +92,7 @@ waitFRRPrefix() (
     vtysh -c "show bgp ipv${family} unicast"
     # Tells apart a prefix LXD never sent from one FRR received and then dropped.
     vtysh -c "show bgp ipv${family} unicast neighbors ${LXD_ADDR} received-routes"
+    lxdBGPDump
     return 1 # Failed.
 )
 
@@ -117,6 +118,49 @@ waitFRRSession() (
 
     echo "BGP session with ${LXD_ADDR} is ${state}, expected to be ${wanted} after ${maxWait}s"
     vtysh -c "show bgp summary"
+    lxdBGPDump
+    return 1 # Failed.
+)
+
+# lxdBGPDump: print LXD's own view of the BGP server (peers and the routes it
+# believes it advertises to each peer) from the internal testing endpoint. This
+# distinguishes a route LXD never programmed into GoBGP from one GoBGP exported
+# but FRR dropped.
+lxdBGPDump() (
+    { set +x; } 2>/dev/null
+    echo "==> LXD BGP internal state (/internal/testing/bgp)"
+    lxc query /internal/testing/bgp || echo "Failed querying /internal/testing/bgp"
+)
+
+# waitLXDPrefix: wait until LXD's internal state reports a prefix advertised to
+# the FRR peer, optionally via a given next-hop. This asserts LXD programmed the
+# route into GoBGP before we wait on FRR to receive it, so a failure points at
+# the right side of the session.
+# Usage: waitLXDPrefix <prefix> <present|absent> [next-hop]
+waitLXDPrefix() (
+    { set +x; } 2>/dev/null
+    local prefix="${1}"
+    local wanted="${2}"
+    local nexthop="${3:-}"
+    local maxWait="${MAX_WAIT_SECONDS:-60}"
+    local count=""
+
+    for _ in $(seq "${maxWait}"); do
+        count="$(lxc query /internal/testing/bgp 2>/dev/null | jq --exit-status --raw-output \
+            --arg peer "${FRR_ADDR}" --arg prefix "${prefix}" --arg nexthop "${nexthop}" \
+            '[.peers[] | select(.address == $peer) | .routes[] | select(.prefix == $prefix) | select($nexthop == "" or .nexthop == $nexthop)] | length' 2>/dev/null || echo 0)"
+        if [ "${wanted}" = "present" ] && [ "${count}" -gt 0 ]; then
+            return 0 # Success.
+        fi
+
+        if [ "${wanted}" = "absent" ] && [ "${count}" -eq 0 ]; then
+            return 0 # Success.
+        fi
+        sleep 1
+    done
+
+    echo "LXD internal state: prefix ${prefix} expected ${wanted}${nexthop:+ via ${nexthop}} for peer ${FRR_ADDR} after ${maxWait}s, got ${count} matching route(s)"
+    lxdBGPDump
     return 1 # Failed.
 )
 
@@ -209,18 +253,27 @@ lxc network create "${BGP_NET}" \
 
 waitFRRSession up
 
+echo "==> Checking LXD programmed the network subnets into GoBGP"
+lxdBGPDump
+waitLXDPrefix "${NET_SUBNET4}" present "${NEXTHOP4}"
+waitLXDPrefix "${NET_SUBNET6}" present "${NEXTHOP6}"
+
 echo "==> Checking the network subnets are advertised"
 waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
 waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
 
 echo "==> Checking next-hop changes are re-advertised"
 lxc network set "${BGP_NET}" bgp.ipv4.nexthop="${ALT_NEXTHOP4}" bgp.ipv6.nexthop="${ALT_NEXTHOP6}"
+waitLXDPrefix "${NET_SUBNET4}" present "${ALT_NEXTHOP4}"
+waitLXDPrefix "${NET_SUBNET6}" present "${ALT_NEXTHOP6}"
 waitFRRPrefix 4 "${NET_SUBNET4}" present "${ALT_NEXTHOP4}"
 waitFRRPrefix 6 "${NET_SUBNET6}" present "${ALT_NEXTHOP6}"
 waitFRRPrefix 4 "${NET_SUBNET4}" absent "${NEXTHOP4}"
 waitFRRPrefix 6 "${NET_SUBNET6}" absent "${NEXTHOP6}"
 
 lxc network set "${BGP_NET}" bgp.ipv4.nexthop="${NEXTHOP4}" bgp.ipv6.nexthop="${NEXTHOP6}"
+waitLXDPrefix "${NET_SUBNET4}" present "${NEXTHOP4}"
+waitLXDPrefix "${NET_SUBNET6}" present "${NEXTHOP6}"
 waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
 waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
 waitFRRPrefix 4 "${NET_SUBNET4}" absent "${ALT_NEXTHOP4}"
@@ -236,11 +289,15 @@ waitFRRPrefix 4 "${NIC_ROUTE4}" absent
 waitFRRPrefix 6 "${NIC_ROUTE6}" absent
 
 lxc start c1
+waitLXDPrefix "${NIC_ROUTE4}" present "${NEXTHOP4}"
+waitLXDPrefix "${NIC_ROUTE6}" present "${NEXTHOP6}"
 waitFRRPrefix 4 "${NIC_ROUTE4}" present "${NEXTHOP4}"
 waitFRRPrefix 6 "${NIC_ROUTE6}" present "${NEXTHOP6}"
 
 echo "==> Checking external routes are withdrawn when the instance stops"
 lxc delete -f c1
+waitLXDPrefix "${NIC_ROUTE4}" absent
+waitLXDPrefix "${NIC_ROUTE6}" absent
 waitFRRPrefix 4 "${NIC_ROUTE4}" absent
 waitFRRPrefix 6 "${NIC_ROUTE6}" absent
 
@@ -255,10 +312,14 @@ fi
 
 echo "==> Checking NATed subnets are no longer advertised"
 lxc network set "${BGP_NET}" ipv4.nat=true ipv6.nat=true
+waitLXDPrefix "${NET_SUBNET4}" absent
+waitLXDPrefix "${NET_SUBNET6}" absent
 waitFRRPrefix 4 "${NET_SUBNET4}" absent
 waitFRRPrefix 6 "${NET_SUBNET6}" absent
 
 lxc network set "${BGP_NET}" ipv4.nat=false ipv6.nat=false
+waitLXDPrefix "${NET_SUBNET4}" present "${NEXTHOP4}"
+waitLXDPrefix "${NET_SUBNET6}" present "${NEXTHOP6}"
 waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
 waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
 
@@ -278,6 +339,8 @@ lxc network set "${BGP_NET}" \
     bgp.peers.frr.password="${BGP_PASSWORD}" \
     ${peer_holdtime} # Don't quote to omit the empty arg.
 waitFRRSession up
+waitLXDPrefix "${NET_SUBNET4}" present "${NEXTHOP4}"
+waitLXDPrefix "${NET_SUBNET6}" present "${NEXTHOP6}"
 waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
 waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
 

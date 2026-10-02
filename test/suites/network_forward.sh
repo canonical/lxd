@@ -29,13 +29,26 @@ test_network_forward() {
     ! nft -nn list chain inet lxd "fwdpstrt.${netName}" || false
   fi
 
-  # Check forward is exported via BGP prefixes.
-  lxc query /internal/testing/bgp | grep -F "198.51.100.1/32"
-
   # Enable the BGP listener
   lxc config set core.bgp_address="${bgpIP}:8874"
   lxc config set core.bgp_asn=65536
   lxc config set core.bgp_routerid="${bgpIP}"
+
+  # Check forward is exported via BGP prefixes.
+  local prefix_found=false
+  for _ in $(seq 30); do
+    if lxc query /internal/testing/bgp 2>/dev/null | grep -F "198.51.100.1/32" >/dev/null; then
+      prefix_found=true
+      break
+    fi
+
+    sleep 1
+  done
+
+  # Only query again on failure to produce the diagnostic error output.
+  if [ "${prefix_found}" != "true" ]; then
+    lxc query /internal/testing/bgp | grep -F "198.51.100.1/32"
+  fi
 
   # Check that the listener survives a restart of LXD
   shutdown_lxd "${LXD_DIR}"
@@ -44,7 +57,20 @@ test_network_forward() {
   lxc network forward delete "${netName}" 198.51.100.1
 
   # Check deleting network forward removes forward BGP prefix.
-  ! lxc query /internal/testing/bgp | grep -F "198.51.100.1/32" || false
+  local prefix_absent=false
+  for _ in $(seq 30); do
+    if ! lxc query /internal/testing/bgp 2>/dev/null | grep -F "198.51.100.1/32" >/dev/null; then
+      prefix_absent=true
+      break
+    fi
+
+    sleep 1
+  done
+
+  # Only query again on failure to produce the diagnostic error output.
+  if [ "${prefix_absent}" != "true" ]; then
+    ! lxc query /internal/testing/bgp | grep -F "198.51.100.1/32" || false
+  fi
 
   # Check creating forward with default target creates valid firewall rules.
   lxc network forward create "${netName}" 198.51.100.1 target_address=192.0.2.2

@@ -869,7 +869,7 @@ func (n *common) bgpSetupPeers(oldConfig map[string]string) error {
 			}
 		}
 
-		err = n.state.BGP.AddPeer(net.ParseIP(fields[0]), uint32(asn), fields[2], holdTime)
+		err = n.state.BGP.AddPeer(net.ParseIP(fields[0]), uint32(asn), fields[2], holdTime, fmt.Sprintf("network_%d", n.id))
 		if err != nil {
 			return err
 		}
