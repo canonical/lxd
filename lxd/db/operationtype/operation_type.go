@@ -565,8 +565,8 @@ func (t Type) ConflictAction() ConflictAction {
 	switch t {
 	case Wait:
 		return ConflictActionFail
-	case ClusterMemberEvacuate:
-		return ConflictActionFail // Enforces cluster-wide evacuation exclusivity when used with a shared ConflictReference; this prevents evacuation race conditions.
+	case ClusterMemberEvacuate, ClusterMemberRestore:
+		return ConflictActionFail // Both share one ConflictReference so evacuations and restores are mutually exclusive cluster-wide.
 	case ReplicatorRun:
 		return ConflictActionFail // Prevents concurrent runs of the same replicator; the replicator URL is used as the per-replicator conflict reference.
 	case ProjectReplicaModeUpdate:
