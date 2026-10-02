@@ -136,6 +136,12 @@ func (d *pure) FillConfig() error {
 // Validate checks that all provided keys are supported and there is no conflicting or missing configuration.
 func (d *pure) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
+		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=size)
+		// Size in bytes LXD sets as the quota of the Pure Storage pod.
+		// ---
+		//  type: string
+		//  shortdesc: Size of the storage pool
+		//  scope: local
 		"size": validate.Optional(validate.IsSize),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.api.token)
 		// API authorization token for Pure Storage gateway. Must have array_admin role to give LXD full control over managed storage pools (Pure Storage pods).

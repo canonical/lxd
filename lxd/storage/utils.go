@@ -544,7 +544,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 		//  shortdesc: Whether to wipe the block device before creating the pool
 		//  scope: local
 		"source.wipe": validate.Optional(validate.IsBool),
-		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-btrfs,storage-zfs,storage-ceph,storage-cephfs; group=pool-conf; key=source.recover)
+		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-btrfs,storage-zfs,storage-ceph,storage-cephfs,storage-powerflex,storage-powerstore,storage-pure,storage-alletra,storage-cephobject; group=pool-conf; key=source.recover)
 		// Set this option to true to recover an existing source which was previously created by LXD.
 		// ---
 		//  type: bool
@@ -553,7 +553,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 		//  scope: local
 		"source.recover":          validate.Optional(validate.IsBool),
 		"volatile.initial_source": validate.IsAny,
-		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-powerflex,storage-powerstore,storage-pure,storage-alletra; group=pool-conf; key=rsync.bwlimit)
+		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-btrfs,storage-zfs,storage-ceph,storage-cephfs,storage-powerflex,storage-powerstore,storage-pure,storage-alletra; group=pool-conf; key=rsync.bwlimit)
 		// When `rsync` must be used to transfer storage entities, this option specifies the upper limit
 		// to be placed on the socket I/O.
 		// ---
@@ -562,7 +562,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 		//  shortdesc: Upper limit on the socket I/O for `rsync`
 		//  scope: global
 		"rsync.bwlimit": validate.Optional(validate.IsSize),
-		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-powerflex,storage-powerstore,storage-pure,storage-alletra; group=pool-conf; key=rsync.compression)
+		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-btrfs,storage-zfs,storage-ceph,storage-cephfs,storage-powerflex,storage-powerstore,storage-pure,storage-alletra; group=pool-conf; key=rsync.compression)
 		//
 		// ---
 		//  type: bool
@@ -570,6 +570,13 @@ func validatePoolCommonRules() map[string]func(string) error {
 		//  shortdesc: Whether to use compression while migrating storage pools
 		//  scope: global
 		"rsync.compression": validate.Optional(validate.IsBool),
+
+		// lxdmeta:generate(entities=storage-dir,storage-lvm,storage-btrfs,storage-zfs,storage-ceph,storage-cephfs,storage-powerflex,storage-powerstore,storage-pure,storage-alletra,storage-cephobject; group=pool-conf; key=user.*)
+		//
+		// ---
+		//  type: string
+		//  shortdesc: User-provided free-form key/value pairs
+		//  scope: global
 	}
 
 	// Add to pool config rules (prefixed with volume.*) which are common for pool and volume.
@@ -619,6 +626,20 @@ func validateLocalPoolCommonRules() map[string]func(string) error {
 // validateVolumeCommonRules returns a map of volume config rules common to all drivers.
 func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error {
 	rules := poolAndVolumeCommonRules(&vol)
+
+	// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-powerstore,storage-pure,storage-alletra; group=volume-conf; key=user.*)
+	//
+	// ---
+	//  type: string
+	//  shortdesc: User-provided free-form key/value pairs
+	//  scope: global
+
+	// lxdmeta:generate(entities=storage-cephobject; group=bucket-conf; key=user.*)
+	//
+	// ---
+	//  type: string
+	//  shortdesc: User-provided free-form key/value pairs
+	//  scope: global
 
 	// lxdmeta:generate(entities=storage-btrfs,storage-cephfs,storage-ceph,storage-dir,storage-lvm,storage-zfs,storage-powerflex,storage-powerstore,storage-pure,storage-alletra; group=volume-conf; key=volatile.idmap.last)
 	//

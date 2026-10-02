@@ -190,7 +190,12 @@ func parse(path string, outputJSONPath string, excludedPaths []string, substitut
 		// Loop in comment groups
 		for _, cg := range f.Comments {
 			s := cg.Text()
-			for _, match := range globalLxdDocRegex.FindAllStringSubmatch(s, -1) {
+			matches := globalLxdDocRegex.FindAllStringSubmatch(s, -1)
+			if len(matches) == 0 && strings.Contains(s, "lxdmeta:generate") {
+				return fmt.Errorf("Missing %q separator in lxdmeta:generate comment at %s", "---", fset.Position(cg.Pos()).String())
+			}
+
+			for _, match := range matches {
 				// check that the match contains the expected number of groups
 				if len(match) != 4 {
 					continue

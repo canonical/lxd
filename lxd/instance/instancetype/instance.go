@@ -1349,25 +1349,25 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 
 		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.pci.driver)
 		// Name of driver device was using on host.
-		// --
+		// ---
 		//  type: string
 		//  shortdesc: Name of driver device was using on host
 		if strings.HasSuffix(key, ".last_state.pci.driver") {
 			return validate.IsAny, nil
 		}
 
-		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.<name>.last_state.usb.bus)
+		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.usb.bus)
 		// USB Bus Number.
-		// --
+		// ---
 		//  type: string
 		//  shortdesc: USB Bus Number
 		if strings.HasSuffix(key, ".last_state.usb.bus") {
 			return validate.IsAny, nil
 		}
 
-		// lxdmeta:generate(entities=network-physical; group=volatile; key=volatile.<name>.last_state.usb.device)
+		// lxdmeta:generate(entities=instance; group=volatile; key=volatile.<name>.last_state.usb.device)
 		// USB Device Number.
-		// --
+		// ---
 		//  type: string
 		//  shortdesc: USB Device Number
 		if strings.HasSuffix(key, ".last_state.usb.device") {
@@ -1422,6 +1422,12 @@ func ConfigKeyChecker(key string, instanceType Type) (func(value string) error, 
 		return validate.IsAny, nil
 	}
 
+	// lxdmeta:generate(entities=instance; group=miscellaneous; key=image.*)
+	// A property of the image that the instance was created from (not set if the instance was not created from an image).
+	// ---
+	//  type: string
+	//  liveupdate: yes
+	//  shortdesc: Property of the base image
 	knownPrefixes := append(ConfigKeyPrefixesAny, ConfigKeyPrefixesContainer...)
 	if shared.StringHasPrefix(key, knownPrefixes...) {
 		return validate.IsAny, nil

@@ -310,6 +310,14 @@
 							"shortdesc": "Type of the backing storage volume",
 							"type": "string"
 						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
 					}
 				]
 			}
@@ -344,6 +352,14 @@
 						"productid": {
 							"longdesc": "",
 							"shortdesc": "Product ID of the GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					},
@@ -399,6 +415,14 @@
 						"productid": {
 							"longdesc": "",
 							"shortdesc": "Product ID of the GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					},
@@ -464,6 +488,14 @@
 						}
 					},
 					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"vendorid": {
 							"longdesc": "",
 							"shortdesc": "Vendor ID of the GPU device",
@@ -494,6 +526,14 @@
 						"productid": {
 							"longdesc": "",
 							"shortdesc": "Product ID of the parent GPU device",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					},
@@ -550,6 +590,14 @@
 							"longdesc": "",
 							"required": "yes",
 							"shortdesc": "The name of the host device or bridge",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					}
@@ -745,6 +793,14 @@
 						}
 					},
 					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"vlan": {
 							"longdesc": "Set this option to `none` to remove the port from the default VLAN.",
 							"managed": "no",
@@ -859,6 +915,14 @@
 						}
 					},
 					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"vlan": {
 							"longdesc": "",
 							"shortdesc": "VLAN ID to attach to",
@@ -929,6 +993,14 @@
 							"managed": "yes",
 							"required": "if specifying the `nictype` directly",
 							"shortdesc": "Name of the host device",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					},
@@ -1108,6 +1180,14 @@
 						}
 					},
 					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"vlan": {
 							"longdesc": "See also {config:option}`device-nic-ovn-device-conf:nested`.",
 							"managed": "no",
@@ -1208,6 +1288,14 @@
 							"shortdesc": "Transmit queue length for the NIC",
 							"type": "integer"
 						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
 					}
 				]
 			}
@@ -1275,6 +1363,14 @@
 							"managed": "yes",
 							"required": "if specifying the `nictype` directly",
 							"shortdesc": "Name of the host device",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					},
@@ -1466,6 +1562,14 @@
 						}
 					},
 					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"vlan": {
 							"longdesc": "",
 							"shortdesc": "VLAN ID to attach to",
@@ -1540,6 +1644,14 @@
 						}
 					},
 					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"vlan": {
 							"longdesc": "",
 							"managed": "no",
@@ -1558,6 +1670,14 @@
 							"longdesc": "",
 							"required": "yes",
 							"shortdesc": "PCI address of the device",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					}
@@ -1654,6 +1774,14 @@
 							"shortdesc": "UID of the owner of the listening Unix socket",
 							"type": "integer"
 						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
 					}
 				]
 			}
@@ -1674,6 +1802,14 @@
 							"longdesc": "For example: `/dev/tpmrm0`",
 							"required": "for containers",
 							"shortdesc": "Resource manager path inside the container",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					}
@@ -1746,6 +1882,14 @@
 							"shortdesc": "UID of the device owner in the container",
 							"type": "integer"
 						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
 					}
 				]
 			}
@@ -1816,6 +1960,14 @@
 							"shortdesc": "UID of the device owner in the container",
 							"type": "integer"
 						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
 					}
 				]
 			}
@@ -1875,6 +2027,14 @@
 							"longdesc": "",
 							"shortdesc": "UID of the device owner in the container",
 							"type": "integer"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
 						}
 					},
 					{
@@ -1951,6 +2111,14 @@
 							"longdesc": "",
 							"shortdesc": "UID of the device owner in the instance",
 							"type": "integer"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
 						}
 					},
 					{
@@ -2209,6 +2377,14 @@
 							"liveupdate": "yes",
 							"longdesc": "Extra environment variables to set on boot (for containers) and during exec.",
 							"shortdesc": "Free-form environment key/value",
+							"type": "string"
+						}
+					},
+					{
+						"image.*": {
+							"liveupdate": "yes",
+							"longdesc": "A property of the image that the instance was created from (not set if the instance was not created from an image).",
+							"shortdesc": "Property of the base image",
 							"type": "string"
 						}
 					},
@@ -2935,6 +3111,27 @@
 						"volatile.\u003cname\u003e.last_state.mtu": {
 							"longdesc": "The original MTU that was used when moving a physical device into an instance.",
 							"shortdesc": "Network device original MTU",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.\u003cname\u003e.last_state.pci.driver": {
+							"longdesc": "Name of driver device was using on host.",
+							"shortdesc": "Name of driver device was using on host",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.\u003cname\u003e.last_state.usb.bus": {
+							"longdesc": "USB Bus Number.",
+							"shortdesc": "USB Bus Number",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.\u003cname\u003e.last_state.usb.device": {
+							"longdesc": "USB Device Number.",
+							"shortdesc": "USB Device Number",
 							"type": "string"
 						}
 					},
@@ -4066,6 +4263,14 @@
 							"shortdesc": "Port used on instances for ingress pool traffic",
 							"type": "string"
 						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"required": "no",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
 					}
 				]
 			}
@@ -4340,6 +4545,20 @@
 						"user.*": {
 							"longdesc": "",
 							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.network.ipv4.address": {
+							"longdesc": "If not set, LXD allocates an address from the `ipv4.ovn.ranges` of the uplink network.",
+							"shortdesc": "IPv4 address for the OVN network router on the uplink network",
+							"type": "string"
+						}
+					},
+					{
+						"volatile.network.ipv6.address": {
+							"longdesc": "If not set, LXD allocates an address from the `ipv6.ovn.ranges` of the uplink network.\nIf the uplink network has no `ipv6.ovn.ranges`, LXD derives the address from the MAC address of the OVN network router.",
+							"shortdesc": "IPv6 address for the OVN network router on the uplink network",
 							"type": "string"
 						}
 					}
@@ -5690,6 +5909,14 @@
 						}
 					},
 					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"user.instances.placement.scriptlet": {
 							"longdesc": "Stores the migrated value from the deprecated `instances.placement.scriptlet` configuration key. LXD ignores this key; changing it has no effect. It exists only to preserve previously stored data and may be removed in a future release.\n",
 							"scope": "global",
@@ -5853,6 +6080,23 @@
 						}
 					},
 					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to true to recover an existing source which was previously created by LXD.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"volume.size": {
 							"defaultdesc": "`10GiB`",
 							"longdesc": "Default storage volume size rounded to 256MiB. The minimum size is 256MiB.",
@@ -5951,6 +6195,14 @@
 						}
 					},
 					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.devlxd.owner": {
 							"defaultdesc": "DevLXD owner identity ID",
 							"longdesc": "",
@@ -6000,6 +6252,24 @@
 						}
 					},
 					{
+						"rsync.bwlimit": {
+							"defaultdesc": "`0` (no limit)",
+							"longdesc": "When `rsync` must be used to transfer storage entities, this option specifies the upper limit\nto be placed on the socket I/O.",
+							"scope": "global",
+							"shortdesc": "Upper limit on the socket I/O for `rsync`",
+							"type": "string"
+						}
+					},
+					{
+						"rsync.compression": {
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "Whether to use compression while migrating storage pools",
+							"type": "bool"
+						}
+					},
+					{
 						"size": {
 							"defaultdesc": "auto (20% of free disk space, \u003e= 5 GiB and \u003c= 30 GiB)",
 							"longdesc": "When creating loop-based pools, specify the size in bytes ({ref}`suffixes \u003cinstances-limit-units\u003e` are supported).\nYou can increase the size to grow the storage pool.\n\nThe default (`auto`) creates a storage pool that uses 20% of the free disk space,\nwith a minimum of 5 GiB and a maximum of 30 GiB.",
@@ -6032,6 +6302,14 @@
 							"scope": "local",
 							"shortdesc": "Whether to wipe the block device before creating the pool",
 							"type": "bool"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
 						}
 					}
 				]
@@ -6105,6 +6383,14 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					},
@@ -6236,12 +6522,38 @@
 						}
 					},
 					{
+						"rsync.bwlimit": {
+							"defaultdesc": "`0` (no limit)",
+							"longdesc": "When `rsync` must be used to transfer storage entities, this option specifies the upper limit\nto be placed on the socket I/O.",
+							"scope": "global",
+							"shortdesc": "Upper limit on the socket I/O for `rsync`",
+							"type": "string"
+						}
+					},
+					{
+						"rsync.compression": {
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "Whether to use compression while migrating storage pools",
+							"type": "bool"
+						}
+					},
+					{
 						"source.recover": {
 							"defaultdesc": "`false`",
 							"longdesc": "Set this option to true to recover an existing source which was previously created by LXD.",
 							"scope": "local",
 							"shortdesc": "Whether to recover an existing `source`",
 							"type": "bool"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
 						}
 					},
 					{
@@ -6344,6 +6656,14 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					},
@@ -6465,12 +6785,38 @@
 						}
 					},
 					{
+						"rsync.bwlimit": {
+							"defaultdesc": "`0` (no limit)",
+							"longdesc": "When `rsync` must be used to transfer storage entities, this option specifies the upper limit\nto be placed on the socket I/O.",
+							"scope": "global",
+							"shortdesc": "Upper limit on the socket I/O for `rsync`",
+							"type": "string"
+						}
+					},
+					{
+						"rsync.compression": {
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "Whether to use compression while migrating storage pools",
+							"type": "bool"
+						}
+					},
+					{
 						"source.recover": {
 							"defaultdesc": "`false`",
 							"longdesc": "Set this option to true to recover an existing source which was previously created by LXD.",
 							"scope": "local",
 							"shortdesc": "Whether to recover an existing `source`",
 							"type": "bool"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
 						}
 					}
 				]
@@ -6538,6 +6884,14 @@
 						}
 					},
 					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.devlxd.owner": {
 							"defaultdesc": "DevLXD owner identity ID",
 							"longdesc": "",
@@ -6584,6 +6938,14 @@
 							"shortdesc": "Quota of the storage bucket",
 							"type": "string"
 						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
 					}
 				]
 			},
@@ -6627,6 +6989,23 @@
 							"longdesc": "",
 							"scope": "global",
 							"shortdesc": "The Ceph user to use",
+							"type": "string"
+						}
+					},
+					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to true to recover an existing source which was previously created by LXD.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					},
@@ -6678,6 +7057,14 @@
 							"scope": "local",
 							"shortdesc": "Whether to recover an existing `source`",
 							"type": "bool"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
 						}
 					}
 				]
@@ -6751,6 +7138,14 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					},
@@ -6891,6 +7286,14 @@
 							"shortdesc": "Whether to wipe the block device before creating the pool",
 							"type": "bool"
 						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
 					}
 				]
 			},
@@ -7001,6 +7404,14 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					},
@@ -7139,6 +7550,23 @@
 						}
 					},
 					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to true to recover an existing source which was previously created by LXD.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.powerflex.version": {
 							"defaultdesc": "Discovered version",
 							"longdesc": "This field is automatically populated after querying the PowerFlex version.\nIt cannot be set by the user.",
@@ -7258,6 +7686,14 @@
 						}
 					},
 					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.devlxd.owner": {
 							"defaultdesc": "DevLXD owner identity ID",
 							"longdesc": "",
@@ -7367,6 +7803,23 @@
 						}
 					},
 					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to true to recover an existing source which was previously created by LXD.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"volume.size": {
 							"defaultdesc": "`10GiB`",
 							"longdesc": "The size must be in multiples of 1 MiB. The minimum size is 1 MiB and maximum is 256 TiB.",
@@ -7465,6 +7918,14 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					},
@@ -7565,6 +8026,31 @@
 						}
 					},
 					{
+						"size": {
+							"longdesc": "Size in bytes LXD sets as the quota of the Pure Storage pod.",
+							"scope": "local",
+							"shortdesc": "Size of the storage pool",
+							"type": "string"
+						}
+					},
+					{
+						"source.recover": {
+							"defaultdesc": "`false`",
+							"longdesc": "Set this option to true to recover an existing source which was previously created by LXD.",
+							"scope": "local",
+							"shortdesc": "Whether to recover an existing `source`",
+							"type": "bool"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"volume.size": {
 							"defaultdesc": "`10GiB`",
 							"longdesc": "Default Pure Storage volume size rounded to 512B. The minimum size is 1MiB.",
@@ -7663,6 +8149,14 @@
 						}
 					},
 					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
+						}
+					},
+					{
 						"volatile.devlxd.owner": {
 							"defaultdesc": "DevLXD owner identity ID",
 							"longdesc": "",
@@ -7703,6 +8197,24 @@
 			"pool-conf": {
 				"keys": [
 					{
+						"rsync.bwlimit": {
+							"defaultdesc": "`0` (no limit)",
+							"longdesc": "When `rsync` must be used to transfer storage entities, this option specifies the upper limit\nto be placed on the socket I/O.",
+							"scope": "global",
+							"shortdesc": "Upper limit on the socket I/O for `rsync`",
+							"type": "string"
+						}
+					},
+					{
+						"rsync.compression": {
+							"defaultdesc": "`true`",
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "Whether to use compression while migrating storage pools",
+							"type": "bool"
+						}
+					},
+					{
 						"size": {
 							"defaultdesc": "auto (20% of free disk space, \u003e= 5 GiB and \u003c= 30 GiB)",
 							"longdesc": "When creating loop-based pools, specify the size in bytes ({ref}`suffixes \u003cinstances-limit-units\u003e` are supported).\nYou can increase the size to grow the storage pool.\n\nThe default (`auto`) creates a storage pool that uses 20% of the free disk space,\nwith a minimum of 5 GiB and a maximum of 30 GiB.",
@@ -7735,6 +8247,14 @@
 							"scope": "local",
 							"shortdesc": "Whether to wipe the block device before creating the pool",
 							"type": "bool"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
+							"type": "string"
 						}
 					},
 					{
@@ -7855,6 +8375,14 @@
 							"longdesc": "Specify either a cron expression (`\u003cminute\u003e \u003chour\u003e \u003cdom\u003e \u003cmonth\u003e \u003cdow\u003e`), a comma-separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`), or leave empty to disable automatic snapshots (the default).",
 							"scope": "global",
 							"shortdesc": "Schedule for automatic volume snapshots",
+							"type": "string"
+						}
+					},
+					{
+						"user.*": {
+							"longdesc": "",
+							"scope": "global",
+							"shortdesc": "User-provided free-form key/value pairs",
 							"type": "string"
 						}
 					},
