@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
 	"net"
 	"net/http"
@@ -84,6 +85,8 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		"ipv6.routes",
 		"ipv4.routes.external",
 		"ipv6.routes.external",
+		"ipv4.routes.external.wait_ready",
+		"ipv6.routes.external.wait_ready",
 		"security.mac_filtering",
 		"security.ipv4_filtering",
 		"security.ipv6_filtering",
@@ -554,8 +557,9 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	routes := []string{}
 	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
 	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
-	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
-	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
+	externalRoutesConfig := d.externalRoutesConfig()
+	routes = append(routes, shared.SplitNTrimSpace(externalRoutesConfig["ipv4.routes.external"], ",", -1, true)...)
+	routes = append(routes, shared.SplitNTrimSpace(externalRoutesConfig["ipv6.routes.external"], ",", -1, true)...)
 	err = networkNICRouteAdd(d.config["parent"], routes...)
 	if err != nil {
 		return nil, err
@@ -687,7 +691,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 
 // postStart is run after the device is added to the instance.
 func (d *nicBridged) postStart() error {
-	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	err := bgpAddPrefix(&d.deviceCommon, d.network, d.externalRoutesConfig())
 	if err != nil {
 		return err
 	}
@@ -806,6 +810,8 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 
 // Stop is run when the device is removed from the instance.
 func (d *nicBridged) Stop() (*deviceConfig.RunConfig, error) {
+	readyStateUnregisterHandler(d.inst, d.name)
+
 	// Remove BGP announcements.
 	err := bgpRemovePrefix(&d.deviceCommon, d.config)
 	if err != nil {
@@ -838,7 +844,8 @@ func (d *nicBridged) postStop() error {
 
 	defer func() {
 		_ = d.volatileSet(map[string]string{
-			"host_name": "",
+			"host_name":                      "",
+			"last_state.ready_routes_active": "",
 		})
 	}()
 
@@ -1794,10 +1801,121 @@ func (d *nicBridged) getHostMTU() (int, error) {
 
 // Register sets up anything needed on LXD startup.
 func (d *nicBridged) Register() error {
-	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	if shared.IsTrue(d.config["ipv4.routes.external.wait_ready"]) || shared.IsTrue(d.config["ipv6.routes.external.wait_ready"]) {
+		ready := shared.IsTrue(d.inst.LocalConfig()["volatile.last_state.ready"])
+
+		// If the instance isn't currently ready, proactively remove any gated route that
+		// may still be present from a previous LXD daemon lifetime (the ready state is
+		// always reset to false when LXD starts, but a host route added before the
+		// restart would otherwise survive it), and reset the "routes active" bookkeeping
+		// to match. Without this, a later ready notification with no actual state change
+		// (e.g. the instance re-affirming it is still ready after LXD restarted) would be
+		// treated as a no-op by readyStateChanged() and never restore the BGP
+		// announcement, which does not survive a daemon restart.
+		if !ready {
+			var gatedRoutes []string
+			if shared.IsTrue(d.config["ipv4.routes.external.wait_ready"]) {
+				gatedRoutes = append(gatedRoutes, shared.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
+			}
+
+			if shared.IsTrue(d.config["ipv6.routes.external.wait_ready"]) {
+				gatedRoutes = append(gatedRoutes, shared.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
+			}
+
+			networkNICRouteDelete(d.config["parent"], gatedRoutes...)
+		}
+
+		err := d.volatileSet(map[string]string{"last_state.ready_routes_active": strconv.FormatBool(ready)})
+		if err != nil {
+			return err
+		}
+
+		readyStateRegisterHandler(d.inst, d.name, d.readyStateChanged)
+	}
+
+	err := bgpAddPrefix(&d.deviceCommon, d.network, d.externalRoutesConfig())
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// externalRoutesConfig returns the device config to use when deciding which
+// "ipv4/ipv6.routes.external" routes are currently active (host routes and BGP prefixes). For
+// each IP family whose corresponding ".wait_ready" key is enabled, the route is cleared unless
+// the instance is currently reporting itself as ready (see the devLXD "PUT /1.0/state" API), so
+// that those routes are only added once the instance becomes ready.
+func (d *nicBridged) externalRoutesConfig() deviceConfig.Device {
+	config := d.config
+
+	ready := shared.IsTrue(d.inst.LocalConfig()["volatile.last_state.ready"])
+	clearIPv4 := shared.IsTrue(config["ipv4.routes.external.wait_ready"]) && !ready
+	clearIPv6 := shared.IsTrue(config["ipv6.routes.external.wait_ready"]) && !ready
+
+	if !clearIPv4 && !clearIPv6 {
+		return config
+	}
+
+	config = maps.Clone(config)
+
+	if clearIPv4 {
+		config["ipv4.routes.external"] = ""
+	}
+
+	if clearIPv6 {
+		config["ipv6.routes.external"] = ""
+	}
+
+	return config
+}
+
+// readyStateChanged is called whenever the instance's ready state changes (see the devLXD
+// "PUT /1.0/state" API) while this device is registered on a running instance. It adds or removes
+// the "ipv4/ipv6.routes.external" routes (and their BGP announcements) that are gated behind the
+// corresponding ".wait_ready" config key, so that they only exist while the instance is ready.
+func (d *nicBridged) readyStateChanged() error {
+	if shared.IsFalseOrEmpty(d.config["ipv4.routes.external.wait_ready"]) && shared.IsFalseOrEmpty(d.config["ipv6.routes.external.wait_ready"]) {
+		return nil
+	}
+
+	ready := shared.IsTrue(d.inst.LocalConfig()["volatile.last_state.ready"])
+	routesActive := shared.IsTrue(d.volatileGet()["last_state.ready_routes_active"])
+
+	// Nothing to do if the routes already match the desired state (e.g. a duplicate notification).
+	if ready == routesActive {
+		return nil
+	}
+
+	var gatedRoutes []string
+	if shared.IsTrue(d.config["ipv4.routes.external.wait_ready"]) {
+		gatedRoutes = append(gatedRoutes, shared.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
+	}
+
+	if shared.IsTrue(d.config["ipv6.routes.external.wait_ready"]) {
+		gatedRoutes = append(gatedRoutes, shared.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
+	}
+
+	if ready {
+		if len(gatedRoutes) > 0 {
+			err := networkNICRouteAdd(d.config["parent"], gatedRoutes...)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		networkNICRouteDelete(d.config["parent"], gatedRoutes...)
+	}
+
+	err := bgpRemovePrefix(&d.deviceCommon, d.config)
+	if err != nil {
+		return err
+	}
+
+	err = bgpAddPrefix(&d.deviceCommon, d.network, d.externalRoutesConfig())
+	if err != nil {
+		return err
+	}
+
+	return d.volatileSet(map[string]string{"last_state.ready_routes_active": strconv.FormatBool(ready)})
 }

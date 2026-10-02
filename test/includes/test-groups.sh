@@ -135,6 +135,7 @@ readonly test_group_network=(
     "container_devices_infiniband_physical"
     "container_devices_infiniband_sriov"
     "container_devices_nic_bridged"
+    "container_devices_nic_bridged_routes_wait_ready"
     "container_devices_nic_bridged_acl"
     "container_devices_nic_bridged_filtering"
     "container_devices_nic_bridged_vlan"

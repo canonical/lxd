@@ -910,3 +910,106 @@ test_container_devices_nic_bridged() {
   lxc profile delete "${ctName}"
   lxc network delete "${brName}"
 }
+
+test_container_devices_nic_bridged_routes_wait_ready() {
+  ensure_import_testimage
+
+  ctName="ntwr$$"
+  brName="lxdtwr$$"
+
+  lxc network create "${brName}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64
+
+  lxc init testimage "${ctName}" -d "${SMALL_ROOT_DISK}"
+  lxc config device add "${ctName}" eth0 nic \
+    network="${brName}" \
+    ipv4.routes.external=192.0.2.100/32 \
+    ipv6.routes.external=2001:db8::100/128 \
+    ipv4.routes.external.wait_ready=true \
+    ipv6.routes.external.wait_ready=true
+
+  lxc start "${ctName}"
+
+  # Gated external routes must not be applied until the instance reports itself as ready.
+  if ip -4 route show dev "${brName}" | grep -wF "192.0.2.100"; then
+    echo "ipv4 wait_ready route present before instance is ready"
+    false
+  fi
+
+  if ip -6 route show dev "${brName}" | grep -wF "2001:db8::100"; then
+    echo "ipv6 wait_ready route present before instance is ready"
+    false
+  fi
+
+  # Install devlxd-client so the instance can report itself as ready.
+  waitInstanceReady "${ctName}"
+  lxc file push --quiet "$(command -v devlxd-client)" "${ctName}/bin/"
+
+  lxc exec "${ctName}" -- devlxd-client ready-state true
+  [ "$(lxc config get "${ctName}" volatile.last_state.ready)" = "true" ]
+
+  if ! ip -4 route show dev "${brName}" | grep -wF "192.0.2.100"; then
+    echo "ipv4 wait_ready route missing after instance became ready"
+    false
+  fi
+
+  if ! ip -6 route show dev "${brName}" | grep -wF "2001:db8::100"; then
+    echo "ipv6 wait_ready route missing after instance became ready"
+    false
+  fi
+
+  # Revert to the running state: the gated routes must be pulled again.
+  lxc exec "${ctName}" -- devlxd-client ready-state false
+  [ "$(lxc config get "${ctName}" volatile.last_state.ready)" = "false" ]
+
+  if ip -4 route show dev "${brName}" | grep -wF "192.0.2.100"; then
+    echo "ipv4 wait_ready route still present after instance reverted to running"
+    false
+  fi
+
+  if ip -6 route show dev "${brName}" | grep -wF "2001:db8::100"; then
+    echo "ipv6 wait_ready route still present after instance reverted to running"
+    false
+  fi
+
+  # Mark as ready, then restart LXD entirely: the ready state must reset and any gated route
+  # left over from before the restart must be cleaned up (BGP announcements never survive a
+  # daemon restart, but host routes do), and re-affirming ready afterwards must restore it. This
+  # guards against the bookkeeping treating that re-affirmation as a no-op post-restart.
+  lxc exec "${ctName}" -- devlxd-client ready-state true
+  if ! ip -4 route show dev "${brName}" | grep -wF "192.0.2.100"; then
+    echo "ipv4 wait_ready route missing before daemon restart"
+    false
+  fi
+
+  shutdown_lxd "${LXD_DIR}"
+  respawn_lxd "${LXD_DIR}" true
+
+  [ -z "$(lxc config get "${ctName}" volatile.last_state.ready || echo fail)" ]
+
+  if ip -4 route show dev "${brName}" | grep -wF "192.0.2.100"; then
+    echo "ipv4 wait_ready route not cleaned up after daemon restart"
+    false
+  fi
+
+  lxc exec "${ctName}" -- devlxd-client ready-state true
+  if ! ip -4 route show dev "${brName}" | grep -wF "192.0.2.100"; then
+    echo "ipv4 wait_ready route not restored after re-affirming ready post-restart"
+    false
+  fi
+
+  lxc stop -f "${ctName}"
+
+  if ip -4 route show dev "${brName}" | grep -wF "192.0.2.100"; then
+    echo "ipv4 wait_ready route still present after instance stopped"
+    false
+  fi
+
+  if ip -6 route show dev "${brName}" | grep -wF "2001:db8::100"; then
+    echo "ipv6 wait_ready route still present after instance stopped"
+    false
+  fi
+
+  # Cleanup.
+  lxc delete "${ctName}"
+  lxc network delete "${brName}"
+}
