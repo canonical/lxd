@@ -76,13 +76,16 @@ type Project struct {
 	// Example: ["/1.0/images/0e60015346f06627f10580d56ac7fffd9ea775f6d4f25987217d5eed94910a20", "/1.0/instances/c1", "/1.0/networks/lxdbr0", "/1.0/profiles/default", "/1.0/storage-pools/default/volumes/custom/blah"]
 	UsedBy []string `json:"used_by" yaml:"used_by"`
 
-	// Replica mode for the project (leader, standby, or empty)
+	// Replica mode for the project (leader or standby)
 	// Read only: true
 	// This field is updated via PUT /1.0/projects/<name>/state
+	// It is omitted for projects that take no part in replication.
 	// Example: leader
 	//
 	// API extension: project_replica_mode
-	ReplicaMode string `json:"replica_mode" yaml:"replica_mode"`
+	//
+	// API extension: project_replica_mode_optional
+	ReplicaMode string `json:"replica_mode,omitempty" yaml:"replica_mode,omitempty"`
 }
 
 // Writable converts a full Project struct into a ProjectPut struct (filters read-only fields)
@@ -141,5 +144,5 @@ type ProjectStateResource struct {
 type ProjectStatePut struct {
 	// Replica mode to set: "leader", "standby", or "" to clear the replica mode
 	// Example: leader
-	ReplicaMode string `json:"replica_mode" yaml:"replica_mode"`
+	ReplicaMode string `json:"replica_mode" yaml:"replica_mode"` // No omitempty: unlike the read-only field on Project, "" is a meaningful request that clears the replica mode.
 }
