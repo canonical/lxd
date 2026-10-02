@@ -3226,9 +3226,9 @@ func doImageDelete(isClusterNotification bool, opCreator operations.OperationSch
 				}
 
 				// See if any other project with this image has the same storage volume
-				projectImagesVolume := s.LocalConfig.StorageImagesVolume(requestProjectName)
+				projectImagesVolume := s.LocalConfig.StorageImagesVolume(effectiveProjectName)
 				for _, project := range projects {
-					if project == requestProjectName {
+					if project == effectiveProjectName {
 						continue
 					}
 
@@ -3316,7 +3316,7 @@ func doImageDelete(isClusterNotification bool, opCreator operations.OperationSch
 		}
 
 		// Remove main image file from disk.
-		err = imageDeleteFromDisk(s.LocalConfig.StorageImagesVolume(requestProjectName), fingerprint)
+		err = imageDeleteFromDisk(s.LocalConfig.StorageImagesVolume(effectiveProjectName), fingerprint)
 		if err != nil {
 			return err
 		}
