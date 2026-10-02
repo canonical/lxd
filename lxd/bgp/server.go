@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	bgpAPI "github.com/osrg/gobgp/v4/api"
@@ -33,8 +34,14 @@ type Server struct {
 	routerID net.IP
 	paths    map[uuid.UUID]path
 	peers    map[string]peer
+	// policyName is the name of the currently assigned LXD export policy so it
+	// can be cleaned up when the policy is next regenerated.
+	policyName string
 
 	mu sync.Mutex
+	// policyMu serializes GoBGP export policy rebuilds so that concurrent
+	// configuration changes cannot interleave teardown and rebuild operations.
+	policyMu sync.Mutex
 }
 
 type path struct {
@@ -49,6 +56,7 @@ type peer struct {
 	password string
 	holdtime uint64
 	count    int
+	owner    string
 }
 
 // NewServer returns a new server instance.
@@ -133,7 +141,7 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 	// Add existing peers.
 	s.peers = map[string]peer{}
 	for _, peer := range oldPeers {
-		err := s.addPeer(peer.address, peer.asn, peer.password, peer.holdtime)
+		err := s.addPeer(peer.address, peer.asn, peer.password, peer.holdtime, peer.owner)
 		if err != nil {
 			return err
 		}
@@ -180,6 +188,7 @@ func (s *Server) stop() error {
 	s.asn = 0
 	s.routerID = nil
 	s.bgp = nil
+	s.policyName = ""
 
 	return nil
 }
@@ -188,9 +197,13 @@ func (s *Server) stop() error {
 func (s *Server) Configure(address string, asn uint32, routerID net.IP) error {
 	// Locking.
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	err := s.configure(address, asn, routerID)
+	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
 
-	return s.configure(address, asn, routerID)
+	return s.updatePolicies()
 }
 
 func (s *Server) configure(address string, asn uint32, routerID net.IP) error {
@@ -230,9 +243,13 @@ func (s *Server) configure(address string, asn uint32, routerID net.IP) error {
 func (s *Server) AddPrefix(subnet net.IPNet, nexthop net.IP, owner string) error {
 	// Locking.
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	err := s.addPrefix(subnet, nexthop, owner)
+	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
 
-	return s.addPrefix(subnet, nexthop, owner)
+	return s.updatePolicies(owner)
 }
 
 func (s *Server) addPrefix(subnet net.IPNet, nexthop net.IP, owner string) error {
@@ -316,7 +333,6 @@ func (s *Server) addPrefix(subnet net.IPNet, nexthop net.IP, owner string) error
 func (s *Server) RemovePrefixByOwner(owner string) error {
 	// Locking.
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	// Make a copy of the paths dict to safely iterate (path removal mutates it).
 	paths := map[uuid.UUID]path{}
@@ -327,21 +343,28 @@ func (s *Server) RemovePrefixByOwner(owner string) error {
 		if path.owner == owner {
 			err := s.removePrefixByUUID(pathUUID)
 			if err != nil {
+				s.mu.Unlock()
 				return err
 			}
 		}
 	}
 
-	return nil
+	s.mu.Unlock()
+
+	return s.updatePolicies(owner)
 }
 
 // RemovePrefix removes a prefix from the BGP server.
 func (s *Server) RemovePrefix(subnet net.IPNet, nexthop net.IP) error {
 	// Locking.
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	err := s.removePrefix(subnet, nexthop)
+	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
 
-	return s.removePrefix(subnet, nexthop)
+	return s.updatePolicies()
 }
 
 func (s *Server) removePrefix(subnet net.IPNet, nexthop net.IP) error {
@@ -383,15 +406,19 @@ func (s *Server) removePrefixByUUID(pathUUID uuid.UUID) error {
 }
 
 // AddPeer adds a new BGP peer.
-func (s *Server) AddPeer(address net.IP, asn uint32, password string, holdTime uint64) error {
+func (s *Server) AddPeer(address net.IP, asn uint32, password string, holdTime uint64, owner string) error {
 	// Locking.
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	err := s.addPeer(address, asn, password, holdTime, owner)
+	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
 
-	return s.addPeer(address, asn, password, holdTime)
+	return s.updatePolicies()
 }
 
-func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime uint64) error {
+func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime uint64, owner string) error {
 	addrStr := address.String()
 
 	// Look for an existing peer.
@@ -403,6 +430,10 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime u
 
 		if subtle.ConstantTimeCompare([]byte(bgpPeer.password), []byte(password)) != 1 {
 			return fmt.Errorf("Peer %q already used but with a different password", addrStr)
+		}
+
+		if bgpPeer.owner != owner {
+			return fmt.Errorf("Peer %q already used by owner %q (requested by %q)", addrStr, bgpPeer.owner, owner)
 		}
 
 		// Re-use the existing entry.
@@ -475,6 +506,7 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime u
 		password: password,
 		holdtime: holdTime,
 		count:    1,
+		owner:    owner,
 	}
 
 	return nil
@@ -484,9 +516,13 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime u
 func (s *Server) RemovePeer(address net.IP) error {
 	// Locking.
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	err := s.removePeer(address)
+	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
 
-	return s.removePeer(address)
+	return s.updatePolicies()
 }
 
 func (s *Server) removePeer(address net.IP) error {
@@ -514,6 +550,288 @@ func (s *Server) removePeer(address net.IP) error {
 		// Decrease refcount.
 		bgpPeer.count--
 		s.peers[addrStr] = bgpPeer
+	}
+
+	return nil
+}
+
+// updatePolicies regenerates and applies the global export routing policy in GoBGP.
+// For every peer, it creates policy statements matching the peer's NeighborSet and the
+// PrefixSets of routes belonging to that peer's owner network/device. Each route statement
+// sets the NexthopAction to the route's specific next-hop address. If a peer has no associated
+// prefixes, or if no peers/paths exist, the policy is updated or cleared accordingly.
+//
+// The affectedOwners argument optionally scopes the outbound soft reset to peers whose owner
+// matches one of the given owners. When empty, all peers are soft reset (e.g. after a full
+// listener reconfiguration).
+func (s *Server) updatePolicies(affectedOwners ...string) error {
+	// Serialize policy rebuilds so that concurrent configuration changes cannot
+	// interleave teardown and rebuild operations. GoBGP API calls are still made
+	// outside s.mu so that concurrent BGP configuration changes are not blocked.
+	s.policyMu.Lock()
+	defer s.policyMu.Unlock()
+
+	// Snapshot the state needed to build the policy under lock, then release it
+	// before making potentially slow GoBGP API calls.
+	s.mu.Lock()
+	bgpServer := s.bgp
+	peers := make(map[string]peer, len(s.peers))
+	maps.Copy(peers, s.peers)
+	paths := make(map[uuid.UUID]path, len(s.paths))
+	maps.Copy(paths, s.paths)
+	s.mu.Unlock()
+
+	if bgpServer == nil {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// 1. Apply a fail-safe reject-all export assignment before touching the
+	// previously applied policy. If any later step fails, no routes can be
+	// unintentionally advertised instead of being left without export controls.
+	err := bgpServer.SetPolicyAssignment(ctx, &bgpAPI.SetPolicyAssignmentRequest{
+		Assignment: &bgpAPI.PolicyAssignment{
+			Direction:     bgpAPI.PolicyDirection_POLICY_DIRECTION_EXPORT,
+			DefaultAction: bgpAPI.RouteAction_ROUTE_ACTION_REJECT,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("Failed applying fail-safe BGP export policy: %w", err)
+	}
+
+	// 2. Delete the previously applied LXD export policy (if any) with All:true
+	// so its statements are removed too. Its name is tracked so that a partially
+	// failed previous rebuild cannot leave stale statements behind shadowing the
+	// new ones. Errors are tolerated: the policy may already be gone (e.g. after
+	// a listener restart).
+	if s.policyName != "" {
+		err = bgpServer.DeletePolicy(ctx, &bgpAPI.DeletePolicyRequest{
+			All:    true,
+			Policy: &bgpAPI.Policy{Name: s.policyName},
+		})
+		if err != nil {
+			logger.Warn("Failed deleting previous BGP export policy", logger.Ctx{"policy": s.policyName, "err": err})
+		}
+
+		s.policyName = ""
+	}
+
+	// 3. Delete LXD-managed defined sets individually: DeleteDefinedSet requires
+	// a named set, so an empty request fails and would leave stale sets behind.
+	// GoBGP requires DefinedType to be specified when listing defined sets.
+	for _, dt := range []bgpAPI.DefinedType{
+		bgpAPI.DefinedType_DEFINED_TYPE_PREFIX,
+		bgpAPI.DefinedType_DEFINED_TYPE_NEIGHBOR,
+	} {
+		var definedSets []*bgpAPI.DefinedSet
+		err := bgpServer.ListDefinedSet(ctx, &bgpAPI.ListDefinedSetRequest{DefinedType: dt}, func(ds *bgpAPI.DefinedSet) {
+			if strings.HasPrefix(ds.Name, "ps_peer_") || strings.HasPrefix(ds.Name, "ns_peer_") {
+				definedSets = append(definedSets, ds)
+			}
+		})
+		if err != nil {
+			return fmt.Errorf("Failed listing defined sets of type %v: %w", dt, err)
+		}
+
+		for _, ds := range definedSets {
+			err = bgpServer.DeleteDefinedSet(ctx, &bgpAPI.DeleteDefinedSetRequest{
+				All:        true,
+				DefinedSet: ds,
+			})
+			if err != nil {
+				logger.Warn("Failed deleting defined set", logger.Ctx{"set": ds.Name, "err": err})
+			}
+		}
+	}
+
+	// If there are no peers or no paths, nothing further to install. The
+	// fail-safe reject-all assignment remains applied.
+	if len(peers) == 0 || len(paths) == 0 {
+		return nil
+	}
+
+	// 4. Group paths by owner.
+	pathsByOwner := map[string][]path{}
+	for _, p := range paths {
+		pathsByOwner[p.owner] = append(pathsByOwner[p.owner], p)
+	}
+
+	statements := make([]*bgpAPI.Statement, 0)
+	var stmtIdx int
+
+	// Generate a unique generation suffix so that neighbor set names cannot
+	// collide with sets left behind by a partially failed previous rebuild.
+	generation := uuid.New().String()
+
+	for _, peer := range peers {
+		addrStr := peer.address.String()
+		peerTag := strings.ReplaceAll(strings.ReplaceAll(addrStr, ":", "_"), ".", "_")
+		nsName := fmt.Sprintf("ns_peer_%s_%s", peerTag, generation)
+
+		// Create NeighborSet for this peer (using /32 for IPv4, /128 for IPv6).
+		peerCIDR := addrStr + "/32"
+		if peer.address.To4() == nil {
+			peerCIDR = addrStr + "/128"
+		}
+
+		err := bgpServer.AddDefinedSet(ctx, &bgpAPI.AddDefinedSetRequest{
+			DefinedSet: &bgpAPI.DefinedSet{
+				DefinedType: bgpAPI.DefinedType_DEFINED_TYPE_NEIGHBOR,
+				Name:        nsName,
+				List:        []string{peerCIDR},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("Failed adding neighbor defined set for peer %q: %w", addrStr, err)
+		}
+
+		// Find all paths matching this peer's owner (e.g., exact owner "network_1",
+		// or related owners like "network_1_forward", "network_1_load_balancer", or instances).
+		matchedPaths := make([]path, 0)
+		for owner, paths := range pathsByOwner {
+			if owner == peer.owner || strings.HasPrefix(owner, peer.owner+"_") {
+				matchedPaths = append(matchedPaths, paths...)
+			}
+		}
+
+		if len(matchedPaths) > 0 {
+			// For each path or group of paths with the same next hop, create a prefix set and statement.
+			pathsByNexthop := map[string][]path{}
+			for _, p := range matchedPaths {
+				nhStr := p.nexthop.String()
+				pathsByNexthop[nhStr] = append(pathsByNexthop[nhStr], p)
+			}
+
+			for nhStr, nexthopPaths := range pathsByNexthop {
+				stmtIdx++
+				tag := uuid.New().String()
+				psName := fmt.Sprintf("ps_peer_%s_%s", peerTag, tag)
+
+				prefixes := make([]*bgpAPI.Prefix, 0, len(nexthopPaths))
+				for _, p := range nexthopPaths {
+					ones, _ := p.prefix.Mask.Size()
+					prefixes = append(prefixes, &bgpAPI.Prefix{
+						IpPrefix:      p.prefix.String(),
+						MaskLengthMin: uint32(ones),
+						MaskLengthMax: uint32(ones),
+					})
+				}
+
+				err = bgpServer.AddDefinedSet(ctx, &bgpAPI.AddDefinedSetRequest{
+					DefinedSet: &bgpAPI.DefinedSet{
+						DefinedType: bgpAPI.DefinedType_DEFINED_TYPE_PREFIX,
+						Name:        psName,
+						Prefixes:    prefixes,
+					},
+				})
+				if err != nil {
+					return fmt.Errorf("Failed adding prefix defined set %q for peer %q: %w", psName, addrStr, err)
+				}
+
+				stmtName := fmt.Sprintf("stmt_accept_%s_%s", peerTag, tag)
+				stmt := &bgpAPI.Statement{
+					Name: stmtName,
+					Conditions: &bgpAPI.Conditions{
+						NeighborSet: &bgpAPI.MatchSet{
+							Type: bgpAPI.MatchSet_TYPE_ANY,
+							Name: nsName,
+						},
+						PrefixSet: &bgpAPI.MatchSet{
+							Type: bgpAPI.MatchSet_TYPE_ANY,
+							Name: psName,
+						},
+					},
+					Actions: &bgpAPI.Actions{
+						Nexthop: &bgpAPI.NexthopAction{
+							Address: nhStr,
+						},
+						RouteAction: bgpAPI.RouteAction_ROUTE_ACTION_ACCEPT,
+					},
+				}
+
+				statements = append(statements, stmt)
+			}
+		}
+
+		// Reject any other route advertisements toward this peer.
+		stmtIdx++
+		stmtRejectName := fmt.Sprintf("stmt_reject_%s_%s", peerTag, uuid.New().String())
+		stmtReject := &bgpAPI.Statement{
+			Name: stmtRejectName,
+			Conditions: &bgpAPI.Conditions{
+				NeighborSet: &bgpAPI.MatchSet{
+					Type: bgpAPI.MatchSet_TYPE_ANY,
+					Name: nsName,
+				},
+			},
+			Actions: &bgpAPI.Actions{
+				RouteAction: bgpAPI.RouteAction_ROUTE_ACTION_REJECT,
+			},
+		}
+
+		statements = append(statements, stmtReject)
+	}
+
+	if len(statements) == 0 {
+		return nil
+	}
+
+	// 5. Create Policy with a unique name so it never collides with the policy
+	// that was previously applied (which is only deleted after the new one is
+	// assigned).
+	policy := &bgpAPI.Policy{
+		Name:       "pol_lxd_export_" + generation,
+		Statements: statements,
+	}
+
+	err = bgpServer.AddPolicy(ctx, &bgpAPI.AddPolicyRequest{Policy: policy})
+	if err != nil {
+		return fmt.Errorf("Failed adding BGP export policy: %w", err)
+	}
+
+	// 6. Atomically swap the export assignment to the new policy (replacing the
+	// fail-safe reject-all or the previously applied policy), enforcing the
+	// reject default so only matching routes are exported.
+	err = bgpServer.SetPolicyAssignment(ctx, &bgpAPI.SetPolicyAssignmentRequest{
+		Assignment: &bgpAPI.PolicyAssignment{
+			Direction:     bgpAPI.PolicyDirection_POLICY_DIRECTION_EXPORT,
+			DefaultAction: bgpAPI.RouteAction_ROUTE_ACTION_REJECT,
+			Policies:      []*bgpAPI.Policy{policy},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("Failed assigning BGP export policy: %w", err)
+	}
+
+	// Record the policy name so it can be cleaned up on the next update (the
+	// fail-safe reject-all assignment applied earlier replaced any previous
+	// policy, so it is no longer in use and can be deleted).
+	s.policyName = policy.Name
+
+	// 7. Soft reset outbound route advertisements on affected peers so updated export
+	// policies take effect immediately. When no owners are specified, reset all peers.
+	for _, peer := range peers {
+		if len(affectedOwners) > 0 {
+			affected := false
+			for _, owner := range affectedOwners {
+				if peer.owner == owner || strings.HasPrefix(peer.owner, owner+"_") || strings.HasPrefix(owner, peer.owner+"_") {
+					affected = true
+					break
+				}
+			}
+
+			if !affected {
+				continue
+			}
+		}
+
+		_ = bgpServer.ResetPeer(ctx, &bgpAPI.ResetPeerRequest{
+			Address:   peer.address.String(),
+			Soft:      true,
+			Direction: bgpAPI.ResetPeerRequest_DIRECTION_OUT,
+		})
 	}
 
 	return nil
