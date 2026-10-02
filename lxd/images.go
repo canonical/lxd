@@ -1012,28 +1012,6 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		info.Type = imageType
 	}
 
-	imgfname := filepath.Join(s.ImagesStoragePath(project), info.Fingerprint)
-	err = shared.FileMove(imageTmpFilename, imgfname)
-	if err != nil {
-		l.Error("Failed moving the image tarfile", logger.Ctx{
-			"err":    err,
-			"source": imageTmpFilename,
-			"dest":   imgfname})
-		return nil, err
-	}
-
-	if rootfsTmpFilename != "" {
-		rootfsfname := imgfname + ".rootfs"
-		err = shared.FileMove(rootfsTmpFilename, rootfsfname)
-		if err != nil {
-			l.Error("Failed moving the rootfs tarfile", logger.Ctx{
-				"err":    err,
-				"source": rootfsTmpFilename,
-				"dest":   imgfname})
-			return nil, err
-		}
-	}
-
 	info.Architecture = imageMeta.Architecture
 	info.CreatedAt = time.Unix(imageMeta.CreationDate, 0)
 
@@ -1119,22 +1097,66 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 		return nil, err
 	}
 
-	requestor, err := request.GetRequestor(r.Context())
-	if err != nil {
-		return nil, err
-	}
-
 	if exists {
-		// Do not create a database entry if the request is coming from the internal
-		// cluster communications for image synchronization
+		// Cluster sync associates the existing image with this member instead of creating a duplicate image record.
+		requestor, err := request.GetRequestor(r.Context())
+		if err != nil {
+			return nil, err
+		}
+
 		if !requestor.IsClusterNotification() {
 			return &info, errors.New("Image with same fingerprint already exists")
 		}
+	}
 
+	imgfname := filepath.Join(s.ImagesStoragePath(project), info.Fingerprint)
+	rootfsfname := imgfname + ".rootfs"
+	imageFileExisted := shared.PathExists(imgfname)
+	rootfsFileExisted := false
+	if rootfsTmpFilename != "" {
+		rootfsFileExisted = shared.PathExists(rootfsfname)
+	}
+
+	cleanupMovedFiles := func() {
+		if !imageFileExisted {
+			_ = os.Remove(imgfname)
+		}
+
+		if rootfsTmpFilename != "" && !rootfsFileExisted {
+			_ = os.Remove(rootfsfname)
+		}
+	}
+
+	err = shared.FileMove(imageTmpFilename, imgfname)
+	if err != nil {
+		cleanupMovedFiles()
+
+		l.Error("Failed moving the image tarfile", logger.Ctx{
+			"err":    err,
+			"source": imageTmpFilename,
+			"dest":   imgfname})
+		return nil, err
+	}
+
+	if rootfsTmpFilename != "" {
+		err = shared.FileMove(rootfsTmpFilename, rootfsfname)
+		if err != nil {
+			cleanupMovedFiles()
+
+			l.Error("Failed moving the rootfs tarfile", logger.Ctx{
+				"err":    err,
+				"source": rootfsTmpFilename,
+				"dest":   rootfsfname})
+			return nil, err
+		}
+	}
+
+	if exists {
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.AddImageToLocalNode(ctx, project, info.Fingerprint)
 		})
 		if err != nil {
+			cleanupMovedFiles()
 			return nil, err
 		}
 	} else {
@@ -1143,6 +1165,7 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 			return tx.CreateImage(ctx, project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, profileIDs)
 		})
 		if err != nil {
+			cleanupMovedFiles()
 			return nil, err
 		}
 	}
