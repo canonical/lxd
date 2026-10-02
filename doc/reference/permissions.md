@@ -7,6 +7,10 @@ Each LXD API resource has a particular entity type, and each entity type has a s
 
 Below is a description of each entity type, and a list of entitlements that can be granted against entities of that type.
 
+```{caution}
+At some levels, certain entitlements cascade down to other resources.
+```
+
 ## Server
 > Entity type name: `server`
 
@@ -26,6 +30,14 @@ Entitlements that are granted at the `project` level might cascade to project sp
 ```{include} ../metadata.txt
     :start-after: <!-- entity group project start -->
     :end-before: <!-- entity group project end -->
+```
+
+## Cluster link
+> Entity type name: `cluster_link`
+
+```{include} ../metadata.txt
+    :start-after: <!-- entity group cluster_link start -->
+    :end-before: <!-- entity group cluster_link end -->
 ```
 
 ## Storage pool
@@ -74,6 +86,14 @@ Entitlements that are granted at the `project` level might cascade to project sp
 ```{include} ../metadata.txt
     :start-after: <!-- entity group instance start -->
     :end-before: <!-- entity group instance end -->
+```
+
+## Placement group
+> Entity type name: `placement_group`
+
+```{include} ../metadata.txt
+    :start-after: <!-- entity group placement_group start -->
+    :end-before: <!-- entity group placement_group end -->
 ```
 
 ## Image
@@ -130,6 +150,14 @@ Entitlements that are granted at the `project` level might cascade to project sp
 ```{include} ../metadata.txt
     :start-after: <!-- entity group profile start -->
     :end-before: <!-- entity group profile end -->
+```
+
+## Replicator
+> Entity type name: `replicator`
+
+```{include} ../metadata.txt
+    :start-after: <!-- entity group replicator start -->
+    :end-before: <!-- entity group replicator end -->
 ```
 
 ## Storage volume
