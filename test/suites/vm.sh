@@ -236,6 +236,49 @@ test_vm_pcie_bus() {
   ! lxc exec v1 -- findmnt /mnt -t virtiofs || false # Check hot unplug unmounts inside the VM.
   lxc storage volume delete "${pool}" v1dir
 
+  sub_test "Check a disk hotplug is reverted when mounting it inside the VM fails"
+  mkdir "${TEST_DIR}/vm-bad-target"
+  lxc exec v1 -- touch /root/bad-target
+  if lxc config device add v1 bad disk source="${TEST_DIR}/vm-bad-target" path=/root/bad-target; then
+    echo "ERROR: disk with a regular file as mount target was added" >&2
+    exit 1
+  fi
+
+  lxc query /1.0/instances/v1 | jq --exit-status '.devices.bad == null'
+  [ "$(lxc config get v1 volatile.bad.bus || echo fail)" = "" ]
+  [ ! -e "${LXD_DIR}/devices/v1/virtio-fs.bad.sock" ]
+  [ ! -e "${LXD_DIR}/devices/v1/virtio-fs.bad.pid" ]
+  if grep -F "/devices/v1/disk.bad." "/proc/$(< "${LXD_DIR}/lxd.pid")/mountinfo"; then
+    echo "ERROR: host mount of the reverted disk is still present" >&2
+    exit 1
+  fi
+
+  if lxc exec v1 -- findmnt -t virtiofs --source lxd_bad; then
+    echo "ERROR: reverted disk is mounted inside the VM" >&2
+    exit 1
+  fi
+
+  lxc config device add v1 bad disk source="${TEST_DIR}/vm-bad-target" path=/mnt/bad
+  [ "$(lxc exec v1 -- findmnt -n -o SOURCE -t virtiofs /mnt/bad)" = "lxd_bad" ]
+  lxc config device remove v1 bad
+  rm -r "${TEST_DIR}/vm-bad-target"
+
+  sub_test "Check changing the source of a hotplugged disk replaces the mount inside the VM"
+  mkdir "${TEST_DIR}/vm-source-a" "${TEST_DIR}/vm-source-b"
+  touch "${TEST_DIR}/vm-source-a/a" "${TEST_DIR}/vm-source-b/b"
+  lxc config device add v1 src disk source="${TEST_DIR}/vm-source-a" path=/mnt/src
+  lxc exec v1 -- test -e /mnt/src/a
+  lxc config device set v1 src source="${TEST_DIR}/vm-source-b"
+  lxc exec v1 -- test -e /mnt/src/b
+  if lxc exec v1 -- test -e /mnt/src/a; then
+    echo "ERROR: old disk source is still visible inside the VM" >&2
+    exit 1
+  fi
+
+  [ "$(lxc exec v1 -- findmnt -n -o SOURCE /mnt/src)" = "lxd_src" ]
+  lxc config device remove v1 src
+  rm -r "${TEST_DIR}/vm-source-a" "${TEST_DIR}/vm-source-b"
+
   # Check config drive is exported over 9p and virtiofs at boot and check is readonly even when mounted writable.
   lxc exec v1 -- mount -t 9p config /mnt
   ! lxc exec v1 -- touch /mnt/foo || false

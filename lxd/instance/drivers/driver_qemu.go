@@ -6022,9 +6022,13 @@ func (d *qemu) Update(ctx context.Context, args db.InstanceArgs, actionType inst
 
 	defer op.Done(nil)
 
+	// Device changes are reverted separately as they must not be reverted once the database is updated.
+	devicesReverter := revert.New()
+
 	// Setup the reverter.
 	revert := revert.New()
 	defer revert.Fail()
+	defer devicesReverter.Fail()
 
 	// Set sane defaults for unset keys.
 	if args.Project == "" {
@@ -6221,7 +6225,7 @@ func (d *qemu) Update(ctx context.Context, args db.InstanceArgs, actionType inst
 	isRunning := d.IsRunning()
 
 	// Use the device interface to apply update changes.
-	devlxdEvents, err := d.devicesUpdate(d, removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
+	devlxdEvents, devicesCleanup, err := d.devicesUpdate(d, removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
 	if err != nil {
 		return err
 	}
@@ -6375,6 +6379,62 @@ func (d *qemu) Update(ctx context.Context, args db.InstanceArgs, actionType inst
 		}
 	}
 
+	if isRunning {
+		devicesReverter.Add(func() {
+			volatileRestore := make(map[string]string)
+			for devName := range addDevices {
+				devicePrefix := "volatile." + devName + "."
+				for _, conf := range []map[string]string{d.localConfig, oldLocalConfig} {
+					for k := range conf {
+						if strings.HasPrefix(k, devicePrefix) && d.localConfig[k] != oldLocalConfig[k] {
+							volatileRestore[k] = oldLocalConfig[k]
+						}
+					}
+				}
+			}
+
+			if len(volatileRestore) > 0 {
+				err := d.VolatileSet(volatileRestore)
+				if err != nil {
+					d.logger.Warn("Failed restoring device volatile config", logger.Ctx{"err": err})
+				}
+			}
+		})
+
+		devicesReverter.Add(devicesCleanup)
+
+		// Device removals and additions are sent in order before updating the database so that a failure to add
+		// a device inside the guest can be reverted.
+		for _, event := range devlxdEvents {
+			switch event["action"] {
+			case agentAPI.DeviceRemoved:
+				err = d.devlxdEventSend("device", event)
+				if err != nil {
+					d.logger.Error("Failed sending device removal event", logger.Ctx{"device": event["name"], "err": err})
+				}
+
+			case agentAPI.DeviceAdded:
+				err = d.devlxdEventSend("device", event)
+				if err != nil {
+					return fmt.Errorf("Failed adding device %q inside the VM: %w", event["name"], err)
+				}
+
+				devicesReverter.Add(func() {
+					removedEvent := map[string]any{
+						"action": agentAPI.DeviceRemoved,
+						"name":   event["name"],
+						"config": event["config"],
+					}
+
+					err := d.devlxdEventSend("device", removedEvent)
+					if err != nil {
+						d.logger.Warn("Failed sending device removal event", logger.Ctx{"device": event["name"], "err": err})
+					}
+				})
+			}
+		}
+	}
+
 	// Finally, apply the changes to the database.
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Snapshots should update only their descriptions and expiry date.
@@ -6427,6 +6487,8 @@ func (d *qemu) Update(ctx context.Context, args db.InstanceArgs, actionType inst
 		return fmt.Errorf("Failed updating database: %w", err)
 	}
 
+	devicesReverter.Success()
+
 	err = d.UpdateBackupFile()
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("Failed writing backup file: %w", err)
@@ -6461,6 +6523,10 @@ func (d *qemu) Update(ctx context.Context, args db.InstanceArgs, actionType inst
 
 		// Device events.
 		for _, event := range devlxdEvents {
+			if event["action"] == agentAPI.DeviceAdded || event["action"] == agentAPI.DeviceRemoved {
+				continue
+			}
+
 			err = d.devlxdEventSend("device", event)
 			if err != nil {
 				return err
