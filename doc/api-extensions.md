@@ -3744,3 +3744,27 @@ Like SCSI/FC, Fibre Channel targets are discovered through the host bus adapter,
 This introduces the `ceph.replicator.<project>` configuration key on `ceph` storage pools.
 It records the peer Ceph site to which a project's volumes on the pool are mirrored.
 If a project with a replicator holds volumes on a Ceph pool configured with this key, then the replicator enrolls those volumes in RBD mirroring, triggers a mirror snapshot of each volume on every replication run, and completes the run only after the peer site confirms that it has received every snapshot.
+
+(extension-image-registries)=
+## `image_registries`
+
+This introduces the image registries API.
+
+An image registry is a cluster-wide entity that points to a source of images, such as a Simple Streams server or another LXD server.
+Because image registries are managed on the server, all clients of a LXD server (and all members of a cluster) share the same set of image sources.
+For more information, see {ref}`howto-image-registries` and {ref}`ref-image-registries`.
+
+It includes the following new endpoints (see {ref}`rest-api` for details):
+
+* [`GET /1.0/image-registries`](swagger:/image-registries/image_registries_get)
+* [`GET /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_get)
+* [`GET /1.0/image-registries/<name>/images`](swagger:/image-registries/image_registry_images_get)
+* [`POST /1.0/image-registries`](swagger:/image-registries/image_registries_post)
+* [`POST /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_post)
+* [`PUT /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_put)
+* [`PATCH /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_patch)
+* [`DELETE /1.0/image-registries/<name>`](swagger:/image-registries/image_registry_delete)
+
+This also adds a new project-level configuration key:
+
+* {config:option}`project-restricted:restricted.registries` - Comma separated list of allowed image registries for use in a project.

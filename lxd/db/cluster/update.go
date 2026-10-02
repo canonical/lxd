@@ -16,6 +16,7 @@ import (
 	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/lxd/db/schema"
 	"github.com/canonical/lxd/lxd/identity"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
@@ -135,6 +136,325 @@ var updates = map[int]schema.Update{
 	89: updateFromV88,
 	90: updateFromV89,
 	91: updateFromV90,
+	92: updateFromV91,
+}
+
+func updateFromV91(ctx context.Context, tx *sql.Tx) error {
+	// Create the new "images_source" table that uses "image_registry_id".
+	// The original "images_source" table stored the server URL, protocol, and certificate directly.
+	// With the introduction of the image registries feature, we now need to link an image source
+	// to an existing image registry record instead. We do this by creating a new table with an
+	// "image_registry_id" foreign key, and then we migrate the data before swapping the tables.
+	_, err := tx.ExecContext(ctx, `
+CREATE TABLE images_source_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	image_id INTEGER NOT NULL,
+	image_registry_id INTEGER NOT NULL,
+	alias TEXT NOT NULL,
+	FOREIGN KEY (image_id) REFERENCES "images" (id) ON DELETE CASCADE,
+	FOREIGN KEY (image_registry_id) REFERENCES "image_registries" (id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		return fmt.Errorf("Failed creating images_source_new table: %w", err)
+	}
+
+	// Load existing registries that expose a source URL so legacy SimpleStreams sources can be
+	// matched against them (including the built-in "ubuntu"/"images" registries) instead of
+	// creating duplicates. Only SimpleStreams registries have a "url" config key. LXD registries
+	// reference a cluster link, so they never appear here.
+	type registryInfo struct {
+		id  int64
+		url string
+	}
+
+	registries := []registryInfo{}
+
+	rows, err := tx.QueryContext(ctx, `
+		SELECT r.id, c.value
+		FROM image_registries r
+		JOIN image_registries_config c ON r.id = c.image_registry_id AND c.key = 'url'
+	`)
+	if err != nil {
+		return fmt.Errorf("Failed loading existing image registries: %w", err)
+	}
+
+	for rows.Next() {
+		var registry registryInfo
+
+		err := rows.Scan(&registry.id, &registry.url)
+		if err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("Failed scanning image_registries rows: %w", err)
+		}
+
+		registries = append(registries, registry)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		_ = rows.Close()
+		return fmt.Errorf("Got an image_registries row error: %w", err)
+	}
+
+	// Close the registries result set before reusing "rows" for the image sources query below.
+	err = rows.Close()
+	if err != nil {
+		return fmt.Errorf("Failed closing image_registries rows: %w", err)
+	}
+
+	// Load the legacy image sources to migrate.
+	type imageSource struct {
+		id          int64
+		imageID     int64
+		server      string
+		protocol    int64
+		certificate string
+		alias       string
+	}
+
+	sources := []imageSource{}
+
+	rows, err = tx.QueryContext(ctx, "SELECT id, image_id, server, protocol, certificate, alias FROM images_source")
+	if err != nil {
+		return fmt.Errorf("Failed loading existing image sources: %w", err)
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var src imageSource
+
+		err := rows.Scan(&src.id, &src.imageID, &src.server, &src.protocol, &src.certificate, &src.alias)
+		if err != nil {
+			return fmt.Errorf("Failed scanning images_source rows: %w", err)
+		}
+
+		sources = append(sources, src)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return fmt.Errorf("Got an images_source row error: %w", err)
+	}
+
+	// Legacy "lxd" sources are migrated to public LXD image registries backed by public cluster
+	// links created here. The legacy images_source table already pins the remote server certificate
+	// in its certificate column, so everything a public cluster link needs (a canonical address and
+	// a pinned server certificate) can be synthesized offline. Sources with an empty or unparsable
+	// certificate cannot be pinned and are dropped instead. Deprecated "direct" sources are dropped
+	// as well: the cached image is kept, but it loses its source record. As there is no source left
+	// to refresh from in those cases, auto-update is switched off for the affected images so the
+	// updater does not log an error for them on every cycle.
+	//
+	// The codes below are frozen historical values, inlined so this migration never depends on
+	// constants that may later be renamed or removed. The legacy images_source table encodes the
+	// protocol as lxd = 0, direct = 1, simplestreams = 2, whereas the image_registries table uses
+	// a different encoding of simplestreams = 0, lxd = 1. The cluster_links table encodes the
+	// link type as bidirectional = 0, unidirectional = 1, public = 2.
+	const (
+		legacyLXDProtocol           = 0
+		legacySimpleStreamsProtocol = 2
+
+		registrySimpleStreamsProtocol = 0
+		registryLXDProtocol           = 1
+
+		clusterLinkTypePublic = 2
+	)
+
+	// Track auto-created SimpleStreams registries keyed by their normalized server URL so identical
+	// sources reuse a single registry.
+	migratedSimpleStreamsSources := make(map[string]int64)
+
+	// Track auto-created public cluster links and their registries keyed by canonical address and
+	// certificate fingerprint, so identical sources reuse a single link and registry, while sources
+	// pinning a different certificate for the same address still get their own link.
+	type lxdSourceKey struct {
+		address     string
+		fingerprint string
+	}
+
+	migratedLXDSources := make(map[lxdSourceKey]int64)
+
+	migratedCount := 1
+
+	// dropSource discards the image's source record. As there is no source left to refresh from,
+	// auto-update is switched off rather than leaving the updater to log an error for the image
+	// on every cycle.
+	dropSource := func(imageID int64) error {
+		_, err := tx.ExecContext(ctx, "UPDATE images SET auto_update = 0 WHERE id = ?", imageID)
+		if err != nil {
+			return fmt.Errorf("Failed disabling auto-update for image %d: %w", imageID, err)
+		}
+
+		return nil
+	}
+
+	for _, s := range sources {
+		if s.protocol == legacyLXDProtocol {
+			cert, err := shared.ParseCert([]byte(s.certificate))
+			if s.certificate == "" || err != nil {
+				// Without a valid pinned server certificate there is nothing a public cluster
+				// link can be created from, so the source is dropped.
+				err := dropSource(s.imageID)
+				if err != nil {
+					return err
+				}
+
+				continue
+			}
+
+			fingerprint := shared.CertFingerprint(cert)
+
+			// Canonicalize the legacy server URL into the host:port form that public cluster
+			// links store in volatile.addresses. 8443 is the frozen historical default port.
+			address := strings.TrimPrefix(s.server, "https://")
+			address = strings.TrimPrefix(address, "http://")
+			address = strings.TrimSuffix(address, "/")
+			address = util.CanonicalNetworkAddress(address, 8443)
+
+			registryID, ok := migratedLXDSources[lxdSourceKey{address: address, fingerprint: fingerprint}]
+			if !ok {
+				// No auto-created link exists for this address and certificate yet, so create a
+				// public cluster link and a public LXD image registry referencing it, both
+				// sharing the same generated name.
+				registryName := fmt.Sprintf("auto-migrated-%03d", migratedCount)
+				migratedCount++
+
+				res, err := tx.ExecContext(ctx, "INSERT INTO cluster_links (identity_id, description, name, type) VALUES (NULL, ?, ?, ?)", "Auto-migrated legacy image source", registryName, clusterLinkTypePublic)
+				if err != nil {
+					return fmt.Errorf("Failed creating a cluster_links record: %w", err)
+				}
+
+				linkID, err := res.LastInsertId()
+				if err != nil {
+					return fmt.Errorf("Failed loading cluster link ID: %w", err)
+				}
+
+				_, err = tx.ExecContext(ctx, "INSERT INTO cluster_links_config (cluster_link_id, key, value) VALUES (?, 'volatile.addresses', ?)", linkID, address)
+				if err != nil {
+					return fmt.Errorf(`Failed adding "volatile.addresses" key to cluster_links_config: %w`, err)
+				}
+
+				// Reuse the certificate row if the same fingerprint is already stored.
+				var certificateID int64
+				err = tx.QueryRowContext(ctx, "SELECT id FROM certificates WHERE fingerprint = ?", fingerprint).Scan(&certificateID)
+				if errors.Is(err, sql.ErrNoRows) {
+					res, err = tx.ExecContext(ctx, "INSERT INTO certificates (fingerprint, certificate) VALUES (?, ?)", fingerprint, s.certificate)
+					if err != nil {
+						return fmt.Errorf("Failed creating a certificates record: %w", err)
+					}
+
+					certificateID, err = res.LastInsertId()
+					if err != nil {
+						return fmt.Errorf("Failed loading certificate ID: %w", err)
+					}
+				} else if err != nil {
+					return fmt.Errorf("Failed loading certificate %q: %w", fingerprint, err)
+				}
+
+				_, err = tx.ExecContext(ctx, "INSERT INTO cluster_links_certificates (cluster_link_id, certificate_id) VALUES (?, ?)", linkID, certificateID)
+				if err != nil {
+					return fmt.Errorf("Failed associating cluster link with certificate: %w", err)
+				}
+
+				res, err = tx.ExecContext(ctx, "INSERT INTO image_registries (name, description, protocol, builtin) VALUES (?, ?, ?, 0)", registryName, "Auto-migrated legacy image source", registryLXDProtocol)
+				if err != nil {
+					return fmt.Errorf("Failed creating an image_registries record: %w", err)
+				}
+
+				registryID, err = res.LastInsertId()
+				if err != nil {
+					return fmt.Errorf("Failed loading image registry ID: %w", err)
+				}
+
+				_, err = tx.ExecContext(ctx, "INSERT INTO image_registries_config (image_registry_id, key, value) VALUES (?, 'cluster', ?)", registryID, registryName)
+				if err != nil {
+					return fmt.Errorf(`Failed adding "cluster" key to image_registries_config: %w`, err)
+				}
+
+				_, err = tx.ExecContext(ctx, "INSERT INTO image_registries_config (image_registry_id, key, value) VALUES (?, 'source_project', 'default')", registryID)
+				if err != nil {
+					return fmt.Errorf(`Failed adding "source_project" key to image_registries_config: %w`, err)
+				}
+
+				migratedLXDSources[lxdSourceKey{address: address, fingerprint: fingerprint}] = registryID
+			}
+
+			_, err = tx.ExecContext(ctx, "INSERT INTO images_source_new (id, image_id, image_registry_id, alias) VALUES (?, ?, ?, ?)", s.id, s.imageID, registryID, s.alias)
+			if err != nil {
+				return fmt.Errorf("Failed creating an images_source_new record: %w", err)
+			}
+
+			continue
+		}
+
+		if s.protocol != legacySimpleStreamsProtocol {
+			err := dropSource(s.imageID)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		var matchingRegistryID int64
+
+		// Strip a trailing slash so URLs stored with or without one match cleanly.
+		serverURL := strings.TrimSuffix(s.server, "/")
+		for _, r := range registries {
+			if strings.TrimSuffix(r.url, "/") == serverURL {
+				matchingRegistryID = r.id
+				break
+			}
+		}
+
+		if matchingRegistryID == 0 {
+			id, ok := migratedSimpleStreamsSources[serverURL]
+			if ok {
+				matchingRegistryID = id
+			} else {
+				// No existing registry matches this source's URL, so create a dedicated
+				// SimpleStreams registry for it.
+				registryName := fmt.Sprintf("auto-migrated-%03d", migratedCount)
+				migratedCount++
+
+				res, err := tx.ExecContext(ctx, "INSERT INTO image_registries (name, description, protocol, builtin) VALUES (?, ?, ?, 0)", registryName, "Auto-migrated legacy image source", registrySimpleStreamsProtocol)
+				if err != nil {
+					return fmt.Errorf("Failed creating an image_registries record: %w", err)
+				}
+
+				matchingRegistryID, err = res.LastInsertId()
+				if err != nil {
+					return fmt.Errorf("Failed loading image registry ID: %w", err)
+				}
+
+				_, err = tx.ExecContext(ctx, "INSERT INTO image_registries_config (image_registry_id, key, value) VALUES (?, 'url', ?)", matchingRegistryID, serverURL)
+				if err != nil {
+					return fmt.Errorf(`Failed adding "url" key to image_registries_config: %w`, err)
+				}
+
+				migratedSimpleStreamsSources[serverURL] = matchingRegistryID
+			}
+		}
+
+		_, err = tx.ExecContext(ctx, "INSERT INTO images_source_new (id, image_id, image_registry_id, alias) VALUES (?, ?, ?, ?)", s.id, s.imageID, matchingRegistryID, s.alias)
+		if err != nil {
+			return fmt.Errorf("Failed creating an images_source_new record: %w", err)
+		}
+	}
+
+	_, err = tx.ExecContext(ctx, "DROP TABLE images_source")
+	if err != nil {
+		return fmt.Errorf("Failed deleting old images_source table: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx, "ALTER TABLE images_source_new RENAME TO images_source")
+	if err != nil {
+		return fmt.Errorf("Failed renaming images_source_new table: %w", err)
+	}
+
+	return nil
 }
 
 func updateFromV90(ctx context.Context, tx *sql.Tx) error {

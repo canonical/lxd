@@ -163,36 +163,28 @@ type ImageFilter struct {
 	AutoUpdate  *bool
 }
 
-// ImageSourceProtocol maps image source protocol codes to human-readable names.
-var ImageSourceProtocol = map[int]string{
-	0: "lxd",
-	1: "direct", // Deprecated: kept for backward compatibility with existing data.
-	2: "simplestreams",
-}
-
-// imageSourceProtocolCode maps image source protocol names to database codes.
-var imageSourceProtocolCode = map[string]int{
-	"lxd":           0,
-	"direct":        1, // Deprecated: kept for backward compatibility with existing data.
-	"simplestreams": 2,
-}
-
 // GetImageSource returns the image source with the given ID.
 func GetImageSource(ctx context.Context, tx *sql.Tx, imageID int) (int, *api.ImageSource, error) {
-	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
+	q := `
+SELECT
+	images_source.id,
+	image_registries.name,
+	images_source.alias
+FROM images_source
+JOIN image_registries ON images_source.image_registry_id = image_registries.id
+WHERE images_source.image_id=?
+`
 	type imagesSource struct {
-		ID          int
-		Server      string
-		Protocol    int
-		Certificate string
-		Alias       string
+		ID            int
+		ImageRegistry string
+		Alias         string
 	}
 
 	sources := []imagesSource{}
 	err := query.Scan(ctx, tx, q, func(scan func(dest ...any) error) error {
 		s := imagesSource{}
 
-		err := scan(&s.ID, &s.Server, &s.Protocol, &s.Certificate, &s.Alias)
+		err := scan(&s.ID, &s.ImageRegistry, &s.Alias)
 		if err != nil {
 			return err
 		}
@@ -206,33 +198,21 @@ func GetImageSource(ctx context.Context, tx *sql.Tx, imageID int) (int, *api.Ima
 	}
 
 	if len(sources) == 0 {
-		return -1, nil, api.StatusErrorf(http.StatusNotFound, "Image source not found")
+		return -1, nil, api.NewStatusError(http.StatusNotFound, "Image source not found")
 	}
 
 	source := sources[0]
 
-	protocol, found := ImageSourceProtocol[source.Protocol]
-	if !found {
-		return -1, nil, fmt.Errorf("Invalid protocol: %d", source.Protocol)
-	}
-
 	result := &api.ImageSource{
-		Server:      source.Server,
-		Protocol:    protocol,
-		Certificate: source.Certificate,
-		Alias:       source.Alias,
+		ImageRegistry: source.ImageRegistry,
+		Alias:         source.Alias,
 	}
 
 	return source.ID, result, nil
 }
 
 // GetCachedImageWithSource gets a cached image with the given fingerprint and source details.
-func GetCachedImageWithSource(ctx context.Context, tx *sql.Tx, fingerprint string, server string, protocol string, alias string, certificate string) (int, *api.Image, error) {
-	protocolCode, ok := imageSourceProtocolCode[protocol]
-	if !ok {
-		return -1, nil, api.StatusErrorf(http.StatusBadRequest, "Unknown protocol %q", protocol)
-	}
-
+func GetCachedImageWithSource(ctx context.Context, tx *sql.Tx, fingerprint string, imageRegistry string, alias string) (int, *api.Image, error) {
 	q := `
 SELECT
 	images.id,
@@ -251,10 +231,11 @@ SELECT
 FROM images
 JOIN projects ON images.project_id = projects.id
 JOIN images_source ON images.id = images_source.image_id
-WHERE images.cached = 1 AND images.fingerprint = ? AND images_source.server = ? AND images_source.protocol = ? AND images_source.alias = ? AND images_source.certificate = ?`
+JOIN image_registries ON images_source.image_registry_id = image_registries.id
+WHERE images.cached = 1 AND images.fingerprint = ? AND image_registries.name = ? AND images_source.alias = ?`
 
 	var image Image
-	row := tx.QueryRowContext(ctx, q, fingerprint, server, protocolCode, alias, certificate)
+	row := tx.QueryRowContext(ctx, q, fingerprint, imageRegistry, alias)
 	err := row.Scan(&image.ID, &image.Project, &image.Fingerprint, &image.Type, &image.Size, &image.Public, &image.Architecture, &image.CreationDate, &image.ExpiryDate, &image.UploadDate, &image.Cached, &image.LastUseDate, &image.AutoUpdate)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

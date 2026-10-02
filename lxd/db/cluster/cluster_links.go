@@ -330,6 +330,38 @@ func GetClusterLinkPEMCertificate(ctx context.Context, tx *sql.Tx, clusterLinkID
 	return pemCert, nil
 }
 
+// GetClusterLinkCertificateFingerprints returns a map of cluster link ID to the fingerprints of the
+// certificates stored for that link, whether stored directly (public and unidirectional links) or
+// via the link's identity (bidirectional links). Cluster links without a stored certificate are
+// omitted.
+func GetClusterLinkCertificateFingerprints(ctx context.Context, tx *sql.Tx) (map[int64][]string, error) {
+	fingerprints := make(map[int64][]string)
+	err := query.Scan(ctx, tx,
+		`SELECT cluster_links_certificates.cluster_link_id, certificates.fingerprint FROM certificates
+		 JOIN cluster_links_certificates ON certificates.id = cluster_links_certificates.certificate_id
+		 UNION
+		 SELECT cluster_links.id, certificates.fingerprint FROM certificates
+		 JOIN identities_certificates ON certificates.id = identities_certificates.certificate_id
+		 JOIN cluster_links ON cluster_links.identity_id = identities_certificates.identity_id`,
+		func(scan func(dest ...any) error) error {
+			var linkID int64
+			var fingerprint string
+			err := scan(&linkID, &fingerprint)
+			if err != nil {
+				return err
+			}
+
+			fingerprints[linkID] = append(fingerprints[linkID], fingerprint)
+			return nil
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading cluster link certificate fingerprints: %w", err)
+	}
+
+	return fingerprints, nil
+}
+
 // GetClusterLinksAndURLs returns all cluster links that pass the given filter, along with their entity URLs.
 func GetClusterLinksAndURLs(ctx context.Context, tx *sql.Tx, filter func(link ClusterLinkRow) bool) ([]ClusterLinkRow, []string, error) {
 	var clusterLinks []ClusterLinkRow

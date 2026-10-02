@@ -358,6 +358,20 @@ wait_for() {
     my_curl "https://${addr}${op}/wait"
 }
 
+# create_public_cluster_link creates a public cluster link in two phases: it POSTs a pending link for
+# the given remote address, captures the fingerprint of the certificate the server fetched, then
+# confirms the link by echoing that fingerprint back. It runs lxc in the caller's context, so set
+# LXD_DIR before calling to create the link on a specific daemon.
+create_public_cluster_link() {
+    local link_name="${1}"
+    local remote_address="${2}"
+
+    local pending link_fingerprint
+    pending="$(lxc query --request POST /1.0/cluster/links --data "{\"name\":\"${link_name}\",\"type\":\"public\",\"remote_address\":\"${remote_address}\"}")"
+    link_fingerprint="$(echo "${pending}" | jq --exit-status -r '.fingerprint')"
+    lxc query --request POST /1.0/cluster/links --data "{\"name\":\"${link_name}\",\"type\":\"public\",\"fingerprint\":\"${link_fingerprint}\"}" > /dev/null
+}
+
 # waitInstanceReady: waits for the instance to be ready (processes count > 0).
 waitInstanceReady() {
     local instName="${1}"
