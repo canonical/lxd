@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"slices"
@@ -1535,6 +1536,38 @@ func (d *ceph) ListVolumes() ([]Volume, error) {
 	}
 
 	return volList, nil
+}
+
+// ActivateTask runs task with the volume's block device activated but not mounted.
+func (d *ceph) ActivateTask(vol Volume, task func(devPath string) error) error {
+	if (vol.volType != VolumeTypeVM && vol.volType != VolumeTypeCustom) || vol.contentType != ContentTypeBlock {
+		return ErrNotSupported
+	}
+
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	mapped, volDevPath, err := d.getRBDMappedDevPath(vol, true)
+	if err != nil {
+		return err
+	}
+
+	if !mapped {
+		return api.StatusErrorf(http.StatusConflict, "Volume is already active")
+	}
+
+	taskErr := task(volDevPath)
+
+	err = d.rbdUnmapVolume(vol, true)
+	if taskErr != nil {
+		return taskErr
+	}
+
+	return err
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.

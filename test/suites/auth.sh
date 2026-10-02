@@ -861,6 +861,38 @@ fine_grained_authorization() {
   lxc delete user-foo --force # Must clean this up now as subsequent tests assume a clean project.
   lxc auth group permission remove test-group project default can_view
 
+  sub_test "NBD exports require can_connect_nbd"
+  # Both NBD handlers reject a request without the NBD upgrade header before they load the snapshot or the volume.
+  # That error therefore shows that the request passed the access check.
+  lxc init --empty nbd-foo
+  lxc snapshot nbd-foo snap0
+  pool_name="$(lxc storage list -f csv | cut -d, -f1)"
+  lxc storage volume create "${pool_name}" nbd-vol --type=block size=1MiB
+
+  lxc auth group permission add test-group project default can_view
+  lxc auth group permission add test-group instance nbd-foo can_view project=default
+  lxc auth group permission add test-group storage_volume nbd-vol can_view project=default pool="${pool_name}" type=custom
+
+  # can_view lists the bitmaps of a snapshot, which a container has none of.
+  lxc_remote query "${remote}:/1.0/instances/nbd-foo/snapshots/snap0/bitmaps" | jq --exit-status '. == []'
+  [ "$("${_LXC}" query "${remote}:/1.0/instances/nbd-foo/snapshots/snap0/nbd" 2>&1 >/dev/null)" = 'Error: Forbidden' ]
+  [ "$("${_LXC}" query -X POST "${remote}:/1.0/storage-pools/${pool_name}/volumes/custom/nbd-vol/nbd" 2>&1 >/dev/null)" = 'Error: Forbidden' ]
+
+  lxc auth group permission add test-group instance nbd-foo can_connect_nbd project=default
+  [ "$("${_LXC}" query "${remote}:/1.0/instances/nbd-foo/snapshots/snap0/nbd" 2>&1 >/dev/null)" = 'Error: Missing or invalid upgrade header' ]
+  [ "$("${_LXC}" query -X POST "${remote}:/1.0/storage-pools/${pool_name}/volumes/custom/nbd-vol/nbd" 2>&1 >/dev/null)" = 'Error: Forbidden' ]
+
+  lxc auth group permission add test-group storage_volume nbd-vol can_connect_nbd project=default pool="${pool_name}" type=custom
+  [ "$("${_LXC}" query -X POST "${remote}:/1.0/storage-pools/${pool_name}/volumes/custom/nbd-vol/nbd" 2>&1 >/dev/null)" = 'Error: Missing or invalid upgrade header' ]
+
+  lxc auth group permission remove test-group storage_volume nbd-vol can_connect_nbd project=default pool="${pool_name}" type=custom
+  lxc auth group permission remove test-group storage_volume nbd-vol can_view project=default pool="${pool_name}" type=custom
+  lxc auth group permission remove test-group instance nbd-foo can_connect_nbd project=default
+  lxc auth group permission remove test-group instance nbd-foo can_view project=default
+  lxc auth group permission remove test-group project default can_view
+  lxc storage volume delete "${pool_name}" nbd-vol
+  lxc delete nbd-foo
+
   sub_test "Instance copy requires source visibility"
   lxc init --empty copy-source
   lxc snapshot copy-source snap0
@@ -1089,9 +1121,13 @@ user_is_project_operator() {
     lxc_remote storage volume create "${remote}:${pool_name}" test-volume
     lxc_remote query "${remote}:/1.0/storage-volumes" | grep -F "/1.0/storage-pools/${pool_name}/volumes/custom/test-volume"
     lxc_remote query "${remote}:/1.0/storage-volumes/custom" | grep -F "/1.0/storage-pools/${pool_name}/volumes/custom/test-volume"
+
+    # The NBD handlers check the upgrade header after the access check.
+    [ "$("${_LXC}" query -X POST "${remote}:/1.0/storage-pools/${pool_name}/volumes/custom/test-volume/nbd" 2>&1 >/dev/null)" = 'Error: Missing or invalid upgrade header' ]
     lxc_remote storage volume delete "${remote}:${pool_name}" test-volume
     lxc_remote launch testimage "${remote}:operator-foo"
     lxc_remote exec "${remote}:operator-foo" -- echo "bar"
+    [ "$("${_LXC}" query "${remote}:/1.0/instances/operator-foo/snapshots/snap0/nbd" 2>&1 >/dev/null)" = 'Error: Missing or invalid upgrade header' ]
     lxc_remote delete "${remote}:operator-foo" --force
 }
 
@@ -1176,6 +1212,10 @@ user_is_instance_user() {
   lxc_remote file push "${TEST_DIR}/tmp" "${remote}:${instance_name}/root/tmpfile.txt"
   lxc_remote exec "${remote}:${instance_name}" -- rm /root/tmpfile.txt
   rm "${TEST_DIR}/tmp"
+
+  # The user entitlement grants can_connect_nbd on the instance.
+  # The NBD handler checks the upgrade header after the access check.
+  [ "$("${_LXC}" query "${remote}:/1.0/instances/${instance_name}/snapshots/snap0/nbd" 2>&1 >/dev/null)" = 'Error: Missing or invalid upgrade header' ]
 
   # We can't edit the instance though
   ! lxc_remote config set "${remote}:${instance_name}" user.fizz=buzz || false

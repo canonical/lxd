@@ -5,11 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/flosch/pongo2"
@@ -24,6 +28,7 @@ import (
 	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/node"
 	"github.com/canonical/lxd/lxd/project"
@@ -1380,6 +1385,329 @@ func InstanceDiskBlockSize(pool Pool, inst instance.Instance, progressReporter i
 	return blockDiskSize, nil
 }
 
+// InstanceByVolumeName returns the virtual machine whose root volume the volume is, or the
+// instance that the custom volume is attached to, and the name of its disk device.
+// The instance does not need to be running.
+func InstanceByVolumeName(s *state.State, poolName string, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType) (instance.Instance, string, error) {
+	if volumeType == cluster.StoragePoolVolumeTypeVM {
+		inst, err := instance.LoadByProjectAndName(s, projectName, volumeName)
+		if err != nil {
+			return nil, "", err
+		}
+
+		rootDiskName, _, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+		if err != nil {
+			return nil, "", err
+		}
+
+		return inst, rootDiskName, nil
+	}
+
+	if volumeType != cluster.StoragePoolVolumeTypeCustom {
+		return nil, "", api.StatusErrorf(http.StatusBadRequest, "Volumes of type %q cannot be attached to an instance", volumeType)
+	}
+
+	pool, err := LoadByName(s, poolName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	dbVol, err := VolumeDBGet(pool, projectName, volumeName, drivers.VolumeTypeCustom)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var instArgs *db.InstanceArgs
+	var instProject api.Project
+	var deviceName string
+
+	err = VolumeUsedByInstanceDevices(s, pool.Name(), projectName, &dbVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		if dbInst.Type != instancetype.VM {
+			return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to container %q", dbInst.Name)
+		}
+
+		if instArgs != nil {
+			return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to multiple instances (%q and %q)", instArgs.Name, dbInst.Name)
+		}
+
+		// A bitmap or an NBD export is added to one QEMU block node.
+		// A volume attached through several disk devices of the same instance therefore has no single node to address.
+		if len(usedByDevices) > 1 {
+			return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to instance %q through multiple disk devices (%s)", dbInst.Name, strings.Join(usedByDevices, ", "))
+		}
+
+		instArgs = &dbInst
+		instProject = project
+		deviceName = usedByDevices[0]
+
+		return nil
+	})
+	if err != nil {
+		return nil, "", err
+	}
+
+	if instArgs == nil {
+		return nil, "", ErrVolumeNotAttached
+	}
+
+	inst, err := instance.Load(s, *instArgs, instProject)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return inst, deviceName, nil
+}
+
+// qcow2ImageOpts returns the image options that open the metadata image at path with the null-co
+// driver as its data file, for the qemu-img commands that read or change only its metadata.
+// The data file recorded in the image is a temporary file that no longer exists.
+func qcow2ImageOpts(path string) string {
+	return "driver=qcow2,file.filename=" + qcow2EscapeOpt(path) + ",data-file.driver=null-co"
+}
+
+// qcow2EscapeOpt escapes a value for use in a qemu-img option string, where a comma separates options.
+func qcow2EscapeOpt(value string) string {
+	return strings.ReplaceAll(value, ",", ",,")
+}
+
+// qcow2FilePath returns the path that a qemu-img process opens the file at the given index of the
+// files it inherits under. The images are opened through an [os.Root] and passed to qemu-img.
+// This keeps qemu-img from resolving a name on the config volume, where a symlink could point outside the root.
+func qcow2FilePath(index int) string {
+	return "/proc/self/fd/" + strconv.Itoa(3+index)
+}
+
+// qcow2CreateFile creates an empty file of the given name in root for qemu-img to write an image into.
+// An existing entry is removed and the file is created exclusively.
+// This replaces a symlink rather than following it.
+func qcow2CreateFile(root *os.Root, name string) (*os.File, error) {
+	err := root.Remove(name)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+
+	return root.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+}
+
+// Qcow2Create creates an empty qcow2 image of the given virtual size with the given name in root,
+// replacing any existing file.
+func Qcow2Create(root *os.Root, name string, size int64) error {
+	image, err := qcow2CreateFile(root, name)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = image.Close() }()
+
+	_, err = shared.RunCommandInheritFds(context.TODO(), []*os.File{image}, "qemu-img", "create", "-f", "qcow2", qcow2FilePath(0), strconv.FormatInt(size, 10))
+	if err != nil {
+		// A failed creation can leave a partially written file behind.
+		_ = root.Remove(name)
+		return fmt.Errorf("Failed creating image %q: %w", image.Name(), err)
+	}
+
+	return nil
+}
+
+// Qcow2CreateMetadataImage creates a metadata image of the given virtual size with the given name
+// in root, replacing any existing file. The image stores bitmaps only.
+// It is created with an external data file, which lets it be opened with a null block device in
+// place of the volume whose bitmaps it stores.
+// Without data_file_raw, no table is preallocated for the data.
+// The data file is a temporary file, because qemu-img opens and truncates the data file it is
+// given and must not open the volume itself.
+// The clusters are 64 KiB, as every bitmap data cluster is written whole and a small cluster keeps
+// a bitmap with few set bits small.
+func Qcow2CreateMetadataImage(root *os.Root, name string, size int64) error {
+	image, err := qcow2CreateFile(root, name)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = image.Close() }()
+
+	dataName := name + ".data"
+	dataFile, err := qcow2CreateFile(root, dataName)
+	if err != nil {
+		_ = root.Remove(name)
+		return err
+	}
+
+	defer func() {
+		_ = dataFile.Close()
+		_ = root.Remove(dataName)
+	}()
+
+	files := []*os.File{image, dataFile}
+	_, err = shared.RunCommandInheritFds(context.TODO(), files, "qemu-img", "create", "-f", "raw", qcow2FilePath(1), strconv.FormatInt(size, 10))
+	if err != nil {
+		_ = root.Remove(name)
+		return fmt.Errorf("Failed creating temporary data file %q: %w", dataFile.Name(), err)
+	}
+
+	options := "data_file=" + qcow2FilePath(1) + ",cluster_size=64K"
+	_, err = shared.RunCommandInheritFds(context.TODO(), files, "qemu-img", "create", "-f", "qcow2", "-o", options, qcow2FilePath(0), strconv.FormatInt(size, 10))
+	if err == nil {
+		// The image records the path of its data file.
+		// Replace the descriptor path, which names an unrelated file in any other process that
+		// opens the image, with the name of the temporary file, which is removed on return.
+		_, err = shared.RunCommandInheritFds(context.TODO(), files, "qemu-img", "amend", "-f", "qcow2", "-o", "data_file="+qcow2EscapeOpt(dataName), qcow2FilePath(0))
+	}
+
+	if err != nil {
+		// A failed creation can leave a partially written file behind.
+		_ = root.Remove(name)
+		return fmt.Errorf("Failed creating metadata image %q: %w", image.Name(), err)
+	}
+
+	return nil
+}
+
+// Qcow2Bitmap describes a bitmap stored in a qcow2 image.
+type Qcow2Bitmap struct {
+	// Name of the bitmap.
+	Name string
+
+	// Size in bytes of the block represented by one bit of the bitmap.
+	Granularity int64
+
+	// Whether the bitmap recorded every write since it was created.
+	// A bitmap with the "in-use" flag was loaded by a QEMU process that did not write it back.
+	// This means it missed writes.
+	Valid bool
+}
+
+// qcow2Info is the part of the output of qemu-img info that describes a qcow2 image.
+type qcow2Info struct {
+	VirtualSize    int64 `json:"virtual-size"`
+	FormatSpecific struct {
+		Data struct {
+			Bitmaps []struct {
+				Name        string   `json:"name"`
+				Granularity int64    `json:"granularity"`
+				Flags       []string `json:"flags"`
+			} `json:"bitmaps"`
+		} `json:"data"`
+	} `json:"format-specific"`
+}
+
+// bitmaps returns the bitmaps of the image.
+func (info *qcow2Info) bitmaps() []Qcow2Bitmap {
+	bitmaps := make([]Qcow2Bitmap, 0, len(info.FormatSpecific.Data.Bitmaps))
+	for _, bitmap := range info.FormatSpecific.Data.Bitmaps {
+		bitmaps = append(bitmaps, Qcow2Bitmap{
+			Name:        bitmap.Name,
+			Granularity: bitmap.Granularity,
+			Valid:       !slices.Contains(bitmap.Flags, "in-use"),
+		})
+	}
+
+	return bitmaps
+}
+
+// qcow2ImageInfo reads the image with qemu-img info, opened with the given qemu-img arguments,
+// which name the image by qcow2FilePath(0).
+func qcow2ImageInfo(image *os.File, imageArgs ...string) (*qcow2Info, error) {
+	output, err := shared.RunCommandInheritFds(context.TODO(), []*os.File{image}, "qemu-img", append([]string{"info", "--output=json"}, imageArgs...)...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed reading image %q: %w", image.Name(), err)
+	}
+
+	var info qcow2Info
+	err = json.Unmarshal([]byte(output), &info)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing image %q: %w", image.Name(), err)
+	}
+
+	return &info, nil
+}
+
+// Qcow2VirtualSize returns the virtual size of the metadata image with the given name in root.
+func Qcow2VirtualSize(root *os.Root, name string) (int64, error) {
+	image, err := root.Open(name)
+	if err != nil {
+		return 0, err
+	}
+
+	defer func() { _ = image.Close() }()
+
+	info, err := qcow2ImageInfo(image, "--image-opts", qcow2ImageOpts(qcow2FilePath(0)))
+	if err != nil {
+		return 0, err
+	}
+
+	return info.VirtualSize, nil
+}
+
+// Qcow2Bitmaps returns the bitmaps stored in the metadata image with the given name in root.
+func Qcow2Bitmaps(root *os.Root, name string) ([]Qcow2Bitmap, error) {
+	image, err := root.Open(name)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = image.Close() }()
+
+	info, err := qcow2ImageInfo(image, "--image-opts", qcow2ImageOpts(qcow2FilePath(0)))
+	if err != nil {
+		return nil, err
+	}
+
+	return info.bitmaps(), nil
+}
+
+// Qcow2RemoveBitmap removes the named bitmap from the metadata image with the given name in root.
+func Qcow2RemoveBitmap(root *os.Root, name string, bitmapName string) error {
+	image, err := root.OpenFile(name, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = image.Close() }()
+
+	_, err = shared.RunCommandInheritFds(context.TODO(), []*os.File{image}, "qemu-img", "bitmap", "--remove", "--image-opts", qcow2ImageOpts(qcow2FilePath(0)), bitmapName)
+	if err != nil {
+		return fmt.Errorf("Failed removing bitmap %q from %q: %w", bitmapName, image.Name(), err)
+	}
+
+	return nil
+}
+
+// Qcow2Commit commits the overlay with the given name in root into the block volume at devicePath.
+// The overlay has no backing file of its own. The volume is therefore given as its backing file.
+func Qcow2Commit(root *os.Root, overlayName string, devicePath string) error {
+	info, err := os.Stat(devicePath)
+	if err != nil {
+		return err
+	}
+
+	backingDriver := "file"
+	if shared.IsBlockdev(info.Mode()) {
+		backingDriver = "host_device"
+	}
+
+	overlay, err := root.OpenFile(overlayName, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = overlay.Close() }()
+
+	options := []string{
+		"driver=qcow2",
+		"file.filename=" + qcow2FilePath(0),
+		"backing.driver=" + backingDriver,
+		"backing.filename=" + qcow2EscapeOpt(devicePath),
+	}
+
+	_, err = shared.RunCommandInheritFds(context.TODO(), []*os.File{overlay}, "qemu-img", "commit", "--image-opts", strings.Join(options, ","))
+	if err != nil {
+		return fmt.Errorf("Failed committing overlay %q: %w", overlay.Name(), err)
+	}
+
+	return nil
+}
+
 // ComparableSnapshot is used when comparing snapshots on different pools to see whether they differ.
 type ComparableSnapshot struct {
 	// Name of the snapshot (without the parent name).
@@ -1520,4 +1848,203 @@ func VolumeDetermineNextSnapshotName(ctx context.Context, s *state.State, pool s
 	}
 
 	return pattern, nil
+}
+
+// nbdInstanceLockName returns the NBD lock name of an instance.
+// An NBD session of the root volume of the instance holds the lock for its duration.
+// The operations that take it besides a session are listed in nbdConflictError.
+func nbdInstanceLockName(projectName string, instName string) string {
+	return "NBDInstanceOperation_" + project.Instance(projectName, instName)
+}
+
+// nbdVolumeLockName returns the NBD lock name of a custom volume, which an NBD session of the
+// volume holds for its duration.
+// On a local pool the same volume name is a different volume on each member.
+// Therefore, memberName scopes the lock to one member.
+// It is empty for a remote pool, whose volume is one shared entity across the cluster.
+func nbdVolumeLockName(memberName string, poolName string, projectName string, volName string) string {
+	lockName := drivers.OperationLockName("NBD", poolName, drivers.VolumeTypeCustom, drivers.ContentTypeBlock, project.StorageVolume(projectName, volName))
+	if memberName != "" {
+		return memberName + "/" + lockName
+	}
+
+	return lockName
+}
+
+// nbdConflictError returns the error for a request refused because an NBD session holds lockName,
+// where description names the locked instance or volume.
+// A session takes its lock name as the conflict reference of the operation that runs it.
+// The error therefore names that operation whenever it is already registered.
+func nbdConflictError(s *state.State, lockName string, description string) error {
+	var holder *cluster.Operation
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		holder, err = cluster.GetRunningOperationByConflictReference(ctx, tx.Tx(), lockName)
+
+		return err
+	})
+	if err != nil {
+		// The lock is also held with no conflict reference while an instance starts, restarts or
+		// migrates, while one of its snapshots is renamed and while security.shared is updated,
+		// and before a session registers its operation.
+		return api.StatusErrorf(http.StatusConflict, "Another operation is already in progress for %s", description)
+	}
+
+	return api.StatusErrorf(http.StatusConflict, "Operation %q (%s) is already running for %s", holder.Row.UUID, holder.Row.Type.Description(), description)
+}
+
+// nbdLockedSession opens an NBD session with connect while holding the named NBD lock, until the
+// returned cleanup function runs.
+// description names the locked instance or volume in the error returned when the lock is held.
+// The returned lock name is for the caller to set as the conflict reference of the operation representing the session.
+// The lock keeps a second session from starting on this member, and the conflict reference on other members.
+func nbdLockedSession(s *state.State, lockName string, description string, connect func() (net.Conn, func(), error)) (net.Conn, func(), string, error) {
+	unlock := locking.TryLock(lockName)
+	if unlock == nil {
+		return nil, nil, "", nbdConflictError(s, lockName, description)
+	}
+
+	conn, disconnect, err := connect()
+	if err != nil {
+		unlock()
+		return nil, nil, "", err
+	}
+
+	// Unlocking releases whatever entry holds the name at the time.
+	// A repeated cleanup must therefore not evict the lock of a newer session.
+	var once sync.Once
+	cleanup := func() {
+		once.Do(func() {
+			disconnect()
+			unlock()
+		})
+	}
+
+	return conn, cleanup, lockName, nil
+}
+
+// LockInstanceNBD takes the NBD locks of an instance's root volume and of each attached custom
+// block volume, which the NBD sessions of those volumes hold.
+// It returns a conflict error naming the operation of an ongoing session, and keeps a new session
+// from starting until the returned cleanup function runs.
+// ISO and shared volumes are skipped, as NBD refuses them.
+func LockInstanceNBD(s *state.State, inst instance.Instance) (func(), error) {
+	var unlocks []func()
+	release := func() {
+		for _, unlock := range unlocks {
+			unlock()
+		}
+	}
+
+	lockName := nbdInstanceLockName(inst.Project().Name, inst.Name())
+	unlock := locking.TryLock(lockName)
+	if unlock == nil {
+		return nil, nbdConflictError(s, lockName, fmt.Sprintf("instance %q", inst.Name()))
+	}
+
+	unlocks = append(unlocks, unlock)
+
+	// An attached block volume can be exported directly by qemu-nbd while the instance is stopped,
+	// under a lock the root instance lock does not cover.
+	instProject := inst.Project()
+	volProject := project.StorageVolumeProjectFromRecord(&instProject, cluster.StoragePoolVolumeTypeCustom)
+
+	// Cache the pool per name so a pool used by several devices loads once.
+	pools := make(map[string]Pool)
+	for _, devConf := range inst.ExpandedDevices() {
+		if !filters.IsCustomVolumeBlockDisk(devConf) {
+			continue
+		}
+
+		poolName := devConf["pool"]
+		pool, ok := pools[poolName]
+		if !ok {
+			var err error
+			pool, err = LoadByName(s, poolName)
+			if err != nil {
+				release()
+				return nil, err
+			}
+
+			pools[poolName] = pool
+		}
+
+		// The root volume of another virtual machine is exported under that instance's lock.
+		if devConf["source.type"] == cluster.StoragePoolVolumeTypeNameVM {
+			dbVol, err := VolumeDBGet(pool, instProject.Name, devConf["source"], drivers.VolumeTypeVM)
+			if err != nil {
+				release()
+				return nil, err
+			}
+
+			// GetVolumeNBD refuses shared volumes.
+			// Leave them unlocked to let instances that share such a volume start at the same time.
+			if shared.IsTrue(dbVol.Config["security.shared"]) {
+				continue
+			}
+
+			lockName := nbdInstanceLockName(instProject.Name, devConf["source"])
+			unlock := locking.TryLock(lockName)
+			if unlock == nil {
+				release()
+				return nil, nbdConflictError(s, lockName, fmt.Sprintf("instance %q", devConf["source"]))
+			}
+
+			unlocks = append(unlocks, unlock)
+			continue
+		}
+
+		dbVol, err := VolumeDBGet(pool, volProject, devConf["source"], drivers.VolumeTypeCustom)
+		if err != nil {
+			release()
+			return nil, err
+		}
+
+		// GetVolumeNBD refuses ISO and shared volumes.
+		// Leave them unlocked to let instances that share such a volume start at the same time.
+		if dbVol.ContentType != cluster.StoragePoolVolumeContentTypeNameBlock || shared.IsTrue(dbVol.Config["security.shared"]) {
+			continue
+		}
+
+		// Scope the lock to this member on a local pool, as nbdVolumeLockName describes.
+		lockMember := ""
+		if !pool.Driver().Info().Remote {
+			lockMember = s.ServerName
+		}
+
+		lockName := nbdVolumeLockName(lockMember, poolName, volProject, devConf["source"])
+		unlock := locking.TryLock(lockName)
+		if unlock == nil {
+			release()
+			return nil, nbdConflictError(s, lockName, fmt.Sprintf("volume %q", poolName+"/"+devConf["source"]))
+		}
+
+		unlocks = append(unlocks, unlock)
+	}
+
+	return release, nil
+}
+
+// CommitInstanceDiskOverlays commits the overlays that a failed commit left on the disks of a
+// virtual machine, before a storage snapshot, a copy, a backup or a migration reads the volumes.
+// Until then the volumes lack the guest's writes since the last snapshot with a bitmap.
+func CommitInstanceDiskOverlays(inst instance.Instance) error {
+	if inst.Type() != instancetype.VM {
+		return nil
+	}
+
+	return inst.CommitDiskOverlays(slices.Collect(maps.Keys(inst.ExpandedDevices())))
+}
+
+// CommitCustomVolumeDiskOverlay commits the overlay that a failed commit left on the disk of the
+// virtual machine a custom volume is attached to, before the volume is read by a storage snapshot,
+// a copy, a backup or a migration, or written by an NBD export.
+// A volume that is not attached to a virtual machine on this member is skipped.
+func CommitCustomVolumeDiskOverlay(s *state.State, poolName string, projectName string, volName string) error {
+	inst, deviceName, err := InstanceByVolumeName(s, poolName, projectName, volName, cluster.StoragePoolVolumeTypeCustom)
+	if err != nil || inst.Location() != s.ServerName {
+		return nil
+	}
+
+	return inst.CommitDiskOverlays([]string{deviceName})
 }

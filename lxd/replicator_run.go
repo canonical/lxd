@@ -1116,7 +1116,7 @@ func snapshotInstance(ctx context.Context, op *operations.Operation, instanceID 
 	}
 
 	snapStartedAt := time.Now()
-	err = inst.Snapshot(ctx, snapName, nil, false, diskVolumesMode, nil)
+	err = inst.Snapshot(ctx, snapName, nil, false, diskVolumesMode, false, nil)
 	if err != nil {
 		return fmt.Errorf("Failed creating snapshot of instance %q: %w", instName, err)
 	}

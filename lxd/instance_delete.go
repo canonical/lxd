@@ -88,7 +88,7 @@ func doInstanceDelete(opScheduler operations.OperationScheduler, s *state.State,
 	rmct := func(ctx context.Context, op *operations.Operation) error {
 		if instRunning {
 			// Stop instance.
-			err := doInstanceStatePut(ctx, inst, api.InstanceStatePut{
+			err := doInstanceStatePut(ctx, s, inst, api.InstanceStatePut{
 				Action:  "stop",
 				Timeout: -1,
 				Force:   true,

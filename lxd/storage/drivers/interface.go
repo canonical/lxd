@@ -97,6 +97,12 @@ type Driver interface {
 	// DemoteMirroredVolume makes a replicated volume non-primary so that its peer can be promoted.
 	DemoteMirroredVolume(vol Volume) error
 
+	// ActivateTask runs task with the volume's block device activated but not mounted.
+	// The task has exclusive access to the device.
+	// A volume that is already active or in use is therefore refused.
+	// The mount lock is held for the task's duration and the volume is deactivated once the task returns.
+	ActivateTask(vol Volume, task func(devPath string) error) error
+
 	// MountVolume mounts a storage volume (if not mounted) and increments reference counter.
 	MountVolume(vol Volume, progressReporter ioprogress.ProgressReporter) error
 

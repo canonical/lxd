@@ -63,6 +63,9 @@ const (
 	OIDCAuthenticationUnavailable
 	// ReplicatorRunFailure represents a replicator run that did not complete successfully.
 	ReplicatorRunFailure
+	// InstanceDiskOverlayNotCommitted represents a disk overlay of a virtual machine that could not be committed.
+	// This means the volume lacks the writes of the guest since the last snapshot with a bitmap was taken.
+	InstanceDiskOverlayNotCommitted
 )
 
 // TypeNames associates a warning code to its name.
@@ -95,6 +98,7 @@ var TypeNames = map[Type]string{
 	UnableToUpdateClusterCertificate:       "Cannot update cluster certificate",
 	OIDCAuthenticationUnavailable:          "Failed applying OIDC settings",
 	ReplicatorRunFailure:                   "Replicator run failed",
+	InstanceDiskOverlayNotCommitted:        "Disk overlay not committed",
 }
 
 // Severity returns the severity of the warning type.
@@ -155,6 +159,8 @@ func (t Type) Severity() Severity {
 	case OIDCAuthenticationUnavailable:
 		return SeverityModerate
 	case ReplicatorRunFailure:
+		return SeverityHigh
+	case InstanceDiskOverlayNotCommitted:
 		return SeverityHigh
 	}
 

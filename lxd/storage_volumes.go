@@ -1233,6 +1233,14 @@ func doCustomVolumeRefresh(s *state.State, r *http.Request, requestProjectName s
 			return errors.New("No source volume name supplied")
 		}
 
+		// The refresh reads the source volume, which lacks the guest's writes while an overlay is left uncommitted.
+		if !shared.IsSnapshot(req.Source.Name) {
+			err = storagePools.CommitCustomVolumeDiskOverlay(s, req.Source.Pool, srcProjectName, req.Source.Name)
+			if err != nil {
+				return err
+			}
+		}
+
 		err = pool.RefreshCustomVolume(ctx, projectName, srcProjectName, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
 		if err != nil {
 			return err
@@ -1338,6 +1346,14 @@ func doVolumeCreateOrCopy(s *state.State, r *http.Request, requestProjectName st
 		}
 
 		run = func(ctx context.Context, op *operations.Operation) error {
+			// The copy reads the source volume, which lacks the guest's writes while an overlay is left uncommitted.
+			if !shared.IsSnapshot(req.Source.Name) {
+				err := storagePools.CommitCustomVolumeDiskOverlay(s, req.Source.Pool, srcProjectName, req.Source.Name)
+				if err != nil {
+					return err
+				}
+			}
+
 			return pool.CreateCustomVolumeFromCopy(ctx, projectName, srcProjectName, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
 		}
 	}
@@ -1909,6 +1925,14 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
+		// The migration reads the volume, which lacks the guest's writes while an overlay is left uncommitted.
+		if !srcIsSnapshot {
+			err := storagePools.CommitCustomVolumeDiskOverlay(state, details.pool.Name(), effectiveProjectName, details.volumeName)
+			if err != nil {
+				return err
+			}
+		}
+
 		return ws.DoStorage(state, effectiveProjectName, details.pool.Name(), details.fullName, op)
 	}
 

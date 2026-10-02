@@ -132,6 +132,11 @@ func (m *Monitor) SendFile(name string, file *os.File) error {
 	// Query the status.
 	_, err = m.qmp.runWithFile(reqJSON, file, id)
 	if err != nil {
+		// Keep the monitor cached on timeout, as a timeout means QEMU is busy rather than gone.
+		if errors.Is(err, ErrMonitorTimeout) {
+			return err
+		}
+
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
 		if errPing != nil {
@@ -162,6 +167,20 @@ func (m *Monitor) CloseFile(name string) error {
 
 // SendFileWithFDSet adds a new file descriptor to an FD set.
 func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (*AddFdInfo, error) {
+	return m.addFD(nil, name, file, readonly)
+}
+
+// AddFileToFDSet adds a file descriptor to the existing FD set of the given ID.
+// QEMU dups the file descriptor of the set whose access mode matches the one it opens the set with.
+// A set that contains a read-only and a read-write descriptor of the same file therefore lets QEMU
+// reopen its node in either mode.
+func (m *Monitor) AddFileToFDSet(fdSetID int, name string, file *os.File, readonly bool) error {
+	_, err := m.addFD(&fdSetID, name, file, readonly)
+	return err
+}
+
+// addFD adds a file descriptor to the FD set of the given ID, or to a new FD set when the ID is nil.
+func (m *Monitor) addFD(fdSetID *int, name string, file *os.File, readonly bool) (*AddFdInfo, error) {
 	// Check if disconnected.
 	if m.disconnected || m.qmp == nil {
 		return nil, ErrMonitorDisconnect
@@ -172,13 +191,19 @@ func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (
 		permissions = "rdonly"
 	}
 
+	args := map[string]any{
+		"opaque": permissions + ":" + name,
+	}
+
+	if fdSetID != nil {
+		args["fdset-id"] = *fdSetID
+	}
+
 	id := m.qmp.qmpIncreaseID()
 	req := &qmpCommand{
-		ID:      id,
-		Execute: "add-fd",
-		Arguments: map[string]any{
-			"opaque": permissions + ":" + name,
-		},
+		ID:        id,
+		Execute:   "add-fd",
+		Arguments: args,
 	}
 
 	reqJSON, err := json.Marshal(req)
@@ -188,6 +213,11 @@ func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (
 
 	ret, err := m.qmp.runWithFile(reqJSON, file, id)
 	if err != nil {
+		// Keep the monitor cached on timeout, as a timeout means QEMU is busy rather than gone.
+		if errors.Is(err, ErrMonitorTimeout) {
+			return nil, err
+		}
+
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
 		if errPing != nil {
@@ -242,6 +272,9 @@ func (m *Monitor) RemoveFDFromFDSet(name string) error {
 				if err != nil {
 					return fmt.Errorf("Failed removing fd from fd set: %w", err)
 				}
+
+				// Removing an fd set without an fd removes all of its fds.
+				break
 			}
 		}
 	}
@@ -301,8 +334,10 @@ func (m *Monitor) MigrateWait(state string) error {
 			} `json:"return"`
 		}
 
+		// The QEMU main loop is busy during switchover.
+		// A timed out query is therefore not a failure, and polling continues.
 		err := m.run("query-migrate", nil, &resp)
-		if err != nil {
+		if err != nil && !errors.Is(err, ErrMonitorTimeout) {
 			return err
 		}
 
@@ -352,8 +387,10 @@ func (m *Monitor) MigrateIncoming(ctx context.Context, uri string) error {
 			} `json:"return"`
 		}
 
+		// The QEMU main loop is busy during switchover.
+		// A timed out query is therefore not a failure, and polling continues.
 		err := m.run("query-migrate", nil, &resp)
-		if err != nil {
+		if err != nil && !errors.Is(err, ErrMonitorTimeout) {
 			return err
 		}
 
@@ -841,6 +878,73 @@ func (m *Monitor) NBDBlockExportAdd(deviceNodeName string) error {
 	return nil
 }
 
+// BlockDirtyInfo contains information about a dirty bitmap.
+// An inconsistent bitmap is a persistent bitmap that its image marked in use, because the process
+// that loaded it exited without writing it back.
+type BlockDirtyInfo struct {
+	Name         string `json:"name"`
+	Count        int64  `json:"count"`
+	Granularity  int    `json:"granularity"`
+	Recording    bool   `json:"recording"`
+	Busy         bool   `json:"busy"`
+	Persistent   bool   `json:"persistent"`
+	Inconsistent bool   `json:"inconsistent"`
+}
+
+// QueryNodeDirtyBitmaps returns the dirty bitmaps of the given block node.
+// The node is looked up through query-named-block-nodes rather than query-block because an overlay
+// node added with blockdev-snapshot replaces the disk node as the inserted node of the device.
+func (m *Monitor) QueryNodeDirtyBitmaps(nodeName string) ([]BlockDirtyInfo, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []struct {
+			NodeName     string           `json:"node-name"`
+			DirtyBitmaps []BlockDirtyInfo `json:"dirty-bitmaps"`
+		} `json:"return"`
+	}
+
+	err := m.run("query-named-block-nodes", nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying named block nodes: %w", err)
+	}
+
+	for _, node := range resp.Return {
+		if node.NodeName != nodeName {
+			continue
+		}
+
+		if node.DirtyBitmaps == nil {
+			return []BlockDirtyInfo{}, nil
+		}
+
+		return node.DirtyBitmaps, nil
+	}
+
+	return nil, fmt.Errorf("Block node %q not found", nodeName)
+}
+
+// QueryNamedBlockNodes returns the names of all named block nodes.
+func (m *Monitor) QueryNamedBlockNodes() ([]string, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []struct {
+			NodeName string `json:"node-name"`
+		} `json:"return"`
+	}
+
+	err := m.run("query-named-block-nodes", nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed querying named block nodes: %w", err)
+	}
+
+	nodeNames := make([]string, 0, len(resp.Return))
+	for _, node := range resp.Return {
+		nodeNames = append(nodeNames, node.NodeName)
+	}
+
+	return nodeNames, nil
+}
+
 // BlockDevSnapshot creates a snapshot of a device using the specified snapshot device.
 func (m *Monitor) BlockDevSnapshot(deviceNodeName string, snapshotNodeName string) error {
 	var args struct {
@@ -857,6 +961,45 @@ func (m *Monitor) BlockDevSnapshot(deviceNodeName string, snapshotNodeName strin
 	}
 
 	return nil
+}
+
+// BlockDevSnapshotAction returns the transaction action that adds the given overlay node, a qcow2
+// node added without a backing node, on top of a block node.
+// Writes go to the overlay node from then on.
+func BlockDevSnapshotAction(nodeName string, overlayNodeName string) TransactionAction {
+	return TransactionAction{
+		Type: "blockdev-snapshot",
+		Data: map[string]any{
+			"node":    nodeName,
+			"overlay": overlayNodeName,
+		},
+	}
+}
+
+// BlockNodeSize returns the virtual size in bytes of the given block node.
+func (m *Monitor) BlockNodeSize(nodeName string) (int64, error) {
+	// Prepare the response.
+	var resp struct {
+		Return []struct {
+			NodeName string `json:"node-name"`
+			Image    struct {
+				VirtualSize int64 `json:"virtual-size"`
+			} `json:"image"`
+		} `json:"return"`
+	}
+
+	err := m.run("query-named-block-nodes", nil, &resp)
+	if err != nil {
+		return 0, fmt.Errorf("Failed querying named block nodes: %w", err)
+	}
+
+	for _, node := range resp.Return {
+		if node.NodeName == nodeName {
+			return node.Image.VirtualSize, nil
+		}
+	}
+
+	return 0, fmt.Errorf("Block node %q not found", nodeName)
 }
 
 // blockJobWaitReady waits until the specified jobID is ready, errored or missing.
@@ -898,6 +1041,37 @@ func (m *Monitor) blockJobWaitReady(jobID string) error {
 		}
 
 		time.Sleep(1 * time.Second)
+	}
+}
+
+// BlockJobWaitGone waits until the specified jobID is no longer listed, which happens once a job
+// that is dismissed automatically has concluded.
+func (m *Monitor) BlockJobWaitGone(jobID string) error {
+	for {
+		var resp struct {
+			Return []struct {
+				Device string `json:"device"`
+			} `json:"return"`
+		}
+
+		err := m.run("query-block-jobs", nil, &resp)
+		if err != nil {
+			return err
+		}
+
+		found := false
+		for _, job := range resp.Return {
+			if job.Device == jobID {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return nil
+		}
+
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
@@ -1055,4 +1229,81 @@ func (m *Monitor) CheckPCIDevice(deviceID string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// BlockDirtyBitmapAddAction returns the transaction action that creates a dirty bitmap on a block node.
+// A granularity of 0 leaves the choice to QEMU.
+// A persistent bitmap is written into the node's image when the node is closed, which only a qcow2 node supports.
+// A disabled bitmap records no writes.
+func BlockDirtyBitmapAddAction(nodeName string, bitmapName string, granularity int, persistent bool, disabled bool) TransactionAction {
+	data := map[string]any{
+		"node":       nodeName,
+		"name":       bitmapName,
+		"persistent": persistent,
+		"disabled":   disabled,
+	}
+
+	if granularity > 0 {
+		data["granularity"] = granularity
+	}
+
+	return TransactionAction{
+		Type: "block-dirty-bitmap-add",
+		Data: data,
+	}
+}
+
+// BlockDirtyBitmapSource names a bitmap that a merge reads, by its block node and its name.
+type BlockDirtyBitmapSource struct {
+	Node string `json:"node"`
+	Name string `json:"name"`
+}
+
+// blockDirtyBitmapMergeArgs returns the arguments of the block-dirty-bitmap-merge command that
+// merges the source bitmaps into the target bitmap of the given block node.
+func blockDirtyBitmapMergeArgs(nodeName string, bitmapName string, sources []BlockDirtyBitmapSource) map[string]any {
+	return map[string]any{
+		"node":    nodeName,
+		"target":  bitmapName,
+		"bitmaps": sources,
+	}
+}
+
+// BlockDirtyBitmapMergeAction returns the transaction action that merges the source bitmaps into the target bitmap.
+// A merge sets the bits set in a source and clears none.
+// A source may be a bitmap of another block node, which must have the same size as the target's node.
+func BlockDirtyBitmapMergeAction(nodeName string, bitmapName string, sources []BlockDirtyBitmapSource) TransactionAction {
+	return TransactionAction{
+		Type: "block-dirty-bitmap-merge",
+		Data: blockDirtyBitmapMergeArgs(nodeName, bitmapName, sources),
+	}
+}
+
+// BlockDirtyBitmapMerge merges the source bitmaps into the target bitmap, as
+// BlockDirtyBitmapMergeAction does in a transaction.
+func (m *Monitor) BlockDirtyBitmapMerge(nodeName string, bitmapName string, sources []BlockDirtyBitmapSource) error {
+	err := m.run("block-dirty-bitmap-merge", blockDirtyBitmapMergeArgs(nodeName, bitmapName, sources), nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RemoveDirtyBitmap removes a dirty bitmap from a block node.
+func (m *Monitor) RemoveDirtyBitmap(deviceName string, bitmapName string) error {
+	var args struct {
+		Node string `json:"node"`
+		Name string `json:"name"`
+	}
+
+	args.Node = deviceName
+	args.Name = bitmapName
+
+	err := m.run("block-dirty-bitmap-remove", args, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
