@@ -44,7 +44,7 @@ Queries on `/dev/lxd/sock` only return information related to the requesting ins
 
 For containers, LXD inspects user credentials associated with the connection and matches them with a running instance.
 
-For virtual machines, LXD extracts the virtual socket ID from the remote address of the caller (the LXD agent), and matches it with a virtual machine.
+For virtual machines, LXD extracts the virtual socket ID from the remote address of the caller (the LXD agent), matches it with a virtual machine, and validates the virtual machine's certificate to establish mTLS.
 
 (devlxd-authentication-bearer)=
 ### Bearer tokens
