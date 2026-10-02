@@ -597,10 +597,9 @@ func networkValidGateway(value string) error {
 }
 
 // bgpAddPrefix adds external routes to the BGP server.
-func bgpAddPrefix(d *deviceCommon, n network.Network, config map[string]string) error {
-	// BGP is only valid when tied to a managed network.
-	if config["network"] == "" {
-		return nil
+func bgpAddPrefix(d *deviceCommon, n network.Network, bgpOwnerNet network.Network, config map[string]string) error {
+	if n == nil || bgpOwnerNet == nil {
+		return errors.New("BGP prefix requires a managed network and BGP owner network")
 	}
 
 	// Parse nexthop configuration.
@@ -621,7 +620,7 @@ func bgpAddPrefix(d *deviceCommon, n network.Network, config map[string]string) 
 	}
 
 	// Add the prefixes.
-	bgpOwner := fmt.Sprint("instance_", d.inst.ID(), "_", d.name)
+	bgpOwner := fmt.Sprintf("network_%d_instance_%d_%s", bgpOwnerNet.ID(), d.inst.ID(), d.name)
 	if config["ipv4.routes.external"] != "" {
 		for _, prefix := range shared.SplitNTrimSpace(config["ipv4.routes.external"], ",", -1, true) {
 			_, prefixNet, err := net.ParseCIDR(prefix)
@@ -653,19 +652,12 @@ func bgpAddPrefix(d *deviceCommon, n network.Network, config map[string]string) 
 	return nil
 }
 
-func bgpRemovePrefix(d *deviceCommon, config map[string]string) error {
-	// BGP is only valid when tied to a managed network.
-	if config["network"] == "" {
-		return nil
+func bgpRemovePrefix(d *deviceCommon, bgpOwnerNet network.Network) error {
+	if bgpOwnerNet == nil {
+		return errors.New("BGP prefix removal requires a BGP owner network")
 	}
 
-	// Load the network configuration.
-	err := d.state.BGP.RemovePrefixByOwner(fmt.Sprint("instance_", d.inst.ID(), "_", d.name))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.state.BGP.RemovePrefixByOwner(fmt.Sprintf("network_%d_instance_%d_%s", bgpOwnerNet.ID(), d.inst.ID(), d.name))
 }
 
 // networkSRIOVParentVFInfo returns info about an SR-IOV virtual function from the parent NIC using the ip tool.
