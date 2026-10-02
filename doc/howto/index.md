@@ -70,6 +70,15 @@ Authenticate to the LXD API using bearer tokens </howto/auth_bearer>
 Authenticate to the DevLXD API </howto/devlxd_authenticate>
 ```
 
+## Decommission LXD
+
+```{toctree}
+:titlesonly:
+:maxdepth: 1
+
+Decommission LXD </howto/decommission>
+```
+
 ## Engage with us
 
 ```{toctree}
