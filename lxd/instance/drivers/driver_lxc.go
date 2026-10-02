@@ -4838,6 +4838,14 @@ func (d *lxc) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, pr
 		return err
 	}
 
+	// A metadata-only response means the target expects the data to be mirrored already. Refuse if
+	// this pool does not mirror the project, because then the data was never transferred.
+	if respHeader.GetMetadataOnly() && !storagePools.PoolMirrorsProject(pool, d.Project().Name) {
+		err := fmt.Errorf("The target holds a mirror of instance %q but storage pool %q does not carry %s", d.Name(), pool.Name(), storageDrivers.CephReplicatorPoolKey(d.Project().Name))
+		op.Done(err)
+		return err
+	}
+
 	volSourceArgs := &migration.VolumeSourceArgs{
 		IndexHeaderVersion: respHeader.GetIndexHeaderVersion(), // Enable index header frame if supported.
 		Name:               d.Name(),
@@ -4849,6 +4857,7 @@ func (d *lxc) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, pr
 		VolumeOnly:         !args.Snapshots,
 		Info:               &migration.Info{Config: srcConfig},
 		ClusterMove:        args.ClusterMoveSourceName != "",
+		MetadataOnly:       respHeader.GetMetadataOnly(),
 	}
 
 	rootVol, err := volSourceArgs.Info.Config.RootVolume()
@@ -5101,6 +5110,11 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 	respHeader.Snapshots = offerHeader.Snapshots
 	respHeader.Refresh = &args.Refresh
 
+	// A standby project on a mirrored pool already holds the data, so only the records are
+	// transferred. The target decides because only it knows it is such a standby.
+	metadataOnly := storagePools.HoldsCephReplicas(pool, d.Project())
+	respHeader.MetadataOnly = &metadataOnly
+
 	if args.Refresh {
 		// Get the remote snapshots on the source.
 		sourceSnapshots := offerHeader.GetSnapshots()
@@ -5296,6 +5310,7 @@ func (d *lxc) MigrateReceive(ctx context.Context, args instance.MigrateReceiveAr
 			VolumeSize:            offerHeader.GetVolumeSize(), // Block size setting override.
 			VolumeOnly:            !args.Snapshots,
 			ClusterMoveSourceName: args.ClusterMoveSourceName,
+			MetadataOnly:          metadataOnly,
 			DeferredCustomVolumes: args.DeferredVolumes,
 			AttachedCustomVolumes: args.AttachedVolumes,
 			BeforeTransferStart:   beforeTransferStart,

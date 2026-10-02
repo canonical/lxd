@@ -59,6 +59,10 @@ type VolumeSourceArgs struct {
 	Info               *Info
 	VolumeOnly         bool
 	ClusterMove        bool
+
+	// MetadataOnly skips the data transfer because the target already holds the data.
+	// Only the records are transferred.
+	MetadataOnly bool
 }
 
 // VolumeTargetArgs represents the arguments needed to setup a volume migration sink.
@@ -77,6 +81,10 @@ type VolumeTargetArgs struct {
 	ContentType           string
 	VolumeOnly            bool
 	ClusterMoveSourceName string
+
+	// MetadataOnly skips the data transfer because this target already holds the data.
+	// Only the records are created or refreshed.
+	MetadataOnly bool
 
 	// DeferredCustomVolumes holds "pool/name" for the custom volumes the target could not validate yet because
 	// they are missing and expected from the source. The index header must list each of them, or the migration
