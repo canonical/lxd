@@ -10,6 +10,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v2"
@@ -415,14 +416,14 @@ func (c *cmdConfigTrustList) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		const layout = "Jan 2, 2006 at 3:04pm (MST)"
 		entries = append(entries, trustEntry{
 			certType:    cert.Type,
 			name:        cert.Name,
 			commonName:  tlsCert.Subject.CommonName,
 			fingerprint: fp,
-			issueDate:   tlsCert.NotBefore.Format(layout),
-			expiryDate:  tlsCert.NotAfter.Format(layout),
+			// Certificate not after/before times are typically displayed in UTC.
+			issueDate:  formatTime(&tlsCert.NotBefore, time.UTC),
+			expiryDate: formatTime(&tlsCert.NotAfter, time.UTC),
 		})
 	}
 
@@ -544,17 +545,10 @@ func (c *cmdConfigTrustListTokens) run(cmd *cobra.Command, args []string) error 
 			continue // Operation is not a valid certificate add token operation.
 		}
 
-		var expiresAt string
-
-		// Only show the expiry date if available, otherwise show an empty string.
-		if joinToken.ExpiresAt.Unix() > 0 {
-			expiresAt = joinToken.ExpiresAt.Format("2006/01/02 15:04 MST")
-		}
-
 		displayTokens = append(displayTokens, displayToken{
 			ClientName: joinToken.ClientName,
 			Token:      joinToken.String(),
-			ExpiresAt:  expiresAt,
+			ExpiresAt:  formatTime(&joinToken.ExpiresAt, time.Local),
 		})
 	}
 
