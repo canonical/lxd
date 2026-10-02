@@ -206,22 +206,11 @@ func validateCephReplicatorProjects(ctx context.Context, s *state.State, poolCon
 // carrying it. It takes the transaction so that the key can go together with the project's own
 // record, which leaves no moment where a pool names a project that is gone.
 func RemoveCephReplicatorPoolKey(ctx context.Context, tx *db.ClusterTx, projectName string) error {
-	poolRecords, _, err := tx.GetStoragePools(ctx, nil)
+	// The key's name carries the project, so matching on the name alone removes this project's key
+	// from every pool and nothing else.
+	_, err := tx.Tx().ExecContext(ctx, "DELETE FROM storage_pools_config WHERE key = ?", drivers.CephReplicatorPoolKey(projectName))
 	if err != nil {
-		return fmt.Errorf("Failed loading storage pools: %w", err)
-	}
-
-	for _, poolRecord := range poolRecords {
-		if !poolMirrorsProject(poolRecord.Config, projectName) {
-			continue
-		}
-
-		delete(poolRecord.Config, drivers.CephReplicatorPoolKey(projectName))
-
-		err := tx.UpdateStoragePool(ctx, poolRecord.Name, poolRecord.Description, poolRecord.Config)
-		if err != nil {
-			return fmt.Errorf("Failed updating storage pool %q: %w", poolRecord.Name, err)
-		}
+		return fmt.Errorf("Failed removing the replicator key of project %q from storage pools: %w", projectName, err)
 	}
 
 	return nil
