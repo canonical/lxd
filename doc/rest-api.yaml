@@ -624,7 +624,8 @@ definitions:
             type:
                 description: |-
                     Type of the cluster link.
-                    Currently only "bidirectional" is supported.
+                    Valid types are "bidirectional", "unidirectional" (API extension: cluster_links_unidirectional)
+                    and "public" (API extension: cluster_links_public).
                 example: bidirectional
                 type: string
                 x-go-name: Type
