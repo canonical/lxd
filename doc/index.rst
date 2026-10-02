@@ -81,7 +81,6 @@ LXD (|lxd-listen-anchor-open|\ ``[lɛks'di:]``\ |lxd-listen-anchor-close|) is a 
          :doc:`Back up <howto/instances_backup>` slice
          :doc:`Migrate <howto/instances_migrate>` slice
          :doc:`Import <howto/import_machines_to_instances>` slice
-         :doc:`Live migration <howto/instances_migrate>`
          :doc:`Guest OS compatibility matrix <guest-os-compatibility>`
          :doc:`Configuration options <reference/instance_options>`
          :doc:`Store configuration options in profiles <profiles>`
@@ -206,6 +205,7 @@ LXD (|lxd-listen-anchor-open|\ ``[lɛks'di:]``\ |lxd-listen-anchor-close|) is a 
          :doc:`Overview <explanation/security>` slice
          :doc:`Harden security <howto/security_harden>`
          :doc:`Monitor security events <howto/security_events>`
+         :doc:`Decommission LXD <howto/decommission>`
 
       .. slice:: Performance
 
@@ -234,7 +234,6 @@ LXD (|lxd-listen-anchor-open|\ ``[lɛks'di:]``\ |lxd-listen-anchor-close|) is a 
          :doc:`Releases and snap reference <reference/releases-snap>`
          :doc:`Release notes <reference/release-notes/index>`
          :doc:`Deprecation notices <reference/deprecation_notices>`
-         :doc:`Decommission LXD <howto/decommission>`
 
       .. slice:: Troubleshooting
 
