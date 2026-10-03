@@ -19,6 +19,12 @@ if [ -n "${LXD_INSPECT_INPROGRESS:-}" ]; then
     exit 1
 fi
 
+# Commands like `lxc storage create` read stdin when it is not a terminal and block on an open pipe.
+# Keep stdin only when an inspection shell may need it.
+if [ -z "${LXD_INSPECT:-}" ]; then
+  exec < /dev/null
+fi
+
 # Create LXD_LOGS if needed
 [ -n "${LXD_LOGS:-}" ] && mkdir -p "${LXD_LOGS}"
 
