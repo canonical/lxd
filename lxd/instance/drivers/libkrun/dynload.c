@@ -86,6 +86,8 @@ static void loader_init_once(void) {
     const char *candidates[] = {
         "libkrun.so",
         "libkrun.so.0",
+        "libkrun.so.1",
+        "libkrun.so.2",
         NULL,
     };
     size_t i;
