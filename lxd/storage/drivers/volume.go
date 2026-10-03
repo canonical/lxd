@@ -619,15 +619,16 @@ func (v *Volume) GetParent() Volume {
 
 // Clone returns a copy of the volume.
 func (v Volume) Clone() Volume {
-	// Copy the config map to avoid internal modifications affecting external state.
-	newConfig := make(map[string]string, len(v.config))
-	maps.Copy(newConfig, v.config)
+	newVol := v
 
-	// Copy the pool config map to avoid internal modifications affecting external state.
-	newPoolConfig := make(map[string]string, len(v.poolConfig))
-	maps.Copy(newPoolConfig, v.poolConfig)
+	// Copy the config maps to avoid internal modifications affecting external state.
+	newVol.config = make(map[string]string, len(v.config))
+	maps.Copy(newVol.config, v.config)
 
-	return NewVolume(v.driver, v.pool, v.volType, v.contentType, v.name, newConfig, newPoolConfig)
+	newVol.poolConfig = make(map[string]string, len(v.poolConfig))
+	maps.Copy(newVol.poolConfig, v.poolConfig)
+
+	return newVol
 }
 
 // NewVolumeCopy returns a container for copying a volume and its snapshots.
