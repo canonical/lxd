@@ -65,8 +65,8 @@ Type            | Identifier   | Example
 :--             | :---         | :----------
 Container       | `c_`         | `c_WiUEsGpsSEmO592wtnT9FA==`
 Virtual machine | `v_`         | `v_WiUEsGpsSEmO592wtnT9FA==.b` (block volume) and `v_WiUEsGpsSEmO592wtnT9FA==` (file system volume)
-Image (ISO)     | `i_`         | `i_WiUEsGpsSEmO592wtnT9FA==.i`
-Custom volume   | `u_`         | `u_WiUEsGpsSEmO592wtnT9FA==` (file system volume) and `u_WiUEsGpsSEmO592wtnT9FA==.b` (block volume)
+Image           | `i_`         | `i_WiUEsGpsSEmO592wtnT9FA==` (file system image) and `i_WiUEsGpsSEmO592wtnT9FA==.b` (block image)
+Custom volume   | `u_`         | `u_WiUEsGpsSEmO592wtnT9FA==` (file system volume), `u_WiUEsGpsSEmO592wtnT9FA==.b` (block volume) and `u_WiUEsGpsSEmO592wtnT9FA==.i` (ISO volume)
 Snapshot        | `s`          | `sc_WiUEsGpsSEmO592wtnT9FA==` (container snapshot), `sv_WiUEsGpsSEmO592wtnT9FA==.b` (VM snapshot) and `su_WiUEsGpsSEmO592wtnT9FA==` (custom volume snapshot)
 
 (storage-powerflex-limitations)=
