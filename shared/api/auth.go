@@ -204,7 +204,7 @@ type IdentityPut struct {
 	// Example: ["foo", "bar"]
 	Groups []string `json:"groups" yaml:"groups"`
 
-	// TLSCertificate is a base64 encoded x509 certificate. This can only be set if the authentication method of the identity is AuthenticationMethodTLS.
+	// TLSCertificate is a PEM encoded x509 certificate. This can only be set if the authentication method of the identity is AuthenticationMethodTLS.
 	//
 	// API extension: access_management_tls.
 	TLSCertificate string `json:"tls_certificate" yaml:"tls_certificate"`
