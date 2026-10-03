@@ -58,13 +58,12 @@ func createBodyReader(contents map[string]any) (io.Reader, error) {
 
 // AlletraClient holds the HPE Alletra Storage HTTP client and an access token.
 type AlletraClient struct {
-	logger     logger.Logger
-	url        string
-	username   string
-	password   string
-	verifyTLS  bool
-	cpg        string
-	sessionKey string
+	logger    logger.Logger
+	url       string
+	username  string
+	password  string
+	verifyTLS bool
+	cpg       string
 }
 
 // NewAlletraClient creates a new instance of the HPE Alletra Storage HTTP client.
@@ -331,9 +330,9 @@ func (p *AlletraClient) invalidateSessionKey() {
 	key := p.getSessionKeysCacheKey()
 
 	sessionKeysMtx.Lock()
+	defer sessionKeysMtx.Unlock()
+
 	delete(sessionKeys, key)
-	p.sessionKey = ""
-	sessionKeysMtx.Unlock()
 }
 
 // cacheSessionKey() adds a session key to the cache.
@@ -341,25 +340,20 @@ func (p *AlletraClient) cacheSessionKey(sessionKey string) {
 	key := p.getSessionKeysCacheKey()
 
 	sessionKeysMtx.Lock()
+	defer sessionKeysMtx.Unlock()
+
 	sessionKeys[key] = sessionKey
-	p.sessionKey = sessionKey
-	sessionKeysMtx.Unlock()
 }
 
 // getSessionKey() gets a session key from the cache.
-func (p *AlletraClient) getSessionKey() bool {
+func (p *AlletraClient) getSessionKey() (string, bool) {
 	key := p.getSessionKeysCacheKey()
 
 	sessionKeysMtx.RLock()
 	defer sessionKeysMtx.RUnlock()
 
 	sessionKey, ok := sessionKeys[key]
-	if ok {
-		p.sessionKey = sessionKey
-		return true
-	}
-
-	return false
+	return sessionKey, ok
 }
 
 // requestAuthenticated issues an authenticated HTTP request against the HPE Storage gateway.
@@ -371,16 +365,12 @@ func (p *AlletraClient) requestAuthenticated(method string, url url.URL, reqBody
 
 	for {
 		// Ensure we are logged into the WSAPI.
-		err := p.login()
+		sessionKey, err := p.login()
 		if err != nil {
 			return err
 		}
 
 		// Add Session Key to Headers.
-		sessionKeysMtx.RLock()
-		sessionKey := p.sessionKey
-		sessionKeysMtx.RUnlock()
-
 		reqHeaders := map[string]string{
 			"X-HP3PAR-WSAPI-SessionKey": sessionKey,
 		}
@@ -413,11 +403,11 @@ func (p *AlletraClient) requestAuthenticated(method string, url url.URL, reqBody
 }
 
 // login initiates request() using WSAPI username and password.
-// If successful then Session Key is retrieved and stored within client structure.
-// Once stored the Session Key is reused for further requests.
-func (p *AlletraClient) login() error {
-	if p.getSessionKey() {
-		return nil
+// If successful, the Session Key is stored in the shared session cache and returned.
+func (p *AlletraClient) login() (string, error) {
+	sessionKey, ok := p.getSessionKey()
+	if ok {
+		return sessionKey, nil
 	}
 
 	var respBody struct {
@@ -436,15 +426,15 @@ func (p *AlletraClient) login() error {
 
 	err := p.request(http.MethodPost, url.URL, body, nil, &respBody, respHeaders)
 	if err != nil {
-		return fmt.Errorf("Failed sending login request to HPE Alletra WSAPI: %w", err)
+		return "", fmt.Errorf("Failed sending login request to HPE Alletra WSAPI: %w", err)
 	}
 
 	if respBody.Key == "" {
-		return errors.New("Received an empty Session Key from HPE Alletra WSAPI")
+		return "", errors.New("Received an empty Session Key from HPE Alletra WSAPI")
 	}
 
 	p.cacheSessionKey(respBody.Key)
-	return nil
+	return respBody.Key, nil
 }
 
 // CreateVolumeSet creates a volume set (representation of LXD storage pool).
