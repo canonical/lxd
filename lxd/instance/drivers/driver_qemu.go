@@ -2789,7 +2789,7 @@ func (d *qemu) deviceDetachPath(deviceName string) error {
 	return nil
 }
 
-func (d *qemu) deviceDetachBlockDevice(deviceName string) error {
+func (d *qemu) deviceDetachBlockDevice(deviceName string, devConf deviceConfig.Device) error {
 	d.logger.Debug("Detaching block device", logger.Ctx{"device": deviceName})
 	defer d.logger.Debug("Finished detaching block device", logger.Ctx{"device": deviceName})
 
@@ -2946,7 +2946,7 @@ func (d *qemu) deviceStop(dev device.Device, instanceRunning bool, _ string) err
 					return err
 				}
 			} else {
-				err = d.deviceDetachBlockDevice(dev.Name())
+				err = d.deviceDetachBlockDevice(dev.Name(), configCopy)
 				if err != nil {
 					return err
 				}
