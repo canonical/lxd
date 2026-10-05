@@ -46,6 +46,7 @@ For production deployments, clusters of LXD servers help support higher loads. T
 
 /clustering
 /production-setup
+/howto/disaster_recovery
 ```
 
 ## Perform server administration

@@ -3,7 +3,7 @@ discourse: lxc:[LXD&#32;cluster&#32;on&#32;Raspberry&#32;Pi&#32;4](9076)
 relatedlinks: "[MicroCloud](https://canonical.com/microcloud)"
 myst:
   html_meta:
-    description: An index of how-to guides for LXD clusters, covering forming and managing clusters, configuring cluster networking and storage, disaster recovery, and more.
+    description: An index of how-to guides for LXD clusters, covering forming and managing clusters, configuring cluster networking and storage, and more.
 ---
 
 (clustering)=
@@ -66,17 +66,6 @@ Clusters can be linked together for authenticated communication, enabling featur
 
 Create cluster links </howto/cluster_links_create>
 Manage cluster links </howto/cluster_links_manage>
-```
-
-## Use replicators
-
-Replicators continuously copy storage volumes from one LXD cluster to another for disaster recovery purposes.
-
-```{toctree}
-:titlesonly:
-
-Set up replicators </howto/replicators_create>
-Manage replicators </howto/replicators_manage>
 ```
 
 ## Related topics
