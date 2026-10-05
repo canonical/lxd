@@ -51,11 +51,13 @@ To create an instance, send a POST request to the `/1.0/instances` endpoint:
       "name": "<instance_name>",
       "source": {
         "alias": "<image_alias>",
-        "protocol": "simplestreams",
-        "server": "<server_URL>",
+        "image_registry": "<registry_name>",
         "type": "image"
       }
     }'
+
+Set `image_registry` to the name of the {ref}`image registry <howto-image-registries>` that provides the image.
+Use `lxc image registry list` to see the available registries, including the {ref}`built-in ones <remote-image-servers>` (for example, `ubuntu`).
 
 The return value of this query contains an operation ID, which you can use to query the status of the operation:
 
@@ -80,8 +82,7 @@ If you would like to start the instance upon creation, set the `start` property 
       "name": "<instance_name>",
       "source": {
         "alias": "<image_alias>",
-        "protocol": "simplestreams",
-        "server": "<server_URL>",
+        "image_registry": "<registry_name>",
         "type": "image"
       },
       "start": true
@@ -126,8 +127,7 @@ To create a container with an Ubuntu 24.04 LTS image from the `ubuntu` server us
       "name": "ubuntu-container",
       "source": {
         "alias": "24.04",
-        "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases/",
+        "image_registry": "ubuntu",
         "type": "image"
       }
     }'
@@ -153,8 +153,7 @@ To create a virtual machine with an Ubuntu 24.04 LTS image from the `ubuntu` ser
       "name": "ubuntu-vm",
       "source": {
         "alias": "24.04",
-        "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases/",
+        "image_registry": "ubuntu",
         "type": "image"
       },
       "type": "virtual-machine"
@@ -187,8 +186,7 @@ Or with a bigger disk:
       "name": "ubuntu-vm-big",
       "source": {
         "alias": "24.04",
-        "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases/",
+        "image_registry": "ubuntu",
         "type": "image"
       },
       "type": "virtual-machine"
@@ -219,8 +217,7 @@ To create a container and limit its resources to one vCPU and 8 GiB of RAM:
       "name": "ubuntu-limited",
       "source": {
         "alias": "24.04",
-        "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases/",
+        "image_registry": "ubuntu",
         "type": "image"
       }
     }'
@@ -246,8 +243,7 @@ To create a virtual machine on the cluster member `micro2`, enter the following 
       "name": "ubuntu-vm-server2",
       "source": {
         "alias": "24.04",
-        "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases/",
+        "image_registry": "ubuntu",
         "type": "image"
       },
       "type": "virtual-machine"
@@ -292,8 +288,7 @@ To create a container with this instance type:
       "name": "my-instance",
       "source": {
         "alias": "24.04",
-        "protocol": "simplestreams",
-        "server": "https://cloud-images.ubuntu.com/releases/",
+        "image_registry": "ubuntu",
         "type": "image"
       }
     }'
@@ -478,7 +473,7 @@ You can then upload your ISO file and install a VM from it.
 In order for features like direct command execution (`lxc exec` & `lxc shell`), file transfers (`lxc file`) and detailed usage metrics (`lxc info`)
 to work properly with virtual machines, an agent software is provided by LXD.
 
-The virtual machine images from the official {ref}`remote image servers <remote-image-servers>` are pre-configured to load that agent on startup.
+The virtual machine images from the official {ref}`built-in image registries <remote-image-servers>` are pre-configured to load that agent on startup.
 
 For other virtual machines, you may want to manually install the agent.
 

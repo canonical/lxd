@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -1030,4 +1031,244 @@ INSERT INTO secrets (entity_type, entity_id, type, value) SELECT 24, id, 2, 'ini
 	err = db.QueryRowContext(t.Context(), `SELECT type FROM identities WHERE identifier = ?`, "019d6c4f-bf62-7bb8-a1d2-000000000008").Scan(&identityType)
 	require.NoError(t, err)
 	require.Equal(t, IdentityType(api.IdentityTypeBearerTokenInitialUI), identityType)
+}
+
+func TestUpdateFromV91(t *testing.T) {
+	// This migration moves the legacy images_source table (server/protocol/certificate) to reference
+	// an image registry via image_registry_id. SimpleStreams sources match an existing registry
+	// (including the built-ins seeded at the previous version) by normalized URL, otherwise a
+	// dedicated SimpleStreams registry is auto-created. LXD sources with a pinned certificate are
+	// migrated to a public LXD image registry backed by an auto-created public cluster link that
+	// pins the legacy certificate. LXD sources without a usable certificate and deprecated "direct"
+	// sources are dropped, keeping the cached image but discarding its source record and disabling
+	// auto-update for it (there is no source left to refresh from).
+	//
+	// Legacy images_source.protocol codes used in the fixture below: lxd = 0, direct = 1,
+	// simplestreams = 2.
+	certPEM := string(shared.TestingKeyPair().PublicKey())
+	altCertPEM := string(shared.TestingAltKeyPair().PublicKey())
+
+	schema := Schema()
+	db, err := schema.ExerciseUpdate(92, func(db *sql.DB) {
+		_, err := db.Exec(fmt.Sprintf(`
+INSERT INTO projects (name, description) VALUES ('migration-test', '');
+
+-- One cached image per source below.
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, project_id)
+	VALUES ('ss-builtin', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, project_id)
+	VALUES ('ss-builtin-slash', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, project_id)
+	VALUES ('ss-custom-1', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, project_id)
+	VALUES ('ss-custom-2', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, auto_update, project_id)
+	VALUES ('lxd-source', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, auto_update, project_id)
+	VALUES ('lxd-source-same', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, auto_update, project_id)
+	VALUES ('lxd-source-altcert', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, auto_update, project_id)
+	VALUES ('lxd-source-nocert', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, auto_update, project_id)
+	VALUES ('lxd-source-badcert', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, 1, (SELECT id FROM projects WHERE name='migration-test'));
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, cached, auto_update, project_id)
+	VALUES ('direct-source', 'img.tgz', 1, 2, '2024-01-01T00:00:00Z', 1, 1, (SELECT id FROM projects WHERE name='migration-test'));
+
+-- SimpleStreams source matching the built-in "images" registry URL exactly.
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='ss-builtin'), 'https://images.lxd.canonical.com', 2, '', 'jammy');
+-- SimpleStreams source matching the same built-in via a trailing slash (normalization).
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='ss-builtin-slash'), 'https://images.lxd.canonical.com/', 2, '', 'noble');
+-- Two SimpleStreams sources with the same custom URL should share a single auto-created registry.
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='ss-custom-1'), 'https://simplestreams.example.com', 2, '', 'custom');
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='ss-custom-2'), 'https://simplestreams.example.com', 2, '', 'custom2');
+-- LXD source with a pinned certificate migrates to a public LXD image registry.
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='lxd-source'), 'https://lxd.example.com:8443', 0, '%[1]s', 'lxd-alias');
+-- LXD source for the same address pinning the same certificate shares the auto-created link and registry.
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='lxd-source-same'), 'https://lxd.example.com:8443', 0, '%[1]s', 'lxd-alias-2');
+-- LXD source for the same address pinning a different certificate gets its own link and registry.
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='lxd-source-altcert'), 'https://lxd.example.com:8443', 0, '%[2]s', 'lxd-alias-3');
+-- LXD sources without a usable certificate are dropped.
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='lxd-source-nocert'), 'https://nocert.example.com:8443', 0, '', 'nocert-alias');
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='lxd-source-badcert'), 'https://badcert.example.com:8443', 0, 'CERTPEM', 'badcert-alias');
+-- Deprecated direct sources are dropped.
+INSERT INTO images_source (image_id, server, protocol, certificate, alias)
+	VALUES ((SELECT id FROM images WHERE fingerprint='direct-source'), 'https://direct.example.com', 1, '', 'direct-alias');
+`, certPEM, altCertPEM))
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	ctx := t.Context()
+
+	// registryIDForImage returns the image_registry_id linked to the cached image with the given
+	// fingerprint, or -1 if the image has no source row after migration.
+	registryIDForImage := func(fingerprint string) int64 {
+		t.Helper()
+		var registryID int64
+		err := db.QueryRowContext(ctx, `
+SELECT images_source.image_registry_id
+FROM images_source
+JOIN images ON images.id = images_source.image_id
+WHERE images.fingerprint = ?`, fingerprint).Scan(&registryID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return -1
+		}
+
+		require.NoError(t, err)
+		return registryID
+	}
+
+	registryName := func(id int64) string {
+		t.Helper()
+		var name string
+		require.NoError(t, db.QueryRowContext(ctx, `SELECT name FROM image_registries WHERE id = ?`, id).Scan(&name))
+		return name
+	}
+
+	// The built-in "images" registry id, matched by its seeded URL.
+	var builtinImagesID int64
+	require.NoError(t, db.QueryRowContext(ctx, `
+SELECT r.id FROM image_registries r
+JOIN image_registries_config c ON c.image_registry_id = r.id AND c.key = 'url'
+WHERE c.value = 'https://images.lxd.canonical.com'`).Scan(&builtinImagesID))
+
+	// SimpleStreams sources matching a built-in URL (with or without a trailing slash) link to it.
+	require.Equal(t, builtinImagesID, registryIDForImage("ss-builtin"))
+	require.Equal(t, builtinImagesID, registryIDForImage("ss-builtin-slash"))
+
+	// The two custom SimpleStreams sources share a single auto-created registry.
+	customID := registryIDForImage("ss-custom-1")
+	require.Positive(t, customID)
+	require.Equal(t, customID, registryIDForImage("ss-custom-2"))
+	require.NotEqual(t, builtinImagesID, customID)
+
+	// The auto-created registry is a non-built-in SimpleStreams registry named "auto-migrated-001".
+	require.Equal(t, "auto-migrated-001", registryName(customID))
+
+	var protocol int64
+	var builtin int64
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT protocol, builtin FROM image_registries WHERE id = ?`, customID).Scan(&protocol, &builtin))
+	require.Equal(t, int64(0), protocol) // image_registries protocol encoding: simplestreams = 0.
+	require.Equal(t, int64(0), builtin)
+
+	// It has exactly one config key, "url", set to the source server, and no derived "public" or
+	// "source_project" keys.
+	configRows, err := db.QueryContext(ctx, `SELECT key, value FROM image_registries_config WHERE image_registry_id = ?`, customID)
+	require.NoError(t, err)
+
+	defer func() { _ = configRows.Close() }()
+
+	config := map[string]string{}
+	for configRows.Next() {
+		var key, value string
+		require.NoError(t, configRows.Scan(&key, &value))
+		config[key] = value
+	}
+
+	require.NoError(t, configRows.Err())
+	require.Equal(t, map[string]string{"url": "https://simplestreams.example.com"}, config)
+
+	// registryConfig returns the config map of the image registry with the given ID.
+	registryConfig := func(id int64) map[string]string {
+		t.Helper()
+		rows, err := db.QueryContext(ctx, `SELECT key, value FROM image_registries_config WHERE image_registry_id = ?`, id)
+		require.NoError(t, err)
+
+		defer func() { _ = rows.Close() }()
+
+		config := map[string]string{}
+		for rows.Next() {
+			var key, value string
+			require.NoError(t, rows.Scan(&key, &value))
+			config[key] = value
+		}
+
+		require.NoError(t, rows.Err())
+		return config
+	}
+
+	// The LXD source migrates to a non-built-in LXD image registry whose config references a public
+	// cluster link of the same generated name, with the default source project.
+	lxdID := registryIDForImage("lxd-source")
+	require.Positive(t, lxdID)
+	require.Equal(t, "auto-migrated-002", registryName(lxdID))
+	require.Equal(t, map[string]string{"cluster": "auto-migrated-002", "source_project": "default"}, registryConfig(lxdID))
+
+	var lxdProtocol int64
+	var lxdBuiltin int64
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT protocol, builtin FROM image_registries WHERE id = ?`, lxdID).Scan(&lxdProtocol, &lxdBuiltin))
+	require.Equal(t, int64(1), lxdProtocol) // image_registries protocol encoding: lxd = 1.
+	require.Equal(t, int64(0), lxdBuiltin)
+
+	// The backing cluster link is public, has no identity, and records the canonical address.
+	var linkType int64
+	var identityID *int64
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT type, identity_id FROM cluster_links WHERE name = ?`, "auto-migrated-002").Scan(&linkType, &identityID))
+	require.Equal(t, int64(2), linkType) // cluster_links type encoding: public = 2.
+	require.Nil(t, identityID)
+
+	var addresses string
+	require.NoError(t, db.QueryRowContext(ctx, `
+SELECT c.value FROM cluster_links_config c
+JOIN cluster_links l ON l.id = c.cluster_link_id
+WHERE l.name = ? AND c.key = 'volatile.addresses'`, "auto-migrated-002").Scan(&addresses))
+	require.Equal(t, "lxd.example.com:8443", addresses)
+
+	// The certificate pinned by the legacy source is stored and associated with the link.
+	var storedCert string
+	require.NoError(t, db.QueryRowContext(ctx, `
+SELECT certs.certificate FROM certificates certs
+JOIN cluster_links_certificates clc ON certs.id = clc.certificate_id
+JOIN cluster_links l ON l.id = clc.cluster_link_id
+WHERE l.name = ?`, "auto-migrated-002").Scan(&storedCert))
+	require.Equal(t, certPEM, storedCert)
+
+	// A source for the same address pinning the same certificate shares the link and registry,
+	// while one pinning a different certificate gets its own link and registry.
+	require.Equal(t, lxdID, registryIDForImage("lxd-source-same"))
+
+	lxdAltID := registryIDForImage("lxd-source-altcert")
+	require.Positive(t, lxdAltID)
+	require.NotEqual(t, lxdID, lxdAltID)
+	require.Equal(t, "auto-migrated-003", registryName(lxdAltID))
+	require.Equal(t, map[string]string{"cluster": "auto-migrated-003", "source_project": "default"}, registryConfig(lxdAltID))
+
+	// Exactly two cluster links were auto-created.
+	var linkCount int
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT count(*) FROM cluster_links`).Scan(&linkCount))
+	require.Equal(t, 2, linkCount)
+
+	// LXD sources without a usable certificate and deprecated direct sources are dropped: their
+	// cached images remain but have no source.
+	require.Equal(t, int64(-1), registryIDForImage("lxd-source-nocert"))
+	require.Equal(t, int64(-1), registryIDForImage("lxd-source-badcert"))
+	require.Equal(t, int64(-1), registryIDForImage("direct-source"))
+
+	// autoUpdateForImage returns the auto_update flag of the cached image with the given fingerprint.
+	autoUpdateForImage := func(fingerprint string) int64 {
+		t.Helper()
+		var autoUpdate int64
+		require.NoError(t, db.QueryRowContext(ctx, `SELECT auto_update FROM images WHERE fingerprint = ?`, fingerprint).Scan(&autoUpdate))
+		return autoUpdate
+	}
+
+	// A migrated source keeps auto-update enabled, while dropping the source of an auto-updating
+	// image also disables auto-update so the updater does not keep failing to resolve a source
+	// that no longer exists.
+	require.Equal(t, int64(1), autoUpdateForImage("lxd-source"))
+	require.Equal(t, int64(1), autoUpdateForImage("lxd-source-same"))
+	require.Equal(t, int64(1), autoUpdateForImage("lxd-source-altcert"))
+	require.Equal(t, int64(0), autoUpdateForImage("lxd-source-nocert"))
+	require.Equal(t, int64(0), autoUpdateForImage("lxd-source-badcert"))
+	require.Equal(t, int64(0), autoUpdateForImage("direct-source"))
 }

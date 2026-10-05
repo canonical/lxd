@@ -116,6 +116,13 @@ func GetImageRegistry(ctx context.Context, tx *sql.Tx, name string) (*ImageRegis
 	return registry, nil
 }
 
+// GetImageRegistryUsageCount returns the number of image sources that reference the image registry
+// with the given name. It is used to prevent deleting a registry that cached images still rely on as
+// their update source.
+func GetImageRegistryUsageCount(ctx context.Context, tx *sql.Tx, name string) (int, error) {
+	return query.Count(ctx, tx, "images_source JOIN image_registries ON images_source.image_registry_id = image_registries.id", "image_registries.name = ?", name)
+}
+
 // CreateImageRegistry adds a new image registry to the database.
 func CreateImageRegistry(ctx context.Context, tx *sql.Tx, object ImageRegistriesRow) (int64, error) {
 	return query.Create(ctx, tx, object)
