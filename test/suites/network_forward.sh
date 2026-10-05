@@ -29,13 +29,28 @@ test_network_forward() {
     ! nft -nn list chain inet lxd "fwdpstrt.${netName}" || false
   fi
 
-  # Check forward is exported via BGP prefixes.
-  lxc query /internal/testing/bgp | grep -F "198.51.100.1/32"
-
   # Enable the BGP listener
   lxc config set core.bgp_address="${bgpIP}:8874"
   lxc config set core.bgp_asn=65536
   lxc config set core.bgp_routerid="${bgpIP}"
+
+  # Check forward is exported via BGP prefixes.
+  local prefix_found=false
+  for _ in $(seq 30); do
+    if lxc query /internal/testing/bgp 2>/dev/null | grep -F "198.51.100.1/32" >/dev/null; then
+      prefix_found=true
+      break
+    fi
+
+    sleep 1
+  done
+
+  # Fail explicitly if the forward prefix was never exported.
+  if [ "${prefix_found}" != "true" ]; then
+    echo "ERROR: Network forward prefix 198.51.100.1/32 was not exported via BGP after 30s, aborting" >&2
+    lxc query /internal/testing/bgp >&2 || true
+    exit 1
+  fi
 
   # Check that the listener survives a restart of LXD
   shutdown_lxd "${LXD_DIR}"
@@ -44,7 +59,25 @@ test_network_forward() {
   lxc network forward delete "${netName}" 198.51.100.1
 
   # Check deleting network forward removes forward BGP prefix.
-  ! lxc query /internal/testing/bgp | grep -F "198.51.100.1/32" || false
+  local prefix_absent=false
+  local bgp_state=""
+  for _ in $(seq 30); do
+    bgp_state="$(lxc query /internal/testing/bgp 2>/dev/null)" || continue
+
+    if ! grep -F "198.51.100.1/32" <<< "${bgp_state}" >/dev/null; then
+      prefix_absent=true
+      break
+    fi
+
+    sleep 1
+  done
+
+  # Fail explicitly if the forward prefix is still exported after deletion.
+  if [ "${prefix_absent}" != "true" ]; then
+    echo "ERROR: Network forward prefix 198.51.100.1/32 was still exported via BGP after 30s, aborting" >&2
+    lxc query /internal/testing/bgp >&2 || true
+    exit 1
+  fi
 
   # Check creating forward with default target creates valid firewall rules.
   lxc network forward create "${netName}" 198.51.100.1 target_address=192.0.2.2
@@ -152,7 +185,8 @@ test_network_forward() {
   lxc network delete "${netName}"
 
   # Check deleting network removes forward BGP prefix.
-  ! lxc query /internal/testing/bgp | grep -F "198.51.100.1/32" || false
+  bgp_state="$(lxc query /internal/testing/bgp)"
+  ! grep -F "198.51.100.1/32" <<< "${bgp_state}" >/dev/null || false
 
   if [ "$firewallDriver" = "xtables" ]; then
     ! iptables -w -t nat -S | grep -F "generated for LXD network-forward ${netName}" || false
