@@ -491,7 +491,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 		return nil
 	})
 	if err != nil {
-		if !api.StatusErrorCheck(err, http.StatusNotFound) {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			// If we have a not found error then there are no tuples to return, but the datastore shouldn't return an error.
 			return nil, nil
 		}
@@ -668,7 +668,7 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 					return nil, fmt.Errorf("Received invalid user URL %q with %q parent-child relation", userURL, filter.Relation)
 				}
 
-				if userURLPathArguments[0] != pathArgs[0] && userURLPathArguments[1] != pathArgs[1] && userURLPathArguments[2] != pathArgs[2] {
+				if userURLPathArguments[0] != pathArgs[0] || userURLPathArguments[1] != pathArgs[1] || userURLPathArguments[2] != pathArgs[2] {
 					// We're returning the parent storage volume of snapshots or backups here.
 					// It's only a parent if it has the same storage pool, volume type, and volume name.
 					continue
@@ -798,6 +798,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 	args := []any{relation, cluster.EntityType(entityType), groupName}
 
 	var entityURLs map[entity.Type]map[int]*api.URL
+	var validPermissions []cluster.Permission
 	var permissions []cluster.Permission
 	err := o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		rows, err := tx.Tx().QueryContext(ctx, q, args...)
@@ -817,7 +818,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 
 		// Get the URLs of the permissions we've queried for and filter out any invalid ones.
 		// Ignore the dangling permissions to make as few queries as possible.
-		_, entityURLs, err = cluster.GetPermissionEntityURLs(ctx, tx.Tx(), permissions)
+		validPermissions, entityURLs, err = cluster.GetPermissionEntityURLs(ctx, tx.Tx(), permissions)
 		if err != nil {
 			return err
 		}
@@ -828,8 +829,8 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 		return nil, err
 	}
 
-	entityURLStrs := make([]string, 0, len(permissions))
-	for _, permission := range permissions {
+	entityURLStrs := make([]string, 0, len(validPermissions))
+	for _, permission := range validPermissions {
 		entityURLStrs = append(entityURLStrs, entityURLs[entity.Type(permission.EntityType)][permission.EntityID].String())
 	}
 
