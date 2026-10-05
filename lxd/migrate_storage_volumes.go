@@ -37,12 +37,13 @@ func newStorageMigrationSource(volumeOnly bool, pushTarget *api.StorageVolumePos
 	secretNames := []string{api.SecretNameControl, api.SecretNameFilesystem}
 	ret.conns = make(map[string]*migrationConn, len(secretNames))
 	for _, connName := range secretNames {
+		bulk := connName == api.SecretNameFilesystem
 		if ret.pushOperationURL != "" {
 			if ret.pushSecrets[connName] == "" {
 				return nil, fmt.Errorf("Expected %q connection secret missing from migration source target request", connName)
 			}
 
-			dialer, err := setupWebsocketDialer(ret.pushCertificate)
+			dialer, err := setupWebsocketDialer(ret.pushCertificate, bulk)
 			if err != nil {
 				return nil, fmt.Errorf("Failed setting up websocket dialer for migration source %q connection: %w", connName, err)
 			}
@@ -52,14 +53,14 @@ func newStorageMigrationSource(volumeOnly bool, pushTarget *api.StorageVolumePos
 				return nil, fmt.Errorf("Failed parsing websocket URL for migration source %q connection: %w", connName, err)
 			}
 
-			ret.conns[connName] = newMigrationConn(ret.pushSecrets[connName], dialer, u)
+			ret.conns[connName] = newMigrationConn(ret.pushSecrets[connName], dialer, u, bulk)
 		} else {
 			secret, err := shared.RandomCryptoString()
 			if err != nil {
 				return nil, fmt.Errorf("Failed creating migration source secret for %q connection: %w", connName, err)
 			}
 
-			ret.conns[connName] = newMigrationConn(secret, nil, nil)
+			ret.conns[connName] = newMigrationConn(secret, nil, nil, bulk)
 		}
 	}
 
@@ -221,6 +222,7 @@ func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	secretNames := []string{api.SecretNameControl, api.SecretNameFilesystem}
 	sink.conns = make(map[string]*migrationConn, len(secretNames))
 	for _, connName := range secretNames {
+		bulk := connName == api.SecretNameFilesystem
 		if !sink.push {
 			if args.secrets[connName] == "" {
 				return nil, fmt.Errorf("Expected %q connection secret missing from migration sink target request", connName)
@@ -231,14 +233,14 @@ func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 				return nil, fmt.Errorf("Failed parsing websocket URL for migration sink %q connection: %w", connName, err)
 			}
 
-			sink.conns[connName] = newMigrationConn(args.secrets[connName], args.dialer, u)
+			sink.conns[connName] = newMigrationConn(args.secrets[connName], args.dialer, u, bulk)
 		} else {
 			secret, err := shared.RandomCryptoString()
 			if err != nil {
 				return nil, fmt.Errorf("Failed creating migration sink secret for %q connection: %w", connName, err)
 			}
 
-			sink.conns[connName] = newMigrationConn(secret, nil, nil)
+			sink.conns[connName] = newMigrationConn(secret, nil, nil, bulk)
 		}
 	}
 
