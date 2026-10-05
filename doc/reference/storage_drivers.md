@@ -110,7 +110,7 @@ Feature                                     | Ceph RBD     | Dell PowerFlex  | D
 [^5]: Volumes of type `block` will fall back to non-optimized transfer when migrating to an older LXD server that doesn't yet support the `RBD_AND_RSYNC` migration type.
 [^6]: Only for volumes of type `block`.
 [^7]: Only when refreshing volumes on the same storage pool using the same storage array.
-[^8]: Dell PowerFlex supports {ref}`storage-instant-cloning` when the {config:option}`storage-powerflex-pool-conf:powerflex.snapshot_copy` configuration key is set to `true`.
+[^8]: Dell PowerFlex (5 or later) supports {ref}`storage-instant-cloning` when the {config:option}`storage-powerflex-pool-conf:powerflex.snapshot_copy` configuration key is set to `true`.
 [^9]: Custom volumes can only be recovered when attached to an instance due to the use of transformed volume names.
 
 For driver-specific information and configuration options, see the pages for the individual drivers, linked above.
