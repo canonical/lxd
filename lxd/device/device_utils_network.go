@@ -16,6 +16,7 @@ import (
 	"github.com/j-keck/arping"
 	"github.com/mdlayher/ndp"
 
+	"github.com/canonical/lxd/lxd/bgp"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	pcidev "github.com/canonical/lxd/lxd/device/pci"
 	"github.com/canonical/lxd/lxd/instance"
@@ -597,10 +598,9 @@ func networkValidGateway(value string) error {
 }
 
 // bgpAddPrefix adds external routes to the BGP server.
-func bgpAddPrefix(d *deviceCommon, n network.Network, config map[string]string) error {
-	// BGP is only valid when tied to a managed network.
-	if config["network"] == "" {
-		return nil
+func bgpAddPrefix(d *deviceCommon, n network.Network, bgpOwnerNet network.Network, config map[string]string) error {
+	if n == nil || bgpOwnerNet == nil {
+		return fmt.Errorf("Cannot add BGP prefixes for instance %q device %q: requires a managed network and BGP owner network", d.inst.Name(), d.name)
 	}
 
 	// Parse nexthop configuration.
@@ -621,7 +621,7 @@ func bgpAddPrefix(d *deviceCommon, n network.Network, config map[string]string) 
 	}
 
 	// Add the prefixes.
-	bgpOwner := fmt.Sprint("instance_", d.inst.ID(), "_", d.name)
+	bgpOwner := bgp.OwnerInstanceNetwork(bgpOwnerNet.ID(), d.inst.ID(), d.name)
 	if config["ipv4.routes.external"] != "" {
 		for _, prefix := range shared.SplitNTrimSpace(config["ipv4.routes.external"], ",", -1, true) {
 			_, prefixNet, err := net.ParseCIDR(prefix)
@@ -653,19 +653,12 @@ func bgpAddPrefix(d *deviceCommon, n network.Network, config map[string]string) 
 	return nil
 }
 
-func bgpRemovePrefix(d *deviceCommon, config map[string]string) error {
-	// BGP is only valid when tied to a managed network.
-	if config["network"] == "" {
-		return nil
+func bgpRemovePrefix(d *deviceCommon, bgpOwnerNet network.Network) error {
+	if bgpOwnerNet == nil {
+		return fmt.Errorf("Cannot remove BGP prefixes for instance %q device %q: requires a BGP owner network", d.inst.Name(), d.name)
 	}
 
-	// Load the network configuration.
-	err := d.state.BGP.RemovePrefixByOwner(fmt.Sprint("instance_", d.inst.ID(), "_", d.name))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.state.BGP.RemovePrefixByOwner(bgp.OwnerInstanceNetwork(bgpOwnerNet.ID(), d.inst.ID(), d.name))
 }
 
 // networkSRIOVParentVFInfo returns info about an SR-IOV virtual function from the parent NIC using the ip tool.
