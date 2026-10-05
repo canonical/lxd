@@ -48,8 +48,8 @@ Type                       | Identifier   | Example
 :--                        | :---         | :----------
 Container                  | `c_`         | `c_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14`
 Virtual machine            | `v_`         | `v_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14.b` (block volume) and `v_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14` (file system volume)
-Image (ISO)                | `i_`         | `i_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14.i`
-Custom volume              | `u_`         | `u_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14` (file system volume) or `u_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14.b` (block volume)
+Image                      | `i_`         | `i_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14` (file system image) or `i_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14.b` (block image)
+Custom volume              | `u_`         | `u_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14` (file system volume), `u_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14.b` (block volume), or `u_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14.i` (ISO volume)
 Mountable snapshot clone   | `s`          | `sc_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14` (container), `sv_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14.b` (VM), or `su_5a2504b0-6a6c-4849-8ee7-ddb0b674fd14` (custom volume)
 
 Snapshots in PowerStore are native children of their parent volume. Each snapshot is named using the snapshot's own UUID with the same type prefix as the parent volume.
