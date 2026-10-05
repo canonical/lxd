@@ -32,6 +32,15 @@ Recovery time objective ({abbr}`RTO`)
 : The maximum acceptable delay between the interruption of services and restoration of service.
   The RTO determines an acceptable length of time for service downtime.
 
+(exp-disaster-recovery-monitoring)=
+## Monitoring
+
+LXD collects metrics and streams events.
+Setting up external observability systems in advance to collect this data can assist with disaster detection and evaluation.
+Refer to the {ref}`metrics reference <provided-metrics>` and {ref}`events reference <events>` for details about the data produced by LXD.
+For example, {ref}`replicator-metrics` can be used to determine the current RPO of clusters that use replicators for data replication.
+For information about how to gather and store metrics and logs, see {ref}`metrics`, {ref}`logs_loki`, and {ref}`grafana`.
+
 (exp-disaster-recovery-approaches)=
 ## Active-passive disaster recovery
 
@@ -154,8 +163,13 @@ How-to guides:
 - {ref}`howto-replicators-dr`
 - {ref}`disaster-recovery-replication`
 - {ref}`disaster-recovery`
+- {ref}`metrics`
+- {ref}`logs_loki`
+- {ref}`grafana`
 
 Reference:
 
 - {ref}`ref-replicator-config`
 - {ref}`exp-cluster-links`
+- {ref}`provided-metrics`
+- {ref}`events`
