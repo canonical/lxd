@@ -1299,6 +1299,93 @@ test_network_ovn() {
   reset_row_count
   assert_row_count
 
+  echo "==> Test BGP multi-network route isolation and next-hop rewriting with identical default routes on OVN."
+  local bgp_port bgp_router_id bgp_asn
+  bgp_port="$(local_tcp_port)"
+  bgp_router_id="192.0.2.1"
+  bgp_asn="65000"
+
+  lxc config set core.bgp_address="127.0.0.1:${bgp_port}" core.bgp_routerid="${bgp_router_id}" core.bgp_asn="${bgp_asn}"
+
+  local uplink1="uplink1$$"
+  local uplink2="uplink2$$"
+  local ovnnet1="ovnnet1$$"
+  local ovnnet2="ovnnet2$$"
+
+  test_network_ovn_cleanup_bgp() {
+    lxc delete -f c-ovn-bgp >/dev/null 2>&1 || true
+    lxc network delete "${ovnnet1}" >/dev/null 2>&1 || true
+    lxc network delete "${ovnnet2}" >/dev/null 2>&1 || true
+    lxc network delete "${uplink1}" >/dev/null 2>&1 || true
+    lxc network delete "${uplink2}" >/dev/null 2>&1 || true
+    ip link delete "dummy1$$" >/dev/null 2>&1 || true
+    ip link delete "dummy2$$" >/dev/null 2>&1 || true
+    lxc config set core.bgp_address="" core.bgp_routerid="" core.bgp_asn="" >/dev/null 2>&1 || true
+  }
+
+  ip link add "dummy1$$" type dummy
+  ip link add "dummy2$$" type dummy
+
+  lxc network create "${uplink1}" --type=physical parent="dummy1$$" \
+    ipv4.gateway="192.0.2.1/24" ipv6.gateway="2001:db8:1111::1/64" \
+    ipv4.ovn.ranges="192.0.2.100-192.0.2.200" ipv6.ovn.ranges="2001:db8:1111::100-2001:db8:1111::200" \
+    ipv4.routes="192.0.2.0/24,0.0.0.0/0" ipv4.routes.anycast=true \
+    ipv6.routes="2001:db8:1111::/64,::/0" ipv6.routes.anycast=true \
+    ovn.ingress_mode="routed" \
+    bgp.peers.peer1.address="127.0.0.2" bgp.peers.peer1.asn="65001"
+
+  lxc network create "${uplink2}" --type=physical parent="dummy2$$" \
+    ipv4.gateway="198.51.100.1/24" ipv6.gateway="2001:db8:2222::1/64" \
+    ipv4.ovn.ranges="198.51.100.100-198.51.100.200" ipv6.ovn.ranges="2001:db8:2222::100-2001:db8:2222::200" \
+    ipv4.routes="198.51.100.0/24,0.0.0.0/0" ipv4.routes.anycast=true \
+    ipv6.routes="2001:db8:2222::/64,::/0" ipv6.routes.anycast=true \
+    ovn.ingress_mode="routed" \
+    bgp.peers.peer2.address="127.0.0.3" bgp.peers.peer2.asn="65002"
+
+  lxc network create "${ovnnet1}" --type=ovn network="${uplink1}"
+  lxc network create "${ovnnet2}" --type=ovn network="${uplink2}"
+
+  local ovn1_router_ip4 ovn1_router_ip6 ovn2_router_ip4 ovn2_router_ip6
+  ovn1_router_ip4="$(lxc network get "${ovnnet1}" volatile.network.ipv4.address | cut -d/ -f1)"
+  ovn1_router_ip6="$(lxc network get "${ovnnet1}" volatile.network.ipv6.address | cut -d/ -f1)"
+  ovn2_router_ip4="$(lxc network get "${ovnnet2}" volatile.network.ipv4.address | cut -d/ -f1)"
+  ovn2_router_ip6="$(lxc network get "${ovnnet2}" volatile.network.ipv6.address | cut -d/ -f1)"
+
+  lxc init testimage c-ovn-bgp
+  lxc config device add c-ovn-bgp eth0 nic network="${ovnnet1}" ipv4.routes.external="0.0.0.0/0" ipv6.routes.external="::/0"
+  lxc config device add c-ovn-bgp eth1 nic network="${ovnnet2}" ipv4.routes.external="0.0.0.0/0" ipv6.routes.external="::/0"
+  lxc start c-ovn-bgp
+
+  # Check peer route announcements with retry loop.
+  local output=""
+  for _ in $(seq 30); do
+    output="$(lxc query /internal/testing/bgp 2>/dev/null || true)"
+    if [ -n "${output}" ] && \
+       jq --exit-status --arg nh4 "${ovn1_router_ip4}" '.peers[] | select(.address == "127.0.0.2") | [.routes[] | select(.prefix == "0.0.0.0/0" and .nexthop == $nh4)] | length == 1' <<< "${output}" >/dev/null 2>&1 && \
+       jq --exit-status --arg nh6 "${ovn1_router_ip6}" '.peers[] | select(.address == "127.0.0.2") | [.routes[] | select(.prefix == "::/0" and .nexthop == $nh6)] | length == 1' <<< "${output}" >/dev/null 2>&1 && \
+       jq --exit-status --arg nh4 "${ovn2_router_ip4}" '.peers[] | select(.address == "127.0.0.3") | [.routes[] | select(.prefix == "0.0.0.0/0" and .nexthop == $nh4)] | length == 1' <<< "${output}" >/dev/null 2>&1 && \
+       jq --exit-status --arg nh6 "${ovn2_router_ip6}" '.peers[] | select(.address == "127.0.0.3") | [.routes[] | select(.prefix == "::/0" and .nexthop == $nh6)] | length == 1' <<< "${output}" >/dev/null 2>&1; then
+      break
+    fi
+
+    sleep 1
+  done
+
+  # Check peer 127.0.0.2 gets 0.0.0.0/0 with next-hop ovn1_router_ip4 and ::/0 with next-hop ovn1_router_ip6
+  jq --exit-status --arg nh4 "${ovn1_router_ip4}" '.peers[] | select(.address == "127.0.0.2") | [.routes[] | select(.prefix == "0.0.0.0/0" and .nexthop == $nh4)] | length == 1' <<< "${output}"
+  jq --exit-status --arg nh6 "${ovn1_router_ip6}" '.peers[] | select(.address == "127.0.0.2") | [.routes[] | select(.prefix == "::/0" and .nexthop == $nh6)] | length == 1' <<< "${output}"
+
+  # Check peer 127.0.0.3 gets 0.0.0.0/0 with next-hop ovn2_router_ip4 and ::/0 with next-hop ovn2_router_ip6
+  jq --exit-status --arg nh4 "${ovn2_router_ip4}" '.peers[] | select(.address == "127.0.0.3") | [.routes[] | select(.prefix == "0.0.0.0/0" and .nexthop == $nh4)] | length == 1' <<< "${output}"
+  jq --exit-status --arg nh6 "${ovn2_router_ip6}" '.peers[] | select(.address == "127.0.0.3") | [.routes[] | select(.prefix == "::/0" and .nexthop == $nh6)] | length == 1' <<< "${output}"
+
+  test_network_ovn_cleanup_bgp
+  unset -f test_network_ovn_cleanup_bgp
+
+  # Validate northbound database is now empty.
+  reset_row_count
+  assert_row_count
+
   unset_ovn_configuration
 }
 

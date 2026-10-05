@@ -799,13 +799,13 @@ func (n *common) bgpClear(config map[string]string) error {
 	}
 
 	// Clear all prefixes.
-	err = n.state.BGP.RemovePrefixByOwner(fmt.Sprintf("network_%d", n.id))
+	err = n.state.BGP.RemovePrefixByOwner(bgp.OwnerNetwork(n.id))
 	if err != nil {
 		return err
 	}
 
 	// Clear existing address forward prefixes for network.
-	err = n.state.BGP.RemovePrefixByOwner(fmt.Sprintf("network_%d_forward", n.id))
+	err = n.state.BGP.RemovePrefixByOwner(bgp.OwnerNetworkForward(n.id))
 	if err != nil {
 		return err
 	}
@@ -869,7 +869,7 @@ func (n *common) bgpSetupPeers(oldConfig map[string]string) error {
 			}
 		}
 
-		err = n.state.BGP.AddPeer(net.ParseIP(fields[0]), uint32(asn), fields[2], holdTime)
+		err = n.state.BGP.AddPeer(net.ParseIP(fields[0]), uint32(asn), fields[2], holdTime, bgp.OwnerNetwork(n.id))
 		if err != nil {
 			return err
 		}
@@ -899,7 +899,7 @@ func (n *common) bgpNextHopAddress(ipVersion uint) net.IP {
 // bgpSetupPrefixes refreshes the prefix list for the network.
 func (n *common) bgpSetupPrefixes(oldConfig map[string]string) error {
 	// Clear existing prefixes.
-	bgpOwner := fmt.Sprintf("network_%d", n.id)
+	bgpOwner := bgp.OwnerNetwork(n.id)
 	if oldConfig != nil {
 		err := n.state.BGP.RemovePrefixByOwner(bgpOwner)
 		if err != nil {
@@ -1225,7 +1225,7 @@ func (n *common) forwardBGPSetupPrefixes() error {
 
 	// Use forward specific owner string (different from the network prefixes) so that these can be reapplied
 	// independently of the network's own prefixes.
-	bgpOwner := fmt.Sprintf("network_%d_forward", n.id)
+	bgpOwner := bgp.OwnerNetworkForward(n.id)
 
 	// Clear existing address forward prefixes for network.
 	err = n.state.BGP.RemovePrefixByOwner(bgpOwner)
@@ -1576,7 +1576,7 @@ func (n *common) loadBalancerBGPSetupPrefixes() error {
 
 	// Use load balancer specific owner string (different from the network prefixes) so that these can be
 	// reapplied independently of the network's own prefixes.
-	bgpOwner := fmt.Sprintf("network_%d_load_balancer", n.id)
+	bgpOwner := bgp.OwnerNetworkLoadBalancer(n.id)
 
 	// Clear existing address load balancer prefixes for network.
 	err = n.state.BGP.RemovePrefixByOwner(bgpOwner)

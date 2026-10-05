@@ -315,39 +315,24 @@ func (d *nicOVN) validateExternalRoutes() error {
 		ovnRangesListIPv4 []*shared.IPRange
 		ovnRangesListIPv6 []*shared.IPRange
 
-		uplink *api.Network
-
 		err error
 	)
 
-	if d.network.Config() == nil {
-		return fmt.Errorf("Network config is missing for NIC device %q", d.name)
-	}
-
-	uplinkName := d.network.Config()["network"]
-	if uplinkName == "" {
-		return fmt.Errorf(`OVN network %q is missing "network" config option`, d.network.Name())
-	}
-
-	// Get uplink network config.
-	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Uplink has to be in the "default" project.
-		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkName)
-
-		return err
-	})
+	uplinkNet, err := d.uplinkNetwork(d.network)
 	if err != nil {
-		return fmt.Errorf("Failed getting config for network %q: %w", uplinkName, err)
+		return err
 	}
+
+	uplinkConfig := uplinkNet.Config()
 
 	if d.config["ipv4.routes.external"] != "" {
 		routesListIPv4, err = shared.ParseNetworks(d.config["ipv4.routes.external"])
 		if err != nil {
-			return fmt.Errorf("Failed parsing ipv4.routes: %w", err)
+			return fmt.Errorf("Failed parsing ipv4.routes.external: %w", err)
 		}
 
-		if uplink.Config["ipv4.ovn.ranges"] != "" {
-			ovnRangesListIPv4, err = shared.ParseIPRanges(uplink.Config["ipv4.ovn.ranges"])
+		if uplinkConfig["ipv4.ovn.ranges"] != "" {
+			ovnRangesListIPv4, err = shared.ParseIPRanges(uplinkConfig["ipv4.ovn.ranges"])
 			if err != nil {
 				return fmt.Errorf("Failed parsing ipv4.ovn.ranges: %w", err)
 			}
@@ -357,11 +342,11 @@ func (d *nicOVN) validateExternalRoutes() error {
 	if d.config["ipv6.routes.external"] != "" {
 		routesListIPv6, err = shared.ParseNetworks(d.config["ipv6.routes.external"])
 		if err != nil {
-			return fmt.Errorf("Failed parsing ipv6.routes: %w", err)
+			return fmt.Errorf("Failed parsing ipv6.routes.external: %w", err)
 		}
 
-		if uplink.Config["ipv6.ovn.ranges"] != "" {
-			ovnRangesListIPv6, err = shared.ParseIPRanges(uplink.Config["ipv6.ovn.ranges"])
+		if uplinkConfig["ipv6.ovn.ranges"] != "" {
+			ovnRangesListIPv6, err = shared.ParseIPRanges(uplinkConfig["ipv6.ovn.ranges"])
 			if err != nil {
 				return fmt.Errorf("Failed parsing ipv6.ovn.ranges: %w", err)
 			}
@@ -453,19 +438,9 @@ func (d *nicOVN) checkAddressConflict() error {
 func (d *nicOVN) Add() error {
 	networkVethFillFromVolatile(d.config, d.volatileGet())
 
-	// Load uplink network config.
-	uplinkNetworkName := d.network.Config()["network"]
-
-	var err error
-	var uplink *api.Network
-
-	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkNetworkName)
-
-		return err
-	})
+	uplinkNet, err := d.uplinkNetwork(d.network)
 	if err != nil {
-		return fmt.Errorf("Failed loading uplink network %q: %w", uplinkNetworkName, err)
+		return err
 	}
 
 	nicSetupOpts := &network.OVNInstanceNICSetupOpts{
@@ -473,7 +448,7 @@ func (d *nicOVN) Add() error {
 		DNSName:      d.inst.Name(),
 		DeviceName:   d.name,
 		DeviceConfig: d.config,
-		UplinkConfig: uplink.Config,
+		UplinkConfig: uplinkNet.Config(),
 	}
 
 	// Add new OVN logical switch port for instance.
@@ -528,18 +503,9 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	saveData := make(map[string]string)
 	saveData["host_name"] = d.config["host_name"]
 
-	// Load uplink network config.
-	uplinkNetworkName := d.network.Config()["network"]
-
-	var uplink *api.Network
-
-	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkNetworkName)
-
-		return err
-	})
+	uplinkNet, err := d.uplinkNetwork(d.network)
 	if err != nil {
-		return nil, fmt.Errorf("Failed loading uplink network %q: %w", uplinkNetworkName, err)
+		return nil, err
 	}
 
 	// Setup the host network interface (if not nested).
@@ -608,7 +574,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		DNSName:      d.inst.Name(),
 		DeviceName:   d.name,
 		DeviceConfig: d.config,
-		UplinkConfig: uplink.Config,
+		UplinkConfig: uplinkNet.Config(),
 	}
 
 	// Ensure the underlying OVN logical switch port exists.
@@ -846,9 +812,37 @@ func (d *nicOVN) setupAcceleration(saveData map[string]string) (cleanup revert.H
 	return cleanup, vfRepresentor, vfDev, vfPCIDev, pciIOMMUGroup, vDPADevice, nil
 }
 
+// uplinkNetwork loads the uplink network for the specified OVN network.
+func (d *nicOVN) uplinkNetwork(parentNet network.Network) (network.Network, error) {
+	if parentNet == nil {
+		return nil, fmt.Errorf("Parent network is missing for NIC device %q", d.name)
+	}
+
+	if parentNet.Config() == nil {
+		return nil, fmt.Errorf("Network config is missing for NIC device %q", d.name)
+	}
+
+	uplinkName := parentNet.Config()["network"]
+	if uplinkName == "" {
+		return nil, fmt.Errorf(`OVN network %q is missing "network" config option`, parentNet.Name())
+	}
+
+	uplinkNet, err := network.LoadByName(d.state, api.ProjectDefaultName, uplinkName)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading uplink network %q: %w", uplinkName, err)
+	}
+
+	return uplinkNet, nil
+}
+
 // postStart is run after the device is added to the instance.
 func (d *nicOVN) postStart() error {
-	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	uplinkNet, err := d.uplinkNetwork(d.network)
+	if err != nil {
+		return err
+	}
+
+	err = bgpAddPrefix(&d.deviceCommon, d.network, uplinkNet, d.config)
 	if err != nil {
 		return err
 	}
@@ -892,19 +886,9 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		}
 
 		// Load uplink network config.
-		uplinkNetworkName := d.network.Config()["network"]
-
-		var uplink *api.Network
-
-		err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			var err error
-
-			_, uplink, _, err = tx.GetNetworkInAnyState(ctx, api.ProjectDefaultName, uplinkNetworkName)
-
-			return err
-		})
+		uplinkNet, err := d.uplinkNetwork(d.network)
 		if err != nil {
-			return fmt.Errorf("Failed loading uplink network %q: %w", uplinkNetworkName, err)
+			return err
 		}
 
 		nicSetupOpts := &network.OVNInstanceNICSetupOpts{
@@ -912,7 +896,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 			DNSName:      d.inst.Name(),
 			DeviceName:   d.name,
 			DeviceConfig: d.config,
-			UplinkConfig: uplink.Config,
+			UplinkConfig: uplinkNet.Config(),
 		}
 
 		// Remove the port only when IP addresses have changed.
@@ -968,12 +952,35 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	}
 
 	// If an external address changed, update the BGP advertisements.
-	err := bgpRemovePrefix(&d.deviceCommon, oldConfig)
+	var oldNetwork network.Network = d.network
+	if oldConfig["network"] != "" && oldConfig["network"] != d.config["network"] {
+		networkProjectName, _, err := project.NetworkProject(d.state.DB.Cluster, d.inst.Project().Name)
+		if err != nil {
+			return fmt.Errorf("Failed loading network project name: %w", err)
+		}
+
+		oldNetwork, err = network.LoadByName(d.state, networkProjectName, oldConfig["network"])
+		if err != nil {
+			return fmt.Errorf("Failed loading old network %q: %w", oldConfig["network"], err)
+		}
+	}
+
+	oldUplinkNet, err := d.uplinkNetwork(oldNetwork)
 	if err != nil {
 		return err
 	}
 
-	err = bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	err = bgpRemovePrefix(&d.deviceCommon, oldUplinkNet)
+	if err != nil {
+		return err
+	}
+
+	uplinkNet, err := d.uplinkNetwork(d.network)
+	if err != nil {
+		return err
+	}
+
+	err = bgpAddPrefix(&d.deviceCommon, d.network, uplinkNet, d.config)
 	if err != nil {
 		return err
 	}
@@ -1044,7 +1051,12 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Remove BGP announcements.
-	err = bgpRemovePrefix(&d.deviceCommon, d.config)
+	uplinkNet, err := d.uplinkNetwork(d.network)
+	if err != nil {
+		return nil, err
+	}
+
+	err = bgpRemovePrefix(&d.deviceCommon, uplinkNet)
 	if err != nil {
 		return nil, err
 	}
@@ -1289,7 +1301,12 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 
 // Register sets up anything needed on LXD startup.
 func (d *nicOVN) Register() error {
-	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	uplinkNet, err := d.uplinkNetwork(d.network)
+	if err != nil {
+		return err
+	}
+
+	err = bgpAddPrefix(&d.deviceCommon, d.network, uplinkNet, d.config)
 	if err != nil {
 		return err
 	}

@@ -11,4 +11,4 @@ var ErrPrefixNotFound = errors.New("Prefix not found")
 var ErrPeerNotFound = errors.New("Peer not found")
 
 // ErrBadRouterID is returned when an invalid router-id is provided.
-var ErrBadRouterID = errors.New("Invalid router-id (must be IPv4 address")
+var ErrBadRouterID = errors.New("Invalid router-id (must be IPv4 address)")
