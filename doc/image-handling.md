@@ -30,6 +30,14 @@ You can copy local images to other LXD servers and use a local image to create a
 Each image is identified by a fingerprint (SHA256).
 To make it easier to manage images, LXD allows defining one or more aliases for each image.
 
+(image-registries-diagram)=
+```{figure} /images/security/image-registries.svg
+:width: 100%
+:alt: Illustration of how image registries point to image sources for image downloads.
+
+Image registries
+```
+
 ## Caching
 
 When you create an instance using an image from a registry, LXD downloads the image and caches it locally.
