@@ -2589,9 +2589,11 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
 	var vol drivers.Volume
-	if isRemoteClusterMove || args.Refresh {
+	if isRemoteClusterMove || args.Refresh || args.MetadataOnly {
 		// In case it's a cluster move don't instantiate a new volume.
 		// Instead load the existing volume and config from the database.
+		// A metadata-only receive also loads the existing volume, so the record keeps the leader's
+		// volatile.uuid.
 		vol = b.GetVolume(volType, contentType, volStorageName, volumeConfig)
 	} else {
 		vol = b.GetNewVolume(volType, contentType, volStorageName, volumeConfig)
@@ -2615,8 +2617,18 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 		return err
 	}
 
+	// A metadata-only receive creates the records of a volume Ceph has already mirrored, so the
+	// volume must exist. It is also missing when the project is named differently on the two
+	// clusters, because the image name includes the project name.
+	if args.MetadataOnly && !volExists {
+		return fmt.Errorf("Metadata-only migration requires volume %q to already exist on storage pool %q", vol.Name(), b.name)
+	}
+
 	// Check for inconsistencies between database and storage before continuing.
-	if dbVol == nil && volExists {
+	// A volume on storage without a database record is normally an inconsistency. On a metadata-only
+	// receive it is expected on the first run, because Ceph mirrored the volume and this receive
+	// creates its record, so the error is skipped.
+	if dbVol == nil && volExists && !args.MetadataOnly {
 		return errors.New("Volume already exists on storage but not in database")
 	}
 
@@ -2635,7 +2647,9 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 	defer revert.Fail()
 
 	if !args.Refresh {
-		if volExists {
+		// An existing volume is normally an error here, or a cluster move whose records already exist.
+		// On a metadata-only receive the volume exists and its record does not, so the record is created.
+		if volExists && !args.MetadataOnly {
 			if !isRemoteClusterMove {
 				return errors.New("Cannot create volume, already exists on migration target storage")
 			}
@@ -4156,7 +4170,11 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, progressRepo
 		return err
 	}
 
-	if volExists {
+	// A standby's image is non-primary, so the driver cannot delete the snapshot from it. Ceph
+	// deletes it when it replays the leader's deletion, so only the record is deleted here.
+	if volExists && HoldsCephReplicas(b, inst.Project()) {
+		l.Debug("Skipping the storage snapshot deletion of a standby replica")
+	} else if volExists {
 		err = b.driver.DeleteVolumeSnapshot(vol, progressReporter)
 		if err != nil {
 			return err
@@ -5665,7 +5683,9 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(ctx context.Context, projec
 	// Check if the volume exists on storage.
 	var vol drivers.Volume
 	volStorageName := project.StorageVolume(projectName, args.Name)
-	if args.Refresh {
+	// A metadata-only receive loads the existing volume as a refresh does, so the record keeps the
+	// leader's volatile.uuid.
+	if args.Refresh || args.MetadataOnly {
 		vol = b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
 	} else {
 		vol = b.GetNewVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
@@ -5676,8 +5696,17 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(ctx context.Context, projec
 		return err
 	}
 
+	// A metadata-only receive creates the records of a volume Ceph has already mirrored, so the
+	// volume must exist.
+	if args.MetadataOnly && !volExists {
+		return fmt.Errorf("Metadata-only migration requires volume %q to already exist on storage pool %q", vol.Name(), b.name)
+	}
+
 	// Check for inconsistencies between database and storage before continuing.
-	if dbVol == nil && volExists {
+	// A volume on storage without a database record is normally an inconsistency. On a metadata-only
+	// receive it is expected on the first run, because Ceph mirrored the volume and this receive
+	// creates its record, so the error is skipped.
+	if dbVol == nil && volExists && !args.MetadataOnly {
 		return errors.New("Volume already exists on storage but not in database")
 	}
 
@@ -5688,9 +5717,10 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(ctx context.Context, projec
 	// Disable refresh mode if volume doesn't exist yet.
 	// Unlike in CreateInstanceFromMigration there is no existing check for if the volume exists, so we must do
 	// it here and disable refresh mode if the volume doesn't exist.
+	// On a metadata-only receive the volume exists and its record does not, so the record is created.
 	if args.Refresh && !volExists {
 		args.Refresh = false
-	} else if !args.Refresh && volExists {
+	} else if !args.Refresh && volExists && !args.MetadataOnly {
 		return errors.New("Cannot create volume, already exists on migration target storage")
 	}
 
@@ -6850,7 +6880,16 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(ctx context.Context, projectName
 		return err
 	}
 
-	if volExists {
+	// A standby's image is non-primary, so the driver cannot delete the snapshot from it. Ceph
+	// deletes it when it replays the leader's deletion, so only the record is deleted here.
+	holdsReplicas, err := HoldsCephReplicasByName(ctx, b.state, b, projectName)
+	if err != nil {
+		return err
+	}
+
+	if volExists && holdsReplicas {
+		l.Debug("Skipping the storage snapshot deletion of a standby replica")
+	} else if volExists {
 		err := b.driver.DeleteVolumeSnapshot(vol, progressReporter)
 		if err != nil {
 			return err

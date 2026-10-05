@@ -920,8 +920,9 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 		builder.IncrementStage()
 
 		if mirrored {
-			// Ceph carries the data of a mirrored project, so nothing is pushed. The records follow once
-			// the metadata-only receive exists; until then the run enrolls, triggers and confirms.
+			// Ceph mirrors the data of a mirrored project, so the forward stage transfers only the records.
+			// The mirror stage runs first because the standby refuses a record for an image it does not hold.
+			// The forward stage runs even if the mirror stage fails, so the records are still refreshed.
 			err = builder.AddChildArgs(operations.OperationArgs{
 				ProjectName: projectName,
 				EntityURL:   replicatorURL,
@@ -932,7 +933,7 @@ func prepareReplicatorRunOperationArgs(ctx context.Context, s *state.State, proj
 				return nil, fmt.Errorf("Failed preparing replicator mirror operation: %w", err)
 			}
 
-			return finalizeReplicatorRunOperationArgs(builder, projectName, replicatorURL, replicatorID, runID)
+			builder.IncrementStage()
 		}
 
 		for _, inst := range allInsts {
