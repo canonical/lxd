@@ -6380,6 +6380,26 @@ func (b *lxdBackend) deleteAttachedVolumeBitmaps(vol *db.StorageVolume, instance
 	return nil
 }
 
+// deleteRefreshedVolumeBitmaps deletes the bitmaps of a custom volume from every virtual machine
+// the volume is attached to, before a refresh writes the volume.
+func (b *lxdBackend) deleteRefreshedVolumeBitmaps(projectName string, vol *db.StorageVolume) error {
+	instanceDevices := make(map[instance.Instance][]string)
+	err := VolumeUsedByInstanceDevices(b.state, b.name, projectName, &vol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+		inst, err := instance.Load(b.state, dbInst, project)
+		if err != nil {
+			return err
+		}
+
+		instanceDevices[inst] = usedByDevices
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return b.deleteAttachedVolumeBitmaps(vol, instanceDevices, "refresh the volume")
+}
+
 // UpdateCustomVolumeSnapshot updates the description of a custom volume snapshot.
 // Volume config is not allowed to be updated and will return an error.
 func (b *lxdBackend) UpdateCustomVolumeSnapshot(ctx context.Context, projectName string, volName string, newDesc string, newConfig map[string]string, newExpiryDate time.Time, progressReporter ioprogress.ProgressReporter) error {
