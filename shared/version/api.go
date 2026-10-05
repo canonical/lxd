@@ -512,6 +512,7 @@ var APIExtensions = []string{
 	"storage_ceph_replicator",
 	"project_replica_mode_optional",
 	"image_registries",
+	"loki_config_api_check_ready",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
