@@ -80,12 +80,13 @@ func (p *pureError) Error() string {
 	return strings.TrimSuffix(p.Errors[0].Message, ".")
 }
 
-// isPureErrorOf checks if the given error is of type pureError, has the specified status code,
-// and its error messages contain any of the provided substrings. Note that the error message
-// comparison is case-insensitive.
+// isPureErrorOf checks if the given error is of type pureError (or wraps one), has the specified
+// status code, and its error messages contain any of the provided substrings. Note that the error
+// message comparison is case-insensitive.
 func isPureErrorOf(err error, statusCode int, substrings ...string) bool {
-	perr, ok := err.(*pureError)
-	if !ok {
+	var perr *pureError
+
+	if !errors.As(err, &perr) {
 		return false
 	}
 
