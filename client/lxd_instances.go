@@ -1687,6 +1687,15 @@ func (r *ProtocolLXD) rawUpgradeConn(method string, apiURL *url.URL, protocol st
 
 	r.addClientHeaders(req)
 
+	// Cluster members add the forwarded requestor headers in their Proxy function.
+	// Call Proxy here to add those headers.
+	if httpTransport.Proxy != nil {
+		_, err = httpTransport.Proxy(req)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
 	// The raw dialers do not apply the default port.
 	addr := apiURL.Host
 	if apiURL.Port() == "" {
