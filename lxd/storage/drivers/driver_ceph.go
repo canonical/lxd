@@ -545,7 +545,7 @@ func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 
 	// Temporary structs for parsing.
 	type cephDfPoolStats struct {
-		BytesUsed      int64 `json:"bytes_used"`
+		BytesStored    int64 `json:"stored"`
 		BytesAvailable int64 `json:"max_avail"`
 	}
 
@@ -577,7 +577,7 @@ func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 		return nil, errors.New("OSD pool missing in df output")
 	}
 
-	spaceUsed := uint64(pool.Stats.BytesUsed)
+	spaceUsed := uint64(pool.Stats.BytesStored)
 	spaceAvailable := uint64(pool.Stats.BytesAvailable)
 
 	res := api.ResourcesStoragePool{}
