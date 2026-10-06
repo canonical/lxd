@@ -3794,6 +3794,11 @@ This endpoint is not available on clustered servers where the cluster member api
 (extension-storage-volume-block-tracking)=
 ## `storage_volume_block_tracking`
 
+```{warning}
+**Do not** enable this extension in production environments.
+It is a {ref}`feature preview <howto-snap-configure-feature-previews>`.
+```
+
 Feature gate: `changed_block_tracking` (see {ref}`howto-snap-configure-feature-previews`)
 
 Adds changed block tracking for the block volumes of virtual machines, implemented as QEMU dirty bitmaps that are kept across a stop and a start of the instance, and adds the ability to export snapshot data over NBD tunneled through the LXD API.

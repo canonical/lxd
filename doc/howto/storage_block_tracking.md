@@ -1,6 +1,11 @@
 (howto-storage-block-tracking)=
 # How to track changed blocks on virtual machine volumes
 
+```{warning}
+**Do not** enable changed block tracking in production environments.
+It is a {ref}`feature preview <howto-snap-configure-feature-previews>`.
+```
+
 Changed block tracking records the blocks of a block volume that a guest writes to after a snapshot.
 This enables a backup tool to copy only those blocks instead of the whole volume.
 
