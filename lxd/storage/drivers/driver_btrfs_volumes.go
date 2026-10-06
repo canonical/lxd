@@ -799,11 +799,16 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 			return err
 		}
 
-		// Clear the target for the subvol to use. During refresh the destination may already be a
-		// btrfs subvolume which os.Remove cannot delete. Delete via the lexical pool path, already
-		// confined by resolveSubvolumeDest, since getSubvolumes rejects the /proc/self/fd form of dest.
+		// Clear the target for the subvol to use. During refresh the volume root may already be a
+		// btrfs subvolume which os.Remove cannot delete. The lexical path is only trusted for the
+		// volume root; a nested destination can only already be a subvolume if the header is malformed.
 		if d.isSubvolume(dest) {
-			_ = d.deleteSubvolume(filepath.Join(op.volRoot, op.subVolPath), true)
+			if dest != op.volRoot {
+				closeDest()
+				return fmt.Errorf("Subvolume %q already exists under %q", op.subVolPath, op.volRoot)
+			}
+
+			_ = d.deleteSubvolume(dest, true)
 		} else {
 			_ = os.Remove(dest)
 		}
