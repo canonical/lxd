@@ -240,14 +240,6 @@ func (r *upgradeResponse) Render(w http.ResponseWriter, req *http.Request) error
 		return nil
 	}
 
-	if r.relay.protocol == "nbd" {
-		// An NBD server starts the handshake by sending NBDMAGIC, IHAVEOPT and the handshake
-		// flags, which it does as soon as the relay starts.
-		// A client that has not yet finished reading the HTTP 101 response discards those bytes,
-		// and the handshake fails. Give the client a moment to complete the upgrade first.
-		time.Sleep(250 * time.Millisecond)
-	}
-
 	select {
 	case r.relay.clientConn <- remoteConn:
 	case <-r.relay.done:
