@@ -171,6 +171,7 @@ jobs:
       - name: Run govulncheck (SARIF output)
         uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1.1.0
         with:
+          cache: false # The earlier "Setup Go" step already restored the module cache; restoring it again fails with "File exists".
           output-format: sarif
           output-file: govulncheck-results.sarif
 
