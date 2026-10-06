@@ -18,7 +18,6 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
-	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/logger"
 )
 
@@ -30,14 +29,7 @@ func restServer(d *Daemon) *http.Server {
 		mux.HandleFunc(endpoint, f)
 	}
 
-	endpoints := api10
-	internalEndpoints := apiInternal
-	if features.IsEnabled(features.ChangedBlockTracking) {
-		endpoints = slices.Concat(api10, changedBlockTrackingCmds)
-		internalEndpoints = slices.Concat(apiInternal, changedBlockTrackingInternalCmds)
-	}
-
-	for _, c := range endpoints {
+	for _, c := range api10 {
 		// Every 1.0 endpoint should have a type for the API metrics.
 		if !slices.Contains(entity.APIMetricsEntityTypes(), c.MetricsType) {
 			panic(`Endpoint "/1.0/` + c.Path + `" has invalid MetricsType: ` + string(c.MetricsType))
@@ -54,7 +46,7 @@ func restServer(d *Daemon) *http.Server {
 		d.createCmd(mux, "1.0", c)
 	}
 
-	for _, c := range internalEndpoints {
+	for _, c := range apiInternal {
 		d.createCmd(mux, "internal", c)
 	}
 
