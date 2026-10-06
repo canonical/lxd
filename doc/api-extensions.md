@@ -3805,7 +3805,7 @@ The following endpoints list bitmaps. The UUID of a bitmap is the `volatile.uuid
 * `GET /1.0/instances/{name}/snapshots/{snapshot}/bitmaps` lists the bitmaps of an instance snapshot, grouped by name with one entry per volume.
 * `GET /1.0/instances/{name}/snapshots/{snapshot}/bitmaps/{bitmap}` shows one bitmap of an instance snapshot.
 
-The following endpoints export volume data over NBD. Each is reached with the `Upgrade: nbd` header and returns `101 Switching Protocols`, after which the connection carries the NBD protocol.
+The following endpoints export volume data over NBD. Each is reached with the `Upgrade: nbd` header and returns `101 Switching Protocols`, after which the connection carries the NBD protocol. LXD sends the first NBD handshake message right after the response headers. An HTTP library can read part of that message into its buffer together with the headers, and the NBD client must read those buffered bytes before it reads from the connection.
 
 * `GET /1.0/instances/{name}/snapshots/{snapshot}/nbd` exports the block volume snapshots of an instance snapshot read-only, each under an NBD export named after its disk device, together with the bitmaps of the snapshot as `qemu:dirty-bitmap:<name>` metadata contexts. The `device` query parameter, repeated once per device, selects a subset of the devices. The `previous_snapshot_uuid` query parameter limits the bitmaps to the ones created with the instance snapshot of that UUID.
 * `POST /1.0/storage-pools/{pool}/volumes/{type}/{volume}/nbd` exports one block volume read-write, for writing a backup back. The volume must be detached or attached to a stopped instance, and its bitmaps are deleted before the export.

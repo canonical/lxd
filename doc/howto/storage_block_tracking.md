@@ -177,7 +177,9 @@ Send a GET request with the `Upgrade: nbd` header to the NBD endpoint of the ins
 
     GET /1.0/instances/<instance_name>/snapshots/<snapshot_name>/nbd
 
-LXD answers with `101 Switching Protocols`.
+LXD answers with `101 Switching Protocols` and sends the first NBD handshake message right after the response headers.
+An HTTP library can read part of that message into its buffer together with the headers.
+The NBD client must read those buffered bytes before it reads from the connection.
 The client then sends NBD commands over the connection.
 
 LXD serves each volume snapshot as a separate NBD export, named after its disk device.
@@ -233,7 +235,9 @@ Send a POST request with the `Upgrade: nbd` header to the NBD endpoint of the vo
 
     POST /1.0/storage-pools/<pool_name>/volumes/<volume_type>/<volume_name>/nbd
 
-LXD answers with `101 Switching Protocols`.
+LXD answers with `101 Switching Protocols` and sends the first NBD handshake message right after the response headers.
+An HTTP library can read part of that message into its buffer together with the headers.
+The NBD client must read those buffered bytes before it reads from the connection.
 The client then sends NBD commands over the connection, including writes.
 
 See [`POST /1.0/storage-pools/{poolName}/volumes/{type}/{volumeName}/nbd`](swagger:/storage/storage_pool_volumes_type_nbd_post) for more information.
