@@ -428,10 +428,11 @@ test_storage_block_tracking_vm() {
   [ "$(_bitmaps v1/s1 || echo fail)" = "" ]
   [ "$(_nbd_contexts root nbd v1/s1)" = '["base:allocation"]' ]
 
-  sub_test "A snapshot without a bitmap keeps the bitmaps and has no export"
+  sub_test "A snapshot without a bitmap keeps the bitmaps and has no bitmap listing and no export"
   lxc snapshot v1 p1
   [ "$(_bitmaps v1)" = "s1,root,YES" ]
-  [ "$(_bitmaps v1/p1 || echo fail)" = "" ]
+  [ "$(! "${_LXC}" bitmap list v1/p1 2>&1 1>/dev/null)" = "Error: Snapshot was not created with a bitmap" ]
+  [ "$(! "${_LXC}" bitmap show v1/p1 s1 2>&1 1>/dev/null)" = "Error: Snapshot was not created with a bitmap" ]
   [[ "$(_nbd_refused nbd v1/p1)" == "Error: Snapshot was not created with a bitmap"* ]]
 
   # The config volume snapshot holds the live images, whose bitmaps are in use, and no snapshot bitmap file.
@@ -455,7 +456,7 @@ volumes:
     bitmaps: []
 EOF
   lxc snapshot v1 p2
-  [ "$(_bitmaps v1/p2 || echo fail)" = "" ]
+  [ "$(! "${_LXC}" bitmap list v1/p2 2>&1 1>/dev/null)" = "Error: Snapshot was not created with a bitmap" ]
   [[ "$(_nbd_refused nbd v1/p2)" == "Error: Snapshot was not created with a bitmap"* ]]
   lxc delete v1/p2
   lxc stop -f v1
@@ -1063,11 +1064,14 @@ EOF
   lxc storage volume delete "${pool}" cbt-data
   [ "$(_bitmaps v1)" = "$(printf 's10,cbt-blk,YES\ns10,root,YES')" ]
 
-  sub_test "Containers and stopped virtual machines get no bitmaps, and a container snapshot has no export"
+  sub_test "Containers and stopped virtual machines get no bitmaps, and a container snapshot has no bitmap listing and no export"
   ensure_import_testimage
   lxc launch testimage c1
   [ "$(! "${_LXC}" snapshot c1 --bitmap 2>&1 1>/dev/null)" = "Error: A snapshot with a bitmap requires a running virtual machine" ]
   lxc snapshot c1 c1s
+  [ "$(! "${_LXC}" bitmap list c1/c1s 2>&1 1>/dev/null)" = "Error: Dirty bitmaps are not supported for containers" ]
+  [ "$(! "${_LXC}" bitmap show c1/c1s c1s 2>&1 1>/dev/null)" = "Error: Dirty bitmaps are not supported for containers" ]
+  [ "$(! "${_LXC}" query /internal/instances/c1/bitmaps 2>&1 1>/dev/null)" = "Error: Dirty bitmaps are not supported for containers" ]
   [[ "$(_nbd_refused nbd c1/c1s)" == "Error: NBD export is only supported for virtual machines"* ]]
   lxc delete -f c1
 

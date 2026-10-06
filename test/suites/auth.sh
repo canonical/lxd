@@ -873,8 +873,8 @@ fine_grained_authorization() {
   lxc auth group permission add test-group instance nbd-foo can_view project=default
   lxc auth group permission add test-group storage_volume nbd-vol can_view project=default pool="${pool_name}" type=custom
 
-  # can_view lists the bitmaps of a snapshot, which a container has none of.
-  lxc_remote query "${remote}:/1.0/instances/nbd-foo/snapshots/snap0/bitmaps" | jq --exit-status '. == []'
+  # The bitmap listing rejects a container snapshot after the access check, which can_view passes.
+  [ "$("${_LXC}" query "${remote}:/1.0/instances/nbd-foo/snapshots/snap0/bitmaps" 2>&1 >/dev/null)" = 'Error: Dirty bitmaps are not supported for containers' ]
   [ "$("${_LXC}" query "${remote}:/1.0/instances/nbd-foo/snapshots/snap0/nbd" 2>&1 >/dev/null)" = 'Error: Forbidden' ]
   [ "$("${_LXC}" query -X POST "${remote}:/1.0/storage-pools/${pool_name}/volumes/custom/nbd-vol/nbd" 2>&1 >/dev/null)" = 'Error: Forbidden' ]
 

@@ -1847,6 +1847,7 @@ func (d *qemu) Bitmaps() ([]api.InstanceBitmap, error) {
 // The file was written once the volume metadata images were verified, and the images are not read.
 // The bitmap created with the snapshot is not listed.
 // Every bitmap of a snapshot is disabled and reported as not recording.
+// A snapshot created without a bitmap has no snapshot bitmap file and is rejected.
 func (d *qemu) snapshotBitmaps() ([]api.InstanceBitmap, error) {
 	entries := []bitmapEntry{}
 	uuids := map[string]string{}
@@ -1857,7 +1858,7 @@ func (d *qemu) snapshotBitmaps() ([]api.InstanceBitmap, error) {
 		}
 
 		if len(images) == 0 {
-			return nil
+			return api.StatusErrorf(http.StatusBadRequest, "Snapshot was not created with a bitmap")
 		}
 
 		volumes, err := d.snapshotVolumes()

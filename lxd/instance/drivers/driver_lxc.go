@@ -7495,9 +7495,9 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	return out, nil
 }
 
-// Bitmaps returns no bitmaps, as containers have none.
+// Bitmaps is not supported for containers.
 func (d *lxc) Bitmaps() ([]api.InstanceBitmap, error) {
-	return []api.InstanceBitmap{}, nil
+	return nil, api.StatusErrorf(http.StatusBadRequest, "Dirty bitmaps are not supported for containers")
 }
 
 // DeleteBitmap does nothing, as containers have no bitmaps.
