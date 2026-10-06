@@ -59,6 +59,19 @@ jobs:
             )' "${SARIF_FILE}" > trivy-modified.sarif
             mv trivy-modified.sarif "${SARIF_FILE}"
 
+      - name: Pin vulnerability alert fingerprints
+        # GitHub's default fingerprint hashes the start of the lockfile line, so unrelated lockfile edits reopen the alert.
+        run: |
+            set -euo pipefail
+            jq --exit-status '.runs[].results[] |= (
+              if (.message.text | startswith("Package: ")) then
+                .partialFingerprints.primaryLocationLineHash = "\(.ruleId):\(.locations[0].physicalLocation.artifactLocation.uri):\(.message.text | split("\n")[0])"
+              else
+                .
+              end
+            )' "${SARIF_FILE}" > trivy-modified.sarif
+            mv trivy-modified.sarif "${SARIF_FILE}"
+
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
