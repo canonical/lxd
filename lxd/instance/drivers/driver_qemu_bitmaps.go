@@ -1404,6 +1404,31 @@ func (d *qemu) CommitDiskOverlays(deviceNames []string) error {
 	return d.commitOverlays(monitor, disks)
 }
 
+// OnDaemonStart finishes what the previous LXD process left undone on the instance.
+// A guest that powered off while LXD was not running leaves QEMU paused until LXD persists the
+// bitmaps and ends the process, which the stop does.
+// A snapshot with a bitmap that LXD did not finish leaves an overlay on the disks of a running
+// instance, and the guest writes to the overlay until it is committed.
+func (d *qemu) OnDaemonStart(ctx context.Context) error {
+	if d.statusCode() == api.Stopping {
+		err := d.Stop(ctx, false)
+		if err != nil {
+			d.logger.Warn("Failed stopping instance left paused by a guest shutdown", logger.Ctx{"err": err})
+		}
+	}
+
+	if !d.IsRunning() {
+		return nil
+	}
+
+	err := storagePools.CommitInstanceDiskOverlays(d)
+	if err != nil {
+		return fmt.Errorf("Failed committing disk overlays: %w", err)
+	}
+
+	return nil
+}
+
 // instanceSnapshotUUIDs returns the instance snapshot UUID of every snapshot of the instance by
 // snapshot name, which is the UUID of the root volume snapshot of the instance snapshot.
 func (d *qemu) instanceSnapshotUUIDs() (map[string]string, error) {
