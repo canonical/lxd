@@ -119,6 +119,8 @@ See [`GET /1.0/instances/{name}/snapshots/{snapshotName}/bitmaps`](swagger:/inst
 ````
 `````
 
+LXD rejects the request if the instance is not a virtual machine, or if the snapshot was not created with a bitmap.
+
 The bitmap copies in a snapshot do not record writes, and LXD never modifies a snapshot.
 Deleting a snapshot removes the bitmap with its name from every volume of the virtual machine.
 Renaming a snapshot removes the bitmaps with its old name and its new name.
