@@ -1183,6 +1183,16 @@ EOF
   [ "$(! "${_LXC}" storage volume set "${pool}" cbt-blk security.shared=true 2>&1 1>/dev/null)" = "${conflict}" ]
   _nbd_release
 
+  # The start of a new instance takes the lock in the driver, so a create with the volume attached is refused too.
+  lxc storage volume create "${pool}" cbt-new size=32MiB --type block
+  _nbd_serve storage volume nbd "${pool}" cbt-new --writable
+  _nbd_hold
+  conflict="Error: Operation \"$(_nbd_sessions)\" (Importing storage volume over NBD) is already running for volume \"${pool}/cbt-new\""
+  [[ "$(! "${_LXC}" launch --empty v4 --vm 2>&1 1>/dev/null <<< "devices: {data: {type: disk, source: cbt-new, pool: ${pool}}}")" == "${conflict}"* ]]
+  _nbd_release
+  lxc delete v4
+  lxc storage volume delete "${pool}" cbt-new
+
   # A session of the root volume and a snapshot rename both delete bitmaps of the root disk.
   _nbd_serve storage volume nbd "${pool}" virtual-machine/v1 --writable
   _nbd_hold
