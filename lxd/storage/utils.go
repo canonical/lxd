@@ -1911,9 +1911,9 @@ func nbdConflictError(s *state.State, lockName string, description string) error
 		return err
 	})
 	if err != nil {
-		// The lock is also held with no conflict reference while an instance starts, restarts or
-		// migrates, while one of its snapshots is renamed and while security.shared is updated,
-		// and before a session registers its operation.
+		// The lock is also held with no conflict reference while an instance starts or migrates,
+		// while one of its snapshots is renamed and while security.shared is updated, and before a
+		// session registers its operation.
 		return api.StatusErrorf(http.StatusConflict, "Another operation is already in progress for %s", description)
 	}
 
