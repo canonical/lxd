@@ -99,6 +99,15 @@ _container_devices_unix() {
   [ "$(stat -c '%F %a %t %T' "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev4.tmp-testdev4)" = "${deviceTypeDesc} 777 0 2" ]
   lxc config device remove "${ctName}" test-dev4
 
+  # Remove a device whose name is a prefix of another device name and check the other device is kept.
+  lxc config device add "${ctName}" test-dev5 "${deviceType}" path=/tmp/testdev5 major=0 minor=2
+  lxc config device add "${ctName}" test-dev55 "${deviceType}" path=/tmp/testdev55 major=0 minor=2
+  lxc config device remove "${ctName}" test-dev5
+  ! test -e "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev5.tmp-testdev5 || false
+  lxc exec "${ctName}" -- mount | grep -F "/tmp/testdev55"
+  [ "$(stat -c '%F %t %T' "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev55.tmp-testdev55)" = "${deviceTypeDesc} 0 2" ]
+  lxc config device remove "${ctName}" test-dev55
+
   lxc stop -f "${ctName}"
   lxc config device remove "${ctName}" test-dev1
   rm "${testDev}"
