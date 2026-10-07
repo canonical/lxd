@@ -1252,13 +1252,39 @@ jobs:
           fi
 
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            # Latest commits on main go straight to latest edge.
+            #
+            # "main" -> "latest/edge"
+
             BRANCH="latest-edge"
+
           elif [[ "${GITHUB_REF_NAME}" =~ ^stable- ]]; then
+            # Latest commits on a series branch go straight to the edge for that series.
+            #
+            # "stable-6"    -> "6-edge"
+            # "stable-5.21" -> "5.21-edge"
+            # "stable-5.0"  -> "5.0-edge
+            # "stable-4.0"  -> "4.0-edge"
+
             BRANCH="${GITHUB_REF_NAME#stable-}-edge"
-          elif [[ "${GITHUB_REF_NAME}" =~ ^release-6\. ]]; then
-            BRANCH="6-candidate"
+
+          elif [[ "${GITHUB_REF_NAME}" =~ ^release-([6-9])\. ]]; then
+            # For releases in series 6 and above, the candidate branch is prefixed with only the major version.
+            #
+            # "release-6.10.x" -> "6-candidate"
+            # "release-7.1"    -> "7-candidate"
+
+            BRANCH="${BASH_REMATCH[1]}-candidate"
+
           elif [[ "${GITHUB_REF_NAME}" =~ ^release-([0-9]+)\.([0-9]+)\.[0-9]+$ ]]; then
+            # For older releases, we take the major and minor version.
+            #
+            # "release-5.21.x" -> "5.21-candidate"
+            # "release-5.0.x"  -> "5.0-candidate"
+            # "release-4.0.x"  -> "4.0-candidate"
+
             BRANCH="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}-candidate"
+
           else
             echo "ERROR: Unsupported GITHUB_REF_NAME pattern: ${GITHUB_REF_NAME}" >&2
             exit 1
