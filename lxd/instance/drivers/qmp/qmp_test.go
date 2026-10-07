@@ -1,6 +1,7 @@
 package qmp
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -124,7 +125,7 @@ func TestListenEmptyStream(t *testing.T) {
 	})
 }
 
-func TestListenScannerErr(t *testing.T) {
+func TestListenDecoderErr(t *testing.T) {
 	mon := &qemuMachineProtocol{}
 
 	errFoo := errors.New("foo")
@@ -302,4 +303,28 @@ func mockMonitorServer(t *testing.T, eg *errgroup.Group, qmp *qemuMachineProtoco
 	t.Cleanup(func() {
 		_ = l.Close()
 	})
+}
+
+// Check we can process query-pci responses, which grow with the number of PCI
+// devices. A previous implementation was limited by bufio.MaxScanTokenSize.
+func TestListenLargeResponse(t *testing.T) {
+	mon := &qemuMachineProtocol{}
+	id := uint32(1)
+	want := fmt.Sprintf(`{"foo": %q, "id": 1}`, strings.Repeat("x", bufio.MaxScanTokenSize*2))
+	r := strings.NewReader(want)
+
+	events := make(chan qmpEvent)
+	replies := &mon.replies
+	repCh := make(chan rawResponse, 1)
+	replies.Store(id, repCh)
+	go mon.listen(r, events, replies)
+	res := <-repCh
+	if res.err != nil {
+		t.Fatalf("unexpected error: %v", res.err)
+	}
+
+	got := string(res.raw)
+	if want != got {
+		t.Fatalf("unexpected response:\n- want: %q\n-  got: %q", want, got)
+	}
 }
