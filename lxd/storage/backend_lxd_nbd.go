@@ -142,10 +142,6 @@ func (b *lxdBackend) GetVolumeNBD(projectName string, volType drivers.VolumeType
 			return nil, nil, "", api.StatusErrorf(http.StatusBadRequest, "NBD export is not supported for shared volumes")
 		}
 
-		if inst.IsRunning() {
-			return nil, nil, "", api.StatusErrorf(http.StatusBadRequest, "NBD export requires the instance to be stopped")
-		}
-
 		// Generate the effective root device volume for instance.
 		vol := b.GetVolume(drivers.VolumeTypeVM, drivers.ContentTypeBlock, project.Instance(projectName, volName), dbVol.Config)
 		err = b.applyInstanceRootDiskOverrides(inst, &vol)
@@ -155,6 +151,11 @@ func (b *lxdBackend) GetVolumeNBD(projectName string, volType drivers.VolumeType
 
 		lockName := nbdInstanceLockName(projectName, volName)
 		return nbdLockedSession(b.state, lockName, fmt.Sprintf("instance %q", volName), func() (net.Conn, func(), error) {
+			// Check the status under the lock, which a start holds until the instance is running.
+			if inst.IsRunning() {
+				return nil, nil, api.StatusErrorf(http.StatusBadRequest, "NBD export requires the instance to be stopped")
+			}
+
 			err := inst.CommitDiskOverlays([]string{rootDiskName})
 			if err != nil {
 				return nil, nil, err
@@ -181,34 +182,35 @@ func (b *lxdBackend) GetVolumeNBD(projectName string, volType drivers.VolumeType
 			return nil, nil, "", api.StatusErrorf(http.StatusBadRequest, "NBD export is not supported for shared volumes")
 		}
 
-		// A non-shared block volume is attached to at most one instance, which must be stopped and
-		// on this member before qemu-nbd can open the volume.
-		instanceDevices := make(map[instance.Instance][]string)
-		err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, &dbVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-			if dbInst.Node != b.state.ServerName {
-				return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to instance %q on cluster member %q", dbInst.Name, dbInst.Node)
-			}
-
-			inst, err := instance.Load(b.state, dbInst, project)
-			if err != nil {
-				return err
-			}
-
-			if inst.IsRunning() {
-				return api.StatusErrorf(http.StatusBadRequest, "NBD export requires instance %q to be stopped", dbInst.Name)
-			}
-
-			instanceDevices[inst] = usedByDevices
-			return nil
-		})
-		if err != nil {
-			return nil, nil, "", err
-		}
-
 		vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentTypeBlock, project.StorageVolume(projectName, volName), dbVol.Config)
 
 		lockName := nbdVolumeLockName(b.nbdVolumeLockMember(), b.name, projectName, volName)
 		return nbdLockedSession(b.state, lockName, fmt.Sprintf("volume %q", b.name+"/"+volName), func() (net.Conn, func(), error) {
+			// A non-shared block volume is attached to at most one instance, which must be stopped and
+			// on this member before qemu-nbd can open the volume.
+			// Look it up under the lock, which a start of that instance holds until it is running.
+			instanceDevices := make(map[instance.Instance][]string)
+			err := VolumeUsedByInstanceDevices(b.state, b.name, projectName, &dbVol.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+				if dbInst.Node != b.state.ServerName {
+					return api.StatusErrorf(http.StatusBadRequest, "Volume is attached to instance %q on cluster member %q", dbInst.Name, dbInst.Node)
+				}
+
+				inst, err := instance.Load(b.state, dbInst, project)
+				if err != nil {
+					return err
+				}
+
+				if inst.IsRunning() {
+					return api.StatusErrorf(http.StatusBadRequest, "NBD export requires instance %q to be stopped", dbInst.Name)
+				}
+
+				instanceDevices[inst] = usedByDevices
+				return nil
+			})
+			if err != nil {
+				return nil, nil, err
+			}
+
 			for inst, deviceNames := range instanceDevices {
 				err := inst.CommitDiskOverlays(deviceNames)
 				if err != nil {
