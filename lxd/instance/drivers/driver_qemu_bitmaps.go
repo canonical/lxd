@@ -47,6 +47,10 @@ const qemuOverlayNodePrefix = "lxdoverlay_"
 const qemuMetadataDiskNodePrefix = "lxdimage_"
 
 // qemuBitmapGranularity is the size in bytes of the block that one bit of a bitmap LXD creates covers.
+// With larger granularity, fewer bits are required to cover entire volume.
+// With smaller granularity, a change is recorded more precisely and a backup provider needs to read
+// less "unchanged data" for an incremental backup.
+// Currently, every bitmap uses fixed granularity.
 const qemuBitmapGranularity = 65536
 
 // blockNodeName returns the QEMU block node name of a disk device, which the guest device is attached to.
