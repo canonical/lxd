@@ -100,7 +100,7 @@ spawn_lxd() {
     echo "==> Spawned LXD (PID is ${LXD_PID})"
 
     echo "==> Confirming lxd is responsive (PID is ${LXD_PID})"
-    lxd waitready --timeout=300 || (echo "Killing PID ${LXD_PID}" ; kill -9 "${LXD_PID}" ; false)
+    lxd waitready --timeout=300 || { kill_hung_go_proc "${LXD_PID}" ; false; }
 
     if [ "${LXD_NETNS}" = "" ]; then
         echo "==> Binding to network"
@@ -150,7 +150,7 @@ respawn_lxd() {
 
     if [ "${wait}" = true ]; then
         echo "==> Confirming lxd is responsive (PID is ${LXD_PID})"
-        lxd waitready --timeout=300 || (echo "Killing PID ${LXD_PID}" ; kill -9 "${LXD_PID}" ; false)
+        lxd waitready --timeout=300 || { kill_hung_go_proc "${LXD_PID}" ; false; }
     fi
 
     if [ -n "${SHELL_TRACING:-}" ]; then
@@ -253,7 +253,7 @@ kill_lxd() {
         done < <(echo .tables | sqlite3 "${LXD_DIR}/local.db")
 
         # Kill the daemon
-        timeout -k 30 30 lxd shutdown || kill_go_proc "${LXD_PID}" 2>/dev/null || true
+        timeout -k 30 30 lxd shutdown || kill_hung_go_proc "${LXD_PID}" || true
 
         check_leftovers="true"
     fi
@@ -343,7 +343,7 @@ shutdown_lxd() {
     echo "==> Shutting down LXD at ${LXD_DIR} (${LXD_PID})"
 
     # Shutting down the daemon
-    timeout -k 30 30 lxd shutdown || kill_go_proc "${LXD_PID}" 2>/dev/null || true
+    timeout -k 30 30 lxd shutdown || kill_hung_go_proc "${LXD_PID}" || true
 
     # Wait for any cleanup activity that might be happening right
     # after the websocket is closed.
@@ -501,6 +501,13 @@ lxd_shutdown_restart() {
         fi
     done
 
+    if [ -d "/proc/${LXD_PID}" ]; then
+        echo "LXD did not shut down within 270 seconds." | tee -a "$logfile"
+        kill_hung_go_proc "${LXD_PID}"
+        wait "${monitor_pid}" || true
+        return 1
+    fi
+
     echo "LXD shutdown sequence completed."
     respawn_lxd "${LXD_DIR}" true
 }
@@ -539,6 +546,34 @@ kill_go_proc() {
   else
     kill -9 "${pid}"
   fi
+}
+
+# Ends a Go process that did not exit when asked to, keeping a record of where it was stuck.
+# The Go runtime exits with a stack dump on a SIGABRT that the program does not handle itself.
+# SIGQUIT would do the same, but LXD handles it as a shutdown request (lxd/main_daemon.go).
+# GOTRACEBACK=all or crash, as set in CI, prints every goroutine. With crash the runtime also
+# aborts, and the core_pattern set by test/main.sh writes the core dump to /var/crash, which
+# fails the next test through check_coredumps. Writing that core takes about 10 seconds.
+# A process still alive 30 seconds later is killed like any other Go process.
+kill_hung_go_proc() {
+  local pid="${1}"
+  if [ ! -d "/proc/${pid}" ]; then
+    return 0
+  fi
+
+  echo "==> Process ${pid} did not exit, sending SIGABRT to dump its goroutines"
+  if ! kill -ABRT "${pid}" 2>/dev/null; then
+    [ -d "/proc/${pid}" ] || return 0
+    kill -9 "${pid}"
+    return 1
+  fi
+
+  for _ in $(seq 300); do
+    [ -d "/proc/${pid}" ] || return 0
+    sleep 0.1
+  done
+
+  kill_go_proc "${pid}"
 }
 
 
