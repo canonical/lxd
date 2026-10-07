@@ -19,6 +19,30 @@ var Upgrader = websocket.Upgrader{
 	HandshakeTimeout: time.Second * 5,
 }
 
+// BulkBufferSize is sized to amortize gorilla/websocket's frame header
+// overhead over more payload per message, avoiding the write() syscall
+// fragmentation that occurs when read and write buffer sizes are mismatched
+// (gorilla/websocket splits a write into multiple frames if it exceeds its
+// configured WriteBufferSize). It is deliberately larger than the TLS record
+// ceiling (16 KiB, RFC 8446 §5.2) rather than equal to it: gorilla
+// adds its own frame header (up to 14 bytes, see maxFrameHeaderSize in
+// gorilla/websocket's conn.go) on top of the payload before handing it to
+// TLS, so a buffer sized at exactly the TLS ceiling would overflow it on
+// every single frame and force a second, small write per frame. 32 KiB
+// comfortably clears that boundary while keeping a smaller memory
+// footprint per pooled buffer than larger sizes.
+const BulkBufferSize = 32 * 1024
+
+// BulkUpgrader is used for high-throughput connections (migration filesystem
+// connections) to avoid gorilla/websocket's small default WriteBufferSize causing
+// excess write() syscall fragmentation below the TLS record ceiling.
+var BulkUpgrader = websocket.Upgrader{
+	CheckOrigin:      checkOrigin,
+	HandshakeTimeout: time.Second * 5,
+	ReadBufferSize:   BulkBufferSize,
+	WriteBufferSize:  BulkBufferSize,
+}
+
 // isStandardWebScheme reports whether the given URL scheme is a standard
 // browser-originated scheme that carries meaningful port information.
 func isStandardWebScheme(scheme string) bool {

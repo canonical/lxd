@@ -19,7 +19,10 @@ import (
 )
 
 // setupWebsocketDialer uses a certificate to parse and configure a websocket.Dialer.
-func setupWebsocketDialer(certificate string) (*websocket.Dialer, error) {
+// When bulk is true, the dialer's buffers are sized to ws.BulkBufferSize to avoid
+// excess write() syscall fragmentation on high-throughput connections (e.g. migration
+// filesystem transfers).
+func setupWebsocketDialer(certificate string, bulk bool) (*websocket.Dialer, error) {
 	var err error
 	var cert *x509.Certificate
 
@@ -41,16 +44,24 @@ func setupWebsocketDialer(certificate string) (*websocket.Dialer, error) {
 		HandshakeTimeout: time.Second * 5,
 	}
 
+	if bulk {
+		dialer.ReadBufferSize = ws.BulkBufferSize
+		dialer.WriteBufferSize = ws.BulkBufferSize
+	}
+
 	return dialer, nil
 }
 
-// newMigrationConn configures a new migration connection handler.
-func newMigrationConn(secret string, outgoingDialer *websocket.Dialer, outgoingURL *url.URL) *migrationConn {
+// newMigrationConn configures a new migration connection handler. When bulk is true,
+// the connection is treated as high-throughput (e.g. the filesystem connection) and
+// uses larger websocket buffers on both the outgoing dialer and the incoming upgrader.
+func newMigrationConn(secret string, outgoingDialer *websocket.Dialer, outgoingURL *url.URL, bulk bool) *migrationConn {
 	return &migrationConn{
 		secret:         secret,
 		outgoingDialer: outgoingDialer,
 		outgoingURL:    outgoingURL,
 		connected:      make(chan struct{}),
+		bulk:           bulk,
 	}
 }
 
@@ -63,6 +74,7 @@ type migrationConn struct {
 	conn           *websocket.Conn
 	connected      chan struct{}
 	disconnected   bool
+	bulk           bool
 }
 
 // Secret returns the secret for this connection.
@@ -84,7 +96,12 @@ func (c *migrationConn) AcceptIncoming(r *http.Request, w http.ResponseWriter) e
 	}
 
 	var err error
-	c.conn, err = ws.Upgrader.Upgrade(w, r, nil)
+	upgrader := ws.Upgrader
+	if c.bulk {
+		upgrader = ws.BulkUpgrader
+	}
+
+	c.conn, err = upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return fmt.Errorf("Failed upgrading incoming request to websocket: %w", err)
 	}

@@ -44,6 +44,7 @@ import (
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
+	"github.com/canonical/lxd/shared/ws"
 )
 
 var storageVolumesCmd = APIEndpoint{
@@ -1387,10 +1388,16 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 	// to avoid this function relying on the legacy storage layer.
 	migrationArgs := migrationSinkArgs{
 		url: req.Source.Operation,
+		// BulkBufferSize is used here since this single dialer is shared across
+		// all migration connections (control/fs) for this sink; the extra buffer
+		// memory on the non-bulk connections is negligible given there are only a
+		// handful of connections per migration operation.
 		dialer: &websocket.Dialer{
 			TLSClientConfig:  config,
 			NetDialContext:   shared.RFC3493Dialer,
 			HandshakeTimeout: time.Second * 5,
+			ReadBufferSize:   ws.BulkBufferSize,
+			WriteBufferSize:  ws.BulkBufferSize,
 		},
 		secrets:    req.Source.Websockets,
 		push:       push,

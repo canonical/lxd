@@ -53,7 +53,7 @@ func newConversionSink(args *conversionSinkArgs) (*conversionSink, error) {
 		return nil, fmt.Errorf("Failed creating conversion sink secret for %q connection: %w", api.SecretNameFilesystem, err)
 	}
 
-	sink.fsConn = newMigrationConn(secret, nil, nil)
+	sink.fsConn = newMigrationConn(secret, nil, nil, true)
 
 	return &sink, nil
 }

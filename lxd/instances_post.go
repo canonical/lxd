@@ -474,7 +474,11 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 	if req.Source.Mode == "push" {
 		push = true
 	} else {
-		dialer, err = setupWebsocketDialer(req.Source.Certificate)
+		// bulk is passed as true here since this single dialer is shared across all
+		// migration connections (control/fs/state) for this sink; the extra buffer
+		// memory on the non-bulk connections is negligible given there are only a
+		// handful of connections per migration operation.
+		dialer, err = setupWebsocketDialer(req.Source.Certificate, true)
 		if err != nil {
 			return nil, fmt.Errorf("Failed setting up websocket dialer for migration sink connections: %w", err)
 		}
