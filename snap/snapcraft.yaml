@@ -1429,7 +1429,7 @@ parts:
     after:
       - python-runtime
     source: https://github.com/lxc/lxcfs
-    source-commit: 7ff173bfdb01bc10ab92c3d083a868d8f7fdd94d # v6.0.6
+    source-commit: 0995aec6f046bb79589ce2a6a9453d371d74f24d # v7.0.0
     source-depth: 0
     source-type: git
     # XXX: needed for snapcraft 8.x only
