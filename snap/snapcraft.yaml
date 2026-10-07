@@ -1737,7 +1737,7 @@ parts:
       - lxd
       - qemu
     source: https://github.com/canonical/gpu-snap.git
-    source-commit: 3143c9fa59a0c49c1b6671133192a67addf86f4e # main
+    source-commit: 84e56217ec137c3f8d7a0e773bb7c39c8fc40f28 # main
     source-depth: 1
     source-type: git
     plugin: dump
