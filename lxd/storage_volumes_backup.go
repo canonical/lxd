@@ -22,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/project/limits"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -432,7 +433,13 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 			CompressionAlgorithm: req.CompressionAlgorithm,
 		}
 
-		err := volumeBackupCreate(s, args, effectiveProjectName, details.pool.Name(), details.volumeName, req.Version)
+		// The backup reads the volume, which lacks the guest's writes while an overlay is left uncommitted.
+		err := storagePools.CommitCustomVolumeDiskOverlay(s, details.pool.Name(), effectiveProjectName, details.volumeName)
+		if err != nil {
+			return err
+		}
+
+		err = volumeBackupCreate(s, args, effectiveProjectName, details.pool.Name(), details.volumeName, req.Version)
 		if err != nil {
 			return fmt.Errorf("Create volume backup: %w", err)
 		}

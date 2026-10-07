@@ -3293,13 +3293,17 @@ func (d *lxc) snapshot(ctx context.Context, name string, expiry *time.Time, disk
 	// Wait for any file operations to complete to have a more consistent snapshot.
 	d.StopForkFile(false)
 
-	return d.snapshotCommon(ctx, d, name, expiry, false, diskVolumesMode, progressReporter)
+	return d.snapshotCommon(ctx, d, name, expiry, false, diskVolumesMode, false, progressReporter)
 }
 
 // Snapshot takes a new snapshot.
-func (d *lxc) Snapshot(ctx context.Context, name string, expiry *time.Time, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
+func (d *lxc) Snapshot(ctx context.Context, name string, expiry *time.Time, stateful bool, diskVolumesMode string, bitmap bool, progressReporter ioprogress.ProgressReporter) error {
 	if stateful {
 		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshots are not supported for containers")
+	}
+
+	if bitmap {
+		return api.StatusErrorf(http.StatusBadRequest, "Dirty bitmaps are not supported for containers")
 	}
 
 	unlock, err := d.updateBackupFileLock(context.Background())
@@ -7489,6 +7493,56 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	}
 
 	return out, nil
+}
+
+// Bitmaps returns no bitmaps, as containers have none.
+func (d *lxc) Bitmaps() ([]api.InstanceBitmap, error) {
+	return []api.InstanceBitmap{}, nil
+}
+
+// DeleteBitmap does nothing, as containers have no bitmaps.
+func (d *lxc) DeleteBitmap(bitmapName string) error {
+	return nil
+}
+
+// DeleteDiskBitmap does nothing, as containers have no bitmaps.
+func (d *lxc) DeleteDiskBitmap(deviceName string, bitmapName string) error {
+	return nil
+}
+
+// DeleteVolumeBitmaps does nothing, as containers have no bitmaps.
+func (d *lxc) DeleteVolumeBitmaps(deviceName string) error {
+	return nil
+}
+
+// RemoveVolumeMetadataImage does nothing, as containers have no bitmaps.
+func (d *lxc) RemoveVolumeMetadataImage(volumeUUID string) error {
+	return nil
+}
+
+// RemoveAllMetadataImages does nothing, as containers have no bitmaps.
+func (d *lxc) RemoveAllMetadataImages() error {
+	return nil
+}
+
+// CreateSnapshotBitmaps is not supported for containers.
+func (d *lxc) CreateSnapshotBitmaps(snapshotUUID string, deviceNames []string, bitmapName string) ([]string, error) {
+	return nil, api.StatusErrorf(http.StatusBadRequest, "Dirty bitmaps are not supported for containers")
+}
+
+// CommitDiskOverlays does nothing, as containers have no disk overlays.
+func (d *lxc) CommitDiskOverlays(deviceNames []string) error {
+	return nil
+}
+
+// RemoveSnapshotBitmapFile does nothing, as containers have no bitmaps.
+func (d *lxc) RemoveSnapshotBitmapFile(snapshotUUID string) error {
+	return nil
+}
+
+// SnapshotMetadataImages returns no metadata images, as containers have no bitmaps.
+func (d *lxc) SnapshotMetadataImages() (map[string]instance.SnapshotMetadataImage, error) {
+	return map[string]instance.SnapshotMetadataImage{}, nil
 }
 
 func (d *lxc) getFSStats() (*metrics.MetricSet, error) {

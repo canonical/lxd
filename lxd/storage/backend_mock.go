@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"time"
@@ -281,7 +282,7 @@ func (b *mockBackend) UnmountInstance(inst instance.Instance, progressReporter i
 }
 
 // CreateInstanceSnapshot ...
-func (b *mockBackend) CreateInstanceSnapshot(i instance.Instance, src instance.Instance, progressReporter ioprogress.ProgressReporter) error {
+func (b *mockBackend) CreateInstanceSnapshot(i instance.Instance, src instance.Instance, snapshotUUID string, progressReporter ioprogress.ProgressReporter) error {
 	return nil
 }
 
@@ -463,4 +464,14 @@ func (b *mockBackend) CreateCustomVolumeFromISO(ctx context.Context, projectName
 // CreateCustomVolumeFromTarball ...
 func (b *mockBackend) CreateCustomVolumeFromTarball(ctx context.Context, projectName string, volName string, srcData *os.File, progressReporter ioprogress.ProgressReporter) error {
 	return nil
+}
+
+// GetVolumeNBD ...
+func (b *mockBackend) GetVolumeNBD(projectName string, volType drivers.VolumeType, volName string) (net.Conn, func(), string, error) {
+	return nil, nil, "", nil
+}
+
+// GetInstanceSnapshotNBD ...
+func (b *mockBackend) GetInstanceSnapshotNBD(snapInst instance.Instance, deviceNames []string, previousSnapshotUUID string) (net.Conn, func(), string, error) {
+	return nil, nil, "", nil
 }

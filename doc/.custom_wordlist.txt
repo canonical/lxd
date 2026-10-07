@@ -197,6 +197,8 @@ natively
 NDP
 netmask
 NBD
+nbdcopy
+nbdinfo
 NFS
 NIC
 NICs

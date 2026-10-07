@@ -31,6 +31,7 @@ Instance volumes can be created directly in a specific storage pool. Custom volu
 Create or move an instance in a pool </howto/storage_create_instance>
 Back up a custom volume </howto/storage_backup_volume>
 Move or copy a custom volume </howto/storage_move_volume>
+Track changed blocks on virtual machine volumes </howto/storage_block_tracking>
 ```
 
 ## Use storage with Kubernetes

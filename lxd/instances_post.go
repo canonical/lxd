@@ -1342,6 +1342,13 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 			}
 		}
 
+		// The backup contains the metadata images of the exported instance, whose bitmaps record
+		// neither the writes to the imported volumes nor their snapshots.
+		err = inst.RemoveAllMetadataImages()
+		if err != nil {
+			return fmt.Errorf("Failed removing metadata images: %w", err)
+		}
+
 		runRevert.Success()
 
 		return instanceCreateFinish(ctx, s, &req, db.InstanceArgs{Name: bInfo.Name, Project: bInfo.Project}, nil, op)

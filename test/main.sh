@@ -101,6 +101,11 @@ enable_feature_preview() {
 
 # TODO: Turns on failure-domain-aware placement feature. To be eventually removed alongside feature flag.
 enable_feature_preview failure_domain_placement
+
+# The changed_block_tracking feature preview exposes the bitmap and NBD endpoints and commands that
+# storage_block_tracking.sh and auth.sh exercise.
+enable_feature_preview changed_block_tracking
+
 export CLIENT_DEBUG="" SERVER_DEBUG="" SHELL_TRACING=""
 if [ "${LXD_VERBOSE:-0}" != "0" ]; then
   if [ "${LXD_VERBOSE}" = "client" ]; then

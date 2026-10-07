@@ -177,16 +177,16 @@ install_instance_drivers() {
         exit 1
     fi
 
-    if ! check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk make-bcache /usr/lib/qemu/virtiofsd; then
+    if ! check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk make-bcache /usr/lib/qemu/virtiofsd nbdinfo; then
         # On 22.04, QEMU comes with spice modules and virtiofsd
         if grep -qxF 'VERSION_ID="22.04"' /etc/os-release; then
-            install_packages gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils bcache-tools
+            install_packages gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils bcache-tools libnbd-bin
         else
-            install_packages gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils qemu-system-modules-spice virtiofsd bcache-tools
+            install_packages gdisk ovmf qemu-block-extra "${QEMU_SYSTEM}" qemu-utils qemu-system-modules-spice virtiofsd bcache-tools libnbd-bin
         fi
 
         # Verify that the newly installed tools provided the needed binaries
-        check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk /usr/lib/qemu/virtiofsd make-bcache
+        check_dependencies qemu-img "qemu-system-${UNAME}" sgdisk /usr/lib/qemu/virtiofsd make-bcache nbdinfo
     fi
 
     # While virtiofsd is present in 22.04's QEMU, it is too old to work properly with LXD so

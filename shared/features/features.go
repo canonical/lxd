@@ -22,6 +22,11 @@ import (
 // Feature identifies an unsupported, work-in-progress feature.
 type Feature string
 
+// ChangedBlockTracking gates the changed block tracking preview, which consists of the dirty
+// bitmap and NBD export endpoints on the server and the lxc bitmap, nbd and storage volume nbd
+// commands on the client.
+const ChangedBlockTracking Feature = "changed_block_tracking"
+
 // envVar is the environment variable which holds the active features of LXD.
 const envVar = "LXD_FEATURES"
 

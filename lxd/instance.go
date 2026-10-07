@@ -480,6 +480,11 @@ func instanceCreateAsCopy(ctx context.Context, s *state.State, opts instanceCrea
 		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
+	err = storagePools.CommitInstanceDiskOverlays(opts.sourceInstance)
+	if err != nil {
+		return nil, err
+	}
+
 	if opts.refresh {
 		err = pool.RefreshInstance(ctx, inst, opts.sourceInstance, snapshots, opts.allowInconsistent, op)
 		if err != nil {
@@ -500,6 +505,13 @@ func instanceCreateAsCopy(ctx context.Context, s *state.State, opts instanceCrea
 				return nil, err
 			}
 		}
+	}
+
+	// The config volume is copied with the metadata images of the source, whose bitmaps record
+	// neither the writes to the copy nor its snapshots.
+	err = inst.RemoveAllMetadataImages()
+	if err != nil {
+		return nil, fmt.Errorf("Failed removing metadata images: %w", err)
 	}
 
 	err = inst.UpdateBackupFile()
@@ -561,7 +573,7 @@ func autoCreateInstanceSnapshots(ctx context.Context, s *state.State, instances 
 		}
 
 		// Don't track progress for automated snapshot creation
-		err = inst.Snapshot(ctx, snapshotName, nil, false, api.DiskVolumesModeRoot, nil)
+		err = inst.Snapshot(ctx, snapshotName, nil, false, api.DiskVolumesModeRoot, false, nil)
 		if err != nil {
 			l.Error("Error creating snapshot", logger.Ctx{"snapshot": snapshotName, "err": err})
 			return err
