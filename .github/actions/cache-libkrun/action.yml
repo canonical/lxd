@@ -1,0 +1,111 @@
+name: Cache libkrun dependencies
+description: Restore the libkrun/libkrunfw binaries from the daily cache or build them
+
+inputs:
+  export-env:
+    description: |
+      Whether to export LIBKRUN_PATH, LXD_MICROVM_KERNEL and LXD_MICROVM_TESTS=1
+      to GITHUB_ENV so tests can locate libkrun and the microvm kernel, and the
+      MicroVM tests are enabled.
+    default: "true"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: libkrun deps cache key
+      id: libkrun-cache-key
+      shell: bash
+      run: |
+        set -eux
+        . /etc/os-release
+        ARCH="$(dpkg --print-architecture)"
+        DATE="$(date --utc '+%Y%m%d')"
+        YESTERDAY="$(date --utc '+%Y%m%d' --date=yesterday)"
+
+        # libkrun is pinned to a revision, while libkrunfw follows a branch, so
+        # the key rotates daily to pick up new libkrunfw commits.
+        eval "$(grep -E '^(LIBKRUN_REVISION|LIBKRUNFW_BRANCH)=' Makefile)"
+
+        # i.e: deps-ubuntu-26.04-amd64-microvm-libkrun-<sha>-libkrunfw-main-${DATE}
+        KEY_PREFIX="deps-${ID}-${VERSION_ID}-${ARCH}-microvm-libkrun-${LIBKRUN_REVISION}-libkrunfw-${LIBKRUNFW_BRANCH}"
+        echo "KEY=${KEY_PREFIX}-${DATE}" >> "$GITHUB_OUTPUT"
+        echo "FALLBACK_KEY=${KEY_PREFIX}-${YESTERDAY}" >> "$GITHUB_OUTPUT"
+
+    # Restore from cache (only artifacts in /home/runner/go/deps/microvm)
+    - name: Restore libkrun deps
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      id: cache-libkrun
+      with:
+        path: |
+          /home/runner/go/deps/microvm
+        key: ${{ steps.libkrun-cache-key.outputs.KEY }}
+        restore-keys: |
+          ${{ steps.libkrun-cache-key.outputs.FALLBACK_KEY }}
+
+    - name: Check if libkrun deps need building
+      id: check-build
+      if: ${{ steps.cache-libkrun.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: |
+        # When a restore-key fallback is used, cache-hit is false even though the
+        # binaries were restored. Check that they exist to avoid a needless build.
+        if [ -f /home/runner/go/deps/microvm/libkrun.so ] && \
+           [ -f /home/runner/go/deps/microvm/vmlinuz ]; then
+          echo "==> SKIP building as libkrun binaries were restored from fallback key"
+          echo "needed=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "needed=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Install LXD build dependencies
+      if: ${{ steps.check-build.outputs.needed == 'true' }}
+      uses: $/.github/actions/install-lxd-builddeps
+
+    - name: Install Rust toolchain and kernel build packages
+      if: ${{ steps.check-build.outputs.needed == 'true' }}
+      shell: bash
+      run: |
+        set -eux
+        sudo timeout 10m apt-get update
+        sudo timeout 10m apt-get install --no-install-recommends -y \
+          libclang-dev \
+          flex \
+          bison \
+          libelf-dev \
+          python3-pyelftools
+
+        if ! command -v cargo >/dev/null 2>&1; then
+          sudo snap install rustup --classic
+          rustup default stable
+        fi
+        rustup target add "$(uname -m)-unknown-linux-musl"
+
+    - name: Build libkrun dependencies
+      if: ${{ steps.check-build.outputs.needed == 'true' }}
+      shell: bash
+      run: |
+        set -eux
+        cd "${GITHUB_WORKSPACE}"
+        make deps-libkrun
+
+    # Only save if deps were actually built (not restored), AND running on main repo
+    - name: Save libkrun deps
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      if: |
+        steps.check-build.outputs.needed == 'true' &&
+        (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      with:
+        path: |
+          /home/runner/go/deps/microvm
+        key: ${{ steps.libkrun-cache-key.outputs.KEY }}
+
+    - name: Update env variables for libkrun
+      if: ${{ inputs.export-env == 'true' }}
+      shell: bash
+      run: | # zizmor: ignore[github-env]
+        set -eux
+        echo "LIBKRUN_PATH=/home/runner/go/deps/microvm/libkrun.so" >> "$GITHUB_ENV"
+        echo "LXD_MICROVM_KERNEL=/home/runner/go/deps/microvm/vmlinuz" >> "$GITHUB_ENV"
+        # Enable the MicroVM tests, which also turns on the microvm feature preview in test/main.sh.
+        echo "LXD_MICROVM_TESTS=1" >> "$GITHUB_ENV"
