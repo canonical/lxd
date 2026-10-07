@@ -293,6 +293,8 @@ jobs:
             backends: ${{ needs.code-tests.outputs.fast-backend }}
           - group: cluster_storage
             backends: all
+          - group: cluster_cephfs
+            backends: ceph
           - group: replicator_storage
             backends: all
           - group: image
