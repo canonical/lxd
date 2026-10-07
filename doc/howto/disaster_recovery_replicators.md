@@ -46,6 +46,18 @@ If the primary cluster is still reachable and its project has not been demoted t
 ````
 `````
 
+```{important}
+If the project is {ref}`mirrored with Ceph RBD <howto-replicators-ceph>`, LXD also promotes the project's volumes in Ceph, and different rules apply:
+
+- If the primary cluster is unavailable, you must force the promotion.
+  The primary cluster cannot demote its volumes while it is unavailable, so Ceph refuses a promotion without force.
+- If the primary cluster is available, do not force the promotion.
+  A forced promotion makes the volumes on the two clusters diverge.
+  The volumes on the primary cluster must then be discarded and copied again, and the changes that did not reach the secondary cluster are lost.
+  Instead, stop the instances, run the replicator one more time, and demote the project on the primary cluster.
+  Then promote the project on the secondary cluster without force.
+```
+
 ```{caution}
 Forced promotion of a standby project can create a split-brain risk: if the target of replication is still in `leader` mode, then both projects are writable. Any instances created, started, or modified independently on each side during that window will diverge and cannot be automatically reconciled by the next replicator run. Only force-promote in this situation when you understand and accept that risk; for a planned switchover, demote the leader first instead.
 ```
@@ -117,6 +129,10 @@ Click {guilabel}`Clustering` in the navigation sidebar, select {guilabel}`Member
 
 ### 2. Synchronize projects
 
+How you synchronize the projects depends on whether the project is {ref}`mirrored with Ceph RBD <howto-replicators-ceph>`.
+
+#### Without Ceph RBD mirroring
+
 You can run the replicator on the primary cluster in "restore" mode to synchronize the project on the primary cluster with the project on the secondary cluster. The replicator only runs in "restore" mode if all instances in the original source project are stopped, to prevent partial restoration of instances.
 
 `````{tabs}
@@ -181,9 +197,84 @@ Restore mode uses the instance list from the secondary cluster as the authoritat
 
 The project on the primary cluster is now a standby replica of the project on the secondary cluster (the replicator remains on the primary cluster).
 
+#### With Ceph RBD mirroring
+
+A replicator cannot run in "restore" mode for a mirrored project.
+To synchronize the projects, you must discard the volumes on the primary cluster, let Ceph copy volumes from the secondary to the primary cluster, and then replicate the instance and volume records from the secondary cluster.
+
+When the primary cluster comes back online, its project is still in `leader` mode.
+LXD might also have restarted the instances that were running when the cluster became unavailable.
+
+1. On the primary cluster, stop all instances in the project:
+
+   ```bash
+   lxc stop --all --force --project <project_name>
+   ```
+
+1. On the primary cluster, make sure that {config:option}`project-replica:replica.cluster` is set to the cluster link of the secondary cluster, and demote the project:
+
+   ```bash
+   lxc project set <project_name> replica.cluster=<secondary_cluster_link_name>
+   lxc project demote-replica <project_name>
+   ```
+
+   This makes the project's volumes on the primary cluster read-only.
+
+1. Wait until Ceph reports that the volumes have diverged from the volumes on the secondary cluster.
+   To check, run the following command against the primary cluster's Ceph cluster:
+
+   ```bash
+   rbd mirror pool status <osd_pool_name> --verbose
+   ```
+
+   Within about a minute of the demotion, the project's volumes show the state `up+error` with the description `split-brain`.
+
+1. On the primary cluster, demote the project again:
+
+   ```bash
+   lxc project demote-replica <project_name>
+   ```
+
+   LXD discards every volume of the project that Ceph reports as `split-brain`, and Ceph copies it again in full from the secondary cluster.
+   Changes that did not reach the secondary cluster before the failover are lost.
+   The second demotion is needed only after a forced promotion, because the volumes on the primary cluster then have writes that never reached the secondary cluster.
+   A planned switchover demotes the project before the promotion, so its volumes do not diverge and no second demotion is needed.
+
+1. Wait until Ceph has copied the volumes.
+   To check the progress, run the `rbd mirror pool status` command again.
+   The project's volumes are ready when their state is `up+replaying`.
+
+1. On the secondary cluster, create a replicator that targets the primary cluster, and run it:
+
+   ```bash
+   lxc replicator create <replicator_name> cluster=<primary_cluster_link_name> --project <project_name>
+   lxc replicator run <replicator_name> --project <project_name>
+   ```
+
+   The instances on the secondary cluster can keep running.
+   If the run fails because Ceph has not finished copying the volumes, wait and run the replicator again.
+   If the run fails because it reports a volume as `split-brain`, demote the project on the primary cluster again.
+
+The project on the primary cluster is now a standby replica of the project on the secondary cluster.
+
+```{note}
+If you deleted an instance or a custom volume on the secondary cluster while the primary cluster was unavailable, Ceph removes its volume from the primary cluster when it copies the volumes again, but the record remains in LXD.
+Delete the record on the primary cluster yourself.
+```
+
 ### 3. Resume original replication direction
 
-To restore the original setup, in which the primary cluster replicates to the secondary cluster, stop any running instances in the project on the secondary cluster. Next, demote the project on the secondary cluster back to `standby` mode:
+To restore the original setup, in which the primary cluster replicates to the secondary cluster, stop any running instances in the project on the secondary cluster.
+
+If the project is mirrored with Ceph RBD, run the replicator on the secondary cluster one more time after you have stopped the instances, so that the final state reaches the primary cluster:
+
+```bash
+lxc replicator run <replicator_name> --project <project_name>
+```
+
+The demotion of a mirrored project fails if any instance in the project is still running.
+
+Next, demote the project on the secondary cluster back to `standby` mode:
 
 `````{tabs}
 ````{group-tab} CLI
@@ -212,6 +303,8 @@ Select the project from the {guilabel}`Project` drop-down menu, then click {guil
 Select the {guilabel}`Replication` tab, then, under {guilabel}`Replica mode`, click {guilabel}`Promote to leader`.
 ````
 `````
+
+If the project is mirrored with Ceph RBD and the promotion fails because the demotion has not reached the primary cluster yet, wait a moment and try again.
 
 Your original active-passive disaster recovery setup is now restored. You can restart your instances on the primary cluster and resume your scheduled replicator runs.
 
