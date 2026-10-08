@@ -292,3 +292,44 @@ func TestImmediateTx_NilSafety(t *testing.T) {
 	var n int
 	assert.ErrorIs(t, tx.QueryRowContext(ctx, "SELECT 1").Scan(&n), sql.ErrTxDone)
 }
+
+// TransactionImmediate commits on success and rolls back on error.
+func TestTransactionImmediate_CommitAndRollback(t *testing.T) {
+	db := newWALDB(t)
+	ctx := context.Background()
+
+	err := query.TransactionImmediate(ctx, db, func(ctx context.Context, tx *query.ImmediateTx) error {
+		_, err := tx.ExecContext(ctx, "INSERT INTO t VALUES (1)")
+		return err
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, countRows(t, db))
+
+	boom := errors.New("boom")
+	err = query.TransactionImmediate(ctx, db, func(ctx context.Context, tx *query.ImmediateTx) error {
+		_, err := tx.ExecContext(ctx, "INSERT INTO t VALUES (2)")
+		require.NoError(t, err)
+		return boom
+	})
+	require.ErrorIs(t, err, boom)
+	assert.Equal(t, 1, countRows(t, db))
+	requireConnReleased(t, db)
+}
+
+// A transaction whose context ends before it commits reports the context error, not success.
+func TestTransactionImmediate_ContextEndedBeforeCommit(t *testing.T) {
+	db := newWALDB(t)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	err := query.TransactionImmediate(ctx, db, func(ctx context.Context, tx *query.ImmediateTx) error {
+		_, err := tx.ExecContext(ctx, "INSERT INTO t VALUES (1)")
+		require.NoError(t, err)
+
+		cancel()
+		require.Eventually(t, func() bool { return db.Stats().InUse == 0 }, 5*time.Second, 10*time.Millisecond)
+
+		return nil
+	})
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, 0, countRows(t, db))
+}

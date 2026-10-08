@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/canonical/lxd/shared/logger"
 )
 
 // immediateTxEndTimeout bounds the COMMIT or ROLLBACK that ends an ImmediateTx.
@@ -176,4 +178,39 @@ type txDoneDriver struct{}
 // Open always fails with sql.ErrTxDone.
 func (txDoneDriver) Open(string) (driver.Conn, error) {
 	return nil, sql.ErrTxDone
+}
+
+// TransactionImmediate executes f within an ImmediateTx with a 10s context timeout, committing on success and rolling back on error.
+func TransactionImmediate(ctx context.Context, db *sql.DB, f func(context.Context, *ImmediateTx) error) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+
+	tx, err := BeginImmediate(ctx, db)
+	if err != nil {
+		return err
+	}
+
+	err = f(ctx, tx)
+	if err != nil {
+		rollbackErr := tx.Rollback()
+		if rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			logger.Warn("Failed rolling back transaction", logger.Ctx{"err": rollbackErr, "reason": err})
+		}
+
+		return err
+	}
+
+	err = tx.Commit()
+	if errors.Is(err, sql.ErrTxDone) {
+		// The watcher rolled back when ctx ended; report that rather than a commit.
+		ctxErr := ctx.Err()
+		if ctxErr != nil {
+			return ctxErr
+		}
+
+		// f ended the transaction itself.
+		return nil
+	}
+
+	return err
 }
