@@ -234,6 +234,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 		err = qemuProfileTpl.Execute(sb, map[string]any{
 			"devicesPath":       inst.DevicesPath(),
 			"exePath":           execPath,
+			"goCoverDir":        goCoverDir(),
 			"extra_config":      extraConfig,
 			"libraryPath":       strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
 			"logPath":           inst.LogPath(),

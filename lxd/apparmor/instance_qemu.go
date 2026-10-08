@@ -72,6 +72,12 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   @{PROC}/@{pid}/cmdline r,
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
 
+{{- if .goCoverDir }}
+
+  # Go coverage data.
+  "{{ .goCoverDir }}/{covmeta,covcounters,tmp.covmeta,tmp.covcounters}.*" rw,
+{{- end }}
+
   # Things that we definitely don't need
   deny @{PROC}/@{pid}/cgroup r,
   deny /sys/module/apparmor/parameters/enabled r,
