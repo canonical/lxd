@@ -8528,6 +8528,14 @@ definitions:
     StorageVolumePost:
         description: StorageVolumePost represents the fields required to rename a LXD storage pool volume
         properties:
+            location:
+                description: |-
+                    Cluster member to move the volume to
+
+                    API extension: storage_volume_member_move
+                example: server02
+                type: string
+                x-go-name: Location
             migration:
                 description: |-
                     Initiate volume migration
