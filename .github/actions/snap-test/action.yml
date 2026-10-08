@@ -171,7 +171,10 @@ runs:
 
         # XXX: prevent accidental usage of `images:` in CI test jobs.
         #      All tests should be done using officially supported images.
-        echo '127.0.0.1 images.lxd.canonical.com' | sudo tee /etc/hosts
+        #      UI tests are allowed to reach the `images:` remote.
+        if [[ "${INPUT_TEST}" != ui* ]]; then
+          echo '127.0.0.1 images.lxd.canonical.com' | sudo tee /etc/hosts
+        fi
 
         TEST_SCRIPT="$(echo "${INPUT_TEST}" | cut -d " " -f 1)"
         EXTRA_ARGS="$(echo "${INPUT_TEST}" | cut -d " " -f 2- --only-delimited)"
