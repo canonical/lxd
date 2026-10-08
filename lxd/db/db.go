@@ -352,19 +352,45 @@ func (c *Cluster) transaction(ctx context.Context, f func(context.Context, *Clus
 		nodeID: c.nodeID,
 	}
 
-	return query.Retry(ctx, func(ctx context.Context) error {
-		txFunc := func(ctx context.Context, tx *sql.Tx) error {
-			clusterTx.tx = tx
-			return f(ctx, clusterTx)
-		}
+	txFunc := func(ctx context.Context, tx *sql.Tx) error {
+		clusterTx.tx = tx
+		return f(ctx, clusterTx)
+	}
 
-		err := query.Transaction(ctx, c.db, txFunc)
+	return c.retryTransaction(ctx, func(ctx context.Context) error {
+		return query.Transaction(ctx, c.db, txFunc)
+	})
+}
+
+// TransactionImmediate runs f in a cluster transaction that takes the database write lock at BEGIN, so concurrent
+// writers queue instead of failing on a stale read snapshot. Use it only for transactions that always write, and
+// keep f to database work: every writer in the cluster waits while it runs.
+//
+// If EnterExclusive has been called before, calling TransactionImmediate will block until ExitExclusive has been
+// called as well to release the lock.
+func (c *Cluster) TransactionImmediate(ctx context.Context, f func(context.Context, *ImmediateClusterTx) error) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	txFunc := func(ctx context.Context, tx *query.ImmediateTx) error {
+		return f(ctx, &ImmediateClusterTx{tx: tx, nodeID: c.nodeID})
+	}
+
+	return c.retryTransaction(ctx, func(ctx context.Context) error {
+		return query.TransactionImmediate(ctx, c.db, txFunc)
+	})
+}
+
+// retryTransaction runs run with query.Retry and runs it once more if it timed out.
+func (c *Cluster) retryTransaction(ctx context.Context, run func(context.Context) error) error {
+	return query.Retry(ctx, func(ctx context.Context) error {
+		err := run(ctx)
 		if err != nil && errors.Is(err, context.DeadlineExceeded) {
 			// If the query timed out it likely means that the leader has abruptly become unreachable.
 			// Now that this query has been cancelled, a leader election should have taken place by now.
 			// So let's retry the transaction once more in case the global database is now available again.
 			logger.Warn("Transaction timed out. Retrying once", logger.Ctx{"member": c.nodeID, "err": err})
-			return query.Transaction(ctx, c.db, txFunc)
+			return run(ctx)
 		}
 
 		return err

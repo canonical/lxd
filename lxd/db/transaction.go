@@ -3,7 +3,11 @@
 package db
 
 import (
+	"context"
 	"database/sql"
+
+	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // NodeTx models a single interaction with a LXD node-local database.
@@ -36,4 +40,25 @@ func (c *ClusterTx) NodeID(id int64) {
 // GetNodeID gets the ID of the node associated with this cluster transaction.
 func (c *ClusterTx) GetNodeID() int64 {
 	return c.nodeID
+}
+
+// ImmediateClusterTx is a cluster transaction that took the database write lock at BEGIN.
+type ImmediateClusterTx struct {
+	tx     *query.ImmediateTx
+	nodeID int64
+}
+
+// Tx returns the statement API of the transaction.
+func (c *ImmediateClusterTx) Tx() query.Executor {
+	return c.tx
+}
+
+// GetNodeID returns the ID of the member that runs the transaction.
+func (c *ImmediateClusterTx) GetNodeID() int64 {
+	return c.nodeID
+}
+
+// InstancesToInstanceArgsWithoutProfiles converts instances to InstanceArgs with their config and devices; Profiles stays unset.
+func (c *ImmediateClusterTx) InstancesToInstanceArgsWithoutProfiles(ctx context.Context, instances ...cluster.Instance) (map[int]InstanceArgs, error) {
+	return instancesToInstanceArgsWithoutProfiles(ctx, c.tx, instances...)
 }
