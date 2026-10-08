@@ -72,6 +72,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 {{- end }}
 
   # Silence denials on files that aren't required.
+  deny @{PROC}/@{pid}/cgroup r,
   deny {{ .rootPath }}/etc/ssl/openssl.cnf r,
   deny /sys/devices/virtual/dmi/id/product_uuid r,
   deny /sys/kernel/mm/transparent_hugepage/hpage_pmd_size r,
