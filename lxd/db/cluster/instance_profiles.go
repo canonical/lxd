@@ -67,13 +67,13 @@ func GetInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) ([]Pro
 }
 
 // DeleteInstanceProfiles deletes all instance profile associations for the given instance ID.
-func DeleteInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) error {
+func DeleteInstanceProfiles(ctx context.Context, tx query.Executor, instanceID int) error {
 	_, err := query.DeleteMany[InstancesProfilesRow, *InstancesProfilesRow](ctx, tx, "WHERE instance_id = ?", instanceID)
 	return err
 }
 
 // UpdateInstanceProfiles updates the profiles of an instance in the order they are given.
-func UpdateInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int, projectName string, profiles []string) error {
+func UpdateInstanceProfiles(ctx context.Context, tx query.Executor, instanceID int, projectName string, profiles []string) error {
 	err := DeleteInstanceProfiles(ctx, tx, instanceID)
 	if err != nil {
 		return err

@@ -294,7 +294,7 @@ func UpdateOperation(ctx context.Context, tx *sql.Tx, opUUID string, nodeID int6
 }
 
 // CreateOperationResources registers operation resources in the cluster db.
-func CreateOperationResources(ctx context.Context, tx *sql.Tx, opID int64, resources map[entity.Type][]api.URL) error {
+func CreateOperationResources(ctx context.Context, tx query.Executor, opID int64, resources map[entity.Type][]api.URL) error {
 	// No resources to register.
 	if len(resources) == 0 {
 		return nil

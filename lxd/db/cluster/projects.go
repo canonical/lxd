@@ -134,7 +134,7 @@ type ProjectFilter struct {
 }
 
 // ToAPI converts the database Project struct to an api.Project entry.
-func (p *Project) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Project, error) {
+func (p *Project) ToAPI(ctx context.Context, tx query.Executor) (*api.Project, error) {
 	apiProject := &api.Project{
 		Name:        p.Name,
 		Description: p.Description,
@@ -170,7 +170,7 @@ func GetProjectByID(ctx context.Context, tx *sql.Tx, id int) (*Project, error) {
 
 // ProjectHasProfiles is a helper to check if a project has the profiles
 // feature enabled.
-func ProjectHasProfiles(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
+func ProjectHasProfiles(ctx context.Context, tx query.Executor, name string) (bool, error) {
 	stmt := `
 SELECT projects_config.value
   FROM projects_config
@@ -190,7 +190,7 @@ SELECT projects_config.value
 }
 
 // GetProjectConfig is a helper to return a config of a project.
-func GetProjectConfig(ctx context.Context, tx *sql.Tx, projectName string) (map[string]string, error) {
+func GetProjectConfig(ctx context.Context, tx query.Executor, projectName string) (map[string]string, error) {
 	projectID, err := GetProjectID(ctx, tx, projectName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading project: %w", err)
