@@ -27,7 +27,7 @@ const configCreate = `INSERT INTO %s_config (%s_id, key, value)
 const configDelete = `DELETE FROM %s_config WHERE %s_id = ?`
 
 // getConfig can be used to run handwritten sql.Stmts to return a slice of objects.
-func getConfig(ctx context.Context, stmt *sql.Stmt, parent string, args ...any) ([]Config, error) {
+func getConfig(ctx context.Context, stmt query.Statement, parent string, args ...any) ([]Config, error) {
 	objects := make([]Config, 0)
 
 	dest := func(scan func(dest ...any) error) error {
@@ -51,7 +51,7 @@ func getConfig(ctx context.Context, stmt *sql.Stmt, parent string, args ...any) 
 }
 
 // getConfigRaw can be used to run handwritten query strings to return a slice of objects.
-func getConfigRaw(ctx context.Context, tx *sql.Tx, sql string, parent string, args ...any) ([]Config, error) {
+func getConfigRaw(ctx context.Context, tx query.Executor, sql string, parent string, args ...any) ([]Config, error) {
 	objects := make([]Config, 0)
 
 	dest := func(scan func(dest ...any) error) error {
@@ -76,7 +76,7 @@ func getConfigRaw(ctx context.Context, tx *sql.Tx, sql string, parent string, ar
 
 // GetConfig returns all available config.
 // generator: config GetMany
-func GetConfig(ctx context.Context, tx *sql.Tx, parent string, filters ...ConfigFilter) (map[int]map[string]string, error) {
+func GetConfig(ctx context.Context, tx query.Executor, parent string, filters ...ConfigFilter) (map[int]map[string]string, error) {
 	var err error
 
 	// Result slice.
@@ -141,7 +141,7 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string, filters ...Config
 
 // CreateConfig adds a new config to the database.
 // generator: config Create
-func CreateConfig(ctx context.Context, tx *sql.Tx, parent string, object Config) error {
+func CreateConfig(ctx context.Context, tx query.Executor, parent string, object Config) error {
 	// An empty value means we are unsetting this key, so just return.
 	if object.Value == "" {
 		return nil

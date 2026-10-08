@@ -5,17 +5,19 @@ package cluster
 import (
 	"context"
 	"database/sql"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // ProjectGenerated is an interface of generated methods for Project.
 type ProjectGenerated interface {
 	// GetProjects returns all available projects.
 	// generator: project GetMany
-	GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]Project, error)
+	GetProjects(ctx context.Context, tx query.Executor, filters ...ProjectFilter) ([]Project, error)
 
 	// GetProject returns the project with the given key.
 	// generator: project GetOne
-	GetProject(ctx context.Context, tx *sql.Tx, name string) (*Project, error)
+	GetProject(ctx context.Context, tx query.Executor, name string) (*Project, error)
 
 	// CreateProjectConfig adds new project Config to the database.
 	// generator: project Create
@@ -27,7 +29,7 @@ type ProjectGenerated interface {
 
 	// GetProjectID return the ID of the project with the given key.
 	// generator: project ID
-	GetProjectID(ctx context.Context, tx *sql.Tx, name string) (int64, error)
+	GetProjectID(ctx context.Context, tx query.Executor, name string) (int64, error)
 
 	// RenameProject renames the project matching the given key parameters.
 	// generator: project Rename

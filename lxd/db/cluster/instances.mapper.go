@@ -196,7 +196,7 @@ UPDATE instances
 `)
 
 // getInstances can be used to run handwritten sql.Stmts to return a slice of objects.
-func getInstances(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Instance, error) {
+func getInstances(ctx context.Context, stmt query.Statement, args ...any) ([]Instance, error) {
 	objects := make([]Instance, 0)
 
 	dest := func(scan func(dest ...any) error) error {
@@ -220,7 +220,7 @@ func getInstances(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Instance,
 }
 
 // getInstancesRaw can be used to run handwritten query strings to return a slice of objects.
-func getInstancesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Instance, error) {
+func getInstancesRaw(ctx context.Context, tx query.Executor, sql string, args ...any) ([]Instance, error) {
 	objects := make([]Instance, 0)
 
 	dest := func(scan func(dest ...any) error) error {
@@ -245,19 +245,19 @@ func getInstancesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) (
 
 // GetInstances returns all available instances.
 // generator: instance GetMany
-func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([]Instance, error) {
+func GetInstances(ctx context.Context, tx query.Executor, filters ...InstanceFilter) ([]Instance, error) {
 	var err error
 
 	// Result slice.
 	var objects []Instance
 
 	// Pick the prepared statement and arguments to use based on active criteria.
-	var sqlStmt *sql.Stmt
+	var sqlStmt query.Statement
 	args := []any{}
 	queryParts := [2]string{}
 
 	if len(filters) == 0 {
-		sqlStmt, err = Stmt(tx, instanceObjects)
+		sqlStmt, err = ExecutorStmt(tx, instanceObjects)
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting \"instanceObjects\" prepared statement: %w", err)
 		}
@@ -267,7 +267,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.Name != nil && filter.ID == nil {
 			args = append(args, []any{filter.Project, filter.Type, filter.Node, filter.Name}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndTypeAndNodeAndName)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByProjectAndTypeAndNodeAndName)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndTypeAndNodeAndName\" prepared statement: %w", err)
 				}
@@ -291,7 +291,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil {
 			args = append(args, []any{filter.Project, filter.Type, filter.Node}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndTypeAndNode)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByProjectAndTypeAndNode)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndTypeAndNode\" prepared statement: %w", err)
 				}
@@ -315,7 +315,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Project != nil && filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil {
 			args = append(args, []any{filter.Project, filter.Type, filter.Name}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndTypeAndName)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByProjectAndTypeAndName)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndTypeAndName\" prepared statement: %w", err)
 				}
@@ -339,7 +339,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Type != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil {
 			args = append(args, []any{filter.Type, filter.Name, filter.Node}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByTypeAndNameAndNode)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByTypeAndNameAndNode)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByTypeAndNameAndNode\" prepared statement: %w", err)
 				}
@@ -363,7 +363,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Project != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Type == nil {
 			args = append(args, []any{filter.Project, filter.Name, filter.Node}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndNameAndNode)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByProjectAndNameAndNode)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndNameAndNode\" prepared statement: %w", err)
 				}
@@ -387,7 +387,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Project != nil && filter.Type != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil {
 			args = append(args, []any{filter.Project, filter.Type}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndType)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByProjectAndType)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndType\" prepared statement: %w", err)
 				}
@@ -411,7 +411,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil {
 			args = append(args, []any{filter.Type, filter.Node}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByTypeAndNode)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByTypeAndNode)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByTypeAndNode\" prepared statement: %w", err)
 				}
@@ -435,7 +435,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil {
 			args = append(args, []any{filter.Type, filter.Name}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByTypeAndName)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByTypeAndName)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByTypeAndName\" prepared statement: %w", err)
 				}
@@ -459,7 +459,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Project != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
 			args = append(args, []any{filter.Project, filter.Node}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndNode)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByProjectAndNode)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndNode\" prepared statement: %w", err)
 				}
@@ -483,7 +483,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Project != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil && filter.Type == nil {
 			args = append(args, []any{filter.Project, filter.Name}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndName)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByProjectAndName)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProjectAndName\" prepared statement: %w", err)
 				}
@@ -507,7 +507,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Node != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Type == nil {
 			args = append(args, []any{filter.Node, filter.Name}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByNodeAndName)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByNodeAndName)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByNodeAndName\" prepared statement: %w", err)
 				}
@@ -531,7 +531,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Type != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil {
 			args = append(args, []any{filter.Type}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByType)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByType)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByType\" prepared statement: %w", err)
 				}
@@ -555,7 +555,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Project != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
 			args = append(args, []any{filter.Project}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByProject)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByProject)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByProject\" prepared statement: %w", err)
 				}
@@ -579,7 +579,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
 			args = append(args, []any{filter.Node}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByNode)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByNode)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByNode\" prepared statement: %w", err)
 				}
@@ -603,7 +603,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.Type == nil {
 			args = append(args, []any{filter.Name}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByName)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByName)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByName\" prepared statement: %w", err)
 				}
@@ -627,7 +627,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		} else if filter.ID != nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
 			args = append(args, []any{filter.ID}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, instanceObjectsByID)
+				sqlStmt, err = ExecutorStmt(tx, instanceObjectsByID)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"instanceObjectsByID\" prepared statement: %w", err)
 				}
@@ -672,7 +672,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 
 // GetInstanceDevices returns all available Instance Devices
 // generator: instance GetMany
-func GetInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int, filters ...DeviceFilter) (map[string]Device, error) {
+func GetInstanceDevices(ctx context.Context, tx query.Executor, instanceID int, filters ...DeviceFilter) (map[string]Device, error) {
 	instanceDevices, err := GetDevices(ctx, tx, "instance", filters...)
 	if err != nil {
 		return nil, err
@@ -693,7 +693,7 @@ func GetInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int, filters
 
 // GetInstanceConfig returns all available Instance Config
 // generator: instance GetMany
-func GetInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int, filters ...ConfigFilter) (map[string]string, error) {
+func GetInstanceConfig(ctx context.Context, tx query.Executor, instanceID int, filters ...ConfigFilter) (map[string]string, error) {
 	instanceConfig, err := GetConfig(ctx, tx, "instance", filters...)
 	if err != nil {
 		return nil, err
@@ -709,7 +709,7 @@ func GetInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int, filters 
 
 // GetInstance returns the instance with the given key.
 // generator: instance GetOne
-func GetInstance(ctx context.Context, tx *sql.Tx, project string, name string) (*Instance, error) {
+func GetInstance(ctx context.Context, tx query.Executor, project string, name string) (*Instance, error) {
 	filter := InstanceFilter{}
 	filter.Project = &project
 	filter.Name = &name
@@ -753,7 +753,7 @@ func GetInstanceID(ctx context.Context, tx *sql.Tx, project string, name string)
 
 // CreateInstance adds a new instance to the database.
 // generator: instance Create
-func CreateInstance(ctx context.Context, tx *sql.Tx, object Instance) (int64, error) {
+func CreateInstance(ctx context.Context, tx query.Executor, object Instance) (int64, error) {
 	args := make([]any, 11)
 
 	// Populate the statement arguments.
@@ -770,7 +770,7 @@ func CreateInstance(ctx context.Context, tx *sql.Tx, object Instance) (int64, er
 	args[10] = object.ExpiryDate
 
 	// Prepared statement to use.
-	stmt, err := Stmt(tx, instanceCreate)
+	stmt, err := ExecutorStmt(tx, instanceCreate)
 	if err != nil {
 		return -1, fmt.Errorf("Failed getting \"instanceCreate\" prepared statement: %w", err)
 	}
@@ -795,7 +795,7 @@ func CreateInstance(ctx context.Context, tx *sql.Tx, object Instance) (int64, er
 
 // CreateInstanceDevices adds new instance Devices to the database.
 // generator: instance Create
-func CreateInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int64, devices map[string]Device) error {
+func CreateInstanceDevices(ctx context.Context, tx query.Executor, instanceID int64, devices map[string]Device) error {
 	for key, device := range devices {
 		device.ReferenceID = int(instanceID)
 		devices[key] = device
@@ -811,7 +811,7 @@ func CreateInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int64, de
 
 // CreateInstanceConfig adds new instance Config to the database.
 // generator: instance Create
-func CreateInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int64, config map[string]string) error {
+func CreateInstanceConfig(ctx context.Context, tx query.Executor, instanceID int64, config map[string]string) error {
 	referenceID := int(instanceID)
 	for key, value := range config {
 		insert := Config{

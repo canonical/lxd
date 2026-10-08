@@ -63,7 +63,7 @@ DELETE FROM projects WHERE name = ?
 `)
 
 // getProjects can be used to run handwritten sql.Stmts to return a slice of objects.
-func getProjects(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Project, error) {
+func getProjects(ctx context.Context, stmt query.Statement, args ...any) ([]Project, error) {
 	objects := make([]Project, 0)
 
 	dest := func(scan func(dest ...any) error) error {
@@ -87,7 +87,7 @@ func getProjects(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Project, e
 }
 
 // getProjectsRaw can be used to run handwritten query strings to return a slice of objects.
-func getProjectsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Project, error) {
+func getProjectsRaw(ctx context.Context, tx query.Executor, sql string, args ...any) ([]Project, error) {
 	objects := make([]Project, 0)
 
 	dest := func(scan func(dest ...any) error) error {
@@ -112,19 +112,19 @@ func getProjectsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([
 
 // GetProjects returns all available projects.
 // generator: project GetMany
-func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]Project, error) {
+func GetProjects(ctx context.Context, tx query.Executor, filters ...ProjectFilter) ([]Project, error) {
 	var err error
 
 	// Result slice.
 	var objects []Project
 
 	// Pick the prepared statement and arguments to use based on active criteria.
-	var sqlStmt *sql.Stmt
+	var sqlStmt query.Statement
 	args := []any{}
 	queryParts := [2]string{}
 
 	if len(filters) == 0 {
-		sqlStmt, err = Stmt(tx, projectObjects)
+		sqlStmt, err = ExecutorStmt(tx, projectObjects)
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting \"projectObjects\" prepared statement: %w", err)
 		}
@@ -134,7 +134,7 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]P
 		if filter.Name != nil && filter.ID == nil {
 			args = append(args, []any{filter.Name}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, projectObjectsByName)
+				sqlStmt, err = ExecutorStmt(tx, projectObjectsByName)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"projectObjectsByName\" prepared statement: %w", err)
 				}
@@ -158,7 +158,7 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]P
 		} else if filter.ID != nil && filter.Name == nil {
 			args = append(args, []any{filter.ID}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, projectObjectsByID)
+				sqlStmt, err = ExecutorStmt(tx, projectObjectsByID)
 				if err != nil {
 					return nil, fmt.Errorf("Failed getting \"projectObjectsByID\" prepared statement: %w", err)
 				}
@@ -203,7 +203,7 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]P
 
 // GetProject returns the project with the given key.
 // generator: project GetOne
-func GetProject(ctx context.Context, tx *sql.Tx, name string) (*Project, error) {
+func GetProject(ctx context.Context, tx query.Executor, name string) (*Project, error) {
 	filter := ProjectFilter{}
 	filter.Name = &name
 
@@ -279,8 +279,8 @@ func CreateProjectConfig(ctx context.Context, tx *sql.Tx, projectID int64, confi
 
 // GetProjectID return the ID of the project with the given key.
 // generator: project ID
-func GetProjectID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
-	stmt, err := Stmt(tx, projectID)
+func GetProjectID(ctx context.Context, tx query.Executor, name string) (int64, error) {
+	stmt, err := ExecutorStmt(tx, projectID)
 	if err != nil {
 		return -1, fmt.Errorf("Failed getting \"projectID\" prepared statement: %w", err)
 	}

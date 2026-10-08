@@ -5,25 +5,27 @@ package cluster
 import (
 	"context"
 	"database/sql"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // InstanceGenerated is an interface of generated methods for Instance.
 type InstanceGenerated interface {
 	// GetInstanceConfig returns all available Instance Config
 	// generator: instance GetMany
-	GetInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int, filters ...ConfigFilter) (map[string]string, error)
+	GetInstanceConfig(ctx context.Context, tx query.Executor, instanceID int, filters ...ConfigFilter) (map[string]string, error)
 
 	// GetInstanceDevices returns all available Instance Devices
 	// generator: instance GetMany
-	GetInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int, filters ...DeviceFilter) (map[string]Device, error)
+	GetInstanceDevices(ctx context.Context, tx query.Executor, instanceID int, filters ...DeviceFilter) (map[string]Device, error)
 
 	// GetInstances returns all available instances.
 	// generator: instance GetMany
-	GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([]Instance, error)
+	GetInstances(ctx context.Context, tx query.Executor, filters ...InstanceFilter) ([]Instance, error)
 
 	// GetInstance returns the instance with the given key.
 	// generator: instance GetOne
-	GetInstance(ctx context.Context, tx *sql.Tx, project string, name string) (*Instance, error)
+	GetInstance(ctx context.Context, tx query.Executor, project string, name string) (*Instance, error)
 
 	// GetInstanceID return the ID of the instance with the given key.
 	// generator: instance ID
@@ -31,15 +33,15 @@ type InstanceGenerated interface {
 
 	// CreateInstanceConfig adds new instance Config to the database.
 	// generator: instance Create
-	CreateInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int64, config map[string]string) error
+	CreateInstanceConfig(ctx context.Context, tx query.Executor, instanceID int64, config map[string]string) error
 
 	// CreateInstanceDevices adds new instance Devices to the database.
 	// generator: instance Create
-	CreateInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int64, devices map[string]Device) error
+	CreateInstanceDevices(ctx context.Context, tx query.Executor, instanceID int64, devices map[string]Device) error
 
 	// CreateInstance adds a new instance to the database.
 	// generator: instance Create
-	CreateInstance(ctx context.Context, tx *sql.Tx, object Instance) (int64, error)
+	CreateInstance(ctx context.Context, tx query.Executor, object Instance) (int64, error)
 
 	// RenameInstance renames the instance matching the given key parameters.
 	// generator: instance Rename

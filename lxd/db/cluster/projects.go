@@ -28,10 +28,10 @@ import (
 //go:generate mapper stmt -e project update struct=Project
 //go:generate mapper stmt -e project delete-by-Name
 //
-//go:generate mapper method -i -e project GetMany
-//go:generate mapper method -i -e project GetOne struct=Project
+//go:generate mapper method -i -e project GetMany executor=true
+//go:generate mapper method -i -e project GetOne struct=Project executor=true
 //go:generate mapper method -i -e project Create references=Config
-//go:generate mapper method -i -e project ID struct=Project
+//go:generate mapper method -i -e project ID struct=Project executor=true
 //go:generate mapper method -i -e project Rename
 //go:generate mapper method -i -e project DeleteOne-by-Name
 //go:generate goimports -w projects.mapper.go

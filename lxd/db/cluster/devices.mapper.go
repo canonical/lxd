@@ -27,7 +27,7 @@ const deviceCreate = `INSERT INTO %s_devices (%s_id, name, type)
 const deviceDelete = `DELETE FROM %s_devices WHERE %s_id = ?`
 
 // getDevices can be used to run handwritten sql.Stmts to return a slice of objects.
-func getDevices(ctx context.Context, stmt *sql.Stmt, parent string, args ...any) ([]Device, error) {
+func getDevices(ctx context.Context, stmt query.Statement, parent string, args ...any) ([]Device, error) {
 	objects := make([]Device, 0)
 
 	dest := func(scan func(dest ...any) error) error {
@@ -51,7 +51,7 @@ func getDevices(ctx context.Context, stmt *sql.Stmt, parent string, args ...any)
 }
 
 // getDevicesRaw can be used to run handwritten query strings to return a slice of objects.
-func getDevicesRaw(ctx context.Context, tx *sql.Tx, sql string, parent string, args ...any) ([]Device, error) {
+func getDevicesRaw(ctx context.Context, tx query.Executor, sql string, parent string, args ...any) ([]Device, error) {
 	objects := make([]Device, 0)
 
 	dest := func(scan func(dest ...any) error) error {
@@ -76,7 +76,7 @@ func getDevicesRaw(ctx context.Context, tx *sql.Tx, sql string, parent string, a
 
 // GetDevices returns all available devices for the parent entity.
 // generator: device GetMany
-func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...DeviceFilter) (map[int][]Device, error) {
+func GetDevices(ctx context.Context, tx query.Executor, parent string, filters ...DeviceFilter) (map[int][]Device, error) {
 	var err error
 
 	// Result slice.
@@ -167,7 +167,7 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...Devic
 
 // CreateDevices adds a new device to the database.
 // generator: device Create
-func CreateDevices(ctx context.Context, tx *sql.Tx, parent string, objects map[string]Device) error {
+func CreateDevices(ctx context.Context, tx query.Executor, parent string, objects map[string]Device) error {
 	deviceCreateLocal := strings.ReplaceAll(deviceCreate, "%s_id", parent+"_id")
 	fillParent := make([]any, strings.Count(deviceCreateLocal, "%s"))
 	for i := range fillParent {
