@@ -10,7 +10,7 @@ import (
 
 // SelectObjects executes a statement which must yield rows with a specific
 // columns schema. It invokes the given Dest hook for each yielded row.
-func SelectObjects(ctx context.Context, stmt *sql.Stmt, rowFunc Dest, args ...any) error {
+func SelectObjects(ctx context.Context, stmt Statement, rowFunc Dest, args ...any) error {
 	rows, err := stmt.QueryContext(ctx, args...)
 	if err != nil {
 		return err

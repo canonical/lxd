@@ -18,3 +18,12 @@ var (
 	_ Executor = (*sql.Tx)(nil)
 	_ Executor = (*ImmediateTx)(nil)
 )
+
+// Statement runs one fixed SQL statement with the given arguments.
+type Statement interface {
+	ExecContext(ctx context.Context, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, args ...any) *sql.Row
+}
+
+var _ Statement = (*sql.Stmt)(nil)
