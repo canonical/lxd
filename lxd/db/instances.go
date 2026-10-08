@@ -330,7 +330,7 @@ func (c *ClusterTx) InstanceList(ctx context.Context, instanceFunc func(inst Ins
 
 // instanceConfigFill function loads config for all specified instances in a single query and then updates
 // the entries in the instances map.
-func (c *ClusterTx) instanceConfigFill(ctx context.Context, snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
+func instanceConfigFill(ctx context.Context, tx query.Executor, snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
 	instances := *instanceArgs
 
 	// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
@@ -369,7 +369,7 @@ func (c *ClusterTx) instanceConfigFill(ctx context.Context, snapshotsMode bool, 
 
 	q.WriteString(`)`)
 
-	return query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	return query.Scan(ctx, tx, q.String(), func(scan func(dest ...any) error) error {
 		var instanceID int
 		var key, value string
 
@@ -402,7 +402,7 @@ func (c *ClusterTx) instanceConfigFill(ctx context.Context, snapshotsMode bool, 
 
 // instanceDevicesFill loads the device config for all instances specified in a single query and then updates
 // the entries in the instances map.
-func (c *ClusterTx) instanceDevicesFill(ctx context.Context, snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
+func instanceDevicesFill(ctx context.Context, tx query.Executor, snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
 	instances := *instanceArgs
 
 	// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
@@ -449,7 +449,7 @@ func (c *ClusterTx) instanceDevicesFill(ctx context.Context, snapshotsMode bool,
 
 	q.WriteString(`)`)
 
-	return query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	return query.Scan(ctx, tx, q.String(), func(scan func(dest ...any) error) error {
 		var instanceID int
 		var deviceType cluster.DeviceType
 		var deviceName, key, value string
@@ -609,6 +609,25 @@ func (c *ClusterTx) instanceProfilesFillWithProfiles(ctx context.Context, snapsh
 // populated. This avoids the need to load profile info from the database if it is already available in the
 // caller's context and can be populated afterwards.
 func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, fillProfiles bool, instances ...cluster.Instance) (map[int]InstanceArgs, error) {
+	instanceArgs, err := instancesToInstanceArgsWithoutProfiles(ctx, c.tx, instances...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate instance profiles if requested. instancesToInstanceArgsWithoutProfiles rejects mixed instances and snapshots.
+	if fillProfiles {
+		snapshotsMode := len(instances) > 0 && instances[0].Snapshot
+		err = c.instanceProfilesFill(ctx, snapshotsMode, &instanceArgs)
+		if err != nil {
+			return nil, fmt.Errorf("Failed loading instance profiles: %w", err)
+		}
+	}
+
+	return instanceArgs, nil
+}
+
+// instancesToInstanceArgsWithoutProfiles converts instances to InstanceArgs with their config and devices, read through tx.
+func instancesToInstanceArgsWithoutProfiles(ctx context.Context, tx query.Executor, instances ...cluster.Instance) (map[int]InstanceArgs, error) {
 	var instanceCount, snapshotCount uint
 
 	// Convert instances to partial InstanceArgs slice (Config, Devices and Profiles not populated yet).
@@ -644,23 +663,15 @@ func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, fillProfiles bo
 	}
 
 	// Populate instance config.
-	err := c.instanceConfigFill(ctx, snapshotCount > 0, &instanceArgs)
+	err := instanceConfigFill(ctx, tx, snapshotCount > 0, &instanceArgs)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance config: %w", err)
 	}
 
 	// Populate instance devices.
-	err = c.instanceDevicesFill(ctx, snapshotCount > 0, &instanceArgs)
+	err = instanceDevicesFill(ctx, tx, snapshotCount > 0, &instanceArgs)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance devices: %w", err)
-	}
-
-	// Populate instance profiles if requested.
-	if fillProfiles {
-		err = c.instanceProfilesFill(ctx, snapshotCount > 0, &instanceArgs)
-		if err != nil {
-			return nil, fmt.Errorf("Failed loading instance profiles: %w", err)
-		}
 	}
 
 	return instanceArgs, nil
