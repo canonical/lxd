@@ -30,7 +30,7 @@ func SelectObjects(ctx context.Context, stmt Statement, rowFunc Dest, args ...an
 
 // Scan runs a query with inArgs and provides the rowFunc with the scan function for each row.
 // It handles closing the rows and errors from the result set.
-func Scan(ctx context.Context, tx *sql.Tx, sql string, rowFunc Dest, inArgs ...any) error {
+func Scan(ctx context.Context, tx Executor, sql string, rowFunc Dest, inArgs ...any) error {
 	rows, err := tx.QueryContext(ctx, sql, inArgs...)
 	if err != nil {
 		return err
