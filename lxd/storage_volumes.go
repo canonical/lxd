@@ -1590,6 +1590,11 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	target := request.QueryParam(r, "target")
 
+	// Check if the volume is being moved to another cluster member.
+	if req.Location != "" && req.Location != details.location {
+		return storagePoolVolumeTypePostMemberMove(s, r, details, requestProjectName, effectiveProjectName, targetProjectName, req)
+	}
+
 	// Check if clustered.
 	if s.ServerClustered && target != "" && req.Source.Location != "" && req.Migration {
 		resp := forwardedResponseToNode(r.Context(), s, req.Source.Location)
@@ -1597,62 +1602,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 			return resp
 		}
 
-		var targetProject *api.Project
-		var targetMemberInfo *db.NodeInfo
-
-		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			p, err := cluster.GetProject(ctx, tx.Tx(), effectiveProjectName)
-			if err != nil {
-				return err
-			}
-
-			targetProject, err = p.ToAPI(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
-
-			allMembers, err := tx.GetNodes(ctx)
-			if err != nil {
-				return fmt.Errorf("Failed getting cluster members: %w", err)
-			}
-
-			targetMemberInfo, _, err = limits.CheckTarget(ctx, s.Authorizer, tx, targetProject, target, allMembers)
-			if err != nil {
-				return err
-			}
-
-			if targetMemberInfo == nil {
-				return fmt.Errorf("Failed checking cluster member %q", target)
-			}
-
-			return nil
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		if targetMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold()) {
-			return response.BadRequest(errors.New("Target cluster member is offline"))
-		}
-
-		run := func(ctx context.Context, op *operations.Operation) error {
-			return migrateStorageVolume(ctx, s, details.volumeName, details.pool.Name(), targetMemberInfo.Name, targetProjectName, req, op)
-		}
-
-		args := operations.OperationArgs{
-			ProjectName: requestProjectName, // Request project may differ from effective project.
-			EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", "custom", details.volumeName).Project(effectiveProjectName).Target(details.location),
-			Type:        operationtype.VolumeMigrate,
-			Class:       operationtype.OperationClassTask,
-			RunHook:     run,
-		}
-
-		op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		return response.OperationResponse(op)
+		return scheduleStorageVolumeMemberMove(s, r, details, requestProjectName, effectiveProjectName, target, req)
 	}
 
 	resp := forwardedResponseToNode(r.Context(), s, target)
@@ -1766,6 +1716,141 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	return storagePoolVolumeTypePostMove(s, r, details, effectiveProjectName, targetProjectName, &dbVolume.StorageVolume, req)
 }
 
+// storagePoolVolumeTypePostMemberMove handles requests to move a custom storage volume to another cluster member.
+func storagePoolVolumeTypePostMemberMove(s *state.State, r *http.Request, details storageVolumeDetails, requestProjectName string, effectiveProjectName string, targetProjectName string, req api.StorageVolumePost) response.Response {
+	if !s.ServerClustered {
+		return response.BadRequest(errors.New("Cannot move a storage volume to a cluster member when the server is not clustered"))
+	}
+
+	if details.pool.Driver().Info().Remote {
+		return response.BadRequest(errors.New("Storage volumes on remote storage pools are not tied to a cluster member"))
+	}
+
+	// The source member performs the move, so forward the request to the member that hosts the volume.
+	resp := forwardedResponseToNode(r.Context(), s, details.location)
+	if resp != nil {
+		return resp
+	}
+
+	err := checkStorageVolumeNotInUse(r.Context(), s, requestProjectName, details.pool.ID(), effectiveProjectName, details.volumeName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	req.Source.Location = details.location
+	req.Project = targetProjectName
+	if req.Pool == "" {
+		req.Pool = details.pool.Name()
+	}
+
+	return scheduleStorageVolumeMemberMove(s, r, details, requestProjectName, effectiveProjectName, req.Location, req)
+}
+
+// checkStorageVolumeNotInUse returns an error if the custom storage volume on this cluster member is in use, as when
+// deleting it.
+func checkStorageVolumeNotInUse(ctx context.Context, s *state.State, requestProjectName string, poolID int64, projectName string, volumeName string) error {
+	var dbVolume *db.StorageVolume
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, cluster.StoragePoolVolumeTypeCustom, volumeName, true)
+
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	usedBy, err := storagePoolVolumeUsedByGet(s, requestProjectName, dbVolume)
+	if err != nil {
+		return err
+	}
+
+	if len(usedBy) > 0 {
+		return api.NewStatusError(http.StatusBadRequest, "The storage volume is still in use")
+	}
+
+	return nil
+}
+
+// deleteStorageVolumeOnMember deletes a custom storage volume on the given cluster member, even if ctx was cancelled.
+func deleteStorageVolumeOnMember(ctx context.Context, s *state.State, member db.NodeInfo, projectName string, poolName string, volumeName string) error {
+	client, err := lxdCluster.Connect(context.WithoutCancel(ctx), member.Address, s.Endpoints.NetworkCert(), s.ServerCert(), true)
+	if err != nil {
+		return err
+	}
+
+	deleteOp, err := client.UseTarget(member.Name).UseProject(projectName).DeleteStoragePoolVolume(poolName, "custom", volumeName)
+	if err != nil {
+		return err
+	}
+
+	return deleteOp.Wait()
+}
+
+// scheduleStorageVolumeMemberMove schedules the operation that moves a custom storage volume to the target cluster member.
+func scheduleStorageVolumeMemberMove(s *state.State, r *http.Request, details storageVolumeDetails, requestProjectName string, effectiveProjectName string, target string, req api.StorageVolumePost) response.Response {
+	targetProjectName := req.Project
+	if targetProjectName == "" {
+		targetProjectName = effectiveProjectName
+	}
+
+	var targetMemberInfo *db.NodeInfo
+
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		p, err := cluster.GetProject(ctx, tx.Tx(), targetProjectName)
+		if err != nil {
+			return err
+		}
+
+		targetProject, err := p.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		allMembers, err := tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		targetMemberInfo, _, err = limits.CheckTarget(ctx, s.Authorizer, tx, targetProject, target, allMembers)
+		if err != nil {
+			return err
+		}
+
+		if targetMemberInfo == nil {
+			return fmt.Errorf("Failed checking cluster member %q", target)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if targetMemberInfo.IsOffline(s.GlobalConfig.OfflineThreshold()) {
+		return response.BadRequest(errors.New("Target cluster member is offline"))
+	}
+
+	run := func(ctx context.Context, op *operations.Operation) error {
+		return migrateStorageVolume(ctx, s, details.volumeName, details.pool.Name(), targetMemberInfo.Name, effectiveProjectName, req, op)
+	}
+
+	args := operations.OperationArgs{
+		ProjectName: requestProjectName, // Request project may differ from effective project.
+		EntityURL:   api.NewURL().Path(version.APIVersion, "storage-pools", details.pool.Name(), "volumes", "custom", details.volumeName).Project(effectiveProjectName).Target(details.location),
+		Type:        operationtype.VolumeMigrate,
+		Class:       operationtype.OperationClassTask,
+		RunHook:     run,
+	}
+
+	op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return response.OperationResponse(op)
+}
+
 func migrateStorageVolume(ctx context.Context, s *state.State, sourceVolumeName string, sourcePoolName string, targetNode string, projectName string, req api.StorageVolumePost, op *operations.Operation) error {
 	if targetNode == req.Source.Location {
 		return errors.New("Target must be different than storage volumes' current location")
@@ -1820,6 +1905,10 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 			newVolumeName = srcVolumeName
 		}
 
+		if newProjectName == "" {
+			newProjectName = srcProjectName
+		}
+
 		networkCert := s.Endpoints.NetworkCert()
 
 		// Connect to the destination member, i.e. the member to migrate the custom volume to.
@@ -1830,7 +1919,7 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 			return fmt.Errorf("Failed connecting to destination server %q: %w", newMember.Address, err)
 		}
 
-		dest = dest.UseTarget(newMember.Name).UseProject(srcProjectName)
+		dest = dest.UseTarget(newMember.Name).UseProject(newProjectName)
 
 		srcMigration, err := newStorageMigrationSource(volumeOnly, nil)
 		if err != nil {
@@ -1853,17 +1942,7 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 				}
 			}()
 
-			err = srcMigration.DoStorage(s, srcProjectName, srcPool.Name(), srcVolumeName, op)
-			if err != nil {
-				return err
-			}
-
-			err = srcPool.DeleteCustomVolume(ctx, srcProjectName, srcVolumeName, op)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return srcMigration.DoStorage(s, srcProjectName, srcPool.Name(), srcVolumeName, op)
 		}
 
 		// Add the target parameter if the source pool is not remote and the server is clustered.
@@ -1914,6 +1993,69 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 
 		if err != nil {
 			return fmt.Errorf("Failed requesting instance create on destination: %w", err)
+		}
+
+		// Remove the new volume again if the move fails before the source is deleted, as two members must not
+		// have a volume with the same name.
+		revert := revert.New()
+		defer revert.Fail()
+		revert.Add(func() {
+			err := deleteStorageVolumeOnMember(ctx, s, newMember, newProjectName, newPoolName, newVolumeName)
+			if err != nil {
+				logger.Warn("Failed deleting the new storage volume after a failed move", logger.Ctx{"member": newMember.Name, "project": newProjectName, "pool": newPoolName, "volume": newVolumeName, "err": err})
+			}
+		})
+
+		// The destination has confirmed the whole volume, so the source side only has to wind down.
+		// Its exit status no longer decides the move. Only a cancelled move stops here.
+		waitCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		err = srcOp.Wait(waitCtx)
+		cancel()
+		if err != nil && ctx.Err() != nil {
+			return err
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			logger.Debug("Not waiting any longer for the source of the storage volume migration")
+		} else if err != nil {
+			logger.Warn("Source side of the storage volume migration did not finish cleanly", logger.Ctx{"volume": srcVolumeName, "err": err})
+		}
+
+		// Check the volume is still unused, since it could have been attached to an instance while it was copied.
+		err = checkStorageVolumeNotInUse(ctx, s, srcProjectName, srcPool.ID(), srcProjectName, srcVolumeName)
+		if err != nil {
+			return err
+		}
+
+		// The volume exists on the destination, so copy its permissions and delete the source.
+		newPool, err := storagePools.LoadByName(s, newPoolName)
+		if err != nil {
+			return fmt.Errorf("Failed loading destination storage pool: %w", err)
+		}
+
+		var srcVolID, newVolID int64
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+			srcVolID, err = tx.GetStoragePoolVolumeIDOnNode(ctx, srcProjectName, srcVolumeName, cluster.StoragePoolVolumeTypeCustom, srcPool.ID(), srcMember.ID)
+			if err != nil {
+				return err
+			}
+
+			newVolID, err = tx.GetStoragePoolVolumeIDOnNode(ctx, newProjectName, newVolumeName, cluster.StoragePoolVolumeTypeCustom, newPool.ID(), newMember.ID)
+			return err
+		})
+		if err == nil {
+			err = copyEntityPermissions(ctx, s, entity.TypeStorageVolume, srcVolID, newVolID)
+		}
+
+		if err != nil {
+			return fmt.Errorf("Failed copying storage volume permissions: %w", err)
+		}
+
+		// The new volume is kept from here on, even if deleting the source fails.
+		revert.Success()
+
+		err = srcPool.DeleteCustomVolume(ctx, srcProjectName, srcVolumeName, op)
+		if err != nil {
+			return fmt.Errorf("Failed deleting the source storage volume on cluster member %q after moving it to %q, so it exists on both: %w", srcMember.Name, newMember.Name, err)
 		}
 
 		return nil
@@ -2085,6 +2227,33 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, details stor
 			return err
 		}
 
+		// Copy the permissions of the source volume to the new volume before the source is deleted.
+		var srcVolID, newVolID int64
+		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			var err error
+			srcVolID, err = tx.GetStoragePoolNodeVolumeID(ctx, effectiveProjectName, vol.Name, details.volumeType, details.pool.ID())
+			if err != nil {
+				return err
+			}
+
+			newVolID, err = tx.GetStoragePoolNodeVolumeID(ctx, targetProjectName, newVol.Name, details.volumeType, newPool.ID())
+			return err
+		})
+		if err == nil {
+			err = copyEntityPermissions(ctx, s, entity.TypeStorageVolume, srcVolID, newVolID)
+		}
+
+		if err != nil {
+			// Do not leave a copy without its permissions behind.
+			deleteErr := newPool.DeleteCustomVolume(context.Background(), targetProjectName, newVol.Name, op)
+			if deleteErr != nil {
+				logger.Warn("Failed deleting the new storage volume after a failed move", logger.Ctx{"project": targetProjectName, "pool": newPool.Name(), "volume": newVol.Name, "err": deleteErr})
+			}
+
+			return fmt.Errorf("Failed copying storage volume permissions: %w", err)
+		}
+
+		// Keep the new volume if this fails, as the source may be partly deleted.
 		err = details.pool.DeleteCustomVolume(ctx, effectiveProjectName, vol.Name, op)
 		if err != nil {
 			return err
