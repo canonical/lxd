@@ -91,6 +91,20 @@ test_authorization() {
 
   lxc storage volume delete "${pool_name}" vol1
 
+  # Permissions granted on a storage volume must follow it when it is moved to another pool.
+  sub_test "Storage volume permissions are kept when the volume is moved to another pool"
+  lxc storage create pool-dest dir
+  lxc storage volume create "${pool_name}" vol1
+  lxc auth group permission add test-group project default viewer
+  lxc auth group permission add test-group storage_volume vol1 can_edit project=default pool="${pool_name}" type=custom
+  lxc storage volume move "${pool_name}/vol1" pool-dest/vol1
+  lxc auth group show test-group | grep -F "/1.0/storage-pools/pool-dest/volumes/custom/vol1?project=default"
+  [ "$(lxd sql global --format csv "SELECT COUNT(*) FROM auth_groups_permissions WHERE entitlement = 'can_edit'")" = 1 ]
+  lxc auth group permission remove test-group storage_volume vol1 can_edit project=default pool=pool-dest type=custom
+  lxc auth group permission remove test-group project default viewer
+  lxc storage volume delete pool-dest vol1
+  lxc storage delete pool-dest
+
   # Test permission is removed automatically when instance is removed.
   lxc auth group permission add test-group project default can_view
   lxc auth group permission add test-group instance c1 can_edit project=default # Valid
