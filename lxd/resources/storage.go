@@ -136,6 +136,57 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 	return nil
 }
 
+// readMountInfoFile reads /proc/self/mountinfo. It's a variable so tests can mock it.
+var readMountInfoFile = func() ([]byte, error) {
+	return os.ReadFile(procSelfMountInfo)
+}
+
+// parseMountInfoMountedIDs parses the content of /proc/self/mountinfo and returns
+// the set of mount IDs found in it (the 3rd field of each line).
+func parseMountInfoMountedIDs(mountInfo []byte) (map[string]bool, error) {
+	mountedIDs := map[string]bool{}
+	scanner := bufio.NewScanner(bytes.NewReader(mountInfo))
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+
+		if len(fields) < 3 {
+			return nil, fmt.Errorf("Invalid %q content: %q", procSelfMountInfo, line)
+		}
+
+		mountedIDs[fields[2]] = true
+	}
+
+	return mountedIDs, nil
+}
+
+// getMountedIDs returns the set of mount IDs found in /proc/self/mountinfo.
+//
+// /proc/self/mountinfo is a kernel-generated seq_file. If the mount table
+// changes while it's being read across multiple read(2) syscalls, the bytes
+// returned by a single os.ReadFile call can be torn mid-line. Retry a few
+// times, re-reading from scratch, to work around that rare race.
+func getMountedIDs() (map[string]bool, error) {
+	const maxAttempts = 3
+
+	var err error
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		var mountInfo []byte
+		mountInfo, err = readMountInfoFile()
+		if err != nil {
+			return nil, fmt.Errorf("Failed reading %q: %w", procSelfMountInfo, err)
+		}
+
+		var mountedIDs map[string]bool
+		mountedIDs, err = parseMountInfoMountedIDs(mountInfo)
+		if err == nil {
+			return mountedIDs, nil
+		}
+	}
+
+	return nil, err
+}
+
 // GetStorage returns a filled api.ResourcesStorage struct ready for use by LXD.
 func GetStorage() (*api.ResourcesStorage, error) {
 	storage := api.ResourcesStorage{}
@@ -149,22 +200,9 @@ func GetStorage() (*api.ResourcesStorage, error) {
 		}
 
 		// Get information about what's mounted.
-		mountInfo, err := os.ReadFile(procSelfMountInfo)
+		mountedIDs, err := getMountedIDs()
 		if err != nil {
-			return nil, fmt.Errorf("Failed reading %q: %w", procSelfMountInfo, err)
-		}
-
-		mountedIDs := map[string]bool{}
-		scanner := bufio.NewScanner(bytes.NewReader(mountInfo))
-		for scanner.Scan() {
-			line := scanner.Text()
-			fields := strings.Fields(line)
-
-			if len(fields) < 3 {
-				return nil, fmt.Errorf("Invalid %q content: %q", procSelfMountInfo, line)
-			}
-
-			mountedIDs[fields[2]] = true
+			return nil, err
 		}
 
 		// Iterate and add to our list
