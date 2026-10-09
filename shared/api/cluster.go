@@ -239,6 +239,18 @@ type ClusterMember struct {
 	Groups []string `json:"groups" yaml:"groups"`
 }
 
+// ClusterMemberFull is a combination of ClusterMember and ClusterMemberState.
+//
+// swagger:model
+//
+// API extension: cluster_members_state_recursion.
+type ClusterMemberFull struct {
+	ClusterMember `yaml:",inline"`
+
+	// State of the cluster member (nil if the member is offline or its state could not be retrieved)
+	State *ClusterMemberState `json:"state" yaml:"state"`
+}
+
 // Writable converts a full Profile struct into a ProfilePut struct (filters read-only fields).
 func (member *ClusterMember) Writable() ClusterMemberPut {
 	return ClusterMemberPut{
