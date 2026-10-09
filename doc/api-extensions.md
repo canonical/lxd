@@ -3013,7 +3013,7 @@ The following configuration keys have been added for volumes backed by PowerFlex
 (extension-storage-driver-pure)=
 ## `storage_driver_pure`
 
-Adds a new `pure` storage driver which allows the consumption of storage volumes from a Pure Storage storage array using either iSCSI or NVMe/TCP.
+Adds a new `pure` storage driver which allows the consumption of storage volumes from an Everpure (formerly known as Pure Storage) FlashArray using either iSCSI or NVMe/TCP.
 
 The following pool level configuration keys have been added:
 
@@ -3718,7 +3718,7 @@ The `replicator-run` lifecycle event now fires when a run completes rather than 
 (extension-storage-driver-pure-scsifc)=
 ## `storage_driver_pure_scsifc`
 
-Adds SCSI/FC support to the Pure Storage storage driver.
+Adds SCSI/FC support to the Everpure storage driver.
 Fibre Channel targets are discovered through the host bus adapter, so `pure.target` has no effect when `pure.mode` is set to `scsi/fc`.
 
 (extension-operation-wait-status-code)=
@@ -3735,7 +3735,7 @@ Adds a new volatile VM configuration key {config:option}`instance-volatile:volat
 (extension-storage-driver-pure-nvmefc)=
 ## `storage_driver_pure_nvmefc`
 
-Adds NVMe/FC support to the Pure Storage storage driver.
+Adds NVMe/FC support to the Everpure storage driver.
 Like SCSI/FC, Fibre Channel targets are discovered through the host bus adapter, so `pure.target` has no effect when `pure.mode` is set to `nvme/fc`.
 
 (extension-storage-ceph-replicator)=

@@ -25,7 +25,7 @@ The following storage drivers are supported:
 - [Ceph Object - `cephobject`](storage-cephobject)
 - [Dell PowerFlex - `powerflex`](storage-powerflex)
 - [Dell PowerStore - `powerstore`](storage-powerstore)
-- [Pure Storage - `pure`](storage-pure)
+- [Everpure (formerly known as Pure Storage) - `pure`](storage-pure)
 - [HPE Alletra - `alletra`](storage-alletra)
 
 See the following how-to guides for additional information:
