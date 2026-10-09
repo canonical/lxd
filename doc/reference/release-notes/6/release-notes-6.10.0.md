@@ -233,6 +233,96 @@ A new `lxc project clear-replica` command has also been added to clear replica s
 - Documentation: {ref}`projects`
 - API extension: {ref}`extension-project-replica-mode-optional`
 
+## UI updates
+
+This release introduces a new dashboard, identity and permission management improvements, profile copying, an extended instance file explorer, and contextual help across the UI, alongside accessibility, mobile, and a range of user-driven refinements.
+
+### Dashboard
+
+- Added a new dashboard that gives an overview of the LXD server or cluster at a glance. It includes the following cards:
+    - **Instances**: a summary of instances.
+    - **Projects**: a summary of projects, with quick navigation.
+    - **Clustering**: cluster member status, CPU and memory usage, and a sortable member table. It is highlighted when one or more members are offline.
+    - **Storage**: a summary of storage pool usage.
+    - **Warnings**: recent warnings, with their severity.
+    - **Permissions**: the effective permissions of the current identity, shown only for restricted identities.
+- Cards show empty states when there is no data. Identities with view-only permissions get a dashboard limited to what they can see.
+
+### Identity and access management
+
+- Added a new profile page that shows the current identity, its effective permissions, and the login project setting.
+- Bearer token identities can now be created from the UI, including group selection.
+- Identities can now be edited through a dedicated side panel.
+- The identity list now shows identity expiration, additional groups that come from identity provider (IdP) group mappings, and an explanation of the identity types.
+- Auth groups now show identities that are members through IdP group mappings.
+- Permission tables are more responsive, and the group navigation items were renamed for clarity.
+- Authentication errors are now shown to the user.
+
+### Profiles
+
+- Profiles can now be copied to another project.
+- Profiles can now be refreshed from another project.
+
+### Instance experience
+
+- Instance file explorer:
+    - Upload files.
+    - Create directories.
+    - Resolve symbolic links.
+- Instance user keys (`user.*`) can now be viewed and edited, including during instance creation.
+- The instance list search now supports `key=value` queries to match instances by expanded configuration (including keys inherited from profiles), the same way as `lxc list`. An empty value matches instances that do not have the key set.
+- Additional disk device options: {guilabel}`Read-only`, {guilabel}`Recursive`, {guilabel}`Required`, and {guilabel}`Shift`.
+- Long IP addresses are now fully displayed in the instance configuration, and instance interfaces are listed first when sorting IP addresses.
+
+### Cluster management
+
+- Cluster links can now be created, displayed, and edited.
+- Deleting a cluster link now shows the list of entities that use it.
+- Navigation is now unified for clustered and non-clustered servers.
+
+### Storage and networking
+
+- Added NVMe to the Dell PowerStore mode options.
+- The secret key is now hidden in storage bucket key details.
+- Ceph pools show a {guilabel}`Creating` status after creation starts.
+- The `source` field was removed for Ceph and CephFS pools, because LXD no longer supports it.
+- Load balancers are disabled in custom projects that do not have network isolation.
+- Networks from other projects are now shown.
+
+### Contextual help
+
+- Added explanation tooltips with documentation links to page headers, create and edit forms, network tabs, and empty states for major entities.
+
+### Operations and warnings
+
+- The operations list now shows child operations.
+- Warning severity is now shown as a chip.
+
+### Accessibility and mobile experience
+
+- Fixed accessibility violations in navigation, instance detail tabs, forms, modals, and detail pages. Automated accessibility audits now run as part of the UI test suite.
+- Added a mobile and small-screen image selector, and made configuration navigation collapse on small screens.
+- Side navigation now expands or collapses more responsively.
+- Side panels can now be closed with the {kbd}`Esc` key.
+
+### User-driven improvements
+
+- The UI refreshes automatically when the LXD server version changes after an upgrade or downgrade.
+- Generated certificates are now signed with SHA-384.
+- Search queries are now case-insensitive.
+- Access entitlements are hidden in YAML forms.
+- The network topology map no longer wraps on small screens.
+
+### Bug fixes
+
+- Fixed the YAML view not keeping the previously selected section.
+- Fixed an endless error-reporting loop on the instance detail page.
+- Fixed inconsistent row heights in selectable tables.
+- Fixed in-page navigation on the network detail page.
+- Fixed image registry loading in restricted projects.
+- Fixed uplink networks that are unmanaged and have no parent network.
+- Fixed a duplicate {guilabel}`Create pool` button on the storage empty state.
+
 (ref-release-notes-6.10.0-bugfixes)=
 ## Bug fixes
 
