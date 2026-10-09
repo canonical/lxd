@@ -110,6 +110,23 @@ func (r *ProtocolLXD) GetClusterMembers() ([]api.ClusterMember, error) {
 	return members, nil
 }
 
+// GetClusterMembersFull returns the current members of the cluster including their state.
+func (r *ProtocolLXD) GetClusterMembersFull() ([]api.ClusterMemberFull, error) {
+	err := r.CheckExtension("cluster_members_state_recursion")
+	if err != nil {
+		return nil, err
+	}
+
+	members := []api.ClusterMemberFull{}
+	u := api.NewURL().Path("cluster", "members").WithQuery("recursion", "2")
+	_, err = r.queryStruct(http.MethodGet, u.String(), nil, "", &members)
+	if err != nil {
+		return nil, err
+	}
+
+	return members, nil
+}
+
 // GetClusterMember returns information about the given member.
 func (r *ProtocolLXD) GetClusterMember(name string) (*api.ClusterMember, string, error) {
 	err := r.CheckExtension("clustering")
