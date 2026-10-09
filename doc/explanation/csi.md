@@ -18,7 +18,7 @@ Capability                | Supported       | Storage drivers                   
 --------------------------|-----------------|------------------------------------------------------------------------------------------------|------------
 Dynamic provisioning      | &#x2713;        | {ref}`storage-drivers-local`, {ref}`storage-drivers-remote`, and {ref}`storage-drivers-shared` | Volumes are created and deleted on demand through PersistentVolumeClaims.
 Filesystem volumes        | &#x2713;        | {ref}`storage-drivers-local`, {ref}`storage-drivers-remote`, and {ref}`storage-drivers-shared` | Supported when the driver provides filesystem volumes.
-Shared filesystem volumes | - (coming-soon) | {ref}`storage-drivers-shared`                                                                  | Allows attaching storage volume to multiple nodes simultaneously (through the use of volume access modes `ReadWriteMany` and `ReadOnlyMany`).
+Shared filesystem volumes | &#x2713;        | {ref}`storage-drivers-shared`                                                                  | Allows attaching a filesystem storage volume to multiple nodes simultaneously (through the use of volume access modes `ReadWriteMany` and `ReadOnlyMany`).
 Block volumes             | &#x2713;        | {ref}`storage-drivers-local` and {ref}`storage-drivers-remote`                                 | Supported when the driver provides block volumes.
 Volume expansion          | &#x2713;        | {ref}`storage-drivers-local`, {ref}`storage-drivers-remote`, and {ref}`storage-drivers-shared` | Allows increasing the storage volume capacity. Block volumes can be expanded only while offline (detached), whereas filesystem volumes can be expanded while online (attached).
 Volume snapshots          | &#x2713;        | {ref}`storage-drivers-local`, {ref}`storage-drivers-remote`, and {ref}`storage-drivers-shared` | Allows creating storage volume snapshots. This also requires snapshot custom resource definition (CRD).
@@ -177,6 +177,7 @@ It shows the interactions between the Kubernetes control plane, the LXD CSI driv
 1. The LXD API creates the requested volume in the configured storage pool.
 
 1. The volume is attached to the node where the Pod was previously scheduled.
+   A volume with access mode `ReadWriteMany` or `ReadOnlyMany` is attached to each node that runs a Pod using the volume.
 
 1. Kubelet invokes the CSI node service requesting the attached volume to be mounted into the Pod.
 
