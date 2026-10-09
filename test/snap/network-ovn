@@ -296,6 +296,19 @@ ovn_basic_tests() {
     lxc network set dummy ovn.ingress_mode=routed ipv4.routes.anycast=true ipv6.routes.anycast=true --project default
     lxc config device set u2 eth0 ipv4.routes.external=198.51.100.1/32 --project testovn
     lxc config device set u2 eth0 ipv6.routes.external=2001:db8:1:2::1/128 --project testovn
+
+    echo "==> Check NIC external route duplicate detection on the same network when uplink has anycast routed ingress mode enabled"
+    ! lxc config device set u2 eth0 ipv4.routes.external=198.51.100.0/26 --project testovn || false
+    ! lxc config device set u2 eth0 ipv6.routes.external=2001:db8:1:2::/122 --project testovn || false
+
+    echo "==> Check NIC external route duplicate is allowed on another network when uplink has anycast routed ingress mode enabled"
+    lxc network create ovn-virtual-network2 --type=ovn --project testovn network=dummy
+    lxc init "${IMAGE}" u3 --project testovn -s default
+    lxc config device add u3 eth0 nic network=ovn-virtual-network2 name=eth0 --project testovn \
+        ipv4.routes.external=198.51.100.0/26 \
+        ipv6.routes.external=2001:db8:1:2::/122
+    lxc delete -f u3 --project testovn
+    lxc network delete ovn-virtual-network2 --project testovn
     lxc delete -f u2 --project testovn
     lxc network unset dummy ovn.ingress_mode --project default
     lxc network unset dummy ipv4.routes.anycast --project default
