@@ -8,8 +8,8 @@ myst:
 # Release notes
 
 This page lists recent release notes for LXD 6.
-All releases prior to 6.10.0 are feature releases in the 6 series.
-Releases 6.10.0 and above are LTS releases.
+Releases 6.10._z_ are LTS releases in the 6 series.
+Earlier releases in the 6 series are feature releases.
 See {ref}`ref-releases-snap` for more information.
 
 (ref-release-notes-releases-6)=

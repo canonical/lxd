@@ -24,15 +24,16 @@ This section highlights new and improved features in this release.
 
 ### Image registries
 
-LXD now supports first-class image registries. An image registry is a read-only source of images. 
-An administrator can use image registries to control where tenants are able to download images for LXD.
+Image registries provide a unified view of image sources available to a LXD cluster.
+Clients now specify an image registry when requesting the LXD daemon to download an image.
 
 Projects can restrict image downloads to specific authorized image registries using the new `restricted.registries` project configuration key.
+This allows an administrator to specify the image sources that tenants can access.
 
 Image registries support using another LXD cluster as an image source by referencing a {ref}`cluster link <exp-cluster-links>`.
 Simple Streams image servers are also supported.
 
-Sending the URL of a remote image server in the contents of an image source remains supported, but is deprecated functionality.
+Client-side image remotes remain supported, but clients should specify an image registry rather than a URL and protocol when requesting an image download.
 A comprehensive compatibility layer was added to support older LXD clients with the transition.
 
 - Documentation: {ref}`ref-image-registries` and {ref}`howto-image-registries`
@@ -320,6 +321,31 @@ The cluster healing feature and its server configuration setting `cluster.healin
 
 In addition, the `cluster_healing` API extension has been removed.
 Automatic evacuation and eviction of unresponsive cluster members has been discontinued to avoid accidental quorum loss during transient network partitions.
+
+(ref-release-notes-6.10.0-known-issues)=
+## Known issues
+
+This section covers known temporary limitations and integration regressions in this release.
+
+### CDI GPU passthrough failure on Ubuntu Core 26
+
+Users attempting to pass through GPUs to containers on Ubuntu Core 26 environments using the `gpu-2604` interface (provided by the `mesa-2604` snap) will encounter a container startup failure:
+
+```
+Error: Failed starting device "gpu0": Failed generating CDI spec: Failed determining NVIDIA driver root path: Failed running: /snap/lxd/<revision>/gpu-2604/bin/gpu-2604-provider-wrapper printenv NVIDIA_DRIVER_ROOT: exit status 1
+```
+
+This is caused by an upstream architectural mismatch on the Core 26 track between the `pc-kernel` snap and the `mesa-2604` graphics provider snap.
+
+There is currently no native LXD configuration workaround. We are working with our partners to resolve the issue.
+
+### Ceph userspace tooling incompatibility
+
+LXD bundles Ceph userspace tooling to manage `ceph`, `cephfs`, and `cephobject` storage pools, volumes, and buckets.
+The version of this tooling is incompatible with the most recent Ceph OSD release.
+
+New deployments should use a version of MicroCeph that packages a Ceph version before 20.2.4 (tentacle) or 19.2.6 (squid).
+Existing deployments that upgrade MicroCeph to a version that contains the newer Ceph must not rotate keys until the newer key type is compatible with the client shipped by LXD.
 
 (ref-release-notes-6.10.0-go)=
 ## Updated minimum Go version
