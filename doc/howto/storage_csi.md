@@ -292,6 +292,32 @@ Access mode        | Supported drivers                                          
 `ReadOnlyMany`     | {ref}`storage-drivers-shared`                                                                  | Mounted as read-only by many Pods across nodes.
 `ReadWriteMany`    | {ref}`storage-drivers-shared`                                                                  | Mounted as read-write by many Pods across nodes.
 
+The access modes `ReadOnlyMany` and `ReadWriteMany` require the volume mode `Filesystem`.
+If a PVC with one of these access modes uses the volume mode `Block`, or a storage pool without a {ref}`shared storage driver <storage-drivers-shared>`, the LXD CSI driver rejects the volume creation.
+The `external-provisioner` reports the error as a `ProvisioningFailed` event on the PVC.
+
+With the access mode `ReadOnlyMany`, the LXD CSI driver attaches the volume to the LXD instance as a read-only disk device and mounts it read-only into the Pod.
+Pods cannot write to the volume.
+To provide data for the Pods, create the PVC from an existing PVC (see {ref}`howto-storage-csi-usage-pvc-cloning`):
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-data-readonly
+spec:
+  accessModes:
+    - ReadOnlyMany
+  storageClassName: lxd-csi-cephfs  # StorageClass that references a CephFS storage pool.
+  resources:
+    requests:
+      storage: 10Gi
+  volumeMode: Filesystem
+  dataSource:
+    kind: PersistentVolumeClaim
+    name: app-data-shared           # Name of the source PVC.
+```
+
 (howto-storage-csi-usage-pvc-cloning)=
 #### Volume cloning
 
