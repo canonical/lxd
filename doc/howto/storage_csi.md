@@ -479,6 +479,52 @@ spec:
             claimName: app-data  # References PVC named "app-data".
 ```
 
+With a `ReadWriteMany` volume, the Deployment can run multiple replicas, and their Pods can run on different nodes:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-data-shared
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: lxd-csi-cephfs  # StorageClass that references a CephFS storage pool.
+  resources:
+    requests:
+      storage: 10Gi
+  volumeMode: Filesystem
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: nginx:stable
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: app-data-shared
+```
+
 (howto-storage-csi-usage-example-statefulset)=
 #### Referencing PVC in StatefulSet
 
