@@ -1,42 +1,70 @@
-package placement
+package filters
 
 import (
 	"context"
-	"errors"
-	"net/http"
+	"fmt"
 	"slices"
 
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
+	"github.com/canonical/lxd/lxd/placement/internal/models"
 	"github.com/canonical/lxd/shared/api"
 )
 
-// Filter filters the provided slice of candidate cluster members using the provided [api.PlacementGroup].
-func Filter(ctx context.Context, tx *db.ClusterTx, candidates []db.NodeInfo, apiPlacementGroup api.PlacementGroup, evacuation bool) ([]db.NodeInfo, error) {
+// FilterByPlacementGroup narrows candidates using pctx.PlacementGroup. It's a no-op when
+// pctx.PlacementGroup is unset.
+func FilterByPlacementGroup(ctx context.Context, tx *db.ClusterTx, pctx *models.PlacementContext, candidates []db.NodeInfo) ([]db.NodeInfo, error) {
+	apiPlacementGroup := pctx.PlacementGroup
+	if apiPlacementGroup.Name == "" {
+		return candidates, nil
+	}
+
 	// Get policy and rigor from config.
 	policy := apiPlacementGroup.Config["policy"]
 	rigor := apiPlacementGroup.Config["rigor"]
 
 	// If this is an evacuation request, exclude instances on the source cluster member.
-	// This allows placement decisions to be made based on where instances will be, not where they currently are.
 	var memberID *int64
-	if evacuation {
+	if pctx.Evacuation {
 		sourceMemberID := tx.GetNodeID()
 		memberID = &sourceMemberID
 	}
 
 	memberToInst, err := cluster.GetInstancesInPlacementGroup(ctx, tx.Tx(), apiPlacementGroup.Name, apiPlacementGroup.Project, memberID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("FilterByPlacementGroup: loading the members of placement group %q -> %w", apiPlacementGroup.Name, err)
 	}
 
 	// Get compliant cluster members using the placement group.
 	filteredCandidates, err := getCompliantMembers(policy, rigor, candidates, memberToInst)
 	if err != nil {
-		return nil, api.StatusErrorf(http.StatusConflict, "Failed filtering candidate cluster members using placement group %q with %q policy and %q rigor: %w", apiPlacementGroup.Name, policy, rigor, err)
+		return nil, fmt.Errorf("FilterByPlacementGroup: placement group %q (policy %q, rigor %q) -> %w", apiPlacementGroup.Name, policy, rigor, err)
 	}
 
 	return filteredCandidates, nil
+}
+
+// FilterByClusterGroup narrows candidates to members of pctx.ClusterGroupName. It's a no-op
+// unless pctx.ClusterGroupName is set and pctx.PlacementGroup isn't.
+func FilterByClusterGroup(ctx context.Context, tx *db.ClusterTx, pctx *models.PlacementContext, candidates []db.NodeInfo) ([]db.NodeInfo, error) {
+	if pctx.ClusterGroupName == "" || pctx.PlacementGroup.Name != "" {
+		return candidates, nil
+	}
+
+	filtered := make([]db.NodeInfo, 0, len(candidates))
+	for _, member := range candidates {
+		if !slices.Contains(member.Groups, pctx.ClusterGroupName) {
+			continue
+		}
+
+		filtered = append(filtered, member)
+	}
+
+	if len(filtered) == 0 && len(candidates) > 0 {
+		return nil, &NoCandidatesError{Func: "FilterByClusterGroup", Reason: fmt.Sprintf("no candidate belongs to cluster group %q", pctx.ClusterGroupName)}
+	}
+
+	return filtered, nil
 }
 
 // getCompliantMembers gets compliant cluster members from the provided candidates based on the given placement policy and rigor.
@@ -55,7 +83,7 @@ func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, 
 		}
 
 		if len(compliantCandidates) == 0 {
-			return nil, errors.New("No eligible cluster members available")
+			return nil, &NoCandidatesError{Func: "getCompliantMembers", Reason: "every candidate already hosts an instance from this placement group"}
 		}
 
 		return compliantCandidates, nil
@@ -85,7 +113,7 @@ func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, 
 		}
 
 		if len(compliantCandidates) == 0 {
-			return nil, errors.New("No eligible cluster members available")
+			return nil, &NoCandidatesError{Func: "getCompliantMembers", Reason: "no candidates to spread across"}
 		}
 
 		return compliantCandidates, nil
@@ -118,7 +146,7 @@ func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, 
 		}
 
 		if len(compliantCandidates) == 0 {
-			return nil, errors.New("Required cluster member is unavailable")
+			return nil, &NoCandidatesError{Func: "getCompliantMembers", Reason: "the cluster member hosting this placement group's instances is not a candidate"}
 		}
 
 		return compliantCandidates, nil
@@ -153,6 +181,6 @@ func getCompliantMembers(policy string, rigor string, candidates []db.NodeInfo, 
 		return candidates, nil
 
 	default:
-		return nil, errors.New("Invalid placement group")
+		return nil, fmt.Errorf("getCompliantMembers: unsupported policy %q and rigor %q combination", policy, rigor)
 	}
 }
