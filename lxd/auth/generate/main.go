@@ -123,6 +123,8 @@ func main() {
 			fmt.Printf("Failed generating entitlements from OpenFGA model (dry run): %v\n", err)
 			os.Exit(1)
 		}
+
+		return
 	}
 
 	err := func() error {
