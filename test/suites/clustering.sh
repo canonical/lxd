@@ -189,6 +189,9 @@ test_clustering_membership() {
   LXD_DIR="${LXD_FIVE_DIR}" lxc cluster info node5
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster info node5
 
+  sub_test "Check cluster members state is included with recursion=2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc query '/1.0/cluster/members?recursion=2' | jq --exit-status 'length == 5 and all(.[]; .server_name != "" and .state.sysinfo.logical_cpus > 0)'
+
   # Disable image replication
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.images_minimal_replica 1
 
@@ -198,6 +201,7 @@ test_clustering_membership() {
   sleep 11
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node3 | grep -xF "status: Offline"
+  LXD_DIR="${LXD_TWO_DIR}" lxc query '/1.0/cluster/members?recursion=2' | jq --exit-status 'length == 5 and (map(select(.server_name == "node3"))[0].state == null) and all(.[] | select(.server_name != "node3"); .state != null)'
 
   # Gracefully remove a node and check trust certificate is removed.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -wF node4
