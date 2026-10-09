@@ -3808,13 +3808,10 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 			return err
 		}
 
-		// Skip overlap checks if the external route's protocol has anycast mode enabled on the uplink.
+		// Relax overlap checks if the external route's protocol has anycast mode enabled on the uplink.
+		anycast := ipv4UplinkAnycast
 		if portExternalRoute.IP.To4() == nil {
-			if ipv6UplinkAnycast {
-				continue
-			}
-		} else if ipv4UplinkAnycast {
-			continue
+			anycast = ipv6UplinkAnycast
 		}
 
 		// Check the external port route doesn't fall within any existing OVN network external subnets.
@@ -3835,6 +3832,15 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 				if externalSubnetUser.instanceProject == deviceInstance.Project().Name && externalSubnetUser.instanceName == deviceInstance.Name() && externalSubnetUser.instanceDevice == deviceName {
 					continue
 				}
+			}
+
+			if anycast {
+				// External routes on the same network are managed by prefix and cannot be shared between NICs.
+				if externalSubnetUser.usageType == subnetUsageInstance && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name && externalSubnetUser.subnet.String() == portExternalRoute.String() {
+					return fmt.Errorf("External route %q is already used by another NIC on the same network", portExternalRoute.String())
+				}
+
+				continue
 			}
 
 			if SubnetContains(&externalSubnetUser.subnet, portExternalRoute) || SubnetContains(portExternalRoute, &externalSubnetUser.subnet) {
