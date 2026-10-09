@@ -338,6 +338,14 @@ This is caused by an upstream architectural mismatch on the Core 26 track betwee
 
 There is currently no native LXD configuration workaround. We are working with our partners to resolve the issue.
 
+### Ceph userspace tooling incompatibility
+
+LXD bundles Ceph userspace tooling to manage `ceph`, `cephfs`, and `cephobject` storage pools, volumes, and buckets.
+The version of this tooling is incompatible with the most recent Ceph OSD release.
+
+New deployments should use a version of MicroCeph that packages a Ceph version before 20.2.4 (tentacle) or 19.2.6 (squid).
+Existing deployments that upgrade MicroCeph to a version that contains the newer Ceph must not rotate keys until the newer key type is compatible with the client shipped by LXD.
+
 (ref-release-notes-6.10.0-go)=
 ## Updated minimum Go version
 
