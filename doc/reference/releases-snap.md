@@ -34,10 +34,12 @@ Standard support for an LTS release starts at full support for its first two yea
 (ref-releases-lts-support-current)=
 #### Currently supported
 
-The currently supported LTS releases are 5.21._z_ and 5.0._z_.
+The currently supported LTS releases are 6.10._z_, 5.21._z_, and 5.0._z_.
 
-- 5.21._z_ is supported until June 2029.
+- 6.10._z_ is supported until June 2031.
   - Currently in full support phase.
+- 5.21._z_ is supported until June 2029.
+  - Currently in maintenance support phase.
 - 5.0._z_ is supported until June 2027.
   - Currently in maintenance support phase.
 
@@ -50,6 +52,7 @@ Interim HWE kernels are only tentatively supported.
 
 | LXD version | Ubuntu release | GA Kernel (Supported) | HWE Kernel (Best effort) |
 | :---------- | :------------- | :-------------------- | :----------------------- |
+| 6.10 | 26.04 LTS (Resolute) | 7.0 | 7.0 |
 | 5.21 | 24.04 LTS (Noble) | 6.8 | 7.0 |
 | 5.0 | 22.04 LTS (Jammy) | 5.15 | 6.8 |
 
@@ -103,7 +106,7 @@ The LXD feature track uses the major number of the current {ref}`feature release
 
 Feature releases within the same major version are published to the same track, replacing the previous release. For example, the `6.4` release replaced `6.3` in the `6` track. This simplifies updates, as you don't need to switch channels to access new feature releases within the same major version.
 
-Every two years, the current feature track becomes the next LTS, and a new feature track is then created by incrementing _x_. For example, after the `6` track becomes an LTS, the `7` track is created and becomes the next feature track.
+Every two years, the current feature track becomes the next LTS, and a new feature track is then created by incrementing _x_. For example, after the `6` track became an LTS, the `7` track was created and became the next feature track.
 
 (ref-snap-tracks-default)=
 #### The default track
