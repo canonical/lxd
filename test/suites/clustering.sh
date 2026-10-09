@@ -8043,7 +8043,7 @@ _clustering_replicator_volume_forward() {
 
   # Only dir exposes the standby rootfs as a directory, so a read-only bind mount can fail the write after
   # the header is accepted. The new file gives the refresh something to write.
-  if [ "$(storage_backend "${LXD_DIR}")" = "dir" ]; then
+  if [ "$(storage_backend "${LXD_TWO_DIR}")" = "dir" ]; then
     local standby_rootfs run_rc
     standby_rootfs="${LXD_TWO_DIR}/storage-pools/lxdtest-$(basename "${LXD_TWO_DIR}")/containers/replicator-project_c1/rootfs"
     LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 user.leader-change=2 --project replicator-project
