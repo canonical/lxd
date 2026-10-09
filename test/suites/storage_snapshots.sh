@@ -14,7 +14,7 @@ test_storage_volume_snapshots() {
   storage_volume="${storage_pool}-vol"
 
   if [ "${lxd_backend}" = "pure" ]; then
-    # Pure Storage needs some additional configuration, therefore create it using a helper function.
+    # Everpure needs some additional configuration, therefore create it using a helper function.
     configure_pure_pool "${storage_pool}"
   else
     lxc storage create "$storage_pool" "$lxd_backend"

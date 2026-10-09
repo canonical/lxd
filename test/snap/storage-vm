@@ -673,7 +673,7 @@ for poolDriver in $poolDriverList; do
         lxc init "${IMAGE}" v1 --vm -s "${poolName}" -p vmsmall
 
         # Set the images_volume on supported drivers only.
-        # Ceph RBD, PowerFlex, PowerStore, Pure, and Alletra are not supported to prevent concurrent mounts.
+        # Ceph RBD, PowerFlex, PowerStore, Everpure, and Alletra are not supported to prevent concurrent mounts.
         if [ "${poolDriver}" != "ceph"  ] && [ "${poolDriver}" != "powerflex" ] && [ "${poolDriver}" != "powerstore" ] && [ "${poolDriver}" != "pure" ] && [ "${poolDriver}" != "alletra" ]; then
                 lxc storage volume create "${poolName}" images
                 lxc config set storage.images_volume "${poolName}"/images
