@@ -162,6 +162,46 @@ var clusterMemberStateCmd = APIEndpoint{
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/cluster/members?recursion=2 cluster cluster_members_get_recursion2
+//
+//	Get the cluster members with their state
+//
+//	Returns a list of cluster members (structs) including their state.
+//	The state of each member is fetched in parallel. It is null for offline
+//	members and for members whose state could not be retrieved.
+//
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of cluster members
+//	          items:
+//	            $ref: "#/definitions/ClusterMemberFull"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterMembersGet(d *Daemon, r *http.Request) response.Response {
 	recursion, _ := util.IsRecursionRequest(r)
 	s := d.State()
@@ -233,6 +273,37 @@ func clusterMembersGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	if recursion > 1 {
+		offlineThreshold := s.GlobalConfig.OfflineThreshold()
+		membersFull := make([]api.ClusterMemberFull, len(membersInfo))
+
+		var wg sync.WaitGroup
+		for i := range members {
+			membersFull[i].ClusterMember = membersInfo[i]
+
+			if members[i].IsOffline(offlineThreshold) {
+				continue
+			}
+
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+
+				memberState, err := clusterMemberStateFetch(r.Context(), s, members[i])
+				if err != nil {
+					logger.Warn("Failed getting cluster member state", logger.Ctx{"member": members[i].Name, "err": err})
+					return
+				}
+
+				membersFull[i].State = memberState
+			}(i)
+		}
+
+		wg.Wait()
+
+		return response.SyncResponse(true, membersFull)
+	}
+
 	if recursion > 0 {
 		return response.SyncResponse(true, membersInfo)
 	}
@@ -244,6 +315,25 @@ func clusterMembersGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.SyncResponse(true, urls)
+}
+
+// clusterMemberStateFetch returns the state of the given cluster member, either locally or by querying the member.
+func clusterMemberStateFetch(ctx context.Context, s *state.State, member db.NodeInfo) (*api.ClusterMemberState, error) {
+	if member.Name == s.ServerName {
+		return cluster.MemberState(ctx, s)
+	}
+
+	client, err := cluster.Connect(ctx, member.Address, s.Endpoints.NetworkCert(), s.ServerCert(), false)
+	if err != nil {
+		return nil, fmt.Errorf("Failed connecting to cluster member %q: %w", member.Name, err)
+	}
+
+	memberState, _, err := client.GetClusterMemberState(member.Name)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting state of cluster member %q: %w", member.Name, err)
+	}
+
+	return memberState, nil
 }
 
 var clusterMembersPostMu sync.Mutex // Used to prevent races when creating cluster join tokens.
