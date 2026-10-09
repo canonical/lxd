@@ -270,19 +270,19 @@ Create a storage pool named `pool6` that uses NVMe/TCP to connect to PowerStore 
 
 Create a storage pool named `pool1` that uses NVMe/TCP by default:
 
-    lxc storage create pool1 pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token>
+    lxc storage create pool1 pure pure.gateway=https://<flasharray-address> pure.api.token=<flasharray-api-token>
 
-Create a storage pool named `pool2` that uses a Pure Storage gateway with a certificate that is not trusted:
+Create a storage pool named `pool2` that uses an Everpure FlashArray with a certificate that is not trusted:
 
-    lxc storage create pool2 pure pure.gateway=https://<pure-storage-address> pure.gateway.verify=false pure.api.token=<pure-storage-api-token>
+    lxc storage create pool2 pure pure.gateway=https://<flasharray-address> pure.gateway.verify=false pure.api.token=<flasharray-api-token>
 
-Create a storage pool named `pool3` that uses iSCSI to connect to Pure Storage array:
+Create a storage pool named `pool3` that uses iSCSI to connect to an Everpure FlashArray:
 
-    lxc storage create pool3 pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=iscsi
+    lxc storage create pool3 pure pure.gateway=https://<flasharray-address> pure.api.token=<flasharray-api-token> pure.mode=iscsi
 
-Create a storage pool named `pool4` that uses NVMe/TCP to connect to Pure Storage array via specific target addresses:
+Create a storage pool named `pool4` that uses NVMe/TCP to connect to an Everpure FlashArray via specific target addresses:
 
-    lxc storage create pool4 pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=nvme/tcp pure.target=<target_address_1>,<target_address_2>
+    lxc storage create pool4 pure pure.gateway=https://<flasharray-address> pure.api.token=<flasharray-api-token> pure.mode=nvme/tcp pure.target=<target_address_1>,<target_address_2>
 
 ````
 ````{group-tab} alletra
@@ -500,30 +500,30 @@ Storage pool my-powerstore-pool created
 ````
 ````{group-tab} pure
 
-Create a storage pool named `my-purestorage-pool` using the {ref}`Pure Storage driver <storage-pure>`:
+Create a storage pool named `my-everpure-pool` using the {ref}`Everpure FlashArray driver <storage-pure>`:
 
 ```{terminal}
-lxc storage create my-purestorage-pool pure --target=vm01
+lxc storage create my-everpure-pool pure --target=vm01
 
-Storage pool my-purestorage-pool pending on member vm01
+Storage pool my-everpure-pool pending on member vm01
 ```
 
 ```{terminal}
-lxc storage create my-purestorage-pool pure --target=vm02
+lxc storage create my-everpure-pool pure --target=vm02
 
-Storage pool my-purestorage-pool pending on member vm02
+Storage pool my-everpure-pool pending on member vm02
 ```
 
 ```{terminal}
-lxc storage create my-purestorage-pool pure --target=vm03
+lxc storage create my-everpure-pool pure --target=vm03
 
-Storage pool my-purestorage-pool pending on member vm03
+Storage pool my-everpure-pool pending on member vm03
 ```
 
 ```{terminal}
-lxc storage create my-purestorage-pool pure pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token>
+lxc storage create my-everpure-pool pure pure.gateway=https://<flasharray-address> pure.api.token=<flasharray-api-token>
 
-Storage pool my-purestorage-pool created
+Storage pool my-everpure-pool created
 ```
 
 ````
@@ -719,15 +719,15 @@ This is because when creating a PowerFlex pool, LXD does not create any entities
 
 Recover a pool named `pool1` using the existing pod `pool1`:
 
-    lxc storage create pool1 pure source.recover=true pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token>
+    lxc storage create pool1 pure source.recover=true pure.gateway=https://<flasharray-address> pure.api.token=<flasharray-api-token>
 
-Recover a pool named `pool2` using the existing pod `pool2` and iSCSI to connect to Pure Storage array:
+Recover a pool named `pool2` using the existing pod `pool2` and iSCSI to connect to an Everpure FlashArray:
 
-    lxc storage create pool2 pure source.recover=true pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=iscsi
+    lxc storage create pool2 pure source.recover=true pure.gateway=https://<flasharray-address> pure.api.token=<flasharray-api-token> pure.mode=iscsi
 
-Recover a pool named `pool3` using the existing pod `pool3` and NVMe/TCP to connect to Pure Storage array via specific target address:
+Recover a pool named `pool3` using the existing pod `pool3` and NVMe/TCP to connect to an Everpure FlashArray via specific target address:
 
-    lxc storage create pool3 pure source.recover=true pure.gateway=https://<pure-storage-address> pure.api.token=<pure-storage-api-token> pure.mode=nvme/tcp pure.target=<target_address_1>,<target_address_2>
+    lxc storage create pool3 pure source.recover=true pure.gateway=https://<flasharray-address> pure.api.token=<flasharray-api-token> pure.mode=nvme/tcp pure.target=<target_address_1>,<target_address_2>
 
 ````
 ````{group-tab} alletra

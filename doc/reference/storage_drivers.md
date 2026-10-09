@@ -98,7 +98,7 @@ Only the Ceph RBD driver supports these features: {ref}`storage-available-init` 
 ```{table} Remote storage feature comparison
 :name: storage-drivers-features-remote
 
-Feature                                     | Ceph RBD     | Dell PowerFlex  | Dell PowerStore | Pure Storage | HPE Alletra
+Feature                                     | Ceph RBD     | Dell PowerFlex  | Dell PowerStore | Everpure     | HPE Alletra
 :---                                        | :---         | :---            | :---            | :---         | :---
 {ref}`storage-optimized-image-storage`      | **Yes**      | No              | **Yes**         | **Yes**      | **Yes**
 {ref}`storage-optimized-instance-creation`  | **Yes**      | No              | **Yes**         | **Yes**      | **Yes**
@@ -185,7 +185,7 @@ Shows whether the storage driver can be selected during `lxd init` (interactive 
 (storage-block-backed)=
 ### Block-backed
 
-Block-backed storage presents volumes as block devices rather than mounted file systems. If a file system is needed (such as for containers or custom file system volumes), LXD formats the volumes and mounts them on the host. Block volumes attached to virtual machines must be formatted by the guest instance. See {ref}`Pure Storage <storage-pure>`, {ref}`HPE Alletra <storage-alletra>`, and {ref}`Ceph RBD <storage-ceph>` for driver-specific details.
+Block-backed storage presents volumes as block devices rather than mounted file systems. If a file system is needed (such as for containers or custom file system volumes), LXD formats the volumes and mounts them on the host. Block volumes attached to virtual machines must be formatted by the guest instance. See {ref}`Everpure <storage-pure>`, {ref}`HPE Alletra <storage-alletra>`, and {ref}`Ceph RBD <storage-ceph>` for driver-specific details.
 
 (storage-instant-cloning)=
 ### Instant cloning
