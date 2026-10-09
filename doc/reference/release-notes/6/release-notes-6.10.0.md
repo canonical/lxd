@@ -24,15 +24,16 @@ This section highlights new and improved features in this release.
 
 ### Image registries
 
-LXD now supports first-class image registries. An image registry is a read-only source of images. 
-An administrator can use image registries to control where tenants are able to download images for LXD.
+Image registries provide a unified view of image sources available to a LXD cluster.
+Clients now specify an image registry when requesting the LXD daemon to download an image.
 
 Projects can restrict image downloads to specific authorized image registries using the new `restricted.registries` project configuration key.
+This allows an administrator to specify the image sources that tenants can access.
 
 Image registries support using another LXD cluster as an image source by referencing a {ref}`cluster link <exp-cluster-links>`.
 Simple Streams image servers are also supported.
 
-Sending the URL of a remote image server in the contents of an image source remains supported, but is deprecated functionality.
+Client-side image remotes remain supported, but clients should specify an image registry rather than a URL and protocol when requesting an image download.
 A comprehensive compatibility layer was added to support older LXD clients with the transition.
 
 - Documentation: {ref}`ref-image-registries` and {ref}`howto-image-registries`
