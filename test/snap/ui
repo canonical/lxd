@@ -79,6 +79,13 @@ echo "==> Install dependencies"
 npm install -g yarn
 cd lxd-ui
 yarn install --immutable
+
+if [ "${LXD_SNAP_SIDELOAD:-0}" = "1" ]; then
+  echo "==> Build lxd-ui from the cloned git repository and sideload it into the LXD snap"
+  yarn build
+  mount --bind "$(pwd)/build/ui" /snap/lxd/current/share/lxd-ui
+fi
+
 # Writable and self owned home directory is needed for firefox
 export HOME=/root
 unset XDG_RUNTIME_DIR
