@@ -7980,15 +7980,15 @@
 				"keys": [
 					{
 						"pure.api.token": {
-							"longdesc": "API authorization token for Pure Storage gateway. Must have array_admin role to give LXD full control over managed storage pools (Pure Storage pods).",
-							"shortdesc": "API authorization token for Pure Storage gateway",
+							"longdesc": "API authorization token for the Everpure FlashArray. Must have array_admin role to give LXD full control over managed storage pools (Everpure pods).",
+							"shortdesc": "API authorization token for the Everpure FlashArray",
 							"type": "string"
 						}
 					},
 					{
 						"pure.gateway": {
 							"longdesc": "",
-							"shortdesc": "Address of the Pure Storage gateway",
+							"shortdesc": "Management VIP address of the Everpure FlashArray",
 							"type": "string"
 						}
 					},
@@ -7996,14 +7996,14 @@
 						"pure.gateway.verify": {
 							"defaultdesc": "`true`",
 							"longdesc": "",
-							"shortdesc": "Whether to verify the Pure Storage gateway's certificate",
+							"shortdesc": "Whether to verify the Everpure FlashArray's certificate",
 							"type": "bool"
 						}
 					},
 					{
 						"pure.mode": {
 							"defaultdesc": "`nvme/tcp`",
-							"longdesc": "The mode to use to map Pure Storage volumes to the local server.\nSupported values are `iscsi`, `nvme/tcp`, `nvme/fc`, and `scsi/fc`.",
+							"longdesc": "The mode to use to map Everpure volumes to the local server.\nSupported values are `iscsi`, `nvme/tcp`, `nvme/fc`, and `scsi/fc`.",
 							"shortdesc": "How volumes are mapped to the local server",
 							"type": "string"
 						}
@@ -8036,7 +8036,7 @@
 					},
 					{
 						"size": {
-							"longdesc": "Size in bytes LXD sets as the quota of the Pure Storage pod.",
+							"longdesc": "Size in bytes LXD sets as the quota of the Everpure pod.",
 							"scope": "local",
 							"shortdesc": "Size of the storage pool",
 							"type": "string"
@@ -8062,7 +8062,7 @@
 					{
 						"volume.size": {
 							"defaultdesc": "`10GiB`",
-							"longdesc": "Default Pure Storage volume size rounded to 512B. The minimum size is 1MiB.",
+							"longdesc": "Default Everpure volume size rounded to 512B. The minimum size is 1MiB.",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
@@ -8122,7 +8122,7 @@
 					{
 						"size": {
 							"defaultdesc": "same as `volume.size`",
-							"longdesc": "Default Pure Storage volume size rounded to 512B. The minimum size is 1MiB.",
+							"longdesc": "Default Everpure volume size rounded to 512B. The minimum size is 1MiB.",
 							"shortdesc": "Size/quota of the storage volume",
 							"type": "string"
 						}
