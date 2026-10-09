@@ -557,6 +557,7 @@ jobs:
           - network-ovn ovn:latest/edge
           - network-routed
           - qemu-external-vm
+          - replicator-ceph-mirror
           - snapd
           - storage-buckets
           - storage-disks-vm
