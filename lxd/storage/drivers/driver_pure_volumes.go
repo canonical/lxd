@@ -43,7 +43,7 @@ func (d *pure) commonVolumeRules() map[string]func(value string) error {
 		//  shortdesc: Mount options for block-backed file system volumes
 		"block.mount_options": validate.IsAny,
 		// lxdmeta:generate(entities=storage-pure; group=volume-conf; key=size)
-		// Default Pure Storage volume size rounded to 512B. The minimum size is 1MiB.
+		// Default Everpure volume size rounded to 512B. The minimum size is 1MiB.
 		// ---
 		//  type: string
 		//  defaultdesc: same as `volume.size`
@@ -248,7 +248,7 @@ func (d *pure) CreateVolumeFromCopy(vol VolumeCopy, srcVol VolumeCopy, allowInco
 	deleteVolCopy := true
 
 	// Copy volume snapshots.
-	// Pure Storage does not allow copying snapshots along with the volume. Therefore, we
+	// Everpure does not allow copying snapshots along with the volume. Therefore, we
 	// copy the snapshots sequentially. Each snapshot is first copied into destination
 	// volume from which a new snapshot is created. The process is repeted until all
 	// snapshots are copied.
@@ -470,7 +470,7 @@ func (d *pure) refreshVolume(vol VolumeCopy, srcVol VolumeCopy, refreshSnapshots
 		var refreshedSnapshots []string
 
 		// Refresh volume snapshots.
-		// Pure Storage does not allow copying snapshots along with the volume. Therefore,
+		// Everpure does not allow copying snapshots along with the volume. Therefore,
 		// we copy the missing snapshots sequentially. Each snapshot is first copied into
 		// destination volume from which a new snapshot is created. The process is repeted
 		// until all of the missing snapshots are copied.
@@ -1062,7 +1062,7 @@ func (d *pure) UnmountVolume(vol Volume, keepBlockDev bool, progressReporter iop
 
 // RenameVolume renames a volume and its snapshots.
 func (d *pure) RenameVolume(vol Volume, newVolName string, progressReporter ioprogress.ProgressReporter) error {
-	// Renaming a volume won't change an actual name of the Pure Storage volume.
+	// Renaming a volume won't change an actual name of the Everpure volume.
 	return nil
 }
 
@@ -1280,7 +1280,7 @@ func (d *pure) MountVolumeSnapshot(snapVol Volume, progressReporter ioprogress.P
 		return err
 	}
 
-	// A Pure Storage snapshot cannot be mounted. To mount a snapshot, a new volume
+	// An Everpure snapshot cannot be mounted. To mount a snapshot, a new volume
 	// has to be created from the snapshot.
 	err = d.client().copyVolumeSnapshot(snapVol.pool, parentVolName, snapVolName, snapVol.pool, snapVolName)
 	if err != nil {
@@ -1362,7 +1362,7 @@ func (d *pure) UnmountVolumeSnapshot(snapVol Volume, progressReporter ioprogress
 	return ourUnmount, nil
 }
 
-// VolumeSnapshots returns a list of Pure Storage snapshot names for the given volume (in no particular order).
+// VolumeSnapshots returns a list of Everpure snapshot names for the given volume (in no particular order).
 func (d *pure) VolumeSnapshots(vol Volume) ([]string, error) {
 	volName, err := d.getVolumeName(vol)
 	if err != nil {
@@ -1392,7 +1392,7 @@ func (d *pure) VolumeSnapshots(vol Volume) ([]string, error) {
 }
 
 // CheckVolumeSnapshots checks that the volume's snapshots, according to the storage driver,
-// match those provided. Note that additional snapshots may exist within the Pure Storage pool
+// match those provided. Note that additional snapshots may exist within the Everpure pool
 // if protection groups are configured outside of LXD.
 func (d *pure) CheckVolumeSnapshots(vol Volume, snapVols []Volume) error {
 	// Get all of the volume's snapshots in base64 encoded format.
@@ -1418,6 +1418,6 @@ func (d *pure) CheckVolumeSnapshots(vol Volume, snapVols []Volume) error {
 
 // RenameVolumeSnapshot renames a volume snapshot.
 func (d *pure) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, progressReporter ioprogress.ProgressReporter) error {
-	// Renaming a volume snapshot won't change an actual name of the Pure Storage volume snapshot.
+	// Renaming a volume snapshot won't change an actual name of the Everpure volume snapshot.
 	return nil
 }

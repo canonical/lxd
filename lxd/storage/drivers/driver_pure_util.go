@@ -24,11 +24,11 @@ import (
 	"github.com/canonical/lxd/shared/revert"
 )
 
-// pureAPIVersion is the Pure Storage API version used by LXD.
+// pureAPIVersion is the Everpure API version used by LXD.
 // The 2.21 version is the first version that supports NVMe/TCP.
 const pureAPIVersion = "2.21"
 
-// pureServiceNameMapping maps Pure Storage mode in LXD to the corresponding Pure Storage
+// pureServiceNameMapping maps Everpure mode in LXD to the corresponding Everpure
 // service name.
 var pureServiceNameMapping = map[string]string{
 	connectors.TypeISCSI:   "iscsi",
@@ -36,7 +36,7 @@ var pureServiceNameMapping = map[string]string{
 }
 
 // pureVolTypePrefixes maps volume type to storage volume name prefix.
-// Use smallest possible prefixes since Pure Storage volume names are limited to 63 characters.
+// Use smallest possible prefixes since Everpure volume names are limited to 63 characters.
 var pureVolTypePrefixes = map[VolumeType]string{
 	VolumeTypeContainer: "c",
 	VolumeTypeVM:        "v",
@@ -53,13 +53,13 @@ var pureContentTypeSuffixes = map[ContentType]string{
 	ContentTypeISO: "i",
 }
 
-// pureSnapshotPrefix is a prefix used for Pure Storage snapshots to avoid name conflicts
+// pureSnapshotPrefix is a prefix used for Everpure snapshots to avoid name conflicts
 // when creating temporary volume from the snapshot.
 var pureSnapshotPrefix = "s"
 
-// pureError represents an error responses from Pure Storage API.
+// pureError represents an error responses from Everpure API.
 type pureError struct {
-	// List of errors returned by the Pure Storage API.
+	// List of errors returned by the Everpure API.
 	Errors []struct {
 		Context string `json:"context"`
 		Message string `json:"message"`
@@ -70,7 +70,7 @@ type pureError struct {
 	statusCode int
 }
 
-// Error returns the first error message from the Pure Storage API error.
+// Error returns the first error message from the Everpure API error.
 func (p *pureError) Error() string {
 	if p == nil || len(p.Errors) == 0 {
 		return ""
@@ -121,13 +121,13 @@ func isPureErrorNotFound(err error) bool {
 	return isPureErrorOf(err, http.StatusBadRequest, "Not found", "Does not exist", "No such volume or snapshot")
 }
 
-// pureResponse wraps the response from the Pure Storage API. In most cases, the response
+// pureResponse wraps the response from the Everpure API. In most cases, the response
 // contains a list of items, even if only one item is returned.
 type pureResponse[T any] struct {
 	Items []T `json:"items"`
 }
 
-// purePort represents a network interface in Pure Storage.
+// purePort represents a network interface in Everpure.
 type pureNetworkInterface struct {
 	Name     string `json:"name"`
 	Ethernet struct {
@@ -135,13 +135,13 @@ type pureNetworkInterface struct {
 	} `json:"eth"`
 }
 
-// pureEntity represents a generic entity in Pure Storage.
+// pureEntity represents a generic entity in Everpure.
 type pureEntity struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
-// pureSpace represents the usage data of Pure Storage resource.
+// pureSpace represents the usage data of Everpure resource.
 type pureSpace struct {
 	// Total reserved space.
 	// For volumes, this is the available space or quota.
@@ -151,11 +151,11 @@ type pureSpace struct {
 	// Amount of logically written data that a volume or a snapshot references.
 	// This value is compared against the quota, therefore, it should be used for
 	// showing the actual used space. Although, the actual used space is most likely
-	// less than this value due to the data reduction that is done by Pure Storage.
+	// less than this value due to the data reduction that is done by Everpure.
 	UsedBytes int64 `json:"virtual"`
 }
 
-// pureStorageArray represents a storage array in Pure Storage.
+// pureStorageArray represents a storage array in Everpure.
 type pureStorageArray struct {
 	ID       string    `json:"id"`
 	Name     string    `json:"name"`
@@ -163,19 +163,19 @@ type pureStorageArray struct {
 	Space    pureSpace `json:"space"`
 }
 
-// pureProtectionGroup represents a protection group in Pure Storage.
+// pureProtectionGroup represents a protection group in Everpure.
 type pureProtectionGroup struct {
 	Name        string `json:"name"`
 	IsDestroyed bool   `json:"destroyed"`
 }
 
-// pureDefaultProtection represents a default protection in Pure Storage.
+// pureDefaultProtection represents a default protection in Everpure.
 type pureDefaultProtection struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
 }
 
-// pureStoragePool represents a storage pool (pod) in Pure Storage.
+// pureStoragePool represents a storage pool (pod) in Everpure.
 type pureStoragePool struct {
 	ID          string       `json:"id"`
 	Name        string       `json:"name"`
@@ -185,7 +185,7 @@ type pureStoragePool struct {
 	Arrays      []pureEntity `json:"arrays"`
 }
 
-// pureVolume represents a volume in Pure Storage.
+// pureVolume represents a volume in Everpure.
 type pureVolume struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -194,7 +194,7 @@ type pureVolume struct {
 	Space       pureSpace `json:"space"`
 }
 
-// pureHost represents a host in Pure Storage.
+// pureHost represents a host in Everpure.
 type pureHost struct {
 	Name            string   `json:"name"`
 	IQNs            []string `json:"iqns"`
@@ -204,7 +204,7 @@ type pureHost struct {
 }
 
 // matchesQualifiedName returns true if the host is configured with the given initiator
-// qualified name for the given Pure Storage mode.
+// qualified name for the given Everpure mode.
 func (h pureHost) matchesQualifiedName(mode string, qn string) bool {
 	switch mode {
 	case connectors.TypeISCSI:
@@ -213,7 +213,7 @@ func (h pureHost) matchesQualifiedName(mode string, qn string) bool {
 		// Both NVMe transports identify the host by a single NQN.
 		return slices.Contains(h.NQNs, qn)
 	case connectors.TypeSCSIFC:
-		// Pure Storage reports host WWNs in uppercase, whereas the connector reports the
+		// Everpure reports host WWNs in uppercase, whereas the connector reports the
 		// local initiator WWPN in lowercase. Therefore compare them in normalized form.
 		normalizedQN := block.NormalizeWWN(qn)
 
@@ -230,10 +230,10 @@ func (h pureHost) matchesQualifiedName(mode string, qn string) bool {
 }
 
 // matchesAnyQualifiedName returns true if the host is configured with any of the given
-// initiator qualified names for the given Pure Storage mode.
+// initiator qualified names for the given Everpure mode.
 //
 // A Fibre Channel host has one WWPN per host bus adapter port, and all of them are
-// registered on a single Pure Storage host, so a match on any one of them identifies
+// registered on a single Everpure host, so a match on any one of them identifies
 // the host.
 func (h pureHost) matchesAnyQualifiedName(mode string, qns []string) bool {
 	for _, qn := range qns {
@@ -246,7 +246,7 @@ func (h pureHost) matchesAnyQualifiedName(mode string, qns []string) bool {
 }
 
 // missingQualifiedNames returns the given initiator qualified names that the host is not
-// configured with for the given Pure Storage mode.
+// configured with for the given Everpure mode.
 //
 // The host is identified by a match on any one of its initiators, so a host that was not
 // created with the full set keeps matching while missing the rest.
@@ -262,7 +262,7 @@ func (h pureHost) missingQualifiedNames(mode string, qns []string) []string {
 	return missing
 }
 
-// purePort represents a port in Pure Storage.
+// purePort represents a port in Everpure.
 type purePort struct {
 	Name string `json:"name"`
 	IQN  string `json:"iqn,omitempty"`
@@ -270,7 +270,7 @@ type purePort struct {
 	WWN  string `json:"wwn,omitempty"`
 }
 
-// pureConnection represents a connection between a host and a volume in Pure Storage.
+// pureConnection represents a connection between a host and a volume in Everpure.
 type pureConnection struct {
 	// LUN is the logical unit number by which a SCSI host addresses the connected
 	// volume. It is a SCSI concept and the field is optional in the API: it applies to
@@ -278,7 +278,7 @@ type pureConnection struct {
 	// LUN at all. Of the modes that do get one, only SCSI/FC consumes it, to scope the
 	// SCSI bus rescan.
 	//
-	// Pure Storage assigns LUNs from 1 to 4095, so a non-positive value means the array
+	// Everpure assigns LUNs from 1 to 4095, so a non-positive value means the array
 	// reported none: a response omitting "lun" unmarshals to 0, which is not a LUN the
 	// array can ever have assigned.
 	LUN int `json:"lun"`
@@ -291,7 +291,7 @@ type pureConnection struct {
 // so a port that reports an NQN in addition to a WWN is treated as an NVMe/FC target and
 // is not used for SCSI/FC.
 //
-// This relies on a Pure Storage target port serving one protocol at a time. Fibre Channel
+// This relies on an Everpure target port serving one protocol at a time. Fibre Channel
 // does not require that in general, and host bus adapters commonly run both concurrently,
 // so a target port serving both would be excluded here despite being usable for SCSI/FC.
 func fcTargetWWNs(ports []purePort) []string {
@@ -321,7 +321,7 @@ func fcTargetWWNs(ports []purePort) []string {
 // the returned addresses are those of the ports that serve the returned NQN, so the two
 // return values always describe one subsystem.
 //
-// On Pure Storage the NVMe/FC target node name equals the target port WWN, so both halves
+// On Everpure the NVMe/FC target node name equals the target port WWN, so both halves
 // of the transport address are built from the same value.
 func nvmeFCTargets(ports []purePort) (targetNQN string, targetAddrs []string) {
 	targetAddrs = make([]string, 0, len(ports))
@@ -331,7 +331,7 @@ func nvmeFCTargets(ports []purePort) (targetNQN string, targetAddrs []string) {
 			continue
 		}
 
-		// A Pure Storage array exposes a single NVMe subsystem, so every NVMe/FC port
+		// An Everpure array exposes a single NVMe subsystem, so every NVMe/FC port
 		// reports the same NQN. Pin the first one and ignore a port that disagrees, so
 		// that every returned address is known to serve the returned subsystem. A
 		// mismatch does not make the remaining ports unusable, so it is not an error.
@@ -353,13 +353,13 @@ func nvmeFCTargets(ports []purePort) (targetNQN string, targetAddrs []string) {
 	return targetNQN, targetAddrs
 }
 
-// pureClient holds the Pure Storage HTTP client and an access token.
+// pureClient holds the Everpure HTTP client and an access token.
 type pureClient struct {
 	driver      *pure
 	accessToken string
 }
 
-// newPureClient creates a new instance of the HTTP Pure Storage client.
+// newPureClient creates a new instance of the HTTP Everpure client.
 func newPureClient(driver *pure) *pureClient {
 	return &pureClient{
 		driver: driver,
@@ -378,22 +378,22 @@ func (p *pureClient) createBodyReader(contents map[string]any) (io.Reader, error
 	return body, nil
 }
 
-// request issues a HTTP request against the Pure Storage gateway.
+// request issues a HTTP request against the Everpure gateway.
 func (p *pureClient) request(method string, url url.URL, reqBody map[string]any, reqHeaders map[string]string, respBody any, respHeaders map[string]string) error {
 	gw := p.driver.config["pure.gateway"]
 	if !strings.Contains(gw, "://") {
-		return fmt.Errorf("Invalid Pure Storage gateway URL %q: Missing protocol", gw)
+		return fmt.Errorf("Invalid Everpure gateway URL %q: Missing protocol", gw)
 	}
 
 	gwURL, err := url.Parse(gw)
 	if err != nil {
-		return fmt.Errorf("Failed parsing Pure Storage gateway URL %q: %w", gw, err)
+		return fmt.Errorf("Failed parsing Everpure gateway URL %q: %w", gw, err)
 	}
 
 	// Ensure the gateway URL does not include the "/api" path, as LXD will handle
 	// the API versioning.
 	if slices.Contains(strings.Split(gwURL.Path, "/"), "api") {
-		return fmt.Errorf(`Invalid Pure Storage gateway URL %q: Pure Storage gateway should not include "/api"`, gw)
+		return fmt.Errorf(`Invalid Everpure gateway URL %q: Everpure gateway should not include "/api"`, gw)
 	}
 
 	// Prefixes the given path with the API version in the format "/api/<version>/<path>".
@@ -404,12 +404,12 @@ func (p *pureClient) request(method string, url url.URL, reqBody map[string]any,
 		if p.driver.apiVersion == "" {
 			apiVersions, err := p.getAPIVersions()
 			if err != nil {
-				return fmt.Errorf("Failed retrieving supported Pure Storage API versions: %w", err)
+				return fmt.Errorf("Failed retrieving supported Everpure API versions: %w", err)
 			}
 
-			// Ensure the required API version is supported by Pure Storage array.
+			// Ensure the required API version is supported by Everpure array.
 			if !slices.Contains(apiVersions, pureAPIVersion) {
-				return fmt.Errorf("Required API version %q is not supported by Pure Storage array", pureAPIVersion)
+				return fmt.Errorf("Required API version %q is not supported by Everpure array", pureAPIVersion)
 			}
 
 			// Set API version to the driver to avoid checking the API version
@@ -504,7 +504,7 @@ func (p *pureClient) request(method string, url url.URL, reqBody map[string]any,
 	return nil
 }
 
-// requestAuthenticated issues an authenticated HTTP request against the Pure Storage gateway.
+// requestAuthenticated issues an authenticated HTTP request against the Everpure gateway.
 // In case the access token is expired, the function will try to obtain a new one.
 func (p *pureClient) requestAuthenticated(method string, url url.URL, reqBody map[string]any, respBody any) error {
 	// If request fails with an unauthorized error, the request will be retried after
@@ -512,7 +512,7 @@ func (p *pureClient) requestAuthenticated(method string, url url.URL, reqBody ma
 	retries := 1
 
 	for {
-		// Ensure we are logged into the Pure Storage.
+		// Ensure we are logged into the Everpure.
 		err := p.login()
 		if err != nil {
 			return err
@@ -543,7 +543,7 @@ func (p *pureClient) requestAuthenticated(method string, url url.URL, reqBody ma
 	}
 }
 
-// getAPIVersion returns the list of API versions that are supported by the Pure Storage.
+// getAPIVersion returns the list of API versions that are supported by the Everpure.
 func (p *pureClient) getAPIVersions() ([]string, error) {
 	var resp struct {
 		APIVersions []string `json:"version"`
@@ -552,17 +552,17 @@ func (p *pureClient) getAPIVersions() ([]string, error) {
 	url := api.NewURL().Path("api", "api_version")
 	err := p.request(http.MethodGet, url.URL, nil, nil, &resp, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Failed retrieving available API versions from Pure Storage: %w", err)
+		return nil, fmt.Errorf("Failed retrieving available API versions from Everpure: %w", err)
 	}
 
 	if len(resp.APIVersions) == 0 {
-		return nil, errors.New("Pure Storage does not support any API versions")
+		return nil, errors.New("Everpure does not support any API versions")
 	}
 
 	return resp.APIVersions, nil
 }
 
-// login initiates an authentication request against the Pure Storage using the API token. If successful,
+// login initiates an authentication request against the Everpure using the API token. If successful,
 // an access token is retrieved and stored within a client. The access token is then used for further
 // authentication.
 func (p *pureClient) login() error {
@@ -591,7 +591,7 @@ func (p *pureClient) login() error {
 	return nil
 }
 
-// getNetworkInterfaces retrieves a valid Pure Storage network interfaces, which
+// getNetworkInterfaces retrieves a valid Everpure network interfaces, which
 // means the interface has an IP address configured and is enabled. The result
 // can be filtered by a specific service name, where an empty string represents
 // no filtering.
@@ -606,7 +606,7 @@ func (p *pureClient) getNetworkInterfaces(service string) ([]pureNetworkInterfac
 
 	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("Failed retrieving Pure Storage network interfaces: %w", err)
+		return nil, fmt.Errorf("Failed retrieving Everpure network interfaces: %w", err)
 	}
 
 	return resp.Items, nil
@@ -764,7 +764,7 @@ func (p *pureClient) getStoragePool(poolName string) (*pureStoragePool, error) {
 	return &resp.Items[0], nil
 }
 
-// createStoragePool creates a storage pool (Pure Storage pod).
+// createStoragePool creates a storage pool (Everpure pod).
 func (p *pureClient) createStoragePool(poolName string, size int64) error {
 	revert := revert.New()
 	defer revert.Fail()
@@ -808,7 +808,7 @@ func (p *pureClient) createStoragePool(poolName string, size int64) error {
 	return nil
 }
 
-// updateStoragePool updates an existing storage pool (Pure Storage pod).
+// updateStoragePool updates an existing storage pool (Everpure pod).
 func (p *pureClient) updateStoragePool(poolName string, size int64) error {
 	req := make(map[string]any)
 	if size > 0 {
@@ -824,7 +824,7 @@ func (p *pureClient) updateStoragePool(poolName string, size int64) error {
 	return nil
 }
 
-// deleteStoragePool deletes a storage pool (Pure Storage pod).
+// deleteStoragePool deletes a storage pool (Everpure pod).
 func (p *pureClient) deleteStoragePool(poolName string) error {
 	pool, err := p.getStoragePool(poolName)
 	if err != nil {
@@ -865,7 +865,7 @@ func (p *pureClient) deleteStoragePool(poolName string) error {
 
 		if isPureErrorOf(err, http.StatusBadRequest, "Cannot eradicate pod") {
 			// Eradication failed, therefore the pool remains in the destroyed state.
-			// However, we still consider it as deleted because Pure Storage SafeMode
+			// However, we still consider it as deleted because Everpure SafeMode
 			// may be enabled, which prevents immediate eradication of the pool.
 			logger.Warn("Storage pool is left in destroyed state", logger.Ctx{"pool": poolName, "err": err})
 			return nil
@@ -1090,7 +1090,7 @@ func (p *pureClient) copyVolumeSnapshot(srcPoolName string, srcVolName string, s
 	return p.copyVolume(srcPoolName, srcVolName+"."+srcSnapshotName, dstPoolName, dstVolName, true)
 }
 
-// getHosts retrieves an existing Pure Storage host.
+// getHosts retrieves an existing Everpure host.
 func (p *pureClient) getHosts() ([]pureHost, error) {
 	var resp pureResponse[pureHost]
 
@@ -1103,8 +1103,8 @@ func (p *pureClient) getHosts() ([]pureHost, error) {
 	return resp.Items, nil
 }
 
-// getCurrentHost retrieves the Pure Storage host linked to the current LXD host.
-// The Pure Storage host is considered a match if it includes the fully qualified
+// getCurrentHost retrieves the Everpure host linked to the current LXD host.
+// The Everpure host is considered a match if it includes the fully qualified
 // name of the LXD host that is determined by the configured mode.
 func (p *pureClient) getCurrentHost() (*pureHost, error) {
 	connector, err := p.driver.connector()
@@ -1113,7 +1113,7 @@ func (p *pureClient) getCurrentHost() (*pureHost, error) {
 	}
 
 	// A Fibre Channel host has one WWPN per host bus adapter port, all registered on a
-	// single Pure Storage host, so match on any of them.
+	// single Everpure host, so match on any of them.
 	qns, err := connectors.QualifiedNames(connector)
 	if err != nil {
 		return nil, err
@@ -1153,7 +1153,7 @@ func (p *pureClient) createHost(hostName string, qns []string) error {
 	case connectors.TypeSCSIFC:
 		req["wwns"] = qns
 	default:
-		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
+		return fmt.Errorf("Unsupported Everpure mode %q", connector.Type())
 	}
 
 	url := api.NewURL().Path("hosts").WithQuery("names", hostName)
@@ -1186,7 +1186,7 @@ func (p *pureClient) updateHost(hostName string, qns []string) error {
 	case connectors.TypeSCSIFC:
 		req["wwns"] = qns
 	default:
-		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
+		return fmt.Errorf("Unsupported Everpure mode %q", connector.Type())
 	}
 
 	// Update the host by patching its qualified names (IQNs/NQNs/WWNs).
@@ -1227,7 +1227,7 @@ func (p *pureClient) addHostQualifiedNames(hostName string, qns []string) error 
 	case connectors.TypeSCSIFC:
 		req["add_wwns"] = qns
 	default:
-		return fmt.Errorf("Unsupported Pure Storage mode %q", connector.Type())
+		return fmt.Errorf("Unsupported Everpure mode %q", connector.Type())
 	}
 
 	url := api.NewURL().Path("hosts").WithQuery("names", hostName)
@@ -1317,7 +1317,7 @@ func (p *pureClient) connectHostToVolume(poolName string, volName string, hostNa
 	reverter.Add(func() { _ = p.disconnectHostFromVolume(poolName, volName, hostName) })
 
 	if len(resp.Items) == 0 {
-		// Pure Storage returns the created connection, including its LUN, so this should
+		// Everpure returns the created connection, including its LUN, so this should
 		// not happen. It is guarded because a connection without a known LUN cannot be
 		// mapped for SCSI/FC and would otherwise be silently left behind on the array.
 		return 0, false, fmt.Errorf("Failed retrieving LUN after connecting volume %q with host %q", poolName+"::"+volName, hostName)
@@ -1352,7 +1352,7 @@ func (p *pureClient) disconnectHostFromVolume(poolName string, volName string, h
 
 // getFCTargetWWNs retrieves the WWNs of the Fibre Channel target ports of the array.
 //
-// Unlike iSCSI and NVMe/TCP targets, Fibre Channel targets are not Pure Storage network
+// Unlike iSCSI and NVMe/TCP targets, Fibre Channel targets are not Everpure network
 // interfaces and are therefore never returned by the network interface endpoint. They are
 // retrieved from the ports endpoint instead.
 func (p *pureClient) getFCTargetWWNs() ([]string, error) {
@@ -1362,7 +1362,7 @@ func (p *pureClient) getFCTargetWWNs() ([]string, error) {
 
 	err := p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("Failed retrieving Pure Storage ports: %w", err)
+		return nil, fmt.Errorf("Failed retrieving Everpure ports: %w", err)
 	}
 
 	wwns := fcTargetWWNs(resp.Items)
@@ -1419,7 +1419,7 @@ func (p *pureClient) getFCTargets() ([]string, error) {
 // getNVMeFCTargets retrieves the subsystem NQN and the Fibre Channel transport addresses of
 // the array's NVMe/FC target ports.
 //
-// As for SCSI/FC, these are not Pure Storage network interfaces and are therefore retrieved
+// As for SCSI/FC, these are not Everpure network interfaces and are therefore retrieved
 // from the ports endpoint rather than the network interface endpoint.
 func (p *pureClient) getNVMeFCTargets() (targetNQN string, targetAddrs []string, err error) {
 	var resp pureResponse[purePort]
@@ -1428,7 +1428,7 @@ func (p *pureClient) getNVMeFCTargets() (targetNQN string, targetAddrs []string,
 
 	err = p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed retrieving Pure Storage ports: %w", err)
+		return "", nil, fmt.Errorf("Failed retrieving Everpure ports: %w", err)
 	}
 
 	targetNQN, targetAddrs = nvmeFCTargets(resp.Items)
@@ -1439,7 +1439,7 @@ func (p *pureClient) getNVMeFCTargets() (targetNQN string, targetAddrs []string,
 	return targetNQN, targetAddrs, nil
 }
 
-// getTargets retrieves the qualified names and addresses of the Pure Storage targets for the
+// getTargets retrieves the qualified names and addresses of the Everpure targets for the
 // configured mode.
 //
 // SCSI/FC fabrics commonly present multiple target ports, each identified by its WWPN alone,
@@ -1480,7 +1480,7 @@ func (p *pureClient) getTargets() (targetQNs []string, targetAddrs []string, err
 	return []string{targetQN}, addrs, nil
 }
 
-// getTarget retrieves the qualified name and addresses of Pure Storage target for the configured mode.
+// getTarget retrieves the qualified name and addresses of Everpure target for the configured mode.
 func (p *pureClient) getTarget() (targetQN string, targetAddrs []string, err error) {
 	connector, err := p.driver.connector()
 	if err != nil {
@@ -1489,13 +1489,13 @@ func (p *pureClient) getTarget() (targetQN string, targetAddrs []string, err err
 
 	mode := connector.Type()
 
-	// Get Pure Storage service name based on the configured mode.
+	// Get Everpure service name based on the configured mode.
 	service, ok := pureServiceNameMapping[mode]
 	if !ok {
-		return "", nil, fmt.Errorf("Failed determining service name for Pure Storage mode %q", mode)
+		return "", nil, fmt.Errorf("Failed determining service name for Everpure mode %q", mode)
 	}
 
-	// Retrieve the list of Pure Storage network interfaces.
+	// Retrieve the list of Everpure network interfaces.
 	interfaces, err := p.getNetworkInterfaces(service)
 	if err != nil {
 		return "", nil, err
@@ -1525,7 +1525,7 @@ func (p *pureClient) getTarget() (targetQN string, targetAddrs []string, err err
 		url := api.NewURL().Path("ports").WithQuery("filter", "name='"+iface.Name+"'")
 		err = p.requestAuthenticated(http.MethodGet, url.URL, nil, &resp)
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed retrieving Pure Storage targets: %w", err)
+			return "", nil, fmt.Errorf("Failed retrieving Everpure targets: %w", err)
 		}
 
 		if len(resp.Items) == 0 {
@@ -1557,7 +1557,7 @@ func (p *pureClient) getTarget() (targetQN string, targetAddrs []string, err err
 // ensureHost returns the name of the host that is configured with the local initiator
 // qualified names, registering any that are missing from it. If no such host exists, a new
 // one is created, where host's name equals to the server name with a mode included as a
-// suffix because Pure Storage does not allow mixing IQNs, NQNs, and WWNs on a single host.
+// suffix because Everpure does not allow mixing IQNs, NQNs, and WWNs on a single host.
 func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 	var hostname string
 
@@ -1578,14 +1578,14 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 		return "", nil, err
 	}
 
-	// Fetch an existing Pure Storage host.
+	// Fetch an existing Everpure host.
 	host, err := d.client().getCurrentHost()
 	if err != nil {
 		if !api.StatusErrorCheck(err, http.StatusNotFound) {
 			return "", nil, err
 		}
 
-		// The Pure Storage host with a qualified name of the current LXD host does not exist.
+		// The Everpure host with a qualified name of the current LXD host does not exist.
 		// Therefore, create a new one and name it after the resolved server name.
 		hostname, err = ResolveServerNameWithConnectorType(d.state.ServerName, connector.Type())
 		if err != nil {
@@ -1616,7 +1616,7 @@ func (d *pure) ensureHost() (hostName string, cleanup revert.Hook, err error) {
 		// as long as the host object exists.
 		missingQNs := host.missingQualifiedNames(connector.Type(), qns)
 		if len(missingQNs) > 0 {
-			d.logger.Info("Registering additional initiators with Pure Storage host", logger.Ctx{"host": hostname, "initiators": missingQNs})
+			d.logger.Info("Registering additional initiators with Everpure host", logger.Ctx{"host": hostname, "initiators": missingQNs})
 
 			err = d.client().addHostQualifiedNames(hostname, missingQNs)
 			if err != nil {
@@ -1705,7 +1705,7 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 		}
 
 		if err != nil {
-			d.logger.Warn("Failed connecting to Pure Storage target", logger.Ctx{"volume": vol.name, "target": targetQN, "err": err})
+			d.logger.Warn("Failed connecting to Everpure target", logger.Ctx{"volume": vol.name, "target": targetQN, "err": err})
 			connectErrs = append(connectErrs, fmt.Errorf("Target %q: %w", targetQN, err))
 			continue
 		}
@@ -1732,7 +1732,7 @@ func (d *pure) mapVolume(vol Volume) (cleanup revert.Hook, err error) {
 	// [pureClient.getTargets] never returns an empty list without an error, so reaching this
 	// with no successful connection means every target failed and connectErrs is populated.
 	if connected == 0 {
-		return nil, fmt.Errorf("Failed connecting to any Pure Storage target: %w", errors.Join(connectErrs...))
+		return nil, fmt.Errorf("Failed connecting to any Everpure target: %w", errors.Join(connectErrs...))
 	}
 
 	reverter.Success()
@@ -1769,7 +1769,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 	// Remove disk device.
 	err = connector.RemoveDiskDevice(d.state.ShutdownCtx, volumePath)
 	if err != nil {
-		return fmt.Errorf("Failed unmapping Pure Storage volume %q: %w", vol.name, err)
+		return fmt.Errorf("Failed unmapping Everpure volume %q: %w", vol.name, err)
 	}
 
 	// Disconnect the volume from the host and ignore error if connection does not exist.
@@ -1788,11 +1788,11 @@ func (d *pure) unmapVolume(vol Volume) error {
 	// volume. NVMe's [connectors.RemoveDiskDevice] is a no-op for both TCP and Fibre
 	// Channel, so this is the only sync point.
 	if volumePath != "" && connectors.IsNVMe(connector.Type()) && !block.WaitDiskDeviceGone(d.state.ShutdownCtx, volumePath) {
-		return fmt.Errorf("Timeout exceeded waiting for Pure Storage volume %q to disappear on path %q", vol.name, volumePath)
+		return fmt.Errorf("Timeout exceeded waiting for Everpure volume %q to disappear on path %q", vol.name, volumePath)
 	}
 
 	// If this was the last volume being unmapped from this system, disconnect the active session
-	// and remove the host from Pure Storage.
+	// and remove the host from Everpure.
 	if host.ConnectionCount <= 1 {
 		// SCSI/FC has no session to tear down, because the host bus adapter owns the fabric
 		// login and its [connectors.Connector.Disconnect] is a no-op. Discovering targets
@@ -1817,7 +1817,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 			}
 		}
 
-		// Remove the host from Pure Storage.
+		// Remove the host from Everpure.
 		err = d.client().deleteHost(host.Name)
 		if err != nil {
 			return err
@@ -1828,7 +1828,7 @@ func (d *pure) unmapVolume(vol Volume) error {
 }
 
 // pureDiskSuffix returns the suffix of the device path by which the host addresses the volume
-// with the given serial number, which differs depending on the Pure Storage mode.
+// with the given serial number, which differs depending on the Everpure mode.
 func pureDiskSuffix(mode string, serial string) (string, error) {
 	// Ensure the serial number is exactly 24 characters long, as it uniquely
 	// identifies the device. This check should never fail, but prevents
@@ -1853,7 +1853,7 @@ func pureDiskSuffix(mode string, serial string) (string, error) {
 		// - "3d00014196"     - Last 10 characters of serial number
 		return "00" + serial[0:14] + "24a937" + serial[14:], nil
 	default:
-		return "", fmt.Errorf("Unsupported Pure Storage mode %q", mode)
+		return "", fmt.Errorf("Unsupported Everpure mode %q", mode)
 	}
 }
 
@@ -1893,7 +1893,7 @@ func (d *pure) getMappedDevPath(vol Volume, mapVolume bool) (string, revert.Hook
 	}
 
 	// Filters devices by matching the device path with the lowercase disk suffix.
-	// Pure Storage reports serial numbers in uppercase, so the suffix is converted
+	// Everpure reports serial numbers in uppercase, so the suffix is converted
 	// to lowercase.
 	diskPathFilter := func(devPath string) bool {
 		return strings.HasSuffix(devPath, strings.ToLower(diskSuffix))
@@ -1951,7 +1951,7 @@ func (d *pure) getVolumeName(vol Volume) (string, error) {
 // It expects the volume name without any prefix/suffix.
 func (d *pure) getUUIDFromVolumeName(name string) (uuid.UUID, error) {
 	// The UUID library internally handles the UUID without hyphens.
-	// As the Pure volume name uses the UUID's string representation without hyphens,
+	// As the Everpure volume name uses the UUID's string representation without hyphens,
 	// we can simply parse it in its byte format to get back the original UUID.
 	volUUID, err := uuid.ParseBytes([]byte(name))
 	if err != nil {

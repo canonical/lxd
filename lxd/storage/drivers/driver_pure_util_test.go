@@ -159,7 +159,7 @@ func Test_pureHost_matchesQualifiedName(t *testing.T) {
 		},
 		{
 			// The SCSI/FC connector reports the local initiator WWPN in lowercase,
-			// whereas Pure Storage reports host WWNs in uppercase.
+			// whereas Everpure reports host WWNs in uppercase.
 			Name: "SCSI/FC WWN match despite differing case",
 			Mode: connectors.TypeSCSIFC,
 			QN:   "10000000c9a1b2c3",
@@ -206,7 +206,7 @@ func Test_pureHost_matchesQualifiedName(t *testing.T) {
 
 func Test_pureHost_matchesAnyQualifiedName(t *testing.T) {
 	// A Fibre Channel host registers one WWPN per host bus adapter port on a single
-	// Pure Storage host, so a match on any of them identifies the host.
+	// Everpure host, so a match on any of them identifies the host.
 	fcHost := pureHost{
 		Name: "server01-scsi-fc",
 		WWNs: []string{"21000024FF43B10C", "21000024FF43B10D"},
@@ -384,7 +384,7 @@ func Test_pureHost_missingQualifiedNames(t *testing.T) {
 }
 
 func Test_pureDiskSuffix(t *testing.T) {
-	// A Pure Storage volume serial number is always 24 characters long.
+	// An Everpure volume serial number is always 24 characters long.
 	const serial = "8726B5033AF2433D00014196"
 
 	tests := []struct {
@@ -410,7 +410,7 @@ func Test_pureDiskSuffix(t *testing.T) {
 			Want:   serial,
 		},
 		{
-			// NVMe embeds the Pure Storage OUI in the middle of the serial number.
+			// NVMe embeds the Everpure OUI in the middle of the serial number.
 			Name:   "NVMe/TCP embeds the OUI in the device identifier",
 			Mode:   connectors.TypeNVMeTCP,
 			Serial: serial,
@@ -432,7 +432,7 @@ func Test_pureDiskSuffix(t *testing.T) {
 			Name:      "Unsupported mode",
 			Mode:      "unsupported",
 			Serial:    serial,
-			WantError: `Unsupported Pure Storage mode "unsupported"`,
+			WantError: `Unsupported Everpure mode "unsupported"`,
 		},
 	}
 
@@ -522,7 +522,7 @@ func Test_nvmeFCTargets(t *testing.T) {
 		WantAddrs []string
 	}{
 		{
-			// An NVMe/FC port reports both an NQN and a WWN. On Pure Storage the target
+			// An NVMe/FC port reports both an NQN and a WWN. On Everpure the target
 			// node name equals the port WWN, so both halves of the address match.
 			Name: "NVMe/FC port yields nn/pn address from a single WWN",
 			Ports: []purePort{
@@ -573,7 +573,7 @@ func Test_nvmeFCTargets(t *testing.T) {
 			WantAddrs: []string{"nn-0x524a937156b86f01:pn-0x524a937156b86f01"},
 		},
 		{
-			// A Pure Storage array exposes one subsystem, so this should not occur. If it
+			// An Everpure array exposes one subsystem, so this should not occur. If it
 			// ever does, the addresses returned must still all serve the returned NQN -
 			// otherwise the connector would be given an address that cannot reach the
 			// subsystem it was told to connect to.
@@ -603,7 +603,7 @@ func Test_nvmeFCTargets(t *testing.T) {
 }
 
 func Test_pureConnection_unmarshal(t *testing.T) {
-	// Responses as returned by the Pure Storage "connections" endpoint. The LUN is
+	// Responses as returned by the Everpure "connections" endpoint. The LUN is
 	// required by the SCSI/FC connector to scope the SCSI bus rescan.
 	tests := []struct {
 		Name    string
@@ -624,7 +624,7 @@ func Test_pureConnection_unmarshal(t *testing.T) {
 			WantLen: 1,
 		},
 		{
-			// Pure Storage assigns LUNs from 1 to 4095, so a response without a
+			// Everpure assigns LUNs from 1 to 4095, so a response without a
 			// "lun" unmarshals to 0, a value the array never assigns. That is why
 			// connectHostToVolume rejects a non-positive LUN in scsi/fc mode.
 			Name:    "Connection without a LUN, as reported for the NVMe modes",
@@ -740,14 +740,14 @@ func Test_isPureErrorOf(t *testing.T) {
 			Want:       false,
 		},
 		{
-			Name:       "Wrapped Pure Storage error",
+			Name:       "Wrapped Everpure error",
 			Err:        fmt.Errorf("Failed getting volume: %w", newErr(http.StatusBadRequest, "Volume not found.")),
 			StatusCode: http.StatusBadRequest,
 			Substrings: []string{"not found"},
 			Want:       true,
 		},
 		{
-			Name:       "Wrapped Pure Storage error with another status code",
+			Name:       "Wrapped Everpure error with another status code",
 			Err:        fmt.Errorf("Failed getting volume: %w", newErr(http.StatusUnauthorized, "Volume not found.")),
 			StatusCode: http.StatusBadRequest,
 			Substrings: []string{"not found"},
