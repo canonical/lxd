@@ -1261,7 +1261,18 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		}
 	}
 
-	defer op.Done(err)
+	// Starting opens the block volumes of the instance.
+	// Refuse while an NBD export writes any of them, and keep one from starting until the start has completed.
+	unlockNBD, err := storagePools.LockInstanceNBD(d.state, d)
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	// An NBD export checks the instance status under the lock, and statusCode returns Stopped while
+	// the start operation exists. Deferred last, op.Done runs before the lock is released.
+	defer unlockNBD()
+	defer op.Done(nil)
 
 	// Ensure the correct vhost_vsock kernel module is loaded before establishing the vsock.
 	err = util.LoadModule("vhost_vsock")
@@ -1356,6 +1367,7 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 	// New or existing vsock ID from volatile.
 	vsockID, vsockF, err := d.nextVsockID()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -1566,7 +1578,9 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		if d.localConfig[deviceVolatileKey] != "" {
 			busNum, err := strconv.ParseUint(d.localConfig[deviceVolatileKey], 10, 8)
 			if err != nil {
-				return fmt.Errorf("Failed parsing volatile key %q: %w", deviceVolatileKey, err)
+				err = fmt.Errorf("Failed parsing volatile key %q: %w", deviceVolatileKey, err)
+				op.Done(err)
+				return err
 			}
 
 			runConf.BusNum = uint8(busNum)
@@ -1683,6 +1697,7 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 	// Get CPU information.
 	cpuInfo, err := d.cpuTopology(d.expandedConfig["limits.cpu"])
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -1699,6 +1714,7 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 	if maxCPUs == 0 {
 		maxCPUs, err = d.maxCPUs(cpuInfo)
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	}
@@ -1707,6 +1723,7 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 	if d.localConfig["volatile.cpu.maxcpus"] != newMaxCPUs {
 		err = d.VolatileSet(map[string]string{"volatile.cpu.maxcpus": newMaxCPUs})
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	}

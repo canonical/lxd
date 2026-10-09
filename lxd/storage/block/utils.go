@@ -23,6 +23,9 @@ const DevDiskByID = "/dev/disk/by-id"
 // if the path matches the required criteria.
 type DevicePathFilterFunc func(devPath string) bool
 
+// ErrDeviceNotFound is returned by GetDiskDevicePath when no disk device matches.
+var ErrDeviceNotFound = errors.New("Device not found")
+
 // findDiskDevivePath iterates over device names in /dev/disk/by-id directory and
 // returns the path to the disk device that matches the given prefix and suffix.
 // Disk partitions are skipped, and an error is returned if the device is not found.
@@ -246,7 +249,7 @@ func GetDiskDevicePath(diskNamePrefix string, diskPathFilter DevicePathFilterFun
 	}
 
 	if devPath == "" {
-		return "", errors.New("Device not found")
+		return "", ErrDeviceNotFound
 	}
 
 	return devPath, nil

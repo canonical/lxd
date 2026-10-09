@@ -47,6 +47,10 @@ const qemuOverlayNodePrefix = "lxdoverlay_"
 const qemuMetadataDiskNodePrefix = "lxdimage_"
 
 // qemuBitmapGranularity is the size in bytes of the block that one bit of a bitmap LXD creates covers.
+// With larger granularity, fewer bits are required to cover entire volume.
+// With smaller granularity, a change is recorded more precisely and a backup provider needs to read
+// less "unchanged data" for an incremental backup.
+// Currently, every bitmap uses fixed granularity.
 const qemuBitmapGranularity = 65536
 
 // blockNodeName returns the QEMU block node name of a disk device, which the guest device is attached to.
@@ -1400,6 +1404,31 @@ func (d *qemu) CommitDiskOverlays(deviceNames []string) error {
 	return d.commitOverlays(monitor, disks)
 }
 
+// OnDaemonStart finishes what the previous LXD process left undone on the instance.
+// A guest that powered off while LXD was not running leaves QEMU paused until LXD persists the
+// bitmaps and ends the process, which the stop does.
+// A snapshot with a bitmap that LXD did not finish leaves an overlay on the disks of a running
+// instance, and the guest writes to the overlay until it is committed.
+func (d *qemu) OnDaemonStart(ctx context.Context) error {
+	if d.statusCode() == api.Stopping {
+		err := d.Stop(ctx, false)
+		if err != nil {
+			d.logger.Warn("Failed stopping instance left paused by a guest shutdown", logger.Ctx{"err": err})
+		}
+	}
+
+	if !d.IsRunning() {
+		return nil
+	}
+
+	err := storagePools.CommitInstanceDiskOverlays(d)
+	if err != nil {
+		return fmt.Errorf("Failed committing disk overlays: %w", err)
+	}
+
+	return nil
+}
+
 // instanceSnapshotUUIDs returns the instance snapshot UUID of every snapshot of the instance by
 // snapshot name, which is the UUID of the root volume snapshot of the instance snapshot.
 func (d *qemu) instanceSnapshotUUIDs() (map[string]string, error) {
@@ -1847,6 +1876,7 @@ func (d *qemu) Bitmaps() ([]api.InstanceBitmap, error) {
 // The file was written once the volume metadata images were verified, and the images are not read.
 // The bitmap created with the snapshot is not listed.
 // Every bitmap of a snapshot is disabled and reported as not recording.
+// A snapshot created without a bitmap has no snapshot bitmap file and is rejected.
 func (d *qemu) snapshotBitmaps() ([]api.InstanceBitmap, error) {
 	entries := []bitmapEntry{}
 	uuids := map[string]string{}
@@ -1857,7 +1887,7 @@ func (d *qemu) snapshotBitmaps() ([]api.InstanceBitmap, error) {
 		}
 
 		if len(images) == 0 {
-			return nil
+			return api.StatusErrorf(http.StatusBadRequest, "Snapshot was not created with a bitmap")
 		}
 
 		volumes, err := d.snapshotVolumes()

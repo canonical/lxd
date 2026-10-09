@@ -173,12 +173,18 @@ var api10 = []APIEndpoint{
 }
 
 // changedBlockTrackingCmds are the API endpoints gated behind the changed_block_tracking feature preview.
-// restServer registers them only when the preview is enabled.
 var changedBlockTrackingCmds = []APIEndpoint{
 	instanceSnapshotBitmapsCmd,
 	instanceSnapshotBitmapCmd,
 	instanceSnapshotNBDCmd,
 	storagePoolVolumeTypeNBDCmd,
+}
+
+// init adds the changed block tracking API endpoints to api10 when the preview is enabled.
+func init() {
+	if features.IsEnabled(features.ChangedBlockTracking) {
+		api10 = append(api10, changedBlockTrackingCmds...)
+	}
 }
 
 // swagger:operation GET /1.0?public server server_get_untrusted

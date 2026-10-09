@@ -131,6 +131,8 @@ func instanceBitmapsLoad(s *state.State, r *http.Request) (inst instance.Instanc
 //	            [
 //	              "/1.0/instances/foo/snapshots/snap1/bitmaps/snap0"
 //	            ]
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
@@ -175,6 +177,8 @@ func instanceBitmapsLoad(s *state.State, r *http.Request) (inst instance.Instanc
 //	          description: List of bitmaps
 //	          items:
 //	            $ref: "#/definitions/InstanceBitmap"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
 //	  "500":
@@ -241,6 +245,8 @@ func instanceBitmapsGet(d *Daemon, r *http.Request) response.Response {
 //	          example: 200
 //	        metadata:
 //	          $ref: "#/definitions/InstanceBitmap"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
 //	  "403":
 //	    $ref: "#/responses/Forbidden"
 //	  "404":

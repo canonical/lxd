@@ -36,6 +36,7 @@ import (
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/osarch"
 	"github.com/canonical/lxd/shared/revert"
@@ -70,10 +71,17 @@ var apiInternal = []APIEndpoint{
 }
 
 // changedBlockTrackingInternalCmds are the internal API endpoints gated behind the changed_block_tracking
-// feature preview. The restServer registers them only when the preview is enabled.
+// feature preview.
 var changedBlockTrackingInternalCmds = []APIEndpoint{
 	internalInstanceBitmapsCmd,
 	internalInstanceBitmapCmd,
+}
+
+// init adds the changed block tracking internal API endpoints to apiInternal when the preview is enabled.
+func init() {
+	if features.IsEnabled(features.ChangedBlockTracking) {
+		apiInternal = append(apiInternal, changedBlockTrackingInternalCmds...)
+	}
 }
 
 var internalShutdownCmd = APIEndpoint{
