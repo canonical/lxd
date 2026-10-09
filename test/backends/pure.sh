@@ -1,19 +1,19 @@
 pure_setup() {
   local LXD_DIR="${1}"
 
-  echo "==> Setting up Pure Storage backend in ${1}"
+  echo "==> Setting up Everpure backend in ${1}"
 }
 
-# pure_configure creates Pure Storage storage pool and configures instance root disk
+# pure_configure creates Everpure storage pool and configures instance root disk
 # device in default profile to use that storage pool.
 pure_configure() {
   local LXD_DIR="${1}"
   local POOL_NAME="${2:-"lxdtest-${LXD_DIR##*/}"}" # Use the last part of the LXD_DIR as pool name
   local VOLUME_SIZE="${3:-"${DEFAULT_VOLUME_SIZE}"}"
 
-  echo "==> Configuring Pure Storage backend in ${LXD_DIR}"
+  echo "==> Configuring Everpure backend in ${LXD_DIR}"
 
-  # Create pure storage storage pool.
+  # Create Everpure storage pool.
   lxc storage create "${POOL_NAME}" pure \
     pure.gateway="${PURE_GATEWAY}" \
     pure.gateway.verify="${PURE_GATEWAY_VERIFY:-true}" \
@@ -25,7 +25,7 @@ pure_configure() {
   lxc profile device add default root disk path="/" pool="${POOL_NAME}"
 }
 
-# configure_pure_pool creates new Pure Storage storage pool with a given name.
+# configure_pure_pool creates new Everpure storage pool with a given name.
 # Additional arguments are appended to the lxc storage create command.
 # If there is anything on the stdin, the content is passed to the lxc storage create command as stdin as well.
 configure_pure_pool() {
@@ -56,5 +56,5 @@ EOF
 pure_teardown() {
   local LXD_DIR="${1}"
 
-  echo "==> Tearing down Pure Storage backend in ${LXD_DIR}"
+  echo "==> Tearing down Everpure backend in ${LXD_DIR}"
 }

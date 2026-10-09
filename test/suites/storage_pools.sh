@@ -61,8 +61,8 @@ test_storage_pools() {
     ! lxc storage show "${poolName}" || false
   done
 
-  # The Pure Storage, HPE Alletra and PowerFlex drivers all contact their remote
-  # backend while creating a pool (Pure and Alletra provision the pool, PowerFlex
+  # The Everpure, HPE Alletra and PowerFlex drivers all contact their remote
+  # backend while creating a pool (Everpure and Alletra provision the pool, PowerFlex
   # discovers the system version). With placeholder configuration pointing at a
   # closed local port, pool creation must fail cleanly and leave no pool behind.
   sub_test "Remote pool creation fails cleanly with placeholder config"
