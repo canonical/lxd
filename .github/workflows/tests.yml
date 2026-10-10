@@ -175,6 +175,13 @@ jobs:
         with:
           export-env: true
 
+      # Warm the libkrun cache for the instance system-tests job. The environment is
+      # not exported here, as that would enable the MicroVM tests in this job.
+      - name: Build or restore libkrun dependencies
+        uses: $/.github/actions/cache-libkrun
+        with:
+          export-env: false
+
       - name: Build binaries
         run: |
           set -eux
@@ -280,7 +287,7 @@ jobs:
       LXD_VERBOSE: "1"
       LXD_TMPFS: "1"
       GOTRACEBACK: "crash"
-      SUDO_PRESERVE_ENV: "PATH,GOPATH,GOCOVERDIR,GOTRACEBACK,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,IMAGE_CACHE_DIR,LXD_VERBOSE,LXD_REPEAT_TESTS,LXD_BACKENDS,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LXD_TMPFS"
+      SUDO_PRESERVE_ENV: "PATH,GOPATH,GOCOVERDIR,GOTRACEBACK,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,IMAGE_CACHE_DIR,LXD_VERBOSE,LXD_REPEAT_TESTS,LXD_BACKENDS,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OVN_NB_CONNECTION,LXD_OVN_NB_CLIENT_CRT_FILE,LXD_OVN_NB_CLIENT_KEY_FILE,LXD_OVN_NB_CA_CRT_FILE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LXD_TMPFS,LXD_MICROVM_TESTS,LXD_MICROVM_KERNEL,LIBKRUN_PATH"
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: System
     runs-on: ubuntu-26.04
@@ -337,6 +344,12 @@ jobs:
       # Restore the cache warmed in code-tests job
       - name: Build or restore dqlite/liblxc dependencies
         uses: $/.github/actions/cache-dqlite-liblxc
+
+      # The MicroVM tests are part of the instance group. This also enables them
+      # by exporting LXD_MICROVM_TESTS, LXD_MICROVM_KERNEL and LIBKRUN_PATH.
+      - name: Build or restore libkrun dependencies
+        if: matrix.group == 'instance'
+        uses: $/.github/actions/cache-libkrun
 
       # Restore the cache warmed in code-tests job
       - name: Download external test images

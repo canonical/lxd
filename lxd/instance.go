@@ -143,7 +143,7 @@ func instanceCreateFromImage(ctx context.Context, s *state.State, img *api.Image
 		return err
 	}
 
-	if imgType != args.Type {
+	if imgType != args.Type.ImageType() {
 		return fmt.Errorf("Requested image's type %q does not match instance type %q", imgType, args.Type)
 	}
 
@@ -215,7 +215,7 @@ func instanceRebuildFromImage(ctx context.Context, s *state.State, inst instance
 		return err
 	}
 
-	if imgType != inst.Type() {
+	if imgType != inst.Type().ImageType() {
 		return fmt.Errorf("Requested image's type %q does not match instance type %q", imgType, inst.Type())
 	}
 

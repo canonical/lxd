@@ -203,7 +203,9 @@ func (d *disk) checkBlockVolSharing(instanceType instancetype.Type, projectName 
 
 // validateConfig checks the supplied config for correctness.
 func (d *disk) validateConfig(instConf instance.ConfigReader) error {
-	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
+	instConfType := instConf.Type()
+
+	if !instanceSupported(instConfType, instancetype.Container, instancetype.VM, instancetype.MicroVM) {
 		return ErrUnsupportedDevType
 	}
 
@@ -410,7 +412,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
-	if instConf.Type() == instancetype.Container {
+	if instConfType == instancetype.Container {
 		switch {
 		case d.config["io.threads"] != "":
 			return errors.New("IO threads configuration cannot be applied to containers")
@@ -515,7 +517,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		var storageProjectName string
 
 		// Check if validating an instance or a custom storage volume attached to a profile.
-		if (d.inst != nil && !d.inst.IsSnapshot()) || (d.inst == nil && instConf.Type() == instancetype.Any && !filters.IsRootDisk(d.config)) {
+		if (d.inst != nil && !d.inst.IsSnapshot()) || (d.inst == nil && instConfType == instancetype.Any && !filters.IsRootDisk(d.config)) {
 			d.pool, err = storagePools.LoadByName(d.state, d.config["pool"])
 			if err != nil {
 				return fmt.Errorf("Failed getting storage pool %q: %w", d.config["pool"], err)
@@ -552,7 +554,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 					return fmt.Errorf(`Failed loading "%s/%s" from project %q: %w`, volumeType, volumeName, storageProjectName, err)
 				}
 
-				err = d.checkBlockVolSharing(instConf.Type(), storageProjectName, &dbCustomVolume.StorageVolume)
+				err = d.checkBlockVolSharing(instConfType, storageProjectName, &dbCustomVolume.StorageVolume)
 				if err != nil {
 					return err
 				}
@@ -580,7 +582,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 
 				// Check that block volumes are *only* attached to VM instances.
 				if dbCustomVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameBlock {
-					if instConf.Type() == instancetype.Container {
+					if instConfType == instancetype.Container {
 						return errors.New("Custom block volumes cannot be used on containers")
 					}
 
@@ -588,7 +590,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 						return errors.New("Custom block volumes cannot have a path defined")
 					}
 				} else if dbCustomVolume.ContentType == cluster.StoragePoolVolumeContentTypeNameISO {
-					if instConf.Type() == instancetype.Container {
+					if instConfType == instancetype.Container {
 						return errors.New("Custom ISO volumes cannot be used on containers")
 					}
 
@@ -632,7 +634,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	// Restrict disks allowed when live-migratable.
-	if instConf.Type() == instancetype.VM && shared.IsTrue(instConf.ExpandedConfig()["migration.stateful"]) {
+	if instConfType == instancetype.VM && shared.IsTrue(instConf.ExpandedConfig()["migration.stateful"]) {
 		if d.config["path"] != "" && d.config["path"] != "/" {
 			return errors.New("Shared filesystem are incompatible with migration.stateful=true")
 		}
@@ -705,7 +707,8 @@ func (d *disk) validateEnvironmentSourcePath() error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *disk) validateEnvironment() error {
-	if d.inst.Type() != instancetype.VM && d.config["source"] == diskSourceCloudInit {
+	instType := d.inst.Type()
+	if instType != instancetype.VM && instType != instancetype.MicroVM && d.config["source"] == diskSourceCloudInit {
 		return fmt.Errorf("disks with source=%s are only supported by virtual machines", diskSourceCloudInit)
 	}
 
@@ -807,7 +810,8 @@ func (d *disk) Start() (*deviceConfig.RunConfig, error) {
 
 	err := d.validateEnvironment()
 	if err == nil {
-		if d.inst.Type() == instancetype.VM {
+		instType := d.inst.Type()
+		if instType == instancetype.VM || instType == instancetype.MicroVM {
 			runConfig, err = d.startVM()
 		} else {
 			runConfig, err = d.startContainer()
@@ -1444,7 +1448,7 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 				return err
 			}
 
-		case instancetype.VM:
+		case instancetype.VM, instancetype.MicroVM:
 			// Parse the limits into usable values.
 			readBps, readIops, writeBps, writeIops, err := d.parseLimit(d.config)
 			if err != nil {
@@ -1751,7 +1755,7 @@ func volumeStorageName(storageProjectName, volumeName string, dbVolume *db.Stora
 	switch dbVolume.Type {
 	case cluster.StoragePoolVolumeTypeNameCustom:
 		return project.StorageVolume(storageProjectName, volumeName), nil
-	case cluster.StoragePoolVolumeTypeNameContainer, cluster.StoragePoolVolumeTypeNameVM:
+	case cluster.StoragePoolVolumeTypeNameContainer, cluster.StoragePoolVolumeTypeNameVM, cluster.StoragePoolVolumeTypeNameMicroVM:
 		return project.Instance(storageProjectName, volumeName), nil
 	default:
 		return "", fmt.Errorf("Invalid storage volume type %q", dbVolume.Type)
@@ -2129,7 +2133,8 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 
 // Stop is run when the device is removed from the instance.
 func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
-	if d.inst.Type() == instancetype.VM {
+	instType := d.inst.Type()
+	if instType == instancetype.VM || instType == instancetype.MicroVM {
 		return d.stopVM()
 	}
 

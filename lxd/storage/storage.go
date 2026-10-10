@@ -97,7 +97,7 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 
 			// Generate URL for volume based on types that map to other entities.
 			switch vol.Type {
-			case cluster.StoragePoolVolumeTypeNameContainer, cluster.StoragePoolVolumeTypeNameVM:
+			case cluster.StoragePoolVolumeTypeNameContainer, cluster.StoragePoolVolumeTypeNameVM, cluster.StoragePoolVolumeTypeNameMicroVM:
 				volName, snapName, isSnap := api.GetParentAndSnapshotName(vol.Name)
 				if isSnap {
 					u = api.NewURL().Path(version.APIVersion, "instances", volName, "snapshots", snapName).Project(vol.Project)

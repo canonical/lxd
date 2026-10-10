@@ -894,6 +894,81 @@ func IsContentBlock(contentType ContentType) bool {
 	return contentType == ContentTypeBlock || contentType == ContentTypeISO
 }
 
+// FormatAndMountBlockFS formats the block target with fsType, mounts it on a temporary directory,
+// executes the provided function f, and cleanly unmounts and detaches any loop devices.
+// If blockPath is a regular file, it ensures the sparse file is sized with sizeBytes and sets up a loop device.
+// If blockPath is already a block device, it formats and mounts the device directly.
+// An error is returned if the filesystem cannot be unmounted again, as the block target is then still in use.
+func FormatAndMountBlockFS(blockPath string, sizeBytes int64, fsType string, f func(mountPath string) error) (err error) {
+	var targetDev string
+	var cleanupLoop func()
+
+	if shared.IsBlockdevPath(blockPath) {
+		targetDev = blockPath
+	} else {
+		// Ensure sparse file exists with the requested size.
+		err := ensureSparseFile(blockPath, sizeBytes)
+		if err != nil {
+			return fmt.Errorf("Failed creating sparse disk image %q: %w", blockPath, err)
+		}
+
+		loopDev, err := loopDeviceSetup(blockPath)
+		if err != nil {
+			return fmt.Errorf("Failed setting up loop device for %q: %w", blockPath, err)
+		}
+
+		targetDev = loopDev
+		cleanupLoop = func() {
+			_ = loopDeviceAutoDetach(loopDev)
+		}
+	}
+
+	if cleanupLoop != nil {
+		defer cleanupLoop()
+	}
+
+	// Format target with the specified filesystem.
+	_, err = makeFSType(targetDev, fsType, nil)
+	if err != nil {
+		return fmt.Errorf("Failed formatting disk %q with %s: %w", targetDev, fsType, err)
+	}
+
+	// Create temporary mount point.
+	tmpMountPath, err := os.MkdirTemp("", "lxd-mount-block-")
+	if err != nil {
+		return fmt.Errorf("Failed creating temporary mount directory: %w", err)
+	}
+
+	// Remove the mount point after the unmount below. This must not remove recursively: if the
+	// unmount failed, the directory still holds the filesystem that was just filled.
+	defer func() { _ = os.Remove(tmpMountPath) }()
+
+	// Mount the target filesystem.
+	err = unix.Mount(targetDev, tmpMountPath, fsType, 0, "")
+	if err != nil {
+		return fmt.Errorf("Failed mounting %q at %q: %w", targetDev, tmpMountPath, err)
+	}
+
+	// Unmount on return and report a failure to the caller, unless an earlier error is already returned.
+	defer func() {
+		unmountErr := unix.Unmount(tmpMountPath, unix.MNT_DETACH)
+		if unmountErr != nil && err == nil {
+			err = fmt.Errorf("Failed unmounting %q from %q: %w", targetDev, tmpMountPath, unmountErr)
+		}
+	}()
+
+	// Execute callback.
+	err = f(tmpMountPath)
+	if err != nil {
+		return err
+	}
+
+	// Sync to flush buffers before unmount.
+	unix.Sync()
+
+	return nil
+}
+
 // roundAbove returns the next multiple of `above` greater than `val`.
 func roundAbove(above, val int64) int64 {
 	if val < above {
