@@ -8003,7 +8003,7 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 
 	// A standby project on a mirrored pool already holds the data, so only the records are
 	// transferred. The target decides because only it knows it is such a standby.
-	metadataOnly := storagePools.HoldsCephReplicas(pool, d.Project())
+	metadataOnly := pool.ProjectVolumesAreReadonly(d.Project())
 	respHeader.MetadataOnly = &metadataOnly
 
 	if args.Refresh {
@@ -8306,14 +8306,15 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 			}
 		}
 
-		// A standby's images are mirrors that Ceph owns, so a receive that fails part way must
-		// leave them alone rather than delete the data it was describing.
-		holdsReplicas := storagePools.HoldsCephReplicas(pool, d.Project())
+		// Read-only volumes, such as the mirrors Ceph owns on a standby, are not LXD's to delete, so
+		// a receive that fails part way must leave them alone rather than delete the data it was
+		// describing.
+		volumesReadonly := pool.ProjectVolumesAreReadonly(d.Project())
 
 		// Only delete all instance volumes on error if the pool volume creation has succeeded to
 		// avoid deleting an existing conflicting volume.
 		isRemoteClusterMove := args.ClusterMoveSourceName != "" && poolInfo.Remote
-		if !volTargetArgs.Refresh && !isRemoteClusterMove && !holdsReplicas {
+		if !volTargetArgs.Refresh && !isRemoteClusterMove && !volumesReadonly {
 			revert.Add(func() {
 				snapshots, _ := d.Snapshots()
 				snapshotCount := len(snapshots)
