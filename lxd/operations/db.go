@@ -44,7 +44,7 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 		return errors.New("Failed registering operation: No state available")
 	}
 
-	registerSingleOperation := func(ctx context.Context, tx *db.ClusterTx, op *Operation, parentOpID *int64, projectID *int64) (int64, error) {
+	registerSingleOperation := func(ctx context.Context, tx *db.ImmediateClusterTx, op *Operation, parentOpID *int64, projectID *int64) (int64, error) {
 		operationsRow := cluster.OperationsRow{
 			UUID:              op.id,
 			Type:              op.dbOpType,
@@ -117,7 +117,8 @@ func registerDBOperation(ctx context.Context, op *Operation) error {
 		return dbOpID, nil
 	}
 
-	err := op.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+	// Registration always writes after reading the project and entity, so take the write lock at BEGIN.
+	err := op.state.DB.Cluster.TransactionImmediate(ctx, func(ctx context.Context, tx *db.ImmediateClusterTx) error {
 		var projectIDPtr *int64
 		if op.projectName != "" {
 			projectID, err := cluster.GetProjectID(ctx, tx.Tx(), op.projectName)

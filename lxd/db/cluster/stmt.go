@@ -5,8 +5,12 @@
 package cluster
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // RegisterStmt register a SQL statement.
@@ -51,6 +55,51 @@ func Stmt(tx *sql.Tx, code int) (*sql.Stmt, error) {
 	}
 
 	return tx.Stmt(stmt), nil
+}
+
+// ExecutorStmt returns the statement registered under code, bound to tx: the prepared statement for a *sql.Tx, its SQL
+// text otherwise, so nothing stays prepared on the server.
+func ExecutorStmt(tx query.Executor, code int) (query.Statement, error) {
+	if tx == nil {
+		return nil, errors.New("No transaction provided")
+	}
+
+	sqlTx, isSQLTx := tx.(*sql.Tx)
+	if isSQLTx {
+		if sqlTx == nil {
+			return nil, errors.New("No transaction provided")
+		}
+
+		return Stmt(sqlTx, code)
+	}
+
+	sqlText, err := StmtString(code)
+	if err != nil {
+		return nil, err
+	}
+
+	return textStmt{tx: tx, sql: sqlText}, nil
+}
+
+// textStmt runs a registered statement by sending its SQL text through an Executor.
+type textStmt struct {
+	tx  query.Executor
+	sql string
+}
+
+// ExecContext runs the statement with args.
+func (s textStmt) ExecContext(ctx context.Context, args ...any) (sql.Result, error) {
+	return s.tx.ExecContext(ctx, s.sql, args...)
+}
+
+// QueryContext runs the statement as a query with args.
+func (s textStmt) QueryContext(ctx context.Context, args ...any) (*sql.Rows, error) {
+	return s.tx.QueryContext(ctx, s.sql, args...)
+}
+
+// QueryRowContext runs the statement as a single-row query with args.
+func (s textStmt) QueryRowContext(ctx context.Context, args ...any) *sql.Row {
+	return s.tx.QueryRowContext(ctx, s.sql, args...)
 }
 
 // StmtString returns the in-memory query string with the given code.

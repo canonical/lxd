@@ -84,8 +84,8 @@ DELETE FROM profiles WHERE project_id = (SELECT projects.id FROM projects WHERE 
 
 // GetProfileID return the ID of the profile with the given key.
 // generator: profile ID
-func GetProfileID(ctx context.Context, tx *sql.Tx, project string, name string) (int64, error) {
-	stmt, err := Stmt(tx, profileID)
+func GetProfileID(ctx context.Context, tx query.Executor, project string, name string) (int64, error) {
+	stmt, err := ExecutorStmt(tx, profileID)
 	if err != nil {
 		return -1, fmt.Errorf("Failed getting \"profileID\" prepared statement: %w", err)
 	}

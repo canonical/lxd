@@ -229,9 +229,9 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	} else if mapping.Type == AssociationTable {
 		filter := m.config["struct"] + "ID"
 		if m.db == "" {
-			buf.L("sqlStmt, err := Stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter))
+			buf.L("sqlStmt, err := %s(tx, %s)", m.stmtFunc(), stmtCodeVar(m.entity, "objects", filter))
 		} else {
-			buf.L("sqlStmt, err := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filter))
+			buf.L("sqlStmt, err := %s.%s(tx, %s)", m.db, m.stmtFunc(), stmtCodeVar(m.entity, "objects", filter))
 		}
 
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed getting \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "objects", filter)))
@@ -241,16 +241,16 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		filters, ignoredFilters := FiltersFromStmt(m.pkg, "objects", m.entity, mapping.Filters)
 		buf.N()
 		buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
-		buf.L("var sqlStmt *sql.Stmt")
+		buf.L("var sqlStmt %s", m.stmtType())
 		buf.L("args := []any{}")
 		buf.L("queryParts := [2]string{}")
 		buf.N()
 
 		buf.L("if len(filters) == 0 {")
 		if m.db == "" {
-			buf.L("sqlStmt, err = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects"))
+			buf.L("sqlStmt, err = %s(tx, %s)", m.stmtFunc(), stmtCodeVar(m.entity, "objects"))
 		} else {
-			buf.L("sqlStmt, err = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects"))
+			buf.L("sqlStmt, err = %s.%s(tx, %s)", m.db, m.stmtFunc(), stmtCodeVar(m.entity, "objects"))
 		}
 
 		m.ifErrNotNil(buf, false, "nil", fmt.Sprintf(`fmt.Errorf("Failed getting \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "objects")))
@@ -284,9 +284,9 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			buf.L("args = append(args, []any{%s}...)", args.String())
 			buf.L("if len(filters) == 1 {")
 			if m.db == "" {
-				buf.L("sqlStmt, err = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter...))
+				buf.L("sqlStmt, err = %s(tx, %s)", m.stmtFunc(), stmtCodeVar(m.entity, "objects", filter...))
 			} else {
-				buf.L("sqlStmt, err = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filter...))
+				buf.L("sqlStmt, err = %s.%s(tx, %s)", m.db, m.stmtFunc(), stmtCodeVar(m.entity, "objects", filter...))
 			}
 
 			m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed getting \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "objects", filter...)))
@@ -609,9 +609,9 @@ func (m *Method) id(buf *file.Buffer) error {
 	defer m.end(buf)
 
 	if m.db == "" {
-		buf.L("stmt, err := Stmt(tx, %s)", stmtCodeVar(m.entity, "ID"))
+		buf.L("stmt, err := %s(tx, %s)", m.stmtFunc(), stmtCodeVar(m.entity, "ID"))
 	} else {
-		buf.L("stmt, err := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "ID"))
+		buf.L("stmt, err := %s.%s(tx, %s)", m.db, m.stmtFunc(), stmtCodeVar(m.entity, "ID"))
 	}
 
 	m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed getting \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "ID")))
@@ -776,9 +776,9 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 
 		buf.L("// Prepared statement to use. ")
 		if m.db == "" {
-			buf.L("stmt, err := Stmt(tx, %s)", stmtCodeVar(m.entity, kind))
+			buf.L("stmt, err := %s(tx, %s)", m.stmtFunc(), stmtCodeVar(m.entity, kind))
 		} else {
-			buf.L("stmt, err := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, kind))
+			buf.L("stmt, err := %s.%s(tx, %s)", m.db, m.stmtFunc(), stmtCodeVar(m.entity, kind))
 		}
 
 		if mapping.Type == AssociationTable {
@@ -925,9 +925,9 @@ func (m *Method) rename(buf *file.Buffer) error {
 	defer m.end(buf)
 
 	if m.db == "" {
-		buf.L("stmt, err := Stmt(tx, %s)", stmtCodeVar(m.entity, "rename"))
+		buf.L("stmt, err := %s(tx, %s)", m.stmtFunc(), stmtCodeVar(m.entity, "rename"))
 	} else {
-		buf.L("stmt, err := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "rename"))
+		buf.L("stmt, err := %s.%s(tx, %s)", m.db, m.stmtFunc(), stmtCodeVar(m.entity, "rename"))
 	}
 
 	m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed getting \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "rename")))
@@ -1053,9 +1053,9 @@ func (m *Method) update(buf *file.Buffer) error {
 		buf.L("id, err := Get%sID(ctx, tx, %s)", lex.Camel(m.entity), mapping.FieldParams(nk))
 		m.ifErrNotNil(buf, true, "err")
 		if m.db == "" {
-			buf.L("stmt, err := Stmt(tx, %s)", stmtCodeVar(m.entity, "update"))
+			buf.L("stmt, err := %s(tx, %s)", m.stmtFunc(), stmtCodeVar(m.entity, "update"))
 		} else {
-			buf.L("stmt, err := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "update"))
+			buf.L("stmt, err := %s.%s(tx, %s)", m.db, m.stmtFunc(), stmtCodeVar(m.entity, "update"))
 		}
 
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed getting \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "update")))
@@ -1162,9 +1162,9 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	switch mapping.Type {
 	case AssociationTable:
 		if m.db == "" {
-			buf.L("stmt, err := Stmt(tx, %s)", stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID"))
+			buf.L("stmt, err := %s(tx, %s)", m.stmtFunc(), stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID"))
 		} else {
-			buf.L("stmt, err := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID"))
+			buf.L("stmt, err := %s.%s(tx, %s)", m.db, m.stmtFunc(), stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID"))
 		}
 
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed getting \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID")))
@@ -1185,9 +1185,9 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	default:
 		activeFilters := mapping.ActiveFilters(m.kind)
 		if m.db == "" {
-			buf.L("stmt, err := Stmt(tx, %s)", stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
+			buf.L("stmt, err := %s(tx, %s)", m.stmtFunc(), stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
 		} else {
-			buf.L("stmt, err := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
+			buf.L("stmt, err := %s.%s(tx, %s)", m.db, m.stmtFunc(), stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
 		}
 
 		for _, field := range activeFilters {
@@ -1230,7 +1230,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 	}
 
 	comment := ""
-	args := "ctx context.Context, tx *sql.Tx, "
+	args := "ctx context.Context, tx " + m.txType() + ", "
 	rets := ""
 
 	switch mapping.Type {
@@ -1524,6 +1524,38 @@ func (m *Method) end(buf *file.Buffer) {
 	buf.L("}")
 }
 
+// executor reports whether the directive set executor=true, asking for query.Executor instead of *sql.Tx.
+func (m *Method) executor() bool {
+	return m.config["executor"] == "true"
+}
+
+// txType returns the type of the generated function's transaction parameter.
+func (m *Method) txType() string {
+	if m.executor() {
+		return "query.Executor"
+	}
+
+	return "*sql.Tx"
+}
+
+// stmtType returns the type of a registered statement bound to the transaction.
+func (m *Method) stmtType() string {
+	if m.executor() {
+		return "query.Statement"
+	}
+
+	return "*sql.Stmt"
+}
+
+// stmtFunc returns the function that binds a registered statement to the transaction.
+func (m *Method) stmtFunc() string {
+	if m.executor() {
+		return "ExecutorStmt"
+	}
+
+	return "Stmt"
+}
+
 // getManyTemplateFuncs returns two functions that can be used to perform generic queries without validation, and return
 // a slice of objects matching the entity. One function will accept pre-registered statements, and the other will accept
 // raw queries.
@@ -1539,9 +1571,9 @@ func (m *Method) getManyTemplateFuncs(buf *file.Buffer, mapping *Mapping) error 
 	// Create a function supporting prepared statements.
 	buf.L("// get%s can be used to run handwritten sql.Stmts to return a slice of objects.", lex.Plural(mapping.Name))
 	if mapping.Type != ReferenceTable && mapping.Type != MapTable {
-		buf.L("func get%s(ctx context.Context, stmt *sql.Stmt, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), mapping.Name)
+		buf.L("func get%s(ctx context.Context, stmt %s, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), m.stmtType(), mapping.Name)
 	} else {
-		buf.L("func get%s(ctx context.Context, stmt *sql.Stmt, parent string, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), mapping.Name)
+		buf.L("func get%s(ctx context.Context, stmt %s, parent string, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), m.stmtType(), mapping.Name)
 	}
 
 	buf.L("objects := make([]%s, 0)", mapping.Name)
@@ -1562,9 +1594,9 @@ func (m *Method) getManyTemplateFuncs(buf *file.Buffer, mapping *Mapping) error 
 	// Create a function supporting raw queries.
 	buf.L("// get%sRaw can be used to run handwritten query strings to return a slice of objects.", lex.Plural(mapping.Name))
 	if mapping.Type != ReferenceTable && mapping.Type != MapTable {
-		buf.L("func get%sRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), mapping.Name)
+		buf.L("func get%sRaw(ctx context.Context, tx %s, sql string, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), m.txType(), mapping.Name)
 	} else {
-		buf.L("func get%sRaw(ctx context.Context, tx *sql.Tx, sql string, parent string, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), mapping.Name)
+		buf.L("func get%sRaw(ctx context.Context, tx %s, sql string, parent string, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), m.txType(), mapping.Name)
 	}
 
 	buf.L("objects := make([]%s, 0)", mapping.Name)

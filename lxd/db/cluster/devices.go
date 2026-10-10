@@ -15,8 +15,8 @@ import (
 //go:generate mapper stmt -e device create struct=Device
 //go:generate mapper stmt -e device delete
 //
-//go:generate mapper method -i -e device GetMany
-//go:generate mapper method -i -e device Create struct=Device
+//go:generate mapper method -i -e device GetMany executor=true
+//go:generate mapper method -i -e device Create struct=Device executor=true
 //go:generate mapper method -i -e device Update struct=Device
 //go:generate mapper method -i -e device DeleteMany
 //go:generate goimports -w devices.mapper.go

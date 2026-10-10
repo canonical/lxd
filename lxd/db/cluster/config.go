@@ -11,8 +11,8 @@ package cluster
 //go:generate mapper stmt -e config create struct=Config
 //go:generate mapper stmt -e config delete
 //
-//go:generate mapper method -i -e config GetMany
-//go:generate mapper method -i -e config Create struct=Config
+//go:generate mapper method -i -e config GetMany executor=true
+//go:generate mapper method -i -e config Create struct=Config executor=true
 //go:generate mapper method -i -e config Update struct=Config
 //go:generate mapper method -i -e config DeleteMany
 //go:generate goimports -w config.mapper.go

@@ -521,7 +521,7 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 
 // GetEntityReferenceFromURL gets a single EntityRef by parsing the given api.URL and finding the ID of the entity.
 // It is used by the OpenFGA datastore implementation to find permissions for the entity with the given URL.
-func GetEntityReferenceFromURL(ctx context.Context, tx *sql.Tx, entityURL *api.URL) (*EntityRef, error) {
+func GetEntityReferenceFromURL(ctx context.Context, tx query.Executor, entityURL *api.URL) (*EntityRef, error) {
 	// Parse the URL to get the majority of the fields of the EntityRef for that URL.
 	ref, err := entity.ReferenceFromURL(entityURL.URL)
 	if err != nil {

@@ -24,10 +24,10 @@ import (
 //go:generate mapper stmt -e instance_snapshot rename
 //go:generate mapper stmt -e instance_snapshot delete-by-Project-and-Instance-and-Name
 //
-//go:generate mapper method -i -e instance_snapshot GetMany references=Config,Device
-//go:generate mapper method -i -e instance_snapshot GetOne
+//go:generate mapper method -i -e instance_snapshot GetMany references=Config,Device executor=true
+//go:generate mapper method -i -e instance_snapshot GetOne executor=true
 //go:generate mapper method -i -e instance_snapshot ID
-//go:generate mapper method -i -e instance_snapshot Create references=Config,Device
+//go:generate mapper method -i -e instance_snapshot Create references=Config,Device executor=true
 //go:generate mapper method -i -e instance_snapshot Rename
 //go:generate mapper method -i -e instance_snapshot DeleteOne-by-Project-and-Instance-and-Name
 //go:generate goimports -w snapshots.mapper.go

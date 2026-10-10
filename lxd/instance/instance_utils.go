@@ -811,7 +811,8 @@ func CreateInternal(ctx context.Context, s *state.State, args db.InstanceArgs, c
 	var dbInst cluster.Instance
 	var p *api.Project
 
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	// Always writes the instance rows after reading the project, so take the write lock at BEGIN.
+	err = s.DB.Cluster.TransactionImmediate(context.TODO(), func(ctx context.Context, tx *db.ImmediateClusterTx) error {
 		proj, err := cluster.GetProject(ctx, tx.Tx(), args.Project)
 		if err != nil {
 			return err
@@ -873,7 +874,7 @@ func CreateInternal(ctx context.Context, s *state.State, args db.InstanceArgs, c
 
 			dbInst = s.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture)
 
-			newArgs, err := tx.InstancesToInstanceArgs(ctx, false, dbInst)
+			newArgs, err := tx.InstancesToInstanceArgsWithoutProfiles(ctx, dbInst)
 			if err != nil {
 				return err
 			}
@@ -939,7 +940,7 @@ func CreateInternal(ctx context.Context, s *state.State, args db.InstanceArgs, c
 			return fmt.Errorf("Unexpected instance database ID %d: %w", dbInst.ID, err)
 		}
 
-		newArgs, err := tx.InstancesToInstanceArgs(ctx, false, dbInst)
+		newArgs, err := tx.InstancesToInstanceArgsWithoutProfiles(ctx, dbInst)
 		if err != nil {
 			return err
 		}

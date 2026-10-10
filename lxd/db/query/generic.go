@@ -94,7 +94,7 @@ func plural(t APINamer) string {
 	return t.APIName() + "s"
 }
 
-func create(ctx context.Context, tx *sql.Tx, c Creatable, replace bool) (int64, error) {
+func create(ctx context.Context, tx Executor, c Creatable, replace bool) (int64, error) {
 	stmt := c.CreateStmt()
 	if replace {
 		stmt = strings.Replace(stmt, "INSERT", "INSERT OR REPLACE", 1)
@@ -119,7 +119,7 @@ func create(ctx context.Context, tx *sql.Tx, c Creatable, replace bool) (int64, 
 
 // Create creates a [Creatable]. All columns are set except for the primary key.
 // This is because it is assumed that the primary key is auto-assigned at the database layer.
-func Create(ctx context.Context, tx *sql.Tx, c Creatable) (int64, error) {
+func Create(ctx context.Context, tx Executor, c Creatable) (int64, error) {
 	return create(ctx, tx, c, false)
 }
 
@@ -134,7 +134,7 @@ func CreateOrReplace(ctx context.Context, tx *sql.Tx, c Creatable) (int64, error
 func CreateMany[T Creatable, _ interface {
 	Creatable
 	*T
-}](ctx context.Context, tx *sql.Tx, creatables []T) error {
+}](ctx context.Context, tx Executor, creatables []T) error {
 	var first T
 	switch len(creatables) {
 	case 0:
@@ -409,7 +409,7 @@ func DeleteByPrimaryKey[T Referenceable](ctx context.Context, tx *sql.Tx, t T) e
 func DeleteMany[T Referenceable, _ interface {
 	Referenceable
 	*T
-}](ctx context.Context, tx *sql.Tx, clause string, args ...any) (int64, error) {
+}](ctx context.Context, tx Executor, clause string, args ...any) (int64, error) {
 	tableName := (*new(T)).TableName()
 
 	var b strings.Builder

@@ -5,13 +5,15 @@ package cluster
 import (
 	"context"
 	"database/sql"
+
+	"github.com/canonical/lxd/lxd/db/query"
 )
 
 // ProfileGenerated is an interface of generated methods for Profile.
 type ProfileGenerated interface {
 	// GetProfileID return the ID of the profile with the given key.
 	// generator: profile ID
-	GetProfileID(ctx context.Context, tx *sql.Tx, project string, name string) (int64, error)
+	GetProfileID(ctx context.Context, tx query.Executor, project string, name string) (int64, error)
 
 	// GetProfileConfig returns all available Profile Config
 	// generator: profile GetMany

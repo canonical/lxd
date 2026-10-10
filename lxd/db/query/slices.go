@@ -7,7 +7,7 @@ import (
 
 // SelectStrings executes a statement which must yield rows with a single string
 // column. It returns the list of column values.
-func SelectStrings(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]string, error) {
+func SelectStrings(ctx context.Context, tx Executor, query string, args ...any) ([]string, error) {
 	values := []string{}
 	scan := func(rows *sql.Rows) error {
 		var value string
@@ -53,7 +53,7 @@ func SelectIntegers(ctx context.Context, tx *sql.Tx, query string, args ...any) 
 
 // Execute the given query and ensure that it yields rows with a single column.
 // For every row yielded, execute the given scanner.
-func scanSingleColumn(ctx context.Context, tx *sql.Tx, query string, args []any, scan scanFunc) error {
+func scanSingleColumn(ctx context.Context, tx Executor, query string, args []any, scan scanFunc) error {
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return err
