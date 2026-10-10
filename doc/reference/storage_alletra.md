@@ -45,7 +45,7 @@ Finally, once all snapshots are copied, the source volume is copied into the des
 (storage-alletra-volume-names)=
 ### Volume names
 
-As a Pure storage driver, the `alletra` driver uses the volume's {config:option}`storage-alletra-volume-conf:volatile.uuid` to generate a volume name.
+The `alletra` driver uses the volume's {config:option}`storage-alletra-volume-conf:volatile.uuid` to generate a volume name.
 
 For example, a UUID `5a2504b0-6a6c-4849-8ee7-ddb0b674fd14` is first trimmed of any hyphens (`-`), resulting in the string `5a2504b06a6c48498ee7ddb0b674fd14`.
 To distinguish volume types and snapshots, special identifiers are prepended and appended to the volume names, as depicted in the table below:

@@ -16,13 +16,13 @@ import (
 	"github.com/canonical/lxd/shared/validate"
 )
 
-// pureLoaded indicates whether load() function was already called for the Pure Storage driver.
+// pureLoaded indicates whether load() function was already called for the Everpure driver.
 var pureLoaded = false
 
-// pureVersion indicates Pure Storage version.
+// pureVersion indicates Everpure version.
 var pureVersion = ""
 
-// pureSupportedConnectors represents a list of storage connectors that can be used with Pure Storage.
+// pureSupportedConnectors represents a list of storage connectors that can be used with Everpure.
 var pureSupportedConnectors = []string{
 	connectors.TypeISCSI,
 	connectors.TypeNVMeTCP,
@@ -30,24 +30,24 @@ var pureSupportedConnectors = []string{
 	connectors.TypeSCSIFC,
 }
 
-// pureDefaultMode represents the default Pure Storage mode.
+// pureDefaultMode represents the default Everpure mode.
 const pureDefaultMode = connectors.TypeNVMeTCP
 
-// pureMinVolumeSizeBytes defines the minimum size of a Pure Storage volume, which is 1MiB.
+// pureMinVolumeSizeBytes defines the minimum size of an Everpure volume, which is 1MiB.
 const pureMinVolumeSizeBytes = 1024 * 1024
 
 type pure struct {
 	common
 
-	// Holds the low level connector for the Pure Storage driver.
+	// Holds the low level connector for the Everpure driver.
 	// Use pure.connector() to retrieve the initialized connector.
 	storageConnector connectors.Connector
 
-	// Holds the low level HTTP client for the Pure Storage API.
+	// Holds the low level HTTP client for the Everpure API.
 	// Use pure.client() to retrieve the client struct.
 	httpClient *pureClient
 
-	// apiVersion indicates the Pure Storage API version.
+	// apiVersion indicates the Everpure API version.
 	apiVersion string
 }
 
@@ -74,7 +74,7 @@ func (d *pure) load() error {
 }
 
 // connector retrieves an initialized storage connector based on the configured
-// Pure Storage mode. The connector is cached in the driver struct.
+// Everpure mode. The connector is cached in the driver struct.
 func (d *pure) connector() (connectors.Connector, error) {
 	if d.storageConnector == nil {
 		connector, err := connectors.NewConnector(d.config["pure.mode"], d.state.OS.ServerUUID)
@@ -88,7 +88,7 @@ func (d *pure) connector() (connectors.Connector, error) {
 	return d.storageConnector, nil
 }
 
-// client returns the drivers Pure Storage client. A new client is created only if it does not already exist.
+// client returns the drivers Everpure client. A new client is created only if it does not already exist.
 func (d *pure) client() *pureClient {
 	if d.httpClient == nil {
 		d.httpClient = newPureClient(d)
@@ -137,30 +137,30 @@ func (d *pure) FillConfig() error {
 func (d *pure) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=size)
-		// Size in bytes LXD sets as the quota of the Pure Storage pod.
+		// Size in bytes LXD sets as the quota of the Everpure pod.
 		// ---
 		//  type: string
 		//  shortdesc: Size of the storage pool
 		//  scope: local
 		"size": validate.Optional(validate.IsSize),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.api.token)
-		// API authorization token for Pure Storage gateway. Must have array_admin role to give LXD full control over managed storage pools (Pure Storage pods).
+		// API authorization token for the Everpure FlashArray. Must have array_admin role to give LXD full control over managed storage pools (Everpure pods).
 		// ---
 		//  type: string
-		//  shortdesc: API authorization token for Pure Storage gateway
+		//  shortdesc: API authorization token for the Everpure FlashArray
 		"pure.api.token": validate.Optional(),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.gateway)
 		//
 		// ---
 		//  type: string
-		//  shortdesc: Address of the Pure Storage gateway
+		//  shortdesc: Management VIP address of the Everpure FlashArray
 		"pure.gateway": validate.Optional(validate.IsRequestURL),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.gateway.verify)
 		//
 		// ---
 		//  type: bool
 		//  defaultdesc: `true`
-		//  shortdesc: Whether to verify the Pure Storage gateway's certificate
+		//  shortdesc: Whether to verify the Everpure FlashArray's certificate
 		"pure.gateway.verify": validate.Optional(validate.IsBool),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.target)
 		// A comma-separated list of target addresses. If empty, LXD discovers and connects to all available targets. Otherwise, it only connects to the specified addresses.
@@ -171,7 +171,7 @@ func (d *pure) Validate(config map[string]string) error {
 		//  shortdesc: List of target addresses.
 		"pure.target": validate.Optional(validate.IsListOf(validate.IsNetworkAddress)),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=pure.mode)
-		// The mode to use to map Pure Storage volumes to the local server.
+		// The mode to use to map Everpure volumes to the local server.
 		// Supported values are `iscsi`, `nvme/tcp`, `nvme/fc`, and `scsi/fc`.
 		// ---
 		//  type: string
@@ -179,7 +179,7 @@ func (d *pure) Validate(config map[string]string) error {
 		//  shortdesc: How volumes are mapped to the local server
 		"pure.mode": validate.Optional(validate.IsOneOf(pureSupportedConnectors...)),
 		// lxdmeta:generate(entities=storage-pure; group=pool-conf; key=volume.size)
-		// Default Pure Storage volume size rounded to 512B. The minimum size is 1MiB.
+		// Default Everpure volume size rounded to 512B. The minimum size is 1MiB.
 		// ---
 		//  type: string
 		//  defaultdesc: `10GiB`
@@ -204,10 +204,10 @@ func (d *pure) Validate(config map[string]string) error {
 	// Ensure pure.mode cannot be changed to avoid leaving volume mappings
 	// and prevent disturbing running instances.
 	if oldMode != "" && oldMode != newMode {
-		return errors.New("Pure Storage mode cannot be changed")
+		return errors.New("Everpure mode cannot be changed")
 	}
 
-	// Check if the selected Pure Storage mode is supported on this node.
+	// Check if the selected Everpure mode is supported on this node.
 	// Also when forming the storage pool on a LXD cluster, the mode
 	// that got discovered on the creating machine needs to be validated
 	// on the other cluster members too. This can be done here since Validate
@@ -215,12 +215,12 @@ func (d *pure) Validate(config map[string]string) error {
 	// notification to finally create the pool.
 	connector, err := connectors.NewConnector(newMode, "")
 	if err != nil {
-		return fmt.Errorf("Pure Storage mode %q is not supported: %w", newMode, err)
+		return fmt.Errorf("Everpure mode %q is not supported: %w", newMode, err)
 	}
 
 	err = connector.LoadModules()
 	if err != nil {
-		return fmt.Errorf("Pure Storage mode %q is not supported due to missing kernel modules: %w", newMode, err)
+		return fmt.Errorf("Everpure mode %q is not supported due to missing kernel modules: %w", newMode, err)
 	}
 
 	return nil
@@ -242,7 +242,7 @@ func (d *pure) SourceIdentifier() (string, error) {
 
 // ValidateSource checks whether the required config keys are set to access the remote source.
 func (d *pure) ValidateSource() error {
-	// Validate required Pure Storage configuration keys and return an error if they are
+	// Validate required Everpure configuration keys and return an error if they are
 	// not set. Since those keys are not cluster member specific, the general validation
 	// rules allow empty strings in order to create the pending storage pools.
 	if d.config["pure.gateway"] == "" {
@@ -302,9 +302,9 @@ func (d *pure) Update(changedConfig map[string]string) error {
 	return nil
 }
 
-// Delete removes the storage pool (Pure Storage pod).
+// Delete removes the storage pool (Everpure pod).
 func (d *pure) Delete(progressReporter ioprogress.ProgressReporter) error {
-	// First delete the storage pool on Pure Storage.
+	// First delete the storage pool on Everpure.
 	err := d.client().deleteStoragePool(d.name)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return err
@@ -406,7 +406,7 @@ func (d *pure) MigrationTypes(contentType ContentType, refresh bool, copySnapsho
 }
 
 // roundVolumeBlockSizeBytes rounds the given size (in bytes) up to the next
-// multiple of 512 bytes, which is the minimum allocation unit on Pure Storage.
+// multiple of 512 bytes, which is the minimum allocation unit on Everpure.
 // It also enforces a minimum volume size of 1 MiB.
 func (d *pure) roundVolumeBlockSizeBytes(_ Volume, sizeBytes int64) int64 {
 	if sizeBytes < pureMinVolumeSizeBytes {

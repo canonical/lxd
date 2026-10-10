@@ -455,7 +455,7 @@ createPowerStorePool() (
     powerstore.mode="${POWERSTORE_MODE:-nvme/tcp}"
 )
 
-# createPureStoragePool: creates a new storage pool using the Pure Storage driver.
+# createPureStoragePool: creates a new storage pool using the Everpure driver.
 createPureStoragePool() (
   lxc storage create "${1}" pure \
     pure.gateway="${PURE_GATEWAY}" \

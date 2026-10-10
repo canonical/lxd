@@ -2425,7 +2425,7 @@ DELETE FROM storage_pools_config
 }
 
 // patchStoragePoolConnectorNVMeMode renames the storage pool mode from value "nvme" to "nvme/tcp"
-// for all Pure Storage, PowerFlex, and Alletra storage pools.
+// for all Everpure, PowerFlex, and Alletra storage pools.
 func patchStoragePoolConnectorNVMeMode(_ string, d *Daemon) error {
 	oldValue := "nvme"
 	newValue := connectors.TypeNVMeTCP
