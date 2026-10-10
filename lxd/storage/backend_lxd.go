@@ -7305,6 +7305,11 @@ func (b *lxdBackend) UpdateCustomVolumeBackupFiles(projectName string, volName s
 
 	// Update the backup config file of all instances.
 	for _, inst := range instances {
+		// Only the member of an instance can access its instance volume and write its backup file.
+		if inst.Location() != b.state.ServerName {
+			continue
+		}
+
 		instanceVolBackupConf, err := b.GenerateInstanceCustomVolumeBackupConfig(inst, backupVolConfCache, snapshots, progressReporter)
 		if err != nil {
 			return err

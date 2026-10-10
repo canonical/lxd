@@ -68,6 +68,10 @@ readonly test_group_cluster_storage=(
     "clustering_storage_single_node"
 )
 
+readonly test_group_cluster_cephfs=(
+    "clustering_storage_cephfs"
+)
+
 readonly test_group_replicator_storage=(
     "clustering_replicator_basic"
     "clustering_replicator_scheduled"
@@ -317,6 +321,7 @@ readonly test_group_standalone_storage=(
 readonly test_group_all=(
     "${test_group_cluster[@]}"
     "${test_group_cluster_storage[@]}"
+    "${test_group_cluster_cephfs[@]}"
     "${test_group_replicator_storage[@]}"
     "${test_group_instance[@]}"
     "${test_group_image[@]}"
