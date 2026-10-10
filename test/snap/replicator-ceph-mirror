@@ -1,0 +1,147 @@
+#!/bin/bash
+# shellcheck disable=SC1091 # Runtime-resolved path; intentionally not followed.
+. "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../local-snap.sh" || return 1
+set -eux
+
+# Install dependencies
+install_deps jq
+
+# Install LXD
+install_lxd
+
+if ! hasNeededAPIExtension storage_ceph_replicator; then
+    echo "Skipping test as not supported"
+    # shellcheck disable=SC2034
+    FAIL=0
+    exit 0
+fi
+
+# Configure LXD
+lxc network create lxdbr0
+lxc profile device add default eth0 nic network=lxdbr0
+
+poolName="sitepool$$"
+lxc storage create "${poolName}" zfs
+lxc profile device add default root disk path="/" pool="${poolName}"
+
+project="dr"
+osdPool="lxd"
+
+# The system tests share one Ceph cluster, so nothing replays their mirror snapshots. Here each site
+# is a VM with its own MicroCeph and a clustered LXD, so the two Ceph clusters mirror each other.
+for site in sitea siteb; do
+    lxc init "${TEST_IMG:-ubuntu-minimal-daily:24.04}" "${site}" --vm --config limits.cpu=2 --config limits.memory=4GiB --device root,size=24GiB
+    if hasNeededAPIExtension devlxd_images_vm; then
+        lxc config set "${site}" security.devlxd.images=true
+    fi
+
+    lxc start "${site}"
+done
+
+for site in sitea siteb; do
+    waitInstanceReady "${site}"
+    setup_instance_gocoverage "${site}"
+    lxc exec "${site}" -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
+
+    # A single node MicroCeph with one loop backed OSD, so its pools keep one copy.
+    lxc exec "${site}" -- snap install microceph --channel="${MICROCEPH_SNAP_CHANNEL:-tentacle/stable}" --cohort=+
+    lxc exec "${site}" -- microceph cluster bootstrap
+    lxc exec "${site}" -- microceph.ceph config set global mon_allow_pool_size_one true
+    lxc exec "${site}" -- microceph.ceph config set global osd_pool_default_size 1
+    lxc exec "${site}" -- microceph.ceph osd crush rule rm replicated_rule
+    lxc exec "${site}" -- microceph.ceph osd crush rule create-replicated replicated default osd
+    lxc exec "${site}" -- microceph disk add loop,8G,1
+    lxc exec "${site}" -- microceph.ceph osd pool create "${osdPool}" 32
+    lxc exec "${site}" -- microceph.ceph osd pool application enable "${osdPool}" rbd
+
+    # Image mode is the only mode the replicator supports.
+    lxc exec "${site}" -- microceph enable rbd-mirror
+    lxc exec "${site}" -- microceph.rbd mirror pool enable "${osdPool}" image
+
+    lxc exec "${site}" -- snap install lxd --channel="${LXD_SNAP_CHANNEL}" --cohort=+
+    if [ -n "${LXD_SIDELOAD_PATH:-}" ]; then
+        lxc file push --quiet "${LXD_SIDELOAD_PATH}" "${site}/var/snap/lxd/common/lxd.debug"
+        lxc exec "${site}" -- systemctl restart snap.lxd.daemon
+    fi
+
+    lxc exec "${site}" -- lxd waitready --timeout=300
+
+    # Replicators need a clustered LXD, so each site is a cluster of one member.
+    address="$(lxc query "/1.0/instances/${site}?recursion=2" | jq --raw-output ".state.network.enp5s0.addresses[0].address")"
+    lxc exec "${site}" -- lxd init --auto
+    lxc exec "${site}" -- lxc config set core.https_address="${address}:8443"
+    lxc exec "${site}" -- lxc cluster enable "${site}"
+
+    lxc exec "${site}" -- lxc storage create remote ceph ceph.osd.pool_name="${osdPool}" ceph.user.name=admin
+    lxc exec "${site}" -- lxc project create "${project}"
+    lxc exec "${site}" -- lxc profile device add default root disk path="/" pool=remote --project "${project}"
+    lxc exec "${site}" -- lxc auth group create repl-group
+    lxc exec "${site}" -- lxc auth group permission add repl-group project "${project}" operator
+    lxc exec "${site}" -- lxc auth group permission add repl-group project "${project}" can_edit
+done
+
+# The two Ceph clusters become peers. The MicroCeph snap only reads files below its own directories.
+peerTokenPath="/var/snap/microceph/common/peer-token"
+peerToken="$(lxc exec sitea -- microceph.rbd mirror pool peer bootstrap create --site-name sitea "${osdPool}")"
+lxc exec siteb -- sh -c "echo '${peerToken}' > ${peerTokenPath}"
+lxc exec siteb -- microceph.rbd mirror pool peer bootstrap import --site-name siteb --direction rx-tx "${osdPool}" "${peerTokenPath}"
+
+# The two LXD clusters are linked, with sitea as the leader of the project and siteb as its standby.
+linkToken="$(lxc exec sitea -- lxc cluster link create siteb --quiet --auth-group repl-group)"
+lxc exec siteb -- lxc cluster link create sitea --token "${linkToken}" --auth-group repl-group
+lxc exec siteb -- lxc project set "${project}" replica.cluster=sitea
+lxc exec sitea -- lxc replicator create dr-to-b cluster=siteb --project "${project}"
+lxc exec siteb -- lxc project demote-replica "${project}"
+lxc exec sitea -- lxc project promote-replica "${project}"
+
+# The key names the peer's Ceph site. Containers are clones of their image by default and Ceph refuses to
+# mirror a clone whose parent is not mirrored, so cloning is turned off before the first container.
+lxc exec sitea -- lxc storage set remote ceph.rbd.clone_copy=false "ceph.replicator.${project}=siteb"
+lxc exec siteb -- lxc storage set remote ceph.rbd.clone_copy=false "ceph.replicator.${project}=sitea"
+
+echo "==> A run mirrors the images and transfers only the records"
+lxc exec sitea -- lxc storage volume create remote vol1 --project "${project}"
+lxc exec sitea -- lxc init "${TEST_IMG:-ubuntu-minimal-daily:24.04}" c1 --project "${project}"
+lxc exec sitea -- lxc config device add c1 vol1 disk pool=remote source=vol1 path=/mnt/vol1 --project "${project}"
+lxc exec sitea -- lxc start c1 --project "${project}"
+lxc exec sitea -- lxc exec c1 --project "${project}" -- sh -c 'echo root-marker > /root/marker && echo vol-marker > /mnt/vol1/marker && sync'
+
+# The run only succeeds once the peer has replayed the mirror snapshots.
+lxc exec sitea -- lxc replicator run dr-to-b --project "${project}"
+
+for image in "container_${project}_c1" "custom_${project}_vol1"; do
+    lxc exec sitea -- microceph.rbd --format json info "${osdPool}/${image}" | jq --exit-status '.mirroring.mode == "snapshot" and .mirroring.primary == true'
+    lxc exec siteb -- microceph.rbd --format json info "${osdPool}/${image}" | jq --exit-status '.mirroring.mode == "snapshot" and .mirroring.primary == false'
+done
+
+# The standby has the records of the instance and of its volume, with the leader's volume UUID.
+[ "$(lxc exec siteb -- lxc list --project "${project}" --format csv --columns ns)" = "c1,STOPPED" ]
+[ "$(lxc exec siteb -- lxc storage volume get remote vol1 volatile.uuid --project "${project}")" = "$(lxc exec sitea -- lxc storage volume get remote vol1 volatile.uuid --project "${project}")" ]
+
+echo "==> A planned switch to the standby keeps the data"
+lxc exec sitea -- lxc stop c1 --project "${project}"
+lxc exec sitea -- lxc replicator run dr-to-b --project "${project}"
+lxc exec sitea -- lxc project set "${project}" replica.cluster=siteb
+lxc exec sitea -- lxc project demote-replica "${project}"
+
+# An unforced promotion is refused until the standby has replayed the demotion.
+for _ in $(seq 60); do
+    if lxc exec siteb -- lxc project promote-replica "${project}"; then
+        break
+    fi
+
+    sleep 5
+done
+
+lxc exec siteb -- lxc query "/1.0/projects/${project}" | jq --exit-status '.replica_mode == "leader"'
+lxc exec siteb -- lxc start c1 --project "${project}"
+[ "$(lxc exec siteb -- lxc exec c1 --project "${project}" -- cat /root/marker)" = "root-marker" ]
+[ "$(lxc exec siteb -- lxc exec c1 --project "${project}" -- cat /mnt/vol1/marker)" = "vol-marker" ]
+
+# Cleanup
+prepare_vm_for_hard_stop sitea
+prepare_vm_for_hard_stop siteb
+lxc delete --force sitea siteb
+
+# shellcheck disable=SC2034
+FAIL=0

@@ -8335,6 +8335,55 @@ test_clustering_replicator_ceph_mirror() {
   # The stand-in is recreated so that the records can be deleted the ordinary way later.
   rbd create --size 1M "${osd_pool_two}/container_replicator-project_c1"
 
+  sub_test "A failed device restoration deletes the standby's records and keeps its images"
+
+  if [ "${LXD_VM_TESTS}" = "0" ]; then
+    echo "==> SKIP: VM tests are disabled"
+  else
+    # A stateful VM cannot attach a volume at a path, and only the standby's profile makes v1 stateful.
+    # The device is masked while the records are transferred, so its restoration is what fails.
+    LXD_DIR="${LXD_ONE_DIR}" lxc profile create vm --project replicator-project
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile create vm --project replicator-project
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile set vm migration.stateful=true --project replicator-project
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create "${pool_one}" vol2 --project replicator-project
+    LXD_DIR="${LXD_ONE_DIR}" lxc init --vm --empty v1 --profile default --profile vm --config limits.memory=128MiB --device "${SMALL_ROOT_DISK}" --project replicator-project
+    LXD_DIR="${LXD_ONE_DIR}" lxc config device add v1 vol2 disk pool="${pool_one}" source=vol2 path=/mnt/vol2 --project replicator-project
+    # Stand-ins as for c1. A VM has a block image and a filesystem image.
+    rbd create --size 1M "${osd_pool_two}/virtual-machine_replicator-project_v1.block"
+    rbd create --size 1M "${osd_pool_two}/virtual-machine_replicator-project_v1"
+    rbd create --size 1M "${osd_pool_two}/custom_replicator-project_vol2"
+
+    ! LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project || false
+    bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query --request GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '[.. | objects | select(.description == "Running replicator")] | max_by(.created_at)')"
+    jq --exit-status 'any(.children[]; .description == "Replicating instance" and .status == "Failure" and (.err | test("Failed restoring custom volume devices")))' <<< "${bulk_op}"
+    # The records the transfer created are deleted. The images are mirrors that Ceph owns, so they are kept.
+    [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns n)" = "c1" ]
+    LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/storage-pools/${pool_two}/volumes/custom?project=replicator-project" | jq --exit-status 'all(.[]; contains("/custom/vol2") | not)'
+    rbd info "${osd_pool_two}/virtual-machine_replicator-project_v1.block"
+    rbd info "${osd_pool_two}/virtual-machine_replicator-project_v1"
+    rbd info "${osd_pool_two}/custom_replicator-project_vol2"
+
+    # Nothing is left to block the next run, which creates the records again.
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile unset vm migration.stateful --project replicator-project
+    ! LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project || false
+    LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns ns | grep -xF 'v1,STOPPED'
+    LXD_DIR="${LXD_TWO_DIR}" lxc query "/1.0/instances/v1?project=replicator-project" | jq --exit-status '.devices.vol2.source == "vol2"'
+
+    # Cleanup. Deleting on the standby only deletes the records, so the stand-ins are deleted by hand.
+    LXD_DIR="${LXD_TWO_DIR}" lxc delete v1 --project replicator-project
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${pool_two}" vol2 --project replicator-project
+    rbd rm "${osd_pool_two}/virtual-machine_replicator-project_v1.block"
+    rbd rm "${osd_pool_two}/virtual-machine_replicator-project_v1"
+    rbd rm "${osd_pool_two}/custom_replicator-project_vol2"
+    rbd mirror image disable "${osd_pool_one}/virtual-machine_replicator-project_v1.block"
+    rbd mirror image disable "${osd_pool_one}/virtual-machine_replicator-project_v1"
+    rbd mirror image disable "${osd_pool_one}/custom_replicator-project_vol2"
+    LXD_DIR="${LXD_ONE_DIR}" lxc delete v1 --project replicator-project
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete "${pool_one}" vol2 --project replicator-project
+    LXD_DIR="${LXD_TWO_DIR}" lxc profile delete vm --project replicator-project
+    LXD_DIR="${LXD_ONE_DIR}" lxc profile delete vm --project replicator-project
+  fi
+
   sub_test "Restore is refused on a mirrored project"
 
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --restore --project replicator-project 2>&1)" = 'Error: Project "replicator-project" is mirrored through Ceph, promote its volumes instead of restoring them' ]
@@ -8399,11 +8448,11 @@ test_clustering_replicator_ceph_mirror() {
 
   sub_test "A pool without the key keeps the migration variant"
 
-  # The standby's records describe the stand-in images, so they are deleted before the ordinary
-  # migration transfers the volumes.
+  # The standby's records describe the stand-in images, so both are deleted before the ordinary
+  # migration transfers the volumes. The key is unset first, because with it only the records are deleted.
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage unset "${pool_two}" ceph.replicator.replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete "${pool_two}" vol1 --project replicator-project
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage unset "${pool_two}" ceph.replicator.replicator-project
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project --format csv --columns ns | grep -xF 'c1,STOPPED'
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show "${pool_two}" vol1 --project replicator-project
