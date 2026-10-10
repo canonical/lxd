@@ -71,6 +71,12 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 {{- end }}
 {{- end }}
 
+{{- if .goCoverDir }}
+
+  # Go coverage data.
+  "{{ .goCoverDir }}/{covmeta,covcounters,tmp.covmeta,tmp.covcounters}.*" rw,
+{{- end }}
+
   # Things that we definitely don't need
   deny @{PROC}/@{pid}/cgroup r,
   deny /sys/module/apparmor/parameters/enabled r,
@@ -170,6 +176,7 @@ func forkproxyProfile(inst instance, dev device) (string, error) {
 		"logPath":     inst.LogPath(),
 		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
 		"sockets":     sockets,
+		"goCoverDir":  goCoverDir(),
 	})
 	if err != nil {
 		return "", err

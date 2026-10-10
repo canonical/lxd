@@ -193,6 +193,23 @@ func parserSupports(sysOS *sys.OS, feature string) (bool, error) {
 	return false, nil
 }
 
+// goCoverDir returns the escaped directory that Go coverage data is written to by this binary and the ones it spawns.
+// It returns an empty string unless GOCOVERDIR is an absolute path.
+func goCoverDir() string {
+	dir := os.Getenv("GOCOVERDIR")
+	if !filepath.IsAbs(dir) {
+		return ""
+	}
+
+	// AppArmor requires deref of all paths.
+	fullPath, err := filepath.EvalSymlinks(dir)
+	if err == nil {
+		dir = fullPath
+	}
+
+	return rulePathEscaper.Replace(dir)
+}
+
 // profileName handles generating valid profile names.
 func profileName(prefix string, name string) string {
 	separators := 1

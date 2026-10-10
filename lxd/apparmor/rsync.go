@@ -55,6 +55,12 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .dstPath }}/ rwkl,
 {{- end }}
 
+{{- if .goCoverDir }}
+
+  # Go coverage data.
+  "{{ .goCoverDir }}/{covmeta,covcounters,tmp.covmeta,tmp.covcounters}.*" rw,
+{{- end }}
+
 {{- if .snap }}
   /snap/lxd/*/bin/rsync mrix,
 
@@ -72,6 +78,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 {{- end }}
 
   # Silence denials on files that aren't required.
+  deny @{PROC}/@{pid}/cgroup r,
   deny {{ .rootPath }}/etc/ssl/openssl.cnf r,
   deny /sys/devices/virtual/dmi/id/product_uuid r,
   deny /sys/kernel/mm/transparent_hugepage/hpage_pmd_size r,
@@ -193,6 +200,7 @@ func rsyncProfile(sysOS *sys.OS, name string, sourcePath string, dstPath string)
 		"rootPath":    rootPath,
 		"logPath":     logPath,
 		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+		"goCoverDir":  goCoverDir(),
 	})
 	if err != nil {
 		return "", err
