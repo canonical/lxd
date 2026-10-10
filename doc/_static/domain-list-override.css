@@ -1,8 +1,32 @@
-/* Override sphinx-structured-toc separator color to Ubuntu orange */
+/* Override sphinx-structured-toc separator color:
+   Ubuntu orange in light mode, white in dark mode */
 .domain-list > ul > li > ul > li {
     border-left: 1px solid #E95420;
 }
 
+body[data-theme="dark"] .domain-list > ul > li > ul > li {
+    border-left-color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+    body[data-theme="auto"] .domain-list > ul > li > ul > li {
+        border-left-color: #fff;
+    }
+}
+
+/* Remove bullets from the outer slice list */
+.domain-list > ul {
+    list-style: none;
+    padding-left: 0;
+}
+
 .domain-list > ul > li > ul > li:first-child {
     border-left: none;
+}
+
+/* Within the domain list only, remove the purple colour for visited links;
+   use the normal link color instead. */
+.domain-list {
+    --color-link--visited: var(--color-link);
+    --color-link--visited--hover: var(--color-link--hover);
 }
