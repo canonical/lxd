@@ -96,7 +96,7 @@ func ParseUserAgent(userAgent string) (*UserAgent, error) {
 // getProductInfo returns the product, product_version and product_lts based on the basic User-Agent information.
 func getProductInfo(product string) (*UserAgentProduct, error) {
 	fields := strings.Fields(product)
-	if fields[0] != "LXD" {
+	if len(fields) == 0 || fields[0] != "LXD" {
 		return nil, errors.New("Only LXD user agents are currently supported")
 	}
 
