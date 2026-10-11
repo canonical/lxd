@@ -70,6 +70,8 @@ func AllowInstanceCreation(globalConfig *clusterConfig.Config, info ProjectInfo,
 		instanceType = instancetype.Container
 	case api.InstanceTypeVM:
 		instanceType = instancetype.VM
+	case api.InstanceTypeMicroVM:
+		instanceType = instancetype.MicroVM
 	default:
 		return fmt.Errorf("Unexpected instance type %q", req.Type)
 	}
@@ -170,6 +172,9 @@ func getInstanceCountLimit(info *ProjectInfo, instanceType instancetype.Type) (i
 		key = "limits.containers"
 	case instancetype.VM:
 		key = "limits.virtual-machines"
+	case instancetype.MicroVM:
+		// MicroVMs have no limit of their own, they only count towards "limits.instances".
+		key = ""
 	default:
 		return -1, -1, fmt.Errorf("Unexpected instance type %q", instanceType)
 	}

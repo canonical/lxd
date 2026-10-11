@@ -118,6 +118,75 @@ func TestAllowInstanceCreation_Above(t *testing.T) {
 	assert.EqualError(t, err, `Reached maximum number of instances of type "container" in project "p1"`)
 }
 
+// A MicroVM can be created in a project that has limits. The container and
+// virtual machine limits do not apply to it.
+func TestAllowInstanceCreation_MicroVM(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	id, err := cluster.CreateProject(ctx, tx.Tx(), cluster.Project{Name: "p1"})
+	require.NoError(t, err)
+
+	err = cluster.CreateProjectConfig(ctx, tx.Tx(), id, map[string]string{"limits.containers": "0", "limits.virtual-machines": "0", "limits.instances": "2"})
+	require.NoError(t, err)
+
+	_, err = cluster.CreateInstance(ctx, tx.Tx(), cluster.Instance{
+		Project:      "p1",
+		Name:         "m1",
+		Type:         instancetype.MicroVM,
+		Architecture: 1,
+		Node:         "none",
+	})
+	require.NoError(t, err)
+
+	req := api.InstancesPost{
+		Name: "m2",
+		Type: api.InstanceTypeMicroVM,
+	}
+
+	info, err := limits.FetchProject(context.Background(), tx, "p1", true)
+	require.NoError(t, err)
+	require.NotNil(t, info)
+
+	err = limits.AllowInstanceCreation(nil, *info, req)
+	assert.NoError(t, err)
+}
+
+// MicroVMs count towards the overall instance limit of the project.
+func TestAllowInstanceCreation_MicroVM_AboveTotal(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	id, err := cluster.CreateProject(ctx, tx.Tx(), cluster.Project{Name: "p1"})
+	require.NoError(t, err)
+
+	err = cluster.CreateProjectConfig(ctx, tx.Tx(), id, map[string]string{"limits.instances": "1"})
+	require.NoError(t, err)
+
+	_, err = cluster.CreateInstance(ctx, tx.Tx(), cluster.Instance{
+		Project:      "p1",
+		Name:         "m1",
+		Type:         instancetype.MicroVM,
+		Architecture: 1,
+		Node:         "none",
+	})
+	require.NoError(t, err)
+
+	req := api.InstancesPost{
+		Name: "m2",
+		Type: api.InstanceTypeMicroVM,
+	}
+
+	info, err := limits.FetchProject(context.Background(), tx, "p1", true)
+	require.NoError(t, err)
+	require.NotNil(t, info)
+
+	err = limits.AllowInstanceCreation(nil, *info, req)
+	assert.EqualError(t, err, `Reached maximum number of instances in project "p1"`)
+}
+
 // If a limit is configured, but for a different instance type, the check
 // passes.
 func TestAllowInstanceCreation_DifferentType(t *testing.T) {
