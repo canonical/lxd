@@ -77,18 +77,31 @@ test_container_devices_nic_bridged() {
   # Because this would effectively cause 2 NICs with the same instance name to be connected to the same network.
   ! lxc config device add "${ctName}" eth1 nic network="${brName}" || false
 
-  # Test device name validation (use vlan=1 to avoid trigger instance DNS name conflict detection).
-  lxc config device add "${ctName}" 127.0.0.1 nic network="${brName}" vlan=1
+  # Check that two NICs on the same tagged VLAN are allowed. The bridge's dnsmasq is bound to
+  # the bridge device and serves only the bridge's own (default) VLAN, so a NIC whose untagged
+  # PVID is a tagged VLAN takes no DHCP lease or DNS name from it and cannot conflict over one.
+  # VLAN 500 is used rather than 1, because 1 is the default VLAN of a Linux native bridge.
+  lxc config device add "${ctName}" eth1 nic network="${brName}" vlan=500 hwaddr=0a:92:a7:0d:b7:c1 ipv4.address=192.0.2.201
+  lxc config device add "${ctName}" eth2 nic network="${brName}" vlan=500
+  # The DNS-name exemption must not disable the other checks: on the same tagged VLAN a NIC
+  # still cannot duplicate another's MAC or static IP.
+  ! lxc config device add "${ctName}" eth3 nic network="${brName}" vlan=500 hwaddr=0a:92:a7:0d:b7:c1 || false
+  ! lxc config device add "${ctName}" eth3 nic network="${brName}" vlan=500 ipv4.address=192.0.2.201 || false
+  lxc config device remove "${ctName}" eth1
+  lxc config device remove "${ctName}" eth2
+
+  # Test device name validation (use vlan=500 to avoid triggering instance DNS name conflict detection).
+  lxc config device add "${ctName}" 127.0.0.1 nic network="${brName}" vlan=500
   lxc config device remove "${ctName}" 127.0.0.1
-  lxc config device add "${ctName}" ::1 nic network="${brName}" vlan=1
+  lxc config device add "${ctName}" ::1 nic network="${brName}" vlan=500
   lxc config device remove "${ctName}" ::1
-  lxc config device add "${ctName}" _valid-name nic network="${brName}" vlan=1
+  lxc config device add "${ctName}" _valid-name nic network="${brName}" vlan=500
   lxc config device remove "${ctName}" _valid-name
-  lxc config device add "${ctName}" /foo nic network="${brName}" vlan=1
+  lxc config device add "${ctName}" /foo nic network="${brName}" vlan=500
   lxc config device remove "${ctName}" /foo
-  ! lxc config device add "${ctName}" .invalid nic network="${brName}" vlan=1 || false
-  ! lxc config device add "${ctName}" ./invalid nic network="${brName}" vlan=1 || false
-  ! lxc config device add "${ctName}" ../invalid nic network="${brName}" vlan=1 || false
+  ! lxc config device add "${ctName}" .invalid nic network="${brName}" vlan=500 || false
+  ! lxc config device add "${ctName}" ./invalid nic network="${brName}" vlan=500 || false
+  ! lxc config device add "${ctName}" ../invalid nic network="${brName}" vlan=500 || false
 
   # Start instance.
   lxc start "${ctName}"

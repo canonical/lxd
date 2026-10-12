@@ -669,3 +669,36 @@ func nicCheckNamesUnique(instConf instance.ConfigReader) error {
 func nicCheckDNSNameConflict(instNameA string, instNameB string) bool {
 	return strings.EqualFold(instNameA, instNameB)
 }
+
+// nicEffectiveVLAN returns the VLAN a NIC actually lands on. An unset "vlan" leaves the port on
+// its parent bridge's default PVID, which is 1 for a Linux native bridge and 0 (untagged) for
+// openvswitch. Every other value, including "none" (which removes the port's untagged
+// membership entirely), is itself. The driver is the parent bridge's "bridge.driver" setting, or
+// empty when the parent is not a managed network, in which case the native default is assumed.
+func nicEffectiveVLAN(bridgeDriver string, vlan string) string {
+	if vlan != "" {
+		return vlan
+	}
+
+	if bridgeDriver == "openvswitch" {
+		return "0"
+	}
+
+	return "1"
+}
+
+// nicsUseSameVLAN returns whether two NICs' "vlan" settings put them on the same L2 segment of
+// their shared parent bridge. Both NICs are attached to the same network, so a single driver
+// value describes the default PVID for both. Comparing effective VLANs means an unset VLAN is
+// recognised as matching an explicit reference to the bridge's default VLAN.
+func nicsUseSameVLAN(bridgeDriver string, vlanA string, vlanB string) bool {
+	return nicEffectiveVLAN(bridgeDriver, vlanA) == nicEffectiveVLAN(bridgeDriver, vlanB)
+}
+
+// nicUsesDefaultVLAN returns whether a NIC's "vlan" setting leaves it on its parent bridge's
+// default (untagged) VLAN, which is the only VLAN on which the bridge's dnsmasq can serve it.
+// "none" removes the port's membership of the default VLAN entirely and any other value moves
+// the port to a different untagged VLAN, so neither can reach dnsmasq.
+func nicUsesDefaultVLAN(bridgeDriver string, vlan string) bool {
+	return nicEffectiveVLAN(bridgeDriver, vlan) == nicEffectiveVLAN(bridgeDriver, "")
+}
