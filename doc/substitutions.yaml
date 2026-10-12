@@ -14,5 +14,5 @@ snapshot_schedule_format: "Cron expression (`<minute> <hour> <dom> <month> <dow>
 volume_configuration: "```{tip}\nIn addition to these configurations, you can also set default values for the storage volume configurations. See {ref}`storage-configure-vol-default`.\n```"
 
 # Maintain the substitutions below as the single sources of truth for current LTS and feature tracks:
-current_lts_track: "5.21"
-current_feature_track: "6"
+current_lts_track: "6"
+current_feature_track: "7"
