@@ -388,6 +388,10 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc project create foo
   LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="data" --project foo
 
+  # Copies between members forward requests over the cluster port, so track the connections they leave behind.
+  local conns_before
+  conns_before="$(cluster_member_connections "${ns1}" | wc -l)"
+
   # Perform copy/refresh matrix test from every cluster member to ensure the request forwards work as expected
   # and test with both started and stopped containers.
   for state in "" "--start"; do
@@ -428,6 +432,21 @@ test_clustering_containers() {
       done
     done
   done
+
+  echo "Check the copies between members left no connections open on node1."
+  # The client keeps an events websocket open for up to a minute after an operation it waited on, so wait a little longer than that.
+  local conns_after
+  for _ in $(seq 90); do
+    conns_after="$(cluster_member_connections "${ns1}" | wc -l)"
+    [ "${conns_after}" -gt "${conns_before}" ] || break
+    sleep 1
+  done
+
+  if [ "${conns_after}" -gt "${conns_before}" ]; then
+    echo "ERROR: node1 has ${conns_after} connections on the cluster port, expected at most ${conns_before}:"
+    cluster_member_connections "${ns1}"
+    exit 1
+  fi
 
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f test-refresh
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
