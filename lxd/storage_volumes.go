@@ -1176,25 +1176,34 @@ func clusterCopyCustomVolumeInternal(s *state.State, r *http.Request, sourceAddr
 		return response.SmartError(err)
 	}
 
-	client = client.UseProject(req.Source.Project)
-
-	pullReq := api.StorageVolumePost{
-		Name:       req.Source.Name,
-		Pool:       req.Source.Pool,
-		Migration:  true,
-		VolumeOnly: req.Source.VolumeOnly,
-		Project:    projectName,
-		Source: api.StorageVolumeSource{
-			Location: req.Source.Location,
-		},
+	// A snapshot can only be a migration source through its own endpoint.
+	var sourceURL *api.URL
+	var pullReq any
+	srcVolParentName, srcVolSnapName, srcIsSnapshot := api.GetParentAndSnapshotName(req.Source.Name)
+	if srcIsSnapshot {
+		sourceURL = api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", "custom", srcVolParentName, "snapshots", srcVolSnapName).Project(req.Source.Project)
+		pullReq = api.StorageVolumeSnapshotPost{
+			Name:      srcVolSnapName,
+			Migration: true,
+		}
+	} else {
+		sourceURL = api.NewURL().Path(version.APIVersion, "storage-pools", req.Source.Pool, "volumes", "custom", req.Source.Name).Project(req.Source.Project)
+		pullReq = api.StorageVolumePost{
+			Name:       req.Source.Name,
+			Pool:       req.Source.Pool,
+			Migration:  true,
+			VolumeOnly: req.Source.VolumeOnly,
+			Project:    projectName,
+			Source: api.StorageVolumeSource{
+				Location: req.Source.Location,
+			},
+		}
 	}
 
-	op, err := client.MigrateStoragePoolVolume(req.Source.Pool, pullReq)
+	opAPI, err := requestOperation(client, sourceURL, pullReq)
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	opAPI := op.Get()
 
 	websockets, err := opAPI.WebsocketSecrets()
 	if err != nil {
