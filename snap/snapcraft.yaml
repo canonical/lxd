@@ -1690,6 +1690,7 @@ parts:
 
   lxd-ui:
     source: https://github.com/canonical/lxd-ui
+    source-branch: stable-6
     source-depth: 1
     source-type: git
     plugin: nil
