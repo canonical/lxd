@@ -25,6 +25,7 @@ import (
 	"github.com/canonical/lxd/lxd/backup"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/linux"
+	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
@@ -85,11 +86,18 @@ func (d *btrfs) getMountOptions() string {
 	return "user_subvol_rm_allowed"
 }
 
+// isSubvolume checks if the path is a btrfs subvolume. It first checks the filesystem type, then checks if BTRFS_FIRST_FREE_OBJECTID (256)
+// is the inode number. Both checks are required because a non-btrfs filesystem can also use inode 256.
 func (d *btrfs) isSubvolume(path string) bool {
 	// A non-Btrfs filesystem can also use inode 256.
 	statfs := unix.Statfs_t{}
 	err := unix.Statfs(path, &statfs)
-	if err != nil || statfs.Type != unix.BTRFS_SUPER_MAGIC {
+	if err != nil {
+		return false
+	}
+
+	fsType, err := filesystem.FSTypeToName(int32(statfs.Type))
+	if err != nil || fsType != "btrfs" {
 		return false
 	}
 
