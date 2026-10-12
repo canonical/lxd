@@ -297,8 +297,9 @@ static int handle_bpf_syscall(pid_t pid_target, int notify_fd, int mem_fd,
 		return -EFBIG;
 	attr_len = req->data.args[2];
 
+	// The kernel only looks at the lower 32 bits of cmd (it is an int).
 	*bpf_cmd = req->data.args[0];
-	switch (req->data.args[0]) {
+	switch (*bpf_cmd) {
 	case BPF_PROG_LOAD:
 		cmd = BPF_PROG_LOAD;
 		break;
@@ -602,9 +603,13 @@ const seccompNotifyMount = `mount notify [3,0,SCMP_CMP_MASKED_EQ,184467440704224
 // 8 == BPF_PROG_ATTACH
 // 9 == BPF_PROG_DETACH
 // Policy snippet if security.syscalls.intercept.bpf is enabled.
-const seccompNotifyBpf = `bpf notify [0,5,SCMP_CMP_EQ]
-bpf notify [0,8,SCMP_CMP_EQ]
-bpf notify [0,9,SCMP_CMP_EQ]
+//
+// The kernel ignores the upper 32 bits of the cmd argument (it is an int), so
+// compare only the lower 32 bits (4294967295 == 0xffffffff). Otherwise setting
+// the upper bits would skip the interception.
+const seccompNotifyBpf = `bpf notify [0,5,SCMP_CMP_MASKED_EQ,4294967295]
+bpf notify [0,8,SCMP_CMP_MASKED_EQ,4294967295]
+bpf notify [0,9,SCMP_CMP_MASKED_EQ,4294967295]
 `
 
 const compatBlockingPolicy = `[%s]
