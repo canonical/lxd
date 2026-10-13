@@ -401,13 +401,25 @@ func UnixDeviceExists(devicesPath string, prefix string, path string) bool {
 	return shared.PathExists(devPath)
 }
 
+// unixDeviceIsOurFile returns whether the host side device file name belongs to the supplied typePrefix
+// and deviceName. If optPrefix is supplied, only the device file for that relative path matches.
+func unixDeviceIsOurFile(devName string, typePrefix string, deviceName string, optPrefix string) bool {
+	if optPrefix != "" {
+		return devName == filesystem.PathNameEncode(deviceJoinPath(typePrefix, deviceName, optPrefix))
+	}
+
+	prefix := deviceJoinPath(typePrefix, deviceName) + "."
+
+	return strings.HasPrefix(devName, filesystem.PathNameEncode(prefix))
+}
+
 // unixRemoveDevice identifies all files related to the supplied typePrefix and deviceName and then
 // populates the supplied runConf with the instructions to remove cgroup rules and unmount devices.
 // It detects if any other devices attached to the instance that share the same prefix have the same
 // relative mount path inside the instance encoded into the file name. If there is another device
 // that shares the same mount path then the unmount rule is not added to the runConf as the device
 // may still be in use with another LXD device.
-// Accepts an optional file prefix that will be used to narrow the selection of files to remove.
+// If optPrefix is supplied, only the device file for that relative path is removed.
 func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, optPrefix string, runConf *deviceConfig.RunConfig) error {
 	// Load all devices.
 	dents, err := os.ReadDir(devicesPath)
@@ -417,14 +429,6 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 		}
 	}
 
-	var ourPrefix string
-	// If a prefix override has been supplied, use that for filtering the devices to remove.
-	if optPrefix != "" {
-		ourPrefix = filesystem.PathNameEncode(deviceJoinPath(typePrefix, deviceName, optPrefix))
-	} else {
-		ourPrefix = filesystem.PathNameEncode(deviceJoinPath(typePrefix, deviceName))
-	}
-
 	ourDevs := []string{}
 	otherDevs := []string{}
 
@@ -432,7 +436,7 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 		devName := ent.Name()
 
 		// This device file belongs our LXD device.
-		if strings.HasPrefix(devName, ourPrefix) {
+		if unixDeviceIsOurFile(devName, typePrefix, deviceName, optPrefix) {
 			ourDevs = append(ourDevs, devName)
 			continue
 		}
@@ -498,17 +502,9 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 }
 
 // unixDeviceDeleteFiles removes all host side device files for a particular LXD device.
-// Accepts an optional file prefix that will be used to narrow the selection of files to delete.
+// If optPrefix is supplied, only the device file for that relative path is deleted.
 // This should be run after the files have been detached from the instance as a post hook.
 func unixDeviceDeleteFiles(s *state.State, devicesPath string, typePrefix string, deviceName string, optPrefix string) error {
-	var ourPrefix string
-	// If a prefix override has been supplied, use that for filtering the devices to remove.
-	if optPrefix != "" {
-		ourPrefix = filesystem.PathNameEncode(deviceJoinPath(typePrefix, deviceName, optPrefix))
-	} else {
-		ourPrefix = filesystem.PathNameEncode(deviceJoinPath(typePrefix, deviceName))
-	}
-
 	// Load all devices.
 	dents, err := os.ReadDir(devicesPath)
 	if err != nil {
@@ -522,7 +518,7 @@ func unixDeviceDeleteFiles(s *state.State, devicesPath string, typePrefix string
 		devName := ent.Name()
 
 		// This device file belongs our LXD device.
-		if strings.HasPrefix(devName, ourPrefix) {
+		if unixDeviceIsOurFile(devName, typePrefix, deviceName, optPrefix) {
 			devPath := filepath.Join(devicesPath, devName)
 
 			// Remove the host side mount.
