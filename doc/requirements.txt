@@ -16,7 +16,7 @@ sphinxext-opengraph==0.13.0
 ## Extra extensions
 sphinx-config-options==0.1.1
 sphinx-related-links==0.1.2
-sphinx-roles==0.1.0
+sphinx-roles==1.0.0
 sphinx-terminal==1.1.0
 sphinx-youtube-links==0.1.0
 
@@ -31,7 +31,7 @@ sphinx-llm==1.1.0
 vale==3.22.0.0
 
 # LXD custom dependencies
-gitpython==3.1.62
+gitpython==3.2.0
 linkify-it-py==2.2.0
 pyyaml==6.0.3
 sphinx-copybutton==0.5.2
