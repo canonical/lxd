@@ -377,6 +377,13 @@ func (d *nicBridged) checkAddressConflict() error {
 		networkName = d.network.Name()
 	}
 
+	// The parent bridge driver decides the default PVID an unset "vlan" lands on. Empty for an
+	// unmanaged parent, where the native bridge default is assumed.
+	bridgeDriver := ""
+	if d.network != nil {
+		bridgeDriver = d.network.Config()["bridge.driver"]
+	}
+
 	// Bridge networks are always in the default project.
 	return network.UsedByInstanceDevices(d.state, api.ProjectDefaultName, networkName, "bridge", func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		// Skip our own device. This avoids triggering duplicate device errors during
@@ -386,17 +393,22 @@ func (d *nicBridged) checkAddressConflict() error {
 			return nil
 		}
 
-		// Skip NICs connected to other VLANs (not perfect though as one NIC could
-		// explicitly specify the default untagged VLAN and these would be connected to
-		// same L2 even though the values are different, and there is a different default
-		// value for native and openvswith parent bridges).
-		if d.config["vlan"] != nicConfig["vlan"] {
+		// Skip NICs connected to other VLANs. A NIC with an unset "vlan" is on the bridge's
+		// default VLAN, whose ID differs between native (1) and openvswitch (0) bridges, so the
+		// effective VLANs are compared rather than the raw values.
+		if !nicsUseSameVLAN(bridgeDriver, d.config["vlan"], nicConfig["vlan"]) {
 			return nil
 		}
 
 		// Check there isn't another instance with the same DNS name connected to a managed network
 		// that has DNS enabled and is connected to the same untagged VLAN.
-		if d.network != nil && d.network.Config()["dns.mode"] != "none" && nicCheckDNSNameConflict(d.inst.Name(), inst.Name) {
+		//
+		// Only NICs left on the parent bridge's default VLAN are checked. dnsmasq is bound to the
+		// bridge device and serves only the bridge's own subnets, so it cannot reach a port whose
+		// untagged PVID is some other VLAN: such a NIC takes no DHCP lease, router advertisement
+		// or DNS name from it, and so cannot conflict over one. Note this exempts the DNS check
+		// alone — the MAC and static IP checks below apply to every NIC, tagged or not.
+		if d.network != nil && nicUsesDefaultVLAN(bridgeDriver, d.config["vlan"]) && d.network.Config()["dns.mode"] != "none" && nicCheckDNSNameConflict(d.inst.Name(), inst.Name) {
 			if sameLogicalInstance {
 				// Skip NICs that are being renamed.
 				_, nicInPendingExpandedDevices := d.inst.ExpandedDevices()[nicName]
