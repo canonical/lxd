@@ -20,7 +20,7 @@ import (
 type fanotify struct {
 	common
 
-	fd int
+	file *os.File
 }
 
 type fanotifyEventInfoHeader struct {
@@ -84,9 +84,7 @@ func (d *fanotify) load(ctx context.Context) error {
 		return errors.New("Path needs to be a mountpoint")
 	}
 
-	var err error
-
-	d.fd, err = unix.FanotifyInit(unix.FAN_CLOEXEC|unix.FAN_REPORT_DFID_NAME, unix.O_CLOEXEC)
+	fanotifyFd, err := unix.FanotifyInit(unix.FAN_CLOEXEC|unix.FAN_NONBLOCK|unix.FAN_REPORT_DFID_NAME, unix.O_CLOEXEC)
 	if err != nil {
 		return fmt.Errorf("Failed initializing fanotify: %w", err)
 	}
@@ -96,24 +94,29 @@ func (d *fanotify) load(ctx context.Context) error {
 		return fmt.Errorf("Failed getting a fanotify event mask: %w", err)
 	}
 
-	err = unix.FanotifyMark(d.fd, unix.FAN_MARK_ADD|unix.FAN_MARK_FILESYSTEM, mask, unix.AT_FDCWD, d.prefixPath)
+	err = unix.FanotifyMark(fanotifyFd, unix.FAN_MARK_ADD|unix.FAN_MARK_FILESYSTEM, mask, unix.AT_FDCWD, d.prefixPath)
 	if err != nil {
-		_ = unix.Close(d.fd)
+		_ = unix.Close(fanotifyFd)
 		return fmt.Errorf("Failed watching directory %q: %w", d.prefixPath, err)
 	}
 
-	fd, err := unix.Open(d.prefixPath, unix.O_DIRECTORY|unix.O_RDONLY|unix.O_CLOEXEC, 0)
+	mountFd, err := unix.Open(d.prefixPath, unix.O_DIRECTORY|unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
-		_ = unix.Close(d.fd)
+		_ = unix.Close(fanotifyFd)
 		return fmt.Errorf("Failed opening directory %q: %w", d.prefixPath, err)
 	}
 
+	// A raw fd number closed by another goroutine can be reused by any new fd before getEvents reads it again.
+	// For a non-blocking fd, os.NewFile returns a pollable file whose Close wakes a pending Read and releases
+	// the fd number only after that Read returns.
+	d.file = os.NewFile(uintptr(fanotifyFd), "fanotify")
+
 	go func() {
 		<-ctx.Done()
-		_ = unix.Close(d.fd)
+		_ = d.file.Close()
 	}()
 
-	go d.getEvents(ctx, fd)
+	go d.getEvents(ctx, mountFd)
 
 	return nil
 }
@@ -126,10 +129,10 @@ func (d *fanotify) getEvents(ctx context.Context, mountFd int) {
 		// is captured and following events are readable. Using only binary.Read() would require
 		// more manual cleanup as otherwise bytes from a previous event would still be present and
 		// make everything unreadable.
-		_, err := unix.Read(d.fd, buf)
+		_, err := d.file.Read(buf)
 		if err != nil {
 			// Stop listening for events as the fanotify fd has been closed due to cleanup.
-			if ctx.Err() != nil || errors.Is(err, unix.EBADF) {
+			if ctx.Err() != nil || errors.Is(err, os.ErrClosed) {
 				_ = unix.Close(mountFd)
 				return
 			}
