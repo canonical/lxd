@@ -71,6 +71,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		logger.Warn("Failed getting CPU metrics", logger.Ctx{"err": err})
 	} else {
 		out.CPU = cpuStats
+		out.CPUs = len(cpuStats)
 	}
 
 	return response.SyncResponse(true, &out)
