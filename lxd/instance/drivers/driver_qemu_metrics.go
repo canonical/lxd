@@ -30,6 +30,7 @@ func (d *qemu) getQemuMetrics() (*metrics.MetricSet, error) {
 		d.logger.Warn("Failed getting CPU metrics", logger.Ctx{"err": err})
 	} else {
 		out.CPU = cpuStats
+		out.CPUs = len(cpuStats)
 	}
 
 	memoryStats, err := d.getQemuMemoryMetrics()
