@@ -38,7 +38,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openfga/api/proto v0.0.0-20260908144156-7a79d2abab5b
-	github.com/openfga/language/pkg/go v0.3.2-0.20260818192608-0d2ad7fb7c40
+	github.com/openfga/language/pkg/go v0.3.2
 	github.com/openfga/openfga v1.21.0
 	github.com/osrg/gobgp/v3 v3.37.0
 	github.com/pkg/sftp v1.13.11
@@ -48,17 +48,17 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/vishvananda/netlink v1.3.1
-	github.com/zitadel/oidc/v3 v3.51.7
+	github.com/zitadel/oidc/v3 v3.51.11
 	go.starlark.net v0.0.0-20260908191801-89a6a09411d5
 	go.uber.org/zap v1.28.0
 	go.yaml.in/yaml/v2 v2.4.4
 	golang.org/x/crypto v0.57.0
 	golang.org/x/oauth2 v0.37.0
-	golang.org/x/sync v0.23.0
+	golang.org/x/sync v0.24.0
 	golang.org/x/sys v0.48.0
 	golang.org/x/term v0.46.0
 	golang.org/x/text v0.42.0
-	golang.org/x/tools v0.50.0
+	golang.org/x/tools v0.51.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
