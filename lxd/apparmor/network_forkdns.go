@@ -35,6 +35,12 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
   {{ .rootPath }}/run/systemd/resolve/stub-resolv.conf r,
 
+{{- if .goCoverDir }}
+
+  # Go coverage data.
+  "{{ .goCoverDir }}/{covmeta,covcounters,tmp.covmeta,tmp.covcounters}.*" rw,
+{{- end }}
+
   # Things that we definitely don't need
   deny @{PROC}/@{pid}/cgroup r,
   deny /sys/module/apparmor/parameters/enabled r,
@@ -83,6 +89,7 @@ func forkdnsProfile(n network) (string, error) {
 		"snap":        shared.InSnap(),
 		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
 		"exePath":     execPath,
+		"goCoverDir":  goCoverDir(),
 	})
 	if err != nil {
 		return "", err
