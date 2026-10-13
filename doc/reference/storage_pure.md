@@ -88,9 +88,6 @@ Snapshots cannot be mounted
 Sharing the Pure Storage storage pool between multiple LXD installations
 : Sharing a Pure Storage array between multiple LXD installations is possible provided that installations use distinct storage pool names. Storage pools are implemented as Pods on the array and pod names have to be unique.
 
-Recovering Pure Storage storage pools
-: Recovery of Pure Storage storage pools using `lxd recover` is currently not supported.
-
 ## Configuration options
 
 The following configuration options are available for storage pools that use the `pure` driver, as well as storage volumes in these pools.
