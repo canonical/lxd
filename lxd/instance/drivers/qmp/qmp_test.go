@@ -2,6 +2,7 @@ package qmp
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -164,7 +165,7 @@ func TestListenInvalidJson(t *testing.T) {
 func TestListenStreamResponse(t *testing.T) {
 	mon := &qemuMachineProtocol{}
 	id := uint32(1)
-	want := `{"foo": "bar", "id": 1}`
+	want := `{"return": {"running": true, "status": "running"}, "id": 1}`
 	r := strings.NewReader(want)
 
 	events := make(chan qmpEvent)
@@ -420,7 +421,44 @@ func mockMonitorServer(t *testing.T, eg *errgroup.Group, qmp *qemuMachineProtoco
 func TestListenLargeResponse(t *testing.T) {
 	mon := &qemuMachineProtocol{}
 	id := uint32(1)
-	want := fmt.Sprintf(`{"foo": %q, "id": 1}`, strings.Repeat("x", bufio.MaxScanTokenSize*2))
+
+	template := `{
+	"bus": 0,
+	"slot": %d,
+	"function": %d,
+	"class_info": {"class": 1540},
+	"id": {"device": 12, "vendor": 6966},
+	"irq_pin": 1,
+	"qdev_id": "qemu_pcie%d",
+	"pci_bridge": {
+		"bus": {
+			"number": 0,
+			"secondary": %d,
+			"subordinate": %d,
+			"io_range": {"base": 4096, "limit": 8191},
+			"memory_range": {"base": 4273995776, "limit": 4275044351},
+			"prefetchable_range": {"base": 549755813888, "limit": 549757911039}
+		}
+	},
+	"regions": []
+}`
+
+	var devices []string
+	devicesLen := 0
+	for i := 0; devicesLen <= bufio.MaxScanTokenSize; i++ {
+		indented := fmt.Appendf(nil, template, 4+i/8, i%8, i, i+1, i+1)
+		var compact bytes.Buffer
+		err := json.Compact(&compact, indented)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		device := compact.String()
+		devices = append(devices, device)
+		devicesLen += len(device)
+	}
+
+	want := fmt.Sprintf(`{"return": [{"bus": 0, "devices": [%s]}], "id": 1}`, strings.Join(devices, ", "))
 	r := strings.NewReader(want)
 
 	events := make(chan qmpEvent)
