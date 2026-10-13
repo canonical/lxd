@@ -576,7 +576,7 @@ func (p *AlletraClient) DeleteHost(hostName string) error {
 }
 
 // UpdateHost updates an existing host. This should be never called
-// and only needed to make code sharing with Pure easier.
+// and only needed to make code sharing with Everpure easier.
 func (p *AlletraClient) UpdateHost(hostName string, qns []string) error {
 	return fmt.Errorf("Failed updating host %q. Operation not supported", hostName)
 }

@@ -439,3 +439,6 @@ CPG
 vLUN
 vLUNs
 VRRP
+Everpure
+FlashArray
+FlashArrays

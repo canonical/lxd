@@ -428,7 +428,7 @@ func (c *connectorISCSI) GetDiskDevicePath(diskPathFilter block.DevicePathFilter
 // Therefore, this function manually removes the device, preserving other connected volumes.
 //
 // Note that iSCSI device should be removed from the host before being unmapped on the storage array side.
-// On some storage arrays (for example, HPE Alletra and Pure) we've seen that removing a vLUN from the array
+// On some storage arrays (for example, HPE Alletra and Everpure) we've seen that removing a vLUN from the array
 // immediately makes device inaccessible and traps any task that tries to access it
 // to D-state (and this task can be systemd-udevd which tries to remove a device node!).
 // That's why it is better to remove the device node from the host and then remove vLUN.

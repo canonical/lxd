@@ -199,7 +199,7 @@ Concrete recovery examples for each storage driver can be found in {ref}`howto-s
 The tool then mounts any unmounted storage pools and continues scanning for volumes that may be associated with LXD.
 
 Through this scan, the recovery tool can identify some custom volumes by name.
-Some {ref}`remote storage drivers <storage-drivers-remote>`, however, such as the {ref}`PowerFlex <storage-powerflex>`, {ref}`PowerStore <storage-powerstore>`, and {ref}`Pure <storage-pure>` drivers, use transformed volume names, and the recovery tool is unable to discover these volumes from their name alone.
+Some {ref}`remote storage drivers <storage-drivers-remote>`, however, such as the {ref}`PowerFlex <storage-powerflex>`, {ref}`PowerStore <storage-powerstore>`, and {ref}`Everpure <storage-pure>` drivers, use transformed volume names, and the recovery tool is unable to discover these volumes from their name alone.
 Instead, these volumes can only be discovered if they are attached to an instance.
 
 LXD maintains a `backup.yaml` file in each instance's storage volume, which contains all necessary information to recover a given instance.
