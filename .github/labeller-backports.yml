@@ -1,0 +1,4 @@
+backport-6:
+  - any-glob-to-any-file:
+    - '!lxd/db/cluster/schema.go'
+    - '!lxd/db/node/schema.go'
