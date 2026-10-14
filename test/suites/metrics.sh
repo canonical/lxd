@@ -41,6 +41,9 @@ test_metrics() {
     lxc query /1.0/metrics | grep -xF 'lxd_instances{project="default",type="virtual-machine"} 2'
     lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo",type="virtual-machine"} 1'
     lxc query /1.0/metrics | grep -xF 'lxd_instances{project="foo2",type="virtual-machine"} 1'
+
+    echo "==> Ensure lxd_cpu_effective_total reports the VM's CPU count"
+    lxc query /1.0/metrics | grep -xF 'lxd_cpu_effective_total{name="v1",project="default",state="RUNNING",type="virtual-machine"} 1'
   else
     echo "==> Ensure lxd_instances reports VM count properly (0)"
     lxc query /1.0/metrics | grep -xF 'lxd_instances{project="default",type="virtual-machine"} 0'
