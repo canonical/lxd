@@ -1201,6 +1201,14 @@ user_is_not_project_operator() {
   lxc_remote image show testimage | sed -e "s/public: false/public: true/" | lxc_remote image edit testimage
   lxc_remote image list "${remote}:" -f csv | grep -wF "${test_image_fingerprint_short}"
   lxc_remote image show testimage | sed -e "s/public: true/public: false/" | lxc_remote image edit testimage
+
+  # Should be able to list and show built-in image registries, but not modify any.
+  lxc image registry create foo url=https://www.example.com
+  [ "$(lxc image registry list "${remote}:" -f csv | cut -d, -f1 | paste -sd, -)" = 'images,ubuntu,ubuntu-daily,ubuntu-minimal,ubuntu-minimal-daily' ]
+  lxc image registry show "${remote}:images"
+  ! lxc image registry show "${remote}:foo" || false
+  ! lxc image registry set "${remote}:foo" url=https://foo.example.com || false
+  lxc image registry delete foo
 }
 
 user_is_instance_user() {
