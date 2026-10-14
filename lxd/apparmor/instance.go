@@ -236,7 +236,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			"exePath":           execPath,
 			"goCoverDir":        goCoverDir(),
 			"extra_config":      extraConfig,
-			"libraryPath":       strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+			"libraryPath":       ldLibraryPaths(),
 			"logPath":           inst.LogPath(),
 			"name":              InstanceProfileName(inst),
 			"path":              path,

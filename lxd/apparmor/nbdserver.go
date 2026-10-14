@@ -163,14 +163,6 @@ func nbdServerProfile(name string, command string, socketPath string, readPaths 
 		return escaped
 	}
 
-	// Only absolute entries are named, as an empty entry renders a rule that allows every path.
-	libraryPaths := []string{}
-	for entry := range strings.SplitSeq(os.Getenv("LD_LIBRARY_PATH"), ":") {
-		if filepath.IsAbs(entry) {
-			libraryPaths = append(libraryPaths, rulePathEscaper.Replace(entry))
-		}
-	}
-
 	sb := &strings.Builder{}
 	err = nbdServerProfileTpl.Execute(sb, map[string]any{
 		"name":         name,
@@ -179,7 +171,7 @@ func nbdServerProfile(name string, command string, socketPath string, readPaths 
 		"readPaths":    rulePaths(readPaths),
 		"writePaths":   rulePaths(writePaths),
 		"snap":         shared.InSnap(),
-		"libraryPaths": libraryPaths,
+		"libraryPaths": escapeRulePaths(ldLibraryPaths()),
 	})
 	if err != nil {
 		return "", err

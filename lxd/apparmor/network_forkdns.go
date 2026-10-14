@@ -2,7 +2,6 @@ package apparmor
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -87,7 +86,7 @@ func forkdnsProfile(n network) (string, error) {
 		"varPath":     shared.VarPath(""),
 		"rootPath":    rootPath,
 		"snap":        shared.InSnap(),
-		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+		"libraryPath": ldLibraryPaths(),
 		"exePath":     execPath,
 		"goCoverDir":  goCoverDir(),
 	})
