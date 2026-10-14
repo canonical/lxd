@@ -337,6 +337,8 @@ jobs:
       # Restore the cache warmed in code-tests job
       - name: Build or restore dqlite/liblxc dependencies
         uses: $/.github/actions/cache-dqlite-liblxc
+        with:
+          export-env: true
 
       # Restore the cache warmed in code-tests job
       - name: Download external test images
@@ -417,8 +419,8 @@ jobs:
           set -eux
           export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
 
-          # Run the tests for the selected backend
-          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
+          # Run the tests for the selected backend (sudo drops LD_LIBRARY_PATH, so set it again through env)
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" env "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" ./main.sh "group:${GROUP}"
 
       - name: "Run system tests (${{ matrix.group }}, ceph)"
         if: matrix.backends == 'all' || matrix.backends == 'ceph'
@@ -431,8 +433,8 @@ jobs:
           set -eux
           export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
 
-          # Run the tests for the selected backend
-          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
+          # Run the tests for the selected backend (sudo drops LD_LIBRARY_PATH, so set it again through env)
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" env "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" ./main.sh "group:${GROUP}"
 
       - name: "Run system tests (${{ matrix.group }}, dir)"
         if: matrix.backends == 'all' || matrix.backends == 'fasts' || matrix.backends == 'dir'
@@ -445,8 +447,8 @@ jobs:
           set -eux
           export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
 
-          # Run the tests for the selected backend
-          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
+          # Run the tests for the selected backend (sudo drops LD_LIBRARY_PATH, so set it again through env)
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" env "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" ./main.sh "group:${GROUP}"
 
       - name: "Run system tests (${{ matrix.group }}, lvm)"
         if: matrix.backends == 'all' || matrix.backends == 'lvm'
@@ -459,8 +461,8 @@ jobs:
           set -eux
           export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
 
-          # Run the tests for the selected backend
-          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
+          # Run the tests for the selected backend (sudo drops LD_LIBRARY_PATH, so set it again through env)
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" env "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" ./main.sh "group:${GROUP}"
 
       - name: "Run system tests (${{ matrix.group }}, zfs)"
         if: matrix.backends == 'all' || matrix.backends == 'zfs'
@@ -473,8 +475,8 @@ jobs:
           set -eux
           export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
 
-          # Run the tests for the selected backend
-          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
+          # Run the tests for the selected backend (sudo drops LD_LIBRARY_PATH, so set it again through env)
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" env "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" ./main.sh "group:${GROUP}"
 
       - name: "Run system tests (${{ matrix.group }}, random)"
         if: matrix.backends == 'all' || matrix.backends == 'random'
@@ -487,8 +489,8 @@ jobs:
           set -eux
           export PATH="/home/runner/go/bin:$PATH:/snap/microovn/current/commands"
 
-          # Run the tests for the selected backend
-          sudo --preserve-env="${SUDO_PRESERVE_ENV}" ./main.sh "group:${GROUP}"
+          # Run the tests for the selected backend (sudo drops LD_LIBRARY_PATH, so set it again through env)
+          sudo --preserve-env="${SUDO_PRESERVE_ENV}" env "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" ./main.sh "group:${GROUP}"
 
       - name: Upload crash dumps
         if: always()
@@ -1012,7 +1014,8 @@ jobs:
           export LXD_DOCUMENTATION="${GITHUB_WORKSPACE}/doc/_build/"
           export PATH="/home/runner/go/bin:$PATH"
           sudo rm -rf /var/lib/lxd
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH,LXD_DOCUMENTATION $(go env GOPATH)/bin/lxd --group sudo &
+          # sudo drops LD_LIBRARY_PATH, so set it again through env
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LXD_DOCUMENTATION env "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" $(go env GOPATH)/bin/lxd --group sudo &
 
       - name: Run LXD-UI
         env:
@@ -1093,7 +1096,7 @@ jobs:
         run: |
           set -eux
           export PATH="/home/runner/go/bin:$PATH"
-          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR,LD_LIBRARY_PATH $(go env GOPATH)/bin/lxd shutdown
+          sudo --preserve-env=PATH,GOPATH,GOCOVERDIR $(go env GOPATH)/bin/lxd shutdown
 
       - name: Upload coverage data
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
