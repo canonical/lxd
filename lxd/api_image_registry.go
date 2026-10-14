@@ -40,7 +40,7 @@ var imageRegistryCmd = APIEndpoint{
 	Path:        "image-registries/{name}",
 	MetricsType: entity.TypeImageRegistry,
 
-	Get:    APIEndpointAction{Handler: imageRegistryGet, AccessHandler: allowPermission(entity.TypeImageRegistry, auth.EntitlementCanView, "name")},
+	Get:    APIEndpointAction{Handler: imageRegistryGet, AccessHandler: imageRegistryGetAccessHandler},
 	Post:   APIEndpointAction{Handler: imageRegistryPost, AccessHandler: allowPermission(entity.TypeImageRegistry, auth.EntitlementCanEdit, "name")},
 	Patch:  APIEndpointAction{Handler: imageRegistryPatch, AccessHandler: allowPermission(entity.TypeImageRegistry, auth.EntitlementCanEdit, "name")},
 	Put:    APIEndpointAction{Handler: imageRegistryPut, AccessHandler: allowPermission(entity.TypeImageRegistry, auth.EntitlementCanEdit, "name")},
@@ -51,7 +51,25 @@ var imageRegistryImagesCmd = APIEndpoint{
 	Path:        "image-registries/{name}/images",
 	MetricsType: entity.TypeImageRegistry,
 
-	Get: APIEndpointAction{Handler: imageRegistryImagesGet, AccessHandler: allowPermission(entity.TypeImageRegistry, auth.EntitlementCanView, "name")},
+	Get: APIEndpointAction{Handler: imageRegistryImagesGet, AccessHandler: imageRegistryGetAccessHandler},
+}
+
+func imageRegistryGetAccessHandler(d *Daemon, r *http.Request) response.Response {
+	name := r.PathValue("name")
+
+	// Built-in registries are immutable and viewable by all.
+	// Whether or not the registry can be used is governed by project configuration.
+	if dbCluster.ImageRegistryIsBuiltinByName(name) {
+		return response.EmptySyncResponse
+	}
+
+	s := d.State()
+	err := s.Authorizer.CheckPermission(r.Context(), entity.ImageRegistryURL(name), auth.EntitlementCanView)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
 }
 
 // swagger:operation GET /1.0/image-registries image-registries image_registries_get
@@ -158,7 +176,7 @@ func imageRegistriesGet(d *Daemon, r *http.Request) response.Response {
 		var err error
 
 		imageRegistries, imageRegistryURLs, err = dbCluster.GetImageRegistriesAndURLs(ctx, tx.Tx(), func(registry dbCluster.ImageRegistriesRow) bool {
-			return userHasPermission(entity.ImageRegistryURL(registry.Name))
+			return registry.Builtin || userHasPermission(entity.ImageRegistryURL(registry.Name))
 		})
 		if err != nil {
 			return err
