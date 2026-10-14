@@ -44,15 +44,15 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .rootPath }}/run/systemd/resolve/stub-resolv.conf r,
 
 {{- if .sourcePath }}
-  {{ .sourcePath }}/** r,
-  {{ .sourcePath }} r,
-  {{ .sourcePath }}/ r,
+  "{{ .sourcePath }}/**" r,
+  "{{ .sourcePath }}" r,
+  "{{ .sourcePath }}/" r,
 {{- end }}
 
 {{- if .dstPath }}
-  {{ .dstPath }}/** rwkl,
-  {{ .dstPath }} rwkl,
-  {{ .dstPath }}/ rwkl,
+  "{{ .dstPath }}/**" rwkl,
+  "{{ .dstPath }}" rwkl,
+  "{{ .dstPath }}/" rwkl,
 {{- end }}
 
 {{- if .goCoverDir }}
@@ -194,8 +194,8 @@ func rsyncProfile(sysOS *sys.OS, name string, sourcePath string, dstPath string)
 	err = rsyncProfileTpl.Execute(sb, map[string]any{
 		"name":        name,
 		"execPath":    execPath,
-		"sourcePath":  sourcePath,
-		"dstPath":     dstPath,
+		"sourcePath":  rulePathEscaper.Replace(sourcePath),
+		"dstPath":     rulePathEscaper.Replace(dstPath),
 		"snap":        shared.InSnap(),
 		"rootPath":    rootPath,
 		"logPath":     logPath,
