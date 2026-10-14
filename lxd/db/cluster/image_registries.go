@@ -11,6 +11,29 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 )
 
+const (
+	// ImageRegistryBuiltinNameImages is the name of the built-in "images" registry.
+	ImageRegistryBuiltinNameImages = "images"
+
+	// ImageRegistryBuiltinNameUbuntu is the name of the built-in "ubuntu" registry.
+	ImageRegistryBuiltinNameUbuntu = "ubuntu"
+
+	// ImageRegistryBuiltinNameUbuntuDaily is the name of the built-in "ubuntu-daily" registry.
+	ImageRegistryBuiltinNameUbuntuDaily = "ubuntu-daily"
+
+	// ImageRegistryBuiltinNameUbuntuMinimal is the name of the built-in "ubuntu-minimal" registry.
+	ImageRegistryBuiltinNameUbuntuMinimal = "ubuntu-minimal"
+
+	// ImageRegistryBuiltinNameUbuntuMinimalDaily is the name of the built-in "ubuntu-minimal-daily" registry.
+	ImageRegistryBuiltinNameUbuntuMinimalDaily = "ubuntu-minimal-daily"
+)
+
+// ImageRegistryIsBuiltinByName returns true if the given name matches a built-in registry name.
+func ImageRegistryIsBuiltinByName(name string) bool {
+	_, ok := builtinImageRegistries[name]
+	return ok
+}
+
 // ImageRegistriesRow represents a single row of the image_registries table.
 // db:model image_registries
 type ImageRegistriesRow struct {
