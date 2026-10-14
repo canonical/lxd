@@ -3818,3 +3818,10 @@ New `lxc` commands:
 * `lxc bitmap list` and `lxc bitmap show` list the bitmaps of an instance snapshot.
 * `lxc nbd` exports an instance snapshot over NBD, with `--previous-snapshot-uuid` to limit the bitmaps.
 * `lxc storage volume nbd --writable` serves a storage volume read-write over NBD.
+
+(extension-cluster-members-state-recursion)=
+## `cluster_members_state_recursion`
+
+Adds support for `recursion=2` on `GET /1.0/cluster/members`. In addition to the cluster member information returned with `recursion=1`, each entry contains a `state` field with the member state (as returned by `GET /1.0/cluster/members/{name}/state`).
+
+The state of all members is fetched in parallel by the member handling the request. The `state` field is `null` for offline members and for members whose state could not be retrieved.
