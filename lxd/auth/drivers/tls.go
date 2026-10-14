@@ -114,6 +114,14 @@ func (t *tls) CheckPermission(ctx context.Context, entityURL *api.URL, entitleme
 		}
 
 		t.emitAuthzFail(ctx, entityURL, entitlement, entityType)
+
+		// For image registries, the CLI has a fallback mechanism to use locally defined remotes when it can't find an
+		// associated image registry on the server. This fallback mechanism only occurs on 404. To allow this compatibility
+		// layer to work for restricted TLS clients, we need to return 404 for image registries (when checking view access).
+		if entitlement == auth.EntitlementCanView && entityType == entity.TypeImageRegistry {
+			return api.NewGenericStatusError(http.StatusNotFound)
+		}
+
 		return api.StatusErrorf(http.StatusForbidden, "Certificate is restricted")
 	}
 
