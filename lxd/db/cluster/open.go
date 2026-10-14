@@ -346,11 +346,11 @@ func checkClusterIsUpgradable(ctx context.Context, tx *sql.Tx, target [2]int) er
 // database schema migration, so it must never change. The migration has to insert the same rows on
 // every upgrade regardless of the LXD version applying it.
 var builtinImageRegistries = map[string]string{
-	"images":               "https://images.lxd.canonical.com",
-	"ubuntu":               "https://cloud-images.ubuntu.com/releases/",
-	"ubuntu-daily":         "https://cloud-images.ubuntu.com/daily/",
-	"ubuntu-minimal":       "https://cloud-images.ubuntu.com/minimal/releases/",
-	"ubuntu-minimal-daily": "https://cloud-images.ubuntu.com/minimal/daily/",
+	ImageRegistryBuiltinNameImages:             "https://images.lxd.canonical.com",
+	ImageRegistryBuiltinNameUbuntu:             "https://cloud-images.ubuntu.com/releases/",
+	ImageRegistryBuiltinNameUbuntuDaily:        "https://cloud-images.ubuntu.com/daily/",
+	ImageRegistryBuiltinNameUbuntuMinimal:      "https://cloud-images.ubuntu.com/minimal/releases/",
+	ImageRegistryBuiltinNameUbuntuMinimalDaily: "https://cloud-images.ubuntu.com/minimal/daily/",
 }
 
 // createBuiltinImageRegistries prepopulates the database with built-in image registries.
