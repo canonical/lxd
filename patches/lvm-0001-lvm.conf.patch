@@ -5,10 +5,32 @@ Patch lvm.conf to:
    * monitoring
 2) Override all executable directives to use executables from the
    snap (/snap/lxd/current/bin).
+3) Store metadata archives and backups under /var/snap/lxd/common
+   instead of the small tmpfs mounted on /etc.
 
 --- a/etc/lvm/lvm.conf
 +++ b/etc/lvm/lvm.conf
-@@ -1234,31 +1234,27 @@
+@@ -943,8 +943,7 @@
+ 	# Configuration option backup/backup_dir.
+ 	# Location of the metadata backup files.
+ 	# Remember to back up this directory regularly!
+-	# This configuration option has an automatic default value.
+-	# backup_dir = "/etc/lvm/backup"
++	backup_dir = "/var/snap/lxd/common/lvm/backup"
+ 
+ 	# Configuration option backup/archive.
+ 	# Maintain an archive of old metadata configurations.
+@@ -955,8 +954,7 @@
+ 	# Configuration option backup/archive_dir.
+ 	# Location of the metadata archive files.
+ 	# Remember to back up this directory regularly!
+-	# This configuration option has an automatic default value.
+-	# archive_dir = "/etc/lvm/archive"
++	archive_dir = "/var/snap/lxd/common/lvm/archive"
+ 
+ 	# Configuration option backup/retain_min.
+ 	# Minimum number of archives to keep.
+@@ -1234,31 +1232,27 @@
  	# the command has an exit status of 0. Set to "" to skip this check.
  	# (Not recommended.) Also see thin_check_options.
  	# (See package device-mapper-persistent-data or thin-provisioning-tools)
@@ -44,7 +66,7 @@ Patch lvm.conf to:
  
  	# Configuration option global/thin_check_options.
  	# List of options passed to the thin_check command.
-@@ -1309,31 +1305,27 @@
+@@ -1309,31 +1303,27 @@
  	# command has an exit status of 0. Set to "" to skip this check.
  	# (Not recommended.) Also see cache_check_options.
  	# (See package device-mapper-persistent-data or thin-provisioning-tools)
@@ -80,7 +102,7 @@ Patch lvm.conf to:
  
  	# Configuration option global/cache_check_options.
  	# List of options passed to the cache_check command.
-@@ -1355,8 +1347,7 @@
+@@ -1355,8 +1345,7 @@
  	# Configuration option global/vdo_format_executable.
  	# The full path to the vdoformat command.
  	# LVM uses this command to initial data volume for VDO type logical volume
@@ -90,7 +112,7 @@ Patch lvm.conf to:
  
  	# Configuration option global/vdo_format_options.
  	# List of options passed added to standard vdoformat command.
-@@ -1376,8 +1367,7 @@
+@@ -1376,8 +1365,7 @@
  	# Configuration option global/fsadm_executable.
  	# The full path to the fsadm command.
  	# LVM uses this command to help with lvresize -r operations.
@@ -100,7 +122,7 @@ Patch lvm.conf to:
  
  	# Configuration option global/system_id_source.
  	# The method LVM uses to set the local system ID.
-@@ -1468,16 +1458,14 @@
+@@ -1468,16 +1456,14 @@
  	# that ignore the devices LVM creates. If enabled when udev is not
  	# running, and LVM processes are waiting for udev, run the command
  	# 'dmsetup udevcomplete_all' to wake them up.
@@ -119,7 +141,7 @@ Patch lvm.conf to:
  
  	# Configuration option activation/verify_udev_operations.
  	# Use extra checks in LVM to verify udev operations.
-@@ -1840,8 +1828,7 @@
+@@ -1840,8 +1826,7 @@
  	# Monitor LVs that are activated.
  	# The --ignoremonitoring option overrides this setting.
  	# When enabled, LVM will ask dmeventd to monitor activated LVs.
@@ -129,7 +151,7 @@ Patch lvm.conf to:
  
  	# Configuration option activation/polling_interval.
  	# Check pvmove or lvconvert progress at this interval (seconds).
-@@ -2469,8 +2456,7 @@
+@@ -2469,8 +2454,7 @@
  
  	# Configuration option dmeventd/executable.
  	# The full path to the dmeventd binary.
