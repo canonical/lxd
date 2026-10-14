@@ -158,7 +158,7 @@ func pythonUEFIVarsProfile(profileName string) (string, error) {
 	err := pythonUEFIVarsProfileTpl.Execute(sb, map[string]any{
 		"name":        profileName,
 		"snap":        shared.InSnap(),
-		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+		"libraryPath": ldLibraryPaths(),
 	})
 	if err != nil {
 		return "", err

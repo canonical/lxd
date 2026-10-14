@@ -199,7 +199,7 @@ func rsyncProfile(sysOS *sys.OS, name string, sourcePath string, dstPath string)
 		"snap":        shared.InSnap(),
 		"rootPath":    rootPath,
 		"logPath":     logPath,
-		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+		"libraryPath": ldLibraryPaths(),
 		"goCoverDir":  goCoverDir(),
 	})
 	if err != nil {
