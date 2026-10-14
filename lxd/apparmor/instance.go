@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/revert"
 )
 
 // Internal copy of the instance interface.
@@ -56,10 +57,18 @@ func instanceProfileFilename(inst instance) string {
 
 // InstanceLoad ensures that the instances's policy is loaded into the kernel so the it can boot.
 func InstanceLoad(sysOS *sys.OS, inst instance) error {
+	reverter := revert.New()
+	defer reverter.Fail()
+
 	if inst.Type() == instancetype.Container {
-		err := createNamespace(sysOS, InstanceNamespaceName(inst))
+		created, err := createNamespace(sysOS, InstanceNamespaceName(inst))
 		if err != nil {
 			return err
+		}
+
+		// Never remove a namespace that was already in use, as a live update of a running container ends up here too.
+		if created {
+			reverter.Add(func() { _ = deleteNamespace(sysOS, InstanceNamespaceName(inst)) })
 		}
 	}
 
@@ -72,6 +81,8 @@ func InstanceLoad(sysOS *sys.OS, inst instance) error {
 	if err != nil {
 		return err
 	}
+
+	reverter.Success()
 
 	return nil
 }
