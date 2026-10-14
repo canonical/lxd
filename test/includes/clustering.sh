@@ -542,3 +542,11 @@ teardown_replicator_volume_test() {
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_ONE_DIR}"
 }
+
+# cluster_member_connections lists the established TCP connections on the cluster port inside a
+# member's network namespace, in either direction, one per line.
+cluster_member_connections() {
+  local ns="${1}"
+
+  nsenter -n -t "$(< "${TEST_DIR}/ns/${ns}/PID")" -- ss -Htn state established '( sport = :8443 or dport = :8443 )'
+}

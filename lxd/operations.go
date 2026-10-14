@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -59,6 +60,18 @@ var operationWebsocket = APIEndpoint{
 	MetricsType: entity.TypeOperation,
 
 	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
+}
+
+// requestOperation posts req to reqURL and returns the operation it created.
+// It bypasses the client's operation helpers because those open an events listener
+// that is only released by waiting on the operation, and callers here never wait.
+func requestOperation(client lxd.InstanceServer, reqURL *api.URL, req any) (*api.Operation, error) {
+	resp, _, err := client.RawQuery(http.MethodPost, reqURL.String(), req, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.MetadataAsOperation()
 }
 
 // runningInstanceOperations returns a map of project name to map of instance name to list of running operations.

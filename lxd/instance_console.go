@@ -478,12 +478,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 
 	if client != nil {
 		url := api.NewURL().Path(version.APIVersion, "instances", name, "console").Project(projectName)
-		resp, _, err := client.RawQuery(http.MethodPost, url.String(), post, "")
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		opAPI, err := resp.MetadataAsOperation()
+		opAPI, err := requestOperation(client, url, post)
 		if err != nil {
 			return response.SmartError(err)
 		}

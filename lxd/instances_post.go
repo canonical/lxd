@@ -2063,19 +2063,13 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		// Keep the intended target around for the final move operation.
 		// If no target is supplied, source member auto-placement will apply.
-		client = client.UseProject(targetProjectName)
-		if target != "" {
-			client = client.UseTarget(target)
-		}
-
 		logger.Debug("Forward instance post copy request", logger.Ctx{"local": s.ServerName, "target": sourceMemberInfo.Name, "targetAddress": sourceMemberInfo.Address})
-		op, err := client.CreateInstance(req)
+		opAPI, err := requestOperation(client, api.NewURL().Path(version.APIVersion, "instances").Project(targetProjectName).Target(target), req)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		opAPI := op.Get()
-		return response.ForwardedOperationResponse(&opAPI)
+		return response.ForwardedOperationResponse(opAPI)
 	}
 
 	// Record the cluster group as a volatile config key if present.
@@ -2091,17 +2085,13 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		client = client.UseProject(targetProjectName)
-		client = client.UseTarget(targetMemberInfo.Name)
-
 		logger.Debug("Forward instance post request", logger.Ctx{"local": s.ServerName, "target": targetMemberInfo.Name, "targetAddress": targetMemberInfo.Address})
-		op, err := client.CreateInstance(req)
+		opAPI, err := requestOperation(client, api.NewURL().Path(version.APIVersion, "instances").Project(targetProjectName).Target(targetMemberInfo.Name), req)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		opAPI := op.Get()
-		return response.ForwardedOperationResponse(&opAPI)
+		return response.ForwardedOperationResponse(opAPI)
 	}
 
 	// Cases 1b and 2b).
@@ -2264,42 +2254,33 @@ func clusterCopyContainerInternal(r *http.Request, s *state.State, source instan
 		return response.SmartError(err)
 	}
 
-	client = client.UseProject(source.Project().Name)
-
 	// Setup websockets
-	var opAPI api.Operation
+	var sourceURL *api.URL
+	var pullReq any
 	if shared.IsSnapshot(req.Source.Source) {
 		cName, sName, _ := api.GetParentAndSnapshotName(req.Source.Source)
-
-		pullReq := api.InstanceSnapshotPost{
+		sourceURL = api.NewURL().Path(version.APIVersion, "instances", cName, "snapshots", sName).Project(source.Project().Name)
+		pullReq = api.InstanceSnapshotPost{
 			Migration: true,
 			Live:      req.Source.Live,
 			Name:      req.Name,
 		}
-
-		op, err := client.MigrateInstanceSnapshot(cName, sName, pullReq)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		opAPI = op.Get()
 	} else {
 		// We keep the ContainerOnly for backward compatibility.
 		instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly //nolint:staticcheck,unused
-		pullReq := api.InstancePost{
+		sourceURL = api.NewURL().Path(version.APIVersion, "instances", req.Source.Source).Project(source.Project().Name)
+		pullReq = api.InstancePost{
 			Migration:     true,
 			Live:          req.Source.Live,
 			ContainerOnly: instanceOnly, //nolint:staticcheck
 			InstanceOnly:  instanceOnly,
 			Name:          req.Name,
 		}
+	}
 
-		op, err := client.MigrateInstance(req.Source.Source, pullReq)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		opAPI = op.Get()
+	opAPI, err := requestOperation(client, sourceURL, pullReq)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	websockets, err := opAPI.WebsocketSecrets()
