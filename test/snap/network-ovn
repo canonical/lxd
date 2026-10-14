@@ -2238,7 +2238,7 @@ ovn_l3only_tests() {
         ipv4.address=10.10.11.1/24 ipv4.nat=true \
         ipv6.address=fd42:4242:4242:1011::1/64 ipv6.nat=true \
 
-    # Check that ipv3.l3only mode cannot be enabled if ipv6.dhcp is enabled and ipv6.dhcp.stateful is disabled.
+    # Check that ipv6.l3only mode cannot be enabled if ipv6.dhcp is enabled and ipv6.dhcp.stateful is disabled.
     ! lxc network set ovn1 ipv6.l3only=true || false
 
     # Enable ipv6.l3only mode with DHCPv6 disabled.
