@@ -182,6 +182,44 @@ test_clustering_move() {
   # Restore c1 to node1 for the subsequent tests.
   LXD_DIR="${LXD_ONE_DIR}" lxc move cluster:c1 --target node1
 
+  sub_test "Storage volume permissions are kept when the volume is moved"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create test-pool vol1 --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add instance-movers project default can_create_storage_volumes # Required, since a move constitutes an initial copy.
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add instance-movers storage_volume vol1 can_view project=default pool=test-pool type=custom location=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add instance-movers storage_volume vol1 can_edit project=default pool=test-pool type=custom location=node1
+
+  echo "vol1 can be moved to another cluster member and keeps its permissions."
+  lxc storage volume move cluster:test-pool/vol1 cluster:test-pool/vol1 --destination-target node2
+  lxc storage volume show cluster:test-pool vol1 --target node2 | grep -xF "location: node2"
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/auth/groups/instance-movers | jq --exit-status '[.permissions[] | select(.entity_type == "storage_volume") | "\(.entitlement) \(.url)"] | sort == ["can_edit /1.0/storage-pools/test-pool/volumes/custom/vol1?project=default&target=node2", "can_view /1.0/storage-pools/test-pool/volumes/custom/vol1?project=default&target=node2"]'
+
+  echo "vol1 can be moved to another storage pool and keeps its permissions."
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create test-pool-dest dir --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create test-pool-dest dir --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create test-pool-dest dir --target node3
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create test-pool-dest dir
+  lxc storage volume move cluster:test-pool/vol1 cluster:test-pool-dest/vol1
+  lxc storage volume show cluster:test-pool-dest vol1 --target node2 | grep -xF "location: node2"
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/auth/groups/instance-movers | jq --exit-status '[.permissions[] | select(.entity_type == "storage_volume") | "\(.entitlement) \(.url)"] | sort == ["can_edit /1.0/storage-pools/test-pool-dest/volumes/custom/vol1?project=default&target=node2", "can_view /1.0/storage-pools/test-pool-dest/volumes/custom/vol1?project=default&target=node2"]'
+
+  echo "vol1 can be moved to another cluster member and project and keeps its permissions."
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission add instance-movers project test-project can_create_storage_volumes # Required, since a move constitutes an initial copy.
+  lxc storage volume move cluster:test-pool-dest/vol1 cluster:test-pool-dest/vol1 --destination-target node3 --target-project test-project
+  lxc storage volume show cluster:test-pool-dest vol1 --project test-project --target node3 | grep -xF "location: node3"
+  LXD_DIR="${LXD_ONE_DIR}" lxc query /1.0/auth/groups/instance-movers | jq --exit-status '[.permissions[] | select(.entity_type == "storage_volume") | "\(.entitlement) \(.url)"] | sort == ["can_edit /1.0/storage-pools/test-pool-dest/volumes/custom/vol1?project=test-project&target=node3", "can_view /1.0/storage-pools/test-pool-dest/volumes/custom/vol1?project=test-project&target=node3"]'
+
+  echo "A volume that is in use cannot be moved to another cluster member."
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create test-pool vol-used --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device add c1 vol-used disk pool=test-pool source=vol-used path=/mnt
+  [ "$(! LXD_DIR="${LXD_ONE_DIR}" "${_LXC}" storage volume move test-pool/vol-used test-pool/vol-used --target node1 --destination-target node2 2>&1 1>/dev/null)" = "Error: The storage volume is still in use" ]
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device remove c1 vol-used
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete test-pool vol-used --target node1
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete test-pool-dest vol1 --project test-project --target node3
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage delete test-pool-dest
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission remove instance-movers project default can_create_storage_volumes
+  LXD_DIR="${LXD_ONE_DIR}" lxc auth group permission remove instance-movers project test-project can_create_storage_volumes
+
   echo "==> Project restriction tests"
   # At this stage we have:
   # - node1 in group foobar1,default

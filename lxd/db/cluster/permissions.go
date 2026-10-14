@@ -176,3 +176,12 @@ JOIN auth_groups_permissions ON auth_groups_permissions.auth_group_id = auth_gro
 
 	return groupPermissions, nil
 }
+
+// CopyPermissions copies the permissions granted on the entity with ID srcEntityID to the entity with ID dstEntityID.
+// The rows are copied rather than updated so that the source keeps its permissions if deleting it fails.
+func CopyPermissions(ctx context.Context, tx *sql.Tx, entityType entity.Type, srcEntityID int64, dstEntityID int64) error {
+	q := `INSERT INTO auth_groups_permissions (auth_group_id, entity_type, entity_id, entitlement)
+SELECT auth_group_id, entity_type, ?, entitlement FROM auth_groups_permissions WHERE entity_type = ? AND entity_id = ?`
+	_, err := tx.ExecContext(ctx, q, dstEntityID, EntityType(entityType), srcEntityID)
+	return err
+}

@@ -3818,3 +3818,8 @@ New `lxc` commands:
 * `lxc bitmap list` and `lxc bitmap show` list the bitmaps of an instance snapshot.
 * `lxc nbd` exports an instance snapshot over NBD, with `--previous-snapshot-uuid` to limit the bitmaps.
 * `lxc storage volume nbd --writable` serves a storage volume read-write over NBD.
+
+(extension-storage-volume-member-move)=
+## `storage_volume_member_move`
+
+This extension adds support for moving a custom storage volume to another cluster member with a single API call. Calling `POST /1.0/storage-pools/<pool>/volumes/custom/<volume>?target=<member>` with `location` set to the name of another cluster member moves the volume from the member given in `target`, which is the member that currently hosts the volume, to the member given in `location`. The source volume is deleted by the server once the volume exists on the destination, so `can_delete` on the volume is not needed. Permissions granted on the volume are kept.
