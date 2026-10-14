@@ -8373,9 +8373,12 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 		// A move on a remote pool transfers no data and has the same images.
 		// A live migration removes them after the start.
 		// If the start fails, the images stay on the remote pool, where the source still has them open.
-		err = d.RemoveAllMetadataImages()
-		if err != nil {
-			return fmt.Errorf("Failed removing metadata images: %w", err)
+		// A standby's config volume is a mirror that Ceph owns, so it is not mounted here.
+		if !holdsReplicas {
+			err = d.RemoveAllMetadataImages()
+			if err != nil {
+				return fmt.Errorf("Failed removing metadata images: %w", err)
+			}
 		}
 
 		for _, op := range snapOps {
