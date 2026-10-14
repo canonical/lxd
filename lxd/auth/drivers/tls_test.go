@@ -165,6 +165,26 @@ func (s *tlsSuite) TestTLSAuthorizer() {
 		},
 		{
 			id:        "foo-restricted",
+			entityURL: entity.ImageRegistryURL(petname.Generate(2, "-")),
+			entitlements: []auth.Entitlement{
+				auth.EntitlementCanEdit,
+				auth.EntitlementCanDelete,
+			},
+			expectErr:     true,
+			expectErrCode: http.StatusForbidden,
+		},
+		{
+			id:        "foo-restricted",
+			entityURL: entity.ImageRegistryURL(petname.Generate(2, "-")),
+			entitlements: []auth.Entitlement{
+				auth.EntitlementCanView,
+			},
+			expectErr: true,
+			// Special case allows the CLI to implement fallback to locally defined remotes.
+			expectErrCode: http.StatusNotFound,
+		},
+		{
+			id:        "foo-restricted",
 			entityURL: entity.ProjectURL("foo"),
 			entitlements: []auth.Entitlement{
 				auth.EntitlementCanView,
@@ -243,7 +263,7 @@ func (s *tlsSuite) TestTLSAuthorizer() {
 				entitlements: entitlements,
 			})
 
-			if !slices.Contains([]entity.Type{entity.TypeServer, entity.TypeStoragePool, entity.TypeIdentity, entity.TypeProject, entity.TypeCertificate}, entityType) {
+			if !slices.Contains([]entity.Type{entity.TypeServer, entity.TypeStoragePool, entity.TypeIdentity, entity.TypeProject, entity.TypeCertificate, entity.TypeImageRegistry}, entityType) {
 				// If it's not project specific and we don't have a special case, all access checks should be denied.
 				cases = append(cases, testCase{
 					id:            "foo-restricted",

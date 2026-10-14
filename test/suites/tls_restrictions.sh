@@ -64,6 +64,14 @@ test_tls_restrictions() {
   pool_name="$(lxc_remote storage list localhost: --format csv | cut -d, -f1)"
   lxc_remote storage show "localhost:${pool_name}" | yq --exit-status '.config | length == 0'
 
+  # Should be able to list and show built-in image registries, but not modify any.
+  lxc image registry create foo url=https://www.example.com
+  [ "$(lxc_remote image registry list localhost: -f csv | cut -d, -f1 | paste -sd, -)" = 'images,ubuntu,ubuntu-daily,ubuntu-minimal,ubuntu-minimal-daily' ]
+  lxc_remote image registry show localhost:images
+  ! lxc_remote image registry show localhost:foo || false
+  ! lxc_remote image registry set localhost:foo url=https://foo.example.com || false
+  lxc image registry delete foo
+
   sub_test "Verify restricted client cannot see other certificates"
   # Add a second (admin) certificate that the restricted client should not be able to see.
   gen_cert_and_key "other-admin"
