@@ -66,22 +66,27 @@ func ldLibraryPaths() []string {
 }
 
 // createNamespace creates a new AppArmor namespace.
-func createNamespace(sysOS *sys.OS, name string) error {
+// It reports whether the namespace was created, as opposed to already existing.
+func createNamespace(sysOS *sys.OS, name string) (bool, error) {
 	if !sysOS.AppArmorAvailable {
-		return nil
+		return false, nil
 	}
 
 	if !sysOS.AppArmorStacking || sysOS.AppArmorStacked {
-		return nil
+		return false, nil
 	}
 
 	p := filepath.Join("/sys/kernel/security/apparmor/policy/namespaces", name)
 	err := os.Mkdir(p, 0755)
-	if err != nil && !errors.Is(err, os.ErrExist) {
-		return err
+	if errors.Is(err, os.ErrExist) {
+		return false, nil
 	}
 
-	return nil
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // deleteNamespace destroys an AppArmor namespace.
