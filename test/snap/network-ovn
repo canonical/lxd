@@ -121,8 +121,8 @@ ovn_basic_tests() {
     lxc exec u2 -- ping -nc1 -i0.1 -w2 fd42:4242:4242:1010::1
 
     echo "==> OVN to lxdbr0"
-    lxc exec 4u -- ping -nc1 -i0.1 -w2 u1.lxd
-    lxc exec 4u -- ping -nc1 -i0.1 -w2 u1.lxd
+    lxc exec 4u -- ping -nc1 -i0.1 -w2 -4 u1.lxd
+    lxc exec 4u -- ping -nc1 -i0.1 -w2 -6 u1.lxd
 
     lxc delete -f 4u
 
