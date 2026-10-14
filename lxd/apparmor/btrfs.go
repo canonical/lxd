@@ -33,7 +33,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # CAP_SYS_CHROOT is needed for btrfs receive -C, which chroots into the destination path.
   capability sys_chroot,
 
-  {{ .execPath }} mixr,
+  "{{ .execPath }}" mixr,
 
   # Prevent "cannot open /proc/<pid>/mounts: Permission denied" error.
   @{PROC}/@{pid}/mounts r,
@@ -42,26 +42,26 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /sys/fs/btrfs/features/* r,
 
 {{- if .sourcePath }}
-  {{ .sourcePath }}/** r,
-  {{ .sourcePath }} r,
-  {{ .sourcePath }}/ r,
+  "{{ .sourcePath }}/**" r,
+  "{{ .sourcePath }}" r,
+  "{{ .sourcePath }}/" r,
 {{- end }}
 
 {{- if .dstPath }}
-  {{ .dstPath }}/** rwkl,
-  {{ .dstPath }} rwkl,
-  {{ .dstPath }}/ rwkl,
+  "{{ .dstPath }}/**" rwkl,
+  "{{ .dstPath }}" rwkl,
+  "{{ .dstPath }}/" rwkl,
 {{- end }}
 
 {{- if .poolMountPath }}
   # btrfs send/receive need broad read access across the whole pool when transferring snapshots.
-  {{ .poolMountPath }}/containers/** r,
-  {{ .poolMountPath }}/containers-snapshots/** r,
-  {{ .poolMountPath }}/virtual-machines/** r,
-  {{ .poolMountPath }}/virtual-machines-snapshots/** r,
-  {{ .poolMountPath }}/custom/** r,
-  {{ .poolMountPath }}/custom-snapshots/** r,
-  {{ .poolMountPath }}/ r,
+  "{{ .poolMountPath }}/containers/**" r,
+  "{{ .poolMountPath }}/containers-snapshots/**" r,
+  "{{ .poolMountPath }}/virtual-machines/**" r,
+  "{{ .poolMountPath }}/virtual-machines-snapshots/**" r,
+  "{{ .poolMountPath }}/custom/**" r,
+  "{{ .poolMountPath }}/custom-snapshots/**" r,
+  "{{ .poolMountPath }}/" r,
 {{- end }}
 }
 `))
@@ -176,10 +176,10 @@ func btrfsProfile(name string, sourcePath string, dstPath string, poolMountPath 
 	sb := &strings.Builder{}
 	err = btrfsProfileTpl.Execute(sb, map[string]any{
 		"name":          name,
-		"execPath":      execPath,
-		"sourcePath":    sourcePath,
-		"dstPath":       dstPath,
-		"poolMountPath": poolMountPath,
+		"execPath":      rulePathEscaper.Replace(execPath),
+		"sourcePath":    rulePathEscaper.Replace(sourcePath),
+		"dstPath":       rulePathEscaper.Replace(dstPath),
+		"poolMountPath": rulePathEscaper.Replace(poolMountPath),
 	})
 	if err != nil {
 		return "", err

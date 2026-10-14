@@ -23,19 +23,19 @@ profile "{{.name}}" {
   #include <abstractions/nameservice>
 
 {{range $index, $element := .allowedCommandPaths}}
-  {{$element}} mixr,
+  "{{$element}}" mixr,
 {{- end }}
 
 {{range $index, $element := .imagesPaths}}
-  {{$element}}/** r,
+  "{{$element}}/**" r,
 {{- end }}
 
 {{range $index, $element := .backupsPaths}}
-  {{$element}}/** rw,
+  "{{$element}}/**" rw,
 {{- end }}
 
-  {{ .outputPath }}/ rw,
-  {{ .outputPath }}/** rwl,
+  "{{ .outputPath }}/" rw,
+  "{{ .outputPath }}/**" rwl,
 
   signal (receive) set=("term"),
 
@@ -185,12 +185,12 @@ func archiveProfile(s *state.State, outputPath string, allowedCommandPaths []str
 	// Render the profile.
 	sb := &strings.Builder{}
 	err = archiveProfileTpl.Execute(sb, map[string]any{
-		"name":                ArchiveProfileName(outputPath), // Use non-dereferenced outputPath for name.
-		"outputPath":          outputPathFull,                 // Use dereferenced path in AppArmor profile.
+		"name":                ArchiveProfileName(outputPath),          // Use non-dereferenced outputPath for name.
+		"outputPath":          rulePathEscaper.Replace(outputPathFull), // Use dereferenced path in AppArmor profile.
 		"rootPath":            rootPath,
-		"backupsPaths":        daemonStorageVolumePathsSlices[config.DaemonStorageTypeBackups],
-		"imagesPaths":         daemonStorageVolumePathsSlices[config.DaemonStorageTypeImages],
-		"allowedCommandPaths": derefCommandPaths,
+		"backupsPaths":        escapeRulePaths(daemonStorageVolumePathsSlices[config.DaemonStorageTypeBackups]),
+		"imagesPaths":         escapeRulePaths(daemonStorageVolumePathsSlices[config.DaemonStorageTypeImages]),
+		"allowedCommandPaths": escapeRulePaths(derefCommandPaths),
 		"snap":                shared.InSnap(),
 	})
 	if err != nil {
@@ -220,11 +220,11 @@ var compressProfileTpl = template.Must(template.New("compressProfile").Parse(`#i
 profile "{{.name}}" {
   #include <abstractions/base>
 {{range $index, $element := .allowedCommandPaths}}
-  {{$element}} mixr,
+  "{{$element}}" mixr,
 {{- end }}
 
 {{- if .hasDstPath }}
-	{{ .dstPath }} rw,
+	"{{ .dstPath }}" rw,
 {{- end }}
 
   signal (receive) set=("term"),
@@ -334,10 +334,10 @@ func compressProfileLoad(sysOS *sys.OS, allowedCommandPaths []string, dstPath st
 func compressProfile(name string, allowedCommandPaths []string, dstPath string) (string, error) {
 	sb := &strings.Builder{}
 	err := compressProfileTpl.Execute(sb, map[string]any{
-		"allowedCommandPaths": allowedCommandPaths,
+		"allowedCommandPaths": escapeRulePaths(allowedCommandPaths),
 		"name":                name,
 		"hasDstPath":          dstPath != "",
-		"dstPath":             dstPath,
+		"dstPath":             rulePathEscaper.Replace(dstPath),
 		"snap":                shared.InSnap(),
 	})
 	if err != nil {

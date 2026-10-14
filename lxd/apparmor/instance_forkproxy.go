@@ -67,7 +67,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
 {{if .sockets -}}
 {{range $index, $element := .sockets}}
-  {{$element}} rw,
+  "{{$element}}" rw,
 {{- end }}
 {{- end }}
 
@@ -175,7 +175,7 @@ func forkproxyProfile(inst instance, dev device) (string, error) {
 		"exePath":     execPath,
 		"logPath":     inst.LogPath(),
 		"libraryPath": ldLibraryPaths(),
-		"sockets":     sockets,
+		"sockets":     escapeRulePaths(sockets),
 		"goCoverDir":  goCoverDir(),
 	})
 	if err != nil {
