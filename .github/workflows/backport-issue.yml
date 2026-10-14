@@ -1,0 +1,43 @@
+name: Backport issue
+
+on:
+  # Safe: no code is checked out and no PR-supplied code is executed.
+  # pull_request_target is needed so that issues can be created for PRs from forks.
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types:
+      - closed
+    branches:
+      - main
+
+permissions: {}
+
+jobs:
+  backport-issue:
+    if: ${{ github.repository == 'canonical/lxd' && github.event.pull_request.merged && contains(github.event.pull_request.labels.*.name, 'backport-6') }}
+    permissions:
+      issues: write
+    name: Create stable-6 backport issue
+    runs-on: ubuntu-slim
+    steps:
+      - name: Create backport issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          MERGED_BY: ${{ github.event.pull_request.merged_by.login }}
+        run: |
+          set -euo pipefail
+
+          BODY="$(cat <<EOF
+          Pull request ${PR_URL} by @${PR_AUTHOR} was merged into \`main\` with the \`backport-6\` label.
+
+          @${MERGED_BY}, please backport this pull request to the \`stable-6\` branch, or close this issue if it should not be backported.
+          EOF
+          )"
+
+          gh issue create --repo "${REPO}" \
+            --title "Backport - ${PR_TITLE} (stable-6)" \
+            --assignee "${MERGED_BY}" \
+            --body "${BODY}"
