@@ -182,6 +182,18 @@ test_metrics() {
     lxc delete v4 --project foo2
   fi
 
+  echo "==> Test an unusable metrics address is reported and does not disturb the daemon"
+  # A TEST-NET-1 address is never assigned locally, so binding it fails.
+  if lxc config set core.metrics_address "192.0.2.1:9443" 2>/dev/null; then
+    echo "ERROR: Setting an unusable metrics address unexpectedly succeeded"
+    exit 1
+  fi
+
+  # The daemon must be unaffected: the configured listener still serves and the
+  # API still answers.
+  curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep -F 'name="c1"'
+  lxc query /1.0 >/dev/null
+
   lxc config set core.metrics_address="" core.metrics_authentication=""
   lxc config trust remove "$(cert_fingerprint "${LXD_CONF}/metrics.crt")"
   lxc config trust remove "$(cert_fingerprint "${LXD_CONF}/metrics-restricted.crt")"
