@@ -2783,7 +2783,7 @@ func autoUpdateImage(ctx context.Context, s *state.State, op *operations.Operati
 		default:
 		}
 
-		newInfo, err = ImageDownload(context.Background(), s, op, &ImageDownloadArgs{
+		newInfo, err = ImageDownload(ctx, s, op, &ImageDownloadArgs{
 			ImageRegistry: source.ImageRegistry,
 			Alias:         source.Alias,
 			Type:          info.Type,
