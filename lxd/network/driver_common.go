@@ -793,7 +793,7 @@ func (n *common) bgpSetup(oldConfig map[string]string, bgpOwner string) error {
 }
 
 // bgpClear clears BGP peers and prefixes. The bgpOwner is the base owner of the
-// network's own prefixes and forwards.
+// network's own prefixes, forwards and load balancers.
 func (n *common) bgpClear(config map[string]string, bgpOwner string) error {
 	// Clear all peers.
 	err := n.bgpClearPeers(config)
@@ -809,6 +809,12 @@ func (n *common) bgpClear(config map[string]string, bgpOwner string) error {
 
 	// Clear the network's address forward prefixes.
 	err = n.state.BGP.RemovePrefixByOwner(bgp.OwnerNetworkForwards(bgpOwner))
+	if err != nil {
+		return err
+	}
+
+	// Clear the network's load balancer prefixes.
+	err = n.state.BGP.RemovePrefixByOwner(bgp.OwnerNetworkLoadBalancers(bgpOwner))
 	if err != nil {
 		return err
 	}
