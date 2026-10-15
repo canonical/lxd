@@ -9,6 +9,7 @@ import (
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/util"
 )
@@ -45,11 +46,14 @@ func authenticateAgentCert(s *state.State, r *http.Request) (bool, instance.Inst
 
 	agentCert := inst.(instance.VM).AgentCertificate()
 
-	for _, cert := range r.TLS.PeerCertificates {
-		trusted, _ = util.CheckMutualTLS(*cert, map[string]x509.Certificate{"0": *agentCert})
-		if trusted {
-			return true, inst, nil
-		}
+	peerCertificate, err := request.GetPeerCertificate(r)
+	if err != nil {
+		return false, nil, err
+	}
+
+	trusted, _ = util.CheckMutualTLS(*peerCertificate, map[string]x509.Certificate{"0": *agentCert})
+	if trusted {
+		return true, inst, nil
 	}
 
 	return false, nil, nil
