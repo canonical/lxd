@@ -14,6 +14,7 @@ import (
 
 	"github.com/mdlayher/netx/eui64"
 
+	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/db"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	pcidev "github.com/canonical/lxd/lxd/device/pci"
@@ -842,7 +843,7 @@ func (d *nicOVN) postStart() error {
 		return err
 	}
 
-	err = bgpAddPrefix(&d.deviceCommon, d.network, uplinkNet, d.config)
+	err = bgpAddPrefix(&d.deviceCommon, d.network, bgp.OwnerNetworkOVN(uplinkNet.ID(), d.network.ID()), d.config)
 	if err != nil {
 		return err
 	}
@@ -970,7 +971,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		return err
 	}
 
-	err = bgpRemovePrefix(&d.deviceCommon, oldUplinkNet)
+	err = bgpRemovePrefix(&d.deviceCommon, bgp.OwnerNetworkOVN(oldUplinkNet.ID(), oldNetwork.ID()))
 	if err != nil {
 		return err
 	}
@@ -980,7 +981,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		return err
 	}
 
-	err = bgpAddPrefix(&d.deviceCommon, d.network, uplinkNet, d.config)
+	err = bgpAddPrefix(&d.deviceCommon, d.network, bgp.OwnerNetworkOVN(uplinkNet.ID(), d.network.ID()), d.config)
 	if err != nil {
 		return err
 	}
@@ -1056,7 +1057,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	err = bgpRemovePrefix(&d.deviceCommon, uplinkNet)
+	err = bgpRemovePrefix(&d.deviceCommon, bgp.OwnerNetworkOVN(uplinkNet.ID(), d.network.ID()))
 	if err != nil {
 		return nil, err
 	}
@@ -1306,7 +1307,7 @@ func (d *nicOVN) Register() error {
 		return err
 	}
 
-	err = bgpAddPrefix(&d.deviceCommon, d.network, uplinkNet, d.config)
+	err = bgpAddPrefix(&d.deviceCommon, d.network, bgp.OwnerNetworkOVN(uplinkNet.ID(), d.network.ID()), d.config)
 	if err != nil {
 		return err
 	}
