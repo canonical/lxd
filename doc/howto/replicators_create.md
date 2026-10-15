@@ -105,17 +105,44 @@ To see the site names, run the following command against either Ceph cluster:
 rbd mirror pool info <osd_pool_name>
 ```
 
-1. On the primary cluster, set the key to the site name of the secondary cluster's Ceph cluster, and set {config:option}`storage-ceph-pool-conf:ceph.rbd.clone_copy` to `false`:
+1. On the primary cluster, set {config:option}`storage-ceph-pool-conf:ceph.rbd.clone_copy` to `false` and set the key to the site name of the secondary cluster's Ceph cluster:
 
+   `````{tabs}
+   ````{group-tab} CLI
    ```bash
    lxc storage set <pool_name> ceph.rbd.clone_copy=false ceph.replicator.<project_name>=<secondary_ceph_site_name>
    ```
+   ````
+   ````{group-tab} UI
+   Click {guilabel}`Storage` in the navigation sidebar, then select {guilabel}`Pools` from the expanded drop-down list.
 
-1. On the secondary cluster, set the key to the site name of the primary cluster's Ceph cluster, and set {config:option}`storage-ceph-pool-conf:ceph.rbd.clone_copy` to `false`:
+   Click on the name of the Ceph storage pool, select the {guilabel}`Configuration` tab, and click {guilabel}`Ceph` in the sub-navigation sidebar.
 
+   Set {config:option}`storage-ceph-pool-conf:ceph.rbd.clone_copy` to `false`.
+   Next, click {guilabel}`Add peer Ceph site` in the {guilabel}`Ceph replicators` section.
+   Select the project and input the name of the peer Ceph site on the secondary cluster.
+   Click {guilabel}`Save`.
+   ````
+   `````
+
+1. On the secondary cluster, set {config:option}`storage-ceph-pool-conf:ceph.rbd.clone_copy` to `false` and set the key to the site name of the primary cluster's Ceph cluster:
+
+   `````{tabs}
+   ````{group-tab} CLI
    ```bash
    lxc storage set <pool_name> ceph.rbd.clone_copy=false ceph.replicator.<project_name>=<primary_ceph_site_name>
    ```
+   ````
+   ````{group-tab} UI
+   Click {guilabel}`Storage` in the navigation sidebar, then select {guilabel}`Pools` from the expanded drop-down list.
+
+   Click on the name of the Ceph storage pool, select the {guilabel}`Configuration` tab, and click {guilabel}`Ceph` in the sub-navigation sidebar.
+
+   Set {config:option}`storage-ceph-pool-conf:ceph.rbd.clone_copy` to `false`.
+   Next, click {guilabel}`Add peer Ceph site` in the {guilabel}`Ceph replicators` section. Select the project and input the name of the peer Ceph site on the primary cluster.
+   Click {guilabel}`Save`.
+   ````
+   `````
 
 ```{important}
 Set {config:option}`storage-ceph-pool-conf:ceph.rbd.clone_copy` to `false` before you create any container on the storage pool.
@@ -146,11 +173,31 @@ For project replication, the cluster-link identity on each cluster typically nee
 
 For example, if the replicated project is called `myproject`, you can prepare an authentication group named `replicators` on each cluster:
 
+`````{tabs}
+````{group-tab} CLI
 ```bash
 lxc auth group create replicators
 lxc auth group permission add replicators project myproject operator
 lxc auth group permission add replicators project myproject can_edit
 ```
+````
+````{group-tab} UI
+1. Click {guilabel}`Permissions` in the navigation sidebar, then select {guilabel}`Auth groups` from the expanded drop-down list.
+1. Click on the {guilabel}`+ Create group` button to open the side panel.
+1. Enter `replicators` as a name and optionally a description for the new group.
+1. Click {guilabel}`Add permissions`, then add a first entitlement with the following:
+    - Resource type: Select `Project` from the dropdown.
+    - Resource: Select `myproject` from the dropdown.
+    - Entitlement: Select `operator` from the dropdown.
+1. Click {guilabel}`Add`.
+1. Add a second entitlement with the following:
+    - Resource type: Select `Project` from the dropdown.
+    - Resource: Select `myproject` from the dropdown.
+    - Entitlement: Select `can_edit` from the dropdown.
+1. Click {guilabel}`Add`.
+1. Click {guilabel}`Create group`.
+````
+`````
 
 Then, on each cluster, add the cluster links to that authentication group, as described in {ref}`howto-cluster-links-permissions`. (You can also assign cluster link identities to an authentication group when you create the links, as detailed in {ref}`howto-cluster-links-create`.)
 
@@ -250,7 +297,7 @@ To manually trigger a replicator run:
 
    On the primary cluster, click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Replicators` from the expanded drop-down list.
 
-   Click on the "run" button at the end of the replicator's row.
+   Click on the run button {{run_button}} at the end of the replicator's row.
 
    Alternatively, click on a replicator name to view its detail page, then click on the {guilabel}`Run` button in the header.
 
