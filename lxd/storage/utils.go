@@ -1566,6 +1566,12 @@ func Qcow2CreateMetadataImage(root *os.Root, name string, size int64) error {
 		return fmt.Errorf("Failed creating temporary data file %q: %w", dataFile.Name(), err)
 	}
 
+	// A new bitmap takes no space beyond its bitmap table, which references the clusters that hold its bits.
+	// The first set bit in a part of the bitmap that has no cluster yet makes QEMU allocate one cluster for it.
+	// Each further set bit outside the allocated clusters allocates one more.
+	// A smaller cluster size makes the bitmap grow in smaller steps.
+	// The larger bitmap table that it needs costs little compared to the clusters themselves.
+	// 64 KiB is also the qemu-img default.
 	options := "data_file=" + qcow2FilePath(1) + ",cluster_size=64K"
 	_, err = shared.RunCommandInheritFds(context.TODO(), files, "qemu-img", "create", "-f", "qcow2", "-o", options, qcow2FilePath(0), strconv.FormatInt(size, 10))
 	if err == nil {
@@ -1905,9 +1911,9 @@ func nbdConflictError(s *state.State, lockName string, description string) error
 		return err
 	})
 	if err != nil {
-		// The lock is also held with no conflict reference while an instance starts, restarts or
-		// migrates, while one of its snapshots is renamed and while security.shared is updated,
-		// and before a session registers its operation.
+		// The lock is also held with no conflict reference while an instance starts or migrates,
+		// while one of its snapshots is renamed and while security.shared is updated, and before a
+		// session registers its operation.
 		return api.StatusErrorf(http.StatusConflict, "Another operation is already in progress for %s", description)
 	}
 

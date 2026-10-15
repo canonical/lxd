@@ -188,6 +188,10 @@ type Instance interface {
 
 	Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error)
 
+	// OnDaemonStart finishes what the previous LXD process left undone on the instance, before
+	// the daemon decides whether to start it.
+	OnDaemonStart(ctx context.Context) error
+
 	// Dirty bitmaps of the block volumes of a virtual machine.
 	// Bitmaps lists them, grouped by name, for an instance or an instance snapshot.
 	// DeleteBitmap removes one bitmap from every volume, DeleteDiskBitmap one bitmap from the

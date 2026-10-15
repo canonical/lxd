@@ -374,7 +374,7 @@ test_storage_block_tracking_vm() {
   [ ! -e "${bitmaps_dir}" ]
   [ "$(_bitmaps v1 || echo fail)" = "" ]
   ! lxc query /1.0/instances/v1/bitmaps || false
-  [ "$(! "${_LXC}" bitmap list v1 2>&1 1>/dev/null)" = "Error: Missing instance snapshot name" ]
+  [ "$(! "${_LXC}" bitmap list v1 2>&1 1>/dev/null || echo fail)" = "Error: Missing instance snapshot name" ]
 
   # Without an image QEMU exits on a guest reboot or poweroff on its own, as it does without
   # changed block tracking, and the stop hook runs on the exit.
@@ -401,7 +401,7 @@ test_storage_block_tracking_vm() {
   lxc query /internal/instances/v1/bitmaps/s1 | jq --exit-status '.name == "s1" and (.volumes | length) == 1 and .volumes[0].device == "root" and .volumes[0].type == "virtual-machine" and .volumes[0].name == "v1" and .volumes[0].recording == true and .volumes[0].granularity == 65536'
   [ "$(lxc query /internal/instances/v1/bitmaps/s1 | jq --raw-output --exit-status '.volumes[0].uuid')" = "${root_uuid}" ]
   [ "$(lxc query /internal/instances/v1/bitmaps/s1 | jq --raw-output --exit-status '.volumes[0].pool')" = "${pool}" ]
-  [ "$(! "${_LXC}" query /internal/instances/v1/bitmaps/missing 2>&1 1>/dev/null)" = "Error: Bitmap not found" ]
+  [ "$(! "${_LXC}" query /internal/instances/v1/bitmaps/missing 2>&1 1>/dev/null || echo fail)" = "Error: Bitmap not found" ]
 
   # The UUID of the bitmap is the instance snapshot UUID of the snapshot it was created with.
   s1_uuid="$(_bitmap_uuid v1 s1)"
@@ -415,12 +415,12 @@ test_storage_block_tracking_vm() {
   _metadata_image_info "${bitmaps_dir}/${root_uuid}.qcow2" | jq --exit-status '.raw == false and .size < 1048576 and .bitmaps == [{"name": "s1", "flags": ["in-use"]}]'
 
   # A snapshot with a bitmap of a name that exists fails as one without a bitmap does.
-  [ "$(! "${_LXC}" snapshot v1 s1 --bitmap 2>&1 1>/dev/null)" = 'Error: Failed creating instance snapshot record "s1": Snapshot "v1/s1" already exists' ]
-  [ "$(! "${_LXC}" snapshot v1 s1 2>&1 1>/dev/null)" = 'Error: Failed creating instance snapshot record "s1": Snapshot "v1/s1" already exists' ]
+  [ "$(! "${_LXC}" snapshot v1 s1 --bitmap 2>&1 1>/dev/null || echo fail)" = 'Error: Failed creating instance snapshot record "s1": Snapshot "v1/s1" already exists' ]
+  [ "$(! "${_LXC}" snapshot v1 s1 2>&1 1>/dev/null || echo fail)" = 'Error: Failed creating instance snapshot record "s1": Snapshot "v1/s1" already exists' ]
 
   # Saving the state of the guest removes the store bitmaps from the metadata disk nodes until the
   # guest resumes, and the bitmap of a snapshot is created in between.
-  [ "$(! "${_LXC}" snapshot v1 stateful --stateful --bitmap 2>&1 1>/dev/null)" = "Error: A snapshot with a bitmap cannot be stateful" ]
+  [ "$(! "${_LXC}" snapshot v1 stateful --stateful --bitmap 2>&1 1>/dev/null || echo fail)" = "Error: A snapshot with a bitmap cannot be stateful" ]
   [ "$(_bitmaps v1)" = "s1,root,YES" ]
 
   # The image of the first snapshot with a bitmap holds its own bitmap only.
@@ -428,10 +428,11 @@ test_storage_block_tracking_vm() {
   [ "$(_bitmaps v1/s1 || echo fail)" = "" ]
   [ "$(_nbd_contexts root nbd v1/s1)" = '["base:allocation"]' ]
 
-  sub_test "A snapshot without a bitmap keeps the bitmaps and has no export"
+  sub_test "A snapshot without a bitmap keeps the bitmaps and has no bitmap listing and no export"
   lxc snapshot v1 p1
   [ "$(_bitmaps v1)" = "s1,root,YES" ]
-  [ "$(_bitmaps v1/p1 || echo fail)" = "" ]
+  [ "$(! "${_LXC}" bitmap list v1/p1 2>&1 1>/dev/null || echo fail)" = "Error: Snapshot was not created with a bitmap" ]
+  [ "$(! "${_LXC}" bitmap show v1/p1 s1 2>&1 1>/dev/null || echo fail)" = "Error: Snapshot was not created with a bitmap" ]
   [[ "$(_nbd_refused nbd v1/p1)" == "Error: Snapshot was not created with a bitmap"* ]]
 
   # The config volume snapshot holds the live images, whose bitmaps are in use, and no snapshot bitmap file.
@@ -455,7 +456,7 @@ volumes:
     bitmaps: []
 EOF
   lxc snapshot v1 p2
-  [ "$(_bitmaps v1/p2 || echo fail)" = "" ]
+  [ "$(! "${_LXC}" bitmap list v1/p2 2>&1 1>/dev/null || echo fail)" = "Error: Snapshot was not created with a bitmap" ]
   [[ "$(_nbd_refused nbd v1/p2)" == "Error: Snapshot was not created with a bitmap"* ]]
   lxc delete v1/p2
   lxc stop -f v1
@@ -476,8 +477,8 @@ EOF
   [ "$(_bitmaps v1/s2)" = "s1,root,NO" ]
   [ "$(_bitmap_uuid v1/s2 s1)" = "${s1_uuid}" ]
   lxc bitmap show v1/s2 s1 | yq --exit-status '.volumes[0].device == "root" and .volumes[0].type == "virtual-machine" and .volumes[0].name == "v1" and .volumes[0].recording == false'
-  [ "$(! "${_LXC}" bitmap show v1/s2 s2 2>&1 1>/dev/null)" = "Error: Bitmap not found" ]
-  [ "$(! "${_LXC}" bitmap show v1/missing s1 2>&1 1>/dev/null)" = 'Error: Failed fetching snapshot "missing" of instance "v1" in project "default": InstanceSnapshot not found' ]
+  [ "$(! "${_LXC}" bitmap show v1/s2 s2 2>&1 1>/dev/null || echo fail)" = "Error: Bitmap not found" ]
+  [ "$(! "${_LXC}" bitmap show v1/missing s1 2>&1 1>/dev/null || echo fail)" = 'Error: Failed fetching snapshot "missing" of instance "v1" in project "default": InstanceSnapshot not found' ]
 
   # Without recursion the listing has the URL of every bitmap, which the completion of a bitmap name reads.
   lxc query /1.0/instances/v1/snapshots/s2/bitmaps | jq --exit-status '. == ["/1.0/instances/v1/snapshots/s2/bitmaps/s1"]'
@@ -939,15 +940,15 @@ EOF
   sub_test "A snapshot that is exported, its volume snapshots and its instance cannot be deleted or renamed"
   _nbd_serve nbd v1/s5
   _nbd_hold
-  [ "$(! "${_LXC}" delete v1/s5 2>&1 1>/dev/null)" = 'Error: Failed deleting instance snapshot "v1/s5" in project "default": Snapshot "v1/s5" is exported over NBD: In use' ]
-  [ "$(! "${_LXC}" move v1/s5 v1/s5-renamed 2>&1 1>/dev/null)" = 'Error: Snapshot "v1/s5" is exported over NBD: In use' ]
-  [ "$(! "${_LXC}" storage volume delete "${pool}" "cbt-blk/${snap_b}" 2>&1 1>/dev/null)" = "Error: Snapshot \"cbt-blk/${snap_b}\" is exported over NBD: In use" ]
-  [ "$(! "${_LXC}" storage volume rename "${pool}" "cbt-blk/${snap_b}" cbt-blk/renamed 2>&1 1>/dev/null)" = "Error: Snapshot \"cbt-blk/${snap_b}\" is exported over NBD: In use" ]
+  [ "$(! "${_LXC}" delete v1/s5 2>&1 1>/dev/null || echo fail)" = 'Error: Failed deleting instance snapshot "v1/s5" in project "default": Snapshot "v1/s5" is exported over NBD: In use' ]
+  [ "$(! "${_LXC}" move v1/s5 v1/s5-renamed 2>&1 1>/dev/null || echo fail)" = 'Error: Snapshot "v1/s5" is exported over NBD: In use' ]
+  [ "$(! "${_LXC}" storage volume delete "${pool}" "cbt-blk/${snap_b}" 2>&1 1>/dev/null || echo fail)" = "Error: Snapshot \"cbt-blk/${snap_b}\" is exported over NBD: In use" ]
+  [ "$(! "${_LXC}" storage volume rename "${pool}" "cbt-blk/${snap_b}" cbt-blk/renamed 2>&1 1>/dev/null || echo fail)" = "Error: Snapshot \"cbt-blk/${snap_b}\" is exported over NBD: In use" ]
 
   # A delete or a rename needs the instance stopped.
   lxc stop -f v1
-  [ "$(! "${_LXC}" delete v1 2>&1 1>/dev/null)" = 'Error: Failed deleting instance "v1" in project "default": A snapshot of "v1" is exported over NBD: In use' ]
-  [ "$(! "${_LXC}" move v1 v1-renamed 2>&1 1>/dev/null)" = 'Error: A snapshot of "v1" is exported over NBD: In use' ]
+  [ "$(! "${_LXC}" delete v1 2>&1 1>/dev/null || echo fail)" = 'Error: Failed deleting instance "v1" in project "default": A snapshot of "v1" is exported over NBD: In use' ]
+  [ "$(! "${_LXC}" move v1 v1-renamed 2>&1 1>/dev/null || echo fail)" = 'Error: A snapshot of "v1" is exported over NBD: In use' ]
   _nbd_release
   lxc start v1
   waitInstanceReady v1
@@ -1063,16 +1064,19 @@ EOF
   lxc storage volume delete "${pool}" cbt-data
   [ "$(_bitmaps v1)" = "$(printf 's10,cbt-blk,YES\ns10,root,YES')" ]
 
-  sub_test "Containers and stopped virtual machines get no bitmaps, and a container snapshot has no export"
+  sub_test "Containers and stopped virtual machines get no bitmaps, and a container snapshot has no bitmap listing and no export"
   ensure_import_testimage
   lxc launch testimage c1
-  [ "$(! "${_LXC}" snapshot c1 --bitmap 2>&1 1>/dev/null)" = "Error: A snapshot with a bitmap requires a running virtual machine" ]
+  [ "$(! "${_LXC}" snapshot c1 --bitmap 2>&1 1>/dev/null || echo fail)" = "Error: A snapshot with a bitmap requires a running virtual machine" ]
   lxc snapshot c1 c1s
+  [ "$(! "${_LXC}" bitmap list c1/c1s 2>&1 1>/dev/null || echo fail)" = "Error: Dirty bitmaps are not supported for containers" ]
+  [ "$(! "${_LXC}" bitmap show c1/c1s c1s 2>&1 1>/dev/null || echo fail)" = "Error: Dirty bitmaps are not supported for containers" ]
+  [ "$(! "${_LXC}" query /internal/instances/c1/bitmaps 2>&1 1>/dev/null || echo fail)" = "Error: Dirty bitmaps are not supported for containers" ]
   [[ "$(_nbd_refused nbd c1/c1s)" == "Error: NBD export is only supported for virtual machines"* ]]
   lxc delete -f c1
 
   lxc stop -f v1
-  [ "$(! "${_LXC}" snapshot v1 --bitmap 2>&1 1>/dev/null)" = "Error: A snapshot with a bitmap requires a running virtual machine" ]
+  [ "$(! "${_LXC}" snapshot v1 --bitmap 2>&1 1>/dev/null || echo fail)" = "Error: A snapshot with a bitmap requires a running virtual machine" ]
   lxc snapshot v1 p2
   [ "$(_bitmaps v1)" = "$(printf 's10,cbt-blk,YES\ns10,root,YES')" ]
   lxc delete v1/p2
@@ -1143,14 +1147,14 @@ EOF
   [ "$(_bitmaps v1)" = "$(printf 's10,root,YES\ns11,root,YES\ns12,cbt-blk,YES\ns12,root,YES')" ]
 
   # The command requires --writable to confirm the read-write export.
-  [ "$(! "${_LXC}" storage volume nbd "${pool}" cbt-blk 2>&1 1>/dev/null)" = "Error: The volume is served read-write, which --writable confirms" ]
+  [ "$(! "${_LXC}" storage volume nbd "${pool}" cbt-blk 2>&1 1>/dev/null || echo fail)" = "Error: The volume is served read-write, which --writable confirms" ]
 
   # A filesystem volume and a volume snapshot have no writable export.
   lxc storage volume create "${pool}" cbt-fs size=32MiB
   [[ "$(_nbd_refused storage volume nbd "${pool}" cbt-fs --writable)" == "Error: NBD export is only supported for block volumes"* ]]
   lxc storage volume delete "${pool}" cbt-fs
   blk_snap="cbt-blk/$(_volume_snapshot_of v1/s12)"
-  [ "$(! "${_LXC}" storage volume nbd "${pool}" "${blk_snap}" --writable 2>&1 1>/dev/null)" = "Error: Invalid storage volume \"${blk_snap}\"" ]
+  [ "$(! "${_LXC}" storage volume nbd "${pool}" "${blk_snap}" --writable 2>&1 1>/dev/null || echo fail)" = "Error: Invalid storage volume \"${blk_snap}\"" ]
 
   import_src="$(mktemp -p "${TEST_DIR}" import_src.XXX)"
   head -c "${blk_size}" /dev/urandom > "${import_src}"
@@ -1175,18 +1179,28 @@ EOF
   _nbd_hold
   conflict="Error: Operation \"$(_nbd_sessions)\" (Importing storage volume over NBD) is already running for volume \"${pool}/cbt-blk\""
   [[ "$(_nbd_refused storage volume nbd "${pool}" cbt-blk --writable)" == "${conflict}"* ]]
-  [[ "$(! "${_LXC}" start v1 2>&1 1>/dev/null)" == "${conflict}"* ]]
-  [ "$(! "${_LXC}" storage volume set "${pool}" cbt-blk security.shared=true 2>&1 1>/dev/null)" = "${conflict}" ]
+  [[ "$(! "${_LXC}" start v1 2>&1 1>/dev/null || echo fail)" == "${conflict}"* ]]
+  [ "$(! "${_LXC}" storage volume set "${pool}" cbt-blk security.shared=true 2>&1 1>/dev/null || echo fail)" = "${conflict}" ]
   _nbd_release
+
+  # The start of a new instance takes the lock in the driver, so a create with the volume attached is refused too.
+  lxc storage volume create "${pool}" cbt-new size=32MiB --type block
+  _nbd_serve storage volume nbd "${pool}" cbt-new --writable
+  _nbd_hold
+  conflict="Error: Operation \"$(_nbd_sessions)\" (Importing storage volume over NBD) is already running for volume \"${pool}/cbt-new\""
+  [[ "$(! "${_LXC}" launch --empty v4 --vm 2>&1 1>/dev/null <<< "devices: {data: {type: disk, source: cbt-new, pool: ${pool}}}" || echo fail)" == "${conflict}"* ]]
+  _nbd_release
+  lxc delete v4
+  lxc storage volume delete "${pool}" cbt-new
 
   # A session of the root volume and a snapshot rename both delete bitmaps of the root disk.
   _nbd_serve storage volume nbd "${pool}" virtual-machine/v1 --writable
   _nbd_hold
   conflict="Error: Operation \"$(_nbd_sessions)\" (Importing storage volume over NBD) is already running for instance \"v1\""
   [[ "$(_nbd_refused storage volume nbd "${pool}" virtual-machine/v1 --writable)" == "${conflict}"* ]]
-  [[ "$(! "${_LXC}" start v1 2>&1 1>/dev/null)" == "${conflict}"* ]]
-  [ "$(! "${_LXC}" move v1/s10 v1/s10-renamed 2>&1 1>/dev/null)" = "${conflict}" ]
-  [ "$(! "${_LXC}" storage volume set "${pool}" virtual-machine/v1 security.shared=true 2>&1 1>/dev/null)" = "${conflict}" ]
+  [[ "$(! "${_LXC}" start v1 2>&1 1>/dev/null || echo fail)" == "${conflict}"* ]]
+  [ "$(! "${_LXC}" move v1/s10 v1/s10-renamed 2>&1 1>/dev/null || echo fail)" = "${conflict}" ]
+  [ "$(! "${_LXC}" storage volume set "${pool}" virtual-machine/v1 security.shared=true 2>&1 1>/dev/null || echo fail)" = "${conflict}" ]
   _nbd_release
 
   sub_test "The server of a writable export runs under its own AppArmor profile, which is deleted with the session"
@@ -1205,7 +1219,7 @@ EOF
 
   [[ "$(_nbd_refused storage volume nbd "${pool}" virtual-machine/v1 --writable)" == "Error: NBD export requires the instance to be stopped"* ]]
   [[ "$(_nbd_refused storage volume nbd "${pool}" cbt-blk --writable)" == 'Error: NBD export requires instance "v1" to be stopped'* ]]
-  [ "$(! "${_LXC}" nbd v1 2>&1 1>/dev/null)" = "Error: Missing instance snapshot name" ]
+  [ "$(! "${_LXC}" nbd v1 2>&1 1>/dev/null || echo fail)" = "Error: Missing instance snapshot name" ]
 
   sub_test "A copy and an imported instance have no bitmaps"
   # The copy includes every snapshot of v1.

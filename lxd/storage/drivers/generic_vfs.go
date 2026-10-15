@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -1201,6 +1203,41 @@ func genericVFSListVolumes(d Driver) ([]Volume, error) {
 
 type getVolumePathFunc func(Volume, bool) (string, revert.Hook, error)
 type volumeUnmapFunc func(vol Volume) error
+
+// activateTask runs task with the block device of the volume mapped through getDevicePath but not
+// mounted, and unmaps it once task returns. A volume that is already mapped is refused.
+func activateTask(vol Volume, getDevicePath getVolumePathFunc, task func(devPath string) error) error {
+	if (vol.volType != VolumeTypeVM && vol.volType != VolumeTypeCustom) || vol.contentType != ContentTypeBlock {
+		return ErrNotSupported
+	}
+
+	unlock, err := vol.MountLock()
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	// Check if the device is already mapped (but don't map if not).
+	// The lookup fails when the volume is not mapped. Return any other failure.
+	devPath, _, err := getDevicePath(vol, false)
+	if err != nil && !errors.Is(err, block.ErrDeviceNotFound) && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+
+	if devPath != "" && shared.PathExists(devPath) {
+		return api.StatusErrorf(http.StatusConflict, "Volume is already active")
+	}
+
+	volDevPath, cleanup, err := getDevicePath(vol, true)
+	if err != nil {
+		return err
+	}
+
+	defer cleanup()
+
+	return task(volDevPath)
+}
 
 // mountVolume mounts a volume and increments ref counter. Please use unmountVolume() helper when done with the volume.
 func mountVolume(d Driver, vol Volume, getDevicePath getVolumePathFunc, progressReporter ioprogress.ProgressReporter) error {

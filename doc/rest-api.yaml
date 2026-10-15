@@ -14953,6 +14953,8 @@ paths:
                                 example: sync
                                 type: string
                         type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
                 "500":
@@ -14993,6 +14995,8 @@ paths:
                                 example: sync
                                 type: string
                         type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
                 "404":
@@ -15038,6 +15042,8 @@ paths:
                                 example: sync
                                 type: string
                         type: object
+                "400":
+                    $ref: '#/responses/BadRequest'
                 "403":
                     $ref: '#/responses/Forbidden'
                 "500":

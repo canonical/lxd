@@ -1151,17 +1151,6 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 		snapshottableVolumes[deviceName] = volume
 	}
 
-	// The backup metadata of the config volume snapshot lists every instance snapshot with the
-	// UUID of its root volume snapshot, which the bitmaps of the snapshot are looked up by.
-	// It is written before the record of this snapshot exists, because the record has no volume
-	// snapshot until the storage snapshot is taken.
-	if bitmap {
-		err = inst.UpdateBackupFile()
-		if err != nil {
-			return fmt.Errorf("Failed updating instance backup file before snapshot: %w", err)
-		}
-	}
-
 	// Setup the arguments.
 	args := db.InstanceArgs{
 		Project:      inst.Project().Name,
