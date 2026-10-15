@@ -498,6 +498,12 @@ func GetGPU() (*api.ResourcesGPU, error) {
 			// Add device information
 			err = gpuAddDeviceInfo(devicePath, nvidiaCards, pciDB, uname, &card)
 			if err != nil {
+				// Skip cards whose device is gone, for example a disconnected USB display
+				// adapter can leave a dangling "device" symlink behind.
+				if errors.Is(err, os.ErrNotExist) {
+					continue
+				}
+
 				return nil, fmt.Errorf("Failed adding device information for %q: %w", devicePath, err)
 			}
 
