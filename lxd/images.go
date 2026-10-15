@@ -1519,6 +1519,10 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	if !imageUpload && req.Source == nil {
+		return response.BadRequest(errors.New("Image source is required"))
+	}
+
 	if !imageUpload && req.Source.Type == "url" {
 		return response.BadRequest(errors.New("Image download from client-specified URL is not supported"))
 	}
@@ -1548,7 +1552,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	// Translate the deprecated Server and Protocol image source fields into an image registry
 	// for backward compatibility with older clients. This is skipped for cluster-internal
 	// requests (e.g. member-to-member image replication).
-	if !imageUpload && req.Source != nil && !isClusterNotification {
+	if !imageUpload && !isClusterNotification {
 		err = resolveDeprecatedImagesPostSource(r.Context(), s, projectName, req.Source)
 		if err != nil {
 			return response.SmartError(err)
@@ -1676,7 +1680,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Aliases for images with source type "image" are handled in imgPostRemoteInfo.
-		if imageUpload || req.Source == nil || req.Source.Type != "image" {
+		if imageUpload || req.Source.Type != "image" {
 			// Apply any provided alias
 			aliases, ok := imageMetadata["aliases"]
 			if ok {
