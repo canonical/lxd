@@ -1,0 +1,163 @@
+Patch lvm.conf to:
+1) Disable bits that don't apply in a snap'ed env:
+   * udev_sync
+   * udev_rules
+   * monitoring
+2) Override all executable directives to use executables from the
+   snap (/snap/lxd/current/bin).
+3) Store metadata archives and backups under /var/snap/lxd/common
+   instead of the small tmpfs mounted on /etc.
+
+--- a/etc/lvm/lvm.conf
++++ b/etc/lvm/lvm.conf
+@@ -943,8 +943,7 @@
+ 	# Configuration option backup/backup_dir.
+ 	# Location of the metadata backup files.
+ 	# Remember to back up this directory regularly!
+-	# This configuration option has an automatic default value.
+-	# backup_dir = "/etc/lvm/backup"
++	backup_dir = "/var/snap/lxd/common/lvm/backup"
+ 
+ 	# Configuration option backup/archive.
+ 	# Maintain an archive of old metadata configurations.
+@@ -955,8 +954,7 @@
+ 	# Configuration option backup/archive_dir.
+ 	# Location of the metadata archive files.
+ 	# Remember to back up this directory regularly!
+-	# This configuration option has an automatic default value.
+-	# archive_dir = "/etc/lvm/archive"
++	archive_dir = "/var/snap/lxd/common/lvm/archive"
+ 
+ 	# Configuration option backup/retain_min.
+ 	# Minimum number of archives to keep.
+@@ -1234,31 +1232,27 @@
+ 	# the command has an exit status of 0. Set to "" to skip this check.
+ 	# (Not recommended.) Also see thin_check_options.
+ 	# (See package device-mapper-persistent-data or thin-provisioning-tools)
+-	# This configuration option has an automatic default value.
+-	# thin_check_executable = "/usr/sbin/thin_check"
++	thin_check_executable = "/snap/lxd/current/bin/thin_check"
+ 
+ 	# Configuration option global/thin_dump_executable.
+ 	# The full path to the thin_dump command.
+ 	# LVM uses this command to dump thin pool metadata.
+ 	# (See package device-mapper-persistent-data or thin-provisioning-tools)
+-	# This configuration option has an automatic default value.
+-	# thin_dump_executable = "/usr/sbin/thin_dump"
++	thin_dump_executable = "/snap/lxd/current/bin/thin_dump"
+ 
+ 	# Configuration option global/thin_repair_executable.
+ 	# The full path to the thin_repair command.
+ 	# LVM uses this command to repair a thin metadata device if it is in
+ 	# an unusable state. Also see thin_repair_options.
+ 	# (See package device-mapper-persistent-data or thin-provisioning-tools)
+-	# This configuration option has an automatic default value.
+-	# thin_repair_executable = "/usr/sbin/thin_repair"
++	thin_repair_executable = "/snap/lxd/current/bin/thin_repair"
+ 
+ 	# Configuration option global/thin_restore_executable.
+ 	# The full path to the thin_restore command.
+ 	# LVM uses this command to restore generated data for a thin pool metadata device.
+ 	# Also see thin_restore_options.
+ 	# (See package device-mapper-persistent-data or thin-provisioning-tools)
+-	# This configuration option has an automatic default value.
+-	# thin_restore_executable = "/usr/sbin/thin_restore"
++	thin_restore_executable = "/snap/lxd/current/bin/thin_restore"
+ 
+ 	# Configuration option global/thin_check_options.
+ 	# List of options passed to the thin_check command.
+@@ -1309,31 +1303,27 @@
+ 	# command has an exit status of 0. Set to "" to skip this check.
+ 	# (Not recommended.) Also see cache_check_options.
+ 	# (See package device-mapper-persistent-data or thin-provisioning-tools)
+-	# This configuration option has an automatic default value.
+-	# cache_check_executable = "/usr/sbin/cache_check"
++	cache_check_executable = "/snap/lxd/current/bin/cache_check"
+ 
+ 	# Configuration option global/cache_dump_executable.
+ 	# The full path to the cache_dump command.
+ 	# LVM uses this command to dump cache pool metadata.
+ 	# (See package device-mapper-persistent-data or thin-provisioning-tools)
+-	# This configuration option has an automatic default value.
+-	# cache_dump_executable = "/usr/sbin/cache_dump"
++	cache_dump_executable = "/snap/lxd/current/bin/cache_dump"
+ 
+ 	# Configuration option global/cache_repair_executable.
+ 	# The full path to the cache_repair command.
+ 	# LVM uses this command to repair a cache metadata device if it is in
+ 	# an unusable state. Also see cache_repair_options.
+ 	# (See package device-mapper-persistent-data or thin-provisioning-tools)
+-	# This configuration option has an automatic default value.
+-	# cache_repair_executable = "/usr/sbin/cache_repair"
++	cache_repair_executable = "/snap/lxd/current/bin/cache_repair"
+ 
+ 	# Configuration option global/cache_restore_executable.
+ 	# The full path to the cache_restore command.
+ 	# LVM uses this command to restore generated data for a cache metadata device.
+ 	# Also see cache_restore_options.
+ 	# (See package device-mapper-persistent-data or thin-provisioning-tools)
+-	# This configuration option has an automatic default value.
+-	# cache_restore_executable = "/usr/sbin/cache_restore"
++	cache_restore_executable = "/snap/lxd/current/bin/cache_restore"
+ 
+ 	# Configuration option global/cache_check_options.
+ 	# List of options passed to the cache_check command.
+@@ -1355,8 +1345,7 @@
+ 	# Configuration option global/vdo_format_executable.
+ 	# The full path to the vdoformat command.
+ 	# LVM uses this command to initial data volume for VDO type logical volume
+-	# This configuration option has an automatic default value.
+-	# vdo_format_executable = "/usr/bin/vdoformat"
++	vdo_format_executable = "/snap/lxd/current/bin/vdoformat"
+ 
+ 	# Configuration option global/vdo_format_options.
+ 	# List of options passed added to standard vdoformat command.
+@@ -1376,8 +1365,7 @@
+ 	# Configuration option global/fsadm_executable.
+ 	# The full path to the fsadm command.
+ 	# LVM uses this command to help with lvresize -r operations.
+-	# This configuration option has an automatic default value.
+-	# fsadm_executable = "/usr/sbin/fsadm"
++	fsadm_executable = "/snap/lxd/current/bin/fsadm"
+ 
+ 	# Configuration option global/system_id_source.
+ 	# The method LVM uses to set the local system ID.
+@@ -1468,16 +1456,14 @@
+ 	# that ignore the devices LVM creates. If enabled when udev is not
+ 	# running, and LVM processes are waiting for udev, run the command
+ 	# 'dmsetup udevcomplete_all' to wake them up.
+-	# This configuration option has an automatic default value.
+-	# udev_sync = 1
++	udev_sync = 0
+ 
+ 	# Configuration option activation/udev_rules.
+ 	# Use udev rules to manage LV device nodes and symlinks.
+ 	# When disabled, LVM will manage the device nodes and symlinks for
+ 	# active LVs itself. Manual intervention may be required if this
+ 	# setting is changed while LVs are active.
+-	# This configuration option has an automatic default value.
+-	# udev_rules = 1
++	udev_rules = 0
+ 
+ 	# Configuration option activation/verify_udev_operations.
+ 	# Use extra checks in LVM to verify udev operations.
+@@ -1840,8 +1826,7 @@
+ 	# Monitor LVs that are activated.
+ 	# The --ignoremonitoring option overrides this setting.
+ 	# When enabled, LVM will ask dmeventd to monitor activated LVs.
+-	# This configuration option has an automatic default value.
+-	# monitoring = 1
++	monitoring = 0
+ 
+ 	# Configuration option activation/polling_interval.
+ 	# Check pvmove or lvconvert progress at this interval (seconds).
+@@ -2469,8 +2454,7 @@
+ 
+ 	# Configuration option dmeventd/executable.
+ 	# The full path to the dmeventd binary.
+-	# This configuration option has an automatic default value.
+-	# executable = "/usr/sbin/dmeventd"
++	executable = "/snap/lxd/current/bin/dmeventd"
+ }
+ 
+ # Configuration section tags.
