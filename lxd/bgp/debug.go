@@ -44,31 +44,30 @@ type DebugInfoPeer struct {
 	Routes   []DebugInfoPrefix `json:"routes" yaml:"routes"`
 }
 
-// Debug returns a dump of the current configuration. When the BGP server is not
-// running, it returns a payload with Server.Running set to false and no peers or
-// prefixes, rather than an error.
+// Debug returns a dump of the current configuration, and never returns an error.
+//
+// Peers, and the routes they would be advertised, come from the recorded
+// configuration, so they are reported whether or not the listener is running;
+// Server.Running says whether those routes are being advertised. Prefixes are
+// read from the GoBGP RIB, so they are only reported while the listener is
+// running, as without a listener there is no RIB to read them from.
 func (s *Server) Debug() DebugInfo {
 	// Snapshot in-memory state under lock to avoid blocking BGP configuration changes
 	// during external GoBGP RIB queries.
 	s.mu.Lock()
-	if s.bgp == nil {
-		s.mu.Unlock()
-		return DebugInfo{
-			Server: DebugInfoServer{
-				Running: false,
-			},
-			Peers:    []DebugInfoPeer{},
-			Prefixes: []DebugInfoPrefix{},
-		}
-	}
 
 	debug := DebugInfo{}
 
-	// Fill in server state.
-	debug.Server.Running = true
-	debug.Server.ASN = s.asn
-	debug.Server.Address = s.address
-	debug.Server.RouterID = s.routerID.String()
+	// Fill in server state. A listener is only running once it is serving, which
+	// is recorded only once the listener is up, so a listener that is stopped or
+	// that failed to start reports no listen address, ASN or router ID.
+	debug.Server.Running = s.bgp != nil
+
+	if debug.Server.Running {
+		debug.Server.ASN = s.asn
+		debug.Server.Address = s.address
+		debug.Server.RouterID = s.routerID.String()
+	}
 
 	// Fill in the peers.
 	debug.Peers = []DebugInfoPeer{}
@@ -81,13 +80,13 @@ func (s *Server) Debug() DebugInfo {
 		entry.Owners = peer.ownerNames()
 		entry.HoldTime = peer.holdtime
 
-		// Populate the routes advertised to this peer from the paths its owners
-		// hold. A peer can be shared by several networks, and a route can be
-		// recorded more than once (a network advertising a prefix a sub-owner has
-		// already added, for instance), so the routes are deduplicated. A route is
-		// a prefix and a next-hop, which is the unit the export policy advertises
-		// to the peer, so this reports what the peer receives rather than what is
-		// recorded locally.
+		// Populate the routes that would be advertised to this peer from the
+		// paths its owners hold. A peer can be shared by several networks, and a
+		// route can be recorded more than once (a network advertising a prefix a
+		// sub-owner has already added, for instance), so the routes are
+		// deduplicated. A route is a prefix and a next-hop, which is the unit the
+		// export policy advertises to the peer, so this reports what the peer
+		// receives rather than what is recorded locally.
 		routes := map[string]DebugInfoPrefix{}
 		for _, p := range s.paths {
 			if !peer.ownsPath(p.owner) {
@@ -142,8 +141,14 @@ func (s *Server) Debug() DebugInfo {
 	bgpServer := s.bgp
 	s.mu.Unlock()
 
-	// Query live paths from GoBGP global RIB outside the lock.
+	// Nothing is programmed in a RIB unless the listener is running, so there is
+	// nothing to query and nothing to report.
 	debug.Prefixes = []DebugInfoPrefix{}
+	if bgpServer == nil {
+		return debug
+	}
+
+	// Query live paths from GoBGP global RIB outside the lock.
 	families := []bgpPacket.Family{bgpPacket.RF_IPv4_UC, bgpPacket.RF_IPv6_UC}
 	for _, family := range families {
 		err := bgpServer.ListPath(bgpAPIUtil.ListPathRequest{
