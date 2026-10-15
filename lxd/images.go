@@ -1108,6 +1108,10 @@ func getImgPostInfo(s *state.State, r *http.Request, builddir string, project st
 	}
 
 	if len(propHeaders) > 0 {
+		if info.Properties == nil {
+			info.Properties = make(map[string]string, len(propHeaders))
+		}
+
 		for _, ph := range propHeaders {
 			p, _ := url.ParseQuery(ph)
 			for pkey, pval := range p {
