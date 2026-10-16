@@ -411,7 +411,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 
 	// Setup BGP.
 	if !nodeEvacuated {
-		err = n.bgpSetup(oldConfig, bgp.OwnerNetwork(n.ID()))
+		err = n.bgpSetup(oldConfig, bgp.OwnerNetwork(n.ID()), n.Info().LoadBalancers)
 		if err != nil {
 			return err
 		}
@@ -476,7 +476,7 @@ func (n *physical) Restore() error {
 	n.logger.Debug("Restore")
 
 	// Setup BGP.
-	return n.bgpSetup(nil, bgp.OwnerNetwork(n.ID()))
+	return n.bgpSetup(nil, bgp.OwnerNetwork(n.ID()), n.Info().LoadBalancers)
 }
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
