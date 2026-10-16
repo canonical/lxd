@@ -961,11 +961,16 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 			continue
 		}
 
+		// Cluster groups are only known to the joining member once it has joined the cluster.
+		// Drop any restriction referencing them from this temporary local copy of the project.
+		projectConfig := maps.Clone(p.Config)
+		delete(projectConfig, "restricted.cluster.groups")
+
 		// Request that the project be created first before the project specific networks.
 		data.Projects = append(data.Projects, api.ProjectsPost{
 			Name:        p.Name,
 			Description: p.Description,
-			Config:      p.Config,
+			Config:      projectConfig,
 		})
 
 		// Fetch all project specific networks currently defined in the cluster for the project.
