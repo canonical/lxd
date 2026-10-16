@@ -16,17 +16,14 @@ test_storage_volume_import() {
   # A volume name supplied via the X-LXD-name header must not be usable to escape the storage pool.
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
-  # The name is validated before the body is parsed, so the payload content is irrelevant.
+  # The name is validated before the body is received, so the payload content is irrelevant.
   for type in iso tar; do
-    op="$(curl --silent --unix-socket "${LXD_DIR}/unix.socket" -X POST "lxd/1.0/storage-pools/${pool}/volumes" \
+    # Confirm the request is rejected because the name contains a slash rather than being turned into a path.
+    curl --silent --unix-socket "${LXD_DIR}/unix.socket" -X POST "lxd/1.0/storage-pools/${pool}/volumes" \
         -H "Content-Type: application/octet-stream" \
         -H "X-LXD-type: ${type}" \
         -H "X-LXD-name: ../../../../foo-traversal" \
-        --data-binary 'something' | jq --exit-status --raw-output '.operation')"
-
-    # Confirm the operation failed because the name was rejected for containing a slash rather
-    # than being turned into a path.
-    curl --unix-socket "${LXD_DIR}/unix.socket" "lxd${op}/wait" | jq --exit-status '.metadata.err_code == 500 and (.metadata.err | test("Cannot contain slashes"))'
+        --data-binary 'something' | jq --exit-status '.error_code == 400 and (.error | test("Cannot contain slashes"))'
   done
 
   # import ISO as storage volume
@@ -36,7 +33,16 @@ test_storage_volume_import() {
   lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foobar | grep -xF 'content_type: iso'
 
   # importing ISO again under the same name should fail as the target volume already exists
-  ! lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.iso foo || false
+  [ "$(! CLIENT_DEBUG="" SHELL_TRACING="" lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.iso foo 2>&1 1>/dev/null)" = 'Error: Storage volume "foo" already exists' ]
+
+  # The server also rejects it before receiving the data
+  for type in iso tar; do
+    curl --silent --unix-socket "${LXD_DIR}/unix.socket" -X POST "lxd/1.0/storage-pools/${pool}/volumes" \
+        -H "Content-Type: application/octet-stream" \
+        -H "X-LXD-type: ${type}" \
+        -H "X-LXD-name: foo" \
+        --data-binary 'something' | jq --exit-status '.error_code == 409'
+  done
 
   # import tarball as storage volume
   lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.tar.gz tar --type=tar
