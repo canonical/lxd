@@ -22,6 +22,17 @@ Use a prefix that reflects the primary directory or area changed:
 
 Depending on complexity, large changes should be split into smaller, logical commits to facilitate review and backporting.
 
+## Message format
+
+- Keep the subject line to 72 characters or fewer.
+- Separate the subject from the body with a blank line.
+- Wrap every body line to at most 72 characters. Git does not wrap for you, so set your editor's text width to 72 or wrap by hand.
+- Leave lines that cannot be broken without losing meaning, such as URLs and pasted command output, unwrapped.
+- Markdown is allowed in the body: inline code in backticks, `-` or `*` bullet lists, and fenced code blocks for commands, reproducers, log snippets, and diffs. Git shows the message unrendered, so keep it readable as plain text.
+- Do not wrap lines inside a fenced code block, since wrapping would change the command or output. A language tag such as `bash` or `diff` on the opening fence is optional.
+
 ## Signing and attribution
 
 `Signed-off-by` is a Developer Certificate of Origin (DCO) certification — a legal assertion that you wrote or have the right to submit the code. Only a human submitter can make this certification. AI agents must not add a `Signed-off-by` line.
+
+A `pre-push` hook (`.githooks/pre-push`) rejects pushes that contain commits without a sign-off or a signature. Enable it once per clone with `git config core.hooksPath .githooks`. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
