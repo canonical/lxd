@@ -67,6 +67,13 @@ func ExtractWithFds(s *state.State, cmd string, args []string, allowedCmds []str
 
 	_, err = p.Wait(context.Background())
 	if err != nil {
+		// When the target runs out of space, tar reports a failure for every remaining file which
+		// can produce megabytes of output, so drain it and only keep the cause.
+		if bytes.Contains(buffer.Bytes(), []byte("No space left on device")) {
+			buffer.Reset()
+			buffer.WriteString("No space left on device")
+		}
+
 		return shared.NewRunError(cmd, args, err, nil, &buffer)
 	}
 
