@@ -2692,12 +2692,51 @@ func doStoragePoolVolumeDelete(ctx context.Context, opScheduler operations.Opera
 	return op, nil
 }
 
+// checkCustomVolumeImportable checks that a custom volume with the given name can be created on the pool.
+// This allows rejecting an import before receiving its potentially large data.
+func checkCustomVolumeImportable(ctx context.Context, s *state.State, projectName string, poolName string, volName string) response.Response {
+	err := storageDrivers.ValidVolumeName(volName)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Invalid volume name %q: %w", volName, err))
+	}
+
+	var dbVolume *db.StorageVolume
+
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		poolID, err := tx.GetStoragePoolID(ctx, poolName)
+		if err != nil {
+			return err
+		}
+
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, cluster.StoragePoolVolumeTypeCustom, volName, true)
+		if err != nil && !response.IsNotFoundError(err) {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if dbVolume != nil {
+		return response.Conflict(errors.New("Volume by that name already exists"))
+	}
+
+	return nil
+}
+
 func createStoragePoolVolumeFromISO(s *state.State, r *http.Request, requestProjectName string, projectName string, data io.Reader, pool string, volName string) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
 
 	if volName == "" {
 		return response.BadRequest(errors.New("Missing volume name"))
+	}
+
+	resp := checkCustomVolumeImportable(r.Context(), s, projectName, pool, volName)
+	if resp != nil {
+		return resp
 	}
 
 	// Create isos directory if needed.
@@ -2770,6 +2809,11 @@ func createStoragePoolVolumeFromTarball(s *state.State, r *http.Request, request
 
 	if volName == "" {
 		return response.BadRequest(errors.New("Missing volume name"))
+	}
+
+	resp := checkCustomVolumeImportable(r.Context(), s, projectName, poolName, volName)
+	if resp != nil {
+		return resp
 	}
 
 	// Create temporary file to store uploaded tar archive.
