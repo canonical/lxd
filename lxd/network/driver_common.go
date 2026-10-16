@@ -769,48 +769,81 @@ func (n *common) bgpValidationRules(config map[string]string) (map[string]func(v
 	return rules, nil
 }
 
-// bgpSetup initializes BGP peers and prefixes.
-func (n *common) bgpSetup(oldConfig map[string]string) error {
+// bgpSetup initializes BGP peers and prefixes. The bgpOwner is the base owner
+// of the network's own prefixes, forwards and load balancers; the drivers derive
+// it (see ovn.bgpOwner for an OVN network's uplink-nested owner).
+//
+// supportsLoadBalancers must reflect whether the driver supports network load
+// balancers. It is passed in rather than read from Info() because Info() is
+// promoted from common and therefore does not dispatch to a driver's
+// implementation when called from a common method.
+func (n *common) bgpSetup(oldConfig map[string]string, bgpOwner string, supportsLoadBalancers bool) error {
 	err := n.bgpSetupPeers(oldConfig)
 	if err != nil {
 		return fmt.Errorf("Failed setting up BGP peers: %w", err)
 	}
 
-	err = n.bgpSetupPrefixes(oldConfig)
+	err = n.bgpSetupPrefixes(oldConfig, bgpOwner)
 	if err != nil {
 		return fmt.Errorf("Failed setting up BGP prefixes: %w", err)
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err = n.forwardBGPSetupPrefixes()
+	err = n.forwardBGPSetupPrefixes(bgpOwner)
 	if err != nil {
 		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
+	}
+
+	if supportsLoadBalancers {
+		err = n.loadBalancerBGPSetupPrefixes(bgpOwner)
+		if err != nil {
+			return fmt.Errorf("Failed applying BGP prefixes for load balancers: %w", err)
+		}
 	}
 
 	return nil
 }
 
-// bgpClear initializes BGP peers and prefixes.
-func (n *common) bgpClear(config map[string]string) error {
+// bgpClear clears BGP peers and prefixes. The bgpOwner is the base owner of the
+// network's own prefixes, forwards and load balancers.
+func (n *common) bgpClear(config map[string]string, bgpOwner string) error {
 	// Clear all peers.
 	err := n.bgpClearPeers(config)
 	if err != nil {
 		return err
 	}
 
-	// Clear all prefixes.
-	err = n.state.BGP.RemovePrefixByOwner(bgp.OwnerNetwork(n.id))
+	// Clear the network's own prefixes.
+	err = n.state.BGP.RemovePrefixByOwner(bgpOwner)
 	if err != nil {
 		return err
 	}
 
-	// Clear existing address forward prefixes for network.
-	err = n.state.BGP.RemovePrefixByOwner(bgp.OwnerNetworkForward(n.id))
+	// Clear the network's address forward prefixes.
+	err = n.state.BGP.RemovePrefixByOwner(bgp.OwnerNetworkForwards(bgpOwner))
+	if err != nil {
+		return err
+	}
+
+	// Clear the network's load balancer prefixes.
+	err = n.state.BGP.RemovePrefixByOwner(bgp.OwnerNetworkLoadBalancers(bgpOwner))
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// bgpPeerOwner returns the owner identifier to register this network's BGP peers
+// under.
+//
+// Peers are only configurable on bridge and physical networks (the uplinks an
+// OVN network attaches to), never on an OVN network itself, so this is always
+// the network's own owner and never the uplink-nested owner that an OVN
+// network's own prefixes use. Several networks may configure the same peer
+// address; each is recorded as an owner of the shared session.
+func (n *common) bgpPeerOwner() string {
+	return bgp.OwnerNetwork(n.id)
 }
 
 // bgpClearPeers removes all BGP peers on the network.
@@ -819,7 +852,7 @@ func (n *common) bgpClearPeers(config map[string]string) error {
 	for _, peer := range peers {
 		// Remove the peer.
 		addr, _, _ := strings.Cut(peer, ",")
-		err := n.state.BGP.RemovePeer(net.ParseIP(addr))
+		err := n.state.BGP.RemovePeer(net.ParseIP(addr), n.bgpPeerOwner())
 		if err != nil && !errors.Is(err, bgp.ErrPeerNotFound) {
 			return err
 		}
@@ -842,7 +875,7 @@ func (n *common) bgpSetupPeers(oldConfig map[string]string) error {
 
 		// Remove old peer.
 		addr, _, _ := strings.Cut(peer, ",")
-		err := n.state.BGP.RemovePeer(net.ParseIP(addr))
+		err := n.state.BGP.RemovePeer(net.ParseIP(addr), n.bgpPeerOwner())
 		if err != nil {
 			return err
 		}
@@ -869,7 +902,7 @@ func (n *common) bgpSetupPeers(oldConfig map[string]string) error {
 			}
 		}
 
-		err = n.state.BGP.AddPeer(net.ParseIP(fields[0]), uint32(asn), fields[2], holdTime, bgp.OwnerNetwork(n.id))
+		err = n.state.BGP.AddPeer(net.ParseIP(fields[0]), uint32(asn), fields[2], holdTime, n.bgpPeerOwner())
 		if err != nil {
 			return err
 		}
@@ -896,10 +929,10 @@ func (n *common) bgpNextHopAddress(ipVersion uint) net.IP {
 	return nextHopAddr
 }
 
-// bgpSetupPrefixes refreshes the prefix list for the network.
-func (n *common) bgpSetupPrefixes(oldConfig map[string]string) error {
+// bgpSetupPrefixes refreshes the prefix list for the network, using the given
+// base owner.
+func (n *common) bgpSetupPrefixes(oldConfig map[string]string, bgpOwner string) error {
 	// Clear existing prefixes.
-	bgpOwner := bgp.OwnerNetwork(n.id)
 	if oldConfig != nil {
 		err := n.state.BGP.RemovePrefixByOwner(bgpOwner)
 		if err != nil {
@@ -1194,41 +1227,46 @@ func (n *common) ForwardDelete(listenAddress string, clientType request.ClientTy
 	return ErrNotImplemented
 }
 
-// forwardBGPSetupPrefixes exports external forward addresses as prefixes.
-func (n *common) forwardBGPSetupPrefixes() error {
-	var fwdListenAddresses map[int64]string
+// bgpSetupListenerPrefixes exports the external listen addresses of the network's
+// forwards or load balancers as prefixes, owned by the given owner. The prefixes
+// are cleared and re-added wholesale, so the owner covers every listener of that
+// kind rather than an individual one.
+//
+// listenerLabel names the kind of listener in error messages, owner is the owner
+// the prefixes belong to and that is cleared before re-adding, and
+// fetchListenAddresses returns the listen addresses keyed by entity ID.
+func (n *common) bgpSetupListenerPrefixes(listenerLabel string, owner string, fetchListenAddresses func(ctx context.Context, tx *db.ClusterTx) (map[int64]string, error)) error {
+	var listenAddresses map[int64]string
 
 	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
-		// Retrieve network forwards before clearing existing prefixes, and separate them by IP family.
-		fwdListenAddresses, err = tx.GetNetworkForwardListenAddresses(ctx, n.ID(), true)
+		// Retrieve the listen addresses before clearing existing prefixes.
+		listenAddresses, err = fetchListenAddresses(ctx, tx)
 
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed loading network forwards: %w", err)
+		return fmt.Errorf("Failed loading %s: %w", listenerLabel, err)
 	}
 
-	fwdListenAddressesByFamily := map[uint][]string{
-		4: make([]string, 0),
-		6: make([]string, 0),
+	// Sort the listen addresses by IP family.
+	listenAddressesByFamily := map[uint][]string{
+		4: make([]string, 0, len(listenAddresses)),
+		6: make([]string, 0, len(listenAddresses)),
 	}
 
-	for _, fwdListenAddress := range fwdListenAddresses {
-		if strings.Contains(fwdListenAddress, ":") {
-			fwdListenAddressesByFamily[6] = append(fwdListenAddressesByFamily[6], fwdListenAddress)
+	for _, listenAddress := range listenAddresses {
+		if strings.Contains(listenAddress, ":") {
+			listenAddressesByFamily[6] = append(listenAddressesByFamily[6], listenAddress)
 		} else {
-			fwdListenAddressesByFamily[4] = append(fwdListenAddressesByFamily[4], fwdListenAddress)
+			listenAddressesByFamily[4] = append(listenAddressesByFamily[4], listenAddress)
 		}
 	}
 
-	// Use forward specific owner string (different from the network prefixes) so that these can be reapplied
-	// independently of the network's own prefixes.
-	bgpOwner := bgp.OwnerNetworkForward(n.id)
-
-	// Clear existing address forward prefixes for network.
-	err = n.state.BGP.RemovePrefixByOwner(bgpOwner)
+	// Clear the existing prefixes. The listeners' prefix is re-added below, and
+	// clearing first drops the prefixes of listeners that have since been deleted.
+	err = n.state.BGP.RemovePrefixByOwner(owner)
 	if err != nil {
 		return err
 	}
@@ -1244,21 +1282,21 @@ func (n *common) forwardBGPSetupPrefixes() error {
 			routeSubnetSize = 32
 		}
 
-		// Export external forward listen addresses.
-		for _, fwdListenAddress := range fwdListenAddressesByFamily[ipVersion] {
-			fwdListenAddr := net.ParseIP(fwdListenAddress)
+		// Export external listen addresses.
+		for _, listenAddress := range listenAddressesByFamily[ipVersion] {
+			listenAddr := net.ParseIP(listenAddress)
 
-			// Don't export internal address forwards (those inside the NAT enabled network's subnet).
-			if natEnabled && netSubnet != nil && netSubnet.Contains(fwdListenAddr) {
+			// Don't export internal listeners (those inside the NAT enabled network's subnet).
+			if natEnabled && netSubnet != nil && netSubnet.Contains(listenAddr) {
 				continue
 			}
 
-			_, ipRouteSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", fwdListenAddr.String(), routeSubnetSize))
+			_, ipRouteSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", listenAddr.String(), routeSubnetSize))
 			if err != nil {
 				return err
 			}
 
-			err = n.state.BGP.AddPrefix(*ipRouteSubnet, nextHopAddr, bgpOwner)
+			err = n.state.BGP.AddPrefix(*ipRouteSubnet, nextHopAddr, owner)
 			if err != nil {
 				return err
 			}
@@ -1266,6 +1304,18 @@ func (n *common) forwardBGPSetupPrefixes() error {
 	}
 
 	return nil
+}
+
+// forwardBGPSetupPrefixes exports external forward addresses as prefixes, owned
+// by the given base owner's forward owner.
+func (n *common) forwardBGPSetupPrefixes(bgpOwner string) error {
+	return n.bgpSetupListenerPrefixes(
+		"network forwards",
+		bgp.OwnerNetworkForwards(bgpOwner),
+		func(ctx context.Context, tx *db.ClusterTx) (map[int64]string, error) {
+			return tx.GetNetworkForwardListenAddresses(ctx, n.ID(), true)
+		},
+	)
 }
 
 // getExternalSubnetInUse returns information about usage of external subnets by networks connected to, or used by,
@@ -1545,78 +1595,16 @@ func (n *common) LoadBalancerDelete(listenAddress string, clientType request.Cli
 	return ErrNotImplemented
 }
 
-// loadBalancerBGPSetupPrefixes exports external load balancer addresses as prefixes.
-func (n *common) loadBalancerBGPSetupPrefixes() error {
-	var listenAddresses map[int64]string
-
-	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-
-		// Retrieve network forwards before clearing existing prefixes, and separate them by IP family.
-		listenAddresses, err = tx.GetNetworkLoadBalancerListenAddresses(ctx, n.ID(), true)
-
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed loading network forwards: %w", err)
-	}
-
-	listenAddressesByFamily := map[uint][]string{
-		4: make([]string, 0),
-		6: make([]string, 0),
-	}
-
-	for _, listenAddress := range listenAddresses {
-		if strings.Contains(listenAddress, ":") {
-			listenAddressesByFamily[6] = append(listenAddressesByFamily[6], listenAddress)
-		} else {
-			listenAddressesByFamily[4] = append(listenAddressesByFamily[4], listenAddress)
-		}
-	}
-
-	// Use load balancer specific owner string (different from the network prefixes) so that these can be
-	// reapplied independently of the network's own prefixes.
-	bgpOwner := bgp.OwnerNetworkLoadBalancer(n.id)
-
-	// Clear existing address load balancer prefixes for network.
-	err = n.state.BGP.RemovePrefixByOwner(bgpOwner)
-	if err != nil {
-		return err
-	}
-
-	// Add the new prefixes.
-	for _, ipVersion := range []uint{4, 6} {
-		nextHopAddr := n.bgpNextHopAddress(ipVersion)
-		natEnabled := shared.IsTrue(n.config[fmt.Sprintf("ipv%d.nat", ipVersion)])
-		_, netSubnet, _ := net.ParseCIDR(n.config[fmt.Sprintf("ipv%d.address", ipVersion)])
-
-		routeSubnetSize := 128
-		if ipVersion == 4 {
-			routeSubnetSize = 32
-		}
-
-		// Export external forward listen addresses.
-		for _, listenAddress := range listenAddressesByFamily[ipVersion] {
-			listenAddr := net.ParseIP(listenAddress)
-
-			// Don't export internal address forwards (those inside the NAT enabled network's subnet).
-			if natEnabled && netSubnet != nil && netSubnet.Contains(listenAddr) {
-				continue
-			}
-
-			_, ipRouteSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", listenAddr.String(), routeSubnetSize))
-			if err != nil {
-				return err
-			}
-
-			err = n.state.BGP.AddPrefix(*ipRouteSubnet, nextHopAddr, bgpOwner)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+// loadBalancerBGPSetupPrefixes exports external load balancer addresses as
+// prefixes, owned by the given base owner's load balancer owner.
+func (n *common) loadBalancerBGPSetupPrefixes(bgpOwner string) error {
+	return n.bgpSetupListenerPrefixes(
+		"network load balancers",
+		bgp.OwnerNetworkLoadBalancers(bgpOwner),
+		func(ctx context.Context, tx *db.ClusterTx) (map[int64]string, error) {
+			return tx.GetNetworkLoadBalancerListenAddresses(ctx, n.ID(), true)
+		},
+	)
 }
 
 // Leases returns ErrNotImplemented for drivers that don't support address leases.

@@ -597,10 +597,11 @@ func networkValidGateway(value string) error {
 	return fmt.Errorf("Invalid gateway: %s", value)
 }
 
-// bgpAddPrefix adds external routes to the BGP server.
-func bgpAddPrefix(d *deviceCommon, n network.Network, bgpOwnerNet network.Network, config map[string]string) error {
-	if n == nil || bgpOwnerNet == nil {
-		return fmt.Errorf("Cannot add BGP prefixes for instance %q device %q: requires a managed network and BGP owner network", d.inst.Name(), d.name)
+// bgpAddPrefix adds external routes to the BGP server, owned by this instance NIC
+// under the given base owner of the network it is attached to.
+func bgpAddPrefix(d *deviceCommon, n network.Network, bgpOwnerBase string, config map[string]string) error {
+	if n == nil || bgpOwnerBase == "" {
+		return fmt.Errorf("Cannot add BGP prefixes for instance %q device %q: requires a managed network and BGP owner", d.inst.Name(), d.name)
 	}
 
 	// Parse nexthop configuration.
@@ -621,7 +622,7 @@ func bgpAddPrefix(d *deviceCommon, n network.Network, bgpOwnerNet network.Networ
 	}
 
 	// Add the prefixes.
-	bgpOwner := bgp.OwnerInstanceNetwork(bgpOwnerNet.ID(), d.inst.ID(), d.name)
+	bgpOwner := bgp.OwnerInstanceNetwork(bgpOwnerBase, d.inst.ID(), d.name)
 	if config["ipv4.routes.external"] != "" {
 		for _, prefix := range shared.SplitNTrimSpace(config["ipv4.routes.external"], ",", -1, true) {
 			_, prefixNet, err := net.ParseCIDR(prefix)
@@ -653,12 +654,12 @@ func bgpAddPrefix(d *deviceCommon, n network.Network, bgpOwnerNet network.Networ
 	return nil
 }
 
-func bgpRemovePrefix(d *deviceCommon, bgpOwnerNet network.Network) error {
-	if bgpOwnerNet == nil {
-		return fmt.Errorf("Cannot remove BGP prefixes for instance %q device %q: requires a BGP owner network", d.inst.Name(), d.name)
+func bgpRemovePrefix(d *deviceCommon, bgpOwnerBase string) error {
+	if bgpOwnerBase == "" {
+		return fmt.Errorf("Cannot remove BGP prefixes for instance %q device %q: requires a BGP owner", d.inst.Name(), d.name)
 	}
 
-	return d.state.BGP.RemovePrefixByOwner(bgp.OwnerInstanceNetwork(bgpOwnerNet.ID(), d.inst.ID(), d.name))
+	return d.state.BGP.RemovePrefixByOwner(bgp.OwnerInstanceNetwork(bgpOwnerBase, d.inst.ID(), d.name))
 }
 
 // networkSRIOVParentVFInfo returns info about an SR-IOV virtual function from the parent NIC using the ip tool.

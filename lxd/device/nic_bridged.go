@@ -20,6 +20,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/mdlayher/netx/eui64"
 
+	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
@@ -701,7 +702,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 // postStart is run after the device is added to the instance.
 func (d *nicBridged) postStart() error {
 	if d.network != nil {
-		err := bgpAddPrefix(&d.deviceCommon, d.network, d.network, d.config)
+		err := bgpAddPrefix(&d.deviceCommon, d.network, bgp.OwnerNetwork(d.network.ID()), d.config)
 		if err != nil {
 			return err
 		}
@@ -819,14 +820,14 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 	}
 
 	if oldNetwork != nil {
-		err = bgpRemovePrefix(&d.deviceCommon, oldNetwork)
+		err = bgpRemovePrefix(&d.deviceCommon, bgp.OwnerNetwork(oldNetwork.ID()))
 		if err != nil {
 			return err
 		}
 	}
 
 	if d.network != nil {
-		err = bgpAddPrefix(&d.deviceCommon, d.network, d.network, d.config)
+		err = bgpAddPrefix(&d.deviceCommon, d.network, bgp.OwnerNetwork(d.network.ID()), d.config)
 		if err != nil {
 			return err
 		}
@@ -840,7 +841,7 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 func (d *nicBridged) Stop() (*deviceConfig.RunConfig, error) {
 	// Remove BGP announcements.
 	if d.network != nil {
-		err := bgpRemovePrefix(&d.deviceCommon, d.network)
+		err := bgpRemovePrefix(&d.deviceCommon, bgp.OwnerNetwork(d.network.ID()))
 		if err != nil {
 			return nil, err
 		}
@@ -1829,7 +1830,7 @@ func (d *nicBridged) getHostMTU() (int, error) {
 // Register sets up anything needed on LXD startup.
 func (d *nicBridged) Register() error {
 	if d.network != nil {
-		err := bgpAddPrefix(&d.deviceCommon, d.network, d.network, d.config)
+		err := bgpAddPrefix(&d.deviceCommon, d.network, bgp.OwnerNetwork(d.network.ID()), d.config)
 		if err != nil {
 			return err
 		}
