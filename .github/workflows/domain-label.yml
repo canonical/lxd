@@ -14,6 +14,11 @@ on:
 
 permissions: {}
 
+# Serialize runs per PR so a stale read of the labels cannot overwrite a newer run's result.
+concurrency:
+  group: domain-label-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
   check-domain-label:
     if: ${{ github.repository == 'canonical/lxd' && !github.event.pull_request.draft }}
