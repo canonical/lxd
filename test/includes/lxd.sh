@@ -86,6 +86,12 @@ spawn_lxd() {
     "$lxd_backend"_setup "${LXD_DIR}"
     echo "$lxd_backend" > "${LXD_DIR}/lxd.backend"
 
+    # Setup microvm kernel if available
+    if [ -n "${LXD_MICROVM_KERNEL:-}" ] && [ -f "${LXD_MICROVM_KERNEL}" ]; then
+        mkdir -p "${LXD_DIR}/microvm"
+        cp "${LXD_MICROVM_KERNEL}" "${LXD_DIR}/microvm/vmlinuz"
+    fi
+
     echo "==> Spawning lxd in ${LXD_DIR}"
 
     if [ "${LXD_NETNS}" = "" ]; then
@@ -662,4 +668,162 @@ teardown_instance_gocoverage() {
 
   # Remove the shared dir.
   lxc config device remove "${instance}" gocoverdir --project "${project}"
+}
+
+# Runs a command in the shell on an instance console and optionally waits for the expected output.
+# Arguments: transport ("lxc" or "socket"), target (instance name or socket path), command,
+# expected output, the lxc binary, the seconds to wait for the shell and whether to log in first.
+# The console only relays output while a client is attached, so the shell is first probed until it
+# answers, which also proves that the instance has booted.
+# A login is made as root with password "lxdtest", which the test has to set.
+_console_run() {
+  python3 - "${@}" <<'EOF'
+import os
+import select
+import socket
+import subprocess
+import sys
+import time
+
+transport, target, cmd, expected, lxc, timeout, login_required = sys.argv[1:8]
+timeout = int(timeout)
+login_required = login_required == "true"
+
+proc = None
+if transport == "socket":
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.connect(target)
+    fd = sock.fileno()
+else:
+    # `lxc console` needs a terminal, so it gets a pty.
+    fd, tty = os.openpty()
+    proc = subprocess.Popen([lxc, "console", target], stdin=tty, stdout=tty, stderr=tty)
+    os.close(tty)
+
+output = ""
+
+
+# fd is a socket or a pty, so select and os.read are used instead of sock.recv.
+def recv():
+    """Return console output, None if there is none yet, or b"" once the console is closed."""
+    ready, _, _ = select.select([fd], [], [], 0.5)
+    if not ready:
+        return None
+
+    try:
+        return os.read(fd, 4096)
+    except OSError:
+        # Reading the pty fails once `lxc console` has exited.
+        return b""
+
+
+def read_until(needles, timeout, probe=None):
+    """Read console output until one of needles shows up, resending probe every 2s.
+
+    Returns the needle found, or None on timeout or when the console is closed."""
+    global output
+    if isinstance(needles, str):
+        needles = [needles]
+
+    deadline = time.monotonic() + timeout
+    next_probe = 0.0
+    while True:
+        for needle in needles:
+            if needle in output:
+                return needle
+
+        now = time.monotonic()
+        if now > deadline:
+            return None
+
+        if probe is not None and now >= next_probe:
+            os.write(fd, probe)
+            next_probe = now + 2
+
+        data = recv()
+        if data is None:
+            continue
+
+        if not data:
+            return None
+
+        output += data.decode(errors="replace")
+
+def login(timeout):
+    """Log in on a getty, retrying while the password is refused."""
+    global output
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        # A getty prints its prompt again on Enter; the first one went by before the client attached.
+        output = ""
+        if not read_until("login:", deadline - time.monotonic(), probe=b"\n"):
+            return False
+
+        output = ""
+        os.write(fd, b"root\n")
+        if not read_until("Password:", 30):
+            continue
+
+        output = ""
+        os.write(fd, b"lxdtest\n")
+
+        # Try again if the password is refused, for example if it was set only just now.
+        if read_until(["# ", "Login incorrect"], 30) == "# ":
+            return True
+
+    return False
+
+try:
+    if login_required and not login(timeout):
+        sys.exit("ERROR: could not log in on the console, got: %r" % output[-500:])
+
+    # The arithmetic keeps the marker out of the echoed command line.
+    output = ""
+    if not read_until("shell-42", timeout, probe=b"\necho shell-$((40+2))\n"):
+        sys.exit("ERROR: shell did not answer on the console, got: %r" % output[-500:])
+
+    output = ""
+    os.write(fd, cmd.encode() + b"\n")
+
+    if expected and not read_until(expected, 30):
+        sys.exit("ERROR: expected console output %r, got: %r" % (expected, output[-500:]))
+
+    # Give the shell a moment to read the command before the console client detaches.
+    time.sleep(0.5)
+
+    if proc is not None:
+        try:
+            if login_required:
+                # Log out, so the next call finds the login prompt again.
+                os.write(fd, b"exit\n")
+                time.sleep(0.5)
+
+            # Ctrl+a q detaches from `lxc console`, which only looks at the first byte of each read.
+            os.write(fd, b"\x01")
+            time.sleep(0.2)
+            os.write(fd, b"q")
+        except OSError:
+            pass  # The console was already closed, for example after a poweroff.
+
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            sys.exit("ERROR: lxc console did not exit after detaching")
+finally:
+    if proc is not None and proc.poll() is None:
+        proc.kill()
+EOF
+}
+
+# Runs a command in the shell on the console of an instance through `lxc console`.
+# Arguments: instance name, command, optionally the expected output, the seconds to wait for the
+# shell (default 90) and "true" to log in first, for instances whose console shows a login prompt.
+instance_console_run() {
+  _console_run lxc "${1}" "${2}" "${3:-}" "${_LXC}" "${4:-90}" "${5:-false}"
+}
+
+# Runs a command in the shell on the console of a MicroVM through its console socket, without the API.
+# Arguments: instance name, command and optionally the expected output.
+microvm_console_socket_run() {
+  _console_run socket "${LXD_DIR}/logs/${1}/libkrun.console" "${2}" "${3:-}" "" 90 false
 }

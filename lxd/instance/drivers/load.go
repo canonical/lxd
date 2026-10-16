@@ -17,12 +17,14 @@ import (
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
 	"github.com/canonical/lxd/shared/version"
 )
 
 // Instance driver definitions.
+// The microvm driver is added by init when its feature preview is enabled.
 var instanceDrivers = map[string]func() instance.Instance{
 	"lxc":  func() instance.Instance { return &lxc{} },
 	"qemu": func() instance.Instance { return &qemu{} },
@@ -53,6 +55,11 @@ func init() {
 
 	// Expose create to the instance package, to avoid circular imports.
 	instance.Create = create
+
+	// Only report the microvm driver, and its instance type, when the feature preview is enabled.
+	if features.IsEnabled(features.MicroVM) {
+		instanceDrivers["microvm"] = func() instance.Instance { return &microvm{} }
+	}
 }
 
 // load creates the underlying instance type struct and returns it as an Instance.
@@ -65,6 +72,8 @@ func load(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instanc
 		inst, err = lxcLoad(s, args, p)
 	case instancetype.VM:
 		inst, err = qemuLoad(s, args, p)
+	case instancetype.MicroVM:
+		inst, err = microvmLoad(s, args, p)
 	default:
 		return nil, fmt.Errorf("Invalid type for instance %q", args.Name)
 	}
@@ -143,6 +152,8 @@ func create(ctx context.Context, s *state.State, args db.InstanceArgs, p api.Pro
 		return lxcCreate(ctx, s, args, p)
 	case instancetype.VM:
 		return qemuCreate(ctx, s, args, p)
+	case instancetype.MicroVM:
+		return microvmCreate(ctx, s, args, p)
 	}
 
 	return nil, nil, errors.New("Instance type invalid")

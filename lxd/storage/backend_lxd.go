@@ -2359,9 +2359,14 @@ func (b *lxdBackend) CreateInstanceFromImage(ctx context.Context, inst instance.
 	}
 
 	// Ensure the required image variant exists; nil means fall back to slow-unpack.
-	imgVol, err := b.EnsureImage(ctx, fingerprint, inst.Project().Name, inst, progressReporter)
-	if err != nil {
-		return err
+	// A MicroVM is always unpacked: its root disk is an ext4 filesystem made from a container image,
+	// which a cached image volume (a plain file tree) cannot be copied into.
+	var imgVol *drivers.Volume
+	if inst.Type() != instancetype.MicroVM {
+		imgVol, err = b.EnsureImage(ctx, fingerprint, inst.Project().Name, inst, progressReporter)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Clone from the cached image volume when one was prepared; otherwise
@@ -3919,7 +3924,7 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, progressReporter iopr
 
 	var mountInfo MountInfo
 
-	if inst.Type() == instancetype.VM {
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		diskPath, err := b.driver.GetVolumeDiskPath(vol)
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting disk path: %w", err)
@@ -4447,7 +4452,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, progressRepor
 
 	var mountInfo MountInfo
 
-	if inst.Type() == instancetype.VM {
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		diskPath, err := b.driver.GetVolumeDiskPath(vol)
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting disk path: %w", err)
@@ -7770,12 +7775,12 @@ func (b *lxdBackend) ListUnknownVolumes(progressReporter ioprogress.ProgressRepo
 		volType := poolVol.Type()
 
 		// If the storage driver has returned a filesystem volume for a VM, this is a break of protocol.
-		if volType == drivers.VolumeTypeVM && poolVol.ContentType() == drivers.ContentTypeFS {
+		if (volType == drivers.VolumeTypeVM || volType == drivers.VolumeTypeMicroVM) && poolVol.ContentType() == drivers.ContentTypeFS {
 			return nil, fmt.Errorf("Storage driver returned unexpected VM volume with filesystem content type (%q)", poolVol.Name())
 		}
 
 		switch volType {
-		case drivers.VolumeTypeVM, drivers.VolumeTypeContainer:
+		case drivers.VolumeTypeVM, drivers.VolumeTypeContainer, drivers.VolumeTypeMicroVM:
 			err = b.detectUnknownInstanceAndCustomVolumes(&poolVol, projectVols, progressReporter)
 			if err != nil {
 				return nil, fmt.Errorf("Failed detecting unknown instances: %w", err)

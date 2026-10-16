@@ -211,3 +211,46 @@ test_storage_volume_attach_vm() {
     lxc storage set "${pool}" volume.size "${orig_volume_size}"
   fi
 }
+
+test_storage_volume_attach_microvm() {
+  if ! _microvm_check_prerequisites; then
+    return 0
+  fi
+
+  local pool
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  ensure_import_testimage
+
+  lxc storage volume create "${pool}" vol1 size=1MiB --type block
+  lxc storage volume create "${pool}" vol2 size=1MiB
+
+  sub_test "MicroVM root volume is created on the pool"
+  lxc init testimage m1 --microvm -c limits.memory=256MiB
+  lxc storage volume list "${pool}" -f csv -c t,n | grep -xF "microvm,m1"
+
+  sub_test "Guest boots from the root volume"
+  lxc start m1
+  # shellcheck disable=SC2016 # The arithmetic is expanded by the guest shell.
+  microvm_console_socket_run m1 'echo booted-$((40+2))' "booted-42"
+
+  sub_test "Custom volumes cannot be attached to a MicroVM"
+  lxc stop -f m1
+  [[ "$(! "${_LXC}" storage volume attach "${pool}" vol1 m1 2>&1 1>/dev/null)" == *"Unsupported device type"* ]]
+  [[ "$(! "${_LXC}" storage volume attach "${pool}" vol2 m1 /mnt 2>&1 1>/dev/null)" == *"Unsupported device type"* ]]
+
+  sub_test "MicroVM root volume follows a rename and boots again"
+  lxc rename m1 m2
+  lxc storage volume list "${pool}" -f csv -c t,n | grep -xF "microvm,m2"
+  ! lxc storage volume list "${pool}" -f csv -c t,n | grep -xF "microvm,m1" || false
+  lxc start m2
+  # shellcheck disable=SC2016 # The arithmetic is expanded by the guest shell.
+  microvm_console_socket_run m2 'echo again-$((40+2))' "again-42"
+  lxc stop -f m2
+
+  sub_test "MicroVM root volume is removed on delete"
+  lxc delete m2
+  ! lxc storage volume list "${pool}" -f csv -c t,n | grep -xF "microvm,m2" || false
+
+  lxc storage volume delete "${pool}" vol1
+  lxc storage volume delete "${pool}" vol2
+}

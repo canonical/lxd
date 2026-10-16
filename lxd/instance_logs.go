@@ -49,7 +49,7 @@ var instanceExecOutputCmd = APIEndpoint{
 }
 
 // instanceProtectedLogFiles is the list of instance log files that may be retrieved but not deleted.
-var instanceProtectedLogFiles = []string{"edk2.log", "lxc.log", "qemu.log", "qemu.early.log"}
+var instanceProtectedLogFiles = []string{"edk2.log", "lxc.log", "microvm.log", "qemu.log", "qemu.early.log"}
 
 var instanceExecOutputsCmd = APIEndpoint{
 	Path:            "instances/{name}/logs/exec-output",
@@ -503,6 +503,7 @@ func validLogFileName(fname string) bool {
 	 */
 	return fname == "lxc.conf" ||
 		fname == "qemu.conf" ||
+		fname == "microvm.conf" ||
 		slices.Contains(instanceProtectedLogFiles, fname)
 }
 
