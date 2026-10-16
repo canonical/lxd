@@ -21,7 +21,7 @@ set -x
 
 # XXX: only testing 24.04 onward because prior versions either had LXD snap
 # pre-seeded or had an lxd-installer always installing from the default channel.
-RELEASES="${RELEASES:-"24.04 26.04"}"
+RELEASES="${RELEASES:-"24.04 26.04 26.10"}"
 
 test_lxd_installer() {
     local instance="${1}"
@@ -48,8 +48,8 @@ test_lxd_installer() {
 
     # check the LXD version matches what we expect
     LXD_VERSION="$(lxc exec "${instance}" -- lxd --version)"
-    LXD_EXPECTED_VERSION="5.21"
-    [ "${release}" = "26.04" ] && LXD_EXPECTED_VERSION="6"
+    LXD_EXPECTED_VERSION="6"
+    [ "${release}" = "24.04" ] && LXD_EXPECTED_VERSION="5.21"
     [[ "${LXD_VERSION}" =~ ^${LXD_EXPECTED_VERSION}\..* ]]
 
     # check the LXD channel matches what we expect
