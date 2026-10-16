@@ -147,7 +147,7 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 
 	if slices.Contains([]string{"restart", "stop"}, action) {
 		cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Force the instance to stop")
-		cmd.Flags().IntVar(&c.flagTimeout, "timeout", -1, cli.FormatStringFlagLabel("Time to wait for clean shutdown before failing the operation "))
+		cmd.Flags().IntVar(&c.flagTimeout, "timeout", -1, cli.FormatStringFlagLabel("Time to wait for clean shutdown before failing the operation"))
 	}
 
 	return cmd
