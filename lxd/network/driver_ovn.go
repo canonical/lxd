@@ -21,6 +21,7 @@ import (
 	"github.com/mdlayher/netx/eui64"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
@@ -3236,6 +3237,29 @@ func (n *ovn) setupChassis(chassisEnabled bool, nodeEvacuated bool) error {
 	return n.deleteChassisGroupEntry()
 }
 
+// bgpOwner returns the base BGP owner identifier under which this OVN network's
+// own prefixes, forwards and load balancers are registered. The network must
+// have an uplink network, as that is where its BGP peers are configured.
+//
+// An OVN network carries no BGP peers of its own: the peers are configured on the
+// uplink network, and each peer is exported only the routes owned by its own
+// network or one of that network's sub-owners. The OVN network's routes are
+// therefore nested under the owner of the uplink they are advertised to, so that
+// the uplink's peers receive them.
+func (n *ovn) bgpOwner() (string, error) {
+	uplinkName := n.config["network"]
+	if uplinkName == "" {
+		return "", fmt.Errorf(`OVN network %q is missing "network" config option`, n.name)
+	}
+
+	uplinkNet, err := LoadByName(n.state, api.ProjectDefaultName, uplinkName)
+	if err != nil {
+		return "", fmt.Errorf("Failed loading uplink network %q: %w", uplinkName, err)
+	}
+
+	return bgp.OwnerNetworkOVN(uplinkNet.ID(), n.ID()), nil
+}
+
 // Start starts adds the local OVS chassis ID to the OVN chass group and starts the local OVS uplink port.
 func (n *ovn) Start() error {
 	n.logger.Debug("Start")
@@ -3290,7 +3314,12 @@ func (n *ovn) Start() error {
 
 	// Setup BGP.
 	if !nodeEvacuated {
-		err = n.bgpSetup(nil)
+		bgpOwner, err := n.bgpOwner()
+		if err != nil {
+			return fmt.Errorf("Failed determining the BGP owner for network start: %w", err)
+		}
+
+		err = n.bgpSetup(nil, bgpOwner)
 		if err != nil {
 			return err
 		}
@@ -3322,7 +3351,12 @@ func (n *ovn) Stop() error {
 	}
 
 	// Clear BGP.
-	err = n.bgpClear(n.config)
+	bgpOwner, err := n.bgpOwner()
+	if err != nil {
+		return fmt.Errorf("Failed determining the BGP owner for network stop: %w", err)
+	}
+
+	err = n.bgpClear(n.config, bgpOwner)
 	if err != nil {
 		return err
 	}
@@ -3341,7 +3375,12 @@ func (n *ovn) Evacuate() error {
 	}
 
 	// Clear BGP.
-	return n.bgpClear(n.config)
+	bgpOwner, err := n.bgpOwner()
+	if err != nil {
+		return fmt.Errorf("Failed determining the BGP owner for network evacuation: %w", err)
+	}
+
+	return n.bgpClear(n.config, bgpOwner)
 }
 
 // Restore the network by setting up the chassis and BGP.
@@ -3367,7 +3406,12 @@ func (n *ovn) Restore() error {
 	}
 
 	// Setup BGP.
-	return n.bgpSetup(nil)
+	bgpOwner, err := n.bgpOwner()
+	if err != nil {
+		return fmt.Errorf("Failed determining the BGP owner for network restore: %w", err)
+	}
+
+	return n.bgpSetup(nil, bgpOwner)
 }
 
 // instanceNICGetRoutes returns list of routes defined in nicConfig.
@@ -3694,7 +3738,12 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		}
 	} else {
 		// Setup BGP.
-		err = n.bgpSetup(oldNetwork.Config)
+		bgpOwner, err := n.bgpOwner()
+		if err != nil {
+			return fmt.Errorf("Failed determining the BGP owner for network update: %w", err)
+		}
+
+		err = n.bgpSetup(oldNetwork.Config, bgpOwner)
 		if err != nil {
 			return err
 		}
@@ -5093,7 +5142,11 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			})
 
 			_ = client.LoadBalancerDelete(n.getLoadBalancerName(forward.ListenAddress))
-			_ = n.forwardBGPSetupPrefixes()
+
+			bgpOwner, err := n.bgpOwner()
+			if err == nil {
+				_ = n.forwardBGPSetupPrefixes(bgpOwner)
+			}
 		})
 
 		vips := n.forwardFlattenVIPs(net.ParseIP(forward.ListenAddress), net.ParseIP(forward.Config["target_address"]), portMaps)
@@ -5123,7 +5176,12 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err = n.forwardBGPSetupPrefixes()
+	bgpOwner, err := n.bgpOwner()
+	if err != nil {
+		return nil, fmt.Errorf("Failed determining the BGP owner for the address forwards: %w", err)
+	}
+
+	err = n.forwardBGPSetupPrefixes(bgpOwner)
 	if err != nil {
 		return nil, fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
@@ -5196,7 +5254,11 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 			if err == nil {
 				vips := n.forwardFlattenVIPs(net.ParseIP(curForward.ListenAddress), net.ParseIP(curForward.Config["target_address"]), portMaps)
 				_ = client.LoadBalancerApply(n.getLoadBalancerName(curForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
-				_ = n.forwardBGPSetupPrefixes()
+
+				bgpOwner, err := n.bgpOwner()
+				if err == nil {
+					_ = n.forwardBGPSetupPrefixes(bgpOwner)
+				}
 			}
 		})
 
@@ -5233,7 +5295,12 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err := n.forwardBGPSetupPrefixes()
+	bgpOwner, err := n.bgpOwner()
+	if err != nil {
+		return fmt.Errorf("Failed determining the BGP owner for the address forwards: %w", err)
+	}
+
+	err = n.forwardBGPSetupPrefixes(bgpOwner)
 	if err != nil {
 		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
@@ -5298,7 +5365,12 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err := n.forwardBGPSetupPrefixes()
+	bgpOwner, err := n.bgpOwner()
+	if err != nil {
+		return fmt.Errorf("Failed determining the BGP owner for the address forwards: %w", err)
+	}
+
+	err = n.forwardBGPSetupPrefixes(bgpOwner)
 	if err != nil {
 		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
@@ -5692,7 +5764,11 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 			})
 
 			_ = client.LoadBalancerDelete(n.getLoadBalancerName(loadBalancer.ListenAddress))
-			_ = n.loadBalancerBGPSetupPrefixes()
+
+			bgpOwner, err := n.bgpOwner()
+			if err == nil {
+				_ = n.loadBalancerBGPSetupPrefixes(bgpOwner)
+			}
 		})
 
 		vips, err := n.loadBalancerFlattenVIPs(net.ParseIP(loadBalancer.ListenAddress), portMaps)
@@ -5725,7 +5801,12 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err = n.loadBalancerBGPSetupPrefixes()
+	bgpOwner, err := n.bgpOwner()
+	if err != nil {
+		return nil, fmt.Errorf("Failed determining the BGP owner for the load balancers: %w", err)
+	}
+
+	err = n.loadBalancerBGPSetupPrefixes(bgpOwner)
 	if err != nil {
 		return nil, fmt.Errorf("Failed applying BGP prefixes for load balancers: %w", err)
 	}
@@ -5884,7 +5965,11 @@ func (n *ovn) loadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 				}
 
 				_ = client.LoadBalancerApply(n.getLoadBalancerName(curLoadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
-				_ = n.forwardBGPSetupPrefixes()
+
+				bgpOwner, err := n.bgpOwner()
+				if err == nil {
+					_ = n.forwardBGPSetupPrefixes(bgpOwner)
+				}
 			}
 		})
 
@@ -5921,7 +6006,12 @@ func (n *ovn) loadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err := n.loadBalancerBGPSetupPrefixes()
+	bgpOwner, err := n.bgpOwner()
+	if err != nil {
+		return fmt.Errorf("Failed determining the BGP owner for the load balancers: %w", err)
+	}
+
+	err = n.loadBalancerBGPSetupPrefixes(bgpOwner)
 	if err != nil {
 		return fmt.Errorf("Failed applying BGP prefixes for load balancers: %w", err)
 	}
@@ -5991,9 +6081,14 @@ func (n *ovn) LoadBalancerDelete(listenAddress string, clientType request.Client
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err := n.loadBalancerBGPSetupPrefixes()
+	bgpOwner, err := n.bgpOwner()
 	if err != nil {
-		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
+		return fmt.Errorf("Failed determining the BGP owner for the load balancers: %w", err)
+	}
+
+	err = n.loadBalancerBGPSetupPrefixes(bgpOwner)
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for load balancers: %w", err)
 	}
 
 	return nil

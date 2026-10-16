@@ -21,6 +21,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/apparmor"
+	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/db"
@@ -2195,7 +2196,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Setup BGP.
 	if !nodeEvacuated {
-		err = n.bgpSetup(oldConfig)
+		err = n.bgpSetup(oldConfig, bgp.OwnerNetwork(n.ID()))
 		if err != nil {
 			return err
 		}
@@ -2214,7 +2215,7 @@ func (n *bridge) Stop() error {
 	}
 
 	// Clear BGP.
-	err := n.bgpClear(n.config)
+	err := n.bgpClear(n.config, bgp.OwnerNetwork(n.ID()))
 	if err != nil {
 		return err
 	}
@@ -2295,7 +2296,7 @@ func (n *bridge) Evacuate() error {
 	n.logger.Debug("Evacuate")
 
 	// Clear BGP.
-	return n.bgpClear(n.config)
+	return n.bgpClear(n.config, bgp.OwnerNetwork(n.ID()))
 }
 
 // Restore the network by setting up BGP.
@@ -2303,7 +2304,7 @@ func (n *bridge) Restore() error {
 	n.logger.Debug("Restore")
 
 	// Setup BGP.
-	return n.bgpSetup(nil)
+	return n.bgpSetup(nil, bgp.OwnerNetwork(n.ID()))
 }
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
@@ -3224,7 +3225,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 			return tx.DeleteNetworkForward(ctx, n.ID(), forwardID)
 		})
 		_ = n.forwardSetupFirewall()
-		_ = n.forwardBGPSetupPrefixes()
+		_ = n.forwardBGPSetupPrefixes(bgp.OwnerNetwork(n.ID()))
 	})
 
 	err = n.forwardSetupFirewall()
@@ -3308,7 +3309,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err = n.forwardBGPSetupPrefixes()
+	err = n.forwardBGPSetupPrefixes(bgp.OwnerNetwork(n.ID()))
 	if err != nil {
 		return nil, fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
@@ -3376,7 +3377,7 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 			return tx.UpdateNetworkForward(ctx, n.ID(), curForwardID, curForward.Writable())
 		})
 		_ = n.forwardSetupFirewall()
-		_ = n.forwardBGPSetupPrefixes()
+		_ = n.forwardBGPSetupPrefixes(bgp.OwnerNetwork(n.ID()))
 	})
 
 	err = n.forwardSetupFirewall()
@@ -3428,7 +3429,7 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 		})
 
 		_ = n.forwardSetupFirewall()
-		_ = n.forwardBGPSetupPrefixes()
+		_ = n.forwardBGPSetupPrefixes(bgp.OwnerNetwork(n.ID()))
 	})
 
 	err = n.forwardSetupFirewall()
@@ -3437,7 +3438,7 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 	}
 
 	// Refresh exported BGP prefixes on local member.
-	err = n.forwardBGPSetupPrefixes()
+	err = n.forwardBGPSetupPrefixes(bgp.OwnerNetwork(n.ID()))
 	if err != nil {
 		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
