@@ -1337,6 +1337,29 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 	return nil
 }
 
+// imageVolumeUnpacked reports whether the image dataset, and the filesystem
+// companion of a VM image, carry the readonly snapshot taken once the unpack
+// finished. A dataset without it was left behind by an interrupted unpack.
+func (d *zfs) imageVolumeUnpacked(imgVol Volume) (bool, error) {
+	datasets := []string{d.dataset(imgVol, false)}
+	if imgVol.IsVMBlock() {
+		datasets = append(datasets, d.dataset(imgVol.NewVMBlockFilesystemVolume(), false))
+	}
+
+	for _, dataset := range datasets {
+		exists, err := d.datasetExists(dataset + "@readonly")
+		if err != nil {
+			return false, err
+		}
+
+		if !exists {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
 // EnsureImage materialises the cached image variant identified by imgVol's effective
 // config. Variant identity on ZFS is (block_mode, block.filesystem). Returns
 // ErrImageVariantNotSupported if the on-disk volblocksize diverges from config, leaving
@@ -1346,6 +1369,24 @@ func (d *zfs) EnsureImage(imgVol Volume, filler *VolumeFiller, progressReporter 
 	exists, err := d.datasetExists(dataset)
 	if err != nil {
 		return err
+	}
+
+	if exists {
+		unpacked, err := d.imageVolumeUnpacked(imgVol)
+		if err != nil {
+			return err
+		}
+
+		// Nothing can have been cloned from it, so replacing it is safe.
+		if !unpacked {
+			d.logger.Warn("Deleting partially unpacked image volume", logger.Ctx{"dataset": dataset})
+			err = d.deleteVolume(imgVol, progressReporter)
+			if err != nil {
+				return err
+			}
+
+			exists = false
+		}
 	}
 
 	if !exists {
