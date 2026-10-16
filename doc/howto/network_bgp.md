@@ -82,3 +82,19 @@ Set the following configuration options on the uplink network:
 
 Once the uplink network is configured, downstream OVN networks will get their external subnets and addresses announced over BGP.
 The next-hop is set to the address of the OVN router on the uplink network.
+
+(network-bgp-shared-peer)=
+### Share one peer between several networks
+
+BGP peers are configured per network, but several networks can be configured with the same peer address, ASN, password and hold time.
+Those networks then share one BGP session with that peer, and each network's subnets and addresses are advertised over the shared session with the next-hop configured on the network that owns them.
+
+This applies to peers configured on any {ref}`network-bridge` or {ref}`network-physical` network, and not only to the uplinks of OVN networks.
+It is useful when several uplinks terminate in the same upstream router, and so peer with the same address over one session.
+
+The peer parameters must match exactly across the networks sharing a session; a difference in the ASN, password or hold time is reported as an error when the second network starts.
+
+The routes advertised over a session are grouped by next-hop: each distinct next-hop becomes one set of prefixes advertised through it.
+
+Each prefix is advertised to a session once, with a single next-hop.
+Two networks sharing a session must therefore not advertise the same prefix with different next-hops, as the session can only advertise one of the next-hops; this is reported as an error instead.
