@@ -128,6 +128,18 @@ git rebase -i --exec "git commit --amend --no-edit -s -S" <base>
 
 Replace `<base>` with the commit your branch is based on, such as `upstream/main`. Use `git push --no-verify` only when you have a good reason to skip the check.
 
+### Updating a pull request
+
+If a change fixes a commit that is already on a pull request, rewrite that commit and force-push the branch. Do not add a commit on top of the branch to correct it, and do not avoid the rewrite because the commit was already pushed. Forced pushes are expected for this.
+
+Fold the fix into the commit it belongs to, for example with `git commit --fixup=<sha>` and `git rebase -i --autosquash <base>`. Then sign off and sign the rewritten commits, as described under [Pre-push hook](#pre-push-hook), and push with a lease so that you only overwrite the commits you have seen:
+
+```sh
+git push --force-with-lease
+```
+
+The pre-push hook checks every rewritten commit, so each one needs a sign-off and a signature before the push goes through.
+
 ### Make-generated files
 
 Some changes require regenerating certain files using Makefile commands.
