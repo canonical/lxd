@@ -57,33 +57,45 @@ test_instances_selective_recursion() {
   # Test that lxc list automatically optimizes queries based on displayed columns
   # Start background monitor to capture API request URLs
   monitor_urls="${TEST_DIR}/monitor-urls.log"
-  lxc monitor --format=json | stdbuf -oL jq --unbuffered --exit-status --raw-output 'select(.metadata.context.url? // "" | startswith("/1.0/instances")) | .metadata.context.url' > "${monitor_urls}" &
+  lxc monitor --format=json | stdbuf -oL jq --unbuffered --exit-status --raw-output 'if .type == "logging" and .metadata.message == "Event listener server handler started" then "READY" elif (.metadata.context.url? // "" | startswith("/1.0/instances")) then .metadata.context.url else empty end' >> "${monitor_urls}" &
   monitor_pid=$!
-  sleep 0.1  # Give monitor time to initialize
+
+  # Runs the optional command once, then polls the monitor log for the pattern.
+  wait_for_monitor_line() {
+    local pattern="${1}"
+    shift
+
+    if [ "$#" -gt 0 ]; then
+      "$@" > /dev/null
+    fi
+
+    for _ in $(seq 100); do
+      if grep -qaE "${pattern}" "${monitor_urls}"; then
+        return 0
+      fi
+
+      sleep 0.1
+    done
+
+    echo "Monitor did not log a line matching ${pattern}"
+    cat "${monitor_urls}"
+    return 1
+  }
+
+  # This debug event is logged once the listener is registered.
+  wait_for_monitor_line '^READY$'
 
   # Test 7a: No disk/network columns - should use recursion=2;fields= (empty fields)
-  lxc list -c n,s,p > /dev/null
-  sleep 0.1
-  grep -aE 'recursion=2%3Bfields%3D(&|$)|recursion=2;fields=(&|$)' "${monitor_urls}"
-  echo -n > "${monitor_urls}"
+  wait_for_monitor_line 'recursion=2%3Bfields%3D(&|$)|recursion=2;fields=(&|$)' lxc list -c n,s,p
 
   # Test 7b: Network column only - should use recursion=2;fields=state.network
-  lxc list -c n,s,4 > /dev/null
-  sleep 0.1
-  grep -aE '2%3Bfields.*state\.network|2%3Bfields.*state%2Enetwork' "${monitor_urls}"
-  echo -n > "${monitor_urls}"
+  wait_for_monitor_line 'recursion=2(%3B|;)fields(=|%3D)state(\.|%2E)network(&|$)' lxc list -c n,s,4
 
   # Test 7c: Disk column only - should use recursion=2;fields=state.disk
-  lxc list -c n,s,D > /dev/null
-  sleep 0.1
-  grep -aE '2%3Bfields.*state\.disk|2%3Bfields.*state%2Edisk' "${monitor_urls}"
-  echo -n > "${monitor_urls}"
+  wait_for_monitor_line 'recursion=2(%3B|;)fields(=|%3D)state(\.|%2E)disk(&|$)' lxc list -c n,s,D
 
   # Test 7d: Both columns - should use recursion=2;fields=state.disk,state.network
-  lxc list -c n,s,4,D > /dev/null
-  sleep 0.1
-  grep -aE '2%3Bfields.*state\.disk|2%3Bfields.*state%2Edisk' "${monitor_urls}"
-  grep -aE 'state\.network|state%2Enetwork' "${monitor_urls}"
+  wait_for_monitor_line 'recursion=2(%3B|;)fields(=|%3D)state(\.|%2E)(disk(,|%2C)state(\.|%2E)network|network(,|%2C)state(\.|%2E)disk)(&|$)' lxc list -c n,s,4,D
 
   # Stop monitoring
   kill_go_proc "${monitor_pid}" 2>/dev/null || true
