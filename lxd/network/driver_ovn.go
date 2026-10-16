@@ -3319,7 +3319,7 @@ func (n *ovn) Start() error {
 			return fmt.Errorf("Failed determining the BGP owner for network start: %w", err)
 		}
 
-		err = n.bgpSetup(nil, bgpOwner)
+		err = n.bgpSetup(nil, bgpOwner, n.Info().LoadBalancers)
 		if err != nil {
 			return err
 		}
@@ -3411,7 +3411,7 @@ func (n *ovn) Restore() error {
 		return fmt.Errorf("Failed determining the BGP owner for network restore: %w", err)
 	}
 
-	return n.bgpSetup(nil, bgpOwner)
+	return n.bgpSetup(nil, bgpOwner, n.Info().LoadBalancers)
 }
 
 // instanceNICGetRoutes returns list of routes defined in nicConfig.
@@ -3743,7 +3743,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 			return fmt.Errorf("Failed determining the BGP owner for network update: %w", err)
 		}
 
-		err = n.bgpSetup(oldNetwork.Config, bgpOwner)
+		err = n.bgpSetup(oldNetwork.Config, bgpOwner, n.Info().LoadBalancers)
 		if err != nil {
 			return err
 		}

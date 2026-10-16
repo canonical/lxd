@@ -772,7 +772,12 @@ func (n *common) bgpValidationRules(config map[string]string) (map[string]func(v
 // bgpSetup initializes BGP peers and prefixes. The bgpOwner is the base owner
 // of the network's own prefixes, forwards and load balancers; the drivers derive
 // it (see ovn.bgpOwner for an OVN network's uplink-nested owner).
-func (n *common) bgpSetup(oldConfig map[string]string, bgpOwner string) error {
+//
+// supportsLoadBalancers must reflect whether the driver supports network load
+// balancers. It is passed in rather than read from Info() because Info() is
+// promoted from common and therefore does not dispatch to a driver's
+// implementation when called from a common method.
+func (n *common) bgpSetup(oldConfig map[string]string, bgpOwner string, supportsLoadBalancers bool) error {
 	err := n.bgpSetupPeers(oldConfig)
 	if err != nil {
 		return fmt.Errorf("Failed setting up BGP peers: %w", err)
@@ -787,6 +792,13 @@ func (n *common) bgpSetup(oldConfig map[string]string, bgpOwner string) error {
 	err = n.forwardBGPSetupPrefixes(bgpOwner)
 	if err != nil {
 		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
+	}
+
+	if supportsLoadBalancers {
+		err = n.loadBalancerBGPSetupPrefixes(bgpOwner)
+		if err != nil {
+			return fmt.Errorf("Failed applying BGP prefixes for load balancers: %w", err)
+		}
 	}
 
 	return nil
