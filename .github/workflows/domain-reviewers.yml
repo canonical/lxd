@@ -9,6 +9,8 @@ on:
       - labeled
       - unlabeled
       - ready_for_review
+  # Called by triage.yml after the labeler has run.
+  workflow_call:
 
 permissions: {}
 

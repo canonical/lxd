@@ -29,3 +29,18 @@ jobs:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           sync-labels: true
           configuration-path: '.github/labeller-backports.yml'
+
+  # Run after the labeler: labels it adds with GITHUB_TOKEN fire no events for other workflows.
+  domain-label:
+    needs: label
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/domain-label.yml
+
+  domain-reviewers:
+    needs: label
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/domain-reviewers.yml

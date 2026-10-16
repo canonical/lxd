@@ -5,12 +5,11 @@ on:
   # No PR-supplied code is executed. Write permission is needed to manage labels on fork PRs.
   pull_request_target: # zizmor: ignore[dangerous-triggers]
     types:
-      - opened
-      - reopened
       - labeled
       - unlabeled
-      - synchronize
       - ready_for_review
+  # Called by triage.yml after the labeler has run.
+  workflow_call:
 
 permissions: {}
 
