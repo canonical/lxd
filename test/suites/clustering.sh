@@ -8250,8 +8250,8 @@ test_clustering_replicator_ceph_mirror() {
   # a mirror snapshot; no rbd-mirror daemon runs here, so the peer never reports a replay.
   rbd mirror pool enable "${osd_pool_one}" image
   peer_uuid="$(rbd mirror pool peer add "${osd_pool_one}" client.admin@site-b --direction rx-tx)"
-  # Containers are clones of their image by default, and Ceph refuses to mirror a clone whose parent is
-  # not mirrored. Set before the first container is created.
+  # Instance volumes are clones of their image by default, and Ceph refuses to mirror a clone whose parent is
+  # not mirrored. Set before the first instance is created.
   LXD_DIR="${LXD_ONE_DIR}" lxc storage set "${pool_one}" ceph.rbd.clone_copy=false ceph.replicator.replicator-project=site-b
   # The standby's pool carries the key too, which makes it ask for a metadata-only migration.
   LXD_DIR="${LXD_TWO_DIR}" lxc storage set "${pool_two}" ceph.rbd.clone_copy=false ceph.replicator.replicator-project=site-a
