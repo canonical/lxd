@@ -1,8 +1,8 @@
 name: Triaging
 on:
   # pull_request_target is needed so that actions/labeler can write labels on PRs
-  # from forks (pull_request lacks write access in that case). No PR code is ever
-  # checked out here, so the privileged context is not exposed to untrusted input.
+  # from forks (pull_request lacks write access in that case). dangerous-triggers
+  # does not apply: neither this workflow nor the workflows it calls check out PR code.
   pull_request_target: # zizmor: ignore[dangerous-triggers]
 
 permissions: {}

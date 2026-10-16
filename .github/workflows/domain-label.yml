@@ -1,8 +1,9 @@
 name: Domain label check
 
 on:
-  # Safe: only checks out .github/domain-owners.json from the base branch.
-  # No PR-supplied code is executed. Write permission is needed to manage labels on fork PRs.
+  # dangerous-triggers does not apply: no PR code is checked out or executed. The only
+  # checkout is .github/domain-owners.json at the PR's base commit. Write permission is
+  # needed to manage labels on fork PRs.
   pull_request_target: # zizmor: ignore[dangerous-triggers]
     types:
       - labeled
