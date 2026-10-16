@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"net/http"
 	"os"
 	"path"
 	"reflect"
@@ -2928,18 +2927,6 @@ func (c *cmdStorageVolumeImport) run(cmd *cobra.Command, args []string) error {
 
 	if c.flagType == "tar" && volName == "" {
 		return errors.New("Importing tar archives requires a volume name to be set")
-	}
-
-	// Check the target volume does not exist yet to avoid uploading its data for nothing.
-	if volName != "" {
-		_, _, err = d.GetStoragePoolVolume(pool, "custom", volName)
-		if err == nil {
-			return fmt.Errorf("Storage volume %q already exists", volName)
-		}
-
-		if !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return err
-		}
 	}
 
 	progress := cli.ProgressRenderer{
