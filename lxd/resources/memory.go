@@ -2,7 +2,6 @@ package resources
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,14 +13,14 @@ import (
 )
 
 var sysDevicesNode = "/sys/devices/system/node"
-var sysDevicesSystemMemory = "/sys/devices/system/memory"
 
 type meminfo struct {
-	Cached         uint64
-	Buffers        uint64
 	Total          uint64
 	Free           uint64
-	Used           uint64
+	Available      uint64
+	FilePages      uint64
+	Shmem          uint64
+	SReclaimable   uint64
 	HugepagesTotal uint64
 	HugepagesFree  uint64
 	HugepagesSize  uint64
@@ -71,33 +70,43 @@ func parseMeminfo(path string) (*meminfo, error) {
 			continue
 		}
 
-		if key == "MemUsed" {
+		if key == "MemAvailable" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, fmt.Errorf("Failed parsing MemUsed: %w", err)
+				return nil, fmt.Errorf("Failed parsing MemAvailable: %w", err)
 			}
 
-			memory.Used = uint64(bytes)
+			memory.Available = uint64(bytes)
 			continue
 		}
 
-		if key == "Cached" {
+		if key == "FilePages" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, fmt.Errorf("Failed parsing Cached: %w", err)
+				return nil, fmt.Errorf("Failed parsing FilePages: %w", err)
 			}
 
-			memory.Cached = uint64(bytes)
+			memory.FilePages = uint64(bytes)
 			continue
 		}
 
-		if key == "Buffers" {
+		if key == "Shmem" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, fmt.Errorf("Failed parsing Buffers: %w", err)
+				return nil, fmt.Errorf("Failed parsing Shmem: %w", err)
 			}
 
-			memory.Buffers = uint64(bytes)
+			memory.Shmem = uint64(bytes)
+			continue
+		}
+
+		if key == "SReclaimable" {
+			bytes, err := units.ParseByteSizeString(value)
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing SReclaimable: %w", err)
+			}
+
+			memory.SReclaimable = uint64(bytes)
 			continue
 		}
 
@@ -139,67 +148,6 @@ func parseMeminfo(path string) (*meminfo, error) {
 	return &memory, nil
 }
 
-func getMemoryBlockSizeBytes() uint64 {
-	memoryBlockSizePath := filepath.Join(sysDevicesSystemMemory, "block_size_bytes")
-
-	if !pathExists(memoryBlockSizePath) {
-		return 0
-	}
-
-	// Get block size
-	content, err := os.ReadFile(memoryBlockSizePath)
-	if err != nil {
-		return 0
-	}
-
-	blockSize, err := strconv.ParseUint(strings.TrimSpace(string(content)), 16, 64)
-	if err != nil {
-		return 0
-	}
-
-	return blockSize
-}
-
-func getTotalMemory(sysDevicesBase string) uint64 {
-	blockSize := getMemoryBlockSizeBytes()
-	if blockSize == 0 {
-		return 0
-	}
-
-	entries, err := os.ReadDir(sysDevicesBase)
-	if err != nil {
-		return 0
-	}
-
-	// Count the number of blocks
-	var count uint64
-	for _, entry := range entries {
-		entryName := entry.Name()
-
-		// Ignore directories not starting with "memory"
-		if !strings.HasPrefix(entryName, "memory") {
-			continue
-		}
-
-		onlinePath := filepath.Join(sysDevicesBase, entryName, "online")
-		content, err := os.ReadFile(onlinePath)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				continue
-			}
-
-			return 0
-		}
-
-		// Only count the block if it's online
-		if strings.TrimSpace(string(content)) == "1" {
-			count++
-		}
-	}
-
-	return blockSize * count
-}
-
 // GetMemory returns a filled api.ResourcesMemory struct ready for use by LXD.
 func GetMemory() (*api.ResourcesMemory, error) {
 	memory := api.ResourcesMemory{}
@@ -210,21 +158,15 @@ func GetMemory() (*api.ResourcesMemory, error) {
 		return nil, fmt.Errorf("Failed parsing /proc/meminfo: %w", err)
 	}
 
-	// Calculate the total memory from /sys/devices/system/memory, as the previously determined
-	// value reports the amount of available system memory minus the amount reserved for the kernel.
-	// If successful, replace the previous value, retrieved from /proc/meminfo.
-	memTotal := getTotalMemory(sysDevicesSystemMemory)
-	if memTotal > 0 {
-		info.Total = memTotal
-	}
-
 	// Fill used values
 	memory.HugepagesUsed = (info.HugepagesTotal - info.HugepagesFree) * info.HugepagesSize
 	memory.HugepagesTotal = info.HugepagesTotal * info.HugepagesSize
 	memory.HugepagesSize = info.HugepagesSize
 
-	memory.Used = info.Total - info.Free - info.Cached - info.Buffers
 	memory.Total = info.Total
+	if info.Total > info.Available {
+		memory.Used = info.Total - info.Available
+	}
 
 	// Get NUMA information
 	if pathExists(sysDevicesNode) {
@@ -266,15 +208,16 @@ func GetMemory() (*api.ResourcesMemory, error) {
 			node.HugepagesUsed = (info.HugepagesTotal - info.HugepagesFree) * memory.HugepagesSize
 			node.HugepagesTotal = info.HugepagesTotal * memory.HugepagesSize
 
-			node.Used = info.Used
-			node.Total = info.Total
+			// The kernel does not report MemAvailable per NUMA node, so we approximate it with
+			// the page cache excluding shmem plus the reclaimable slab
+			reclaimable := info.SReclaimable
+			if info.FilePages > info.Shmem {
+				reclaimable += info.FilePages - info.Shmem
+			}
 
-			// Calculate the total memory from /sys/devices/system/node/memory, as the previously determined
-			// value reports the amount of available system memory minus the amount reserved for the kernel.
-			// If successful, replace the previous value, retrieved from /sys/devices/system/node/meminfo.
-			memTotal := getTotalMemory(entryPath)
-			if memTotal > 0 {
-				node.Total = memTotal
+			node.Total = info.Total
+			if info.Total > info.Free+reclaimable {
+				node.Used = info.Total - info.Free - reclaimable
 			}
 
 			memory.Nodes = append(memory.Nodes, node)
