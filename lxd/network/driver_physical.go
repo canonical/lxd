@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/ip"
 	"github.com/canonical/lxd/lxd/request"
@@ -410,7 +411,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 
 	// Setup BGP.
 	if !nodeEvacuated {
-		err = n.bgpSetup(oldConfig)
+		err = n.bgpSetup(oldConfig, bgp.OwnerNetwork(n.ID()))
 		if err != nil {
 			return err
 		}
@@ -425,7 +426,7 @@ func (n *physical) Stop() error {
 	n.logger.Debug("Stop")
 
 	// Clear BGP.
-	err := n.bgpClear(n.config)
+	err := n.bgpClear(n.config, bgp.OwnerNetwork(n.ID()))
 	if err != nil {
 		return err
 	}
@@ -467,7 +468,7 @@ func (n *physical) Evacuate() error {
 	n.logger.Debug("Evacuate")
 
 	// Clear BGP.
-	return n.bgpClear(n.config)
+	return n.bgpClear(n.config, bgp.OwnerNetwork(n.ID()))
 }
 
 // Restore the network by setting up BGP.
@@ -475,7 +476,7 @@ func (n *physical) Restore() error {
 	n.logger.Debug("Restore")
 
 	// Setup BGP.
-	return n.bgpSetup(nil)
+	return n.bgpSetup(nil, bgp.OwnerNetwork(n.ID()))
 }
 
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
