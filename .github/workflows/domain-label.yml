@@ -1,18 +1,23 @@
 name: Domain label check
 
 on:
-  # Safe: only checks out .github/domain-owners.json from the base branch.
-  # No PR-supplied code is executed. Write permission is needed to manage labels on fork PRs.
+  # dangerous-triggers does not apply: no PR code is checked out or executed. The only
+  # checkout is .github/domain-owners.json at the PR's base commit. Write permission is
+  # needed to manage labels on fork PRs.
   pull_request_target: # zizmor: ignore[dangerous-triggers]
     types:
-      - opened
-      - reopened
       - labeled
       - unlabeled
-      - synchronize
       - ready_for_review
+  # Called by triage.yml after the labeler has run.
+  workflow_call:
 
 permissions: {}
+
+# Serialize runs per PR so a stale read of the labels cannot overwrite a newer run's result.
+concurrency:
+  group: domain-label-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
 
 jobs:
   check-domain-label:
