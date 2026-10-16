@@ -32,7 +32,7 @@ All pull requests undergo review and must be approved before being merged into t
 
 ### Commit structure
 
-See [`COMMITS.md`](https://github.com/canonical/lxd/blob/main/COMMITS.md) for the full commit prefix table and signing requirements.
+See [`COMMITS.md`](https://github.com/canonical/lxd/blob/main/COMMITS.md) for the full commit prefix table, message wrapping, and signing requirements.
 
 Depending on complexity, large changes might be further split into smaller, logical commits. This commit structure facilitates the review process and simplifies backporting fixes to stable branches.
 
