@@ -15,7 +15,7 @@ set -x
 # Containers should boot quickly
 export MAX_WAIT_SECONDS=15
 
-RELEASES="${RELEASES:-"20.04 22.04 24.04 26.04"}"
+RELEASES="${RELEASES:-"20.04 22.04 24.04 26.04 26.10"}"
 
 print_message() {
     local msg="${1}"
