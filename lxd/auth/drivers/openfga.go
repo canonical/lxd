@@ -112,6 +112,43 @@ func (e *embeddedOpenFGA) load(ctx context.Context, opts Opts) error {
 	return nil
 }
 
+// ctxWithContextualTupleKeys sets an [openfgav1.ContextualTupleKeys] in the context for use by our datastore implementation.
+func ctxWithContextualTupleKeys(ctx context.Context, keys []*openfgav1.TupleKey) context.Context {
+	return context.WithValue(ctx, request.CtxOpenFGAContextualTupleKeys, &openfgav1.ContextualTupleKeys{TupleKeys: keys})
+}
+
+// ctxWithDefaultContextualTupleKeys sets an [openfgav1.ContextualTupleKeys] in the context for use in calls to CheckPermission
+// or GetPermissionChecker. These are some default permissions, and tuples representing group membership.
+func ctxWithDefaultContextualTupleKeys(ctx context.Context, userObject string, groupNames []string) context.Context {
+	directPermissions := []*openfgav1.TupleKey{
+		{
+			// Users can always view (but not edit) themselves.
+			User:     userObject,
+			Relation: string(auth.EntitlementCanView),
+			Object:   userObject,
+		}, {
+			// Users can always delete (but not edit) themselves.
+			User:     userObject,
+			Relation: string(auth.EntitlementCanDelete),
+			Object:   userObject,
+		},
+	}
+
+	contextualTuples := make([]*openfgav1.TupleKey, 0, len(groupNames)+len(directPermissions))
+	contextualTuples = append(contextualTuples, directPermissions...)
+
+	// For each group, append a contextual tuple to make the identity a member.
+	for _, groupName := range groupNames {
+		contextualTuples = append(contextualTuples, &openfgav1.TupleKey{
+			User:     userObject,
+			Relation: "member",
+			Object:   fmt.Sprintf("%s:%s", entity.TypeAuthGroup, entity.AuthGroupURL(groupName).String()),
+		})
+	}
+
+	return ctxWithContextualTupleKeys(ctx, contextualTuples)
+}
+
 // CheckContextualPermission checks that a member of a group with the given list of permissions has the given entitlement on the given entity URL.
 // The OpenFGA datastore is effectively disabled for this call. Instead, all tuples are passed in contextually.
 // It returns a boolean to indicate if the permission is allowed, and an error if any internal error occurred.
@@ -119,9 +156,6 @@ func (e *embeddedOpenFGA) CheckContextualPermission(ctx context.Context, entityU
 	// Explicitly set the OpenFGA request cache to nil for this call.
 	// This is safety to ensure that permissions of the current user are not considered for this authorization check.
 	ctx = context.WithValue(ctx, request.CtxOpenFGARequestCache, nil)
-
-	// Set a context key to indicate to the datastore that it should not return anything. All tuples will be passed contextually.
-	ctx = context.WithValue(ctx, request.CtxOpenFGAContextualTuplesOnly, true)
 
 	// "member" is the relation between identities and groups.
 	// Only group members can have relations to other openfga types in the model.
@@ -244,10 +278,10 @@ func (e *embeddedOpenFGA) CheckContextualPermission(ctx context.Context, entityU
 			Relation: string(entitlement),
 			Object:   string(eType) + ":" + entityURLStr,
 		},
-		ContextualTuples: &openfgav1.ContextualTupleKeys{
-			TupleKeys: contextualTuples,
-		},
 	}
+
+	// Add contextual tuples to the context. We can't add them to the request until https://github.com/openfga/rfcs/pull/39 is accepted and implemented.
+	ctx = ctxWithContextualTupleKeys(ctx, contextualTuples)
 
 	// Perform the check.
 	resp, err := e.server.Check(ctx, req)
@@ -329,32 +363,10 @@ func (e *embeddedOpenFGA) CheckPermission(ctx context.Context, entityURL *api.UR
 			Relation: string(entitlement),
 			Object:   entityObject,
 		},
-		ContextualTuples: &openfgav1.ContextualTupleKeys{
-			TupleKeys: []*openfgav1.TupleKey{
-				{
-					// Users can always view (but not edit) themselves.
-					User:     userObject,
-					Relation: string(auth.EntitlementCanView),
-					Object:   userObject,
-				},
-				{
-					// Users can always delete (but not edit) themselves.
-					User:     userObject,
-					Relation: string(auth.EntitlementCanDelete),
-					Object:   userObject,
-				},
-			},
-		},
 	}
 
-	// For each group, append a contextual tuple to make the identity a member.
-	for _, groupName := range groups {
-		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
-			User:     userObject,
-			Relation: "member",
-			Object:   fmt.Sprintf("%s:%s", entity.TypeAuthGroup, entity.AuthGroupURL(groupName).String()),
-		})
-	}
+	// Add contextual tuples to the context. Our datastore handles them directly.
+	ctx = ctxWithDefaultContextualTupleKeys(ctx, userObject, groups)
 
 	// Perform the check.
 	l.Debug("Checking OpenFGA relation")
@@ -502,32 +514,10 @@ func (e *embeddedOpenFGA) GetPermissionChecker(ctx context.Context, entitlement 
 		Type:     entityType.String(),
 		Relation: string(entitlement),
 		User:     userObject,
-		ContextualTuples: &openfgav1.ContextualTupleKeys{
-			TupleKeys: []*openfgav1.TupleKey{
-				{
-					// Users can always view (but not edit) themselves.
-					User:     userObject,
-					Relation: string(auth.EntitlementCanView),
-					Object:   userObject,
-				},
-				{
-					// Users can always delete (but not edit) themselves.
-					User:     userObject,
-					Relation: string(auth.EntitlementCanDelete),
-					Object:   userObject,
-				},
-			},
-		},
 	}
 
-	// For each group, append a contextual tuple to make the identity a member.
-	for _, groupName := range groups {
-		req.ContextualTuples.TupleKeys = append(req.ContextualTuples.TupleKeys, &openfgav1.TupleKey{
-			User:     userObject,
-			Relation: "member",
-			Object:   fmt.Sprintf("%s:%s", entity.TypeAuthGroup, entity.AuthGroupURL(groupName).String()),
-		})
-	}
+	// Add contextual tuples to the context. Our datastore implementation handles them directly.
+	ctx = ctxWithDefaultContextualTupleKeys(ctx, userObject, groups)
 
 	// Perform the request.
 	l.Debug("Listing related objects for user")
