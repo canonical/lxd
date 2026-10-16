@@ -335,6 +335,43 @@ func TestAddPeerSharedOwners(t *testing.T) {
 	require.Empty(t, s.peers)
 }
 
+// TestStartFailureLeavesNothingBehind verifies that a listener that fails to
+// start leaves no server recorded. Otherwise the next configuration change would
+// be told the listener is already running and BGP would stay unusable until the
+// daemon restarted.
+func TestStartFailureLeavesNothingBehind(t *testing.T) {
+	tests := []struct {
+		name    string
+		address string
+	}{
+		{"port not numeric", "127.0.0.1:notaport"},
+		{"port out of range", "127.0.0.1:99999"},
+		{"address not usable", "192.0.2.99:1790"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			s := NewServer()
+
+			err := s.start(test.address, 65000, mustParseIP("192.0.2.1"))
+			require.Error(t, err)
+			require.Nil(t, s.bgp, "A failed start must not leave a server recorded")
+
+			// The next start must not be refused as already running, which is
+			// what a recorded server would cause. This uses the same
+			// no-listener form as the other tests, so it does not depend on
+			// which ports happen to be free.
+			err = s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+			require.NoError(t, err)
+			require.NotNil(t, s.bgp)
+
+			err = s.stop()
+			require.NoError(t, err)
+			require.Nil(t, s.bgp)
+		})
+	}
+}
+
 // TestPolicySnapshotIndependent verifies that the snapshot taken for a policy
 // rebuild shares nothing mutable with the live peer list. The snapshot is
 // iterated after the server lock is released, so a peer's owners can be mutated
@@ -594,13 +631,117 @@ func TestAddPeerConflictPassword(t *testing.T) {
 }
 
 // TestDebugNotRunning verifies that Debug returns a payload with Running=false
-// when the BGP server is not running.
+// and nothing recorded when the BGP server has never been started. A listener
+// that was stopped keeps reporting the peers it is configured with; see
+// TestDebugReportsRecordedPeersWhenStopped.
 func TestDebugNotRunning(t *testing.T) {
 	s := NewServer()
 	debug := s.Debug()
 	require.False(t, debug.Server.Running)
 	require.Empty(t, debug.Peers)
 	require.Empty(t, debug.Prefixes)
+}
+
+// TestDebugReportsRecordedPeersWhenStopped verifies that stopping the listener
+// does not make the endpoint look as though BGP were unconfigured. The peers and
+// the routes they would be advertised are still reported, so that a stopped
+// listener can be told apart from one that was never configured, and Running says
+// that nothing is being advertised. The prefixes are not reported, as they are
+// read from a RIB that does not exist while the listener is down.
+func TestDebugReportsRecordedPeersWhenStopped(t *testing.T) {
+	s := NewServer()
+	err := s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+
+	owner := OwnerNetwork(1)
+	err = s.AddPeer(mustParseIP("127.0.0.2"), 65001, "", 30, owner)
+	require.NoError(t, err)
+	err = s.AddPrefix(mustParseCIDR("10.0.0.0/24"), mustParseIP("192.0.2.10"), owner)
+	require.NoError(t, err)
+
+	debug := s.Debug()
+	require.True(t, debug.Server.Running)
+	require.Len(t, debug.Peers, 1)
+	require.Len(t, debug.Prefixes, 1)
+
+	err = s.stop()
+	require.NoError(t, err)
+
+	debug = s.Debug()
+	require.False(t, debug.Server.Running)
+
+	// The configuration that is still recorded is reported.
+	require.Len(t, debug.Peers, 1)
+	require.Equal(t, []string{owner}, debug.Peers[0].Owners)
+	require.Len(t, debug.Peers[0].Routes, 1)
+	require.Equal(t, "10.0.0.0/24", debug.Peers[0].Routes[0].Prefix)
+	require.Equal(t, "192.0.2.10", debug.Peers[0].Routes[0].Nexthop)
+
+	// Nothing is programmed, and no listener is configured.
+	require.Empty(t, debug.Prefixes)
+	require.Empty(t, debug.Server.Address)
+	require.Zero(t, debug.Server.ASN)
+	require.Empty(t, debug.Server.RouterID)
+}
+
+// TestStopClearsStateOnFailure verifies that a teardown that fails part way still
+// clears the recorded listener, so that it is not left reported as running and
+// refusing to start, and that the failure is reported to the caller.
+//
+// The failure is constructed by recording a peer that the BGP server does not
+// know about, which makes removing it fail. That is a server-side inconsistency
+// rather than something the API can produce; the point of the test is that the
+// teardown completes regardless.
+func TestStopClearsStateOnFailure(t *testing.T) {
+	s := NewServer()
+	err := s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+
+	addr := mustParseIP("127.0.0.2")
+	s.mu.Lock()
+	s.peers[addr.String()] = peer{address: addr, asn: 65001, owners: map[string]int{OwnerNetwork(1): 1}}
+	s.mu.Unlock()
+
+	err = s.stop()
+	require.Error(t, err)
+
+	// The listener is no longer recorded, so it can be used and reconfigured.
+	require.Nil(t, s.bgp)
+	require.False(t, s.Debug().Server.Running)
+
+	err = s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+	require.NoError(t, s.stop())
+}
+
+// TestDebugRunningState verifies that the debug endpoint reports the listener as
+// running only when it is. A server that was recorded without serving used to
+// still be reported as running, which made the endpoint misleading when
+// diagnosing why routes were not being advertised.
+func TestDebugRunningState(t *testing.T) {
+	s := NewServer()
+
+	// A server that was never started is not running.
+	require.False(t, s.Debug().Server.Running)
+
+	// A listener that could not be started is not running, and reports none of
+	// the configuration it never applied.
+	err := s.start("127.0.0.1:notaport", 65000, mustParseIP("192.0.2.1"))
+	require.Error(t, err)
+
+	debug := s.Debug()
+	require.False(t, debug.Server.Running)
+	require.Empty(t, debug.Server.Address)
+	require.Zero(t, debug.Server.ASN)
+
+	// A started server is running, and is not once stopped.
+	err = s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+	require.True(t, s.Debug().Server.Running)
+
+	err = s.stop()
+	require.NoError(t, err)
+	require.False(t, s.Debug().Server.Running)
 }
 
 // TestDebugRunning verifies that Debug returns accurate GoBGP RIB paths,

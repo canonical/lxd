@@ -648,13 +648,24 @@ func IsCron(aliases []string) func(value string) error {
 func IsListenAddress(allowDNS bool, allowWildcard bool, requirePort bool) func(value string) error {
 	return func(value string) error {
 		// Validate address format and port.
-		host, _, err := net.SplitHostPort(value)
+		host, port, err := net.SplitHostPort(value)
 		if err != nil {
 			if requirePort {
 				return errors.New("A port is required as part of the address")
 			}
 
 			host = value
+		} else if port != "" {
+			// An address with no port, or with a trailing colon, uses the default
+			// port for the listener, so only a port that is given has to be
+			// usable. This accepts a number, or a service name known for either
+			// protocol since the listeners LXD starts are a mix of TCP and TCP
+			// with UDP, and rejects a port outside the valid range or an unknown
+			// service name, which would otherwise only fail later, when the
+			// listener is bound.
+			if !isListenPort(port) {
+				return fmt.Errorf("Invalid port %q in address %q", port, value)
+			}
 		}
 
 		// Validate wildcard.
@@ -683,6 +694,21 @@ func IsListenAddress(allowDNS bool, allowWildcard bool, requirePort bool) func(v
 
 		return nil
 	}
+}
+
+// isListenPort reports whether port can be used to bind a listener. A port is
+// accepted if it is a number within range, or a service name known for either
+// TCP or UDP, as the listeners LXD starts are a mix of the two and a name that
+// only one protocol knows would still bind on the listener that uses it.
+func isListenPort(port string) bool {
+	_, err := net.LookupPort("tcp", port)
+	if err == nil {
+		return true
+	}
+
+	_, err = net.LookupPort("udp", port)
+
+	return err == nil
 }
 
 // IsX509Certificate checks if the value is a valid x509 PEM Certificate.
