@@ -3990,7 +3990,7 @@ func (d *lxc) Update(ctx context.Context, args db.InstanceArgs, actionType insta
 	isRunning := d.IsRunning()
 
 	// Use the device interface to apply update changes.
-	devlxdEvents, err := d.devicesUpdate(d, removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
+	devlxdEvents, _, err := d.devicesUpdate(d, removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
 	if err != nil {
 		return err
 	}
