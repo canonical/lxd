@@ -5968,7 +5968,7 @@ func (n *ovn) loadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 
 				bgpOwner, err := n.bgpOwner()
 				if err == nil {
-					_ = n.forwardBGPSetupPrefixes(bgpOwner)
+					_ = n.loadBalancerBGPSetupPrefixes(bgpOwner)
 				}
 			}
 		})
