@@ -108,6 +108,26 @@ git push --force-with-lease
 
 In addition to the sign-off requirement, contributors must also cryptographically sign their commits to verify authenticity. See: [GitHub's documentation on commit signature verification](https://docs.github.com/en/authentication/managing-commit-signature-verification).
 
+### Pre-push hook
+
+LXD provides a `pre-push` Git hook in [`.githooks/pre-push`](https://github.com/canonical/lxd/blob/main/.githooks/pre-push). Before a push goes out, it checks every commit being pushed and rejects the push if a commit lacks a **Signed-off-by** line or a cryptographic signature. The hook is a reminder to review each commit before you adopt it with your sign-off and signature. It does not replace review.
+
+Enable the hook once in your clone:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+This setting is per clone and applies to all of its worktrees. To disable it, run `git config --unset core.hooksPath`.
+
+If the hook rejects a push, review the commits, then add your sign-off and signature to them:
+
+```sh
+git rebase -i --exec "git commit --amend --no-edit -s -S" <base>
+```
+
+Replace `<base>` with the commit your branch is based on, such as `upstream/main`. Use `git push --no-verify` only when you have a good reason to skip the check.
+
 ### Make-generated files
 
 Some changes require regenerating certain files using Makefile commands.

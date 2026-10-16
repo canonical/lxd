@@ -21,6 +21,7 @@ LXD requires the Go version listed in `doc/requirements.md` or higher and is onl
 ## Repository layout
 
 ```
+.githooks/      Git hooks (enable: git config core.hooksPath .githooks)
 lxd/            Main daemon
 lxc/            Client CLI
 lxd-agent/      VM guest agent
@@ -111,6 +112,10 @@ sudo -E ./test/snap/cgroup latest/edge
 ### Commit format
 
 See [`COMMITS.md`](COMMITS.md) for the full commit prefix table and signing requirements.
+
+- Never add a `Signed-off-by` line or sign a commit.
+- Never run `git push`, pushing is reserved for a human, after review.
+- The `pre-push` hook (`.githooks/pre-push`, enabled with `git config core.hooksPath .githooks`) rejects pushes with unsigned commits or missing sign-offs. Do not work around it. Leave commits unsigned and without sign-off so a human can review, adopt, and sign them.
 
 ### Error messages
 
