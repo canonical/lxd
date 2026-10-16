@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -67,8 +68,57 @@ type peer struct {
 	asn      uint32
 	password string
 	holdtime uint64
-	count    int
-	owner    string
+	owners   map[string]int
+}
+
+// ownsPath reports whether the routes owned by pathOwner belong to this peer,
+// i.e. whether they should be advertised to it. A peer may be shared by several
+// networks, so this is true when any of the peer's owners owns the path, either
+// directly or through a sub-owner (a forward, load balancer or instance NIC).
+func (p peer) ownsPath(pathOwner string) bool {
+	for owner := range p.owners {
+		if ownerMatches(owner, pathOwner) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// usedByOwner reports whether this peer is used by owner or by one of its
+// sub-owners, so that a change to owner's routes is known to affect this peer.
+func (p peer) usedByOwner(owner string) bool {
+	for peerOwner := range p.owners {
+		if ownerMatches(owner, peerOwner) || ownerMatches(peerOwner, owner) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ownerNames returns the identifiers of the networks sharing this peer, sorted
+// so that debug output is stable.
+func (p peer) ownerNames() []string {
+	owners := make([]string, 0, len(p.owners))
+	for owner := range p.owners {
+		owners = append(owners, owner)
+	}
+
+	slices.Sort(owners)
+
+	return owners
+}
+
+// refCount returns the total number of references to this peer across all of its
+// owners.
+func (p peer) refCount() int {
+	count := 0
+	for _, refs := range p.owners {
+		count += refs
+	}
+
+	return count
 }
 
 // NewServer returns a new server instance.
@@ -150,13 +200,16 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 	oldPeers := map[string]peer{}
 	maps.Copy(oldPeers, s.peers)
 
-	// Add existing peers.
+	// Re-register the existing peers with the new listener, restoring each peer
+	// with the owners it had so that their reference counts survive the restart.
 	s.peers = map[string]peer{}
-	for _, peer := range oldPeers {
-		err := s.addPeer(peer.address, peer.asn, peer.password, peer.holdtime, peer.owner)
+	for _, oldPeer := range oldPeers {
+		err := s.addPeerToServer(oldPeer.address, oldPeer.asn, oldPeer.password, oldPeer.holdtime)
 		if err != nil {
 			return err
 		}
+
+		s.peers[oldPeer.address.String()] = oldPeer
 	}
 
 	// Record the address.
@@ -178,9 +231,9 @@ func (s *Server) stop() error {
 	oldPeers := map[string]peer{}
 	maps.Copy(oldPeers, s.peers)
 
-	// Remove all the peers.
-	for _, peer := range s.peers {
-		err := s.removePeer(peer.address)
+	// Remove all the peers from the BGP server.
+	for _, peer := range oldPeers {
+		err := s.removePeerFromServer(peer.address)
 		if err != nil {
 			return err
 		}
@@ -270,6 +323,13 @@ func (s *Server) AddPrefix(subnet net.IPNet, nexthop net.IP, owner string) error
 }
 
 func (s *Server) addPrefix(subnet net.IPNet, nexthop net.IP, owner string) error {
+	// Reject a prefix that would be advertised to one of the owner's peers with
+	// a second next-hop.
+	err := s.checkPrefixNexthop(subnet, nexthop, owner)
+	if err != nil {
+		return err
+	}
+
 	// Prepare the prefix.
 	prefix, err := netip.ParsePrefix(subnet.String())
 	if err != nil {
@@ -346,7 +406,89 @@ func (s *Server) addPrefix(subnet net.IPNet, nexthop net.IP, owner string) error
 	return nil
 }
 
+// checkPrefixNexthop returns an error if the given route would be advertised to
+// one of the owner's peers through a second next-hop.
+func (s *Server) checkPrefixNexthop(subnet net.IPNet, nexthop net.IP, owner string) error {
+	// The route is not recorded until the check passes, so it is considered here
+	// alongside the paths already in place.
+	candidate := path{owner: owner, prefix: subnet, nexthop: nexthop}
+
+	for _, p := range s.peers {
+		if !p.ownsPath(owner) {
+			continue
+		}
+
+		err := s.checkPeerPrefixNexthops(p, &candidate)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// checkPeerPrefixNexthops returns an error if the routes belonging to peer p
+// would advertise one prefix to it through more than one next-hop. The optional
+// candidate path is considered alongside the recorded paths, so that a route can
+// be validated before it is added. Passing nil checks the recorded state, which
+// is what a peer joining a shared session needs.
+//
+// A session advertises a prefix once, through one next-hop: the export policy is
+// grouped by next-hop, and GoBGP holds a single path per prefix unless ADD-PATH
+// is negotiated, so a second next-hop for the same prefix would replace the first
+// rather than be advertised alongside it. Only networks sharing one peer can
+// produce that, because a prefix's next-hop is a property of the network
+// advertising it, so the configuration is reported rather than one of the routes
+// being dropped silently.
+func (s *Server) checkPeerPrefixNexthops(p peer, candidate *path) error {
+	nexthopsByPrefix := map[string][]string{}
+
+	addPath := func(existing path) {
+		if !p.ownsPath(existing.owner) {
+			return
+		}
+
+		prefixStr := existing.prefix.String()
+		nexthopsByPrefix[prefixStr] = append(nexthopsByPrefix[prefixStr], existing.nexthop.String())
+	}
+
+	for _, existing := range s.paths {
+		addPath(existing)
+	}
+
+	if candidate != nil {
+		addPath(*candidate)
+	}
+
+	// Report the same conflict every time: the prefixes in sorted order, and the
+	// lowest pair of next-hops advertised for the one that conflicts.
+	prefixes := make([]string, 0, len(nexthopsByPrefix))
+	for prefixStr := range nexthopsByPrefix {
+		prefixes = append(prefixes, prefixStr)
+	}
+
+	slices.Sort(prefixes)
+
+	for _, prefixStr := range prefixes {
+		nexthops := nexthopsByPrefix[prefixStr]
+		slices.Sort(nexthops)
+
+		for i := 1; i < len(nexthops); i++ {
+			if nexthops[i] != nexthops[i-1] {
+				return fmt.Errorf("Prefix %q would be advertised to peer %q with more than one next-hop (%q and %q)", prefixStr, p.address.String(), nexthops[i-1], nexthops[i])
+			}
+		}
+	}
+
+	return nil
+}
+
 // RemovePrefixByOwner removes all prefixes for the provided owner.
+//
+// The owner must match exactly, so removing a network's own prefixes leaves the
+// routes of the instance NICs attached to it in place. Those are owned by the
+// network and individually removed by the device that added them, not with the
+// network; removing them here would drop them with nothing to re-add them.
 func (s *Server) RemovePrefixByOwner(owner string) error {
 	// Locking.
 	s.mu.Lock()
@@ -438,7 +580,9 @@ func (s *Server) AddPeer(address net.IP, asn uint32, password string, holdTime u
 func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime uint64, owner string) error {
 	addrStr := address.String()
 
-	// Look for an existing peer.
+	// Build the peer as it would be with this owner recorded, without changing
+	// the stored peer or registering a session until the whole addition is known
+	// to be valid.
 	bgpPeer, bgpPeerExists := s.peers[addrStr]
 	if bgpPeerExists {
 		if bgpPeer.asn != asn {
@@ -449,15 +593,53 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime u
 			return fmt.Errorf("Peer %q already used but with a different password", addrStr)
 		}
 
-		if bgpPeer.owner != owner {
-			return fmt.Errorf("Peer %q already used by owner %q (requested by %q)", addrStr, bgpPeer.owner, owner)
+		if bgpPeer.holdtime != holdTime {
+			return fmt.Errorf("Peer %q already used but with differing hold time (%d vs %d)", addrStr, holdTime, bgpPeer.holdtime)
 		}
 
-		// Re-use the existing entry.
-		bgpPeer.count++
-		s.peers[addrStr] = bgpPeer
-		return nil
+		// Copy the owners before recording this one, so that a rejected addition
+		// leaves the stored counts untouched.
+		owners := make(map[string]int, len(bgpPeer.owners)+1)
+		maps.Copy(owners, bgpPeer.owners)
+		owners[owner]++
+
+		bgpPeer.owners = owners
+	} else {
+		bgpPeer = peer{
+			address:  address,
+			asn:      asn,
+			password: password,
+			holdtime: holdTime,
+			owners:   map[string]int{owner: 1},
+		}
 	}
+
+	// Reject a peer that would advertise one prefix through more than one
+	// next-hop. This is what a network starting on a peer another network already
+	// advertises the same prefix to over, as two uplinks sharing one upstream
+	// router do.
+	err := s.checkPeerPrefixNexthops(bgpPeer, nil)
+	if err != nil {
+		return err
+	}
+
+	if !bgpPeerExists {
+		err = s.addPeerToServer(address, asn, password, holdTime)
+		if err != nil {
+			return err
+		}
+	}
+
+	s.peers[addrStr] = bgpPeer
+
+	return nil
+}
+
+// addPeerToServer registers a peer with the underlying BGP server, without
+// touching the in-memory peer list. A peer is registered once no matter how many
+// networks share it, as GoBGP keys sessions by neighbour address.
+func (s *Server) addPeerToServer(address net.IP, asn uint32, password string, holdTime uint64) error {
+	addrStr := address.String()
 
 	// Setup the configuration.
 	n := &bgpAPI.Peer{
@@ -516,33 +698,48 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime u
 		}
 	}
 
-	// Add the peer to the list.
-	s.peers[addrStr] = peer{
-		address:  address,
-		asn:      asn,
-		password: password,
-		holdtime: holdTime,
-		count:    1,
-		owner:    owner,
-	}
-
 	return nil
 }
 
-// RemovePeer removes a prefix from the BGP server.
-func (s *Server) RemovePeer(address net.IP) error {
+// removePeerFromServer deletes a peer from the underlying BGP server, without
+// touching the in-memory peer list.
+func (s *Server) removePeerFromServer(address net.IP) error {
+	if s.bgp == nil {
+		return nil
+	}
+
+	return s.bgp.DeletePeer(context.Background(), &bgpAPI.DeletePeerRequest{Address: address.String()})
+}
+
+// RemovePeer removes an owner's use of a BGP peer. When other owners still share
+// the session the peer is kept, and its export policy is rebuilt so that the
+// departing owner's routes are withdrawn from it.
+func (s *Server) RemovePeer(address net.IP, owner string) error {
 	// Locking.
 	s.mu.Lock()
-	err := s.removePeer(address)
+	err := s.removePeer(address, owner)
+
+	// Capture the owners the peer still has, if it outlived this one, before
+	// releasing the lock.
+	remainingOwners := s.peers[address.String()].ownerNames()
 	s.mu.Unlock()
+
 	if err != nil {
 		return err
 	}
 
-	return s.updatePolicies()
+	if len(remainingOwners) > 0 {
+		// The peer is still in use by the other owners that share it. The
+		// departing owner's routes have to be withdrawn from it, but scoping the
+		// soft reset by that owner no longer matches the peer, so scope it by the
+		// owners that remain.
+		return s.updatePolicies(remainingOwners...)
+	}
+
+	return s.updatePolicies(owner)
 }
 
-func (s *Server) removePeer(address net.IP) error {
+func (s *Server) removePeer(address net.IP, owner string) error {
 	addrStr := address.String()
 
 	// Find the peer.
@@ -551,35 +748,54 @@ func (s *Server) removePeer(address net.IP) error {
 		return ErrPeerNotFound
 	}
 
-	// Remove the peer from the BGP server.
-	if s.bgp != nil && bgpPeer.count == 1 {
-		err := s.bgp.DeletePeer(context.Background(), &bgpAPI.DeletePeerRequest{Address: addrStr})
-		if err != nil {
-			return err
-		}
+	// Release this owner's reference. The session is shared with any other
+	// owners, so it is only torn down once the last of them releases it.
+	//
+	// An owner that holds no reference has nothing to release. That happens
+	// when a network configures a peer the server refused to add, because its
+	// ASN, password or hold time does not match the peer another network has
+	// already configured. Releasing it must stay a no-op rather than an error
+	// so that stopping or updating that network still succeeds.
+	refs, ownerExists := bgpPeer.owners[owner]
+	if !ownerExists {
+		return nil
 	}
 
-	// Update peer list.
-	if bgpPeer.count == 1 {
-		// Delete the peer.
-		delete(s.peers, addrStr)
+	if refs == 1 {
+		delete(bgpPeer.owners, owner)
 	} else {
-		// Decrease refcount.
-		bgpPeer.count--
-		s.peers[addrStr] = bgpPeer
+		bgpPeer.owners[owner] = refs - 1
 	}
+
+	if len(bgpPeer.owners) > 0 {
+		s.peers[addrStr] = bgpPeer
+		return nil
+	}
+
+	err := s.removePeerFromServer(address)
+	if err != nil {
+		return err
+	}
+
+	delete(s.peers, addrStr)
 
 	return nil
 }
 
 // policySnapshot returns the state needed to rebuild the export policy, taken
-// under the server lock so that the returned maps are not mutated concurrently.
+// under the server lock. The snapshot is iterated after the lock is released, so
+// it must not share anything mutable with the live state: each peer's owners are
+// cloned, as RemovePeer deletes from them while holding the lock.
 func (s *Server) policySnapshot() (*bgpServer.BgpServer, string, map[string]peer, map[uuid.UUID]path) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	peers := make(map[string]peer, len(s.peers))
-	maps.Copy(peers, s.peers)
+	for address, bgpPeer := range s.peers {
+		bgpPeer.owners = maps.Clone(bgpPeer.owners)
+		peers[address] = bgpPeer
+	}
+
 	paths := make(map[uuid.UUID]path, len(s.paths))
 	maps.Copy(paths, s.paths)
 
@@ -661,8 +877,9 @@ func deleteExportPolicy(ctx context.Context, bgpServer *bgpServer.BgpServer, pol
 
 // buildExportPolicy builds the export policy that scopes each peer's route
 // advertisements to the routes owned by that peer's network (and its sub-owners),
-// rewriting the next-hop to the route's specific next-hop address. It returns nil
-// if no statements are required.
+// rewriting the next-hop to the route's specific next-hop address. Routes are
+// grouped by next-hop, so each next-hop advertised to a peer becomes one set of
+// prefixes and one accept statement. It returns nil if no statements are required.
 //
 // The defined sets created while building the policy are also returned so that the
 // caller can clean them up if a later stage of the rebuild fails. On error, any
@@ -700,20 +917,46 @@ func buildExportPolicy(ctx context.Context, bgpServer *bgpServer.BgpServer, peer
 	}, createdSets, nil
 }
 
+// sortedNexthops returns the distinct next-hops of the given paths, sorted so
+// that the statements generated for them are built in a stable order.
+//
+// Each next-hop becomes one accept statement listing the prefixes advertised
+// through it. A prefix is advertised to a peer with one next-hop, which AddPrefix
+// and addPeer both enforce, so it matches exactly one statement (see
+// Server.checkPrefixNexthop and Server.checkPeerPrefixNexthops). Should a prefix
+// ever reach two statements anyway, the first one wins, and sorting keeps which
+// one that is the same across policy rebuilds.
+func sortedNexthops(pathsByNexthop map[string][]path) []string {
+	nexthops := make([]string, 0, len(pathsByNexthop))
+	for nhStr := range pathsByNexthop {
+		nexthops = append(nexthops, nhStr)
+	}
+
+	slices.Sort(nexthops)
+
+	return nexthops
+}
+
 // buildPeerStatements creates the GoBGP defined sets and statements for a single
 // peer: an accept statement per next-hop of the peer's owned routes (rewriting
 // the next-hop), followed by a catch-all reject statement. The defined sets created
 // are returned so the caller can clean them up if a later stage of the rebuild fails.
 //
+// The peer's routes are grouped by next-hop: each distinct next-hop becomes one
+// PrefixSet listing every prefix advertised through that address, plus one accept
+// statement rewriting the next-hop to it. A prefix therefore belongs to a single
+// set, as a session advertises a prefix with one next-hop only (see
+// Server.checkPrefixNexthop).
+//
 // A peer with no matching owned routes gets no statements or sets at all: it is
 // already covered by the global default reject, so creating a redundant NeighborSet
 // and reject statement would only add policy churn.
 func buildPeerStatements(ctx context.Context, bgpServer *bgpServer.BgpServer, peer peer, pathsByOwner map[string][]path, generation string) ([]*bgpAPI.Statement, []*bgpAPI.DefinedSet, error) {
-	// Find all paths matching this peer's owner (exact owner, or related owners
-	// like forwards, load balancers or instance NICs).
+	// Find all paths belonging to any of this peer's owners (either the owner
+	// itself, or related owners like forwards, load balancers or instance NICs).
 	pathsByNexthop := map[string][]path{}
 	for owner, ownerPaths := range pathsByOwner {
-		if !ownerMatches(peer.owner, owner) {
+		if !peer.ownsPath(owner) {
 			continue
 		}
 
@@ -756,7 +999,8 @@ func buildPeerStatements(ctx context.Context, bgpServer *bgpServer.BgpServer, pe
 
 	// For each next-hop, create a prefix set and accept statement rewriting the
 	// next-hop to that address.
-	for nhStr, nexthopPaths := range pathsByNexthop {
+	for _, nhStr := range sortedNexthops(pathsByNexthop) {
+		nexthopPaths := pathsByNexthop[nhStr]
 		stmt, ps, err := buildAcceptStatement(ctx, bgpServer, peerTag(addrStr), nsName, nhStr, nexthopPaths)
 		if ps != nil {
 			createdSets = append(createdSets, ps)
@@ -867,7 +1111,7 @@ func softResetPeers(ctx context.Context, bgpServer *bgpServer.BgpServer, peers m
 		if len(affectedOwners) > 0 {
 			affected := false
 			for _, owner := range affectedOwners {
-				if ownerMatches(owner, peer.owner) || ownerMatches(peer.owner, owner) {
+				if peer.usedByOwner(owner) {
 					affected = true
 					break
 				}

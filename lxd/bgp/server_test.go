@@ -169,6 +169,59 @@ func TestRemovePrefixByOwnerNoMatch(t *testing.T) {
 	require.Len(t, s.paths, 1)
 }
 
+// TestRemovePrefixByEntityOwner verifies that removing one of a network's owner
+// identifiers only removes its own prefixes: each entity type has a distinct
+// owner, and the instance NIC owner is not nested under the network's own owner
+// for removal purposes.
+func TestRemovePrefixByEntityOwner(t *testing.T) {
+	s := NewServer()
+
+	netOwner := OwnerNetwork(10)
+	forwardsOwner := OwnerNetworkForwards(netOwner)
+	lbOwner := OwnerNetworkLoadBalancers(netOwner)
+	nicOwner := OwnerInstanceNetwork(netOwner, 3, "eth0")
+	siblingForwardsOwner := OwnerNetworkForwards(OwnerNetwork(100))
+
+	for _, tc := range []struct {
+		owner  string
+		prefix string
+	}{
+		{netOwner, "10.10.0.0/24"},
+		{forwardsOwner, "10.10.1.0/24"},
+		{lbOwner, "10.10.2.0/24"},
+		{nicOwner, "10.10.3.0/24"},
+		{siblingForwardsOwner, "10.100.1.0/24"},
+	} {
+		err := s.AddPrefix(mustParseCIDR(tc.prefix), mustParseIP("192.168.1.1"), tc.owner)
+		require.NoError(t, err)
+	}
+
+	// Removing the forwards removes only network_10's forwards: the network's
+	// own prefixes, its load balancers, its instance NICs and a sibling
+	// network's forwards are all left in place.
+	err := s.RemovePrefixByOwner(forwardsOwner)
+	require.NoError(t, err)
+
+	remaining := map[string]string{}
+	for _, p := range s.paths {
+		remaining[p.prefix.String()] = p.owner
+	}
+
+	require.Equal(t, map[string]string{
+		"10.10.0.0/24":  netOwner,
+		"10.10.2.0/24":  lbOwner,
+		"10.10.3.0/24":  nicOwner,
+		"10.100.1.0/24": siblingForwardsOwner,
+	}, remaining)
+
+	// Removing the network's own prefixes leaves the instance NIC's external
+	// routes alone: the NIC owner is nested under the network owner for export,
+	// but is removed by the device that added it, not with the network.
+	err = s.RemovePrefixByOwner(netOwner)
+	require.NoError(t, err)
+	require.Len(t, s.paths, 3)
+}
+
 // TestAddRemovePeer verifies that a peer can be added and then removed.
 func TestAddRemovePeer(t *testing.T) {
 	s := NewServer()
@@ -178,7 +231,7 @@ func TestAddRemovePeer(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, s.peers, 1)
 
-	err = s.RemovePeer(addr)
+	err = s.RemovePeer(addr, "owner")
 	require.NoError(t, err)
 	require.Empty(t, s.peers)
 }
@@ -188,12 +241,12 @@ func TestAddRemovePeer(t *testing.T) {
 func TestRemovePeerNotFound(t *testing.T) {
 	s := NewServer()
 
-	err := s.RemovePeer(mustParseIP("192.168.1.1"))
+	err := s.RemovePeer(mustParseIP("192.168.1.1"), "owner")
 	require.ErrorIs(t, err, ErrPeerNotFound)
 }
 
-// TestAddPeerRefcount verifies that adding the same peer multiple times
-// increments a reference count and that the peer is only removed after all
+// TestAddPeerRefcount verifies that adding the same peer multiple times for one
+// owner increments a reference count and that the peer is only removed after all
 // references are released.
 func TestAddPeerRefcount(t *testing.T) {
 	s := NewServer()
@@ -201,22 +254,317 @@ func TestAddPeerRefcount(t *testing.T) {
 
 	err := s.AddPeer(addr, 65000, "", 0, "owner")
 	require.NoError(t, err)
-	require.Equal(t, 1, s.peers[addr.String()].count)
+	require.Equal(t, 1, s.peers[addr.String()].owners["owner"])
 
 	err = s.AddPeer(addr, 65000, "", 0, "owner")
 	require.NoError(t, err)
-	require.Equal(t, 2, s.peers[addr.String()].count)
+	require.Equal(t, 2, s.peers[addr.String()].owners["owner"])
 
 	// First removal only decrements the refcount.
-	err = s.RemovePeer(addr)
+	err = s.RemovePeer(addr, "owner")
 	require.NoError(t, err)
 	require.Len(t, s.peers, 1)
-	require.Equal(t, 1, s.peers[addr.String()].count)
+	require.Equal(t, 1, s.peers[addr.String()].owners["owner"])
 
 	// Second removal actually deletes the peer.
-	err = s.RemovePeer(addr)
+	err = s.RemovePeer(addr, "owner")
 	require.NoError(t, err)
 	require.Empty(t, s.peers)
+}
+
+// TestAddPeerSharedOwners verifies that several networks can share one BGP peer
+// address (e.g. two uplinks peering with the same upstream router), that the
+// session is only torn down once every owner has released it, and that each
+// owner's routes are advertised over the shared session with their own
+// next-hop.
+func TestAddPeerSharedOwners(t *testing.T) {
+	s := NewServer()
+	err := s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = s.stop()
+	})
+
+	addr := mustParseIP("192.168.1.1")
+
+	// Two networks configure the same peer with the same parameters.
+	err = s.AddPeer(addr, 65000, "secret", 30, "network_1")
+	require.NoError(t, err)
+	err = s.AddPeer(addr, 65000, "secret", 30, "network_2")
+	require.NoError(t, err)
+
+	// The shared address is one entry, owned by both networks.
+	require.Len(t, s.peers, 1)
+	require.Equal(t, []string{"network_1", "network_2"}, s.peers[addr.String()].ownerNames())
+
+	// Each network owns a prefix, advertised over the shared session.
+	err = s.AddPrefix(mustParseCIDR("10.1.0.0/24"), mustParseIP("192.0.2.10"), "network_1")
+	require.NoError(t, err)
+	err = s.AddPrefix(mustParseCIDR("10.2.0.0/24"), mustParseIP("192.0.2.11"), "network_2")
+	require.NoError(t, err)
+
+	debug := s.Debug()
+	require.Len(t, debug.Peers, 1)
+	require.Equal(t, []string{"network_1", "network_2"}, debug.Peers[0].Owners)
+
+	nexthops := map[string]string{}
+	for _, r := range debug.Peers[0].Routes {
+		nexthops[r.Prefix] = r.Nexthop
+	}
+
+	require.Equal(t, map[string]string{
+		"10.1.0.0/24": "192.0.2.10",
+		"10.2.0.0/24": "192.0.2.11",
+	}, nexthops)
+
+	// Removing one owner leaves the session up for the other, which keeps its
+	// routes.
+	err = s.RemovePeer(addr, "network_1")
+	require.NoError(t, err)
+	require.Len(t, s.peers, 1)
+	require.Equal(t, []string{"network_2"}, s.peers[addr.String()].ownerNames())
+
+	debug = s.Debug()
+	require.Len(t, debug.Peers, 1)
+	require.Len(t, debug.Peers[0].Routes, 1)
+	require.Equal(t, "10.2.0.0/24", debug.Peers[0].Routes[0].Prefix)
+
+	// Removing the last owner tears the session down.
+	err = s.RemovePeer(addr, "network_2")
+	require.NoError(t, err)
+	require.Empty(t, s.peers)
+}
+
+// TestPolicySnapshotIndependent verifies that the snapshot taken for a policy
+// rebuild shares nothing mutable with the live peer list. The snapshot is
+// iterated after the server lock is released, so a peer's owners can be mutated
+// by RemovePeer while a rebuild reads them; a shared owners map would race, and
+// Go aborts the process on a concurrent map iteration and map write rather than
+// returning an error.
+func TestPolicySnapshotIndependent(t *testing.T) {
+	s := NewServer()
+
+	addr := mustParseIP("127.0.0.2")
+	ownerA := OwnerNetwork(1)
+	ownerB := OwnerNetwork(2)
+
+	err := s.AddPeer(addr, 65000, "", 30, ownerA)
+	require.NoError(t, err)
+	err = s.AddPeer(addr, 65000, "", 30, ownerB)
+	require.NoError(t, err)
+	err = s.AddPrefix(mustParseCIDR("10.0.0.0/24"), mustParseIP("192.0.2.10"), ownerA)
+	require.NoError(t, err)
+
+	// Take the snapshot a policy rebuild would use.
+	_, _, peers, paths := s.policySnapshot()
+	require.Len(t, peers, 1)
+	require.Equal(t, []string{ownerA, ownerB}, peers[addr.String()].ownerNames())
+	require.Len(t, paths, 1)
+
+	// Change the live state, as one network stopping and another starting would.
+	err = s.RemovePeer(addr, ownerB)
+	require.NoError(t, err)
+	err = s.AddPrefix(mustParseCIDR("10.1.0.0/24"), mustParseIP("192.0.2.11"), ownerB)
+	require.NoError(t, err)
+
+	// The changes are applied to the live state.
+	require.Equal(t, []string{ownerA}, s.peers[addr.String()].ownerNames())
+	require.Len(t, s.paths, 2)
+
+	// The snapshot is unaffected by either, so a rebuild reading it cannot race
+	// a concurrent change.
+	require.Equal(t, []string{ownerA, ownerB}, peers[addr.String()].ownerNames())
+	require.Len(t, paths, 1)
+}
+
+// TestAddPrefixNexthopConflict verifies that a prefix already advertised to a
+// peer with one next-hop cannot be advertised to that peer with another, as the
+// export policy can only accept one of them.
+func TestAddPrefixNexthopConflict(t *testing.T) {
+	s := NewServer()
+	err := s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = s.stop()
+	})
+
+	addr := mustParseIP("127.0.0.2")
+
+	// Two networks sharing one peer, each advertising the same prefix with its
+	// own next-hop.
+	err = s.AddPeer(addr, 65000, "", 30, OwnerNetwork(1))
+	require.NoError(t, err)
+	err = s.AddPeer(addr, 65000, "", 30, OwnerNetwork(2))
+	require.NoError(t, err)
+
+	err = s.AddPrefix(mustParseCIDR("10.20.0.0/24"), mustParseIP("192.0.2.10"), OwnerNetwork(1))
+	require.NoError(t, err)
+
+	// The first network re-advertising its prefix is allowed, as is another
+	// owner advertising it with the same next-hop.
+	err = s.AddPrefix(mustParseCIDR("10.20.0.0/24"), mustParseIP("192.0.2.10"), OwnerNetwork(1))
+	require.NoError(t, err)
+	err = s.AddPrefix(mustParseCIDR("10.20.0.0/24"), mustParseIP("192.0.2.10"), OwnerNetworkOVN(2, 20))
+	require.NoError(t, err)
+
+	// A different next-hop for the same prefix is rejected.
+	err = s.AddPrefix(mustParseCIDR("10.20.0.0/24"), mustParseIP("192.0.2.11"), OwnerNetworkOVN(2, 21))
+	require.ErrorContains(t, err, "more than one next-hop")
+
+	// The rejected prefix is not advertised.
+	debug := s.Debug()
+	require.Len(t, debug.Peers, 1)
+	require.NotEmpty(t, debug.Peers[0].Routes)
+
+	for _, r := range debug.Peers[0].Routes {
+		require.Equal(t, "192.0.2.10", r.Nexthop)
+	}
+}
+
+// TestAddPrefixNexthopDifferentPeers verifies that two networks advertising the
+// same prefix with different next-hops are accepted while they do not share a
+// peer, as each peer's policy only advertises its own routes.
+func TestAddPrefixNexthopDifferentPeers(t *testing.T) {
+	s := NewServer()
+	err := s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = s.stop()
+	})
+
+	err = s.AddPeer(mustParseIP("127.0.0.2"), 65000, "", 30, OwnerNetwork(1))
+	require.NoError(t, err)
+	err = s.AddPeer(mustParseIP("127.0.0.3"), 65001, "", 30, OwnerNetwork(2))
+	require.NoError(t, err)
+
+	err = s.AddPrefix(mustParseCIDR("0.0.0.0/0"), mustParseIP("192.0.2.10"), OwnerNetwork(1))
+	require.NoError(t, err)
+	err = s.AddPrefix(mustParseCIDR("0.0.0.0/0"), mustParseIP("192.0.2.11"), OwnerNetwork(2))
+	require.NoError(t, err)
+
+	debug := s.Debug()
+	require.Len(t, debug.Peers, 2)
+
+	for _, p := range debug.Peers {
+		require.Len(t, p.Routes, 1)
+		require.Equal(t, "0.0.0.0/0", p.Routes[0].Prefix)
+	}
+}
+
+// TestAddPeerPrefixConflict verifies that a network cannot start sharing a peer
+// when doing so would advertise a prefix the peer already advertises through a
+// different next-hop: a session advertises a prefix once, so the second route
+// would replace the first rather than be advertised alongside it. This is the
+// counterpart of the check AddPrefix makes, for the sharing arriving after the
+// routes are already in place.
+func TestAddPeerPrefixConflict(t *testing.T) {
+	s := NewServer()
+
+	// Each network advertises the same prefix, with its own next-hop, over its
+	// own peer. That is allowed while they do not share a peer.
+	err := s.AddPeer(mustParseIP("127.0.0.2"), 65000, "", 30, OwnerNetwork(1))
+	require.NoError(t, err)
+	err = s.AddPeer(mustParseIP("127.0.0.3"), 65000, "", 30, OwnerNetwork(2))
+	require.NoError(t, err)
+
+	err = s.AddPrefix(mustParseCIDR("10.20.0.0/24"), mustParseIP("192.0.2.10"), OwnerNetwork(1))
+	require.NoError(t, err)
+	err = s.AddPrefix(mustParseCIDR("10.20.0.0/24"), mustParseIP("203.0.113.101"), OwnerNetwork(2))
+	require.NoError(t, err)
+
+	// network_2 moves to network_1's peer address, as two uplinks peering with
+	// the same upstream router do. The shared session could only advertise one of
+	// the next-hops, so this is refused.
+	err = s.RemovePeer(mustParseIP("127.0.0.3"), OwnerNetwork(2))
+	require.NoError(t, err)
+
+	err = s.AddPeer(mustParseIP("127.0.0.2"), 65000, "", 30, OwnerNetwork(2))
+	require.ErrorContains(t, err, "more than one next-hop")
+
+	// The refused network is not recorded against the peer, and its routes are
+	// left as they were.
+	require.Equal(t, []string{"network_1"}, s.peers["127.0.0.2"].ownerNames())
+	require.Len(t, s.paths, 2)
+
+	// Advertising the prefix with the same next-hop may share the peer, as the
+	// session advertises one route either way.
+	err = s.RemovePrefixByOwner(OwnerNetwork(2))
+	require.NoError(t, err)
+	err = s.AddPrefix(mustParseCIDR("10.20.0.0/24"), mustParseIP("192.0.2.10"), OwnerNetwork(2))
+	require.NoError(t, err)
+	err = s.AddPeer(mustParseIP("127.0.0.2"), 65000, "", 30, OwnerNetwork(2))
+	require.NoError(t, err)
+	require.Equal(t, []string{"network_1", "network_2"}, s.peers["127.0.0.2"].ownerNames())
+}
+
+// TestDebugPeerRoutesDeduplicated verifies that the routes reported for a peer
+// are the routes the export policy advertises to it. The same route can be
+// recorded more than once, but the peer receives it once.
+func TestDebugPeerRoutesDeduplicated(t *testing.T) {
+	s := NewServer()
+	err := s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = s.stop()
+	})
+
+	netOwner := OwnerNetwork(1)
+	err = s.AddPeer(mustParseIP("127.0.0.2"), 65000, "", 30, netOwner)
+	require.NoError(t, err)
+
+	subnet := mustParseCIDR("10.20.0.0/24")
+	nexthop := mustParseIP("192.0.2.10")
+
+	// The network's own prefix, and a sub-owner adding the same route again.
+	err = s.AddPrefix(subnet, nexthop, netOwner)
+	require.NoError(t, err)
+	err = s.AddPrefix(subnet, nexthop, OwnerNetworkForwards(netOwner))
+	require.NoError(t, err)
+	require.Len(t, s.paths, 2)
+
+	// The peer receives one route, reported once.
+	debug := s.Debug()
+	require.Len(t, debug.Peers, 1)
+	require.Len(t, debug.Peers[0].Routes, 1)
+	require.Equal(t, DebugInfoPrefix{Owner: netOwner, Prefix: "10.20.0.0/24", Nexthop: "192.0.2.10"}, debug.Peers[0].Routes[0])
+}
+
+// TestRemovePeerUnknownOwner verifies that releasing a peer for an owner that
+// never registered it is a no-op. That is what happens when a network
+// configures a peer the server refuses to add, because it does not match one
+// that another network already configured: the refused network still has to be
+// able to stop or update.
+func TestRemovePeerUnknownOwner(t *testing.T) {
+	s := NewServer()
+	addr := mustParseIP("192.168.1.1")
+
+	err := s.AddPeer(addr, 65000, "secret", 30, "network_1")
+	require.NoError(t, err)
+
+	// A second network configures the same address with a different ASN, so it
+	// is refused and never becomes an owner.
+	err = s.AddPeer(addr, 65001, "secret", 30, "network_2")
+	require.Error(t, err)
+
+	// Releasing the refused network leaves the session and its owner alone.
+	err = s.RemovePeer(addr, "network_2")
+	require.NoError(t, err)
+	require.Len(t, s.peers, 1)
+	require.Equal(t, []string{"network_1"}, s.peers[addr.String()].ownerNames())
+}
+
+// TestAddPeerConflictHoldTime verifies that adding the same peer address with a
+// different hold time returns an error, as the single shared session can only
+// use one of them.
+func TestAddPeerConflictHoldTime(t *testing.T) {
+	s := NewServer()
+	addr := mustParseIP("192.168.1.1")
+
+	err := s.AddPeer(addr, 65000, "", 30, "network_1")
+	require.NoError(t, err)
+
+	err = s.AddPeer(addr, 65000, "", 60, "network_2")
+	require.Error(t, err)
 }
 
 // TestAddPeerConflictASN verifies that adding the same peer address with a
@@ -394,4 +742,90 @@ func TestMultiNetworkExportPolicy(t *testing.T) {
 			require.Contains(t, p.Routes, DebugInfoPrefix{Owner: net2Owner, Prefix: "::/0", Nexthop: "2001:db8:2222::1"})
 		}
 	}
+}
+
+// TestOVNNetworkExportPolicy verifies that an OVN network's own prefixes, its
+// forwards, its load balancers and its instance NIC external routes are all
+// advertised to the peer configured on the uplink network the OVN network is
+// attached to, and are not advertised to a peer on a different uplink.
+func TestOVNNetworkExportPolicy(t *testing.T) {
+	s := NewServer()
+	err := s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = s.stop()
+	})
+
+	const uplink1ID = int64(10)
+	const uplink2ID = int64(11)
+	const ovnNetworkID = int64(20)
+
+	uplink1Nexthop := mustParseIP("192.0.2.10")
+	uplink2Nexthop := mustParseIP("192.0.2.11")
+	uplink1Peer := mustParseIP("127.0.0.2")
+	uplink2Peer := mustParseIP("127.0.0.3")
+
+	// A peer on each of the two uplinks. The OVN network is only attached to
+	// uplink 1, so only uplink 1's peer should receive its routes.
+	err = s.AddPeer(uplink1Peer, 65001, "", 30, OwnerNetwork(uplink1ID))
+	require.NoError(t, err)
+	err = s.AddPeer(uplink2Peer, 65002, "", 30, OwnerNetwork(uplink2ID))
+	require.NoError(t, err)
+
+	ovnOwner := OwnerNetworkOVN(uplink1ID, ovnNetworkID)
+
+	// The OVN network's own subnet, exported when ipvN.nat=false.
+	err = s.AddPrefix(mustParseCIDR("10.20.0.0/24"), uplink1Nexthop, ovnOwner)
+	require.NoError(t, err)
+
+	// An OVN network forward, owned by the forward entity.
+	fwdOwner := OwnerNetworkForwards(ovnOwner)
+	err = s.AddPrefix(mustParseCIDR("198.51.100.1/32"), uplink1Nexthop, fwdOwner)
+	require.NoError(t, err)
+
+	// An OVN network load balancer, owned by the load balancer entity.
+	lbOwner := OwnerNetworkLoadBalancers(ovnOwner)
+	err = s.AddPrefix(mustParseCIDR("203.0.113.1/32"), uplink1Nexthop, lbOwner)
+	require.NoError(t, err)
+
+	// An instance NIC external route, registered under the OVN network's owner.
+	err = s.AddPrefix(mustParseCIDR("0.0.0.0/0"), uplink1Nexthop, OwnerInstanceNetwork(ovnOwner, 1, "eth0"))
+	require.NoError(t, err)
+
+	// A route owned by the other uplink, which must not leak to uplink 1's peer.
+	err = s.AddPrefix(mustParseCIDR("192.0.2.0/24"), uplink2Nexthop, OwnerNetwork(uplink2ID))
+	require.NoError(t, err)
+
+	debug := s.Debug()
+	require.Len(t, debug.Peers, 2)
+
+	var uplink1Routes, uplink2Routes []DebugInfoPrefix
+	for _, p := range debug.Peers {
+		switch p.Address {
+		case uplink1Peer.String():
+			uplink1Routes = p.Routes
+		case uplink2Peer.String():
+			uplink2Routes = p.Routes
+		}
+	}
+
+	// Uplink 1's peer receives every route owned by the OVN network, each with
+	// the OVN router's next-hop.
+	advertised := map[string]string{}
+	for _, r := range uplink1Routes {
+		advertised[r.Prefix] = r.Owner
+		require.Equal(t, uplink1Nexthop.String(), r.Nexthop, "Route %q should use the uplink 1 next-hop", r.Prefix)
+	}
+
+	require.Equal(t, map[string]string{
+		"10.20.0.0/24":    ovnOwner,
+		"198.51.100.1/32": fwdOwner,
+		"203.0.113.1/32":  lbOwner,
+		"0.0.0.0/0":       OwnerInstanceNetwork(ovnOwner, 1, "eth0"),
+	}, advertised)
+
+	// Uplink 2's peer receives only its own route.
+	require.Len(t, uplink2Routes, 1)
+	require.Equal(t, "192.0.2.0/24", uplink2Routes[0].Prefix)
+	require.Equal(t, OwnerNetwork(uplink2ID), uplink2Routes[0].Owner)
 }

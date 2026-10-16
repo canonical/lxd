@@ -1309,22 +1309,40 @@ test_network_ovn() {
 
   local uplink1="uplink1$$"
   local uplink2="uplink2$$"
+  local uplink3="uplink3$$"
+  local uplink4="uplink4$$"
   local ovnnet1="ovnnet1$$"
   local ovnnet2="ovnnet2$$"
+  local ovnnet3="ovnnet3$$"
+  local ovnnet4="ovnnet4$$"
+  local ovnnet5="ovnnet5$$"
 
   test_network_ovn_cleanup_bgp() {
     lxc delete -f c-ovn-bgp >/dev/null 2>&1 || true
+    lxc network forward delete "${ovnnet1}" 192.0.2.50 >/dev/null 2>&1 || true
+    lxc network forward delete "${ovnnet2}" 198.51.100.50 >/dev/null 2>&1 || true
+    lxc network load-balancer delete "${ovnnet1}" 192.0.2.60 >/dev/null 2>&1 || true
+    lxc network load-balancer delete "${ovnnet2}" 198.51.100.60 >/dev/null 2>&1 || true
     lxc network delete "${ovnnet1}" >/dev/null 2>&1 || true
     lxc network delete "${ovnnet2}" >/dev/null 2>&1 || true
+    lxc network delete "${ovnnet3}" >/dev/null 2>&1 || true
+    lxc network delete "${ovnnet4}" >/dev/null 2>&1 || true
+    lxc network delete "${ovnnet5}" >/dev/null 2>&1 || true
     lxc network delete "${uplink1}" >/dev/null 2>&1 || true
     lxc network delete "${uplink2}" >/dev/null 2>&1 || true
+    lxc network delete "${uplink3}" >/dev/null 2>&1 || true
+    lxc network delete "${uplink4}" >/dev/null 2>&1 || true
     ip link delete "dummy1$$" >/dev/null 2>&1 || true
     ip link delete "dummy2$$" >/dev/null 2>&1 || true
+    ip link delete "dummy3$$" >/dev/null 2>&1 || true
+    ip link delete "dummy4$$" >/dev/null 2>&1 || true
     lxc config set core.bgp_address="" core.bgp_routerid="" core.bgp_asn="" >/dev/null 2>&1 || true
   }
 
   ip link add "dummy1$$" type dummy
   ip link add "dummy2$$" type dummy
+  ip link add "dummy3$$" type dummy
+  ip link add "dummy4$$" type dummy
 
   lxc network create "${uplink1}" --type=physical parent="dummy1$$" \
     ipv4.gateway="192.0.2.1/24" ipv6.gateway="2001:db8:1111::1/64" \
@@ -1342,42 +1360,258 @@ test_network_ovn() {
     ovn.ingress_mode="routed" \
     bgp.peers.peer2.address="127.0.0.3" bgp.peers.peer2.asn="65002"
 
-  lxc network create "${ovnnet1}" --type=ovn network="${uplink1}"
-  lxc network create "${ovnnet2}" --type=ovn network="${uplink2}"
+  # A third uplink shares uplink1's BGP peer address, standing in for two uplinks
+  # peering with the same upstream router. Both must be able to advertise their
+  # own networks' routes over that one shared session.
+  lxc network create "${uplink3}" --type=physical parent="dummy3$$" \
+    ipv4.gateway="203.0.113.1/24" ipv6.gateway="2001:db8:3333::1/64" \
+    ipv4.ovn.ranges="203.0.113.100-203.0.113.200" ipv6.ovn.ranges="2001:db8:3333::100-2001:db8:3333::200" \
+    ipv4.routes="203.0.113.0/24,0.0.0.0/0" ipv4.routes.anycast=true \
+    ipv6.routes="2001:db8:3333::/64,::/0" ipv6.routes.anycast=true \
+    ovn.ingress_mode="routed" \
+    bgp.peers.peer1.address="127.0.0.2" bgp.peers.peer1.asn="65001"
 
-  local ovn1_router_ip4 ovn1_router_ip6 ovn2_router_ip4 ovn2_router_ip6
+  # Disable NAT so that each OVN network's own subnets are advertised, and give
+  # them fixed internal subnets so that the advertised prefixes are known.
+  lxc network create "${ovnnet1}" --type=ovn network="${uplink1}" \
+    ipv4.address="10.20.0.1/24" ipv6.address="2001:db8:aaaa::1/64" ipv4.nat=false ipv6.nat=false
+  lxc network create "${ovnnet2}" --type=ovn network="${uplink2}" \
+    ipv4.address="10.30.0.1/24" ipv6.address="2001:db8:bbbb::1/64" ipv4.nat=false ipv6.nat=false
+  lxc network create "${ovnnet3}" --type=ovn network="${uplink3}" \
+    ipv4.address="10.40.0.1/24" ipv6.address="2001:db8:cccc::1/64" ipv4.nat=false ipv6.nat=false
+
+  # Add a forward and a load balancer to two of the OVN networks, leaving the
+  # third with only its own subnets. The forward and the load balancer of the
+  # first network are advertised over the peer it shares with the third, so that
+  # peer carries both kinds of listener as well as a network's own subnets. The
+  # listen addresses are within the uplink's routes but outside its OVN ranges.
+  lxc network forward create "${ovnnet1}" 192.0.2.50
+  lxc network forward create "${ovnnet2}" 198.51.100.50
+  lxc network load-balancer create "${ovnnet1}" 192.0.2.60
+  lxc network load-balancer create "${ovnnet2}" 198.51.100.60
+
+  local ovn1_router_ip4 ovn1_router_ip6 ovn2_router_ip4 ovn2_router_ip6 ovn3_router_ip4 ovn3_router_ip6
   ovn1_router_ip4="$(lxc network get "${ovnnet1}" volatile.network.ipv4.address | cut -d/ -f1)"
   ovn1_router_ip6="$(lxc network get "${ovnnet1}" volatile.network.ipv6.address | cut -d/ -f1)"
   ovn2_router_ip4="$(lxc network get "${ovnnet2}" volatile.network.ipv4.address | cut -d/ -f1)"
   ovn2_router_ip6="$(lxc network get "${ovnnet2}" volatile.network.ipv6.address | cut -d/ -f1)"
+  ovn3_router_ip4="$(lxc network get "${ovnnet3}" volatile.network.ipv4.address | cut -d/ -f1)"
+  ovn3_router_ip6="$(lxc network get "${ovnnet3}" volatile.network.ipv6.address | cut -d/ -f1)"
 
   lxc init testimage c-ovn-bgp
   lxc config device add c-ovn-bgp eth0 nic network="${ovnnet1}" ipv4.routes.external="0.0.0.0/0" ipv6.routes.external="::/0"
   lxc config device add c-ovn-bgp eth1 nic network="${ovnnet2}" ipv4.routes.external="0.0.0.0/0" ipv6.routes.external="::/0"
   lxc start c-ovn-bgp
 
-  # Check peer route announcements with retry loop.
+  # assert_peer_route checks that the BGP debug output advertises the given prefix
+  # with the given next-hop to the given peer.
+  assert_peer_route() {
+    jq --exit-status --arg peer "$1" --arg prefix "$2" --arg nh "$3" \
+      '.peers[] | select(.address == $peer) | [.routes[] | select(.prefix == $prefix and .nexthop == $nh)] | length == 1' \
+      <<< "$4" >/dev/null
+  }
+
+  # refute_peer_route checks that the BGP debug output does not advertise the
+  # given prefix to the given peer.
+  refute_peer_route() {
+    jq --exit-status --arg peer "$1" --arg prefix "$2" \
+      '[.peers[] | select(.address == $peer) | .routes[] | select(.prefix == $prefix)] | length == 0' \
+      <<< "$3" >/dev/null
+  }
+
+  # wait_for_bgp_routes waits for the BGP debug output to advertise the expected
+  # total number of routes, and prints it. The routes are only asserted
+  # individually after this, so that a route that has not been propagated yet is
+  # not reported as missing. The optional second argument is how many seconds to
+  # wait for.
+  wait_for_bgp_routes() {
+    local expected="$1"
+    local maxWait="${2:-30}"
+    local out=""
+
+    for _ in $(seq "${maxWait}"); do
+      out="$(lxc query /internal/testing/bgp 2>/dev/null || true)"
+      if [ -n "${out}" ] && jq --exit-status --argjson expected "${expected}" \
+        '[.peers[] | .routes // [] | .[]] | length == $expected' <<< "${out}" >/dev/null 2>&1; then
+        printf '%s' "${out}"
+        return 0
+      fi
+
+      sleep 1
+    done
+
+    echo "ERROR: Expected ${expected} advertised BGP routes after ${maxWait}s, aborting" >&2
+    lxc query /internal/testing/bgp >&2 || true
+    return 1
+  }
+
+  # Check peer route announcements, waiting first for the expected number of
+  # routes to appear: each OVN network's own subnets, its forward, its load
+  # balancer and its instance NIC external routes, each with the OVN router's
+  # next-hop. ovnnet3 is reached through the peer that uplink3 shares with
+  # uplink1.
+  sub_test "Export OVN network routes to the uplink's BGP peers"
   local output=""
+  output="$(wait_for_bgp_routes 14)"
+
+  # Each uplink's peer must receive its OVN network's own subnets, its forwards,
+  # its load balancers and its instance NIC external routes, each with the OVN
+  # router's next-hop.
+  assert_peer_route 127.0.0.2 "10.20.0.0/24" "${ovn1_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.2 "2001:db8:aaaa::/64" "${ovn1_router_ip6}" "${output}"
+  assert_peer_route 127.0.0.2 "192.0.2.50/32" "${ovn1_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.2 "192.0.2.60/32" "${ovn1_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.2 "0.0.0.0/0" "${ovn1_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.2 "::/0" "${ovn1_router_ip6}" "${output}"
+
+  assert_peer_route 127.0.0.3 "10.30.0.0/24" "${ovn2_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.3 "2001:db8:bbbb::/64" "${ovn2_router_ip6}" "${output}"
+  assert_peer_route 127.0.0.3 "198.51.100.50/32" "${ovn2_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.3 "198.51.100.60/32" "${ovn2_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.3 "0.0.0.0/0" "${ovn2_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.3 "::/0" "${ovn2_router_ip6}" "${output}"
+
+  # The shared peer carries the OVN network of both of the uplinks using it.
+  assert_peer_route 127.0.0.2 "10.40.0.0/24" "${ovn3_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.2 "2001:db8:cccc::/64" "${ovn3_router_ip6}" "${output}"
+
+  # Each peer must only receive routes belonging to its own uplink's OVN network.
+  sub_test "Keep OVN network routes isolated per uplink"
+  local prefix
+  for prefix in "10.30.0.0/24" "2001:db8:bbbb::/64" "198.51.100.50/32" "198.51.100.60/32"; do
+    refute_peer_route 127.0.0.2 "${prefix}" "${output}"
+  done
+
+  for prefix in "10.20.0.0/24" "2001:db8:aaaa::/64" "192.0.2.50/32" "192.0.2.60/32" "10.40.0.0/24" "2001:db8:cccc::/64"; do
+    refute_peer_route 127.0.0.3 "${prefix}" "${output}"
+  done
+
+  # The peer address shared by uplink1 and uplink3 must list both as owners.
+  jq --exit-status '[.peers[] | select(.address == "127.0.0.2") | .owners | length] == [2]' <<< "${output}"
+
+  # A network that would reach the same peer with a prefix another network
+  # already advertises there with a different next-hop must be refused, as the
+  # shared session can only advertise one of the next-hops. ovnnet4 takes
+  # ovnnet1's subnet and is attached to uplink3, which shares uplink1's peer.
+  sub_test "Refuse a network whose prefix conflicts with a shared peer"
+  local conflictOut
+  if conflictOut="$(lxc network create "${ovnnet4}" --type=ovn network="${uplink3}" \
+      ipv4.address="10.20.0.1/24" ipv4.nat=false 2>&1)"; then
+    echo "ERROR: Creating a network that advertises a prefix already advertised with a second next-hop succeeded, aborting" >&2
+    exit 1
+  fi
+
+  if ! grep -qF "more than one next-hop" <<< "${conflictOut}"; then
+    echo "ERROR: Expected a BGP prefix conflict to be reported, got: ${conflictOut}" >&2
+    exit 1
+  fi
+
+  # The same conflict must be refused when a network reaches an already
+  # advertising peer by being pointed at it after the fact, rather than when it
+  # starts. uplink4 advertises ovnnet1's subnet over its own peer, so moving that
+  # peer onto uplink1's address would give the prefix a second next-hop there.
+  sub_test "Refuse pointing an uplink at a peer advertising the prefix differently"
+  lxc network create "${uplink4}" --type=physical parent="dummy4$$" \
+    ipv4.gateway="10.10.10.1/24" \
+    ipv4.ovn.ranges="10.10.10.100-10.10.10.200" \
+    ipv4.routes="10.10.10.0/24,0.0.0.0/0" ipv4.routes.anycast=true \
+    ovn.ingress_mode="routed" \
+    bgp.peers.peer1.address="127.0.0.4" bgp.peers.peer1.asn="65001"
+  lxc network create "${ovnnet5}" --type=ovn network="${uplink4}" \
+    ipv4.address="10.20.0.1/24" ipv4.nat=false
+
+  local conflictSetOut
+  if conflictSetOut="$(lxc network set "${uplink4}" bgp.peers.peer1.address="127.0.0.2" 2>&1)"; then
+    echo "ERROR: Pointing ${uplink4} at a peer already advertising 10.20.0.0/24 with a different next-hop succeeded, aborting" >&2
+    exit 1
+  fi
+
+  if ! grep -qF "more than one next-hop" <<< "${conflictSetOut}"; then
+    echo "ERROR: Expected a BGP prefix conflict to be reported, got: ${conflictSetOut}" >&2
+    exit 1
+  fi
+
+  # Remove the extra uplink and network, leaving the routes expected below.
+  lxc network delete "${ovnnet5}"
+  lxc network delete "${uplink4}"
+
+  # Restart LXD and check that every route is re-advertised on network start,
+  # including the load balancers'. Load balancer prefixes are exported when the
+  # network is set up, so a failure here means they are missing from the network
+  # start path.
+  sub_test "Re-advertise OVN network routes after an LXD restart"
+  shutdown_lxd "${LXD_DIR}"
+  respawn_lxd "${LXD_DIR}" true
+
+  output="$(wait_for_bgp_routes 14 60)"
+
+  # Check the load balancer prefixes specifically, so a partial restoration names
+  # the missing route.
+  assert_peer_route 127.0.0.2 "192.0.2.60/32" "${ovn1_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.3 "198.51.100.60/32" "${ovn2_router_ip4}" "${output}"
+
+  # Delete the instance and the first OVN network, then check that all of its
+  # routes (including the load balancer's) are withdrawn from its uplink's peer
+  # while the second network's routes are unaffected.
+  sub_test "Withdraw OVN network routes when the network is deleted"
+  lxc delete -f c-ovn-bgp
+  lxc network delete "${ovnnet1}"
+
+  # Wait for the deleted network's routes and the deleted instance's external
+  # routes to be withdrawn from both peers, leaving those of ovnnet2 and
+  # ovnnet3.
+  output="$(wait_for_bgp_routes 6)"
+
+  # None of the deleted network's routes may remain advertised.
+  refute_peer_route 127.0.0.2 "10.20.0.0/24" "${output}"
+  refute_peer_route 127.0.0.2 "2001:db8:aaaa::/64" "${output}"
+  refute_peer_route 127.0.0.2 "192.0.2.50/32" "${output}"
+  refute_peer_route 127.0.0.2 "192.0.2.60/32" "${output}"
+  refute_peer_route 127.0.0.2 "0.0.0.0/0" "${output}"
+  refute_peer_route 127.0.0.2 "::/0" "${output}"
+
+  # The deleted instance's external routes are withdrawn from the other peer too.
+  refute_peer_route 127.0.0.3 "0.0.0.0/0" "${output}"
+  refute_peer_route 127.0.0.3 "::/0" "${output}"
+
+  # The second network's routes must be unaffected, as must those of the OVN
+  # network reached over the peer that uplink3 shares with uplink1.
+  assert_peer_route 127.0.0.3 "10.30.0.0/24" "${ovn2_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.3 "198.51.100.50/32" "${ovn2_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.3 "198.51.100.60/32" "${ovn2_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.2 "10.40.0.0/24" "${ovn3_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.2 "2001:db8:cccc::/64" "${ovn3_router_ip6}" "${output}"
+
+  # Release uplink1's use of the peer it shares with uplink3. The session must
+  # stay up for uplink3, which keeps advertising its own network's routes.
+  sub_test "Keep a shared BGP peer up while another uplink still uses it"
+  lxc network unset "${uplink1}" bgp.peers.peer1.address
+  lxc network unset "${uplink1}" bgp.peers.peer1.asn
+
+  # Wait for ${uplink1} to release the shared peer, then check that ${uplink3}
+  # keeps advertising its network's routes over it.
+  local released=false
   for _ in $(seq 30); do
     output="$(lxc query /internal/testing/bgp 2>/dev/null || true)"
-    if [ -n "${output}" ] && \
-       jq --exit-status --arg nh4 "${ovn1_router_ip4}" '.peers[] | select(.address == "127.0.0.2") | [.routes[] | select(.prefix == "0.0.0.0/0" and .nexthop == $nh4)] | length == 1' <<< "${output}" >/dev/null 2>&1 && \
-       jq --exit-status --arg nh6 "${ovn1_router_ip6}" '.peers[] | select(.address == "127.0.0.2") | [.routes[] | select(.prefix == "::/0" and .nexthop == $nh6)] | length == 1' <<< "${output}" >/dev/null 2>&1 && \
-       jq --exit-status --arg nh4 "${ovn2_router_ip4}" '.peers[] | select(.address == "127.0.0.3") | [.routes[] | select(.prefix == "0.0.0.0/0" and .nexthop == $nh4)] | length == 1' <<< "${output}" >/dev/null 2>&1 && \
-       jq --exit-status --arg nh6 "${ovn2_router_ip6}" '.peers[] | select(.address == "127.0.0.3") | [.routes[] | select(.prefix == "::/0" and .nexthop == $nh6)] | length == 1' <<< "${output}" >/dev/null 2>&1; then
+    if [ -n "${output}" ] && jq --exit-status '[.peers[] | select(.address == "127.0.0.2") | .owners | length] == [1]' <<< "${output}" >/dev/null 2>&1; then
+      released=true
       break
     fi
 
     sleep 1
   done
 
-  # Check peer 127.0.0.2 gets 0.0.0.0/0 with next-hop ovn1_router_ip4 and ::/0 with next-hop ovn1_router_ip6
-  jq --exit-status --arg nh4 "${ovn1_router_ip4}" '.peers[] | select(.address == "127.0.0.2") | [.routes[] | select(.prefix == "0.0.0.0/0" and .nexthop == $nh4)] | length == 1' <<< "${output}"
-  jq --exit-status --arg nh6 "${ovn1_router_ip6}" '.peers[] | select(.address == "127.0.0.2") | [.routes[] | select(.prefix == "::/0" and .nexthop == $nh6)] | length == 1' <<< "${output}"
+  # Fail explicitly if releasing one uplink took the shared session with it.
+  if [ "${released}" != "true" ]; then
+    echo "ERROR: Shared peer 127.0.0.2 was not kept up for ${uplink3} after ${uplink1} released it, aborting" >&2
+    lxc query /internal/testing/bgp >&2 || true
+    exit 1
+  fi
 
-  # Check peer 127.0.0.3 gets 0.0.0.0/0 with next-hop ovn2_router_ip4 and ::/0 with next-hop ovn2_router_ip6
-  jq --exit-status --arg nh4 "${ovn2_router_ip4}" '.peers[] | select(.address == "127.0.0.3") | [.routes[] | select(.prefix == "0.0.0.0/0" and .nexthop == $nh4)] | length == 1' <<< "${output}"
-  jq --exit-status --arg nh6 "${ovn2_router_ip6}" '.peers[] | select(.address == "127.0.0.3") | [.routes[] | select(.prefix == "::/0" and .nexthop == $nh6)] | length == 1' <<< "${output}"
+  assert_peer_route 127.0.0.2 "10.40.0.0/24" "${ovn3_router_ip4}" "${output}"
+  assert_peer_route 127.0.0.2 "2001:db8:cccc::/64" "${ovn3_router_ip6}" "${output}"
+
+  unset -f assert_peer_route refute_peer_route wait_for_bgp_routes
 
   test_network_ovn_cleanup_bgp
   unset -f test_network_ovn_cleanup_bgp

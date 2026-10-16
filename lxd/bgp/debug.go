@@ -1,6 +1,9 @@
 package bgp
 
 import (
+	"slices"
+	"strings"
+
 	bgpAPI "github.com/osrg/gobgp/v4/api"
 	bgpAPIUtil "github.com/osrg/gobgp/v4/pkg/apiutil"
 	bgpPacket "github.com/osrg/gobgp/v4/pkg/packet/bgp"
@@ -36,6 +39,7 @@ type DebugInfoPeer struct {
 	ASN      uint32            `json:"asn" yaml:"asn"`
 	Password string            `json:"password" yaml:"password"`
 	Count    int               `json:"count" yaml:"count"`
+	Owners   []string          `json:"owners" yaml:"owners"`
 	HoldTime uint64            `json:"holdtime" yaml:"holdtime"`
 	Routes   []DebugInfoPrefix `json:"routes" yaml:"routes"`
 }
@@ -73,20 +77,53 @@ func (s *Server) Debug() DebugInfo {
 		entry.Address = peer.address.String()
 		entry.ASN = peer.asn
 		entry.Password = peer.password
-		entry.Count = peer.count
+		entry.Count = peer.refCount()
+		entry.Owners = peer.ownerNames()
 		entry.HoldTime = peer.holdtime
-		entry.Routes = []DebugInfoPrefix{}
 
-		// Populate routes advertised to this peer based on peer's owner network.
+		// Populate the routes advertised to this peer from the paths its owners
+		// hold. A peer can be shared by several networks, and a route can be
+		// recorded more than once (a network advertising a prefix a sub-owner has
+		// already added, for instance), so the routes are deduplicated. A route is
+		// a prefix and a next-hop, which is the unit the export policy advertises
+		// to the peer, so this reports what the peer receives rather than what is
+		// recorded locally.
+		routes := map[string]DebugInfoPrefix{}
 		for _, p := range s.paths {
-			if peer.owner != "" && ownerMatches(peer.owner, p.owner) {
-				entry.Routes = append(entry.Routes, DebugInfoPrefix{
-					Owner:   p.owner,
-					Prefix:  p.prefix.String(),
-					Nexthop: p.nexthop.String(),
-				})
+			if !peer.ownsPath(p.owner) {
+				continue
+			}
+
+			key := p.prefix.String() + " " + p.nexthop.String()
+
+			// Report the same owner for a route shared by several owners, rather
+			// than whichever the paths happen to be iterated in.
+			route, exists := routes[key]
+			if exists && route.Owner <= p.owner {
+				continue
+			}
+
+			routes[key] = DebugInfoPrefix{
+				Owner:   p.owner,
+				Prefix:  p.prefix.String(),
+				Nexthop: p.nexthop.String(),
 			}
 		}
+
+		entry.Routes = make([]DebugInfoPrefix, 0, len(routes))
+		for _, route := range routes {
+			entry.Routes = append(entry.Routes, route)
+		}
+
+		// Sort for a stable order across calls.
+		slices.SortFunc(entry.Routes, func(a DebugInfoPrefix, b DebugInfoPrefix) int {
+			cmp := strings.Compare(a.Prefix, b.Prefix)
+			if cmp != 0 {
+				return cmp
+			}
+
+			return strings.Compare(a.Nexthop, b.Nexthop)
+		})
 
 		debug.Peers = append(debug.Peers, entry)
 	}
