@@ -1,3 +1,40 @@
+# _file_mount_start starts "lxc file mount" in the background and waits until it is ready.
+# Usage: _file_mount_start <output file> [extra flags...]. Sets mountPID and fingerprint.
+_file_mount_start() {
+  local out_file="${1}"
+  shift
+
+  "${_LXC}" file mount filemanip --listen=127.0.0.1:2022 "$@" > "${out_file}" &
+  mountPID=$!
+
+  for _ in $(seq 100); do
+    # The login line is printed last, after the listener and host key are set up.
+    if grep -qE '^Login ' "${out_file}"; then
+      fingerprint=$(sed -nE 's/^SSH host key fingerprint: SHA256:(.+)$/\1/p' "${out_file}")
+      return 0
+    fi
+
+    if ! kill -0 "${mountPID}" 2>/dev/null; then
+      echo "lxc file mount exited during startup" >&2
+      cat "${out_file}" >&2
+      return 1
+    fi
+
+    sleep 0.1
+  done
+
+  echo "lxc file mount not ready after 10s" >&2
+  cat "${out_file}" >&2
+  return 1
+}
+
+# _file_mount_stop stops the mount started by _file_mount_start.
+_file_mount_stop() {
+  kill_go_proc "${mountPID}"
+  # Wait for exit so the listener releases port 2022 before the next mount.
+  wait "${mountPID}" 2>/dev/null || true
+}
+
 test_filemanip() {
   # Workaround for shellcheck getting confused by "cd"
   set -e
@@ -180,27 +217,21 @@ test_filemanip() {
   fi
 
   NOAUTH_FILE="$(mktemp)"
-  "${_LXC}" file mount filemanip --listen=127.0.0.1:2022 --no-auth > "${NOAUTH_FILE}" &
-  mountPID=$!
-  sleep 0.1
-  fingerprint=$(sed -nE 's/^SSH host key fingerprint: SHA256:(.+)$/\1/p' "${NOAUTH_FILE}")
+  _file_mount_start "${NOAUTH_FILE}" --no-auth
   rm "${NOAUTH_FILE}"
 
   # shellcheck disable=SC2086
   [ "$(curl ${CURL_OPTIONS} --hostpubsha256 "${fingerprint}" sftp://127.0.0.1:2022/foo)" = "foo" ]
-  kill_go_proc "${mountPID}"
+  _file_mount_stop
 
   CREDS_FILE="$(mktemp)"
-  "${_LXC}" file mount filemanip --listen=127.0.0.1:2022 > "${CREDS_FILE}" &
-  mountPID=$!
-  sleep 0.1
-  fingerprint=$(sed -nE 's/^SSH host key fingerprint: SHA256:(.+)$/\1/p' "${CREDS_FILE}")
+  _file_mount_start "${CREDS_FILE}"
   userCreds=$(sed -nE 's/^[^"]+ "([^"]+)" [^"]+ "([^"]+)"$/\1:\2/p' "${CREDS_FILE}")
   rm "${CREDS_FILE}"
 
   # shellcheck disable=SC2086
   [ "$(curl ${CURL_OPTIONS} --hostpubsha256 "${fingerprint}" --user "${userCreds}" sftp://127.0.0.1:2022/foo)" = "foo" ]
-  kill_go_proc "${mountPID}"
+  _file_mount_stop
 
   lxc delete -f filemanip
 
