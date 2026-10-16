@@ -48,6 +48,16 @@ NIC_ROUTE4="203.0.113.16/28"
 NIC_ROUTE6="2001:db8:cccc:1::/64"
 FORWARD_ADDR="203.0.113.200"
 
+# A second network configured with the same BGP peer as the first, so both share
+# one session with FRR (as two uplinks peering with the same upstream router
+# do). Its routes are advertised with ALT_NEXTHOP4/ALT_NEXTHOP6.
+BGP_NET2="bgptest2"
+NET2_ADDR4="198.51.101.1/24"
+NET2_ADDR6="2001:db8:dddd::1/64"
+NET2_SUBNET4="198.51.101.0/24"
+NET2_SUBNET6="2001:db8:dddd::/64"
+NET2_FORWARD_ADDR="203.0.114.200"
+
 # frrPrefixNexthops: print the next-hops FRR received for a prefix (nothing if not received).
 # Usage: frrPrefixNexthops <4|6> <prefix>
 frrPrefixNexthops() (
@@ -344,6 +354,67 @@ waitLXDPrefix "${NET_SUBNET4}" present "${NEXTHOP4}"
 waitLXDPrefix "${NET_SUBNET6}" present "${NEXTHOP6}"
 waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
 waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
+
+echo "==> Checking a second network shares the same BGP peer session"
+# The peer is only registered once both address and ASN are set, so provide all
+# the configuration in a single command.
+# shellcheck disable=SC2248 # Deliberate word splitting omits an empty optional configuration argument.
+lxc network create "${BGP_NET2}" \
+    ipv4.address="${NET2_ADDR4}" ipv4.nat=false \
+    ipv6.address="${NET2_ADDR6}" ipv6.nat=false \
+    ipv4.routes="203.0.114.0/24" \
+    ipv6.routes="2001:db8:ffff::/48" \
+    bgp.ipv4.nexthop="${ALT_NEXTHOP4}" \
+    bgp.ipv6.nexthop="${ALT_NEXTHOP6}" \
+    bgp.peers.frr.address="${FRR_ADDR}" \
+    bgp.peers.frr.asn="${FRR_ASN}" \
+    bgp.peers.frr.password="${BGP_PASSWORD}" \
+    ${peer_holdtime} # Don't quote to omit the empty arg.
+
+# The shared address is one peer, owned by both networks.
+lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
+    '[.peers[] | select(.address == $peer) | .owners | length] == [2]'
+
+waitFRRSession up
+
+echo "==> Checking both networks advertise their subnets over the shared session"
+waitLXDPrefix "${NET_SUBNET4}" present "${NEXTHOP4}"
+waitLXDPrefix "${NET2_SUBNET4}" present "${ALT_NEXTHOP4}"
+waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
+waitFRRPrefix 4 "${NET2_SUBNET4}" present "${ALT_NEXTHOP4}"
+waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
+waitFRRPrefix 6 "${NET2_SUBNET6}" present "${ALT_NEXTHOP6}"
+
+if hasNeededAPIExtension network_forward; then
+    echo "==> Checking a forward of the second network is advertised over the shared session"
+    lxc network forward create "${BGP_NET2}" "${NET2_FORWARD_ADDR}" target_address=198.51.101.10
+    waitFRRPrefix 4 "${NET2_FORWARD_ADDR}/32" present "${ALT_NEXTHOP4}"
+
+    lxc network forward delete "${BGP_NET2}" "${NET2_FORWARD_ADDR}"
+    waitFRRPrefix 4 "${NET2_FORWARD_ADDR}/32" absent
+fi
+
+echo "==> Checking one network releasing the shared peer keeps the session for the other"
+# shellcheck disable=SC2248 # Deliberate word splitting omits an empty optional configuration argument.
+lxc network set "${BGP_NET2}" \
+    bgp.peers.frr.address="" \
+    bgp.peers.frr.asn="" \
+    bgp.peers.frr.password="" \
+    ${peer_holdtime_clear} # Don't quote to omit the empty arg.
+
+# The session stays up for the first network, which keeps its routes, while the
+# second network's routes are withdrawn.
+lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
+    '[.peers[] | select(.address == $peer) | .owners | length] == [1]'
+waitFRRSession up
+waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
+waitFRRPrefix 4 "${NET2_SUBNET4}" absent "${ALT_NEXTHOP4}"
+
+# Deleting the second network leaves the shared session up for the first, whose
+# routes are unaffected.
+lxc network delete "${BGP_NET2}"
+waitFRRSession up
+waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
 
 echo "==> Checking the session goes down when the listener is unconfigured"
 lxc config unset core.bgp_address
