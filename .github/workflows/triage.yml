@@ -36,11 +36,11 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: ./.github/workflows/domain-label.yml
+    uses: $/.github/workflows/domain-label.yml
 
   domain-reviewers:
     needs: label
     permissions:
       contents: read
       pull-requests: write
-    uses: ./.github/workflows/domain-reviewers.yml
+    uses: $/.github/workflows/domain-reviewers.yml
