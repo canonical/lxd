@@ -62,9 +62,11 @@ runs:
           echo "needed=true" >> "$GITHUB_OUTPUT"
         fi
 
+    # Workspace-relative on purpose: this action is used by the Copilot setup
+    # steps, see `.github/workflows/copilot-setup-steps.yml`.
     - name: Install LXD build dependencies
       if: ${{ steps.check-build.outputs.needed == 'true' }}
-      uses: $/.github/actions/install-lxd-builddeps
+      uses: ./.github/actions/install-lxd-builddeps # zizmor: ignore[self-repository]
 
     - name: Build LXD dependencies
       if: ${{ steps.check-build.outputs.needed == 'true' }}
