@@ -344,17 +344,19 @@ The `lxd-convert` command supports the following flags that can be used in non-i
 
 ```
 Instance configuration:
-  -c, --config               Config key/value to apply to the new instance
-      --mount-path           Additional container mount paths
-      --name                 Name of the new instance
-      --network              Network name
-      --no-profiles          Create the instance with no profiles applied
-      --profiles             Profiles to apply on the new instance (default [default])
-      --project              Project name
-      --source               Path to the root filesystem for containers, or to the block device or disk image file for virtual machines
-      --storage              Storage pool name
-      --storage-size         Size of the instance's storage volume
-      --type                 Type of the instance to create (container or vm)
+  -c, --config                     Config key/value to apply to the new instance
+      --mount-path                 Additional container mount paths
+      --name                       Name of the new instance
+      --network                     Network name
+      --no-profiles                Create the instance with no profiles applied
+      --profiles                   Profiles to apply on the new instance (default [default])
+      --project                    Project name
+      --source                     Path to the root filesystem for containers, or to the block device or disk image file for virtual machines
+      --storage                    Storage pool name
+      --storage-size               Size of the instance's storage volume
+      --storage-volume             Attach an existing custom filesystem volume, format: <device>,pool=<pool>,source=<volume>,path=<path>
+      --storage-volume-from-path   Create a custom filesystem volume from a local directory and attach it, format: <device>,pool=<pool>,volume=<name>,source-path=<path>,path=<path>
+      --type                       Type of the instance to create (container or vm)
 
 Target server:
       --server               Unix or HTTPS URL of the target server
@@ -403,5 +405,17 @@ lxd-convert \
   --config boot.mode=uefi-nosecureboot \
   --config limits.cpu=4 \
   --config limits.memory=4GiB \
+  --non-interactive
+```
+
+Example container import that also attaches an existing custom volume and creates a new one from a local directory:
+
+```sh
+lxd-convert \
+  --name c1 \
+  --type container \
+  --source "${sourcePath}" \
+  --storage-volume data,pool=default,source=existing-volume,path=/data \
+  --storage-volume-from-path logs,pool=default,volume=c1-logs,source-path=/var/log/myapp,path=/logs \
   --non-interactive
 ```
