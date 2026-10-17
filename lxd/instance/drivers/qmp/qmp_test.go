@@ -68,6 +68,11 @@ func TestEvents(t *testing.T) {
 
 	m := &qemuMachineProtocol{}
 	mockMonitorServer(t, eg, m, func(nc net.Conn) error {
+		// Events sent before a listener registers are dropped.
+		for m.listeners.Load() == 0 {
+			time.Sleep(time.Millisecond * 10)
+		}
+
 		enc := json.NewEncoder(nc)
 		for i, e := range es {
 			err := enc.Encode(e)
@@ -375,11 +380,6 @@ func mockMonitorServer(t *testing.T, eg *errgroup.Group, qmp *qemuMachineProtoco
 			err = fmt.Errorf("unexpected error: %w", err)
 			t.Log(err)
 			return err
-		}
-
-		// wait client listen ready
-		for qmp.events == nil {
-			time.Sleep(time.Millisecond * 10)
 		}
 
 		for i, hand := range hands {
