@@ -21,44 +21,6 @@ type replicaPool struct {
 	members map[int64]db.StoragePoolNode
 }
 
-// HoldsCephReplicas reports whether the volumes a project keeps on a pool are mirrors that Ceph
-// owns rather than images LXD may write to, which is the case for a standby project on a pool
-// carrying its `ceph.replicator.<project>` key.
-// Both halves are needed. A leader writes to its own images even while it replicates them, and a
-// standby whose pool is not mirrored holds ordinary copies.
-func HoldsCephReplicas(pool Pool, proj api.Project) bool {
-	if proj.ReplicaMode != api.ReplicatorProjectModeStandby {
-		return false
-	}
-
-	return poolMirrorsProject(pool.ToAPI().Config, proj.Name)
-}
-
-// HoldsCephReplicasByName reports whether the volumes a project keeps on a pool are mirrors that
-// Ceph owns, for callers that only have the project's name. The pool key is checked first, so the
-// project is only loaded when the pool is mirrored.
-func HoldsCephReplicasByName(ctx context.Context, s *state.State, pool Pool, projectName string) (bool, error) {
-	if !poolMirrorsProject(pool.ToAPI().Config, projectName) {
-		return false, nil
-	}
-
-	var proj *api.Project
-	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
-		if err != nil {
-			return err
-		}
-
-		proj, err = dbProject.ToAPI(ctx, tx.Tx())
-		return err
-	})
-	if err != nil {
-		return false, fmt.Errorf("Failed loading project %q: %w", projectName, err)
-	}
-
-	return HoldsCephReplicas(pool, *proj), nil
-}
-
 // PoolMirrorsProject reports whether a pool carries a project's `ceph.replicator.<project>` key.
 // A migration source uses it to refuse a metadata-only migration from a pool that is not mirrored.
 func PoolMirrorsProject(pool Pool, projectName string) bool {

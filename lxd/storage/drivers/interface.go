@@ -55,6 +55,10 @@ type Driver interface {
 	ApplyPatch(name string) error
 	HasPatch(name string) bool
 
+	// ProjectVolumesAreReadonly reports whether the volumes a project keeps on the pool belong to
+	// something other than LXD, which must then neither write to them nor delete them.
+	ProjectVolumesAreReadonly(proj api.Project) bool
+
 	// Buckets.
 	ValidateBucket(bucket Volume) error
 	GetBucketURL(bucketName string) *url.URL
