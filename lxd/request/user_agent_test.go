@@ -407,6 +407,10 @@ func Test_getAllInfo(t *testing.T) {
 			expectedError: `Only LXD user agents are currently supported`,
 		},
 		{
+			ua:            "   (Linux; x86_64)",
+			expectedError: `Only LXD user agents are currently supported`,
+		},
+		{
 			ua:            "LXD 5.20 () () () () () ()",
 			expectedError: "User agent may contain at most two extra optional groups containing storage driver and feature details",
 		},
