@@ -218,9 +218,11 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			}
 
 			if !found {
+				_ = conn.Close()
 				return errors.New("Unknown websocket number")
 			}
 
+			_ = conn.Close()
 			return errors.New("Websocket number already connected")
 		}
 	}
@@ -240,6 +242,8 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 				_ = s.conns[i].Close()
 			}
 		}
+
+		clear(s.conns)
 		s.connsLock.Unlock()
 	}()
 
@@ -250,6 +254,8 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	case <-s.requiredConnectedCtx.Done():
 	case <-time.After(time.Second * 5):
 		return errors.New("Timed out waiting for websockets to connect")
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 
 	var err error
@@ -377,6 +383,15 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	l := logger.AddContext(logger.Ctx{"PID": cmd.Process.Pid, "interactive": s.interactive})
 	l.Debug("Instance process started")
 
+	cmdKill := sync.OnceFunc(func() {
+		err := unix.Kill(cmd.Process.Pid, unix.SIGKILL)
+		if err != nil {
+			l.Error("Failed sending SIGKILL")
+		} else {
+			l.Info("Sent SIGKILL")
+		}
+	})
+
 	wgEOF.Go(func() {
 		l.Debug("Exec control handler started")
 		defer l.Debug("Exec control handler finished")
@@ -384,6 +399,18 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 		s.connsLock.Lock()
 		conn := s.conns[-1]
 		s.connsLock.Unlock()
+
+		done := make(chan struct{}, 1)
+		defer close(done)
+		go func() {
+			select {
+			case <-done:
+			case <-ctx.Done():
+				// If the websocket operation is deleted, abruptly kill the command.
+				// Note that this goroutine is required otherwise we block on conn.NextReader in the for loop below.
+				cmdKill()
+			}
+		}()
 
 		for {
 			mt, r, err := conn.NextReader()
@@ -399,12 +426,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 					l.Warn("Failed getting exec control websocket reader, killing command", logger.Ctx{"err": err})
 				}
 
-				err := unix.Kill(cmd.Process.Pid, unix.SIGKILL)
-				if err != nil {
-					l.Error("Failed sending SIGKILL")
-				} else {
-					l.Info("Sent SIGKILL")
-				}
+				cmdKill()
 
 				return
 			}
@@ -417,6 +439,8 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 				}
 
 				l.Warn("Failed reading control websocket message, killing command", logger.Ctx{"err": err})
+
+				cmdKill()
 
 				return
 			}

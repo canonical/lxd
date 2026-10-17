@@ -125,10 +125,12 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 				return nil
 			} else if !found {
 				s.connsLock.Unlock()
+				_ = conn.Close()
 				return errors.New("Unknown websocket number")
 			}
 
 			s.connsLock.Unlock()
+			_ = conn.Close()
 			return errors.New("Websocket number already connected")
 		}
 	}
@@ -148,6 +150,8 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 				_ = s.conns[i].Close()
 			}
 		}
+
+		clear(s.conns)
 		s.connsLock.Unlock()
 	}()
 
