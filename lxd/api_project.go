@@ -2103,6 +2103,8 @@ func projectValidateConfig(ctx context.Context, s *state.State, config map[strin
 		// - When set to `managed`, this option allows using disk devices only if `pool=` is set.
 		// - When set to `allow`, there is no restriction on which disk devices can be used.
 		//
+		// Whatever the value, disk devices with [`propagation`](devices-disk-options) set to `shared` or `rshared` are not allowed, because mounts made in the instance would appear on the host.
+		//
 		//   ```{important}
 		//   When allowing all disk devices, make sure to set
 		//   {config:option}`project-restricted:restricted.devices.disk.paths` to a list of
