@@ -67,7 +67,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
 {{if .sockets -}}
 {{range $index, $element := .sockets}}
-  {{$element}} rw,
+  "{{$element}}" rw,
 {{- end }}
 {{- end }}
 
@@ -174,8 +174,8 @@ func forkproxyProfile(inst instance, dev device) (string, error) {
 		"snap":        shared.InSnap(),
 		"exePath":     execPath,
 		"logPath":     inst.LogPath(),
-		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
-		"sockets":     sockets,
+		"libraryPath": ldLibraryPaths(),
+		"sockets":     escapeRulePaths(sockets),
 		"goCoverDir":  goCoverDir(),
 	})
 	if err != nil {

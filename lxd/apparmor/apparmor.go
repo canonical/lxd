@@ -42,23 +42,51 @@ func runApparmor(sysOS *sys.OS, command string, name string) error {
 	return nil
 }
 
+// escapeRulePaths returns the given paths escaped for use inside a quoted AppArmor rule.
+func escapeRulePaths(paths []string) []string {
+	escaped := make([]string, 0, len(paths))
+	for _, path := range paths {
+		escaped = append(escaped, rulePathEscaper.Replace(path))
+	}
+
+	return escaped
+}
+
+// ldLibraryPaths returns the absolute entries of LD_LIBRARY_PATH, except the root directory.
+// Empty entries and the root directory would render a rule matching every path and relative entries are not valid in a profile.
+func ldLibraryPaths() []string {
+	paths := []string{}
+	for entry := range strings.SplitSeq(os.Getenv("LD_LIBRARY_PATH"), ":") {
+		if filepath.IsAbs(entry) && filepath.Clean(entry) != "/" {
+			paths = append(paths, entry)
+		}
+	}
+
+	return paths
+}
+
 // createNamespace creates a new AppArmor namespace.
-func createNamespace(sysOS *sys.OS, name string) error {
+// It reports whether the namespace was created, as opposed to already existing.
+func createNamespace(sysOS *sys.OS, name string) (bool, error) {
 	if !sysOS.AppArmorAvailable {
-		return nil
+		return false, nil
 	}
 
 	if !sysOS.AppArmorStacking || sysOS.AppArmorStacked {
-		return nil
+		return false, nil
 	}
 
 	p := filepath.Join("/sys/kernel/security/apparmor/policy/namespaces", name)
 	err := os.Mkdir(p, 0755)
-	if err != nil && !errors.Is(err, os.ErrExist) {
-		return err
+	if errors.Is(err, os.ErrExist) {
+		return false, nil
 	}
 
-	return nil
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // deleteNamespace destroys an AppArmor namespace.
