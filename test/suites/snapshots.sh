@@ -64,26 +64,31 @@ snapshots() {
   tmp_yaml=$(mktemp)
   ERROR_MSG='Error: Only "expires_at" field(s) can be modified for instance snapshots'
 
-  # Test all non-editable properties
+  # Test all non-editable properties.
   for field in name architecture config devices ephemeral profiles stateful created_at last_used_at; do
     lxc config show foo/snap0 > "$tmp_yaml"
+    local value
     case $field in
       config|devices)
-        sed -i "s/^${field}:.*/${field}: {}/" "$tmp_yaml"
+        value="{}"
         ;;
       profiles)
-        sed -i "s/^${field}:.*/${field}: []/" "$tmp_yaml"
+        value="[]"
         ;;
       ephemeral|stateful)
-        sed -i "s/^${field}:.*/${field}: true/" "$tmp_yaml"
+        value="true"
         ;;
       created_at|last_used_at)
-        sed -i "s/^${field}:.*/${field}: 2024-01-01T00:00:00Z/" "$tmp_yaml"
+        value="2024-01-01T00:00:00Z"
         ;;
       *)
-        sed -i "s/^${field}:.*/${field}: invalid-${field}/" "$tmp_yaml"
+        value="invalid-${field}"
         ;;
     esac
+
+    # Drop nested lines under the replaced key so block-style YAML stays valid.
+    awk -v f="$field" -v v="$value" '$0 ~ "^" f ":" {print f ": " v; skip=1; next} skip && /^[A-Za-z_][A-Za-z0-9_]*:/ {skip=0} skip {next} {print}' "$tmp_yaml" > "${tmp_yaml}.new"
+    mv "${tmp_yaml}.new" "$tmp_yaml"
 
     local output
     if output="$(CLIENT_DEBUG="" SHELL_TRACING="" lxc config edit foo/snap0 < "$tmp_yaml" 2>&1)"; then
