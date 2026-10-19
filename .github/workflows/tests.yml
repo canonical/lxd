@@ -1163,7 +1163,7 @@ jobs:
           retention-days: 5
 
   documentation-linkcheck:
-    name: Documentation link check
+    name: Documentation link and redirect checks
     runs-on: ubuntu-26.04
     needs: documentation
     # Run link checker manually anywhere or on scheduled CI runs on the main repo.
@@ -1173,6 +1173,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Run redirect checker
+        run: make doc-redirectcheck
 
       - name: Install Go
         uses: $/.github/actions/setup-go
