@@ -1,14 +1,16 @@
 name: Assign domain reviewers
 
 on:
-  # Safe: only checks out .github/domain-owners.json from the base branch.
-  # No PR-supplied code is executed. Write permission is needed to request
-  # reviewers on fork PRs.
+  # dangerous-triggers does not apply: no PR code is checked out or executed. The only
+  # checkout is .github/domain-owners.json from the default branch. Write permission is
+  # needed to request reviewers on fork PRs.
   pull_request_target: # zizmor: ignore[dangerous-triggers]
     types:
       - labeled
       - unlabeled
       - ready_for_review
+  # Called by triage.yml after the labeler has run.
+  workflow_call:
 
 permissions: {}
 
@@ -62,21 +64,23 @@ jobs:
               .github/domain-owners.json)
           done
 
-          # Fetch current requested reviewers on the PR.
+          # Fetch current requested reviewers and existing reviews on the PR.
           mapfile -t CURRENT_REVIEWERS < <(gh pr view "${PR_NUMBER}" --repo "${REPO}" \
             --json reviewRequests --jq '.reviewRequests[].login')
+          mapfile -t REVIEWED < <(gh pr view "${PR_NUMBER}" --repo "${REPO}" \
+            --json reviews --jq '.reviews[].author.login')
 
-          # Determine reviewers to add (desired but not already requested).
+          # Owners with a pending request or an existing review are left alone,
+          # so approvals are not re-requested.
+          declare -A skip
+          for login in "${CURRENT_REVIEWERS[@]}" "${REVIEWED[@]}"; do
+            if [[ -n "${login}" ]]; then skip["${login}"]=1; fi
+          done
+
+          # Determine reviewers to add (desired but not already requested or reviewed).
           ADD=()
           for reviewer in "${!desired[@]}"; do
-            already=false
-            for cur in "${CURRENT_REVIEWERS[@]}"; do
-              if [[ "${cur}" == "${reviewer}" ]]; then
-                already=true
-                break
-              fi
-            done
-            "${already}" || ADD+=("${reviewer}")
+            if [[ -z "${skip[${reviewer}]:-}" ]]; then ADD+=("${reviewer}"); fi
           done
 
           if [[ ${#ADD[@]} -gt 0 ]]; then
