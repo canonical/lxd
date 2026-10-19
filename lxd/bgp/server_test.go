@@ -335,6 +335,43 @@ func TestAddPeerSharedOwners(t *testing.T) {
 	require.Empty(t, s.peers)
 }
 
+// TestStartFailureLeavesNothingBehind verifies that a listener that fails to
+// start leaves no server recorded. Otherwise the next configuration change would
+// be told the listener is already running and BGP would stay unusable until the
+// daemon restarted.
+func TestStartFailureLeavesNothingBehind(t *testing.T) {
+	tests := []struct {
+		name    string
+		address string
+	}{
+		{"port not numeric", "127.0.0.1:notaport"},
+		{"port out of range", "127.0.0.1:99999"},
+		{"address not usable", "192.0.2.99:1790"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			s := NewServer()
+
+			err := s.start(test.address, 65000, mustParseIP("192.0.2.1"))
+			require.Error(t, err)
+			require.Nil(t, s.bgp, "A failed start must not leave a server recorded")
+
+			// The next start must not be refused as already running, which is
+			// what a recorded server would cause. This uses the same
+			// no-listener form as the other tests, so it does not depend on
+			// which ports happen to be free.
+			err = s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+			require.NoError(t, err)
+			require.NotNil(t, s.bgp)
+
+			err = s.stop()
+			require.NoError(t, err)
+			require.Nil(t, s.bgp)
+		})
+	}
+}
+
 // TestPolicySnapshotIndependent verifies that the snapshot taken for a policy
 // rebuild shares nothing mutable with the live peer list. The snapshot is
 // iterated after the server lock is released, so a peer's owners can be mutated
@@ -601,6 +638,36 @@ func TestDebugNotRunning(t *testing.T) {
 	require.False(t, debug.Server.Running)
 	require.Empty(t, debug.Peers)
 	require.Empty(t, debug.Prefixes)
+}
+
+// TestDebugRunningState verifies that the debug endpoint reports the listener as
+// running only when it is. A server that was recorded without serving used to
+// still be reported as running, which made the endpoint misleading when
+// diagnosing why routes were not being advertised.
+func TestDebugRunningState(t *testing.T) {
+	s := NewServer()
+
+	// A server that was never started is not running.
+	require.False(t, s.Debug().Server.Running)
+
+	// A listener that could not be started is not running, and reports none of
+	// the configuration it never applied.
+	err := s.start("127.0.0.1:notaport", 65000, mustParseIP("192.0.2.1"))
+	require.Error(t, err)
+
+	debug := s.Debug()
+	require.False(t, debug.Server.Running)
+	require.Empty(t, debug.Server.Address)
+	require.Zero(t, debug.Server.ASN)
+
+	// A started server is running, and is not once stopped.
+	err = s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+	require.True(t, s.Debug().Server.Running)
+
+	err = s.stop()
+	require.NoError(t, err)
+	require.False(t, s.Debug().Server.Running)
 }
 
 // TestDebugRunning verifies that Debug returns accurate GoBGP RIB paths,

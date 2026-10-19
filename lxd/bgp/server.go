@@ -144,11 +144,8 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 		return errors.New("BGP listener is already running")
 	}
 
-	// Spawn the BGP goroutines.
-	s.bgp = bgpServer.NewBgpServer()
-	go s.bgp.Serve()
-
-	// Get the address and port.
+	// Get the address and port before any state is changed, so that an address
+	// that cannot be used fails without starting anything.
 	addrHost, addrPort, err := net.SplitHostPort(address)
 	if err != nil {
 		addrHost = address
@@ -161,7 +158,7 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 
 	addrPortInt, err := strconv.ParseInt(addrPort, 10, 32)
 	if err != nil {
-		return err
+		return fmt.Errorf("Invalid BGP listen port in address %q: %w", address, err)
 	}
 
 	// Setup the listener configuration.
@@ -177,15 +174,45 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 		ListenPort:      int32(addrPortInt),
 	}
 
+	// Spawn the BGP goroutines, keeping the new server local until it is
+	// serving. A server recorded before it is serving would be reported as
+	// already running by the check above and could never be started again.
+	bgpSrv := bgpServer.NewBgpServer()
+	go bgpSrv.Serve()
+
 	// Start the listener.
-	err = s.bgp.StartBgp(context.Background(), &bgpAPI.StartBgpRequest{Global: conf})
+	err = bgpSrv.StartBgp(context.Background(), &bgpAPI.StartBgpRequest{Global: conf})
 	if err != nil {
+		bgpSrv.Stop()
 		return err
 	}
 
-	// Copy the path list
+	s.bgp = bgpSrv
+
+	// The listener is up, so a failure from here has to take it down again
+	// rather than leave it recorded, which would leave BGP unusable until the
+	// daemon restarts as nothing could configure it.
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	// Copy the peer and path lists, so they can be restored if re-registering
+	// them fails part way through.
+	oldPeers := map[string]peer{}
+	maps.Copy(oldPeers, s.peers)
+
 	oldPaths := map[uuid.UUID]path{}
 	maps.Copy(oldPaths, s.paths)
+
+	reverter.Add(func() {
+		// Stop the listener directly rather than through stop(), which also
+		// deletes the recorded peers and fails if one of them was never
+		// registered with this listener.
+		bgpSrv.Stop()
+		s.bgp = nil
+		s.peers = oldPeers
+		s.paths = oldPaths
+		s.policyName = ""
+	})
 
 	// Add existing paths.
 	s.paths = map[uuid.UUID]path{}
@@ -195,10 +222,6 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 			logger.Warn("Cannot add prefix to BGP server", logger.Ctx{"prefix": path.prefix.String(), "err": err})
 		}
 	}
-
-	// Copy the peer list.
-	oldPeers := map[string]peer{}
-	maps.Copy(oldPeers, s.peers)
 
 	// Re-register the existing peers with the new listener, restoring each peer
 	// with the owners it had so that their reference counts survive the restart.
@@ -217,6 +240,7 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 	s.asn = asn
 	s.routerID = routerID
 
+	reverter.Success()
 	return nil
 }
 
