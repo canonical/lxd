@@ -631,13 +631,57 @@ func TestAddPeerConflictPassword(t *testing.T) {
 }
 
 // TestDebugNotRunning verifies that Debug returns a payload with Running=false
-// when the BGP server is not running.
+// and nothing recorded when the BGP server has never been started. A listener
+// that was stopped keeps reporting the peers it is configured with; see
+// TestDebugReportsRecordedPeersWhenStopped.
 func TestDebugNotRunning(t *testing.T) {
 	s := NewServer()
 	debug := s.Debug()
 	require.False(t, debug.Server.Running)
 	require.Empty(t, debug.Peers)
 	require.Empty(t, debug.Prefixes)
+}
+
+// TestDebugReportsRecordedPeersWhenStopped verifies that stopping the listener
+// does not make the endpoint look as though BGP were unconfigured. The peers and
+// the routes they would be advertised are still reported, so that a stopped
+// listener can be told apart from one that was never configured, and Running says
+// that nothing is being advertised. The prefixes are not reported, as they are
+// read from a RIB that does not exist while the listener is down.
+func TestDebugReportsRecordedPeersWhenStopped(t *testing.T) {
+	s := NewServer()
+	err := s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+
+	owner := OwnerNetwork(1)
+	err = s.AddPeer(mustParseIP("127.0.0.2"), 65001, "", 30, owner)
+	require.NoError(t, err)
+	err = s.AddPrefix(mustParseCIDR("10.0.0.0/24"), mustParseIP("192.0.2.10"), owner)
+	require.NoError(t, err)
+
+	debug := s.Debug()
+	require.True(t, debug.Server.Running)
+	require.Len(t, debug.Peers, 1)
+	require.Len(t, debug.Prefixes, 1)
+
+	err = s.stop()
+	require.NoError(t, err)
+
+	debug = s.Debug()
+	require.False(t, debug.Server.Running)
+
+	// The configuration that is still recorded is reported.
+	require.Len(t, debug.Peers, 1)
+	require.Equal(t, []string{owner}, debug.Peers[0].Owners)
+	require.Len(t, debug.Peers[0].Routes, 1)
+	require.Equal(t, "10.0.0.0/24", debug.Peers[0].Routes[0].Prefix)
+	require.Equal(t, "192.0.2.10", debug.Peers[0].Routes[0].Nexthop)
+
+	// Nothing is programmed, and no listener is configured.
+	require.Empty(t, debug.Prefixes)
+	require.Empty(t, debug.Server.Address)
+	require.Zero(t, debug.Server.ASN)
+	require.Empty(t, debug.Server.RouterID)
 }
 
 // TestStopClearsStateOnFailure verifies that a teardown that fails part way still
