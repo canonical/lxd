@@ -1463,6 +1463,7 @@ parts:
       cd ../src
       git config user.email "noreply@lists.canonical.com"
       git config user.name "LXD snap builder"
+      git cherry-pick 4eda2a5ebfb306ca1e76343ccf3420fd3c8e5518 # lxcfs: Conditionally disable FUSE poll support unless PSI polling is enabled
 
       set +ex
       craftctl default
