@@ -116,7 +116,11 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 	}
 
 	pingInterval := time.Second * 10
+
+	e.lock.Lock()
 	e.pongsPending = 0
+	e.lock.Unlock()
+
 	const maxPongsPending = 2
 
 	getNextReadDeadline := func() time.Time {
