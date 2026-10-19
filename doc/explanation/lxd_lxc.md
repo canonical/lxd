@@ -1,5 +1,8 @@
 ---
 discourse: lxc:[Comparing&#32;LXD&#32;vs.&#32;LXC](24)
+myst:
+  html_meta:
+    description: Explanation of the differences between LXD and LXC, the role of the LXD daemon, and the difference between the lxd and lxc commands.
 ---
 
 (lxd-lxc)=

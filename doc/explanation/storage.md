@@ -1,3 +1,9 @@
+---
+myst:
+  html_meta:
+    description: Explanation of LXD storage pools, storage volumes, and storage buckets, including volume types, content types, and the default storage pool.
+---
+
 (exp-storage)=
 # Storage pools, volumes, and buckets
 

@@ -1,7 +1,7 @@
 ---
 myst:
   html_meta:
-    description: An index of explanatory guides for LXD, covering instance types, storage, networking, access management, clustering, and production setup.
+    description: An index of explanatory guides for LXD, covering instances, images, storage, networking, access management, clustering, production setup, and the CSI driver.
 ---
 
 (explanation)=

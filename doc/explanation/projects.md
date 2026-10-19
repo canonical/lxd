@@ -1,3 +1,9 @@
+---
+myst:
+  html_meta:
+    description: Explanation of how LXD projects group related instances, isolate or share other resources, and confine users on a multi-user server.
+---
+
 (exp-projects)=
 # Instances grouping with projects
 

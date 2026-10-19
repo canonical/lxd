@@ -1,5 +1,8 @@
 ---
 discourse: lxc:[Scriptlet&#32;based&#32;instance&#32;placement&#32;scheduler](15728)
+myst:
+  html_meta:
+    description: Explanation of LXD clusters, including member roles, cluster groups, cluster links, automatic instance placement, and high availability.
 ---
 
 (exp-clusters)=

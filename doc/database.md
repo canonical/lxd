@@ -1,5 +1,8 @@
 ---
 relatedlinks: "[Canonical&#32;Dqlite](https://canonical.com/dqlite), [Dqlite&#32;GitHub](https://github.com/canonical/dqlite)"
+myst:
+  html_meta:
+    description: Explanation of the LXD Dqlite database, which stores server configuration and state for both single machines and clusters.
 ---
 
 (database)=

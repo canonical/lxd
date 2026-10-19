@@ -1,3 +1,9 @@
+---
+myst:
+  html_meta:
+    description: Explanation of privilege delegation using BPF Token, which lets LXD delegate specific BPF functionality to unprivileged containers.
+---
+
 (bpf-delegation-token)=
 # Privilege delegation using BPF Token
 

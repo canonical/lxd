@@ -1,7 +1,7 @@
 ---
 myst:
   html_meta:
-    description: "An explanation of LXD disaster recovery strategies, including active-passive disaster recovery with replicators and with storage replication."
+    description: Explanation of LXD approaches to active-passive disaster recovery, including replicators, storage replication, monitoring, and the lxd recover tool.
 ---
 
 (exp-disaster-recovery)=
