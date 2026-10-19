@@ -640,6 +640,36 @@ func TestDebugNotRunning(t *testing.T) {
 	require.Empty(t, debug.Prefixes)
 }
 
+// TestStopClearsStateOnFailure verifies that a teardown that fails part way still
+// clears the recorded listener, so that it is not left reported as running and
+// refusing to start, and that the failure is reported to the caller.
+//
+// The failure is constructed by recording a peer that the BGP server does not
+// know about, which makes removing it fail. That is a server-side inconsistency
+// rather than something the API can produce; the point of the test is that the
+// teardown completes regardless.
+func TestStopClearsStateOnFailure(t *testing.T) {
+	s := NewServer()
+	err := s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+
+	addr := mustParseIP("127.0.0.2")
+	s.mu.Lock()
+	s.peers[addr.String()] = peer{address: addr, asn: 65001, owners: map[string]int{OwnerNetwork(1): 1}}
+	s.mu.Unlock()
+
+	err = s.stop()
+	require.Error(t, err)
+
+	// The listener is no longer recorded, so it can be used and reconfigured.
+	require.Nil(t, s.bgp)
+	require.False(t, s.Debug().Server.Running)
+
+	err = s.start("127.0.0.1:-1", 65000, mustParseIP("192.0.2.1"))
+	require.NoError(t, err)
+	require.NoError(t, s.stop())
+}
+
 // TestDebugRunningState verifies that the debug endpoint reports the listener as
 // running only when it is. A server that was recorded without serving used to
 // still be reported as running, which made the endpoint misleading when

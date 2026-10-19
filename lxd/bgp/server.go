@@ -245,6 +245,11 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 }
 
 // Stop tears down the BGP listener.
+//
+// The teardown runs to completion whatever fails along the way, and the first
+// failure is returned. Leaving it half done would be worse than reporting the
+// failure: a listener that is only partly torn down is still recorded as running
+// and refuses to start again, so it could neither be used nor reconfigured.
 func (s *Server) stop() error {
 	// Skip if no instance.
 	if s.bgp == nil {
@@ -255,21 +260,23 @@ func (s *Server) stop() error {
 	oldPeers := map[string]peer{}
 	maps.Copy(oldPeers, s.peers)
 
+	var firstErr error
+
 	// Remove all the peers from the BGP server.
 	for _, peer := range oldPeers {
 		err := s.removePeerFromServer(peer.address)
-		if err != nil {
-			return err
+		if err != nil && firstErr == nil {
+			firstErr = err
 		}
 	}
 
-	// Restore peer list.
+	// Restore peer list, so that a later start can re-register them.
 	s.peers = oldPeers
 
 	// Stop the listener.
 	err := s.bgp.StopBgp(context.Background(), &bgpAPI.StopBgpRequest{})
-	if err != nil {
-		return err
+	if err != nil && firstErr == nil {
+		firstErr = err
 	}
 
 	// Mark the daemon as down.
@@ -279,7 +286,7 @@ func (s *Server) stop() error {
 	s.bgp = nil
 	s.policyName = ""
 
-	return nil
+	return firstErr
 }
 
 // Configure updates the listener with a new configuration..
