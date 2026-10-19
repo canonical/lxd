@@ -7325,10 +7325,31 @@ test_clustering_link_unidirectional() {
   # --auth-group cannot be used with unidirectional links.
   [ "$(CLIENT_DEBUG="" SHELL_TRACING="" LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create foo --unidirectional --token fake --auth-group mygroup 2>&1)" = 'Error: if any flags in the group [unidirectional auth-group] are set none of the others can be; [auth-group unidirectional] were all set' ]
 
+  sub_test "Check unidirectional link token issuance only requires can_create_identities"
+
+  # Create a fine-grained identity on Cluster B that can create identities but not cluster links.
+  LXD_DIR="${LXD_THREE_DIR}" lxc auth group create link-issuers
+  LXD_DIR="${LXD_THREE_DIR}" lxc auth group permission add link-issuers server can_create_identities
+  issuer_token="$(LXD_DIR="${LXD_THREE_DIR}" lxc auth identity create tls/link-issuer --group link-issuers --quiet)"
+  LXD_CONF_ISSUER="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  LXD_CONF="${LXD_CONF_ISSUER}" gen_cert_and_key "client"
+  LXD_CONF="${LXD_CONF_ISSUER}" lxc remote add cluster_b "${issuer_token}"
+
+  # Bidirectional pending links still require can_create_cluster_links.
+  if LXD_CONF="${LXD_CONF_ISSUER}" lxc cluster link create cluster_b:lxd_one --quiet; then
+    echo "ERROR: bidirectional cluster link created without can_create_cluster_links" >&2
+    exit 1
+  fi
+
   sub_test "Check unidirectional link creation"
 
   # Cluster B issues a pending identity token via auth identity create.
-  UNIDIRECTIONAL_TOKEN="$(LXD_DIR="${LXD_THREE_DIR}" lxc auth identity create cluster-link/lxd_one --quiet)"
+  UNIDIRECTIONAL_TOKEN="$(LXD_CONF="${LXD_CONF_ISSUER}" lxc auth identity create cluster_b:cluster-link/lxd_one --quiet)"
+
+  # Clean up the issuer identity on Cluster B.
+  LXD_DIR="${LXD_THREE_DIR}" lxc auth identity delete tls/link-issuer
+  LXD_DIR="${LXD_THREE_DIR}" lxc auth group delete link-issuers
+  rm -rf "${LXD_CONF_ISSUER}"
 
   # Cluster A consumes the token and creates a unidirectional link to Cluster B.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_three --token "${UNIDIRECTIONAL_TOKEN}" --unidirectional
