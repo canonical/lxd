@@ -6,6 +6,10 @@
 set -euo pipefail
 
 failed=0
+refs_file=$(mktemp)
+trap 'rm -f "$refs_file"' EXIT
+# Buffer stdin: the clone's own pre-push hook needs the same ref list.
+cat >"$refs_file"
 
 while read -r _ local_sha _ remote_sha; do
 	[[ $local_sha =~ ^0+$ ]] && continue
@@ -55,11 +59,17 @@ while read -r _ local_sha _ remote_sha; do
 			failed=1
 		fi
 	done
-done
+done <"$refs_file"
 
 if (( failed )); then
 	echo "pre-push: fix with 'git rebase -i --exec \"git commit --amend --no-edit -s -S\" <base>'" >&2
 	echo "pre-push: or bypass with 'git push --no-verify'" >&2
+	exit 1
 fi
 
-exit "$failed"
+# core.hooksPath hides .git/hooks, so run the clone's own pre-push hook here.
+# -ef stops a symlink to this script from recursing.
+hook="$(git rev-parse --git-common-dir)/hooks/pre-push"
+if [[ -x $hook && ! $hook -ef $0 ]]; then
+	"$hook" "$@" <"$refs_file"
+fi
