@@ -1,3 +1,9 @@
+(tutorial-instances)=
+# Work with instances
+
+In the {ref}`first part of the tutorial <tutorial-setup>`, we set up LXD.
+Now we'll start working with instances, which can be either system containers or virtual machines.
+
 (tutorial-create-instances)=
 ## Create instances
 

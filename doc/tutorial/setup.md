@@ -1,3 +1,10 @@
+(tutorial-setup)=
+# Set up LXD
+
+Let's get started and set up LXD.
+In this part of the tutorial, you'll use the command line interface (CLI) to install and initialize LXD, and to set up access to the graphical web UI (LXD UI).
+You can then complete the other parts of the tutorial either with the CLI or the UI.
+
 (tutorial-requirements)=
 ## Requirements
 
