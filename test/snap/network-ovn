@@ -121,8 +121,8 @@ ovn_basic_tests() {
     lxc exec u2 -- ping -nc1 -i0.1 -w2 fd42:4242:4242:1010::1
 
     echo "==> OVN to lxdbr0"
-    lxc exec 4u -- ping -nc1 -i0.1 -w2 u1.lxd
-    lxc exec 4u -- ping -nc1 -i0.1 -w2 u1.lxd
+    lxc exec 4u -- ping -nc1 -i0.1 -w2 -4 u1.lxd
+    lxc exec 4u -- ping -nc1 -i0.1 -w2 -6 u1.lxd
 
     lxc delete -f 4u
 
@@ -217,9 +217,9 @@ ovn_basic_tests() {
     ! lxc network create ovn-virtual-network2 --type=ovn --project default network=dummy ipv6.address=2001:db8:1:2::1/122 ipv6.dhcp.stateful=true ipv6.nat=false || false
 
     # Check uplink dns.nameservers changes are applied to dependent OVN networks.
-    ovn-nbctl --format=csv --bare --column=options find dhcp_option cidr=198.51.100.0/24 | grep -F "dns_server={192.0.2.53}"
+    ovn-nbctl --format=csv --bare --columns=options find dhcp_option cidr=198.51.100.0/24 | grep -F "dns_server={192.0.2.53}"
     lxc network set dummy dns.nameservers=192.0.2.54 --project default
-    ovn-nbctl --format=csv --bare --column=options find dhcp_option cidr=198.51.100.0/24 | grep -F "dns_server={192.0.2.54}"
+    ovn-nbctl --format=csv --bare --columns=options find dhcp_option cidr=198.51.100.0/24 | grep -F "dns_server={192.0.2.54}"
     lxc network set dummy dns.nameservers=192.0.2.53 --project default
 
     echo "==> Check network external subnet overlap check relaxation when uplink has anycast routed ingress mode enabled"
@@ -240,7 +240,7 @@ ovn_basic_tests() {
     lxc init "${IMAGE}" u1 --project testovn -s default
 
     echo "==> Record NAT rules count before u1 eth0 NIC added"
-    out="$(ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat)"
+    out="$(ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat)"
     natRulesBefore="$(wc -l <<< "${out}")"
 
     lxc config device add u1 eth0 nic network=ovn-virtual-network name=eth0 --project testovn
@@ -250,13 +250,13 @@ ovn_basic_tests() {
     waitInstanceBooted u1 testovn
     U1_EXT_IPV4="$(lxc list u1 --project testovn -c4 --format=csv | cut -d' ' -f1)"
     U1_EXT_IPV6="$(lxc list u1 --project testovn -c6 --format=csv | cut -d' ' -f1)"
-    ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat | grep "${U1_EXT_IPV4},${U1_EXT_IPV4},dnat_and_snat"
-    ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat | grep "${U1_EXT_IPV6},${U1_EXT_IPV6},dnat_and_snat"
+    ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat | grep "${U1_EXT_IPV4},${U1_EXT_IPV4},dnat_and_snat"
+    ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat | grep "${U1_EXT_IPV6},${U1_EXT_IPV6},dnat_and_snat"
     lxc stop -f u1 --project testovn
     lxc config device remove u1 eth0 --project testovn
 
     echo "==> Check NAT rules got cleaned up"
-    out="$(ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat)"
+    out="$(ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat)"
     natRulesAfter="$(wc -l <<< "${out}")"
     if [ "$natRulesBefore" -ne "$natRulesAfter" ]; then
         echo "NAT rules left over. Started with ${natRulesBefore} now have ${natRulesAfter}"
@@ -271,7 +271,7 @@ ovn_basic_tests() {
         ipv6.nat=true
 
     echo "==> Record NAT rules count before u1 started again"
-    out="$(ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat)"
+    out="$(ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat)"
     natRulesBefore="$(wc -l <<< "${out}")"
 
     lxc config device add u1 eth0 nic network=ovn-virtual-network name=eth0 --project testovn
@@ -315,27 +315,27 @@ ovn_basic_tests() {
 
     echo "==> Check DNAT_AND_SNAT rules get added when starting instance port with external routes"
     lxc start u1 --project testovn
-    ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat
-    ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat | grep -F "198.51.100.0,198.51.100.0,dnat_and_snat"
-    ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat | grep -F "198.51.100.63,198.51.100.63,dnat_and_snat"
-    ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat | grep -F "2001:db8:1:2::,2001:db8:1:2::,dnat_and_snat"
-    ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat | grep -F "2001:db8:1:2::3f,2001:db8:1:2::3f,dnat_and_snat"
-    [ "$(ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat | wc -l)" = 132 ]
+    ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat
+    ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat | grep -F "198.51.100.0,198.51.100.0,dnat_and_snat"
+    ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat | grep -F "198.51.100.63,198.51.100.63,dnat_and_snat"
+    ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat | grep -F "2001:db8:1:2::,2001:db8:1:2::,dnat_and_snat"
+    ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat | grep -F "2001:db8:1:2::3f,2001:db8:1:2::3f,dnat_and_snat"
+    [ "$(ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat | wc -l)" = 132 ]
 
     echo "==> Add internal static route to instance NIC"
     lxc config device set u1 eth0 ipv4.routes=203.0.113.1/32 ipv6.routes=2001:db8:2:2::1/128 --project testovn
 
     echo "==> Check static routes get added when starting intance port with external and internal routes, and that they remain"
     echo "==> when the network is modified while the instance NIC is running"
-    ovn-nbctl --bare --format=csv --column=ip_prefix,nexthop find logical_router_static_route | grep -F "198.51.100.0/26,"
-    ovn-nbctl --bare --format=csv --column=ip_prefix,nexthop find logical_router_static_route | grep -F "2001:db8:1:2::/122,"
-    ovn-nbctl --bare --format=csv --column=ip_prefix,nexthop find logical_router_static_route | grep -F "203.0.113.1,"
-    ovn-nbctl --bare --format=csv --column=ip_prefix,nexthop find logical_router_static_route | grep -F "2001:db8:2:2::1,"
+    ovn-nbctl --bare --format=csv --columns=ip_prefix,nexthop find logical_router_static_route | grep -F "198.51.100.0/26,"
+    ovn-nbctl --bare --format=csv --columns=ip_prefix,nexthop find logical_router_static_route | grep -F "2001:db8:1:2::/122,"
+    ovn-nbctl --bare --format=csv --columns=ip_prefix,nexthop find logical_router_static_route | grep -F "203.0.113.1,"
+    ovn-nbctl --bare --format=csv --columns=ip_prefix,nexthop find logical_router_static_route | grep -F "2001:db8:2:2::1,"
     lxc network set ovn-virtual-network --project testovn ipv4.dhcp=false
-    ovn-nbctl --bare --format=csv --column=ip_prefix,nexthop find logical_router_static_route | grep -F "198.51.100.0/26,"
-    ovn-nbctl --bare --format=csv --column=ip_prefix,nexthop find logical_router_static_route | grep -F "2001:db8:1:2::/122,"
-    ovn-nbctl --bare --format=csv --column=ip_prefix,nexthop find logical_router_static_route | grep -F "203.0.113.1,"
-    ovn-nbctl --bare --format=csv --column=ip_prefix,nexthop find logical_router_static_route | grep -F "2001:db8:2:2::1,"
+    ovn-nbctl --bare --format=csv --columns=ip_prefix,nexthop find logical_router_static_route | grep -F "198.51.100.0/26,"
+    ovn-nbctl --bare --format=csv --columns=ip_prefix,nexthop find logical_router_static_route | grep -F "2001:db8:1:2::/122,"
+    ovn-nbctl --bare --format=csv --columns=ip_prefix,nexthop find logical_router_static_route | grep -F "203.0.113.1,"
+    ovn-nbctl --bare --format=csv --columns=ip_prefix,nexthop find logical_router_static_route | grep -F "2001:db8:2:2::1,"
 
     echo "==> Check instance can be started with DHCP disabled when using device routes"
     echo "==> We expect OVN to still allow dynamic IPs to the switch port so that device routes can work correctly"
@@ -348,11 +348,11 @@ ovn_basic_tests() {
     lxc start u1 --project testovn
 
     echo "==> Check DNAT_AND_SNAT NAT rules get removed when switching to routed ingress mode"
-    out="$(ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat)"
+    out="$(ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat)"
     natRulesBeforeRouted="$(wc -l <<< "${out}")"
 
     lxc network set dummy ovn.ingress_mode=routed
-    natRulesAfterRouted=$(ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat | wc -l)
+    natRulesAfterRouted=$(ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat | wc -l)
     if [ "$natRulesAfterRouted" -ne "4" ]; then
         echo "NAT rules left over after switching to routed ingress mode. Expecting 4. Started with ${natRulesBeforeRouted} now have ${natRulesAfterRouted}"
         false
@@ -360,7 +360,7 @@ ovn_basic_tests() {
 
     echo "==> Check DNAT_AND_SNAT rules are re-added when switching to l2proxy ingress mode"
     lxc network unset dummy ovn.ingress_mode
-    natRulesAfterL2proxy=$(ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat | wc -l)
+    natRulesAfterL2proxy=$(ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat | wc -l)
     if [ "$natRulesBeforeRouted" -ne "$natRulesAfterL2proxy" ]; then
         echo "NAT rules not restored after switching to l2proxy ingress mode. Started with ${natRulesBeforeRouted} now have ${natRulesAfterL2proxy}"
         false
@@ -370,7 +370,7 @@ ovn_basic_tests() {
     lxc config device remove u1 eth0 --project testovn
 
     echo "==> Check NAT rules got cleaned up"
-    natRulesAfter=$(ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat | wc -l)
+    natRulesAfter=$(ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat | wc -l)
     if [ "$natRulesBefore" -ne "$natRulesAfter" ]; then
         echo "NAT rules left over. Started with ${natRulesBefore} now have ${natRulesAfter}"
         false
@@ -384,7 +384,7 @@ ovn_basic_tests() {
     lxc start u1 --project testovn
 
     echo "==> Check no NAT rules got added"
-    natRulesAfter=$(ovn-nbctl --bare --format=csv --column=external_ip,logical_ip,type find nat | wc -l)
+    natRulesAfter=$(ovn-nbctl --bare --format=csv --columns=external_ip,logical_ip,type find nat | wc -l)
     if [ "$natRulesBefore" -ne "$natRulesAfter" ]; then
         echo "NAT rules got added in routed ingress mode. Started with ${natRulesBefore} now have ${natRulesAfter}"
         false
@@ -397,14 +397,14 @@ ovn_basic_tests() {
     lxc network set ovn-virtual-network dns.domain=testdhcp --project testovn
 
     echo "==> Look for DHCP options mentioning our testdhcp domain name, there should be two"
-    [ "$(ovn-nbctl --format=csv --no-headings --data=bare --colum=_uuid,options find dhcp_options | grep -cF testdhcp)" = 2 ]
+    [ "$(ovn-nbctl --format=csv --no-headings --data=bare --columns=_uuid,options find dhcp_options | grep -cF testdhcp)" = 2 ]
 
     echo "==> Only enable IPv6 DHCP"
     lxc init "${IMAGE}" u1 --project testovn -s default
     lxc network set ovn-virtual-network ipv4.dhcp=false ipv6.dhcp=true --project testovn
 
     echo "==> Look for DHCP options mentioning our testdhcp domain name, there should be one"
-    [ "$(ovn-nbctl --format=csv --no-headings --data=bare --colum=_uuid,options find dhcp_options | grep -cF testdhcp)" = 1 ]
+    [ "$(ovn-nbctl --format=csv --no-headings --data=bare --columns=_uuid,options find dhcp_options | grep -cF testdhcp)" = 1 ]
 
     echo "==> Check container can start with IPv4 DHCP disabled"
     lxc start u1 --project testovn
@@ -414,7 +414,7 @@ ovn_basic_tests() {
     lxc network set ovn-virtual-network ipv4.dhcp=true ipv6.dhcp=false --project testovn
 
     echo "==> Look for DHCP options mentioning our testdhcp domain name, there should be one"
-    [ "$(ovn-nbctl --format=csv --no-headings --data=bare --colum=_uuid,options find dhcp_options | grep -cF testdhcp)" = 1 ]
+    [ "$(ovn-nbctl --format=csv --no-headings --data=bare --columns=_uuid,options find dhcp_options | grep -cF testdhcp)" = 1 ]
 
     echo "==> Check container can start with IPv6 DHCP disabled"
     lxc start u1 --project testovn
@@ -424,7 +424,7 @@ ovn_basic_tests() {
     lxc network set ovn-virtual-network ipv4.dhcp=false ipv6.dhcp=false --project testovn
 
     echo "==> Look for DHCP options mentioning our testdhcp domain name, there shouldn't be any"
-    ! ovn-nbctl --format=csv --no-headings --data=bare --colum=_uuid,options find dhcp_options | grep -F testdhcp || false
+    ! ovn-nbctl --format=csv --no-headings --data=bare --columns=_uuid,options find dhcp_options | grep -F testdhcp || false
 
     lxc network delete ovn-virtual-network --project testovn
     lxc project delete testovn
@@ -1844,7 +1844,7 @@ ovn_acl_tests() {
     lxc network acl rule add lxdbr0-ping egress action=allow protocol=icmp6 destination=fd42:4242:4242:1010::1/128
 
     echo "==> Don't expect any OVN port groups to be created yet"
-    ! ovn-nbctl --bare --column=name --format=csv find port_group | grep ^lxd_ || false
+    ! ovn-nbctl --bare --columns=name --format=csv find port_group | grep ^lxd_ || false
 
     echo "==> Create OVN network with ACL, but without specifying uplink parent network (check default selection works)"
     lxc network create ovn0 --type=ovn \
@@ -1855,13 +1855,13 @@ ovn_acl_tests() {
     ! lxc network acl delete lxdbr0-ping || false # Can't delete ACL while in use.
 
     echo "==> Expect 3 LXD related port groups to exist (network port group, ACL port group, and per-ACL-per-network port group)"
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
 
     echo "==> Delete network to clean up OVN ACL port group"
     lxc network delete ovn0
 
     echo "==> Expect the unused OVN port groups to be cleaned up"
-    ! ovn-nbctl --bare --column=name --format=csv find port_group | grep ^lxd_ || false
+    ! ovn-nbctl --bare --columns=name --format=csv find port_group | grep ^lxd_ || false
 
     echo "==> Re-create network with no ACLS"
     lxc network create ovn0 --type=ovn \
@@ -1869,13 +1869,13 @@ ovn_acl_tests() {
         ipv6.address=fd42:4242:4242:1011::1/64 ipv6.nat=true
 
     echo "==> Expect 1 port group (the network port group) to exist"
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "1" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "1" ]
 
     echo "==> Assign ACL to OVN network"
     lxc network set ovn0 security.acls=lxdbr0-ping
 
     echo "==> Expect 3 LXD related port groups to exist now its assigned (network port group, ACL port group, and per-ACL-per-network port group)"
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
 
     echo "==> Launch containers and check baseline services (DHCP, SLAAC, DNS) and lxdbr0-ping ACL"
     lxc launch "${IMAGE}" c1 -n ovn0 -s default
@@ -1952,7 +1952,7 @@ ovn_acl_tests() {
     lxc network unset ovn0 security.acls
 
     echo "==> Check ACL port groups still exists"
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
 
     echo "==> Check only c1 has per-NIC ACL rules"
     [ "$(ovn-nbctl list acl | grep -c 'match.*instance.*eth0')" = "2" ]
@@ -2019,7 +2019,7 @@ ovn_acl_tests() {
     lxc config device unset c1 eth0 security.acls
 
     echo "==> Expect the unused OVN port group to be cleaned up after unassignment from NIC (leaving just network port group)"
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "1" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "1" ]
 
     echo "==> Test assigning ACL to stopped instance NIC and check OVN port group isn't created until start time"
     lxc stop -f c1
@@ -2028,29 +2028,29 @@ ovn_acl_tests() {
     if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^5\. ]]; then
         # Starting with LXD 6 the ACL port groups are created at assignment time, not start time.
         echo "==> Expect 3 LXD related port group to exist before the device is started (network port group, ACL port group, and per-ACL-per-network port group)"
-        [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
+        [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
     else
         # Test 5.0 and 5.21 behavior.
         echo "==> Don't expect any more OVN port groups to be created yet (just network port group)"
-        [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "1" ]
+        [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "1" ]
     fi
 
     lxc start c1
 
     echo "==> Expect 3 LXD related port group to exist now its started (network port group, ACL port group, and per-ACL-per-network port group)"
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
 
     echo "==> Test delete instance and check unused OVN port group is cleaned up"
     lxc delete -f c1
 
     # Expect the unused OVN port groups to be cleaned up (leaving just network port group)..
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "1" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "1" ]
 
     # Create container with network assigned ACL and NIC specific ACL too. Check both sets of rules are applied.
     lxc network set ovn0 ipv6.dhcp.stateful=true security.acls=lxdbr0-ping
 
     echo "==> Expect 3 LXD related port group to exist now its assigned (network port group, ACL port group, and per-ACL-per-network port group)"
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
 
     lxc init "${IMAGE}" c1 -s default -n ovn0
     lxc config device set c1 eth0 ipv4.address=10.10.11.2 ipv6.address=fd42:4242:4242:1011::2
@@ -2071,14 +2071,14 @@ ovn_acl_tests() {
     lxc network acl rule add 0ingress-ping ingress action=allow protocol=icmp6
 
     echo "==> Expect 3 LXD related port group to exist as new ACL not assigned to anything yet"
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
 
     lxc config device set c1 eth0 security.acls=0ingress-ping
 
     sleep 2
 
     echo "==> Expect 5 LXD related port group to exist now new ACL is assigned (will add new ACL port group and new per-ACL-per-network port group)"
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "5" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "5" ]
 
     lxc exec c2 -- ping -nc3 -i0.1 -w5 -4 10.10.11.2
     lxc exec c2 -- ping -nc3 -i0.1 -w5 -6 fd42:4242:4242:1011::2
@@ -2113,13 +2113,13 @@ ovn_acl_tests() {
     lxc network acl rule remove 0ingress-ping ingress action=allow protocol=icmp6 source=0ingress-ping
 
     echo "==> Expect 5 LXD related port groups to exist as new one not assigned"
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "5" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "5" ]
 
     lxc network acl rule add 0ingress-ping ingress action=allow protocol=icmp4 source=test-empty-group
     lxc network acl rule add 0ingress-ping ingress action=allow protocol=icmp6 source=test-empty-group
 
     echo "==> Expect 6 LXD related port groups to exist as new one now used by ACL that is assigned"
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "6" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "6" ]
 
     ! lxc exec c2 -- ping -nc1 -i0.1 -w2 -4 c1.lxd || false
     ! lxc exec c2 -- ping -nc1 -i0.1 -w2 -6 c1.lxd || false
@@ -2135,12 +2135,12 @@ ovn_acl_tests() {
     lxc network acl delete test-empty-group
 
     echo "==> Check only network level port group exists"
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "1" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "1" ]
 
     echo "==> Test using external and internal reserved classifiers"
     lxc network acl create icmp
     lxc network set ovn0 security.acls=icmp
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "3" ]
 
     echo "==> Test can't ping external uplink router IP or internal IPs"
     ! lxc exec c1 -- ping -nc1 -i0.1 -w2 -4 10.10.10.1 || false
@@ -2179,17 +2179,17 @@ ovn_acl_tests() {
         ipv4.address=10.10.12.1/24 ipv4.nat=true \
         ipv6.address=fd42:4242:4242:1012::1/64 ipv6.nat=true \
         security.acls=icmp
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "5" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "5" ]
 
     echo "==> Check per-ACL-per-network is removed when unassigning ACL"
     lxc network unset ovn1 security.acls
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "4" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "4" ]
 
     echo "==> Connect c2 to ovn1 with icmp ACL and check its created"
     lxc stop -f c2
     lxc config device set c2 eth0 network=ovn1 security.acls=icmp
     lxc start c2
-    [ "$(ovn-nbctl --bare --column=name --format=csv find port_group | grep -c ^lxd_)" = "5" ]
+    [ "$(ovn-nbctl --bare --columns=name --format=csv find port_group | grep -c ^lxd_)" = "5" ]
 
     echo "==> Connect c1 to ovn1 without any explicit ACLs"
     lxc stop -f c1
@@ -2214,7 +2214,7 @@ ovn_acl_tests() {
     lxc network delete ovn1 --project default
 
     echo "==> Expect all OVN port groups to be cleaned up"
-    ! ovn-nbctl --bare --column=name --format=csv find port_group | grep ^lxd_ || false
+    ! ovn-nbctl --bare --columns=name --format=csv find port_group | grep ^lxd_ || false
 
     echo "==> Expect all OVN ACLs to be cleaned up"
     [ "$(ovn-nbctl list acl || echo fail)" = "" ]
@@ -2238,7 +2238,7 @@ ovn_l3only_tests() {
         ipv4.address=10.10.11.1/24 ipv4.nat=true \
         ipv6.address=fd42:4242:4242:1011::1/64 ipv6.nat=true \
 
-    # Check that ipv3.l3only mode cannot be enabled if ipv6.dhcp is enabled and ipv6.dhcp.stateful is disabled.
+    # Check that ipv6.l3only mode cannot be enabled if ipv6.dhcp is enabled and ipv6.dhcp.stateful is disabled.
     ! lxc network set ovn1 ipv6.l3only=true || false
 
     # Enable ipv6.l3only mode with DHCPv6 disabled.
