@@ -694,6 +694,23 @@ func (d *microvm) Start(ctx context.Context, stateful bool, progressReporter iop
 		}
 	}
 
+	// Snapshot if needed.
+	snapName, expiry, err := d.getStartupSnapNameAndExpiry(d)
+	if err != nil {
+		err = fmt.Errorf("Failed getting startup snapshot info: %w", err)
+		op.Done(err)
+		return err
+	}
+
+	if snapName != "" && expiry != nil {
+		err := d.snapshotCommon(ctx, d, snapName, expiry, false, api.DiskVolumesModeRoot, false, progressReporter)
+		if err != nil {
+			err = fmt.Errorf("Failed taking startup snapshot: %w", err)
+			op.Done(err)
+			return err
+		}
+	}
+
 	// Configure CPU and memory limits.
 	cpus, memSizeMiB, err := microVMLimits(d.expandedConfig)
 	if err != nil {
@@ -1613,9 +1630,72 @@ func (d *microvm) MigrateReceive(ctx context.Context, args instance.MigrateRecei
 	return storageDrivers.ErrNotSupported
 }
 
-// Snapshot is not supported for MicroVM instances.
+// Snapshot takes a new snapshot.
 func (d *microvm) Snapshot(ctx context.Context, name string, expiry *time.Time, stateful bool, diskVolumesMode string, bitmap bool, progressReporter ioprogress.ProgressReporter) error {
-	return storageDrivers.ErrNotSupported
+	if stateful {
+		return api.StatusErrorf(http.StatusBadRequest, "Stateful snapshots are not supported for MicroVMs")
+	}
+
+	if bitmap {
+		return api.StatusErrorf(http.StatusBadRequest, "Dirty bitmaps are not supported for MicroVMs")
+	}
+
+	if d.IsRunning() {
+		pool, err := d.getStoragePool()
+		if err != nil {
+			return err
+		}
+
+		if pool.Driver().Info().RunningCopyFreeze {
+			return api.StatusErrorf(http.StatusBadRequest, "Cannot snapshot a running MicroVM on %q storage driver as freezing is not supported", pool.Driver().Info().Name)
+		}
+	}
+
+	unlock, err := d.updateBackupFileLock(context.Background())
+	if err != nil {
+		return err
+	}
+
+	defer unlock()
+
+	return d.snapshotCommon(ctx, d, name, expiry, stateful, diskVolumesMode, bitmap, progressReporter)
+}
+
+// Restore restores an instance snapshot.
+func (d *microvm) Restore(ctx context.Context, source instance.Instance, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
+	if stateful {
+		return api.StatusErrorf(http.StatusBadRequest, "Stateful restore is not supported for MicroVMs")
+	}
+
+	ctxMap := logger.Ctx{
+		"created":   d.creationDate,
+		"ephemeral": d.ephemeral,
+		"used":      d.lastUsedDate,
+		"source":    source.Name(),
+	}
+
+	d.logger.Info("Restoring instance", ctxMap)
+
+	wasRunning, op, err := d.restoreCommon(ctx, d, source, diskVolumesMode, progressReporter)
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	// Restart the instance.
+	if wasRunning {
+		d.logger.Debug("Starting instance after snapshot restore")
+		err := d.Start(ctx, stateful, progressReporter)
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+	}
+
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestored.Event(ctx, d, map[string]any{"snapshot": source.Name()}))
+	d.logger.Info("Restored instance", ctxMap)
+
+	return nil
 }
 
 // Bitmaps returns no bitmaps, as MicroVMs have none.
@@ -3481,11 +3561,6 @@ func (d *microvm) Unfreeze(ctx context.Context) error {
 
 // Rebuild is not supported for MicroVM instances.
 func (d *microvm) Rebuild(ctx context.Context, img *api.Image, op *operations.Operation) error {
-	return storageDrivers.ErrNotSupported
-}
-
-// Restore is not supported for MicroVM instances.
-func (d *microvm) Restore(ctx context.Context, source instance.Instance, stateful bool, diskVolumesMode string, progressReporter ioprogress.ProgressReporter) error {
 	return storageDrivers.ErrNotSupported
 }
 
