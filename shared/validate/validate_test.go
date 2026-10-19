@@ -3,6 +3,7 @@ package validate_test
 import (
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/canonical/lxd/shared/validate"
@@ -508,6 +509,47 @@ func Test_IsListenAddress(t *testing.T) {
 			err := validate.IsListenAddress(true, true, test.requirePort)(test.value)
 			if (err == nil) != test.expected {
 				t.Errorf("IsListenAddress(%q) = %v, want %v", test.value, err, test.expected)
+			}
+		})
+	}
+}
+
+func Test_IsListenAddressPortErrorReason(t *testing.T) {
+	tests := []struct {
+		address   string
+		tcpReason string
+		udpReason string
+	}{
+		{
+			address:   "127.0.0.1:65536",
+			tcpReason: "address 65536: invalid port",
+			udpReason: "address 65536: invalid port",
+		},
+		{
+			address:   "127.0.0.1:notaport",
+			tcpReason: "lookup tcp/notaport: unknown port",
+			udpReason: "lookup udp/notaport: unknown port",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.address, func(t *testing.T) {
+			err := validate.IsListenAddress(true, true, false)(test.address)
+			if err == nil {
+				t.Fatal("Expected an error")
+			}
+
+			message := err.Error()
+			if !strings.Contains(message, test.address) {
+				t.Errorf("Error %q does not identify the address", err)
+			}
+
+			if !strings.Contains(message, test.tcpReason) {
+				t.Errorf("Error %q does not include the TCP lookup reason %q", err, test.tcpReason)
+			}
+
+			if !strings.Contains(message, test.udpReason) {
+				t.Errorf("Error %q does not include the UDP lookup reason %q", err, test.udpReason)
 			}
 		})
 	}
