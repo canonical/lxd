@@ -6526,6 +6526,7 @@ func (d *qemu) Update(ctx context.Context, args db.InstanceArgs, actionType inst
 			"security.devlxd",
 			"security.devlxd.images",
 			"security.devlxd.management.volumes",
+			"placement.group",
 		}
 
 		liveUpdateKeyPrefixes := []string{
