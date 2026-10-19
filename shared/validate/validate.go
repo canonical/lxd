@@ -663,8 +663,9 @@ func IsListenAddress(allowDNS bool, allowWildcard bool, requirePort bool) func(v
 			// with UDP, and rejects a port outside the valid range or an unknown
 			// service name, which would otherwise only fail later, when the
 			// listener is bound.
-			if !isListenPort(port) {
-				return fmt.Errorf("Invalid port %q in address %q", port, value)
+			err := isListenPort(port)
+			if err != nil {
+				return fmt.Errorf("Invalid port %q in address %q: %w", port, value, err)
 			}
 		}
 
@@ -696,19 +697,22 @@ func IsListenAddress(allowDNS bool, allowWildcard bool, requirePort bool) func(v
 	}
 }
 
-// isListenPort reports whether port can be used to bind a listener. A port is
-// accepted if it is a number within range, or a service name known for either
-// TCP or UDP, as the listeners LXD starts are a mix of the two and a name that
-// only one protocol knows would still bind on the listener that uses it.
-func isListenPort(port string) bool {
-	_, err := net.LookupPort("tcp", port)
-	if err == nil {
-		return true
+// isListenPort returns an error if port cannot be used to bind a listener. A
+// port is accepted if it is a number within range, or a service name known for
+// either TCP or UDP, as the listeners LXD starts are a mix of the two and a name
+// that only one protocol knows would still bind on the listener that uses it.
+func isListenPort(port string) error {
+	_, tcpErr := net.LookupPort("tcp", port)
+	if tcpErr == nil {
+		return nil
 	}
 
-	_, err = net.LookupPort("udp", port)
+	_, udpErr := net.LookupPort("udp", port)
+	if udpErr == nil {
+		return nil
+	}
 
-	return err == nil
+	return fmt.Errorf("TCP lookup: %w; UDP lookup: %w", tcpErr, udpErr)
 }
 
 // IsX509Certificate checks if the value is a valid x509 PEM Certificate.
