@@ -118,6 +118,9 @@ test_projects_containers() {
   # The container's volume is listed too.
   lxc storage volume list "${pool}" | grep -wF container | grep -wF c1
 
+  # The root volume is reported through the instance, not as a storage volume, in the project used-by list.
+  lxc query /1.0/projects/foo | jq --exit-status '.used_by | contains(["/1.0/instances/c1?project=foo"]) and (any(.[]; contains("/volumes/container/")) | not)'
+
   # For backends with optimized storage, we can see the image volume inside the
   # project.
   driver="$(storage_backend "$LXD_DIR")"
@@ -736,6 +739,10 @@ test_projects_storage() {
   lxc storage volume delete "${pool}" vol
 
   lxc storage volume create "${pool}" vol2
+
+  # Custom volumes are the only storage volumes in the project used-by list.
+  lxc query /1.0/projects/foo | jq --exit-status --arg pool "${pool}" '.used_by | contains(["/1.0/storage-pools/\($pool)/volumes/custom/vol2?project=foo"])'
+
   lxc project switch default
   ! lxc storage volume list "${pool}" | grep -wF custom | grep -wF vol2 || false
 
