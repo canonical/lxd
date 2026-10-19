@@ -2,6 +2,9 @@ package dns
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net"
 	"sync"
 
 	"github.com/miekg/dns"
@@ -47,6 +50,14 @@ func (s *Server) Start(address string) error {
 }
 
 func (s *Server) start(address string) error {
+	// An empty address would be taken as the default port on every interface by
+	// the canonicalisation below. No caller wants the listener on all
+	// interfaces, and one passes the previous address when restoring a failed
+	// reconfiguration, which is empty when the listener was not running.
+	if address == "" {
+		return errors.New("Cannot start the DNS listener without an address")
+	}
+
 	// Set default port if needed.
 	address = util.CanonicalNetworkAddress(address, 53)
 
@@ -54,32 +65,64 @@ func (s *Server) start(address string) error {
 	handler := &dnsHandler{}
 	handler.server = s
 
-	// Spawn the DNS server.
-	s.tcpDNS = &dns.Server{Addr: address, Net: "tcp", Handler: handler}
-	go func() {
-		err := s.tcpDNS.ListenAndServe()
-		if err != nil {
-			logger.Errorf("Failed binding TCP DNS address %q: %v", address, err)
-		}
-	}()
+	// Bind both listeners before serving, so that an address that cannot be used
+	// is reported to the caller instead of only logged, and so that a failure
+	// cannot leave one of the two bound with nothing serving it.
+	reverter := revert.New()
+	defer reverter.Fail()
 
-	s.udpDNS = &dns.Server{Addr: address, Net: "udp", Handler: handler}
-	go func() {
-		err := s.udpDNS.ListenAndServe()
-		if err != nil {
-			logger.Errorf("Failed binding TCP DNS address %q: %v", address, err)
-		}
-	}()
+	tcpListener, err := net.Listen("tcp", address)
+	if err != nil {
+		return fmt.Errorf("Failed binding TCP DNS address %q: %w", address, err)
+	}
 
-	// TSIG handling.
-	err := s.updateTSIG()
+	reverter.Add(func() { _ = tcpListener.Close() })
+
+	udpConn, err := net.ListenPacket("udp", address)
+	if err != nil {
+		return fmt.Errorf("Failed binding UDP DNS address %q: %w", address, err)
+	}
+
+	reverter.Add(func() { _ = udpConn.Close() })
+
+	tcpServer := &dns.Server{Addr: address, Net: "tcp", Handler: handler, Listener: tcpListener}
+	udpServer := &dns.Server{Addr: address, Net: "udp", Handler: handler, PacketConn: udpConn}
+
+	s.tcpDNS = tcpServer
+	s.udpDNS = udpServer
+
+	reverter.Add(func() {
+		s.tcpDNS = nil
+		s.udpDNS = nil
+	})
+
+	// TSIG handling, applied before serving so the secrets are in place for the
+	// first query.
+	err = s.updateTSIG()
 	if err != nil {
 		return err
 	}
 
+	// Serve on the bound listeners, taken from the local variables so that a
+	// later change to the fields cannot affect what is being served.
+	go func() {
+		err := tcpServer.ActivateAndServe()
+		if err != nil {
+			logger.Errorf("Failed serving TCP DNS address %q: %v", address, err)
+		}
+	}()
+
+	go func() {
+		err := udpServer.ActivateAndServe()
+		if err != nil {
+			logger.Errorf("Failed serving UDP DNS address %q: %v", address, err)
+		}
+	}()
+
 	// Record the address.
 	s.address = address
 
+	reverter.Success()
 	return nil
 }
 
@@ -92,6 +135,17 @@ func (s *Server) stop() error {
 	// Stop the listener.
 	_ = s.tcpDNS.Shutdown()
 	_ = s.udpDNS.Shutdown()
+
+	// Close the bound sockets as well: Shutdown only closes them once the server
+	// has started serving, which a listener stopped before its serve goroutine
+	// ran has not, and leaving it bound would keep the address in use.
+	if s.tcpDNS.Listener != nil {
+		_ = s.tcpDNS.Listener.Close()
+	}
+
+	if s.udpDNS.PacketConn != nil {
+		_ = s.udpDNS.PacketConn.Close()
+	}
 
 	// Unset the address.
 	s.address = ""
@@ -123,8 +177,12 @@ func (s *Server) reconfigure(address string) error {
 
 	// Check if we should start.
 	if address != "" {
-		// Restore old address on failure.
-		revert.Add(func() { _ = s.start(oldAddress) })
+		// Restore the previous listener on failure, if there was one: the
+		// listener is stopped before the new address is tried, and there is
+		// nothing to restore when it was not running.
+		if oldAddress != "" {
+			revert.Add(func() { _ = s.start(oldAddress) })
+		}
 
 		// Start the listener with the new address.
 		err = s.start(address)
