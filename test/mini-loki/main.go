@@ -1,19 +1,20 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 
-	"github.com/canonical/lxd/test/mini-loki/serve"
+	"github.com/canonical/lxd/test/testutils/servemock"
 )
 
 func main() {
 	err := run()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err.Error()+"\n")
 		os.Exit(1)
 	}
 }
@@ -38,36 +39,43 @@ func run() (err error) {
 		_ = f.Close()
 	}()
 
-	errCh, err := serve.API(&loki{
-		logfile: f,
+	l := &loki{logfile: f}
+
+	result, err := servemock.API(context.Background(), servemock.Config{
+		Address:  "127.0.0.1:3100",
+		Handlers: l.handlers(),
 	})
 	if err != nil {
 		return err
 	}
 
-	return <-errCh
+	return <-result.Err
 }
 
 type loki struct {
 	logfile *os.File
 }
 
-func (l *loki) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	switch {
-	case r.Method == http.MethodGet && r.URL.Path == "/ready":
-		w.WriteHeader(http.StatusOK)
-		return
-	case r.Method == http.MethodPost && r.URL.Path == "/loki/api/v1/push":
-		l.onPush(w, r)
-		return
-	default:
-		w.WriteHeader(http.StatusNotFound)
-		return
+func (l *loki) handlers() []servemock.Handler {
+	return []servemock.Handler{l.ready(), l.push()}
+}
+
+func (l *loki) ready() servemock.Handler {
+	return servemock.Handler{
+		Pattern: "GET /ready",
+		HTTPHandler: func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		},
 	}
 }
 
-func (l *loki) onPush(w http.ResponseWriter, r *http.Request) {
-	_, _ = io.Copy(l.logfile, r.Body)
-	_, _ = l.logfile.WriteString("\n")
-	w.WriteHeader(http.StatusOK)
+func (l *loki) push() servemock.Handler {
+	return servemock.Handler{
+		Pattern: "POST /loki/api/v1/push",
+		HTTPHandler: func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.Copy(l.logfile, r.Body)
+			_, _ = l.logfile.WriteString("\n")
+			w.WriteHeader(http.StatusOK)
+		},
+	}
 }
