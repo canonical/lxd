@@ -4454,15 +4454,26 @@ EOF
   # Verify that both project foo and instance c2 with "volatile.cluster.group" are reported in used_by.
   LXD_DIR="${LXD_ONE_DIR}" lxc_remote query cluster:/1.0/cluster/groups/blah | jq --exit-status '.used_by | contains(["/1.0/instances/c2?project=foo", "/1.0/projects/foo"])'
 
-  # Clean up.
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 --project foo
+
+  sub_test "Join a member while a project with networks is restricted to a cluster group"
+  # Project features can only be changed once the project is empty.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project set foo features.networks=true
+
+  # The joining member doesn't know about the cluster group until it has joined.
+  spawn_lxd_and_join_cluster "${cert}" 4 1 "${LXD_ONE_DIR}"
+  [ "$(LXD_DIR="${LXD_FOUR_DIR}" lxc project get foo restricted.cluster.groups)" = "blah" ]
+
+  # Clean up.
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
   LXD_DIR="${LXD_ONE_DIR}" lxc remote rm cluster
 
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
 
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
   rm -f "${LXD_THREE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
@@ -4473,6 +4484,7 @@ EOF
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
 }
 
 test_clustering_events() {
