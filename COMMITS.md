@@ -28,6 +28,8 @@ Depending on complexity, large changes should be split into smaller, logical com
 - Separate the subject from the body with a blank line.
 - Wrap every body line to at most 72 characters. Git does not wrap for you, so set your editor's text width to 72 or wrap by hand.
 - Leave lines that cannot be broken without losing meaning, such as URLs and pasted command output, unwrapped.
+- Markdown is allowed in the body: inline code in backticks, `-` or `*` bullet lists, and fenced code blocks for commands, reproducers, log snippets, and diffs. Git shows the message unrendered, so keep it readable as plain text.
+- Do not wrap lines inside a fenced code block, since wrapping would change the command or output. A language tag such as `bash` or `diff` on the opening fence is optional.
 
 ## Signing and attribution
 
