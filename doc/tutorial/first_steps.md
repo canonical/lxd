@@ -2,7 +2,7 @@
 (tutorial-first-steps)=
 # First steps with LXD
 
-This three-part tutorial guides you through your first steps with LXD. First you'll learn how to install and initialize LXD, and set up the graphical web UI. Then you'll use the CLI or UI to create, configure, and work with instances, including both containers and virtual machines. Finally, you'll learn how to use projects to group instances together, which can be helpful when you need to instances providing different services.
+This three-part tutorial guides you through your first steps with LXD. First you'll learn how to install and initialize LXD, and set up the graphical web UI. Then you'll use the CLI or UI to create, configure, and work with instances, including both containers and virtual machines. Finally, you'll learn how to use projects to group instances together, which can be helpful when you need instances providing different services.
 
 ````{only} integrated
 

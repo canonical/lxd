@@ -17,10 +17,10 @@ LXD uses images to create instances from either {ref}`local or remote image serv
 
 For managing instances, we use the [`lxc` command instead of `lxd`](lxd-lxc).
 
-The `lxc launch` command creates an instance, then immediately starts it. By default, it creates a container instead of a virtual machine. Use this command to launch a container named `first`, based on the Ubuntu 24.04 LTS image:
+The `lxc launch` command creates an instance, then immediately starts it. By default, it creates a container instead of a virtual machine. Use this command to launch a container named `first`, based on the Ubuntu 26.04 LTS image:
 
 ```bash
-lxc launch ubuntu:24.04 first
+lxc launch ubuntu:26.04 first
 ```
 
 This downloads and unpacks the image, then uses it to create and start a container. Since this command does not specify a remote server, the default [`ubuntu:`](https://cloud-images.ubuntu.com/releases/) server is used. Once downloaded, this image is cached temporarily in the local image server.
@@ -30,7 +30,7 @@ We can also create an instance without starting it, using the `lxc init` command
 Create a container called `second` but do not start it, using the same image as the first:
 
 ```bash
-lxc init ubuntu:24.04 second
+lxc init ubuntu:26.04 second
 ```
 
 Since the image is now cached locally, this container is created much more quickly than the first.
@@ -50,7 +50,7 @@ You should see both containers you created in the output, with the `first` conta
 
 To create a container, select {guilabel}`Instances` from the main navigation, then click {guilabel}`Create instance`.
 
-In the form that opens, name this instance `first`. Click {guilabel}`Browse images` and select the `Ubuntu 24.04 LTS` image. Note that the {guilabel}`Source` for this image is `Ubuntu`, which is the remote [`ubuntu:`](https://cloud-images.ubuntu.com/releases/) server.
+In the form that opens, name this instance `first`. Click {guilabel}`Browse images` and select the `Ubuntu 26.04 LTS` image. Note that the {guilabel}`Source` for this image is `Ubuntu`, which is the remote [`ubuntu:`](https://cloud-images.ubuntu.com/releases/) server.
 
 Launch the container by clicking the {guilabel}`Create and start` button.
 
@@ -66,9 +66,9 @@ Since the image is now cached locally, this container is created much more quick
 (tutorial-create-vm)=
 ## Create and start a VM
 
-Next, let's launch a VM using the Ubuntu 24.04 LTS image.
+Next, let's launch a VM using the Ubuntu 26.04 LTS image.
 
-Although we will use the same image name as we used when creating a container, LXD will download a variant of the image built specifically for VMs. This image is not yet cached, and it is larger than the container VM, so it will take longer to download.
+Although we will use the same image name as we used when creating a container, LXD will download a variant of the image built specifically for VMs. This image is not yet cached, and it is larger than the container image, so it will take longer to download.
 
 `````{tabs}
 ````{group-tab} CLI
@@ -76,7 +76,7 @@ Although we will use the same image name as we used when creating a container, L
 We will use the same `lxc launch` command, this time to create an instance named `ubuntu-vm`. To create it as a VM instead of a container, we must add the `--vm` flag. Run:
 
 ```bash
-lxc launch ubuntu:24.04 ubuntu-vm --vm
+lxc launch ubuntu:26.04 ubuntu-vm --vm
 ```
 
 ````
@@ -84,13 +84,13 @@ lxc launch ubuntu:24.04 ubuntu-vm --vm
 
 ````{group-tab} UI
 
-Open the form to create an instance, and set its name to `ubuntu-vm`. Browse for an image. Do not select the the cached Ubuntu 24.04 image at the top, which has a {guilabel}`Type` set to `container`. Instead, select the Ubuntu 24.04 LTS image with the {guilabel}`Type` of `all`, which can be used for VMs.
+Open the form to create an instance, and set its name to `ubuntu-vm`. Browse for an image. Do not select the cached Ubuntu 26.04 image at the top, which has a {guilabel}`Type` set to `container`. Instead, select the Ubuntu 26.04 LTS image with the {guilabel}`Type` of `all`, which can be used for VMs.
 
 After you select this image and return to the main creation form, set the {guilabel}`Instance type` to `VM`. Create and start the VM.
 
 ```{figure} /images/tutorial/create_vm.png
 :width: 100%
-:alt: Create an Ubuntu 24.04 LTS VM
+:alt: Create an Ubuntu 26.04 LTS VM
 
 ```
 ````
@@ -111,11 +111,7 @@ You can configure instance options during {ref}`creation <instances-create>` or 
 Run:
 
 ```bash
-lxc launch images:ubuntu/24.04/desktop ubuntu-desktop --vm --config limits.memory=4GiB
-```
-
-```{tip}
-This is a large image and can take a while to download. If you like, you can open a separate terminal and continue with the next sections of the tutorial while you wait for the download to finish.
+lxc launch images:ubuntu/26.04/desktop ubuntu-desktop --vm --config limits.memory=4GiB
 ```
 
 Once the VM has launched, confirm that its memory limit is set to `4 GiB`:
@@ -130,7 +126,7 @@ lxc config get ubuntu-desktop limits.memory
 ````{group-tab} UI
 Open the form to create a new instance. Name it `ubuntu-desktop`.
 
-Browse for its image, and filter by variant `desktop` to find the Ubuntu 24.04 LTS desktop image. Note that its {guilabel}`Source` is `LXD Images`, meaning that it uses the remote [`images:`](https://images.lxd.canonical.com/) server. Select this image.
+Browse for its image, and filter by variant `desktop` to find the Ubuntu 26.04 LTS desktop image. Note that its {guilabel}`Source` is `LXD Images`, meaning that it uses the remote [`images:`](https://images.lxd.canonical.com/) server. Select this image.
 
 In the submenu, go to {guilabel}`Resource limits` and override the {guilabel}`Memory limit` to 4 GiB.
 
@@ -138,6 +134,10 @@ Finally, click {guilabel}`Create and start` to start the VM.
 
 ````
 `````
+
+```{note}
+You can use the console to {ref}`access the graphical output of virtual machines <instances-console-graphical>`.
+```
 
 (tutorial-inspect)=
 ## Inspect instances
@@ -437,18 +437,9 @@ Push the file back to the container:
 lxc file push helloworld.txt first/root/helloworld.txt
 ```
 
-Now again view the content of the file on the container:
-
-```bash
-lxc exec first -- cat helloworld.txt
-```
-
-You should see the line that you added:
+Now again view the content of the file on the container, and you should see the line that you added:
 
 ```{terminal}
-:user: your-user
-:host: host-system
-
 lxc exec first -- cat helloworld.txt
 
 Hello world!
@@ -559,68 +550,8 @@ To learn more about instance snapshots, see: {ref}`instances-snapshots`.
 ````
 `````
 
-(tutorial-delete)=
-## Optional: Stop and delete all instances
-
-Congratulations! You have reached the end of this tutorial and acquired a greater understanding of LXD's usage and capabilities along the way.
-
-If you wish, you can clean up the instances you created.
-
-```{admonition} Take caution when deleting instances
-:class: warning
-Deleting an instance is irreversible. All snapshots and other information associated with the instance will be lost.
-```
-
-`````{tabs}
-````{group-tab} CLI
-
-You must first stop an instance before you can delete it:
-
-```bash
-lxc stop ubuntu-vm
-lxc delete ubuntu-vm
-```
-
-You can also use the `--force` flag to delete an instance without stopping it:
-
-```bash
-lxc delete ubuntu-desktop --force
-```
-
-In the same way, you can delete the other instances that you created in this tutorial (`first` and `second`).
-
-````
-% End group-tab CLI
-
-````{group-tab} UI
-
-Click the checkbox to the left of each instance you want to delete. Use the buttons that appear at the top of the page to first stop then delete all checked instances.
-````
-`````
-
-(tutorial-snap-updates)=
-## Optional: Hold snap updates
-
-By default, snaps update automatically when a new release is published to their channel. In production environments, we strongly recommend that you disable automatic updates for the LXD snap and apply them manually. This approach allows you to schedule maintenance windows and avoid unplanned downtime.
-
-To hold updates for the LXD snap indefinitely, run on your host machine:
-
-```bash
-sudo snap refresh --hold lxd
-```
-
-Once updates are on hold, manually update LXD regularly to benefit from security and bug fixes.
-
-If you do not intend to run a production deployment of LXD, you might not need this. To remove the hold and restore automatic updates, run:
-
-```bash
-sudo snap refresh --unhold lxd
-```
-
-For more information on managing the LXD snap and its updates, see: {ref}`howto-snap`.
-
-(tutorial-next)=
+(tutorial-instances-next)=
 ## Next steps
 
-Now that you've completed your first steps with LXD, you have a general idea of how LXD works. Next, read up on important concepts in the {ref}`explanation` section and check out more advanced use cases in our {ref}`howtos`. You can also find a wealth of information in the {ref}`reference` section, including the {doc}`../api`.
+Now that you have some experience working with instances, you can move on to the {ref}`next part of the tutorial <tutorial-projects>`, in which you'll learn how to use projects to group instances together.
 

@@ -3,16 +3,16 @@
 
 Let's get started and set up LXD.
 In this part of the tutorial, you'll use the command line interface (CLI) to install and initialize LXD, and to set up access to the graphical web UI (LXD UI).
-You can then complete the other parts of the tutorial either with the CLI or the UI.
+You can then complete the other parts of the tutorial with either the CLI or the UI.
 
 (tutorial-requirements)=
 ## Requirements
 
 - At least 20 GiB free disk space
-- A Linux distribution installed
+- An installation of Ubuntu, or another Linux distribution
 
 (tutorial-install)=
-## Install LXD using snap
+## Install the LXD snap
 
 This section of the tutorial assumes that you have the `snap` packaging system available on your system, which is the recommended way to install and update LXD.
 
@@ -21,6 +21,9 @@ To install LXD using `snap`, run:
 ```bash
 sudo snap install lxd
 ```
+
+This installs LXD from the recommended default snap track (currently {{current_lts_track}}).
+For details about how to install a different version, see {ref}`installing`.
 
 ```{admonition} If snap is not installed or not supported
 :class: note
@@ -45,6 +48,26 @@ sudo snap refresh lxd
 ```
 
 Otherwise, if the number shown is lower, an older version is installed. In this case, upgrade to the {{current_lts_track}}/stable channel by following the instructions in this guide: {ref}`howto-snap-change`.
+
+### Hold snap updates
+
+By default, snaps update automatically when a new release is published to their channel. In production environments, we strongly recommend that you disable automatic updates for the LXD snap and apply them manually. This approach allows you to schedule maintenance windows and avoid unplanned downtime.
+
+To hold updates for the LXD snap indefinitely, run on your host machine:
+
+```bash
+sudo snap refresh --hold lxd
+```
+
+Once updates are on hold, manually update LXD regularly to benefit from security and bug fixes.
+
+If you do not intend to run a production deployment of LXD, you might not need this. To remove the hold and restore automatic updates, run:
+
+```bash
+sudo snap refresh --unhold lxd
+```
+
+For more information on managing the LXD snap and its updates, see: {ref}`howto-snap`.
 
 (tutorial-adduser)=
 ## Add the current user to the `lxd` group
@@ -82,13 +105,14 @@ lxd init --minimal
 
 If this command results in an error message, your group membership might not have taken effect. In this case, close and re-open your terminal, then try again.
 
-If you do not see any message when running this command, that means it has succeeded. Congratulations! You have successfully installed and initialized LXD. Continue on to learn how to use some of LXD's core features.
+If you do not see any message when running this command, that means it has succeeded.
 
 ```{admonition} About the initialization options
 :class: tip
 
 The `lxd init` command can be run again later to update the options. Once you have learned more about LXD, you might want to tune the {ref}`initialization options <initialize>` according to your own preferences, or learn how to {ref}`use a preseed file <initialize-preseed>` to initialize LXD from a saved set of options. For now, the minimal configuration is sufficient.
 ```
+
 
 (tutorial-enable-ui)=
 ## Enable the LXD UI
@@ -133,4 +157,7 @@ Go to this URL in your browser: [`https://localhost:8443`](https://localhost:844
 
 As you continue on with this tutorial, notice that many of the following sections include sets of tabs. When the `UI` tab is available, you can now use the instructions in that tab.
 
+## Next steps
+
+Congratulations! You have successfully installed and initialized LXD. Continue on to the {ref}`next part of the tutorial <tutorial-instances>` to learn how to use some of LXD's core features.
 
