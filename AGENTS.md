@@ -114,6 +114,10 @@ sudo -E ./test/snap/cgroup latest/edge
 See [`COMMITS.md`](COMMITS.md) for the full commit prefix table and signing requirements.
 
 - Never add a `Signed-off-by` line or sign a commit.
+- Commit logical changes as you go, with meaningful messages that follow the prefix table in `COMMITS.md`. Commit with `git commit --no-gpg-sign`.
+- When a later change completes or fixes an earlier commit, fold it in with `git commit --fixup=<sha>` followed by `GIT_SEQUENCE_EDITOR=true git rebase --no-gpg-sign -i --autosquash <base>`, where `<base>` is for example `upstream/main`. If the approach changed, reword the affected messages so they describe the final diff.
+- You may rewrite a commit a human has adopted, but only if the rewrite drops its `gpgsig` and `Signed-off-by` lines. Every commit the rewrite recreates, including commits after the one you edited, must end up with neither header. A human then adopts and signs it again before it is pushed.
+- Generated-file drift from `make static-analysis` stays uncommitted for a human, as described under Validate before committing.
 - Never run `git push`, pushing is reserved for a human, after review.
 - The `pre-push` hook (`.githooks/pre-push`, enabled with `git config core.hooksPath .githooks`) rejects pushes with unsigned commits or missing sign-offs. Do not work around it. Leave commits unsigned and without sign-off so a human can review, adopt, and sign them.
 
