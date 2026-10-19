@@ -10,7 +10,7 @@ require (
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
 	github.com/dustinkirkland/golang-petname v0.0.0-20260215035315-f0c533e9ce9b
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
-	github.com/fvbommel/sortorder v1.2.0
+	github.com/fvbommel/sortorder v1.2.1
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-jose/go-jose/v4 v4.1.5
@@ -26,7 +26,7 @@ require (
 	github.com/juju/gomaasapi v0.0.0-20200602032615-aa561369c767
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/lxc/go-lxc v0.0.0-20260316180011-3af4ce000ed7
-	github.com/mattn/go-colorable v0.1.15
+	github.com/mattn/go-colorable v0.1.16
 	github.com/mattn/go-sqlite3 v1.14.52
 	github.com/mdlayher/ndp v1.1.0
 	github.com/mdlayher/netx v0.0.0-20230430222610-7e21880baee8
@@ -39,7 +39,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openfga/api/proto v0.0.0-20260908144156-7a79d2abab5b
 	github.com/openfga/language/pkg/go v0.3.2
-	github.com/openfga/openfga v1.21.0
+	github.com/openfga/openfga v1.22.0
 	github.com/osrg/gobgp/v3 v3.37.0
 	github.com/pkg/sftp v1.13.11
 	github.com/pkg/xattr v0.4.12
@@ -48,17 +48,17 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/vishvananda/netlink v1.3.1
-	github.com/zitadel/oidc/v3 v3.51.11
+	github.com/zitadel/oidc/v3 v3.51.14
 	go.starlark.net v0.0.0-20260908191801-89a6a09411d5
 	go.uber.org/zap v1.28.0
 	go.yaml.in/yaml/v2 v2.4.4
-	golang.org/x/crypto v0.57.0
+	golang.org/x/crypto v0.58.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sync v0.24.0
-	golang.org/x/sys v0.48.0
-	golang.org/x/term v0.46.0
-	golang.org/x/text v0.42.0
-	golang.org/x/tools v0.51.0
+	golang.org/x/sys v0.49.0
+	golang.org/x/term v0.47.0
+	golang.org/x/text v0.43.0
+	golang.org/x/tools v0.52.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
@@ -141,22 +141,23 @@ require (
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	github.com/zitadel/schema v1.3.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/otel v1.46.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.46.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.46.0 // indirect
-	go.opentelemetry.io/otel/metric v1.46.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.46.0 // indirect
-	go.opentelemetry.io/otel/trace v1.46.0 // indirect
+	go.opentelemetry.io/otel v1.47.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.47.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.47.0 // indirect
+	go.opentelemetry.io/otel/log v1.47.0 // indirect
+	go.opentelemetry.io/otel/metric v1.47.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.47.0 // indirect
+	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
 	go.uber.org/mock v0.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba // indirect
-	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/mod v0.42.0 // indirect
+	golang.org/x/net v0.61.0 // indirect
 	gonum.org/v1/gonum v0.17.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260911204522-f61a6ca850bd // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260911204522-f61a6ca850bd // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260928230214-8a89bd6388cc // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc // indirect
 	google.golang.org/grpc v1.83.2 // indirect
 	gopkg.in/ini.v1 v1.67.3 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
