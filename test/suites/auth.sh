@@ -1316,8 +1316,8 @@ auth_project_features() {
   # Create a custom volume.
   lxc_remote storage volume create "${remote}:${pool_name}" blah-volume --project blah
 
-  # There should now be two volume URLs, one instance, one image, and one profile URL in the used-by list.
-  [ "$(lxc_remote project list "${remote}:" --format csv | cut -d, -f9)" = "5" ]
+  # The instance root volume is reported through the instance, so the used-by list holds one custom volume, one instance, one image, and one profile URL.
+  [ "$(lxc_remote project list "${remote}:" --format csv | cut -d, -f9)" = "4" ]
 
   # Delete resources in project blah so that we can modify project features.
   lxc_remote delete "${remote}:blah-instance" --project blah
