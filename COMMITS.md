@@ -25,3 +25,5 @@ Depending on complexity, large changes should be split into smaller, logical com
 ## Signing and attribution
 
 `Signed-off-by` is a Developer Certificate of Origin (DCO) certification — a legal assertion that you wrote or have the right to submit the code. Only a human submitter can make this certification. AI agents must not add a `Signed-off-by` line.
+
+A `pre-push` hook (`.githooks/pre-push`) rejects pushes that contain commits without a sign-off or a signature. Enable it once per clone with `git config core.hooksPath .githooks`. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
