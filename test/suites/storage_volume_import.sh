@@ -33,7 +33,7 @@ test_storage_volume_import() {
   lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")" foobar | grep -xF 'content_type: iso'
 
   # importing ISO again under the same name should fail as the target volume already exists
-  [ "$(! CLIENT_DEBUG="" SHELL_TRACING="" lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.iso foo 2>&1 1>/dev/null)" = 'Error: Storage volume "foo" already exists' ]
+  [ "$(! CLIENT_DEBUG="" SHELL_TRACING="" lxc storage volume import "lxdtest-$(basename "${LXD_DIR}")" ./foo.iso foo 2>&1 1>/dev/null)" = 'Error: Volume by that name already exists' ]
 
   # The server also rejects it before receiving the data
   for type in iso tar; do
