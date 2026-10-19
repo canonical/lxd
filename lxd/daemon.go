@@ -1873,34 +1873,40 @@ func (d *Daemon) init() (err error) {
 	}
 
 	// Setup tertiary listeners that may use managed network addresses and must be started after networks.
+	// A listener that cannot be started is reported and skipped rather than
+	// stopping the daemon: instances and the API do not depend on it, and the
+	// configuration behind it can only be corrected while the daemon is running.
+	// The failures are kept in local variables rather than the function's named
+	// return, so that a listener failure cannot be mistaken for one that should
+	// stop the daemon from starting.
 	if bgpAddress != "" && bgpASN != 0 && bgpRouterID != "" {
 		if bgpASN > math.MaxUint32 {
-			return errors.New("Cannot convert BGP ASN to uint32: Upper bound exceeded")
+			logger.Warn("Cannot convert BGP ASN to uint32: Upper bound exceeded", logger.Ctx{"asn": bgpASN})
+		} else {
+			startErr := d.bgp.Configure(bgpAddress, uint32(bgpASN), net.ParseIP(bgpRouterID))
+			if startErr != nil {
+				logger.Warn("Failed starting BGP server", logger.Ctx{"address": bgpAddress, "err": startErr})
+			} else {
+				logger.Info("Started BGP server")
+			}
 		}
-
-		err := d.bgp.Configure(bgpAddress, uint32(bgpASN), net.ParseIP(bgpRouterID))
-		if err != nil {
-			return err
-		}
-
-		logger.Info("Started BGP server")
 	}
 
 	dnsAddress := d.localConfig.DNSAddress()
 	if dnsAddress != "" {
-		err = d.dns.Start(dnsAddress)
-		if err != nil {
-			return err
+		startErr := d.dns.Start(dnsAddress)
+		if startErr != nil {
+			logger.Warn("Failed starting DNS server", logger.Ctx{"address": dnsAddress, "err": startErr})
+		} else {
+			logger.Info("Started DNS server")
 		}
-
-		logger.Info("Started DNS server")
 	}
 
 	metricsAddress := d.localConfig.MetricsAddress()
 	if metricsAddress != "" {
-		err = d.endpoints.UpMetrics(metricsAddress)
-		if err != nil {
-			return err
+		startErr := d.endpoints.UpMetrics(metricsAddress)
+		if startErr != nil {
+			logger.Warn("Failed starting metrics listener", logger.Ctx{"address": metricsAddress, "err": startErr})
 		}
 	}
 

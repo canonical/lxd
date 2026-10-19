@@ -10,6 +10,8 @@ type Reverter struct {
 }
 
 // New returns a new Reverter.
+// Do not assign the returned value to a variable named "revert", as that shadows the package name.
+// Name the variable "reverter" instead.
 func New() *Reverter {
 	return &Reverter{}
 }
