@@ -120,6 +120,8 @@ git config core.hooksPath .githooks
 
 This setting is per clone and applies to all of its worktrees. To disable it, run `git config --unset core.hooksPath`.
 
+Because `core.hooksPath` hides `.git/hooks` from Git, the hook also runs `.git/hooks/pre-push` in the clone, if that file exists and is executable, once its own checks pass. The clone's hook receives the same arguments and ref list. If the hook's own checks fail, the clone's hook does not run.
+
 If the hook rejects a push, review the commits, then add your sign-off and signature to them:
 
 ```sh
