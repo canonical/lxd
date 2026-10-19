@@ -899,9 +899,12 @@ func clusterLinkCreatePending(s *state.State, r *http.Request, req api.ClusterLi
 	}
 
 	// Check if the caller has permission to create cluster links.
-	err = s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanCreateClusterLinks)
-	if err != nil {
-		return response.SmartError(err)
+	// Unidirectional links only create an identity on this side, so no cluster link is created.
+	if clusterLinkType != dbCluster.ClusterLinkType(api.ClusterLinkTypeUnidirectional) {
+		err = s.Authorizer.CheckPermission(r.Context(), entity.ServerURL(), auth.EntitlementCanCreateClusterLinks)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	// Create certificate add token.
