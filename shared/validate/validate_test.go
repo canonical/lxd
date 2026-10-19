@@ -2,6 +2,7 @@ package validate_test
 
 import (
 	"fmt"
+	"net"
 	"testing"
 
 	"github.com/canonical/lxd/shared/validate"
@@ -463,6 +464,83 @@ func Test_IsInterfaceName(t *testing.T) {
 		if (err == nil) != test.expected {
 			t.Errorf("IsInterfaceName(%q) = %v, want %v", test.value, err == nil, test.expected)
 		}
+	}
+}
+
+func Test_IsListenAddress(t *testing.T) {
+	tests := []struct {
+		name        string
+		value       string
+		requirePort bool
+		expected    bool
+	}{
+		// An address with no port uses the default port for the listener.
+		{"bare IPv4", "127.0.0.1", false, true},
+		{"bare IPv6", "::1", false, true},
+		{"trailing colon", "127.0.0.1:", false, true},
+		{"wildcard", "0.0.0.0", false, true},
+		{"wildcard with port", ":179", false, true},
+		{"wildcard IPv6", "[::]", false, true},
+		{"hostname", "localhost", false, true},
+
+		// A port that is given has to be usable.
+		{"IPv4 and port", "127.0.0.1:179", false, true},
+		{"port zero", "127.0.0.1:0", false, true},
+		{"highest port", "127.0.0.1:65535", false, true},
+		{"service name", "127.0.0.1:https", false, true},
+		{"bracketed IPv6 and port", "[::1]:179", false, true},
+		{"hostname and port", "localhost:179", false, true},
+
+		// A port that cannot be used is rejected rather than failing later when
+		// the listener is bound.
+		{"port not numeric", "127.0.0.1:notaport", false, false},
+		{"port too high", "127.0.0.1:65536", false, false},
+		{"port negative", "127.0.0.1:-1", false, false},
+		{"wildcard with unusable port", ":notaport", false, false},
+
+		// A port is required when asked for.
+		{"port required but absent", "127.0.0.1", true, false},
+		{"port required and present", "127.0.0.1:179", true, true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validate.IsListenAddress(true, true, test.requirePort)(test.value)
+			if (err == nil) != test.expected {
+				t.Errorf("IsListenAddress(%q) = %v, want %v", test.value, err, test.expected)
+			}
+		})
+	}
+}
+
+// Test_IsListenAddressUDPOnlyServiceName verifies that a service name known only
+// to UDP is accepted. The listeners LXD starts are a mix of TCP and TCP with
+// UDP, so accepting only names known to TCP would reject an address that would
+// still bind.
+//
+// Which names a host knows only to UDP comes from its service database, and
+// differs between systems, so the test looks for one among common names and
+// skips on a host that knows all of them for TCP too.
+func Test_IsListenAddressUDPOnlyServiceName(t *testing.T) {
+	name := ""
+	for _, candidate := range []string{"tftp", "ntp", "bootps", "who"} {
+		_, tcpErr := net.LookupPort("tcp", candidate)
+		_, udpErr := net.LookupPort("udp", candidate)
+		if tcpErr != nil && udpErr == nil {
+			name = candidate
+			break
+		}
+	}
+
+	if name == "" {
+		t.Skip("no UDP-only service name found in this system's service database")
+	}
+
+	address := "127.0.0.1:" + name
+
+	err := validate.IsListenAddress(true, true, false)(address)
+	if err != nil {
+		t.Errorf("IsListenAddress(%q) = %v, want nil", address, err)
 	}
 }
 
