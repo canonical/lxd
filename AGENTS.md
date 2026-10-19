@@ -111,10 +111,10 @@ sudo -E ./test/snap/cgroup latest/edge
 
 ### Commit format
 
-See [`COMMITS.md`](COMMITS.md) for the full commit prefix table and signing requirements.
+See [`COMMITS.md`](COMMITS.md) for the full commit prefix table, message wrapping, and signing requirements.
 
 - Never add a `Signed-off-by` line or sign a commit.
-- Commit logical changes as you go, with meaningful messages that follow the prefix table in `COMMITS.md`. Commit with `git commit --no-gpg-sign`.
+- Commit logical changes as you go, with meaningful messages that follow the prefix table and wrapping rules in `COMMITS.md`. Commit with `git commit --no-gpg-sign`.
 - When a later change completes or fixes an earlier commit, fold it in with `git commit --fixup=<sha>` followed by `GIT_SEQUENCE_EDITOR=true git rebase --no-gpg-sign -i --autosquash <base>`, where `<base>` is for example `upstream/main`. If the approach changed, reword the affected messages so they describe the final diff.
 - You may rewrite a commit a human has adopted, but only if the rewrite drops its `gpgsig` and `Signed-off-by` lines. Every commit the rewrite recreates, including commits after the one you edited, must end up with neither header. A human then adopts and signs it again before it is pushed.
 - Generated-file drift from `make static-analysis` stays uncommitted for a human, as described under Validate before committing.
@@ -160,7 +160,7 @@ See [`COMMITS.md`](COMMITS.md) for the full commit prefix table and signing requ
 ## Code review
 
 Use these checks alongside `make static-analysis`, `make check-unit`, and
-`make`; `COMMITS.md` remains the source for commit prefixes and signing rules.
+`make`; `COMMITS.md` remains the source for commit prefixes, wrapping, and signing rules.
 Report only findings that require human action. Do not repeat issues already
 enforced by static analysis or lint checks; run the relevant check and report
 its output instead.
