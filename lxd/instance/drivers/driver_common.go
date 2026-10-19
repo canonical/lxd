@@ -1202,7 +1202,8 @@ func (d *common) snapshotCommon(ctx context.Context, inst instance.Instance, nam
 	}
 
 	// Freeze the instance if the driver requires it or if there are snapshottable attached volumes to ensure crash-consistent snapshots.
-	if (pool.Driver().Info().RunningCopyFreeze || len(snapshottableVolumes) > 0) && inst.IsRunning() && !inst.IsFrozen() {
+	// MicroVMs do not support freezing, so running snapshots on drivers with RunningCopyFreeze are taken live.
+	if inst.Type() != instancetype.MicroVM && (pool.Driver().Info().RunningCopyFreeze || len(snapshottableVolumes) > 0) && inst.IsRunning() && !inst.IsFrozen() {
 		if len(snapshottableVolumes) > 0 {
 			d.logger.Info("Freezing instance to ensure crash-consistent multi-volume snapshot", logger.Ctx{"snapshot": snap.Name()})
 		} else {
