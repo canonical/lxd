@@ -1,0 +1,65 @@
+#!/bin/bash
+# Reject pushes containing commits that lack a Signed-off-by line or a cryptographic signature.
+# Enable once per clone with: git config core.hooksPath .githooks
+# Bypass with: git push --no-verify
+
+set -euo pipefail
+
+failed=0
+
+while read -r _ local_sha _ remote_sha; do
+	[[ $local_sha =~ ^0+$ ]] && continue
+
+	if [[ $remote_sha =~ ^0+$ ]]; then
+		# Exclude only what the target advertises. Other remotes (e.g. upstream)
+		# must not hide unsigned commits from this push. stdin carries the ref
+		# list, so keep git from reading it.
+		advertised=$(git ls-remote "$1" </dev/null) || {
+			echo "pre-push: cannot list refs of $1" >&2
+			exit 1
+		}
+		known=()
+		while read -r adv _; do
+			git cat-file -e "$adv^{commit}" 2>/dev/null && known+=("$adv")
+		done <<<"$advertised"
+		range=("$local_sha" --not "${known[@]}")
+	else
+		range=("$remote_sha..$local_sha")
+	fi
+
+	commits=$(git rev-list "${range[@]}")
+
+	for sha in $commits; do
+		raw=$(git cat-file commit "$sha")
+		header=${raw%%$'\n\n'*}
+		show=$(git show -s --format='%h %s%n%B' "$sha")
+		subject=${show%%$'\n'*}
+
+		if [[ $header != *$'\ngpgsig'* ]]; then
+			echo "pre-push: unsigned commit: $subject" >&2
+			failed=1
+		fi
+
+		# Merge commits are created by git, so they carry no sign-off.
+		read -ra ids <<<"$(git rev-list --parents -n 1 "$sha")"
+		if (( ${#ids[@]} > 2 )); then
+			continue
+		fi
+
+		# Fenced code is dropped first: interpret-trailers would count a
+		# Signed-off-by line inside a fenced block that ends the message.
+		body=$(git show -s --format=%B "$sha" | awk '/^(```|~~~)/ { fence = !fence; next } !fence')
+		trailers=$(git interpret-trailers --parse <<<"$body")
+		if ! grep -qE '^Signed-off-by: .+ <.+>$' <<<"$trailers"; then
+			echo "pre-push: missing Signed-off-by: $subject" >&2
+			failed=1
+		fi
+	done
+done
+
+if (( failed )); then
+	echo "pre-push: fix with 'git rebase -i --exec \"git commit --amend --no-edit -s -S\" <base>'" >&2
+	echo "pre-push: or bypass with 'git push --no-verify'" >&2
+fi
+
+exit "$failed"
