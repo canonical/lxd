@@ -540,6 +540,22 @@ ovn_basic_tests() {
     ! ovs-vsctl list-br | grep -F ovn || false # Check the OVS bridge is removed.
     ip link delete dummybr0 # Remove dummy uplink bridge.
 
+    echo "==> Test updating OVN network with IPv6 address on an uplink without IPv6"
+    ip link add dummybr0 type bridge # Create dummy uplink bridge.
+    ip address add 192.0.2.1/24 dev dummybr0
+    ip link set dummybr0 up
+    lxc network create dummy --type=physical \
+        parent=dummybr0 \
+        ipv4.gateway=192.0.2.1/24 \
+        ipv4.ovn.ranges=192.0.2.10-192.0.2.19
+    lxc network create ovn-virtual-network --type=ovn network=dummy
+    [ -n "$(lxc network get ovn-virtual-network ipv6.address)" ] # Check network has an IPv6 address.
+    [ "$(lxc network get ovn-virtual-network volatile.network.ipv6.address || echo fail)" = "" ] # Check no uplink IPv6 address was allocated.
+    lxc network set ovn-virtual-network user.foo=bar # Check network can be updated.
+    lxc network delete ovn-virtual-network
+    lxc network delete dummy
+    ip link delete dummybr0 # Remove dummy uplink bridge.
+
     echo "==> Test physical uplinks using OVS bridge"
     ovs-vsctl add-br dummybr0 # Create dummy uplink bridge.
     ip address add 192.0.2.1/24 dev dummybr0
