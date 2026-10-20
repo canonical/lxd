@@ -3254,6 +3254,16 @@ func (d *qemu) UEFIVars() (*api.InstanceUEFIVars, error) {
 		return nil, errors.New("UEFI is disabled when BIOS boot mode is active")
 	}
 
+	// The NVRAM file lives on the instance's config volume which is not mounted while the instance is stopped.
+	if !d.IsRunning() {
+		_, err := d.mount()
+		if err != nil {
+			return nil, err
+		}
+
+		defer func() { _ = d.unmount() }()
+	}
+
 	uefiVarsPath := d.nvramPath()
 
 	// Initialise the NVRAM file if it doesn't exist so we return the default variables.
@@ -3299,9 +3309,17 @@ func (d *qemu) UEFIVarsUpdate(newUEFIVarsSet api.InstanceUEFIVars) error {
 		return errors.New("UEFI is disabled when BIOS boot mode is active")
 	}
 
+	// The NVRAM file lives on the instance's config volume which is not mounted while the instance is stopped.
+	_, err := d.mount()
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = d.unmount() }()
+
 	uefiVarsPath := d.nvramPath()
 
-	err := uefi.UEFIVarsUpdate(d.state.OS, newUEFIVarsSet, uefiVarsPath)
+	err = uefi.UEFIVarsUpdate(d.state.OS, newUEFIVarsSet, uefiVarsPath)
 	if err != nil {
 		return err
 	}
