@@ -140,9 +140,7 @@ type ethtoolLinkSettings struct {
 }
 
 type ethtoolLinkModeMaps struct {
-	mapSupported     []uint32
-	mapAdvertising   []uint32
-	mapLpAdvertising []uint32
+	mapSupported []uint32
 }
 
 func ethtoolAddCardInfo(name string, info *api.ResourcesNetworkCard) error {
@@ -289,17 +287,19 @@ func ethtoolLink(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardP
 		return fmt.Errorf("Failed to ETHTOOL_GLINKSETTINGS: %w", unix.Errno(unix.EINVAL))
 	}
 
-	// Copy the mode maps.
-	ethLinkModeMap := ethtoolLinkModeMaps{}
-	ethLinkModeMap.mapSupported = append(ethLinkModeMap.mapSupported, ethLinkSettings.linkModeData[:4*ethLinkSettings.linkModeMasksNwords]...)
+	// The supported, advertising and link partner advertising masks are returned back to back, each of them
+	// linkModeMasksNwords long: supported is [0:nwords], advertising is [nwords:2*nwords] and lp_advertising
+	// is [2*nwords:3*nwords]. A smaller buffer means something went wrong with the ioctl.
+	nwords := int(ethLinkSettings.linkModeMasksNwords)
+	if nwords <= 0 || len(ethLinkSettings.linkModeData) < 3*nwords {
+		return fmt.Errorf("Invalid ethtool link mode mask word count %d (buffer len %d)", nwords, len(ethLinkSettings.linkModeData))
+	}
 
-	// Unused right now
-	offset := ethLinkSettings.linkModeMasksNwords
-	ethLinkModeMap.mapAdvertising = append(ethLinkModeMap.mapAdvertising, ethLinkSettings.linkModeData[offset:4*ethLinkSettings.linkModeMasksNwords]...)
-
-	// Unused right now
-	offset += ethLinkSettings.linkModeMasksNwords
-	ethLinkModeMap.mapLpAdvertising = append(ethLinkModeMap.mapLpAdvertising, ethLinkSettings.linkModeData[offset:4*ethLinkSettings.linkModeMasksNwords]...)
+	// Only the supported mask is used. Sub-slice with limited capacity to prevent allocations and mutation of
+	// subsequent masks.
+	ethLinkModeMap := ethtoolLinkModeMaps{
+		mapSupported: ethLinkSettings.linkModeData[:nwords:nwords],
+	}
 
 	// Link negotiation
 	info.AutoNegotiation = ethLinkSettings.autoneg == 1
