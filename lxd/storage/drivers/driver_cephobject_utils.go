@@ -154,7 +154,17 @@ func (d *cephobject) radosgwadminUserAdd(ctx context.Context, user string, maxBu
 
 // radosgwadminUserDelete deletes radosgw user.
 func (d *cephobject) radosgwadminUserDelete(ctx context.Context, user string) error {
-	_, err := d.radosgwadmin(ctx, "user", "rm", "--uid", user, "--purge-data")
+	// Nothing to do if the user is already gone, so that it does not prevent removing what refers to it.
+	_, err := d.radosgwadminUserInfo(ctx, user)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
+		return err
+	}
+
+	_, err = d.radosgwadmin(ctx, "user", "rm", "--uid", user, "--purge-data")
 
 	return err
 }
@@ -212,7 +222,30 @@ func (d *cephobject) radosgwadminSubUserAdd(ctx context.Context, user string, su
 
 // radosgwadminSubUserDelete deletes radosgw sub-user.
 func (d *cephobject) radosgwadminSubUserDelete(ctx context.Context, user string, subuser string) error {
-	_, err := d.radosgwadmin(ctx, "subuser", "rm", "--uid", user, "--subuser", subuser)
+	// Nothing to do if the sub user (or its user) is already gone, so that it does not prevent removing what
+	// refers to it.
+	info, err := d.radosgwadminUserInfo(ctx, user)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
+		return err
+	}
+
+	subUserExists := false
+	for _, subUser := range info.SubUsers {
+		if strings.TrimPrefix(subUser.ID, user+":") == subuser {
+			subUserExists = true
+			break
+		}
+	}
+
+	if !subUserExists {
+		return nil
+	}
+
+	_, err = d.radosgwadmin(ctx, "subuser", "rm", "--uid", user, "--subuser", subuser)
 
 	return err
 }
@@ -331,7 +364,17 @@ func hmacSHA256(key []byte, data string) []byte {
 
 // radosgwadminBucketDelete deletes radosgw bucket.
 func (d *cephobject) radosgwadminBucketDelete(ctx context.Context, bucket string) error {
-	_, err := d.radosgwadmin(ctx, "bucket", "rm", "--bucket", bucket, "--purge-objects")
+	// Nothing to do if the bucket is already gone (e.g. its user was deleted along with its data).
+	exists, err := d.radosgwadminBucketExists(ctx, bucket)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return nil
+	}
+
+	_, err = d.radosgwadmin(ctx, "bucket", "rm", "--bucket", bucket, "--purge-objects")
 
 	return err
 }
