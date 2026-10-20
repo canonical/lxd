@@ -66,7 +66,7 @@ func ProcStatFields(path string) ([]string, error) {
 
 // ProcessStartTime is a helper function that does range-checking and integer conversion for the common
 // case of reading /proc/<pid>/stat to obtain a process/thread's starttime.
-func ProcessStartTime(pid int) (int64, error) {
+func ProcessStartTime(pid int) (uint64, error) {
 	statPath := "/proc/" + strconv.Itoa(pid) + "/stat"
 	fields, err := ProcStatFields(statPath)
 	if err != nil {
@@ -77,5 +77,5 @@ func ProcessStartTime(pid int) (int64, error) {
 		return 0, fmt.Errorf("Malformed stat file: %s", statPath)
 	}
 
-	return strconv.ParseInt(fields[21], 10, 64)
+	return strconv.ParseUint(fields[21], 10, 64)
 }

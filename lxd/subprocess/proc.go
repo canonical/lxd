@@ -40,7 +40,7 @@ type Process struct {
 	GID       uint32 `yaml:"gid"`
 	SetGroups bool   `yaml:"set_groups"`
 	Dir       string `yaml:"dir"`
-	StartTime int64  `yaml:"start_time"`
+	StartTime uint64 `yaml:"start_time"`
 
 	SysProcAttr *syscall.SysProcAttr
 }

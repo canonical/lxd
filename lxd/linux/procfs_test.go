@@ -114,7 +114,7 @@ func TestProcessStartTime(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	if starttime <= 0 {
+	if starttime == 0 {
 		t.Fatalf("Expected positive starttime, got %d", starttime)
 	}
 
