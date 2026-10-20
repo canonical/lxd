@@ -3,8 +3,26 @@ package apparmor
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 )
+
+func TestQemuImgProfileEscapesPaths(t *testing.T) {
+	profile, err := qemuImgProfile("test", `/a b/*/[x]{y,z}`, `/dst?"`, []string{"/usr/bin/qemu-img"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, rule := range []string{
+		`"/a b/\*/\[x\]\{y,z\}" rk,`,
+		`"/dst\?\"" rwk,`,
+		`"/usr/bin/qemu-img" mixr,`,
+	} {
+		if !strings.Contains(profile, rule) {
+			t.Errorf("Profile is missing %s:\n%s", rule, profile)
+		}
+	}
+}
 
 func TestHandleWriter(t *testing.T) {
 	status := []int64{}
