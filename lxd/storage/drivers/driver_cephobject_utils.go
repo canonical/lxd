@@ -193,7 +193,7 @@ func (d *cephobject) radosgwadminSubUserAdd(ctx context.Context, user string, su
 		return nil, err
 	}
 
-	revert.Add(func() { _ = d.radosgwadminUserDelete(ctx, user) })
+	revert.Add(func() { _ = d.radosgwadminSubUserDelete(ctx, user, subuser) })
 
 	creds := struct {
 		Keys []struct {
