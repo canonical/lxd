@@ -1432,6 +1432,9 @@ ovn_peering_tests() {
     echo "==> Now setup peering again"
     lxc network peer create ovn1 ovn1foo ovn2/ovn2 --project=ovn1
     ! lxc network peer create ovn2 ovn2foo ovn1/ovn1 --project=ovn2 || false # Detect old peering entry exists.
+    # Detect old peering entry still references the target network.
+    err="$(! lxc network peer create ovn2 ovn2bar ovn1/ovn1 --project=ovn2 2>&1)"
+    echo "${err}" | grep -F 'Network already has peer "ovn2foo" for the target network, which must be deleted first'
     lxc network peer delete ovn2 ovn2foo --project=ovn2 # Delete old peering entry.
     lxc network peer create ovn2 ovn2foo ovn1/ovn1 --project=ovn2
     lxc network peer ls ovn2 --project=ovn2 | grep ovn2foo | grep -wF CREATED
