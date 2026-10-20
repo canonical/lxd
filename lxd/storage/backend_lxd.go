@@ -847,6 +847,11 @@ func (b *lxdBackend) applyInstanceRootDiskOverrides(inst instance.Instance, vol 
 		return err
 	}
 
+	return applyRootDiskOverrides(rootDiskConf, vol)
+}
+
+// applyRootDiskOverrides applies the root disk config to the volume's config.
+func applyRootDiskOverrides(rootDiskConf map[string]string, vol *drivers.Volume) error {
 	for _, k := range instanceDiskVolumeEffectiveFields {
 		if rootDiskConf[k] != "" {
 			switch k {
