@@ -1,5 +1,8 @@
 ---
 discourse: "[Identity&#32;and&#32;Access&#32;Management&#32;for&#32;LXD](41516)"
+myst:
+  html_meta:
+    description: Explanation of LXD remote API authorization, including restricted TLS certificates and fine-grained authorization with permissions, identities, and groups.
 ---
 
 (authorization)=

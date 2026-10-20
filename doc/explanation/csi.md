@@ -1,3 +1,9 @@
+---
+myst:
+  html_meta:
+    description: Explanation of the LXD CSI driver, which lets Kubernetes provision and manage storage volumes using LXD storage backends.
+---
+
 (exp-csi)=
 # The LXD CSI driver
 

@@ -1,6 +1,9 @@
 ---
 discourse: lxc:[Token&#32;based&#32;remote&#32;connection](13114),lxc:[ACME&#32;support&#32;for&#32;server&#32;certificate](15142)
 relatedlinks: "[LXD&#32;for&#32;multi-user&#32;systems&#32;-&#32;YouTube](https://www.youtube.com/watch?v=6O0q3rSWr8A)"
+myst:
+  html_meta:
+    description: Explanation of LXD remote API authentication, including TLS client certificates, OpenID Connect, bearer tokens, and TLS server certificates.
 ---
 
 (authentication)=

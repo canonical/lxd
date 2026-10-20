@@ -1,3 +1,9 @@
+---
+myst:
+  html_meta:
+    description: Explanation of LXD networking, including network devices (NICs), managed networks, and recommendations on choosing a network type.
+---
+
 (networks)=
 # Networking setups
 

@@ -2,7 +2,7 @@
 relatedlinks: "[Linux&#32;containers&#32;security](https://linuxcontainers.org/lxc/security/)"
 myst:
   html_meta:
-    description: Understand LXD security architecture, access controls, daemon access, container security, and security event audit logging for compliance and incident investigation.
+    description: Explanation of LXD security, including daemon access, container and network security, audit logging, cryptography, and vulnerability reporting.
 ---
 
 (exp-security)=

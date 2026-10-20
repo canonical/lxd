@@ -1,5 +1,8 @@
 ---
 relatedlinks: "[Running&#32;LXD&#32;in&#32;production&#32;-&#32;YouTube](https://www.youtube.com/watch?v=QyXOOE_4cm0)"
+myst:
+  html_meta:
+    description: Explanation of LXD performance tuning for production, including benchmarks, instance metrics, and tuning server settings and network bandwidth.
 ---
 
 (performance-tuning)=

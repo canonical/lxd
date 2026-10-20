@@ -1,3 +1,9 @@
+---
+myst:
+  html_meta:
+    description: Explanation of the lxc show and lxc info sub-commands, which display configuration and current state information for entities managed by LXD.
+---
+
 (lxc-show-info)=
 # `lxc` `show` and `info`
 

@@ -1,3 +1,9 @@
+---
+myst:
+  html_meta:
+    description: Explanation of how LXD uses local and remote images, including image registries, caching, auto-update, and special image properties.
+---
+
 (about-images)=
 # Local and remote images
 
