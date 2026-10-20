@@ -3499,6 +3499,12 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 			uplinkAddrKey = ovnVolatileUplinkIPv6
 		}
 
+		// Only check keys that were previously set, as no uplink address is allocated if the uplink doesn't
+		// support that address family (e.g. an uplink without an IPv6 gateway).
+		if oldNetwork.Config[uplinkAddrKey] == "" {
+			continue
+		}
+
 		if newNetwork.Config[uplinkAddrKey] == "" && newNetwork.Config[networkAddrKey] != "" && newNetwork.Config[networkAddrKey] != "none" {
 			return fmt.Errorf("Uplink address key %q cannot be empty when network address key %q is populated", uplinkAddrKey, networkAddrKey)
 		}
