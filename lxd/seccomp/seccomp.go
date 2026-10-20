@@ -1771,10 +1771,17 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 		return 0
 	}
 
-	age := float64(tickValue / 100)
-	if age > 0 {
-		instMetrics.Uptime = int64(time.Since(s.s.OS.BootTime).Seconds() - age)
+	// Convert init process start time from USER_HZ clock ticks (100 Hz on Linux) to fractional seconds.
+	startOffsetSec := float64(tickValue) / 100.0
+
+	// info.Uptime is populated by unix.Sysinfo(&info) via CLOCK_BOOTTIME/monotonic jiffies,
+	// making it immune to NTP wall-clock steps and timezone adjustments.
+	uptimeSec := float64(info.Uptime) - startOffsetSec
+	if uptimeSec < 0 {
+		uptimeSec = 0
 	}
+
+	instMetrics.Uptime = int64(uptimeSec)
 
 	// Get instance process count.
 	pids, err := cg.GetProcessesUsage()
