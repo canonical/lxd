@@ -683,7 +683,7 @@ parts:
   nvidia-container-toolkit:
     source: https://github.com/NVIDIA/nvidia-container-toolkit
     source-depth: 1
-    source-commit: 5505e2f94d9aaa08561490db974ba3cd676af209 # v1.20.0
+    source-commit: dffc40b4f820ce5c512633bac9e0418d0e05a2ee # v1.20.1
     source-type: git
     build-snaps:
       - go/1.26/stable
