@@ -1030,8 +1030,12 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 					continue
 				}
 
-				if strings.Contains(statPart, ":") {
-					// Store the last dev ID as this works around a kernel bug where multiple dev IDs could appear on a single line.
+				// Any token that isn't a "key=value" stat is a device ID. Store the
+				// last one: this works around a kernel bug where multiple dev IDs
+				// could appear on a single line, and tolerates a literal "(unknown)"
+				// device name (emitted when the kernel can't resolve the backing
+				// device) instead of failing the whole instance's disk metrics.
+				if !strings.Contains(statPart, "=") {
 					devID = statPart
 					continue
 				}
@@ -1069,7 +1073,15 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 				}
 			}
 
-			ioMap[partMap[devID]] = ioStats
+			// Skip devices that don't resolve to a name (e.g. the literal
+			// "(unknown)" placeholder, or a device absent from /proc/partitions)
+			// rather than recording them under an empty device label.
+			devName := partMap[devID]
+			if devName == "" {
+				continue
+			}
+
+			ioMap[devName] = ioStats
 		}
 
 		return ioMap, nil
