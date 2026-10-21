@@ -413,7 +413,7 @@ parts:
 
   libtpms:
     source: https://github.com/stefanberger/libtpms
-    source-commit: f8c2dc7e12a730dcca4220d7ac5ad86d13dfd630 # v0.9.6
+    source-commit: 925b06ee479d7d1a35d7a284977bab0f144fac45 # v0.9.7
     source-depth: 1
     source-type: git
     plugin: autotools
