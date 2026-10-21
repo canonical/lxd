@@ -697,7 +697,7 @@ parts:
       - libseccomp
       - libtpms
     source: https://github.com/stefanberger/swtpm
-    source-commit: f756ee8a281ddff7e09b49e1ef00d5cbb42abb63 # v0.9.0
+    source-commit: c699d106d4e2b71db90e273c3823c9fcb2763bb6 # v0.9.1
     source-depth: 1
     source-type: git
     plugin: autotools
