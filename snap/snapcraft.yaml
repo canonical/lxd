@@ -450,7 +450,7 @@ parts:
 
   libusb:
     source: https://github.com/libusb/libusb
-    source-commit: d52e355daa09f17ce64819122cb067b8a2ee0d4b # v1.0.27
+    source-commit: 87a55632db62c9bdc58cd31d3ccfa673f1bb017f # v1.0.30
     source-depth: 1
     source-type: git
     plugin: autotools
