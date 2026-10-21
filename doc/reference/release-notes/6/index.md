@@ -19,6 +19,7 @@ See {ref}`ref-releases-snap` for more information.
 :titlesonly:
 :maxdepth: 1
 
+LXD 6.10.1 LTS <release-notes-6.10.1>
 LXD 6.10.0 LTS <release-notes-6.10.0>
 LXD 6.9 <release-notes-6.9>
 LXD 6.8 <release-notes-6.8>
