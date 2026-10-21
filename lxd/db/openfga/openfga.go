@@ -15,6 +15,7 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/openfga/openfga/pkg/storage"
+	"github.com/openfga/openfga/pkg/storage/storagewrappers"
 
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/db"
@@ -25,19 +26,99 @@ import (
 	"github.com/canonical/lxd/shared/entity"
 )
 
-// NewOpenFGAStore returns a new storage.OpenFGADatastore that is backed directly by the dqlite database.
+// NewOpenFGAStore returns a new [storage.OpenFGADatastore]. The datastore returns tuples that relate entities to their
+// parent (such as instances to their project, or identities to the server), or relate group members to entities via specific
+// entitlements as found in the `auth_groups_permissions` table.
+//
+// Important: For actual permission checks, the OpenFGA authorization driver must set in context
+// (via [request.CtxOpenFGAContextualTupleKeys]) the built-in entitlements (identities can view and delete themselves)
+// plus tuples representing group membership. When performing group permission consistency checks, the driver must set
+// all tuples in context.
 func NewOpenFGAStore(clusterDB *db.Cluster) storage.OpenFGADatastore {
 	store := &openfgaStore{
-		clusterDB: clusterDB,
+		tupleReader: &dbTupleReader{clusterDB: clusterDB},
 	}
 
 	return store
 }
 
-// openfgaStore is an implementation of storage.OpenFGADatastore that reads directly from our cluster database.
+// openfgaStore is an implementation of [storage.OpenFGADatastore] that reads directly from our cluster database.
 type openfgaStore struct {
-	clusterDB *db.Cluster
-	model     *openfgav1.AuthorizationModel
+	tupleReader storage.RelationshipTupleReader
+	model       *openfgav1.AuthorizationModel
+}
+
+// contextualTuplesFromCtx returns the contextual tuples that were set in context and a boolean indicating if those tuples
+// contain group permissions. The OpenFGA authorization driver only adds contextual tuples containing group permissions
+// when performing validation. In this case, the datastore must not read from the database, and should only return the tuples
+// that are passed via context.
+func contextualTuplesFromCtx(ctx context.Context) (*openfgav1.ContextualTupleKeys, bool) {
+	contextualTupleKeys, err := request.GetContextValue[*openfgav1.ContextualTupleKeys](ctx, request.CtxOpenFGAContextualTupleKeys)
+	if err != nil {
+		return nil, false
+	}
+
+	return contextualTupleKeys, contextualTupleKeys.TupleKeys != nil && slices.ContainsFunc(contextualTupleKeys.TupleKeys, func(key *openfgav1.TupleKey) bool {
+		if key == nil {
+			return false
+		}
+
+		entityTypeStr, _, ok := strings.Cut(key.Object, ":")
+		if !ok {
+			return false
+		}
+
+		err := auth.ValidateEntitlement(entity.Type(entityTypeStr), auth.Entitlement(key.Relation))
+		if err != nil {
+			return false
+		}
+
+		return strings.HasSuffix(key.User, "#member")
+	})
+}
+
+// getReader gets a [storage.RelationshipTupleReader] based on the content of the given [context.Context].
+// If there are contextual tuples present that contain group permissions, then the returned reader will only return tuples
+// from the context. This enforces that the datastore implementation only reads from the database when performing actual
+// permission checks, and never when performing group consistency checks.
+func (o *openfgaStore) getReader(ctx context.Context) storage.RelationshipTupleReader {
+	contextualTuples, contextualTuplesContainGroupPermissions := contextualTuplesFromCtx(ctx)
+
+	reader := o.tupleReader
+	if contextualTuplesContainGroupPermissions {
+		reader = emptyTupleReader{}
+	}
+
+	if contextualTuples == nil {
+		return reader
+	}
+
+	return storagewrappers.NewCombinedTupleReader(reader, contextualTuples.TupleKeys)
+}
+
+// Read implements [storage.OpenFGADatastore.Read].
+func (o *openfgaStore) Read(ctx context.Context, store string, filter storage.ReadFilter, options storage.ReadOptions) (storage.TupleIterator, error) {
+	return o.getReader(ctx).Read(ctx, store, filter, options)
+}
+
+// ReadPage implements [storage.OpenFGADatastore.ReadPage].
+func (o *openfgaStore) ReadPage(ctx context.Context, store string, filter storage.ReadFilter, options storage.ReadPageOptions) ([]*openfgav1.Tuple, string, error) {
+	return o.getReader(ctx).ReadPage(ctx, store, filter, options)
+}
+
+// ReadUserTuple implements [storage.OpenFGADatastore.ReadUserTuple].
+func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, filter storage.ReadUserTupleFilter, options storage.ReadUserTupleOptions) (*openfgav1.Tuple, error) {
+	return o.getReader(ctx).ReadUserTuple(ctx, store, filter, options)
+}
+
+// ReadUsersetTuples implements [storage.OpenFGADatastore.ReadUsersetTuples].
+func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filter storage.ReadUsersetTuplesFilter, options storage.ReadUsersetTuplesOptions) (storage.TupleIterator, error) {
+	return o.getReader(ctx).ReadUsersetTuples(ctx, store, filter, options)
+}
+
+// ReadStartingWithUser implements [storage.OpenFGADatastore.ReadStartingWithUser].
+func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, filter storage.ReadStartingWithUserFilter, options storage.ReadStartingWithUserOptions) (storage.TupleIterator, error) {
+	return o.getReader(ctx).ReadStartingWithUser(ctx, store, filter, options)
 }
 
 // RequestCache should be set in the request context to allow the OpenFGADatastore implementation to reduce the number
@@ -62,13 +143,97 @@ type RequestCache struct {
 	permissionsByGroupMu sync.RWMutex
 }
 
-// requestIsContextualOnly returns true if the request already contained all the required tuples. This is used for checking
-// group consistency before actually writing any permissions, so the datastore should not perform any reads at all (return no tuples).
-func requestIsContextualOnly(ctx context.Context) bool {
-	// If the request is intended for contextual tuples only, the caller has indicated that it has passed all relevant information
-	// to perform the check. Don't return any data.
-	contextualOnly, err := request.GetContextValue[bool](ctx, request.CtxOpenFGAContextualTuplesOnly)
-	return err == nil && contextualOnly
+// dbTupleReader implements [storage.RelationshipTupleReader] by reading from the cluster dqlite database. Its methods
+// are invoked when the datastore request context does not contain any group permissions (so they must be loaded).
+// The [RequestCache] is utilized so that group permissions are loaded only once per request.
+type dbTupleReader struct {
+	clusterDB *db.Cluster
+}
+
+// ensureCacheLoaded is called when we have a non-nil cache in the request context. If the cache is already loaded, it returns early.
+// Otherwise, it queries the database for all group permissions and populates the cache.
+func (o *dbTupleReader) ensureCacheLoaded(ctx context.Context, cache *RequestCache) error {
+	// Check if already loaded.
+	if cache.initialised.Load() {
+		return nil
+	}
+
+	// Serialise initialisation. A second goroutine that races past the fast-path check above
+	// will block here and then see initialised=true once the first goroutine is done.
+	cache.initMu.Lock()
+	defer cache.initMu.Unlock()
+
+	// Re-check after acquiring the lock in case another goroutine already populated the cache.
+	if cache.initialised.Load() {
+		return nil
+	}
+
+	// Get a map of group to slice of permissions.
+	var groupPermissions map[string][]cluster.Permission
+	err := o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		groupPermissions, err = cluster.GetGroupPermissions(ctx, tx.Tx())
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	permissionCacheByEntityType := make(map[entity.Type]map[auth.Entitlement]map[int][]string)
+	// function to add a permission to permissionCacheByEntityType
+	addToPermissionByEntityTypeCache := func(groupName string, permission cluster.Permission) {
+		entityType := entity.Type(permission.EntityType)
+		entityTypePermissions, ok := permissionCacheByEntityType[entityType]
+		if !ok {
+			permissionCacheByEntityType[entityType] = map[auth.Entitlement]map[int][]string{permission.Entitlement: {permission.EntityID: {groupName}}}
+			return
+		}
+
+		entityTypeEntitlementPermissions, ok := entityTypePermissions[permission.Entitlement]
+		if !ok {
+			entityTypePermissions[permission.Entitlement] = map[int][]string{permission.EntityID: {groupName}}
+			return
+		}
+
+		entityTypeEntitlementPermissions[permission.EntityID] = append(entityTypeEntitlementPermissions[permission.EntityID], groupName)
+	}
+
+	permissionCacheByGroup := make(map[string]map[entity.Type]map[auth.Entitlement][]int)
+	// function to add a permission permissionCacheByGroup
+	addToPermissionByGroup := func(group string, permission cluster.Permission) {
+		entityType := entity.Type(permission.EntityType)
+		groupPermissionsForEntityType, ok := permissionCacheByGroup[group][entityType]
+		if !ok {
+			permissionCacheByGroup[group][entityType] = map[auth.Entitlement][]int{permission.Entitlement: {permission.EntityID}}
+			return
+		}
+
+		groupPermissionsForEntityType[permission.Entitlement] = append(groupPermissionsForEntityType[permission.Entitlement], permission.EntityID)
+	}
+
+	// Iterate over the map of group to slice of permissions and
+	// populate our request cache to optimise for ReadUsersetTuples and ReadStartingWithUser.
+	for groupName, permissions := range groupPermissions {
+		permissionCacheByGroup[groupName] = map[entity.Type]map[auth.Entitlement][]int{}
+		for _, permission := range permissions {
+			addToPermissionByEntityTypeCache(groupName, permission)
+			addToPermissionByGroup(groupName, permission)
+		}
+	}
+
+	// Write each field under only its own mutex so that the locking pattern is
+	// consistent between writes and reads and does not confuse lockset analysis.
+	cache.permissionsByEntityTypeMu.Lock()
+	cache.permissionsByEntityType = permissionCacheByEntityType
+	cache.permissionsByEntityTypeMu.Unlock()
+
+	cache.permissionsByGroupMu.Lock()
+	cache.permissionsByGroup = permissionCacheByGroup
+	cache.permissionsByGroupMu.Unlock()
+
+	// Mark the cache as fully populated only after both fields have been written.
+	cache.initialised.Store(true)
+	return nil
 }
 
 // Read reads multiple tuples from the store. Various predicates are applied based on the given key.
@@ -93,12 +258,7 @@ func requestIsContextualOnly(ctx context.Context) bool {
 //   - This method doesn't actually perform any queries (win!).
 //   - If we change our design to use entity IDs directly, this method will need to change so that we can return the correct project ID.
 //     (Currently we don't need to as the project name is already in the URL).
-func (o *openfgaStore) Read(ctx context.Context, s string, key storage.ReadFilter, options storage.ReadOptions) (storage.TupleIterator, error) {
-	// Don't return any data if the request already contained all tuples in context.
-	if requestIsContextualOnly(ctx) {
-		return storage.NewStaticTupleIterator(nil), nil
-	}
-
+func (o *dbTupleReader) Read(ctx context.Context, s string, key storage.ReadFilter, options storage.ReadOptions) (storage.TupleIterator, error) {
 	obj := key.Object
 	relation := key.Relation
 	user := key.User
@@ -226,12 +386,7 @@ func (o *openfgaStore) Read(ctx context.Context, s string, key storage.ReadFilte
 // Implementation:
 //   - The tuples that this method is meant to return have been passed in contextually. So validate the input matches
 //     what is expected and return nil.
-func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, filter storage.ReadUserTupleFilter, options storage.ReadUserTupleOptions) (*openfgav1.Tuple, error) {
-	// Don't return any data if the request already contained all tuples in context.
-	if requestIsContextualOnly(ctx) {
-		return nil, nil
-	}
-
+func (o *dbTupleReader) ReadUserTuple(ctx context.Context, store string, filter storage.ReadUserTupleFilter, options storage.ReadUserTupleOptions) (*openfgav1.Tuple, error) {
 	// Expect the User field to be present.
 	user := filter.User
 	if user == "" {
@@ -251,92 +406,6 @@ func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, filter s
 	return nil, nil
 }
 
-// ensureCacheLoaded is called when we have a non-nil cache in the request context. If the cache is already loaded, it returns early.
-// Otherwise, it queries the database for all group permissions and populates the cache.
-func (o *openfgaStore) ensureCacheLoaded(ctx context.Context, cache *RequestCache) error {
-	// Check if already loaded.
-	if cache.initialised.Load() {
-		return nil
-	}
-
-	// Serialise initialisation. A second goroutine that races past the fast-path check above
-	// will block here and then see initialised=true once the first goroutine is done.
-	cache.initMu.Lock()
-	defer cache.initMu.Unlock()
-
-	// Re-check after acquiring the lock in case another goroutine already populated the cache.
-	if cache.initialised.Load() {
-		return nil
-	}
-
-	// Get a map of group to slice of permissions.
-	var groupPermissions map[string][]cluster.Permission
-	err := o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		groupPermissions, err = cluster.GetGroupPermissions(ctx, tx.Tx())
-		return err
-	})
-	if err != nil {
-		return err
-	}
-
-	permissionCacheByEntityType := make(map[entity.Type]map[auth.Entitlement]map[int][]string)
-	// function to add a permission to permissionCacheByEntityType
-	addToPermissionByEntityTypeCache := func(groupName string, permission cluster.Permission) {
-		entityType := entity.Type(permission.EntityType)
-		entityTypePermissions, ok := permissionCacheByEntityType[entityType]
-		if !ok {
-			permissionCacheByEntityType[entityType] = map[auth.Entitlement]map[int][]string{permission.Entitlement: {permission.EntityID: {groupName}}}
-			return
-		}
-
-		entityTypeEntitlementPermissions, ok := entityTypePermissions[permission.Entitlement]
-		if !ok {
-			entityTypePermissions[permission.Entitlement] = map[int][]string{permission.EntityID: {groupName}}
-			return
-		}
-
-		entityTypeEntitlementPermissions[permission.EntityID] = append(entityTypeEntitlementPermissions[permission.EntityID], groupName)
-	}
-
-	permissionCacheByGroup := make(map[string]map[entity.Type]map[auth.Entitlement][]int)
-	// function to add a permission permissionCacheByGroup
-	addToPermissionByGroup := func(group string, permission cluster.Permission) {
-		entityType := entity.Type(permission.EntityType)
-		groupPermissionsForEntityType, ok := permissionCacheByGroup[group][entityType]
-		if !ok {
-			permissionCacheByGroup[group][entityType] = map[auth.Entitlement][]int{permission.Entitlement: {permission.EntityID}}
-			return
-		}
-
-		groupPermissionsForEntityType[permission.Entitlement] = append(groupPermissionsForEntityType[permission.Entitlement], permission.EntityID)
-	}
-
-	// Iterate over the map of group to slice of permissions and
-	// populate our request cache to optimise for ReadUsersetTuples and ReadStartingWithUser.
-	for groupName, permissions := range groupPermissions {
-		permissionCacheByGroup[groupName] = map[entity.Type]map[auth.Entitlement][]int{}
-		for _, permission := range permissions {
-			addToPermissionByEntityTypeCache(groupName, permission)
-			addToPermissionByGroup(groupName, permission)
-		}
-	}
-
-	// Write each field under only its own mutex so that the locking pattern is
-	// consistent between writes and reads and does not confuse lockset analysis.
-	cache.permissionsByEntityTypeMu.Lock()
-	cache.permissionsByEntityType = permissionCacheByEntityType
-	cache.permissionsByEntityTypeMu.Unlock()
-
-	cache.permissionsByGroupMu.Lock()
-	cache.permissionsByGroup = permissionCacheByGroup
-	cache.permissionsByGroupMu.Unlock()
-
-	// Mark the cache as fully populated only after both fields have been written.
-	cache.initialised.Store(true)
-	return nil
-}
-
 // ReadUsersetTuples is called on check requests. It is used to read all the "users" that have a given relation to
 // a given object. In this context, the "user" may not be the identity making requests to LXD. In OpenFGA, a "user"
 // is any entity that can be related to an object (https://openfga.dev/docs/concepts#what-is-a-user). For example, in
@@ -353,15 +422,7 @@ func (o *openfgaStore) ensureCacheLoaded(ctx context.Context, cache *RequestCach
 //     permission, and only groups have permissions. So we first get the ID of the entity via the URL that is
 //     part of the Object. Then we get the permission for that entity ID, entity type, and relation (entitlement).
 //     Finally, we return all groups that have that permission.
-//   - One exception to the above is the "type bound public access" (https://openfga.dev/docs/modeling/public-access)
-//     that is defined for `server` `can_view`, which allows all identities access to `GET /1.0` and `GET /1.0/storage`.
-//     We check for this case before making any DB queries.
-func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filter storage.ReadUsersetTuplesFilter, options storage.ReadUsersetTuplesOptions) (storage.TupleIterator, error) {
-	// Don't return any data if the request already contained all tuples in context.
-	if requestIsContextualOnly(ctx) {
-		return storage.NewStaticTupleIterator(nil), nil
-	}
-
+func (o *dbTupleReader) ReadUsersetTuples(ctx context.Context, store string, filter storage.ReadUsersetTuplesFilter, options storage.ReadUsersetTuplesOptions) (storage.TupleIterator, error) {
 	// Expect both an object and a relation.
 	if filter.Object == "" || filter.Relation == "" {
 		return nil, errors.New("ReadUsersetTuples: Filter must include both an object and a relation")
@@ -467,7 +528,7 @@ func usersetTuples(object string, relation string, groupNames []string) []*openf
 }
 
 // getGroupsWithEntitlementOnEntityWithURL returns a list of groups with the given permission.
-func (o *openfgaStore) getGroupsWithEntitlementOnEntityWithURL(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type, entityURL *url.URL) ([]string, error) {
+func (o *dbTupleReader) getGroupsWithEntitlementOnEntityWithURL(ctx context.Context, entitlement auth.Entitlement, entityType entity.Type, entityURL *url.URL) ([]string, error) {
 	var groupNames []string
 	err := o.clusterDB.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the ID of the entity.
@@ -520,12 +581,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 //   - For the first two cases we can perform a simple lookup for entities of the requested type (with project name if project relation).
 //   - In the third case, we need to get all permissions with the given entity type and entitlement that are associated with the given group.
 //   - For the fourth case we return nil, since we expect direct entitlements for identities to be passed in contextually.
-func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, filter storage.ReadStartingWithUserFilter, options storage.ReadStartingWithUserOptions) (storage.TupleIterator, error) {
-	// Don't return any data if the request already contained all tuples in context.
-	if requestIsContextualOnly(ctx) {
-		return storage.NewStaticTupleIterator(nil), nil
-	}
-
+func (o *dbTupleReader) ReadStartingWithUser(ctx context.Context, store string, filter storage.ReadStartingWithUserFilter, options storage.ReadStartingWithUserOptions) (storage.TupleIterator, error) {
 	// Example expected input, case 1:
 	// filter.ObjectType = "certificate"
 	// filter.Relation = "server"
@@ -786,7 +842,7 @@ func readStartingWithUserTuples(entityType entity.Type, entityURLs []string, ent
 }
 
 // getEntitiesOfTypeWhereGroupHasEntitlement returns a list of entity URLs of the given type where the given group has the given entitlement.
-func (o *openfgaStore) getEntitiesOfTypeWhereGroupHasEntitlement(ctx context.Context, entityType entity.Type, groupName string, entitlement auth.Entitlement) ([]string, error) {
+func (o *dbTupleReader) getEntitiesOfTypeWhereGroupHasEntitlement(ctx context.Context, entityType entity.Type, groupName string, entitlement auth.Entitlement) ([]string, error) {
 	// Construct a query to list permissions with the given entity type and entitlement for the given group.
 	q := `
 SELECT auth_groups_permissions.entity_type, auth_groups_permissions.entity_id, auth_groups_permissions.entitlement
@@ -838,7 +894,7 @@ WHERE auth_groups_permissions.entitlement = ? AND auth_groups_permissions.entity
 }
 
 // ReadPage is not implemented. It is not required for the functionality we need.
-func (*openfgaStore) ReadPage(ctx context.Context, store string, tk storage.ReadFilter, opts storage.ReadPageOptions) ([]*openfgav1.Tuple, string, error) {
+func (*dbTupleReader) ReadPage(ctx context.Context, store string, tk storage.ReadFilter, opts storage.ReadPageOptions) ([]*openfgav1.Tuple, string, error) {
 	return nil, "", api.NewGenericStatusError(http.StatusNotImplemented)
 }
 
@@ -936,3 +992,32 @@ func (*openfgaStore) IsReady(ctx context.Context) (storage.ReadinessStatus, erro
 
 // Close is a no-op.
 func (*openfgaStore) Close() {}
+
+// emptyTupleReader implements [storage.RelationshipTupleReader] such that all requests return nothing.
+// This is used during group consistency checks when all tuples are passed via context.
+type emptyTupleReader struct{}
+
+// Read implements [storage.RelationshipTupleReader.Read].
+func (e emptyTupleReader) Read(ctx context.Context, store string, filter storage.ReadFilter, options storage.ReadOptions) (storage.TupleIterator, error) {
+	return storage.NewStaticTupleIterator([]*openfgav1.Tuple{}), nil
+}
+
+// ReadPage implements [storage.RelationshipTupleReader.ReadPage].
+func (e emptyTupleReader) ReadPage(ctx context.Context, store string, filter storage.ReadFilter, options storage.ReadPageOptions) ([]*openfgav1.Tuple, string, error) {
+	return []*openfgav1.Tuple{}, "", nil
+}
+
+// ReadUserTuple implements [storage.RelationshipTupleReader.ReadUserTuple].
+func (e emptyTupleReader) ReadUserTuple(ctx context.Context, store string, filter storage.ReadUserTupleFilter, options storage.ReadUserTupleOptions) (*openfgav1.Tuple, error) {
+	return &openfgav1.Tuple{}, nil
+}
+
+// ReadUsersetTuples implements [storage.RelationshipTupleReader.ReadUsersetTuples].
+func (e emptyTupleReader) ReadUsersetTuples(ctx context.Context, store string, filter storage.ReadUsersetTuplesFilter, options storage.ReadUsersetTuplesOptions) (storage.TupleIterator, error) {
+	return storage.NewStaticTupleIterator([]*openfgav1.Tuple{}), nil
+}
+
+// ReadStartingWithUser implements [storage.RelationshipTupleReader.ReadStartingWithUser].
+func (e emptyTupleReader) ReadStartingWithUser(ctx context.Context, store string, filter storage.ReadStartingWithUserFilter, options storage.ReadStartingWithUserOptions) (storage.TupleIterator, error) {
+	return storage.NewStaticTupleIterator([]*openfgav1.Tuple{}), nil
+}

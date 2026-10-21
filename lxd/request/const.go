@@ -28,9 +28,10 @@ const (
 	// CtxOpenFGARequestCache is used to set a cache for the OpenFGA datastore to improve driver performance on a per request basis.
 	CtxOpenFGARequestCache CtxKey = "openfga_request_cache"
 
-	// CtxOpenFGAContextualTuplesOnly indicates to the OpenFGA datastore that it should not attempt to resolve an entity URL from the database.
-	// This is used for group permission consistency checks.
-	CtxOpenFGAContextualTuplesOnly CtxKey = "openfga_context_only"
+	// CtxOpenFGAContextualTupleKeys is used to pass contextual tuples to the OpenFGA datastore.
+	// This is due to a hardcoded limit of 100 contextual tuples (see https://github.com/openfga/rfcs/pull/39 is implemented).
+	// It is possible to hit this limit when performing group permission consistency checks.
+	CtxOpenFGAContextualTupleKeys CtxKey = "openfga_contextual_tuples"
 
 	// CtxSecurityEventBase carries the per-request OWASP audit fields used to
 	// populate security events emitted while handling a request.
