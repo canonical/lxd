@@ -898,7 +898,7 @@ parts:
 
   squashfs-tools-ng:
     source: https://github.com/AgentD/squashfs-tools-ng
-    source-commit: 8f9966c8ea3ea8a854941d041e7fcb9eb4f772fb # v1.3.1
+    source-commit: 667faf69cc35215e33e747b4bffdcba3643c2629 # v1.3.2
     source-depth: 1
     source-type: git
     plugin: autotools
