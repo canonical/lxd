@@ -398,7 +398,7 @@ parts:
 
   libseccomp:
     source: https://github.com/seccomp/libseccomp
-    source-commit: f0b04ab0b4fc0bc2cde6da1f407b4a487fe6d78f # v2.5.5
+    source-commit: 292a4aa70d70908b75a29568727576680fbdf5f5 # v2.5.6
     source-depth: 1
     source-type: git
     plugin: autotools
