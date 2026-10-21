@@ -572,15 +572,37 @@ func (o *Verifier) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	callback := func(ctx context.Context, tokens *oidc.Tokens[*oidc.IDTokenClaims]) error {
-		userInfo, err := o.userInfo(r.Context(), tokens.AccessToken)
+	userInfoFallback := func(accessToken string) (*AuthenticationResult, error) {
+		userInfo, err := o.userInfo(r.Context(), accessToken)
 		if err != nil {
-			return fmt.Errorf("Failed getting caller identity: %w", err)
+			return nil, fmt.Errorf("Failed getting caller identity: %w", err)
 		}
 
 		res, err := o.getResultFromClaims(userInfo, userInfo.Claims)
 		if err != nil {
-			return fmt.Errorf("Failed parsing user info response: %w", err)
+			return nil, fmt.Errorf("Failed parsing user info response: %w", err)
+		}
+
+		return res, nil
+	}
+
+	callback := func(ctx context.Context, tokens *oidc.Tokens[*oidc.IDTokenClaims]) error {
+		// In the callback, we already have all user details in the ID token claims, so we can use that to get the authentication result.
+		res, err := o.getResultFromClaims(tokens.IDTokenClaims, tokens.IDTokenClaims.Claims)
+		if err != nil {
+			if tokens.AccessToken == "" {
+				err = fmt.Errorf("Failed getting user details from ID token: %w", err)
+				return err
+			}
+
+			// Some providers will not add all required claims to the ID token because they are stored plaintext (base64) in the token body.
+			// If we fail to get the subject and email address (which are the only required fields), fall back to hitting the userinfo endpoint.
+			// We can only do this if the authorization code flow returned an access token.
+			var fallBackErr error
+			res, fallBackErr = userInfoFallback(tokens.AccessToken)
+			if fallBackErr != nil {
+				return errors.Join(err, fmt.Errorf("Failed getting user details via access token: %w", fallBackErr))
+			}
 		}
 
 		_, err = o.startSession(r, w, *res, tokens, nil)
