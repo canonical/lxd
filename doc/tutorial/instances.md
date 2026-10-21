@@ -7,7 +7,7 @@ Now we'll start working with instances, which can be either system containers or
 (tutorial-create-instances)=
 ## Create instances
 
-LXD uses images to create instances from either {ref}`local or remote image servers <about-images>`. We will fetch our container images from the remote [`ubuntu:`](https://cloud-images.ubuntu.com/releases/) server, which hosts official Ubuntu images.
+LXD uses {ref}`images <about-images>` to create instances. We will use the built-in `ubuntu` image registry to fetch our images from [Ubuntu Cloud images](https://cloud-images.ubuntu.com/releases/), which hosts official Ubuntu images.
 
 (tutorial-create-containers)=
 ### Create and start containers
@@ -23,7 +23,8 @@ The `lxc launch` command creates an instance, then immediately starts it. By def
 lxc launch ubuntu:26.04 first
 ```
 
-This downloads and unpacks the image, then uses it to create and start a container. Since this command does not specify a remote server, the default [`ubuntu:`](https://cloud-images.ubuntu.com/releases/) server is used. Once downloaded, this image is cached temporarily in the local image server.
+This command uses the `ubuntu` image registry to download the image.
+The image is then unpacked and used to create and start the container.
 
 We can also create an instance without starting it, using the `lxc init` command. Note that this differs from the `lxd init` command you used to initialize LXD.
 
@@ -50,7 +51,7 @@ You should see both containers you created in the output, with the `first` conta
 
 To create a container, select {guilabel}`Instances` from the main navigation, then click {guilabel}`Create instance`.
 
-In the form that opens, name this instance `first`. Click {guilabel}`Browse images` and select the `Ubuntu 26.04 LTS` image. Note that the {guilabel}`Source` for this image is `Ubuntu`, which is the remote [`ubuntu:`](https://cloud-images.ubuntu.com/releases/) server.
+In the form that opens, name this instance `first`. Click {guilabel}`Browse images` and select the `Ubuntu 26.04 LTS` image. Note that the {guilabel}`Source` for this image is `Ubuntu`, which is the `ubuntu` image registry.
 
 Launch the container by clicking the {guilabel}`Create and start` button.
 
@@ -99,7 +100,7 @@ After you select this image and return to the main creation form, set the {guila
 (tutorial-create-vm-desktop)=
 ## Configure, create, and start a desktop VM
 
-A desktop Ubuntu VM is available from the remote [`images:`](https://images.lxd.canonical.com/) server. This server is provided by Canonical for unofficial images of not only Ubuntu variants but other Linux distributions, for testing and development purposes.
+A desktop Ubuntu VM is available through the `images` image registry, which provides access to the [Image Server](https://images.lxd.canonical.com/). This server is provided by Canonical for unofficial images of not only Ubuntu variants but other Linux distributions, for testing and development purposes.
 
 The {config:option}`instance-resource-limits:limits.memory` option defaults to 1 GiB for VMs. For the desktop VM to run smoothly, we must allocate a higher memory limit.
 
@@ -126,7 +127,7 @@ lxc config get ubuntu-desktop limits.memory
 ````{group-tab} UI
 Open the form to create a new instance. Name it `ubuntu-desktop`.
 
-Browse for its image, and filter by variant `desktop` to find the Ubuntu 26.04 LTS desktop image. Note that its {guilabel}`Source` is `LXD Images`, meaning that it uses the remote [`images:`](https://images.lxd.canonical.com/) server. Select this image.
+Browse for its image, and filter by variant `desktop` to find the Ubuntu 26.04 LTS desktop image. Note that its {guilabel}`Source` is `LXD Images`, meaning that it uses the `images` image registry. Select this image.
 
 In the submenu, go to {guilabel}`Resource limits` and override the {guilabel}`Memory limit` to 4 GiB.
 
