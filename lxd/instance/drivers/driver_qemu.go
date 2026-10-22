@@ -5256,7 +5256,7 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 
 			vdpaDevFile, err := os.OpenFile(vhostVDPAPath, os.O_RDWR, 0)
 			if err != nil {
-				return fmt.Errorf("Error opening vDPA device file %q: %w", vdpaDevFile.Name(), err)
+				return fmt.Errorf("Error opening vDPA device file %q: %w", vhostVDPAPath, err)
 			}
 
 			defer func() { _ = vdpaDevFile.Close() }() // Close file after device has been added.
