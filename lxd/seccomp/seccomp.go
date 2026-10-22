@@ -2230,7 +2230,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	ctx["target"] = args.target
 
 	// const char *filesystemtype
-	if siov.req.data.args[1] != 0 {
+	if siov.req.data.args[2] != 0 {
 		_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&mntFs[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[2]))
 		if err != nil {
 			ctx["err"] = fmt.Sprintf("Failed reading fstype for of mount syscall: %s", err)
