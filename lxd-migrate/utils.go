@@ -291,7 +291,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 
 				// Add client certificate to trust store
 				req := api.CertificatesPost{
-					Password: string(pwd),
+					Password: string(pwd), //nolint:staticcheck
 				}
 
 				req.Type = api.CertificateTypeClient
