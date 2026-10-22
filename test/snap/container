@@ -155,7 +155,9 @@ for release in $RELEASES; do
     lxc delete -f i1
 
     testNested="true"
-    if [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
+    if [ "${release}" = "20.04" ]; then
+        testNested="false"
+    elif [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
         if dpkg --compare-versions "${release}" ge "26.04"; then
             testNested="false"
         fi
