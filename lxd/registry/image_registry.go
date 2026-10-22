@@ -62,7 +62,7 @@ func TransitionalRegistryName(rawURL string) string {
 
 	// Collect non-empty path segments.
 	var segments []string
-	for _, seg := range strings.Split(u.Path, "/") {
+	for seg := range strings.SplitSeq(u.Path, "/") {
 		if seg != "" {
 			segments = append(segments, seg)
 		}
