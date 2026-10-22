@@ -1705,13 +1705,12 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 		args.switchPidns = 1
 	}
 
-	// error out if policy < 0
+	// int policy
+	args.policy = C.int(siov.req.data.args[1])
+
 	if args.policy < 0 {
 		return s.continueOrErrno(ctx, siov, int(-C.EINVAL))
 	}
-
-	// int policy
-	args.policy = C.int(siov.req.data.args[1])
 
 	schedParamArgs := C.struct_sched_param{}
 	_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&schedParamArgs), C.LXD_SCHED_PARAM_SIZE, C.off_t(siov.req.data.args[2]))
