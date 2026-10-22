@@ -29,6 +29,12 @@ echo "==> Check if TPM files are present"
 lxc exec v1 -- stat /dev/tpm0
 lxc exec v1 -- stat /dev/tpmrm0
 
+echo "==> Check that swtpm runs under an AppArmor profile of its own"
+# XXX: LXD releases 5.21 and earlier run swtpm unconfined
+if [[ ! "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
+    [[ "$(< "/proc/$(pgrep -x swtpm)/attr/current")" == "lxd_swtpm-"*" (enforce)" ]]
+fi
+
 echo "==> Try removing TPM from a running VM"
 ! lxc config device remove v1 tpm1 || false
 lxc exec v1 -- stat /dev/tpm0
