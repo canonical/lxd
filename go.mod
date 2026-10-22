@@ -1,6 +1,6 @@
 module github.com/canonical/lxd
 
-go 1.26.5
+go 1.27.3
 
 require (
 	github.com/NVIDIA/nvidia-container-toolkit v1.20.1
