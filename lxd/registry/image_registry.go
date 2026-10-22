@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -39,13 +40,7 @@ func IsTransitionalSimpleStreamsURL(rawURL string) bool {
 	}
 
 	host := strings.ToLower(u.Hostname())
-	for _, allowed := range transitionalSimpleStreamsHosts {
-		if host == allowed {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(transitionalSimpleStreamsHosts, host)
 }
 
 // TransitionalRegistryName derives a deterministic image registry name from a
