@@ -43,23 +43,24 @@ type openfgaStore struct {
 // RequestCache should be set in the request context to allow the OpenFGADatastore implementation to reduce the number
 // of database calls that are made on a per-request basis.
 type RequestCache struct {
-	// initialised is used to load the cache only once per request.
+	// initMu serialises loading so that the database is queried only once per request.
 	// This is because the OpenFGA server will call methods on a datastore implementation concurrently.
-	initialised atomic.Bool
-
-	// initMu serialises cache initialisation so that only one goroutine populates the fields below.
 	initMu sync.Mutex
 
-	// permissionsByEntityType is a cache that allows us to know which groups have a given permission on a given entity.
+	// loaded is nil until the cache is populated. The pointed-to value is never modified after it is stored.
+	loaded atomic.Pointer[loadedPermissions]
+}
+
+// loadedPermissions is the immutable content of a RequestCache.
+type loadedPermissions struct {
+	// byEntityType allows us to know which groups have a given permission on a given entity.
 	// This is used by the ReadUsersetTuples method.
 	// The integer key is the entity ID.
-	permissionsByEntityType   map[entity.Type]map[auth.Entitlement]map[int][]string
-	permissionsByEntityTypeMu sync.RWMutex
+	byEntityType map[entity.Type]map[auth.Entitlement]map[int][]string
 
-	// permissionsByGroup allows to return all the permissions that a group has.
+	// byGroup allows to return all the permissions that a group has.
 	// This is used by the ReadStartingWithUser method.
-	permissionsByGroup   map[string]map[entity.Type]map[auth.Entitlement][]int
-	permissionsByGroupMu sync.RWMutex
+	byGroup map[string]map[entity.Type]map[auth.Entitlement][]int
 }
 
 // requestIsContextualOnly returns true if the request already contained all the required tuples. This is used for checking
@@ -251,22 +252,24 @@ func (o *openfgaStore) ReadUserTuple(ctx context.Context, store string, filter s
 	return nil, nil
 }
 
-// ensureCacheLoaded is called when we have a non-nil cache in the request context. If the cache is already loaded, it returns early.
-// Otherwise, it queries the database for all group permissions and populates the cache.
-func (o *openfgaStore) ensureCacheLoaded(ctx context.Context, cache *RequestCache) error {
+// ensureCacheLoaded is called when we have a non-nil cache in the request context. If the cache is already loaded, it returns its content.
+// Otherwise, it queries the database for all group permissions, populates the cache and returns its content.
+func (o *openfgaStore) ensureCacheLoaded(ctx context.Context, cache *RequestCache) (*loadedPermissions, error) {
 	// Check if already loaded.
-	if cache.initialised.Load() {
-		return nil
+	loaded := cache.loaded.Load()
+	if loaded != nil {
+		return loaded, nil
 	}
 
-	// Serialise initialisation. A second goroutine that races past the fast-path check above
-	// will block here and then see initialised=true once the first goroutine is done.
+	// Serialise loading. A second goroutine that races past the fast-path check above
+	// will block here and then see the loaded content once the first goroutine is done.
 	cache.initMu.Lock()
 	defer cache.initMu.Unlock()
 
 	// Re-check after acquiring the lock in case another goroutine already populated the cache.
-	if cache.initialised.Load() {
-		return nil
+	loaded = cache.loaded.Load()
+	if loaded != nil {
+		return loaded, nil
 	}
 
 	// Get a map of group to slice of permissions.
@@ -277,7 +280,7 @@ func (o *openfgaStore) ensureCacheLoaded(ctx context.Context, cache *RequestCach
 		return err
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	permissionCacheByEntityType := make(map[entity.Type]map[auth.Entitlement]map[int][]string)
@@ -322,19 +325,14 @@ func (o *openfgaStore) ensureCacheLoaded(ctx context.Context, cache *RequestCach
 		}
 	}
 
-	// Write each field under only its own mutex so that the locking pattern is
-	// consistent between writes and reads and does not confuse lockset analysis.
-	cache.permissionsByEntityTypeMu.Lock()
-	cache.permissionsByEntityType = permissionCacheByEntityType
-	cache.permissionsByEntityTypeMu.Unlock()
+	// Publish both maps at once. Readers must not modify them.
+	loaded = &loadedPermissions{
+		byEntityType: permissionCacheByEntityType,
+		byGroup:      permissionCacheByGroup,
+	}
 
-	cache.permissionsByGroupMu.Lock()
-	cache.permissionsByGroup = permissionCacheByGroup
-	cache.permissionsByGroupMu.Unlock()
-
-	// Mark the cache as fully populated only after both fields have been written.
-	cache.initialised.Store(true)
-	return nil
+	cache.loaded.Store(loaded)
+	return loaded, nil
 }
 
 // ReadUsersetTuples is called on check requests. It is used to read all the "users" that have a given relation to
@@ -396,14 +394,12 @@ func (o *openfgaStore) ReadUsersetTuples(ctx context.Context, store string, filt
 		return storage.NewStaticTupleIterator(usersetTuples(filter.Object, filter.Relation, groups)), nil
 	}
 
-	err = o.ensureCacheLoaded(ctx, cache)
+	loaded, err := o.ensureCacheLoaded(ctx, cache)
 	if err != nil {
 		return nil, fmt.Errorf("ReadUsersetTuples: Failed ensuring that the request cache is loaded: %w", err)
 	}
 
-	cache.permissionsByEntityTypeMu.RLock()
-	defer cache.permissionsByEntityTypeMu.RUnlock()
-	entityTypePermissions, ok := cache.permissionsByEntityType[entityType]
+	entityTypePermissions, ok := loaded.byEntityType[entityType]
 	if !ok {
 		// There are no permissions for this entity type.
 		return storage.NewStaticTupleIterator(nil), nil
@@ -708,15 +704,12 @@ func (o *openfgaStore) ReadStartingWithUser(ctx context.Context, store string, f
 		return storage.NewStaticTupleIterator(readStartingWithUserTuples(entityType, entityURLs, entitlement, groupName)), nil
 	}
 
-	err = o.ensureCacheLoaded(ctx, cache)
+	loaded, err := o.ensureCacheLoaded(ctx, cache)
 	if err != nil {
 		return nil, fmt.Errorf("ReadStartingWithUser: Failed ensuring that the request cache is loaded: %w", err)
 	}
 
-	cache.permissionsByGroupMu.RLock()
-	defer cache.permissionsByGroupMu.RUnlock()
-
-	groupPermissions, ok := cache.permissionsByGroup[groupName]
+	groupPermissions, ok := loaded.byGroup[groupName]
 	if !ok {
 		// The group has no permissions.
 		return storage.NewStaticTupleIterator(nil), nil
