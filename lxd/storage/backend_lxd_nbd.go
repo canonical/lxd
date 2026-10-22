@@ -424,9 +424,12 @@ func (b *lxdBackend) serveSnapshotNBD(socketPath string, exports []nbdExport) (n
 		return nil, nil, fmt.Errorf("Failed creating NBD socket directory: %w", err)
 	}
 
-	// A socket left behind by a session that did not shut down cleanly would pass the readiness
-	// check before the daemon listens on it.
+	// A socket or pid file left behind by a session that did not shut down cleanly is removed
+	// before the daemon creates its own. A stale pid file would pass the readiness check before
+	// the daemon has added its exports.
+	pidPath := socketPath + ".pid"
 	_ = os.Remove(socketPath)
+	_ = os.Remove(pidPath)
 
 	// The option is given as JSON, which needs no escaping of the socket path.
 	nbdServer, err := json.Marshal(map[string]any{"addr": map[string]any{"type": "unix", "path": socketPath}})
@@ -436,7 +439,7 @@ func (b *lxdBackend) serveSnapshotNBD(socketPath string, exports []nbdExport) (n
 
 	// The daemon processes its options in order.
 	// The server must start before the exports are added.
-	args := []string{"--nbd-server", string(nbdServer)}
+	args := []string{"--nbd-server", string(nbdServer), "--pidfile", pidPath}
 	metadataImages := make([]*os.File, 0, len(exports))
 	readPaths := make([]string, 0, 2*len(exports))
 	for i, export := range exports {
@@ -505,7 +508,7 @@ func (b *lxdBackend) serveSnapshotNBD(socketPath string, exports []nbdExport) (n
 	cmd.Stderr = &stderr
 	cmd.ExtraFiles = metadataImages
 
-	cleanup, err := apparmor.NBDServerWrapper(b.state.OS, cmd, socketPath, readPaths, nil)
+	cleanup, err := apparmor.NBDServerWrapper(b.state.OS, cmd, socketPath, readPaths, []string{pidPath})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -516,9 +519,8 @@ func (b *lxdBackend) serveSnapshotNBD(socketPath string, exports []nbdExport) (n
 		return nil, nil, fmt.Errorf("Failed starting qemu-storage-daemon: %w", err)
 	}
 
-	// stopped is set before LXD signals the daemon.
-	// The daemon creates the socket before it opens the exports.
-	// It can therefore fail after the connection is returned, and its stderr is the only record of the reason.
+	// stopped is set before LXD stops the qemu-storage-daemon.
+	// If the daemon exits while stopped is false, it means the daemon has failed.
 	var stopped atomic.Bool
 
 	// exited is closed once the daemon has exited.
@@ -547,9 +549,12 @@ func (b *lxdBackend) serveSnapshotNBD(socketPath string, exports []nbdExport) (n
 		}
 
 		_ = os.Remove(socketPath)
+		_ = os.Remove(pidPath)
 	}
 
-	// Wait for the daemon to listen on the socket.
+	// Wait for the pid file to exist.
+	// The pid file is written once every export is added.
+	// This ensures the client always receives the complete list of exports.
 	timeout := time.After(10 * time.Second)
 	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
@@ -558,12 +563,13 @@ func (b *lxdBackend) serveSnapshotNBD(socketPath string, exports []nbdExport) (n
 		select {
 		case <-timeout:
 			stop(unix.SIGKILL)
-			return nil, nil, errors.New("Timed out waiting for qemu-storage-daemon socket")
+			return nil, nil, errors.New("Timed out waiting for qemu-storage-daemon pid file")
 		case <-exited:
 			_ = os.Remove(socketPath)
+			_ = os.Remove(pidPath)
 			return nil, nil, fmt.Errorf("Failed running qemu-storage-daemon: %s", strings.TrimSpace(stderr.String()))
 		case <-ticker.C:
-			_, err := os.Stat(socketPath)
+			_, err := os.Stat(pidPath)
 			ready = err == nil
 		}
 	}
