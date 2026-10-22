@@ -1530,6 +1530,9 @@ func (s *Server) resolveTaskIdmap(c Instance, ctx logger.Ctx, siov *Iovec, pid i
 	return uid, gid, fsuid, fsgid, idmapset, 0, true
 }
 
+// maxSetxattrValueSize matches the kernel's XATTR_SIZE_MAX.
+const maxSetxattrValueSize = 64 * 1024
+
 // SetxattrArgs arguments for setxattr.
 type SetxattrArgs struct {
 	nsuid   int64
@@ -1592,14 +1595,22 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	// int flags
 	args.flags = C.int(siov.req.data.args[4])
 
-	buf := make([]byte, args.size)
-	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&buf[0]), C.size_t(args.size), C.off_t(siov.req.data.args[2]))
-	if err != nil {
-		ctx["err"] = fmt.Sprintf("Failed reading memory for setxattr syscall: %s", err)
+	// The value size is container-controlled, so bound it before allocating.
+	if args.size < 0 || args.size > maxSetxattrValueSize {
+		ctx["err"] = fmt.Sprintf("Invalid setxattr value size %d", args.size)
 		return s.continueOrErrno(ctx, siov, int(-C.EPERM))
 	}
 
-	args.value = buf
+	if args.size > 0 {
+		buf := make([]byte, args.size)
+		_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&buf[0]), C.size_t(args.size), C.off_t(siov.req.data.args[2]))
+		if err != nil {
+			ctx["err"] = fmt.Sprintf("Failed reading memory for setxattr syscall: %s", err)
+			return s.continueOrErrno(ctx, siov, int(-C.EPERM))
+		}
+
+		args.value = buf
+	}
 
 	whiteout := 0
 	if string(args.name) == "trusted.overlay.opaque" && string(args.value) == "y" {
