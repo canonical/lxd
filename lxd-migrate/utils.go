@@ -245,7 +245,7 @@ func (c *cmdMigrate) connectTarget(url string, certPath string, keyPath string, 
 	if authType == api.AuthenticationMethodTLS {
 		if token != "" {
 			req := api.CertificatesPost{
-				Password: token,
+				Password: token, //nolint:staticcheck
 			}
 
 			err = instanceServer.CreateCertificate(req)
