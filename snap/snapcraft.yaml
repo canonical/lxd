@@ -941,7 +941,7 @@ parts:
       - spice-server
       - python-runtime
     source: https://git.launchpad.net/ubuntu/+source/qemu
-    source-commit: 85eabe56085d03cb58c749408801344fc91b9173 # import/1%10.2.1+ds-1ubuntu3.2
+    source-commit: bb0b78fbc9cb23b9c6dfb53b6075637b75b56794 # import/1%10.2.1+ds-1ubuntu3.3
     source-depth: 1
     source-type: git
     plugin: autotools
