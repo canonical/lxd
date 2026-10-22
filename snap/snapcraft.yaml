@@ -339,7 +339,7 @@ parts:
   libseccomp:
     source: https://github.com/seccomp/libseccomp
     source-type: git
-    source-tag: v2.5.4
+    source-tag: v2.5.6
     source-depth: 1
     plugin: autotools
     autotools-configure-parameters:
@@ -370,7 +370,7 @@ parts:
   libusb:
     source: https://github.com/libusb/libusb
     source-type: git
-    source-tag: v1.0.26
+    source-tag: v1.0.30
     source-depth: 1
     plugin: autotools
     autotools-configure-parameters:
@@ -515,7 +515,7 @@ parts:
   openvswitch:
     source: https://github.com/openvswitch/ovs
     source-type: git
-    source-tag: v3.0.1
+    source-tag: v3.0.8
     source-depth: 1
     plugin: autotools
     autotools-configure-parameters:
@@ -556,7 +556,7 @@ parts:
       - spice-protocol
     source: https://gitlab.freedesktop.org/spice/spice
     source-type: git
-    source-tag: v0.15.1
+    source-tag: v0.15.2
     source-depth: 1
     plugin: meson
     meson-parameters:
@@ -763,7 +763,7 @@ parts:
     source: https://github.com/sqlite/sqlite
     source-type: git
     source-depth: 1
-    source-tag: version-3.40.0
+    source-tag: version-3.40.1
     plugin: autotools
     autotools-configure-parameters:
       - --prefix=
@@ -991,7 +991,7 @@ parts:
   zfs-2-1:
     source: https://github.com/openzfs/zfs
     source-type: git
-    source-tag: zfs-2.1.15
+    source-tag: zfs-2.1.16
     source-depth: 1
     plugin: autotools
     autotools-configure-parameters:
