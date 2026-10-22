@@ -23,15 +23,13 @@ func Test_AlletraClient_sessionKeyCache(t *testing.T) {
 
 	var waitGroup sync.WaitGroup
 	for range 8 {
-		waitGroup.Add(1)
-		go func() {
-			defer waitGroup.Done()
+		waitGroup.Go(func() {
 			for range 100 {
 				client.cacheSessionKey("first")
 				_, _ = otherClient.getSessionKey()
 				client.invalidateSessionKey()
 			}
-		}()
+		})
 	}
 
 	waitGroup.Wait()
