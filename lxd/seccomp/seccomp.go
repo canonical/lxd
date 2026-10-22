@@ -2193,10 +2193,16 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		pid: int(siov.req.pid),
 	}
 
+	// The pidfd detects PID reuse before the target's process memory is read.
 	pidFdNr, pidFd := MakePidFd(args.pid, s.s)
-	if pidFdNr >= 0 {
-		defer func() { _ = pidFd.Close() }()
+	if pidFd == nil {
+		ctx["err"] = fmt.Sprintf("Failed opening pidfd for target process %d of mount syscall", args.pid)
+		ctx["syscall_continue"] = "true"
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+		return 0
 	}
+
+	defer func() { _ = pidFd.Close() }()
 
 	mntSource := [unix.PathMax]C.char{}
 	mntTarget := [unix.PathMax]C.char{}
