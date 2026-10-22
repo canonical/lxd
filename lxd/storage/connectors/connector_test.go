@@ -60,11 +60,11 @@ func Test_NewConnector(t *testing.T) {
 		connectorType string
 		want          Connector
 	}{
-		{connectorType: TypeNVMeTCP, want: &connectorNVMe{common: common{serverUUID: serverUUID}}},
-		{connectorType: TypeNVMeFC, want: &connectorNVMeFC{common: common{serverUUID: serverUUID}}},
-		{connectorType: TypeSDC, want: &connectorSDC{common: common{serverUUID: serverUUID}}},
-		{connectorType: TypeISCSI, want: &connectorISCSI{common: common{serverUUID: serverUUID}}},
-		{connectorType: TypeSCSIFC, want: &connectorSCSIFC{common: common{serverUUID: serverUUID}}},
+		{connectorType: TypeNVMeTCP, want: &connectorNVMe{serverUUID: serverUUID}},
+		{connectorType: TypeNVMeFC, want: &connectorNVMeFC{serverUUID: serverUUID}},
+		{connectorType: TypeSDC, want: &connectorSDC{serverUUID: serverUUID}},
+		{connectorType: TypeISCSI, want: &connectorISCSI{serverUUID: serverUUID}},
+		{connectorType: TypeSCSIFC, want: &connectorSCSIFC{serverUUID: serverUUID}},
 	}
 
 	for _, test := range tests {
@@ -110,8 +110,8 @@ func Test_QualifiedNames(t *testing.T) {
 		{
 			name: "Multi-initiator connector reports all of its names",
 			connector: &fakeMultiInitiatorConnector{
-				fakeConnector: fakeConnector{qn: "21000024ff43b10c"},
-				qns:           []string{"21000024ff43b10c", "21000024ff43b10d"},
+				qn:  "21000024ff43b10c",
+				qns: []string{"21000024ff43b10c", "21000024ff43b10d"},
 			},
 			want: []string{"21000024ff43b10c", "21000024ff43b10d"},
 		},
@@ -119,8 +119,8 @@ func Test_QualifiedNames(t *testing.T) {
 			// The single name must not shadow the full set.
 			name: "Multi-initiator connector does not fall back to the single name",
 			connector: &fakeMultiInitiatorConnector{
-				fakeConnector: fakeConnector{qn: "21000024ff43b10c"},
-				err:           failure,
+				qn:  "21000024ff43b10c",
+				err: failure,
 			},
 			wantError: failure,
 		},
