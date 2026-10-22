@@ -986,7 +986,7 @@ func (siov *Iovec) PutSeccompIovec() {
 
 // ReceiveSeccompIovec receives a seccomp iovec.
 func (siov *Iovec) ReceiveSeccompIovec(fd int) (uint64, error) {
-	bytes, fds, err := netutils.AbstractUnixReceiveFdData(fd, 3, netutils.UnixFdsAcceptLess, unsafe.Pointer(siov.iov), 4)
+	bytes, fds, err := netutils.AbstractUnixReceiveFdData(fd, 3, netutils.UnixFdsAcceptExact, unsafe.Pointer(siov.iov), 4)
 	if err != nil || err == io.EOF {
 		return 0, err
 	}
@@ -1120,6 +1120,7 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 					bytes, err := siov.ReceiveSeccompIovec(int(unixFile.Fd()))
 					if err != nil {
 						logger.Debugf("Disconnected from seccomp socket after failed receive: pid=%v, err=%s", ucred.Pid, err)
+						siov.PutSeccompIovec()
 						_ = c.Close()
 						return
 					}
