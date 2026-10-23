@@ -247,12 +247,12 @@ func parseNetworkAttachment(global *cmdGlobal, args []string) (*networkAttachmen
 	}, nil
 }
 
-// device returns the NIC device to add. With byNetwork, the NIC references the network so that the network's
-// inherited properties are loaded when started. Otherwise it is a macvlan (or bridged, for a bridge) NIC
-// connected to the interface of that name.
-func (a *networkAttachment) device(byNetwork bool) map[string]string {
+// device returns the NIC device to add. A managed network is referenced by name when the server supports it, so
+// that the network's inherited properties are loaded when started. Otherwise it is a macvlan (or bridged, for a
+// bridge) NIC connected to the interface of that name.
+func (a *networkAttachment) device() map[string]string {
 	var device map[string]string
-	if byNetwork {
+	if a.network.Managed && a.server.HasExtension("instance_nic_network") {
 		device = map[string]string{
 			"type":    "nic",
 			"network": a.network.Name,
@@ -288,10 +288,7 @@ func (c *cmdNetworkAttach) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// A managed network is referenced by name, rather than by nictype, when the server supports it.
-	byNetwork := attachment.network.Managed && attachment.server.HasExtension("instance_nic_network")
-
-	return instanceDeviceAdd(attachment.server, args[1], attachment.devName, attachment.device(byNetwork))
+	return instanceDeviceAdd(attachment.server, args[1], attachment.devName, attachment.device())
 }
 
 // Attach profile.
@@ -316,7 +313,7 @@ func (c *cmdNetworkAttachProfile) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return profileDeviceAdd(attachment.server, args[1], attachment.devName, attachment.device(false))
+	return profileDeviceAdd(attachment.server, args[1], attachment.devName, attachment.device())
 }
 
 // Create.
