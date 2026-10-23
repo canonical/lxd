@@ -277,7 +277,7 @@ parts:
       - qemu
     source: https://git.launchpad.net/ubuntu/+source/edk2
     source-depth: 1
-    source-commit: d63241dd1f7e26e4b2b8878fa6caf4439cd8a6b5 # import/2024.02-2ubuntu0.9
+    source-commit: bc0456fd40b2b308b3a01113fd18dfa650da37d3 # import/2024.02-2ubuntu0.10
     source-type: git
     plugin: nil
     build-packages:
@@ -398,7 +398,7 @@ parts:
 
   libseccomp:
     source: https://github.com/seccomp/libseccomp
-    source-commit: f0b04ab0b4fc0bc2cde6da1f407b4a487fe6d78f # v2.5.5
+    source-commit: 292a4aa70d70908b75a29568727576680fbdf5f5 # v2.5.6
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -413,7 +413,7 @@ parts:
 
   libtpms:
     source: https://github.com/stefanberger/libtpms
-    source-commit: f8c2dc7e12a730dcca4220d7ac5ad86d13dfd630 # v0.9.6
+    source-commit: 925b06ee479d7d1a35d7a284977bab0f144fac45 # v0.9.7
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -450,7 +450,7 @@ parts:
 
   libusb:
     source: https://github.com/libusb/libusb
-    source-commit: d52e355daa09f17ce64819122cb067b8a2ee0d4b # v1.0.27
+    source-commit: 87a55632db62c9bdc58cd31d3ccfa673f1bb017f # v1.0.30
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -631,7 +631,7 @@ parts:
 
   spice-protocol:
     source: https://gitlab.freedesktop.org/spice/spice-protocol
-    source-commit: 6f453a775d87087c6ba59fc180c1a1e466631a47 # v0.14.4
+    source-commit: c5c2f26422b44e3143c87814af73c38125d4ccfc # v0.14.5
     source-depth: 1
     source-type: git
     plugin: meson
@@ -697,7 +697,7 @@ parts:
       - libseccomp
       - libtpms
     source: https://github.com/stefanberger/swtpm
-    source-commit: f756ee8a281ddff7e09b49e1ef00d5cbb42abb63 # v0.9.0
+    source-commit: c699d106d4e2b71db90e273c3823c9fcb2763bb6 # v0.9.1
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -898,7 +898,7 @@ parts:
 
   squashfs-tools-ng:
     source: https://github.com/AgentD/squashfs-tools-ng
-    source-commit: 8f9966c8ea3ea8a854941d041e7fcb9eb4f772fb # v1.3.1
+    source-commit: 667faf69cc35215e33e747b4bffdcba3643c2629 # v1.3.2
     source-depth: 1
     source-type: git
     plugin: autotools
@@ -1222,7 +1222,7 @@ parts:
 
   apparmor:
     source: https://gitlab.com/apparmor/apparmor.git
-    source-commit: 84a6bc1b6dcdfeabb1ed3597f01e314f3bcee5c1 # v4.0.2
+    source-commit: b4dfdf50f50ed1d64161424d036a2453645f0cfe # v4.0.3
     source-depth: 1
     source-type: git
     plugin: autotools
