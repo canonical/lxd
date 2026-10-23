@@ -235,6 +235,17 @@ test_config_profiles() {
   lxc config set user.foo bar
   lxc config unset user.foo
 
+  # Test unsetting multiple keys at once
+  lxc config set foo user.prop1=value1 user.prop2=value2
+  lxc config unset foo user.prop1 user.prop2
+  [ -z "$(lxc config get foo user.prop1 || echo fail)" ]
+  [ -z "$(lxc config get foo user.prop2 || echo fail)" ]
+
+  lxc config set user.foo=bar user.bar=baz
+  lxc config unset user.foo user.bar
+  [ -z "$(lxc config get user.foo || echo fail)" ]
+  [ -z "$(lxc config get user.bar || echo fail)" ]
+
   _unix_devs
 
   _loop_mounts
