@@ -29,7 +29,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   # Needed for lxd fork commands
   @{PROC}/@{pid}/cpuset r,
-  {{ .exePath }} mr,
+  "{{ .exePath }}" mr,
   @{PROC}/@{pid}/cmdline r,
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
   {{ .rootPath }}/run/systemd/resolve/stub-resolv.conf r,
@@ -56,9 +56,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 {{- end }}
 
 {{if .libraryPath -}}
-  # Entries from LD_LIBRARY_PATH
+  # Shared libraries
 {{range $index, $element := .libraryPath}}
-  {{$element}}/** mr,
+  "{{$element}}/**" mr,
 {{- end }}
 {{- end }}
 }
@@ -86,8 +86,8 @@ func forkdnsProfile(n network) (string, error) {
 		"varPath":     shared.VarPath(""),
 		"rootPath":    rootPath,
 		"snap":        shared.InSnap(),
-		"libraryPath": ldLibraryPaths(),
-		"exePath":     execPath,
+		"libraryPath": escapeRulePaths(profileLibraryPaths(execPath)),
+		"exePath":     rulePathEscaper.Replace(execPath),
 		"goCoverDir":  goCoverDir(),
 	})
 	if err != nil {
