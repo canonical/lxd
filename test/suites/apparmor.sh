@@ -8,7 +8,9 @@ _instance_apparmor() {
 
   echo "Create and start a test container"
   lxc launch testimage c1
-  dmesg -c
+
+  # Clear the ring buffer without flooding the console
+  dmesg --clear
 
   echo "==> Test /sys/kernel/* access"
 
