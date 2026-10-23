@@ -422,7 +422,7 @@ func (d *ceph) Validate(config map[string]string) error {
 		// given project are mirrored to. One OSD pool can back several projects, each replicating
 		// to a different peer.
 		//
-		// `ceph.rbd.clone_copy` must also be set to `false` before any container is created on the
+		// `ceph.rbd.clone_copy` must also be set to `false` before any instance is created on the
 		// pool, because Ceph cannot mirror a volume that is a clone of its image.
 		//
 		// The project must exist before this option is set. Deleting the project with `--force`
@@ -443,11 +443,11 @@ func (d *ceph) Validate(config map[string]string) error {
 			return fmt.Errorf("Invalid option %q, expected %s<project>: %w", k, cephReplicatorPoolKeyPrefix, err)
 		}
 
-		// A container volume is a clone of its image unless the pool copies instead, and Ceph refuses
+		// An instance volume is a clone of its image unless the pool copies instead, and Ceph refuses
 		// to mirror a clone whose parent is not mirrored. Volumes created before the mode changed keep
 		// their parent, which is why the mode has to be in place first. An empty value is an unset.
 		if config[k] != "" && shared.IsTrueOrEmpty(config["ceph.rbd.clone_copy"]) {
-			return fmt.Errorf("%s requires ceph.rbd.clone_copy=false, set before any container is created on the pool", k)
+			return fmt.Errorf("%s requires ceph.rbd.clone_copy=false, set before any instance is created on the pool", k)
 		}
 
 		// An empty value is how the key is unset, and the database drops such a key rather than
