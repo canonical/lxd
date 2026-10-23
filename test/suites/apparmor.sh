@@ -185,6 +185,60 @@ _apparmor_library_paths() {
   kill_lxd "${LXD2_DIR}"
 }
 
+# _apparmor_library_paths_rpath checks that a daemon which finds its libraries through its own RPATH can be confined with LD_LIBRARY_PATH unset.
+_apparmor_library_paths_rpath() {
+  if ! command -v patchelf >/dev/null 2>&1; then
+    echo "==> SKIP: patchelf not available"
+    return
+  fi
+
+  local rpath profile entry LXD2_DIR
+  rpath=""
+
+  # Record the directories the daemon already searches as an RPATH, so that the copy does not need LD_LIBRARY_PATH.
+  while IFS= read -r entry; do
+    [[ "${entry}" == /?* ]] || continue
+    entry="${entry%"${entry##*[!/]}"}"
+    rpath="${rpath:+${rpath}:}${entry}"
+  done < <(printf '%s\n' "${LD_LIBRARY_PATH:-}" | tr ':' '\n')
+
+  if [ -z "${rpath}" ]; then
+    echo "==> SKIP: LD_LIBRARY_PATH names no library directories"
+    return
+  fi
+
+  LXD2_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
+
+  # The daemon under test finds liblxc and dqlite through LD_LIBRARY_PATH, so give a copy of it an RPATH instead.
+  cp "$(command -v lxd)" "${LXD2_DIR}/lxd"
+  patchelf --set-rpath "${rpath}" "${LXD2_DIR}/lxd"
+
+  # Spawn the copy without LD_LIBRARY_PATH, so it can only find its libraries through its RPATH.
+  # A subshell scopes both variables, as saving LD_LIBRARY_PATH would leave it set to an empty string when it started unset.
+  (
+    unset LD_LIBRARY_PATH
+    PATH="${LXD2_DIR}:${PATH}" spawn_lxd "${LXD2_DIR}" true
+  )
+
+  LXD_DIR="${LXD2_DIR}" ensure_import_testimage
+  LXD_DIR="${LXD2_DIR}" lxc init testimage c1
+  LXD_DIR="${LXD2_DIR}" lxc config device add c1 p1 proxy "listen=tcp:127.0.0.1:$(local_tcp_port)" connect=tcp:127.0.0.1:4321
+
+  sub_test "A daemon without LD_LIBRARY_PATH starts a proxy device from the libraries in its RPATH"
+  LXD_DIR="${LXD2_DIR}" lxc start c1
+  LXD_DIR="${LXD2_DIR}" lxc list c1 --format csv --columns ns | grep -xF 'c1,RUNNING'
+
+  sub_test "The directories in the RPATH are allowed in the profile"
+  profile="${LXD2_DIR}/security/apparmor/profiles/lxd_forkproxy-p1_c1"
+  [ -f "${profile}" ]
+  while IFS= read -r entry; do
+    grep -xF "  \"${entry}/**\" mr," "${profile}"
+  done < <(printf '%s\n' "${rpath}" | tr ':' '\n')
+
+  LXD_DIR="${LXD2_DIR}" lxc delete --force c1
+  kill_lxd "${LXD2_DIR}"
+}
+
 # _apparmor_forkproxy_socket_path checks that a unix socket path made of AppArmor special characters is escaped.
 _apparmor_forkproxy_socket_path() {
   ensure_import_testimage
@@ -230,6 +284,7 @@ _apparmor_rsync_volume_name() {
 test_apparmor() {
   _instance_apparmor
   _apparmor_library_paths
+  _apparmor_library_paths_rpath
   _apparmor_forkproxy_socket_path
   _apparmor_rsync_volume_name
 }
