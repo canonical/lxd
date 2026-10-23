@@ -41,31 +41,43 @@ func (d *cephobject) radosgwadmin(ctx context.Context, args ...string) (string, 
 	return shared.RunCommand(ctx, cmd[0], cmd[1:]...)
 }
 
-// radosgwadminGetUser returns credentials for an existing radosgw user (and its sub users).
-// If no user exists returns api.StatusError with status code set to http.StatusNotFound.
-func (d *cephobject) radosgwadminGetUser(ctx context.Context, user string) (*S3Credentials, map[string]S3Credentials, error) {
-	out, err := d.radosgwadmin(ctx, "user", "info", "--uid", user)
+// radosgwUserInfo is the information about a radosgw user returned by `radosgw-admin user info`.
+type radosgwUserInfo struct {
+	SubUsers []struct {
+		ID string `json:"id"`
+	} `json:"subusers"`
+	Keys []struct {
+		S3Credentials `yaml:",inline"`
+		User          string `json:"user"`
+	} `json:"keys"`
+}
 
+// radosgwadminUserInfo returns information about an existing radosgw user.
+// If no user exists returns api.StatusError with status code set to http.StatusNotFound.
+func (d *cephobject) radosgwadminUserInfo(ctx context.Context, user string) (*radosgwUserInfo, error) {
+	out, err := d.radosgwadmin(ctx, "user", "info", "--uid", user)
 	if err != nil {
 		status, _ := shared.ExitStatus(err)
 		if status == 22 {
-			return nil, nil, api.StatusErrorf(http.StatusNotFound, "User not found")
+			return nil, api.StatusErrorf(http.StatusNotFound, "User not found")
 		}
 
-		return nil, nil, fmt.Errorf("Failed getting user %q info: %w", user, err)
+		return nil, fmt.Errorf("Failed getting user %q info: %w", user, err)
 	}
 
-	resp := struct {
-		SubUsers []struct {
-			ID string `json:"id"`
-		} `json:"subusers"`
-		Keys []struct {
-			S3Credentials `yaml:",inline"`
-			User          string `json:"user"`
-		} `json:"keys"`
-	}{}
+	info := radosgwUserInfo{}
+	err = json.Unmarshal([]byte(out), &info)
+	if err != nil {
+		return nil, err
+	}
 
-	err = json.Unmarshal([]byte(out), &resp)
+	return &info, nil
+}
+
+// radosgwadminGetUser returns credentials for an existing radosgw user (and its sub users).
+// If no user exists returns api.StatusError with status code set to http.StatusNotFound.
+func (d *cephobject) radosgwadminGetUser(ctx context.Context, user string) (*S3Credentials, map[string]S3Credentials, error) {
+	resp, err := d.radosgwadminUserInfo(ctx, user)
 	if err != nil {
 		return nil, nil, err
 	}
