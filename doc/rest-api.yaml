@@ -987,10 +987,28 @@ definitions:
         x-go-package: github.com/canonical/lxd/shared/api
     ClusterMemberSysInfo:
         properties:
+            available_ram:
+                description: |-
+                    Memory available for starting new applications without swapping (bytes)
+
+                    API extension: cluster_member_state_memory
+                example: 8589934592
+                format: uint64
+                type: integer
+                x-go-name: AvailableRAM
             buffered_ram:
                 format: uint64
                 type: integer
                 x-go-name: BufferRAM
+            cached_ram:
+                description: |-
+                    Memory used by the page cache (bytes)
+
+                    API extension: cluster_member_state_memory
+                example: 4294967296
+                format: uint64
+                type: integer
+                x-go-name: CachedRAM
             free_ram:
                 format: uint64
                 type: integer
@@ -7907,10 +7925,28 @@ definitions:
                 x-go-name: StoragePools
             sysinfo:
                 properties:
+                    available_ram:
+                        description: |-
+                            Memory available for starting new applications without swapping (bytes)
+
+                            API extension: cluster_member_state_memory
+                        example: 8589934592
+                        format: uint64
+                        type: integer
+                        x-go-name: AvailableRAM
                     buffered_ram:
                         format: uint64
                         type: integer
                         x-go-name: BufferRAM
+                    cached_ram:
+                        description: |-
+                            Memory used by the page cache (bytes)
+
+                            API extension: cluster_member_state_memory
+                        example: 4294967296
+                        format: uint64
+                        type: integer
+                        x-go-name: CachedRAM
                     free_ram:
                         format: uint64
                         type: integer

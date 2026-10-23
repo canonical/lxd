@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	"github.com/canonical/lxd/lxd/node"
+	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
 )
@@ -37,6 +38,9 @@ func TestClusterState(t *testing.T) {
 
 	state.LocalConfig = nodeConfig
 
+	memInfo, err := resources.GetHostMeminfo()
+	require.NoError(t, err)
+
 	states, err := cluster.ClusterState(state, cert)
 	require.NoError(t, err)
 
@@ -46,10 +50,16 @@ func TestClusterState(t *testing.T) {
 		// Local cluster member
 		if clusterMemberName == "0" {
 			assert.Positive(t, state.SysInfo.LogicalCPUs)
+			assert.Equal(t, memInfo.Total, state.SysInfo.TotalRAM)
+			assert.Equal(t, memInfo.SwapTotal, state.SysInfo.TotalSwap)
+			assert.LessOrEqual(t, state.SysInfo.AvailableRAM, state.SysInfo.TotalRAM)
+			assert.LessOrEqual(t, state.SysInfo.CachedRAM, state.SysInfo.TotalRAM)
 			continue
 		}
 
 		assert.Equal(t, uint64(24), state.SysInfo.LogicalCPUs)
+		assert.Equal(t, uint64(8589934592), state.SysInfo.AvailableRAM)
+		assert.Equal(t, uint64(4294967296), state.SysInfo.CachedRAM)
 	}
 
 	var members []db.NodeInfo

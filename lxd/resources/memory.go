@@ -14,20 +14,25 @@ import (
 
 var sysDevicesNode = "/sys/devices/system/node"
 
-type meminfo struct {
+// Meminfo represents the memory information parsed from a meminfo file (values in bytes, hugepage counts excepted).
+type Meminfo struct {
 	Total          uint64
 	Free           uint64
 	Available      uint64
+	Buffers        uint64
+	Cached         uint64
 	FilePages      uint64
 	Shmem          uint64
 	SReclaimable   uint64
+	SwapTotal      uint64
+	SwapFree       uint64
 	HugepagesTotal uint64
 	HugepagesFree  uint64
 	HugepagesSize  uint64
 }
 
-func parseMeminfo(path string) (*meminfo, error) {
-	memory := meminfo{}
+func parseMeminfo(path string) (*Meminfo, error) {
+	memory := Meminfo{}
 
 	// Open meminfo
 	f, err := os.Open(path)
@@ -80,6 +85,26 @@ func parseMeminfo(path string) (*meminfo, error) {
 			continue
 		}
 
+		if key == "Buffers" {
+			bytes, err := units.ParseByteSizeString(value)
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing Buffers: %w", err)
+			}
+
+			memory.Buffers = uint64(bytes)
+			continue
+		}
+
+		if key == "Cached" {
+			bytes, err := units.ParseByteSizeString(value)
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing Cached: %w", err)
+			}
+
+			memory.Cached = uint64(bytes)
+			continue
+		}
+
 		if key == "FilePages" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
@@ -107,6 +132,26 @@ func parseMeminfo(path string) (*meminfo, error) {
 			}
 
 			memory.SReclaimable = uint64(bytes)
+			continue
+		}
+
+		if key == "SwapTotal" {
+			bytes, err := units.ParseByteSizeString(value)
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing SwapTotal: %w", err)
+			}
+
+			memory.SwapTotal = uint64(bytes)
+			continue
+		}
+
+		if key == "SwapFree" {
+			bytes, err := units.ParseByteSizeString(value)
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing SwapFree: %w", err)
+			}
+
+			memory.SwapFree = uint64(bytes)
 			continue
 		}
 
@@ -146,6 +191,11 @@ func parseMeminfo(path string) (*meminfo, error) {
 	}
 
 	return &memory, nil
+}
+
+// GetHostMeminfo returns the host memory information as reported by /proc/meminfo.
+func GetHostMeminfo() (*Meminfo, error) {
+	return parseMeminfo("/proc/meminfo")
 }
 
 // GetMemory returns a filled api.ResourcesMemory struct ready for use by LXD.
