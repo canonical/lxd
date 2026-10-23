@@ -382,7 +382,7 @@ parts:
       - qemu
     source: https://git.launchpad.net/ubuntu/+source/edk2
     source-depth: 1
-    source-commit: ffe57b4d0e3cebed99e8b957ef28e23550b72c22 # import/2025.11-3ubuntu7.2
+    source-commit: 800a42cb9d85957e62dcca20bff243afc744bed5 # import/2025.11-3ubuntu7.3
     source-type: git
     plugin: nil
     build-packages:
