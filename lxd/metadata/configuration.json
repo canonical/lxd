@@ -658,6 +658,15 @@
 						}
 					},
 					{
+						"ipv4.routes.external.wait_ready": {
+							"defaultdesc": "`false`",
+							"longdesc": "If enabled, {config:option}`device-nic-bridged-device-conf:ipv4.routes.external` is only added to the host (and published over BGP) once the instance reports itself as ready, and removed again if the instance reverts to the running state. See {ref}`extension-instance-ready-state` for how instances report themselves as ready.",
+							"managed": "no",
+							"shortdesc": "Wait for the instance to be ready before adding `ipv4.routes.external`",
+							"type": "bool"
+						}
+					},
+					{
 						"ipv6.address": {
 							"longdesc": "Set this option to `none` to restrict all IPv6 traffic when {config:option}`device-nic-bridged-device-conf:security.ipv6_filtering` is set.",
 							"managed": "no",
@@ -679,6 +688,15 @@
 							"managed": "no",
 							"shortdesc": "IPv6 static routes to route to NIC",
 							"type": "string"
+						}
+					},
+					{
+						"ipv6.routes.external.wait_ready": {
+							"defaultdesc": "`false`",
+							"longdesc": "If enabled, {config:option}`device-nic-bridged-device-conf:ipv6.routes.external` is only added to the host (and published over BGP) once the instance reports itself as ready, and removed again if the instance reverts to the running state. See {ref}`extension-instance-ready-state` for how instances report themselves as ready.",
+							"managed": "no",
+							"shortdesc": "Wait for the instance to be ready before adding `ipv6.routes.external`",
+							"type": "bool"
 						}
 					},
 					{
