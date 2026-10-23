@@ -68,7 +68,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .devicesPath }}/** rwk,
 
   # Needed for lxd fork commands
-  {{ .exePath }} mr,
+  "{{ .exePath }}" mr,
   @{PROC}/@{pid}/cmdline r,
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
 
