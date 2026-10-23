@@ -1287,15 +1287,17 @@ func (d *Daemon) init() (err error) {
 		logger.Info(" - netnsid-based network retrieval: no")
 	}
 
-	d.os.PidFds.Store(canUsePidFds())
-	if d.os.PidFds.Load() {
+	pidFds := canUsePidFds()
+	d.os.PidFds.Store(pidFds)
+	if pidFds {
 		logger.Info(" - pidfds: yes")
 	} else {
 		logger.Info(" - pidfds: no")
 	}
 
-	d.os.CoreScheduling.Store(canUseCoreScheduling())
-	if d.os.CoreScheduling.Load() {
+	coreScheduling := canUseCoreScheduling()
+	d.os.CoreScheduling.Store(coreScheduling)
+	if coreScheduling {
 		logger.Info(" - core scheduling: yes")
 	} else {
 		logger.Info(" - core scheduling: no")
