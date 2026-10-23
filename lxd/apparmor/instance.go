@@ -247,7 +247,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			"exePath":           execPath,
 			"goCoverDir":        goCoverDir(),
 			"extra_config":      extraConfig,
-			"libraryPath":       ldLibraryPaths(),
+			"libraryPath":       escapeRulePaths(profileLibraryPaths(execPath)),
 			"logPath":           inst.LogPath(),
 			"name":              InstanceProfileName(inst),
 			"path":              path,
