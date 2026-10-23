@@ -290,6 +290,12 @@ func (d *common) HasPatch(name string) bool {
 	return ok && patch != nil
 }
 
+// ReplicatesProject reports whether the driver itself replicates a project's volumes to a linked
+// cluster. Most drivers leave that to LXD's own transfers.
+func (d *common) ReplicatesProject(projectName string) bool {
+	return false
+}
+
 // moveGPTAltHeader moves the GPT alternative header to the end of the disk device supplied.
 // If the device supplied is not detected as a GPT disk then no action is taken and nil is returned.
 // If the required sgdisk command is not available a warning is logged, but no error is returned, as really it is

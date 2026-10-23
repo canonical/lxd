@@ -529,6 +529,14 @@ func (d *ceph) Unmount() (bool, error) {
 	return true, nil
 }
 
+// ReplicatesProject reports whether the pool carries a project's `ceph.replicator.<project>` key, which
+// has rbd-mirror rather than LXD carry the project's images between the linked clusters.
+func (d *ceph) ReplicatesProject(projectName string) bool {
+	_, replicated := d.config[CephReplicatorPoolKey(projectName)]
+
+	return replicated
+}
+
 // GetResources returns the pool resource usage information.
 func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 	var stdout bytes.Buffer

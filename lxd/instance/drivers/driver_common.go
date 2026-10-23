@@ -2738,7 +2738,7 @@ func (d *common) migrateReceiveCustomVolumes(ctx context.Context, inst instance.
 		respHeader.IndexHeaderVersion = &indexHeaderVersion
 
 		// A standby's custom volumes are already mirrored by Ceph, so only their records are transferred.
-		metadataOnly := storagePools.HoldsCephReplicas(volPool, inst.Project())
+		metadataOnly := volPool.ProjectVolumesAreReadonly(inst.Project())
 		respHeader.MetadataOnly = &metadataOnly
 		respHeader.Snapshots = offer.Snapshots
 		respHeader.SnapshotNames = offer.SnapshotNames
@@ -2912,7 +2912,7 @@ func (d *common) migrateSendCustomVolumes(conn io.ReadWriteCloser, indexHeaderVe
 
 		// A metadata-only response means the target expects the data to be mirrored already. Refuse if
 		// this volume's pool does not mirror the project, because then the data was never transferred.
-		if resp.GetMetadataOnly() && !storagePools.PoolMirrorsProject(volPool, d.Project().Name) {
+		if resp.GetMetadataOnly() && !volPool.Driver().ReplicatesProject(d.Project().Name) {
 			return fmt.Errorf("The target holds a mirror of custom volume %q but storage pool %q does not carry %s", vol.Name, vol.Pool, storageDrivers.CephReplicatorPoolKey(d.Project().Name))
 		}
 
