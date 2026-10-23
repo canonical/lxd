@@ -86,7 +86,7 @@ func forkdnsProfile(n network) (string, error) {
 		"varPath":     shared.VarPath(""),
 		"rootPath":    rootPath,
 		"snap":        shared.InSnap(),
-		"libraryPath": ldLibraryPaths(),
+		"libraryPath": escapeRulePaths(profileLibraryPaths(execPath)),
 		"exePath":     execPath,
 		"goCoverDir":  goCoverDir(),
 	})
