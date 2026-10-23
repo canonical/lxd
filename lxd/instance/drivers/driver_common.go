@@ -492,6 +492,37 @@ func (d *common) StoragePool() (string, error) {
 // SECTION: internal functions
 //
 
+// deviceVolatile returns the named device's volatile config, with its device prefix removed from the keys.
+func (d *common) deviceVolatile(devName string) map[string]string {
+	prefix := "volatile." + devName + "."
+
+	// The keys of a device named after this one plus "." also start with this device's prefix.
+	var otherPrefixes []string
+	for _, devices := range []deviceConfig.Devices{d.localDevices, d.expandedDevices} {
+		for name := range devices {
+			if strings.HasPrefix(name, devName+".") {
+				otherPrefixes = append(otherPrefixes, "volatile."+name+".")
+			}
+		}
+	}
+
+	volatile := make(map[string]string)
+	for k, v := range d.localConfig {
+		key, found := strings.CutPrefix(k, prefix)
+		if !found {
+			continue
+		}
+
+		if shared.StringHasPrefix(k, otherPrefixes...) {
+			continue
+		}
+
+		volatile[key] = v
+	}
+
+	return volatile
+}
+
 // deviceVolatileReset resets a device's volatile data when its removed or updated in such a way
 // that it is removed then added immediately afterwards.
 func (d *common) deviceVolatileReset(devName string, oldConfig, newConfig deviceConfig.Device) error {
@@ -512,12 +543,8 @@ func (d *common) deviceVolatileReset(devName string, oldConfig, newConfig device
 	// This will occur if the newConfig is empty (i.e the device is actually being removed) or
 	// if the device type is being changed but keeping the same name.
 	if newConfig["type"] != oldConfig["type"] || newNICType != oldNICType {
-		for k := range d.localConfig {
-			if !strings.HasPrefix(k, devicePrefix) {
-				continue
-			}
-
-			volatileClear[k] = ""
+		for devKey := range d.deviceVolatile(devName) {
+			volatileClear[devicePrefix+devKey] = ""
 		}
 
 		return d.VolatileSet(volatileClear)
@@ -526,15 +553,10 @@ func (d *common) deviceVolatileReset(devName string, oldConfig, newConfig device
 	// If the device type remains the same, then just remove any volatile keys that have
 	// the same key name present in the new config (i.e the new config is replacing the
 	// old volatile key).
-	for k := range d.localConfig {
-		devKey, found := strings.CutPrefix(k, devicePrefix)
-		if !found {
-			continue
-		}
-
-		_, found = newConfig[devKey]
+	for devKey := range d.deviceVolatile(devName) {
+		_, found := newConfig[devKey]
 		if found {
-			volatileClear[k] = ""
+			volatileClear[devicePrefix+devKey] = ""
 		}
 	}
 
@@ -545,16 +567,7 @@ func (d *common) deviceVolatileReset(devName string, oldConfig, newConfig device
 // removes its device prefix from the keys.
 func (d *common) deviceVolatileGetFunc(devName string) func() map[string]string {
 	return func() map[string]string {
-		volatile := make(map[string]string)
-		prefix := "volatile." + devName + "."
-		for k, v := range d.localConfig {
-			after, ok := strings.CutPrefix(k, prefix)
-			if ok {
-				volatile[after] = v
-			}
-		}
-
-		return volatile
+		return d.deviceVolatile(devName)
 	}
 }
 
