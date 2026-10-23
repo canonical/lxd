@@ -80,6 +80,18 @@ func (c *ClusterTx) CreateNetworkPeer(ctx context.Context, networkID int64, info
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return -1, false, fmt.Errorf("Failed looking up mutual peering: %w", err)
 	} else if err == nil {
+		// A peer left over from an earlier mutual peering whose other side was deleted still references
+		// the other network, so the networks cannot be linked again until it is deleted.
+		err = networkPeerCheckStale(ctx, c.tx, networkID, targetPeerNetworkID, "Network already has peer %q for the target network, which must be deleted first")
+		if err != nil {
+			return -1, false, err
+		}
+
+		err = networkPeerCheckStale(ctx, c.tx, targetPeerNetworkID, networkID, "Target network already has peer %q for this network, which must be deleted first")
+		if err != nil {
+			return -1, false, err
+		}
+
 		peerNetworkMap := map[int64]struct {
 			localNetworkID      int64
 			targetPeerNetworkID int64
@@ -111,6 +123,27 @@ func (c *ClusterTx) CreateNetworkPeer(ctx context.Context, networkID int64, info
 	}
 
 	return localPeerID, targetPeerNetworkID > -1, nil
+}
+
+// networkPeerCheckStale returns a conflict error built from errFormat and the peer's name if the network with
+// ID networkID already has a peer linked to the network with ID targetNetworkID.
+func networkPeerCheckStale(ctx context.Context, tx *sql.Tx, networkID int64, targetNetworkID int64, errFormat string) error {
+	var peerName string
+
+	err := tx.QueryRowContext(ctx, `
+		SELECT name FROM networks_peers
+		WHERE network_id = ? AND target_network_id = ?
+		LIMIT 1
+		`, networkID, targetNetworkID).Scan(&peerName)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+
+		return fmt.Errorf("Failed checking for existing peering: %w", err)
+	}
+
+	return api.StatusErrorf(http.StatusConflict, errFormat, peerName)
 }
 
 // networkPeerConfigAdd inserts Network peer config keys.
