@@ -98,7 +98,13 @@ func hasBit(n uint32, pos uint) bool {
 }
 
 func hasBitField(n []uint32, bit uint) bool {
-	return (n[bit/32] & (1 << (bit % 32))) != 0
+	// Bits beyond the end of the field (e.g. link modes unknown to an older kernel) aren't set.
+	idx := bit / 32
+	if idx >= uint(len(n)) {
+		return false
+	}
+
+	return (n[idx] & (uint32(1) << (bit % 32))) != 0
 }
 
 func udevDecode(s string) (string, error) {

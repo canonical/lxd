@@ -61,6 +61,78 @@ var ethtoolModes = []ethtoolMode{
 	{46, "10000baseER/Full"},
 	{47, "2500baseT/Full"},
 	{48, "5000baseT/Full"},
+	{52, "50000baseKR/Full"},
+	{53, "50000baseSR/Full"},
+	{54, "50000baseCR/Full"},
+	{55, "50000baseLR_ER_FR/Full"},
+	{56, "50000baseDR/Full"},
+	{57, "100000baseKR2/Full"},
+	{58, "100000baseSR2/Full"},
+	{59, "100000baseCR2/Full"},
+	{60, "100000baseLR2_ER2_FR2/Full"},
+	{61, "100000baseDR2/Full"},
+	{62, "200000baseKR4/Full"},
+	{63, "200000baseSR4/Full"},
+	{64, "200000baseLR4_ER4_FR4/Full"},
+	{65, "200000baseDR4/Full"},
+	{66, "200000baseCR4/Full"},
+	{67, "100baseT1/Full"},
+	{68, "1000baseT1/Full"},
+	{69, "400000baseKR8/Full"},
+	{70, "400000baseSR8/Full"},
+	{71, "400000baseLR8_ER8_FR8/Full"},
+	{72, "400000baseDR8/Full"},
+	{73, "400000baseCR8/Full"},
+	{75, "100000baseKR/Full"},
+	{76, "100000baseSR/Full"},
+	{77, "100000baseLR_ER_FR/Full"},
+	{78, "100000baseCR/Full"},
+	{79, "100000baseDR/Full"},
+	{80, "200000baseKR2/Full"},
+	{81, "200000baseSR2/Full"},
+	{82, "200000baseLR2_ER2_FR2/Full"},
+	{83, "200000baseDR2/Full"},
+	{84, "200000baseCR2/Full"},
+	{85, "400000baseKR4/Full"},
+	{86, "400000baseSR4/Full"},
+	{87, "400000baseLR4_ER4_FR4/Full"},
+	{88, "400000baseDR4/Full"},
+	{89, "400000baseCR4/Full"},
+	{90, "100baseFX/Half"},
+	{91, "100baseFX/Full"},
+	{92, "10baseT1L/Full"},
+	{93, "800000baseCR8/Full"},
+	{94, "800000baseKR8/Full"},
+	{95, "800000baseDR8/Full"},
+	{96, "800000baseDR8_2/Full"},
+	{97, "800000baseSR8/Full"},
+	{98, "800000baseVR8/Full"},
+	{99, "10baseT1S/Full"},
+	{100, "10baseT1S/Half"},
+	{101, "10baseT1S_P2MP/Half"},
+	{102, "10baseT1BRR/Full"},
+	{103, "200000baseCR/Full"},
+	{104, "200000baseKR/Full"},
+	{105, "200000baseDR/Full"},
+	{106, "200000baseDR_2/Full"},
+	{107, "200000baseSR/Full"},
+	{108, "200000baseVR/Full"},
+	{109, "400000baseCR2/Full"},
+	{110, "400000baseKR2/Full"},
+	{111, "400000baseDR2/Full"},
+	{112, "400000baseDR2_2/Full"},
+	{113, "400000baseSR2/Full"},
+	{114, "400000baseVR2/Full"},
+	{115, "800000baseCR4/Full"},
+	{116, "800000baseKR4/Full"},
+	{117, "800000baseDR4/Full"},
+	{118, "800000baseDR4_2/Full"},
+	{119, "800000baseSR4/Full"},
+	{120, "800000baseVR4/Full"},
+	{121, "1600000baseCR8/Full"},
+	{122, "1600000baseKR8/Full"},
+	{123, "1600000baseDR8/Full"},
+	{124, "1600000baseDR8_2/Full"},
 }
 
 var ethtoolPorts = []ethtoolMode{
@@ -140,9 +212,7 @@ type ethtoolLinkSettings struct {
 }
 
 type ethtoolLinkModeMaps struct {
-	mapSupported     []uint32
-	mapAdvertising   []uint32
-	mapLpAdvertising []uint32
+	mapSupported []uint32
 }
 
 func ethtoolAddCardInfo(name string, info *api.ResourcesNetworkCard) error {
@@ -289,17 +359,19 @@ func ethtoolLink(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardP
 		return fmt.Errorf("Failed to ETHTOOL_GLINKSETTINGS: %w", unix.Errno(unix.EINVAL))
 	}
 
-	// Copy the mode maps.
-	ethLinkModeMap := ethtoolLinkModeMaps{}
-	ethLinkModeMap.mapSupported = append(ethLinkModeMap.mapSupported, ethLinkSettings.linkModeData[:4*ethLinkSettings.linkModeMasksNwords]...)
+	// The supported, advertising and link partner advertising masks are returned back to back, each of them
+	// linkModeMasksNwords long: supported is [0:nwords], advertising is [nwords:2*nwords] and lp_advertising
+	// is [2*nwords:3*nwords]. A smaller buffer means something went wrong with the ioctl.
+	nwords := int(ethLinkSettings.linkModeMasksNwords)
+	if nwords <= 0 || len(ethLinkSettings.linkModeData) < 3*nwords {
+		return fmt.Errorf("Invalid ethtool link mode mask word count %d (buffer len %d)", nwords, len(ethLinkSettings.linkModeData))
+	}
 
-	// Unused right now
-	offset := ethLinkSettings.linkModeMasksNwords
-	ethLinkModeMap.mapAdvertising = append(ethLinkModeMap.mapAdvertising, ethLinkSettings.linkModeData[offset:4*ethLinkSettings.linkModeMasksNwords]...)
-
-	// Unused right now
-	offset += ethLinkSettings.linkModeMasksNwords
-	ethLinkModeMap.mapLpAdvertising = append(ethLinkModeMap.mapLpAdvertising, ethLinkSettings.linkModeData[offset:4*ethLinkSettings.linkModeMasksNwords]...)
+	// Only the supported mask is used. Sub-slice with limited capacity to prevent allocations and mutation of
+	// subsequent masks.
+	ethLinkModeMap := ethtoolLinkModeMaps{
+		mapSupported: ethLinkSettings.linkModeData[:nwords:nwords],
+	}
 
 	// Link negotiation
 	info.AutoNegotiation = ethLinkSettings.autoneg == 1
