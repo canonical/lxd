@@ -132,7 +132,7 @@ func SetupTrust(serverCert *shared.CertInfo, clusterPut api.ClusterPut) error {
 		Projects:    cert.Projects,
 		Restricted:  cert.Restricted,
 		Certificate: cert.Certificate,
-		Password:    clusterPut.ClusterPassword,
+		Password:    clusterPut.ClusterPassword, //nolint:staticcheck
 		TrustToken:  clusterPut.ClusterToken,
 	}
 
