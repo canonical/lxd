@@ -67,6 +67,44 @@ func wipeDirectory(path string) error {
 	return nil
 }
 
+// removeEmptyDirectories removes the empty directories within path (including directories containing only empty
+// directories), leaving path itself in place. Unlike wipeDirectory, it fails on anything else (files, mount points)
+// so it never removes any data.
+func removeEmptyDirectories(path string) error {
+	// Leave mount points alone as their content belongs to another filesystem.
+	if filesystem.IsMountPoint(path) {
+		return fmt.Errorf("Cannot remove the content of %q as it is a mount point", path)
+	}
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		return fmt.Errorf("Failed listing directory %q: %w", path, err)
+	}
+
+	for _, entry := range entries {
+		entryPath := filepath.Join(path, entry.Name())
+		if !entry.IsDir() {
+			return fmt.Errorf("Cannot remove %q as it is not a directory", entryPath)
+		}
+
+		err := removeEmptyDirectories(entryPath)
+		if err != nil {
+			return err
+		}
+
+		err = os.Remove(entryPath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Failed removing %q: %w", entryPath, err)
+		}
+	}
+
+	return nil
+}
+
 // forceRemoveAll wipes a path including any immutable/non-append files.
 func forceRemoveAll(path string) error {
 	err := os.RemoveAll(path)
