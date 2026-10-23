@@ -791,8 +791,8 @@ func (b *lxdBackend) GetInstanceSnapshotNBD(snapInst instance.Instance, deviceNa
 	return conn, func() {
 		disconnect()
 
-		for i := len(cleanups) - 1; i >= 0; i-- {
-			cleanups[i]()
+		for _, cleanup := range slices.Backward(cleanups) {
+			cleanup()
 		}
 	}, "", nil
 }

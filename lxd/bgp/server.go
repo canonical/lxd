@@ -1140,13 +1140,7 @@ func applyExportPolicy(ctx context.Context, bgpServer *bgpServer.BgpServer, poli
 func softResetPeers(ctx context.Context, bgpServer *bgpServer.BgpServer, peers map[string]peer, affectedOwners []string) {
 	for _, peer := range peers {
 		if len(affectedOwners) > 0 {
-			affected := false
-			for _, owner := range affectedOwners {
-				if peer.usedByOwner(owner) {
-					affected = true
-					break
-				}
-			}
+			affected := slices.ContainsFunc(affectedOwners, peer.usedByOwner)
 
 			if !affected {
 				continue

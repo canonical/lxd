@@ -26,15 +26,13 @@ func Test_PowerStoreClient_sessionCache(t *testing.T) {
 
 	var waitGroup sync.WaitGroup
 	for range 8 {
-		waitGroup.Add(1)
-		go func() {
-			defer waitGroup.Done()
+		waitGroup.Go(func() {
 			for range 100 {
 				client.setSession(firstSession)
 				_, _ = otherClient.session()
 				client.invalidateSession()
 			}
-		}()
+		})
 	}
 
 	waitGroup.Wait()

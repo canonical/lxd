@@ -429,8 +429,8 @@ func isUnreachableError(err error) bool {
 		return false
 	}
 
-	var opErr *net.OpError
-	if errors.As(err, &opErr) {
+	opErr, ok := errors.AsType[*net.OpError](err)
+	if ok {
 		// A TLS alert means the remote end answered, so the cluster has not gone away.
 		return opErr.Op != "remote error"
 	}
