@@ -21,6 +21,7 @@ import (
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/ioprogress"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/revert"
@@ -288,6 +289,16 @@ func (d *common) ApplyPatch(name string) error {
 func (d *common) HasPatch(name string) bool {
 	patch, ok := d.patches[name]
 	return ok && patch != nil
+}
+
+// withMicroVMVolumeType adds the MicroVM volume type to volTypes when the MicroVM feature preview
+// is enabled. Without the preview a pool keeps its usual layout.
+func withMicroVMVolumeType(volTypes []VolumeType) []VolumeType {
+	if !features.IsEnabled(features.MicroVM) {
+		return volTypes
+	}
+
+	return append(volTypes, VolumeTypeMicroVM)
 }
 
 // moveGPTAltHeader moves the GPT alternative header to the end of the disk device supplied.

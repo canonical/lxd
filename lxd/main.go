@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/rsync"
 	cli "github.com/canonical/lxd/shared/cmd"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/logger"
 	"github.com/canonical/lxd/shared/version"
 )
@@ -133,6 +134,12 @@ func main() {
 	// forklimits sub-command
 	forklimitsCmd := cmdForklimits{global: &globalCmd}
 	app.AddCommand(forklimitsCmd.command())
+
+	// forklibkrun sub-command
+	if features.IsEnabled(features.MicroVM) {
+		forklibkrunCmd := cmdForklibkrun{global: &globalCmd}
+		app.AddCommand(forklibkrunCmd.command())
+	}
 
 	// forkmigrate sub-command
 	forkmigrateCmd := cmdForkmigrate{global: &globalCmd}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
+	"github.com/canonical/lxd/shared/features"
 )
 
 type cmdLaunch struct {
@@ -20,6 +21,14 @@ func (c *cmdLaunch) command() *cobra.Command {
 	cmd := c.init.command()
 	cmd.Use = usage("launch", "[<registry|remote>:]<image> [<remote>:][<name>]")
 	cmd.Short = "Create and start instances from images"
+	microvmCmd := ""
+	if features.IsEnabled(features.MicroVM) {
+		microvmCmd = `
+
+lxc launch ubuntu:24.04 m1 --microvm -c limits.cpu=2 -c limits.memory=4GiB
+    Create and start a microvm with 2 vCPUs and 4GiB of RAM`
+	}
+
 	cmd.Long = cli.FormatSection("Description", cmd.Short+`
 
 If the destination LXD remote supports image registries, the source image
@@ -37,7 +46,7 @@ lxc launch ubuntu:24.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
     Create and start a virtual machine with 4 vCPUs and 4GiB of RAM
 
 lxc launch ubuntu:24.04 v1 --vm -c limits.cpu=2 -c limits.memory=8GiB -d root,size=32GiB
-    Create and start a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB`)
+    Create and start a virtual machine with 2 vCPUs, 8GiB of RAM and a root disk of 32GiB`+microvmCmd)
 
 	cmd.RunE = c.run
 

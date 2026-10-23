@@ -114,7 +114,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter io
 		}
 
 		// Avoid double caching in the ARC cache and in the guest OS filesystem cache.
-		if vol.volType == VolumeTypeVM {
+		if vol.volType == VolumeTypeVM || vol.volType == VolumeTypeMicroVM {
 			opts = append(opts, "primarycache=metadata", "secondarycache=metadata")
 		}
 
@@ -218,7 +218,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter io
 			}
 
 			// Move the GPT alt header to end of disk if needed.
-			if vol.IsVMBlock() {
+			if vol.IsVMBlock() && !vol.IsMicroVM() {
 				err = d.moveGPTAltHeader(devPath)
 				if err != nil {
 					return err
@@ -1693,7 +1693,7 @@ func (d *zfs) DeleteVolume(vol Volume, progressReporter ioprogress.ProgressRepor
 	// destroying the clone so the live variant can be deleted if it is no
 	// longer needed.
 	var origin string
-	if vol.volType == VolumeTypeContainer || vol.volType == VolumeTypeVM {
+	if vol.volType == VolumeTypeContainer || vol.volType == VolumeTypeVM || vol.volType == VolumeTypeMicroVM {
 		origin, _ = d.getDatasetProperty(d.dataset(vol, false), "origin")
 	}
 
@@ -2296,7 +2296,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, pr
 
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as
 		// it is expected the caller will do all necessary post resize actions themselves).
-		if vol.IsVMBlock() && !allowUnsafeResize {
+		if vol.IsVMBlock() && !vol.IsMicroVM() && !allowUnsafeResize {
 			err = vol.MountTask(func(mountPath string, progressReporter ioprogress.ProgressReporter) error {
 				devPath, err := d.GetVolumeDiskPath(vol)
 				if err != nil {
@@ -2524,7 +2524,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 		// Detect if a volume is block content type using only the dataset type.
 		isBlock := zfsContentType == "volume"
 
-		if volType == VolumeTypeVM && !isBlock {
+		if (volType == VolumeTypeVM || volType == VolumeTypeMicroVM) && !isBlock {
 			continue // Ignore VM filesystem volumes as we will just return the VM's block volume.
 		}
 
@@ -2536,7 +2536,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 		if volType == VolumeTypeCustom && isBlock && strings.HasSuffix(volName, zfsISOVolSuffix) {
 			contentType = ContentTypeISO
 			volName = strings.TrimSuffix(volName, zfsISOVolSuffix)
-		} else if volType == VolumeTypeVM || isBlock {
+		} else if volType == VolumeTypeVM || volType == VolumeTypeMicroVM || isBlock {
 			volName = strings.TrimSuffix(volName, zfsBlockVolSuffix)
 		}
 
