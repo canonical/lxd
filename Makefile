@@ -91,7 +91,7 @@ lxd-convert:
 
 .PHONY: devlxd-client
 devlxd-client:
-	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false $(COVER) -tags netgo ./devlxd-client
+	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false -ldflags "-s -w" $(COVER) -tags netgo ./devlxd-client
 	@echo "$@ built successfully"
 
 .PHONY: lxd-client
