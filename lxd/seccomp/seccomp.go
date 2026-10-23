@@ -986,7 +986,7 @@ func (siov *Iovec) PutSeccompIovec() {
 
 // ReceiveSeccompIovec receives a seccomp iovec.
 func (siov *Iovec) ReceiveSeccompIovec(fd int) (uint64, error) {
-	bytes, fds, err := netutils.AbstractUnixReceiveFdData(fd, 3, netutils.UnixFdsAcceptLess, unsafe.Pointer(siov.iov), 4)
+	bytes, fds, err := netutils.AbstractUnixReceiveFdData(fd, 3, netutils.UnixFdsAcceptExact, unsafe.Pointer(siov.iov), 4)
 	if err != nil || err == io.EOF {
 		return 0, err
 	}
@@ -1120,6 +1120,7 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 					bytes, err := siov.ReceiveSeccompIovec(int(unixFile.Fd()))
 					if err != nil {
 						logger.Debugf("Disconnected from seccomp socket after failed receive: pid=%v, err=%s", ucred.Pid, err)
+						siov.PutSeccompIovec()
 						_ = c.Close()
 						return
 					}
@@ -1529,6 +1530,9 @@ func (s *Server) resolveTaskIdmap(c Instance, ctx logger.Ctx, siov *Iovec, pid i
 	return uid, gid, fsuid, fsgid, idmapset, 0, true
 }
 
+// maxSetxattrValueSize matches the kernel's XATTR_SIZE_MAX.
+const maxSetxattrValueSize = 64 * 1024
+
 // SetxattrArgs arguments for setxattr.
 type SetxattrArgs struct {
 	nsuid   int64
@@ -1591,14 +1595,22 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	// int flags
 	args.flags = C.int(siov.req.data.args[4])
 
-	buf := make([]byte, args.size)
-	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&buf[0]), C.size_t(args.size), C.off_t(siov.req.data.args[2]))
-	if err != nil {
-		ctx["err"] = fmt.Sprintf("Failed reading memory for setxattr syscall: %s", err)
+	// The value size is container-controlled, so bound it before allocating.
+	if args.size < 0 || args.size > maxSetxattrValueSize {
+		ctx["err"] = fmt.Sprintf("Invalid setxattr value size %d", args.size)
 		return s.continueOrErrno(ctx, siov, int(-C.EPERM))
 	}
 
-	args.value = buf
+	if args.size > 0 {
+		buf := make([]byte, args.size)
+		_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&buf[0]), C.size_t(args.size), C.off_t(siov.req.data.args[2]))
+		if err != nil {
+			ctx["err"] = fmt.Sprintf("Failed reading memory for setxattr syscall: %s", err)
+			return s.continueOrErrno(ctx, siov, int(-C.EPERM))
+		}
+
+		args.value = buf
+	}
 
 	whiteout := 0
 	if string(args.name) == "trusted.overlay.opaque" && string(args.value) == "y" {
@@ -1693,13 +1705,12 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 		args.switchPidns = 1
 	}
 
-	// error out if policy < 0
+	// int policy
+	args.policy = C.int(siov.req.data.args[1])
+
 	if args.policy < 0 {
 		return s.continueOrErrno(ctx, siov, int(-C.EINVAL))
 	}
-
-	// int policy
-	args.policy = C.int(siov.req.data.args[1])
 
 	schedParamArgs := C.struct_sched_param{}
 	_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&schedParamArgs), C.LXD_SCHED_PARAM_SIZE, C.off_t(siov.req.data.args[2]))
@@ -2182,10 +2193,16 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		pid: int(siov.req.pid),
 	}
 
+	// The pidfd detects PID reuse before the target's process memory is read.
 	pidFdNr, pidFd := MakePidFd(args.pid, s.s)
-	if pidFdNr >= 0 {
-		defer func() { _ = pidFd.Close() }()
+	if pidFd == nil {
+		ctx["err"] = fmt.Sprintf("Failed opening pidfd for target process %d of mount syscall", args.pid)
+		ctx["syscall_continue"] = "true"
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+		return 0
 	}
+
+	defer func() { _ = pidFd.Close() }()
 
 	mntSource := [unix.PathMax]C.char{}
 	mntTarget := [unix.PathMax]C.char{}
@@ -2219,7 +2236,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	ctx["target"] = args.target
 
 	// const char *filesystemtype
-	if siov.req.data.args[1] != 0 {
+	if siov.req.data.args[2] != 0 {
 		_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&mntFs[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[2]))
 		if err != nil {
 			ctx["err"] = fmt.Sprintf("Failed reading fstype for of mount syscall: %s", err)
