@@ -847,6 +847,11 @@ func (b *lxdBackend) applyInstanceRootDiskOverrides(inst instance.Instance, vol 
 		return err
 	}
 
+	return applyRootDiskOverrides(rootDiskConf, vol)
+}
+
+// applyRootDiskOverrides applies the root disk config to the volume's config.
+func applyRootDiskOverrides(rootDiskConf map[string]string, vol *drivers.Volume) error {
 	for _, k := range instanceDiskVolumeEffectiveFields {
 		if rootDiskConf[k] != "" {
 			switch k {
@@ -1033,6 +1038,20 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 	// Don't use GetNewVolume as the new volume' UUID got already set beforehand.
 	vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
+
+	// Apply the instance's own root disk config (including any device override from the import request) before
+	// unpacking the backup, so that the new volume isn't created with the pool's default size instead.
+	_, rootDiskConf, err := api.GetRootDiskDevice(srcBackup.Config.Instance.Devices)
+	if err != nil && !errors.Is(err, api.ErrNoRootDisk) {
+		return nil, nil, fmt.Errorf("Failed getting the root disk device: %w", err)
+	}
+
+	if rootDiskConf != nil {
+		err = applyRootDiskOverrides(rootDiskConf, &vol)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 
 	sourceSnapshots := make([]drivers.Volume, 0, len(rootVol.Snapshots))
 	for i, volSnap := range rootVol.Snapshots {
