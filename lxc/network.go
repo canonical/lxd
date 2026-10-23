@@ -849,10 +849,9 @@ func (c *cmdNetworkGet) run(cmd *cobra.Command, args []string) error {
 
 		fmt.Printf("%v\n", res)
 	} else {
-		for k, v := range resp.Config {
-			if k == args[1] {
-				fmt.Printf("%s\n", v)
-			}
+		v, ok := resp.Config[args[1]]
+		if ok {
+			fmt.Printf("%s\n", v)
 		}
 	}
 
