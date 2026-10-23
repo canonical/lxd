@@ -53,9 +53,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 {{- end }}
 
 {{if .libraryPath -}}
-  # Entries from LD_LIBRARY_PATH
+  # Shared libraries
 {{range $index, $element := .libraryPath}}
-  {{$element}}/** mr,
+  "{{$element}}/**" mr,
 {{- end }}
 {{- end }}
 }
@@ -203,7 +203,7 @@ func qemuImgProfile(profileName string, imgPath string, dstPath string, allowedC
 		"dstPath":         rulePathEscaper.Replace(dstPath),
 		"allowedCmdPaths": escapeRulePaths(allowedCmdPaths),
 		"snap":            shared.InSnap(),
-		"libraryPath":     ldLibraryPaths(),
+		"libraryPath":     escapeRulePaths(ldLibraryPaths()),
 	})
 	if err != nil {
 		return "", err

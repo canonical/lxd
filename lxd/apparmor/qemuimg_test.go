@@ -24,6 +24,22 @@ func TestQemuImgProfileEscapesPaths(t *testing.T) {
 	}
 }
 
+func TestQemuImgProfileEscapesLibraryPaths(t *testing.T) {
+	t.Setenv("LD_LIBRARY_PATH", `/a b/[x]{y,z}*?`)
+
+	profile, err := qemuImgProfile("test", "/img", "/dst", []string{"/usr/bin/qemu-img"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A space ends an unquoted rule and the glob characters would otherwise
+	// change which path the rule matches.
+	rule := `  "/a b/\[x\]\{y,z\}\*\?/**" mr,`
+	if !strings.Contains(profile, rule) {
+		t.Errorf("Profile is missing %s:\n%s", rule, profile)
+	}
+}
+
 func TestHandleWriter(t *testing.T) {
 	status := []int64{}
 	var buffer bytes.Buffer
