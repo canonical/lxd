@@ -65,6 +65,43 @@ Due to the way copy-on-write works in Ceph RBD, parent RBD images can't be remov
 As a result, LXD automatically renames any objects that are removed but still referenced.
 Such objects are kept with a  `zombie_` prefix until all references are gone and the object can safely be removed.
 
+(storage-ceph-connection)=
+### Connecting to the Ceph cluster
+
+<!-- Include start Ceph connection -->
+LXD connects to the Ceph cluster as a Ceph client.
+It uses the standard Ceph client configuration files on the LXD server, so in a LXD cluster, these files must be present on every cluster member.
+
+For a storage pool that uses the Ceph cluster name `<cluster>` and the Ceph user `<user>`, LXD reads:
+
+- The Ceph configuration file `/etc/ceph/<cluster>.conf`, which must contain the addresses of the Ceph monitors (for example, in `mon_host`).
+- The key of the Ceph user.
+  LXD manages the storage through the Ceph command-line tools (such as `ceph`, `rbd` and `radosgw-admin`), which find the key using the standard Ceph client rules (see the [keyring management](https://docs.ceph.com/en/latest/rados/operations/user-management/#keyring-management) section in the Ceph documentation).
+
+  When LXD needs to pass the key on itself, for example to mount a CephFS file system or to attach a Ceph RBD disk to a virtual machine, it reads the key from the first of the following keyring files that exists:
+
+  1. `/etc/ceph/<cluster>.client.<user>.keyring`
+  1. `/etc/ceph/<cluster>.keyring`
+  1. `/etc/ceph/keyring`
+  1. `/etc/ceph/keyring.bin`
+
+  If none of these files exist, LXD looks for a `key`, `keyfile` or `keyring` entry in `/etc/ceph/<cluster>.conf`.
+  If it still doesn't find the key, LXD retrieves it through the Ceph command-line tools.
+
+To connect LXD to an existing Ceph cluster, copy these files from the Ceph cluster to the LXD server, as described in [Client setup](https://docs.ceph.com/en/latest/cephadm/client-setup/) in the Ceph documentation.
+The Ceph user must have the permissions that LXD needs to manage the OSD pools that it uses.
+
+If you use the LXD snap, the location of the Ceph configuration files depends on your setup:
+
+- By default, the snap uses the `/etc/ceph` directory of the host.
+- If MicroCeph is installed on the same machine and its `ceph-conf` interface is connected to the LXD snap, LXD automatically uses the MicroCeph configuration.
+- If you set `snap set lxd ceph.builtin=true`, the snap uses its own `/var/snap/lxd/common/ceph` directory instead of the one of the host, so you must place the configuration files there.
+  The snap only switches to this directory when the LXD daemon starts, so restart the LXD daemon after changing this option (see {ref}`howto-snap-daemon`).
+<!-- Include end Ceph connection -->
+
+To specify the Ceph cluster name and user for a storage pool, set {config:option}`storage-ceph-pool-conf:ceph.cluster_name` and {config:option}`storage-ceph-pool-conf:ceph.user.name`.
+By default, LXD uses the cluster name `ceph` and the user `admin`.
+
 ### Limitations
 
 The `ceph` driver has the following limitations:
