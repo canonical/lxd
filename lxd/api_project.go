@@ -249,11 +249,23 @@ func projectUsedByMap(ctx context.Context, tx *sql.Tx, projectName string) (map[
 		return nil, fmt.Errorf("Failed getting project used-by URLs: %w", err)
 	}
 
+	// Instance and image volumes are reported through their instance or image, so only custom volumes count as project usage.
+	for id, u := range entityURLs[entity.TypeStorageVolume] {
+		_, _, _, pathArgs, err := entity.ParseURL(u.URL)
+		if err != nil {
+			return nil, err
+		}
+
+		if pathArgs[1] != dbCluster.StoragePoolVolumeTypeNameCustom {
+			delete(entityURLs[entity.TypeStorageVolume], id)
+		}
+	}
+
 	return entityURLs, nil
 }
 
 // projectUsedBy returns a list of URLs for all instances, images, profiles,
-// storage volumes, storage buckets, networks, acls, placement groups, and replicators that use this project.
+// custom storage volumes, storage buckets, networks, acls, placement groups, and replicators that use this project.
 func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *dbCluster.Project) ([]string, error) {
 	m, err := projectUsedByMap(ctx, tx.Tx(), project.Name)
 	if err != nil {

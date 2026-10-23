@@ -153,11 +153,6 @@ func (d storageVolumeDeleter) Delete(ctx context.Context, clientType request.Cli
 	parts := ref.GetPathArgs(3)
 	poolName, volType, name := parts[0], parts[1], parts[2]
 
-	// Only delete custom storage volumes. Instance and image volumes are deleted with their parent entity.
-	if volType != dbCluster.StoragePoolVolumeTypeNameCustom {
-		return nil
-	}
-
 	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return fmt.Errorf("Failed loading pool %q: %w", poolName, err)

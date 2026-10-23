@@ -201,8 +201,8 @@ test_tls_restrictions() {
   # Create a custom volume.
   lxc_remote storage volume create "localhost:${pool_name}" blah-volume --project blah
 
-  # There should now be two volume URLs, one instance, one image, and one profile URL in the used-by list.
-  [ "$(lxc_remote project list localhost: --format csv | cut -d, -f9)" = "5" ]
+  # The instance root volume is reported through the instance, so the used-by list holds one custom volume, one instance, one image, and one profile URL.
+  [ "$(lxc_remote project list localhost: --format csv | cut -d, -f9)" = "4" ]
 
   sub_test "Verify restricted client cannot copy a custom volume out of a project it cannot view"
   # Use unique per-run names so lingering resources from a failed or parallel run cannot collide.
