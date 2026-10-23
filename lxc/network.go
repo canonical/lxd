@@ -485,41 +485,39 @@ func (c *cmdNetworkDetach) command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdNetworkDetach) run(cmd *cobra.Command, args []string) error {
-	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
-	if exit {
-		return err
-	}
+// networkNICMatches reports whether the device is a NIC connected to the network.
+func networkNICMatches(device map[string]string, networkName string) bool {
+	return device["type"] == "nic" && (device["parent"] == networkName || device["network"] == networkName)
+}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+// parseNetworkDetach parses `[<remote>:]<network> <target> [<device name>]` and returns the server, the network
+// name and the device name (empty when it must be looked up).
+func parseNetworkDetach(global *cmdGlobal, args []string) (server lxd.InstanceServer, networkName string, devName string, err error) {
+	resources, err := global.ParseServers(args[0])
 	if err != nil {
-		return err
+		return nil, "", "", err
 	}
 
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New("Missing network name")
+		return nil, "", "", errors.New("Missing network name")
 	}
 
-	// Default name is same as network
-	devName := ""
 	if len(args) > 2 {
 		devName = args[2]
 	}
 
-	// Get the instance entry
-	inst, etag, err := resource.server.GetInstance(args[1])
-	if err != nil {
-		return err
-	}
+	return resource.server, resource.name, devName, nil
+}
 
+// removeNetworkDevice deletes the NIC connected to the network from devices. If devName is empty, the NIC is
+// looked up and must be the only one connected to the network.
+func removeNetworkDevice(devices map[string]map[string]string, networkName string, devName string) error {
 	// Find the device
 	if devName == "" {
-		for n, d := range inst.Devices {
-			if d["type"] == "nic" && (d["parent"] == resource.name || d["network"] == resource.name) {
+		for n, d := range devices {
+			if networkNICMatches(d, networkName) {
 				if devName != "" {
 					return errors.New("More than one device matches, specify the device name")
 				}
@@ -533,18 +531,44 @@ func (c *cmdNetworkDetach) run(cmd *cobra.Command, args []string) error {
 		return errors.New("No device found for this network")
 	}
 
-	device, ok := inst.Devices[devName]
+	device, ok := devices[devName]
 	if !ok {
 		return errors.New("The specified device does not exist")
 	}
 
-	if device["type"] != "nic" || (device["parent"] != resource.name && device["network"] != resource.name) {
+	if !networkNICMatches(device, networkName) {
 		return errors.New("The specified device does not match the network")
 	}
 
-	// Remove the device
-	delete(inst.Devices, devName)
-	op, err := resource.server.UpdateInstance(args[1], inst.Writable(), etag)
+	delete(devices, devName)
+
+	return nil
+}
+
+func (c *cmdNetworkDetach) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
+	if exit {
+		return err
+	}
+
+	server, networkName, devName, err := parseNetworkDetach(c.global, args)
+	if err != nil {
+		return err
+	}
+
+	// Get the instance entry
+	inst, etag, err := server.GetInstance(args[1])
+	if err != nil {
+		return err
+	}
+
+	err = removeNetworkDevice(inst.Devices, networkName, devName)
+	if err != nil {
+		return err
+	}
+
+	op, err := server.UpdateInstance(args[1], inst.Writable(), etag)
 	if err != nil {
 		return err
 	}
@@ -588,59 +612,23 @@ func (c *cmdNetworkDetachProfile) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	server, networkName, devName, err := parseNetworkDetach(c.global, args)
 	if err != nil {
 		return err
-	}
-
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
-	}
-
-	// Default name is same as network
-	devName := ""
-	if len(args) > 2 {
-		devName = args[2]
 	}
 
 	// Get the profile entry
-	profile, etag, err := resource.server.GetProfile(args[1])
+	profile, etag, err := server.GetProfile(args[1])
 	if err != nil {
 		return err
 	}
 
-	// Find the device
-	if devName == "" {
-		for n, d := range profile.Devices {
-			if d["type"] == "nic" && (d["parent"] == resource.name || d["network"] == resource.name) {
-				if devName != "" {
-					return errors.New("More than one device matches, specify the device name")
-				}
-
-				devName = n
-			}
-		}
+	err = removeNetworkDevice(profile.Devices, networkName, devName)
+	if err != nil {
+		return err
 	}
 
-	if devName == "" {
-		return errors.New("No device found for this network")
-	}
-
-	device, ok := profile.Devices[devName]
-	if !ok {
-		return errors.New("The specified device does not exist")
-	}
-
-	if device["type"] != "nic" || (device["parent"] != resource.name && device["network"] != resource.name) {
-		return errors.New("The specified device does not match the network")
-	}
-
-	// Remove the device
-	delete(profile.Devices, devName)
-	op, err := resource.server.UpdateProfile(args[1], profile.Writable(), etag)
+	op, err := server.UpdateProfile(args[1], profile.Writable(), etag)
 	if err != nil {
 		return err
 	}
