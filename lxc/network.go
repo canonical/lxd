@@ -125,6 +125,76 @@ func (c *cmdNetwork) command() *cobra.Command {
 	return cmd
 }
 
+// parseNetwork parses `[<remote>:]<network>` and returns the remote's server and the network name.
+func parseNetwork(global *cmdGlobal, arg string) (server lxd.InstanceServer, name string, err error) {
+	resources, err := global.ParseServers(arg)
+	if err != nil {
+		return nil, "", err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return nil, "", errors.New("Missing network name")
+	}
+
+	return resource.server, resource.name, nil
+}
+
+// networkAttachCommand returns an attach command for the given kind of target, "instance" or "profile".
+func networkAttachCommand(global *cmdGlobal, name string, kind string, run func(*cobra.Command, []string) error) *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage(name, "[<remote>:]<network> <"+kind+"> [<device name>] [<interface name>]")
+	cmd.Short = "Attach network interface to " + kind
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return global.cmpTopLevelResource("network", toComplete)
+		}
+
+		remote, _, err := global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
+		}
+
+		if len(args) == 1 {
+			return global.cmpTopLevelResourceInRemote(remote, kind, toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+// networkDetachCommand returns a detach command for the given kind of target, "instance" or "profile".
+// cmpTargets completes the targets that have a NIC on the given network.
+func networkDetachCommand(global *cmdGlobal, name string, kind string, cmpTargets func(networkName string) ([]string, cobra.ShellCompDirective), run func(*cobra.Command, []string) error) *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage(name, "[<remote>:]<network> <"+kind+"> [<device name>]")
+	cmd.Short = "Detach network interface from " + kind
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return global.cmpTopLevelResource("network", toComplete)
+		}
+
+		if len(args) == 1 {
+			return cmpTargets(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
 // Attach.
 type cmdNetworkAttach struct {
 	global  *cmdGlobal
@@ -132,31 +202,78 @@ type cmdNetworkAttach struct {
 }
 
 func (c *cmdNetworkAttach) command() *cobra.Command {
-	cmd := &cobra.Command{}
-	cmd.Use = usage("attach", "[<remote>:]<network> <instance> [<device name>] [<interface name>]")
-	cmd.Short = "Attach network interface to instance"
-	cmd.Long = cli.FormatSection("Description", cmd.Short)
+	return networkAttachCommand(c.global, "attach", "instance", c.run)
+}
 
-	cmd.RunE = c.run
+// networkAttachment holds the arguments shared by the attach and attach-profile commands.
+type networkAttachment struct {
+	server      lxd.InstanceServer
+	network     *api.Network
+	networkName string
+	devName     string
+	ifaceName   string
+}
 
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 0 {
-			return c.global.cmpTopLevelResource("network", toComplete)
-		}
-
-		remote, _, err := c.global.conf.ParseRemote(args[0])
-		if err != nil {
-			return handleCompletionError(err)
-		}
-
-		if len(args) == 1 {
-			return c.global.cmpTopLevelResourceInRemote(remote, "instance", toComplete)
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
+// parseNetworkAttachment parses `[<remote>:]<network> <target> [<device name>] [<interface name>]`
+// and fetches the network.
+func parseNetworkAttachment(global *cmdGlobal, args []string) (*networkAttachment, error) {
+	server, networkName, err := parseNetwork(global, args[0])
+	if err != nil {
+		return nil, err
 	}
 
-	return cmd
+	// Default name is same as network
+	devName := networkName
+	if len(args) > 2 {
+		devName = args[2]
+	}
+
+	ifaceName := ""
+	if len(args) > 3 {
+		ifaceName = args[3]
+	}
+
+	network, _, err := server.GetNetwork(networkName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &networkAttachment{
+		server:      server,
+		network:     network,
+		networkName: networkName,
+		devName:     devName,
+		ifaceName:   ifaceName,
+	}, nil
+}
+
+// device returns the NIC device to add. A managed network is referenced by name when the server supports it, so
+// that the network's inherited properties are loaded when started. Otherwise it is a macvlan (or bridged, for a
+// bridge) NIC connected to the interface of that name.
+func (a *networkAttachment) device() map[string]string {
+	var device map[string]string
+	if a.network.Managed && a.server.HasExtension("instance_nic_network") {
+		device = map[string]string{
+			"type":    "nic",
+			"network": a.network.Name,
+		}
+	} else {
+		device = map[string]string{
+			"type":    "nic",
+			"nictype": "macvlan",
+			"parent":  a.networkName,
+		}
+
+		if a.network.Type == "bridge" {
+			device["nictype"] = "bridged"
+		}
+	}
+
+	if a.ifaceName != "" {
+		device["name"] = a.ifaceName
+	}
+
+	return device
 }
 
 func (c *cmdNetworkAttach) run(cmd *cobra.Command, args []string) error {
@@ -166,64 +283,12 @@ func (c *cmdNetworkAttach) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	attachment, err := parseNetworkAttachment(c.global, args)
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
-	}
-
-	// Default name is same as network
-	devName := resource.name
-	if len(args) > 2 {
-		devName = args[2]
-	}
-
-	// Get the network entry
-	network, _, err := resource.server.GetNetwork(resource.name)
-	if err != nil {
-		return err
-	}
-
-	// Prepare the instance's device entry
-	var device map[string]string
-	if network.Managed && resource.server.HasExtension("instance_nic_network") {
-		// If network is managed, use the network property rather than nictype, so that the network's
-		// inherited properties are loaded into the NIC when started.
-		device = map[string]string{
-			"type":    "nic",
-			"network": network.Name,
-		}
-	} else {
-		// If network is unmanaged default to using a macvlan connected to the specified interface.
-		device = map[string]string{
-			"type":    "nic",
-			"nictype": "macvlan",
-			"parent":  resource.name,
-		}
-
-		if network.Type == "bridge" {
-			// If the network type is an unmanaged bridge, use bridged NIC type.
-			device["nictype"] = "bridged"
-		}
-	}
-
-	if len(args) > 3 {
-		device["name"] = args[3]
-	}
-
-	// Add the device to the instance
-	err = instanceDeviceAdd(resource.server, args[1], devName, device)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return instanceDeviceAdd(attachment.server, args[1], attachment.devName, attachment.device())
 }
 
 // Attach profile.
@@ -233,31 +298,7 @@ type cmdNetworkAttachProfile struct {
 }
 
 func (c *cmdNetworkAttachProfile) command() *cobra.Command {
-	cmd := &cobra.Command{}
-	cmd.Use = usage("attach-profile", "[<remote>:]<network> <profile> [<device name>] [<interface name>]")
-	cmd.Short = "Attach network interface to profile"
-	cmd.Long = cli.FormatSection("Description", cmd.Short)
-
-	cmd.RunE = c.run
-
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) > 1 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		if len(args) == 0 {
-			return c.global.cmpTopLevelResource("network", toComplete)
-		}
-
-		remote, _, err := c.global.conf.ParseRemote(args[0])
-		if err != nil {
-			return handleCompletionError(err)
-		}
-
-		return c.global.cmpTopLevelResourceInRemote(remote, "profile", toComplete)
-	}
-
-	return cmd
+	return networkAttachCommand(c.global, "attach-profile", "profile", c.run)
 }
 
 func (c *cmdNetworkAttachProfile) run(cmd *cobra.Command, args []string) error {
@@ -267,52 +308,12 @@ func (c *cmdNetworkAttachProfile) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	attachment, err := parseNetworkAttachment(c.global, args)
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
-	}
-
-	// Default name is same as network
-	devName := resource.name
-	if len(args) > 2 {
-		devName = args[2]
-	}
-
-	// Get the network entry
-	network, _, err := resource.server.GetNetwork(resource.name)
-	if err != nil {
-		return err
-	}
-
-	// Prepare the profile's device entry
-	device := map[string]string{
-		"type":    "nic",
-		"nictype": "macvlan",
-		"parent":  resource.name,
-	}
-
-	if network.Type == "bridge" {
-		device["nictype"] = "bridged"
-	}
-
-	if len(args) > 3 {
-		device["name"] = args[3]
-	}
-
-	// Add the device to the profile
-	err = profileDeviceAdd(resource.server, args[1], devName, device)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return profileDeviceAdd(attachment.server, args[1], attachment.devName, attachment.device())
 }
 
 // Create.
@@ -439,20 +440,13 @@ func (c *cmdNetworkDelete) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	server, name, err := parseNetwork(c.global, args[0])
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
-	}
-
 	// Delete the network
-	op, err := resource.server.DeleteNetwork(resource.name)
+	op, err := server.DeleteNetwork(name)
 	if err == nil {
 		err = op.Wait()
 	}
@@ -462,7 +456,7 @@ func (c *cmdNetworkDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf("Network %s deleted\n", resource.name)
+		fmt.Printf("Network %s deleted\n", name)
 	}
 
 	return nil
@@ -475,63 +469,36 @@ type cmdNetworkDetach struct {
 }
 
 func (c *cmdNetworkDetach) command() *cobra.Command {
-	cmd := &cobra.Command{}
-	cmd.Use = usage("detach", "[<remote>:]<network> <instance> [<device name>]")
-	cmd.Short = "Detach network interface from instance"
-	cmd.Long = cli.FormatSection("Description", cmd.Short)
-
-	cmd.RunE = c.run
-
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 0 {
-			return c.global.cmpTopLevelResource("network", toComplete)
-		}
-
-		if len(args) == 1 {
-			return c.global.cmpNetworkInstances(args[0])
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	return cmd
+	return networkDetachCommand(c.global, "detach", "instance", c.global.cmpNetworkInstances, c.run)
 }
 
-func (c *cmdNetworkDetach) run(cmd *cobra.Command, args []string) error {
-	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
-	if exit {
-		return err
-	}
+// networkNICMatches reports whether the device is a NIC connected to the network.
+func networkNICMatches(device map[string]string, networkName string) bool {
+	return device["type"] == "nic" && (device["parent"] == networkName || device["network"] == networkName)
+}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+// parseNetworkDetach parses `[<remote>:]<network> <target> [<device name>]` and returns the server, the network
+// name and the device name (empty when it must be looked up).
+func parseNetworkDetach(global *cmdGlobal, args []string) (server lxd.InstanceServer, networkName string, devName string, err error) {
+	server, networkName, err = parseNetwork(global, args[0])
 	if err != nil {
-		return err
+		return nil, "", "", err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
-	}
-
-	// Default name is same as network
-	devName := ""
 	if len(args) > 2 {
 		devName = args[2]
 	}
 
-	// Get the instance entry
-	inst, etag, err := resource.server.GetInstance(args[1])
-	if err != nil {
-		return err
-	}
+	return server, networkName, devName, nil
+}
 
+// removeNetworkDevice deletes the NIC connected to the network from devices. If devName is empty, the NIC is
+// looked up and must be the only one connected to the network.
+func removeNetworkDevice(devices map[string]map[string]string, networkName string, devName string) error {
 	// Find the device
 	if devName == "" {
-		for n, d := range inst.Devices {
-			if d["type"] == "nic" && (d["parent"] == resource.name || d["network"] == resource.name) {
+		for n, d := range devices {
+			if networkNICMatches(d, networkName) {
 				if devName != "" {
 					return errors.New("More than one device matches, specify the device name")
 				}
@@ -545,18 +512,44 @@ func (c *cmdNetworkDetach) run(cmd *cobra.Command, args []string) error {
 		return errors.New("No device found for this network")
 	}
 
-	device, ok := inst.Devices[devName]
+	device, ok := devices[devName]
 	if !ok {
 		return errors.New("The specified device does not exist")
 	}
 
-	if device["type"] != "nic" || (device["parent"] != resource.name && device["network"] != resource.name) {
+	if !networkNICMatches(device, networkName) {
 		return errors.New("The specified device does not match the network")
 	}
 
-	// Remove the device
-	delete(inst.Devices, devName)
-	op, err := resource.server.UpdateInstance(args[1], inst.Writable(), etag)
+	delete(devices, devName)
+
+	return nil
+}
+
+func (c *cmdNetworkDetach) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
+	if exit {
+		return err
+	}
+
+	server, networkName, devName, err := parseNetworkDetach(c.global, args)
+	if err != nil {
+		return err
+	}
+
+	// Get the instance entry
+	inst, etag, err := server.GetInstance(args[1])
+	if err != nil {
+		return err
+	}
+
+	err = removeNetworkDevice(inst.Devices, networkName, devName)
+	if err != nil {
+		return err
+	}
+
+	op, err := server.UpdateInstance(args[1], inst.Writable(), etag)
 	if err != nil {
 		return err
 	}
@@ -571,26 +564,7 @@ type cmdNetworkDetachProfile struct {
 }
 
 func (c *cmdNetworkDetachProfile) command() *cobra.Command {
-	cmd := &cobra.Command{}
-	cmd.Use = usage("detach-profile", "[<remote>:]<network> <profile> [<device name>]")
-	cmd.Short = "Detach network interface from profile"
-	cmd.Long = cli.FormatSection("Description", cmd.Short)
-
-	cmd.RunE = c.run
-
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 0 {
-			return c.global.cmpTopLevelResource("network", toComplete)
-		}
-
-		if len(args) == 1 {
-			return c.global.cmpNetworkProfiles(args[0])
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	return cmd
+	return networkDetachCommand(c.global, "detach-profile", "profile", c.global.cmpNetworkProfiles, c.run)
 }
 
 func (c *cmdNetworkDetachProfile) run(cmd *cobra.Command, args []string) error {
@@ -600,59 +574,23 @@ func (c *cmdNetworkDetachProfile) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	server, networkName, devName, err := parseNetworkDetach(c.global, args)
 	if err != nil {
 		return err
-	}
-
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
-	}
-
-	// Default name is same as network
-	devName := ""
-	if len(args) > 2 {
-		devName = args[2]
 	}
 
 	// Get the profile entry
-	profile, etag, err := resource.server.GetProfile(args[1])
+	profile, etag, err := server.GetProfile(args[1])
 	if err != nil {
 		return err
 	}
 
-	// Find the device
-	if devName == "" {
-		for n, d := range profile.Devices {
-			if d["type"] == "nic" && (d["parent"] == resource.name || d["network"] == resource.name) {
-				if devName != "" {
-					return errors.New("More than one device matches, specify the device name")
-				}
-
-				devName = n
-			}
-		}
+	err = removeNetworkDevice(profile.Devices, networkName, devName)
+	if err != nil {
+		return err
 	}
 
-	if devName == "" {
-		return errors.New("No device found for this network")
-	}
-
-	device, ok := profile.Devices[devName]
-	if !ok {
-		return errors.New("The specified device does not exist")
-	}
-
-	if device["type"] != "nic" || (device["parent"] != resource.name && device["network"] != resource.name) {
-		return errors.New("The specified device does not match the network")
-	}
-
-	// Remove the device
-	delete(profile.Devices, devName)
-	op, err := resource.server.UpdateProfile(args[1], profile.Writable(), etag)
+	op, err := server.UpdateProfile(args[1], profile.Writable(), etag)
 	if err != nil {
 		return err
 	}
@@ -711,16 +649,9 @@ func (c *cmdNetworkEdit) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	server, name, err := parseNetwork(c.global, args[0])
 	if err != nil {
 		return err
-	}
-
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
 	}
 
 	// If stdin isn't a terminal, read text from it
@@ -736,7 +667,7 @@ func (c *cmdNetworkEdit) run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		op, err := resource.server.UpdateNetwork(resource.name, newdata, "")
+		op, err := server.UpdateNetwork(name, newdata, "")
 		if err == nil {
 			err = op.Wait()
 		}
@@ -745,7 +676,7 @@ func (c *cmdNetworkEdit) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Extract the current value
-	network, etag, err := resource.server.GetNetwork(resource.name)
+	network, etag, err := server.GetNetwork(name)
 	if err != nil {
 		return err
 	}
@@ -771,7 +702,7 @@ func (c *cmdNetworkEdit) run(cmd *cobra.Command, args []string) error {
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
 			var op lxd.Operation
-			op, err = resource.server.UpdateNetwork(resource.name, newdata, etag)
+			op, err = server.UpdateNetwork(name, newdata, etag)
 			if err == nil {
 				err = op.Wait()
 			}
@@ -841,17 +772,9 @@ func (c *cmdNetworkGet) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	client, name, err := parseNetwork(c.global, args[0])
 	if err != nil {
 		return err
-	}
-
-	resource := resources[0]
-	client := resource.server
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
 	}
 
 	// Get the network key
@@ -859,7 +782,7 @@ func (c *cmdNetworkGet) run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.network.flagTarget)
 	}
 
-	resp, _, err := client.GetNetwork(resource.name)
+	resp, _, err := client.GetNetwork(name)
 	if err != nil {
 		return err
 	}
@@ -868,15 +791,14 @@ func (c *cmdNetworkGet) run(cmd *cobra.Command, args []string) error {
 		w := resp.Writable()
 		res, err := getFieldByJSONTag(&w, args[1])
 		if err != nil {
-			return fmt.Errorf("The property %q does not exist on the network %q: %v", args[1], resource.name, err)
+			return fmt.Errorf("The property %q does not exist on the network %q: %v", args[1], name, err)
 		}
 
 		fmt.Printf("%v\n", res)
 	} else {
-		for k, v := range resp.Config {
-			if k == args[1] {
-				fmt.Printf("%s\n", v)
-			}
+		v, ok := resp.Config[args[1]]
+		if ok {
+			fmt.Printf("%s\n", v)
 		}
 	}
 
@@ -916,17 +838,9 @@ func (c *cmdNetworkInfo) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote.
-	resources, err := c.global.ParseServers(args[0])
+	client, name, err := parseNetwork(c.global, args[0])
 	if err != nil {
 		return err
-	}
-
-	resource := resources[0]
-	client := resource.server
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
 	}
 
 	// Targeting.
@@ -938,13 +852,13 @@ func (c *cmdNetworkInfo) run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.network.flagTarget)
 	}
 
-	state, err := client.GetNetworkState(resource.name)
+	state, err := client.GetNetworkState(name)
 	if err != nil {
 		return err
 	}
 
 	// Interface information.
-	fmt.Printf("Name: %s\n", resource.name)
+	fmt.Printf("Name: %s\n", name)
 	fmt.Printf("MAC address: %s\n", state.Hwaddr)
 	fmt.Printf("MTU: %d\n", state.Mtu)
 	fmt.Printf("State: %s\n", state.State)
@@ -1212,20 +1126,13 @@ func (c *cmdNetworkListLeases) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	server, name, err := parseNetwork(c.global, args[0])
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
-	}
-
 	// List DHCP leases
-	leases, err := resource.server.GetNetworkLeases(resource.name)
+	leases, err := server.GetNetworkLeases(name)
 	if err != nil {
 		return err
 	}
@@ -1233,7 +1140,7 @@ func (c *cmdNetworkListLeases) run(cmd *cobra.Command, args []string) error {
 	data := [][]string{}
 	for _, lease := range leases {
 		entry := []string{lease.Hostname, lease.Hwaddr, lease.Address, strings.ToUpper(lease.Type)}
-		if resource.server.IsClustered() {
+		if server.IsClustered() {
 			entry = append(entry, lease.Location)
 		}
 
@@ -1249,7 +1156,7 @@ func (c *cmdNetworkListLeases) run(cmd *cobra.Command, args []string) error {
 		"TYPE",
 	}
 
-	if resource.server.IsClustered() {
+	if server.IsClustered() {
 		header = append(header, "LOCATION")
 	}
 
@@ -1289,20 +1196,13 @@ func (c *cmdNetworkRename) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	server, name, err := parseNetwork(c.global, args[0])
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
-	}
-
 	// Rename the network
-	op, err := resource.server.RenameNetwork(resource.name, api.NetworkPost{Name: args[1]})
+	op, err := server.RenameNetwork(name, api.NetworkPost{Name: args[1]})
 	if err == nil {
 		err = op.Wait()
 	}
@@ -1312,7 +1212,7 @@ func (c *cmdNetworkRename) run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !c.global.flagQuiet {
-		fmt.Printf("Network %s renamed to %s\n", resource.name, args[1])
+		fmt.Printf("Network %s renamed to %s\n", name, args[1])
 	}
 
 	return nil
@@ -1357,17 +1257,9 @@ func (c *cmdNetworkSet) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	client, name, err := parseNetwork(c.global, args[0])
 	if err != nil {
 		return err
-	}
-
-	resource := resources[0]
-	client := resource.server
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
 	}
 
 	// Handle targeting
@@ -1376,7 +1268,7 @@ func (c *cmdNetworkSet) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get the network
-	network, etag, err := client.GetNetwork(resource.name)
+	network, etag, err := client.GetNetwork(name)
 	if err != nil {
 		return err
 	}
@@ -1410,7 +1302,7 @@ func (c *cmdNetworkSet) run(cmd *cobra.Command, args []string) error {
 		maps.Copy(writable.Config, keys)
 	}
 
-	op, err := client.UpdateNetwork(resource.name, writable, etag)
+	op, err := client.UpdateNetwork(name, writable, etag)
 	if err == nil {
 		err = op.Wait()
 	}
@@ -1451,17 +1343,9 @@ func (c *cmdNetworkShow) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	client, name, err := parseNetwork(c.global, args[0])
 	if err != nil {
 		return err
-	}
-
-	resource := resources[0]
-	client := resource.server
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
 	}
 
 	// Show the network config
@@ -1469,7 +1353,7 @@ func (c *cmdNetworkShow) run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.network.flagTarget)
 	}
 
-	network, _, err := client.GetNetwork(resource.name)
+	network, _, err := client.GetNetwork(name)
 	if err != nil {
 		return err
 	}

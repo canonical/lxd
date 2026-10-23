@@ -111,6 +111,16 @@ test_network() {
   lxc network info lxdt$$ | grep -xF "${expected_state}"
   lxc network info lxdt$$ | grep -xF "${expected_type}"
 
+  # Check that attaching a managed network to a profile references it by name.
+  lxc profile create nettest$$
+  lxc network attach-profile lxdt$$ nettest$$ eth0
+  [ "$(lxc profile device get nettest$$ eth0 network)" = "lxdt$$" ]
+  [ "$(lxc profile device get nettest$$ eth0 nictype || echo fail)" = "" ]
+  [ "$(lxc profile device get nettest$$ eth0 parent || echo fail)" = "" ]
+  lxc network detach-profile lxdt$$ nettest$$
+  ! lxc profile show nettest$$ | grep -wF "eth0" || false
+  lxc profile delete nettest$$
+
   # Delete physical network and check for expected response
   ip link delete dummy0
   lxc network info lxdt$$ | grep -xF "State: unavailable"
