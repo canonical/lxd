@@ -1160,6 +1160,20 @@ func ovnParseLogEntry(logline string, syslogTimestamp string, prefix string) str
 	return string(out)
 }
 
+// journalctlNoMatches returns whether the error returned by journalctl means that no entries matched "--grep".
+// Like grep, journalctl then exits with status 1 without any output. Other failures, such as an invalid pattern,
+// also exit with status 1 but report why on stderr.
+func journalctlNoMatches(err error, stdout *bytes.Buffer) bool {
+	exitStatus, _ := shared.ExitStatus(err)
+	if exitStatus != 1 || stdout.Len() > 0 {
+		return false
+	}
+
+	runErr, ok := errors.AsType[shared.RunError](err)
+
+	return ok && runErr.StdErr().Len() == 0
+}
+
 // ovnParseLogEntriesFromJournald reads the OVN log entries from the systemd journal and returns them as a list of string entries.
 // Also, we chose to output the last 1000 entries to avoid overloading the system with too many log entries.
 func ovnParseLogEntriesFromJournald(ctx context.Context, systemdUnitName string, filter string) ([]string, error) {
@@ -1179,6 +1193,10 @@ func ovnParseLogEntriesFromJournald(ctx context.Context, systemdUnitName string,
 	stdout := bytes.Buffer{}
 	err := shared.RunCommandWithFds(ctx, nil, &stdout, cmd[0], cmd[1:]...)
 	if err != nil {
+		if journalctlNoMatches(err, &stdout) {
+			return logEntries, nil
+		}
+
 		return nil, fmt.Errorf("Failed running journalctl to fetch OVN ACL logs: %w", err)
 	}
 
