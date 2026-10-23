@@ -77,12 +77,14 @@ Here, `ubuntu`, `ubuntu-minimal`, and `images` are {ref}`built-in image registri
 (images-remote-default)=
 ## Select a default remote
 
-If you specify an image name without the name of the remote, the default image server is used.
+If you reference an image without specifying an image registry, LXD looks for the image in the default remote.
+On a fresh installation, the default remote is `local`, which is the LXD server you are connected to, so LXD looks for the image in its local image store.
+To use an image from a {ref}`built-in <remote-image-servers>` or custom image registry, prefix the image with the registry name (for example, `ubuntu:24.04`).
 
-To see which server is configured as the default image server, enter the following command:
+To see which remote is configured as the default, enter the following command:
 
     lxc remote get-default
 
-To select a different remote as the default image server, enter the following command:
+To select a different default remote, enter the following command:
 
     lxc remote switch <remote_name>
