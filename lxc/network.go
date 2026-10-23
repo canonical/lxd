@@ -141,6 +141,60 @@ func parseNetwork(global *cmdGlobal, arg string) (server lxd.InstanceServer, nam
 	return resource.server, resource.name, nil
 }
 
+// networkAttachCommand returns an attach command for the given kind of target, "instance" or "profile".
+func networkAttachCommand(global *cmdGlobal, name string, kind string, run func(*cobra.Command, []string) error) *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage(name, "[<remote>:]<network> <"+kind+"> [<device name>] [<interface name>]")
+	cmd.Short = "Attach network interface to " + kind
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return global.cmpTopLevelResource("network", toComplete)
+		}
+
+		remote, _, err := global.conf.ParseRemote(args[0])
+		if err != nil {
+			return handleCompletionError(err)
+		}
+
+		if len(args) == 1 {
+			return global.cmpTopLevelResourceInRemote(remote, kind, toComplete)
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
+// networkDetachCommand returns a detach command for the given kind of target, "instance" or "profile".
+// cmpTargets completes the targets that have a NIC on the given network.
+func networkDetachCommand(global *cmdGlobal, name string, kind string, cmpTargets func(networkName string) ([]string, cobra.ShellCompDirective), run func(*cobra.Command, []string) error) *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage(name, "[<remote>:]<network> <"+kind+"> [<device name>]")
+	cmd.Short = "Detach network interface from " + kind
+	cmd.Long = cli.FormatSection("Description", cmd.Short)
+
+	cmd.RunE = run
+
+	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return global.cmpTopLevelResource("network", toComplete)
+		}
+
+		if len(args) == 1 {
+			return cmpTargets(args[0])
+		}
+
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	return cmd
+}
+
 // Attach.
 type cmdNetworkAttach struct {
 	global  *cmdGlobal
@@ -148,31 +202,7 @@ type cmdNetworkAttach struct {
 }
 
 func (c *cmdNetworkAttach) command() *cobra.Command {
-	cmd := &cobra.Command{}
-	cmd.Use = usage("attach", "[<remote>:]<network> <instance> [<device name>] [<interface name>]")
-	cmd.Short = "Attach network interface to instance"
-	cmd.Long = cli.FormatSection("Description", cmd.Short)
-
-	cmd.RunE = c.run
-
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 0 {
-			return c.global.cmpTopLevelResource("network", toComplete)
-		}
-
-		remote, _, err := c.global.conf.ParseRemote(args[0])
-		if err != nil {
-			return handleCompletionError(err)
-		}
-
-		if len(args) == 1 {
-			return c.global.cmpTopLevelResourceInRemote(remote, "instance", toComplete)
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	return cmd
+	return networkAttachCommand(c.global, "attach", "instance", c.run)
 }
 
 // networkAttachment holds the arguments shared by the attach and attach-profile commands.
@@ -271,31 +301,7 @@ type cmdNetworkAttachProfile struct {
 }
 
 func (c *cmdNetworkAttachProfile) command() *cobra.Command {
-	cmd := &cobra.Command{}
-	cmd.Use = usage("attach-profile", "[<remote>:]<network> <profile> [<device name>] [<interface name>]")
-	cmd.Short = "Attach network interface to profile"
-	cmd.Long = cli.FormatSection("Description", cmd.Short)
-
-	cmd.RunE = c.run
-
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) > 1 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		if len(args) == 0 {
-			return c.global.cmpTopLevelResource("network", toComplete)
-		}
-
-		remote, _, err := c.global.conf.ParseRemote(args[0])
-		if err != nil {
-			return handleCompletionError(err)
-		}
-
-		return c.global.cmpTopLevelResourceInRemote(remote, "profile", toComplete)
-	}
-
-	return cmd
+	return networkAttachCommand(c.global, "attach-profile", "profile", c.run)
 }
 
 func (c *cmdNetworkAttachProfile) run(cmd *cobra.Command, args []string) error {
@@ -466,26 +472,7 @@ type cmdNetworkDetach struct {
 }
 
 func (c *cmdNetworkDetach) command() *cobra.Command {
-	cmd := &cobra.Command{}
-	cmd.Use = usage("detach", "[<remote>:]<network> <instance> [<device name>]")
-	cmd.Short = "Detach network interface from instance"
-	cmd.Long = cli.FormatSection("Description", cmd.Short)
-
-	cmd.RunE = c.run
-
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 0 {
-			return c.global.cmpTopLevelResource("network", toComplete)
-		}
-
-		if len(args) == 1 {
-			return c.global.cmpNetworkInstances(args[0])
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	return cmd
+	return networkDetachCommand(c.global, "detach", "instance", c.global.cmpNetworkInstances, c.run)
 }
 
 // networkNICMatches reports whether the device is a NIC connected to the network.
@@ -580,26 +567,7 @@ type cmdNetworkDetachProfile struct {
 }
 
 func (c *cmdNetworkDetachProfile) command() *cobra.Command {
-	cmd := &cobra.Command{}
-	cmd.Use = usage("detach-profile", "[<remote>:]<network> <profile> [<device name>]")
-	cmd.Short = "Detach network interface from profile"
-	cmd.Long = cli.FormatSection("Description", cmd.Short)
-
-	cmd.RunE = c.run
-
-	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) == 0 {
-			return c.global.cmpTopLevelResource("network", toComplete)
-		}
-
-		if len(args) == 1 {
-			return c.global.cmpNetworkProfiles(args[0])
-		}
-
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	return cmd
+	return networkDetachCommand(c.global, "detach-profile", "profile", c.global.cmpNetworkProfiles, c.run)
 }
 
 func (c *cmdNetworkDetachProfile) run(cmd *cobra.Command, args []string) error {
