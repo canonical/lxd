@@ -159,23 +159,27 @@ func (c *cmdNetworkAttach) command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdNetworkAttach) run(cmd *cobra.Command, args []string) error {
-	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 2, 4)
-	if exit {
-		return err
-	}
+// networkAttachment holds the arguments shared by the attach and attach-profile commands.
+type networkAttachment struct {
+	server      lxd.InstanceServer
+	network     *api.Network
+	networkName string
+	devName     string
+	ifaceName   string
+}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+// parseNetworkAttachment parses `[<remote>:]<network> <target> [<device name>] [<interface name>]`
+// and fetches the network.
+func parseNetworkAttachment(global *cmdGlobal, args []string) (*networkAttachment, error) {
+	resources, err := global.ParseServers(args[0])
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	resource := resources[0]
 
 	if resource.name == "" {
-		return errors.New("Missing network name")
+		return nil, errors.New("Missing network name")
 	}
 
 	// Default name is same as network
@@ -184,46 +188,70 @@ func (c *cmdNetworkAttach) run(cmd *cobra.Command, args []string) error {
 		devName = args[2]
 	}
 
-	// Get the network entry
-	network, _, err := resource.server.GetNetwork(resource.name)
-	if err != nil {
-		return err
+	ifaceName := ""
+	if len(args) > 3 {
+		ifaceName = args[3]
 	}
 
-	// Prepare the instance's device entry
+	network, _, err := resource.server.GetNetwork(resource.name)
+	if err != nil {
+		return nil, err
+	}
+
+	return &networkAttachment{
+		server:      resource.server,
+		network:     network,
+		networkName: resource.name,
+		devName:     devName,
+		ifaceName:   ifaceName,
+	}, nil
+}
+
+// device returns the NIC device to add. With byNetwork, the NIC references the network so that the network's
+// inherited properties are loaded when started. Otherwise it is a macvlan (or bridged, for a bridge) NIC
+// connected to the interface of that name.
+func (a *networkAttachment) device(byNetwork bool) map[string]string {
 	var device map[string]string
-	if network.Managed && resource.server.HasExtension("instance_nic_network") {
-		// If network is managed, use the network property rather than nictype, so that the network's
-		// inherited properties are loaded into the NIC when started.
+	if byNetwork {
 		device = map[string]string{
 			"type":    "nic",
-			"network": network.Name,
+			"network": a.network.Name,
 		}
 	} else {
-		// If network is unmanaged default to using a macvlan connected to the specified interface.
 		device = map[string]string{
 			"type":    "nic",
 			"nictype": "macvlan",
-			"parent":  resource.name,
+			"parent":  a.networkName,
 		}
 
-		if network.Type == "bridge" {
-			// If the network type is an unmanaged bridge, use bridged NIC type.
+		if a.network.Type == "bridge" {
 			device["nictype"] = "bridged"
 		}
 	}
 
-	if len(args) > 3 {
-		device["name"] = args[3]
+	if a.ifaceName != "" {
+		device["name"] = a.ifaceName
 	}
 
-	// Add the device to the instance
-	err = instanceDeviceAdd(resource.server, args[1], devName, device)
+	return device
+}
+
+func (c *cmdNetworkAttach) run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 4)
+	if exit {
+		return err
+	}
+
+	attachment, err := parseNetworkAttachment(c.global, args)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	// A managed network is referenced by name, rather than by nictype, when the server supports it.
+	byNetwork := attachment.network.Managed && attachment.server.HasExtension("instance_nic_network")
+
+	return instanceDeviceAdd(attachment.server, args[1], attachment.devName, attachment.device(byNetwork))
 }
 
 // Attach profile.
@@ -267,52 +295,12 @@ func (c *cmdNetworkAttachProfile) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	attachment, err := parseNetworkAttachment(c.global, args)
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
-		return errors.New("Missing network name")
-	}
-
-	// Default name is same as network
-	devName := resource.name
-	if len(args) > 2 {
-		devName = args[2]
-	}
-
-	// Get the network entry
-	network, _, err := resource.server.GetNetwork(resource.name)
-	if err != nil {
-		return err
-	}
-
-	// Prepare the profile's device entry
-	device := map[string]string{
-		"type":    "nic",
-		"nictype": "macvlan",
-		"parent":  resource.name,
-	}
-
-	if network.Type == "bridge" {
-		device["nictype"] = "bridged"
-	}
-
-	if len(args) > 3 {
-		device["name"] = args[3]
-	}
-
-	// Add the device to the profile
-	err = profileDeviceAdd(resource.server, args[1], devName, device)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return profileDeviceAdd(attachment.server, args[1], attachment.devName, attachment.device(false))
 }
 
 // Create.
