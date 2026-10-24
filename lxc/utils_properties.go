@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -8,6 +10,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
+	"go.yaml.in/yaml/v2"
 )
 
 // stringToTimeHookFunc is a custom decoding hook that converts string values to time.Time using the given layout.
@@ -281,4 +284,70 @@ func formatFieldList(fields []string) string {
 		// For 3+ fields: "field1", "field2", and "field3"
 		return strings.Join(quoted[:len(quoted)-1], ", ") + ", and " + quoted[len(quoted)-1]
 	}
+}
+
+// checkReadOnlyYAMLFields returns msg when contents changes a non-editable YAML field of current.
+// Fields omitted from contents are ignored so a partial document can update editable fields only.
+func checkReadOnlyYAMLFields(current any, contents []byte, editable []string, msg string) error {
+	curV := reflect.ValueOf(current)
+	if curV.Kind() != reflect.Pointer || curV.IsNil() {
+		return errors.New("Invalid snapshot object")
+	}
+
+	curV = curV.Elem()
+	updPtr := reflect.New(curV.Type())
+
+	err := yaml.Unmarshal(contents, updPtr.Interface())
+	if err != nil {
+		return err
+	}
+
+	provided := map[string]any{}
+	err = yaml.Unmarshal(contents, &provided)
+	if err != nil {
+		return err
+	}
+
+	skip := make(map[string]struct{}, len(editable))
+	for _, name := range editable {
+		skip[name] = struct{}{}
+	}
+
+	updV := updPtr.Elem()
+	for field := range curV.Type().Fields() {
+		name, _, _ := strings.Cut(field.Tag.Get("yaml"), ",")
+		if name == "" || name == "-" {
+			continue
+		}
+
+		if _, ok := skip[name]; ok {
+			continue
+		}
+
+		if _, ok := provided[name]; !ok {
+			continue
+		}
+
+		curField := curV.FieldByIndex(field.Index)
+		updField := updV.FieldByIndex(field.Index)
+		if !curField.CanInterface() || !updField.CanInterface() {
+			continue
+		}
+
+		curYAML, err := yaml.Marshal(curField.Interface())
+		if err != nil {
+			return err
+		}
+
+		updYAML, err := yaml.Marshal(updField.Interface())
+		if err != nil {
+			return err
+		}
+
+		if !bytes.Equal(curYAML, updYAML) {
+			return errors.New(msg)
+		}
+	}
+
+	return nil
 }
