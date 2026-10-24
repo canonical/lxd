@@ -1017,63 +1017,83 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 			return nil, fmt.Errorf("Failed getting io.stat: %w", err)
 		}
 
-		scanner := bufio.NewScanner(strings.NewReader(val))
-
-		for scanner.Scan() {
-			var devID string
-			ioStats := &IOStats{}
-
-			// An io.stat line looks like this: "major:minor rbytes=[0-9]+ wbytes=[0-9]+ rios=[0-9]+ wios=[0-9]+ dbytes=[0-9]+ dios=[0-9]+".
-			for statPart := range strings.SplitSeq(scanner.Text(), " ") {
-				// If the stat part is empty, skip it.
-				if statPart == "" {
-					continue
-				}
-
-				if strings.Contains(statPart, ":") {
-					// Store the last dev ID as this works around a kernel bug where multiple dev IDs could appear on a single line.
-					devID = statPart
-					continue
-				}
-
-				// Skip loop devices (major dev ID 7) as they are irrelevant.
-				if strings.HasPrefix(devID, "7:") {
-					continue
-				}
-
-				// Skip irrelevant stats related to direct IO (dbytes= and dios=).
-				if strings.HasPrefix(statPart, "d") {
-					continue
-				}
-
-				// Parse the stat value.
-				statName, statValueStr, found := strings.Cut(statPart, "=")
-				if !found {
-					return nil, fmt.Errorf("Failed extracting io.stat %q (from %q)", statPart, scanner.Text())
-				}
-
-				statValue, err := strconv.ParseUint(statValueStr, 10, 64)
-				if err != nil {
-					return nil, fmt.Errorf("Failed parsing io.stat %q %q (from %q): %w", statName, statValueStr, scanner.Text(), err)
-				}
-
-				switch statName {
-				case "rbytes":
-					ioStats.ReadBytes = statValue
-				case "wbytes":
-					ioStats.WrittenBytes = statValue
-				case "rios":
-					ioStats.ReadsCompleted = statValue
-				case "wios":
-					ioStats.WritesCompleted = statValue
-				}
-			}
-
-			ioMap[partMap[devID]] = ioStats
-		}
-
-		return ioMap, nil
+		return parseIOStatsV2(val, partMap)
 	}
 
 	return nil, ErrUnknownVersion
+}
+
+// parseIOStatsV2 parses the contents of a cgroup2 io.stat file into per-device
+// IOStats. Device IDs (major:minor) are resolved to device names via partMap;
+// lines whose device cannot be resolved are skipped.
+func parseIOStatsV2(ioStat string, partMap map[string]string) (map[string]*IOStats, error) {
+	ioMap := make(map[string]*IOStats)
+	scanner := bufio.NewScanner(strings.NewReader(ioStat))
+
+	for scanner.Scan() {
+		var devID string
+		ioStats := &IOStats{}
+
+		// An io.stat line looks like this: "major:minor rbytes=[0-9]+ wbytes=[0-9]+ rios=[0-9]+ wios=[0-9]+ dbytes=[0-9]+ dios=[0-9]+".
+		for statPart := range strings.SplitSeq(scanner.Text(), " ") {
+			// If the stat part is empty, skip it.
+			if statPart == "" {
+				continue
+			}
+
+			// Any token that isn't a "key=value" stat is a device ID. Store the
+			// last one: this works around a kernel bug where multiple dev IDs
+			// could appear on a single line, and tolerates a literal "(unknown)"
+			// device name (emitted when the kernel can't resolve the backing
+			// device) instead of failing the whole instance's disk metrics.
+			if !strings.Contains(statPart, "=") {
+				devID = statPart
+				continue
+			}
+
+			// Skip loop devices (major dev ID 7) as they are irrelevant.
+			if strings.HasPrefix(devID, "7:") {
+				continue
+			}
+
+			// Skip irrelevant stats related to direct IO (dbytes= and dios=).
+			if strings.HasPrefix(statPart, "d") {
+				continue
+			}
+
+			// Parse the stat value.
+			statName, statValueStr, found := strings.Cut(statPart, "=")
+			if !found {
+				return nil, fmt.Errorf("Failed extracting io.stat %q (from %q)", statPart, scanner.Text())
+			}
+
+			statValue, err := strconv.ParseUint(statValueStr, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing io.stat %q %q (from %q): %w", statName, statValueStr, scanner.Text(), err)
+			}
+
+			switch statName {
+			case "rbytes":
+				ioStats.ReadBytes = statValue
+			case "wbytes":
+				ioStats.WrittenBytes = statValue
+			case "rios":
+				ioStats.ReadsCompleted = statValue
+			case "wios":
+				ioStats.WritesCompleted = statValue
+			}
+		}
+
+		// Skip devices that don't resolve to a name (e.g. the literal
+		// "(unknown)" placeholder, or a device absent from /proc/partitions)
+		// rather than recording them under an empty device label.
+		devName := partMap[devID]
+		if devName == "" {
+			continue
+		}
+
+		ioMap[devName] = ioStats
+	}
+
+	return ioMap, nil
 }
