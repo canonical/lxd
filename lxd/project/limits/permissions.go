@@ -564,6 +564,17 @@ func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.Idma
 	return idmaps, nil
 }
 
+// checkRestrictedDiskPropagation rejects disk devices whose propagation lets mounts made inside the instance appear
+// on the host. Only an administrator outside a restricted project may enable that.
+func checkRestrictedDiskPropagation(device map[string]string) error {
+	propagation := device["propagation"]
+	if propagation == "shared" || propagation == "rshared" {
+		return fmt.Errorf("Disk propagation %q is forbidden: mounts made in the instance would appear on the host", propagation)
+	}
+
+	return nil
+}
+
 // Check that the project's restrictions are not violated across the given
 // instances and profiles.
 func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profiles []api.Profile) error {
@@ -763,6 +774,7 @@ func checkInstanceRestrictions(proj api.Project, instances []api.Instance, profi
 			})
 
 		case "restricted.devices.disk":
+			devicesChecks["disk"] = append(devicesChecks["disk"], checkRestrictedDiskPropagation)
 			devicesChecks["disk"] = append(devicesChecks["disk"], func(device map[string]string) error {
 				// The root device is always allowed.
 				if device["path"] == "/" && device["pool"] != "" {
