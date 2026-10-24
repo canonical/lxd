@@ -22,6 +22,7 @@ import (
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 var authGroupsCmd = APIEndpoint{
@@ -947,4 +948,107 @@ func validatePermissions(ctx context.Context, s *state.State, permissions []api.
 	}
 
 	return authGroupPermissions, nil
+}
+
+// copyEntityPermissions copies the permissions that groups have on the entity with ID srcEntityID to the entity with ID
+// dstEntityID, for example when an entity gets a new ID because it was moved. If the entity moved to another project, a
+// group only keeps its permissions if it is still valid with them (see validatePermissions).
+func copyEntityPermissions(ctx context.Context, s *state.State, entityType entity.Type, srcEntityID int64, dstEntityID int64) error {
+	groupPermissions := map[int64][]api.Permission{}
+	sameProject := true
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		permissions, err := dbCluster.GetPermissions(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		permissionsByGroup := map[int64][]dbCluster.Permission{}
+		srcPermissionsByGroup := map[int64][]dbCluster.Permission{}
+		for _, permission := range permissions {
+			permissionsByGroup[permission.GroupID] = append(permissionsByGroup[permission.GroupID], permission)
+			if permission.EntityType == dbCluster.EntityType(entityType) && permission.EntityID == int(srcEntityID) {
+				srcPermissionsByGroup[permission.GroupID] = append(srcPermissionsByGroup[permission.GroupID], permission)
+			}
+		}
+
+		if len(srcPermissionsByGroup) == 0 {
+			return nil
+		}
+
+		srcURL, err := dbCluster.GetEntityURL(ctx, tx.Tx(), entityType, int(srcEntityID))
+		if err != nil {
+			return err
+		}
+
+		dstURL, err := dbCluster.GetEntityURL(ctx, tx.Tx(), entityType, int(dstEntityID))
+		if err != nil {
+			return err
+		}
+
+		_, srcProjectName, _, _, err := entity.ParseURL(srcURL.URL)
+		if err != nil {
+			return err
+		}
+
+		_, dstProjectName, _, _, err := entity.ParseURL(dstURL.URL)
+		if err != nil {
+			return err
+		}
+
+		sameProject = srcProjectName == dstProjectName
+		for groupID, srcPermissions := range srcPermissionsByGroup {
+			groupPermissions[groupID] = nil
+			if sameProject {
+				continue
+			}
+
+			apiPermissions, err := dbCluster.PermissionsToAPI(ctx, tx.Tx(), permissionsByGroup[groupID])
+			if err != nil {
+				return err
+			}
+
+			for _, permission := range srcPermissions {
+				apiPermissions = append(apiPermissions, api.Permission{
+					EntityType:      string(entityType),
+					EntityReference: dstURL.String(),
+					Entitlement:     string(permission.Entitlement),
+				})
+			}
+
+			groupPermissions[groupID] = apiPermissions
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Validate outside of the transaction above, as validatePermissions starts its own.
+	groupIDs := make([]int64, 0, len(groupPermissions))
+	for groupID, permissions := range groupPermissions {
+		if !sameProject {
+			_, err := validatePermissions(ctx, s, permissions)
+			if api.StatusErrorCheck(err, http.StatusBadRequest, http.StatusNotImplemented) {
+				logger.Info("Not copying permissions of a group as it would not be valid with them", logger.Ctx{"groupID": groupID, "entityType": entityType, "entityID": dstEntityID, "err": err})
+				continue
+			} else if err != nil {
+				return err
+			}
+		}
+
+		groupIDs = append(groupIDs, groupID)
+	}
+
+	return s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		for _, groupID := range groupIDs {
+			err := dbCluster.CopyPermissions(ctx, tx.Tx(), entityType, groupID, srcEntityID, dstEntityID)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
