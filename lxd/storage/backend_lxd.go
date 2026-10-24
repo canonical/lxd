@@ -4610,29 +4610,45 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 
 	isPoolDefault := b.driver.ImageVolumeConfigMatch(imgVol, poolDefaultVol)
 
+	imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage)
+	if err != nil && !response.IsNotFoundError(err) {
+		return nil, err
+	}
+
+	if imgDBVol != nil {
+		existingVol := b.GetVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, imgDBVol.Config)
+
+		if !isPoolDefault {
+			imgVol.Config()["volatile.uuid"] = existingVol.Config()["volatile.uuid"]
+		} else if b.driver.ImageVolumeConfigMatch(existingVol, imgVol) {
+			imgVol = existingVol
+		} else {
+			l.Debug("Image volume configuration differs from storage pool configuration, regenerating image volume")
+			err = b.DeleteImage(ctx, image.Fingerprint, progressReporter)
+			if err != nil {
+				return nil, err
+			}
+
+			imgDBVol = nil
+		}
+	}
+
 	// Detect leftover/partial-unpack: an on-disk pool-default variant with
 	// no DB record. This can occur when LXD exits during unpack, or when the
 	// storage pool has been recovered without recreating volume DB records.
 	// The driver's EnsureImage would otherwise treat the leftover as a valid
 	// cached image and we'd record a DB entry pointing at corrupt data.
-	if isPoolDefault {
-		existingDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage)
-		if err != nil && !response.IsNotFoundError(err) {
+	if isPoolDefault && imgDBVol == nil {
+		hasLeftover, err := b.driver.HasVolume(imgVol)
+		if err != nil {
 			return nil, err
 		}
 
-		if existingDBVol == nil {
-			hasLeftover, err := b.driver.HasVolume(imgVol)
+		if hasLeftover {
+			l.Warn("Deleting leftover/partially unpacked image volume")
+			err = b.driver.DeleteVolume(imgVol, progressReporter)
 			if err != nil {
-				return nil, err
-			}
-
-			if hasLeftover {
-				l.Warn("Deleting leftover/partially unpacked image volume")
-				err = b.driver.DeleteVolume(imgVol, progressReporter)
-				if err != nil {
-					return nil, fmt.Errorf("Failed deleting leftover/partially unpacked image volume: %w", err)
-				}
+				return nil, fmt.Errorf("failed deleting leftover/partially unpacked image volume: %w", err)
 			}
 		}
 	}
@@ -4679,11 +4695,6 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 	defer revert.Fail()
 
 	revert.Add(func() { _ = b.driver.DeleteVolume(imgVol, progressReporter) })
-
-	imgDBVol, err := VolumeDBGet(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage)
-	if err != nil && !response.IsNotFoundError(err) {
-		return nil, err
-	}
 
 	if volFiller.Size != 0 {
 		imgVol.Config()["volatile.rootfs.size"] = strconv.FormatInt(volFiller.Size, 10)
