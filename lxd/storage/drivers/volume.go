@@ -592,6 +592,12 @@ func (v Volume) ConfigSizeFromSource(srcVol Volume) (string, error) {
 	return volSize, nil
 }
 
+// RoundVolumeBlockSizeBytes returns sizeBytes rounded up the same way the storage driver rounds the size of the
+// block volumes it creates.
+func (v Volume) RoundVolumeBlockSizeBytes(sizeBytes int64) int64 {
+	return v.driver.roundVolumeBlockSizeBytes(v, sizeBytes)
+}
+
 // SetMountFilesystemProbe enables or disables the probing mode when mounting the filesystem volume.
 func (v *Volume) SetMountFilesystemProbe(probe bool) {
 	v.mountFilesystemProbe = probe
