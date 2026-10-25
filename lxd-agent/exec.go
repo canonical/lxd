@@ -441,6 +441,8 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 
 				l.Warn("Failed reading control websocket message, killing command", logger.Ctx{"err": err})
 
+				cmdKill()
+
 				return
 			}
 
