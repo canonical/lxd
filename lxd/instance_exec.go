@@ -434,16 +434,16 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	} else {
 		wgEOF.Add(len(ttys) - 1)
 		for i := range ttys {
-			go func(i int) {
+			s.connsLock.Lock()
+			conn := s.conns[i]
+			s.connsLock.Unlock()
+
+			go func(i int, conn *websocket.Conn) {
 				var err error
 				l.Debug("Exec mirror websocket started", logger.Ctx{"number": i})
 				defer func() {
 					l.Debug("Exec mirror websocket finished", logger.Ctx{"number": i, "err": err})
 				}()
-
-				s.connsLock.Lock()
-				conn := s.conns[i]
-				s.connsLock.Unlock()
 
 				if i == execWSStdout {
 					// Launch a go routine that reads from stdout. This will be used to detect
@@ -485,7 +485,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 					_ = ptys[i].Close()
 					wgEOF.Done()
 				}
-			}(i)
+			}(i, conn)
 		}
 	}
 
