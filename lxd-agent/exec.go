@@ -102,43 +102,43 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	ws := &execWs{}
-	ws.fds = map[int]string{}
+	execOp := &execWs{}
+	execOp.fds = map[int]string{}
 
-	ws.conns = map[int]*websocket.Conn{}
-	ws.conns[execWSControl] = nil
-	ws.conns[0] = nil // This is used for either TTY or Stdin.
+	execOp.conns = map[int]*websocket.Conn{}
+	execOp.conns[execWSControl] = nil
+	execOp.conns[0] = nil // This is used for either TTY or Stdin.
 	if !post.Interactive {
-		ws.conns[execWSStdout] = nil
-		ws.conns[execWSStderr] = nil
+		execOp.conns[execWSStdout] = nil
+		execOp.conns[execWSStderr] = nil
 	}
 
-	ws.requiredConnectedCtx, ws.requiredConnectedDone = context.WithCancel(context.Background())
-	ws.interactive = post.Interactive
+	execOp.requiredConnectedCtx, execOp.requiredConnectedDone = context.WithCancel(context.Background())
+	execOp.interactive = post.Interactive
 
-	for i := range ws.conns {
-		ws.fds[i], err = shared.RandomCryptoString()
+	for i := range execOp.conns {
+		execOp.fds[i], err = shared.RandomCryptoString()
 		if err != nil {
 			return response.InternalError(err)
 		}
 	}
 
-	ws.command = post.Command
-	ws.env = env
+	execOp.command = post.Command
+	execOp.env = env
 
-	ws.width = post.Width
-	ws.height = post.Height
+	execOp.width = post.Width
+	execOp.height = post.Height
 
-	ws.cwd = post.Cwd
-	ws.uid = post.User
-	ws.gid = post.Group
+	execOp.cwd = post.Cwd
+	execOp.uid = post.User
+	execOp.gid = post.Group
 
 	args := operations.OperationArgs{
 		Type:        operationtype.CommandExec,
 		Class:       operationtype.OperationClassWebsocket,
-		Metadata:    ws.Metadata(),
-		RunHook:     ws.Do,
-		ConnectHook: ws.Connect,
+		Metadata:    execOp.Metadata(),
+		RunHook:     execOp.Do,
+		ConnectHook: execOp.Connect,
 	}
 
 	op, err := operations.ScheduleOperation(d.events, args)
