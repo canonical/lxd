@@ -218,9 +218,11 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			}
 
 			if !found {
+				_ = conn.Close()
 				return errors.New("Unknown websocket number")
 			}
 
+			_ = conn.Close()
 			return errors.New("Websocket number already connected")
 		}
 	}
@@ -235,12 +237,19 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	// Once this function ends ensure that any connected websockets are closed.
 	defer func() {
 		s.connsLock.Lock()
-		for i := range s.conns {
-			if s.conns[i] != nil {
-				_ = s.conns[i].Close()
+		conns := make([]*websocket.Conn, 0, len(s.conns))
+		for _, conn := range s.conns {
+			if conn != nil {
+				conns = append(conns, conn)
 			}
 		}
+
+		clear(s.conns)
 		s.connsLock.Unlock()
+
+		for _, conn := range conns {
+			_ = conn.Close()
+		}
 	}()
 
 	// As this function only gets called when the exec request has WaitForWS enabled, we expect the client to
