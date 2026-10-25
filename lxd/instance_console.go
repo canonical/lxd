@@ -34,6 +34,9 @@ import (
 	"github.com/canonical/lxd/shared/ws"
 )
 
+// consoleConnectTimeout is how long an operation waits for the client to connect its websockets.
+const consoleConnectTimeout = 10 * time.Second
+
 type consoleWs struct {
 	// instance currently worked on
 	instance instance.Instance
@@ -47,11 +50,11 @@ type consoleWs struct {
 	// locks needed to access the "conns" member
 	connsLock sync.Mutex
 
-	// channel to wait until all websockets are properly connected
-	allConnected chan bool
+	// wait until all websockets are properly connected
+	allConnected cancel.Canceller
 
-	// channel to wait until the control socket is connected
-	controlConnected chan bool
+	// wait until the control socket is connected
+	controlConnected cancel.Canceller
 
 	// map file descriptors to secret
 	fds map[int]string
@@ -122,7 +125,7 @@ func (s *consoleWs) connectConsole(r *http.Request, w http.ResponseWriter) error
 			s.connsLock.Unlock()
 
 			if fd == -1 {
-				s.controlConnected <- true
+				s.controlConnected.Cancel()
 				return nil
 			}
 
@@ -135,7 +138,7 @@ func (s *consoleWs) connectConsole(r *http.Request, w http.ResponseWriter) error
 			}
 			s.connsLock.Unlock()
 
-			s.allConnected <- true
+			s.allConnected.Cancel()
 			return nil
 		}
 	}
@@ -143,6 +146,26 @@ func (s *consoleWs) connectConsole(r *http.Request, w http.ResponseWriter) error
 	/* If we didn't find the right secret, the user provided a bad one,
 	 * which 403, not 404, since this operation actually exists */
 	return os.ErrPermission
+}
+
+// shutdown closes every websocket and ends the control socket goroutine. Connections are closed outside the lock.
+func (s *consoleWs) shutdown() {
+	s.connsLock.Lock()
+	s.controlConnected.Cancel()
+
+	conns := make([]*websocket.Conn, 0, len(s.conns))
+	for _, conn := range s.conns {
+		if conn != nil {
+			conns = append(conns, conn)
+		}
+	}
+
+	clear(s.conns)
+	s.connsLock.Unlock()
+
+	for _, conn := range conns {
+		_ = conn.Close()
+	}
 }
 
 func (s *consoleWs) connectVGA(r *http.Request, w http.ResponseWriter) error {
@@ -172,7 +195,7 @@ func (s *consoleWs) connectVGA(r *http.Request, w http.ResponseWriter) error {
 			s.conns[fd] = conn
 			s.connsLock.Unlock()
 
-			s.controlConnected <- true
+			s.controlConnected.Cancel()
 			return nil
 		}
 
@@ -233,7 +256,18 @@ func (s *consoleWs) Do(ctx context.Context, _ *operations.Operation) error {
 
 func (s *consoleWs) doConsole(ctx context.Context) error {
 	defer logger.Debug("Console websocket finished")
-	<-s.allConnected
+
+	// Deferred first so it runs after the console is closed, which must happen before the websockets are.
+	defer s.shutdown()
+
+	logger.Debug("Waiting for console websockets to connect")
+	select {
+	case <-s.allConnected.Done():
+	case <-time.After(consoleConnectTimeout):
+		return errors.New("Timed out waiting for websockets to connect")
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 
 	// Get console from instance.
 	console, consoleDisconnectCh, err := s.instance.Console(ctx, s.protocol)
@@ -251,16 +285,16 @@ func (s *consoleWs) doConsole(ctx context.Context) error {
 	// Wait for control socket to connect and then read messages from the remote side in a loop.
 	go func() {
 		defer logger.Debug("Console control websocket finished")
-		res := <-s.controlConnected
-		if !res {
+		<-s.controlConnected.Done()
+
+		s.connsLock.Lock()
+		conn := s.conns[-1]
+		s.connsLock.Unlock()
+		if conn == nil {
 			return
 		}
 
 		for {
-			s.connsLock.Lock()
-			conn := s.conns[-1]
-			s.connsLock.Unlock()
-
 			_, r, err := conn.NextReader()
 			if err != nil {
 				logger.Debugf("Got error getting next reader: %v", err)
@@ -307,12 +341,12 @@ func (s *consoleWs) doConsole(ctx context.Context) error {
 	}()
 
 	// Mirror the console and websocket.
-	mirrorDoneCh := make(chan struct{})
-	go func() {
-		s.connsLock.Lock()
-		conn := s.conns[0]
-		s.connsLock.Unlock()
+	s.connsLock.Lock()
+	consoleConn := s.conns[0]
+	s.connsLock.Unlock()
 
+	mirrorDoneCh := make(chan struct{})
+	go func(conn *websocket.Conn) {
 		l := logger.AddContext(logger.Ctx{"address": conn.RemoteAddr().String()})
 		defer l.Debug("Finished mirroring websocket to console")
 
@@ -323,7 +357,7 @@ func (s *consoleWs) doConsole(ctx context.Context) error {
 		l.Debug("Finished mirroring console to websocket")
 		<-writeDone
 		close(mirrorDoneCh)
-	}()
+	}(consoleConn)
 
 	// Wait until either the console, the websocket, or the operation context is done.
 	select {
@@ -333,17 +367,6 @@ func (s *consoleWs) doConsole(ctx context.Context) error {
 	}
 
 	close(consoleDisconnectCh)
-
-	// Get the console and control websockets.
-	s.connsLock.Lock()
-	consoleConn := s.conns[0]
-	ctrlConn := s.conns[-1]
-	s.connsLock.Unlock()
-
-	defer func() {
-		_ = consoleConn.Close()
-		_ = ctrlConn.Close()
-	}()
 
 	// Write a reset escape sequence to the console to cancel any ongoing reads to the handle
 	// and then close it. This ordering is important, close the console before closing the
@@ -359,8 +382,6 @@ func (s *consoleWs) doConsole(ctx context.Context) error {
 		return err
 	}
 
-	// Indicate to the control socket go routine to end if not already.
-	close(s.controlConnected)
 	return nil
 }
 
@@ -370,16 +391,16 @@ func (s *consoleWs) doVGA(ctx context.Context) error {
 	// The control socket is used to terminate the operation.
 	go func() {
 		defer logger.Debug("VGA control websocket finished")
-		res := <-s.controlConnected
-		if !res {
+		<-s.controlConnected.Done()
+
+		s.connsLock.Lock()
+		conn := s.conns[-1]
+		s.connsLock.Unlock()
+		if conn == nil {
 			return
 		}
 
 		for {
-			s.connsLock.Lock()
-			conn := s.conns[-1]
-			s.connsLock.Unlock()
-
 			_, _, err := conn.NextReader()
 			if err != nil {
 				logger.Debugf("Got error getting next reader: %v", err)
@@ -407,7 +428,7 @@ func (s *consoleWs) doVGA(ctx context.Context) error {
 	}
 
 	// Indicate to the control socket go routine to end if not already.
-	close(s.controlConnected)
+	s.controlConnected.Cancel()
 
 	return err
 }
@@ -526,8 +547,8 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	ws.allConnected = make(chan bool, 1)
-	ws.controlConnected = make(chan bool, 1)
+	ws.allConnected = cancel.New()
+	ws.controlConnected = cancel.New()
 	ws.instance = inst
 	ws.width = post.Width
 	ws.height = post.Height
