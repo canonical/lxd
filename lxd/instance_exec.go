@@ -634,40 +634,40 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if post.WaitForWS {
-		ws := &execWs{}
-		ws.s = d.State()
-		ws.fds = map[int]string{}
+		execOp := &execWs{}
+		execOp.s = d.State()
+		execOp.fds = map[int]string{}
 
-		ws.conns = map[int]*websocket.Conn{}
-		ws.conns[execWSControl] = nil
-		ws.conns[0] = nil // This is used for either TTY or Stdin.
+		execOp.conns = map[int]*websocket.Conn{}
+		execOp.conns[execWSControl] = nil
+		execOp.conns[0] = nil // This is used for either TTY or Stdin.
 		if !post.Interactive {
-			ws.conns[execWSStdout] = nil
-			ws.conns[execWSStderr] = nil
+			execOp.conns[execWSStdout] = nil
+			execOp.conns[execWSStderr] = nil
 		}
 
-		ws.waitRequiredConnected = cancel.New()
-		ws.waitControlConnected = cancel.New()
+		execOp.waitRequiredConnected = cancel.New()
+		execOp.waitControlConnected = cancel.New()
 
-		for i := range ws.conns {
-			ws.fds[i], err = shared.RandomCryptoString()
+		for i := range execOp.conns {
+			execOp.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
 				return response.InternalError(err)
 			}
 		}
 
-		ws.instance = inst
-		ws.req = post
+		execOp.instance = inst
+		execOp.req = post
 
-		instanceURL := api.NewURL().Path(version.APIVersion, "instances", ws.instance.Name()).Project(projectName)
+		instanceURL := api.NewURL().Path(version.APIVersion, "instances", execOp.instance.Name()).Project(projectName)
 		args := operations.OperationArgs{
 			ProjectName: projectName,
 			EntityURL:   instanceURL,
 			Type:        operationtype.CommandExec,
 			Class:       operationtype.OperationClassWebsocket,
-			Metadata:    ws.Metadata(),
-			RunHook:     ws.Do,
-			ConnectHook: ws.Connect,
+			Metadata:    execOp.Metadata(),
+			RunHook:     execOp.Do,
+			ConnectHook: execOp.Connect,
 		}
 
 		op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
