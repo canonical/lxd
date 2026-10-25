@@ -118,27 +118,13 @@ func (s *consoleWs) connectConsole(r *http.Request, w http.ResponseWriter) error
 				return err
 			}
 
+			err = s.registerConn(fd, conn)
+			if err != nil {
+				return err
+			}
+
 			ws.StartKeepAlive(conn)
 
-			s.connsLock.Lock()
-			s.conns[fd] = conn
-			s.connsLock.Unlock()
-
-			if fd == -1 {
-				s.controlConnected.Cancel()
-				return nil
-			}
-
-			s.connsLock.Lock()
-			for i, c := range s.conns {
-				if i != -1 && c == nil {
-					s.connsLock.Unlock()
-					return nil
-				}
-			}
-			s.connsLock.Unlock()
-
-			s.allConnected.Cancel()
 			return nil
 		}
 	}
@@ -148,7 +134,46 @@ func (s *consoleWs) connectConsole(r *http.Request, w http.ResponseWriter) error
 	return os.ErrPermission
 }
 
-// shutdown marks the console as finished, which makes connectVGA reject late dynamic connections,
+// registerConn records an upgraded control (-1) or data websocket and signals when it completes the set that
+// doConsole or doVGA waits for. It takes ownership of conn and closes it if it cannot be registered.
+func (s *consoleWs) registerConn(fd int, conn *websocket.Conn) error {
+	s.connsLock.Lock()
+	defer s.connsLock.Unlock()
+
+	if s.consoleDone.Err() != nil {
+		_ = conn.Close()
+		return errors.New("Console operation has finished")
+	}
+
+	val, found := s.conns[fd]
+	if !found {
+		_ = conn.Close()
+		return errors.New("Unknown websocket number")
+	}
+
+	if val != nil {
+		_ = conn.Close()
+		return errors.New("Websocket number already connected")
+	}
+
+	s.conns[fd] = conn
+
+	if fd == -1 {
+		s.controlConnected.Cancel()
+		return nil
+	}
+
+	for i, c := range s.conns {
+		if i != -1 && c == nil {
+			return nil
+		}
+	}
+
+	s.allConnected.Cancel()
+	return nil
+}
+
+// shutdown marks the console as finished, which makes registerConn and connectVGA reject late connections,
 // then closes every websocket and dynamic console. Connections are closed outside the lock.
 func (s *consoleWs) shutdown() {
 	s.connsLock.Lock()
@@ -199,16 +224,16 @@ func (s *consoleWs) connectVGA(r *http.Request, w http.ResponseWriter) error {
 			return err
 		}
 
-		ws.StartKeepAlive(conn)
-
 		if fd == -1 {
 			logger.Debug("VGA control websocket connected")
 
-			s.connsLock.Lock()
-			s.conns[fd] = conn
-			s.connsLock.Unlock()
+			err = s.registerConn(fd, conn)
+			if err != nil {
+				return err
+			}
 
-			s.controlConnected.Cancel()
+			ws.StartKeepAlive(conn)
+
 			return nil
 		}
 
@@ -230,6 +255,8 @@ func (s *consoleWs) connectVGA(r *http.Request, w http.ResponseWriter) error {
 
 		s.dynamic[conn] = console
 		s.connsLock.Unlock()
+
+		ws.StartKeepAlive(conn)
 
 		// Mirror the console and websocket.
 		go func() {
