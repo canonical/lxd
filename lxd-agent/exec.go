@@ -481,7 +481,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 					continue
 				}
 			} else if command.Command == "signal" {
-				err := unix.Kill(cmd.Process.Pid, unix.Signal(command.Signal))
+				err := cmd.Process.Signal(unix.Signal(command.Signal))
 				if err != nil {
 					l.Debug("Failed forwarding signal", logger.Ctx{"err": err, "signal": command.Signal})
 					continue
