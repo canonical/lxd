@@ -125,10 +125,12 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 				return nil
 			} else if !found {
 				s.connsLock.Unlock()
+				_ = conn.Close()
 				return errors.New("Unknown websocket number")
 			}
 
 			s.connsLock.Unlock()
+			_ = conn.Close()
 			return errors.New("Websocket number already connected")
 		}
 	}
@@ -141,28 +143,16 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 // Do connects to the websocket and executes the operation.
 func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	// Once this function ends ensure that any connected websockets are closed.
-	defer func() {
-		s.connsLock.Lock()
-		for i := range s.conns {
-			if s.conns[i] != nil {
-				_ = s.conns[i].Close()
-			}
-		}
-		s.connsLock.Unlock()
-	}()
+	defer ws.CloseConns(&s.connsLock, s.conns)
 
 	// As this function only gets called when the exec request has WaitForWS enabled, we expect the client to
 	// connect to all of the required websockets within a short period of time and we won't proceed until then.
 	logger.Debug("Waiting for exec websockets to connect")
-	select {
-	case <-s.waitRequiredConnected.Done():
-	case <-time.After(time.Second * 10):
-		return errors.New("Timed out waiting for websockets to connect")
-	case <-ctx.Done():
-		return ctx.Err()
+	err := ws.WaitForConns(ctx, s.waitRequiredConnected.Done(), 10*time.Second)
+	if err != nil {
+		return err
 	}
 
-	var err error
 	var ttys []*os.File
 	var ptys []*os.File
 
@@ -216,26 +206,18 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 			}
 		} else {
 			// For VMs we rely on the lxd-agent PTY running inside the VM guest.
-			ttys = make([]*os.File, 2)
-			ptys = make([]*os.File, 2)
-			for i := range ttys {
-				ptys[i], ttys[i], err = os.Pipe()
-				if err != nil {
-					return err
-				}
+			ptys, ttys, err = ws.NewPipes(2)
+			if err != nil {
+				return err
 			}
 
 			stdin = ptys[execWSStdin]
 			stdout = ttys[execWSStdout]
 		}
 	} else {
-		ttys = make([]*os.File, 3)
-		ptys = make([]*os.File, 3)
-		for i := range ttys {
-			ptys[i], ttys[i], err = os.Pipe()
-			if err != nil {
-				return err
-			}
+		ptys, ttys, err = ws.NewPipes(3)
+		if err != nil {
+			return err
 		}
 
 		stdin = ptys[execWSStdin]
@@ -251,9 +233,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 		// Cancel this before closing the control connection so control handler can detect command ending.
 		markAttachedChildIsDead()
 
-		for _, tty := range ttys {
-			_ = tty.Close()
-		}
+		ws.CloseFiles(ttys)
 
 		s.connsLock.Lock()
 		conn := s.conns[execWSControl]
@@ -270,9 +250,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 
 		wgEOF.Wait()
 
-		for _, pty := range ptys {
-			_ = pty.Close()
-		}
+		ws.CloseFiles(ptys)
 
 		// Make VM disconnections (shutdown/reboot) match containers.
 		if cmdErr == drivers.ErrExecDisconnected {
