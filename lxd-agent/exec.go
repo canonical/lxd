@@ -102,43 +102,43 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	ws := &execWs{}
-	ws.fds = map[int]string{}
+	execOp := &execWs{}
+	execOp.fds = map[int]string{}
 
-	ws.conns = map[int]*websocket.Conn{}
-	ws.conns[execWSControl] = nil
-	ws.conns[0] = nil // This is used for either TTY or Stdin.
+	execOp.conns = map[int]*websocket.Conn{}
+	execOp.conns[execWSControl] = nil
+	execOp.conns[0] = nil // This is used for either TTY or Stdin.
 	if !post.Interactive {
-		ws.conns[execWSStdout] = nil
-		ws.conns[execWSStderr] = nil
+		execOp.conns[execWSStdout] = nil
+		execOp.conns[execWSStderr] = nil
 	}
 
-	ws.requiredConnectedCtx, ws.requiredConnectedDone = context.WithCancel(context.Background())
-	ws.interactive = post.Interactive
+	execOp.requiredConnectedCtx, execOp.requiredConnectedDone = context.WithCancel(context.Background())
+	execOp.interactive = post.Interactive
 
-	for i := range ws.conns {
-		ws.fds[i], err = shared.RandomCryptoString()
+	for i := range execOp.conns {
+		execOp.fds[i], err = shared.RandomCryptoString()
 		if err != nil {
 			return response.InternalError(err)
 		}
 	}
 
-	ws.command = post.Command
-	ws.env = env
+	execOp.command = post.Command
+	execOp.env = env
 
-	ws.width = post.Width
-	ws.height = post.Height
+	execOp.width = post.Width
+	execOp.height = post.Height
 
-	ws.cwd = post.Cwd
-	ws.uid = post.User
-	ws.gid = post.Group
+	execOp.cwd = post.Cwd
+	execOp.uid = post.User
+	execOp.gid = post.Group
 
 	args := operations.OperationArgs{
 		Type:        operationtype.CommandExec,
 		Class:       operationtype.OperationClassWebsocket,
-		Metadata:    ws.Metadata(),
-		RunHook:     ws.Do,
-		ConnectHook: ws.Connect,
+		Metadata:    execOp.Metadata(),
+		RunHook:     execOp.Do,
+		ConnectHook: execOp.Connect,
 	}
 
 	op, err := operations.ScheduleOperation(d.events, args)
@@ -233,26 +233,16 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 // Do executes the operation.
 func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	// Once this function ends ensure that any connected websockets are closed.
-	defer func() {
-		s.connsLock.Lock()
-		for i := range s.conns {
-			if s.conns[i] != nil {
-				_ = s.conns[i].Close()
-			}
-		}
-		s.connsLock.Unlock()
-	}()
+	defer ws.CloseConns(&s.connsLock, s.conns)
 
 	// As this function only gets called when the exec request has WaitForWS enabled, we expect the client to
 	// connect to all of the required websockets within a short period of time and we won't proceed until then.
 	logger.Debug("Waiting for exec websockets to connect")
-	select {
-	case <-s.requiredConnectedCtx.Done():
-	case <-time.After(time.Second * 5):
-		return errors.New("Timed out waiting for websockets to connect")
+	err := ws.WaitForConns(ctx, s.requiredConnectedCtx.Done(), 5*time.Second)
+	if err != nil {
+		return err
 	}
 
-	var err error
 	var ttys []*os.File
 	var ptys []*os.File
 
@@ -276,13 +266,9 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 			_ = shared.SetSize(int(ptys[0].Fd()), s.width, s.height)
 		}
 	} else {
-		ttys = make([]*os.File, 3)
-		ptys = make([]*os.File, 3)
-		for i := range ttys {
-			ptys[i], ttys[i], err = os.Pipe()
-			if err != nil {
-				return err
-			}
+		ptys, ttys, err = ws.NewPipes(3)
+		if err != nil {
+			return err
 		}
 
 		stdin = ptys[execWSStdin]
@@ -297,9 +283,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 		// Cancel this before closing the control connection so control handler can detect command ending.
 		markAttachedChildIsDead()
 
-		for _, tty := range ttys {
-			_ = tty.Close()
-		}
+		ws.CloseFiles(ttys)
 
 		s.connsLock.Lock()
 		conn := s.conns[-1]
@@ -311,9 +295,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 
 		wgEOF.Wait()
 
-		for _, pty := range ptys {
-			_ = pty.Close()
-		}
+		ws.CloseFiles(ptys)
 
 		metadata := shared.Jmap{"return": cmdResult}
 		err = op.UpdateMetadata(metadata)
@@ -476,27 +458,23 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	} else {
 		wgEOF.Add(len(ttys) - 1)
 		for i := range ttys {
-			go func(i int) {
+			s.connsLock.Lock()
+			conn := s.conns[i]
+			s.connsLock.Unlock()
+
+			go func(i int, conn *websocket.Conn) {
 				l.Debug("Exec mirror websocket started", logger.Ctx{"number": i})
 				defer l.Debug("Exec mirror websocket finished", logger.Ctx{"number": i})
 
 				if i == 0 {
-					s.connsLock.Lock()
-					conn := s.conns[i]
-					s.connsLock.Unlock()
-
 					<-ws.MirrorWrite(conn, ttys[i])
 					_ = ttys[i].Close()
 				} else {
-					s.connsLock.Lock()
-					conn := s.conns[i]
-					s.connsLock.Unlock()
-
 					<-ws.MirrorRead(conn, ptys[i])
 					_ = ptys[i].Close()
 					wgEOF.Done()
 				}
-			}(i)
+			}(i, conn)
 		}
 	}
 

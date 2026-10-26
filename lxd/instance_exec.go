@@ -141,28 +141,16 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 // Do connects to the websocket and executes the operation.
 func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	// Once this function ends ensure that any connected websockets are closed.
-	defer func() {
-		s.connsLock.Lock()
-		for i := range s.conns {
-			if s.conns[i] != nil {
-				_ = s.conns[i].Close()
-			}
-		}
-		s.connsLock.Unlock()
-	}()
+	defer ws.CloseConns(&s.connsLock, s.conns)
 
 	// As this function only gets called when the exec request has WaitForWS enabled, we expect the client to
 	// connect to all of the required websockets within a short period of time and we won't proceed until then.
 	logger.Debug("Waiting for exec websockets to connect")
-	select {
-	case <-s.waitRequiredConnected.Done():
-	case <-time.After(time.Second * 10):
-		return errors.New("Timed out waiting for websockets to connect")
-	case <-ctx.Done():
-		return ctx.Err()
+	err := ws.WaitForConns(ctx, s.waitRequiredConnected.Done(), 10*time.Second)
+	if err != nil {
+		return err
 	}
 
-	var err error
 	var ttys []*os.File
 	var ptys []*os.File
 
@@ -216,26 +204,18 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 			}
 		} else {
 			// For VMs we rely on the lxd-agent PTY running inside the VM guest.
-			ttys = make([]*os.File, 2)
-			ptys = make([]*os.File, 2)
-			for i := range ttys {
-				ptys[i], ttys[i], err = os.Pipe()
-				if err != nil {
-					return err
-				}
+			ptys, ttys, err = ws.NewPipes(2)
+			if err != nil {
+				return err
 			}
 
 			stdin = ptys[execWSStdin]
 			stdout = ttys[execWSStdout]
 		}
 	} else {
-		ttys = make([]*os.File, 3)
-		ptys = make([]*os.File, 3)
-		for i := range ttys {
-			ptys[i], ttys[i], err = os.Pipe()
-			if err != nil {
-				return err
-			}
+		ptys, ttys, err = ws.NewPipes(3)
+		if err != nil {
+			return err
 		}
 
 		stdin = ptys[execWSStdin]
@@ -251,9 +231,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 		// Cancel this before closing the control connection so control handler can detect command ending.
 		markAttachedChildIsDead()
 
-		for _, tty := range ttys {
-			_ = tty.Close()
-		}
+		ws.CloseFiles(ttys)
 
 		s.connsLock.Lock()
 		conn := s.conns[execWSControl]
@@ -270,9 +248,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 
 		wgEOF.Wait()
 
-		for _, pty := range ptys {
-			_ = pty.Close()
-		}
+		ws.CloseFiles(ptys)
 
 		// Make VM disconnections (shutdown/reboot) match containers.
 		if cmdErr == drivers.ErrExecDisconnected {
@@ -434,16 +410,16 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 	} else {
 		wgEOF.Add(len(ttys) - 1)
 		for i := range ttys {
-			go func(i int) {
+			s.connsLock.Lock()
+			conn := s.conns[i]
+			s.connsLock.Unlock()
+
+			go func(i int, conn *websocket.Conn) {
 				var err error
 				l.Debug("Exec mirror websocket started", logger.Ctx{"number": i})
 				defer func() {
 					l.Debug("Exec mirror websocket finished", logger.Ctx{"number": i, "err": err})
 				}()
-
-				s.connsLock.Lock()
-				conn := s.conns[i]
-				s.connsLock.Unlock()
 
 				if i == execWSStdout {
 					// Launch a go routine that reads from stdout. This will be used to detect
@@ -485,7 +461,7 @@ func (s *execWs) Do(ctx context.Context, op *operations.Operation) error {
 					_ = ptys[i].Close()
 					wgEOF.Done()
 				}
-			}(i)
+			}(i, conn)
 		}
 	}
 
@@ -658,40 +634,40 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if post.WaitForWS {
-		ws := &execWs{}
-		ws.s = d.State()
-		ws.fds = map[int]string{}
+		execOp := &execWs{}
+		execOp.s = d.State()
+		execOp.fds = map[int]string{}
 
-		ws.conns = map[int]*websocket.Conn{}
-		ws.conns[execWSControl] = nil
-		ws.conns[0] = nil // This is used for either TTY or Stdin.
+		execOp.conns = map[int]*websocket.Conn{}
+		execOp.conns[execWSControl] = nil
+		execOp.conns[0] = nil // This is used for either TTY or Stdin.
 		if !post.Interactive {
-			ws.conns[execWSStdout] = nil
-			ws.conns[execWSStderr] = nil
+			execOp.conns[execWSStdout] = nil
+			execOp.conns[execWSStderr] = nil
 		}
 
-		ws.waitRequiredConnected = cancel.New()
-		ws.waitControlConnected = cancel.New()
+		execOp.waitRequiredConnected = cancel.New()
+		execOp.waitControlConnected = cancel.New()
 
-		for i := range ws.conns {
-			ws.fds[i], err = shared.RandomCryptoString()
+		for i := range execOp.conns {
+			execOp.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
 				return response.InternalError(err)
 			}
 		}
 
-		ws.instance = inst
-		ws.req = post
+		execOp.instance = inst
+		execOp.req = post
 
-		instanceURL := api.NewURL().Path(version.APIVersion, "instances", ws.instance.Name()).Project(projectName)
+		instanceURL := api.NewURL().Path(version.APIVersion, "instances", execOp.instance.Name()).Project(projectName)
 		args := operations.OperationArgs{
 			ProjectName: projectName,
 			EntityURL:   instanceURL,
 			Type:        operationtype.CommandExec,
 			Class:       operationtype.OperationClassWebsocket,
-			Metadata:    ws.Metadata(),
-			RunHook:     ws.Do,
-			ConnectHook: ws.Connect,
+			Metadata:    execOp.Metadata(),
+			RunHook:     execOp.Do,
+			ConnectHook: execOp.Connect,
 		}
 
 		op, err := operations.ScheduleUserOperationFromRequest(s, r, args)
