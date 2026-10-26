@@ -12,8 +12,8 @@ require (
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
 	github.com/fvbommel/sortorder v1.2.1
 	github.com/go-acme/lego/v4 v4.35.2
-	github.com/go-chi/chi/v5 v5.3.2
-	github.com/go-jose/go-jose/v4 v4.1.5
+	github.com/go-chi/chi/v5 v5.5.0
+	github.com/go-jose/go-jose/v4 v4.1.6
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -32,7 +32,7 @@ require (
 	github.com/mdlayher/netx v0.0.0-20230430222610-7e21880baee8
 	github.com/mdlayher/vsock v1.3.0
 	github.com/miekg/dns v1.1.73
-	github.com/minio/minio-go/v7 v7.3.0
+	github.com/minio/minio-go/v7 v7.4.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/moby/sys/capability v0.4.0
 	github.com/oklog/ulid/v2 v2.1.2
@@ -48,7 +48,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/vishvananda/netlink v1.3.1
-	github.com/zitadel/oidc/v3 v3.51.14
+	github.com/zitadel/oidc/v3 v3.51.16
 	go.starlark.net v0.0.0-20260908191801-89a6a09411d5
 	go.uber.org/zap v1.28.0
 	go.yaml.in/yaml/v2 v2.4.4
@@ -74,7 +74,7 @@ require (
 	github.com/Yiling-J/theine-go v0.6.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bmatcuk/doublestar/v4 v4.10.2 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.10.3 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
