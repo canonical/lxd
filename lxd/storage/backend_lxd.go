@@ -4619,7 +4619,17 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 		existingVol := b.GetVolume(drivers.VolumeTypeImage, contentType, image.Fingerprint, imgDBVol.Config)
 
 		if !isPoolDefault {
-			imgVol.Config()["volatile.uuid"] = existingVol.Config()["volatile.uuid"]
+			// Only carry over the recorded UUID when the recorded volume exists, so the
+			// driver can detect the variant mismatch. Otherwise, an incompatible variant
+			// would be created under the UUID still recorded for the pool-default volume.
+			hasExisting, err := b.driver.HasVolume(existingVol)
+			if err != nil {
+				return nil, err
+			}
+
+			if hasExisting {
+				imgVol.Config()["volatile.uuid"] = existingVol.Config()["volatile.uuid"]
+			}
 		} else if b.driver.ImageVolumeConfigMatch(existingVol, imgVol) {
 			imgVol = existingVol
 		} else {
@@ -4648,7 +4658,7 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 			l.Warn("Deleting leftover/partially unpacked image volume")
 			err = b.driver.DeleteVolume(imgVol, progressReporter)
 			if err != nil {
-				return nil, fmt.Errorf("failed deleting leftover/partially unpacked image volume: %w", err)
+				return nil, fmt.Errorf("Failed deleting leftover/partially unpacked image volume: %w", err)
 			}
 		}
 	}
