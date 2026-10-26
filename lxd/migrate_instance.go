@@ -10,17 +10,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/lxd/auth/encryption"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/state"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
 
-func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool, diskVolumesMode string, clusterMoveSourceName string, pushTarget *api.InstancePostTarget) (*migrationSourceWs, error) {
+func newMigrationSource(ctx context.Context, inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool, diskVolumesMode string, clusterMoveSourceName string, pushTarget *api.InstancePostTarget, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error)) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{
 		instance:              inst,
 		allowInconsistent:     allowInconsistent,
@@ -66,7 +67,7 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 
 			ret.conns[connName] = newMigrationConn(ret.pushSecrets[connName], dialer, u, bulk)
 		} else {
-			secret, err := shared.RandomCryptoString()
+			secret, err := encryption.NewEphemeralSecret(ctx, secretsFunc)
 			if err != nil {
 				return nil, fmt.Errorf("Failed creating migration source secret for %q connection: %w", connName, err)
 			}
@@ -153,7 +154,7 @@ func (s *migrationSourceWs) Do(ctx context.Context, state *state.State, migrateO
 	return nil
 }
 
-func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
+func newMigrationSink(ctx context.Context, args *migrationSinkArgs, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error)) (*migrationSink, error) {
 	sink := migrationSink{
 		instance:              args.instance,
 		instanceOnly:          args.instanceOnly,
@@ -191,7 +192,7 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 
 			sink.conns[connName] = newMigrationConn(args.secrets[connName], args.dialer, u, bulk)
 		} else {
-			secret, err := shared.RandomCryptoString()
+			secret, err := encryption.NewEphemeralSecret(ctx, secretsFunc)
 			if err != nil {
 				return nil, fmt.Errorf("Failed creating migration sink secret for %q connection: %w", connName, err)
 			}

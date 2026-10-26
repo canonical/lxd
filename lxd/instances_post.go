@@ -499,7 +499,7 @@ func prepareInstanceMigrationSink(ctx context.Context, s *state.State, projectNa
 		deferredVolumes:       deferredVolumes,
 	}
 
-	sink, err := newMigrationSink(&migrationArgs)
+	sink, err := newMigrationSink(ctx, &migrationArgs, s.CoreAuthSecrets)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating migration sink: %w", err)
 	}
@@ -733,7 +733,7 @@ func createFromConversion(r *http.Request, s *state.State, projectName string, p
 		instance:          inst,
 	}
 
-	sink, err := newConversionSink(&conversionArgs)
+	sink, err := newConversionSink(r.Context(), &conversionArgs, s.CoreAuthSecrets)
 	if err != nil {
 		return response.InternalError(err)
 	}

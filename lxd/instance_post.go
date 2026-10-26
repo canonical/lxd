@@ -474,7 +474,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 		// We keep the req.ContainerOnly for backward compatibility.
 		instanceOnly := req.InstanceOnly || req.ContainerOnly //nolint:staticcheck,unused
-		ws, err := newMigrationSource(inst, req.Live, instanceOnly, req.AllowInconsistent, req.DiskVolumesMode, "", req.Target)
+		ws, err := newMigrationSource(r.Context(), inst, req.Live, instanceOnly, req.AllowInconsistent, req.DiskVolumesMode, "", req.Target, s.CoreAuthSecrets)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -903,7 +903,7 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 			}
 		}
 
-		srcMigration, err := newMigrationSource(srcInst, live, false, allowInconsistent, "", srcInstName, nil)
+		srcMigration, err := newMigrationSource(ctx, srcInst, live, false, allowInconsistent, "", srcInstName, nil, s.CoreAuthSecrets)
 		if err != nil {
 			return fmt.Errorf("Failed setting up instance migration on source: %w", err)
 		}

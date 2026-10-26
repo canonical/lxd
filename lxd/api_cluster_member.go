@@ -15,6 +15,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
@@ -455,7 +456,7 @@ func clusterMembersPost(d *Daemon, r *http.Request) response.Response {
 	// Generate join secret for new member. This will be stored inside the join token operation and will be
 	// supplied by the joining member (encoded inside the join token) which will allow us to lookup the correct
 	// operation in order to validate the requested joining server name is correct and authorised.
-	joinSecret, err := shared.RandomCryptoString()
+	joinSecret, err := encryption.NewEphemeralSecret(r.Context(), s.CoreAuthSecrets)
 	if err != nil {
 		return response.InternalError(err)
 	}

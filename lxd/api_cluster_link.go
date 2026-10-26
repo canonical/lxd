@@ -908,7 +908,7 @@ func clusterLinkCreatePending(s *state.State, r *http.Request, req api.ClusterLi
 	}
 
 	// Create certificate add token.
-	token, err := createCertificateAddToken(s, req.Name, api.IdentityTypeCertificateClusterLink)
+	token, err := createCertificateAddToken(r.Context(), s, req.Name, api.IdentityTypeCertificateClusterLink)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed generating trust token: %w", err))
 	}
