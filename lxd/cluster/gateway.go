@@ -1251,8 +1251,8 @@ func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.C
 		// Force closing, ignore errors.
 		_ = remote.Close()
 		_ = local.Close()
-		<-remoteToLocal
-		<-localToRemote
+		<-remoteToLocal //nolint:errcheck
+		<-localToRemote //nolint:errcheck
 	case err := <-remoteToLocal:
 		if err != nil {
 			errs[0] = fmt.Errorf("remote -> local: %w", err)
