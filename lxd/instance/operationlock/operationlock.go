@@ -179,7 +179,7 @@ func (op *InstanceOperation) Wait(ctx context.Context) error {
 	}
 
 	select {
-	case <-op.chanDone:
+	case <-op.chanDone: //nolint:errcheck
 		return op.err
 	case <-ctx.Done():
 		return ctx.Err()
