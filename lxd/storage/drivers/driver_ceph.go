@@ -418,15 +418,11 @@ func (d *ceph) Validate(config map[string]string) error {
 	// The project name is part of the key, so a fixed rule cannot express it.
 	for k := range config {
 		// lxdmeta:generate(entities=storage-ceph; group=pool-conf; key=ceph.replicator.<project>)
-		// This option specifies the peer site, as registered in Ceph, that the volumes of the
-		// given project are mirrored to. One OSD pool can back several projects, each replicating
-		// to a different peer.
+		// This option specifies the peer site, as registered in Ceph, that the volumes of the given project are mirrored to. One OSD pool can back several projects, each replicating to a different peer.
 		//
-		// `ceph.rbd.clone_copy` must also be set to `false` before any container is created on the
-		// pool, because Ceph cannot mirror a volume that is a clone of its image.
+		// `ceph.rbd.clone_copy` must also be set to `false` before any container is created on the pool, because Ceph cannot mirror a volume that is a clone of its image.
 		//
-		// The project must exist before this option is set. Deleting the project with `--force`
-		// removes the option from the pool.
+		// The project must exist before this option is set. Deleting the project with `--force` removes the option from the pool.
 		// ---
 		//  type: string
 		//  shortdesc: Name of the peer Ceph site to mirror a project to
