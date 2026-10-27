@@ -195,11 +195,11 @@ func (s *consoleWs) connectVGA(r *http.Request, w http.ResponseWriter) error {
 
 			for readDone != nil && writeDone != nil {
 				select {
-				case <-readDone:
+				case <-readDone: //nolint:errcheck
 					l.Debug("Finished mirroring console to websocket")
 					readDone = nil
 					s.consoleDone.Cancel()
-				case <-writeDone:
+				case <-writeDone: //nolint:errcheck
 					l.Debug("Finished mirroring websocket to console")
 					writeDone = nil
 					s.consoleDone.Cancel()
@@ -319,9 +319,9 @@ func (s *consoleWs) doConsole(ctx context.Context) error {
 		l.Debug("Started mirroring websocket")
 		readDone, writeDone := ws.Mirror(conn, console)
 
-		<-readDone
+		<-readDone //nolint:errcheck
 		l.Debug("Finished mirroring console to websocket")
-		<-writeDone
+		<-writeDone //nolint:errcheck
 		close(mirrorDoneCh)
 	}()
 

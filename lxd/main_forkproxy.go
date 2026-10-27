@@ -956,8 +956,8 @@ func unixRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
 	_ = dst.Close()
 
 	// Empty the channels
-	<-chSend
-	<-chRecv
+	<-chSend //nolint:errcheck
+	<-chRecv //nolint:errcheck
 }
 
 func tryListen(protocol string, addr string) (net.Listener, error) {
