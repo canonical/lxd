@@ -1,7 +1,7 @@
 package version
 
 // Version contains the LXD version number.
-var Version = "5.0.10"
+var Version = "5.0.11"
 
 // IsLTSVersion indicates this is an LTS version of LXD.
 var IsLTSVersion = true
