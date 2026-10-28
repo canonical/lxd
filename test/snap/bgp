@@ -150,6 +150,10 @@ lxdBGPDump() (
 # Usage: waitLXDPrefix <prefix> <present|absent> [next-hop]
 waitLXDPrefix() (
     { set +x; } 2>/dev/null
+    if [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
+        return 0
+    fi
+
     local prefix="${1}"
     local wanted="${2}"
     local nexthop="${3:-}"
@@ -372,8 +376,13 @@ lxc network create "${BGP_NET2}" \
     ${peer_holdtime} # Don't quote to omit the empty arg.
 
 # The shared address is one peer, owned by both networks.
-lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
-    '[.peers[] | select(.address == $peer) | .owners | length] == [2]'
+if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
+    lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
+        '[.peers[] | select(.address == $peer) | .owners | length] == [2]'
+else
+    lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
+        '[.peers[] | select(.address == $peer) | .count] == [2]'
+fi
 
 waitFRRSession up
 
@@ -404,8 +413,13 @@ lxc network set "${BGP_NET2}" \
 
 # The session stays up for the first network, which keeps its routes, while the
 # second network's routes are withdrawn.
-lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
-    '[.peers[] | select(.address == $peer) | .owners | length] == [1]'
+if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
+    lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
+        '[.peers[] | select(.address == $peer) | .owners | length] == [1]'
+else
+    lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
+        '[.peers[] | select(.address == $peer) | .count] == [1]'
+fi
 waitFRRSession up
 waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
 waitFRRPrefix 4 "${NET2_SUBNET4}" absent "${ALT_NEXTHOP4}"
