@@ -14,7 +14,19 @@ This is a {ref}`LTS release <ref-releases-lts>` and is recommended for productio
 These release notes cover updates in the [core LXD repository](https://github.com/canonical/lxd) and the [LXD snap package](https://snapcraft.io/lxd).
 ```
 
-This is a maintenance release for the 5.21 LTS series. It updates the Go module dependencies and the components bundled in the snap.
+This is a maintenance release for the 5.21 LTS series. It includes a bug fix, and updates the Go module dependencies and the components bundled in the snap.
+
+(ref-release-notes-5.21.9-bugfixes)=
+## Bug fixes
+
+The following bug fixes are included in this release.
+
+- [{spellexception}`lxd/storage/drivers/btrfs_volumes: ignore failure to clear former exclusive data limit in SetVolumeQuota`](https://github.com/canonical/lxd/pull/19418)
+
+(ref-release-notes-5.21.9-go)=
+## Updated minimum Go version
+
+If you are building LXD from source instead of using a package manager, the minimum version of Go required to build LXD is now 1.27.3.
 
 (ref-release-notes-5.21.9-snap)=
 ## Snap packaging changes
