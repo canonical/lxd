@@ -297,18 +297,22 @@ ovn_basic_tests() {
     lxc config device set u2 eth0 ipv4.routes.external=198.51.100.1/32 --project testovn
     lxc config device set u2 eth0 ipv6.routes.external=2001:db8:1:2::1/128 --project testovn
 
-    echo "==> Check NIC external route duplicate detection on the same network when uplink has anycast routed ingress mode enabled"
-    ! lxc config device set u2 eth0 ipv4.routes.external=198.51.100.0/26 --project testovn || false
-    ! lxc config device set u2 eth0 ipv6.routes.external=2001:db8:1:2::/122 --project testovn || false
+    if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
+        echo "==> Check NIC external route duplicate detection on the same network when uplink has anycast routed ingress mode enabled"
+        ! lxc config device set u2 eth0 ipv4.routes.external=198.51.100.0/26 --project testovn || false
+        ! lxc config device set u2 eth0 ipv6.routes.external=2001:db8:1:2::/122 --project testovn || false
 
-    echo "==> Check NIC external route duplicate is allowed on another network when uplink has anycast routed ingress mode enabled"
-    lxc network create ovn-virtual-network2 --type=ovn --project testovn network=dummy
-    lxc init "${IMAGE}" u3 --project testovn -s default
-    lxc config device add u3 eth0 nic network=ovn-virtual-network2 name=eth0 --project testovn \
-        ipv4.routes.external=198.51.100.0/26 \
-        ipv6.routes.external=2001:db8:1:2::/122
-    lxc delete u2 u3 --project testovn
-    lxc network delete ovn-virtual-network2 --project testovn
+        echo "==> Check NIC external route duplicate is allowed on another network when uplink has anycast routed ingress mode enabled"
+        lxc network create ovn-virtual-network2 --type=ovn --project testovn network=dummy
+        lxc init "${IMAGE}" u3 --project testovn -s default
+        lxc config device add u3 eth0 nic network=ovn-virtual-network2 name=eth0 --project testovn \
+            ipv4.routes.external=198.51.100.0/26 \
+            ipv6.routes.external=2001:db8:1:2::/122
+        lxc delete -f u3 --project testovn
+        lxc network delete ovn-virtual-network2 --project testovn
+    fi
+
+    lxc delete -f u2 --project testovn
     lxc network unset dummy ovn.ingress_mode --project default
     lxc network unset dummy ipv4.routes.anycast --project default
     lxc network unset dummy ipv6.routes.anycast --project default
@@ -540,21 +544,23 @@ ovn_basic_tests() {
     ! ovs-vsctl list-br | grep -F ovn || false # Check the OVS bridge is removed.
     ip link delete dummybr0 # Remove dummy uplink bridge.
 
-    echo "==> Test updating OVN network with IPv6 address on an uplink without IPv6"
-    ip link add dummybr0 type bridge # Create dummy uplink bridge.
-    ip address add 192.0.2.1/24 dev dummybr0
-    ip link set dummybr0 up
-    lxc network create dummy --type=physical \
-        parent=dummybr0 \
-        ipv4.gateway=192.0.2.1/24 \
-        ipv4.ovn.ranges=192.0.2.10-192.0.2.19
-    lxc network create ovn-virtual-network --type=ovn network=dummy
-    [ -n "$(lxc network get ovn-virtual-network ipv6.address)" ] # Check network has an IPv6 address.
-    [ "$(lxc network get ovn-virtual-network volatile.network.ipv6.address || echo fail)" = "" ] # Check no uplink IPv6 address was allocated.
-    lxc network set ovn-virtual-network user.foo=bar # Check network can be updated.
-    lxc network delete ovn-virtual-network
-    lxc network delete dummy
-    ip link delete dummybr0 # Remove dummy uplink bridge.
+    if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
+        echo "==> Test updating OVN network with IPv6 address on an uplink without IPv6"
+        ip link add dummybr0 type bridge # Create dummy uplink bridge.
+        ip address add 192.0.2.1/24 dev dummybr0
+        ip link set dummybr0 up
+        lxc network create dummy --type=physical \
+            parent=dummybr0 \
+            ipv4.gateway=192.0.2.1/24 \
+            ipv4.ovn.ranges=192.0.2.10-192.0.2.19
+        lxc network create ovn-virtual-network --type=ovn network=dummy
+        [ -n "$(lxc network get ovn-virtual-network ipv6.address)" ] # Check network has an IPv6 address.
+        [ "$(lxc network get ovn-virtual-network volatile.network.ipv6.address || echo fail)" = "" ] # Check no uplink IPv6 address was allocated.
+        lxc network set ovn-virtual-network user.foo=bar # Check network can be updated.
+        lxc network delete ovn-virtual-network
+        lxc network delete dummy
+        ip link delete dummybr0 # Remove dummy uplink bridge.
+    fi
 
     echo "==> Test physical uplinks using OVS bridge"
     ovs-vsctl add-br dummybr0 # Create dummy uplink bridge.
@@ -1434,8 +1440,16 @@ ovn_peering_tests() {
     ! lxc exec ovn2 --project=ovn2 -- ping -nc1 -i0.1 -w2 -6 2001:db8:1:2::1 || false
 
     echo "==> Test that pinging external addresses between networks does work without peering (goes via uplink)"
+    if [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
+        # LXD 5.0 does not exclude oifname == lxdbr0 from its bridge postrouting masquerade rule,
+        # which mangles traffic on lxdbr0 when br_netfilter is loaded.
+        lxc network set lxdbr0 ipv4.nat=false ipv6.nat=false
+    fi
     lxc exec ovn2 --project=ovn2 -- ping -nc1 -i0.1 -w2 -4 198.51.100.2
     lxc exec ovn2 --project=ovn2 -- ping -nc1 -i0.1 -w2 -6 2001:db8:1:2::2
+    if [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
+        lxc network set lxdbr0 ipv4.nat=true ipv6.nat=true
+    fi
 
     echo "==> Remove routes on uplink manually to purposefully break uplink routing of external routes"
     ip -4 r del 198.51.100.0/24 dev lxdbr0
@@ -1448,9 +1462,11 @@ ovn_peering_tests() {
     echo "==> Now setup peering again"
     lxc network peer create ovn1 ovn1foo ovn2/ovn2 --project=ovn1
     ! lxc network peer create ovn2 ovn2foo ovn1/ovn1 --project=ovn2 || false # Detect old peering entry exists.
-    # Detect old peering entry still references the target network.
-    err="$(! lxc network peer create ovn2 ovn2bar ovn1/ovn1 --project=ovn2 2>&1)"
-    echo "${err}" | grep -F 'Network already has peer "ovn2foo" for the target network, which must be deleted first'
+    if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
+        # Detect old peering entry still references the target network.
+        err="$(! lxc network peer create ovn2 ovn2bar ovn1/ovn1 --project=ovn2 2>&1)"
+        echo "${err}" | grep -F 'Network already has peer "ovn2foo" for the target network, which must be deleted first'
+    fi
     lxc network peer delete ovn2 ovn2foo --project=ovn2 # Delete old peering entry.
     lxc network peer create ovn2 ovn2foo ovn1/ovn1 --project=ovn2
     lxc network peer ls ovn2 --project=ovn2 | grep ovn2foo | grep -wF CREATED
