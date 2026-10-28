@@ -320,11 +320,13 @@ func checkReadOnlyYAMLFields(current any, contents []byte, editable []string, ms
 			continue
 		}
 
-		if _, ok := skip[name]; ok {
+		_, skipped := skip[name]
+		if skipped {
 			continue
 		}
 
-		if _, ok := provided[name]; !ok {
+		_, wasProvided := provided[name]
+		if !wasProvided {
 			continue
 		}
 
