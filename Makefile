@@ -11,7 +11,7 @@ GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
-GOMIN=1.26.5
+GOMIN=1.27.3
 GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
@@ -91,7 +91,7 @@ lxd-migrate:
 
 .PHONY: devlxd-client
 devlxd-client:
-	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false $(COVER) -tags netgo ./devlxd-client
+	CGO_ENABLED=0 go install -C test -v -trimpath -buildvcs=false -ldflags "-s -w" $(COVER) -tags netgo ./devlxd-client
 	@echo "$@ built successfully"
 
 .PHONY: lxd-client
