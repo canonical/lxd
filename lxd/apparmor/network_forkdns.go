@@ -2,7 +2,6 @@ package apparmor
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -34,6 +33,12 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   @{PROC}/@{pid}/cmdline r,
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
   {{ .rootPath }}/run/systemd/resolve/stub-resolv.conf r,
+
+{{- if .goCoverDir }}
+
+  # Go coverage data.
+  "{{ .goCoverDir }}/{covmeta,covcounters,tmp.covmeta,tmp.covcounters}.*" rw,
+{{- end }}
 
   # Things that we definitely don't need
   deny @{PROC}/@{pid}/cgroup r,
@@ -81,8 +86,9 @@ func forkdnsProfile(n network) (string, error) {
 		"varPath":     shared.VarPath(""),
 		"rootPath":    rootPath,
 		"snap":        shared.InSnap(),
-		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+		"libraryPath": ldLibraryPaths(),
 		"exePath":     execPath,
+		"goCoverDir":  goCoverDir(),
 	})
 	if err != nil {
 		return "", err

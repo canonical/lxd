@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/lxd/apparmor"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
@@ -115,23 +116,32 @@ func (d *tpm) Start() (*deviceConfig.RunConfig, error) {
 }
 
 func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	escapedDeviceName := filesystem.PathNameEncode(d.name)
 	tpmDevPath := filepath.Join(d.inst.Path(), "tpm."+escapedDeviceName)
 	logFileName := fmt.Sprintf("tpm.%s.log", escapedDeviceName)
 	logPath := filepath.Join(d.inst.LogPath(), logFileName)
+
+	profile, err := apparmor.SwtpmLoad(d.state.OS, d.inst, d, tpmDevPath, logPath)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading AppArmor profile for swtpm: %w", err)
+	}
+
+	revert.Add(func() { _ = apparmor.SwtpmUnload(d.state.OS, d.inst, d) })
 
 	proc, err := subprocess.NewProcess("swtpm", []string{"chardev", "--tpm2", "--tpmstate", "dir=" + tpmDevPath, "--vtpm-proxy"}, logPath, "")
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating new process: %w", err)
 	}
 
+	proc.SetApparmor(profile)
+
 	err = proc.Start(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("Failed starting process %q: %w", "swtpm", err)
 	}
-
-	revert := revert.New()
-	defer revert.Fail()
 
 	// Stop the TPM emulator if anything goes wrong.
 	revert.Add(func() { _ = proc.Stop() })
@@ -269,10 +279,19 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 
 	defer func() { _ = unixFile.Close() }()
 
+	profile, err := apparmor.SwtpmLoad(d.state.OS, d.inst, d, tpmDevPath, "")
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading AppArmor profile for swtpm: %w", err)
+	}
+
+	revert.Add(func() { _ = apparmor.SwtpmUnload(d.state.OS, d.inst, d) })
+
 	proc, err := subprocess.NewProcess("swtpm", []string{"socket", "--tpm2", "--tpmstate", "dir=" + tpmDevPath, "--ctrl", "type=unixio,fd=3"}, "", "")
 	if err != nil {
 		return nil, err
 	}
+
+	proc.SetApparmor(profile)
 
 	// Start the TPM emulator.
 	fdFiles := []*os.File{
@@ -321,6 +340,11 @@ func (d *tpm) Stop() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
+	err := apparmor.SwtpmUnload(d.state.OS, d.inst, d)
+	if err != nil {
+		return nil, fmt.Errorf("Failed unloading AppArmor profile for swtpm: %w", err)
+	}
+
 	if d.inst.Type() == instancetype.Container {
 		err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
 		if err != nil {
@@ -333,6 +357,11 @@ func (d *tpm) Stop() (*deviceConfig.RunConfig, error) {
 
 // Remove removes the TPM state file.
 func (d *tpm) Remove() error {
+	err := apparmor.SwtpmDelete(d.state.OS, d.inst, d)
+	if err != nil {
+		return fmt.Errorf("Failed deleting AppArmor profile for swtpm: %w", err)
+	}
+
 	tpmDevPath := filepath.Join(d.inst.Path(), "tpm."+d.name)
 
 	return os.RemoveAll(tpmDevPath)

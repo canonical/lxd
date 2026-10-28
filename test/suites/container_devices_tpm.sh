@@ -21,10 +21,14 @@ test_container_devices_tpm() {
   lxc exec "${ctName}" -- stat /dev/tpm0
   lxc exec "${ctName}" -- stat /dev/tpmrm0
 
+  # Check that swtpm runs under an AppArmor profile of its own
+  [[ "$(< "/proc/$(pgrep -f "^swtpm .*dir=${LXD_DIR}/")/attr/current")" == "lxd_swtpm-"*" (enforce)" ]]
+
   # Remove device
   lxc config device rm "${ctName}" test-dev1
   ! lxc exec "${ctName}" -- stat /dev/tpm0 || false
   ! lxc exec "${ctName}" -- stat /dev/tpmrm0 || false
+  [ -z "$(find "${LXD_DIR}/security/apparmor/profiles/" -name 'lxd_swtpm-*' || echo fail)" ]
 
   # Check that no swtpm process is left behind
   if pgrep -x swtpm; then

@@ -67,8 +67,14 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
 {{if .sockets -}}
 {{range $index, $element := .sockets}}
-  {{$element}} rw,
+  "{{$element}}" rw,
 {{- end }}
+{{- end }}
+
+{{- if .goCoverDir }}
+
+  # Go coverage data.
+  "{{ .goCoverDir }}/{covmeta,covcounters,tmp.covmeta,tmp.covcounters}.*" rw,
 {{- end }}
 
   # Things that we definitely don't need
@@ -168,8 +174,9 @@ func forkproxyProfile(inst instance, dev device) (string, error) {
 		"snap":        shared.InSnap(),
 		"exePath":     execPath,
 		"logPath":     inst.LogPath(),
-		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
-		"sockets":     sockets,
+		"libraryPath": ldLibraryPaths(),
+		"sockets":     escapeRulePaths(sockets),
+		"goCoverDir":  goCoverDir(),
 	})
 	if err != nil {
 		return "", err

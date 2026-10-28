@@ -38,13 +38,13 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /sys/devices/system/node/** r,
 
 {{range $index, $element := .allowedCmdPaths}}
-  {{$element}} mixr,
+  "{{$element}}" mixr,
 {{- end }}
 
-  {{ .pathToImg }} rk,
+  "{{ .pathToImg }}" rk,
 
 {{- if .dstPath }}
-  {{ .dstPath }} rwk,
+  "{{ .dstPath }}" rwk,
 {{- end }}
 
 {{- if .snap }}
@@ -199,11 +199,11 @@ func qemuImgProfile(profileName string, imgPath string, dstPath string, allowedC
 	var sb = &strings.Builder{}
 	err := qemuImgProfileTpl.Execute(sb, map[string]any{
 		"name":            profileName,
-		"pathToImg":       imgPath,
-		"dstPath":         dstPath,
-		"allowedCmdPaths": allowedCmdPaths,
+		"pathToImg":       rulePathEscaper.Replace(imgPath),
+		"dstPath":         rulePathEscaper.Replace(dstPath),
+		"allowedCmdPaths": escapeRulePaths(allowedCmdPaths),
 		"snap":            shared.InSnap(),
-		"libraryPath":     strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+		"libraryPath":     ldLibraryPaths(),
 	})
 	if err != nil {
 		return "", err

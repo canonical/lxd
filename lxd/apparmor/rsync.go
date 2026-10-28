@@ -44,15 +44,21 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .rootPath }}/run/systemd/resolve/stub-resolv.conf r,
 
 {{- if .sourcePath }}
-  {{ .sourcePath }}/** r,
-  {{ .sourcePath }} r,
-  {{ .sourcePath }}/ r,
+  "{{ .sourcePath }}/**" r,
+  "{{ .sourcePath }}" r,
+  "{{ .sourcePath }}/" r,
 {{- end }}
 
 {{- if .dstPath }}
-  {{ .dstPath }}/** rwkl,
-  {{ .dstPath }} rwkl,
-  {{ .dstPath }}/ rwkl,
+  "{{ .dstPath }}/**" rwkl,
+  "{{ .dstPath }}" rwkl,
+  "{{ .dstPath }}/" rwkl,
+{{- end }}
+
+{{- if .goCoverDir }}
+
+  # Go coverage data.
+  "{{ .goCoverDir }}/{covmeta,covcounters,tmp.covmeta,tmp.covcounters}.*" rw,
 {{- end }}
 
 {{- if .snap }}
@@ -72,6 +78,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 {{- end }}
 
   # Silence denials on files that aren't required.
+  deny @{PROC}/@{pid}/cgroup r,
   deny {{ .rootPath }}/etc/ssl/openssl.cnf r,
   deny /sys/devices/virtual/dmi/id/product_uuid r,
   deny /sys/kernel/mm/transparent_hugepage/hpage_pmd_size r,
@@ -187,12 +194,13 @@ func rsyncProfile(sysOS *sys.OS, name string, sourcePath string, dstPath string)
 	err = rsyncProfileTpl.Execute(sb, map[string]any{
 		"name":        name,
 		"execPath":    execPath,
-		"sourcePath":  sourcePath,
-		"dstPath":     dstPath,
+		"sourcePath":  rulePathEscaper.Replace(sourcePath),
+		"dstPath":     rulePathEscaper.Replace(dstPath),
 		"snap":        shared.InSnap(),
 		"rootPath":    rootPath,
 		"logPath":     logPath,
-		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+		"libraryPath": ldLibraryPaths(),
+		"goCoverDir":  goCoverDir(),
 	})
 	if err != nil {
 		return "", err
