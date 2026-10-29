@@ -68,12 +68,12 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /snap/lxd/*/lib/**.so* mr,
 {{- end }}
 
-  {{ .execPath }} mixr,
+  "{{ .execPath }}" mixr,
 
 {{if .libraryPath -}}
-  # Entries from LD_LIBRARY_PATH
+  # Shared libraries
 {{range $index, $element := .libraryPath}}
-  {{$element}}/** mr,
+  "{{$element}}/**" mr,
 {{- end }}
 {{- end }}
 
@@ -193,13 +193,13 @@ func rsyncProfile(sysOS *sys.OS, name string, sourcePath string, dstPath string)
 	sb := &strings.Builder{}
 	err = rsyncProfileTpl.Execute(sb, map[string]any{
 		"name":        name,
-		"execPath":    execPath,
+		"execPath":    rulePathEscaper.Replace(execPath),
 		"sourcePath":  rulePathEscaper.Replace(sourcePath),
 		"dstPath":     rulePathEscaper.Replace(dstPath),
 		"snap":        shared.InSnap(),
 		"rootPath":    rootPath,
 		"logPath":     logPath,
-		"libraryPath": ldLibraryPaths(),
+		"libraryPath": escapeRulePaths(profileLibraryPaths(execPath)),
 		"goCoverDir":  goCoverDir(),
 	})
 	if err != nil {

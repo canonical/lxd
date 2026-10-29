@@ -3,16 +3,20 @@ package apparmor
 import (
 	"context"
 	"crypto/sha256"
+	"debug/elf"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/sys"
 	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/shared/logger"
 )
 
 const (
@@ -52,12 +56,109 @@ func escapeRulePaths(paths []string) []string {
 	return escaped
 }
 
+// originToken matches $ORIGIN like the dynamic loader, which ignores it when followed by an identifier character.
+var originToken = regexp.MustCompile(`\$(ORIGIN\b|\{ORIGIN\})`)
+
+// libraryPathEntries returns the entries of a dynamic loader search path that
+// are safe to render as profile rules: absolute, not the root directory and
+// without a dynamic loader token.
+// A non-empty origin expands the $ORIGIN token to that directory. Every entry is
+// then normalized with filepath.Clean, as AppArmor matches ".." literally and a
+// rule that keeps it never applies to the path the loader opens. That
+// normalization is lexical, so an entry that reaches a directory through a
+// symlink keeps the symlink rather than being dereferenced.
+func libraryPathEntries(value string, origin string) []string {
+	entries := []string{}
+	for entry := range strings.SplitSeq(value, ":") {
+		if origin != "" {
+			entry = originToken.ReplaceAllLiteralString(entry, origin)
+		}
+
+		// Normalize the entry, so that a rule matches the path the loader opens
+		// rather than one that keeps a ".." or a trailing slash.
+		entry = filepath.Clean(entry)
+
+		// Empty and relative entries are not valid in a profile, the root
+		// directory would render a rule matching every path, and other loader
+		// tokens (e.g. $LIB) are not expanded here.
+		if !filepath.IsAbs(entry) || entry == "/" || strings.Contains(entry, "$") {
+			continue
+		}
+
+		if slices.Contains(entries, entry) {
+			continue
+		}
+
+		entries = append(entries, entry)
+	}
+
+	return entries
+}
+
 // ldLibraryPaths returns the absolute entries of LD_LIBRARY_PATH, except the root directory.
 // Empty entries and the root directory would render a rule matching every path and relative entries are not valid in a profile.
 func ldLibraryPaths() []string {
-	paths := []string{}
-	for entry := range strings.SplitSeq(os.Getenv("LD_LIBRARY_PATH"), ":") {
-		if filepath.IsAbs(entry) && filepath.Clean(entry) != "/" {
+	return libraryPathEntries(os.Getenv("LD_LIBRARY_PATH"), "")
+}
+
+// execLibraryPaths returns the entries of the given binary's DT_RPATH and
+// DT_RUNPATH, except the root directory and with $ORIGIN expanded.
+// The dynamic loader searches DT_RPATH before LD_LIBRARY_PATH and DT_RUNPATH
+// after it, and ignores DT_RPATH when DT_RUNPATH is set, so these are allowed
+// in addition to LD_LIBRARY_PATH rather than as a fallback for it.
+func execLibraryPaths(exe string) []string {
+	resolved, err := filepath.EvalSymlinks(exe)
+	if err != nil {
+		logger.Warn("Failed resolving the executable for AppArmor library rules", logger.Ctx{"path": exe, "err": err})
+
+		return nil
+	}
+
+	paths, err := exeLibraryPaths(resolved)
+	if err != nil {
+		logger.Warn("Failed reading the library paths of the executable for AppArmor profiles", logger.Ctx{"path": resolved, "err": err})
+
+		return nil
+	}
+
+	return paths
+}
+
+// exeLibraryPaths returns the DT_RPATH and DT_RUNPATH entries of the given binary.
+// A binary that cannot be read as an ELF file is reported as an error, and one
+// with neither entry yields no paths.
+func exeLibraryPaths(exe string) ([]string, error) {
+	f, err := elf.Open(exe)
+	if err != nil {
+		return nil, fmt.Errorf("Failed opening %q: %w", exe, err)
+	}
+
+	defer func() { _ = f.Close() }()
+
+	// DT_RPATH and DT_RUNPATH each hold a colon-separated list of directories.
+	// Both are collected into one list, which libraryPathEntries deduplicates.
+	values := []string{}
+	for _, tag := range []elf.DynTag{elf.DT_RPATH, elf.DT_RUNPATH} {
+		tagValues, err := f.DynString(tag)
+		if err != nil {
+			continue
+		}
+
+		values = append(values, tagValues...)
+	}
+
+	return libraryPathEntries(strings.Join(values, ":"), filepath.Dir(exe)), nil
+}
+
+// profileLibraryPaths returns the library directories to allow in the profile of
+// the given binary, which must be the path its exePath rule names.
+// It combines LD_LIBRARY_PATH with the binary's own RPATH/RUNPATH, so that a
+// build which finds its libraries through RPATH alone can still load them when
+// confined, even though sudo and service managers strip LD_LIBRARY_PATH.
+func profileLibraryPaths(exe string) []string {
+	paths := ldLibraryPaths()
+	for _, entry := range execLibraryPaths(exe) {
+		if !slices.Contains(paths, entry) {
 			paths = append(paths, entry)
 		}
 	}
