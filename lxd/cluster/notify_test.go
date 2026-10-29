@@ -306,7 +306,9 @@ func newRestServer(name string, cert *shared.CertInfo) *httptest.Server {
 		w.Header().Set("Content-Type", "application/json")
 		metadata := api.ClusterMemberState{
 			SysInfo: api.ClusterMemberSysInfo{
-				LogicalCPUs: 24,
+				LogicalCPUs:  24,
+				AvailableRAM: 8589934592,
+				CachedRAM:    4294967296,
 			},
 		}
 

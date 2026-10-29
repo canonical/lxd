@@ -190,7 +190,7 @@ test_clustering_membership() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster info node5
 
   sub_test "Check cluster members state is included with recursion=2"
-  LXD_DIR="${LXD_TWO_DIR}" lxc query '/1.0/cluster/members?recursion=2' | jq --exit-status 'length == 5 and all(.[]; .server_name != "" and .state.sysinfo.logical_cpus > 0)'
+  LXD_DIR="${LXD_TWO_DIR}" lxc query '/1.0/cluster/members?recursion=2' | jq --exit-status 'length == 5 and all(.[]; .server_name != "" and .state.sysinfo.logical_cpus > 0 and (.state.sysinfo | has("available_ram") and has("cached_ram")))'
 
   # Disable image replication
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.images_minimal_replica 1

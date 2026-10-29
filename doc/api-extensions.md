@@ -3830,3 +3830,10 @@ New `lxc` commands:
 Adds support for `recursion=2` on `GET /1.0/cluster/members`. In addition to the cluster member information returned with `recursion=1`, each entry contains a `state` field with the member state (as returned by `GET /1.0/cluster/members/{name}/state`).
 
 The state of all members is fetched in parallel by the member handling the request. The `state` field is `null` for offline members and for members whose state could not be retrieved.
+
+(extension-cluster-member-state-memory)=
+## `cluster_member_state_memory`
+
+Adds the `available_ram` and `cached_ram` fields to the `sysinfo` section of `GET /1.0/cluster/members/{name}/state` and `GET /1.0/state`. They report the `MemAvailable` and `Cached` values (in bytes) from `/proc/meminfo`.
+
+All memory and swap fields in `sysinfo` are now read from `/proc/meminfo`, so they are consistent with each other. Their meaning and units are unchanged.
