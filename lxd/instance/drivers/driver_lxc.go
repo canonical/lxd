@@ -6147,7 +6147,7 @@ func (d *lxc) Console(ctx context.Context, protocol string) (*os.File, chan erro
 	}()
 
 	go func() {
-		<-chDisconnect
+		<-chDisconnect //nolint:errcheck
 		_ = cmd.Process.Kill()
 	}()
 

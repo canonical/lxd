@@ -191,8 +191,8 @@ func (s *cookieJarSuite) TestJar() {
 
 	// It blocks until the file is unlocked.
 	select {
-	case <-errCh:
-		s.Fail("Read from locked file")
+	case err = <-errCh:
+		require.FailNowf("Read from locked file", "Unexpected result: %v", err)
 	case <-time.After(200 * time.Millisecond):
 		err = unlockFile(f)
 		require.NoError(err)
@@ -244,8 +244,8 @@ func (s *cookieJarSuite) TestJar() {
 
 	// It blocks until the file is unlocked.
 	select {
-	case <-errCh2:
-		s.Fail("Read from locked file")
+	case err = <-errCh2:
+		require.FailNowf("Read from locked file", "Unexpected result: %v", err)
 	case <-time.After(200 * time.Millisecond):
 		err = unlockFile(f)
 		require.NoError(err)
