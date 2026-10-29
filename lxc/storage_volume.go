@@ -482,7 +482,8 @@ func (c *cmdStorageVolumeCopy) run(cmd *cobra.Command, args []string) error {
 	// If the volume is in local storage, set the target to its location (or provide a helpful error
 	// message if the target is incorrect). If the volume is in remote storage (and the source server is clustered) we
 	// can use any provided target. Note that for standalone servers, this will set the target to "none".
-	if srcVol.Location != "" && srcVol.Location != "none" {
+	localVolume := srcVol.Location != "" && srcVol.Location != "none"
+	if localVolume {
 		if c.storage.flagTarget != "" && c.storage.flagTarget != srcVol.Location {
 			return fmt.Errorf("Given target %q does not match source volume location %q", c.storage.flagTarget, srcVol.Location)
 		}
@@ -544,14 +545,23 @@ func (c *cmdStorageVolumeCopy) run(cmd *cobra.Command, args []string) error {
 		srcVol.Description = srcVolSnapshot.Description
 	}
 
-	if cmd.Name() == "move" && srcServer == dstServer {
+	// A move is done by the server itself if the command does not target any cluster member, or if it moves a volume
+	// on local storage of a cluster and the server supports it.
+	serverMove := false
+	if cmd.Name() == "move" {
+		clusterMove := localVolume && !srcIsSnapshot && srcResource.server == dstResource.server && srcServer.HasExtension("storage_volume_member_move")
+		serverMove = srcServer == dstServer || clusterMove
+	}
+
+	if serverMove {
 		args := &lxd.StoragePoolVolumeMoveArgs{}
 		args.Name = dstVolName
 		args.Mode = mode
 		args.VolumeOnly = false
 		args.Project = c.flagTargetProject
+		args.Location = c.storageVolume.flagDestinationTarget
 
-		op, err = dstServer.MoveStoragePoolVolume(dstVolPool, srcServer, srcVolPool, *srcVol, args)
+		op, err = srcServer.MoveStoragePoolVolume(dstVolPool, srcServer, srcVolPool, *srcVol, args)
 		if err != nil {
 			return err
 		}
@@ -591,7 +601,7 @@ func (c *cmdStorageVolumeCopy) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if cmd.Name() == "move" && srcServer != dstServer {
+	if cmd.Name() == "move" && !serverMove {
 		if srcIsSnapshot {
 			_, err = srcServer.DeleteStoragePoolVolumeSnapshot(srcVolPool, srcVol.Type, srcVolParentName, srcVolSnapName)
 		} else {
