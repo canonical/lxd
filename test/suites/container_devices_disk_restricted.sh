@@ -93,6 +93,13 @@ test_container_devices_disk_restricted() {
   lxc config device add c1 unix-socket disk source="${testRoot}/allowed1/lxd.sock" path=/root/lxd.sock
   [ "$(lxc exec c1 --project restricted -- stat /root/lxd.sock -c '%F')" = "socket" ]
 
+  # Check a restricted project refuses propagation modes that let the instance create mounts on the host, but
+  # still accepts the ones that cannot.
+  ! lxc config device add c1 prop disk source="${testRoot}/allowed1" path=/opt/prop propagation=rshared || false
+  ! lxc config device add c1 prop disk source="${testRoot}/allowed1" path=/opt/prop propagation=shared || false
+  lxc config device add c1 prop disk source="${testRoot}/allowed1" path=/opt/prop propagation=rslave
+  lxc config device remove c1 prop
+
   lxc delete -f c1
   lxc project switch default
   lxc project delete restricted
