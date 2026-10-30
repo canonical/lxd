@@ -366,6 +366,49 @@ query="$(lxc query /1.0/instances/vm-ni-custom-config)"
 [ "$(jq -r --arg key "${vm_secureboot_config%%=*}" '.config[$key]' <<< "${query}")" = "${vm_secureboot_config#*=}" ]
 testImportedInstance vm-ni-custom-config
 
+# Custom storage volumes: attach an existing filesystem volume and create a new one from a
+# local directory as part of a non-interactive import.
+lxc storage volume create default vol-existing
+srcDir="$(mktemp -d)"
+echo "hello" > "${srcDir}/hello.txt"
+
+${LXD_CONVERT_TOOL} --non-interactive --type vm --source "${IMAGE_PATH}" \
+    --name vm-ni-storage-volumes \
+    --config "${vm_secureboot_config}" \
+    --storage-volume data,pool=default,source=vol-existing,path=/data \
+    --storage-volume-from-path logs,pool=default,volume=vol-from-path,source-path="${srcDir}",path=/logs
+query="$(lxc query /1.0/instances/vm-ni-storage-volumes)"
+[ "$(jq -r '.devices.data.pool' <<< "${query}")" = "default" ]
+[ "$(jq -r '.devices.data.source' <<< "${query}")" = "vol-existing" ]
+[ "$(jq -r '.devices.data.path' <<< "${query}")" = "/data" ]
+[ "$(jq -r '.devices.logs.pool' <<< "${query}")" = "default" ]
+[ "$(jq -r '.devices.logs.source' <<< "${query}")" = "vol-from-path" ]
+[ "$(jq -r '.devices.logs.path' <<< "${query}")" = "/logs" ]
+
+# Ensure the volume created from the local path was actually populated with its content.
+lxc start vm-ni-storage-volumes
+waitInstanceReady vm-ni-storage-volumes
+[ "$(lxc exec vm-ni-storage-volumes -- cat /logs/hello.txt)" = "hello" ]
+lxc delete -f vm-ni-storage-volumes
+
+rm -rf "${srcDir}"
+lxc storage volume delete default vol-existing
+lxc storage volume delete default vol-from-path
+
+# Custom storage volume with a missing required key.
+! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid-flags --source "${IMAGE_PATH}" --storage-volume data,pool=default || false
+
+# Custom storage volume referencing a non-existing volume.
+! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid-flags --source "${IMAGE_PATH}" --storage-volume data,pool=default,source=invalid,path=/data || false
+
+# Custom storage volume created from a non-existing local path.
+! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid-flags --source "${IMAGE_PATH}" --storage-volume-from-path data,pool=default,volume=vol-invalid,source-path=/invalid/path,path=/data || false
+
+# Custom storage volume referencing a block volume, which is not supported by --storage-volume.
+lxc storage volume create default vol-block --type block
+! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid-flags --source "${IMAGE_PATH}" --storage-volume data,pool=default,source=vol-block,path=/data || false
+lxc storage volume delete default vol-block
+
 # Ensure invalid instance name is rejected.
 ! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid/name --source "${IMAGE_PATH}" || false
 
