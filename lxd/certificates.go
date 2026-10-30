@@ -674,14 +674,14 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return operations.OperationResponse(op)
 	} else if r.TLS != nil {
 		// Add client's certificate.
-		if len(r.TLS.PeerCertificates) < 1 {
+		cert, err = request.GetPeerCertificate(r)
+		if err != nil {
 			// This can happen if the client doesn't send a client certificate or if the server is in
 			// CA mode. We rely on this check to prevent non-CA trusted client certificates from being
 			// added when in CA mode.
 			return response.BadRequest(fmt.Errorf("No client certificate provided"))
 		}
 
-		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
 		networkCert := s.Endpoints.NetworkCert()
 		if networkCert.CA() != nil {
 			// If we are in CA mode, we only allow adding certificates that are signed by the CA.
@@ -1034,15 +1034,12 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 					dbInfo.Name: *oldCert,
 				}
 
-				trusted := false
-				for _, i := range r.TLS.PeerCertificates {
-					trusted, _ = util.CheckMutualTLS(*i, trustedCerts)
-
-					if trusted {
-						break
-					}
+				peerCertificate, err := request.GetPeerCertificate(r)
+				if err != nil {
+					return response.Forbidden(fmt.Errorf("Certificate cannot be changed"))
 				}
 
+				trusted, _ := util.CheckMutualTLS(*peerCertificate, trustedCerts)
 				if !trusted {
 					return response.Forbidden(fmt.Errorf("Certificate cannot be changed"))
 				}
@@ -1156,15 +1153,12 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 				certInfo.Name: *cert,
 			}
 
-			trusted := false
-			for _, i := range r.TLS.PeerCertificates {
-				trusted, _ = util.CheckMutualTLS(*i, trustedCerts)
-
-				if trusted {
-					break
-				}
+			peerCertificate, err := request.GetPeerCertificate(r)
+			if err != nil {
+				return response.Forbidden(fmt.Errorf("Certificate cannot be deleted"))
 			}
 
+			trusted, _ := util.CheckMutualTLS(*peerCertificate, trustedCerts)
 			if !trusted {
 				return response.Forbidden(fmt.Errorf("Certificate cannot be deleted"))
 			}
