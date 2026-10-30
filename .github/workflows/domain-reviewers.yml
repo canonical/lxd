@@ -39,8 +39,10 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           REPO: ${{ github.repository }}
         run: |
+          # Abort immediately on any error, unset variable, or failed pipeline stage.
           set -euo pipefail
 
+          # Skip the whole job if the domain owners file is missing or empty.
           if ! [ -s ".github/domain-owners.json" ]; then
             echo "::warning::Missing .github/domain-owners.json file."
             exit 0
@@ -54,6 +56,7 @@ jobs:
           # label currently on the PR, excluding the PR author, deduplicated.
           declare -A desired
           for pr_label in "${PR_LABELS[@]}"; do
+            # Look up the owners configured for this label in domain-owners.json.
             while IFS= read -r owner; do
               if [[ -n "${owner}" && "${owner}" != "${PR_AUTHOR}" ]]; then
                 desired["${owner}"]=1
@@ -70,24 +73,24 @@ jobs:
           mapfile -t REVIEWED < <(gh pr view "${PR_NUMBER}" --repo "${REPO}" \
             --json reviews --jq '.reviews[].author.login')
 
-          # Owners with a pending request or an existing review are left alone,
-          # so approvals are not re-requested.
-          declare -A skip
-          for login in "${CURRENT_REVIEWERS[@]}" "${REVIEWED[@]}"; do
-            if [[ -n "${login}" ]]; then skip["${login}"]=1; fi
-          done
-
-          # Determine reviewers to add (desired but not already requested or reviewed).
-          ADD=()
-          for reviewer in "${!desired[@]}"; do
-            if [[ -z "${skip[${reviewer}]:-}" ]]; then ADD+=("${reviewer}"); fi
-          done
-
-          if [[ ${#ADD[@]} -gt 0 ]]; then
-            REVIEWER_LIST=$(printf '%s,' "${ADD[@]}")
-            echo "Adding reviewers: ${REVIEWER_LIST%,}"
-            gh pr edit "${PR_NUMBER}" --repo "${REPO}" \
-              --add-reviewer "${REVIEWER_LIST%,}"
-          else
-            echo "Reviewer list is already up to date."
+          # If a reviewer has already been requested or has already reviewed
+          # (e.g. assigned manually by the PR author), do not add another one.
+          if [[ ${#CURRENT_REVIEWERS[@]} -gt 0 || ${#REVIEWED[@]} -gt 0 ]]; then
+            echo "A reviewer is already assigned; not requesting another one."
+            exit 0
           fi
+
+          # No candidate reviewers are available for the current labels.
+          if [[ ${#desired[@]} -eq 0 ]]; then
+            echo "No domain reviewers match the current labels."
+            exit 0
+          fi
+
+          # Pick a single reviewer at random from the desired set.
+          mapfile -t CANDIDATES < <(printf '%s\n' "${!desired[@]}")
+          REVIEWER="${CANDIDATES[RANDOM % ${#CANDIDATES[@]}]}"
+
+          # Request a review from the chosen reviewer only.
+          echo "Adding reviewer: ${REVIEWER}"
+          gh pr edit "${PR_NUMBER}" --repo "${REPO}" \
+            --add-reviewer "${REVIEWER}"
