@@ -34,6 +34,7 @@ import (
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/config"
 	"github.com/canonical/lxd/lxd/db"
@@ -1738,11 +1739,13 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	var metadata map[string]any
 
 	if imageUpload && imageMetadata != nil {
-		secret, _ := shared.RandomCryptoString()
-		if secret != "" {
-			metadata = map[string]any{
-				"secret": secret,
-			}
+		secret, err := encryption.NewEphemeralSecret(r.Context(), s.CoreAuthSecrets)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed generating an image download token secret: %w", err))
+		}
+
+		metadata = map[string]any{
+			"secret": secret,
 		}
 	}
 
@@ -5529,7 +5532,7 @@ func imageSyncBetweenNodes(ctx context.Context, s *state.State, project string, 
 }
 
 func createImageTokenResponse(s *state.State, r *http.Request, projectName string, fingerprint string, metadata shared.Jmap, tokenType operationtype.Type) response.Response {
-	secret, err := shared.RandomCryptoString()
+	secret, err := encryption.NewEphemeralSecret(r.Context(), s.CoreAuthSecrets)
 	if err != nil {
 		return response.InternalError(err)
 	}

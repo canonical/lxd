@@ -18,6 +18,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/auth"
+	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/certificate"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db"
@@ -202,6 +203,11 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 // clusterMemberJoinTokenValid searches for cluster join token that matches the join token provided.
 // Returns matching operation if found and cancels the operation, otherwise returns nil.
 func clusterMemberJoinTokenValid(s *state.State, r *http.Request, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
+	err := encryption.VerifyEphemeralSecret(r.Context(), s.CoreAuthSecrets, joinToken.Secret)
+	if err != nil {
+		return nil, api.StatusErrorf(http.StatusForbidden, "The join token secret is invalid: %w", err)
+	}
+
 	ops, err := operationsGetByType(r.Context(), s, "", operationtype.ClusterJoinToken, false)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting cluster join token operations: %w", err)
@@ -276,6 +282,11 @@ func clusterMemberJoinTokenValid(s *state.State, r *http.Request, joinToken *api
 // If an operation is found it is cancelled and the request metadata is returned. If no operation is found then a nil value
 // is returned. An error is only returned if an internal error occurs, or if a token is found but is not valid.
 func certificateTokenValid(s *state.State, r *http.Request, addToken *api.CertificateAddToken) (*api.CertificatesPost, error) {
+	err := encryption.VerifyEphemeralSecret(r.Context(), s.CoreAuthSecrets, addToken.Secret)
+	if err != nil {
+		return nil, api.StatusErrorf(http.StatusForbidden, "The join token secret is invalid: %w", err)
+	}
+
 	ops, err := operationsGetByType(r.Context(), s, api.ProjectDefaultName, operationtype.CertificateAddToken, false)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting certificate token operations: %w", err)
@@ -583,7 +594,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(fmt.Errorf("Invalid certificate material: %w", err))
 		}
 	} else if req.Token {
-		token, err := createCertificateAddToken(s, req.Name, "")
+		token, err := createCertificateAddToken(r.Context(), s, req.Name, "")
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed creating certificate add token: %w", err))
 		}

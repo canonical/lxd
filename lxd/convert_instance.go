@@ -8,11 +8,12 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/canonical/lxd/lxd/auth/encryption"
+	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/operationlock"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/state"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -40,7 +41,7 @@ type conversionSinkArgs struct {
 	sourceDiskSize int64
 }
 
-func newConversionSink(args *conversionSinkArgs) (*conversionSink, error) {
+func newConversionSink(ctx context.Context, args *conversionSinkArgs, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error)) (*conversionSink, error) {
 	sink := conversionSink{
 		instance:          args.instance,
 		url:               args.url,
@@ -48,7 +49,7 @@ func newConversionSink(args *conversionSinkArgs) (*conversionSink, error) {
 		conversionOptions: args.conversionOptions,
 	}
 
-	secret, err := shared.RandomCryptoString()
+	secret, err := encryption.NewEphemeralSecret(ctx, secretsFunc)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating conversion sink secret for %q connection: %w", api.SecretNameFilesystem, err)
 	}

@@ -1430,7 +1430,7 @@ func doVolumeMigration(s *state.State, r *http.Request, requestProjectName strin
 		refresh:    req.Source.Refresh,
 	}
 
-	sink, err := newStorageMigrationSink(&migrationArgs)
+	sink, err := newStorageMigrationSink(&migrationArgs, r.Context(), s.CoreAuthSecrets)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1832,7 +1832,7 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 
 		dest = dest.UseTarget(newMember.Name).UseProject(srcProjectName)
 
-		srcMigration, err := newStorageMigrationSource(volumeOnly, nil)
+		srcMigration, err := newStorageMigrationSource(ctx, volumeOnly, nil, s.CoreAuthSecrets)
 		if err != nil {
 			return fmt.Errorf("Failed setting up storage volume migration on source: %w", err)
 		}
@@ -1924,7 +1924,7 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 
 // storagePoolVolumeTypePostMigration handles volume migration type POST requests.
 func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, requestProjectName string, effectiveProjectName string, details storageVolumeDetails, req api.StorageVolumePost) response.Response {
-	ws, err := newStorageMigrationSource(req.VolumeOnly, req.Target)
+	ws, err := newStorageMigrationSource(r.Context(), req.VolumeOnly, req.Target, state.CoreAuthSecrets)
 	if err != nil {
 		return response.InternalError(err)
 	}
