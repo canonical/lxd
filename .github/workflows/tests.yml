@@ -849,6 +849,7 @@ jobs:
     # Using `!cancelled()` means that failures on any of the `needs` won't prevent this from running
     # which is why the `.result == 'success'` of each needs to be checked.
     if: |
+      github.repository == 'canonical/lxd' &&
       !cancelled() &&
       needs.code-tests.result == 'success' &&
       needs.system-tests.result == 'success' &&
