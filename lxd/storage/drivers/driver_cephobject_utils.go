@@ -41,31 +41,43 @@ func (d *cephobject) radosgwadmin(ctx context.Context, args ...string) (string, 
 	return shared.RunCommand(ctx, cmd[0], cmd[1:]...)
 }
 
-// radosgwadminGetUser returns credentials for an existing radosgw user (and its sub users).
-// If no user exists returns api.StatusError with status code set to http.StatusNotFound.
-func (d *cephobject) radosgwadminGetUser(ctx context.Context, user string) (*S3Credentials, map[string]S3Credentials, error) {
-	out, err := d.radosgwadmin(ctx, "user", "info", "--uid", user)
+// radosgwUserInfo is the information about a radosgw user returned by `radosgw-admin user info`.
+type radosgwUserInfo struct {
+	SubUsers []struct {
+		ID string `json:"id"`
+	} `json:"subusers"`
+	Keys []struct {
+		S3Credentials `yaml:",inline"`
+		User          string `json:"user"`
+	} `json:"keys"`
+}
 
+// radosgwadminUserInfo returns information about an existing radosgw user.
+// If no user exists returns api.StatusError with status code set to http.StatusNotFound.
+func (d *cephobject) radosgwadminUserInfo(ctx context.Context, user string) (*radosgwUserInfo, error) {
+	out, err := d.radosgwadmin(ctx, "user", "info", "--uid", user)
 	if err != nil {
 		status, _ := shared.ExitStatus(err)
 		if status == 22 {
-			return nil, nil, api.StatusErrorf(http.StatusNotFound, "User not found")
+			return nil, api.StatusErrorf(http.StatusNotFound, "User not found")
 		}
 
-		return nil, nil, fmt.Errorf("Failed getting user %q info: %w", user, err)
+		return nil, fmt.Errorf("Failed getting user %q info: %w", user, err)
 	}
 
-	resp := struct {
-		SubUsers []struct {
-			ID string `json:"id"`
-		} `json:"subusers"`
-		Keys []struct {
-			S3Credentials `yaml:",inline"`
-			User          string `json:"user"`
-		} `json:"keys"`
-	}{}
+	info := radosgwUserInfo{}
+	err = json.Unmarshal([]byte(out), &info)
+	if err != nil {
+		return nil, err
+	}
 
-	err = json.Unmarshal([]byte(out), &resp)
+	return &info, nil
+}
+
+// radosgwadminGetUser returns credentials for an existing radosgw user (and its sub users).
+// If no user exists returns api.StatusError with status code set to http.StatusNotFound.
+func (d *cephobject) radosgwadminGetUser(ctx context.Context, user string) (*S3Credentials, map[string]S3Credentials, error) {
+	resp, err := d.radosgwadminUserInfo(ctx, user)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -142,7 +154,17 @@ func (d *cephobject) radosgwadminUserAdd(ctx context.Context, user string, maxBu
 
 // radosgwadminUserDelete deletes radosgw user.
 func (d *cephobject) radosgwadminUserDelete(ctx context.Context, user string) error {
-	_, err := d.radosgwadmin(ctx, "user", "rm", "--uid", user, "--purge-data")
+	// Nothing to do if the user is already gone, so that it does not prevent removing what refers to it.
+	_, err := d.radosgwadminUserInfo(ctx, user)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
+		return err
+	}
+
+	_, err = d.radosgwadmin(ctx, "user", "rm", "--uid", user, "--purge-data")
 
 	return err
 }
@@ -171,7 +193,7 @@ func (d *cephobject) radosgwadminSubUserAdd(ctx context.Context, user string, su
 		return nil, err
 	}
 
-	revert.Add(func() { _ = d.radosgwadminUserDelete(ctx, user) })
+	revert.Add(func() { _ = d.radosgwadminSubUserDelete(ctx, user, subuser) })
 
 	creds := struct {
 		Keys []struct {
@@ -200,7 +222,30 @@ func (d *cephobject) radosgwadminSubUserAdd(ctx context.Context, user string, su
 
 // radosgwadminSubUserDelete deletes radosgw sub-user.
 func (d *cephobject) radosgwadminSubUserDelete(ctx context.Context, user string, subuser string) error {
-	_, err := d.radosgwadmin(ctx, "subuser", "rm", "--uid", user, "--subuser", subuser)
+	// Nothing to do if the sub user (or its user) is already gone, so that it does not prevent removing what
+	// refers to it.
+	info, err := d.radosgwadminUserInfo(ctx, user)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil
+		}
+
+		return err
+	}
+
+	subUserExists := false
+	for _, subUser := range info.SubUsers {
+		if strings.TrimPrefix(subUser.ID, user+":") == subuser {
+			subUserExists = true
+			break
+		}
+	}
+
+	if !subUserExists {
+		return nil
+	}
+
+	_, err = d.radosgwadmin(ctx, "subuser", "rm", "--uid", user, "--subuser", subuser)
 
 	return err
 }
@@ -319,7 +364,17 @@ func hmacSHA256(key []byte, data string) []byte {
 
 // radosgwadminBucketDelete deletes radosgw bucket.
 func (d *cephobject) radosgwadminBucketDelete(ctx context.Context, bucket string) error {
-	_, err := d.radosgwadmin(ctx, "bucket", "rm", "--bucket", bucket, "--purge-objects")
+	// Nothing to do if the bucket is already gone (e.g. its user was deleted along with its data).
+	exists, err := d.radosgwadminBucketExists(ctx, bucket)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return nil
+	}
+
+	_, err = d.radosgwadmin(ctx, "bucket", "rm", "--bucket", bucket, "--purge-objects")
 
 	return err
 }
