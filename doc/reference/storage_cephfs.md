@@ -59,6 +59,17 @@ You can either create the CephFS file system that you want to use beforehand and
 
 The `cephfs` driver in LXD supports snapshots if snapshots are enabled on the server side.
 
+(storage-cephfs-connection)=
+### Connecting to the Ceph cluster
+
+% Include content from [storage_ceph.md](storage_ceph.md)
+```{include} storage_ceph.md
+    :start-after: <!-- Include start Ceph connection -->
+    :end-before: <!-- Include end Ceph connection -->
+```
+
+To specify the Ceph cluster name and user for a storage pool, set {config:option}`storage-cephfs-pool-conf:cephfs.cluster_name` and {config:option}`storage-cephfs-pool-conf:cephfs.user.name`.
+
 ## Configuration options
 
 The following configuration options are available for storage pools that use the `cephfs` driver and for storage volumes in these pools.
