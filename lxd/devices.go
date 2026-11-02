@@ -203,6 +203,13 @@ func deviceNetlinkListener() (chCPU chan []string, chNetwork chan []string, chUS
 					return strings.Repeat("0", l-len(s)) + s
 				}
 
+				// Kernel uevents don't carry the serial, so read it from sysfs.
+				serial := ""
+				content, err := os.ReadFile(filepath.Join("/sys", props["DEVPATH"], "serial"))
+				if err == nil {
+					serial = strings.TrimSpace(string(content))
+				}
+
 				usb, err := device.USBNewEvent(
 					props["ACTION"],
 					/* udev doesn't zero pad these, while
@@ -211,7 +218,7 @@ func deviceNetlinkListener() (chCPU chan []string, chNetwork chan []string, chUS
 					 */
 					zeroPad(vendorID, 4),
 					zeroPad(productID, 4),
-					props["SERIAL"],
+					serial,
 					major,
 					minor,
 					busnum,
