@@ -62,7 +62,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .rootPath }}/usr/lib/systemd/resolv.conf r,
 
   # Needed for lxd fork commands
-  {{ .exePath }} mr,
+  "{{ .exePath }}" mr,
   @{PROC}/@{pid}/cmdline r,
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
 {{if .sockets -}}
@@ -172,7 +172,7 @@ func forkproxyProfile(inst instance, dev device) (string, error) {
 		"varPath":     shared.VarPath(""),
 		"rootPath":    rootPath,
 		"snap":        shared.InSnap(),
-		"exePath":     execPath,
+		"exePath":     rulePathEscaper.Replace(execPath),
 		"logPath":     inst.LogPath(),
 		"libraryPath": escapeRulePaths(profileLibraryPaths(execPath)),
 		"sockets":     escapeRulePaths(sockets),
