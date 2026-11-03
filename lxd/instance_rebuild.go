@@ -115,8 +115,14 @@ func instanceRebuildPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if req.Source.Type != api.SourceTypeNone {
+			// A microvm boots a container image, so resolve the container alias.
+			aliasType := dbInst.Type.String()
+			if aliasType == string(api.InstanceTypeMicroVM) {
+				aliasType = string(api.InstanceTypeContainer)
+			}
+
 			// Try to resolve the source image from cache.
-			sourceImage, imageAuthorizationChecker, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, dbInst.Type.String())
+			sourceImage, imageAuthorizationChecker, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, aliasType)
 			if err != nil {
 				return err
 			}

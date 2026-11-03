@@ -847,7 +847,7 @@ func resolveSourceImageFromCache(r *http.Request, s *state.State, tx *db.Cluster
 // getSourceImageFromInstanceSource returns the image to use for an instance source.
 func getSourceImageFromInstanceSource(ctx context.Context, s *state.State, tx *db.ClusterTx, project string, source api.InstanceSource, imageRef *string, instType string) (*api.Image, error) {
 	// Resolve the image.
-	sourceImageRefUpdate, err := instance.ResolveImage(ctx, tx, project, source)
+	sourceImageRefUpdate, err := instance.ResolveImage(ctx, tx, project, source, instType)
 	if err != nil {
 		return nil, err
 	}

@@ -1844,8 +1844,14 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 		case api.SourceTypeImage:
+			// An omitted instance type is a container. A microvm boots a container image.
+			aliasType := string(req.Type)
+			if aliasType == "" || req.Type == api.InstanceTypeMicroVM {
+				aliasType = instancetype.Container.String()
+			}
+
 			// Try to resolve the source image from cache.
-			sourceImage, imageAuthorizationChecker, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, string(req.Type))
+			sourceImage, imageAuthorizationChecker, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, aliasType)
 			if err != nil {
 				return err
 			}

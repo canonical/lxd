@@ -479,13 +479,18 @@ func BackupLoadByName(s *state.State, project, name string) (*backup.InstanceBac
 }
 
 // ResolveImage takes an instance source and returns a hash suitable for instance creation or download.
-func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, source api.InstanceSource) (string, error) {
+func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, source api.InstanceSource, instType string) (string, error) {
 	if source.Fingerprint != "" {
 		if source.ImageRegistry == "" {
 			// Check if the fingerprint is actually an alias.
-			_, alias, err := tx.GetImageAlias(ctx, projectName, source.Fingerprint, true)
+			target, err := resolveImageAlias(ctx, tx, projectName, source.Fingerprint, instType)
 			if err == nil {
-				return alias.Target, nil
+				return target, nil
+			}
+
+			// A fingerprint that is not an alias falls through.
+			if !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return "", err
 			}
 		}
 
@@ -497,12 +502,7 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 			return source.Alias, nil
 		}
 
-		_, alias, err := tx.GetImageAlias(ctx, projectName, source.Alias, true)
-		if err != nil {
-			return "", err
-		}
-
-		return alias.Target, nil
+		return resolveImageAlias(ctx, tx, projectName, source.Alias, instType)
 	}
 
 	if source.Properties != nil {
@@ -549,6 +549,27 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 	}
 
 	return "", errors.New("Must specify one of alias, fingerprint or properties for init from image")
+}
+
+// resolveImageAlias returns the fingerprint for an alias of the requested image type.
+func resolveImageAlias(ctx context.Context, tx *db.ClusterTx, projectName string, name string, instType string) (string, error) {
+	_, alias, err := tx.GetImageAlias(ctx, projectName, name, instType, true)
+	if err != nil {
+		if instType != "" && api.StatusErrorCheck(err, http.StatusNotFound) {
+			_, other, otherErr := tx.GetImageAlias(ctx, projectName, name, "", true)
+			if otherErr == nil && other.Type != "" && other.Type != instType {
+				return "", fmt.Errorf("Alias %q does not exist for image type %q. It exists for image type %q", name, instType, other.Type)
+			}
+		}
+
+		return "", err
+	}
+
+	if instType != "" && alias.Type != "" && alias.Type != instType {
+		return "", fmt.Errorf("Alias %q does not exist for image type %q. It exists for image type %q", name, instType, alias.Type)
+	}
+
+	return alias.Target, nil
 }
 
 // SuitableArchitectures returns a slice of architecture ids based on an instance create request.
