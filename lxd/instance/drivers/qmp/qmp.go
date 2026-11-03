@@ -260,6 +260,49 @@ const blockCommandTimeout = 5 * time.Second
 // heavyCommandTimeout is used for commands that flush I/O or touch VFIO devices.
 const heavyCommandTimeout = 30 * time.Second
 
+// deviceAddMaxTimeout bounds the timeout used for adding devices, so that a hung
+// QMP command cannot hold the monitor lock for an unbounded amount of time.
+const deviceAddMaxTimeout = 10 * time.Minute
+
+// DeviceAddTimeout returns the QMP command timeout to use for adding a device
+// that attaches a VFIO device, scaled with the memory limit of the instance.
+//
+// Attaching a VFIO device pins the guest memory for DMA, which takes longer on
+// instances with a large memory limit than the default heavy command timeout,
+// so the timeout is scaled with the memory limit instead of using a fixed value.
+// The timeout is capped at deviceAddMaxTimeout to keep the wait bounded.
+func DeviceAddTimeout(memoryLimitBytes int64) time.Duration {
+	timeout := heavyCommandTimeout
+
+	if memoryLimitBytes > 0 {
+		// Scale the timeout with the instance memory limit, measured in GiB.
+		scaled := heavyCommandTimeout * (1 + time.Duration(memoryLimitBytes)/time.Duration(1<<30))
+		if scaled > timeout {
+			timeout = scaled
+		}
+	}
+
+	if timeout > deviceAddMaxTimeout {
+		timeout = deviceAddMaxTimeout
+	}
+
+	return timeout
+}
+
+// commandTimeout returns the timeout to apply to the given QMP command, taking
+// the per-command overrides in the commandTimeouts map into account.
+func commandTimeout(command []byte) time.Duration {
+	cmd := commandName(command)
+
+	timeout := defaultCommandTimeout
+	override, ok := commandTimeouts[cmd]
+	if ok {
+		timeout = override
+	}
+
+	return timeout
+}
+
 // commandTimeouts overrides defaultCommandTimeout for slow synchronous commands.
 var commandTimeouts = map[string]time.Duration{
 	"block-commit":              blockCommandTimeout,
@@ -327,7 +370,7 @@ func commandName(command []byte) string {
 // run executes the given QAPI command against a domain's QEMU instance.
 func (qmp *qemuMachineProtocol) run(command []byte, id uint32) ([]byte, error) {
 	// Just call RunWithFile with no file
-	return qmp.runWithFile(command, nil, id)
+	return qmp.runWithFile(command, nil, id, commandTimeout(command))
 }
 
 func (qmp *qemuMachineProtocol) qmpWriteMsg(b []byte, file *os.File) error {
@@ -352,7 +395,7 @@ func (qmp *qemuMachineProtocol) qmpWriteMsg(b []byte, file *os.File) error {
 }
 
 // runWithFile executes for passing a file through out-of-band data.
-func (qmp *qemuMachineProtocol) runWithFile(command []byte, file *os.File, id uint32) ([]byte, error) {
+func (qmp *qemuMachineProtocol) runWithFile(command []byte, file *os.File, id uint32, timeout time.Duration) ([]byte, error) {
 	// Only allow a single command to be run at a time to ensure that responses
 	// to a command cannot be mixed with responses from another command
 	qmp.mu.Lock()
@@ -377,13 +420,7 @@ func (qmp *qemuMachineProtocol) runWithFile(command []byte, file *os.File, id ui
 		return nil, err
 	}
 
-	// Pick the timeout for this command.
 	cmd := commandName(command)
-	timeout := defaultCommandTimeout
-	override, ok := commandTimeouts[cmd]
-	if ok {
-		timeout = override
-	}
 
 	// Wait for a response, error or timeout.
 	var res rawResponse

@@ -130,7 +130,7 @@ func (m *Monitor) SendFile(name string, file *os.File) error {
 	}
 
 	// Query the status.
-	_, err = m.qmp.runWithFile(reqJSON, file, id)
+	_, err = m.qmp.runWithFile(reqJSON, file, id, commandTimeout(reqJSON))
 	if err != nil {
 		// Keep the monitor cached on timeout, as a timeout means QEMU is busy rather than gone.
 		if errors.Is(err, ErrMonitorTimeout) {
@@ -211,7 +211,7 @@ func (m *Monitor) addFD(fdSetID *int, name string, file *os.File, readonly bool)
 		return nil, err
 	}
 
-	ret, err := m.qmp.runWithFile(reqJSON, file, id)
+	ret, err := m.qmp.runWithFile(reqJSON, file, id, commandTimeout(reqJSON))
 	if err != nil {
 		// Keep the monitor cached on timeout, as a timeout means QEMU is busy rather than gone.
 		if errors.Is(err, ErrMonitorTimeout) {
@@ -586,9 +586,18 @@ func (m *Monitor) RemoveCharDevice(deviceID string) error {
 }
 
 // AddDevice adds a new device.
-func (m *Monitor) AddDevice(device map[string]any) error {
+//
+// An optional timeout may be given to override the default per-command timeout,
+// for device operations that may legitimately take longer than usual, such as
+// attaching a VFIO device to a large instance.
+func (m *Monitor) AddDevice(device map[string]any, timeout ...time.Duration) error {
 	if device != nil {
-		err := m.run("device_add", device, nil)
+		deviceTimeout := heavyCommandTimeout
+		if len(timeout) > 0 && timeout[0] > 0 {
+			deviceTimeout = timeout[0]
+		}
+
+		err := m.run("device_add", device, nil, deviceTimeout)
 		if err != nil {
 			return err
 		}
@@ -618,12 +627,21 @@ func (m *Monitor) RemoveDevice(deviceID string) error {
 }
 
 // AddNIC adds a NIC device.
-func (m *Monitor) AddNIC(netDev map[string]any, device map[string]any) error {
+//
+// An optional timeout may be given to override the default per-command timeout,
+// for device operations that may legitimately take longer than usual, such as
+// attaching a VFIO device to a large instance.
+func (m *Monitor) AddNIC(netDev map[string]any, device map[string]any, timeout ...time.Duration) error {
 	revert := revert.New()
 	defer revert.Fail()
 
 	if netDev != nil {
-		err := m.run("netdev_add", netDev, nil)
+		netDevTimeout := heavyCommandTimeout
+		if len(timeout) > 0 && timeout[0] > 0 {
+			netDevTimeout = timeout[0]
+		}
+
+		err := m.run("netdev_add", netDev, nil, netDevTimeout)
 		if err != nil {
 			return fmt.Errorf("Failed adding NIC netdev: %w", err)
 		}
@@ -640,7 +658,12 @@ func (m *Monitor) AddNIC(netDev map[string]any, device map[string]any) error {
 		})
 	}
 
-	err := m.AddDevice(device)
+	deviceTimeout := heavyCommandTimeout
+	if len(timeout) > 0 && timeout[0] > 0 {
+		deviceTimeout = timeout[0]
+	}
+
+	err := m.AddDevice(device, deviceTimeout)
 	if err != nil {
 		return fmt.Errorf("Failed adding NIC device: %w", err)
 	}

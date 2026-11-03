@@ -5343,7 +5343,7 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 				reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
 			}
 
-			err := m.AddNIC(nil, qemuDev)
+			err := m.AddNIC(nil, qemuDev, d.vfioDeviceAddTimeout())
 			if err != nil {
 				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
 			}
@@ -5397,6 +5397,27 @@ func (d *qemu) writeNICDevConfig(mtuStr string, devName string, nicName string, 
 	}
 
 	return nil
+}
+
+// vfioDeviceAddTimeout returns the QMP device_add timeout to use when adding a
+// device that attaches a VFIO device, such as a PCI passthrough device or a
+// physical NIC.
+//
+// Attaching a VFIO device pins the guest memory for DMA, which takes longer on
+// instances with a large memory limit than the default heavy command timeout,
+// so the timeout is scaled with the instance memory limit.
+func (d *qemu) vfioDeviceAddTimeout() time.Duration {
+	memoryLimitStr := d.expandedConfig["limits.memory"]
+	if memoryLimitStr == "" || shared.IsTrue(d.expandedConfig["limits.memory.hugepages"]) {
+		return qmp.DeviceAddTimeout(0)
+	}
+
+	memoryLimit, err := parseMemoryStr(memoryLimitStr)
+	if err != nil || memoryLimit <= 0 {
+		return qmp.DeviceAddTimeout(0)
+	}
+
+	return qmp.DeviceAddTimeout(memoryLimit)
 }
 
 // addPCIDevConfig adds the qemu config required for adding a raw PCI device.
@@ -5457,7 +5478,7 @@ func (d *qemu) addPCIDevConfig(busName string, busAllocate busAllocator, pciConf
 			reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
 		}
 
-		err = m.AddDevice(qemuDev)
+		err = m.AddDevice(qemuDev, d.vfioDeviceAddTimeout())
 		if err != nil {
 			return fmt.Errorf("Failed setting up device %q: %w", devName, err)
 		}
