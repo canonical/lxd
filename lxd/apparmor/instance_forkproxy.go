@@ -174,7 +174,7 @@ func forkproxyProfile(inst instance, dev device) (string, error) {
 		"snap":        shared.InSnap(),
 		"exePath":     execPath,
 		"logPath":     inst.LogPath(),
-		"libraryPath": ldLibraryPaths(),
+		"libraryPath": escapeRulePaths(profileLibraryPaths(execPath)),
 		"sockets":     escapeRulePaths(sockets),
 		"goCoverDir":  goCoverDir(),
 	})
