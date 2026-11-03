@@ -97,6 +97,7 @@ If you use the LXD snap, the location of the Ceph configuration files depends on
 - If MicroCeph is installed on the same machine and its `ceph-conf` interface is connected to the LXD snap, LXD automatically uses the MicroCeph configuration.
 - If you set `snap set lxd ceph.builtin=true`, the snap uses its own `/var/snap/lxd/common/ceph` directory instead of the one of the host, so you must place the configuration files there.
   The snap only switches to this directory when the LXD daemon starts, so restart the LXD daemon after changing this option (see {ref}`howto-snap-daemon`).
+
 <!-- Include end Ceph connection -->
 
 To specify the Ceph cluster name and user for a storage pool, set {config:option}`storage-ceph-pool-conf:ceph.cluster_name` and {config:option}`storage-ceph-pool-conf:ceph.user.name`.
