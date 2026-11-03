@@ -673,15 +673,10 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 		return operations.OperationResponse(op)
 	} else if r.TLS != nil {
-		// Add client's certificate.
-		if len(r.TLS.PeerCertificates) < 1 {
-			// This can happen if the client doesn't send a client certificate or if the server is in
-			// CA mode. We rely on this check to prevent non-CA trusted client certificates from being
-			// added when in CA mode.
+		cert, err = request.GetPeerCertificate(r)
+		if err != nil {
 			return response.BadRequest(errors.New("No client certificate provided"))
 		}
-
-		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
 	} else {
 		return response.BadRequest(errors.New("Can't use TLS data on non-TLS link"))
 	}
@@ -1045,14 +1040,12 @@ func doCertificateUpdate(ctx context.Context, d *Daemon, dbInfo api.Certificate,
 				dbInfo.Name: *oldCert,
 			}
 
-			trusted := false
-			for _, i := range r.TLS.PeerCertificates {
-				trusted, _ = util.CheckMutualTLS(*i, trustedCerts)
-
-				if trusted {
-					break
-				}
+			peerCertificate, err := request.GetPeerCertificate(r)
+			if err != nil {
+				return response.Forbidden(errors.New("Certificate cannot be changed"))
 			}
+
+			trusted, _ := util.CheckMutualTLS(*peerCertificate, trustedCerts)
 
 			if !trusted {
 				return response.Forbidden(errors.New("Certificate cannot be changed"))
@@ -1192,15 +1185,12 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 			certInfo.Name: *cert,
 		}
 
-		trusted := false
-		for _, i := range r.TLS.PeerCertificates {
-			trusted, _ = util.CheckMutualTLS(*i, trustedCerts)
-
-			if trusted {
-				break
-			}
+		peerCertificate, err := request.GetPeerCertificate(r)
+		if err != nil {
+			return response.Forbidden(errors.New("Certificate cannot be deleted"))
 		}
 
+		trusted, _ := util.CheckMutualTLS(*peerCertificate, trustedCerts)
 		if !trusted {
 			return response.Forbidden(errors.New("Certificate cannot be deleted"))
 		}

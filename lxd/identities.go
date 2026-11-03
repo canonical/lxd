@@ -287,14 +287,19 @@ func identitiesTLSPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !requestor.IsTrusted() {
-		return createIdentityTLSUntrusted(r.Context(), s, r.TLS.PeerCertificates, networkCert, req, notify)
+		peerCertificate, err := request.GetPeerCertificate(r)
+		if err != nil {
+			return response.BadRequest(errors.New("No client certificate provided"))
+		}
+
+		return createIdentityTLSUntrusted(r.Context(), s, peerCertificate, networkCert, req, notify)
 	}
 
 	return createIdentityTLSTrusted(r.Context(), s, networkCert, req, notify)
 }
 
 // createIdentityTLSUntrusted handles requests to create an identity when the caller is not trusted.
-func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertificates []*x509.Certificate, networkCert *shared.CertInfo, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
+func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertificate *x509.Certificate, networkCert *shared.CertInfo, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
 	// If not trusted a token must be provided.
 	if req.TrustToken == "" {
 		return response.Forbidden(errors.New("Trust token required"))
@@ -305,15 +310,8 @@ func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertifi
 		return response.Forbidden(errors.New("Only trust token must be provided"))
 	}
 
-	// If not trusted get the certificate from the request TLS config.
-	if len(peerCertificates) < 1 {
-		return response.BadRequest(errors.New("No client certificate provided"))
-	}
-
-	cert := peerCertificates[len(peerCertificates)-1]
-
 	// Validate certificate.
-	err := certificateValidate(networkCert, cert)
+	err := certificateValidate(networkCert, peerCertificate)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -332,7 +330,7 @@ func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertifi
 
 	// Activate the pending identity with the certificate.
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.ActivateTLSIdentity(ctx, tx.Tx(), identifier, cert)
+		return dbCluster.ActivateTLSIdentity(ctx, tx.Tx(), identifier, peerCertificate)
 	})
 	if err != nil {
 		return response.SmartError(err)

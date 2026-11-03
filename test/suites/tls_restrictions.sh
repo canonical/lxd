@@ -2,6 +2,63 @@ test_tls_restrictions() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
+  # Test certificate chain handling with trust tokens and authentication.
+  sub_test "TLS client certificate chain handling during onboarding and authentication"
+
+  # 1. Generate an untrusted client leaf and an arbitrary target certificate.
+  gen_cert_and_key "chain_leaf"
+  gen_cert_and_key "chain_target"
+  leaf_fingerprint="$(cert_fingerprint "${LXD_CONF}/chain_leaf.crt")"
+  leaf_fingerprint_short=$(echo "${leaf_fingerprint}" | cut -c1-12)
+  target_fingerprint="$(cert_fingerprint "${LXD_CONF}/chain_target.crt")"
+
+  # Build a multi-certificate chain: [leaf, target].
+  cat "${LXD_CONF}/chain_leaf.crt" "${LXD_CONF}/chain_target.crt" > "${TEST_DIR}/chain_injected.pem"
+
+  # 2. Issue a TLS client trust token.
+  chain_token="$(lxc config trust add --name chain-user --quiet)"
+
+  # 3. Attempt onboarding using the multi-certificate chain.
+  # The client proves ownership of chain_leaf.key during the TLS handshake.
+  curl -k -s \
+    --cert "${TEST_DIR}/chain_injected.pem" \
+    --key "${LXD_CONF}/chain_leaf.key" \
+    -X POST \
+    -H "Content-Type: application/json" \
+    --data "{\"trust_token\": \"${chain_token}\"}" \
+    "https://${LXD_ADDR}/1.0/certificates" | jq --exit-status '.type == "sync" and .status_code == 200'
+
+  # 4. Assert that the activated identity matches the LEAF certificate, NOT the injected secondary certificate.
+  lxc config trust list --format csv | grep -F "client,chain-user,chain_leaf.local,${leaf_fingerprint_short}"
+  ! lxc config trust list --format csv | grep -F "$(echo "${target_fingerprint}" | cut -c1-12)" || false
+
+  # 5. Assert that the client presenting the chain signed by chain_leaf.key is now authenticated.
+  curl -k -s \
+    --cert "${TEST_DIR}/chain_injected.pem" \
+    --key "${LXD_CONF}/chain_leaf.key" \
+    "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "trusted"'
+
+  # 6. Assert that a client using chain_target.key is NOT authenticated (it was never trusted).
+  curl -k -s \
+    --cert "${LXD_CONF}/chain_target.crt" \
+    --key "${LXD_CONF}/chain_target.key" \
+    "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "untrusted"'
+
+  # 7. Assert that an untrusted leaf bundling an already trusted certificate cannot authenticate.
+  # An attacker generates their own keypair and bundles the newly trusted 'chain_leaf.crt' into their chain.
+  gen_cert_and_key "untrusted_attacker"
+  cat "${LXD_CONF}/untrusted_attacker.crt" "${LXD_CONF}/chain_leaf.crt" > "${TEST_DIR}/spoofed_chain.pem"
+
+  curl -k -s \
+    --cert "${TEST_DIR}/spoofed_chain.pem" \
+    --key "${LXD_CONF}/untrusted_attacker.key" \
+    "https://${LXD_ADDR}/1.0" | jq --exit-status '.metadata.auth == "untrusted"'
+
+  # Clean up identity and temporary certificates.
+  lxc config trust remove "${leaf_fingerprint}"
+  rm "${TEST_DIR}/chain_injected.pem" "${TEST_DIR}/spoofed_chain.pem"
+  rm "${LXD_CONF}"/{chain_leaf,chain_target,untrusted_attacker}.{crt,key}
+
   gen_cert_and_key "metrics"
 
   # Ensure type=metrics certificates cannot access anything besides /1.0/metrics.
