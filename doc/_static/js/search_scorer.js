@@ -26,7 +26,9 @@ window.Scorer = {
     // rarely what the user is looking for.
     if (docName.startsWith("reference/manpages/") ||
         docName.startsWith("reference/release-notes/release-notes-") ||
-        docName.split("/").pop() === "api-extensions") {
+        docName.split("/").pop() === "api-extensions" ||
+        // Demote feature previews, since they are works in progress
+        docName === "reference/feature-previews") {
       return score - 20;
     }
 
