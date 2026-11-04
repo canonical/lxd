@@ -8,12 +8,14 @@ import (
 
 func TestImageEndpointResolver(t *testing.T) {
 	tests := []struct {
-		name             string
-		path             string
-		rawPath          string // If set, simulates URL-encoded path
-		wantEndpoint     *APIEndpoint
-		wantPathValueKey string
-		wantPathValueVal string
+		name              string
+		path              string
+		rawPath           string // If set, simulates URL-encoded path
+		wantEndpoint      *APIEndpoint
+		wantPathValueKey  string
+		wantPathValueVal  string
+		wantPathValueKey2 string
+		wantPathValueVal2 string
 	}{
 		// Alias routes
 		{
@@ -106,6 +108,46 @@ func TestImageEndpointResolver(t *testing.T) {
 
 		// Invalid URL escape sequences are treated as literals
 		{
+			name:             "typed alias collection",
+			path:             "/1.0/images/container/aliases",
+			wantEndpoint:     &imageTypeAliasesCmd,
+			wantPathValueKey: "imageType",
+			wantPathValueVal: "container",
+		},
+		{
+			name:              "typed alias name",
+			path:              "/1.0/images/container/aliases/jammy",
+			wantEndpoint:      &imageTypeAliasCmd,
+			wantPathValueKey:  "imageType",
+			wantPathValueVal:  "container",
+			wantPathValueKey2: "name",
+			wantPathValueVal2: "jammy",
+		},
+		{
+			name:              "typed alias with encoded slash",
+			path:              "/1.0/images/virtual-machine/aliases/ubuntu/noble",
+			rawPath:           "/1.0/images/virtual-machine/aliases/ubuntu%2Fnoble",
+			wantEndpoint:      &imageTypeAliasCmd,
+			wantPathValueKey:  "imageType",
+			wantPathValueVal:  "virtual-machine",
+			wantPathValueKey2: "name",
+			wantPathValueVal2: "ubuntu/noble",
+		},
+		{
+			name:             "untyped alias whose name starts with container",
+			path:             "/1.0/images/aliases/container/jammy",
+			rawPath:          "/1.0/images/aliases/container%2Fjammy",
+			wantEndpoint:     &imageAliasCmd,
+			wantPathValueKey: "name",
+			wantPathValueVal: "container/jammy",
+		},
+		{
+			name:         "image type without aliases",
+			path:         "/1.0/images/container",
+			wantEndpoint: nil,
+		},
+
+		{
 			name:             "invalid escape in alias",
 			path:             "/1.0/images/aliases/bad%2",
 			rawPath:          "/1.0/images/aliases/bad%2",
@@ -147,6 +189,13 @@ func TestImageEndpointResolver(t *testing.T) {
 				gotVal := r.PathValue(tt.wantPathValueKey)
 				if gotVal != tt.wantPathValueVal {
 					t.Errorf("PathValue(%q) = %q, want %q", tt.wantPathValueKey, gotVal, tt.wantPathValueVal)
+				}
+			}
+
+			if tt.wantPathValueKey2 != "" && tt.wantEndpoint != nil {
+				gotVal := r.PathValue(tt.wantPathValueKey2)
+				if gotVal != tt.wantPathValueVal2 {
+					t.Errorf("PathValue(%q) = %q, want %q", tt.wantPathValueKey2, gotVal, tt.wantPathValueVal2)
 				}
 			}
 		})
