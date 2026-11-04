@@ -16,6 +16,18 @@ type ClusterMemberSysInfo struct {
 	FreeSwap     uint64    `json:"free_swap" yaml:"free_swap"`
 	Processes    uint16    `json:"processes" yaml:"processes"`
 	LogicalCPUs  uint64    `json:"logical_cpus" yaml:"logical_cpus"`
+
+	// Memory available for starting new applications without swapping (bytes)
+	// Example: 8589934592
+	//
+	// API extension: cluster_member_state_memory
+	AvailableRAM uint64 `json:"available_ram" yaml:"available_ram"`
+
+	// Memory used by the page cache (bytes)
+	// Example: 4294967296
+	//
+	// API extension: cluster_member_state_memory
+	CachedRAM uint64 `json:"cached_ram" yaml:"cached_ram"`
 }
 
 // ClusterMemberState represents the state of a cluster member.

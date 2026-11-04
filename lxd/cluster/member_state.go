@@ -13,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/resources"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	"github.com/canonical/lxd/shared"
@@ -60,18 +61,26 @@ func LocalSysInfo() (*api.ClusterMemberSysInfo, error) {
 		return nil, err
 	}
 
+	memInfo, err := resources.GetHostMeminfo()
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting memory information: %w", err)
+	}
+
 	sysInfo := &api.ClusterMemberSysInfo{}
 
 	// Account for different representations of Sysinfo_t on different architectures.
 	sysInfo.Uptime = int64(info.Uptime)
-	sysInfo.TotalRAM = uint64(info.Totalram)
-	sysInfo.SharedRAM = uint64(info.Sharedram)
-	sysInfo.BufferRAM = uint64(info.Bufferram)
-	sysInfo.FreeRAM = uint64(info.Freeram)
-	sysInfo.TotalSwap = uint64(info.Totalswap)
-	sysInfo.FreeSwap = uint64(info.Freeswap)
-
 	sysInfo.Processes = info.Procs
+
+	sysInfo.TotalRAM = memInfo.Total
+	sysInfo.FreeRAM = memInfo.Free
+	sysInfo.AvailableRAM = memInfo.Available
+	sysInfo.SharedRAM = memInfo.Shmem
+	sysInfo.BufferRAM = memInfo.Buffers
+	sysInfo.CachedRAM = memInfo.Cached
+	sysInfo.TotalSwap = memInfo.SwapTotal
+	sysInfo.FreeSwap = memInfo.SwapFree
+
 	sysInfo.LoadAverages, err = getLoadAvgs()
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting load averages: %w", err)
