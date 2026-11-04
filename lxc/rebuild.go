@@ -193,7 +193,13 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 				legacyRemote = conf.DefaultRemote
 			}
 
-			imgRemoteServer, imgInfo, err = getImgInfo(conf, legacyRemote, image, c.global.flagProject, &req.Source)
+			// A microvm boots a container image, so it uses the container alias.
+			imageType := current.Type
+			if current.Type == string(api.InstanceTypeMicroVM) {
+				imageType = string(api.InstanceTypeContainer)
+			}
+
+			imgRemoteServer, imgInfo, err = getImgInfo(conf, legacyRemote, image, c.global.flagProject, imageType, &req.Source)
 			if err != nil {
 				return err
 			}
@@ -208,6 +214,14 @@ func (c *cmdRebuild) rebuild(conf *config.Config, args []string) error {
 		if imgRemoteServer != nil && conf.Remotes[legacyRemote].Protocol != api.ImageRegistryProtocolSimpleStreams {
 			if imgInfo.Type != "virtual-machine" && current.Type == "virtual-machine" {
 				return errors.New("Asked for a VM but image is of type container")
+			}
+
+			if imgInfo.Type == "virtual-machine" && current.Type == string(api.InstanceTypeMicroVM) {
+				return errors.New("Asked for a microvm but image is of type virtual-machine")
+			}
+
+			if imgInfo.Type == "virtual-machine" && current.Type != "virtual-machine" && current.Type != string(api.InstanceTypeMicroVM) {
+				return errors.New("Asked for a container but image is of type virtual-machine")
 			}
 		}
 
