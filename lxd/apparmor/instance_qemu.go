@@ -68,7 +68,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .devicesPath }}/** rwk,
 
   # Needed for lxd fork commands
-  {{ .exePath }} mr,
+  "{{ .exePath }}" mr,
   @{PROC}/@{pid}/cmdline r,
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
 
@@ -111,9 +111,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 {{- end }}
 
 {{if .libraryPath -}}
-  # Entries from LD_LIBRARY_PATH
+  # Shared libraries
 {{range $index, $element := .libraryPath}}
-  {{$element}}/** mr,
+  "{{$element}}/**" mr,
 {{- end }}
 {{- end }}
 

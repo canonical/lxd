@@ -47,6 +47,7 @@ runs:
           jq \
           make \
           nftables \
+          patchelf \
           quota \
           rsync \
           s3cmd \

@@ -170,7 +170,7 @@ import_subdir_files() {
 
 run_dependency_checks() {
   echo "==> Checking for dependencies"
-  check_dependencies lxd lxc curl busybox dnsmasq expect iptables jq nc ping python3 yq git s3cmd sqlite3 rsync shuf setfacl setfattr socat swtpm dig tar2sqfs unsquashfs xz
+  check_dependencies lxd lxc curl busybox dnsmasq expect iptables jq nc patchelf ping python3 yq git s3cmd sqlite3 rsync shuf setfacl setfattr socat swtpm dig tar2sqfs unsquashfs xz
   if [ "${LXD_VM_TESTS}" = "1" ]; then
     check_dependencies qemu-img "qemu-system-$(uname -m)" sgdisk
   fi
