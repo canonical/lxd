@@ -3796,10 +3796,9 @@ This endpoint is not available on clustered servers where the cluster member api
 
 ```{warning}
 **Do not** enable this extension in production environments.
-It is a {ref}`feature preview <howto-snap-configure-feature-previews>`.
+Changed block tracking is a {ref}`feature preview <ref-feature-previews>`.
+For details, see {ref}`ref-feature-previews-changed-block-tracking`.
 ```
-
-Feature gate: `changed_block_tracking` (see {ref}`howto-snap-configure-feature-previews`)
 
 Adds changed block tracking for the block volumes of virtual machines, implemented as QEMU dirty bitmaps that are kept across a stop and a start of the instance, and adds the ability to export snapshot data over NBD tunneled through the LXD API.
 
@@ -3835,72 +3834,12 @@ The state of all members is fetched in parallel by the member handling the reque
 ## `instance_microvm`
 
 ```{warning}
-**Do not** enable this extension in production environments. It is a feature preview.
+**Do not** enable this extension in production environments.
+MicroVM support is a {ref}`feature preview <ref-feature-previews>`.
+For details, see {ref}`ref-feature-previews-microvms`.
 ```
 
-This extension adds support for MicroVM instances using libkrun.
+Adds support for MicroVM instances using libkrun:
 
-MicroVMs boot directly from a kernel image provided by the host and run container images unpacked into an ext4 filesystem on a dedicated block volume. MicroVMs have only been tested on `x86_64` hosts.
-
-MicroVMs can currently be created on storage pools that use the `dir`, `btrfs`, `zfs`, `lvm` or `ceph` driver. A cached image volume is not used for them: the image is unpacked for every new MicroVM.
-
-The server only advertises this extension when the `microvm` feature preview is enabled.
-In a cluster, the feature preview must be enabled on all cluster members.
-
-To test this extension please follow the instructions below:
-
-1. Install requirements:
-
-   Install Rust toolchain
-   ```bash
-   sudo snap install rustup --classic
-   rustup default stable
-   rustup target add $(uname -m)-unknown-linux-musl
-   ```
-
-   Install packages needed for building libkrun and libkrunfw:
-   ```bash
-   apt install python3-pyelftools build-essential flex bison libelf-dev
-   ```
-
-   > For more information regarding libkrun and libkrunfw, their dependencies and building process, please visit [libkrun](https://github.com/libkrun/libkrun) and [libkrunfw](https://github.com/libkrun/libkrunfw) correspondingly.
-
-2. Build libkrun with block and network support. LXD uses the libkrun C API, which later libkrun revisions no longer provide, so check out the following compatible revision:
-
-   ```bash
-   git clone https://github.com/libkrun/libkrun.git
-   cd libkrun
-   git checkout 6254f5e22b8782a4dffe530ff44f1bbe623332e0
-   make BLK=1 NET=1 -j"$(nproc)"
-   ```
-
-3. Build a guest kernel, for example with [`libkrunfw`](https://github.com/libkrun/libkrunfw):
-
-   ```bash
-   git clone https://github.com/libkrun/libkrunfw.git
-   cd libkrunfw
-   make -j"$(nproc)"
-   ```
-
-4. Copy the uncompressed kernel and the libkrun library to the `libkrun` directory of LXD (`/var/snap/lxd/common/lxd/libkrun` for the snap):
-
-   ```bash
-   sudo mkdir -p /var/snap/lxd/common/lxd/libkrun
-   sudo cp libkrunfw/linux-*/vmlinux /var/snap/lxd/common/lxd/libkrun/vmlinuz
-   sudo cp libkrun/target/release/libkrun.so /var/snap/lxd/common/lxd/libkrun/
-   ```
-
-5. Enable the feature preview for the daemon and client, then restart it:
-
-   ```bash
-   export LXD_FEATURES=microvm
-   sudo snap set lxd features=microvm
-   sudo systemctl daemon-reload
-   sudo snap restart --reload lxd
-   ```
-
-6. Create a MicroVM from a container image:
-
-   ```bash
-   lxc launch ubuntu:26.04 m1 --microvm
-   ```
+- Adds `microvm` as a new value of the instance `type` field accepted in `POST /1.0/instances` and returned by `GET /1.0/instances` and `GET /1.0/instances/{name}`.
+- Adds the `--microvm` flag to the `lxc init` and `lxc launch` commands.
