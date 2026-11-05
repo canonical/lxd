@@ -18,6 +18,7 @@ test_storage_driver_zfs() {
   do_zfs_bucket_dataset_cleanup
   do_zfs_image_variants
   do_zfs_image_variant_blocksize
+  do_zfs_partial_image_recovery
 }
 
 do_zfs_delegate() {
@@ -677,4 +678,54 @@ zfs_image_variant_tombstone_count() {
 
   out=$(zfs list -H -o name -t volume -d 1 "${parent}")
   echo "${out}" | awk -v stem="${basename}" '$0 ~ "/" stem "-[0-9a-f-]{36}$" { c++ } END { print c+0 }'
+}
+
+do_zfs_partial_image_recovery() {
+  local storage_pool fingerprint
+  storage_pool="lxdtest-$(basename "${LXD_DIR}")-recovery"
+
+  lxc storage create "${storage_pool}" zfs
+
+  ensure_import_testimage
+  fingerprint="$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
+
+  sub_test "Unrecorded partial image volume is replaced on next use"
+
+  # A daemon crash during the unpack leaves the image dataset without its
+  # readonly snapshot and without a volume DB record.
+  zfs create -o mountpoint=legacy -o canmount=noauto "${storage_pool}/images/${fingerprint}"
+  lxc init testimage c1 -s "${storage_pool}"
+  [ "$(zfs get -H -o value origin "${storage_pool}/containers/c1")" = "${storage_pool}/images/${fingerprint}@readonly" ]
+
+  sub_test "Recorded partial image volume is replaced on next use"
+
+  # Older releases recorded the volume before unpacking it, so a crash left a
+  # record of a partial dataset. The clone has to go before its origin can.
+  lxc delete c1
+  zfs destroy "${storage_pool}/images/${fingerprint}@readonly"
+  lxc init testimage c2 -s "${storage_pool}"
+  [ "$(zfs get -H -o value origin "${storage_pool}/containers/c2")" = "${storage_pool}/images/${fingerprint}@readonly" ]
+  lxc delete c2
+
+  if [ "${LXD_VM_TESTS}" != "0" ]; then
+    sub_test "Partial VM image volume is replaced on next use"
+
+    ensure_import_ubuntu_vm_image
+    fingerprint="$(lxc image info ubuntu-vm | awk '/^Fingerprint/ {print $2}')"
+
+    # The block dataset is created first, so it is what a crash leaves behind.
+    zfs create -V 10MiB -o volmode=none "${storage_pool}/images/${fingerprint}.block"
+    lxc init ubuntu-vm v1 --vm -s "${storage_pool}"
+    [ "$(zfs get -H -o value origin "${storage_pool}/virtual-machines/v1.block")" = "${storage_pool}/images/${fingerprint}.block@readonly" ]
+    [ "$(zfs get -H -o value origin "${storage_pool}/virtual-machines/v1")" = "${storage_pool}/images/${fingerprint}@readonly" ]
+
+    lxc delete v1
+    zfs destroy "${storage_pool}/images/${fingerprint}.block@readonly"
+    lxc init ubuntu-vm v2 --vm -s "${storage_pool}"
+    [ "$(zfs get -H -o value origin "${storage_pool}/virtual-machines/v2.block")" = "${storage_pool}/images/${fingerprint}.block@readonly" ]
+    lxc delete v2
+  fi
+
+  # Deleting the pool removes the image volumes on it.
+  lxc storage delete "${storage_pool}"
 }
