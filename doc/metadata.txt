@@ -581,6 +581,14 @@ Specify a comma-delimited list of IPv4 static routes for this NIC to add on the 
 Specify a comma-delimited list of IPv4 static routes to route to the NIC and publish on the uplink network (BGP).
 ```
 
+```{config:option} ipv4.routes.external.wait_ready device-nic-bridged-device-conf
+:defaultdesc: "`false`"
+:managed: "no"
+:shortdesc: "Wait for the instance to be ready before adding `ipv4.routes.external`"
+:type: "bool"
+If enabled, {config:option}`device-nic-bridged-device-conf:ipv4.routes.external` is only added to the host (and published over BGP) once the instance reports itself as ready, and removed again if the instance reverts to the running state. See {ref}`extension-instance-ready-state` for how instances report themselves as ready.
+```
+
 ```{config:option} ipv6.address device-nic-bridged-device-conf
 :managed: "no"
 :shortdesc: "IPv6 address to assign to the instance through DHCP"
@@ -600,6 +608,14 @@ Specify a comma-delimited list of IPv6 static routes for this NIC to add on the 
 :shortdesc: "IPv6 static routes to route to NIC"
 :type: "string"
 Specify a comma-delimited list of IPv6 static routes to route to the NIC and publish on the uplink network (BGP).
+```
+
+```{config:option} ipv6.routes.external.wait_ready device-nic-bridged-device-conf
+:defaultdesc: "`false`"
+:managed: "no"
+:shortdesc: "Wait for the instance to be ready before adding `ipv6.routes.external`"
+:type: "bool"
+If enabled, {config:option}`device-nic-bridged-device-conf:ipv6.routes.external` is only added to the host (and published over BGP) once the instance reports itself as ready, and removed again if the instance reverts to the running state. See {ref}`extension-instance-ready-state` for how instances report themselves as ready.
 ```
 
 ```{config:option} limits.egress device-nic-bridged-device-conf
