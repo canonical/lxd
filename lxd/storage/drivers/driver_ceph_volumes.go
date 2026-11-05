@@ -1033,12 +1033,8 @@ func (d *ceph) DeleteVolume(vol Volume, progressReporter ioprogress.ProgressRepo
 			}
 
 			// Delete snapshots.
-			_, err := shared.RunCommand(
+			_, err := d.rbd(
 				context.Background(),
-				"rbd",
-				"--id", d.config["ceph.user.name"],
-				"--cluster", d.config["ceph.cluster_name"],
-				"--pool", d.config["ceph.osd.pool_name"],
 				"snap",
 				"purge",
 				d.getRBDVolumeName(vol, "", false, false))
@@ -1096,11 +1092,7 @@ func (d *ceph) hasVolume(rbdVolumeName string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()
 
-	_, err := shared.RunCommand(ctx,
-		"rbd",
-		"--id", d.config["ceph.user.name"],
-		"--cluster", d.config["ceph.cluster_name"],
-		"--pool", d.config["ceph.osd.pool_name"],
+	_, err := d.rbd(ctx,
 		"info",
 		rbdVolumeName,
 	)
@@ -1267,13 +1259,9 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()
 
-	jsonInfo, err := shared.RunCommand(ctx,
-		"rbd",
+	jsonInfo, err := d.rbd(ctx,
 		"du",
 		"--format", "json",
-		"--id", d.config["ceph.user.name"],
-		"--cluster", d.config["ceph.cluster_name"],
-		"--pool", d.config["ceph.osd.pool_name"],
 		d.getRBDVolumeName(vol, "", false, false),
 	)
 	if err != nil {
@@ -2100,12 +2088,8 @@ func (d *ceph) CreateVolumeSnapshot(snapVol Volume, progressReporter ioprogress.
 // DeleteVolumeSnapshot removes a snapshot from the storage device.
 func (d *ceph) DeleteVolumeSnapshot(snapVol Volume, progressReporter ioprogress.ProgressReporter) error {
 	// Check if snapshot exists, and return if not.
-	_, err := shared.RunCommand(
+	_, err := d.rbd(
 		context.Background(),
-		"rbd",
-		"--id", d.config["ceph.user.name"],
-		"--cluster", d.config["ceph.cluster_name"],
-		"--pool", d.config["ceph.osd.pool_name"],
 		"info",
 		d.getRBDVolumeName(snapVol, "", false, false))
 	if err != nil {
@@ -2379,12 +2363,8 @@ func (d *ceph) restoreVolume(vol Volume, snapVol Volume, progressReporter ioprog
 
 	_, snapshotName, _ := api.GetParentAndSnapshotName(snapVol.name)
 
-	_, err = shared.RunCommand(
+	_, err = d.rbd(
 		context.Background(),
-		"rbd",
-		"--id", d.config["ceph.user.name"],
-		"--cluster", d.config["ceph.cluster_name"],
-		"--pool", d.config["ceph.osd.pool_name"],
 		"snap",
 		"rollback",
 		"--snap", "snapshot_"+snapshotName,
