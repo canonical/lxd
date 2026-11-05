@@ -7,6 +7,7 @@ import (
 	"maps"
 	"net/url"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -533,6 +534,10 @@ func (c *cmdStorageInfo) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if resource.server.IsClustered() && c.storage.flagTarget == "" && !isRemoteStorageDriver(pool.Driver) {
+		return fmt.Errorf("Storage pool %q is member-local. Specify --target <member> to view storage info", resource.name)
+	}
+
 	res, err := resource.server.GetStoragePoolResources(resource.name)
 	if err != nil {
 		return err
@@ -624,6 +629,9 @@ func (c *cmdStorageInfo) run(cmd *cobra.Command, args []string) error {
 	poolinfo[infostring][namestring] = pool.Name
 	poolinfo[infostring][driverstring] = pool.Driver
 	poolinfo[infostring][descriptionstring] = pool.Description
+	if c.storage.flagTarget != "" {
+		poolinfo[infostring]["location"] = c.storage.flagTarget
+	}
 	if c.flagBytes {
 		poolinfo[infostring][totalspacestring] = strconv.FormatUint(res.Space.Total, 10)
 		poolinfo[infostring][spaceusedstring] = strconv.FormatUint(res.Space.Used, 10)
@@ -1017,4 +1025,10 @@ func (c *cmdStorageUnset) run(cmd *cobra.Command, args []string) error {
 
 	args = append(args, "")
 	return c.storageSet.run(cmd, args)
+}
+
+// isRemoteStorageDriver returns true if the driver supports shared/remote cluster-wide storage.
+func isRemoteStorageDriver(driver string) bool {
+	remoteDrivers := []string{"ceph", "cephfs", "cephobject", "powerflex", "pure", "powerstore"}
+	return slices.Contains(remoteDrivers, driver)
 }
