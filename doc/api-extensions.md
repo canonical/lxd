@@ -3830,3 +3830,8 @@ New `lxc` commands:
 Adds support for `recursion=2` on `GET /1.0/cluster/members`. In addition to the cluster member information returned with `recursion=1`, each entry contains a `state` field with the member state (as returned by `GET /1.0/cluster/members/{name}/state`).
 
 The state of all members is fetched in parallel by the member handling the request. The `state` field is `null` for offline members and for members whose state could not be retrieved.
+
+(extension-storage-volume-member-move)=
+## `storage_volume_member_move`
+
+This extension adds support for moving a custom storage volume to another cluster member with a single API call. Calling `POST /1.0/storage-pools/<pool>/volumes/custom/<volume>?target=<member>` with `location` set to the name of another cluster member moves the volume from the member given in `target`, which is the member that currently hosts the volume, to the member given in `location`. The source volume is deleted by the server once the volume exists on the destination, so `can_delete` on the volume is not needed. Permissions granted on the volume are kept. If the volume is also moved to another project, only the permissions of groups that can view that project are kept.
