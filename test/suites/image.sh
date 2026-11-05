@@ -725,10 +725,12 @@ run_images_public() {
   query "/1.0/images/${fingerprint}/export?project=bar" | jq --exit-status '.error == "Not Found" and .error_code == 404'
 
   # No callers can use an invalid secret.
-  query /1.0/images/"${fingerprint}"?project=foo\&secret=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"/export?project=foo\&secret=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"?project=bar\&secret=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
-  query /1.0/images/"${fingerprint}"/export?project=bar\&secret=bar | jq --exit-status '.error == "Not Found" and .error_code == 404'
+  query /1.0/images/"${fingerprint}"?project=foo\&secret=bar | jq --exit-status '.error == "Invalid secret: Invalid secret format" and .error_code == 403'
+  query /1.0/images/"${fingerprint}"/export?project=foo\&secret=bar | jq --exit-status '.error == "Invalid secret: Invalid secret format" and .error_code == 403'
+  query /1.0/images/"${fingerprint}"?project=foo\&secret=bar.foo | jq --exit-status '.error == "Invalid secret: Failed deriving signing key for secret verification: Minimum salt length is 16 bytes" and .error_code == 403'
+  query /1.0/images/"${fingerprint}"/export?project=foo\&secret=bar.foo | jq --exit-status '.error == "Invalid secret: Failed deriving signing key for secret verification: Minimum salt length is 16 bytes" and .error_code == 403'
+  query /1.0/images/"${fingerprint}"?project=foo\&secret=aaaaaaaaaaaaaaaa.foo | jq --exit-status '.error == "Invalid secret: Invalid token secret signature" and .error_code == 403'
+  query /1.0/images/"${fingerprint}"/export?project=foo\&secret=aaaaaaaaaaaaaaaa.foo | jq --exit-status '.error == "Invalid secret: Invalid token secret signature" and .error_code == 403'
 
   # Get a secret for "default-img" (in the default project).
   secret="$(lxc -X POST query "/1.0/images/${fingerprint}/secret" | jq --exit-status --raw-output '.metadata.secret')"
@@ -799,8 +801,8 @@ run_images_public() {
     query "/1.0/images/${fingerprint}?project=foo" | jq --exit-status '.error_code == 404'
     query "/1.0/images/${fingerprint}/export?project=foo" | jq --exit-status '.error_code == 404'
     # Also assert with an invalid secret to prevent bypasses where any non-empty secret skips non-default restrictions.
-    query "/1.0/images/${fingerprint}?project=foo&secret=bar" | jq --exit-status '.error_code == 404'
-    query "/1.0/images/${fingerprint}/export?project=foo&secret=bar" | jq --exit-status '.error_code == 404'
+    query "/1.0/images/${fingerprint}?project=foo&secret=bar" | jq --exit-status '.error_code == 403'
+    query "/1.0/images/${fingerprint}/export?project=foo&secret=bar" | jq --exit-status '.error_code == 403'
   fi
 
   # All callers can export the public image if using a valid prefix.

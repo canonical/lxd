@@ -19,6 +19,7 @@ import (
 	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
@@ -520,7 +521,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	ws.consoleDone = cancel.New()
 	ws.dynamic = map[*websocket.Conn]*os.File{}
 	for i := -1; i < len(ws.conns)-1; i++ {
-		ws.fds[i], err = shared.RandomCryptoString()
+		ws.fds[i], err = encryption.NewEphemeralSecret(r.Context(), s.CoreAuthSecrets)
 		if err != nil {
 			return response.InternalError(err)
 		}
