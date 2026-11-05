@@ -4,7 +4,7 @@
 When creating an instance, you must specify the {ref}`image <about-images>` on which the instance should be based.
 
 Images contain a basic operating system (for example, a Linux distribution) and some LXD-related information.
-Images for various operating systems are available on the built-in remote image servers.
+Images for various operating systems are available from the {ref}`built-in image registries <remote-image-servers>`.
 See {ref}`images` for more information.
 
 If you don't specify a name for the instance, LXD will automatically generate one.
@@ -19,9 +19,10 @@ The [`lxc init`](lxc_init.md) command only creates the instance, while the [`lxc
 
 Enter the following command to create a container:
 
-    lxc launch|init <image_server>:<image_name> <instance_name> [flags]
+    lxc launch|init <image_registry>:<image_name> <instance_name> [flags]
 
-Unless the image is available locally, you must specify the name of the image server and the name of the image (for example, `ubuntu:24.04` for the official Ubuntu 24.04 LTS image).
+Unless the image is available locally, you must specify the name of the {ref}`image registry <remote-image-servers>` and the name of the image (for example, `ubuntu:24.04` for the official Ubuntu 24.04 LTS image).
+Run [`lxc image registry list`](lxc_image_registry_list.md) to see the available image registries.
 
 See [`lxc launch --help`](lxc_launch.md) or [`lxc init --help`](lxc_init.md) for a full list of flags.
 The most common flags are:
