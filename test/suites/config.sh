@@ -434,3 +434,37 @@ test_container_snapshot_config() {
 
     lxc delete foo
 }
+
+test_container_sysctl() {
+  ensure_import_testimage
+
+  # Use a per network namespace sysctl that is writable from within the
+  # container and whose value differs from the default (1024).
+  local key="net.ipv4.ip_unprivileged_port_start"
+  local path="/proc/sys/net/ipv4/ip_unprivileged_port_start"
+
+  # Set at creation time.
+  lxc launch testimage c1 --config "linux.sysctl.${key}=1000"
+  [ "$(lxc exec c1 -- cat "${path}")" = "1000" ]
+
+  # Set on a running instance (not live-updatable, so applied on next start).
+  lxc config set c1 "linux.sysctl.${key}=1001"
+  lxc restart c1 --force
+  [ "$(lxc exec c1 -- cat "${path}")" = "1001" ]
+
+  # Set through a profile applied to a running instance.
+  lxc profile create sysctl
+  lxc profile set sysctl "linux.sysctl.${key}=1002"
+  lxc config unset c1 "linux.sysctl.${key}"
+  lxc profile add c1 sysctl
+  lxc restart c1 --force
+  [ "$(lxc exec c1 -- cat "${path}")" = "1002" ]
+
+  # Change the key on a profile already attached to a running instance.
+  lxc profile set sysctl "linux.sysctl.${key}=1003"
+  lxc restart c1 --force
+  [ "$(lxc exec c1 -- cat "${path}")" = "1003" ]
+
+  lxc delete --force c1
+  lxc profile delete sysctl
+}
