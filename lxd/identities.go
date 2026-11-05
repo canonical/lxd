@@ -373,20 +373,25 @@ func identitiesTLSPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !requestor.IsTrusted() {
-		return createIdentityTLSUntrusted(r.Context(), s, r.TLS.PeerCertificates, networkCert, req, notify)
+		peerCertificate, err := request.GetPeerCertificate(r)
+		if err != nil {
+			return response.BadRequest(errors.New("No client certificate provided"))
+		}
+
+		return createIdentityTLSUntrusted(r.Context(), s, peerCertificate, networkCert, req, notify)
 	}
 
-	var peerCertificates []*x509.Certificate
+	var peerCertificate *x509.Certificate
 	idType, err := requestor.CallerIdentityType()
 	if err == nil {
-		if idType.Name() == api.IdentityTypeBearerTokenInitialUI && r.TLS != nil {
-			// When authenticated as the initial UI identity, allow creating a TLS identity from the presented peer certificate.
+		if idType.Name() == api.IdentityTypeBearerTokenInitialUI {
 			// This allows LXD UI to establish mTLS by injecting a client certificate during initial UI bearer-token access.
-			peerCertificates = r.TLS.PeerCertificates
+			// When authenticated as the initial UI identity, allow creating a TLS identity from the presented peer certificate.
+			peerCertificate, _ = request.GetPeerCertificate(r)
 		}
 	}
 
-	return createIdentityTLSTrusted(r.Context(), s, peerCertificates, networkCert, req, notify)
+	return createIdentityTLSTrusted(r.Context(), s, peerCertificate, networkCert, req, notify)
 }
 
 // swagger:operation POST /1.0/auth/identities/bearer identities identities_post_bearer
@@ -738,7 +743,7 @@ func identityBearerTokenDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 // createIdentityTLSUntrusted handles requests to create an identity when the caller is not trusted.
-func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertificates []*x509.Certificate, networkCert *shared.CertInfo, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
+func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertificate *x509.Certificate, networkCert *shared.CertInfo, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
 	// If not trusted a token must be provided.
 	if req.TrustToken == "" {
 		return response.Forbidden(errors.New("Trust token required"))
@@ -749,15 +754,8 @@ func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertifi
 		return response.Forbidden(errors.New("Only trust token must be provided"))
 	}
 
-	// If not trusted get the certificate from the request TLS config.
-	if len(peerCertificates) < 1 {
-		return response.BadRequest(errors.New("No client certificate provided"))
-	}
-
-	cert := peerCertificates[len(peerCertificates)-1]
-
 	// Validate certificate.
-	err := certificateValidate(networkCert, cert)
+	err := certificateValidate(networkCert, peerCertificate)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -776,13 +774,13 @@ func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertifi
 
 	// Activate the pending identity with the certificate.
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		return dbCluster.ActivateTLSIdentity(ctx, tx.Tx(), identifier, cert)
+		return dbCluster.ActivateTLSIdentity(ctx, tx.Tx(), identifier, peerCertificate)
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	fingerprint := shared.CertFingerprint(cert)
+	fingerprint := shared.CertFingerprint(peerCertificate)
 
 	// Activation replaces the pending UUID identifier with the cert
 	// fingerprint in the database, so the event must reference the
@@ -796,7 +794,7 @@ func createIdentityTLSUntrusted(ctx context.Context, s *state.State, peerCertifi
 }
 
 // createIdentityTLSTrusted handles requests to create an identity when the caller is trusted.
-func createIdentityTLSTrusted(ctx context.Context, s *state.State, peerCertificates []*x509.Certificate, networkCert *shared.CertInfo, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
+func createIdentityTLSTrusted(ctx context.Context, s *state.State, peerCertificate *x509.Certificate, networkCert *shared.CertInfo, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
 	// Check if the caller has permission to create identities.
 	err := s.Authorizer.CheckPermission(ctx, entity.ServerURL(), auth.EntitlementCanCreateIdentities)
 	if err != nil {
@@ -824,12 +822,11 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, peerCertifica
 	}
 
 	cert := req.Certificate
-	if cert == "" && len(peerCertificates) > 0 {
+	if cert == "" && peerCertificate != nil {
 		// Use peer certificate if no certificate was provided in the request body.
-		peerCert := peerCertificates[len(peerCertificates)-1]
 		peerCertPEM := &pem.Block{
 			Type:  "CERTIFICATE",
-			Bytes: peerCert.Raw,
+			Bytes: peerCertificate.Raw,
 		}
 
 		cert = string(pem.EncodeToMemory(peerCertPEM))
