@@ -98,6 +98,7 @@ readonly test_group_instance=(
     "container_devices_proxy"
     "container_devices_tpm"
     "container_devices_unix"
+    "container_devices_usb"
     "container_metadata"
     "container_snapshot_config"
     "container_syscall_interception"
