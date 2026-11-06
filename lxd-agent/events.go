@@ -113,15 +113,25 @@ func eventsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle device related actions locally.
-	err = eventsProcess(event)
+	err = eventsProcess(r.Context(), event)
 	if err != nil {
 		logger.Error("Failed processing event", logger.Ctx{"err": err, "type": event.Type, "location": event.Location, "project": event.Project})
+
+		// Only report device addition failures, device removal is best-effort.
+		var deviceEvent struct {
+			Action agentAPI.DeviceEventAction `json:"action"`
+		}
+
+		_ = json.Unmarshal(event.Metadata, &deviceEvent)
+		if deviceEvent.Action == agentAPI.DeviceAdded {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, nil)
 }
 
-func eventsProcess(event api.Event) error {
+func eventsProcess(ctx context.Context, event api.Event) error {
 	// We currently only need to react to device events.
 	if event.Type != "device" {
 		return nil
@@ -190,7 +200,16 @@ func eventsProcess(event api.Event) error {
 
 		// Attempt to perform the mount.
 		for range 5 {
-			_, err = shared.RunCommand(context.Background(), "mount", args...)
+			_, err = shared.RunCommand(ctx, "mount", args...)
+			if ctx.Err() != nil {
+				// LXD has given up on the request and will revert the device, so undo any mount made.
+				if err == nil {
+					_ = unix.Unmount(targetPath, unix.MNT_DETACH)
+				}
+
+				return fmt.Errorf("Failed hotpluging device %q: %w", mntSource, ctx.Err())
+			}
+
 			if err == nil {
 				l.Info("Mounted hotplug")
 				return nil
