@@ -190,3 +190,27 @@ func TestLoopFileSizeResolve(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, size)
 }
+
+func TestRemoveEmptyDirectories(t *testing.T) {
+	poolPath := t.TempDir()
+	for _, dir := range []string{"containers/c1", "containers-snapshots", "custom", "images/abc", "virtual-machines"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(poolPath, dir), 0o711))
+	}
+
+	require.NoError(t, removeEmptyDirectories(poolPath))
+
+	entries, err := os.ReadDir(poolPath)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+
+	// Anything other than an empty directory is left untouched.
+	filePath := filepath.Join(poolPath, "containers", "c1", "file")
+	require.NoError(t, os.MkdirAll(filepath.Dir(filePath), 0o711))
+	require.NoError(t, os.WriteFile(filePath, []byte("data"), 0o600))
+
+	assert.Error(t, removeEmptyDirectories(poolPath))
+	assert.FileExists(t, filePath)
+
+	// A missing directory is not an error.
+	assert.NoError(t, removeEmptyDirectories(filepath.Join(poolPath, "missing")))
+}
