@@ -37,6 +37,13 @@ test_storage_driver_pure() {
     lxc init testimage c1pool1 -s "${poolName1}"
     lxc list -c b c1pool1 | grep "${poolName1}"
 
+    # The cached image volume is found by its UUID and reused rather than recreated.
+    fingerprint="$(lxc config get c1pool1 volatile.base_image)"
+    imgVolUUID="$(lxc storage volume get "${poolName1}" "image/${fingerprint}" volatile.uuid)"
+    lxc init testimage c6pool1 -s "${poolName1}"
+    [ "$(lxc storage volume get "${poolName1}" "image/${fingerprint}" volatile.uuid)" = "${imgVolUUID}" ]
+    lxc delete c6pool1
+
     lxc init testimage c2pool2 -s "${poolName2}"
     lxc list -c b c2pool2 | grep "${poolName2}"
 
