@@ -3904,3 +3904,8 @@ To test this extension please follow the instructions below:
    ```bash
    lxc launch ubuntu:26.04 m1 --microvm
    ```
+
+(extension-usb-ownership-inherit)=
+## `usb_ownership_inherit`
+
+Adds a new {config:option}`device-unix-usb-device-conf:ownership.inherit` configuration option for [`usb` devices](devices-usb). This option controls whether the device inherits ownership (GID and/or UID) from the host. When set to `true` and GID and/or UID are unset, host ownership is inherited. When set to `false`, host ownership is not inherited and ownership can be configured by setting {config:option}`device-unix-usb-device-conf:gid` and {config:option}`device-unix-usb-device-conf:uid`.
