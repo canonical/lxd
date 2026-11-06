@@ -84,11 +84,23 @@ func (d *usb) validateConfig(instConf instance.ConfigReader) error {
 		"gid":      unixValidUserID,
 		"mode":     unixValidOctalFileMode,
 		"required": validate.Optional(validate.IsBool),
+
+		// lxdmeta:generate(entities=device-unix-usb; group=device-conf; key=ownership.inherit)
+		//
+		// ---
+		// type: bool
+		// defaultdesc: `false`
+		// shortdesc: Whether this device inherits ownership (GID and/or UID) from the host
+		"ownership.inherit": validate.Optional(validate.IsBool),
 	}
 
 	err := d.config.Validate(rules)
 	if err != nil {
 		return err
+	}
+
+	if d.config["gid"] != "" && d.config["uid"] != "" && shared.IsTrue(d.config["ownership.inherit"]) {
+		return errors.New("USB device ownership cannot be inherited from host while GID and UID are set")
 	}
 
 	return nil
