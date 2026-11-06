@@ -1111,6 +1111,16 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 		}
 
 		if isSnapshot {
+			current, _, err := client.GetStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1])
+			if err != nil {
+				return err
+			}
+
+			err = checkReadOnlyYAMLFields(current, contents, getEditableYAMLFields(api.StorageVolumeSnapshotPut{}), snapshotEditableFieldsMsg(api.StorageVolumeSnapshotPut{}))
+			if err != nil {
+				return err
+			}
+
 			newdata := api.StorageVolumeSnapshotPut{}
 			err = yaml.Unmarshal(contents, &newdata)
 			if err != nil {
