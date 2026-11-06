@@ -207,21 +207,42 @@ LXD might also have restarted the instances that were running when the cluster b
 
 1. On the primary cluster, stop all instances in the project:
 
+   `````{tabs}
+   ````{group-tab} CLI
    ```bash
    lxc stop --all --force --project <project_name>
    ```
+   ````
+   ````{group-tab} UI
+   Select {guilabel}`Instances` in the navigation sidebar.
+
+   Click the checkbox in the header row to select all instances, then click {guilabel}`Stop` in the page header.
+   In the confirmation modal, check {guilabel}`Force stop` then click {guilabel}`Stop`.
+   ````
+   `````
 
 1. On the primary cluster, make sure that {config:option}`project-replica:replica.cluster` is set to the cluster link of the secondary cluster, and demote the project:
 
+   `````{tabs}
+   ````{group-tab} CLI
    ```bash
    lxc project set <project_name> replica.cluster=<secondary_cluster_link_name>
    lxc project demote-replica <project_name>
    ```
+   ````
+   ````{group-tab} UI
+   Select the project from the {guilabel}`Project` drop-down menu, then click {guilabel}`Configuration` in the navigation sidebar.
+
+   Select the {guilabel}`Replication` tab.
+   Under {guilabel}`Replica cluster`, select the cluster link to the secondary cluster.
+   Under {guilabel}`Replica mode`, click {guilabel}`Demote to standby`.
+   ````
+   `````
 
    This makes the project's volumes on the primary cluster read-only.
 
 1. Wait until Ceph reports that the volumes have diverged from the volumes on the secondary cluster.
-   To check, run the following command against the primary cluster's Ceph cluster:
+  To check, run the following command on a node of the Ceph cluster used by the primary LXD cluster (you must use Ceph's [`rbd` command-line tool](https://docs.ceph.com/en/latest/man/8/rbd/) for this step):
 
    ```bash
    rbd mirror pool status <osd_pool_name> --verbose
@@ -231,9 +252,18 @@ LXD might also have restarted the instances that were running when the cluster b
 
 1. On the primary cluster, demote the project again:
 
+   `````{tabs}
+   ````{group-tab} CLI
    ```bash
    lxc project demote-replica <project_name>
    ```
+   ````
+   ````{group-tab} UI
+   Select the project from the {guilabel}`Project` drop-down menu, then click {guilabel}`Configuration` in the navigation sidebar.
+
+   Select the {guilabel}`Replication` tab, then, under {guilabel}`Replica mode`, click {guilabel}`Demote to standby`.
+   ````
+   `````
 
    LXD discards every volume of the project that Ceph reports as `split-brain`, and Ceph copies it again in full from the secondary cluster.
    Changes that did not reach the secondary cluster before the failover are lost.
@@ -246,10 +276,28 @@ LXD might also have restarted the instances that were running when the cluster b
 
 1. On the secondary cluster, create a replicator that targets the primary cluster, and run it:
 
+   `````{tabs}
+   ````{group-tab} CLI
    ```bash
    lxc replicator create <replicator_name> cluster=<primary_cluster_link_name> --project <project_name>
    lxc replicator run <replicator_name> --project <project_name>
    ```
+   ````
+   ````{group-tab} UI
+   Click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Replicators` from the expanded drop-down list.
+
+   Click on the {guilabel}`+ Create replicator` button to open the side panel.
+
+   Select the cluster link established between the primary and secondary clusters.
+   Enter a name and optionally a description for the new replicator.
+   Select the project that you configured in the previous steps.
+   You can also enter a schedule.
+
+   Click {guilabel}`Create`.
+
+   Click on the run button {{run_button}} at the end of the replicator's row.
+   ````
+   `````
 
    The instances on the secondary cluster can keep running.
    If the run fails because Ceph has not finished copying the volumes, wait and run the replicator again.
@@ -268,9 +316,18 @@ To restore the original setup, in which the primary cluster replicates to the se
 
 If the project is mirrored with Ceph RBD, run the replicator on the secondary cluster one more time after you have stopped the instances, so that the final state reaches the primary cluster:
 
-```bash
-lxc replicator run <replicator_name> --project <project_name>
-```
+   `````{tabs}
+   ````{group-tab} CLI
+   ```bash
+   lxc replicator run <replicator_name> --project <project_name>
+   ```
+   ````
+   ````{group-tab} UI
+   Click {guilabel}`Clustering` in the navigation sidebar, then select {guilabel}`Replicators` from the expanded drop-down list.
+
+   Click on the run button {{run_button}} at the end of the replicator's row.
+   ````
+   `````
 
 The demotion of a mirrored project fails if any instance in the project is still running.
 
