@@ -251,6 +251,7 @@ readonly test_group_standalone_storage=(
     "backup_rename"
     "backup_volume_export"
     "backup_export_import_instance_only"
+    "backup_import_root_size_override"
     "backup_metadata"
     "backup_volume_rename_delete"
     "backup_instance_uuid"
