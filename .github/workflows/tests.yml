@@ -1167,7 +1167,7 @@ jobs:
           retention-days: 5
 
   documentation-linkcheck:
-    name: Documentation link check
+    name: Documentation link and redirect checks
     runs-on: ubuntu-26.04
     needs: documentation
     # Run link checker manually anywhere or on scheduled CI runs on the main repo.
@@ -1208,6 +1208,11 @@ jobs:
         run: |
           set -eux
           make doc-linkcheck
+
+      # Run even if the link check failed so the two results are reported separately.
+      - name: Run redirect checker
+        if: ${{ !cancelled() }}
+        run: make doc-redirectcheck
 
   snap:
     name: Trigger snap build

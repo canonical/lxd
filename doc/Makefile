@@ -49,7 +49,7 @@ help:
         vale pa11y run serve install pa11y-install   \
         vale-install pdf-prep pdf-prep-force clean clean-doc \
         lint-md lint pymarkdownlnt-install client objects html-rtd \
-        update-intersphinx-backups check-intersphinx-backups
+        update-intersphinx-backups check-intersphinx-backups redirectcheck
 
 full-help: $(VENVDIR)
 	@. $(VENV); $(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
@@ -193,6 +193,10 @@ pdf: pdf-prep
 	@echo
 	@echo "Output can be found in ./$(BUILDDIR)"
 	@echo
+
+# LXD custom targets
+redirectcheck:
+	bash $(SPHINXDIR)/tests/redirects.sh
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
