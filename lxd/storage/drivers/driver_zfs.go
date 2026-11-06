@@ -145,7 +145,7 @@ func (d *zfs) Info() Info {
 		OptimizedBackups:             true,
 		PreservesInodes:              true,
 		Remote:                       d.isRemote(),
-		VolumeTypes:                  []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		VolumeTypes:                  withMicroVMVolumeType([]VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM}),
 		BlockBacking:                 shared.IsTrue(d.config["volume.zfs.block_mode"]),
 		RunningCopyFreeze:            false,
 		DirectIO:                     zfsDirectIO,
@@ -184,7 +184,7 @@ func (d zfs) ensureInitialDatasets(warnOnExistingPolicyApplyError bool) error {
 
 	for _, dataset := range d.initialDatasets() {
 		properties := []string{"mountpoint=legacy"}
-		if slices.Contains([]string{"virtual-machines", "deleted/virtual-machines"}, dataset) {
+		if slices.Contains([]string{"virtual-machines", "deleted/virtual-machines", "microvms", "deleted/microvms"}, dataset) {
 			properties = append(properties, "volmode=none")
 		}
 
