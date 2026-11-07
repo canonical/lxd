@@ -116,6 +116,7 @@ readonly test_group_instance=(
     "microvm_lifecycle"
     "microvm_missing_kernel"
     "microvm_negative"
+    "microvm_snapshots"
     "microvm_unexpected_exit"
     "vm_empty"
     "vm_pcie_bus"
