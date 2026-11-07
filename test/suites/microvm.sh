@@ -266,7 +266,7 @@ test_microvm_negative() {
   sub_test "Unsupported operations return errors on running instance"
   [[ "$(! "${_LXC}" pause m-neg 2>&1 1>/dev/null)" == *"Not supported"* ]]
   [ "$(lxc list -f csv -c s m-neg)" = "RUNNING" ]
-  [[ "$(! "${_LXC}" snapshot m-neg snap0 2>&1 1>/dev/null)" == *"Not supported"* ]]
+  [[ "$(! "${_LXC}" snapshot --stateful m-neg snap0 2>&1 1>/dev/null)" == *"Stateful snapshots are not supported for MicroVMs"* ]]
   [[ "$(! "${_LXC}" stop --stateful m-neg 2>&1 1>/dev/null)" == *"Stateful stop is not supported for MicroVM instances"* ]]
   [ "$(lxc list -f csv -c s m-neg)" = "RUNNING" ]
   [[ "$(! "${_LXC}" file pull m-neg/etc/hostname - 2>&1 1>/dev/null)" == *"Not supported"* ]]
@@ -274,8 +274,6 @@ test_microvm_negative() {
   lxc stop -f m-neg
 
   sub_test "Unsupported operations return errors on stopped instance"
-  [[ "$(! "${_LXC}" snapshot m-neg snap0 2>&1 1>/dev/null)" == *"Not supported"* ]]
-  lxc query /1.0/instances/m-neg/snapshots | jq --exit-status 'length == 0'
   [[ "$(! "${_LXC}" rebuild testimage m-neg 2>&1 1>/dev/null)" == *"Not supported"* ]]
   [[ "$(! "${_LXC}" export m-neg "${TEST_DIR}/m-neg.tar.gz" 2>&1 1>/dev/null)" == *"Create backup"* ]]
   lxc query /1.0/instances/m-neg/backups | jq --exit-status 'length == 0'
@@ -472,3 +470,71 @@ test_microvm_daemon_restart() {
 
   lxc delete m-old1 m-old2 m-new
 }
+
+test_microvm_snapshots() {
+  if ! _microvm_check_prerequisites; then
+    return 0
+  fi
+
+  ensure_import_testimage
+
+  lxc init testimage m-snap --microvm -c limits.memory=256MiB -d "${SMALL_ROOT_DISK}"
+
+  sub_test "Snapshot of stopped MicroVM and invalid snapshot names"
+  lxc snapshot m-snap
+  [ -d "${LXD_DIR}/microvms-snapshots/m-snap" ]
+  ! lxc snapshot m-snap ".." || false
+  ! lxc snapshot m-snap "\\\\" || false
+  ! lxc snapshot m-snap "/" || false
+  [ "$(lxc list -f csv -c S m-snap)" = "1" ]
+
+  sub_test "Rename and restore a stopped MicroVM snapshot"
+  lxc move m-snap/snap0 m-snap/s0
+  [[ "$(! "${_LXC}" restore --stateful m-snap s0 2>&1 1>/dev/null)" == *"Stateful restore is not supported for MicroVMs"* ]]
+  lxc config set m-snap limits.cpu=2
+  lxc restore m-snap s0
+  [ "$(lxc list -f csv -c s m-snap)" = "STOPPED" ]
+  [ -z "$(lxc config get m-snap limits.cpu || echo fail)" ]
+
+  sub_test "Snapshot while running and disk rollback on restore"
+  lxc start m-snap
+  [ "$(lxc list -f csv -c s m-snap)" = "RUNNING" ]
+  microvm_console_socket_run m-snap "echo snap1-data > /root/marker && sync && echo marker-saved" "marker-saved"
+
+  local backend
+  backend="$(storage_backend "${LXD_DIR}")"
+  if [ "${backend}" = "dir" ]; then
+    [[ "$(! "${_LXC}" snapshot m-snap snap1 2>&1 1>/dev/null)" == *'Cannot snapshot a running MicroVM on "dir" storage driver as freezing is not supported'* ]]
+    lxc stop -f m-snap
+    lxc snapshot m-snap snap1
+    lxc start m-snap
+  else
+    lxc snapshot m-snap snap1
+  fi
+
+  [ "$(lxc list -f csv -c S m-snap)" = "2" ]
+
+  # Modify disk and config after snap1, then restore while running.
+  microvm_console_socket_run m-snap "echo after-snap1 > /root/marker && touch /root/extra && sync && echo modified" "modified"
+  lxc config set m-snap user.after=true
+  lxc restore m-snap snap1
+  [ "$(lxc list -f csv -c s m-snap)" = "RUNNING" ]
+  [ -z "$(lxc config get m-snap user.after || echo fail)" ]
+  # shellcheck disable=SC2016 # The command substitution is expanded by the guest shell.
+  microvm_console_socket_run m-snap '[ "$(cat /root/marker)" = "snap1-data" ] && [ ! -e /root/extra ] && echo restored-ok' "restored-ok"
+
+  sub_test "Delete snapshots and check symlink cleanup"
+  lxc stop -f m-snap
+  lxc delete m-snap/s0 m-snap/snap1
+  [ "$(lxc list -f csv -c S m-snap)" = "0" ]
+  [ ! -e "${LXD_DIR}/microvms-snapshots/m-snap" ]
+
+  sub_test "Snapshot expiry and startup schedule"
+  lxc config set m-snap snapshots.expiry=1d snapshots.schedule='@startup'
+  lxc start m-snap
+  [ "$(lxc list -f csv -c S m-snap)" = "1" ]
+  [ "$(lxc config get --property m-snap/snap0 expires_at)" != "0001-01-01 00:00:00 +0000 UTC" ]
+
+  lxc delete -f m-snap
+}
+
