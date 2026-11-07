@@ -58,6 +58,17 @@ LXD uses the `radosgw-admin` command to manage buckets. So this command must be 
     :end-before: <!-- Include end Ceph driver control -->
 ```
 
+(storage-cephobject-connection)=
+### Connecting to the Ceph cluster
+
+% Include content from [storage_ceph.md](storage_ceph.md)
+```{include} storage_ceph.md
+    :start-after: <!-- Include start Ceph connection -->
+    :end-before: <!-- Include end Ceph connection -->
+```
+
+To specify the Ceph cluster name and user for a storage pool, set {config:option}`storage-cephobject-pool-conf:cephobject.cluster_name` and {config:option}`storage-cephobject-pool-conf:cephobject.user.name`.
+
 ## Configuration options
 
 The following configuration options are available for storage pools that use the `cephobject` driver and for storage buckets in these pools.
