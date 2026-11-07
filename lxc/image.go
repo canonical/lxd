@@ -335,7 +335,7 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 		aliases = append(aliases, imgInfo.Aliases...)
 	}
 
-	err = ensureImageAliases(destinationServer, aliases, fp)
+	err = ensureImageAliases(destinationServer, aliases, fp, imageType)
 	if err != nil {
 		return err
 	}
@@ -938,7 +938,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 			aliases[i].Name = entry
 		}
 
-		err = ensureImageAliases(d, aliases, fingerprint)
+		err = ensureImageAliases(d, aliases, fingerprint, imageType)
 		if err != nil {
 			return err
 		}

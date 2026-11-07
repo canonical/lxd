@@ -137,6 +137,35 @@ var updates = map[int]schema.Update{
 	90: updateFromV89,
 	91: updateFromV90,
 	92: updateFromV91,
+	93: updateFromV92,
+}
+
+// updateFromV92 lets one alias name point at both a container image and a virtual-machine image.
+func updateFromV92(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+CREATE TABLE images_aliases_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    image_id INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    project_id INTEGER NOT NULL,
+    image_type INTEGER NOT NULL,
+    UNIQUE (project_id, name, image_type),
+    FOREIGN KEY (image_id) REFERENCES "images" (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE
+);
+
+INSERT INTO images_aliases_new (id, name, image_id, description, project_id, image_type)
+SELECT images_aliases.id, images_aliases.name, images_aliases.image_id, images_aliases.description, images_aliases.project_id, images.type
+FROM images_aliases
+JOIN images ON images_aliases.image_id = images.id;
+
+DROP TABLE images_aliases;
+ALTER TABLE images_aliases_new RENAME TO images_aliases;
+CREATE INDEX images_aliases_project_id_idx ON images_aliases (project_id);
+`)
+
+	return err
 }
 
 func updateFromV91(ctx context.Context, tx *sql.Tx) error {

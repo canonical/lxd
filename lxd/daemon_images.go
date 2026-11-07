@@ -164,7 +164,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Check if the name matches an alias in the source project.
 			if args.SourceProjectName != "" {
-				_, entry, err := tx.GetImageAlias(ctx, args.SourceProjectName, fp, true)
+				_, entry, err := tx.GetImageAlias(ctx, args.SourceProjectName, fp, args.Type, true)
 				if err == nil {
 					fp = entry.Target
 					return nil
@@ -173,7 +173,7 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 
 			// Check if the name matches an alias in the target project (if different from source).
 			if args.ProjectName != "" && args.ProjectName != args.SourceProjectName {
-				_, entry, err := tx.GetImageAlias(ctx, args.ProjectName, fp, true)
+				_, entry, err := tx.GetImageAlias(ctx, args.ProjectName, fp, args.Type, true)
 				if err == nil {
 					fp = entry.Target
 					return nil

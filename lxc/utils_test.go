@@ -58,7 +58,7 @@ func (s *utilsTestSuite) TestGetExistingAliases() {
 		{Name: "baz"},
 	}
 
-	aliases := GetExistingAliases([]string{"bar", "foo", "other"}, images)
+	aliases := GetExistingAliases([]string{"bar", "foo", "other"}, "", images)
 	s.Exactly([]api.ImageAliasesEntry{images[0], images[1]}, aliases)
 }
 
@@ -69,8 +69,19 @@ func (s *utilsTestSuite) TestGetExistingAliasesEmpty() {
 		{Name: "baz"},
 	}
 
-	aliases := GetExistingAliases([]string{"other1", "other2"}, images)
+	aliases := GetExistingAliases([]string{"other1", "other2"}, "", images)
 	s.Exactly([]api.ImageAliasesEntry{}, aliases)
+}
+
+func (s *utilsTestSuite) TestGetExistingAliasesType() {
+	images := []api.ImageAliasesEntry{
+		{Name: "foo", Type: "container"},
+		{Name: "foo", Type: "virtual-machine"},
+		{Name: "bar", Type: "container"},
+	}
+
+	aliases := GetExistingAliases([]string{"bar", "foo"}, "container", images)
+	s.Exactly([]api.ImageAliasesEntry{images[0], images[2]}, aliases)
 }
 
 func (s *utilsTestSuite) TestStructHasFields() {
