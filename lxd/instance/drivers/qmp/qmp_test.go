@@ -297,6 +297,74 @@ func TestRunTimeout(t *testing.T) {
 	}
 }
 
+func TestRunExplicitTimeout(t *testing.T) {
+	eg := &errgroup.Group{}
+	m := &qemuMachineProtocol{}
+
+	commandTimeouts["test-timeout"] = 50 * time.Millisecond
+	t.Cleanup(func() { delete(commandTimeouts, "test-timeout") })
+
+	mockMonitorServer(t, eg, m, func(nc net.Conn) error {
+		enc := json.NewEncoder(nc)
+		dec := json.NewDecoder(nc)
+
+		// Keep the reply blocked for longer than the 50ms per-command timeout
+		// below, then release it before the explicitly requested one-minute
+		// timeout. This way, only the explicit timeout allows the call to pass.
+		var cmd qmpCommand
+		err := dec.Decode(&cmd)
+		if err != nil {
+			return err
+		}
+
+		time.Sleep(200 * time.Millisecond)
+
+		return enc.Encode(qmpResponse{ID: cmd.ID})
+	})
+
+	err := m.connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// An explicitly provided timeout takes precedence over the commandTimeouts override.
+	_, err = m.runWithFile([]byte(`{"execute":"test-timeout"}`), nil, 0, time.Minute)
+	if err != nil {
+		t.Fatalf("unexpected error:\n- want: <nil>\n-  got: %v", err)
+	}
+
+	err = m.disconnect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = eg.Wait()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDeviceAddTimeout(t *testing.T) {
+	tests := map[string]struct {
+		memoryLimitBytes int64
+		want             time.Duration
+	}{
+		"no memory limit set":       {0, heavyCommandTimeout},
+		"small memory limit":        {1 << 30, 2 * heavyCommandTimeout},
+		"scaled memory limit":       {4 << 30, 5 * heavyCommandTimeout},
+		"timeout capped at maximum": {244 << 30, deviceAddMaxTimeout},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := DeviceAddTimeout(test.memoryLimitBytes)
+			if got != test.want {
+				t.Fatalf("unexpected device add timeout:\n- want: %v\n-  got: %v", test.want, got)
+			}
+		})
+	}
+}
+
 func TestCommandName(t *testing.T) {
 	tests := map[string]string{
 		`{"execute":"query-status","id":1}`:        "query-status",
