@@ -57,12 +57,12 @@ LXD (|lxd-listen-anchor-open|\ ``[lɛks'di:]``\ |lxd-listen-anchor-close|) is a 
 
    .. domain::
 
-      .. slice:: Get started
+      .. slice:: Tutorial
 
-         :doc:`Tutorial <tutorial/first_steps>`
-         :doc:`Installation <installing>`
-         :doc:`Initialization <howto/initialize>`
-         :doc:`Preseed file fields for non-interactive configuration <reference/preseed_yaml_fields>`
+         :doc:`Overview <tutorial/first_steps>` slice
+         :doc:`Set up LXD <tutorial/setup>`
+         :doc:`Work with instances <tutorial/instances>`
+         :doc:`Manage instances with projects <tutorial/instances>`
 
    System containers and virtual machines
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -225,6 +225,12 @@ LXD (|lxd-listen-anchor-open|\ ``[lɛks'di:]``\ |lxd-listen-anchor-close|) is a 
    These guides cover lifecycle and ongoing administration concerns.
 
    .. domain::
+
+      .. slice:: Setup
+
+         :doc:`Installation <installing>`
+         :doc:`Initialization <howto/initialize>`
+         :doc:`Preseed file fields for non-interactive configuration <reference/preseed_yaml_fields>`
 
       .. slice:: Update and upgrade
 
