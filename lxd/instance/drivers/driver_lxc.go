@@ -6264,15 +6264,24 @@ func (d *lxc) Exec(ctx context.Context, req api.InstanceExecPost, stdin *os.File
 		return nil, err
 	}
 
-	cmd.ExtraFiles = []*os.File{stdin, stdout, stderr, wStatus}
+	rAck, wAck, err := os.Pipe()
+	if err != nil {
+		_ = wStatus.Close()
+		return nil, err
+	}
+
+	cmd.ExtraFiles = []*os.File{stdin, stdout, stderr, wStatus, rAck}
 	err = cmd.Start()
 	_ = wStatus.Close()
+	_ = rAck.Close()
 	if err != nil {
+		_ = wAck.Close()
 		return nil, err
 	}
 
 	attachedPid := linux.ReadPid(rStatus)
 	if attachedPid <= 0 {
+		_ = wAck.Close()
 		_ = cmd.Wait()
 		d.logger.Error("Failed retrieving PID of executing child process")
 		return nil, errors.New("Failed retrieving PID of executing child process")
@@ -6280,11 +6289,19 @@ func (d *lxc) Exec(ctx context.Context, req api.InstanceExecPost, stdin *os.File
 
 	d.logger.Debug("Retrieved PID of executing child process", logger.Ctx{"attachedPid": attachedPid})
 
+	// The handle is bound to this process, so signaling it can never hit a recycled PID.
+	attachedProc, _ := os.FindProcess(int(attachedPid)) // Never fails on Unix.
+
+	// Unblocks forkexec, which keeps the child unreaped until now.
+	_, _ = wAck.Write([]byte{0})
+	_ = wAck.Close()
+
 	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceExec.Event(ctx, d, logger.Ctx{"command": req.Command}))
 
 	instCmd := &lxcCmd{
-		cmd:              &cmd,
-		attachedChildPid: int(attachedPid),
+		cmd:               &cmd,
+		attachedChildProc: attachedProc,
+		attachedChildPid:  int(attachedPid),
 	}
 
 	return instCmd, nil
