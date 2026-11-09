@@ -28,7 +28,7 @@ sphinx-sitemap==2.9.0
 sphinx-llm==1.1.0
 
 ## Vale dependencies 
-vale==3.25.1.0
+vale==3.26.0.1
 
 # LXD custom dependencies
 gitpython==3.2.1
