@@ -14,7 +14,7 @@ require (
 	github.com/fvbommel/sortorder v1.2.1
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/go-chi/chi/v5 v5.5.0
-	github.com/go-jose/go-jose/v4 v4.1.6
+	github.com/go-jose/go-jose/v4 v4.1.7
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
@@ -30,24 +30,24 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.52
 	github.com/mdlayher/ndp v1.1.0
 	github.com/mdlayher/netx v0.0.0-20230430222610-7e21880baee8
-	github.com/mdlayher/vsock v1.3.0
+	github.com/mdlayher/vsock v1.4.0
 	github.com/miekg/dns v1.1.73
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/moby/sys/capability v0.4.0
+	github.com/moby/sys/capability v0.5.0
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openfga/api/proto v0.0.0-20260928071936-c0650ce2169b
 	github.com/openfga/language/pkg/go v0.3.2
-	github.com/openfga/openfga v1.22.0
-	github.com/osrg/gobgp/v4 v4.10.0
-	github.com/pkg/sftp v1.13.11
+	github.com/openfga/openfga v1.22.1
+	github.com/osrg/gobgp/v4 v4.11.0
+	github.com/pkg/sftp v1.13.12
 	github.com/pkg/xattr v0.4.12
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/vishvananda/netlink v1.3.1
-	github.com/zitadel/oidc/v3 v3.51.16
+	github.com/zitadel/oidc/v3 v3.51.17
 	go.uber.org/zap v1.28.0
 	go.yaml.in/yaml/v2 v2.4.4
 	golang.org/x/crypto v0.58.0
@@ -70,7 +70,7 @@ require (
 	github.com/Yiling-J/theine-go v0.6.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bmatcuk/doublestar/v4 v4.10.3 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.10.4 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
@@ -97,7 +97,7 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mattn/go-runewidth v0.0.31 // indirect
-	github.com/mdlayher/socket v0.7.0 // indirect
+	github.com/mdlayher/socket v0.8.0 // indirect
 	github.com/moby/sys/devices v0.1.0 // indirect
 	github.com/muhlemmer/gu v0.3.1 // indirect
 	github.com/muhlemmer/httpforwarded v0.1.0 // indirect
