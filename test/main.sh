@@ -603,6 +603,7 @@ if [ "${1:-"all"}" != "snap" ] && [ "${1:-"all"}" != "cluster" ]; then
     run_test test_config_edit_container_snapshot_pool_config "container and snapshot volume configuration edit"
     run_test test_container_metadata "manage container metadata and templates"
     run_test test_container_snapshot_config "container snapshot configuration"
+    run_test test_container_sysctl "container sysctl configuration"
     run_test test_server_config "server configuration"
     run_test test_filemanip "file manipulations"
     run_test test_filemanip_concurrent_copy "concurrent file manipulations after instance copy"
