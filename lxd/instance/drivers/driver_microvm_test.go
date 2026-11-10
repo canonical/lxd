@@ -63,8 +63,8 @@ func TestMicroVMUnsupportedOperations(t *testing.T) {
 	ctx := context.Background()
 
 	assert.Equal(t, storageDrivers.ErrNotSupported, d.Migrate(nil))
-	assert.Equal(t, storageDrivers.ErrNotSupported, d.MigrateSend(ctx, instance.MigrateSendArgs{}, nil))
-	assert.Equal(t, storageDrivers.ErrNotSupported, d.MigrateReceive(ctx, instance.MigrateReceiveArgs{}, nil))
+	assert.EqualError(t, d.MigrateSend(ctx, instance.MigrateSendArgs{Live: true}, nil), "Live migration is not supported for MicroVMs")
+	assert.EqualError(t, d.MigrateReceive(ctx, instance.MigrateReceiveArgs{Live: true}, nil), "Live migration is not supported for MicroVMs")
 	assert.EqualError(t, d.Snapshot(ctx, "snap0", nil, true, "", false, nil), "Stateful snapshots are not supported for MicroVMs")
 	assert.EqualError(t, d.Snapshot(ctx, "snap0", nil, false, "", true, nil), "Dirty bitmaps are not supported for MicroVMs")
 	assert.Equal(t, storageDrivers.ErrNotSupported, d.Freeze(ctx))
@@ -89,7 +89,7 @@ func TestMicroVMUnsupportedOperations(t *testing.T) {
 	assert.Equal(t, storageDrivers.ErrNotSupported, err)
 
 	canMigrate, live := d.CanMigrate()
-	assert.False(t, canMigrate)
+	assert.True(t, canMigrate)
 	assert.False(t, live)
 	assert.False(t, d.IsPrivileged())
 	assert.Empty(t, d.FirmwarePath())
