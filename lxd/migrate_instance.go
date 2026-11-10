@@ -42,6 +42,10 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 			return nil, api.StatusErrorf(http.StatusBadRequest, "Live migration is not supported for containers")
 		}
 
+		if inst.Type() == instancetype.MicroVM {
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Live migration is not supported for MicroVMs")
+		}
+
 		ret.live = true
 		secretNames = append(secretNames, api.SecretNameState)
 	}
@@ -171,6 +175,10 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	if sink.live {
 		if sink.instance.Type() == instancetype.Container {
 			return nil, api.StatusErrorf(http.StatusBadRequest, "Live migration is not supported for containers")
+		}
+
+		if sink.instance.Type() == instancetype.MicroVM {
+			return nil, api.StatusErrorf(http.StatusBadRequest, "Live migration is not supported for MicroVMs")
 		}
 
 		secretNames = append(secretNames, api.SecretNameState)
