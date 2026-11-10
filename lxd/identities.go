@@ -866,7 +866,7 @@ func createIdentityTLSTrusted(ctx context.Context, s *state.State, peerCertifica
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
-func createCertificateAddToken(s *state.State, clientName string, identityType string) (*api.CertificateAddToken, error) {
+func createCertificateAddToken(ctx context.Context, s *state.State, clientName string, identityType string) (*api.CertificateAddToken, error) {
 	var addresses []string
 	var err error
 	if identityType == api.IdentityTypeCertificateClusterLink {
@@ -890,7 +890,7 @@ func createCertificateAddToken(s *state.State, clientName string, identityType s
 	// Generate join secret for new client. This will be stored inside the join token operation and will be
 	// supplied by the joining client (encoded inside the join token) which will allow us to lookup the correct
 	// operation in order to validate the requested joining client name is correct and authorised.
-	joinSecret, err := shared.RandomCryptoString()
+	joinSecret, err := encryption.NewEphemeralSecret(ctx, s.CoreAuthSecrets)
 	if err != nil {
 		return nil, err
 	}
@@ -929,7 +929,7 @@ func createCertificateAddToken(s *state.State, clientName string, identityType s
 
 func createIdentityTLSPending(ctx context.Context, s *state.State, req api.IdentitiesTLSPost, notify identityNotificationFunc) response.Response {
 	// Create CertificateAddToken token.
-	token, err := createCertificateAddToken(s, req.Name, api.IdentityTypeCertificateClient)
+	token, err := createCertificateAddToken(ctx, s, req.Name, api.IdentityTypeCertificateClient)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating certificate add token: %w", err))
 	}

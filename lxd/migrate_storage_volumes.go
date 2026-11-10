@@ -10,18 +10,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
-	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
 
-func newStorageMigrationSource(volumeOnly bool, pushTarget *api.StorageVolumePostTarget) (*migrationSourceWs, error) {
+func newStorageMigrationSource(ctx context.Context, volumeOnly bool, pushTarget *api.StorageVolumePostTarget, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error)) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{
 		migrationFields: migrationFields{},
 	}
@@ -55,7 +55,7 @@ func newStorageMigrationSource(volumeOnly bool, pushTarget *api.StorageVolumePos
 
 			ret.conns[connName] = newMigrationConn(ret.pushSecrets[connName], dialer, u, bulk)
 		} else {
-			secret, err := shared.RandomCryptoString()
+			secret, err := encryption.NewEphemeralSecret(ctx, secretsFunc)
 			if err != nil {
 				return nil, fmt.Errorf("Failed creating migration source secret for %q connection: %w", connName, err)
 			}
@@ -211,7 +211,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	return nil
 }
 
-func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
+func newStorageMigrationSink(args *migrationSinkArgs, ctx context.Context, secretsFunc func(ctx context.Context) (cluster.AuthSecrets, error)) (*migrationSink, error) {
 	sink := migrationSink{
 		volumeOnly: args.volumeOnly,
 		url:        args.url,
@@ -235,7 +235,7 @@ func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 
 			sink.conns[connName] = newMigrationConn(args.secrets[connName], args.dialer, u, bulk)
 		} else {
-			secret, err := shared.RandomCryptoString()
+			secret, err := encryption.NewEphemeralSecret(ctx, secretsFunc)
 			if err != nil {
 				return nil, fmt.Errorf("Failed creating migration sink secret for %q connection: %w", connName, err)
 			}

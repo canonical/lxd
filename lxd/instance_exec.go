@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/websocket"
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/instance"
@@ -674,7 +675,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		ws.waitControlConnected = cancel.New()
 
 		for i := range ws.conns {
-			ws.fds[i], err = shared.RandomCryptoString()
+			ws.fds[i], err = encryption.NewEphemeralSecret(r.Context(), s.CoreAuthSecrets)
 			if err != nil {
 				return response.InternalError(err)
 			}

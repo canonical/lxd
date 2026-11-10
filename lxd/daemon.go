@@ -34,6 +34,7 @@ import (
 	"github.com/canonical/lxd/lxd/auth"
 	"github.com/canonical/lxd/lxd/auth/bearer"
 	authDrivers "github.com/canonical/lxd/lxd/auth/drivers"
+	"github.com/canonical/lxd/lxd/auth/encryption"
 	"github.com/canonical/lxd/lxd/auth/oidc"
 	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/cluster"
@@ -449,6 +450,15 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 // event because they may originate from a server-side fault (e.g. an
 // unreachable IdP).
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, oidcVerifier *oidc.Verifier, allowUntrusted bool) (*request.RequestorArgs, error) {
+	// Regardless of who sends a request, check the "secret" query parameter. It must always be valid.
+	secret := r.URL.Query().Get("secret")
+	if secret != "" {
+		err := encryption.VerifyEphemeralSecret(r.Context(), d.getCoreAuthSecrets, secret)
+		if err != nil {
+			return nil, api.StatusErrorf(http.StatusForbidden, "Invalid secret: %w", err)
+		}
+	}
+
 	if r.TLS == nil {
 		// For a socket, the server is listening on a file, but the client does not have an address.
 		// Since there is no address, the kernel uses an unnamed unix socket address.
