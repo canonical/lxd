@@ -19,16 +19,18 @@ import (
 )
 
 var networkZoneRecordsCmd = APIEndpoint{
-	Path:        "network-zones/{zone}/records",
-	MetricsType: entity.TypeNetwork,
+	Path:            "network-zones/{zone}/records",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Get:  APIEndpointAction{Handler: networkZoneRecordsGet, AccessHandler: networkZoneAccessHandler(auth.EntitlementCanView)},
 	Post: APIEndpointAction{Handler: networkZoneRecordsPost, AccessHandler: networkZoneAccessHandler(auth.EntitlementCanEdit)},
 }
 
 var networkZoneRecordCmd = APIEndpoint{
-	Path:        "network-zones/{zone}/records/{name}",
-	MetricsType: entity.TypeNetwork,
+	Path:            "network-zones/{zone}/records/{name}",
+	MetricsType:     entity.TypeNetwork,
+	ProjectSpecific: true,
 
 	Delete: APIEndpointAction{Handler: networkZoneRecordDelete, AccessHandler: networkZoneAccessHandler(auth.EntitlementCanEdit)},
 	Get:    APIEndpointAction{Handler: networkZoneRecordGet, AccessHandler: networkZoneAccessHandler(auth.EntitlementCanView)},
