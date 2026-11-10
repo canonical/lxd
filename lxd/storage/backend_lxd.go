@@ -1401,6 +1401,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(ctx context.Context, inst instance.I
 
 	// Some driver backing stores require that running instances be frozen during copy.
 	if !src.IsSnapshot() && srcPoolBackend.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() && !allowInconsistent {
+		if src.Type() == instancetype.MicroVM {
+			return api.StatusErrorf(http.StatusBadRequest, "Cannot copy a running MicroVM on %q storage driver as freezing is not supported", srcPoolBackend.driver.Info().Name)
+		}
+
 		b.logger.Info("Freezing instance for consistent copy")
 		err = src.Freeze(ctx)
 		if err != nil {
@@ -1495,8 +1499,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(ctx context.Context, inst instance.I
 
 		var srcVolumeSize int64
 
-		// For VMs, get source volume size so that target can create the volume the same size.
-		if src.Type() == instancetype.VM {
+		// For VMs and MicroVMs, get source volume size so that target can create the volume the same size.
+		if src.Type() == instancetype.VM || src.Type() == instancetype.MicroVM {
 			srcVolumeSize, err = InstanceDiskBlockSize(srcPool, src, progressReporter)
 			if err != nil {
 				return fmt.Errorf("Failed getting source disk size: %w", err)
@@ -1996,6 +2000,10 @@ func (b *lxdBackend) RefreshInstance(ctx context.Context, inst instance.Instance
 
 	// Some driver backing stores require that running instances be frozen during copy.
 	if !src.IsSnapshot() && srcPoolBackend.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() && !allowInconsistent {
+		if src.Type() == instancetype.MicroVM {
+			return api.StatusErrorf(http.StatusBadRequest, "Cannot refresh from a running MicroVM on %q storage driver as freezing is not supported", srcPoolBackend.driver.Info().Name)
+		}
+
 		b.logger.Info("Freezing instance for consistent refresh")
 		err = src.Freeze(ctx)
 		if err != nil {
@@ -3615,6 +3623,10 @@ func (b *lxdBackend) MigrateInstance(ctx context.Context, inst instance.Instance
 	// Freeze the instance if not already frozen/stopped, allowInconsistent is not enabled and when its not
 	// possible to make a consistent copy with the instance running.
 	if !inst.IsSnapshot() && runningCopyFreeze && inst.IsRunning() && !inst.IsFrozen() && !args.AllowInconsistent {
+		if inst.Type() == instancetype.MicroVM {
+			return api.StatusErrorf(http.StatusBadRequest, "Cannot migrate a running MicroVM on %q storage driver as freezing is not supported", b.driver.Info().Name)
+		}
+
 		b.logger.Info("Freezing instance for consistent migration transfer")
 		err = inst.Freeze(ctx)
 		if err != nil {
@@ -7583,8 +7595,8 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 	contentType := InstanceContentType(inst)
 	vol := b.GetVolume(volType, contentType, volStorageName, rootVol.Config)
 
-	// Only need to activate and mount the VM's config volume.
-	if inst.Type() == instancetype.VM {
+	// Only need to activate and mount the VM's or MicroVM's config volume.
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		vol = vol.NewVMBlockFilesystemVolume()
 	}
 
