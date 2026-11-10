@@ -28,6 +28,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/mdlayher/vsock"
 	"github.com/pkg/sftp"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 
 	"github.com/canonical/lxd/client"
@@ -39,6 +40,7 @@ import (
 	dbCluster "github.com/canonical/lxd/lxd/db/cluster"
 	"github.com/canonical/lxd/lxd/device"
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
+	"github.com/canonical/lxd/lxd/device/filters"
 	"github.com/canonical/lxd/lxd/device/nictype"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/drivers/libkrun"
@@ -47,6 +49,7 @@ import (
 	"github.com/canonical/lxd/lxd/lifecycle"
 	"github.com/canonical/lxd/lxd/linux"
 	"github.com/canonical/lxd/lxd/metrics"
+	"github.com/canonical/lxd/lxd/migration"
 	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/operations"
 	"github.com/canonical/lxd/lxd/project"
@@ -1620,14 +1623,725 @@ func (d *microvm) Migrate(args *instance.CriuMigrationArgs) error {
 	return storageDrivers.ErrNotSupported
 }
 
-// MigrateSend is not supported for MicroVM instances.
+// MigrateSend controls the sending side of a migration.
 func (d *microvm) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, progressReporter ioprogress.ProgressReporter) error {
-	return storageDrivers.ErrNotSupported
+	d.logger.Info("Migration send starting")
+	defer d.logger.Info("Migration send stopped")
+
+	if args.Live {
+		return api.StatusErrorf(http.StatusBadRequest, "Live migration is not supported for MicroVMs")
+	}
+
+	// Setup a new operation.
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionMigrate, nil, false, true)
+	if err != nil {
+		return err
+	}
+
+	// Wait for essential migration connections before negotiation.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	pool, err := storagePools.LoadByInstance(d.state, d)
+	if err != nil {
+		err := fmt.Errorf("Failed loading storage pool: %w", err)
+		op.Done(err)
+		return err
+	}
+
+	// The refresh argument passed to MigrationTypes() is always set
+	// to false here. The migration source/sender doesn't need to care whether
+	// or not it's doing a refresh as the migration sink/receiver will know
+	// this, and adjust the migration types accordingly.
+	poolMigrationTypes := pool.MigrationTypes(storagePools.InstanceContentType(d), false, args.Snapshots)
+	if len(poolMigrationTypes) == 0 {
+		err := errors.New("No source migration types available")
+		op.Done(err)
+		return err
+	}
+
+	// Convert the pool's migration type options to an offer header to target.
+	// Populate the Fs, ZfsFeatures and RsyncFeatures fields.
+	offerHeader := migration.TypesToHeader(poolMigrationTypes...)
+
+	// Offer to send index header.
+	indexHeaderVersion := migration.IndexHeaderVersion
+	offerHeader.IndexHeaderVersion = &indexHeaderVersion
+
+	// For MicroVMs, send block device size hint in offer header so that target can create the volume the same size.
+	blockSize, err := storagePools.InstanceDiskBlockSize(pool, d, progressReporter)
+	if err != nil {
+		err := fmt.Errorf("Failed getting source disk size: %w", err)
+		op.Done(err)
+		return err
+	}
+
+	d.logger.Debug("Set migration offer volume size", logger.Ctx{"blockSize": blockSize})
+	offerHeader.VolumeSize = &blockSize
+
+	// The index frame lists the custom volumes that will follow the root volume, so the target can check the
+	// devices it deferred before any data moves. In root mode the list is empty and the frame is unchanged.
+	volsConfig, err := d.migrationCustomVolumes(d, pool, args.DiskVolumesMode, args.Snapshots, progressReporter)
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, volsConfig, progressReporter)
+	if err != nil {
+		err := fmt.Errorf("Failed generating instance migration config: %w", err)
+		op.Done(err)
+		return err
+	}
+
+	// If we are copying snapshots, retrieve a list of snapshots from source volume.
+	if args.Snapshots {
+		offerHeader.SnapshotNames = make([]string, 0, len(srcConfig.Snapshots))
+		offerHeader.Snapshots = make([]*migration.Snapshot, 0, len(srcConfig.Snapshots))
+
+		for i := range srcConfig.Snapshots {
+			if srcConfig.Snapshots[i] == nil {
+				err := fmt.Errorf("Invalid snapshot information for snapshot index %d", i)
+				op.Done(err)
+				return err
+			}
+
+			offerHeader.SnapshotNames = append(offerHeader.SnapshotNames, srcConfig.Snapshots[i].Name)
+			offerHeader.Snapshots = append(offerHeader.Snapshots, instance.SnapshotToProtobuf(srcConfig.Snapshots[i]))
+		}
+	}
+
+	// Send offer to target.
+	d.logger.Debug("Sending migration offer to target")
+	err = args.ControlSend(offerHeader)
+	if err != nil {
+		err := fmt.Errorf("Failed sending migration offer header: %w", err)
+		op.Done(err)
+		return err
+	}
+
+	// Receive response from target.
+	d.logger.Debug("Waiting for migration offer response from target")
+	respHeader := &migration.MigrationHeader{}
+	err = args.ControlReceive(respHeader)
+	if err != nil {
+		err := fmt.Errorf("Failed receiving migration offer response: %w", err)
+		op.Done(err)
+		return err
+	}
+
+	d.logger.Debug("Got migration offer response from target")
+
+	// Negotiated migration types.
+	migrationTypes, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
+	if err != nil {
+		err := fmt.Errorf("Failed negotiating migration type: %w", err)
+		op.Done(err)
+		return err
+	}
+
+	// A metadata-only response means the target expects the data to be mirrored already. Refuse if
+	// this pool does not mirror the project, because then the data was never transferred.
+	if respHeader.GetMetadataOnly() && !pool.Driver().ReplicatesProject(d.Project().Name) {
+		err := fmt.Errorf("The target holds a mirror of instance %q but storage pool %q does not carry %s", d.Name(), pool.Name(), storageDrivers.CephReplicatorPoolKey(d.Project().Name))
+		op.Done(err)
+		return err
+	}
+
+	volSourceArgs := &migration.VolumeSourceArgs{
+		IndexHeaderVersion: respHeader.GetIndexHeaderVersion(), // Enable index header frame if supported.
+		Name:               d.Name(),
+		MigrationType:      migrationTypes[0],
+		Snapshots:          offerHeader.SnapshotNames,
+		TrackProgress:      true,
+		Refresh:            respHeader.GetRefresh(),
+		AllowInconsistent:  args.AllowInconsistent,
+		VolumeOnly:         !args.Snapshots,
+		Info:               &migration.Info{Config: srcConfig},
+		ClusterMove:        args.ClusterMoveSourceName != "",
+		MetadataOnly:       respHeader.GetMetadataOnly(),
+	}
+
+	// Only send the snapshots that the target requests when refreshing.
+	if respHeader.GetRefresh() {
+		rootVol, err := volSourceArgs.Info.Config.RootVolume()
+		if err != nil {
+			err := fmt.Errorf("Failed getting the root volume: %w", err)
+			op.Done(err)
+			return err
+		}
+
+		volSourceArgs.Snapshots = respHeader.GetSnapshotNames()
+		allSnapshots := rootVol.Snapshots
+
+		// Ensure that only the requested snapshots are included in the migration index header.
+		rootVol.Snapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
+		for i := range allSnapshots {
+			if slices.Contains(volSourceArgs.Snapshots, allSnapshots[i].Name) {
+				rootVol.Snapshots = append(rootVol.Snapshots, allSnapshots[i])
+			}
+		}
+	}
+
+	g, ctx := errgroup.WithContext(ctx)
+
+	// Start control connection monitor.
+	g.Go(func() error {
+		d.logger.Debug("Migrate send control monitor started")
+		defer d.logger.Debug("Migrate send control monitor finished")
+
+		controlResult := make(chan error, 1) // Buffered to allow go routine to end if no readers.
+
+		// This will read the result message from the target side and detect disconnections.
+		go func() {
+			resp := migration.MigrationControl{}
+			err := args.ControlReceive(&resp)
+			if err != nil {
+				err = fmt.Errorf("Error reading migration control target: %w", err)
+			} else if !resp.GetSuccess() {
+				err = fmt.Errorf("Error from migration control target: %s", resp.GetMessage())
+			}
+
+			controlResult <- err
+		}()
+
+		// End as soon as we get control message/disconnection from the target side or a local error.
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		case err = <-controlResult:
+		}
+
+		return err
+	})
+
+	// Start error monitoring routine, this will detect when an error is returned from the other routines,
+	// and if that happens it will disconnect the migration connections which will trigger the other routines
+	// to finish.
+	go func() {
+		<-ctx.Done()
+		args.Disconnect()
+	}()
+
+	g.Go(func() error {
+		d.logger.Debug("Migrate send transfer started")
+		defer d.logger.Debug("Migrate send transfer finished")
+
+		err := pool.MigrateInstance(ctx, d, filesystemConn, volSourceArgs, progressReporter)
+		if err != nil {
+			return err
+		}
+
+		if respHeader.GetIndexHeaderVersion() >= migration.IndexHeaderVersionCustomVolumes && args.ClusterMoveSourceName == "" {
+			// The same list the index frame announced, so the target receives exactly what it was told to expect.
+			err := d.migrateSendCustomVolumes(filesystemConn, respHeader.GetIndexHeaderVersion(), args.Snapshots, volsConfig, progressReporter)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	// Wait for routines to finish and collect first error.
+	{
+		err := g.Wait()
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+
+		err = d.postMigrateSendCommon(d, args.ClusterMoveSourceName)
+		if err != nil {
+			d.logger.Error("Post-migration steps failed on source", logger.Ctx{"err": err})
+		}
+
+		op.Done(nil)
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceMigrated.Event(ctx, d, nil))
+		return nil
+	}
 }
 
-// MigrateReceive is not supported for MicroVM instances.
+// MigrateReceive receives the migration offer from the source and negotiates the migration options.
+// It establishes the necessary connections and transfers the filesystem and snapshots if required.
 func (d *microvm) MigrateReceive(ctx context.Context, args instance.MigrateReceiveArgs, progressReporter ioprogress.ProgressReporter) error {
-	return storageDrivers.ErrNotSupported
+	if args.Live {
+		return api.StatusErrorf(http.StatusBadRequest, "Live migration is not supported for MicroVMs")
+	}
+
+	d.logger.Info("Migration receive starting")
+	defer d.logger.Info("Migration receive stopped")
+
+	// Wait for essential migration connections before negotiation.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		return err
+	}
+
+	// Receive offer from source.
+	d.logger.Debug("Waiting for migration offer from source")
+	offerHeader := &migration.MigrationHeader{}
+	err = args.ControlReceive(offerHeader)
+	if err != nil {
+		return fmt.Errorf("Failed receiving migration offer from source: %w", err)
+	}
+
+	// Reject live migration attempts.
+	if offerHeader.Criu != nil && *offerHeader.Criu != migration.CRIUType_NONE {
+		return api.StatusErrorf(http.StatusBadRequest, "Live migration is not supported for MicroVMs")
+	}
+
+	if offerHeader.GetPredump() {
+		return api.StatusErrorf(http.StatusBadRequest, "Pre-dump is not supported for MicroVMs")
+	}
+
+	// When doing a cluster same-name move we cannot load the storage pool using the instance's volume DB
+	// record because it may be associated to the wrong cluster member. Instead we ascertain the pool to load
+	// using the instance's root disk device.
+	if args.ClusterMoveSourceName == d.name {
+		_, rootDiskDevice, err := d.getRootDiskDevice()
+		if err != nil {
+			return fmt.Errorf("Failed getting root disk: %w", err)
+		}
+
+		if rootDiskDevice["pool"] == "" {
+			return errors.New("The instance's root device is missing the pool property")
+		}
+
+		// Initialize the storage pool cache.
+		d.storagePool, err = storagePools.LoadByName(d.state, rootDiskDevice["pool"])
+		if err != nil {
+			return fmt.Errorf("Failed loading storage pool: %w", err)
+		}
+	}
+
+	pool, err := storagePools.LoadByInstance(d.state, d)
+	if err != nil {
+		return err
+	}
+
+	// The source will never set Refresh in the offer header.
+	// However, to determine the correct migration type Refresh needs to be set.
+	offerHeader.Refresh = &args.Refresh
+
+	// Extract the source's migration type and then match it against our pool's supported types and features.
+	// If a match is found the combined features list will be sent back to requester.
+	contentType := storagePools.InstanceContentType(d)
+	respTypes, err := migration.MatchTypes(offerHeader, storagePools.FallbackMigrationType(contentType), pool.MigrationTypes(contentType, args.Refresh, args.Snapshots))
+	if err != nil {
+		return err
+	}
+
+	// The migration header to be sent back to source with our target options.
+	// Convert response type to response header and copy snapshot info into it.
+	respHeader := migration.TypesToHeader(respTypes...)
+
+	// Respond with our maximum supported header version if the requested version is higher than ours.
+	// Otherwise just return the requested header version to the source.
+	indexHeaderVersion := min(offerHeader.GetIndexHeaderVersion(), migration.IndexHeaderVersion)
+
+	respHeader.IndexHeaderVersion = &indexHeaderVersion
+	respHeader.SnapshotNames = offerHeader.SnapshotNames
+	respHeader.Snapshots = offerHeader.Snapshots
+	respHeader.Refresh = &args.Refresh
+
+	// A standby project on a mirrored pool already holds the data, so only the records are
+	// transferred. The target decides because only it knows it is such a standby.
+	metadataOnly := pool.ProjectVolumesAreReadonly(d.Project())
+	respHeader.MetadataOnly = &metadataOnly
+
+	if args.Refresh {
+		// Get the remote snapshots on the source.
+		sourceSnapshots := offerHeader.GetSnapshots()
+		sourceSnapshotComparable := make([]storagePools.ComparableSnapshot, 0, len(sourceSnapshots))
+		for _, sourceSnap := range sourceSnapshots {
+			sourceSnapshotComparable = append(sourceSnapshotComparable, storagePools.ComparableSnapshot{
+				Name:         sourceSnap.GetName(),
+				CreationDate: time.Unix(sourceSnap.GetCreationDate(), 0),
+			})
+		}
+
+		// Get existing snapshots on the local target.
+		targetSnapshots, err := d.Snapshots()
+		if err != nil {
+			return err
+		}
+
+		targetSnapshotsComparable := make([]storagePools.ComparableSnapshot, 0, len(targetSnapshots))
+		for _, targetSnap := range targetSnapshots {
+			_, targetSnapName, _ := api.GetParentAndSnapshotName(targetSnap.Name())
+
+			targetSnapshotsComparable = append(targetSnapshotsComparable, storagePools.ComparableSnapshot{
+				Name:         targetSnapName,
+				CreationDate: targetSnap.CreationDate(),
+			})
+		}
+
+		// Compare the two sets.
+		syncSourceSnapshotIndexes, deleteTargetSnapshotIndexes := storagePools.CompareSnapshots(sourceSnapshotComparable, targetSnapshotsComparable)
+
+		// Delete the extra local snapshots first.
+		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
+			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(ctx, true, "", progressReporter)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Only request to send the snapshots that need updating.
+		syncSnapshotNames := make([]string, 0, len(syncSourceSnapshotIndexes))
+		syncSnapshots := make([]*migration.Snapshot, 0, len(syncSourceSnapshotIndexes))
+		for _, syncSourceSnapshotIndex := range syncSourceSnapshotIndexes {
+			syncSnapshotNames = append(syncSnapshotNames, sourceSnapshots[syncSourceSnapshotIndex].GetName())
+			syncSnapshots = append(syncSnapshots, sourceSnapshots[syncSourceSnapshotIndex])
+		}
+
+		respHeader.Snapshots = syncSnapshots
+		respHeader.SnapshotNames = syncSnapshotNames
+		offerHeader.Snapshots = syncSnapshots
+		offerHeader.SnapshotNames = syncSnapshotNames
+	}
+
+	poolInfo := pool.Driver().Info()
+
+	// Send response to source.
+	d.logger.Debug("Sending migration response to source")
+	err = args.ControlSend(respHeader)
+	if err != nil {
+		return fmt.Errorf("Failed sending migration response to source: %w", err)
+	}
+
+	d.logger.Debug("Sent migration response to source")
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Track whether the data transfer has started, because a failure after that point may leave the disks
+	// partly written. The caller's hook runs first, as it can still abort the receive.
+	transferStarted := false
+	beforeTransferStart := sync.OnceValue(func() error {
+		if args.BeforeTransferStart != nil {
+			err := args.BeforeTransferStart()
+			if err != nil {
+				return err
+			}
+		}
+
+		transferStarted = true
+
+		return nil
+	})
+
+	g, ctx := errgroup.WithContext(ctx)
+
+	// Start control connection monitor.
+	g.Go(func() error {
+		d.logger.Debug("Migrate receive control monitor started")
+		defer d.logger.Debug("Migrate receive control monitor finished")
+
+		controlResult := make(chan error, 1) // Buffered to allow go routine to end if no readers.
+
+		// This will read the result message from the source side and detect disconnections.
+		go func() {
+			resp := migration.MigrationControl{}
+			err := args.ControlReceive(&resp)
+			if err != nil {
+				err = fmt.Errorf("Error reading migration control source: %w", err)
+			} else if !resp.GetSuccess() {
+				err = fmt.Errorf("Error from migration control source: %s", resp.GetMessage())
+			}
+
+			controlResult <- err
+		}()
+
+		// End as soon as we get control message/disconnection from the source side or a local error.
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		case err = <-controlResult:
+		}
+
+		return err
+	})
+
+	// Start error monitoring routine, this will detect when an error is returned from the other routines,
+	// and if that happens it will disconnect the migration connections which will trigger the other routines
+	// to finish.
+	go func() {
+		<-ctx.Done()
+		args.Disconnect()
+	}()
+
+	// Start filesystem transfer routine and initialize a channel that carries its result. The routine's
+	// error reaches the error group only after the routine has returned, so a waiter woken by the routine
+	// finishing can still see an uncanceled context and mistake a failed transfer for a completed one.
+	fsTransferDone := make(chan error, 1)
+	g.Go(func() (err error) {
+		defer func() { fsTransferDone <- err }()
+
+		d.logger.Debug("Migrate receive transfer started")
+		defer d.logger.Debug("Migrate receive transfer finished")
+
+		snapshots := make([]*migration.Snapshot, 0)
+
+		// Legacy: we only sent the snapshot names, so we just copy the instance's config over,
+		// same as we used to do.
+		if len(offerHeader.SnapshotNames) != len(offerHeader.Snapshots) {
+			// Convert the instance to an api.InstanceSnapshot.
+			profileNames := make([]string, 0, len(d.Profiles()))
+			for _, p := range d.Profiles() {
+				profileNames = append(profileNames, p.Name)
+			}
+
+			architectureName, _ := osarch.ArchitectureName(d.Architecture())
+			apiInstSnap := &api.InstanceSnapshot{
+				Architecture: architectureName,
+				CreatedAt:    d.CreationDate(),
+				ExpiresAt:    time.Time{},
+				LastUsedAt:   d.LastUsedDate(),
+				Config:       d.LocalConfig(),
+				Devices:      d.LocalDevices().CloneNative(),
+				Ephemeral:    d.IsEphemeral(),
+				Stateful:     d.IsStateful(),
+				Profiles:     profileNames,
+			}
+
+			for _, name := range offerHeader.SnapshotNames {
+				base := instance.SnapshotToProtobuf(apiInstSnap)
+				baseName := name
+				base.Name = &baseName
+				snapshots = append(snapshots, base)
+			}
+		} else {
+			snapshots = offerHeader.Snapshots
+		}
+
+		volTargetArgs := migration.VolumeTargetArgs{
+			IndexHeaderVersion:    respHeader.GetIndexHeaderVersion(),
+			Name:                  d.Name(),
+			MigrationType:         respTypes[0],
+			Refresh:               args.Refresh,                // Indicate to receiver volume should exist.
+			TrackProgress:         true,                        // Use a progress tracker on receiver to get in-cluster progress information.
+			Live:                  false,                       // Indicates we will not get a final rootfs sync.
+			VolumeSize:            offerHeader.GetVolumeSize(), // Block size setting override.
+			VolumeOnly:            !args.Snapshots,
+			ClusterMoveSourceName: args.ClusterMoveSourceName,
+			MetadataOnly:          metadataOnly,
+			DeferredCustomVolumes: args.DeferredVolumes,
+			AttachedCustomVolumes: args.AttachedVolumes,
+			BeforeTransferStart:   beforeTransferStart,
+		}
+
+		// At this point we have already figured out the parent instance's root
+		// disk device so we can simply retrieve it from the expanded devices.
+		parentStoragePool, err := d.getParentStoragePool()
+		if err != nil {
+			return err
+		}
+
+		// A zero length Snapshots slice indicates volume only migration in
+		// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
+		snapOps := []*operationlock.InstanceOperation{}
+		if args.Snapshots {
+			volTargetArgs.Snapshots = make([]string, 0, len(snapshots))
+			for _, snap := range snapshots {
+				volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
+
+				// Only create snapshot instance DB records if not doing a cluster same-name move.
+				// As otherwise the DB records will already exist.
+				if args.ClusterMoveSourceName != d.name {
+					snapArgs, err := instance.SnapshotProtobufToInstanceArgs(d.state, d, snap)
+					if err != nil {
+						return err
+					}
+
+					// Ensure that snapshot and parent instance have the same storage pool in
+					// their local root disk device. If the root disk device for the snapshot
+					// comes from a profile on the new instance as well we don't need to do
+					// anything.
+					if snapArgs.Devices != nil {
+						snapLocalRootDiskDeviceKey, _, _ := api.GetRootDiskDevice(snapArgs.Devices.CloneNative())
+						if snapLocalRootDiskDeviceKey != "" {
+							snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+						}
+					}
+
+					// Create the snapshot instance.
+					_, snapInstOp, cleanup, err := instance.CreateInternal(ctx, d.state, *snapArgs, true)
+					if err != nil {
+						return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
+					}
+
+					revert.Add(cleanup)
+					revert.Add(func() {
+						snapInstOp.Done(err)
+					})
+
+					snapOps = append(snapOps, snapInstOp)
+				}
+			}
+		}
+
+		err = pool.CreateInstanceFromMigration(ctx, d, filesystemConn, volTargetArgs, progressReporter)
+		if err != nil {
+			return fmt.Errorf("Failed creating instance on target: %w", err)
+		}
+
+		// Derive the effective storage project name from the instance config's project.
+		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.project.Name, dbCluster.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		// Notify the shared disks that they're going to be accessed from another system.
+		diskPools := make(map[string]storagePools.Pool, len(d.expandedDevices))
+		for _, dev := range d.expandedDevices.Filter(filters.IsCustomVolumeDisk).Sorted() {
+			poolName := dev.Config["pool"]
+			diskPool, ok := diskPools[poolName]
+			if !ok {
+				// Load the pool for the disk.
+				diskPool, err = storagePools.LoadByName(d.state, poolName)
+				if err != nil {
+					return fmt.Errorf("Failed loading storage pool: %w", err)
+				}
+
+				// Save it to the pools map to avoid loading it from the DB multiple times.
+				diskPools[poolName] = diskPool
+			}
+
+			// Check that we're on shared storage and doing a cluster move.
+			isRemoteClusterMove := args.ClusterMoveSourceName != "" && diskPool.Driver().Info().Remote
+			if !isRemoteClusterMove {
+				continue
+			}
+
+			// Setup the volume entry.
+			extraTargetArgs := migration.VolumeTargetArgs{
+				ClusterMoveSourceName: args.ClusterMoveSourceName,
+			}
+
+			vol := diskPool.GetVolume(storageDrivers.VolumeTypeCustom, storageDrivers.ContentTypeBlock, project.StorageVolume(storageProjectName, dev.Config["source"]), nil)
+			volCopy := storageDrivers.NewVolumeCopy(vol)
+
+			// Notify shared storage driver to setup volume on cluster member.
+			// This is needed to ensure that mount path exists and the volume is mounted.
+			err = diskPool.Driver().CreateVolumeFromMigration(volCopy, nil, extraTargetArgs, nil, nil)
+			if err != nil {
+				return fmt.Errorf("Failed preparing device %q for migration: %w", dev.Name, err)
+			}
+		}
+
+		// Read-only volumes, such as the mirrors Ceph owns on a standby, are not LXD's to delete, so
+		// a receive that fails part way must leave them alone rather than delete the data it was
+		// describing.
+		volumesReadonly := pool.ProjectVolumesAreReadonly(d.Project())
+
+		// Only delete all instance volumes on error if the pool volume creation has succeeded to
+		// avoid deleting an existing conflicting volume.
+		isRemoteClusterMove := args.ClusterMoveSourceName != "" && poolInfo.Remote
+		if !volTargetArgs.Refresh && !isRemoteClusterMove && !volumesReadonly {
+			revert.Add(func() {
+				snapshots, _ := d.Snapshots()
+				snapshotCount := len(snapshots)
+				for k := range snapshots {
+					// Delete the snapshots in reverse order.
+					k = snapshotCount - 1 - k
+					_ = pool.DeleteInstanceSnapshot(snapshots[k], nil)
+				}
+
+				_ = pool.DeleteInstance(d, nil)
+			})
+		}
+
+		// Registered after the instance revert so the reverter removes the custom volumes first.
+		// The condition matches the source so both sides agree on whether the frames are coming.
+		if respHeader.GetIndexHeaderVersion() >= migration.IndexHeaderVersionCustomVolumes && args.ClusterMoveSourceName == "" {
+			err = d.migrateReceiveCustomVolumes(ctx, d, filesystemConn, respHeader.GetIndexHeaderVersion(), args.Snapshots, args.AttachedVolumes, revert, progressReporter)
+			if err != nil {
+				return err
+			}
+		}
+
+		if args.ClusterMoveSourceName != d.name {
+			err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
+			if err != nil {
+				return err
+			}
+		}
+
+		for _, op := range snapOps {
+			op.Done(nil)
+		}
+
+		// Update the backup file after all mutations have completed.
+		err = d.UpdateBackupFile()
+		if err != nil {
+			return fmt.Errorf("Failed writing backup file: %w", err)
+		}
+
+		return nil
+	})
+
+	{
+		// Wait until the filesystem transfer routine has finished.
+		fsTransferErr := <-fsTransferDone
+
+		// If the transfer failed or the context is canceled by this stage, then an error has occurred.
+		// Wait for all routines to finish and collect the first error that occurred.
+		if fsTransferErr != nil || ctx.Err() != nil {
+			err := g.Wait()
+
+			// Tell the source and the caller that the disks may be partly written.
+			if err != nil && transferStarted {
+				err = fmt.Errorf("%w: %w", instance.ErrMigrationTransferStarted, err)
+			}
+
+			// Send failure response to source.
+			msg := migration.MigrationControl{
+				Success: new(err == nil),
+			}
+
+			if err != nil {
+				msg.Message = new(err.Error())
+			}
+
+			d.logger.Debug("Sending migration failure response to source", logger.Ctx{"err": err})
+			sendErr := args.ControlSend(&msg)
+			if sendErr != nil {
+				d.logger.Warn("Failed sending migration failure to source", logger.Ctx{"err": sendErr})
+			}
+
+			return err
+		}
+
+		// Send success response to source to control as nothing has gone wrong so far.
+		msg := migration.MigrationControl{
+			Success: new(true),
+		}
+
+		d.logger.Debug("Sending migration success response to source", logger.Ctx{"success": msg.GetSuccess()})
+		err := args.ControlSend(&msg)
+		if err != nil {
+			d.logger.Warn("Failed sending migration success to source", logger.Ctx{"err": err})
+			return fmt.Errorf("Failed sending migration success to source: %w", err)
+		}
+
+		// Wait for all routines to finish (in this case it will be the control monitor) but do
+		// not collect the error, as it will just be a disconnect error from the source.
+		_ = g.Wait()
+
+		revert.Success()
+		return nil
+	}
 }
 
 // Snapshot takes a new snapshot.
@@ -3579,9 +4293,9 @@ func (d *microvm) IsPrivileged() bool {
 	return false
 }
 
-// CanMigrate returns whether the instance can be migrated (always false for MicroVMs).
+// CanMigrate returns whether the instance can be migrated.
 func (d *microvm) CanMigrate() (canMigrate bool, live bool) {
-	return false, false
+	return d.canMigrate(d)
 }
 
 // SetAffinity is not supported for MicroVM instances.
