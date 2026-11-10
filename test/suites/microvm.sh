@@ -538,3 +538,118 @@ test_microvm_snapshots() {
   lxc delete -f m-snap
 }
 
+test_microvm_migration() {
+  if ! _microvm_check_prerequisites; then
+    return 0
+  fi
+
+  ensure_import_testimage
+
+  local backend default_pool pool2
+  backend="$(storage_backend "${LXD_DIR}")"
+  default_pool="$(lxc profile device get default root pool)"
+  pool2="lxdtest-$(basename "${LXD_DIR}")-pool2"
+
+  lxc init testimage m-src --microvm -c limits.memory=256MiB -d "${SMALL_ROOT_DISK}"
+  lxc start m-src
+  [ "$(lxc list -f csv -c s m-src)" = "RUNNING" ]
+  # shellcheck disable=SC2016 # The arithmetic is expanded by the guest shell.
+  microvm_console_socket_run m-src 'echo orig-data > /root/marker && sync && echo saved-$((40+2))' "saved-42"
+
+  sub_test "Copy of running MicroVM and --allow-inconsistent"
+  case "${backend}" in
+    dir|lvm|ceph)
+      [[ "$(! "${_LXC}" copy m-src m-copy 2>&1 1>/dev/null)" == *"Cannot copy a running MicroVM on \"${backend}\" storage driver as freezing is not supported"* ]]
+      lxc copy m-src m-inconsistent --allow-inconsistent
+      [ "$(lxc list -f csv -c ts m-inconsistent)" = "MICROVM,STOPPED" ]
+      lxc delete m-inconsistent
+      ;;
+    btrfs|zfs)
+      lxc copy m-src m-running-copy
+      [ "$(lxc list -f csv -c ts m-running-copy)" = "MICROVM,STOPPED" ]
+      lxc delete m-running-copy
+      ;;
+    *)
+      echo "ERROR: unexpected storage backend ${backend}"
+      return 1
+      ;;
+  esac
+
+  lxc stop -f m-src
+  lxc snapshot m-src snap0
+
+  sub_test "Same-pool copy with snapshots, --instance-only and from snapshot"
+  lxc copy m-src m-copy
+  [ "$(lxc list -f csv -c S m-copy)" = "1" ]
+  lxc start m-copy
+  # shellcheck disable=SC2016 # The command substitution is expanded by the guest shell.
+  microvm_console_socket_run m-copy 'echo marker=$(cat /root/marker)' "marker=orig-data"
+  lxc stop -f m-copy
+
+  lxc copy m-src m-copy-nosnap --instance-only
+  [ "$(lxc list -f csv -c S m-copy-nosnap)" = "0" ]
+  lxc delete m-copy-nosnap
+
+  lxc copy m-src/snap0 m-from-snap
+  [ "$(lxc list -f csv -c S m-from-snap)" = "0" ]
+  lxc start m-from-snap
+  # shellcheck disable=SC2016 # The command substitution is expanded by the guest shell.
+  microvm_console_socket_run m-from-snap 'echo marker=$(cat /root/marker)' "marker=orig-data"
+  lxc delete -f m-from-snap
+
+  sub_test "Refresh an existing MicroVM copy"
+  lxc start m-src
+  # shellcheck disable=SC2016 # The arithmetic is expanded by the guest shell.
+  microvm_console_socket_run m-src 'echo local-refresh-data > /root/marker && sync && echo saved-$((40+2))' "saved-42"
+  lxc stop -f m-src
+  lxc snapshot m-src snap1
+  lxc copy --refresh m-src m-copy
+  [ "$(lxc list -f csv -c S m-copy)" = "2" ]
+  lxc start m-copy
+  # shellcheck disable=SC2016 # The command substitution is expanded by the guest shell.
+  microvm_console_socket_run m-copy 'echo marker=$(cat /root/marker)' "marker=local-refresh-data"
+  lxc delete -f m-copy
+
+  sub_test "Cross-pool copy and move"
+  lxc storage create "${pool2}" dir
+  lxc copy m-src m-pool2 -s "${pool2}"
+  [ "$(lxc list -f csv -c S m-pool2)" = "2" ]
+  lxc storage volume show "${pool2}" microvm/m-pool2 | grep -xF "type: microvm"
+
+  lxc move m-pool2 m-moved -s "${default_pool}"
+  ! lxc info m-pool2 || false
+  [ "$(lxc list -f csv -c S m-moved)" = "2" ]
+  lxc start m-moved
+  # shellcheck disable=SC2016 # The command substitution is expanded by the guest shell.
+  microvm_console_socket_run m-moved 'echo marker=$(cat /root/marker)' "marker=local-refresh-data"
+
+  sub_test "Migration protocol copy, refresh, move, and live migration rejection"
+  ensure_has_localhost_remote "${LXD_ADDR}"
+  [[ "$(! "${_LXC}" move m-moved localhost:m-live 2>&1 1>/dev/null)" == *"Live migration is not supported for MicroVMs"* ]]
+  lxc stop -f m-moved
+
+  # Combining the local unix socket remote with the HTTPS localhost remote forces MigrateSend and MigrateReceive.
+  lxc copy m-src localhost:m-ws --instance-only
+  [ "$(lxc list -f csv -c S m-ws)" = "0" ]
+  lxc start m-src
+  # shellcheck disable=SC2016 # The arithmetic is expanded by the guest shell.
+  microvm_console_socket_run m-src 'echo ws-refresh-data > /root/marker && sync && echo saved-$((40+2))' "saved-42"
+  lxc stop -f m-src
+  lxc snapshot m-src snap2
+  lxc copy --refresh m-src localhost:m-ws
+  [ "$(lxc list -f csv -c S m-ws)" = "3" ]
+  lxc start m-ws
+  # shellcheck disable=SC2016 # The command substitution is expanded by the guest shell.
+  microvm_console_socket_run m-ws 'echo marker=$(cat /root/marker)' "marker=ws-refresh-data"
+  lxc stop -f m-ws
+
+  lxc move localhost:m-ws m-ws-moved -s "${pool2}"
+  ! lxc info m-ws || false
+  [ "$(lxc list -f csv -c S m-ws-moved)" = "3" ]
+  lxc start m-ws-moved
+  # shellcheck disable=SC2016 # The command substitution is expanded by the guest shell.
+  microvm_console_socket_run m-ws-moved 'echo marker=$(cat /root/marker)' "marker=ws-refresh-data"
+
+  lxc delete -f m-src m-moved m-ws-moved
+  lxc storage delete "${pool2}"
+}

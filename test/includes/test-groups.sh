@@ -114,6 +114,7 @@ readonly test_group_instance=(
     "microvm_feature_preview"
     "microvm_guest_console"
     "microvm_lifecycle"
+    "microvm_migration"
     "microvm_missing_kernel"
     "microvm_negative"
     "microvm_snapshots"
