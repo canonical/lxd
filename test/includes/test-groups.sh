@@ -100,6 +100,7 @@ readonly test_group_instance=(
     "container_devices_unix"
     "container_metadata"
     "container_snapshot_config"
+    "container_sysctl"
     "container_syscall_interception"
     "devlxd"
     "devlxd_vm"
