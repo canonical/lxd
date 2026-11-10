@@ -21,6 +21,7 @@ LXD requires the Go version listed in `doc/requirements.md` or higher and is onl
 ## Repository layout
 
 ```
+.githooks/      Git hooks (enable: git config core.hooksPath .githooks)
 lxd/            Main daemon
 lxc/            Client CLI
 lxd-agent/      VM guest agent
@@ -81,11 +82,12 @@ never prompts or commits on its own (stdin is closed for the checks it runs), so
 to run from an agent session. If it reports drift, re-run `make update-api`,
 `make update-auth`, `make update-metadata`, or `make update-schema` (whichever produced the
 file in question) to regenerate it, then stop and leave the diff for a human to review and
-commit; these four targets never call git themselves. Do not run an individual `check-*`
-target (e.g. `make check-api`) or `scripts/check-and-commit.sh` directly, and do not run
-other `update-*` targets like `update-gomod`, `update-golangci`, or `update-godeps` as a
-substitute; unlike the four above, those call `check-and-commit.sh` directly and will
-prompt interactively to commit, which hangs an agent session with no one to answer.
+commit, unless it fixes an earlier commit (see Commit format); these four targets never
+call git themselves. Do not run an individual `check-*` target (e.g. `make check-api`) or
+`scripts/check-and-commit.sh` directly, and do not run other `update-*` targets like
+`update-gomod`, `update-golangci`, or `update-godeps` as a substitute; unlike the four
+above, those call `check-and-commit.sh` directly and will prompt interactively to commit,
+which hangs an agent session with no one to answer.
 
 `make static-analysis` requires network access (it installs/updates golangci-lint,
 errortype, zerolint, goimports, and go-swagger at versions pinned in `tools/go.mod`).
@@ -110,7 +112,17 @@ sudo -E ./test/snap/cgroup latest/edge
 
 ### Commit format
 
-See [`COMMITS.md`](COMMITS.md) for the full commit prefix table and signing requirements.
+See [`COMMITS.md`](COMMITS.md) for the full commit prefix table, message wrapping, and signing requirements.
+
+- Never add a `Signed-off-by` line or sign a commit.
+- At the start of a session, ask the user whether to commit changes as you go. Commit only if the user says yes. Otherwise leave changes uncommitted for a human to review.
+- When committing, make logical commits with meaningful messages that follow the prefix table and wrapping rules in `COMMITS.md`. Commit with `git commit --no-gpg-sign`.
+- While committing, when a later change completes or fixes an earlier commit, fold it in with `git commit --fixup=<sha>` followed by `GIT_SEQUENCE_EDITOR=true git rebase --no-gpg-sign -i --autosquash <base>`, where `<base>` is for example `upstream/main`. If the approach changed, reword the affected messages so they describe the final diff.
+- You may rewrite a commit a human has adopted, including one already on a pull request, but only if the rewrite drops its `gpgsig` and `Signed-off-by` lines. Every commit the rewrite recreates, including commits after the one you edited, must end up with neither header. A human then adopts and signs the rewritten commits and sends them with a forced push (`git push --force-with-lease`).
+- A forced push is the expected way to fix a commit already sent to a PR. Do not avoid a rewrite because the commit was pushed, and do not add a commit on top to correct it.
+- Generated-file drift from `make static-analysis` stays uncommitted for a human, as described under Validate before committing, unless it fixes an issue in an earlier commit. In that case, fold it into that commit with the fixup and autosquash steps above, even if the user did not say yes at session start.
+- Never run `git push`, pushing is reserved for a human, after review.
+- The `pre-push` hook (`.githooks/pre-push`, enabled with `git config core.hooksPath .githooks`) rejects pushes with unsigned commits or missing sign-offs. Do not work around it. Leave commits unsigned and without sign-off so a human can review, adopt, and sign them.
 
 ### Error messages
 
@@ -151,7 +163,7 @@ See [`COMMITS.md`](COMMITS.md) for the full commit prefix table and signing requ
 ## Code review
 
 Use these checks alongside `make static-analysis`, `make check-unit`, and
-`make`; `COMMITS.md` remains the source for commit prefixes and signing rules.
+`make`; `COMMITS.md` remains the source for commit prefixes, wrapping, and signing rules.
 Report only findings that require human action. Do not repeat issues already
 enforced by static analysis or lint checks; run the relevant check and report
 its output instead.
