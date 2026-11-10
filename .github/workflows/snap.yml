@@ -125,6 +125,7 @@ jobs:
           - network-ovn ovn:latest/edge
           - network-routed
           - qemu-external-vm
+          - replicator-ceph-mirror
           - snapd
           - storage-buckets
           - storage-disks-vm
@@ -175,6 +176,8 @@ jobs:
           - track: "4.0"
             test: qemu-external-vm
           - track: "4.0"
+            test: replicator-ceph-mirror
+          - track: "4.0"
             test: storage-buckets
           - track: "4.0"
             test: storage-disks-vm
@@ -214,12 +217,16 @@ jobs:
           - track: "5.0"
             test: qemu-external-vm
           - track: "5.0"
+            test: replicator-ceph-mirror
+          - track: "5.0"
             test: vm-migration
           # not compatible with 5.21/*
           - track: "5.21"
             test: lxd-installer
           - track: "5.21"
             test: qemu-external-vm
+          - track: "5.21"
+            test: replicator-ceph-mirror
           # some tests are not worth testing on specific OSes
           - os: 22.04
             test: bgp
