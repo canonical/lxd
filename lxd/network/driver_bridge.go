@@ -1577,7 +1577,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Flush all IPv4 addresses and routes.
 	addr := &ip.Addr{
 		DevName: n.name,
-		Scope:   "global",
+		Scope:   shared.IPScopeGlobal,
 		Family:  ip.FamilyV4,
 	}
 
@@ -1696,7 +1696,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Flush all IPv6 addresses and routes.
 	addr = &ip.Addr{
 		DevName: n.name,
-		Scope:   "global",
+		Scope:   shared.IPScopeGlobal,
 		Family:  ip.FamilyV6,
 	}
 
@@ -2486,7 +2486,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 
 		for _, addr := range state.Addresses {
 			// Only get IPv4 addresses of nodes on network.
-			if addr.Family != "inet" || addr.Scope != "global" {
+			if addr.Family != "inet" || addr.Scope != shared.IPScopeGlobal {
 				continue
 			}
 

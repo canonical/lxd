@@ -1221,7 +1221,7 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 					Family:  family,
 					Address: devIP.String(),
 					Netmask: netmask,
-					Scope:   "global",
+					Scope:   shared.IPScopeGlobal,
 				})
 			}
 		} else {
@@ -1234,7 +1234,7 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 				Family:  "inet",
 				Address: d.config["ipv4.address"],
 				Netmask: v4mask,
-				Scope:   "global",
+				Scope:   shared.IPScopeGlobal,
 			})
 		}
 
@@ -1244,7 +1244,7 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 				Family:  "inet6",
 				Address: d.config["ipv6.address"],
 				Netmask: v6mask,
-				Scope:   "global",
+				Scope:   shared.IPScopeGlobal,
 			})
 		} else if shared.IsFalseOrEmpty(netConfig["ipv6.dhcp.stateful"]) && d.config["hwaddr"] != "" && v6subnet != nil {
 			// If no static DHCPv6 allocation and stateful DHCPv6 is disabled, and IPv6 is enabled on
@@ -1257,7 +1257,7 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 						Family:  "inet6",
 						Address: ip.String(),
 						Netmask: v6mask,
-						Scope:   "global",
+						Scope:   shared.IPScopeGlobal,
 					})
 				}
 			}

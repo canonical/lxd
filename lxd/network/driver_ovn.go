@@ -145,7 +145,7 @@ func (n *ovn) State() (*api.NetworkState, error) {
 			Family:  "inet",
 			Address: IPv4Net.IP.String(),
 			Netmask: strconv.Itoa(ones),
-			Scope:   "link",
+			Scope:   shared.IPScopeLink,
 		})
 	}
 
@@ -156,7 +156,7 @@ func (n *ovn) State() (*api.NetworkState, error) {
 			Family:  "inet6",
 			Address: IPv6Net.IP.String(),
 			Netmask: strconv.Itoa(ones),
-			Scope:   "link",
+			Scope:   shared.IPScopeLink,
 		})
 	}
 

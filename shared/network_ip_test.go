@@ -147,47 +147,47 @@ func TestGetIPScope(t *testing.T) {
 	}{
 		{
 			ip:       "169.254.183.5",
-			expected: "link",
+			expected: IPScopeLink,
 		},
 		{
 			ip:       "fe80::1",
-			expected: "link",
+			expected: IPScopeLink,
 		},
 		{
 			ip:       "fe90::1",
-			expected: "link",
+			expected: IPScopeLink,
 		},
 		{
 			ip:       "febf::1",
-			expected: "link",
+			expected: IPScopeLink,
 		},
 		{
 			ip:       "fec0::1",
-			expected: "global",
+			expected: IPScopeGlobal,
 		},
 		{
 			ip:       "127.0.0.2",
-			expected: "local",
+			expected: IPScopeLocal,
 		},
 		{
 			ip:       "192.0.2.1",
-			expected: "global",
+			expected: IPScopeGlobal,
 		},
 		{
 			ip:       "::1",
-			expected: "local",
+			expected: IPScopeLocal,
 		},
 		{
 			ip:       "127.0.0.1",
-			expected: "local",
+			expected: IPScopeLocal,
 		},
 		{
 			ip:       "127::db8::1",
-			expected: "global",
+			expected: IPScopeGlobal,
 		},
 		{
 			ip:       "2001:db8::1",
-			expected: "global",
+			expected: IPScopeGlobal,
 		},
 	}
 

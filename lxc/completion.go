@@ -1201,7 +1201,7 @@ func (g *cmdGlobal) cmpNetworkForwardPortTargetAddresses(networkName string, lis
 
 				results = make([]string, 0, len(network.Addresses))
 				for _, address := range network.Addresses {
-					if slices.Contains([]string{"link", "local"}, address.Scope) {
+					if slices.Contains([]string{shared.IPScopeLink, shared.IPScopeLocal}, address.Scope) {
 						continue
 					}
 
