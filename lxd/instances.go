@@ -337,21 +337,19 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 	instancePaths := map[instancetype.Type]string{
 		instancetype.Container: shared.VarPath("containers"),
 		instancetype.VM:        shared.VarPath("virtual-machines"),
+		instancetype.MicroVM:   shared.VarPath("microvms"),
 	}
 
-	instanceTypeNames := make(map[instancetype.Type][]os.DirEntry, 2)
+	instanceTypeNames := make(map[instancetype.Type][]os.DirEntry, len(instancePaths))
 
-	instanceTypeNames[instancetype.Container], err = os.ReadDir(instancePaths[instancetype.Container])
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
+	for key, path := range instancePaths {
+		instanceTypeNames[key], err = os.ReadDir(path)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
 	}
 
-	instanceTypeNames[instancetype.VM], err = os.ReadDir(instancePaths[instancetype.VM])
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	instances := make([]instance.Instance, 0, len(instanceTypeNames[instancetype.Container])+len(instanceTypeNames[instancetype.VM]))
+	instances := make([]instance.Instance, 0, len(instanceTypeNames[instancetype.Container])+len(instanceTypeNames[instancetype.VM])+len(instanceTypeNames[instancetype.MicroVM]))
 	for instanceType, instanceNames := range instanceTypeNames {
 		for _, file := range instanceNames {
 			// Convert file name to project name and instance name.
