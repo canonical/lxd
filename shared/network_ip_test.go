@@ -154,6 +154,22 @@ func TestGetIPScope(t *testing.T) {
 			expected: "link",
 		},
 		{
+			ip:       "fe90::1",
+			expected: "link",
+		},
+		{
+			ip:       "febf::1",
+			expected: "link",
+		},
+		{
+			ip:       "fec0::1",
+			expected: "global",
+		},
+		{
+			ip:       "127.0.0.2",
+			expected: "local",
+		},
+		{
 			ip:       "192.0.2.1",
 			expected: "global",
 		},

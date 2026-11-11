@@ -17,11 +17,16 @@ type IPRange struct {
 
 // GetIPScope returns the scope of the IP: global, local or link.
 func GetIPScope(ip string) string {
-	if ip == "::1" || strings.HasPrefix(ip, "127.") {
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return "global"
+	}
+
+	if parsedIP.IsLoopback() {
 		return "local"
 	}
 
-	if strings.HasPrefix(ip, "fe80:") || strings.HasPrefix(ip, "169.254.") {
+	if parsedIP.IsLinkLocalUnicast() {
 		return "link"
 	}
 
