@@ -199,6 +199,35 @@ test_remote_admin() {
   echo y | lxc_remote remote add foo "${LXD_ADDR}"
   lxc_remote remote remove foo
 
+  sub_test "Verify --accept-certificate accepts a matching fingerprint"
+  fingerprint="$(lxc query /1.0 | jq --raw-output --exit-status '.environment.certificate_fingerprint')"
+  lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate="${fingerprint}"
+  lxc_remote remote list -f csv | grep '^foo,'
+  lxc_remote remote remove foo
+
+  sub_test "Verify --accept-certificate rejects a mismatched (partial) fingerprint"
+  if lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate="${fingerprint:0:16}"; then
+    echo "ERROR: Remote added with a mismatched (partial) fingerprint" >&2
+    exit 1
+  fi
+
+  [ "$(CLIENT_DEBUG="" SHELL_TRACING="" lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate="${fingerprint:0:16}" 2>&1)" = "Error: The provided fingerprint does not match the server certificate fingerprint" ]
+  if lxc_remote remote list -f csv | grep '^foo,'; then
+    echo "ERROR: Remote added with a mismatched (partial) fingerprint" >&2
+    exit 1
+  fi
+
+  sub_test "Verify --accept-certificate without a value still accepts any certificate"
+  lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate
+  lxc_remote remote list -f csv | grep '^foo,'
+  lxc_remote remote remove foo
+
+  sub_test "Verify --accept-certificate with a fingerprint cannot be used with a trust token"
+  if lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate="${fingerprint}" --token "${token}"; then
+    echo "ERROR: Remote added with both a fingerprint and a trust token" >&2
+    exit 1
+  fi
+
   # we just re-add our cert under a different name to test the cert
   # manipulation mechanism.
   gen_cert_and_key client2

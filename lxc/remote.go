@@ -75,7 +75,7 @@ type cmdRemoteAdd struct {
 	global *cmdGlobal
 	remote *cmdRemote
 
-	flagAcceptCert bool
+	flagAcceptCert string
 	flagPassword   string
 	flagToken      string
 	flagPublic     bool
@@ -98,7 +98,8 @@ Basic authentication can be used when combined with the "simplestreams" protocol
 `)
 
 	cmd.RunE = c.run
-	cmd.Flags().BoolVar(&c.flagAcceptCert, "accept-certificate", false, "Accept certificate")
+	cmd.Flags().StringVar(&c.flagAcceptCert, "accept-certificate", "", cli.FormatStringFlagLabel("Accept certificate, only if it matches the fingerprint when one is provided"))
+	cmd.Flags().Lookup("accept-certificate").NoOptDefVal = "true"
 	cmd.Flags().StringVar(&c.flagPassword, "password", "", cli.FormatStringFlagLabel("Remote admin password"))
 	cmd.Flags().StringVar(&c.flagToken, "token", "", cli.FormatStringFlagLabel("Remote trust token"))
 	cmd.Flags().StringVar(&c.flagProtocol, "protocol", "", cli.FormatStringFlagLabel("Server protocol (lxd or simplestreams"))
@@ -157,7 +158,7 @@ func (c *cmdRemoteAdd) runToken(addr string, server string, token string, rawTok
 	conf := c.global.conf
 
 	// Certificate cannot be blindly accepted when using a trust token.
-	if c.flagAcceptCert {
+	if c.flagAcceptCert != "" {
 		return errors.New("The --accept-certificate flag is not supported when adding a remote using a trust token")
 	}
 
@@ -341,7 +342,7 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Certificate cannot be blindly accepted when using a trust token.
-	if c.flagToken != "" && c.flagAcceptCert {
+	if c.flagToken != "" && c.flagAcceptCert != "" {
 		return errors.New("The --accept-certificate flag is not supported when adding a remote using a trust token")
 	}
 
@@ -509,11 +510,11 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 
 	// Handle certificate prompt
 	if certificate != nil {
-		// Prompt for certificate acceptance if user did not allow us to blindly
-		// accept the remote certificate.
-		if !c.flagAcceptCert {
-			digest := shared.CertFingerprint(certificate)
+		digest := shared.CertFingerprint(certificate)
 
+		// Prompt for certificate acceptance if user did not allow us to accept
+		// the remote certificate, either blindly or by providing its fingerprint.
+		if c.flagAcceptCert == "" {
 			fmt.Printf("Certificate fingerprint: %s\n", digest)
 			fmt.Print("ok (y/n/[fingerprint])? ")
 			for {
@@ -544,6 +545,8 @@ func (c *cmdRemoteAdd) run(cmd *cobra.Command, args []string) error {
 				// Ask again for any other invalid input.
 				fmt.Print("Please type 'y', 'n' or the fingerprint: ")
 			}
+		} else if c.flagAcceptCert != "true" && c.flagAcceptCert != digest {
+			return errors.New("The provided fingerprint does not match the server certificate fingerprint")
 		}
 
 		dnam := conf.ConfigPath("servercerts")
