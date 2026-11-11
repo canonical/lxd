@@ -118,7 +118,7 @@ rbd mirror pool info <osd_pool_name>
    ```
 
 ```{important}
-Set {config:option}`storage-ceph-pool-conf:ceph.rbd.clone_copy` to `false` before you create any container on the storage pool.
+Set {config:option}`storage-ceph-pool-conf:ceph.rbd.clone_copy` to `false` before you create any instance on the storage pool.
 Ceph cannot mirror a volume that is a clone of its image.
 This setting applies to all projects that use the storage pool.
 ```
