@@ -1401,6 +1401,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(ctx context.Context, inst instance.I
 
 	// Some driver backing stores require that running instances be frozen during copy.
 	if !src.IsSnapshot() && srcPoolBackend.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() && !allowInconsistent {
+		if src.Type() == instancetype.MicroVM {
+			return api.StatusErrorf(http.StatusBadRequest, "Cannot copy a running MicroVM on %q storage driver as freezing is not supported", srcPoolBackend.driver.Info().Name)
+		}
+
 		b.logger.Info("Freezing instance for consistent copy")
 		err = src.Freeze(ctx)
 		if err != nil {
@@ -1495,8 +1499,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(ctx context.Context, inst instance.I
 
 		var srcVolumeSize int64
 
-		// For VMs, get source volume size so that target can create the volume the same size.
-		if src.Type() == instancetype.VM {
+		// For VMs and MicroVMs, get source volume size so that target can create the volume the same size.
+		if src.Type() == instancetype.VM || src.Type() == instancetype.MicroVM {
 			srcVolumeSize, err = InstanceDiskBlockSize(srcPool, src, progressReporter)
 			if err != nil {
 				return fmt.Errorf("Failed getting source disk size: %w", err)
@@ -1996,6 +2000,10 @@ func (b *lxdBackend) RefreshInstance(ctx context.Context, inst instance.Instance
 
 	// Some driver backing stores require that running instances be frozen during copy.
 	if !src.IsSnapshot() && srcPoolBackend.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() && !allowInconsistent {
+		if src.Type() == instancetype.MicroVM {
+			return api.StatusErrorf(http.StatusBadRequest, "Cannot refresh from a running MicroVM on %q storage driver as freezing is not supported", srcPoolBackend.driver.Info().Name)
+		}
+
 		b.logger.Info("Freezing instance for consistent refresh")
 		err = src.Freeze(ctx)
 		if err != nil {
@@ -2390,9 +2398,14 @@ func (b *lxdBackend) CreateInstanceFromImage(ctx context.Context, inst instance.
 	}
 
 	// Ensure the required image variant exists; nil means fall back to slow-unpack.
-	imgVol, err := b.EnsureImage(ctx, fingerprint, inst.Project().Name, inst, progressReporter)
-	if err != nil {
-		return err
+	// A MicroVM is always unpacked: its root disk is an ext4 filesystem made from a container image,
+	// which a cached image volume (a plain file tree) cannot be copied into.
+	var imgVol *drivers.Volume
+	if inst.Type() != instancetype.MicroVM {
+		imgVol, err = b.EnsureImage(ctx, fingerprint, inst.Project().Name, inst, progressReporter)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Clone from the cached image volume when one was prepared; otherwise
@@ -3610,6 +3623,10 @@ func (b *lxdBackend) MigrateInstance(ctx context.Context, inst instance.Instance
 	// Freeze the instance if not already frozen/stopped, allowInconsistent is not enabled and when its not
 	// possible to make a consistent copy with the instance running.
 	if !inst.IsSnapshot() && runningCopyFreeze && inst.IsRunning() && !inst.IsFrozen() && !args.AllowInconsistent {
+		if inst.Type() == instancetype.MicroVM {
+			return api.StatusErrorf(http.StatusBadRequest, "Cannot migrate a running MicroVM on %q storage driver as freezing is not supported", b.driver.Info().Name)
+		}
+
 		b.logger.Info("Freezing instance for consistent migration transfer")
 		err = inst.Freeze(ctx)
 		if err != nil {
@@ -3949,7 +3966,7 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, progressReporter iopr
 
 	var mountInfo MountInfo
 
-	if inst.Type() == instancetype.VM {
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		diskPath, err := b.driver.GetVolumeDiskPath(vol)
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting disk path: %w", err)
@@ -4477,7 +4494,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, progressRepor
 
 	var mountInfo MountInfo
 
-	if inst.Type() == instancetype.VM {
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		diskPath, err := b.driver.GetVolumeDiskPath(vol)
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting disk path: %w", err)
@@ -7578,8 +7595,8 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, snapshots 
 	contentType := InstanceContentType(inst)
 	vol := b.GetVolume(volType, contentType, volStorageName, rootVol.Config)
 
-	// Only need to activate and mount the VM's config volume.
-	if inst.Type() == instancetype.VM {
+	// Only need to activate and mount the VM's or MicroVM's config volume.
+	if inst.Type() == instancetype.VM || inst.Type() == instancetype.MicroVM {
 		vol = vol.NewVMBlockFilesystemVolume()
 	}
 
@@ -7799,12 +7816,12 @@ func (b *lxdBackend) ListUnknownVolumes(progressReporter ioprogress.ProgressRepo
 		volType := poolVol.Type()
 
 		// If the storage driver has returned a filesystem volume for a VM, this is a break of protocol.
-		if volType == drivers.VolumeTypeVM && poolVol.ContentType() == drivers.ContentTypeFS {
+		if (volType == drivers.VolumeTypeVM || volType == drivers.VolumeTypeMicroVM) && poolVol.ContentType() == drivers.ContentTypeFS {
 			return nil, fmt.Errorf("Storage driver returned unexpected VM volume with filesystem content type (%q)", poolVol.Name())
 		}
 
 		switch volType {
-		case drivers.VolumeTypeVM, drivers.VolumeTypeContainer:
+		case drivers.VolumeTypeVM, drivers.VolumeTypeContainer, drivers.VolumeTypeMicroVM:
 			err = b.detectUnknownInstanceAndCustomVolumes(&poolVol, projectVols, progressReporter)
 			if err != nil {
 				return nil, fmt.Errorf("Failed detecting unknown instances: %w", err)

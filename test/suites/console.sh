@@ -36,6 +36,10 @@ EOF
   fi
   rm "${console_output_file}"
 
+  # The shared console helper works for containers too.
+  # shellcheck disable=SC2016 # The arithmetic is expanded by the container shell.
+  instance_console_run cons1 'echo cons-$((40+2))' "cons-42"
+
   # Make sure there's something in the console ringbuffer.
   echo 'some content' | lxc exec cons1 -- tee /dev/console
   echo 'some more content' | lxc exec cons1 -- tee /dev/console
@@ -84,4 +88,44 @@ test_console_vm() {
   # Cleanup
   lxc delete --force v1
   rm "${OUTPUT}"
+}
+
+test_console_vm_login() {
+  ensure_import_ubuntu_vm_image
+
+  lxc launch ubuntu-vm v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  waitInstanceReady v1
+
+  # Set the password that instance_console_run logs in with. root exists from the start, unlike the
+  # default user that cloud-init creates later in the boot.
+  echo "root:lxdtest" | lxc exec v1 -- chpasswd
+
+  # The getty on the serial console only starts late in the boot, once the network wait is over.
+  # shellcheck disable=SC2016 # The arithmetic is expanded by the guest shell.
+  instance_console_run v1 'echo vm-$((40+2))' "vm-42" 300 true
+
+  # Cleanup
+  lxc delete --force v1
+}
+
+test_console_microvm() {
+  if ! _microvm_check_prerequisites; then
+    return 0
+  fi
+
+  ensure_import_testimage
+
+  lxc launch testimage m1 --microvm -c limits.memory=256MiB
+
+  # The VGA console is only available for VMs
+  ! lxc console --type vga m1 || false
+
+  # 'lxc console --show-log' is only available for containers
+  ! lxc console m1 --show-log || false
+
+  # shellcheck disable=SC2016 # The arithmetic is expanded by the guest shell.
+  instance_console_run m1 'echo booted-$((40+2))' "booted-42"
+
+  # Cleanup
+  lxc delete --force m1
 }

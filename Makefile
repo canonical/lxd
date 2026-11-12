@@ -24,6 +24,10 @@ ARCH ?= $(shell uname -m)
 ARCH := $(ARCH)
 DQLITE_BRANCH=v1.18.x
 LIBLXC_BRANCH=main
+# libkrun is pinned to the last revision that provides the C API used by LXD
+# (krun_create_ctx and friends). Later revisions removed it in favor of a new API.
+LIBKRUN_REVISION=6254f5e22b8782a4dffe530ff44f1bbe623332e0
+LIBKRUNFW_BRANCH=main
 
 ifneq "$(wildcard vendor)" ""
 	DEPS_PATH=$(CURDIR)/vendor
@@ -33,6 +37,9 @@ endif
 DQLITE_PATH=$(DEPS_PATH)/dqlite
 LIBLXC_PATH=$(DEPS_PATH)/liblxc
 LIBLXC_ROOTFS_MOUNT_PATH=$(LIBLXC_PATH)/rootfs
+MICROVM_DEP_PATH=$(DEPS_PATH)/microvm
+LIBKRUN_SRC_PATH=$(DEPS_PATH)/libkrun
+LIBKRUNFW_SRC_PATH=$(DEPS_PATH)/libkrunfw
 
 export CGO_CFLAGS ?= -I$(DQLITE_PATH)/include/ -I$(LIBLXC_PATH)/include/
 export CGO_LDFLAGS ?= -L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/
@@ -206,12 +213,73 @@ env:
 	 echo "export CGO_LDFLAGS=\"$(CGO_LDFLAGS)\""; \
 	 echo "export LD_LIBRARY_PATH=\"$(LD_LIBRARY_PATH)\""; \
 	 echo "export PKG_CONFIG_PATH=\"$(PKG_CONFIG_PATH)\""; \
-	 echo "export CGO_LDFLAGS_ALLOW=\"$(CGO_LDFLAGS_ALLOW)\""
+	 echo "export CGO_LDFLAGS_ALLOW=\"$(CGO_LDFLAGS_ALLOW)\""; \
+	 if [ -f "$(MICROVM_DEP_PATH)/libkrun.so" ]; then echo "export LIBKRUN_PATH=\"$(MICROVM_DEP_PATH)/libkrun.so\""; fi; \
+	 if [ -f "$(MICROVM_DEP_PATH)/vmlinuz" ]; then echo "export LXD_MICROVM_KERNEL=\"$(MICROVM_DEP_PATH)/vmlinuz\""; fi
 
 .PHONY: deps
 deps: dqlite liblxc
 	@echo ""; echo "# Please set the following in your environment (possibly ~/.bashrc)"
 	@$(MAKE) -s env
+
+.PHONY: deps-libkrun
+deps-libkrun: libkrun libkrunfw
+	@echo ""; echo "# libkrun and kernel built in $(MICROVM_DEP_PATH)"
+	@echo "# Set the following in your environment for MicroVM testing:"
+	@echo "export LIBKRUN_PATH=\"$(MICROVM_DEP_PATH)/libkrun.so\""
+	@echo "export LXD_MICROVM_KERNEL=\"$(MICROVM_DEP_PATH)/vmlinuz\""
+
+.PHONY: libkrun
+libkrun:
+	# libkrun
+	@if [ ! -e "$(LIBKRUN_SRC_PATH)" ]; then \
+		echo "Retrieving libkrun at revision $(LIBKRUN_REVISION)"; \
+		git init --quiet "$(LIBKRUN_SRC_PATH)"; \
+		git -C "$(LIBKRUN_SRC_PATH)" remote add origin "https://github.com/libkrun/libkrun"; \
+		git -C "$(LIBKRUN_SRC_PATH)" fetch --depth=1 origin "$(LIBKRUN_REVISION)"; \
+		git -C "$(LIBKRUN_SRC_PATH)" checkout --quiet --detach FETCH_HEAD; \
+	elif [ -e "$(LIBKRUN_SRC_PATH)/.git" ]; then \
+		echo "Switching/updating libkrun to revision $(LIBKRUN_REVISION)"; \
+		git -C "$(LIBKRUN_SRC_PATH)" fetch --depth=1 origin "$(LIBKRUN_REVISION)"; \
+		git -C "$(LIBKRUN_SRC_PATH)" checkout --quiet --detach FETCH_HEAD; \
+	fi
+
+	cd "$(LIBKRUN_SRC_PATH)" && make BLK=1 NET=1 -j$$(nproc)
+	@mkdir -p "$(MICROVM_DEP_PATH)"
+	cp -f "$(LIBKRUN_SRC_PATH)"/target/release/libkrun.so* "$(MICROVM_DEP_PATH)/"
+
+ifneq ($(shell command -v nm),)
+	# verify that libkrun.so provides the C API that LXD loads at runtime
+	nm -D --defined-only "$(MICROVM_DEP_PATH)/libkrun.so" | grep -qw krun_create_ctx
+	@echo "OK: libkrun .so C API check passed"
+endif
+	@echo "OK: libkrun built successfully"
+
+.PHONY: libkrunfw
+libkrunfw:
+	# libkrunfw (kernel)
+	@if [ ! -e "$(LIBKRUNFW_SRC_PATH)" ]; then \
+		echo "Retrieving libkrunfw from $(LIBKRUNFW_BRANCH) branch"; \
+		git clone --depth=1 --branch "${LIBKRUNFW_BRANCH}" "https://github.com/libkrun/libkrunfw" "$(LIBKRUNFW_SRC_PATH)"; \
+	elif [ -e "$(LIBKRUNFW_SRC_PATH)/.git" ]; then \
+		echo "Switching/updating libkrunfw to $(LIBKRUNFW_BRANCH) branch"; \
+		git -C "$(LIBKRUNFW_SRC_PATH)" fetch --depth=1 origin "${LIBKRUNFW_BRANCH}"; \
+		git -C "$(LIBKRUNFW_SRC_PATH)" checkout -B "${LIBKRUNFW_BRANCH}" FETCH_HEAD; \
+	fi
+
+	cd "$(LIBKRUNFW_SRC_PATH)" && make MAKEFLAGS=-j$$(nproc)
+	@mkdir -p "$(MICROVM_DEP_PATH)"
+	# Take the kernel that the pinned libkrunfw revision builds. The source directory
+	# may still hold the tree of another kernel version from an earlier revision.
+	@KERNEL_VERSION=$$(sed -n 's/^KERNEL_VERSION *= *//p' "$(LIBKRUNFW_SRC_PATH)/Makefile"); \
+	KRUN_KERNEL="$(LIBKRUNFW_SRC_PATH)/$$KERNEL_VERSION/vmlinux"; \
+	if [ -z "$$KERNEL_VERSION" ] || [ ! -f "$$KRUN_KERNEL" ]; then \
+		echo "ERROR: kernel not found at $$KRUN_KERNEL"; \
+		exit 1; \
+	fi; \
+	echo "Using kernel $$KRUN_KERNEL"; \
+	cp -f "$$KRUN_KERNEL" "$(MICROVM_DEP_PATH)/vmlinuz"
+	@echo "OK: libkrunfw kernel built successfully"
 
 # Spawns an interactive test shell for quick interactions with LXD and the test
 # suite.

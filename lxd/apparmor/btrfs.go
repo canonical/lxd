@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/canonical/lxd/lxd/sys"
+	"github.com/canonical/lxd/shared/features"
 	"github.com/canonical/lxd/shared/revert"
 )
 
@@ -55,13 +56,17 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
 {{- if .poolMountPath }}
   # btrfs send/receive need broad read access across the whole pool when transferring snapshots.
-  "{{ .poolMountPath }}/containers/**" r,
-  "{{ .poolMountPath }}/containers-snapshots/**" r,
-  "{{ .poolMountPath }}/virtual-machines/**" r,
-  "{{ .poolMountPath }}/virtual-machines-snapshots/**" r,
-  "{{ .poolMountPath }}/custom/**" r,
-  "{{ .poolMountPath }}/custom-snapshots/**" r,
-  "{{ .poolMountPath }}/" r,
+  {{ .poolMountPath }}/containers/** r,
+  {{ .poolMountPath }}/containers-snapshots/** r,
+  {{ .poolMountPath }}/virtual-machines/** r,
+  {{ .poolMountPath }}/virtual-machines-snapshots/** r,
+{{- if .microvmEnabled }}
+  {{ .poolMountPath }}/microvms/** r,
+  {{ .poolMountPath }}/microvms-snapshots/** r,
+{{- end }}
+  {{ .poolMountPath }}/custom/** r,
+  {{ .poolMountPath }}/custom-snapshots/** r,
+  {{ .poolMountPath }}/ r,
 {{- end }}
 }
 `))
@@ -175,11 +180,12 @@ func btrfsProfile(name string, sourcePath string, dstPath string, poolMountPath 
 
 	sb := &strings.Builder{}
 	err = btrfsProfileTpl.Execute(sb, map[string]any{
-		"name":          name,
-		"execPath":      rulePathEscaper.Replace(execPath),
-		"sourcePath":    rulePathEscaper.Replace(sourcePath),
-		"dstPath":       rulePathEscaper.Replace(dstPath),
-		"poolMountPath": rulePathEscaper.Replace(poolMountPath),
+		"name":           name,
+		"execPath":       execPath,
+		"sourcePath":     sourcePath,
+		"dstPath":        dstPath,
+		"poolMountPath":  poolMountPath,
+		"microvmEnabled": features.IsEnabled(features.MicroVM),
 	})
 	if err != nil {
 		return "", err
