@@ -43,7 +43,7 @@ A comprehensive compatibility layer was added to support older LXD clients with 
 
 ```{warning}
 Changed block tracking is a feature preview and **must not** be enabled in a production environment.
-See {ref}`howto-snap-configure-feature-previews` for more details.
+See {ref}`ref-feature-previews` for more details.
 ```
 
 Virtual machine block volumes now support persistent changed block tracking (CBT).
