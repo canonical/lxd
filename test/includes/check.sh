@@ -239,7 +239,7 @@ runsMinimumKernel() {
 }
 
 # check_proc_unprivileged: check that a helper process spawned by LXD runs unprivileged.
-# Usage: check_proc_unprivileged <pid> <qemu|dnsmasq>
+# Usage: [LXD_DIR=<dir>] check_proc_unprivileged <pid> <qemu|dnsmasq>
 check_proc_unprivileged() {
   local pid="${1}"
   local kind="${2}"
@@ -250,6 +250,9 @@ check_proc_unprivileged() {
 
   # None of the real, effective, saved and filesystem UIDs may be root.
   awk '$1 == "Uid:" {for (i = 2; i <= 5; i++) if ($i == 0) exit 1}' "${status}"
+
+  # No GID nor supplementary group may give access to the LXD socket.
+  awk -v gid="$(stat -c %g "${LXD_DIR}/unix.socket")" '$1 == "Gid:" || $1 == "Groups:" {for (i = 2; i <= NF; i++) if ($i == gid) exit 1}' "${status}"
 
   case "${kind}" in
     qemu)

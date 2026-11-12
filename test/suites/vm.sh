@@ -103,6 +103,17 @@ test_vm_empty() {
   sub_test "Check QEMU runs unprivileged"
   check_proc_unprivileged "$(lxc query /1.0/instances/v1/state | jq --exit-status .pid)" qemu
 
+  sub_test "Check raw.qemu can't change the QEMU credentials"
+  local user_opt
+  user_opt="-runas 65534:$(stat -c %g "${LXD_DIR}/unix.socket")"
+  if [[ "$(qemu-system-"$(uname -m)" -help)" == *"user=username|uid:gid"* ]]; then
+    user_opt="-run-with user=${user_opt#-runas }"
+  fi
+
+  lxc launch --vm --empty v2 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" -c raw.qemu="${user_opt}"
+  check_proc_unprivileged "$(lxc query /1.0/instances/v2/state | jq --exit-status .pid)" qemu
+  lxc delete -f v2
+
   echo "==> Tiny VMs with snapshots"
   lxc stop -f v1
   lxc snapshot v1
@@ -328,10 +339,25 @@ test_vm_pcie_bus() {
   fi
 }
 
+# _curl_as_proc runs curl against a unix socket with the credentials of another process, without its confinement.
+_curl_as_proc() {
+  local pid="${1}"
+  local socket="${2}"
+  local path="${3}"
+  local status="/proc/${pid}/status"
+  local uid gid groups
+
+  uid="$(awk '$1 == "Uid:" {print $2}' "${status}")"
+  gid="$(awk '$1 == "Gid:" {print $2}' "${status}")"
+  groups="$(awk '$1 == "Groups:" {$1 = ""; print}' "${status}" | xargs | tr ' ' ',')"
+
+  setpriv --reuid="${uid}" --regid="${gid}" --groups="${groups}" -- curl --silent --fail --unix-socket "${socket}" "lxd${path}"
+}
+
 # _unprivileged_helpers checks QEMU and dnsmasq with the snap's unprivileged user, whose primary group is the socket group.
 _unprivileged_helpers() {
   sub_test "Check dnsmasq and QEMU run unprivileged"
-  local qemu_pid
+  local qemu_pid socket
 
   lxc network create lxdt$$ ipv6.address=none
   check_proc_unprivileged "$(awk '/^pid:/ {print $2}' "${LXD_DIR}/networks/lxdt$$/dnsmasq.pid")" dnsmasq
@@ -340,6 +366,15 @@ _unprivileged_helpers() {
   lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
   qemu_pid="$(lxc query /1.0/instances/v1/state | jq --exit-status .pid)"
   check_proc_unprivileged "${qemu_pid}" qemu
+
+  sub_test "Check the LXD and lxd-user sockets can't be reached with QEMU's credentials"
+  for socket in "${LXD_DIR}/unix.socket" /var/snap/lxd/common/lxd-user/unix.socket; do
+    [ -S "${socket}" ]
+    if _curl_as_proc "${qemu_pid}" "${socket}" /1.0; then
+      echo "ERROR: ${socket} reachable with QEMU's credentials" >&2
+      false
+    fi
+  done
 
   lxc delete -f v1
 }
