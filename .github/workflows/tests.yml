@@ -124,7 +124,7 @@ jobs:
           snap-channel: ${{ inputs.go-snap-channel }}
 
       - name: Install Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         if: github.event_name != 'pull_request'
         with:
           # zizmor: ignore[cache-poisoning]
@@ -713,7 +713,7 @@ jobs:
           gocov-xml < "${GOCOVERDIR}"/coverage.json > "${GOCOVERDIR}"/coverage-go.xml
 
       - name: Run TICS
-        uses: tiobe/tics-github-action@06afa6781ba53ab58efbe766d41d84febad1f683 # v4.0.0
+        uses: tiobe/tics-github-action@48afe561ae55edd1e1ec484505dba636e90ba0a6 # v4.1.0
         with:
           mode: qserver
           project: LXD
@@ -1128,7 +1128,7 @@ jobs:
           snap-channel: ${{ inputs.go-snap-channel }}
 
       - name: Install Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           # zizmor: ignore[cache-poisoning]
           cache: 'pip' # caching pip dependencies
@@ -1184,7 +1184,7 @@ jobs:
           snap-channel: ${{ inputs.go-snap-channel }}
 
       - name: Install Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           # zizmor: ignore[cache-poisoning]
           cache: 'pip' # caching pip dependencies
