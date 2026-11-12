@@ -237,3 +237,39 @@ runsMinimumKernel() {
     fi
     return 0
 }
+
+# check_proc_unprivileged: check that a helper process spawned by LXD runs unprivileged.
+# Usage: check_proc_unprivileged <pid> <qemu|dnsmasq>
+check_proc_unprivileged() {
+  local pid="${1}"
+  local kind="${2}"
+  local status="/proc/${pid}/status"
+  local cap_mask cap value
+
+  grep -E '^(Name|Uid|Gid|Groups|CapPrm|CapEff|NoNewPrivs|Seccomp):' "${status}"
+
+  # None of the real, effective, saved and filesystem UIDs may be root.
+  awk '$1 == "Uid:" {for (i = 2; i <= 5; i++) if ($i == 0) exit 1}' "${status}"
+
+  case "${kind}" in
+    qemu)
+      # Set by QEMU's -sandbox through libseccomp.
+      [ "$(awk '$1 == "NoNewPrivs:" {print $2}' "${status}")" = "1" ]
+      [ "$(awk '$1 == "Seccomp:" {print $2}' "${status}")" = "2" ]
+      cap_mask=0
+      ;;
+    dnsmasq)
+      # dnsmasq keeps CAP_NET_BIND_SERVICE, CAP_NET_ADMIN and CAP_NET_RAW after dropping privileges.
+      cap_mask=0x3400
+      ;;
+    *)
+      echo "Unknown process kind: ${kind}" >&2
+      return 1
+      ;;
+  esac
+
+  for cap in CapEff CapPrm; do
+    value="$(awk -v key="${cap}:" '$1 == key {print $2}' "${status}")"
+    [ "$(( 16#${value} & ~cap_mask ))" = "0" ]
+  done
+}
