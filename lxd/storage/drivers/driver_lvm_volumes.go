@@ -97,7 +97,7 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, progressReporter io
 			}
 
 			// Move the GPT alt header to end of disk if needed.
-			if vol.IsVMBlock() {
+			if vol.IsVMBlock() && !vol.IsMicroVM() {
 				err = d.moveGPTAltHeader(devPath)
 				if err != nil {
 					return err
@@ -563,8 +563,8 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, pr
 		// The new blocks in a grown volume will need clearing if using a thick pool.
 		needsClearing := !d.usesThinpool() && (oldSizeBytes < sizeBytes)
 
-		// VM block volumes need the GPT header moved on normal resize scenarios.
-		needsGPTHeaderMove := vol.IsVMBlock() && !allowUnsafeResize
+		// VM block volumes (excluding MicroVM block volumes) need the GPT header moved on normal resize scenarios.
+		needsGPTHeaderMove := vol.IsVMBlock() && !vol.IsMicroVM() && !allowUnsafeResize
 
 		// Need to activate the volume to clear it or to move the GPT header.
 		needsActivating := needsClearing || needsGPTHeaderMove
@@ -665,7 +665,7 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 
 		isBlock := strings.HasSuffix(volName, lvmBlockVolSuffix)
 
-		if volType == VolumeTypeVM && !isBlock {
+		if (volType == VolumeTypeVM || volType == VolumeTypeMicroVM) && !isBlock {
 			continue // Ignore VM filesystem volumes as we will just return the VM's block volume.
 		}
 
@@ -677,7 +677,7 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 		if volType == VolumeTypeCustom && strings.HasSuffix(volName, lvmISOVolSuffix) {
 			contentType = ContentTypeISO
 			volName = strings.TrimSuffix(volName, lvmISOVolSuffix)
-		} else if volType == VolumeTypeVM || isBlock {
+		} else if volType == VolumeTypeVM || volType == VolumeTypeMicroVM || isBlock {
 			contentType = ContentTypeBlock
 			volName = strings.TrimSuffix(volName, lvmBlockVolSuffix)
 		}

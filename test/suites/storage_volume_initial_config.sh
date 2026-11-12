@@ -294,7 +294,8 @@ test_storage_volume_initial_config() {
     [ "$(zfs list -H -r -t all -o name "${pool}/deleted/containers" | wc -l)" -eq 1 ]
 
     # > Check only the pool level ZFS datasets and snapshots remain after deleting containers.
-    [ "$(zfs list -H -r -t all -o name "${pool}" | wc -l)" -eq 12 ]
+    # The MicroVM feature preview adds "microvms" and "deleted/microvms".
+    [ "$(zfs list -H -r -t all -o name "${pool}" | wc -l)" -eq 14 ]
   fi
 
   # Cleanup

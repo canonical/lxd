@@ -545,6 +545,11 @@ func deviceTaskBalance(s *state.State) {
 	fixedInstances := map[int64][]instance.Instance{}
 	balancedInstances := map[instance.Instance]int{}
 	for _, c := range instances {
+		// CPU pinning is not supported for MicroVM instances.
+		if c.Type() == instancetype.MicroVM {
+			continue
+		}
+
 		conf := c.ExpandedConfig()
 		cpuNodes := conf["limits.cpu.nodes"]
 		numaCpus, err := getNumaCPUs(numaNodeToCPU, cpuNodes)
