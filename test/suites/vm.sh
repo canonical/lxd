@@ -100,6 +100,9 @@ test_vm_empty() {
   echo "==> Percentage memory limits"
   lxc launch --vm --empty v1 -c limits.memory=1% -d "${SMALL_ROOT_DISK}"
 
+  sub_test "Check QEMU runs unprivileged"
+  check_proc_unprivileged "$(lxc query /1.0/instances/v1/state | jq --exit-status .pid)" qemu
+
   echo "==> Tiny VMs with snapshots"
   lxc stop -f v1
   lxc snapshot v1
@@ -325,10 +328,28 @@ test_vm_pcie_bus() {
   fi
 }
 
+# _unprivileged_helpers checks QEMU and dnsmasq with the snap's unprivileged user, whose primary group is the socket group.
+_unprivileged_helpers() {
+  sub_test "Check dnsmasq and QEMU run unprivileged"
+  local qemu_pid
+
+  lxc network create lxdt$$ ipv6.address=none
+  check_proc_unprivileged "$(awk '/^pid:/ {print $2}' "${LXD_DIR}/networks/lxdt$$/dnsmasq.pid")" dnsmasq
+  lxc network delete lxdt$$
+
+  lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
+  qemu_pid="$(lxc query /1.0/instances/v1/state | jq --exit-status .pid)"
+  check_proc_unprivileged "${qemu_pid}" qemu
+
+  lxc delete -f v1
+}
+
 test_snap_vm_empty() {
   # useful to test snap provided BIOS boot
   _boot_mode
 
   # The NVRAM vars file rename migration only happens inside the snap.
   _nvram_rename
+
+  _unprivileged_helpers
 }
