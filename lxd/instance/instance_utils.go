@@ -552,7 +552,21 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 }
 
 // resolveImageAlias returns the fingerprint for an alias of the requested image type.
+// If no image type is requested, the container image type is tried first so that it wins when the name exists for both.
 func resolveImageAlias(ctx context.Context, tx *db.ClusterTx, projectName string, name string, instType string) (string, error) {
+	if instType == "" {
+		_, alias, err := tx.GetImageAlias(ctx, projectName, name, instancetype.Container.String(), true)
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			_, alias, err = tx.GetImageAlias(ctx, projectName, name, instancetype.VM.String(), true)
+		}
+
+		if err != nil {
+			return "", err
+		}
+
+		return alias.Target, nil
+	}
+
 	_, alias, err := tx.GetImageAlias(ctx, projectName, name, instType, true)
 	if err != nil {
 		if instType != "" && api.StatusErrorCheck(err, http.StatusNotFound) {

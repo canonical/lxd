@@ -1844,9 +1844,10 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 		case api.SourceTypeImage:
-			// An omitted instance type is a container. A microvm boots a container image.
+			// A microvm boots a container image. When no type is requested the alias type is left empty so that the
+			// image type is auto-detected, with the container type taking precedence over the virtual-machine type.
 			aliasType := string(req.Type)
-			if aliasType == "" || req.Type == api.InstanceTypeMicroVM {
+			if req.Type == api.InstanceTypeMicroVM {
 				aliasType = instancetype.Container.String()
 			}
 
