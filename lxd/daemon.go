@@ -1559,6 +1559,19 @@ func (d *Daemon) init() (err error) {
 		return err
 	}
 
+	// The unprivileged group must not reach the local socket, which socket activation may have created.
+	if d.os.UnprivGroup != "" {
+		var socketStat unix.Stat_t
+		err = unix.Stat(d.os.GetUnixSocket(), &socketStat)
+		if err != nil {
+			return fmt.Errorf("Failed getting the group of the local socket: %w", err)
+		}
+
+		if socketStat.Gid == d.os.UnprivGID {
+			return fmt.Errorf("The local socket group must not be the unprivileged group %q", d.os.UnprivGroup)
+		}
+	}
+
 	// Have the db package determine remote storage drivers
 	db.StorageRemoteDriverNames = storageDrivers.RemoteDriverNames
 
