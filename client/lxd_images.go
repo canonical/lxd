@@ -378,13 +378,33 @@ func (r *ProtocolLXD) GetImageAlias(name string) (*api.ImageAliasesEntry, string
 	return &alias, etag, nil
 }
 
+// getImageAliasTyped returns an alias for one image type.
+func (r *ProtocolLXD) getImageAliasTyped(imageType string, name string) (*api.ImageAliasesEntry, string, error) {
+	alias := api.ImageAliasesEntry{}
+	etag, err := r.queryStruct(http.MethodGet, "/images/"+imageType+"/aliases/"+url.PathEscape(name), nil, "", &alias)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &alias, etag, nil
+}
+
 // GetImageAliasType returns an alias for one image type.
+// If no image type is given, the container alias is returned when it exists, otherwise the virtual-machine alias.
 func (r *ProtocolLXD) GetImageAliasType(imageType string, name string) (*api.ImageAliasesEntry, string, error) {
-	if imageType != "" && r.HasExtension("image_alias_types") {
-		alias := api.ImageAliasesEntry{}
-		etag, err := r.queryStruct(http.MethodGet, "/images/"+imageType+"/aliases/"+url.PathEscape(name), nil, "", &alias)
+	if r.HasExtension("image_alias_types") {
+		if imageType == "" {
+			alias, etag, err := r.getImageAliasTyped("container", name)
+			if err == nil || !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return alias, etag, err
+			}
+
+			return r.getImageAliasTyped("virtual-machine", name)
+		}
+
+		alias, etag, err := r.getImageAliasTyped(imageType, name)
 		if err == nil {
-			return &alias, etag, nil
+			return alias, etag, nil
 		}
 
 		if !api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -422,9 +442,14 @@ func (r *ProtocolLXD) GetImageAliasType(imageType string, name string) (*api.Ima
 }
 
 // imageAliasPath returns the URL for one alias.
-func (r *ProtocolLXD) imageAliasPath(name string) (string, error) {
+// A given image type is used directly. Otherwise the type of the existing alias is resolved.
+func (r *ProtocolLXD) imageAliasPath(imageType string, name string) (string, error) {
 	if !r.HasExtension("image_alias_types") {
 		return "/images/aliases/" + url.PathEscape(name), nil
+	}
+
+	if imageType != "" {
+		return "/images/" + imageType + "/aliases/" + url.PathEscape(name), nil
 	}
 
 	alias, _, err := r.GetImageAlias(name)
@@ -1117,7 +1142,7 @@ func (r *ProtocolLXD) CreateImageAlias(alias api.ImageAliasesPost) error {
 
 // UpdateImageAlias updates the image alias definition.
 func (r *ProtocolLXD) UpdateImageAlias(name string, alias api.ImageAliasesEntryPut, ETag string) error {
-	path, err := r.imageAliasPath(name)
+	path, err := r.imageAliasPath("", name)
 	if err != nil {
 		return err
 	}
@@ -1133,7 +1158,23 @@ func (r *ProtocolLXD) UpdateImageAlias(name string, alias api.ImageAliasesEntryP
 
 // RenameImageAlias renames an existing image alias.
 func (r *ProtocolLXD) RenameImageAlias(name string, alias api.ImageAliasesEntryPost) error {
-	path, err := r.imageAliasPath(name)
+	path, err := r.imageAliasPath("", name)
+	if err != nil {
+		return err
+	}
+
+	// Send the request
+	_, _, err = r.query(http.MethodPost, path, alias, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RenameImageAliasType renames an existing image alias of the given image type.
+func (r *ProtocolLXD) RenameImageAliasType(imageType string, name string, alias api.ImageAliasesEntryPost) error {
+	path, err := r.imageAliasPath(imageType, name)
 	if err != nil {
 		return err
 	}
@@ -1149,7 +1190,7 @@ func (r *ProtocolLXD) RenameImageAlias(name string, alias api.ImageAliasesEntryP
 
 // DeleteImageAlias removes an alias from the LXD image store.
 func (r *ProtocolLXD) DeleteImageAlias(name string) error {
-	path, err := r.imageAliasPath(name)
+	path, err := r.imageAliasPath("", name)
 	if err != nil {
 		return err
 	}
@@ -1165,11 +1206,12 @@ func (r *ProtocolLXD) DeleteImageAlias(name string) error {
 
 // DeleteImageAliasType removes the alias for one image type.
 func (r *ProtocolLXD) DeleteImageAliasType(imageType string, name string) error {
-	if imageType == "" || !r.HasExtension("image_alias_types") {
-		return r.DeleteImageAlias(name)
+	path, err := r.imageAliasPath(imageType, name)
+	if err != nil {
+		return err
 	}
 
-	_, _, err := r.query(http.MethodDelete, "/images/"+imageType+"/aliases/"+url.PathEscape(name), nil, "")
+	_, _, err = r.query(http.MethodDelete, path, nil, "")
 	if err != nil {
 		return err
 	}
