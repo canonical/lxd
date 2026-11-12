@@ -25,3 +25,8 @@ Depending on complexity, large changes should be split into smaller, logical com
 ## Signing and attribution
 
 `Signed-off-by` is a Developer Certificate of Origin (DCO) certification — a legal assertion that you wrote or have the right to submit the code. Only a human submitter can make this certification. AI agents must not add a `Signed-off-by` line.
+
+
+## Commit message
+
+- Commit message body should usually be line-wrapped to 80 chars.
