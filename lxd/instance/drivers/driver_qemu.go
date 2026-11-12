@@ -1818,8 +1818,8 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		qemuCmd = append(qemuCmd, "-smbios", "type=2,manufacturer=Canonical Ltd.,product=LXD")
 	}
 
-	// Attempt to drop privileges (doesn't work when restoring state).
-	if !stateful && d.state.OS.UnprivUser != "" {
+	// Attempt to drop privileges.
+	if d.state.OS.UnprivUser != "" {
 		qemuVer, _ := d.version()
 		qemuVer91, _ := version.NewDottedVersion("9.1.0")
 
