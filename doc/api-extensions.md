@@ -3842,7 +3842,9 @@ An alias name can exist once for a container image and once for a virtual-machin
 * `POST /1.0/images/{imageType}/aliases` creates an alias for that type. The target image must be of the same type. The same name may already exist for the other type.
 * `GET`, `PUT`, `PATCH`, `POST`, and `DELETE` on `/1.0/images/{imageType}/aliases/{name}` read or change that one alias. A `PUT` or `PATCH` that points the alias at an image of the other type is rejected.
 
-`/1.0/images/aliases` is unchanged when only one image type uses the name. `POST /1.0/images/aliases` takes the type from the target image. Creating a second alias of that same type returns `409`. `GET`, `PUT`, `PATCH`, `POST`, and `DELETE` on `/1.0/images/aliases/{name}` return `409` when the name exists for both image types. `GET /1.0/images/aliases` without recursion still returns one URL per name. With `recursion=1` it returns one entry per image type.
+`GET /1.0/images/{imageType}/aliases/{name}` is the typed alias lookup. No `type` query parameter is added to `/1.0/images/aliases/{name}`.
+
+`/1.0/images/aliases` is unchanged when only one image type uses the name. `POST /1.0/images/aliases` takes the type from the target image. Creating a second alias of that same type returns `409`. `GET`, `PUT`, `PATCH`, `POST`, and `DELETE` on `/1.0/images/aliases/{name}` return `409` when the name exists for both image types. `PUT` and `PATCH` on `/1.0/images/aliases/{name}` may still retarget an alias to an image of the other type, as before; the alias then moves to that type. `GET /1.0/images/aliases` without recursion still returns one URL per name. With `recursion=1` it returns one entry per image type.
 
 (extension-instance-microvm)=
 ## `instance_microvm`
