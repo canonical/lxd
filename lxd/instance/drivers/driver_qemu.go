@@ -1199,6 +1199,11 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 		return errors.New("Instance is protected from being started")
 	}
 
+	// QEMU must never keep running as root.
+	if d.state.OS.UnprivUser == "" {
+		return errors.New("QEMU requires an unprivileged user")
+	}
+
 	return nil
 }
 
@@ -1818,60 +1823,47 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		qemuCmd = append(qemuCmd, "-smbios", "type=2,manufacturer=Canonical Ltd.,product=LXD")
 	}
 
-	// Attempt to drop privileges.
-	if d.state.OS.UnprivUser != "" {
-		qemuVer, _ := d.version()
-		qemuVer91, _ := version.NewDottedVersion("9.1.0")
-
-		// Since QEMU 9.1 the parameter `runas` has been marked as deprecated.
-		if qemuVer != nil && qemuVer.Compare(qemuVer91) >= 0 {
-			qemuCmd = append(qemuCmd, "-run-with", "user="+d.state.OS.UnprivUser)
-		} else {
-			qemuCmd = append(qemuCmd, "-runas", d.state.OS.UnprivUser)
-		}
-
-		if supportsUEFI {
-			nvRAMPath := d.nvramPath()
-			// Ensure UEFI nvram file is writable by the QEMU process.
-			// This is needed when doing stateful snapshots because the QEMU process will reopen the
-			// file for writing.
-			err = os.Chown(nvRAMPath, int(d.state.OS.UnprivUID), -1)
-			if err != nil && !os.IsNotExist(err) {
-				op.Done(err)
-				return err
-			}
-
-			err = os.Chmod(nvRAMPath, 0600)
-			if err != nil && !os.IsNotExist(err) {
-				op.Done(err)
-				return err
-			}
-		}
-
-		// Change ownership of config directory files so they are accessible to the
-		// unprivileged qemu process so that the 9p share can work.
-		//
-		// Security note: The 9P share will present the UID owner of these files on the host
-		// to the VM. In order to ensure that non-root users in the VM cannot access these
-		// files be sure to mount the 9P share in the VM with the "access=0" option to allow
-		// only root user in VM to access the mounted share.
-		err := filepath.Walk(configSrcPath,
-			func(path string, _ os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-
-				err = os.Chown(path, int(d.state.OS.UnprivUID), -1)
-				if err != nil {
-					return err
-				}
-
-				return nil
-			})
-		if err != nil {
+	if supportsUEFI {
+		nvRAMPath := d.nvramPath()
+		// Ensure UEFI nvram file is writable by the QEMU process.
+		// This is needed when doing stateful snapshots because the QEMU process will reopen the
+		// file for writing.
+		err = os.Chown(nvRAMPath, int(d.state.OS.UnprivUID), -1)
+		if err != nil && !os.IsNotExist(err) {
 			op.Done(err)
 			return err
 		}
+
+		err = os.Chmod(nvRAMPath, 0600)
+		if err != nil && !os.IsNotExist(err) {
+			op.Done(err)
+			return err
+		}
+	}
+
+	// Change ownership of config directory files so they are accessible to the
+	// unprivileged qemu process so that the 9p share can work.
+	//
+	// Security note: The 9P share will present the UID owner of these files on the host
+	// to the VM. In order to ensure that non-root users in the VM cannot access these
+	// files be sure to mount the 9P share in the VM with the "access=0" option to allow
+	// only root user in VM to access the mounted share.
+	err = filepath.Walk(configSrcPath,
+		func(path string, _ os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			err = os.Chown(path, int(d.state.OS.UnprivUID), -1)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+	if err != nil {
+		op.Done(err)
+		return err
 	}
 
 	// Handle hugepages on architectures where we don't set NUMA nodes.
@@ -1893,6 +1885,19 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		}
 
 		qemuCmd = append(qemuCmd, fields...)
+	}
+
+	// Drop privileges.
+	// QEMU applies the last user option, so this comes after raw.qemu.
+	runAs := d.state.OS.UnprivUser
+	qemuVer, _ := d.version()
+	qemuVer91, _ := version.NewDottedVersion("9.1.0")
+
+	// Since QEMU 9.1 the parameter `runas` has been marked as deprecated.
+	if qemuVer != nil && qemuVer.Compare(qemuVer91) >= 0 {
+		qemuCmd = append(qemuCmd, "-run-with", "user="+runAs)
+	} else {
+		qemuCmd = append(qemuCmd, "-runas", runAs)
 	}
 
 	// Run the qemu command via forklimits so we can selectively increase ulimits.
@@ -5329,21 +5334,19 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 
 			qemuDev["host"] = pciSlotName
 
-			if d.state.OS.UnprivUser != "" {
-				if pciIOMMUGroup == "" {
-					return errors.New("No PCI IOMMU group supplied")
-				}
-
-				vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
-				err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
-				if err != nil {
-					return fmt.Errorf("Failed chowning vfio group device %q: %w", vfioGroupFile, err)
-				}
-
-				reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
+			if pciIOMMUGroup == "" {
+				return errors.New("No PCI IOMMU group supplied")
 			}
 
-			err := m.AddNIC(nil, qemuDev)
+			vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
+			err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
+			if err != nil {
+				return fmt.Errorf("Failed chowning vfio group device %q: %w", vfioGroupFile, err)
+			}
+
+			reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
+
+			err = m.AddNIC(nil, qemuDev)
 			if err != nil {
 				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
 			}
@@ -5443,19 +5446,17 @@ func (d *qemu) addPCIDevConfig(busName string, busAllocate busAllocator, pciConf
 			reverter.Add(busCleanup)
 		}
 
-		if d.state.OS.UnprivUser != "" {
-			if pciIOMMUGroup == "" {
-				return errors.New("No PCI IOMMU group supplied")
-			}
-
-			vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
-			err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
-			if err != nil {
-				return fmt.Errorf("Failed chowning vfio group device %q: %w", vfioGroupFile, err)
-			}
-
-			reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
+		if pciIOMMUGroup == "" {
+			return errors.New("No PCI IOMMU group supplied")
 		}
+
+		vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
+		err = os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
+		if err != nil {
+			return fmt.Errorf("Failed chowning vfio group device %q: %w", vfioGroupFile, err)
+		}
+
+		reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
 
 		err = m.AddDevice(qemuDev)
 		if err != nil {
