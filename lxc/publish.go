@@ -250,7 +250,15 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	existingAliases, err := GetCommonAliases(d, inst.Type, aliases...)
+	// A microvm is published as a container image, so use the image type of the instance.
+	instType, err := instancetype.New(inst.Type)
+	if err != nil {
+		return err
+	}
+
+	imageType := instType.ImageType().String()
+
+	existingAliases, err := GetCommonAliases(d, imageType, aliases...)
 	if err != nil {
 		return fmt.Errorf("Error retrieving aliases: %w", err)
 	}
@@ -363,7 +371,7 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err = ensureImageAliases(d, aliases, fingerprint, inst.Type)
+	err = ensureImageAliases(d, aliases, fingerprint, imageType)
 	if err != nil {
 		return err
 	}

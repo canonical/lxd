@@ -842,7 +842,8 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 		Quiet:  c.global.flagQuiet,
 	}
 
-	imageType := "container"
+	// The image type is only known for a split import. For a unified image it is detected from the created image.
+	imageType := ""
 	if strings.HasPrefix(imageFile, "https://") {
 		image.Source = &api.ImagesPostSource{}
 		image.Source.Type = "url"

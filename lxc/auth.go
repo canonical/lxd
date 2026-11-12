@@ -701,6 +701,19 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 		return nil, fmt.Errorf("Entities of type %q require a supplementary project argument `project=<project_name>`", entityType)
 	}
 
+	if entityType == entity.TypeImageAlias {
+		imageType, ok := kv["type"]
+		if !ok {
+			return nil, fmt.Errorf("Entities of type %q require a supplementary image type argument `type=<container|virtual-machine>`", entityType)
+		}
+
+		if imageType != string(api.InstanceTypeContainer) && imageType != string(api.InstanceTypeVM) {
+			return nil, fmt.Errorf("Invalid image type %q for entity type %q", imageType, entityType)
+		}
+
+		pathArgs = append([]string{imageType}, pathArgs...)
+	}
+
 	if entityType == entity.TypeStorageVolume {
 		storageVolumeType, ok := kv["type"]
 		if !ok {

@@ -190,11 +190,6 @@ func GetCommonAliases(client lxd.InstanceServer, imageType string, aliases ...ap
 	return GetExistingAliases(names, imageType, resp), nil
 }
 
-// imageAliasTypeDeleter removes one image type's alias. ProtocolLXD implements it.
-type imageAliasTypeDeleter interface {
-	DeleteImageAliasType(imageType string, name string) error
-}
-
 // Create the specified image aliases, updating those that already exist.
 func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fingerprint string, imageType string) error {
 	if len(aliases) == 0 {
@@ -220,16 +215,10 @@ func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fin
 		return err
 	}
 
-	// Delete existing aliases that match provided ones
+	// Delete existing aliases that match provided ones. Each entry carries its own image type, so deleting it leaves
+	// an alias of the other image type with the same name untouched.
 	for _, alias := range GetExistingAliases(names, imageType, resp) {
-		var err error
-		deleter, ok := client.(imageAliasTypeDeleter)
-		if ok {
-			err = deleter.DeleteImageAliasType(imageType, alias.Name)
-		} else {
-			err = client.DeleteImageAlias(alias.Name)
-		}
-
+		err := client.DeleteImageAliasType(alias.Type, alias.Name)
 		if err != nil {
 			return fmt.Errorf("Failed removing alias %s: %w", alias.Name, err)
 		}
