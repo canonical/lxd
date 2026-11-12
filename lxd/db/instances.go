@@ -894,12 +894,12 @@ SELECT storage_pools.name FROM storage_pools
   JOIN projects ON projects.id=instances.project_id
  WHERE projects.name=?
    AND storage_volumes_all.name=?
-   AND storage_volumes_all.type IN (?,?)
+   AND storage_volumes_all.type IN (?,?,?)
    AND storage_volumes_all.project_id = instances.project_id
    AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN ` + query.Params(len(remoteDrivers)) + `)`
 
 	//nolint:prealloc
-	inargs := []any{projectName, instanceName, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, c.nodeID}
+	inargs := []any{projectName, instanceName, cluster.StoragePoolVolumeTypeContainer, cluster.StoragePoolVolumeTypeVM, cluster.StoragePoolVolumeTypeMicroVM, c.nodeID}
 	//nolint:prealloc
 	outargs := []any{&poolName}
 
