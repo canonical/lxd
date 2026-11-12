@@ -15,6 +15,7 @@ import (
 
 	"github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	cli "github.com/canonical/lxd/shared/cmd"
 	"github.com/canonical/lxd/shared/units"
@@ -780,56 +781,40 @@ func (c *cmdList) statusColumnData(cInfo api.InstanceFull) string {
 	return strings.ToUpper(cInfo.Status)
 }
 
-func (c *cmdList) ipv4ColumnData(cInfo api.InstanceFull) string {
-	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Network != nil {
-		ipv4s := []string{}
-		for netName, net := range cInfo.State.Network {
-			if net.Type == "loopback" {
+// ipColumnData returns the non-loopback addresses of the given family, annotated with their interface name.
+func (c *cmdList) ipColumnData(cInfo api.InstanceFull, family string) string {
+	if !cInfo.IsActive() || cInfo.State == nil || cInfo.State.Network == nil {
+		return ""
+	}
+
+	ips := []string{}
+	for netName, network := range cInfo.State.Network {
+		for _, addr := range network.Addresses {
+			if addr.Family != family {
 				continue
 			}
 
-			for _, addr := range net.Addresses {
-				if slices.Contains([]string{"link", "local"}, addr.Scope) {
-					continue
-				}
-
-				if addr.Family == "inet" {
-					ipv4s = append(ipv4s, addr.Address+" ("+netName+")")
-				}
+			// Interfaces of type loopback can carry non-loopback addresses, so filter on the
+			// address itself rather than on the interface type. Compute the scope locally so
+			// servers that report an imprecise scope are handled.
+			if shared.GetIPScope(addr.Address) != shared.IPScopeGlobal {
+				continue
 			}
-		}
 
-		sort.Sort(sort.Reverse(sort.StringSlice(ipv4s)))
-		return strings.Join(ipv4s, "\n")
+			ips = append(ips, addr.Address+" ("+netName+")")
+		}
 	}
 
-	return ""
+	sort.Sort(sort.Reverse(sort.StringSlice(ips)))
+	return strings.Join(ips, "\n")
+}
+
+func (c *cmdList) ipv4ColumnData(cInfo api.InstanceFull) string {
+	return c.ipColumnData(cInfo, "inet")
 }
 
 func (c *cmdList) ipv6ColumnData(cInfo api.InstanceFull) string {
-	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Network != nil {
-		ipv6s := []string{}
-		for netName, net := range cInfo.State.Network {
-			if net.Type == "loopback" {
-				continue
-			}
-
-			for _, addr := range net.Addresses {
-				if slices.Contains([]string{"link", "local"}, addr.Scope) {
-					continue
-				}
-
-				if addr.Family == "inet6" {
-					ipv6s = append(ipv6s, addr.Address+" ("+netName+")")
-				}
-			}
-		}
-
-		sort.Sort(sort.Reverse(sort.StringSlice(ipv6s)))
-		return strings.Join(ipv6s, "\n")
-	}
-
-	return ""
+	return c.ipColumnData(cInfo, "inet6")
 }
 
 func (c *cmdList) projectColumnData(cInfo api.InstanceFull) string {

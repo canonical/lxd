@@ -1768,7 +1768,7 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 		}
 
 		if ip.IsLinkLocalUnicast() {
-			addr.Scope = "link"
+			addr.Scope = shared.IPScopeLink
 
 			if addr.Family == "inet6" {
 				addr.Netmask = "64" // Link-local IPv6 addresses are /64.
@@ -1776,7 +1776,7 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 				addr.Netmask = "16" // Link-local IPv4 addresses are /16.
 			}
 		} else {
-			addr.Scope = "global"
+			addr.Scope = shared.IPScopeGlobal
 		}
 
 		addresses = append(addresses, addr)

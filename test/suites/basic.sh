@@ -883,6 +883,51 @@ EOF
   lxc remote remove localhost
 }
 
+_loopback_ip_addresses_check() {
+  local instance="${1}"
+  local ipv4="${2}"
+  local ipv6="${3}"
+
+  sub_test "Non-loopback addresses on lo are shown by lxc list"
+  lxc list -f csv -c 4 "${instance}" | grep -F "${ipv4} (lo)"
+  lxc list -f csv -c 6 "${instance}" | grep -F "${ipv6} (lo)"
+
+  sub_test "Loopback addresses on lo remain hidden by lxc list"
+  ! lxc list -f csv -c 4 "${instance}" | grep -E '^"?127\.0\.0\.1 \(lo\)"?$' || false
+  ! lxc list -f csv -c 6 "${instance}" | grep -E '^"?::1 \(lo\)"?$' || false
+
+  sub_test "lxc info shows lo with the non-loopback addresses"
+  lxc info "${instance}" | grep -F "${ipv4}/32 (global)"
+  lxc info "${instance}" | grep -F "${ipv6}/128 (global)"
+
+  sub_test "The addresses are present in the instance state"
+  lxc list -f json "${instance}" | jq --exit-status \
+    --arg instance "${instance}" \
+    --arg ipv4 "${ipv4}" \
+    '.[] | select(.name == $instance) | .state.network.lo.addresses | any(.address == $ipv4)'
+}
+
+test_loopback_ip_addresses() {
+  ensure_import_testimage
+
+  lxc launch testimage lo-test
+  lxc exec lo-test -- ip addr add 192.0.2.10/32 dev lo
+  lxc exec lo-test -- ip -6 addr add 2001:db8::10/128 dev lo
+  _loopback_ip_addresses_check lo-test 192.0.2.10 2001:db8::10
+  lxc delete -f lo-test
+}
+
+test_loopback_ip_addresses_vm() {
+  ensure_import_ubuntu_vm_image
+
+  lxc launch ubuntu-vm lo-vm-test --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  waitInstanceReady lo-vm-test
+  lxc exec lo-vm-test -- ip addr add 192.0.2.11/32 dev lo
+  lxc exec lo-vm-test -- ip -6 addr add 2001:db8::11/128 dev lo
+  _loopback_ip_addresses_check lo-vm-test 192.0.2.11 2001:db8::11
+  lxc delete -f lo-vm-test
+}
+
 test_snap_basic_usage_vm() {
   ensure_import_ubuntu_vm_image
 

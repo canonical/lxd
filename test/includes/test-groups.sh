@@ -173,6 +173,8 @@ readonly test_group_standalone=(
     "backup_nullable_fields"
     "basic_usage"
     "basic_version"
+    "loopback_ip_addresses"
+    "loopback_ip_addresses_vm"
     "certificate_edit"
     "certificate_project_restrictions"
     "completions"

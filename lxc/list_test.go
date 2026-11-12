@@ -151,6 +151,109 @@ func TestShouldShow(t *testing.T) {
 	}
 }
 
+func TestIPColumnData(t *testing.T) {
+	list := cmdList{}
+	info := api.InstanceFull{
+		Instance: api.Instance{
+			StatusCode: api.Running,
+		},
+		State: &api.InstanceState{
+			Network: map[string]api.InstanceStateNetwork{
+				"eth0": {
+					Type: "broadcast",
+					Addresses: []api.InstanceStateNetworkAddress{
+						{
+							Family:  "inet",
+							Address: "10.0.0.5",
+							Netmask: "24",
+							Scope:   shared.IPScopeGlobal,
+						},
+						{
+							Family:  "inet6",
+							Address: "fd42::5",
+							Netmask: "64",
+							Scope:   shared.IPScopeGlobal,
+						},
+					},
+				},
+				"lo": {
+					Type: "loopback",
+					Addresses: []api.InstanceStateNetworkAddress{
+						{
+							Family:  "inet",
+							Address: "127.0.0.1",
+							Netmask: "8",
+							Scope:   shared.IPScopeLocal,
+						},
+						{
+							Family:  "inet",
+							Address: "127.0.0.2",
+							Netmask: "8",
+							Scope:   "",
+						},
+						{
+							Family:  "inet6",
+							Address: "::1",
+							Netmask: "128",
+							Scope:   shared.IPScopeLocal,
+						},
+						{
+							Family:  "inet6",
+							Address: "fe80::1",
+							Netmask: "64",
+							Scope:   shared.IPScopeLink,
+						},
+						{
+							Family:  "inet6",
+							Address: "fe90::1",
+							Netmask: "64",
+							Scope:   shared.IPScopeGlobal,
+						},
+						{
+							Family:  "inet",
+							Address: "192.0.2.10",
+							Netmask: "32",
+							Scope:   shared.IPScopeGlobal,
+						},
+						{
+							Family:  "inet6",
+							Address: "2001:db8::10",
+							Netmask: "128",
+							Scope:   shared.IPScopeGlobal,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name string
+		fn   func(api.InstanceFull) string
+		want string
+	}{
+		{
+			name: "ipv4",
+			fn:   list.ipv4ColumnData,
+			want: "192.0.2.10 (lo)\n10.0.0.5 (eth0)",
+		},
+		{
+			name: "ipv6",
+			fn:   list.ipv6ColumnData,
+			want: "fd42::5 (eth0)\n2001:db8::10 (lo)",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := test.fn(info)
+			if got != test.want {
+				t.Errorf("Expected %q, got %q", test.want, got)
+			}
+		})
+	}
+}
+
 // Used by TestColumns and TestInvalidColumns.
 const shorthand = "46abcdDefFlmMnNpPsStuL"
 const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"

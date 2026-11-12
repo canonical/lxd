@@ -15,17 +15,29 @@ type IPRange struct {
 	End   net.IP
 }
 
+// IP address scopes.
+const (
+	IPScopeGlobal = "global"
+	IPScopeLocal  = "local"
+	IPScopeLink   = "link"
+)
+
 // GetIPScope returns the scope of the IP: global, local or link.
 func GetIPScope(ip string) string {
-	if ip == "::1" || strings.HasPrefix(ip, "127.") {
-		return "local"
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return IPScopeGlobal
 	}
 
-	if strings.HasPrefix(ip, "fe80:") || strings.HasPrefix(ip, "169.254.") {
-		return "link"
+	if parsedIP.IsLoopback() {
+		return IPScopeLocal
 	}
 
-	return "global"
+	if parsedIP.IsLinkLocalUnicast() {
+		return IPScopeLink
+	}
+
+	return IPScopeGlobal
 }
 
 // ParseIPRange parses an IP range in the format "start-end" and converts it to a shared.IPRange.
