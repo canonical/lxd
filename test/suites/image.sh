@@ -159,6 +159,119 @@ test_image_list_all_aliases() {
     lxc image alias delete zzz
 }
 
+test_image_alias_types_vm() {
+  local container_fp vm_fp published_fp unified_fp image_cache tmp_dir tar_file
+
+  ensure_import_testimage
+  ensure_import_ubuntu_vm_image
+
+  container_fp="$(lxc image list -f csv -c F testimage)"
+  vm_fp="$(lxc image list -f csv -c F ubuntu-vm)"
+
+  sub_test "One alias name exists for both image types"
+  lxc image alias create shared "${container_fp}"
+  lxc image alias create shared "${vm_fp}"
+
+  [ "$(lxc query /1.0/images/container/aliases/shared | jq --exit-status --raw-output '.type')" = "container" ]
+  [ "$(lxc query /1.0/images/container/aliases/shared | jq --exit-status --raw-output '.target')" = "${container_fp}" ]
+  [ "$(lxc query /1.0/images/virtual-machine/aliases/shared | jq --exit-status --raw-output '.type')" = "virtual-machine" ]
+  [ "$(lxc query /1.0/images/virtual-machine/aliases/shared | jq --exit-status --raw-output '.target')" = "${vm_fp}" ]
+
+  sub_test "Copying images with --copy-aliases keeps one alias per image type"
+  # A cross-daemon copy requires an image registry, so the copy is exercised between projects.
+  lxc project create p1 -c features.images=true -c features.profiles=false
+  lxc image copy testimage local: --target-project p1 --copy-aliases
+  lxc image copy ubuntu-vm local: --target-project p1 --copy-aliases
+  [ "$(lxc query "/1.0/images/container/aliases/shared?project=p1" | jq --exit-status --raw-output '.target')" = "${container_fp}" ]
+  [ "$(lxc query "/1.0/images/virtual-machine/aliases/shared?project=p1" | jq --exit-status --raw-output '.target')" = "${vm_fp}" ]
+  lxc image delete "${container_fp}" --project p1
+  lxc image delete "${vm_fp}" --project p1
+  lxc project delete p1
+
+  sub_test "Launching an alias that exists for both image types creates a container"
+  lxc launch shared c1
+  [ "$(lxc query /1.0/instances/c1 | jq --exit-status --raw-output '.type')" = "container" ]
+  lxc delete c1 -f
+
+  sub_test "Launching an alias with --vm creates a virtual machine"
+  lxc launch shared v1 --vm -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  [ "$(lxc query /1.0/instances/v1 | jq --exit-status --raw-output '.type')" = "virtual-machine" ]
+  lxc delete v1 -f
+
+  sub_test "Server-side inference prefers the container alias"
+  lxc query --wait /1.0/instances -X POST --data '{"name":"api-container","source":{"type":"image","alias":"shared"}}'
+  [ "$(lxc query /1.0/instances/api-container | jq --exit-status --raw-output '.type')" = "container" ]
+  lxc delete api-container -f
+
+  sub_test "An untyped delete reports the conflict and leaves both aliases in place"
+  ! lxc image alias delete shared || false
+  lxc query /1.0/images/container/aliases/shared > /dev/null
+  lxc query /1.0/images/virtual-machine/aliases/shared > /dev/null
+
+  sub_test "Deleting the container alias leaves the virtual-machine alias"
+  lxc image alias delete shared --type container
+  ! lxc query /1.0/images/container/aliases/shared || false
+  [ "$(lxc query /1.0/images/virtual-machine/aliases/shared | jq --exit-status --raw-output '.target')" = "${vm_fp}" ]
+
+  sub_test "A virtual-machine-only alias launches a virtual machine"
+  lxc launch shared vm1 -c limits.memory=384MiB -d "${SMALL_VM_ROOT_DISK}"
+  [ "$(lxc query /1.0/instances/vm1 | jq --exit-status --raw-output '.type')" = "virtual-machine" ]
+  lxc delete vm1 -f
+
+  lxc query --wait /1.0/instances -X POST --data '{"name":"api-vm","source":{"type":"image","alias":"shared"}}'
+  [ "$(lxc query /1.0/instances/api-vm | jq --exit-status --raw-output '.type')" = "virtual-machine" ]
+  lxc delete api-vm -f
+
+  sub_test "Renaming one image type's alias"
+  lxc image alias rename shared shared-vm --type virtual-machine
+  ! lxc query /1.0/images/virtual-machine/aliases/shared || false
+  [ "$(lxc query /1.0/images/virtual-machine/aliases/shared-vm | jq --exit-status --raw-output '.target')" = "${vm_fp}" ]
+
+  sub_test "The untyped endpoint retargets an alias to the other image type"
+  lxc image alias create legacy "${container_fp}"
+  lxc query --wait -X PATCH /1.0/images/aliases/legacy --data "{\"target\":\"${vm_fp}\"}"
+  [ "$(lxc query /1.0/images/virtual-machine/aliases/legacy | jq --exit-status --raw-output '.target')" = "${vm_fp}" ]
+  ! lxc query /1.0/images/container/aliases/legacy || false
+
+  sub_test "A typed endpoint rejects a retarget to the other image type"
+  ! lxc query --wait -X PATCH /1.0/images/virtual-machine/aliases/legacy --data "{\"target\":\"${container_fp}\"}" || false
+  [ "$(lxc query /1.0/images/virtual-machine/aliases/legacy | jq --exit-status --raw-output '.target')" = "${vm_fp}" ]
+
+  sub_test "Publishing only replaces the alias of the instance's image type"
+  lxc image alias create pubal "${container_fp}"
+  lxc image alias create pubal "${vm_fp}"
+  lxc init pubal pub1
+  lxc publish pub1 --reuse --alias pubal
+  lxc delete pub1
+
+  published_fp="$(lxc query /1.0/images/container/aliases/pubal | jq --exit-status --raw-output '.target')"
+  [ -n "${published_fp}" ]
+  [ "${published_fp}" != "${container_fp}" ]
+  [ "$(lxc query /1.0/images/virtual-machine/aliases/pubal | jq --exit-status --raw-output '.target')" = "${vm_fp}" ]
+
+  sub_test "Importing a unified virtual-machine image creates a virtual-machine alias"
+  image_cache="${IMAGE_CACHE_DIR:-${HOME}/image-cache}"
+  tmp_dir=$(mktemp -d -p "${TEST_DIR}" XXX)
+  tar_file="$(mktemp -p "${TEST_DIR}" XXX.tar)"
+  tar -C "${tmp_dir}" -xf "${image_cache}/ubuntu.metadata"
+  cp "${image_cache}/ubuntu.img" "${tmp_dir}/rootfs.img"
+  tar -C "${tmp_dir}" -cf "${tar_file}" .
+
+  lxc image import "${tar_file}" --alias unified-vm
+  [ "$(lxc query /1.0/images/virtual-machine/aliases/unified-vm | jq --exit-status --raw-output '.type')" = "virtual-machine" ]
+  unified_fp="$(lxc query /1.0/images/virtual-machine/aliases/unified-vm | jq --exit-status --raw-output '.target')"
+  lxc image alias delete unified-vm --type virtual-machine
+  ! lxc query /1.0/images/virtual-machine/aliases/unified-vm || false
+  lxc image delete "${unified_fp}"
+
+  sub_test "Cleanup"
+  lxc image alias delete pubal --type container
+  lxc image alias delete pubal --type virtual-machine
+  lxc image delete "${published_fp}"
+  lxc image alias delete legacy --type virtual-machine
+  lxc image alias delete shared-vm --type virtual-machine
+}
+
 test_image_list_all_projects() {
     ensure_import_testimage
 
