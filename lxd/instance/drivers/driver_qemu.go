@@ -1200,8 +1200,8 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 	}
 
 	// QEMU must never keep running as root.
-	if d.state.OS.UnprivUser == "" {
-		return errors.New("QEMU requires an unprivileged user")
+	if d.state.OS.UnprivUser == "" || d.state.OS.UnprivGroup == "" {
+		return errors.New("QEMU requires an unprivileged user and group")
 	}
 
 	return nil
@@ -1887,9 +1887,9 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		qemuCmd = append(qemuCmd, fields...)
 	}
 
-	// Drop privileges.
+	// Drop privileges with uid:gid, which sets only that group, not the primary and supplementary groups of the user.
 	// QEMU applies the last user option, so this comes after raw.qemu.
-	runAs := d.state.OS.UnprivUser
+	runAs := fmt.Sprintf("%d:%d", d.state.OS.UnprivUID, d.state.OS.UnprivGID)
 	qemuVer, _ := d.version()
 	qemuVer91, _ := version.NewDottedVersion("9.1.0")
 
