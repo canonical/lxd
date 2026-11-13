@@ -1135,22 +1135,23 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 	}
 
 	_ = conn.SetDeadline(deadline)
-	msg, _, _, err := conn.ReadFrom()
-	if err != nil {
-		cause, ok := err.(net.Error)
-		if ok && cause.Timeout() {
-			return false, nil
+	for {
+		msg, _, _, err := conn.ReadFrom()
+		if err != nil {
+			cause, ok := err.(net.Error)
+			if ok && cause.Timeout() {
+				return false, nil
+			}
+
+			return false, err
 		}
 
-		return false, err
+		// Ignore unrelated NDP traffic and keep reading until the deadline.
+		neighbourAdvertisement, ok := msg.(*ndp.NeighborAdvertisement)
+		if ok && neighbourAdvertisement.TargetAddress == netipAddr {
+			return true, nil
+		}
 	}
-
-	neighbourAdvertisement, ok := msg.(*ndp.NeighborAdvertisement)
-	if ok && neighbourAdvertisement.TargetAddress == netipAddr {
-		return true, nil
-	}
-
-	return false, nil
 }
 
 // networkVLANListExpand takes in a list of raw VLAN values (string) that includes
