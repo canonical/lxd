@@ -1,8 +1,12 @@
 package main
 
 import (
+	"io"
 	"log"
+	"net"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -188,5 +192,78 @@ func TestParseAddr(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, tt.expected, addr)
+	}
+}
+
+// TestGenericRelayTCPToUnixEOF checks that a client disconnecting from the TCP side of the relay is
+// propagated to the unix socket target, and that the relay then closes both connections.
+func TestGenericRelayTCPToUnixEOF(t *testing.T) {
+	type readResult struct {
+		data []byte
+		err  error
+	}
+
+	socketPath := filepath.Join(t.TempDir(), "target.sock")
+
+	// Target behind the unix socket which reads until EOF and never writes anything back.
+	unixListener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer func() { _ = unixListener.Close() }()
+
+	targetResult := make(chan readResult, 1)
+	go func() {
+		conn, err := unixListener.Accept()
+		if err != nil {
+			targetResult <- readResult{err: err}
+			return
+		}
+
+		defer func() { _ = conn.Close() }()
+
+		data, err := io.ReadAll(conn)
+		targetResult <- readResult{data: data, err: err}
+	}()
+
+	tcpListener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() { _ = tcpListener.Close() }()
+
+	relayDone := make(chan struct{})
+	go func() {
+		defer close(relayDone)
+
+		srcConn, err := tcpListener.Accept()
+		if err != nil {
+			return
+		}
+
+		dstConn, err := net.Dial("unix", socketPath)
+		if err != nil {
+			_ = srcConn.Close()
+			return
+		}
+
+		genericRelay(srcConn, dstConn)
+	}()
+
+	client, err := net.Dial("tcp", tcpListener.Addr().String())
+	require.NoError(t, err)
+
+	_, err = client.Write([]byte("hello"))
+	require.NoError(t, err)
+	require.NoError(t, client.Close())
+
+	select {
+	case res := <-targetResult:
+		require.NoError(t, res.err)
+		require.Equal(t, "hello", string(res.data))
+	case <-time.After(5 * time.Second):
+		t.Fatal("Unix socket target did not receive EOF after the TCP client disconnected")
+	}
+
+	select {
+	case <-relayDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Relay did not finish after both directions completed")
 	}
 }
