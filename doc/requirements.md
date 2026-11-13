@@ -22,7 +22,7 @@ LXD requires a kernel with support for:
 The following optional features also require extra kernel options or newer versions:
 
 * Namespaces (`user` and `cgroup`)
-* AppArmor (including Ubuntu patch for mount mediation)
+* AppArmor (including Ubuntu patch for mount mediation), strongly recommended for production deployments (see {ref}`howto-security-harden-apparmor`)
 * Control Groups (`blkio`, `cpuset`, `devices`, `memory`, `pids` and `net_prio`)
 * CRIU (exact details to be found with CRIU upstream)
 * SKBPRIO/QFQ qdiscs (for `limits.priority`, minimum kernel 5.17)
