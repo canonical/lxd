@@ -276,12 +276,57 @@ _apparmor_rsync_volume_name() {
   lxc storage delete "${pool}"
 }
 
+# _apparmor_abstract_connect connects to an abstract unix socket from an AppArmor profile.
+_apparmor_abstract_connect() {
+  local profile="${1}"
+  local name="${2}"
+  local listener rc=0
+
+  socat -u ABSTRACT-LISTEN:"${name}" /dev/null &
+  listener="${!}"
+  for _ in $(seq 50); do
+    ss -Hxl | grep -F "@${name} " >/dev/null && break
+    sleep 0.1
+  done
+
+  aa-exec -p "${profile}" -- socat -u /dev/null ABSTRACT-CONNECT:"${name}" || rc="${?}"
+  kill "${listener}" 2>/dev/null || true
+  wait "${listener}" || true
+  return "${rc}"
+}
+
+# _apparmor_qemu_unix_sockets checks that QEMU can't use arbitrary abstract unix sockets.
+_apparmor_qemu_unix_sockets() {
+  if [ "${LXD_TMPFS:-0}" = "1" ] && ! runsMinimumKernel 6.6; then
+    echo "==> SKIP: QEMU requires direct-io support which requires a kernel >= 6.6 for tmpfs support (LXD_TMPFS=${LXD_TMPFS})"
+    return 0
+  fi
+
+  local profile out
+  lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
+  profile="$(sed 's/ (enforce)$//' "/proc/$(lxc query /1.0/instances/v1/state | jq --exit-status .pid)/attr/current")"
+
+  sub_test "An unconfined process can connect to an abstract unix socket"
+  _apparmor_abstract_connect unconfined "lxd-test-$$"
+
+  sub_test "QEMU's profile can't connect to an arbitrary abstract unix socket"
+  ! out="$(_apparmor_abstract_connect "${profile}" "lxd-test-$$" 2>&1)" || false
+  echo "${out}" | grep -F "Permission denied"
+
+  sub_test "QEMU's profile can't listen on an arbitrary abstract unix socket"
+  ! out="$(timeout 5 aa-exec -p "${profile}" -- socat -u ABSTRACT-LISTEN:"lxd-test-$$" /dev/null 2>&1)" || false
+  echo "${out}" | grep -F "Permission denied"
+
+  lxc delete --force v1
+}
+
 test_apparmor() {
   _instance_apparmor
   _apparmor_library_paths
   _apparmor_library_paths_rpath
   _apparmor_forkproxy_socket_path
   _apparmor_rsync_volume_name
+  _apparmor_qemu_unix_sockets
 }
 
 test_snap_apparmor() {
