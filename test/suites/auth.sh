@@ -215,7 +215,7 @@ test_authorization() {
     "https://${LXD_ADDR}/1.0/auth/identities/tls" | jq --exit-status '.type == "sync" and .status_code == 200'
 
   # 4. Assert that the activated identity matches the LEAF certificate, NOT the injected secondary certificate.
-  lxc auth identity list --format csv | grep -xF "tls,Client certificate,chain-user,${leaf_fingerprint},test-group"
+  lxc auth identity list --format csv --columns atnig | grep -xF "tls,Client certificate,chain-user,${leaf_fingerprint},test-group"
   ! lxc auth identity list --format csv | grep -F "${target_fingerprint}" || false
 
   # 5. Assert that the client presenting the chain signed by chain_leaf.key is now authenticated.
