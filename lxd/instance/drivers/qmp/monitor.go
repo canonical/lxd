@@ -191,13 +191,13 @@ func (m *Monitor) ping() error {
 }
 
 // runJSON executes a JSON-formatted command.
-func (m *Monitor) runJSON(request []byte, resp any, id uint32) error {
+func (m *Monitor) runJSON(request []byte, resp any, id uint32, timeout time.Duration) error {
 	// Check if disconnected
 	if m.isDisconnected() {
 		return ErrMonitorDisconnect
 	}
 
-	out, err := m.qmp.run(request, id)
+	out, err := m.qmp.runWithFile(request, nil, id, timeout)
 	if err != nil {
 		// Keep the monitor cached on timeout, as a timeout means QEMU is busy rather than gone.
 		if errors.Is(err, ErrMonitorTimeout) {
@@ -231,7 +231,9 @@ func (m *Monitor) runJSON(request []byte, resp any, id uint32) error {
 }
 
 // run executes a command.
-func (m *Monitor) run(cmd string, args any, resp any) error {
+//
+// An optional timeout may be given to override the default per-command timeout.
+func (m *Monitor) run(cmd string, args any, resp any, timeout ...time.Duration) error {
 	id := m.qmp.qmpIncreaseID()
 
 	// Construct the command.
@@ -246,7 +248,12 @@ func (m *Monitor) run(cmd string, args any, resp any) error {
 		return err
 	}
 
-	return m.runJSON(request, resp, id)
+	runTimeout := commandTimeout(request)
+	if len(timeout) > 0 && timeout[0] > 0 {
+		runTimeout = timeout[0]
+	}
+
+	return m.runJSON(request, resp, id, runTimeout)
 }
 
 // RunTransaction executes a series of actions as a single atomic transaction.
