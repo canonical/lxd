@@ -349,6 +349,57 @@ EOF
   [ "$(lxc_remote config get pki-lxd: core.https_address)" != "" ]
   curl -s --cert "${LXD_CONF}/client.pem" --cacert "${LXD5_DIR}/server.crt" "https://${LXD5_ADDR}/1.0" | jq --exit-status '.metadata.config."core.https_address"'
 
+  ### CA signed server certificate and `client.ca`: no certificate prompt.
+
+  # Issue a server certificate that is valid for 127.0.0.1 so that the CA alone can verify it.
+  (
+    set -e
+    cd "${TEST_DIR}/pki"
+    ./easyrsa --subject-alt-name="IP:127.0.0.1" build-server-full ca-server nopass
+    ./easyrsa build-client-full ca-auto nopass
+  )
+
+  LXD6_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  cp "${TEST_DIR}/pki/pki/issued/ca-server.crt" "${LXD6_DIR}/server.crt"
+  cp "${TEST_DIR}/pki/pki/private/ca-server.key" "${LXD6_DIR}/server.key"
+  cp "${TEST_DIR}/pki/pki/ca.crt" "${LXD6_DIR}/server.ca"
+  cp "${TEST_DIR}/pki/pki/crl.pem" "${LXD6_DIR}/ca.crl"
+  spawn_lxd "${LXD6_DIR}" false
+  LXD6_ADDR="$(< "${LXD6_DIR}/lxd.addr")"
+  LXD_DIR="${LXD6_DIR}" lxc config set core.trust_ca_certificates true
+  server_fingerprint="$(cert_fingerprint "${LXD6_DIR}/server.crt")"
+
+  # Check the setup: the CA alone must verify the server certificate for 127.0.0.1.
+  curl -s --cacert "${TEST_DIR}/pki/pki/ca.crt" "https://${LXD6_ADDR}/1.0" | jq --exit-status '.metadata.auth == "untrusted"'
+
+  LXC6_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
+  (
+    set -e
+    # shellcheck disable=2030
+    export LXD_CONF="${LXC6_DIR}"
+    cp "${TEST_DIR}/pki/pki/issued/ca-auto.crt" "${LXD_CONF}/client.crt"
+    cp "${TEST_DIR}/pki/pki/private/ca-auto.key" "${LXD_CONF}/client.key"
+
+    sub_test "Verify a CA signed server certificate is prompted for without client.ca"
+    out="$(CLIENT_DEBUG="" SHELL_TRACING="" lxc_remote remote add pki-ca "${LXD6_ADDR}" < /dev/null 2>&1 || true)"
+    echo "${out}" | grep -F "Certificate fingerprint: ${server_fingerprint}"
+    [ ! -e "${LXD_CONF}/servercerts/pki-ca.crt" ]
+
+    sub_test "Verify client.ca trusts a CA signed server certificate without prompting"
+    cp "${TEST_DIR}/pki/pki/ca.crt" "${LXD_CONF}/client.ca"
+    out="$(CLIENT_DEBUG="" SHELL_TRACING="" lxc_remote remote add pki-ca "${LXD6_ADDR}" < /dev/null 2>&1)"
+    if echo "${out}" | grep -F "Certificate fingerprint"; then
+      echo "ERROR: Unexpected certificate prompt with client.ca present"
+      exit 1
+    fi
+
+    [ ! -e "${LXD_CONF}/servercerts/pki-ca.crt" ]
+    lxc_remote info pki-ca: | grep -F 'auth: trusted'
+    lxc_remote remote remove pki-ca
+  )
+
+  kill_lxd "${LXD6_DIR}"
+
   # Clean up.
 
   rm "${LXD_CONF}/client.pem"
