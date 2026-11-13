@@ -3904,3 +3904,8 @@ To test this extension please follow the instructions below:
    ```bash
    lxc launch ubuntu:26.04 m1 --microvm
    ```
+
+(extension-storage-volume-member-move)=
+## `storage_volume_member_move`
+
+This extension adds support for moving a custom storage volume to another cluster member with a single API call. Calling `POST /1.0/storage-pools/<pool>/volumes/custom/<volume>?target=<member>` with `location` set to the name of another cluster member moves the volume from the member given in `target`, which is the member that currently hosts the volume, to the member given in `location`. The source volume is deleted by the server once the volume exists on the destination, so `can_delete` on the volume is not needed. The volume keeps its permissions when it is moved. This is also true when moving a volume to another storage pool or project. If the volume is also moved to another project, only the permissions of groups that can view that project are kept.

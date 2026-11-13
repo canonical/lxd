@@ -84,31 +84,10 @@ func (g *AuthGroupsRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity a
 		return nil, err
 	}
 
-	permissions, entityURLs, err := GetPermissionEntityURLs(ctx, tx, permissions)
+	group.Permissions, err = PermissionsToAPI(ctx, tx, permissions)
 	if err != nil {
 		return nil, err
 	}
-
-	apiPermissions := make([]api.Permission, 0, len(permissions))
-	for _, p := range permissions {
-		entityURLs, ok := entityURLs[entity.Type(p.EntityType)]
-		if !ok {
-			return nil, fmt.Errorf("Entity URLs missing for permissions with entity type %q", p.EntityType)
-		}
-
-		u, ok := entityURLs[p.EntityID]
-		if !ok {
-			return nil, fmt.Errorf("Entity URL missing for permission with entity type %q and entity ID %d", p.EntityType, p.EntityID)
-		}
-
-		apiPermissions = append(apiPermissions, api.Permission{
-			EntityType:      string(p.EntityType),
-			EntityReference: u.String(),
-			Entitlement:     string(p.Entitlement),
-		})
-	}
-
-	group.Permissions = apiPermissions
 
 	identities, err := GetIdentitiesByAuthGroupID(ctx, tx, g.ID)
 	if err != nil {
@@ -135,6 +114,35 @@ func (g *AuthGroupsRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity a
 	}
 
 	return group, nil
+}
+
+// PermissionsToAPI converts the given permissions to api.Permission by looking up the URL of the entity of each permission.
+func PermissionsToAPI(ctx context.Context, tx *sql.Tx, permissions []Permission) ([]api.Permission, error) {
+	permissions, entityURLs, err := GetPermissionEntityURLs(ctx, tx, permissions)
+	if err != nil {
+		return nil, err
+	}
+
+	apiPermissions := make([]api.Permission, 0, len(permissions))
+	for _, p := range permissions {
+		entityURLs, ok := entityURLs[entity.Type(p.EntityType)]
+		if !ok {
+			return nil, fmt.Errorf("Entity URLs missing for permissions with entity type %q", p.EntityType)
+		}
+
+		u, ok := entityURLs[p.EntityID]
+		if !ok {
+			return nil, fmt.Errorf("Entity URL missing for permission with entity type %q and entity ID %d", p.EntityType, p.EntityID)
+		}
+
+		apiPermissions = append(apiPermissions, api.Permission{
+			EntityType:      string(p.EntityType),
+			EntityReference: u.String(),
+			Entitlement:     string(p.Entitlement),
+		})
+	}
+
+	return apiPermissions, nil
 }
 
 // GetIdentitiesByAuthGroupID returns the identities that are members of the group with the given ID.
