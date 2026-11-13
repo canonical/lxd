@@ -520,11 +520,11 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 		var err error
 		switch fsType {
 		case "ext4":
-			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "resize2fs", devPath)
+			_, err = runFSTool(noKillRetryOpts, true, "resize2fs", []string{devPath}, devPath, mountPath)
 		case "xfs":
-			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "xfs_growfs", mountPath)
+			_, err = runFSTool(noKillRetryOpts, true, "xfs_growfs", []string{mountPath}, devPath, mountPath)
 		case "btrfs":
-			_, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, "btrfs", "filesystem", "resize", "max", mountPath)
+			_, err = runFSTool(noKillRetryOpts, true, "btrfs", []string{"filesystem", "resize", "max", mountPath}, devPath, mountPath)
 		default:
 			return fmt.Errorf("Unrecognised filesystem type %q", fsType)
 		}
