@@ -33,9 +33,9 @@ Release notes, deprecation notices, and details about the LXD release cadence an
 :titlesonly:
 :maxdepth: 1
 
+/reference/releases-snap
 /reference/release-notes/index
 /reference/deprecation_notices
-/reference/releases-snap
 ```
 
 ## Images
