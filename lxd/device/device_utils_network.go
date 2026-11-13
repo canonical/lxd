@@ -1040,6 +1040,8 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 	return nil
 }
 
+var arpingMu sync.Mutex
+
 // isIPAvailable checks if address responds to ARP/NDP neighbour probe on the parentInterface.
 // Returns true if IP is available.
 func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) (bool, error) {
@@ -1054,9 +1056,11 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 
 	// Handle IPv4 address.
 	if address.To4() != nil {
-		timeout := time.Until(deadline)
-		arping.SetTimeout(timeout)
+		// The arping timeout is package-level state, so serialize setting it and probing.
+		arpingMu.Lock()
+		arping.SetTimeout(time.Until(deadline))
 		_, _, err := arping.PingOverIfaceByName(address, parentInterface)
+		arpingMu.Unlock()
 		if err != nil {
 			if errors.Is(err, arping.ErrTimeout) {
 				return false, nil
