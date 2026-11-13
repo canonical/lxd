@@ -114,7 +114,7 @@ func (c *ClusterTx) GetProjectInstancesAndProfiles(ctx context.Context, projects
 
 	// Add profiles to projects which inherit profiles from the default project
 	for _, project := range projects {
-		if project.Name != defaultProjectName || !projectInheritsProfiles(project) {
+		if project.Name == defaultProjectName || !projectInheritsProfiles(project) {
 			continue
 		}
 
