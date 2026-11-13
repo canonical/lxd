@@ -384,6 +384,11 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafe
 	return false, nil
 }
 
+// runFSTool runs a filesystem tool on the given device or image file, confined to it when block.FSToolWrapper is set.
+func runFSTool(retryOpts *shared.RunCommandRetryOpts, retry bool, tool string, args []string, devPath string, mountPath string) (string, error) {
+	return block.RunFSTool(retryOpts, retry, tool, args, devPath, mountPath)
+}
+
 // mkfsOptions represents options for filesystem creation.
 type mkfsOptions struct {
 	Label string
@@ -411,7 +416,7 @@ func makeFSType(path string, fsType string, options *mkfsOptions) (string, error
 	// Always add the path to the device as the last argument for wider compatibility with versions of mkfs.
 	cmd = append(cmd, path)
 
-	msg, err = shared.RunCommandRetry(context.TODO(), noKillRetryOpts, cmd[0], cmd[1:]...)
+	msg, err = runFSTool(noKillRetryOpts, true, cmd[0], cmd[1:], path, "")
 	if err != nil {
 		return msg, err
 	}

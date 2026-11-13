@@ -67,6 +67,7 @@ import (
 	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
+	"github.com/canonical/lxd/lxd/storage/block"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
 	"github.com/canonical/lxd/lxd/storage/filesystem"
 	"github.com/canonical/lxd/lxd/sys"
@@ -1226,6 +1227,11 @@ func (d *Daemon) init() (err error) {
 	// Setup AppArmor wrapper.
 	rsync.RunWrapper = func(cmd *exec.Cmd, source string, destination string) (func(), error) {
 		return apparmor.RsyncWrapper(d.os, cmd, source, destination)
+	}
+
+	// Confine the filesystem tools.
+	block.FSToolWrapper = func(tool string, args []string, devPath string, mountPath string) (string, []string, func(), error) {
+		return apparmor.FSToolWrapper(d.os, tool, args, devPath, mountPath)
 	}
 
 	// Bump some kernel limits to avoid issues
