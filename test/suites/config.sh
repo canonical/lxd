@@ -99,7 +99,8 @@ _mount_order() {
 
 test_config_profiles() {
   # Unset LXD_DEVMONITOR_DIR as this test uses devices in /dev instead of TEST_DIR.
-  local OLD_LXD_DEVMONITOR_DIR="${LXD_DEVMONITOR_DIR}"
+  local OLD_LXD_DEVMONITOR_DIR="${LXD_DEVMONITOR_DIR-}"
+  local DEVMONITOR_DIR_WAS_SET="${LXD_DEVMONITOR_DIR+x}"
   unset LXD_DEVMONITOR_DIR
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
@@ -254,7 +255,9 @@ test_config_profiles() {
   lxc delete --force foo
 
   # Restore LXD_DEVMONITOR_DIR
-  LXD_DEVMONITOR_DIR="${OLD_LXD_DEVMONITOR_DIR}"
+  if [ -n "${DEVMONITOR_DIR_WAS_SET}" ]; then
+    export LXD_DEVMONITOR_DIR="${OLD_LXD_DEVMONITOR_DIR}"
+  fi
 }
 
 
