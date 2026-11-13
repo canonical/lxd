@@ -59,8 +59,8 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ $element }}/** kr,
 {{- end }}
 
-  # Used by qemu for live migration NBD server and client or when in a container
-  unix (bind, listen, accept, send, receive, connect) type=stream,
+  # Live migration NBD connection, passed in by LXD: a socket pair on the source and a listener on the target
+  unix (listen, accept, send, receive) type=stream addr=none,
 
 {{- range $index, $element := .swtpmProfiles }}
 {{- if eq $index 0 }}
@@ -68,6 +68,12 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # TPM emulators (swtpm) of the instance
 {{- end }}
   unix (connect, send, receive) type=stream peer=(label="{{ $element }}"),
+{{- end }}
+
+{{- if .userns }}
+
+  # Used by qemu when inside a container
+  unix (send, receive) type=stream,
 {{- end }}
 
   # Instance specific paths
