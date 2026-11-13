@@ -1816,6 +1816,13 @@ The default is `false`, which means that all devices can be hotplugged.
 
 ```
 
+```{config:option} ownership.inherit device-unix-usb-device-conf
+:defaultdesc: "`false`"
+:shortdesc: "Whether this device inherits ownership (GID and/or UID) from the host"
+:type: "bool"
+
+```
+
 ```{config:option} productid device-unix-usb-device-conf
 :shortdesc: "Product ID of the USB device"
 :type: "string"
