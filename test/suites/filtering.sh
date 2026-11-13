@@ -10,7 +10,7 @@ test_filtering() {
     echo "===> Image filtering"
     ensure_import_testimage
     curl --silent --get --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/images" --data-urlencode "recursion=0" --data-urlencode "filter=properties.os eq BusyBox" | jq --exit-status ".metadata | length == 1"
-    curl --silent --get --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/images" --data-urlencode "recursion=1" --data-urlencode "filter=properties.os eq Ubuntu" | jq --exit-status ".metadata == []"
+    curl --silent --get --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/images" --data-urlencode "recursion=1" --data-urlencode "filter=properties.os eq NoSuchOS" | jq --exit-status ".metadata == []"
 
     # Cleanup
     lxc delete c1 c2
