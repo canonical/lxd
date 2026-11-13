@@ -7376,6 +7376,9 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 				} else {
 					memorySReclaimable = int64(v)
 				}
+
+			default:
+				continue
 			}
 
 			out.AddSamples(metricType, metrics.Sample{Value: float64(v)})
