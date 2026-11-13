@@ -425,7 +425,9 @@ func (d *zfs) Delete(progressReporter ioprogress.ProgressReporter) error {
 	}
 
 	if !exists {
-		return nil
+		// The pool may not be importable (e.g. its disks are gone), but its mount point directories are still
+		// left behind on the host and would prevent the pool directory from being removed.
+		return removeEmptyDirectories(GetPoolMountPath(d.name))
 	}
 
 	// Confirm that nothing's been left behind
