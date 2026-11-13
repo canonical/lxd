@@ -975,7 +975,7 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 		// Perform non-shared storage transfer if requested.
 		filesystemConn := d.migrationReceiveStateful[api.SecretNameFilesystem]
 		if filesystemConn != nil {
-			nbdConn, err := monitor.NBDServerStart()
+			nbdConn, err := monitor.NBDServerStart(d.LogPath())
 			if err != nil {
 				return fmt.Errorf("Failed starting NBD server: %w", err)
 			}
@@ -7799,21 +7799,29 @@ func (d *qemu) migrateSendLive(ctx context.Context, pool storagePools.Pool, clus
 
 	// Non-shared storage snapshot transfer.
 	if !sharedStorage {
-		listener, err := net.Listen("unix", "")
+		// A socket pair, unlike a listener, can't be connected to by anything else.
+		nbdFDs, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM|unix.SOCK_CLOEXEC, 0)
 		if err != nil {
-			return fmt.Errorf("Failed creating NBD unix listener: %w", err)
+			return fmt.Errorf("Failed creating NBD socket pair: %w", err)
 		}
 
-		defer func() { _ = listener.Close() }()
+		qemuNBDFile := os.NewFile(uintptr(nbdFDs[0]), "nbd-qemu")
+		defer func() { _ = qemuNBDFile.Close() }()
+
+		lxdNBDFile := os.NewFile(uintptr(nbdFDs[1]), "nbd-lxd")
+		nbdConn, err := net.FileConn(lxdNBDFile)
+		_ = lxdNBDFile.Close()
+		if err != nil {
+			return fmt.Errorf("Failed getting NBD connection: %w", err)
+		}
+
+		err = monitor.SendFile(nbdTargetDiskName, qemuNBDFile)
+		if err != nil {
+			_ = nbdConn.Close()
+			return fmt.Errorf("Failed sending NBD socket: %w", err)
+		}
 
 		go func() {
-			d.logger.Debug("NBD listener waiting for accept")
-			nbdConn, err := listener.Accept()
-			if err != nil {
-				d.logger.Error("Failed accepting connection to NBD client unix listener", logger.Ctx{"err": err})
-				return
-			}
-
 			defer func() { _ = nbdConn.Close() }()
 
 			d.logger.Debug("NBD connection on source started")
@@ -7832,13 +7840,14 @@ func (d *qemu) migrateSendLive(ctx context.Context, pool storagePools.Pool, clus
 				"driver": "nbd",
 				"export": qemuMigrationNBDExportName,
 				"server": map[string]any{
-					"type":     "unix",
-					"abstract": true,
-					"path":     strings.TrimPrefix(listener.Addr().String(), "@"),
+					"type": "fd",
+					"str":  nbdTargetDiskName,
 				},
 			},
 		}, nil)
 		if err != nil {
+			// QEMU only takes the fd out of its table once it uses it.
+			_ = monitor.CloseFile(nbdTargetDiskName)
 			return fmt.Errorf("Failed adding NBD device: %w", err)
 		}
 
