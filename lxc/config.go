@@ -214,8 +214,17 @@ func (c *cmdConfigEdit) run(cmd *cobra.Command, args []string) error {
 			var op lxd.Operation
 
 			if isSnapshot {
-				newdata := api.InstanceSnapshotPut{}
+				current, _, err := resource.server.GetInstanceSnapshot(fields[0], fields[1])
+				if err != nil {
+					return err
+				}
 
+				err = checkReadOnlyYAMLFields(current, contents, getEditableYAMLFields(api.InstanceSnapshotPut{}), snapshotEditableFieldsMsg(api.InstanceSnapshotPut{}))
+				if err != nil {
+					return err
+				}
+
+				newdata := api.InstanceSnapshotPut{}
 				err = yaml.Unmarshal(contents, &newdata)
 				if err != nil {
 					return err

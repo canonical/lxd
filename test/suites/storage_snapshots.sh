@@ -105,16 +105,26 @@ EOF
   # Test non editable properties.
   for field in name content_type config; do
     lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" > "$tmp_yaml"
+    local value
     case $field in
       config)
-        sed -i "s/^${field}:.*/${field}: {}/" "$tmp_yaml"
+        value="{}"
         ;;
       *)
-        sed -i "s/^${field}:.*/${field}: invalid-${field}/" "$tmp_yaml"
+        value="invalid-${field}"
         ;;
     esac
 
-    ! lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" < "$tmp_yaml" 2>&1 | grep -xF "$ERROR_MSG" || false
+    # Drop nested lines under the replaced key so block-style YAML stays valid.
+    awk -v f="$field" -v v="$value" '$0 ~ "^" f ":" {print f ": " v; skip=1; next} skip && /^[A-Za-z_][A-Za-z0-9_]*:/ {skip=0} skip {next} {print}' "$tmp_yaml" > "${tmp_yaml}.new"
+    mv "${tmp_yaml}.new" "$tmp_yaml"
+
+    local output
+    if output="$(CLIENT_DEBUG="" SHELL_TRACING="" lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0" < "$tmp_yaml" 2>&1)"; then
+      false
+    else
+      echo "$output" | grep -xF "$ERROR_MSG"
+    fi
   done
   rm "${tmp_yaml}"
 
