@@ -417,7 +417,7 @@ func (d *btrfs) Update(changedConfig map[string]string) error {
 			return err
 		}
 
-		_, err = shared.RunCommand(context.TODO(), "btrfs", "filesystem", "resize", "max", GetPoolMountPath(d.name))
+		_, err = runFSTool(nil, false, "btrfs", []string{"filesystem", "resize", "max", GetPoolMountPath(d.name)}, loopDevPath, GetPoolMountPath(d.name))
 		if err != nil {
 			return err
 		}
