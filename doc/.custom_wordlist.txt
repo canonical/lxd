@@ -153,6 +153,7 @@ kbit
 Keepalived
 Keycloak
 keymaps
+keyring
 KiB
 kibi
 Kibit
