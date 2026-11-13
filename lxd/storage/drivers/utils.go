@@ -458,7 +458,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 	switch fsType {
 	case "ext4":
 		return vol.UnmountTask(func(progressReporter ioprogress.ProgressReporter) error {
-			output, err := shared.RunCommand(context.TODO(), "e2fsck", "-f", "-y", devPath)
+			output, err := runFSTool(nil, false, "e2fsck", []string{"-f", "-y", devPath}, devPath, "")
 			if err != nil {
 				exitCodeFSModified := false
 				runErr, ok := err.(shared.RunError)
@@ -489,7 +489,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 			}
 
 			args = append(args, devPath, strSize)
-			_, err = shared.RunCommand(context.TODO(), "resize2fs", args...)
+			_, err = runFSTool(nil, false, "resize2fs", args, devPath, "")
 			if err != nil {
 				return err
 			}
@@ -498,7 +498,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 		}, true, nil)
 	case "btrfs":
 		return vol.MountTask(func(mountPath string, progressReporter ioprogress.ProgressReporter) error {
-			_, err := shared.RunCommand(context.TODO(), "btrfs", "filesystem", "resize", strSize, mountPath)
+			_, err := runFSTool(nil, false, "btrfs", []string{"filesystem", "resize", strSize, mountPath}, devPath, mountPath)
 			if err != nil {
 				return err
 			}
