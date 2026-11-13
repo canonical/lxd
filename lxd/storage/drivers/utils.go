@@ -566,7 +566,7 @@ func regenerateFilesystemUUID(fsType string, devPath string) error {
 func regenerateFilesystemBTRFSUUID(devPath string) error {
 	// If the snapshot was taken whilst instance was running there may be outstanding transactions that will
 	// cause btrfstune to corrupt superblock, so ensure these are cleared out first.
-	_, err := shared.RunCommand(context.TODO(), "btrfs", "rescue", "zero-log", devPath)
+	_, err := runFSTool(nil, false, "btrfs", []string{"rescue", "zero-log", devPath}, devPath, "")
 	if err != nil {
 		return err
 	}
@@ -574,7 +574,7 @@ func regenerateFilesystemBTRFSUUID(devPath string) error {
 	// `-m` modifies the metadata_uuid which is much faster than `-u` that rewrites all metadata blocks.
 	// The resulting filesystem needs kernel 5.0+ to be mounted or running `btrfstune -u` to regain compat
 	// with older kernels.
-	_, err = shared.RunCommand(context.TODO(), "btrfstune", "-f", "-m", devPath)
+	_, err = runFSTool(nil, false, "btrfstune", []string{"-f", "-m", devPath}, devPath, "")
 	if err != nil {
 		return err
 	}
@@ -585,20 +585,20 @@ func regenerateFilesystemBTRFSUUID(devPath string) error {
 // regenerateFilesystemXFSUUID changes the XFS filesystem UUID to a new randomly generated one.
 func regenerateFilesystemXFSUUID(devPath string) error {
 	// Attempt to generate a new UUID.
-	msg, err := shared.RunCommand(context.TODO(), "xfs_admin", "-U", "generate", devPath)
+	msg, err := runFSTool(nil, false, "xfs_admin", []string{"-U", "generate", devPath}, devPath, "")
 	if err != nil {
 		return err
 	}
 
 	if msg != "" {
 		// Exit 0 with a msg usually means some log entry getting in the way.
-		_, err = shared.RunCommand(context.TODO(), "xfs_repair", "-o", "force_geometry", "-L", devPath)
+		_, err = runFSTool(nil, false, "xfs_repair", []string{"-o", "force_geometry", "-L", devPath}, devPath, "")
 		if err != nil {
 			return err
 		}
 
 		// Attempt to generate a new UUID again.
-		_, err = shared.RunCommand(context.TODO(), "xfs_admin", "-U", "generate", devPath)
+		_, err = runFSTool(nil, false, "xfs_admin", []string{"-U", "generate", devPath}, devPath, "")
 		if err != nil {
 			return err
 		}
