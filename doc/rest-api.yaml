@@ -9147,6 +9147,11 @@ paths:
                   in: query
                   name: project
                   type: string
+                - description: Replace the values of secret configuration keys and proxy passwords with "[redacted]"
+                  example: true
+                  in: query
+                  name: redacted
+                  type: boolean
             produces:
                 - application/json
             responses:
