@@ -3315,6 +3315,24 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, progressReporter iop
 		if err != nil {
 			return fmt.Errorf("Error deleting storage volume: %w", err)
 		}
+	} else if vol.IsVMBlock() {
+		// A previous deletion attempt may have removed the VM's block volume but failed to remove its
+		// filesystem volume. The drivers only check the block volume, so delete the filesystem volume directly.
+		fsVol := vol.NewVMBlockFilesystemVolume()
+
+		fsVolExists, err := b.driver.HasVolume(fsVol)
+		if err != nil {
+			return fmt.Errorf("Failed checking for leftover instance filesystem volume: %w", err)
+		}
+
+		if fsVolExists {
+			l.Debug("Deleting leftover instance filesystem volume", logger.Ctx{"volName": fsVol.Name(), "contentType": fsVol.ContentType()})
+
+			err = b.driver.DeleteVolume(fsVol, progressReporter)
+			if err != nil {
+				return fmt.Errorf("Error deleting storage volume: %w", err)
+			}
+		}
 	}
 
 	// Remove symlinks.
