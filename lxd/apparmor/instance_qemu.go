@@ -62,6 +62,14 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # Used by qemu for live migration NBD server and client or when in a container
   unix (bind, listen, accept, send, receive, connect) type=stream,
 
+{{- range $index, $element := .swtpmProfiles }}
+{{- if eq $index 0 }}
+
+  # TPM emulators (swtpm) of the instance
+{{- end }}
+  unix (connect, send, receive) type=stream peer=(label="{{ $element }}"),
+{{- end }}
+
   # Instance specific paths
   {{ .logPath }}/** rwk,
   {{ .path }}/** rwk,

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -23,18 +22,6 @@ func (i swtpmTestInstance) Project() api.Project {
 
 func (i swtpmTestInstance) Name() string {
 	return i.name
-}
-
-type swtpmTestDevice struct {
-	name string
-}
-
-func (d swtpmTestDevice) Config() deviceConfig.Device {
-	return nil
-}
-
-func (d swtpmTestDevice) Name() string {
-	return d.name
 }
 
 func TestSwtpmProfile(t *testing.T) {
@@ -161,7 +148,7 @@ func TestSwtpmProfileID(t *testing.T) {
 		{"default", "c1", "a:b"},
 		{"p..q", "c1", "tpm"},
 	} {
-		id := swtpmProfileID(swtpmTestInstance{project: tc.project, name: tc.inst}, swtpmTestDevice{name: tc.dev})
+		id := swtpmProfileID(swtpmTestInstance{project: tc.project, name: tc.inst}, tc.dev)
 		if ids[id] {
 			t.Errorf("Duplicate profile ID %q for %+v", id, tc)
 		}
