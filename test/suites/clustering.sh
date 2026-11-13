@@ -591,6 +591,11 @@ test_clustering_storage() {
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -F "location: node1"
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -F "location: node2"
 
+    # Editing a volume from stdin honors --target and leaves the same-named volume on the other member untouched.
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | sed 's/^description:.*/description: edited-node1/' | LXD_DIR="${LXD_TWO_DIR}" lxc storage volume edit --target node1 data web
+    [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc storage volume get --target node1 data web description --property)" = "edited-node1" ]
+    [ "$(LXD_DIR="${LXD_TWO_DIR}" lxc storage volume get --target node2 data web description --property || echo fail)" = "" ]
+
     # Rename updates the disk devices that refer to the disk.
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node1 data web webbaz
 
