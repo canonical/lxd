@@ -156,3 +156,61 @@ func TestConfig_PatchKeepsValues(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"core.proxy_http": "foo.bar"}, values)
 }
+
+func TestRedactSecrets(t *testing.T) {
+	config := map[string]string{
+		"core.https_address":     ":8443",
+		"loki.auth.password":     "hunter2",
+		"network.ovn.client_key": "-----BEGIN PRIVATE KEY-----",
+		"oidc.client.id":         "lxd",
+		"oidc.client.secret":     "s3cret",
+	}
+
+	clusterConfig.RedactSecrets(config)
+
+	assert.Equal(t, map[string]string{
+		"core.https_address":     ":8443",
+		"loki.auth.password":     clusterConfig.RedactedValue,
+		"network.ovn.client_key": clusterConfig.RedactedValue,
+		"oidc.client.id":         "lxd",
+		"oidc.client.secret":     clusterConfig.RedactedValue,
+	}, config)
+}
+
+func TestRedactSecretsUnset(t *testing.T) {
+	config := map[string]string{"core.https_address": ":8443"}
+
+	clusterConfig.RedactSecrets(config)
+
+	assert.Equal(t, map[string]string{"core.https_address": ":8443"}, config)
+}
+
+func TestSecretKeysInSchema(t *testing.T) {
+	for _, key := range clusterConfig.SecretKeys {
+		_, ok := clusterConfig.ConfigSchema.Types[key]
+		assert.True(t, ok, "Secret key %q is not in the config schema", key)
+	}
+}
+
+func TestRedactSecretsProxyCredentials(t *testing.T) {
+	cases := map[string]string{
+		"":                                 "",
+		"http://proxy:3128":                "http://proxy:3128",
+		"proxy:3128":                       "proxy:3128",
+		"http://user@proxy:3128":           "http://user@proxy:3128",
+		"http://user:pass@proxy:3128":      "http://user:[redacted]@proxy:3128",
+		"https://user:p%40ss@proxy:3128/x": "https://user:[redacted]@proxy:3128/x",
+		"socks5://user:pass@proxy:1080":    "socks5://user:[redacted]@proxy:1080",
+		"user:pass@proxy:3128":             "user:[redacted]@proxy:3128",
+		"http://user:pa@ss@proxy:3128":     "http://user:[redacted]@proxy:3128",
+		"http://user:pass@proxy:3128/a@b":  "http://user:[redacted]@proxy:3128/a@b",
+	}
+
+	for value, expected := range cases {
+		for _, key := range []string{"core.proxy_http", "core.proxy_https"} {
+			config := map[string]string{key: value}
+			clusterConfig.RedactSecrets(config)
+			assert.Equal(t, expected, config[key], "%s=%q", key, value)
+		}
+	}
+}
