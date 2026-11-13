@@ -1190,7 +1190,7 @@ func (g *cmdGlobal) cmpNetworkForwardPortTargetAddresses(networkName string, lis
 		return nil, cobra.ShellCompDirectiveError
 	}
 
-	var results []string
+	results := []string{}
 	listenAddressIsIP4 := net.ParseIP(listenAddress).To4() != nil
 	for _, instance := range instances {
 		if instance.IsActive() && instance.State != nil && instance.State.Network != nil {
@@ -1199,7 +1199,6 @@ func (g *cmdGlobal) cmpNetworkForwardPortTargetAddresses(networkName string, lis
 					continue
 				}
 
-				results = make([]string, 0, len(network.Addresses))
 				for _, address := range network.Addresses {
 					if slices.Contains([]string{shared.IPScopeLink, shared.IPScopeLocal}, address.Scope) {
 						continue
