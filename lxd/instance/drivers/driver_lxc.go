@@ -1811,6 +1811,18 @@ func (d *lxc) startCommon(ctx context.Context, progressReporter ioprogress.Progr
 	revert := revert.New()
 	defer revert.Fail()
 
+	// An unprivileged instance without an ID map would run as host root, so refuse to start it.
+	if !d.IsPrivileged() {
+		nextIdmap, err := d.NextIdmap()
+		if err != nil {
+			return nil, "", nil, fmt.Errorf("Failed getting ID map: %w", err)
+		}
+
+		if nextIdmap == nil || len(nextIdmap.Idmap) == 0 {
+			return nil, "", nil, errors.New("Unprivileged instance has no ID map, rebuild it to allocate one")
+		}
+	}
+
 	// Load the go-lxc struct
 	cc, err := d.initLXC(true)
 	if err != nil {
@@ -2767,7 +2779,76 @@ func (d *lxc) Rebuild(ctx context.Context, img *api.Image, op *operations.Operat
 	// Rebuild assumes instance is stopped.  But a stopped instance could still have a running
 	// forkfile.  So stop the forkfile.
 	d.StopForkFile(false)
-	return d.rebuildCommon(ctx, d, img, op)
+
+	// Allocate the ID map before the rebuild destroys the root filesystem so that a failure leaves the instance untouched.
+	idmapVolatile, err := d.rebuildIdmap()
+	if err != nil {
+		return err
+	}
+
+	err = d.rebuildCommon(ctx, d, img, op)
+	if err != nil {
+		return err
+	}
+
+	if idmapVolatile == nil {
+		return nil
+	}
+
+	err = d.VolatileSet(idmapVolatile)
+	if err != nil {
+		return fmt.Errorf("Failed setting ID map: %w", err)
+	}
+
+	// Invalidate the ID map and go-lxc caches, the latter may hold a configuration without ID map.
+	d.idmapset = nil
+	d.release()
+
+	return nil
+}
+
+// rebuildIdmap returns the volatile keys holding a newly allocated ID map for an unprivileged container
+// whose ID map would be empty after a rebuild, or nil if none is needed.
+// A rebuild removes "volatile.idmap.next" but leaves "volatile.idmap.current", which may be an empty
+// map saved by an earlier unmapped start, so the map must be checked by content.
+func (d *lxc) rebuildIdmap() (map[string]string, error) {
+	if d.IsPrivileged() || d.state.OS.IdmapSet == nil {
+		return nil, nil
+	}
+
+	jsonCurrent, ok := d.localConfig["volatile.idmap.current"]
+	if ok {
+		currentIdmap, err := idmap.JSONUnmarshal(jsonCurrent)
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting current ID map: %w", err)
+		}
+
+		if currentIdmap != nil && len(currentIdmap.Idmap) > 0 {
+			return nil, nil
+		}
+	}
+
+	idmapSet, base, err := findIdmap(
+		d.state,
+		d.Name(),
+		d.expandedConfig["security.idmap.isolated"],
+		d.expandedConfig["security.idmap.base"],
+		d.expandedConfig["security.idmap.size"],
+		d.expandedConfig["raw.idmap"],
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting ID map: %w", err)
+	}
+
+	idmapBytes, err := json.Marshal(idmapSet.Idmap)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]string{
+		"volatile.idmap.next": string(idmapBytes),
+		"volatile.idmap.base": strconv.FormatInt(base, 10),
+	}, nil
 }
 
 // onStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
