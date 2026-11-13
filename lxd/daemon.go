@@ -449,7 +449,8 @@ func extractEntitlementsFromQuery(r *http.Request, entityType entity.Type, allow
 // event because they may originate from a server-side fault (e.g. an
 // unreachable IdP).
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, oidcVerifier *oidc.Verifier, allowUntrusted bool) (*request.RequestorArgs, error) {
-	if r.TLS == nil {
+	peerCertificate, err := request.GetPeerCertificate(r)
+	if err != nil && errors.Is(err, request.ErrNoTLS) {
 		// For a socket, the server is listening on a file, but the client does not have an address.
 		// Since there is no address, the kernel uses an unnamed unix socket address.
 		// An unnamed or abstract Unix socket address is rendered as '@'.
@@ -486,21 +487,14 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, oidcVerifi
 	clusterUUID := d.globalConfig.ClusterUUID()
 	d.globalConfigMu.Unlock()
 
-	// Request has TLS. If client sent a peer certificate, check mTLS and CA.
-	if len(r.TLS.PeerCertificates) > 0 {
-		// Convert list of peer certificates to map.
-		peerCertificateFingerprints := make([]string, 0, len(r.TLS.PeerCertificates))
-		peerCertificates := make(map[string]x509.Certificate, len(r.TLS.PeerCertificates))
-		for _, c := range r.TLS.PeerCertificates {
-			f := shared.CertFingerprint(c)
-			peerCertificates[f] = *c
-			peerCertificateFingerprints = append(peerCertificateFingerprints, f)
-		}
+	// If client sent a peer certificate, check mTLS and CA.
+	if peerCertificate != nil {
+		peerCertificateFingerprint := shared.CertFingerprint(peerCertificate)
 
 		// Anonymous function to call for each certificate type and it's associated protocol.
 		authTLS := func(protocol string, certGetter func(...string) map[string]x509.Certificate) (*request.RequestorArgs, error) {
 			// Did the client send any certificates we recognise?
-			matchedCerts := certGetter(peerCertificateFingerprints...)
+			matchedCerts := certGetter(peerCertificateFingerprint)
 			if len(matchedCerts) == 0 {
 				// If not, they are not authenticated, but there is no error.
 				return nil, nil
@@ -516,19 +510,19 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, oidcVerifi
 			}
 
 			// We've recognised the fingerprint of the caller certificate, but now we need to perform a full mTLS check.
-			trusted, _ := util.CheckMutualTLS(peerCertificates[matchedFingerprint], matchedCerts)
+			trusted, _ := util.CheckMutualTLS(*peerCertificate, matchedCerts)
 			if trusted {
 				// If there is a server.ca file, then all client certificates must be signed by it.
 				// This does not apply to server certificates.
 				if protocol != request.ProtocolCluster && d.endpoints.NetworkCert().CA() != nil {
-					trusted, _, _ = util.CheckCASignature(peerCertificates[matchedFingerprint], d.endpoints.NetworkCert())
+					trusted, _, _ = util.CheckCASignature(*peerCertificate, d.endpoints.NetworkCert())
 					if !trusted {
 						return nil, nil
 					}
 				}
 
 				// Get expiration date of the matched certificate.
-				certExpiresAt := peerCertificates[matchedFingerprint].NotAfter.UTC()
+				certExpiresAt := peerCertificate.NotAfter.UTC()
 
 				return &request.RequestorArgs{
 					Trusted:   trusted,
@@ -570,15 +564,13 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, oidcVerifi
 		// Lastly, check if core.trust_ca_certificates is true. If so, allow all CA signed certificates without checking
 		// mTLS.
 		if d.endpoints.NetworkCert().CA() != nil && trustCACertificates {
-			for f, cert := range peerCertificates {
-				trusted, _, _ := util.CheckCASignature(cert, d.endpoints.NetworkCert())
-				if trusted {
-					return &request.RequestorArgs{
-						Trusted:  true,
-						Username: f,
-						Protocol: request.ProtocolPKI,
-					}, nil
-				}
+			trusted, _, _ := util.CheckCASignature(*peerCertificate, d.endpoints.NetworkCert())
+			if trusted {
+				return &request.RequestorArgs{
+					Trusted:  true,
+					Username: peerCertificateFingerprint,
+					Protocol: request.ProtocolPKI,
+				}, nil
 			}
 		}
 	}
@@ -624,7 +616,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request, oidcVerifi
 	// caller. Emit only when the endpoint requires authentication; anonymous
 	// requests (no peer cert, no bearer, no OIDC header) also reach this
 	// point and intentionally do not emit.
-	if !allowUntrusted && len(r.TLS.PeerCertificates) > 0 {
+	if !allowUntrusted && peerCertificate != nil {
 		loginFail := security.AuthnLoginFail.WithSuffix(string(api.AuthenticationMethodTLS)).
 			UserEvent(r.Context(), security.LevelWarning, "TLS authentication failure")
 		d.events.SendSecurity(loginFail)
