@@ -7376,6 +7376,9 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 				} else {
 					memorySReclaimable = int64(v)
 				}
+
+			default:
+				continue
 			}
 
 			out.AddSamples(metricType, metrics.Sample{Value: float64(v)})
@@ -7705,6 +7708,9 @@ func (d *lxc) loadRawLXCConfig(cc *liblxc.Container) error {
 		return err
 	}
 
+	defer func() { _ = os.Remove(f.Name()) }()
+	defer func() { _ = f.Close() }()
+
 	err = shared.WriteAll(f, []byte(lxcConfig))
 	if err != nil {
 		return err
@@ -7720,8 +7726,6 @@ func (d *lxc) loadRawLXCConfig(cc *liblxc.Container) error {
 	if err != nil {
 		return fmt.Errorf("Failed loading config file %q: %w", f.Name(), err)
 	}
-
-	_ = os.Remove(f.Name())
 
 	return nil
 }

@@ -1087,6 +1087,11 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 
 	client := resource.server
 
+	// If a target was specified, use the given member.
+	if c.storage.flagTarget != "" {
+		client = client.UseTarget(c.storage.flagTarget)
+	}
+
 	// Parse the input
 	volName, volType := parseVolume("custom", args[1])
 
@@ -1137,11 +1142,6 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 		}
 
 		return op.Wait()
-	}
-
-	// If a target was specified, create the volume on the given member.
-	if c.storage.flagTarget != "" {
-		client = client.UseTarget(c.storage.flagTarget)
 	}
 
 	var data []byte
@@ -1683,7 +1683,7 @@ func (c *cmdStorageVolumeList) run(cmd *cobra.Command, args []string) error {
 		row := []string{}
 		for _, column := range columns {
 			if column.NeedsState && !shared.IsSnapshot(vol.Name) && vol.Type != "image" {
-				state, err := resource.server.GetStoragePoolVolumeState(vol.Pool, vol.Type, vol.Name)
+				state, err := resource.server.UseProject(vol.Project).GetStoragePoolVolumeState(vol.Pool, vol.Type, vol.Name)
 				if err != nil {
 					return err
 				}
