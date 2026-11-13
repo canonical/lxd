@@ -7,6 +7,7 @@ test_container_devices_disk() {
   _container_devices_disk_shift
   _container_devices_disk_mount
   _container_devices_disk_recursive
+  _container_devices_disk_propagation
   _container_devices_raw_mount_options
   _container_devices_disk_ceph
   _container_devices_disk_cephfs
@@ -213,6 +214,53 @@ _container_devices_disk_recursive() {
   umount "${TEST_DIR}/recursive-shift-source/nested"
   # shellcheck disable=SC2154
   deconfigure_loop_device "${recursive_shift_loop_file}" "${recursive_shift_loop_device}"
+}
+
+_container_devices_disk_propagation() {
+  local src="${TEST_DIR}/propagation-source"
+  mkdir -p "${src}"
+
+  # A source that is a shared mount, as on a systemd host, so that mounts are able to propagate.
+  mount --bind "${src}" "${src}"
+  mount --make-rshared "${src}"
+
+  lxc start foo
+
+  sub_test "A mount made in an unprivileged instance reaches the host with propagation=rshared"
+  lxc config device add foo propagation disk source="${src}" path=/mnt/propagation propagation=rshared
+  lxc exec foo -- mount -t tmpfs tmpfs /mnt/propagation
+  lxc exec foo -- touch /mnt/propagation/from-instance
+  [ -e "${src}/from-instance" ]
+  lxc exec foo -- umount /mnt/propagation
+  [ ! -e "${src}/from-instance" ]
+  lxc config device remove foo propagation
+
+  sub_test "Without propagation a host mount is visible in the instance but an instance mount stays inside it"
+  lxc config device add foo propagation disk source="${src}" path=/mnt/propagation
+  mkdir "${src}/host-mount"
+  mount -t tmpfs tmpfs "${src}/host-mount"
+  touch "${src}/host-mount/from-host"
+  lxc exec foo -- test -e /mnt/propagation/host-mount/from-host
+  umount "${src}/host-mount"
+  rmdir "${src}/host-mount"
+  lxc exec foo -- mount -t tmpfs tmpfs /mnt/propagation
+  lxc exec foo -- touch /mnt/propagation/from-instance
+  [ ! -e "${src}/from-instance" ]
+  lxc exec foo -- umount /mnt/propagation
+  lxc config device remove foo propagation
+  lxc stop foo -f
+
+  sub_test "A mount made in a privileged instance reaches the host with propagation=rshared"
+  lxc launch testimage foo-priv -c security.privileged=true
+  lxc config device add foo-priv propagation disk source="${src}" path=/mnt/propagation propagation=rshared
+  lxc exec foo-priv -- mount -t tmpfs tmpfs /mnt/propagation
+  lxc exec foo-priv -- touch /mnt/propagation/from-instance
+  [ -e "${src}/from-instance" ]
+  lxc exec foo-priv -- umount /mnt/propagation
+  lxc delete -f foo-priv
+
+  umount "${src}"
+  rmdir "${src}"
 }
 
 _container_devices_raw_mount_options() {
