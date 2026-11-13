@@ -11,6 +11,9 @@ test_network() {
   dig @"${v4_addr}" 0abc.lxd
   dig @"${v4_addr}" def0.lxd
 
+  # dnsmasq parses DHCP and DNS traffic from instances so it must run unprivileged.
+  check_proc_unprivileged "$(awk '/^pid:/ {print $2}' "${LXD_DIR}/networks/lxdt$$/dnsmasq.pid")" dnsmasq
+
   # Filtering by IP must work even when no network column is selected.
   inst_ipv4="192.0.2.42"
   lxc exec 0abc -- ip address add "${inst_ipv4}" dev eth0

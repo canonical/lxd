@@ -179,7 +179,8 @@ func (s *OS) Init() ([]cluster.Warning, error) {
 		break
 	}
 
-	for _, groupName := range []string{"lxd", "nogroup"} {
+	// The "lxd" group isn't used as it usually grants access to the LXD socket.
+	for _, groupName := range []string{"nogroup", "nobody"} {
 		g, err := user.LookupGroup(groupName)
 		if err != nil {
 			continue
