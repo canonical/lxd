@@ -18,7 +18,6 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   capability ipc_lock,
   capability setgid,
   capability setuid,
-  capability sys_chroot,
   capability sys_resource,
 
   # Needed by qemu
