@@ -341,7 +341,7 @@ func (g *cmdGlobal) cmpTopLevelResourceInRemote(remote string, entityType string
 
 		names, err := imageServerResourceNameFunc(server)
 		if err != nil {
-			handleCompletionError(err)
+			return handleCompletionError(err)
 		}
 
 		return completionsFor(names, "", toComplete), cobra.ShellCompDirectiveNoFileComp
