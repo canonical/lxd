@@ -825,7 +825,27 @@ test_basic_usage() {
   lxc rebuild testimage c1
   [ "$(lxc config get c1 image.os)" = "BusyBox" ]
   lxc start c1
+
+  # An unprivileged container rebuilt before its first start must still get an ID map.
+  [ "$(lxc config get c1 volatile.idmap.current)" != "[]" ]
+  [ "$(lxc exec c1 -- cat /proc/self/uid_map | awk '{print $3}')" != "4294967295" ]
   lxc delete c1 -f
+
+  # An unprivileged container whose saved ID map is empty must get one on rebuild.
+  lxc init testimage c1
+  lxc config set c1 volatile.idmap.current '[]'
+  lxc rebuild testimage c1
+  lxc start c1
+  [ "$(lxc config get c1 volatile.idmap.current)" != "[]" ]
+  [ "$(lxc exec c1 -- cat /proc/self/uid_map | awk '{print $3}')" != "4294967295" ]
+  lxc delete c1 -f
+
+  # Starting an unprivileged container without an ID map must be refused.
+  lxc init testimage c1
+  lxc config set c1 volatile.idmap.next '[]'
+  lxc config set c1 volatile.idmap.current '[]'
+  ! lxc start c1 || false
+  lxc delete c1
 
   # Test rebuilding an instance with an empty file system.
   lxc init testimage c1
