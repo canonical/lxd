@@ -1087,6 +1087,11 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 
 	client := resource.server
 
+	// If a target was specified, use the given member.
+	if c.storage.flagTarget != "" {
+		client = client.UseTarget(c.storage.flagTarget)
+	}
+
 	// Parse the input
 	volName, volType := parseVolume("custom", args[1])
 
@@ -1137,11 +1142,6 @@ func (c *cmdStorageVolumeEdit) run(cmd *cobra.Command, args []string) error {
 		}
 
 		return op.Wait()
-	}
-
-	// If a target was specified, create the volume on the given member.
-	if c.storage.flagTarget != "" {
-		client = client.UseTarget(c.storage.flagTarget)
 	}
 
 	var data []byte
