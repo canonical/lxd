@@ -2,7 +2,7 @@ package lifecycle
 
 import (
 	"github.com/canonical/lxd/shared/api"
-	"github.com/canonical/lxd/shared/version"
+	"github.com/canonical/lxd/shared/entity"
 )
 
 // ImageAliasAction represents a lifecycle event action for image aliases.
@@ -17,8 +17,8 @@ const (
 )
 
 // Event creates the lifecycle event for an action on an image alias.
-func (a ImageAliasAction) Event(image string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := api.NewURL().Path(version.APIVersion, "images", "aliases", image).Project(projectName)
+func (a ImageAliasAction) Event(name string, projectName string, imageType string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
+	u := entity.ImageAliasURL(projectName, imageType, name)
 
 	return api.EventLifecycle{
 		Action:    string(a),

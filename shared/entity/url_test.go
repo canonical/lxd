@@ -118,10 +118,21 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 		},
 		{
 			Name:        "Image alias",
+			URL:         "/1.0/images/container/aliases/ubuntu",
+			WantType:    TypeImageAlias,
+			WantProject: "default",
+			WantArgs: map[string]string{
+				"type": "container",
+				"name": "ubuntu",
+			},
+		},
+		{
+			Name:        "Legacy image alias",
 			URL:         "/1.0/images/aliases/ubuntu",
 			WantType:    TypeImageAlias,
 			WantProject: "default",
 			WantArgs: map[string]string{
+				"type": "",
 				"name": "ubuntu",
 			},
 		},
@@ -379,6 +390,13 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 		slices.Sort(missingEntityTypes)
 		t.Fatalf("Missing test cases for entity types:\n - %v", strings.Join(missingEntityTypes, "\n - "))
 	}
+}
+
+func TestParseURLRejectsEmptyImageAliasType(t *testing.T) {
+	u, err := url.Parse("/1.0/images//aliases/shared")
+	require.NoError(t, err)
+	_, _, _, _, err = ParseURL(*u)
+	require.Error(t, err)
 }
 
 func TestEntityPermissionURL_InvalidArguments(t *testing.T) {
