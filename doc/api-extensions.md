@@ -3856,6 +3856,7 @@ This also applies to remote image downloads for microVM creation and rebuild. Le
 
 `GET /1.0/images/{imageType}/aliases/{name}` is the typed alias lookup. No `type` query parameter is added to `/1.0/images/aliases/{name}`.
 The Go client's typed alias create, update, rename, and delete methods require this extension when an image type is specified.
+When copying to a typed destination, the Go client retains the alias and defaults the requested image type to the selected image's type. An explicit copy type overrides that default.
 When creating an instance without an explicit type, local images and LXD-protocol registries select the container alias when both types use the name, and infer a virtual machine when only the virtual-machine alias exists.
 Untyped LXD registry lookups select the container alias before consulting the cache, so a cached virtual-machine variant cannot change the inferred instance type.
 Local copies authorize and use the same resolved image fingerprint. Alias mutations reject a changed alias identity between authorization and the write transaction.

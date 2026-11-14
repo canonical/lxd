@@ -208,7 +208,7 @@ func ensureImage(c lxd.InstanceServer, image string) (string, error) {
 			fingerprint = "default"
 		}
 
-		alias, _, err := imageServer.GetImageAlias(fingerprint)
+		alias, _, err := imageServer.GetImageAliasType(string(api.InstanceTypeContainer), fingerprint)
 		if err == nil {
 			fingerprint = alias.Target
 		}
@@ -230,7 +230,7 @@ func ensureImage(c lxd.InstanceServer, image string) (string, error) {
 		}
 	} else {
 		fingerprint = image
-		alias, _, err := c.GetImageAlias(image)
+		alias, _, err := c.GetImageAliasType(string(api.InstanceTypeContainer), image)
 		if err == nil {
 			fingerprint = alias.Target
 		} else {

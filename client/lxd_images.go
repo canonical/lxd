@@ -378,24 +378,119 @@ func (r *ProtocolLXD) GetImageAlias(name string) (*api.ImageAliasesEntry, string
 	return &alias, etag, nil
 }
 
-// GetImageAliasType returns an existing alias as an ImageAliasesEntry struct.
+// normalizeImageAliasType validates an alias type and maps microVMs to containers.
+func normalizeImageAliasType(imageType string) (string, error) {
+	switch imageType {
+	case string(api.InstanceTypeMicroVM):
+		return string(api.InstanceTypeContainer), nil
+	case "", string(api.InstanceTypeContainer), string(api.InstanceTypeVM):
+		return imageType, nil
+	default:
+		return "", fmt.Errorf("Invalid image type %q", imageType)
+	}
+}
+
+// getImageAliasTyped returns an alias for one image type.
+func (r *ProtocolLXD) getImageAliasTyped(imageType string, name string) (*api.ImageAliasesEntry, string, error) {
+	imageType, err := normalizeImageAliasType(imageType)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if imageType == "" {
+		return nil, "", errors.New("Image type is required for typed alias lookup")
+	}
+
+	alias := api.ImageAliasesEntry{}
+	etag, err := r.queryStruct(http.MethodGet, "/images/"+imageType+"/aliases/"+url.PathEscape(name), nil, "", &alias)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &alias, etag, nil
+}
+
+// GetImageAliasType returns an alias, preferring containers when imageType is empty.
 func (r *ProtocolLXD) GetImageAliasType(imageType string, name string) (*api.ImageAliasesEntry, string, error) {
+	imageType, err := normalizeImageAliasType(imageType)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if r.HasExtension("image_alias_types") {
+		lookupType := imageType
+		if lookupType == "" {
+			lookupType = string(api.InstanceTypeContainer)
+		}
+
+		alias, etag, err := r.getImageAliasTyped(lookupType, name)
+		if imageType == "" && api.StatusErrorCheck(err, http.StatusNotFound) {
+			alias, etag, err = r.getImageAliasTyped(string(api.InstanceTypeVM), name)
+		}
+
+		if err == nil || !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return alias, etag, err
+		}
+
+		// Unknown servers may need the legacy endpoint after a typed 404.
+		if r.server == nil {
+			return r.getImageAliasLegacy(imageType, name)
+		}
+
+		if imageType == "" {
+			return nil, "", err
+		}
+
+		other, _, otherErr := r.GetImageAlias(name)
+		if otherErr == nil && other.Type != "" && other.Type != imageType {
+			return nil, "", fmt.Errorf("Alias %q does not exist for image type %q. It exists for image type %q", name, imageType, other.Type)
+		}
+
+		if api.StatusErrorCheck(otherErr, http.StatusConflict) {
+			return nil, "", fmt.Errorf("Alias %q does not exist for image type %q", name, imageType)
+		}
+
+		return nil, "", err
+	}
+
+	return r.getImageAliasLegacy(imageType, name)
+}
+
+// getImageAliasLegacy looks up an alias and checks its type when one was requested.
+func (r *ProtocolLXD) getImageAliasLegacy(imageType string, name string) (*api.ImageAliasesEntry, string, error) {
 	alias, etag, err := r.GetImageAlias(name)
 	if err != nil {
 		return nil, "", err
 	}
 
-	if imageType != "" {
-		if alias.Type == "" {
-			alias.Type = "container"
-		}
+	if alias.Type == "" || alias.Type == string(api.InstanceTypeMicroVM) {
+		alias.Type = string(api.InstanceTypeContainer)
+	}
 
-		if alias.Type != imageType {
-			return nil, "", errors.New("Alias does not exist for the specified type")
-		}
+	if imageType != "" && alias.Type != imageType {
+		return nil, "", errors.New("Alias does not exist for the specified type")
 	}
 
 	return alias, etag, nil
+}
+
+// imageAliasPath returns an alias URL, requiring image_alias_types for explicit types.
+func (r *ProtocolLXD) imageAliasPath(imageType string, name string) (string, error) {
+	imageType, err := normalizeImageAliasType(imageType)
+	if err != nil {
+		return "", err
+	}
+
+	if imageType == "" {
+		return "/images/aliases/" + url.PathEscape(name), nil
+	}
+
+	err = r.CheckExtension("image_alias_types")
+	if err != nil {
+		return "", err
+	}
+
+	return "/images/" + imageType + "/aliases/" + url.PathEscape(name), nil
 }
 
 // GetImageAliasArchitectures returns a map of architectures / targets.
@@ -756,6 +851,35 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 		image.Profiles = nil
 	}
 
+	// Pin ambiguous aliases for legacy destinations while retaining unique aliases for refresh.
+	if source != nil && image.Public && (r.server == nil || !r.HasExtension("image_alias_types")) {
+		server, ok := source.(InstanceServer)
+		if ok && server.HasExtension("image_alias_types") {
+			_, _, aliasErr := source.GetImageAlias(image.Fingerprint)
+			if api.StatusErrorCheck(aliasErr, http.StatusConflict) {
+				// A concrete fingerprint takes precedence over an alias with the same name.
+				_, _, imageErr := source.GetImage(image.Fingerprint)
+				if imageErr != nil && !api.StatusErrorCheck(imageErr, http.StatusNotFound) {
+					return nil, imageErr
+				}
+
+				if api.StatusErrorCheck(imageErr, http.StatusNotFound) {
+					imageType := image.Type
+					if args != nil && args.Type != "" {
+						imageType = args.Type
+					}
+
+					alias, _, err := source.GetImageAliasType(imageType, image.Fingerprint)
+					if err != nil {
+						return nil, err
+					}
+
+					image.Fingerprint = alias.Target
+				}
+			}
+		}
+	}
+
 	var info *ConnectionInfo
 
 	// If a source server is provided, fetch its connection info and do push/relay modes
@@ -934,6 +1058,7 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 	req := api.ImagesPost{
 		Source: &api.ImagesPostSource{
 			Fingerprint: image.Fingerprint,
+			ImageType:   image.Type,
 			Mode:        "pull",
 			Type:        api.SourceTypeImage,
 		},
@@ -963,7 +1088,7 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 		return nil, errors.New("Missing copy arguments")
 	}
 
-	if args != nil {
+	if args != nil && args.Type != "" {
 		req.Source.ImageType = args.Type
 	}
 
@@ -1050,8 +1175,25 @@ func (r *ProtocolLXD) CreateImageSecret(fingerprint string) (Operation, error) {
 
 // CreateImageAlias sets up a new image alias.
 func (r *ProtocolLXD) CreateImageAlias(alias api.ImageAliasesPost) error {
+	imageType, err := normalizeImageAliasType(alias.Type)
+	if err != nil {
+		return err
+	}
+
+	if alias.Type != "" {
+		err := r.CheckExtension("image_alias_types")
+		if err != nil {
+			return err
+		}
+	}
+
+	path := "/images/aliases"
+	if alias.Type != "" {
+		path = "/images/" + imageType + "/aliases"
+	}
+
 	// Send the request
-	_, _, err := r.query(http.MethodPost, "/images/aliases", alias, "")
+	_, _, err = r.query(http.MethodPost, path, alias, "")
 	if err != nil {
 		return err
 	}
@@ -1061,8 +1203,22 @@ func (r *ProtocolLXD) CreateImageAlias(alias api.ImageAliasesPost) error {
 
 // UpdateImageAlias updates the image alias definition.
 func (r *ProtocolLXD) UpdateImageAlias(name string, alias api.ImageAliasesEntryPut, ETag string) error {
-	// Send the request
 	_, _, err := r.query(http.MethodPut, "/images/aliases/"+url.PathEscape(name), alias, ETag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UpdateImageAliasType updates the alias definition for the given image type.
+func (r *ProtocolLXD) UpdateImageAliasType(imageType string, name string, alias api.ImageAliasesEntryPut, ETag string) error {
+	path, err := r.imageAliasPath(imageType, name)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = r.query(http.MethodPut, path, alias, ETag)
 	if err != nil {
 		return err
 	}
@@ -1072,8 +1228,29 @@ func (r *ProtocolLXD) UpdateImageAlias(name string, alias api.ImageAliasesEntryP
 
 // RenameImageAlias renames an existing image alias.
 func (r *ProtocolLXD) RenameImageAlias(name string, alias api.ImageAliasesEntryPost) error {
+	path, err := r.imageAliasPath("", name)
+	if err != nil {
+		return err
+	}
+
 	// Send the request
-	_, _, err := r.query(http.MethodPost, "/images/aliases/"+url.PathEscape(name), alias, "")
+	_, _, err = r.query(http.MethodPost, path, alias, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RenameImageAliasType renames an existing image alias of the given image type.
+func (r *ProtocolLXD) RenameImageAliasType(imageType string, name string, alias api.ImageAliasesEntryPost) error {
+	path, err := r.imageAliasPath(imageType, name)
+	if err != nil {
+		return err
+	}
+
+	// Send the request
+	_, _, err = r.query(http.MethodPost, path, alias, "")
 	if err != nil {
 		return err
 	}
@@ -1083,8 +1260,28 @@ func (r *ProtocolLXD) RenameImageAlias(name string, alias api.ImageAliasesEntryP
 
 // DeleteImageAlias removes an alias from the LXD image store.
 func (r *ProtocolLXD) DeleteImageAlias(name string) error {
+	path, err := r.imageAliasPath("", name)
+	if err != nil {
+		return err
+	}
+
 	// Send the request
-	_, _, err := r.query(http.MethodDelete, "/images/aliases/"+url.PathEscape(name), nil, "")
+	_, _, err = r.query(http.MethodDelete, path, nil, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteImageAliasType removes the alias for one image type.
+func (r *ProtocolLXD) DeleteImageAliasType(imageType string, name string) error {
+	path, err := r.imageAliasPath(imageType, name)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = r.query(http.MethodDelete, path, nil, "")
 	if err != nil {
 		return err
 	}
