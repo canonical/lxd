@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 
@@ -112,6 +113,8 @@ type cmdImageAliasDelete struct {
 	global     *cmdGlobal
 	image      *cmdImage
 	imageAlias *cmdImageAlias
+
+	flagType string
 }
 
 func (c *cmdImageAliasDelete) command() *cobra.Command {
@@ -121,6 +124,7 @@ func (c *cmdImageAliasDelete) command() *cobra.Command {
 	cmd.Short = "Delete image alias"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
+	cmd.Flags().StringVar(&c.flagType, "type", "", cli.FormatStringFlagLabel("Image type (container or virtual-machine)"))
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -141,6 +145,10 @@ func (c *cmdImageAliasDelete) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if c.flagType != "" && c.flagType != string(api.InstanceTypeContainer) && c.flagType != string(api.InstanceTypeVM) {
+		return fmt.Errorf("Invalid image type %q", c.flagType)
+	}
+
 	// Parse remote
 	resources, err := c.global.ParseServers(args[0])
 	if err != nil {
@@ -154,7 +162,7 @@ func (c *cmdImageAliasDelete) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delete the alias
-	return resource.server.DeleteImageAlias(resource.name)
+	return resource.server.DeleteImageAliasType(c.flagType, resource.name)
 }
 
 // cmdImageAliasList implements the "image alias list" command and its column definitions.
@@ -303,6 +311,8 @@ type cmdImageAliasRename struct {
 	global     *cmdGlobal
 	image      *cmdImage
 	imageAlias *cmdImageAlias
+
+	flagType string
 }
 
 func (c *cmdImageAliasRename) command() *cobra.Command {
@@ -312,6 +322,7 @@ func (c *cmdImageAliasRename) command() *cobra.Command {
 	cmd.Short = "Rename alias"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
+	cmd.Flags().StringVar(&c.flagType, "type", "", cli.FormatStringFlagLabel("Image type (container or virtual-machine)"))
 	cmd.RunE = c.run
 
 	cmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -332,6 +343,10 @@ func (c *cmdImageAliasRename) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if c.flagType != "" && c.flagType != string(api.InstanceTypeContainer) && c.flagType != string(api.InstanceTypeVM) {
+		return fmt.Errorf("Invalid image type %q", c.flagType)
+	}
+
 	// Parse remote
 	resources, err := c.global.ParseServers(args[0])
 	if err != nil {
@@ -345,5 +360,5 @@ func (c *cmdImageAliasRename) run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Rename the alias
-	return resource.server.RenameImageAlias(resource.name, api.ImageAliasesEntryPost{Name: args[1]})
+	return resource.server.RenameImageAliasType(c.flagType, resource.name, api.ImageAliasesEntryPost{Name: args[1]})
 }
