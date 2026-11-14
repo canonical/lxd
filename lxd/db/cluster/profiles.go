@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/canonical/lxd/lxd/db/query"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -118,6 +119,46 @@ func GetProfilesIfEnabled(ctx context.Context, tx *sql.Tx, projectName string, n
 	}
 
 	return profiles, nil
+}
+
+// getProfileIDsByName returns a map of profile name to profile ID for the given profile names in the given project.
+// Names that do not match a profile are absent from the returned map.
+func getProfileIDsByName(ctx context.Context, tx *sql.Tx, project string, names []string) (map[string]int64, error) {
+	ids := make(map[string]int64, len(names))
+	if len(names) == 0 {
+		return ids, nil
+	}
+
+	args := make([]any, 0, len(names)+1)
+	args = append(args, project)
+	for _, name := range names {
+		args = append(args, name)
+	}
+
+	stmt := `
+SELECT profiles.name, profiles.id
+  FROM profiles
+  JOIN projects ON profiles.project_id = projects.id
+ WHERE projects.name = ? AND profiles.name IN ` + query.Params(len(names))
+
+	err := query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
+		var name string
+		var id int64
+
+		err := scan(&name, &id)
+		if err != nil {
+			return err
+		}
+
+		ids[name] = id
+
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed fetching profile IDs: %w", err)
+	}
+
+	return ids, nil
 }
 
 // GetProfileIDsByProjectAndName finds profile IDs matching specific names within
