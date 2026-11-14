@@ -2841,10 +2841,11 @@ func (d *lxc) onStop(ctx context.Context, args map[string]string) error {
 		d.cleanupDevices(false, "")
 
 		// Remove directory ownership (to avoid issue if uidmap is re-used)
-		// Fails on zfs when the dataset is full due to CoW
+		// Fails when the pool is full: zfs reports EDQUOT (CoW needs space even for a
+		// metadata-only change), btrfs reports ENOSPC.
 		err := os.Chown(d.Path(), 0, 0)
 		if err != nil {
-			if !strings.Contains(err.Error(), "disk quota exceeded") {
+			if !errors.Is(err, syscall.ENOSPC) && !errors.Is(err, syscall.EDQUOT) {
 				op.Done(fmt.Errorf("Failed clearing ownership: %w", err))
 				return
 			}
@@ -2854,7 +2855,7 @@ func (d *lxc) onStop(ctx context.Context, args map[string]string) error {
 
 		err = os.Chmod(d.Path(), 0100)
 		if err != nil {
-			if !strings.Contains(err.Error(), "disk quota exceeded") {
+			if !errors.Is(err, syscall.ENOSPC) && !errors.Is(err, syscall.EDQUOT) {
 				op.Done(fmt.Errorf("Failed clearing permissions: %w", err))
 				return
 			}
