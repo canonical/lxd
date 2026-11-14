@@ -132,19 +132,28 @@ func ensureImageIsLocallyAvailable(ctx context.Context, s *state.State, img *api
 	return nil
 }
 
+// validateInstanceImageType checks the image format required by the instance.
+func validateInstanceImageType(imageType string, instanceType instancetype.Type) error {
+	imgType, err := instancetype.New(imageType)
+	if err != nil {
+		return err
+	}
+
+	if imgType.ImageType() != instanceType.ImageType() {
+		return fmt.Errorf("Requested image's type %q does not match instance type %q", imgType, instanceType)
+	}
+
+	return nil
+}
+
 // instanceCreateFromImage creates an instance from a rootfs image.
 func instanceCreateFromImage(ctx context.Context, s *state.State, img *api.Image, args db.InstanceArgs, op *operations.Operation) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Validate the type of the image matches the type of the instance.
-	imgType, err := instancetype.New(img.Type)
+	err := validateInstanceImageType(img.Type, args.Type)
 	if err != nil {
 		return err
-	}
-
-	if imgType != args.Type {
-		return fmt.Errorf("Requested image's type %q does not match instance type %q", imgType, args.Type)
 	}
 
 	// Set the "image.*" keys.
@@ -209,14 +218,9 @@ func instanceCreateFromImage(ctx context.Context, s *state.State, img *api.Image
 }
 
 func instanceRebuildFromImage(ctx context.Context, s *state.State, inst instance.Instance, img *api.Image, op *operations.Operation) error {
-	// Validate the type of the image matches the type of the instance.
-	imgType, err := instancetype.New(img.Type)
+	err := validateInstanceImageType(img.Type, inst.Type())
 	if err != nil {
 		return err
-	}
-
-	if imgType != inst.Type() {
-		return fmt.Errorf("Requested image's type %q does not match instance type %q", imgType, inst.Type())
 	}
 
 	err = ensureImageIsLocallyAvailable(ctx, s, img, inst.Project().Name)
@@ -847,7 +851,7 @@ func resolveSourceImageFromCache(r *http.Request, s *state.State, tx *db.Cluster
 // getSourceImageFromInstanceSource returns the image to use for an instance source.
 func getSourceImageFromInstanceSource(ctx context.Context, s *state.State, tx *db.ClusterTx, project string, source api.InstanceSource, imageRef *string, instType string) (*api.Image, error) {
 	// Resolve the image.
-	sourceImageRefUpdate, err := instance.ResolveImage(ctx, tx, project, source)
+	sourceImageRefUpdate, err := instance.ResolveImage(ctx, tx, project, source, instType)
 	if err != nil {
 		return nil, err
 	}
