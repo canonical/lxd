@@ -16,9 +16,6 @@ You should consider using LXD if you want to containerize different environments
 
 See [Getting started](https://canonical.com/lxd/docs/latest/getting_started/) in the LXD documentation for installation instructions and first steps.
 
-- Release announcements: [`https://discourse.ubuntu.com/tags/c/project/lxd/news/143/release`](https://discourse.ubuntu.com/tags/c/project/lxd/news/143/release)
-- Release tarballs: [`https://github.com/canonical/lxd/releases/`](https://github.com/canonical/lxd/releases/)
-- Documentation: [`https://canonical.com/lxd/docs/latest/`](https://canonical.com/lxd/docs/latest/)
 
 ## Status
 
@@ -99,7 +96,6 @@ You can seek support from the LXD developers as well as the wider community thro
 
 ### Forum
 
-Ask questions or engage in discussions: [`https://discourse.ubuntu.com/c/project/lxd/`](https://discourse.ubuntu.com/c/project/lxd/126)
 
 ### Documentation
 
