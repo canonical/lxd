@@ -3845,12 +3845,13 @@ These keys require `x86_64` with UEFI firmware and are rejected when `boot.mode=
 (extension-image-alias-types)=
 ## `image_alias_types`
 
-An alias name can exist once for a container image and once for a virtual-machine image in the same project. The unique key is the project, the name, and the image type.
+Adds support for aliases with the same name for different image types in the same project. An alias name can exist once for a container image and once for a virtual-machine image. The unique key is the project, the name, and the image type.
 
-`imageType` in the paths below is `container` or `virtual-machine`. A microvm is not an image type. It boots a container image, so it uses the container alias.
+`{imageType}` in the paths below can be either `container` or `virtual-machine`. MicroVMs do not have their own image type. Since they boot container images, they use `container` aliases.
+This also applies to remote image downloads for microVM creation and rebuild. Legacy images stored with the `microvm` type remain compatible with microVMs and use the `container` alias namespace.
 
-* `GET /1.0/images/{imageType}/aliases` lists the aliases of that type. With `recursion=1`, each entry includes `type`.
-* `POST /1.0/images/{imageType}/aliases` creates an alias for that type. The target image must be of the same type. The same name may already exist for the other type.
+* `GET /1.0/images/{imageType}/aliases` lists the aliases of the provided image type. With `recursion=1`, each entry includes `type`.
+* `POST /1.0/images/{imageType}/aliases` creates an alias for the provided image type. The target image must be of the same type. The same name may already exist for the other type.
 * `GET`, `PUT`, `PATCH`, `POST`, and `DELETE` on `/1.0/images/{imageType}/aliases/{name}` read or change that one alias. A `PUT` or `PATCH` that points the alias at an image of the other type is rejected.
 
 `GET /1.0/images/{imageType}/aliases/{name}` is the typed alias lookup. No `type` query parameter is added to `/1.0/images/aliases/{name}`.
@@ -3862,7 +3863,14 @@ Alias creation and rename responses, and lifecycle event sources, use typed URLs
 Image creation operations include the detected image `type` in their metadata, allowing imports to create aliases without a separate image-view request.
 When copying to an older server, the Go client resolves ambiguous aliases to fingerprints without reinterpreting an existing image fingerprint as an alias. Failed remote publishes clean up their temporary source image even when deferred typed-alias checks fail.
 
-`/1.0/images/aliases` is unchanged when only one image type uses the name. `POST /1.0/images/aliases` takes the type from the target image. Creating a second alias of that same type returns `409`. `PUT`, `PATCH`, `POST`, and `DELETE` on `/1.0/images/aliases/{name}` return `409` when the name exists for both image types. `GET /1.0/images/aliases/{name}` returns `409` when the name exists for both image types and the caller can view at least one of the aliases or either image is public; otherwise it returns `404` without disclosing the other type. `PUT` and `PATCH` on `/1.0/images/aliases/{name}` may still retarget an alias to an image of the other type, as before; the alias then moves to that type. `GET /1.0/images/aliases` without recursion still returns one URL per name. With `recursion=1` it returns one entry per image type.
+The untyped endpoints work as follows:
+
+* `/1.0/images/aliases` is unchanged when only one image type uses the name.
+* `POST /1.0/images/aliases` takes the type from the target image. Creating a second alias of that same type returns `409`.
+* `PUT`, `PATCH`, `POST`, and `DELETE` on `/1.0/images/aliases/{name}` return `409` when the name exists for both image types.
+* `GET /1.0/images/aliases/{name}` returns `409` when the name exists for both image types and the caller can view at least one of the aliases or either image is public; otherwise it returns `404` without disclosing the other type.
+* `PUT` and `PATCH` on `/1.0/images/aliases/{name}` may still retarget an alias to an image of the other type, as before; the alias then moves to that type.
+* `GET /1.0/images/aliases` without recursion still returns one URL per name. With `recursion=1` it returns one entry per image type.
 
 The canonical authorization entity URL for an image alias includes the image type: `/1.0/images/{imageType}/aliases/{name}`. Authorization group responses retain the legacy URL `/1.0/images/aliases/{name}` when the alias name exists for only one image type, so older clients can still remove those permissions. When both image types use the name, group responses use typed URLs. Permission changes accept either URL for a unique name; an ambiguous name requires the typed URL. `type=` disambiguates names in `lxc auth group permission add`, while `lxc auth group permission remove` can infer it from a single matching permission already held by the group.
 `GET /1.0/auth/groups/{name}` and recursive `GET /1.0/auth/groups` accept `image_alias_types=1` to return canonical typed alias permission URLs even for unique names. The Go client requests this representation when the extension is available. Group ETags are independent of this representation preference, so either response can be used with the existing update endpoints.

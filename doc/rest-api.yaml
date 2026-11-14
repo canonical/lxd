@@ -9330,6 +9330,14 @@ paths:
         get:
             description: Gets a specific authorization group.
             operationId: auth_group_get
+            parameters:
+                - description: 'Return typed image alias permission URLs (API extension: image_alias_types).'
+                  enum:
+                    - 0
+                    - 1
+                  in: query
+                  name: image_alias_types
+                  type: integer
             produces:
                 - application/json
             responses:
@@ -9439,6 +9447,14 @@ paths:
         get:
             description: Returns a list of authorization groups.
             operationId: auth_groups_get_recursion1
+            parameters:
+                - description: 'Return typed image alias permission URLs (API extension: image_alias_types).'
+                  enum:
+                    - 0
+                    - 1
+                  in: query
+                  name: image_alias_types
+                  type: integer
             produces:
                 - application/json
             responses:
@@ -12863,6 +12879,399 @@ paths:
                 "500":
                     $ref: '#/responses/InternalServerError'
             summary: Get the public image
+            tags:
+                - images
+    /1.0/images/{imageType}/aliases:
+        get:
+            description: Returns a list of image aliases (URLs) for the provided image type (`container` or `virtual-machine`).
+            operationId: images_type_aliases_get
+            parameters:
+                - description: Image type
+                  enum:
+                    - container
+                    - virtual-machine
+                  in: path
+                  name: imageType
+                  required: true
+                  type: string
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/images/container/aliases/foo",
+                                      "/1.0/images/container/aliases/bar1"
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the image aliases
+            tags:
+                - images
+        post:
+            consumes:
+                - application/json
+            description: |-
+                Creates a new image alias for the provided image type (`container` or `virtual-machine`).
+                The target image must be of the same type.
+                The same name may already exist for the other image type.
+            operationId: images_type_aliases_post
+            parameters:
+                - description: Image type
+                  enum:
+                    - container
+                    - virtual-machine
+                  in: path
+                  name: imageType
+                  required: true
+                  type: string
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Image alias
+                  in: body
+                  name: image alias
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ImageAliasesPost'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "409":
+                    $ref: '#/responses/Conflict'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Add an image alias
+            tags:
+                - images
+    /1.0/images/{imageType}/aliases/{name}:
+        delete:
+            description: |-
+                Deletes a specific image alias for the provided image type (`container` or `virtual-machine`).
+                The alias of the other image type is left in place.
+            operationId: image_type_alias_delete
+            parameters:
+                - description: Image type
+                  enum:
+                    - container
+                    - virtual-machine
+                  in: path
+                  name: imageType
+                  required: true
+                  type: string
+                - description: Alias name
+                  example: foo
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Delete the image alias
+            tags:
+                - images
+        get:
+            description: Gets a specific image alias for the provided image type (`container` or `virtual-machine`).
+            operationId: image_type_alias_get
+            parameters:
+                - description: Image type
+                  enum:
+                    - container
+                    - virtual-machine
+                  in: path
+                  name: imageType
+                  required: true
+                  type: string
+                - description: Alias name
+                  example: foo
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Image alias
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ImageAliasesEntry'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "404":
+                    $ref: '#/responses/NotFound'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the image alias
+            tags:
+                - images
+        patch:
+            consumes:
+                - application/json
+            description: |-
+                Updates a subset of the image alias configuration for the provided image type (`container` or `virtual-machine`).
+                The target image must be of the same type.
+            operationId: image_type_alias_patch
+            parameters:
+                - description: Image type
+                  enum:
+                    - container
+                    - virtual-machine
+                  in: path
+                  name: imageType
+                  required: true
+                  type: string
+                - description: Alias name
+                  example: foo
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Image alias configuration
+                  in: body
+                  name: image alias
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ImageAliasesEntryPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Partially update the image alias
+            tags:
+                - images
+        post:
+            consumes:
+                - application/json
+            description: |-
+                Renames an existing image alias for the provided image type (`container` or `virtual-machine`).
+                The new name may already be used by the other image type.
+            operationId: image_type_alias_post
+            parameters:
+                - description: Image type
+                  enum:
+                    - container
+                    - virtual-machine
+                  in: path
+                  name: imageType
+                  required: true
+                  type: string
+                - description: Alias name
+                  example: foo
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Image alias rename request
+                  in: body
+                  name: image alias
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ImageAliasesEntryPost'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "409":
+                    $ref: '#/responses/Conflict'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Rename the image alias
+            tags:
+                - images
+        put:
+            consumes:
+                - application/json
+            description: |-
+                Updates the entire image alias configuration for the provided image type (`container` or `virtual-machine`).
+                The target image must be of the same type.
+            operationId: image_type_alias_put
+            parameters:
+                - description: Image type
+                  enum:
+                    - container
+                    - virtual-machine
+                  in: path
+                  name: imageType
+                  required: true
+                  type: string
+                - description: Alias name
+                  example: foo
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Image alias configuration
+                  in: body
+                  name: image alias
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ImageAliasesEntryPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Update the image alias
+            tags:
+                - images
+    /1.0/images/{imageType}/aliases?recursion=1:
+        get:
+            description: Returns a list of image aliases (structs) for the provided image type (`container` or `virtual-machine`).
+            operationId: images_type_aliases_get_recursion1
+            parameters:
+                - description: Image type
+                  enum:
+                    - container
+                    - virtual-machine
+                  in: path
+                  name: imageType
+                  required: true
+                  type: string
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of image aliases
+                                items:
+                                    $ref: '#/definitions/ImageAliasesEntry'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the image aliases
             tags:
                 - images
     /1.0/images/aliases:
@@ -21915,6 +22324,24 @@ responses:
                     x-go-name: Error
                 error_code:
                     example: 400
+                    format: int64
+                    type: integer
+                    x-go-name: ErrorCode
+                type:
+                    example: error
+                    type: string
+                    x-go-name: Type
+            type: object
+    Conflict:
+        description: Conflict
+        schema:
+            properties:
+                error:
+                    example: conflict
+                    type: string
+                    x-go-name: Error
+                error_code:
+                    example: 409
                     format: int64
                     type: integer
                     x-go-name: ErrorCode

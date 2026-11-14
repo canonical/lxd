@@ -11,6 +11,7 @@ var (
 	_ = swaggerOperation{}
 	_ = swaggerEmptySyncResponse{}
 	_ = swaggerBadRequest{}
+	_ = swaggerConflict{}
 	_ = swaggerForbidden{}
 	_ = swaggerPreconditionFailed{}
 	_ = swaggerStatusLocked{}
@@ -75,6 +76,24 @@ type swaggerBadRequest struct {
 		Error string `json:"error"`
 
 		// Example: 400
+		ErrorCode int `json:"error_code"`
+	}
+}
+
+// Conflict
+//
+// swagger:response Conflict
+type swaggerConflict struct {
+	// Conflict
+	// in: body
+	Body struct {
+		// Example: error
+		Type string `json:"type"`
+
+		// Example: conflict
+		Error string `json:"error"`
+
+		// Example: 409
 		ErrorCode int `json:"error_code"`
 	}
 }

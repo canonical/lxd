@@ -149,6 +149,12 @@ func validateGroupName(name string) error {
 //	Returns a list of authorization groups.
 //
 //	---
+//	parameters:
+//	  - in: query
+//	    name: image_alias_types
+//	    type: integer
+//	    enum: [0, 1]
+//	    description: 'Return typed image alias permission URLs (API extension: image_alias_types).'
 //	produces:
 //	  - application/json
 //	responses:
@@ -239,7 +245,11 @@ func getAuthGroups(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Get the EntityURLs for the permissions.
-		authGroupPermissions, entityURLs, err = dbCluster.GetPermissionEntityURLs(ctx, tx.Tx(), authGroupPermissions)
+		if r.URL.Query().Get("image_alias_types") == "1" {
+			authGroupPermissions, entityURLs, err = dbCluster.GetPermissionEntityURLs(ctx, tx.Tx(), authGroupPermissions)
+		} else {
+			authGroupPermissions, entityURLs, err = dbCluster.GetAuthGroupPermissionEntityURLs(ctx, tx.Tx(), authGroupPermissions)
+		}
 		if err != nil {
 			return err
 		}
@@ -408,6 +418,12 @@ func createAuthGroup(d *Daemon, r *http.Request) response.Response {
 //	Gets a specific authorization group.
 //
 //	---
+//	parameters:
+//	  - in: query
+//	    name: image_alias_types
+//	    type: integer
+//	    enum: [0, 1]
+//	    description: 'Return typed image alias permission URLs (API extension: image_alias_types).'
 //	produces:
 //	  - application/json
 //	responses:
@@ -442,6 +458,7 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var apiGroup *api.AuthGroup
+	var etagPermissions []api.Permission
 	s := d.State()
 	canViewIdentity, err := s.Authorizer.GetPermissionChecker(r.Context(), auth.EntitlementCanView, entity.TypeIdentity)
 	if err != nil {
@@ -464,6 +481,14 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		etagPermissions = apiGroup.Permissions
+		if r.URL.Query().Get("image_alias_types") == "1" {
+			apiGroup.Permissions, err = typedImageAliasPermissions(ctx, tx, apiGroup.Permissions)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -477,7 +502,60 @@ func getAuthGroup(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	return response.SyncResponseETag(true, *apiGroup, *apiGroup)
+	// Keep ETags independent of the requested permission URL representation.
+	etagGroup := *apiGroup
+	etagGroup.Permissions = etagPermissions
+	return response.SyncResponseETag(true, *apiGroup, etagGroup)
+}
+
+// typedImageAliasPermissions renders legacy group references using canonical typed entity URLs.
+func typedImageAliasPermissions(ctx context.Context, tx *db.ClusterTx, permissions []api.Permission) ([]api.Permission, error) {
+	var references map[*api.URL]*dbCluster.EntityRef
+	var indices map[*api.URL]int
+	for i, permission := range permissions {
+		if permission.EntityType != string(entity.TypeImageAlias) {
+			continue
+		}
+
+		u, err := url.Parse(permission.EntityReference)
+		if err != nil {
+			return nil, err
+		}
+
+		_, _, _, args, err := entity.ParseURL(*u)
+		if err != nil {
+			return nil, err
+		}
+
+		if args[0] != "" {
+			continue
+		}
+
+		if references == nil {
+			references = make(map[*api.URL]*dbCluster.EntityRef)
+			indices = make(map[*api.URL]int)
+		}
+
+		apiURL := &api.URL{URL: *u}
+		references[apiURL] = &dbCluster.EntityRef{}
+		indices[apiURL] = i
+	}
+
+	if len(references) == 0 {
+		return permissions, nil
+	}
+
+	err := dbCluster.PopulateEntityReferencesFromURLs(ctx, tx.Tx(), references)
+	if err != nil {
+		return nil, err
+	}
+
+	typedPermissions := slices.Clone(permissions)
+	for u, reference := range references {
+		typedPermissions[indices[u]].EntityReference = reference.URL().String()
+	}
+
+	return typedPermissions, nil
 }
 
 // swagger:operation PUT /1.0/auth/groups/{groupName} auth_groups auth_group_put
@@ -639,7 +717,7 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed getting a permission checker: %w", err))
 	}
 
-	newPermissions := make([]api.Permission, 0, len(groupPut.Permissions))
+	var permissions []api.Permission
 	var group *dbCluster.AuthGroupsRow
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		group, err = dbCluster.GetAuthGroup(ctx, tx.Tx(), groupName)
@@ -673,11 +751,8 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		for _, permission := range groupPut.Permissions {
-			if !slices.Contains(apiGroup.Permissions, permission) {
-				newPermissions = append(newPermissions, permission)
-			}
-		}
+		// Validate the full PATCH union before deduplicating canonical permissions.
+		permissions = append(apiGroup.Permissions, groupPut.Permissions...)
 
 		return nil
 	})
@@ -685,7 +760,7 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	newDBPermissions, err := validatePermissions(r.Context(), s, newPermissions)
+	validatedPermissions, err := validatePermissions(r.Context(), s, permissions)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -699,7 +774,7 @@ func patchAuthGroup(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		return dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), group.ID, newDBPermissions)
+		return dbCluster.SetAuthGroupPermissions(ctx, tx.Tx(), group.ID, validatedPermissions)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -839,6 +914,7 @@ func validatePermissions(ctx context.Context, s *state.State, permissions []api.
 	// Populate database references for the input URLs. Ensuring we can find the entities in the database.
 	entityReferences := make(map[*api.URL]*dbCluster.EntityRef, len(permissions))
 	permissionToURL := make(map[api.Permission]*api.URL, len(permissions))
+	contextualPermissions := make([]api.Permission, 0, len(permissions))
 	for _, permission := range permissions {
 		entityType := entity.Type(permission.EntityType)
 		err := entityType.Validate()
@@ -860,6 +936,33 @@ func validatePermissions(ctx context.Context, s *state.State, permissions []api.
 			return nil, api.StatusErrorf(http.StatusBadRequest, "Failed parsing permission with entity reference %q and entitlement %q: Entity type does not correspond to entity reference", permission.EntityReference, permission.Entitlement)
 		}
 
+		// Accept the legacy image alias URL without an image type when the name is unique.
+		if referenceEntityType == entity.TypeImageAlias && len(args) == 2 && args[0] == "" {
+			var imageTypes []string
+			err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+				var err error
+				imageTypes, err = tx.GetImageAliasTypes(ctx, projectName, args[1])
+				return err
+			})
+			if err != nil {
+				return nil, api.StatusErrorf(http.StatusBadRequest, "Failed resolving image alias %q: %w", args[1], err)
+			}
+
+			switch len(imageTypes) {
+			case 0:
+				return nil, api.StatusErrorf(http.StatusBadRequest, "Image alias %q not found", args[1])
+			case 1:
+				args[0] = imageTypes[0]
+			default:
+				return nil, api.StatusErrorf(http.StatusBadRequest, "Image alias %q exists for image types %q and %q", args[1], imageTypes[0], imageTypes[1])
+			}
+		}
+
+		entityURL, err := referenceEntityType.URL(projectName, location, args...)
+		if err != nil {
+			return nil, err
+		}
+
 		permissionEntitlement := auth.Entitlement(permission.Entitlement)
 		err = auth.ValidateEntitlement(entityType, permissionEntitlement)
 		if err != nil {
@@ -873,11 +976,6 @@ func validatePermissions(ctx context.Context, s *state.State, permissions []api.
 			// the storage pool because there is no such entitlement.
 			err = auth.ValidateEntitlement(entityType, auth.EntitlementCanView)
 			if err == nil {
-				entityURL, err := referenceEntityType.URL(projectName, location, args...)
-				if err != nil {
-					return nil, err
-				}
-
 				entityURLString := entityURL.String()
 				entityURLsWithViewPermissionRequired[entityURLString] = append(entityURLsWithViewPermissionRequired[entityURLString], permission)
 			}
@@ -890,9 +988,14 @@ func validatePermissions(ctx context.Context, s *state.State, permissions []api.
 			entityURLsWithViewPermissionRequired[projectURLString] = append(entityURLsWithViewPermissionRequired[projectURLString], permission)
 		}
 
-		apiURL := &api.URL{URL: *u}
-		entityReferences[apiURL] = &dbCluster.EntityRef{}
-		permissionToURL[permission] = apiURL
+		// Canonicalize alias URLs for consistent contextual checks and deduplication.
+		permission.EntityReference = entityURL.String()
+		_, seen := permissionToURL[permission]
+		if !seen {
+			entityReferences[entityURL] = &dbCluster.EntityRef{}
+			permissionToURL[permission] = entityURL
+			contextualPermissions = append(contextualPermissions, permission)
+		}
 	}
 
 	// Check the group for consistency. A group permission that references a project specific entity is only allowed if the group can view the parent project.
@@ -905,7 +1008,7 @@ func validatePermissions(ctx context.Context, s *state.State, permissions []api.
 		}
 
 		// Check view permission on the entity contextually, so that the permission check is not conflated with permissions of the caller.
-		isAllowed, err := s.Authorizer.CheckContextualPermission(ctx, &api.URL{URL: *u}, auth.EntitlementCanView, permissions)
+		isAllowed, err := s.Authorizer.CheckContextualPermission(ctx, &api.URL{URL: *u}, auth.EntitlementCanView, contextualPermissions)
 		if err != nil {
 			return nil, err
 		}
@@ -946,5 +1049,30 @@ func validatePermissions(ctx context.Context, s *state.State, permissions []api.
 		})
 	}
 
-	return authGroupPermissions, nil
+	// Typed and legacy alias URLs can resolve to the same entity; deduplicate before insertion.
+	type permissionKey struct {
+		entityType  dbCluster.EntityType
+		entityID    int
+		entitlement auth.Entitlement
+	}
+
+	uniquePermissions := make([]dbCluster.Permission, 0, len(authGroupPermissions))
+	seenPermissions := make(map[permissionKey]struct{}, len(authGroupPermissions))
+	for _, permission := range authGroupPermissions {
+		key := permissionKey{
+			entityType:  permission.EntityType,
+			entityID:    permission.EntityID,
+			entitlement: permission.Entitlement,
+		}
+
+		_, seen := seenPermissions[key]
+		if seen {
+			continue
+		}
+
+		seenPermissions[key] = struct{}{}
+		uniquePermissions = append(uniquePermissions, permission)
+	}
+
+	return uniquePermissions, nil
 }
