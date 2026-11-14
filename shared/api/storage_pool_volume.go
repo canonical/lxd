@@ -75,6 +75,12 @@ type StorageVolumePost struct {
 	//
 	// API extension: cluster_internal_custom_volume_copy
 	Source StorageVolumeSource `json:"source" yaml:"source"`
+
+	// Cluster member to move the volume to
+	// Example: server02
+	//
+	// API extension: storage_volume_member_move
+	Location string `json:"location,omitempty" yaml:"location,omitempty"`
 }
 
 // StorageVolumePostTarget represents the migration target host and operation

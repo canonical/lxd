@@ -619,6 +619,12 @@ func (c *ClusterTx) GetStoragePoolNodeVolumeID(ctx context.Context, projectName 
 	return c.storagePoolVolumeGetTypeID(ctx, projectName, volumeName, volumeType, poolID, c.nodeID)
 }
 
+// GetStoragePoolVolumeIDOnNode gets the ID of a storage volume on a given storage pool
+// of a given storage volume type and project, on the node with the given ID.
+func (c *ClusterTx) GetStoragePoolVolumeIDOnNode(ctx context.Context, projectName string, volumeName string, volumeType cluster.StoragePoolVolumeType, poolID int64, nodeID int64) (int64, error) {
+	return c.storagePoolVolumeGetTypeID(ctx, projectName, volumeName, volumeType, poolID, nodeID)
+}
+
 // StorageVolumeArgs is a value object holding all db-related details about a
 // storage volume.
 type StorageVolumeArgs struct {
