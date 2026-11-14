@@ -84,7 +84,7 @@ func (g *AuthGroupsRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity a
 		return nil, err
 	}
 
-	permissions, entityURLs, err := GetPermissionEntityURLs(ctx, tx, permissions)
+	permissions, entityURLs, err := GetAuthGroupPermissionEntityURLs(ctx, tx, permissions)
 	if err != nil {
 		return nil, err
 	}
@@ -135,6 +135,52 @@ func (g *AuthGroupsRow) ToAPI(ctx context.Context, tx *sql.Tx, canViewIdentity a
 	}
 
 	return group, nil
+}
+
+// GetAuthGroupPermissionEntityURLs returns legacy URLs for unique aliases and typed URLs for shared names.
+func GetAuthGroupPermissionEntityURLs(ctx context.Context, tx *sql.Tx, permissions []Permission) ([]Permission, map[entity.Type]map[int]*api.URL, error) {
+	permissions, entityURLs, err := GetPermissionEntityURLs(ctx, tx, permissions)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	aliasURLs := entityURLs[entity.TypeImageAlias]
+	if len(aliasURLs) == 0 {
+		return permissions, entityURLs, nil
+	}
+
+	aliasIDs := make([]int64, 0, len(aliasURLs))
+	for id := range aliasURLs {
+		aliasIDs = append(aliasIDs, int64(id))
+	}
+
+	stmt := `
+SELECT images_aliases.id, projects.name, images_aliases.name
+FROM images_aliases
+JOIN projects ON images_aliases.project_id = projects.id
+WHERE images_aliases.id IN ` + query.IntParams(aliasIDs...) + `
+AND NOT EXISTS (
+	SELECT 1 FROM images_aliases AS other
+	WHERE other.project_id = images_aliases.project_id
+	AND other.name = images_aliases.name
+	AND other.id != images_aliases.id
+)`
+	err = query.Scan(ctx, tx, stmt, func(scan func(dest ...any) error) error {
+		var id int
+		var projectName, name string
+		err := scan(&id, &projectName, &name)
+		if err != nil {
+			return err
+		}
+
+		aliasURLs[id] = api.NewURL().Path("1.0", "images", "aliases", name).WithQuery("project", projectName)
+		return nil
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed getting legacy image alias URLs for group permissions: %w", err)
+	}
+
+	return permissions, entityURLs, nil
 }
 
 // GetIdentitiesByAuthGroupID returns the identities that are members of the group with the given ID.

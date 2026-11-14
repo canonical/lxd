@@ -161,7 +161,8 @@ CREATE TABLE "images_aliases" (
     image_id INTEGER NOT NULL,
     description TEXT NOT NULL,
     project_id INTEGER NOT NULL,
-    UNIQUE (project_id, name),
+    image_type INTEGER NOT NULL,
+    UNIQUE (project_id, name, image_type),
     FOREIGN KEY (image_id) REFERENCES "images" (id) ON DELETE CASCADE,
     FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE
 );
@@ -852,5 +853,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (92, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (93, strftime("%s"))
 `
