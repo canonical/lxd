@@ -108,11 +108,14 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	var instanceType string
 	if !shared.IsSnapshot(cName) {
 		ct, etag, err := s.GetInstance(cName)
 		if err != nil {
 			return err
 		}
+
+		instanceType = ct.Type
 
 		wasRunning := ct.StatusCode != 0 && ct.StatusCode != api.Stopped
 		wasEphemeral := ct.Ephemeral
@@ -240,18 +243,35 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 		req.ExpiresAt = expiresAt
 	}
 
-	existingAliases, err := GetCommonAliases(d, aliases...)
-	if err != nil {
-		return fmt.Errorf("Error retrieving aliases: %w", err)
-	}
-
-	if !c.flagReuse && len(existingAliases) > 0 {
-		names := []string{}
-		for _, alias := range existingAliases {
-			names = append(names, alias.Name)
+	var imageType string
+	typedAliases := len(aliases) > 0 && d.HasExtension("image_alias_types")
+	if typedAliases && !shared.IsSnapshot(cName) {
+		// A microvm is published as a container image.
+		instType, err := instancetype.New(instanceType)
+		if err != nil {
+			return err
 		}
 
-		return fmt.Errorf("Aliases already exists: %s", strings.Join(names, ", "))
+		imageType = instType.ImageType().String()
+	}
+
+	// Use the publish result's type to avoid requiring view access to a snapshot's parent.
+	var existingAliases []api.ImageAliasesEntry
+	aliasesDeferred := typedAliases && shared.IsSnapshot(cName)
+	if !aliasesDeferred {
+		existingAliases, err = GetCommonAliases(d, imageType, aliases...)
+		if err != nil {
+			return fmt.Errorf("Error retrieving aliases: %w", err)
+		}
+
+		if !c.flagReuse && len(existingAliases) > 0 {
+			names := []string{}
+			for _, alias := range existingAliases {
+				names = append(names, alias.Name)
+			}
+
+			return fmt.Errorf("Aliases already exists: %s", strings.Join(names, ", "))
+		}
 	}
 
 	op, err := s.CreateImage(req, nil)
@@ -288,10 +308,56 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(`Invalid type %T for "fingerprint" key in operation metadata`, fingerprint)
 	}
 
+	// Remove remote source images and roll back local images if deferred alias checks fail.
+	rollback := aliasesDeferred
+	defer func() {
+		if cRemote == iRemote && !rollback {
+			return
+		}
+
+		deleteOp, deleteErr := s.DeleteImage(fingerprint)
+		if cRemote == iRemote && deleteErr == nil {
+			_ = deleteOp.Wait()
+		}
+	}()
+
+	if aliasesDeferred {
+		typeName, ok := opAPI.Metadata["type"].(string)
+		if !ok || typeName == "" {
+			// Older source servers do not report the type; fall back to the parent.
+			parent, _, _ := strings.Cut(cName, shared.SnapshotDelimiter)
+			inst, _, err := s.GetInstance(parent)
+			if err != nil {
+				return err
+			}
+
+			typeName = inst.Type
+		}
+
+		instType, err := instancetype.New(typeName)
+		if err != nil {
+			return err
+		}
+
+		imageType = instType.ImageType().String()
+		existingAliases, err = GetCommonAliases(d, imageType, aliases...)
+		if err != nil {
+			return fmt.Errorf("Error retrieving aliases: %w", err)
+		}
+
+		if !c.flagReuse && len(existingAliases) > 0 {
+			names := []string{}
+			for _, alias := range existingAliases {
+				names = append(names, alias.Name)
+			}
+
+			return fmt.Errorf("Aliases already exists: %s", strings.Join(names, ", "))
+		}
+	}
+	rollback = false
+
 	// For remote publish, copy to target now
 	if cRemote != iRemote {
-		defer func() { _, _ = s.DeleteImage(fingerprint) }()
-
 		// Get the source image
 		image, _, err := s.GetImage(fingerprint)
 		if err != nil {
@@ -353,7 +419,7 @@ func (c *cmdPublish) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err = ensureImageAliases(d, aliases, fingerprint)
+	err = ensureImageAliases(d, aliases, fingerprint, imageType)
 	if err != nil {
 		return err
 	}
