@@ -1392,6 +1392,17 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 			}
 		}
 
+		// Without any connected websocket (e.g. when the exec request did not ask the server to
+		// wait for websockets) there is nothing to mirror. Signal completion straight away rather
+		// than waiting on channels that are never going to fire.
+		if len(dones) == 0 {
+			if args.DataDone != nil {
+				close(args.DataDone)
+			}
+
+			return op, nil
+		}
+
 		// Wait for everything to be done
 		go func() {
 			for {
