@@ -1233,41 +1233,14 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 		}
 
 		if outputFiles["1"] != "" {
-			reader, _ := r.getInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
-			if args.Stdout != nil {
-				_, errCopy := io.Copy(args.Stdout, reader)
-				// Regardless of errCopy value, we want to delete the file after a copy operation
-				errDelete := r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
-				if errDelete != nil {
-					return nil, errDelete
-				}
-
-				if errCopy != nil {
-					return nil, fmt.Errorf("Could not copy the content of the exec output log file to stdout: %w", err)
-				}
-			}
-
-			err = r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
+			err = r.consumeInstanceExecOutputLogFile(instanceName, outputFiles["1"], args.Stdout)
 			if err != nil {
 				return nil, err
 			}
 		}
 
 		if outputFiles["2"] != "" {
-			reader, _ := r.getInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["2"]))
-			if args.Stderr != nil {
-				_, errCopy := io.Copy(args.Stderr, reader)
-				errDelete := r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["1"]))
-				if errDelete != nil {
-					return nil, errDelete
-				}
-
-				if errCopy != nil {
-					return nil, fmt.Errorf("Could not copy the content of the exec output log file to stderr: %w", err)
-				}
-			}
-
-			err = r.deleteInstanceExecOutputLogFile(instanceName, filepath.Base(outputFiles["2"]))
+			err = r.consumeInstanceExecOutputLogFile(instanceName, outputFiles["2"], args.Stderr)
 			if err != nil {
 				return nil, err
 			}
@@ -2576,6 +2549,32 @@ func (r *ProtocolLXD) deleteInstanceExecOutputLogFile(instanceName string, filen
 	}
 
 	return nil
+}
+
+// consumeInstanceExecOutputLogFile copies the content of the given exec output log file into w and then
+// deletes the log file. If w is nil the content is not retrieved and the log file is only deleted.
+func (r *ProtocolLXD) consumeInstanceExecOutputLogFile(instanceName string, logFilePath string, w io.Writer) error {
+	filename := filepath.Base(logFilePath)
+
+	if w == nil {
+		return r.deleteInstanceExecOutputLogFile(instanceName, filename)
+	}
+
+	reader, err := r.getInstanceExecOutputLogFile(instanceName, filename)
+	if err != nil {
+		return fmt.Errorf("Failed getting the exec output log file %q: %w", filename, err)
+	}
+
+	_, errCopy := io.Copy(w, reader)
+	_ = reader.Close()
+
+	// Regardless of errCopy value, we want to delete the file after a copy operation.
+	errDelete := r.deleteInstanceExecOutputLogFile(instanceName, filename)
+	if errCopy != nil {
+		return fmt.Errorf("Failed copying the content of the exec output log file %q: %w", filename, errCopy)
+	}
+
+	return errDelete
 }
 
 // GetInstanceMetadata returns instance metadata.
