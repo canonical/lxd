@@ -483,7 +483,7 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 	if source.Fingerprint != "" {
 		if source.ImageRegistry == "" {
 			// Check if the fingerprint is actually an alias.
-			_, alias, err := tx.GetImageAlias(ctx, projectName, source.Fingerprint, true)
+			_, alias, err := tx.GetImageAlias(ctx, projectName, source.Fingerprint, "", true)
 			if err == nil {
 				return alias.Target, nil
 			}
@@ -497,7 +497,7 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 			return source.Alias, nil
 		}
 
-		_, alias, err := tx.GetImageAlias(ctx, projectName, source.Alias, true)
+		_, alias, err := tx.GetImageAlias(ctx, projectName, source.Alias, "", true)
 		if err != nil {
 			return "", err
 		}
