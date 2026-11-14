@@ -335,7 +335,7 @@ func (c *cmdImageCopy) run(cmd *cobra.Command, args []string) error {
 		aliases = append(aliases, imgInfo.Aliases...)
 	}
 
-	err = ensureImageAliases(destinationServer, aliases, fp)
+	err = ensureImageAliases(destinationServer, aliases, fp, imageType)
 	if err != nil {
 		return err
 	}
@@ -842,7 +842,8 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 		Quiet:  c.global.flagQuiet,
 	}
 
-	imageType := "container"
+	// The image type is only known for a split import. For a unified image it is detected from the created image.
+	imageType := ""
 	if strings.HasPrefix(imageFile, "https://") {
 		image.Source = &api.ImagesPostSource{}
 		image.Source.Type = "url"
@@ -938,7 +939,7 @@ func (c *cmdImageImport) run(cmd *cobra.Command, args []string) error {
 			aliases[i].Name = entry
 		}
 
-		err = ensureImageAliases(d, aliases, fingerprint)
+		err = ensureImageAliases(d, aliases, fingerprint, imageType)
 		if err != nil {
 			return err
 		}

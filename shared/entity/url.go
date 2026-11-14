@@ -266,8 +266,8 @@ func ImageURL(projectName string, imageName string) *api.URL {
 }
 
 // ImageAliasURL returns an *api.URL to an image alias.
-func ImageAliasURL(projectName string, imageAliasName string) *api.URL {
-	return TypeImageAlias.urlMust(projectName, "", imageAliasName)
+func ImageAliasURL(projectName string, imageType string, imageAliasName string) *api.URL {
+	return TypeImageAlias.urlMust(projectName, "", imageType, imageAliasName)
 }
 
 // ProfileURL returns an *api.URL to a profile.

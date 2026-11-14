@@ -195,7 +195,9 @@ type InstanceServer interface {
 	CreateImageAlias(alias api.ImageAliasesPost) (err error)
 	UpdateImageAlias(name string, alias api.ImageAliasesEntryPut, ETag string) (err error)
 	RenameImageAlias(name string, alias api.ImageAliasesEntryPost) (err error)
+	RenameImageAliasType(imageType string, name string, alias api.ImageAliasesEntryPost) (err error)
 	DeleteImageAlias(name string) (err error)
+	DeleteImageAliasType(imageType string, name string) (err error)
 	GetImagesAllProjects() (images []api.Image, err error)
 	GetImagesAllProjectsWithFilter(filters []string) (images []api.Image, err error)
 

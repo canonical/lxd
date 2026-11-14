@@ -131,6 +131,28 @@ var imageAliasCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: imageAliasPut, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
 }
 
+// imageTypeAliasesCmd serves aliases for one image type.
+var imageTypeAliasesCmd = APIEndpoint{
+	Path:            "images/{imageType}/aliases",
+	MetricsType:     entity.TypeImage,
+	ProjectSpecific: true,
+
+	Get:  APIEndpointAction{Handler: imageTypeAliasesGet, AccessHandler: allowAuthenticated, AllProjectsMode: allProjectsModeDisallowRestrictedTLSClients},
+	Post: APIEndpointAction{Handler: imageTypeAliasesPost, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanCreateImageAliases)},
+}
+
+var imageTypeAliasCmd = APIEndpoint{
+	Path:            "images/{imageType}/aliases/{name...}",
+	MetricsType:     entity.TypeImage,
+	ProjectSpecific: true,
+
+	Delete: APIEndpointAction{Handler: imageTypeAliasDelete, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanDelete)},
+	Get:    APIEndpointAction{Handler: imageTypeAliasGet, AllowUntrusted: true},
+	Patch:  APIEndpointAction{Handler: imageTypeAliasPatch, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
+	Post:   APIEndpointAction{Handler: imageTypeAliasPost, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
+	Put:    APIEndpointAction{Handler: imageTypeAliasPut, AccessHandler: imageAliasAccessHandler(auth.EntitlementCanEdit)},
+}
+
 // imageEndpointResolver is a custom endpoint resolver for the "images/{path...}" pattern.
 // It inspects the request path to determine which image-related endpoint should handle the request,
 // allowing for sub-resources like aliases and export/secret/refresh actions on specific images.
@@ -142,6 +164,8 @@ func imageEndpointResolver(r *http.Request) *APIEndpoint {
 
 	var err error
 	var isAlias bool
+	var typedAliases bool
+	var imageType string
 	var unescapedFingerprint, unescapedAliasName, action string
 	for i, escapedSegment := range escapedSegments {
 		switch i {
@@ -159,6 +183,8 @@ func imageEndpointResolver(r *http.Request) *APIEndpoint {
 			switch escapedSegment {
 			case "aliases":
 				isAlias = true
+			case "container", "virtual-machine":
+				imageType = escapedSegment
 			default:
 				unescapedFingerprint, err = url.PathUnescape(escapedSegment)
 				if err != nil {
@@ -174,13 +200,44 @@ func imageEndpointResolver(r *http.Request) *APIEndpoint {
 					logger.Warn("Failed unescaping image alias name", logger.Ctx{"name": escapedSegment, "err": err})
 					return nil // Will result in 404.
 				}
+			} else if imageType != "" {
+				if escapedSegment != "aliases" {
+					return nil
+				}
+
+				typedAliases = true
 			} else {
 				action = escapedSegment
+			}
+
+		case 4:
+			if imageType == "" {
+				return nil
+			}
+
+			unescapedAliasName, err = url.PathUnescape(escapedSegment)
+			if err != nil {
+				logger.Warn("Failed unescaping image alias name", logger.Ctx{"name": escapedSegment, "err": err})
+				return nil // Will result in 404.
 			}
 
 		default:
 			return nil
 		}
+	}
+
+	if imageType != "" {
+		if !typedAliases {
+			return nil
+		}
+
+		r.SetPathValue("imageType", imageType)
+		if unescapedAliasName == "" {
+			return &imageTypeAliasesCmd
+		}
+
+		r.SetPathValue("name", unescapedAliasName)
+		return &imageTypeAliasCmd
 	}
 
 	if isAlias {
@@ -212,6 +269,336 @@ var imageSubCmd = APIEndpoint{
 	Path:             "images/{path...}",
 	MetricsType:      entity.TypeImage,
 	EndpointResolver: imageEndpointResolver,
+}
+
+// imageAliasTypeFromRequest returns the image type path value set by imageEndpointResolver.
+func imageAliasTypeFromRequest(r *http.Request) (string, error) {
+	imageType := r.PathValue("imageType")
+	if imageType == "" {
+		return "", nil
+	}
+
+	if imageType != instancetype.Container.String() && imageType != instancetype.VM.String() {
+		return "", api.StatusErrorf(http.StatusBadRequest, "Invalid image type %q", imageType)
+	}
+
+	return imageType, nil
+}
+
+// swagger:operation GET /1.0/images/{imageType}/aliases images images_type_aliases_get
+//
+//	Get the image aliases of one type
+//
+//	Returns the aliases for `container` or `virtual-machine`.
+//	Each URL addresses one alias. `recursion=1` returns `ImageAliasesEntry` objects.
+//
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: path
+//	    name: imageType
+//	    description: Image type
+//	    type: string
+//	    required: true
+//	    enum: [container, virtual-machine]
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: Image aliases
+//	    schema:
+//	      type: object
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//
+// API extension: image_alias_types.
+func imageTypeAliasesGet(d *Daemon, r *http.Request) response.Response {
+	return imageAliasesGet(d, r)
+}
+
+// swagger:operation POST /1.0/images/{imageType}/aliases images images_type_aliases_post
+//
+//	Add an image alias of one type
+//
+//	Creates an alias for the image type in the path. The target image must be of that type.
+//	The same name may already exist for the other image type.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: path
+//	    name: imageType
+//	    description: Image type
+//	    type: string
+//	    required: true
+//	    enum: [container, virtual-machine]
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: image alias
+//	    description: Image alias
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ImageAliasesPost"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//
+// API extension: image_alias_types.
+func imageTypeAliasesPost(d *Daemon, r *http.Request) response.Response {
+	return imageAliasesPost(d, r)
+}
+
+// swagger:operation GET /1.0/images/{imageType}/aliases/{name} images image_type_alias_get
+//
+//	Get one typed image alias
+//
+//	Gets the alias of the given name and image type.
+//
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: path
+//	    name: imageType
+//	    description: Image type
+//	    type: string
+//	    required: true
+//	    enum: [container, virtual-machine]
+//	  - in: path
+//	    name: name
+//	    description: Alias name
+//	    type: string
+//	    required: true
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: Image alias
+//	    schema:
+//	      type: object
+//	      properties:
+//	        metadata:
+//	          $ref: "#/definitions/ImageAliasesEntry"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//
+// API extension: image_alias_types.
+func imageTypeAliasGet(d *Daemon, r *http.Request) response.Response {
+	return imageAliasGet(d, r)
+}
+
+// swagger:operation PUT /1.0/images/{imageType}/aliases/{name} images image_type_alias_put
+//
+//	Update one typed image alias
+//
+//	Replaces the alias. The target image must be of the same type.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: path
+//	    name: imageType
+//	    description: Image type
+//	    type: string
+//	    required: true
+//	    enum: [container, virtual-machine]
+//	  - in: path
+//	    name: name
+//	    description: Alias name
+//	    type: string
+//	    required: true
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: image alias
+//	    description: Image alias configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ImageAliasesEntryPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//
+// API extension: image_alias_types.
+func imageTypeAliasPut(d *Daemon, r *http.Request) response.Response {
+	return imageAliasPut(d, r)
+}
+
+// swagger:operation PATCH /1.0/images/{imageType}/aliases/{name} images image_type_alias_patch
+//
+//	Partially update one typed image alias
+//
+//	Updates a subset of the alias. The target image must be of the same type.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: path
+//	    name: imageType
+//	    description: Image type
+//	    type: string
+//	    required: true
+//	    enum: [container, virtual-machine]
+//	  - in: path
+//	    name: name
+//	    description: Alias name
+//	    type: string
+//	    required: true
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: image alias
+//	    description: Image alias configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ImageAliasesEntryPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//
+// API extension: image_alias_types.
+func imageTypeAliasPatch(d *Daemon, r *http.Request) response.Response {
+	return imageAliasPatch(d, r)
+}
+
+// swagger:operation POST /1.0/images/{imageType}/aliases/{name} images image_type_alias_post
+//
+//	Rename one typed image alias
+//
+//	Renames the alias. The new name may already be used by the other image type.
+//
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: path
+//	    name: imageType
+//	    description: Image type
+//	    type: string
+//	    required: true
+//	    enum: [container, virtual-machine]
+//	  - in: path
+//	    name: name
+//	    description: Alias name
+//	    type: string
+//	    required: true
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: image alias
+//	    description: Image alias rename request
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ImageAliasesEntryPost"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//
+// API extension: image_alias_types.
+func imageTypeAliasPost(d *Daemon, r *http.Request) response.Response {
+	return imageAliasPost(d, r)
+}
+
+// swagger:operation DELETE /1.0/images/{imageType}/aliases/{name} images image_type_alias_delete
+//
+//	Delete one typed image alias
+//
+//	Deletes the alias of the given name and image type. The other image type is left in place.
+//
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: path
+//	    name: imageType
+//	    description: Image type
+//	    type: string
+//	    required: true
+//	    enum: [container, virtual-machine]
+//	  - in: path
+//	    name: name
+//	    description: Alias name
+//	    type: string
+//	    required: true
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
+//
+// API extension: image_alias_types.
+func imageTypeAliasDelete(d *Daemon, r *http.Request) response.Response {
+	return imageAliasDelete(d, r)
 }
 
 // validateImageFingerprintPrefix validates that the given string is at least 12 characters long contains only lowercase
@@ -444,12 +831,30 @@ func imageAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Re
 func imageAliasAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		requestProjectName := request.ProjectParam(r)
+		name := r.PathValue("name")
+		pathType, err := imageAliasTypeFromRequest(r)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
 		var effectiveProjectName string
+		var aliasTypes []string
 		s := d.State()
-		err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 			effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), requestProjectName)
-			return err
+			if err != nil {
+				return err
+			}
+
+			// The alias authorization entity includes the image type. For an untyped path, resolve the types that
+			// the name exists for.
+			if entitlement != auth.EntitlementCanCreateImageAliases && pathType == "" {
+				aliasTypes, err = tx.GetImageAliasTypes(ctx, effectiveProjectName, name)
+				return err
+			}
+
+			return nil
 		})
 		if err != nil && api.StatusErrorCheck(err, http.StatusNotFound) {
 			return response.NotFound(nil)
@@ -457,18 +862,38 @@ func imageAliasAccessHandler(entitlement auth.Entitlement) func(d *Daemon, r *ht
 			return response.SmartError(err)
 		}
 
-		var u *api.URL
-		switch entitlement {
-		case auth.EntitlementCanCreateImageAliases:
-			u = entity.ProjectURL(effectiveProjectName)
-		default:
-			u = entity.ImageAliasURL(effectiveProjectName, r.PathValue("name"))
+		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
+
+		// Permission to create an image alias is granted on the project.
+		if entitlement == auth.EntitlementCanCreateImageAliases {
+			err = s.Authorizer.CheckPermission(r.Context(), entity.ProjectURL(effectiveProjectName), entitlement)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			return response.EmptySyncResponse
 		}
 
-		request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-		err = s.Authorizer.CheckPermission(r.Context(), u, entitlement)
-		if err != nil {
-			return response.SmartError(err)
+		if pathType != "" {
+			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(effectiveProjectName, pathType, name), entitlement)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			return response.EmptySyncResponse
+		}
+
+		if len(aliasTypes) == 0 {
+			return response.NotFound(nil)
+		}
+
+		// An untyped path addresses every type the name exists for, so the caller needs permission on each of them.
+		// If all checks pass the handler produces the conflict error for the ambiguous name.
+		for _, aliasType := range aliasTypes {
+			err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(effectiveProjectName, aliasType, name), entitlement)
+			if err != nil {
+				return response.SmartError(err)
+			}
 		}
 
 		return response.EmptySyncResponse
@@ -617,7 +1042,8 @@ func imgPostInstanceInfo(s *state.State, req api.ImagesPost, op *operations.Oper
 		return nil, err
 	}
 
-	info.Type = c.Type().String()
+	// MicroVMs boot from container images, so the image is published as a container image.
+	info.Type = c.Type().ImageType().String()
 
 	// Build the actual image file
 	imageFile, err := os.CreateTemp(builddir, "lxd_build_image_")
@@ -889,20 +1315,21 @@ func imgPostRemoteInfo(ctx context.Context, s *state.State, req api.ImagesPost, 
 			}
 		}
 
-		// Apply the aliases, reassigning any that already exist to the newly copied image. This mirrors
-		// the client-side "ensureImageAliases" behavior used for "lxc image copy --copy-aliases", where an
-		// existing alias is moved to the new image (e.g. copying both the container and VM variants of an
-		// image that share the same alias) rather than causing the copy to fail.
+		// Apply the aliases. Only an alias of this image type is replaced.
+		imageType := info.Type
+		if imageType == "" {
+			imageType = instancetype.Container.String()
+		}
+
 		for _, alias := range aliasesToApply {
-			_, _, err := tx.GetImageAlias(ctx, imageProject, alias.Name, true)
+			_, _, err := tx.GetImageAlias(ctx, imageProject, alias.Name, imageType, true)
 			if err != nil && !response.IsNotFoundError(err) {
 				return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
 			}
 
-			// If the alias already exists (possibly pointing at another image), remove it so it can be
-			// reassigned to the newly copied image.
+			// If the alias already exists for this image type, remove it so it can be reassigned.
 			if err == nil {
-				err = tx.DeleteImageAlias(ctx, imageProject, alias.Name)
+				err = tx.DeleteImageAlias(ctx, imageProject, alias.Name, imageType)
 				if err != nil {
 					return fmt.Errorf("Failed removing existing image alias %q: %w", alias.Name, err)
 				}
@@ -1702,13 +2129,18 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 				}
 
 				for _, alias := range req.Aliases {
-					_, _, err := tx.GetImageAlias(ctx, dbProject.Name, alias.Name, true)
+					imageType := info.Type
+					if imageType == "" {
+						imageType = instancetype.Container.String()
+					}
+
+					_, _, err := tx.GetImageAlias(ctx, dbProject.Name, alias.Name, imageType, true)
 					if !response.IsNotFoundError(err) {
 						if err != nil {
 							return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
 						}
 
-						return fmt.Errorf("Alias already exists: %s", alias.Name)
+						return api.StatusErrorf(http.StatusConflict, "Alias %q already exists for image type %q", alias.Name, imageType)
 					}
 
 					err = tx.CreateImageAlias(ctx, dbProject.Name, alias.Name, imgID, alias.Description)
@@ -4060,20 +4492,34 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(errors.New("name and target are required"))
 	}
 
+	pathType, err := imageAliasTypeFromRequest(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// This is just to see if the alias name already exists.
-		_, _, err = tx.GetImageAlias(ctx, projectName, req.Name, true)
+		imgID, img, err := tx.GetImageByFingerprintPrefix(ctx, req.Target, dbCluster.ImageFilter{Project: &projectName})
+		if err != nil {
+			return err
+		}
+
+		imageType := img.Type
+		if imageType == "" {
+			imageType = instancetype.Container.String()
+		}
+
+		if pathType != "" && pathType != imageType {
+			return api.StatusErrorf(http.StatusBadRequest, "Image type %q does not match alias type %q", imageType, pathType)
+		}
+
+		// Conflict only when this image type already has the name. The other type may share it.
+		_, _, err = tx.GetImageAlias(ctx, projectName, req.Name, imageType, true)
 		if !response.IsNotFoundError(err) {
 			if err != nil {
 				return err
 			}
 
-			return api.StatusErrorf(http.StatusConflict, "Alias %q already exists", req.Name)
-		}
-
-		imgID, _, err := tx.GetImageByFingerprintPrefix(ctx, req.Target, dbCluster.ImageFilter{Project: &projectName})
-		if err != nil {
-			return err
+			return api.StatusErrorf(http.StatusConflict, "Alias %q already exists for image type %q", req.Name, imageType)
 		}
 
 		err = tx.CreateImageAlias(ctx, projectName, req.Name, imgID, req.Description)
@@ -4081,7 +4527,7 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		return err
+		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -4218,37 +4664,63 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(fmt.Errorf("Failed getting a permission checker: %w", err))
 	}
 
+	pathType, err := imageAliasTypeFromRequest(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var responseStr []string
 	var responseMap []*api.ImageAliasesEntry
 	urlToImageAlias := make(map[*api.URL]auth.EntitlementReporter)
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		names, err := tx.GetImageAliases(ctx, effectiveProjectName)
+		refs, err := tx.GetImageAliases(ctx, effectiveProjectName)
 		if err != nil {
 			return err
 		}
 
 		if recursion > 0 {
-			responseMap = make([]*api.ImageAliasesEntry, 0, len(names))
+			responseMap = make([]*api.ImageAliasesEntry, 0, len(refs))
 		} else {
-			responseStr = make([]string, 0, len(names))
+			responseStr = make([]string, 0, len(refs))
 		}
 
-		for _, name := range names {
-			if !userHasPermission(entity.ImageAliasURL(effectiveProjectName, name)) {
+		seenNames := map[string]struct{}{}
+		for _, ref := range refs {
+			if pathType != "" && ref.Type != pathType {
+				continue
+			}
+
+			aliasURL := entity.ImageAliasURL(effectiveProjectName, ref.Type, ref.Name)
+			if !userHasPermission(aliasURL) {
 				continue
 			}
 
 			if recursion == 0 {
-				responseStr = append(responseStr, api.NewURL().Path(version.APIVersion, "images", "aliases", name).String())
-			} else {
-				_, alias, err := tx.GetImageAlias(ctx, effectiveProjectName, name, true)
-				if err != nil {
+				// The untyped list stays one URL per name. The typed list addresses each alias.
+				if pathType == "" {
+					_, seen := seenNames[ref.Name]
+					if seen {
+						continue
+					}
+
+					seenNames[ref.Name] = struct{}{}
+					responseStr = append(responseStr, api.NewURL().Path(version.APIVersion, "images", "aliases", ref.Name).String())
 					continue
 				}
 
-				responseMap = append(responseMap, &alias)
-				urlToImageAlias[entity.ImageAliasURL(effectiveProjectName, name)] = &alias
+				responseStr = append(responseStr, api.NewURL().Path(version.APIVersion, "images", pathType, "aliases", ref.Name).String())
+				continue
 			}
+
+			_, alias, err := tx.GetImageAlias(ctx, effectiveProjectName, ref.Name, ref.Type, true)
+			if err != nil {
+				continue
+			}
+
+			aliasCopy := alias
+			entry := &aliasCopy
+			responseMap = append(responseMap, entry)
+			urlToImageAlias[aliasURL] = entry
 		}
 
 		return nil
@@ -4358,6 +4830,11 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	name := r.PathValue("name")
 	s := d.State()
 
+	pathType, err := imageAliasTypeFromRequest(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	withEntitlements, err := extractEntitlementsFromQuery(r, entity.TypeImageAlias, false)
 	if err != nil {
 		return response.SmartError(err)
@@ -4374,9 +4851,34 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var effectiveProjectName string
+	var aliasType string
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		effectiveProjectName, err = projectutils.ImageProject(ctx, tx.Tx(), projectName)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// The authorization entity includes the image type, so resolve it before checking permissions.
+		aliasType = pathType
+		if aliasType != "" {
+			return nil
+		}
+
+		aliasTypes, err := tx.GetImageAliasTypes(ctx, effectiveProjectName, name)
+		if err != nil {
+			return err
+		}
+
+		switch len(aliasTypes) {
+		case 0:
+			return api.StatusErrorf(http.StatusNotFound, "Image alias not found")
+		case 1:
+			aliasType = aliasTypes[0]
+		default:
+			return api.StatusErrorf(http.StatusConflict, "Alias %q exists for image types %q and %q", name, aliasTypes[0], aliasTypes[1])
+		}
+
+		return nil
 	})
 	if err != nil {
 		if api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -4391,7 +4893,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	// We don't abort the request if this is false because the image alias may be for a public image.
 	var userCanViewImageAlias bool
 	request.SetContextValue(r, request.CtxEffectiveProjectName, effectiveProjectName)
-	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(effectiveProjectName, name), auth.EntitlementCanView)
+	err = s.Authorizer.CheckPermission(r.Context(), entity.ImageAliasURL(effectiveProjectName, aliasType, name), auth.EntitlementCanView)
 	if err != nil && !auth.IsDeniedError(err) {
 		return response.SmartError(err)
 	} else if err == nil {
@@ -4401,7 +4903,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	var alias api.ImageAliasesEntry
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// If `userCanViewImageAlias` is false, the query will be restricted to public images only.
-		_, alias, err = tx.GetImageAlias(ctx, effectiveProjectName, name, userCanViewImageAlias)
+		_, alias, err = tx.GetImageAlias(ctx, effectiveProjectName, name, aliasType, userCanViewImageAlias)
 
 		return err
 	})
@@ -4413,7 +4915,7 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if len(withEntitlements) > 0 {
-		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImageAlias, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageAliasURL(effectiveProjectName, name): &alias})
+		err = reportEntitlements(r.Context(), s.Authorizer, entity.TypeImageAlias, withEntitlements, map[*api.URL]auth.EntitlementReporter{entity.ImageAliasURL(effectiveProjectName, aliasType, name): &alias})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -4451,13 +4953,18 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 
 	projectName := request.ProjectParam(r)
 	name := r.PathValue("name")
-	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, _, err := tx.GetImageAlias(ctx, projectName, name, true)
+	pathType, err := imageAliasTypeFromRequest(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, alias, err := tx.GetImageAlias(ctx, projectName, name, pathType, true)
 		if err != nil {
 			return err
 		}
 
-		err = tx.DeleteImageAlias(ctx, projectName, name)
+		err = tx.DeleteImageAlias(ctx, projectName, name, alias.Type)
 		if err != nil {
 			return err
 		}
@@ -4514,8 +5021,13 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := request.ProjectParam(r)
 	name := r.PathValue("name")
+	pathType, err := imageAliasTypeFromRequest(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	req := api.ImageAliasesEntryPut{}
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -4528,7 +5040,7 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var imgAliasID int
 
-		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, true)
+		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, pathType, true)
 		if err != nil {
 			return err
 		}
@@ -4544,12 +5056,16 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = tx.UpdateImageAlias(ctx, imgAliasID, imageID, req.Description)
+		// The untyped endpoint may retarget the alias to an image of the other type, which moves the alias to that
+		// type. A typed endpoint can only address an alias of its own type.
+		allowTypeChange := pathType == ""
+
+		err = tx.UpdateImageAlias(ctx, imgAliasID, imageID, req.Description, allowTypeChange)
 		if err != nil {
 			return err
 		}
 
-		return err
+		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -4601,8 +5117,13 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := request.ProjectParam(r)
 	name := r.PathValue("name")
+	pathType, err := imageAliasTypeFromRequest(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	req := shared.Jmap{}
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -4610,7 +5131,7 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 	var imgAlias api.ImageAliasesEntry
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var imgAliasID int
-		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, true)
+		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, pathType, true)
 		if err != nil {
 			return err
 		}
@@ -4646,7 +5167,11 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		err = tx.UpdateImageAlias(ctx, imgAliasID, imageID, imgAlias.Description)
+		// The untyped endpoint may retarget the alias to an image of the other type, which moves the alias to that
+		// type. A typed endpoint can only address an alias of its own type.
+		allowTypeChange := pathType == ""
+
+		err = tx.UpdateImageAlias(ctx, imgAliasID, imageID, imgAlias.Description, allowTypeChange)
 		if err != nil {
 			return err
 		}
@@ -4700,26 +5225,31 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 
 	projectName := request.ProjectParam(r)
 	name := r.PathValue("name")
+	pathType, err := imageAliasTypeFromRequest(r)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	req := api.ImageAliasesEntryPost{}
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// This is just to see if the alias name already exists.
-		_, _, err := tx.GetImageAlias(ctx, projectName, req.Name, true)
+		imgAliasID, imgAlias, err := tx.GetImageAlias(ctx, projectName, name, pathType, true)
+		if err != nil {
+			return err
+		}
+
+		// The new name may already be used by the other image type. Conflict is per type.
+		_, _, err = tx.GetImageAlias(ctx, projectName, req.Name, imgAlias.Type, true)
 		if !response.IsNotFoundError(err) {
 			if err != nil {
 				return err
 			}
 
-			return api.StatusErrorf(http.StatusConflict, "Alias %q already exists", req.Name)
-		}
-
-		imgAliasID, _, err := tx.GetImageAlias(ctx, projectName, name, true)
-		if err != nil {
-			return err
+			return api.StatusErrorf(http.StatusConflict, "Alias %q already exists for image type %q", req.Name, imgAlias.Type)
 		}
 
 		return tx.RenameImageAlias(ctx, imgAliasID, req.Name)

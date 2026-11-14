@@ -122,6 +122,7 @@ readonly test_group_image=(
     "image_import_metadata"
     "image_import_metadata_not_regular_file"
     "image_list_all_aliases"
+    "image_alias_types_vm"
     "image_list_all_projects"
     "image_list_remotes"
     "image_prefer_cached"

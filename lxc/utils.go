@@ -169,7 +169,7 @@ func IsAliasesSubset(a1 []api.ImageAlias, a2 []api.ImageAlias) bool {
 }
 
 // GetCommonAliases returns the common aliases between a list of aliases and all the existing ones.
-func GetCommonAliases(client lxd.InstanceServer, aliases ...api.ImageAlias) ([]api.ImageAliasesEntry, error) {
+func GetCommonAliases(client lxd.InstanceServer, imageType string, aliases ...api.ImageAlias) ([]api.ImageAliasesEntry, error) {
 	if len(aliases) == 0 {
 		return nil, nil
 	}
@@ -187,13 +187,20 @@ func GetCommonAliases(client lxd.InstanceServer, aliases ...api.ImageAlias) ([]a
 		return nil, err
 	}
 
-	return GetExistingAliases(names, resp), nil
+	return GetExistingAliases(names, imageType, resp), nil
 }
 
 // Create the specified image aliases, updating those that already exist.
-func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fingerprint string) error {
+func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fingerprint string, imageType string) error {
 	if len(aliases) == 0 {
 		return nil
+	}
+
+	if imageType == "" {
+		img, _, imgErr := client.GetImage(fingerprint)
+		if imgErr == nil {
+			imageType = img.Type
+		}
 	}
 
 	names := make([]string, len(aliases))
@@ -208,9 +215,10 @@ func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fin
 		return err
 	}
 
-	// Delete existing aliases that match provided ones
-	for _, alias := range GetExistingAliases(names, resp) {
-		err := client.DeleteImageAlias(alias.Name)
+	// Delete existing aliases that match provided ones. Each entry carries its own image type, so deleting it leaves
+	// an alias of the other image type with the same name untouched.
+	for _, alias := range GetExistingAliases(names, imageType, resp) {
+		err := client.DeleteImageAliasType(alias.Type, alias.Name)
 		if err != nil {
 			return fmt.Errorf("Failed removing alias %s: %w", alias.Name, err)
 		}
@@ -233,15 +241,20 @@ func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fin
 }
 
 // GetExistingAliases returns the intersection between a list of aliases and all the existing ones.
-func GetExistingAliases(aliases []string, allAliases []api.ImageAliasesEntry) []api.ImageAliasesEntry {
+func GetExistingAliases(aliases []string, imageType string, allAliases []api.ImageAliasesEntry) []api.ImageAliasesEntry {
 	existing := []api.ImageAliasesEntry{}
 	for _, alias := range allAliases {
 		name := alias.Name
 		pos := sort.SearchStrings(aliases, name)
 		if pos < len(aliases) && aliases[pos] == name {
+			if imageType != "" && alias.Type != "" && alias.Type != imageType {
+				continue
+			}
+
 			existing = append(existing, alias)
 		}
 	}
+
 	return existing
 }
 
@@ -428,7 +441,7 @@ func resolveRegistryImageSource(confRemotes map[string]config.Remote, imgRemote 
 // getImgInfo returns an image server and image info for the given image name, image remote, and image project.
 // It also populates the passed in InstanceSource struct with the information about the image.
 // If imageProject is provided and the remote is a LXD server, it will be used to locate the image.
-func getImgInfo(conf *config.Config, imageRemote string, imageRef string, imageProject string, source *api.InstanceSource) (lxd.ImageServer, *api.Image, error) {
+func getImgInfo(conf *config.Config, imageRemote string, imageRef string, imageProject string, imageType string, source *api.InstanceSource) (lxd.ImageServer, *api.Image, error) {
 	var imageRemoteServer lxd.ImageServer
 	var imageInfo *api.Image
 	var err error
@@ -461,11 +474,13 @@ func getImgInfo(conf *config.Config, imageRemote string, imageRef string, imageP
 		// Set the currently used project for the instance source struct.
 		source.Project = connInfo.Project
 
-		// Attempt to resolve an image alias
-		alias, _, err := imageRemoteServer.GetImageAlias(imageRef)
+		// Attempt to resolve an image alias of the requested type.
+		alias, _, err := imageRemoteServer.GetImageAliasType(imageType, imageRef)
 		if err == nil {
 			source.Alias = imageRef
 			imageRef = alias.Target
+		} else if !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return nil, nil, err
 		}
 
 		// Get the image info

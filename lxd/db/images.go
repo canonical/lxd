@@ -386,14 +386,20 @@ func (c *ClusterTx) DeleteImage(ctx context.Context, id int) error {
 	return nil
 }
 
-// GetImageAliases returns the names of the aliases of all images.
-func (c *ClusterTx) GetImageAliases(ctx context.Context, projectName string) ([]string, error) {
-	var names []string
+// ImageAliasRef is an alias name together with the image type it belongs to.
+type ImageAliasRef struct {
+	Name string
+	Type string
+}
+
+// GetImageAliases returns the aliases in the given project, one entry per name and image type.
+func (c *ClusterTx) GetImageAliases(ctx context.Context, projectName string) ([]ImageAliasRef, error) {
 	q := `
-SELECT images_aliases.name
+SELECT images_aliases.name, images_aliases.image_type
   FROM images_aliases
   JOIN projects ON projects.id=images_aliases.project_id
  WHERE projects.name=?
+ ORDER BY images_aliases.name, images_aliases.image_type
 `
 
 	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
@@ -405,18 +411,37 @@ SELECT images_aliases.name
 		projectName = "default"
 	}
 
-	names, err = query.SelectStrings(ctx, c.tx, q, projectName)
+	rows, err := c.tx.QueryContext(ctx, q, projectName)
 	if err != nil {
 		return nil, err
 	}
 
-	return names, nil
+	defer func() { _ = rows.Close() }()
+
+	var refs []ImageAliasRef
+	for rows.Next() {
+		var ref ImageAliasRef
+		var imageType int
+
+		err := rows.Scan(&ref.Name, &imageType)
+		if err != nil {
+			return nil, err
+		}
+
+		ref.Type = instancetype.Type(imageType).String()
+		refs = append(refs, ref)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return refs, nil
 }
 
 // GetImageAlias returns the alias with the given name in the given project.
-func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, imageName string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
-	id := -1
-	entry := api.ImageAliasesEntry{}
+func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, imageName string, imageType string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
 	q := `SELECT images_aliases.id, images.fingerprint, images.type, images_aliases.description
 			 FROM images_aliases
 			 INNER JOIN images
@@ -424,6 +449,18 @@ func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, image
                          INNER JOIN projects
                          ON images_aliases.project_id=projects.id
 			 WHERE projects.name=? AND images_aliases.name=?`
+
+	args := []any{projectName, imageName}
+	if imageType != "" {
+		imageTypeCode, err := instancetype.New(imageType)
+		if err != nil || imageTypeCode.String() != imageType {
+			return -1, api.ImageAliasesEntry{}, api.StatusErrorf(http.StatusBadRequest, "Invalid image type %q", imageType)
+		}
+
+		q += ` AND images_aliases.image_type=?`
+		args = append(args, int(imageTypeCode))
+	}
+
 	if !isTrustedClient {
 		q = q + ` AND images.public=1`
 	}
@@ -435,28 +472,89 @@ func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, image
 
 	if !enabled {
 		projectName = "default"
+		args[0] = projectName
 	}
 
-	var fingerprint, description string
-	var imageType int
-
-	arg1 := []any{projectName, imageName}
-	arg2 := []any{&id, &fingerprint, &imageType, &description}
-	err = c.tx.QueryRowContext(ctx, q, arg1...).Scan(arg2...)
+	rows, err := c.tx.QueryContext(ctx, q, args...)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return -1, api.ImageAliasesEntry{}, api.StatusErrorf(http.StatusNotFound, "Image alias not found")
+		return -1, api.ImageAliasesEntry{}, err
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	var matches []api.ImageAliasesEntry
+	var ids []int
+	for rows.Next() {
+		var id int
+		var fingerprint, description string
+		var imageTypeCode int
+
+		err := rows.Scan(&id, &fingerprint, &imageTypeCode, &description)
+		if err != nil {
+			return -1, api.ImageAliasesEntry{}, err
 		}
 
-		return 0, entry, err
+		match := api.ImageAliasesEntry{
+			Name:        imageName,
+			Target:      fingerprint,
+			Description: description,
+			Type:        instancetype.Type(imageTypeCode).String(),
+		}
+
+		matches = append(matches, match)
+		ids = append(ids, id)
 	}
 
-	entry.Name = imageName
-	entry.Target = fingerprint
-	entry.Description = description
-	entry.Type = instancetype.Type(imageType).String()
+	err = rows.Err()
+	if err != nil {
+		return -1, api.ImageAliasesEntry{}, err
+	}
 
-	return id, entry, nil
+	if len(matches) == 0 {
+		return -1, api.ImageAliasesEntry{}, api.StatusErrorf(http.StatusNotFound, "Image alias not found")
+	}
+
+	if len(matches) > 1 {
+		return -1, api.ImageAliasesEntry{}, api.StatusErrorf(http.StatusConflict, "Alias %q exists for image types %q and %q", imageName, instancetype.Container.String(), instancetype.VM.String())
+	}
+
+	return ids[0], matches[0], nil
+}
+
+// GetImageAliasTypes returns the image types for which an alias with the given name exists in the given project.
+func (c *ClusterTx) GetImageAliasTypes(ctx context.Context, projectName string, name string) ([]string, error) {
+	q := `
+SELECT images_aliases.image_type
+  FROM images_aliases
+  JOIN projects ON images_aliases.project_id = projects.id
+ WHERE projects.name = ? AND images_aliases.name = ?
+ ORDER BY images_aliases.image_type
+`
+
+	rows, err := c.tx.QueryContext(ctx, q, projectName, name)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	var imageTypes []string
+	for rows.Next() {
+		var imageType int
+		err := rows.Scan(&imageType)
+		if err != nil {
+			return nil, err
+		}
+
+		imageTypes = append(imageTypes, instancetype.Type(imageType).String())
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return imageTypes, nil
 }
 
 // RenameImageAlias renames the alias with the given ID.
@@ -468,12 +566,24 @@ func (c *ClusterTx) RenameImageAlias(ctx context.Context, id int, name string) e
 }
 
 // DeleteImageAlias deletes the alias with the given name.
-func (c *ClusterTx) DeleteImageAlias(ctx context.Context, projectName string, name string) error {
+func (c *ClusterTx) DeleteImageAlias(ctx context.Context, projectName string, name string, imageType string) error {
 	q := `
 DELETE
   FROM images_aliases
  WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
 `
+	args := []any{projectName, name}
+
+	if imageType != "" {
+		imageTypeCode, err := instancetype.New(imageType)
+		if err != nil || imageTypeCode.String() != imageType {
+			return api.StatusErrorf(http.StatusBadRequest, "Invalid image type %q", imageType)
+		}
+
+		q += ` AND image_type = ?`
+		args = append(args, int(imageTypeCode))
+	}
+
 	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
 	if err != nil {
 		return fmt.Errorf("Check if project has images: %w", err)
@@ -481,9 +591,10 @@ DELETE
 
 	if !enabled {
 		projectName = "default"
+		args[0] = projectName
 	}
 
-	_, err = c.tx.ExecContext(ctx, q, projectName, name)
+	_, err = c.tx.ExecContext(ctx, q, args...)
 	if err != nil {
 		return err
 	}
@@ -499,10 +610,10 @@ func (c *ClusterTx) MoveImageAlias(ctx context.Context, source int, destination 
 	return err
 }
 
-// CreateImageAlias inserts an alias ento the database.
+// CreateImageAlias inserts an alias into the database.
 func (c *ClusterTx) CreateImageAlias(ctx context.Context, projectName, aliasName string, imageID int, desc string) error {
-	stmt := `INSERT INTO images_aliases (name, image_id, description, project_id)
-VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
+	stmt := `INSERT INTO images_aliases (name, image_id, description, project_id, image_type)
+VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?), (SELECT type FROM images WHERE id = ?))
 `
 	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
 	if err != nil {
@@ -513,7 +624,7 @@ VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
 		projectName = "default"
 	}
 
-	_, err = c.tx.Exec(stmt, aliasName, imageID, desc, projectName)
+	_, err = c.tx.Exec(stmt, aliasName, imageID, desc, projectName, imageID)
 	if err != nil {
 		return err
 	}
@@ -522,9 +633,40 @@ VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
 }
 
 // UpdateImageAlias updates the alias with the given ID.
-func (c *ClusterTx) UpdateImageAlias(ctx context.Context, aliasID int, imageID int, desc string) error {
-	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
-	_, err := c.tx.ExecContext(ctx, stmt, imageID, desc, aliasID)
+// If the target image has a different image type than the alias, the alias is moved to the target image's type when
+// allowTypeChange is true. Otherwise a Bad Request error is returned.
+func (c *ClusterTx) UpdateImageAlias(ctx context.Context, aliasID int, imageID int, desc string, allowTypeChange bool) error {
+	var aliasType, aliasProjectID int
+	var aliasName string
+
+	err := c.tx.QueryRowContext(ctx, "SELECT image_type, project_id, name FROM images_aliases WHERE id=?", aliasID).Scan(&aliasType, &aliasProjectID, &aliasName)
+	if err != nil {
+		return err
+	}
+
+	var imageType int
+	err = c.tx.QueryRowContext(ctx, "SELECT type FROM images WHERE id=?", imageID).Scan(&imageType)
+	if err != nil {
+		return err
+	}
+
+	if aliasType != imageType {
+		if !allowTypeChange {
+			return api.StatusErrorf(http.StatusBadRequest, "Cannot retarget alias to image type %q", instancetype.Type(imageType).String())
+		}
+
+		count, err := query.Count(ctx, c.tx, "images_aliases", "project_id=? AND name=? AND image_type=? AND id!=?", aliasProjectID, aliasName, imageType, aliasID)
+		if err != nil {
+			return err
+		}
+
+		if count > 0 {
+			return api.StatusErrorf(http.StatusConflict, "Alias %q already exists for image type %q", aliasName, instancetype.Type(imageType).String())
+		}
+	}
+
+	stmt := `UPDATE images_aliases SET image_id=?, description=?, image_type=? WHERE id=?`
+	_, err = c.tx.ExecContext(ctx, stmt, imageID, desc, imageType, aliasID)
 	return err
 }
 

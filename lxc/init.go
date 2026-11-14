@@ -418,7 +418,16 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 				legacyRemote = conf.DefaultRemote
 			}
 
-			imgRemoteServer, imgInfo, err = getImgInfo(conf, legacyRemote, image, c.global.flagProject, &req.Source)
+			// When no type is requested the alias type is auto-detected: the virtual-machine alias is used when only
+			// that type exists, and the container alias when both do. A microvm boots a container image.
+			imageType := ""
+			if c.flagVM {
+				imageType = "virtual-machine"
+			} else if c.flagMicroVM {
+				imageType = "container"
+			}
+
+			imgRemoteServer, imgInfo, err = getImgInfo(conf, legacyRemote, image, c.global.flagProject, imageType, &req.Source)
 			if err != nil {
 				return nil, "", err
 			}
@@ -435,7 +444,11 @@ func (c *cmdInit) create(conf *config.Config, args []string, launch bool) (lxd.I
 				return nil, "", errors.New("Asked for a VM but image is of type container")
 			}
 
-			// A microvm boots from a container image and the requested type is set already
+			if imgInfo.Type == "virtual-machine" && c.flagMicroVM {
+				return nil, "", errors.New("Asked for a microvm but image is of type virtual-machine")
+			}
+
+			// A microvm boots from a container image and the requested type is set already.
 			if !c.flagMicroVM {
 				req.Type = api.InstanceType(imgInfo.Type)
 			}

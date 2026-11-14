@@ -518,6 +518,7 @@ var APIExtensions = []string{
 	"server_state",
 	"storage_volume_block_tracking",
 	"cluster_members_state_recursion",
+	"image_alias_types",
 }
 
 func init() {

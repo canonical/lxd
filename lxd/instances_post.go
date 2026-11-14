@@ -1844,8 +1844,15 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 		case api.SourceTypeImage:
+			// A microvm boots a container image. When no type is requested the alias type is left empty so that the
+			// image type is auto-detected, with the container type taking precedence over the virtual-machine type.
+			aliasType := string(req.Type)
+			if req.Type == api.InstanceTypeMicroVM {
+				aliasType = instancetype.Container.String()
+			}
+
 			// Try to resolve the source image from cache.
-			sourceImage, imageAuthorizationChecker, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, string(req.Type))
+			sourceImage, imageAuthorizationChecker, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, aliasType)
 			if err != nil {
 				return err
 			}

@@ -49,6 +49,13 @@ test_authorization() {
   [ "$("${_LXC}" auth group permission add test-group instance c1 can_view project=default 2>&1 >/dev/null)" = 'Error: Entitlement "can_view" on entity type "instance" references "/1.0/projects/default", but the entity cannot be viewed by the group' ]
   lxc auth group permission add test-group project default can_view
 
+  # Image alias permissions use the typed entity URL and require the image type.
+  ! lxc auth group permission add test-group image_alias testimage can_view project=default || false # Missing image type
+  ! lxc auth group permission add test-group image_alias testimage can_view project=default type=not-an-image-type || false # Invalid image type
+  lxc auth group permission add test-group image_alias testimage can_view project=default type=container # Valid
+  lxc auth group permission remove test-group image_alias testimage can_view project=default type=container # Valid
+  ! lxc auth group permission remove test-group image_alias testimage can_view project=default type=container || false # Already removed
+
   # Cannot grant can_exec without can_view on the instance.
   [ "$("${_LXC}" auth group permission add test-group instance c1 can_exec project=default 2>&1 >/dev/null)" = 'Error: Entitlement "can_exec" on entity type "instance" references "/1.0/instances/c1?project=default", but the entity cannot be viewed by the group' ]
   lxc auth group permission add test-group instance c1 can_view project=default # Valid
@@ -495,7 +502,7 @@ fine_grained: true"
   echo "${list_output}" | grep -Fq 'identity,/1.0/auth/identities/oidc/test-user@example.com,"can_delete,can_edit,can_view"'
   echo "${list_output}" | grep -Fq 'group,/1.0/auth/groups/test-group,"can_delete,can_edit,can_view"'
   echo "${list_output}" | grep -Fq 'identity_provider_group,/1.0/auth/identity-provider-groups/test-idp-group,"can_delete,can_edit,can_view"'
-  echo "${list_output}" | grep -Fq 'image_alias,/1.0/images/aliases/testimage?project=default,"can_delete,can_edit,can_view"'
+  echo "${list_output}" | grep -Fq 'image_alias,/1.0/images/container/aliases/testimage?project=default,"can_delete,can_edit,can_view"'
   echo "${list_output}" | grep -Fq 'profile,/1.0/profiles/default?project=default,"can_delete,can_edit,can_view"'
   echo "${list_output}" | grep -Fq 'project,/1.0/projects/default,"can_create_image_aliases,can_create_images,can_create_instances,..."'
 
