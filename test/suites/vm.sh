@@ -10,6 +10,41 @@ _boot_mode() {
   lxc delete -f v1
 }
 
+test_vm_network_boot() {
+  echo "==> VM network boot family"
+
+  if [ "$(uname -m)" != "x86_64" ]; then
+    echo "==> SKIP: boot.network.family is only supported on x86_64"
+    return 0
+  fi
+
+  lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" -c boot.network.family=ipv6
+
+  lxc start v1
+  qemu_pid="$(lxc query /1.0/instances/v1/state | jq --exit-status .pid)"
+  qemu_cmdline="$(tr '\0' ' ' < "/proc/${qemu_pid}/cmdline")"
+  grep -qF 'name=opt/org.tianocore/IPv4Support,string=no' <<< "${qemu_cmdline}"
+  lxc stop -f v1
+
+  lxc config set v1 boot.pxe.family=ipv6
+  lxc start v1
+  qemu_pid="$(lxc query /1.0/instances/v1/state | jq --exit-status .pid)"
+  qemu_cmdline="$(tr '\0' ' ' < "/proc/${qemu_pid}/cmdline")"
+  grep -qF 'name=opt/org.tianocore/IPv4PXESupport,string=no' <<< "${qemu_cmdline}"
+  lxc stop -f v1
+
+  # The PXE family must be a subset of the enabled network family.
+  lxc config set v1 boot.network.family=ipv4
+  ! lxc start v1 || false
+  lxc config set v1 boot.network.family=ipv6
+
+  # The firmware network boot switches are UEFI only.
+  lxc config set v1 boot.mode=bios
+  ! lxc start v1 || false
+
+  lxc delete -f v1
+}
+
 # _nvram_rename checks that an existing VM created by an older snap (which shipped its
 # firmware under the OVMF 4MB name) has its NVRAM vars file renamed to the current
 # per-architecture name on start, preserving the existing NVRAM state instead of

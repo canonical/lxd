@@ -108,6 +108,7 @@ readonly test_group_instance=(
     "exec_exit_code"
     "lxd_benchmark_basic"
     "vm_empty"
+    "vm_network_boot"
     "vm_pcie_bus"
 )
 
