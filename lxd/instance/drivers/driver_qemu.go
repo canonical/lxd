@@ -1204,6 +1204,12 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 		return errors.New("QEMU requires an unprivileged user and group")
 	}
 
+	// Validate the firmware network boot configuration.
+	_, err = d.networkBootFirmwareArgs()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -1791,6 +1797,15 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		qemuCmd = append(qemuCmd, "-debugcon", "file:"+d.EDK2LogFilePath(), "-global", "isa-debugcon.iobase=0x402")
 	}
 
+	// Configure the firmware network boot families.
+	networkBootArgs, err := d.networkBootFirmwareArgs()
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	qemuCmd = append(qemuCmd, networkBootArgs...)
+
 	// If stateful, restore now.
 	if stateful {
 		if !d.stateful {
@@ -2283,6 +2298,93 @@ func (d *qemu) effectiveBootMode() string {
 	}
 
 	return bootMode
+}
+
+// networkBootFirmwareArgs returns the QEMU fw_cfg arguments that control which firmware network stacks
+// and PXE families are enabled for the VM. It returns nil if neither boot.network.family nor
+// boot.pxe.family is set.
+func (d *qemu) networkBootFirmwareArgs() ([]string, error) {
+	networkFamily := d.expandedConfig["boot.network.family"]
+	pxeFamily := d.expandedConfig["boot.pxe.family"]
+	if networkFamily == "" && pxeFamily == "" {
+		return nil, nil
+	}
+
+	// These switches are OVMF runtime configuration options.
+	if d.effectiveBootMode() == instancetype.BootModeBIOS {
+		return nil, errors.New("boot.network.family and boot.pxe.family require UEFI firmware")
+	}
+
+	if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
+		return nil, errors.New("boot.network.family and boot.pxe.family are only supported on x86_64")
+	}
+
+	if networkFamily == "" {
+		networkFamily = instancetype.NetworkFamilyBoth
+	}
+
+	if pxeFamily == "" {
+		pxeFamily = networkFamily
+	}
+
+	if !networkFamilyIncludes(networkFamily, pxeFamily) {
+		return nil, fmt.Errorf("boot.pxe.family %q includes a family disabled by boot.network.family %q", pxeFamily, networkFamily)
+	}
+
+	// The raw QEMU command line can set the same fw_cfg entries. Reject the combination instead of
+	// relying on duplicate-entry precedence.
+	rawQEMU := d.expandedConfig["raw.qemu"]
+	if rawQEMU != "" {
+		rawOptions, err := shellquote.Split(rawQEMU)
+		if err != nil {
+			return nil, fmt.Errorf("Failed parsing raw.qemu: %w", err)
+		}
+
+		for _, option := range rawOptions {
+			for _, name := range []string{
+				"opt/org.tianocore/IPv4Support",
+				"opt/org.tianocore/IPv6Support",
+				"opt/org.tianocore/IPv4PXESupport",
+				"opt/org.tianocore/IPv6PXESupport",
+			} {
+				if strings.Contains(option, name) {
+					return nil, fmt.Errorf("boot.network.family and boot.pxe.family cannot be combined with raw.qemu %q", name)
+				}
+			}
+		}
+	}
+
+	var args []string
+	addDisable := func(name string, disabled bool) {
+		if disabled {
+			args = append(args, "-fw_cfg", "name=opt/org.tianocore/"+name+",string=no")
+		}
+	}
+
+	addDisable("IPv4Support", networkFamily == instancetype.NetworkFamilyIPv6 || networkFamily == instancetype.NetworkFamilyNone)
+	addDisable("IPv6Support", networkFamily == instancetype.NetworkFamilyIPv4 || networkFamily == instancetype.NetworkFamilyNone)
+	addDisable("IPv4PXESupport", pxeFamily == instancetype.NetworkFamilyIPv6 || pxeFamily == instancetype.NetworkFamilyNone)
+	addDisable("IPv6PXESupport", pxeFamily == instancetype.NetworkFamilyIPv4 || pxeFamily == instancetype.NetworkFamilyNone)
+
+	return args, nil
+}
+
+// networkFamilyIncludes returns whether pxeFamily is a subset of networkFamily.
+func networkFamilyIncludes(networkFamily, pxeFamily string) bool {
+	if pxeFamily == instancetype.NetworkFamilyNone {
+		return true
+	}
+
+	switch networkFamily {
+	case instancetype.NetworkFamilyBoth:
+		return true
+	case instancetype.NetworkFamilyIPv4:
+		return pxeFamily == instancetype.NetworkFamilyIPv4
+	case instancetype.NetworkFamilyIPv6:
+		return pxeFamily == instancetype.NetworkFamilyIPv6
+	}
+
+	return false
 }
 
 // renameNvram renames the existing NVRAM vars file when the firmware filename has

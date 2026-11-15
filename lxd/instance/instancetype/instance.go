@@ -38,6 +38,14 @@ const (
 	BootModeBIOS             = "bios"
 )
 
+// Network boot family configuration values.
+const (
+	NetworkFamilyIPv4 = "ipv4"
+	NetworkFamilyIPv6 = "ipv6"
+	NetworkFamilyBoth = "both"
+	NetworkFamilyNone = "none"
+)
+
 // ConfigKeyPrefixesAny indicates valid prefixes for configuration options.
 var ConfigKeyPrefixesAny = []string{"environment.", "user.", "image.", "cloud-init.ssh-keys."}
 
@@ -1101,6 +1109,33 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  condition: virtual machine
 	//  shortdesc: Boot firmware mode for the VM (uefi-secureboot, uefi-nosecureboot or bios)
 	"boot.mode": validate.Optional(validate.IsOneOf(BootModeUEFISecureBoot, BootModeUEFINoSecureBoot, BootModeBIOS)),
+
+	// lxdmeta:generate(entities=instance; group=boot; key=boot.network.family)
+	// Controls which firmware IP stacks are enabled for network boot in a VM.
+	// Possible values are `ipv4`, `ipv6`, `both` and `none`.
+	// This requires `x86_64` with UEFI firmware; setting it with `boot.mode=bios` prevents the instance from starting.
+	// HTTP boot follows the enabled stacks; there is no separate HTTP boot setting.
+	// ---
+	//  type: string
+	//  defaultdesc: `both`
+	//  liveupdate: no
+	//  condition: virtual machine
+	//  shortdesc: Enabled firmware IP stacks for network boot
+	"boot.network.family": validate.Optional(validate.IsOneOf(NetworkFamilyIPv4, NetworkFamilyIPv6, NetworkFamilyBoth, NetworkFamilyNone)),
+
+	// lxdmeta:generate(entities=instance; group=boot; key=boot.pxe.family)
+	// Controls which UEFI PXE families are offered within the enabled network stacks.
+	// Possible values are `ipv4`, `ipv6`, `both` and `none`.
+	// Defaults to the value of `boot.network.family`.
+	// It must not include a family that is disabled by `boot.network.family`.
+	// This requires `x86_64` with UEFI firmware; setting it with `boot.mode=bios` prevents the instance from starting.
+	// ---
+	//  type: string
+	//  defaultdesc: same as `boot.network.family`
+	//  liveupdate: no
+	//  condition: virtual machine
+	//  shortdesc: Enabled UEFI PXE families
+	"boot.pxe.family": validate.Optional(validate.IsOneOf(NetworkFamilyIPv4, NetworkFamilyIPv6, NetworkFamilyBoth, NetworkFamilyNone)),
 
 	// lxdmeta:generate(entities=instance; group=security; key=security.sev)
 	//
