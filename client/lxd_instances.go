@@ -2714,6 +2714,10 @@ func (r *ProtocolLXD) CreateInstanceTemplateFile(instanceName string, templateNa
 
 	// Send the request
 	resp, err := r.DoHTTP(req)
+	if err != nil {
+		return err
+	}
+
 	// Check the return value for a cleaner error
 	if resp.StatusCode != http.StatusOK {
 		_, _, err := lxdParseResponse(resp)
@@ -2721,7 +2725,8 @@ func (r *ProtocolLXD) CreateInstanceTemplateFile(instanceName string, templateNa
 			return err
 		}
 	}
-	return err
+
+	return nil
 }
 
 // DeleteInstanceTemplateFile deletes a template file for a instance.

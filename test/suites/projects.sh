@@ -746,6 +746,9 @@ test_projects_storage() {
   lxc project switch default
   ! lxc storage volume list "${pool}" | grep -wF custom | grep -wF vol2 || false
 
+  # Volume state for the usage column is requested from the volume's project.
+  lxc storage volume list "${pool}" --all-projects -f csv -c nU | grep -xE "vol2,[0-9.]+(B|[KMGTPE]iB)"
+
   lxc project switch foo
   lxc storage volume delete "${pool}" vol2
 

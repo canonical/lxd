@@ -20,7 +20,7 @@ func Example_parseIPRange() {
 		"192.168.1.1-192.168.1.255",
 		"0.0.0.1-192.168.1.255",
 		"0.0.0.1-0.0.0.255",
-		// Ranges outsde of allowedv4NetworkA but within allowedv4NetworkB.
+		// Ranges outside of allowedv4NetworkA but within allowedv4NetworkB.
 		"192.168.0.1-192.168.0.255",
 		"192.168.0.0-192.168.0.0",
 		"0.0.2.0-0.0.2.255",
@@ -32,7 +32,7 @@ func Example_parseIPRange() {
 		// Ranges within allowedv6NetworkA.
 		"fd22:c952:653e:3df6::1-fd22:c952:653e:3df6::FFFF",
 		"::1-::FFFF",
-		// Ranges outsde of allowedv6NetworkA but within allowedv6NetworkB.
+		// Ranges outside of allowedv6NetworkA but within allowedv6NetworkB.
 		"fd22:c952:653e:FFFF::1-fd22:c952:653e:FFFF::FFFF",
 		"::AAAA:FFFF:FFFF:FFFF:1-::AAAA:FFFF:FFFF:FFFF:FFFF",
 	}
