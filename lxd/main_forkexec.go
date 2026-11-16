@@ -140,6 +140,7 @@ restart:
 #define EXEC_STDOUT_FD 4
 #define EXEC_STDERR_FD 5
 #define EXEC_PIPE_FD 6
+#define EXEC_ACK_FD 7
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 // We use a separate function because cleanup macros are called during stack
@@ -150,6 +151,7 @@ restart:
 __attribute__ ((noinline)) static int __forkexec(void)
 {
 	__do_close int status_pipe = EXEC_PIPE_FD;
+	__do_close int ack_pipe = EXEC_ACK_FD;
 	__do_free_string_list char **argvp = NULL, **envvp = NULL;
 	call_cleaner(lxc_container_put) struct lxc_container *c = NULL;
 	const char *config_path = NULL, *lxcpath = NULL, *name = NULL;
@@ -158,8 +160,9 @@ __attribute__ ((noinline)) static int __forkexec(void)
 	lxc_attach_command_t command = {
 		.program = NULL,
 	};
-	int fds_to_ignore[] = {EXEC_STDIN_FD, EXEC_STDOUT_FD, EXEC_STDERR_FD, EXEC_PIPE_FD};
+	int fds_to_ignore[] = {EXEC_STDIN_FD, EXEC_STDOUT_FD, EXEC_STDERR_FD, EXEC_PIPE_FD, EXEC_ACK_FD};
 	ssize_t ret;
+	char ack;
 	pid_t attached_pid;
 	uid_t uid;
 	gid_t gid;
@@ -212,7 +215,7 @@ __attribute__ ((noinline)) static int __forkexec(void)
 	if (!argvp || !*argvp)
 		return log_error(EXIT_FAILURE, "No command specified");
 
-	ret = lxd_close_range(EXEC_PIPE_FD + 1, UINT_MAX, CLOSE_RANGE_UNSHARE);
+	ret = lxd_close_range(EXEC_ACK_FD + 1, UINT_MAX, CLOSE_RANGE_UNSHARE);
 	if (ret) {
 		// Fallback to close_inherited() when the syscall is not
 		// available or when CLOSE_RANGE_UNSHARE isn't supported.
@@ -229,6 +232,10 @@ __attribute__ ((noinline)) static int __forkexec(void)
 	ret = fd_cloexec(status_pipe, true);
 	if (ret)
 		return log_errno(EXIT_FAILURE, "Failed making pipe close-on-exec");
+
+	ret = fd_cloexec(ack_pipe, true);
+	if (ret)
+		return log_errno(EXIT_FAILURE, "Failed making ack pipe close-on-exec");
 
 	c = lxc_container_new(name, lxcpath);
 	if (!c)
@@ -261,6 +268,11 @@ __attribute__ ((noinline)) static int __forkexec(void)
 		fprintf(stderr, "Failed sending pid %d of executing child to LXD. Killing child\n", attached_pid);
 		kill(attached_pid, SIGKILL);
 	}
+
+	// Keep the child unreaped until LXD has bound a handle to it.
+	do {
+		ret = read(ack_pipe, &ack, sizeof(ack));
+	} while (ret < 0 && errno == EINTR);
 
 	ret = wait_for_pid_status_nointr(attached_pid);
 	if (ret < 0)
