@@ -94,10 +94,8 @@ test_nesting_container() {
         waitInstanceReady "${instName}"
 
         # Ensure snapd is ready.
-        lxc exec "${instName}" -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
-
-        # Install LXD in the container.
-        lxc exec "${instName}" -- snap install lxd --channel="${LXD_SNAP_CHANNEL}"
+        # Ensure snapd is ready and install LXD in the container.
+        installLXDSnapInstance "${instName}" "${LXD_SNAP_CHANNEL}"
         lxc exec "${instName}" -- lxd init --auto
 
         # Test each storage driver in nested container.
