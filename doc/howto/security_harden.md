@@ -248,6 +248,13 @@ To harden your deployment, also harden the host's operating system (OS). These a
 - For Ubuntu systems, subscribe to [Ubuntu Pro](https://ubuntu.com/pro).
 - Use the latest [CIS hardening benchmarks](https://www.cisecurity.org/cis-benchmarks) for your OS.
 
+(howto-security-harden-apparmor)=
+### Use a host with AppArmor enabled
+
+For production deployments, run LXD on a host with AppArmor enabled. LXD uses AppArmor to confine instances and helper processes on the host, for example, when it unpacks images or compresses backups. Without AppArmor, LXD still works, but these processes run without that confinement.
+
+When AppArmor is disabled, LXD reports a warning with type `AppArmor support has been disabled`. To check for this warning, run `lxc warning list --all`. AppArmor is disabled if the warning is listed with the status `NEW` or `ACKNOWLEDGED`.
+
 (howto-security-harden-cis)=
 ### Ubuntu CIS hardening
 

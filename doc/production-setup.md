@@ -32,6 +32,10 @@ Send logs to Loki </howto/logs_loki>
 Set up Grafana </howto/grafana>
 ```
 
+## Harden security
+
+Before you deploy LXD in production, review {ref}`howto-security-harden`.
+
 ## Related topics
 
 {{performance_exp}}
