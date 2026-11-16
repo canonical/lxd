@@ -295,20 +295,12 @@ func (d *Daemon) getTrustedCertificates() map[db.CertificateType]map[string]x509
 //
 // This does not perform authorization, only validates authentication.
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, string, string, error) {
-	trustedCerts := d.getTrustedCertificates()
-
-	// Allow internal cluster traffic by checking against the trusted certfificates.
-	if r.TLS != nil {
-		for _, i := range r.TLS.PeerCertificates {
-			trusted, _ := util.CheckMutualTLS(*i, trustedCerts[db.CertificateTypeServer])
-			if trusted {
-				return true, "", "cluster", nil
-			}
+	peerCertificate, err := request.GetPeerCertificate(r)
+	if err != nil && errors.Is(err, request.ErrNoTLS) {
+		if r.RemoteAddr != "@" {
+			return false, "", "", fmt.Errorf("Bad/missing TLS on network query")
 		}
-	}
 
-	// Local unix socket queries.
-	if r.RemoteAddr == "@" && r.TLS == nil {
 		if w != nil {
 			cred, err := ucred.GetCredFromContext(r.Context())
 			if err != nil {
@@ -326,6 +318,16 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 		return true, "", "unix", nil
 	}
 
+	trustedCerts := d.getTrustedCertificates()
+
+	// Allow internal cluster traffic by checking against the trusted certfificates.
+	if peerCertificate != nil {
+		trusted, _ := util.CheckMutualTLS(*peerCertificate, trustedCerts[db.CertificateTypeServer])
+		if trusted {
+			return true, "", "cluster", nil
+		}
+	}
+
 	// Devlxd unix socket credentials on main API.
 	if r.RemoteAddr == "@devlxd" {
 		return false, "", "", fmt.Errorf("Main API query can't come from /dev/lxd socket")
@@ -334,11 +336,6 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	// Cluster notification with wrong certificate.
 	if isClusterNotification(r) {
 		return false, "", "", fmt.Errorf("Cluster notification isn't using trusted server certificate")
-	}
-
-	// Bad query, no TLS found.
-	if r.TLS == nil {
-		return false, "", "", fmt.Errorf("Bad/missing TLS on network query")
 	}
 
 	if d.externalAuth != nil && r.Header.Get(httpbakery.BakeryProtocolHeader) != "" {
@@ -366,6 +363,11 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 		return true, "", "candid", nil
 	}
 
+	// The only remaining method to verify is client mTLS. There must be a peer certificate.
+	if peerCertificate == nil {
+		return false, "", "", nil
+	}
+
 	// Validate normal TLS access.
 	trustCACertificates, err := cluster.ConfigGetBool(d.cluster, "core.trust_ca_certificates")
 	if err != nil {
@@ -374,20 +376,18 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 
 	networkCert := d.endpoints.NetworkCert()
 	checkCertificateSignature := networkCert.CA() != nil
-	for _, i := range r.TLS.PeerCertificates {
-		if checkCertificateSignature {
-			trusted, _, username := util.CheckCASignature(*i, networkCert)
-			if !trusted {
-				return false, "", "", nil
-			} else if trustCACertificates {
-				return true, username, "tls", nil
-			}
-		}
-
-		trusted, username := util.CheckMutualTLS(*i, trustedCerts[db.CertificateTypeClient])
-		if trusted {
+	if checkCertificateSignature {
+		trusted, _, username := util.CheckCASignature(*peerCertificate, networkCert)
+		if !trusted {
+			return false, "", "", nil
+		} else if trustCACertificates {
 			return true, username, "tls", nil
 		}
+	}
+
+	trusted, username := util.CheckMutualTLS(*peerCertificate, trustedCerts[db.CertificateTypeClient])
+	if trusted {
+		return true, username, "tls", nil
 	}
 
 	// Reject unauthorized.

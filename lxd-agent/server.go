@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	log "gopkg.in/inconshreveable/log15.v2"
 
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -108,14 +109,13 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 }
 
 func authenticate(r *http.Request, cert *x509.Certificate) bool {
-	clientCerts := map[string]x509.Certificate{"0": *cert}
-
-	for _, cert := range r.TLS.PeerCertificates {
-		trusted, _ := util.CheckMutualTLS(*cert, clientCerts)
-		if trusted {
-			return true
-		}
+	peerCertificate, err := request.GetPeerCertificate(r)
+	if err != nil {
+		return false
 	}
 
-	return false
+	clientCerts := map[string]x509.Certificate{"0": *cert}
+
+	trusted, _ := util.CheckMutualTLS(*peerCertificate, clientCerts)
+	return trusted
 }

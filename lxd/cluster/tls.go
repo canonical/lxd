@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/canonical/lxd/lxd/db"
+	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/logger"
@@ -61,28 +62,27 @@ func tlsCheckCert(r *http.Request, networkCert *shared.CertInfo, serverCert *sha
 		panic(fmt.Sprintf("Invalid keypair material: %v", err))
 	}
 
-	if r.TLS == nil {
+	peerCertificate, err := request.GetPeerCertificate(r)
+	if err != nil {
 		return false
 	}
 
-	for _, i := range r.TLS.PeerCertificates {
-		// Trust our own server certificate. This allows Dqlite to start with a connection back to this
-		// member before the database is available. It also allows us to switch the server certificate to
-		// the network certificate during cluster upgrade to per-server certificates, and it be trusted.
-		trustedServerCert, _ := x509.ParseCertificate(serverCert.KeyPair().Certificate[0])
-		trusted, _ := util.CheckMutualTLS(*i, map[string]x509.Certificate{serverCert.Fingerprint(): *trustedServerCert})
-		if trusted {
-			return true
-		}
-
-		// Check the trusted server certficates list provided.
-		trusted, _ = util.CheckMutualTLS(*i, trustedCerts[db.CertificateTypeServer])
-		if trusted {
-			return true
-		}
-
-		logger.Errorf("Invalid client certificate %v (%v) from %v", i.Subject, shared.CertFingerprint(i), r.RemoteAddr)
+	// Trust our own server certificate. This allows Dqlite to start with a connection back to this
+	// member before the database is available. It also allows us to switch the server certificate to
+	// the network certificate during cluster upgrade to per-server certificates, and it be trusted.
+	trustedServerCert, _ := x509.ParseCertificate(serverCert.KeyPair().Certificate[0])
+	trusted, _ := util.CheckMutualTLS(*peerCertificate, map[string]x509.Certificate{serverCert.Fingerprint(): *trustedServerCert})
+	if trusted {
+		return true
 	}
+
+	// Check the trusted server certficates list provided.
+	trusted, _ = util.CheckMutualTLS(*peerCertificate, trustedCerts[db.CertificateTypeServer])
+	if trusted {
+		return true
+	}
+
+	logger.Errorf("Invalid client certificate %v (%v) from %v", peerCertificate.Subject, shared.CertFingerprint(peerCertificate), r.RemoteAddr)
 
 	return false
 }
