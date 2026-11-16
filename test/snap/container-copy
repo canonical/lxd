@@ -29,8 +29,7 @@ waitInstanceBooted target
 setup_instance_gocoverage target
 
 echo "==> Setup LXD on the target VM"
-lxc exec target -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
-lxc exec target -- snap install lxd --channel "${LXD_SNAP_CHANNEL}" --cohort=+
+installLXDSnapInstance target "${LXD_SNAP_CHANNEL}"
 lxc exec target -- lxd init --auto --network-address "[::]" --network-port "8443" --storage-backend "zfs"
 
 echo "==> Add the target VM as a remote LXD"
