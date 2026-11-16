@@ -187,8 +187,7 @@ runcmd:
 
     if [ "${testImageExport}" = "true" ]; then
         waitInstanceBooted "${instName}"
-        lxc exec "${instName}" -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
-        lxc exec "${instName}" -- snap install lxd --channel="${LXD_SNAP_CHANNEL}" --cohort=+
+        installLXDSnapInstance "${instName}" "${LXD_SNAP_CHANNEL}"
         lxc exec "${instName}" -- lxd init --auto
 
         if [ "${instType}" = "vm" ]; then
