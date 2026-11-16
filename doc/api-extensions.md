@@ -3831,6 +3831,17 @@ Adds support for `recursion=2` on `GET /1.0/cluster/members`. In addition to the
 
 The state of all members is fetched in parallel by the member handling the request. The `state` field is `null` for offline members and for members whose state could not be retrieved.
 
+(extension-instance-boot-network-family)=
+## `instance_boot_network_family`
+
+Adds the `boot.network.family` and `boot.pxe.family` instance configuration keys for virtual machines.
+
+`boot.network.family` controls which firmware IP stacks are enabled for network boot (`ipv4`, `ipv6`, `both` or `none`).
+`boot.pxe.family` controls which UEFI PXE families are offered within the enabled stacks (`ipv4`, `ipv6`, `both` or `none`) and defaults to the value of `boot.network.family`.
+HTTP boot follows the enabled network stacks.
+
+These keys require `x86_64` with UEFI firmware and are rejected when `boot.mode=bios`.
+
 (extension-instance-microvm)=
 ## `instance_microvm`
 
