@@ -37,11 +37,14 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      # Copilot code review stopped running its full review once these steps
+      # used the `$/` self-repository syntax, so keep the workspace-relative
+      # form here and in the actions these steps call.
       - name: Install build dependencies
-        uses: $/.github/actions/install-lxd-builddeps
+        uses: ./.github/actions/install-lxd-builddeps # zizmor: ignore[self-repository]
 
       - name: Build or restore dqlite/liblxc dependencies
-        uses: $/.github/actions/cache-dqlite-liblxc
+        uses: ./.github/actions/cache-dqlite-liblxc # zizmor: ignore[self-repository]
         with:
           export-env: true
 
