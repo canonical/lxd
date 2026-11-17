@@ -60,17 +60,20 @@ runs:
         set -eux
         ARCH="$(dpkg --print-architecture)"
         DATE="$(date --utc '+%Y%m%d')"
-        YESTERDAY="$(date --utc '+%Y%m%d' --date=yesterday)"
         CACHE_KEY_SUFFIX="${INPUTS_CACHE_KEY_SUFFIX}"
 
         # i.e: snaps-amd64-${DATE}
         KEY="snaps-${ARCH}-${DATE}"
         if [ -n "${CACHE_KEY_SUFFIX}" ]; then
-          KEY="${KEY}-${CACHE_KEY_SUFFIX}"
+          # Use a distinct namespace so that the fallback prefix used by the
+          # non-suffixed keys can't match these isolated caches.
+          KEY="snaps-run-${ARCH}-${DATE}-${CACHE_KEY_SUFFIX}"
         fi
 
         echo "KEY=${KEY}" >> "${GITHUB_OUTPUT}"
-        echo "FALLBACK_KEY=snaps-${ARCH}-${YESTERDAY}" >> "${GITHUB_OUTPUT}"
+        # Any previous day's cache (the most recent one wins) can be used as a
+        # fallback should the snap store be unreachable.
+        echo "FALLBACK_KEY=snaps-${ARCH}-" >> "${GITHUB_OUTPUT}"
 
     # GitHub will remove any cache entries that have not been accessed in over 7 days.
     # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#usage-limits-and-eviction-policy
@@ -84,7 +87,19 @@ runs:
         restore-keys: ${{ inputs.cache-key-suffix == '' && steps.snaps-cache-key.outputs.FALLBACK_KEY || '' }}
         lookup-only: ${{ inputs.prime-cache-only == 'true' }}
 
+    # A lookup-only restore doesn't restore anything on a fallback match so
+    # restore the most recent cache for real, to be used as a fallback should
+    # the snap store be unreachable.
+    - name: Restore fallback snaps cache
+      if: ${{ inputs.prime-cache-only == 'true' && steps.cache-snaps.outputs.cache-hit != 'true' && inputs.cache-key-suffix == '' }}
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ inputs.snap-cache-dir }}
+        key: ${{ steps.snaps-cache-key.outputs.KEY }}-fallback
+        restore-keys: ${{ steps.snaps-cache-key.outputs.FALLBACK_KEY }}
+
     - name: Download snaps
+      id: download-snaps
       if: ${{ steps.cache-snaps.outputs.cache-hit != 'true' }}
       env:
         SNAP_CACHE_DIR: ${{ inputs.snap-cache-dir }}
@@ -100,35 +115,77 @@ runs:
       run: |
         set -eux
 
-        # It's possible to get here despite doing a cache-hit because when one
-        # of the restore-keys is used as fallback, the outputs.cache-hit is set
-        # to false. As such, check if the directory is present and if so,
-        # bail out early.
-        if [ -n "$(ls -A "${SNAP_CACHE_DIR}")" ]; then
-          echo "==> SKIP downloading snaps as they were restored from fallback key"
-          exit 0
-        fi
+        . test/includes/snap.sh
+
+        # Pairs of snap name and channel to cache
+        SNAPS=(
+          "snapd ${INPUTS_SNAPD_CHANNEL}"
+          "core26 ${INPUTS_CORE26_CHANNEL}"
+          "core24 ${INPUTS_CORE24_CHANNEL}"
+          "core22 ${INPUTS_CORE22_CHANNEL}"
+          "lxd ${INPUTS_LXD_LTS_CHANNEL}"
+          "lxd ${INPUTS_LXD_CHANNEL}"
+          "microceph ${INPUTS_MICROCEPH_CHANNEL}"
+          "microovn ${INPUTS_MICROOVN_CHANNEL}"
+        )
+
+        # An older cache restored through a fallback key can be used as is if
+        # the snap store is unreachable, as long as it is complete.
+        STALE_USABLE=true
+        for entry in "${SNAPS[@]}"; do
+          read -r name channel <<< "${entry}"
+          dir="${SNAP_CACHE_DIR}/${name}/${channel/\//-}"
+          # install_snap uses the first assertion and derives the snap file name from it
+          assert="$(compgen -G "${dir}/${name}_*.assert" | head -n1 || true)"
+          if [ -z "${assert}" ] || ! [ -e "${assert%.assert}.snap" ]; then
+            STALE_USABLE=false
+            break
+          fi
+        done
+
+        # Download into a staging directory so that a failure leaves the
+        # restored cache untouched. There is no point in continuing after the
+        # first failure as the snap store is unlikely to be reachable for
+        # only some of the snaps.
+        STAGING="$(mktemp -d -p "$(dirname "${SNAP_CACHE_DIR}")")"
 
         # XXX: it doesn't matter that `xdelta3` is not installed as no delta
         # can be used as we start without any snaps
+        FAILED=false
+        for entry in "${SNAPS[@]}"; do
+          read -r name channel <<< "${entry}"
+          if ! SNAP_CACHE_DIR="${STAGING}" download_snap "${name}" "${channel}"; then
+            echo "Failed to download ${name} from channel ${channel}" >&2
+            FAILED=true
+            break
+          fi
+        done
 
-        . test/includes/snap.sh
+        if [ "${FAILED}" = "false" ]; then
+          mkdir -p "${SNAP_CACHE_DIR}"
+          find "${SNAP_CACHE_DIR}" -mindepth 1 -delete
+          mv "${STAGING}"/* "${SNAP_CACHE_DIR}/"
+          rmdir "${STAGING}"
+        elif [ "${STALE_USABLE}" = "true" ]; then
+          rm -rf "${STAGING}"
+          echo "::warning::The snap store is unreachable, using a stale snaps cache"
+          echo "stale=true" >> "${GITHUB_OUTPUT}"
+        else
+          rm -rf "${STAGING}"
+          echo "::error::Failed to download the snaps and no complete cache to fall back to"
+          exit 1
+        fi
 
-        # Seed the snap dependencies cache
-        download_snap snapd "${INPUTS_SNAPD_CHANNEL}"
-        download_snap core26 "${INPUTS_CORE26_CHANNEL}"
-        download_snap core24 "${INPUTS_CORE24_CHANNEL}"
-        download_snap core22 "${INPUTS_CORE22_CHANNEL}"
-        download_snap lxd "${INPUTS_LXD_LTS_CHANNEL}"
-        download_snap lxd "${INPUTS_LXD_CHANNEL}"
-        download_snap microceph "${INPUTS_MICROCEPH_CHANNEL}"
-        download_snap microovn "${INPUTS_MICROOVN_CHANNEL}"
-
-    # Only save if there wasn't an exact cache hit, AND the code is running on the main repo (not an untrusted fork)
+    # Only save if there wasn't an exact cache hit, AND the code is running on the main repo (not an untrusted fork).
+    # A stale cache is saved under today's key only for pull requests: it avoids
+    # every job of the PR hammering the unreachable snap store. Caches saved by
+    # a PR aren't visible to the other branches, which will retry the downloads
+    # (and save a fresh cache) on their next run.
     - name: Save snaps cache
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       if: |
         steps.cache-snaps.outputs.cache-hit != 'true' &&
+        (steps.download-snaps.outputs.stale != 'true' || github.event_name == 'pull_request') &&
         (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       with:
         path: ${{ inputs.snap-cache-dir }}
