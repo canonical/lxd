@@ -4171,7 +4171,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, maxCPUs int, mountIn
 		multifunction: multi,
 	}
 
-	cfg = append(cfg, qemuSCSI(&scsiOpts)...)
+	cfg = append(cfg, qemuSCSI(&scsiOpts, cpuInfo.vcpuCount())...)
 
 	// Always export the config directory as a 9p config drive, in case the host or VM guest doesn't support
 	// virtio-fs.
@@ -9528,6 +9528,15 @@ type cpuTopology struct {
 	threads int
 	vcpus   map[uint64]uint64
 	nodes   map[uint64][]uint64
+}
+
+// vcpuCount returns the number of vCPUs of the topology.
+func (t *cpuTopology) vcpuCount() int {
+	if len(t.vcpus) > 0 {
+		return len(t.vcpus)
+	}
+
+	return t.sockets * t.cores * t.threads
 }
 
 // maxCPUs returns the maximum number of vCPUs to expose to the VM, used as the vCPU

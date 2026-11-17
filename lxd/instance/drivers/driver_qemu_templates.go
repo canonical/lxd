@@ -355,17 +355,42 @@ func qemuPCIe(opts *qemuPCIeOpts) []cfgSection {
 	}}
 }
 
-func qemuSCSI(opts *qemuDevOpts) []cfgSection {
+// qemuSCSIIOThreadID is the ID of the iothread serving the SCSI controller.
+const qemuSCSIIOThreadID = "qemu_scsi_iothread"
+
+// qemuMaxDiskQueues is the maximum number of queues used for a disk.
+const qemuMaxDiskQueues = 4
+
+// diskQueueCount returns the number of queues to use for a disk of a VM with the given number
+// of vCPUs.
+func diskQueueCount(vcpus int) int {
+	return min(max(vcpus, 1), qemuMaxDiskQueues)
+}
+
+// qemuSCSI returns the config sections of the SCSI controller.
+// LUNs cannot have an iothread of their own, so the controller gets an iothread and a queue
+// per vCPU (at most qemuMaxDiskQueues).
+func qemuSCSI(opts *qemuDevOpts, vcpus int) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     *opts,
 		pciName: "virtio-scsi-pci",
 		ccwName: "virtio-scsi-ccw",
 	}
 
+	entries := qemuDeviceEntries(&entriesOpts)
+	entries = append(entries, []cfgEntry{
+		{key: "iothread", value: qemuSCSIIOThreadID},
+		{key: "num_queues", value: strconv.Itoa(diskQueueCount(vcpus))},
+	}...)
+
 	return []cfgSection{{
+		name:    `object "` + qemuSCSIIOThreadID + `"`,
+		comment: "SCSI controller iothread",
+		entries: []cfgEntry{{key: "qom-type", value: "iothread"}},
+	}, {
 		name:    `device "qemu_scsi"`,
 		comment: "SCSI controller",
-		entries: qemuDeviceEntries(&entriesOpts),
+		entries: entries,
 	}}
 }
 
