@@ -367,6 +367,19 @@ func diskQueueCount(vcpus int) int {
 	return min(max(vcpus, 1), qemuMaxDiskQueues)
 }
 
+// qemuDiskQueueProps adds the iothread and queue properties of a disk device to qemuDev.
+// The virtio-blk bus gets an iothread and queues, NVMe gets I/O queue pairs and the other buses
+// are not changed.
+func qemuDiskQueueProps(qemuDev map[string]any, busName string, vcpus int, iothreadID string) {
+	switch busName {
+	case "virtio-blk":
+		qemuDev["iothread"] = iothreadID
+		qemuDev["num-queues"] = diskQueueCount(vcpus)
+	case "nvme":
+		qemuDev["max_ioqpairs"] = diskQueueCount(vcpus)
+	}
+}
+
 // qemuSCSI returns the config sections of the SCSI controller.
 // LUNs cannot have an iothread of their own, so the controller gets an iothread and a queue
 // per vCPU (at most qemuMaxDiskQueues).

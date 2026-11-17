@@ -1770,3 +1770,49 @@ func TestDiskQueueCount(t *testing.T) {
 		}
 	}
 }
+
+func TestQemuDiskQueueProps(t *testing.T) {
+	testCases := []struct {
+		busName  string
+		vcpus    int
+		expected map[string]any
+	}{
+		{"virtio-blk", 2, map[string]any{"iothread": "iothread_root", "num-queues": 2}},
+		{"virtio-blk", 32, map[string]any{"iothread": "iothread_root", "num-queues": 4}},
+		{"nvme", 3, map[string]any{"max_ioqpairs": 3}},
+		{"nvme", 32, map[string]any{"max_ioqpairs": 4}},
+		{"virtio-scsi", 8, map[string]any{}},
+	}
+
+	for _, tc := range testCases {
+		qemuDev := map[string]any{}
+		qemuDiskQueueProps(qemuDev, tc.busName, tc.vcpus, "iothread_root")
+
+		if !reflect.DeepEqual(qemuDev, tc.expected) {
+			t.Errorf("%s with %d vCPUs:\n- want: %v\n-  got: %v",
+				tc.busName, tc.vcpus, tc.expected, qemuDev)
+		}
+	}
+}
+
+func TestQemuIOThreadID(t *testing.T) {
+	testCases := []struct {
+		deviceName string
+		expected   string
+	}{
+		{"root", "iothread_root"},
+		{"cbt-blk", "iothread_cbt--blk"},
+		{"a/b", "iothread_a-b"},
+		{
+			"a-very-long-disk-device-name-longer-than-31-characters",
+			"iothread_a--very--long--disk--device--name--longer--than--31--characters",
+		},
+	}
+
+	for _, tc := range testCases {
+		actual := qemuIOThreadID(tc.deviceName)
+		if actual != tc.expected {
+			t.Errorf("qemuIOThreadID(%q): want %q, got %q", tc.deviceName, tc.expected, actual)
+		}
+	}
+}
