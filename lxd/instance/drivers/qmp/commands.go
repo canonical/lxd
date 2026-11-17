@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -804,32 +805,68 @@ func (m *Monitor) SEVCapabilities() (AMDSEVCapabilities, error) {
 	return resp.Return, nil
 }
 
-// NBDServerStart starts internal NBD server and returns a connection to it.
-func (m *Monitor) NBDServerStart() (net.Conn, error) {
+const qemuNBDListenerFDName = "lxd_nbd_listener"
+
+// NBDServerStart starts internal NBD server and returns the only connection it accepts.
+// The listener is bound in dir, which only root must be able to reach and QEMU's AppArmor profile must allow.
+func (m *Monitor) NBDServerStart(dir string) (net.Conn, error) {
 	var args struct {
 		Addr struct {
 			Data struct {
-				Path     string `json:"path"`
-				Abstract bool   `json:"abstract"`
+				Str string `json:"str"`
 			} `json:"data"`
 			Type string `json:"type"`
 		} `json:"addr"`
 		MaxConnections int `json:"max-connections"`
 	}
 
-	// Create abstract unix listener.
-	listener, err := net.Listen("unix", "")
+	// Connect to the listener before passing it to QEMU, so that nothing else can connect to the NBD server.
+	dirFile, err := os.Open(dir)
 	if err != nil {
-		return nil, fmt.Errorf("Failed creating unix listener: %w", err)
+		return nil, fmt.Errorf("Failed opening NBD socket directory: %w", err)
 	}
 
-	// Get the random address, and then close the listener, and pass the address for use with nbd-server-start.
-	listenAddress := listener.Addr().String()
-	_ = listener.Close()
+	defer func() { _ = dirFile.Close() }()
 
-	args.Addr.Type = "unix"
-	args.Addr.Data.Path = strings.TrimPrefix(listenAddress, "@")
-	args.Addr.Data.Abstract = true
+	socketPath := filepath.Join(dir, "nbd.sock")
+	_ = os.Remove(socketPath)
+
+	// Go through the directory file descriptor as socket paths are limited to 108 characters.
+	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: fmt.Sprintf("/proc/self/fd/%d/nbd.sock", dirFile.Fd()), Net: "unix"})
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating NBD unix listener: %w", err)
+	}
+
+	defer func() { _ = os.Remove(socketPath) }()
+	defer func() { _ = listener.Close() }()
+
+	conn, err := net.Dial("unix", listener.Addr().String())
+	if err != nil {
+		return nil, fmt.Errorf("Failed connecting to NBD unix listener: %w", err)
+	}
+
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	reverter.Add(func() { _ = conn.Close() })
+
+	listenerFile, err := listener.File()
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting NBD unix listener file: %w", err)
+	}
+
+	defer func() { _ = listenerFile.Close() }()
+
+	err = m.SendFile(qemuNBDListenerFDName, listenerFile)
+	if err != nil {
+		return nil, fmt.Errorf("Failed sending NBD unix listener: %w", err)
+	}
+
+	// QEMU only takes the fd out of its table once it uses it.
+	reverter.Add(func() { _ = m.CloseFile(qemuNBDListenerFDName) })
+
+	args.Addr.Type = "fd"
+	args.Addr.Data.Str = qemuNBDListenerFDName
 	args.MaxConnections = 1
 
 	err = m.run("nbd-server-start", args, nil)
@@ -837,11 +874,7 @@ func (m *Monitor) NBDServerStart() (net.Conn, error) {
 		return nil, err
 	}
 
-	// Connect to the NBD server and return the connection.
-	conn, err := net.Dial("unix", listenAddress)
-	if err != nil {
-		return nil, fmt.Errorf("Failed connecting to NBD server: %w", err)
-	}
+	reverter.Success()
 
 	return conn, nil
 }
