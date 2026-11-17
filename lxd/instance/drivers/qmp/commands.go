@@ -780,6 +780,33 @@ func (m *Monitor) AddSecret(id string, secret string) error {
 	return nil
 }
 
+// AddIOThread adds an iothread object with the given ID.
+func (m *Monitor) AddIOThread(id string) error {
+	args := map[string]any{
+		"qom-type": "iothread",
+		"id":       id,
+	}
+
+	err := m.run("object-add", &args, nil)
+	if err != nil {
+		return fmt.Errorf("Failed adding iothread: %w", err)
+	}
+
+	return nil
+}
+
+// RemoveIOThread removes the iothread object with the given ID.
+func (m *Monitor) RemoveIOThread(id string) error {
+	args := map[string]any{"id": id}
+
+	err := m.run("object-del", &args, nil)
+	if err != nil {
+		return fmt.Errorf("Failed removing iothread: %w", err)
+	}
+
+	return nil
+}
+
 // AMDSEVCapabilities represents the SEV capabilities of QEMU.
 type AMDSEVCapabilities struct {
 	PDH             string `json:"pdh"`               // Platform Diffie-Hellman key (base64-encoded)
