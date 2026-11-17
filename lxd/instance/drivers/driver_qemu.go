@@ -1739,6 +1739,20 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		}
 	}
 
+	// Record the number of disk queues.
+	// QEMU requires an identical device layout on both ends of a live migration, so on a stateful
+	// start (stateful resume or live migration target) the value recorded when the source VM booted
+	// is reused. A VM without a recorded value was started before iothreads and queues were
+	// introduced and keeps the old layout. Any other start uses the current number of queues.
+	newDiskQueues, updateDiskQueues := diskQueuesToRecord(stateful, d.localConfig["volatile.disk_queues"])
+	if updateDiskQueues {
+		err = d.VolatileSet(map[string]string{"volatile.disk_queues": newDiskQueues})
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+	}
+
 	// Determine additional CPU flags.
 	cpuExtensions := []string{}
 
@@ -2958,6 +2972,30 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	return mountTag, nil
 }
 
+// diskQueuesToRecord returns the value to store in volatile.disk_queues when the VM starts and whether it
+// needs to be stored. A stateful start keeps the recorded value (or its absence), any other start records
+// the current number of queues.
+func diskQueuesToRecord(stateful bool, recorded string) (string, bool) {
+	if stateful {
+		return recorded, false
+	}
+
+	current := strconv.Itoa(qemuDiskQueues)
+
+	return current, recorded != current
+}
+
+// diskQueues returns the number of queues recorded for the VM in volatile.disk_queues.
+// It is 0 for a VM that was started before iothreads and queues were introduced.
+func (d *qemu) diskQueues() int {
+	queues, err := strconv.Atoi(d.localConfig["volatile.disk_queues"])
+	if err != nil {
+		return 0
+	}
+
+	return max(queues, 0)
+}
+
 func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -4171,7 +4209,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, maxCPUs int, mountIn
 		multifunction: multi,
 	}
 
-	cfg = append(cfg, qemuSCSI(&scsiOpts)...)
+	cfg = append(cfg, qemuSCSI(&scsiOpts, d.diskQueues())...)
 
 	// Always export the config directory as a 9p config drive, in case the host or VM guest doesn't support
 	// virtio-fs.

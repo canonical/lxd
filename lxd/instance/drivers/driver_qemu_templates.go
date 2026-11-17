@@ -355,18 +355,49 @@ func qemuPCIe(opts *qemuPCIeOpts) []cfgSection {
 	}}
 }
 
-func qemuSCSI(opts *qemuDevOpts) []cfgSection {
+// qemuSCSIIOThreadID is the ID of the iothread serving the SCSI controller.
+const qemuSCSIIOThreadID = "qemu_scsi_iothread"
+
+// qemuDiskQueues is the number of queues used for the disks of a VM that is started.
+// The value is constant and does not depend on the number of vCPUs of the VM. Otherwise the device
+// layout would change with the vCPU count and break the migration of the VM.
+// The number is recorded in volatile.disk_queues when the VM boots and reused on a stateful start,
+// so that the device layout is identical on both ends of a live migration.
+const qemuDiskQueues = 4
+
+// qemuSCSI returns the config sections of the SCSI controller.
+// LUNs cannot have an iothread of their own, so the controller gets an iothread and a number of
+// queues. A queue count of 0 means that the VM was started before iothreads and queues were
+// introduced. Its controller must keep the old layout, because the layout of the source VM has
+// to be reproduced on a live migration target or when resuming from a saved state.
+func qemuSCSI(opts *qemuDevOpts, queues int) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     *opts,
 		pciName: "virtio-scsi-pci",
 		ccwName: "virtio-scsi-ccw",
 	}
 
-	return []cfgSection{{
+	entries := qemuDeviceEntries(&entriesOpts)
+	sections := []cfgSection{}
+
+	if queues > 0 {
+		entries = append(entries, []cfgEntry{
+			{key: "iothread", value: qemuSCSIIOThreadID},
+			{key: "num_queues", value: strconv.Itoa(queues)},
+		}...)
+
+		sections = append(sections, cfgSection{
+			name:    `object "` + qemuSCSIIOThreadID + `"`,
+			comment: "SCSI controller iothread",
+			entries: []cfgEntry{{key: "qom-type", value: "iothread"}},
+		})
+	}
+
+	return append(sections, cfgSection{
 		name:    `device "qemu_scsi"`,
 		comment: "SCSI controller",
-		entries: qemuDeviceEntries(&entriesOpts),
-	}}
+		entries: entries,
+	})
 }
 
 func qemuBalloon(opts *qemuDevOpts) []cfgSection {

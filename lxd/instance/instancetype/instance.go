@@ -1225,6 +1225,17 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	//  shortdesc: vCPU hotplug limit used as of last boot
 	"volatile.cpu.maxcpus": validate.Optional(validate.IsUint32),
 
+	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.disk_queues)
+	// The number of queues of the disk devices recorded when the VM booted.
+	// It is reused on stateful start (stateful resume or live migration) so that the
+	// QEMU device layout matches on both ends of a live migration.
+	// A VM without this key was started before disk queues and `iothread` objects were introduced
+	// and keeps its old device layout until it is restarted.
+	// ---
+	//  type: integer
+	//  shortdesc: Number of disk queues used as of last boot
+	"volatile.disk_queues": validate.Optional(validate.IsInRange(0, 64)),
+
 	// lxdmeta:generate(entities=instance; group=boot; key=boot.debug_edk2)
 	// The instance should use a debug version of the `edk2`.
 	// A log file can be found in `$LXD_DIR/logs/<instance_name>/edk2.log`.
