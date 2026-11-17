@@ -110,6 +110,63 @@ install_snap() {
     )
 }
 
+# install_snap_in_instance: installs a snap from the cache dir into an instance
+# without the instance having to reach the snap store. The snap base (if any) is
+# installed first, from the "latest/candidate" cache. Returns non-zero without
+# changing anything if the snap (or its base) is not in the cache so that the
+# caller can fall back to the snap store.
+# Usage: install_snap_in_instance <instance> <name> [channel]
+install_snap_in_instance() {
+    local instance="${1}"
+    local name="${2}"
+    local channel="${3:-"latest/edge"}"
+    local cache_dir="${SNAP_CACHE_DIR:-${HOME}/snap-cache}"
+    local dir="${cache_dir}/${name}/${channel/\//-}"
+    local f assert="" snap="" base="" rev=""
+
+    for f in "${dir}/${name}"_*.assert; do
+        if [ -e "${f}" ]; then
+            assert="${f}"
+            snap="${f/%.assert/.snap}"
+            break
+        fi
+    done
+
+    if [ -z "${assert}" ] || ! [ -e "${snap}" ]; then
+        return 1
+    fi
+
+    if [ "${name}" != "snapd" ]; then
+        if ! command -v unsquashfs >/dev/null; then
+            return 1
+        fi
+
+        base="$(unsquashfs -n -cat "${snap}" meta/snap.yaml | awk '/^base:/ {print $2; exit}')"
+        if [ -n "${base}" ] && [ "${base}" != "bare" ]; then
+            # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
+            install_snap_in_instance "${instance}" "${base}" "latest/candidate" || return 1
+        fi
+    fi
+
+    # Cached snaps are named <name>_<revision>.snap
+    rev="${snap##*_}"
+    rev="${rev%.snap}"
+
+    echo "Installing ${name} (${channel}) in ${instance} from cache"
+    lxc file push --quiet "${snap}" "${assert}" "${instance}/root/"
+    lxc exec "${instance}" -- sh -eux -c "
+        cd /root
+        snap ack '$(basename "${assert}")'
+        # The same revision may already be installed (e.g. seeded in the image)
+        if ! snap install './$(basename "${snap}")'; then
+            [ \"\$(snap list '${name}' | awk 'NR==2 {print \$3}')\" = '${rev}' ]
+        fi
+        snap refresh --hold=24h '${name}'
+        snap switch '${name}' --channel='${channel}'
+        rm -f '$(basename "${snap}")' '$(basename "${assert}")'
+    "
+}
+
 # sideload_lxd_snap: installs the lxd snap and sideloads the lxc, lxd and lxd-agent binaries.
 sideload_lxd_snap() {
     local channel="${1:-"latest/edge"}"

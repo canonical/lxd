@@ -30,6 +30,53 @@ waitSnapdSeed() (
   return 1 # Failed.
 )
 
+# waitSnapdSeedInstance: host-side variant of waitSnapdSeed that prefers
+# installing snapd from the snap cache over the (unreliable) snap store.
+# Falls back to waitSnapdSeed if snapd is not in the cache.
+# Usage: waitSnapdSeedInstance <instance> [snapd-channel]
+waitSnapdSeedInstance() (
+  { set +x; } 2>/dev/null
+  local instance="${1}"
+  local channel="${2:-"latest/beta"}"
+
+  # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
+  if install_snap_in_instance_seeded "${instance}" "${channel}"; then
+    return 0
+  fi
+
+  # shellcheck disable=SC3044 # Ignore "declare is undefined" shellcheck error.
+  lxc exec "${instance}" -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed ${channel}"
+)
+
+# install_snap_in_instance_seeded: wait for the instance's seeding to finish
+# then install snapd from the cache. Fails if snapd is not cached.
+install_snap_in_instance_seeded() (
+  { set +x; } 2>/dev/null
+  local instance="${1}"
+  local channel="${2}"
+
+  if ! lxc exec "${instance}" -- timeout 60 snap wait system seed.loaded; then
+    echo "snapd not seeded after 60s"
+    return 1
+  fi
+
+  install_snap_in_instance "${instance}" snapd "${channel}" || return 1
+  lxc exec "${instance}" -- snap refresh --hold=8h
+)
+
+# installLXDSnapInstance: install the LXD snap in an instance, preferring the
+# snap cache over the snap store.
+# Usage: installLXDSnapInstance <instance> <lxd-channel> [snapd-channel]
+installLXDSnapInstance() (
+  { set +x; } 2>/dev/null
+  local instance="${1}"
+  local channel="${2}"
+
+  waitSnapdSeedInstance "${instance}" "${3:-"latest/beta"}"
+  # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
+  install_snap_in_instance "${instance}" lxd "${channel}" || lxc exec "${instance}" -- snap install lxd --channel="${channel}" --cohort=+
+)
+
 # waitInstanceReady: waits for the instance to be ready (processes count > 1).
 waitInstanceReady() (
   { set +x; } 2>/dev/null

@@ -45,11 +45,10 @@ lxc start member2
 for instance in member1 member2; do
     waitInstanceReady "${instance}"
     setup_instance_gocoverage "${instance}"
-    lxc exec "${instance}" -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
 done
 
 # Install LXD in the first member.
-lxc exec member1 -- snap install lxd --channel="${LXD_SNAP_CHANNEL}" --cohort=+
+installLXDSnapInstance member1 "${LXD_SNAP_CHANNEL}"
 if [ -n "${LXD_SIDELOAD_PATH:-}" ]; then
     lxc file push --quiet "${LXD_SIDELOAD_PATH}" member1/var/snap/lxd/common/lxd.debug
     lxc exec member1 -- systemctl restart snap.lxd.daemon
@@ -64,7 +63,7 @@ lxc exec member1 -- lxc cluster enable member1
 joinToken="$(lxc exec member1 -- lxc cluster add member2 --quiet)"
 
 # Install LXD on the second member.
-lxc exec member2 -- snap install lxd --channel="${LXD_SNAP_CHANNEL}" --cohort=+
+installLXDSnapInstance member2 "${LXD_SNAP_CHANNEL}"
 if [ -n "${LXD_SIDELOAD_PATH:-}" ]; then
     lxc file push --quiet "${LXD_SIDELOAD_PATH}" member2/var/snap/lxd/common/lxd.debug
     lxc exec member2 -- systemctl restart snap.lxd.daemon
