@@ -278,7 +278,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
+          - ubuntu-22.04
           - macos-latest
           - windows-latest
     runs-on: ${{ matrix.os }}
@@ -351,7 +351,7 @@ jobs:
 
   documentation:
     name: Documentation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -377,7 +377,7 @@ jobs:
 
   snap:
     name: Trigger snap build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     needs: [code-tests, system-tests, client, documentation]
     if: ${{ github.repository == 'canonical/lxd' && github.event_name == 'push' && github.actor != 'dependabot[bot]' }}
     env:
