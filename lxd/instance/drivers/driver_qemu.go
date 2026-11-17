@@ -113,6 +113,15 @@ const qemuDeviceNamePrefix = "lxd_"
 // qemuDeviceNameMaxLength used to indicate the maximum length of a qemu block node name and device tags.
 const qemuDeviceNameMaxLength = 31
 
+// qemuIOThreadPrefix is the prefix of the ID of an iothread of a disk device.
+const qemuIOThreadPrefix = "iothread_"
+
+// qemuIOThreadID returns the ID of the iothread of a disk device.
+// QEMU does not limit the length of object IDs, so the encoded device name is used as is.
+func qemuIOThreadID(deviceName string) string {
+	return qemuIOThreadPrefix + filesystem.PathNameEncode(deviceName)
+}
+
 // qemuMigrationNBDExportName is the name of the disk device export by the migration NBD server.
 const qemuMigrationNBDExportName = "lxd_root"
 
@@ -1739,14 +1748,29 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		}
 	}
 
-	// Record the number of disk queues.
-	// QEMU requires an identical device layout on both ends of a live migration, so on a stateful
-	// start (stateful resume or live migration target) the value recorded when the source VM booted
-	// is reused. A VM without a recorded value was started before iothreads and queues were
-	// introduced and keeps the old layout. Any other start uses the current number of queues.
-	newDiskQueues, updateDiskQueues := diskQueuesToRecord(stateful, d.localConfig["volatile.disk_queues"])
-	if updateDiskQueues {
-		err = d.VolatileSet(map[string]string{"volatile.disk_queues": newDiskQueues})
+	// Record the queues and iothreads of the disk devices.
+	// QEMU requires identical device properties on both ends of a live migration, so on a stateful
+	// start (stateful resume or live migration target) the values recorded when the source VM booted
+	// are reused. A VM without recorded values was started before iothreads and queues were
+	// introduced and its disk devices get neither. Any other start uses the current values.
+	//
+	// With a saved state present, a stateless start discards it. The values are then set in memory only,
+	// so that the config generation sees them, and are written in the same transaction that clears the
+	// stateful flag. Otherwise a failed start would leave new values next to a saved state that was
+	// taken with the old ones.
+	diskPropsChanges := diskPropsToRecord(stateful, d.localConfig)
+	diskPropsPending := false
+	if len(diskPropsChanges) > 0 && d.stateful {
+		undoDiskProps := applyVolatileInMemory(diskPropsChanges, d.localConfig, d.expandedConfig)
+		diskPropsPending = true
+
+		revert.Add(func() {
+			if diskPropsPending {
+				undoDiskProps()
+			}
+		})
+	} else if len(diskPropsChanges) > 0 {
+		err = d.VolatileSet(diskPropsChanges)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -1830,20 +1854,31 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 
 		qemuCmd = append(qemuCmd, "-incoming", "defer")
 	} else if d.stateful {
-		// Stateless start requested but state is present, delete it.
-		err := os.Remove(d.StatePath())
-		if err != nil && !os.IsNotExist(err) {
-			op.Done(err)
-			return err
-		}
-
-		d.stateful = false
+		// Stateless start requested but state is present, discard it.
+		// The database is updated first, together with the disk properties of this start. A crash then
+		// leaves a stray file that nothing reads, instead of a stateful flag without a file.
 		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			if len(diskPropsChanges) > 0 {
+				err := tx.UpdateInstanceConfig(d.id, diskPropsChanges)
+				if err != nil {
+					return err
+				}
+			}
+
 			return tx.UpdateInstanceStatefulFlag(ctx, d.id, false)
 		})
 		if err != nil {
 			op.Done(err)
 			return fmt.Errorf("Error updating instance stateful flag: %w", err)
+		}
+
+		diskPropsPending = false
+		d.stateful = false
+
+		err = os.Remove(d.StatePath())
+		if err != nil && !os.IsNotExist(err) {
+			op.Done(err)
+			return err
 		}
 	}
 
@@ -2972,28 +3007,100 @@ func (d *qemu) deviceAttachPath(deviceName string) (mountTag string, err error) 
 	return mountTag, nil
 }
 
-// diskQueuesToRecord returns the value to store in volatile.disk_queues when the VM starts and whether it
-// needs to be stored. A stateful start keeps the recorded value (or its absence), any other start records
-// the current number of queues.
-func diskQueuesToRecord(stateful bool, recorded string) (string, bool) {
-	if stateful {
-		return recorded, false
-	}
+// qemuDiskProps are the qdev properties of the disk devices that LXD records in the volatile.disk_queues
+// and volatile.disk_iothreads keys when a VM starts.
+// A value of 0 means that the property is not set on the devices.
+type qemuDiskProps struct {
+	// Queues is the number of queues of a disk device (num-queues, num_queues or max_ioqpairs).
+	Queues int
 
-	current := strconv.Itoa(qemuDiskQueues)
-
-	return current, recorded != current
+	// IOThreads is 1 when the disk devices are served by an iothread and 0 when they are not.
+	IOThreads int
 }
 
-// diskQueues returns the number of queues recorded for the VM in volatile.disk_queues.
-// It is 0 for a VM that was started before iothreads and queues were introduced.
-func (d *qemu) diskQueues() int {
-	queues, err := strconv.Atoi(d.localConfig["volatile.disk_queues"])
-	if err != nil {
-		return 0
+// qemuDiskPropsFromConfig returns the disk properties recorded in the volatile keys of config.
+// A key that is not recorded or not valid gives 0, which is the case for a VM that was started before
+// iothreads and queues were introduced.
+func qemuDiskPropsFromConfig(config map[string]string) qemuDiskProps {
+	parse := func(key string) int {
+		value, err := strconv.Atoi(config[key])
+		if err != nil {
+			return 0
+		}
+
+		return max(value, 0)
 	}
 
-	return max(queues, 0)
+	return qemuDiskProps{
+		Queues:    parse("volatile.disk_queues"),
+		IOThreads: parse("volatile.disk_iothreads"),
+	}
+}
+
+// diskPropsToRecord returns the volatile keys to store when the VM starts. A stateful start keeps the
+// recorded values (or their absence), any other start records the current disk properties. The result
+// only has the keys that change and is empty when nothing needs to be stored.
+func diskPropsToRecord(stateful bool, config map[string]string) map[string]string {
+	if stateful {
+		return nil
+	}
+
+	current := map[string]string{
+		"volatile.disk_queues":    strconv.Itoa(qemuDiskQueues),
+		"volatile.disk_iothreads": strconv.Itoa(qemuDiskIOThreads),
+	}
+
+	changes := map[string]string{}
+	for key, value := range current {
+		if config[key] != value {
+			changes[key] = value
+		}
+	}
+
+	return changes
+}
+
+// applyVolatileInMemory sets the changes in each of the config maps and returns a function that restores the
+// previous values. A value of "" removes the key, like in VolatileSet. Nothing is written to the database.
+func applyVolatileInMemory(changes map[string]string, configs ...map[string]string) func() {
+	type previous struct {
+		config map[string]string
+		key    string
+		value  string
+		found  bool
+	}
+
+	undo := make([]previous, 0, len(changes)*len(configs))
+
+	for _, config := range configs {
+		for key, value := range changes {
+			old, found := config[key]
+			undo = append(undo, previous{config, key, old, found})
+
+			if value == "" {
+				delete(config, key)
+				continue
+			}
+
+			config[key] = value
+		}
+	}
+
+	return func() {
+		for _, p := range undo {
+			if p.found {
+				p.config[p.key] = p.value
+				continue
+			}
+
+			delete(p.config, p.key)
+		}
+	}
+}
+
+// diskProps returns the disk properties recorded for the VM.
+func (d *qemu) diskProps() qemuDiskProps {
+	return qemuDiskPropsFromConfig(d.localConfig)
 }
 
 func (d *qemu) deviceAttachBlockDevice(mount deviceConfig.MountEntryItem) error {
@@ -3110,6 +3217,15 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string, devConf deviceConfig.D
 		if api.StatusErrorCheck(err, http.StatusLocked) {
 			time.Sleep(time.Second * 2)
 			continue
+		}
+	}
+
+	// Only virtio-blk disks have an iothread of their own. The LUNs of the virtio-scsi controller
+	// share the iothread of the controller, which stays, and NVMe disks have no iothread.
+	if devConf["io.bus"] == "virtio-blk" && d.diskProps().IOThreads > 0 {
+		err = monitor.RemoveIOThread(qemuIOThreadID(deviceName))
+		if err != nil {
+			return err
 		}
 	}
 
@@ -4209,7 +4325,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, maxCPUs int, mountIn
 		multifunction: multi,
 	}
 
-	cfg = append(cfg, qemuSCSI(&scsiOpts, d.diskQueues())...)
+	cfg = append(cfg, qemuSCSI(&scsiOpts, d.diskProps())...)
 
 	// Always export the config directory as a 9p config drive, in case the host or VM guest doesn't support
 	// virtio-fs.
@@ -4984,6 +5100,7 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 	}
 
 	var busCleanup revert.Hook
+	var iothreadID string
 	if busName == "virtio-scsi" {
 		qemuDev["device_id"] = qemuDeviceSerial
 		qemuDev["channel"] = 0
@@ -4998,6 +5115,14 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 		}
 	} else if slices.Contains([]string{"nvme", "virtio-blk"}, busName) {
 		qemuDev["driver"] = busName
+
+		// A VM that was started before iothreads and queues were introduced has no recorded properties.
+		props := d.diskProps()
+		if busName == "virtio-blk" && props.IOThreads > 0 {
+			iothreadID = qemuIOThreadID(driveConf.DevName)
+		}
+
+		qemuDiskDevProps(qemuDev, busName, props, iothreadID)
 
 		// Allocate a device port.
 		var devBus, devAddr string
@@ -5068,6 +5193,18 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 			})
 
 			blockDev["filename"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
+		}
+
+		if iothreadID != "" {
+			err := m.AddIOThread(iothreadID)
+			if err != nil {
+				return fmt.Errorf("Failed adding iothread for disk device %q: %w",
+					driveConf.DevName, err)
+			}
+
+			reverter.Add(func() {
+				_ = m.RemoveIOThread(iothreadID)
+			})
 		}
 
 		err := m.AddBlockDevice(blockDev, qemuDev)

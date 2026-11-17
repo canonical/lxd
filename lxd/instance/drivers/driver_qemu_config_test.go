@@ -17,7 +17,7 @@ func BenchmarkQemuStringifyCfg(b *testing.B) {
 	sections = append(sections, qemuMemory(&qemuMemoryOpts{memSizeMB: 2048})...)
 	sections = append(sections, qemuSerial(&qemuSerialOpts{dev: qemuDevOpts{"pcie", "pcie.0", "00.5", false}, charDevName: "qemu_serial0", ringbufSizeBytes: 4096})...)
 	sections = append(sections, qemuPCIe(&qemuPCIeOpts{portName: "qemu_pcie0", index: 0, devAddr: "00.1", multifunction: true})...)
-	sections = append(sections, qemuSCSI(&qemuDevOpts{"pcie", "pcie.0", "00.2", false}, qemuDiskQueues)...)
+	sections = append(sections, qemuSCSI(&qemuDevOpts{"pcie", "pcie.0", "00.2", false}, qemuDiskProps{qemuDiskQueues, qemuDiskIOThreads})...)
 	sections = append(sections, qemuBalloon(&qemuDevOpts{"pcie", "pcie.0", "00.3", false})...)
 
 	b.ReportAllocs()
@@ -233,11 +233,11 @@ func TestQemuConfigTemplates(t *testing.T) {
 	t.Run("qemu_scsi", func(t *testing.T) {
 		testCases := []struct {
 			opts     qemuDevOpts
-			queues   int
+			props    qemuDiskProps
 			expected string
 		}{{
 			qemuDevOpts{"pci", "qemu_pcie1", "00.0", false},
-			4,
+			qemuDiskProps{4, 1},
 			`# SCSI controller iothread
 			[object "qemu_scsi_iothread"]
 			qom-type = "iothread"
@@ -252,7 +252,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}, {
 			qemuDevOpts{"ccw", "devBus", "busAddr", true},
-			2,
+			qemuDiskProps{2, 1},
 			`# SCSI controller iothread
 			[object "qemu_scsi_iothread"]
 			qom-type = "iothread"
@@ -266,16 +266,40 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}, {
 			qemuDevOpts{"pci", "qemu_pcie1", "00.0", false},
-			0,
+			qemuDiskProps{0, 0},
 			`# SCSI controller
 			[device "qemu_scsi"]
 			driver = "virtio-scsi-pci"
 			bus = "qemu_pcie1"
 			addr = "00.0"
 			`,
+		}, {
+			qemuDevOpts{"pci", "qemu_pcie1", "00.0", false},
+			qemuDiskProps{4, 0},
+			`# SCSI controller
+			[device "qemu_scsi"]
+			driver = "virtio-scsi-pci"
+			bus = "qemu_pcie1"
+			addr = "00.0"
+			num_queues = "4"
+			`,
+		}, {
+			qemuDevOpts{"pci", "qemu_pcie1", "00.0", false},
+			qemuDiskProps{0, 1},
+			`# SCSI controller iothread
+			[object "qemu_scsi_iothread"]
+			qom-type = "iothread"
+
+			# SCSI controller
+			[device "qemu_scsi"]
+			driver = "virtio-scsi-pci"
+			bus = "qemu_pcie1"
+			addr = "00.0"
+			iothread = "qemu_scsi_iothread"
+			`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuSCSI(&tc.opts, tc.queues))
+			runTest(tc.expected, qemuSCSI(&tc.opts, tc.props))
 		}
 	})
 
@@ -1757,5 +1781,56 @@ func TestQemuCPU_NumaHostNodesPreservesOrder(t *testing.T) {
 	// The caller's slice must not be mutated.
 	if !reflect.DeepEqual(opts.cpuNumaHostNodes, []uint64{10, 8, 9}) {
 		t.Fatalf("Expected input slice to be unchanged, got: %v", opts.cpuNumaHostNodes)
+	}
+}
+
+func TestQemuDiskDevProps(t *testing.T) {
+	testCases := []struct {
+		busName    string
+		props      qemuDiskProps
+		iothreadID string
+		expected   map[string]any
+	}{
+		{"virtio-blk", qemuDiskProps{4, 1}, "iothread_root", map[string]any{"iothread": "iothread_root", "num-queues": 4}},
+		{"nvme", qemuDiskProps{4, 1}, "", map[string]any{"max_ioqpairs": 4}},
+		{"virtio-scsi", qemuDiskProps{4, 1}, "", map[string]any{}},
+		// Each property depends on its own value only.
+		{"virtio-blk", qemuDiskProps{4, 0}, "", map[string]any{"num-queues": 4}},
+		{"virtio-blk", qemuDiskProps{0, 1}, "iothread_root", map[string]any{"iothread": "iothread_root"}},
+		// A VM started before iothreads and queues were introduced has no recorded properties.
+		{"virtio-blk", qemuDiskProps{0, 0}, "", map[string]any{}},
+		{"nvme", qemuDiskProps{0, 0}, "", map[string]any{}},
+		{"nvme", qemuDiskProps{0, 1}, "", map[string]any{}},
+	}
+
+	for _, tc := range testCases {
+		qemuDev := map[string]any{}
+		qemuDiskDevProps(qemuDev, tc.busName, tc.props, tc.iothreadID)
+
+		if !reflect.DeepEqual(qemuDev, tc.expected) {
+			t.Errorf("%s with %+v:\n- want: %v\n-  got: %v", tc.busName, tc.props, tc.expected, qemuDev)
+		}
+	}
+}
+
+func TestQemuIOThreadID(t *testing.T) {
+	testCases := []struct {
+		deviceName string
+		expected   string
+	}{
+		{"root", "iothread_root"},
+		{"cbt-blk", "iothread_cbt--blk"},
+		{"a/b", "iothread_a-b"},
+		{
+			"a-very-long-disk-device-name-longer-than-31-characters",
+			"iothread_a--very--long--disk--device--name--longer--than--31--characters",
+		},
+	}
+
+	for _, tc := range testCases {
+		actual := qemuIOThreadID(tc.deviceName)
+		if actual != tc.expected {
+			t.Errorf("qemuIOThreadID(%q): want %q, got %q", tc.deviceName, tc.expected, actual)
+		}
 	}
 }

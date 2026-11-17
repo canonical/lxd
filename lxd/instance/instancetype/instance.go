@@ -1227,14 +1227,25 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 
 	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.disk_queues)
 	// The number of queues of the disk devices recorded when the VM booted.
-	// It is reused on stateful start (stateful resume or live migration) so that the
-	// QEMU device layout matches on both ends of a live migration.
-	// A VM without this key was started before disk queues and `iothread` objects were introduced
-	// and keeps its old device layout until it is restarted.
+	// It is reused on stateful start (stateful resume or live migration) because QEMU
+	// requires identical device properties on both ends of a live migration.
+	// A VM without this key was started before disk queues were introduced.
+	// Its disk devices have no queue property until it is restarted.
 	// ---
 	//  type: integer
 	//  shortdesc: Number of disk queues used as of last boot
 	"volatile.disk_queues": validate.Optional(validate.IsInRange(0, 64)),
+
+	// lxdmeta:generate(entities=instance; group=volatile; key=volatile.disk_iothreads)
+	// Set to `1` when the disk devices were served by an `iothread` object when the VM booted.
+	// It is reused on stateful start (stateful resume or live migration) because QEMU
+	// requires identical device properties on both ends of a live migration.
+	// A VM without this key was started before `iothread` objects were introduced.
+	// Its disk devices have no `iothread` property until it is restarted.
+	// ---
+	//  type: integer
+	//  shortdesc: Whether disks used an iothread as of last boot
+	"volatile.disk_iothreads": validate.Optional(validate.IsInRange(0, 1)),
 
 	// lxdmeta:generate(entities=instance; group=boot; key=boot.debug_edk2)
 	// The instance should use a debug version of the `edk2`.

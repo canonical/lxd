@@ -102,6 +102,7 @@ func TestIOThreadErrors(t *testing.T) {
 	}{
 		{"add fails", "duplicate ID 'iothread0'", func(m *Monitor) error { return m.AddIOThread("iothread0") }, "Failed adding iothread"},
 		{"remove fails", "object 'iothread0' is in use", func(m *Monitor) error { return m.RemoveIOThread("iothread0") }, "Failed removing iothread"},
+		{"remove of a missing object is ignored", "object 'iothread0' not found", func(m *Monitor) error { return m.RemoveIOThread("iothread0") }, ""},
 	}
 
 	for _, tt := range tests {
@@ -147,6 +148,49 @@ func TestIOThreadCommands(t *testing.T) {
 	}{
 		{"object-add", map[string]any{"qom-type": "iothread", "id": "iothread0"}},
 		{"object-del", map[string]any{"id": "iothread0"}},
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("Unexpected number of commands: want %d, got %d: %+v", len(want), len(got), got)
+	}
+
+	for i, w := range want {
+		if got[i].Execute != w.execute {
+			t.Errorf("Command %d: want %q, got %q", i, w.execute, got[i].Execute)
+		}
+
+		if !reflect.DeepEqual(got[i].Arguments, w.args) {
+			t.Errorf("Command %d arguments:\n- want: %v\n-  got: %v", i, w.args, got[i].Arguments)
+		}
+	}
+}
+
+func TestAddBlockDeviceWithIOThread(t *testing.T) {
+	blockDev := map[string]any{"driver": "raw", "node-name": "hd0"}
+	device := map[string]any{
+		"driver":     "virtio-blk",
+		"drive":      "hd0",
+		"id":         "virtio-disk0",
+		"iothread":   "iothread0",
+		"num-queues": float64(2),
+	}
+
+	got := recordCommands(t, func(m *Monitor) error {
+		err := m.AddIOThread("iothread0")
+		if err != nil {
+			return err
+		}
+
+		return m.AddBlockDevice(blockDev, device)
+	})
+
+	want := []struct {
+		execute string
+		args    map[string]any
+	}{
+		{"object-add", map[string]any{"qom-type": "iothread", "id": "iothread0"}},
+		{"blockdev-add", blockDev},
+		{"device_add", device},
 	}
 
 	if len(got) != len(want) {

@@ -797,11 +797,16 @@ func (m *Monitor) AddIOThread(id string) error {
 }
 
 // RemoveIOThread removes the iothread object with the given ID.
+// It does not return an error if the object does not exist.
 func (m *Monitor) RemoveIOThread(id string) error {
 	args := map[string]any{"id": id}
 
 	err := m.run("object-del", &args, nil)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil
+		}
+
 		return fmt.Errorf("Failed removing iothread: %w", err)
 	}
 
