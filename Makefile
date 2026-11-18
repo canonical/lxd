@@ -10,7 +10,7 @@ GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
 SPHINXPIPPATH=doc/.sphinx/venv/bin/pip
-GOMIN=1.27.3
+GOMIN=1.27.4
 GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
@@ -157,6 +157,46 @@ env:
 deps: dqlite liblxc
 	@echo ""; echo "# Please set the following in your environment (possibly ~/.bashrc)"
 	@$(MAKE) -s env
+
+.PHONY: check-gomin
+check-gomin:
+	go mod tidy -go=$(GOMIN)
+	@echo "Check the doc mentions the right Go minimum version"
+	$(eval DOC_GOMIN := $(shell sed -n 's/^LXD requires Go \([0-9.]\+\) .*/\1/p' doc/requirements.md))
+	if [ "$(DOC_GOMIN)" != "$(GOMIN)" ]; then \
+		echo "Please update the Go version in 'doc/requirements.md' to be $(GOMIN) instead of $(DOC_GOMIN)"; \
+		exit 1; \
+	fi
+
+.PHONY: update-gomin
+update-gomin:
+ifndef NEW_GOMIN
+	@echo "Usage: make update-gomin NEW_GOMIN=1.x.y"
+	@echo "Current Go minimum version: $(GOMIN)"
+	exit 1
+endif
+ifeq "$(GOMIN)" "$(NEW_GOMIN)"
+	@echo "Error: NEW_GOMIN ($(NEW_GOMIN)) is the same as current GOMIN ($(GOMIN))"
+	exit 1
+endif
+	@echo "Updating Go minimum version from $(GOMIN) to $(NEW_GOMIN)"
+	
+	@# Update GOMIN in Makefile
+	sed -i 's/^GOMIN=[0-9.]\+/GOMIN=$(NEW_GOMIN)/' Makefile
+
+	@# Update GOMIN in go.mod
+	sed -i 's/^go [0-9.]\+$$/go $(NEW_GOMIN)/' go.mod
+
+	@# Update doc/requirements.md
+	sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' doc/requirements.md
+
+	@echo "Go minimum version updated to $(NEW_GOMIN)"
+	if [ -t 0 ]; then \
+		read -rp "Would you like to commit Go version changes (Y/n)? " answer; \
+		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
+			git commit -S -sm "go: Update Go minimum version to $(NEW_GOMIN)" -- Makefile go.mod doc/requirements.md; \
+		fi; \
+	fi
 
 .PHONY: update-gomod
 update-gomod:
