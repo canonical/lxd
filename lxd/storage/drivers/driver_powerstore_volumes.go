@@ -612,12 +612,23 @@ func (d *powerstore) DeleteVolume(vol Volume, progressReporter ioprogress.Progre
 			return fmt.Errorf("Failed retrieving current host for volume %q: %w", vol.name, err)
 		}
 	} else {
-		// If the host exists, attempt to delete the volume mapping for the deleted
-		// volume. If the mapping doesn't exist, continue with the deletion as the
-		// volume is already deleted.
-		err = client.DetachVolumeFromHost(volID, host.ID)
-		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
-			return fmt.Errorf("Failed detaching volume %q from host %q: %w", vol.name, host.Name, err)
+		// If the host exists and the volume is mapped to it, delete the volume mapping.
+		// Skip the detach request for an unmapped volume as the array would reject it
+		// and record a failed detach event in its audit log.
+		mapped := false
+		for _, mapping := range host.MappedVolumes {
+			if mapping.VolumeID == volID {
+				mapped = true
+				break
+			}
+		}
+
+		if mapped {
+			// If the mapping disappeared in the meantime, continue with the deletion.
+			err = client.DetachVolumeFromHost(volID, host.ID)
+			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return fmt.Errorf("Failed detaching volume %q from host %q: %w", vol.name, host.Name, err)
+			}
 		}
 	}
 
