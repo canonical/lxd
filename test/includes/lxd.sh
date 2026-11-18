@@ -305,6 +305,9 @@ kill_lxd() {
         # Support AppArmor policy cache directory
         apparmor_cache_dir="$(apparmor_parser --cache-loc "${LXD_DIR}"/security/apparmor/cache --print-cache-dir)"
         rm -f "${apparmor_cache_dir}/.features"
+        # The shared fork helper profile remains loaded in the kernel, but the
+        # test daemon's temporary on-disk policy is no longer needed.
+        rm -f "${apparmor_cache_dir}/lxd_forkstart" "${LXD_DIR}/security/apparmor/profiles/lxd_forkstart"
         check_empty "${LXD_DIR}/containers/"
         check_empty "${LXD_DIR}/devices/"
         check_empty "${LXD_DIR}/images/"
