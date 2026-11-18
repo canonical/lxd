@@ -3772,6 +3772,12 @@ func (d *lxc) Delete(force bool) error {
 
 	defer op.Done(nil)
 
+	// Wait for any file operations to complete before checking the instance
+	// state, as an active forkfile mount can affect the liblxc state.
+	if !d.IsSnapshot() {
+		d.StopForkFile(false)
+	}
+
 	if d.IsRunning() {
 		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
 	}
