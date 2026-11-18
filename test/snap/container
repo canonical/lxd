@@ -137,6 +137,13 @@ for release in $RELEASES; do
     echo "==> unprivileged container (${release})"
     lxc launch "${IMAGE}" u1
     isSystemdClean u1 || ignore_known_issues u1 unprivileged
+    # systemd resolves /dev/console through the host virtual console sysfs
+    # entries. They must not expose a nonexistent console.
+    lxc exec u1 -- test ! -s /sys/class/tty/console/active
+    if isSystemdUnitFailed u1 console-getty.service; then
+        echo "console-getty.service unexpectedly failed"
+        exit 1
+    fi
     lxc delete -f u1
 
     echo "==> privileged container (${release})"
