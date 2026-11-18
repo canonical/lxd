@@ -1475,10 +1475,21 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	revert.Add(func() { cleanup(builddir, post) })
 
-	_, err = io.Copy(shared.NewQuotaWriter(post, budget), r.Body)
+	// Enforce the project budget by reading at most one byte past it, as the copy writes straight into the file.
+	var body io.Reader = r.Body
+	if budget >= 0 {
+		body = io.LimitReader(r.Body, budget+1)
+	}
+
+	// The copy runs as the unprivileged user so that filesystem quotas apply to the upload.
+	written, err := util.UnprivilegedCopy(r.Context(), post, body, s.OS.UnprivUID, s.OS.UnprivGID)
 	if err != nil {
-		logger.Errorf("Store image POST data to disk: %v", err)
-		return response.InternalError(err)
+		logger.Error("Failed storing image POST data to disk", logger.Ctx{"err": err})
+		return response.SmartError(err)
+	}
+
+	if budget >= 0 && written > budget {
+		return response.SmartError(api.StatusErrorf(http.StatusRequestEntityTooLarge, "Upload exceeds the project image budget of %d bytes", budget))
 	}
 
 	// Is this a container request?
