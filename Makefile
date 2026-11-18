@@ -183,15 +183,18 @@ endif
 	
 	@# Update GOMIN in Makefile
 	sed -i 's/^GOMIN=[0-9.]\+/GOMIN=$(NEW_GOMIN)/' Makefile
-	
+
+	@# Update GOMIN in go.mod
+	sed -i 's/^go [0-9.]\+$$/go $(NEW_GOMIN)/' go.mod
+
 	@# Update doc/requirements.md
 	sed -i 's/^\(LXD requires Go \)[0-9.]\+ /\1$(NEW_GOMIN) /' doc/requirements.md
-	
+
 	@echo "Go minimum version updated to $(NEW_GOMIN)"
 	if [ -t 0 ]; then \
 		read -rp "Would you like to commit Go version changes (Y/n)? " answer; \
 		if [ "$${answer:-y}" = "y" ] || [ "$${answer:-y}" = "Y" ]; then \
-			git commit -S -sm "go: Update Go minimum version to $(NEW_GOMIN)" -- Makefile doc/requirements.md; \
+			git commit -S -sm "go: Update Go minimum version to $(NEW_GOMIN)" -- Makefile go.mod doc/requirements.md; \
 		fi; \
 	fi
 
