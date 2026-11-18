@@ -66,6 +66,9 @@ Please adhere to the following when submitting your report:
   against LXD 6.10._z_ LTS, use the `6/edge` snap channel and/or the `stable-6`
   branch.
 - Include any proof of concept or reproducer steps, if possible.
+- Keep your report scoped to a single vulnerability, meaning a single root
+  cause. If you discover multiple vulnerabilities, please submit a separate
+  report for each.
 
 After receiving your report, the LXD GitHub admins will determine whether the
 issue qualifies as a security vulnerability and, if so, in which component. The
