@@ -1,0 +1,101 @@
+name: Cache LXD C dependencies
+description: Restore raft/dqlite/liblxc from the daily cache or build them
+
+inputs:
+  export-env:
+    description: |
+      Whether to export the CGO build variables to GITHUB_ENV so LXD can be
+      built against the dependencies.
+    default: "false"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: deps cache key
+      id: deps-cache-key
+      shell: bash
+      run: |
+        set -eux
+        . /etc/os-release
+        ARCH="$(dpkg --print-architecture)"
+        DATE="$(date --utc '+%Y%m%d')"
+        YESTERDAY="$(date --utc '+%Y%m%d' --date=yesterday)"
+
+        eval "$(grep -E '^(RAFT_REF|DQLITE_REF|LIBLXC_REF|LIBLXC_PATCHES)=' Makefile)"
+        LXC_PATCHSET="$(printf '%s' "${LIBLXC_PATCHES}" | sha256sum | cut -c1-12)"
+        KEY_PREFIX="deps-${ID}-${VERSION_ID}-${ARCH}-raft-${RAFT_REF}-dqlite-${DQLITE_REF}-liblxc-${LIBLXC_REF}-${LXC_PATCHSET}"
+        echo "KEY=${KEY_PREFIX}-${DATE}" >> "$GITHUB_OUTPUT"
+        echo "FALLBACK_KEY=${KEY_PREFIX}-${YESTERDAY}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore raft/dqlite/liblxc deps
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      id: cache-deps
+      with:
+        path: |
+          /home/runner/go/deps/raft
+          /home/runner/go/deps/dqlite
+          /home/runner/go/deps/liblxc
+        key: ${{ steps.deps-cache-key.outputs.KEY }}
+        restore-keys: |
+          ${{ steps.deps-cache-key.outputs.FALLBACK_KEY }}
+
+    - name: Check if deps need building
+      id: check-build
+      if: ${{ steps.cache-deps.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: |
+        if [ -f /home/runner/go/deps/raft/.libs/libraft.so ] && \
+           [ -f /home/runner/go/deps/dqlite/.libs/libdqlite.so ] && \
+           [ -n "$(find /home/runner/go/deps/liblxc/lib -name liblxc.so 2>/dev/null)" ]; then
+          echo "==> SKIP building as raft, dqlite and liblxc deps were restored from fallback key"
+          echo "needed=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "needed=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Install LXD build dependencies
+      if: ${{ steps.check-build.outputs.needed == 'true' }}
+      uses: ./.github/actions/install-lxd-builddeps # zizmor: ignore[self-repository]
+
+    - name: Build LXD dependencies
+      if: ${{ steps.check-build.outputs.needed == 'true' }}
+      shell: bash
+      run: |
+        set -eux
+        cd "${GITHUB_WORKSPACE}"
+        make deps
+
+    - name: Save raft/dqlite/liblxc deps
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      if: |
+        steps.check-build.outputs.needed == 'true' &&
+        (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      with:
+        path: |
+          /home/runner/go/deps/raft
+          /home/runner/go/deps/dqlite
+          /home/runner/go/deps/liblxc
+        key: ${{ steps.deps-cache-key.outputs.KEY }}
+
+    - name: Update env variables for deps
+      if: ${{ inputs.export-env == 'true' }}
+      shell: bash
+      run: | # zizmor: ignore[github-env]
+        set -eux
+
+        LD_LIBRARY_PATH_EXTRA="${LD_LIBRARY_PATH:-}"
+        unset LD_LIBRARY_PATH PKG_CONFIG_PATH
+        eval "$(make -s env)"
+        if [ -n "${LD_LIBRARY_PATH:-}" ] && [ -n "${LD_LIBRARY_PATH_EXTRA}" ]; then
+          LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${LD_LIBRARY_PATH_EXTRA}"
+        elif [ -n "${LD_LIBRARY_PATH_EXTRA}" ]; then
+          LD_LIBRARY_PATH="${LD_LIBRARY_PATH_EXTRA}"
+        fi
+
+        export LD_LIBRARY_PATH
+        export LD_RUN_PATH="${LD_LIBRARY_PATH}"
+        for variable in CGO_CFLAGS CGO_LDFLAGS CGO_LDFLAGS_ALLOW LD_LIBRARY_PATH PKG_CONFIG_PATH LD_RUN_PATH; do
+          value="${!variable}"
+          printf '%s=%s\n' "${variable}" "${value}" >> "${GITHUB_ENV}"
+        done
