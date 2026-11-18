@@ -46,3 +46,28 @@ func TestDeviceVolatile(t *testing.T) {
 	assert.Equal(t, map[string]string{"hwaddr": "00:16:3e:00:00:04"}, d.deviceVolatile("eth1"))
 	assert.Empty(t, d.deviceVolatile("eth2"))
 }
+
+func TestLXCRawAppArmorProfile(t *testing.T) {
+	tests := []struct {
+		name   string
+		rawLXC string
+		want   bool
+	}{
+		{name: "empty"},
+		{name: "other key", rawLXC: "lxc.mount.entry=/mnt none bind 0 0"},
+		{name: "comment", rawLXC: "# lxc.apparmor.profile=unconfined"},
+		{name: "unconfined", rawLXC: "lxc.apparmor.profile=unconfined", want: true},
+		{name: "custom profile", rawLXC: "lxc.apparmor.profile = custom-profile", want: true},
+		{name: "legacy profile", rawLXC: "lxc.aa_profile=unconfined", want: true},
+		{name: "legacy custom profile", rawLXC: "lxc.aa_profile = custom-profile", want: true},
+		{name: "case insensitive", rawLXC: "LXC.APPARMOR.PROFILE=custom-profile", want: true},
+		{name: "multiline", rawLXC: "lxc.mount.entry=/mnt none bind 0 0\nlxc.apparmor.profile=unconfined", want: true},
+		{name: "inline text", rawLXC: "lxc.environment=lxc.apparmor.profile=unconfined"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, lxcRawAppArmorProfile(tt.rawLXC))
+		})
+	}
+}
