@@ -3,6 +3,10 @@ test_console() {
 
   lxc launch testimage cons1
 
+  # Modern systemd resolves /dev/console through sysfs. LXD masks the host
+  # virtual console active file so systemd doesn't try a nonexistent console.
+  lxc exec -T -n cons1 -- test ! -s /sys/class/tty/console/active
+
   # The VGA console is only available for VMs
   ! lxc console --type vga cons1 || false
 
