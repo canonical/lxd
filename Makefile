@@ -6,7 +6,6 @@ POTFILE=po/$(DOMAIN).pot
 VERSION=$(or ${CUSTOM_VERSION},$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2))
 ARCHIVE=lxd-$(VERSION).tar
 HASH := \#
-TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
 GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
@@ -15,13 +14,26 @@ GOMIN=1.27.3
 GOTOOLCHAIN=local
 export GOTOOLCHAIN
 GOCOVERDIR ?= $(shell go env GOCOVERDIR)
+ARCH ?= $(shell uname -m)
 DQLITE_BRANCH=lts-1.17.x
+LIBLXC_BRANCH=lxc-5.0.3
 
 ifneq "$(wildcard vendor)" ""
-	DQLITE_PATH=$(CURDIR)/vendor/dqlite
+	DEPS_PATH=$(CURDIR)/vendor
 else
-	DQLITE_PATH=$(GOPATH)/deps/dqlite
+	DEPS_PATH=$(GOPATH)/deps
 endif
+DQLITE_PATH=$(DEPS_PATH)/dqlite
+LIBLXC_PATH=$(DEPS_PATH)/liblxc
+LIBLXC_ROOTFS_MOUNT_PATH=$(LIBLXC_PATH)/rootfs
+LIBLXC_INSTALL_STAGE=$(LIBLXC_PATH)/install-stage
+
+export CGO_CFLAGS ?= -I$(DQLITE_PATH)/include/ -I$(LIBLXC_PATH)/include/
+export CGO_LDFLAGS ?= -L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/
+export LD_LIBRARY_PATH ?= $(DQLITE_PATH)/.libs/:$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/
+export PKG_CONFIG_PATH ?= $(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/pkgconfig
+export CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
+TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
 
 .PHONY: default
 default: all
@@ -58,29 +70,93 @@ lxd-migrate:
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
 	@echo "LXD-MIGRATE built successfully"
 
-.PHONY: deps
-deps:
+.PHONY: dqlite
+dqlite:
 	# dqlite (+raft)
 	@if [ ! -e "$(DQLITE_PATH)" ]; then \
 		echo "Retrieving dqlite from ${DQLITE_BRANCH} branch"; \
 		git clone --depth=1 --branch "${DQLITE_BRANCH}" "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
 	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
-		echo "Updating existing dqlite branch"; \
-		cd "$(DQLITE_PATH)"; git pull; \
+		echo "Switching/updating dqlite to ${DQLITE_BRANCH} branch"; \
+		git -C "$(DQLITE_PATH)" fetch --depth=1 origin "${DQLITE_BRANCH}"; \
+		git -C "$(DQLITE_PATH)" checkout -B "${DQLITE_BRANCH}" FETCH_HEAD; \
 	fi
 
-	cd "$(DQLITE_PATH)" && \
-		autoreconf -i && \
-		./configure --enable-build-raft && \
-		make
+	@if [ ! -f "$(DQLITE_PATH)/Makefile" ]; then \
+		cd "$(DQLITE_PATH)" && \
+			autoreconf -i && \
+			./configure --enable-build-raft; \
+	fi
+	cd "$(DQLITE_PATH)" && make -j
 
-	# environment
-	@echo ""
-	@echo "Please set the following in your environment (possibly ~/.bashrc)"
-	@echo "export CGO_CFLAGS=\"-I$(DQLITE_PATH)/include/\""
-	@echo "export CGO_LDFLAGS=\"-L$(DQLITE_PATH)/.libs/\""
-	@echo "export LD_LIBRARY_PATH=\"$(DQLITE_PATH)/.libs/\""
-	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
+ifneq ($(shell command -v ldd),)
+	# verify that libdqlite.so is linked against some critically important libs
+	ldd "$(DQLITE_PATH)/.libs/libdqlite.so" | grep -wE 'liblz4|libsqlite3|libuv'
+	[ "$$(ldd "$(DQLITE_PATH)/.libs/libdqlite.so" | grep -cwE 'liblz4|libsqlite3|libuv')" = "3" ]
+	@echo "OK: libdqlite .so link check passed"
+endif
+
+.PHONY: liblxc
+liblxc:
+	# lxc/liblxc
+	@if [ ! -e "$(LIBLXC_PATH)" ]; then \
+		echo "Retrieving lxc/liblxc from $(LIBLXC_BRANCH) branch"; \
+		git clone --depth=1 --branch "$(LIBLXC_BRANCH)" "https://github.com/lxc/lxc" "$(LIBLXC_PATH)"; \
+	elif [ -e "$(LIBLXC_PATH)/.git" ]; then \
+		echo "Switching/updating lxc/liblxc to $(LIBLXC_BRANCH) branch"; \
+		git -C "$(LIBLXC_PATH)" fetch --depth=1 origin "$(LIBLXC_BRANCH)"; \
+		git -C "$(LIBLXC_PATH)" checkout -B "$(LIBLXC_BRANCH)" FETCH_HEAD; \
+	fi
+
+	@mkdir -p "$(LIBLXC_ROOTFS_MOUNT_PATH)"
+	@if [ ! -d "$(LIBLXC_PATH)/build" ]; then \
+		cd "$(LIBLXC_PATH)" && \
+			meson setup \
+				--buildtype=release \
+				-Dapparmor=true \
+				-Dcapabilities=true \
+				-Dcommands=false \
+				-Dexamples=false \
+				-Dinit-script=[] \
+				-Dlibdir="lib/$(ARCH)-linux-gnu" \
+				-Dman=false \
+				-Dmemfd-rexec=false \
+				-Dopenssl=false \
+				-Dprefix="$(LIBLXC_PATH)" \
+				-Drootfs-mount-path="$(LIBLXC_ROOTFS_MOUNT_PATH)" \
+				-Dsd-bus=disabled \
+				-Dseccomp=true \
+				-Dselinux=false \
+				-Dtests=false \
+				-Dtools=false \
+				build; \
+	fi
+	# LXC 5.0 installs bash completion to an absolute /usr path, so stage the
+	# installation to avoid requiring privileges for make deps.
+	@rm -rf "$(LIBLXC_INSTALL_STAGE)"
+	cd "$(LIBLXC_PATH)" && DESTDIR="$(LIBLXC_INSTALL_STAGE)" ninja -C build install
+	cp -a "$(LIBLXC_INSTALL_STAGE)$(LIBLXC_PATH)/." "$(LIBLXC_PATH)/"
+	@rm -rf "$(LIBLXC_INSTALL_STAGE)"
+
+ifneq ($(shell command -v ldd),)
+	# verify that liblxc.so is linked against some critically important libs
+	ldd "$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/liblxc.so" | grep -wE 'libapparmor|libcap|libseccomp'
+	[ "$$(ldd "$(LIBLXC_PATH)/lib/$(ARCH)-linux-gnu/liblxc.so" | grep -cwE 'libapparmor|libcap|libseccomp')" = "3" ]
+	@echo "OK: liblxc .so link check passed"
+endif
+
+.PHONY: env
+env:
+	@echo "export CGO_CFLAGS=\"$(CGO_CFLAGS)\""; \
+	 echo "export CGO_LDFLAGS=\"$(CGO_LDFLAGS)\""; \
+	 echo "export LD_LIBRARY_PATH=\"$(LD_LIBRARY_PATH)\""; \
+	 echo "export PKG_CONFIG_PATH=\"$(PKG_CONFIG_PATH)\""; \
+	 echo "export CGO_LDFLAGS_ALLOW=\"$(CGO_LDFLAGS_ALLOW)\""
+
+.PHONY: deps
+deps: dqlite liblxc
+	@echo ""; echo "# Please set the following in your environment (possibly ~/.bashrc)"
+	@$(MAKE) -s env
 
 .PHONY: update-gomod
 update-gomod:
@@ -207,6 +283,10 @@ dist: doc
 	# Download the dqlite library
 	git clone --depth=1 --branch "${DQLITE_BRANCH}" https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
 	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
+
+	# Download the liblxc library
+	git clone --depth=1 --branch "${LIBLXC_BRANCH}" https://github.com/lxc/lxc $(TMP)/lxd-$(VERSION)/vendor/liblxc
+	(cd $(TMP)/lxd-$(VERSION)/vendor/liblxc ; git rev-parse HEAD | tee .gitref)
 
 	# Copy doc output
 	cp -r doc/html $(TMP)/lxd-$(VERSION)/doc/html/
