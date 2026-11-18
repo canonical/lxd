@@ -1234,27 +1234,30 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # XXX: from this point onwards in this **specific job**, the private SSH key is
-      #      available through the SSH_AUTH_SOCK environment variable.
-      - uses: $/.github/actions/lp-snap-build
-        with:
-          repo: "git+ssh://lxdbot@git.launchpad.net/~lxd-snap/lxd"
-          ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}" # zizmor: ignore[secrets-outside-env]
-
       - name: Fast-forward private base branch
+        env:
+          GH_PROMPT_DISABLED: "1"
+          # Fine-grained PAT or GitHub App token scoped to canonical/lxd-private:
+          # Contents: Read and write, and Pull requests: Read and write.
+          GH_TOKEN: ${{ secrets.LXD_PRIVATE_REPO_TOKEN }}
         run: |
           set -eux
           set -o pipefail
 
           # Add the private LXD repository and rebase to incorporate private security fixes.
-          git remote add lxd-private git@github.com:canonical/lxd-private.git
+          timeout 30s gh auth setup-git --hostname github.com
+          git remote add lxd-private https://github.com/canonical/lxd-private.git
           git fetch lxd-private "${GITHUB_REF_NAME}"
+          privateBaseSha="$(git rev-parse "lxd-private/${GITHUB_REF_NAME}")"
           git checkout --quiet -B "lxd-private-${GITHUB_REF_NAME}" "lxd-private/${GITHUB_REF_NAME}"
           git rebase --quiet --no-stat "origin/${GITHUB_REF_NAME}"
 
           # Sync the rebased lxd-private branch back to the lxd-private repo so that it is kept in sync with the public repo.
           # Do this before any snapcraft.yaml modifications made below.
-          git push --quiet --force lxd-private HEAD:"${GITHUB_REF_NAME}"
+          if ! git push --quiet --force-with-lease="refs/heads/${GITHUB_REF_NAME}:${privateBaseSha}" lxd-private HEAD:"${GITHUB_REF_NAME}"; then
+            echo "::error::Private base branch changed concurrently; refusing to overwrite it"
+            exit 1
+          fi
 
       - name: Update private-repo PR branches
         env:
@@ -1286,6 +1289,13 @@ jobs:
               echo "::warning::Could not update ${pr_url}: ${update_output}"
             fi
           done <<< "${pr_list}"
+
+      # XXX: from this point onwards in this **specific job**, the private SSH key is
+      #      available through the SSH_AUTH_SOCK environment variable.
+      - uses: $/.github/actions/lp-snap-build
+        with:
+          repo: "git+ssh://lxdbot@git.launchpad.net/~lxd-snap/lxd"
+          ssh-key: "${{ secrets.LAUNCHPAD_LXD_BOT_KEY}}" # zizmor: ignore[secrets-outside-env]
 
       - name: Trigger Launchpad snap build
         run: |
