@@ -1,0 +1,39 @@
+processor	: 0
+BogoMIPS	: 108.00
+Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm lrcpc dcpop asimddp
+CPU implementer	: 0x41
+CPU architecture: 8
+CPU variant	: 0x4
+CPU part	: 0xd0b
+CPU revision	: 1
+
+processor	: 1
+BogoMIPS	: 108.00
+Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm lrcpc dcpop asimddp
+CPU implementer	: 0x41
+CPU architecture: 8
+CPU variant	: 0x4
+CPU part	: 0xd0b
+CPU revision	: 1
+
+processor	: 2
+BogoMIPS	: 108.00
+Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm lrcpc dcpop asimddp
+CPU implementer	: 0x41
+CPU architecture: 8
+CPU variant	: 0x4
+CPU part	: 0xd0b
+CPU revision	: 1
+
+processor	: 3
+BogoMIPS	: 108.00
+Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm lrcpc dcpop asimddp
+CPU implementer	: 0x41
+CPU architecture: 8
+CPU variant	: 0x4
+CPU part	: 0xd0b
+CPU revision	: 1
+
+Revision	: d04170
+Serial		: 62511f5a1550c74c
+Model		: Raspberry Pi 5 Model B Rev 1.0
