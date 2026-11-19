@@ -248,6 +248,11 @@ To harden your deployment, also harden the host's operating system (OS). These a
 - For Ubuntu systems, subscribe to [Ubuntu Pro](https://ubuntu.com/pro).
 - Use the latest [CIS hardening benchmarks](https://www.cisecurity.org/cis-benchmarks) for your OS.
 
+(howto-security-harden-kernel)=
+### Use a supported kernel
+
+Run LXD on a host with the {ref}`minimum supported kernel version <requirements-kernel>` or later, and apply all kernel security updates. LXD relies on kernel features such as namespaces, seccomp, AppArmor, and KVM to isolate instances from the host and from each other.
+
 (howto-security-harden-apparmor)=
 ### Use a host with AppArmor enabled
 
