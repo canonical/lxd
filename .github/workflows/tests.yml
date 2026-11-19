@@ -27,10 +27,6 @@ defaults:
 
 jobs:
   code-tests:
-    env:
-      CGO_CFLAGS: "-I${{ github.workspace }}/../lxd-test/vendor/raft/include/ -I${{ github.workspace }}/../lxd-test/vendor/dqlite/include/"
-      CGO_LDFLAGS: "-L${{ github.workspace }}/../lxd-test/vendor/raft/.libs -L${{ github.workspace }}/../lxd-test/vendor/dqlite/.libs/"
-      LD_LIBRARY_PATH: "${{ github.workspace }}/../lxd-test/vendor/raft/.libs/:${{ github.workspace }}/../lxd-test/vendor/dqlite/.libs/"
     name: Code
     runs-on: ubuntu-22.04
     steps:
@@ -42,33 +38,11 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Install dependencies
-        run: |
-          set -eux
-          sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
-          sudo apt-get update
+      - name: Install build dependencies
+        uses: ./.github/actions/install-lxd-builddeps
 
-          sudo apt-get install --no-install-recommends -y \
-            build-essential \
-            curl \
-            gettext \
-            git \
-            libacl1-dev \
-            libcap-dev \
-            libdbus-1-dev \
-            liblxc-dev \
-            lxc-templates \
-            libseccomp-dev \
-            libselinux-dev \
-            libsqlite3-dev \
-            libtool \
-            libudev-dev \
-            libuv1-dev \
-            make \
-            pkg-config \
-            shellcheck
-
-          python3 -m pip install flake8
+      - name: Install Python dependencies
+        run: python3 -m pip install flake8
 
       - name: Download go dependencies
         run: |
@@ -84,11 +58,10 @@ jobs:
           tar -xzf lxd-test.tar.gz -C "${GITHUB_WORKSPACE}/.."
           rm lxd-test.tar.gz
 
-      - name: Build LXD dependencies
-        run: |
-          set -eux
-          cd "${GITHUB_WORKSPACE}/../lxd-test"
-          make deps
+      - name: Build or restore LXD C dependencies
+        uses: ./.github/actions/cache-lxd-builddeps
+        with:
+          export-env: true
 
       - name: Run LXD build
         run: |
@@ -106,7 +79,35 @@ jobs:
       - name: Unit tests (all)
         run: |
           set -eux
-          sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" go test ./...
+          sudo --preserve-env=CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,LD_LIBRARY_PATH,LD_RUN_PATH,PKG_CONFIG_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} env "PATH=${PATH}" go test ./...
+
+      - name: Upload system test dependencies
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: system-test-deps
+          path: |
+            /home/runner/go/bin/fuidshift
+            /home/runner/go/bin/lxc
+            /home/runner/go/bin/lxc-to-lxd
+            /home/runner/go/bin/lxd
+            /home/runner/go/bin/lxd-agent
+            /home/runner/go/bin/lxd-benchmark
+            /home/runner/go/bin/lxd-p2c
+            /home/runner/go/bin/xgettext-go
+          retention-days: 1
+
+      - name: Upload system test C dependencies
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: system-test-c-deps
+          # make deps cherry-picks the snap's LXC patches, so preserve the Git
+          # metadata together with the compiled .libs directories.
+          include-hidden-files: true
+          path: |
+            /home/runner/go/deps/raft
+            /home/runner/go/deps/dqlite
+            /home/runner/go/deps/liblxc
+          retention-days: 1
 
   system-tests:
     env:
@@ -117,11 +118,9 @@ jobs:
       LXD_VERBOSE: "1"
       LXD_OFFLINE: "1"
       LXD_TMPFS: "1"
-      CGO_CFLAGS: "-I/home/runner/go/deps/raft/include/ -I/home/runner/go/deps/dqlite/include/"
-      CGO_LDFLAGS: "-L/home/runner/go/deps/raft/.libs -L/home/runner/go/deps/dqlite/.libs/"
-      LD_LIBRARY_PATH: "/home/runner/go/deps/raft/.libs/:/home/runner/go/deps/dqlite/.libs/"
     name: System
     runs-on: ubuntu-22.04
+    needs: code-tests
     strategy:
       fail-fast: false
       matrix:
@@ -187,7 +186,6 @@ jobs:
       - name: Install dependencies
         run: |
           set -eux
-          sudo add-apt-repository ppa:ubuntu-lxc/daily -y --no-update
           sudo apt-get update
 
           sudo systemctl mask lxc.service lxc-net.service
@@ -198,7 +196,6 @@ jobs:
             libacl1-dev \
             libcap-dev \
             libdbus-1-dev \
-            liblxc-dev \
             libseccomp-dev \
             libselinux-dev \
             libsqlite3-dev \
@@ -241,21 +238,29 @@ jobs:
           set -eux
           go mod download
 
-      - name: Install xgettext-go
-        run: |
-          set -eux
-          # XXX: during the LXD build step, `make i18n` cannot install
-          #      xgettext-go due to being in LXD_OFFLINE mode. Furthermore, the
-          #      Makefile uses `go get` which is no longer supported outside of
-          #      a module with Go 1.18
-          cd /
-          go install -v -x github.com/snapcore/snapd/i18n/xgettext-go@2.57.1
+      - name: Download system test C dependencies
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: system-test-c-deps
+          path: /home/runner/go/deps
 
-      - name: Run LXD build
+      - name: Build or restore LXD C dependencies
+        uses: ./.github/actions/cache-lxd-builddeps
+        with:
+          export-env: true
+
+      - name: Download system test dependencies
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: system-test-deps
+          merge-multiple: true
+          path: /home/runner/go/bin
+
+      - name: Set exec perms on LXD binaries
         run: |
           set -eux
-          make deps
-          make
+          ls -lR /home/runner/go/bin/
+          chmod uog+x /home/runner/go/bin/*
 
       - name: Setup MicroCeph
         if: ${{ matrix.backend == 'ceph' }}
@@ -270,7 +275,8 @@ jobs:
           chmod +x ~
           echo "root:1000000:1000000000" | sudo tee /etc/subuid /etc/subgid
           cd test
-          sudo --preserve-env=PATH,GOPATH,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,LD_LIBRARY_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
+          export PATH="/home/runner/go/bin:$PATH"
+          sudo --preserve-env=PATH,GOPATH,GITHUB_ACTIONS,LXD_VERBOSE,LXD_BACKEND,LXD_CEPH_CLUSTER,LXD_CEPH_CEPHFS,LXD_CEPH_CEPHOBJECT_RADOSGW,LXD_OFFLINE,LXD_SKIP_TESTS,LXD_REQUIRED_TESTS,CGO_CFLAGS,CGO_LDFLAGS,CGO_LDFLAGS_ALLOW,LD_LIBRARY_PATH,LD_RUN_PATH,PKG_CONFIG_PATH LD_LIBRARY_PATH=${LD_LIBRARY_PATH} LXD_BACKEND=${{ matrix.backend }} ./main.sh ${{ matrix.suite }}
 
   client:
     name: Client
@@ -282,6 +288,7 @@ jobs:
           - macos-latest
           - windows-latest
     runs-on: ${{ matrix.os }}
+    needs: code-tests
 
     steps:
       - name: Checkout code
@@ -334,6 +341,7 @@ jobs:
   lxd-migrate:
     name: Test lxd-migrate build
     runs-on: ubuntu-22.04
+    needs: code-tests
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -352,6 +360,7 @@ jobs:
   documentation:
     name: Documentation
     runs-on: ubuntu-22.04
+    needs: code-tests
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -1,0 +1,35 @@
+name: Install LXD build dependencies
+description: Installs LXD build dependencies
+
+runs:
+  using: composite
+  steps:
+    - name: Installs LXD build dependencies
+      shell: bash
+      run: |
+        set -eux
+        sudo timeout 10m apt-get update
+
+        sudo timeout 10m apt-get install --no-install-recommends -y \
+          autoconf \
+          automake \
+          build-essential \
+          gettext \
+          git \
+          libacl1-dev \
+          libapparmor-dev \
+          libcap-dev \
+          libgnutls28-dev \
+          liblz4-dev \
+          libseccomp-dev \
+          libselinux1-dev \
+          libsqlite3-dev \
+          libtool \
+          libudev-dev \
+          libuv1-dev \
+          make \
+          pkg-config \
+          python3-venv \
+          shellcheck
+
+        sudo apt-get clean

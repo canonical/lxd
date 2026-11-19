@@ -6,20 +6,33 @@ POTFILE=po/$(DOMAIN).pot
 VERSION=$(or ${CUSTOM_VERSION},$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2))
 ARCHIVE=lxd-$(VERSION).tar
 HASH := \#
-TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
 GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 SPHINXENV=doc/.sphinx/venv/bin/activate
+RAFT_REF=abf9c42a9bb63c24920ab9f0bfbc4b7a47e7e5f4
+DQLITE_REF=50ee9af350b2fb4e79f9eb58db22c8a0927138de
+# Keep LIBLXC_REF and LIBLXC_PATCHES in sync with the lxc part in snap/snapcraft.yaml.
+LIBLXC_REF=lxc-4.0.12
+LIBLXC_PATCHES=ca4c25c6e9ebb92f9e241ef9a231d4a715cb812d:f314419d1e054f7833b6976ec5ed32373aace622:71ba7f65616e72a313e2a41615e449178da9daf2:f7446b4e10d71f79f9f3952255608268842ee1f3:f1c4a17e7df5d819b1b170917865e2e458c8e5db:8ef019a6ce2555f7b438b3841ab5216e5d6973ba:3b9f84fd2397d06782bbf67dc8421463c43ab139:5ba5725cb4a210c25707beeca64fde5f561d1c71
 
 ifneq "$(wildcard vendor)" ""
-	RAFT_PATH=$(CURDIR)/vendor/raft
-	DQLITE_PATH=$(CURDIR)/vendor/dqlite
+	DEPS_PATH=$(CURDIR)/vendor
 else
-	RAFT_PATH=$(GOPATH)/deps/raft
-	DQLITE_PATH=$(GOPATH)/deps/dqlite
+	DEPS_PATH=$(GOPATH)/deps
 endif
+RAFT_PATH=$(DEPS_PATH)/raft
+DQLITE_PATH=$(DEPS_PATH)/dqlite
+LIBLXC_PATH=$(DEPS_PATH)/liblxc
+LIBLXC_ROOTFS_MOUNT_PATH=$(LIBLXC_PATH)/rootfs
+LIBLXC_INSTALL_STAGE=$(LIBLXC_PATH)/install-stage
 
-	# raft
+export CGO_CFLAGS ?= -I$(RAFT_PATH)/include/ -I$(DQLITE_PATH)/include/ -I$(LIBLXC_PATH)/include/
+export CGO_LDFLAGS ?= -L$(RAFT_PATH)/.libs/ -L$(DQLITE_PATH)/.libs/ -L$(LIBLXC_PATH)/lib/
+export LD_LIBRARY_PATH ?= $(RAFT_PATH)/.libs/:$(DQLITE_PATH)/.libs/:$(LIBLXC_PATH)/lib/
+export PKG_CONFIG_PATH ?= $(LIBLXC_PATH)/lib/pkgconfig
+export CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
+TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
+
 .PHONY: default
 default: build
 
@@ -50,36 +63,105 @@ lxd-p2c:
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-p2c
 	@echo "LXD-P2C built successfully"
 
-.PHONY: deps
-deps:
+.PHONY: raft
+raft:
+	# raft
 	@if [ ! -e "$(RAFT_PATH)" ]; then \
 		git clone "https://github.com/canonical/raft" "$(RAFT_PATH)"; \
-		cd "$(RAFT_PATH)"; git reset --hard abf9c42a9bb63c24920ab9f0bfbc4b7a47e7e5f4; \
+	fi
+	git -C "$(RAFT_PATH)" fetch origin
+	git -C "$(RAFT_PATH)" checkout --detach "$(RAFT_REF)"
+
+	@if [ ! -f "$(RAFT_PATH)/Makefile" ]; then \
+		cd "$(RAFT_PATH)" && \
+			autoreconf -i && \
+			./configure; \
+	fi
+	cd "$(RAFT_PATH)" && make -j
+
+	@if command -v ldd >/dev/null 2>&1; then \
+		ldd "$(RAFT_PATH)/.libs/libraft.so" | grep -wE 'liblz4|libuv'; \
+		[ "$$(ldd "$(RAFT_PATH)/.libs/libraft.so" | grep -cwE 'liblz4|libuv')" = "2" ]; \
+		echo "OK: libraft .so link check passed"; \
 	fi
 
-	cd "$(RAFT_PATH)" && \
-		autoreconf -i && \
-		./configure && \
-		make
-
+.PHONY: dqlite
+dqlite:
 	# dqlite
 	@if [ ! -e "$(DQLITE_PATH)" ]; then \
 		git clone "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
-		cd "$(DQLITE_PATH)"; git reset --hard 50ee9af350b2fb4e79f9eb58db22c8a0927138de; \
+	fi
+	git -C "$(DQLITE_PATH)" fetch origin
+	git -C "$(DQLITE_PATH)" checkout --detach "$(DQLITE_REF)"
+
+	@if [ ! -f "$(DQLITE_PATH)/Makefile" ]; then \
+		cd "$(DQLITE_PATH)" && \
+			autoreconf -i && \
+			PKG_CONFIG_PATH="$(RAFT_PATH)" ./configure; \
+	fi
+	cd "$(DQLITE_PATH)" && make -j CFLAGS="-I$(RAFT_PATH)/include/" LDFLAGS="-L$(RAFT_PATH)/.libs/"
+
+	@if command -v ldd >/dev/null 2>&1; then \
+		ldd "$(DQLITE_PATH)/.libs/libdqlite.so" | grep -wE 'libraft|libsqlite3|libuv'; \
+		[ "$$(ldd "$(DQLITE_PATH)/.libs/libdqlite.so" | grep -cwE 'libraft|libsqlite3|libuv')" = "3" ]; \
+		echo "OK: libdqlite .so link check passed"; \
 	fi
 
-	cd "$(DQLITE_PATH)" && \
-		autoreconf -i && \
-		PKG_CONFIG_PATH="$(RAFT_PATH)" ./configure && \
-		make CFLAGS="-I$(RAFT_PATH)/include/" LDFLAGS="-L$(RAFT_PATH)/.libs/"
+.PHONY: liblxc
+liblxc:
+	# lxc/liblxc
+	@if [ ! -e "$(LIBLXC_PATH)" ]; then \
+		git clone "https://github.com/lxc/lxc" "$(LIBLXC_PATH)"; \
+	fi
+	git -C "$(LIBLXC_PATH)" fetch origin
+	git -C "$(LIBLXC_PATH)" checkout --detach "$(LIBLXC_REF)"
+	@for patch in $(subst :, ,$(LIBLXC_PATCHES)); do \
+		git -C "$(LIBLXC_PATH)" -c user.name=lxd-deps -c user.email=noreply@lists.canonical.com cherry-pick "$${patch}"; \
+	done
 
-	# environment
-	@echo ""
-	@echo "Please set the following in your environment (possibly ~/.bashrc)"
-	@echo "export CGO_CFLAGS=\"-I$(RAFT_PATH)/include/ -I$(DQLITE_PATH)/include/\""
-	@echo "export CGO_LDFLAGS=\"-L$(RAFT_PATH)/.libs -L$(DQLITE_PATH)/.libs/\""
-	@echo "export LD_LIBRARY_PATH=\"$(RAFT_PATH)/.libs/:$(DQLITE_PATH)/.libs/\""
-	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
+	@mkdir -p "$(LIBLXC_ROOTFS_MOUNT_PATH)"
+	@if [ ! -f "$(LIBLXC_PATH)/Makefile" ]; then \
+		cd "$(LIBLXC_PATH)" && \
+			./autogen.sh && \
+			./configure \
+				--prefix="$(LIBLXC_PATH)" \
+				--disable-api-docs \
+				--disable-bash \
+				--disable-doc \
+				--disable-examples \
+				--disable-memfd-rexec \
+				--disable-tests \
+				--disable-tools \
+				--enable-apparmor \
+				--enable-seccomp \
+				--enable-selinux \
+				--enable-capabilities \
+				--with-rootfs-path="$(LIBLXC_ROOTFS_MOUNT_PATH)" \
+				--libexecdir="$(LIBLXC_PATH)/libexec"; \
+	fi
+	@rm -rf "$(LIBLXC_INSTALL_STAGE)"
+	cd "$(LIBLXC_PATH)" && make -j && DESTDIR="$(LIBLXC_INSTALL_STAGE)" make install
+	cp -a "$(LIBLXC_INSTALL_STAGE)$(LIBLXC_PATH)/." "$(LIBLXC_PATH)/"
+	@rm -rf "$(LIBLXC_INSTALL_STAGE)"
+
+	@if command -v ldd >/dev/null 2>&1; then \
+		ldd "$(LIBLXC_PATH)/lib/liblxc.so" | grep -wE 'libcap|libseccomp|libselinux'; \
+		[ "$$(ldd "$(LIBLXC_PATH)/lib/liblxc.so" | grep -cwE 'libcap|libseccomp|libselinux')" = "3" ]; \
+		echo "OK: liblxc .so link check passed"; \
+	fi
+
+.PHONY: env
+env:
+	@echo "export CGO_CFLAGS=\"$(CGO_CFLAGS)\""; \
+	 echo "export CGO_LDFLAGS=\"$(CGO_LDFLAGS)\""; \
+	 echo "export LD_LIBRARY_PATH=\"$(LD_LIBRARY_PATH)\""; \
+	 echo "export PKG_CONFIG_PATH=\"$(PKG_CONFIG_PATH)\""; \
+	 echo "export CGO_LDFLAGS_ALLOW=\"$(CGO_LDFLAGS_ALLOW)\""
+
+.PHONY: deps
+deps: raft dqlite liblxc
+	@echo ""; echo "# Please set the following in your environment (possibly ~/.bashrc)"
+	@$(MAKE) -s env
 
 .PHONY: update
 update:
@@ -189,12 +271,20 @@ dist: doc
 
 	# Download the dqlite libraries
 	git clone https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
-	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git reset --hard 50ee9af350b2fb4e79f9eb58db22c8a0927138de)
+	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git reset --hard "$(DQLITE_REF)")
 	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
 	git clone https://github.com/canonical/raft $(TMP)/lxd-$(VERSION)/vendor/raft
-	(cd $(TMP)/lxd-$(VERSION)/vendor/raft ; git reset --hard abf9c42a9bb63c24920ab9f0bfbc4b7a47e7e5f4)
+	(cd $(TMP)/lxd-$(VERSION)/vendor/raft ; git reset --hard "$(RAFT_REF)")
 	(cd $(TMP)/lxd-$(VERSION)/vendor/raft ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
+
+	# Download the liblxc library
+	git clone https://github.com/lxc/lxc $(TMP)/lxd-$(VERSION)/vendor/liblxc
+	(cd $(TMP)/lxd-$(VERSION)/vendor/liblxc ; git checkout --detach "$(LIBLXC_REF)")
+	@for patch in $(subst :, ,$(LIBLXC_PATCHES)); do \
+		git -C $(TMP)/lxd-$(VERSION)/vendor/liblxc -c user.name=lxd-deps -c user.email=noreply@lists.canonical.com cherry-pick "$${patch}"; \
+	done
+	(cd $(TMP)/lxd-$(VERSION)/vendor/liblxc ; git rev-parse HEAD | tee .gitref)
 
 	# Copy doc output
 	cp -r doc/html $(TMP)/lxd-$(VERSION)/doc/html/

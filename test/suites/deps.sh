@@ -1,3 +1,3 @@
 test_check_deps() {
-  ! ldd "$(command -v lxc)" | grep -q liblxc || false
+  ! ldd "$(unset -f lxc; command -v lxc)" | grep -q liblxc || false
 }

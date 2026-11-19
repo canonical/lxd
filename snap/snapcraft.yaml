@@ -1036,6 +1036,8 @@ parts:
 
   # Core components
   lxc:
+    # Keep source-tag and these cherry-picks in sync with LIBLXC_REF and
+    # LIBLXC_PATCHES in Makefile.
     after:
       - libseccomp
     source: https://github.com/lxc/lxc
