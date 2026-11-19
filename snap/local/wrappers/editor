@@ -101,6 +101,7 @@ fi
 for vimrc in "${SNAP_USER_COMMON}/.vimrc" "/snap/${SNAP_BASE}/current/etc/vim/vimrc"; do
     [ -r "${vimrc}" ] || continue
     export VIMINIT="source ${vimrc}"
+    break
 done
 
 # Ignore vimrc if none was found to be readable.
