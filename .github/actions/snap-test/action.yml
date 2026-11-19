@@ -34,10 +34,22 @@ inputs:
     default: ""
     required: false
   microceph-channel:
-    description: MicroCeph snap channel to use
+    description: MicroCeph snap channel to use (empty to skip seeding it)
     # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
     # Revert the default to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
     default: "tentacle/stable"
+    required: false
+  microovn-channel:
+    description: MicroOVN snap channel to use (empty to skip setting up MicroOVN)
+    default: "latest/edge"
+    required: false
+  microovn-core:
+    description: Base snap used by the selected MicroOVN channel
+    default: "core26"
+    required: false
+  cores:
+    description: Space separated list of core snaps to seed the snap dependencies cache with
+    default: "core26 core24 core22"
     required: false
 
 runs:
@@ -76,7 +88,10 @@ runs:
       with:
         snap-cache-dir: ${{ inputs.snap-cache-dir }}
         cache-key-suffix: ${{ inputs.snap-cache-key-suffix }}
+        cores: ${{ inputs.cores }}
+        lxd-channel: ${{ inputs.channel }}
         microceph-channel: ${{ inputs.microceph-channel }}
+        microovn-channel: ${{ inputs.microovn-channel }}
 
     - name: Download system test dependencies
       if: ${{ inputs.sideload == 'true' }}
@@ -126,9 +141,12 @@ runs:
         microceph-channel: ${{ inputs.microceph-channel }}
 
     - name: Setup MicroOVN
+      if: ${{ inputs.microovn-channel != '' }}
       uses: $/.github/actions/setup-microovn
       with:
         snap-cache-dir: ${{ inputs.snap-cache-dir }}
+        microovn-channel: ${{ inputs.microovn-channel }}
+        microovn-core: ${{ inputs.microovn-core }}
 
     - name: Install Node
       if: ${{ startsWith(inputs.test, 'ui ') }}
