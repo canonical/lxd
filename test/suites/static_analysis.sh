@@ -21,7 +21,17 @@ test_static_analysis() {
 
     # Shell static analysis
     if command -v shellcheck >/dev/null 2>&1; then
-      shellcheck -e SC2086 -e SC2269 -e SC2295 --shell sh test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh
+      # The snap test helpers are bash only so they are checked separately
+      sh_files=""
+      for f in test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh; do
+        case "${f}" in
+          test/local-snap.sh|test/includes/snap.sh|test/includes/snap-helpers.sh|test/includes/coverage.sh) ;;
+          *) sh_files="${sh_files} ${f}" ;;
+        esac
+      done
+      # shellcheck disable=SC2086
+      shellcheck -e SC2086 -e SC2269 -e SC2295 --shell sh ${sh_files}
+      shellcheck --shell bash test/local-snap.sh test/includes/snap.sh test/includes/snap-helpers.sh test/includes/coverage.sh
     else
       echo "shellcheck not found, shell static analysis disabled"
     fi
