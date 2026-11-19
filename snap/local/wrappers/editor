@@ -11,7 +11,7 @@ run_cmd() {
     fi
 
     export USER="${USERNAME}"
-    if [ "${HOME}" != "/root" ] && [ "${CMD}" = "nano" ]; then
+    if [ "${HOME}" != "/root" ] && [ "${CMD##*/}" = "nano" ]; then
         export XDG_DATA_HOME="${HOME}/.local/share"
         if [ ! -d "/var/lib/snapd/hostfs/${XDG_DATA_HOME}" ]; then
             echo "Instructing nano to ignore RC files due to missing directory: \"${XDG_DATA_HOME}\""
@@ -34,6 +34,18 @@ USERNS=1
 [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ] && grep -qxF 1 /proc/sys/kernel/apparmor_restrict_unprivileged_userns && USERNS=0
 
 find_and_spawn() {
+    case "${1}" in
+        /*)
+            if [ -e "/var/lib/snapd/hostfs${1}" ] || [ -L "/var/lib/snapd/hostfs${1}" ]; then
+                run_cmd "$@"
+            fi
+
+            return
+            ;;
+        *)
+            ;;
+    esac
+
     for path in / /usr/ /usr/local/; do
         if [ -e "/var/lib/snapd/hostfs/${path}bin/${1}" ] || [ -L "/var/lib/snapd/hostfs/${path}bin/${1}" ]; then
             run_cmd "$@"
