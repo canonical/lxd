@@ -1,0 +1,36 @@
+name: Reclaim memory
+description: Turn off unneeded services to free up memory
+
+runs:
+  using: composite
+  steps:
+    - name: Reclaim memory
+      shell: bash
+      run: |
+        set -eux
+
+        free -mt
+
+        # turn off all .timer
+        (
+          set -eux
+          cd /etc/systemd/system/timers.target.wants/
+          sudo systemctl disable --now *.timer || true
+        )
+
+        # turn off .socket and .service that are not relevant on a CI runner
+        for u in iscsid multipathd; do
+          sudo systemctl disable --now "${u}.socket" || true
+        done
+
+        for u in cron irqbalance mono-xsp4 multipathd networkd-dispatcher php8.1-fpm php8.3-fpm unattended-upgrades; do
+          sudo systemctl disable --now "${u}.service" || true
+        done
+
+        # the mono service doesn't cleanly stop so use pkill
+        sudo pkill --echo -x mono || true
+
+        # the podman `systemctl --user` service doesn't cleanly stop so use pkill
+        sudo pkill --echo podman -u runner || true
+
+        free -mt
