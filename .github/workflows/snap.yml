@@ -46,6 +46,11 @@ env:
   # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
   # Revert to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
   MICROCEPH_SNAP_CHANNEL: "tentacle/stable"
+  # Only seed the snaps cache with the bases needed by this branch: core26 for LXD and MicroOVN, core24 for MicroCeph
+  # (core26 also covers MicroCeph latest/edge once the `tentacle/stable` workaround above is reverted)
+  SNAP_CORES: "core26 core24"
+  MICROOVN_SNAP_CHANNEL: "latest/edge"
+  MICROOVN_SNAP_CORE: "core26"
 
 jobs:
   # Prime the images/snaps caches once so the (potentially large) snap-tests
@@ -72,7 +77,10 @@ jobs:
           prime-cache-only: true
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
           cache-key-suffix: ${{ github.run_id }}
+          cores: ${{ env.SNAP_CORES }}
+          lxd-channel: latest/${{ inputs.snap-risk || 'edge' }}
           microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
+          microovn-channel: ${{ env.MICROOVN_SNAP_CHANNEL }}
 
   snap-tests:
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
@@ -154,7 +162,10 @@ jobs:
           image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
           snap-cache-key-suffix: ${{ github.run_id }}
+          cores: ${{ env.SNAP_CORES }}
           microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
+          microovn-channel: ${{ env.MICROOVN_SNAP_CHANNEL }}
+          microovn-core: ${{ env.MICROOVN_SNAP_CORE }}
 
       - name: Tmate debugging session
         if: ${{ failure() && inputs.tmate-debug }}
