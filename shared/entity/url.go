@@ -111,10 +111,7 @@ func (t Type) URLFromNamedArgs(projectName string, location string, pathArgument
 // Type requires a project, then api.ProjectDefaultName is returned as the project name. The returned location is the
 // value of the "target" query parameter. All returned values are unescaped.
 func ParseURL(u url.URL) (entityType Type, projectName string, location string, pathArguments []string, err error) {
-	path := u.Path
-	if u.RawPath != "" {
-		path = u.RawPath
-	}
+	path := u.EscapedPath()
 
 	pathSuffix, found := strings.CutPrefix(path, "/"+version.APIVersion+"/")
 	if !found {
