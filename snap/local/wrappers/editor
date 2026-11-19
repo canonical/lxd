@@ -7,20 +7,19 @@ run_cmd() {
     export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     export HOME="${SNAP_REAL_HOME}"
     export USER="${USERNAME}"
-    IGNORERCFILES=""
     if [ "${HOME}" != "/root" ] && [ "${CMD}" = "nano" ]; then
         export XDG_DATA_HOME="${HOME}/.local/share"
         if [ ! -d "/var/lib/snapd/hostfs/${XDG_DATA_HOME}" ]; then
             echo "Instructing nano to ignore RC files due to missing directory: \"${XDG_DATA_HOME}\""
-           IGNORERCFILES="--ignorercfiles"
+            set -- "--ignorercfiles" "$@"
         fi
     fi
 
     # Use --propagation slave so unmounts in the parent namespace propagate to
     # the editor's namespace. This prevents leftover mounts (ZFS/LVM) from
     # blocking storage delete operations while the editor is open.
-    # shellcheck disable=SC2145
-    exec unshare --kill-child -U -m --propagation slave -p -r -f --root="/var/lib/snapd/hostfs/" "/bin/sh" -c "mount -t proc proc /proc 2>/dev/null || true; exec \"${CMD}\" ${IGNORERCFILES} \"$@\""
+    exec unshare --kill-child -U -m --propagation slave -p -r -f --root="/var/lib/snapd/hostfs/" \
+        "/bin/sh" -c 'mount -t proc proc /proc 2>/dev/null || true; exec "$@"' _ "${CMD}" "$@"
 }
 
 # Detect base name
@@ -38,13 +37,28 @@ find_and_spawn() {
     done
 }
 
-EDIT_CMD="${1}"
-EDIT_PATH="${2}"
-if [ -z "${EDIT_PATH}" ] || [ "$#" -ge "3" ]; then
-    EDIT_CMD=""
-    for arg in "${@}"; do
-        EDIT_PATH="${arg}"
-    done
+if [ -n "${LXD_EDITOR:-}" ]; then
+    EDIT_PATH="${1}"
+    EDIT_IFS="${IFS}"
+    unset IFS
+    set -f
+    # shellcheck disable=SC2086
+    set -- ${LXD_EDITOR}
+    set +f
+    IFS="${EDIT_IFS}"
+    EDIT_CMD="${1:-}"
+    [ "$#" -eq 0 ] || shift
+    EDIT_FROM_ENV=1
+else
+    EDIT_FROM_ENV=0
+    EDIT_CMD="${1}"
+    EDIT_PATH="${2}"
+    if [ -z "${EDIT_PATH}" ] || [ "$#" -ge "3" ]; then
+        EDIT_CMD=""
+        for arg in "$@"; do
+            EDIT_PATH="${arg}"
+        done
+    fi
 fi
 
 # Default to trying nano if no editor is provided
@@ -57,7 +71,12 @@ if [ -n "${EDIT_CMD}" ] && [ "${USERNS}" = 1 ]; then
     exec 9< /tmp/
     # Replace "/tmp/" prefix by exec'ed FD 9.
     EDIT_PATH_HOST="/proc/self/fd/9/${EDIT_PATH##*/}"
-    find_and_spawn "${EDIT_CMD}" "${EDIT_PATH_HOST}"
+    if [ "${EDIT_FROM_ENV}" = 1 ]; then
+        find_and_spawn "${EDIT_CMD}" "$@" "${EDIT_PATH_HOST}"
+    else
+        find_and_spawn "${EDIT_CMD}" "${EDIT_PATH_HOST}"
+    fi
+
 fi
 
 # Fallback to using vim.tiny from base snap
