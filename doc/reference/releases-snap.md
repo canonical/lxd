@@ -21,27 +21,46 @@ LXD follows the [Ubuntu release cycle](https://ubuntu.com/about/release-cycle) c
 (ref-releases-lts-support)=
 #### Support
 
-LTS releases receive standard support for five years, meaning that it receives continuous updates according to the support levels described below. An [Ubuntu Pro](https://ubuntu.com/pro) subscription can provide additional support and extends the support duration by an additional five years.
+LTS releases receive standard support, which includes standard security maintenance, for 5 years, with continuous updates at the following levels:
 
-(ref-releases-lts-support-levels)=
-#### Support levels
+- **Full support** (first 2 years): Some new features and bugfixes are provided every six months, and vulnerability fixes as needed. This schedule is an estimate that can change based on priorities and discovered bugs.
+- **Maintenance support** (remaining 3 years): High-impact bugfixes, including fixes for critical and high vulnerabilities, are provided as needed.
 
-Standard support for an LTS release starts at full support for its first two years, then moves to maintenance support for the remaining three years. Once an LTS reaches End of Life (EOL), it no longer receives any updates.
-
-- **Full support**: Some new features, frequent bugfixes, and security updates are provided every six months. This schedule is an estimate that can change based on priorities and discovered bugs.
-- **Maintenance support**: High impact bugfixes and critical security updates are provided as needed.
+An [Ubuntu Pro](https://ubuntu.com/pro) subscription extends security maintenance to 10 years from release with Expanded Security Maintenance (ESM), and to 15 years with the Legacy add-on.
 
 (ref-releases-lts-support-current)=
 #### Currently supported
 
-The currently supported LTS releases are 6.10._z_, 5.21._z_, and 5.0._z_.
+```{list-table}
+   :header-rows: 1
 
-- 6.10._z_ is supported until June 2031.
-  - Currently in full support phase.
-- 5.21._z_ is supported until June 2029.
-  - Currently in maintenance support phase.
-- 5.0._z_ is supported until June 2027.
-  - Currently in maintenance support phase.
+* - Version
+  - Released
+  - Current support level
+  - End of standard support
+  - End of ESM (Ubuntu Pro)
+  - End of Legacy add-on (Ubuntu Pro)
+* - 6.10._z_
+  - 2026
+  - Full support
+  - Jun 2031
+  - May 2036
+  - May 2041
+* - 5.21._z_
+  - 2024
+  - Maintenance support
+  - Jun 2029
+  - May 2034
+  - Not available
+* - 5.0._z_
+  - 2022
+  - Maintenance support
+  - Jun 2027
+  - May 2032
+  - Not available
+```
+
+For the most up-to-date information, see the [LXD support and release cycle table](https://ubuntu.com/about/release-cycle?product=lxd&release=lxd) on the Ubuntu website.
 
 (ref-releases-lts-kernel-support)=
 #### Kernel support
@@ -52,9 +71,9 @@ Interim HWE kernels are only tentatively supported.
 
 | LXD version | Ubuntu release | GA Kernel (Supported) | HWE Kernel (Best effort) |
 | :---------- | :------------- | :-------------------- | :----------------------- |
-| 6.10 | 26.04 LTS (Resolute) | 7.0 | 7.0 |
-| 5.21 | 24.04 LTS (Noble) | 6.8 | 7.0 |
-| 5.0 | 22.04 LTS (Jammy) | 5.15 | 6.8 |
+| 6.10._z_ | 26.04 LTS (Resolute) | 7.0 | 7.0 |
+| 5.21._z_ | 24.04 LTS (Noble) | 6.8 | 7.0 |
+| 5.0._z_ | 22.04 LTS (Jammy) | 5.15 | 6.8 |
 
 For more information on Ubuntu kernel support, please refer to the [Ubuntu kernel lifecycle](https://ubuntu.com/kernel/lifecycle).
 
