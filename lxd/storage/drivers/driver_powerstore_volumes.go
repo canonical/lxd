@@ -615,15 +615,7 @@ func (d *powerstore) DeleteVolume(vol Volume, progressReporter ioprogress.Progre
 		// If the host exists and the volume is mapped to it, delete the volume mapping.
 		// Skip the detach request for an unmapped volume as the array would reject it
 		// and record a failed detach event in its audit log.
-		mapped := false
-		for _, mapping := range host.MappedVolumes {
-			if mapping.VolumeID == volID {
-				mapped = true
-				break
-			}
-		}
-
-		if mapped {
+		if host.VolumeMapping(volID) != nil {
 			// If the mapping disappeared in the meantime, continue with the deletion.
 			err = client.DetachVolumeFromHost(volID, host.ID)
 			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
