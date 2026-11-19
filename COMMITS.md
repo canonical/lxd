@@ -29,4 +29,5 @@ Depending on complexity, large changes should be split into smaller, logical com
 
 ## Commit message
 
+- Commit message title should usually be line-wrapped to 120 chars.
 - Commit message body should usually be line-wrapped to 80 chars.
