@@ -91,6 +91,7 @@ For details about the DevLXD implementation and authentication, see {ref}`dev-lx
 ## Container security
 
 LXD containers can use a wide range of features for security.
+For details on how to harden container security, see {ref}`howto-security-harden-instance`.
 
 Also see the [LXC security page](https://linuxcontainers.org/lxc/security/) on `linuxcontainers.org` for details on LXC container security and the applied kernel features.
 
@@ -120,6 +121,8 @@ These measures are valuable when running trusted workloads, but they do not make
 
 Therefore, you should not use privileged containers unless required.
 If you use them, make sure to put appropriate security measures in place.
+
+For details about how to restrict the use of privileged containers, see {ref}`howto-security-harden-unprivileged`.
 
 ## Network security
 

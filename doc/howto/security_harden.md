@@ -102,7 +102,15 @@ Rather than applying these options on a per-instance basis, use either {ref}`pro
 (howto-security-harden-unprivileged)=
 ### Use unprivileged containers
 
-By default, LXD containers are unprivileged. If you need to use privileged containers, make sure to put appropriate security measures in place. For more information, see {ref}`container-security`.
+By default, LXD containers are unprivileged. If you need to use privileged containers, make sure to put appropriate security measures in place. For details about unprivileged and privileged containers, see {ref}`container-security`.
+
+To prevent a project from using privileged containers, enable {ref}`project restrictions <project-restrictions>`. The default value of the {config:option}`project-restricted:restricted.containers.privilege` option is `unprivileged`, which prevents the use of privileged containers.
+
+```{warning}
+Once a container has run in privileged mode, the host may be compromised, even if you later reconfigure the container to remove the privilege.
+
+Likewise, once a privileged container has run in a project, the host may be compromised, even if you later reconfigure the container and apply project restrictions.
+```
 
 (howto-security-harden-instance-resource-limits)=
 ### Set instance resource limits
