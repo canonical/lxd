@@ -207,12 +207,12 @@ func ParseURLWithNamedArgs(u url.URL) (entityType Type, projectName string, loca
 }
 
 // urlMust is used internally when we know that creation of an *api.URL ought to succeed. If an error does occur an
-// empty string is return and the error is logged with as much context as possible, including the file and line number
-// of the caller.
+// empty *api.URL is returned and the error is logged with as much context as possible, including the file and line
+// number of the caller.
 func (t Type) urlMust(projectName string, location string, pathArguments ...string) *api.URL {
 	ref, err := t.URL(projectName, location, pathArguments...)
 	if err != nil {
-		logCtx := logger.Ctx{"entity_type": t, "project_name": projectName, "location": location, "path_aguments": pathArguments}
+		logCtx := logger.Ctx{"entity_type": t, "project_name": projectName, "location": location, "path_arguments": pathArguments}
 
 		// Get the second caller (we expect the first caller to be internal to this package since this method is not exported).
 		_, file, line, ok := runtime.Caller(2)
@@ -303,8 +303,8 @@ func StorageVolumeBackupURL(projectName string, location string, poolName string
 }
 
 // StorageVolumeSnapshotURL returns an *api.URL to a storage volume snapshot.
-func StorageVolumeSnapshotURL(projectName string, location string, poolName string, volumeTypeName string, volumeName, backupName string) *api.URL {
-	return TypeStorageVolumeSnapshot.urlMust(projectName, location, poolName, volumeTypeName, volumeName, backupName)
+func StorageVolumeSnapshotURL(projectName string, location string, poolName string, volumeTypeName string, volumeName, snapshotName string) *api.URL {
+	return TypeStorageVolumeSnapshot.urlMust(projectName, location, poolName, volumeTypeName, volumeName, snapshotName)
 }
 
 // StorageBucketURL returns an *api.URL to a storage bucket.
