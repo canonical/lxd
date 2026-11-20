@@ -104,3 +104,29 @@ func TestEffectiveOwnershipInRanges(t *testing.T) {
 		})
 	}
 }
+
+// TestIsPseudoPath checks procfs and sysfs detection, including unclean paths.
+func TestIsPseudoPath(t *testing.T) {
+	tests := []struct {
+		path     string
+		expected bool
+	}{
+		{"/proc", true},
+		{"/proc/self/status", true},
+		{"/proc/../proc/self/status", true},
+		{"/sys", true},
+		{"/sys/fs/cgroup/cgroup.procs", true},
+		{"/tmp/../sys/kernel/uevent_seqnum", true},
+		{"/procfoo", false},
+		{"/sysfoo", false},
+		{"/tmp/proc/foo", false},
+		{"/dev/shm/foo", false},
+		{"/", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isPseudoPath(tt.path))
+		})
+	}
+}
