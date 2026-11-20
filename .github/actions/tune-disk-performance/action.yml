@@ -1,0 +1,24 @@
+name: Tune disk performance
+description: Optimize ext4 FSes for performance, not reliability
+
+runs:
+  using: composite
+  steps:
+    - name: Tune disk performance
+      shell: bash
+      run: |
+        set -eux
+        # optimize ext4 FSes for performance, not reliability
+        for fs in $(findmnt --noheading --type ext4 --list --uniq | awk '{print $1}'); do
+          # nombcache and data=writeback cannot be changed on remount
+          sudo mount -o remount,noatime,barrier=0,commit=6000 "${fs}" || true
+        done
+
+        # disable dpkg from calling sync()
+        echo "force-unsafe-io" | sudo tee /etc/dpkg/dpkg.cfg.d/force-unsafe-io
+
+        # udisks2 makes various disk properties changable by non-root users via polkit.
+        # It also comes with udev rules that might interfere with some of our disk interactions.
+        # See https://openzfs.github.io/openzfs-docs/Project%20and%20Community/FAQ.html#udisks2-creating-dev-mapper-entries-for-zvol-linux
+        # It's also known to sometimes crash when running on GHA runners.
+        sudo apt-get remove -y udisks2 || true

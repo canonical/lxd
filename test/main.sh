@@ -33,6 +33,11 @@ import_subdir_files() {
     # shellcheck disable=SC2039,3043
     local file
     for file in "$1"/*.sh; do
+        # The snap test helpers are only meant for test/snap/ and would override the functions of the other helpers
+        case "${file}" in
+            */snap-helpers.sh|*/coverage.sh) continue ;;
+            *) ;;
+        esac
         # shellcheck disable=SC1090
         . "$file"
     done

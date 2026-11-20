@@ -1,0 +1,147 @@
+name: Run a snap integration test
+description: Run a single test/snap/* test against a snap channel
+
+inputs:
+  test:
+    description: Test to run, as it appears in the caller's matrix (e.g. "storage-vm btrfs")
+    required: true
+  channel:
+    description: Snap channel to test against, e.g. "5.0/edge"
+    required: true
+  os:
+    description: Ubuntu release the job is running on, used for cache/artifact naming
+    required: true
+  snap-cache-dir:
+    description: Directory to use for the snap dependencies cache
+    required: true
+  snap-cache-key-suffix:
+    description: Optional suffix to isolate the snap dependency cache
+    default: ""
+    required: false
+  microceph-channel:
+    description: MicroCeph snap channel to use (empty to skip seeding it)
+    # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
+    # Revert the default to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
+    default: "tentacle/stable"
+    required: false
+  microovn-channel:
+    description: MicroOVN snap channel to use (empty to skip setting up MicroOVN)
+    default: "latest/edge"
+    required: false
+  microovn-core:
+    description: Base snap used by the selected MicroOVN channel
+    default: "core26"
+    required: false
+  cores:
+    description: Space separated list of core snaps to seed the snap dependencies cache with
+    default: "core26 core24 core22"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Reclaim disk space
+      # This can take multiple minutes if the runner is busy/slow so only run it when/where absolutely needed.
+      if: ${{ inputs.test == 'conversion' || inputs.test == 'nesting' || startsWith(inputs.test, 'storage-') }}
+      uses: $/.github/actions/reclaim-disk-space
+
+    - name: "Disable br_netfilter"
+      shell: bash
+      run: |
+        set -eux
+        # XXX: br_netfilter causes subtle issues by subjecting internal
+        #      bridge traffic to NAT/MASQUERADING and IP filtering. This
+        #      module is not normally loaded on stock Ubuntu installs but it
+        #      is on GHA runners.
+        if lsmod | grep -qw ^br_netfilter; then
+          sudo modprobe -r br_netfilter
+        fi
+
+    - name: Download snap dependencies
+      uses: $/.github/actions/download-snaps
+      with:
+        snap-cache-dir: ${{ inputs.snap-cache-dir }}
+        cache-key-suffix: ${{ inputs.snap-cache-key-suffix }}
+        cores: ${{ inputs.cores }}
+        lxd-channel: ${{ inputs.channel }}
+        microceph-channel: ${{ inputs.microceph-channel }}
+        microovn-channel: ${{ inputs.microovn-channel }}
+
+    - name: Setup MicroCeph
+      if: ${{ inputs.test == 'conversion' || inputs.test == 'storage-buckets' || inputs.test == 'storage-vm ceph' || inputs.test == 'storage-volumes-vm' }}
+      uses: $/.github/actions/setup-microceph
+      with:
+        osd-count: 3
+        snap-cache-dir: ${{ inputs.snap-cache-dir }}
+        microceph-channel: ${{ inputs.microceph-channel }}
+
+    - name: Setup MicroOVN
+      if: ${{ inputs.microovn-channel != '' }}
+      uses: $/.github/actions/setup-microovn
+      with:
+        snap-cache-dir: ${{ inputs.snap-cache-dir }}
+        microovn-channel: ${{ inputs.microovn-channel }}
+        microovn-core: ${{ inputs.microovn-core }}
+
+    - name: Install Node
+      if: ${{ startsWith(inputs.test, 'ui ') }}
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      # zizmor: ignore[cache-poisoning]
+      with:
+        node-version: 22
+
+    - name: Sanitize Artifact Name
+      id: sanitize
+      shell: bash
+      env:
+        ID: ${{ inputs.test }}-${{ inputs.channel }}-${{ inputs.os }}
+      run: |
+        set -eux
+        echo "artifact_name=$(echo "${ID}" | tr ': /' '-_-')" >> "${GITHUB_OUTPUT}"
+
+    - name: ${{ inputs.test }}
+      shell: bash
+      env:
+        SUDO_PRESERVE_ENV: "PATH,GITHUB_ACTIONS,GITHUB_STEP_SUMMARY,SNAP_CACHE_DIR,OVN_SOURCE"
+        INPUT_TEST: ${{ inputs.test }}
+        INPUT_CHANNEL: ${{ inputs.channel }}
+      run: |
+        set -eux
+
+        # XXX: prevent accidental usage of `images:` in CI test jobs.
+        #      All tests should be done using officially supported images.
+        echo '127.0.0.1 images.lxd.canonical.com' | sudo tee /etc/hosts
+
+        TEST_SCRIPT="$(echo "${INPUT_TEST}" | cut -d " " -f 1)"
+        EXTRA_ARGS="$(echo "${INPUT_TEST}" | cut -d " " -f 2- --only-delimited)"
+        if [ "${TEST_SCRIPT}" = "cluster" ]; then
+          # The cluster test script infers the upgrade chain (including
+          # cross-track upgrades) from the target channel automatically.
+          EXTRA_ARGS="${EXTRA_ARGS:-3}"
+        elif [ "${TEST_SCRIPT}" = "network-ovn" ]; then
+          if [ -n "${EXTRA_ARGS}" ]; then
+            # Strip the `ovn:` prefix
+            export OVN_SOURCE="${EXTRA_ARGS##ovn:}"
+            EXTRA_ARGS=""
+          fi
+        fi
+
+        sudo --preserve-env="${SUDO_PRESERVE_ENV}" "./test/snap/${TEST_SCRIPT}" "${INPUT_CHANNEL}" ${EXTRA_ARGS:-}
+
+    - name: Upload ${{ inputs.test }} test reports
+      if: ${{ always() && startsWith(inputs.test, 'ui ') }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: test-report-${{ steps.sanitize.outputs.artifact_name }}
+        path: lxd-ui/test-results
+        retention-days: 1
+
+    - name: Upload crash dumps
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: crash-dumps-${{ steps.sanitize.outputs.artifact_name }}
+        path: |
+          /var/crash/*
+        retention-days: 5
+        if-no-files-found: ignore
