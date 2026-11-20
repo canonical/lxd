@@ -24,13 +24,31 @@ runs:
         DATE="$(date --utc '+%Y%m%d')"
         YESTERDAY="$(date --utc '+%Y%m%d' --date=yesterday)"
 
-        # dqlite/liblxc deps cache key
-        eval "$(grep -E '^(DQLITE|LIBLXC)_BRANCH=' Makefile)"
+        # dqlite/liblxc (and raft on stable-4.0) deps cache key
+        if grep -q '^RAFT_REF=' Makefile; then
+          eval "$(grep -E '^(RAFT_REF|DQLITE_REF|LIBLXC_REF|LIBLXC_PATCHES)=' Makefile)"
+          LXC_PATCHSET="$(printf '%s' "${LIBLXC_PATCHES}" | sha256sum | cut -c1-12)"
+          KEY_PREFIX="deps-${ID}-${VERSION_ID}-${ARCH}-raft-${RAFT_REF}-dqlite-${DQLITE_REF}-liblxc-${LIBLXC_REF}-${LXC_PATCHSET}"
+          HAS_RAFT="true"
+        else
+          eval "$(grep -E '^(DQLITE|LIBLXC)_BRANCH=' Makefile)"
+          # i.e: deps-ubuntu-24.04-amd64-dqlite-main-liblxc-main-${DATE}
+          KEY_PREFIX="deps-${ID}-${VERSION_ID}-${ARCH}-dqlite-${DQLITE_BRANCH}-liblxc-${LIBLXC_BRANCH}"
+          HAS_RAFT="false"
+        fi
 
-        # i.e: deps-ubuntu-24.04-amd64-dqlite-main-liblxc-main-${DATE}
-        KEY_PREFIX="deps-${ID}-${VERSION_ID}-${ARCH}-dqlite-${DQLITE_BRANCH}-liblxc-${LIBLXC_BRANCH}"
-        echo "KEY=${KEY_PREFIX}-${DATE}" >> $GITHUB_OUTPUT
-        echo "FALLBACK_KEY=${KEY_PREFIX}-${YESTERDAY}" >> $GITHUB_OUTPUT
+        echo "KEY=${KEY_PREFIX}-${DATE}" >> "$GITHUB_OUTPUT"
+        echo "FALLBACK_KEY=${KEY_PREFIX}-${YESTERDAY}" >> "$GITHUB_OUTPUT"
+        echo "HAS_RAFT=${HAS_RAFT}" >> "$GITHUB_OUTPUT"
+        {
+          echo "CACHE_PATHS<<EOF"
+          if [ "${HAS_RAFT}" = "true" ]; then
+            echo "/home/runner/go/deps/raft"
+          fi
+          echo "/home/runner/go/deps/dqlite"
+          echo "/home/runner/go/deps/liblxc"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
 
     # GitHub will remove any cache entries that have not been accessed in over 7 days.
     # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#usage-limits-and-eviction-policy
@@ -39,9 +57,7 @@ runs:
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       id: cache-deps
       with:
-        path: |
-          /home/runner/go/deps/dqlite
-          /home/runner/go/deps/liblxc
+        path: ${{ steps.deps-cache-key.outputs.CACHE_PATHS }}
         key: ${{ steps.deps-cache-key.outputs.KEY }}
         restore-keys: |
           ${{ steps.deps-cache-key.outputs.FALLBACK_KEY }}
@@ -50,13 +66,16 @@ runs:
       id: check-build
       if: ${{ steps.cache-deps.outputs.cache-hit != 'true' }}
       shell: bash
+      env:
+        HAS_RAFT: ${{ steps.deps-cache-key.outputs.HAS_RAFT }}
       run: |
         # When a restore-key fallback is used, cache-hit is false even though the
         # directories were restored. Check that the compiled libraries exist to
         # avoid a needless build.
-        if [ -f /home/runner/go/deps/dqlite/.libs/libdqlite.so ] && \
+        if { [ "${HAS_RAFT}" != "true" ] || [ -f /home/runner/go/deps/raft/.libs/libraft.so ]; } && \
+           [ -f /home/runner/go/deps/dqlite/.libs/libdqlite.so ] && \
            [ -n "$(find /home/runner/go/deps/liblxc/lib -name liblxc.so 2>/dev/null)" ]; then
-          echo "==> SKIP building as dqlite and liblxc deps were restored from fallback key"
+          echo "==> SKIP building as LXD C deps were restored from fallback key"
           echo "needed=false" >> "$GITHUB_OUTPUT"
         else
           echo "needed=true" >> "$GITHUB_OUTPUT"
@@ -85,9 +104,7 @@ runs:
         steps.check-build.outputs.needed == 'true' &&
         (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       with:
-        path: |
-          /home/runner/go/deps/dqlite
-          /home/runner/go/deps/liblxc
+        path: ${{ steps.deps-cache-key.outputs.CACHE_PATHS }}
         key: ${{ steps.deps-cache-key.outputs.KEY }}
 
     # Export the build environment after dependencies are available, on cache hits
