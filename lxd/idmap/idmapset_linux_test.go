@@ -171,6 +171,66 @@ func TestIdmapSetAddSafe_upper(t *testing.T) {
 	}
 }
 
+func TestIdmapSetAddSafe_lowerHostid(t *testing.T) {
+	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
+
+	err := orig.AddSafe(IdmapEntry{Isuid: true, Hostid: 999, Nsid: 500, Maprange: 1})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if orig.Idmap[0].Hostid != 1000 || orig.Idmap[0].Nsid != 0 || orig.Idmap[0].Maprange != 500 {
+		t.Error(fmt.Errorf("bad range: %v", orig.Idmap[0]))
+		return
+	}
+
+	if orig.Idmap[1].Hostid != 999 || orig.Idmap[1].Nsid != 500 || orig.Idmap[1].Maprange != 1 {
+		t.Error(fmt.Errorf("bad range: %v", orig.Idmap[1]))
+		return
+	}
+
+	if orig.Idmap[2].Hostid != 1501 || orig.Idmap[2].Nsid != 501 || orig.Idmap[2].Maprange != 499 {
+		t.Error(fmt.Errorf("bad range: %v", orig.Idmap[2]))
+		return
+	}
+
+	if len(orig.Idmap) != 3 {
+		t.Error("too many idmap entries")
+		return
+	}
+}
+
+func TestIdmapSetAddSafe_upperHostid(t *testing.T) {
+	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
+
+	err := orig.AddSafe(IdmapEntry{Isuid: true, Hostid: 2000, Nsid: 500, Maprange: 1})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if orig.Idmap[0].Hostid != 1000 || orig.Idmap[0].Nsid != 0 || orig.Idmap[0].Maprange != 500 {
+		t.Error(fmt.Errorf("bad range: %v", orig.Idmap[0]))
+		return
+	}
+
+	if orig.Idmap[1].Hostid != 2000 || orig.Idmap[1].Nsid != 500 || orig.Idmap[1].Maprange != 1 {
+		t.Error(fmt.Errorf("bad range: %v", orig.Idmap[1]))
+		return
+	}
+
+	if orig.Idmap[2].Hostid != 1501 || orig.Idmap[2].Nsid != 501 || orig.Idmap[2].Maprange != 499 {
+		t.Error(fmt.Errorf("bad range: %v", orig.Idmap[2]))
+		return
+	}
+
+	if len(orig.Idmap) != 3 {
+		t.Error("too many idmap entries")
+		return
+	}
+}
+
 func TestIdmapSetIntersects(t *testing.T) {
 	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 165536, Nsid: 0, Maprange: 65536}}}
 
@@ -191,6 +251,30 @@ func TestIdmapSetIntersects(t *testing.T) {
 
 	if orig.Intersects(IdmapEntry{Isuid: true, Hostid: 231072, Nsid: 65536, Maprange: 65536}) {
 		t.Error("ranges intersect")
+		return
+	}
+
+	lastNsid := IdmapEntry{Isuid: true, Hostid: 100000, Nsid: 65535, Maprange: 1}
+	if !lastNsid.Intersects(lastNsid) {
+		t.Error("ranges do not intersect")
+		return
+	}
+	if !orig.Intersects(lastNsid) {
+		t.Error("ranges do not intersect")
+		return
+	}
+	if !lastNsid.Intersects(orig.Idmap[0]) {
+		t.Error("ranges do not intersect")
+		return
+	}
+
+	lastHostid := IdmapEntry{Isuid: true, Hostid: 231071, Nsid: 100000, Maprange: 1}
+	if !orig.Intersects(lastHostid) {
+		t.Error("ranges do not intersect")
+		return
+	}
+	if !lastHostid.Intersects(orig.Idmap[0]) {
+		t.Error("ranges do not intersect")
 		return
 	}
 }
