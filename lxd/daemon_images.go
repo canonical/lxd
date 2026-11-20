@@ -630,6 +630,20 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		}
 	}
 
+	// Flush the files now that they are at their final path. The image record
+	// created below must not outlive them across a power loss.
+	err = syncImageFile(filepath.Join(destRoot.Name(), fp))
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.RootfsSize > 0 {
+		err = syncImageFile(filepath.Join(destRoot.Name(), fp+".rootfs"))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Override visiblity
 	info.Public = args.Public
 

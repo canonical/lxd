@@ -4659,6 +4659,14 @@ func (b *lxdBackend) EnsureImage(ctx context.Context, fingerprint string, projec
 			return nil, err
 		}
 
+		// Drop the DB record with the volume, otherwise an interrupted
+		// recreate leaves a record of a partial volume that is trusted
+		// on the next call instead of being treated as a leftover.
+		err = VolumeDBDelete(b, api.ProjectDefaultName, image.Fingerprint, drivers.VolumeTypeImage)
+		if err != nil {
+			return nil, err
+		}
+
 		err = b.driver.EnsureImage(imgVol, &volFiller, progressReporter)
 	}
 
