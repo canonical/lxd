@@ -128,8 +128,10 @@ Feature support in ZFS
 ### Quotas
 
 ZFS provides two different quota properties: `quota` and `refquota`.
-`quota` restricts the total size of a {spellexception}`dataset`, including its snapshots and clones.
-`refquota` restricts only the size of the data in the {spellexception}`dataset`, not its snapshots and clones.
+`quota` restricts the space used by a {spellexception}`dataset`, including its snapshots and child {spellexception}`datasets`.
+It does not count data that a clone shares with the snapshot it was cloned from, so an instance that LXD creates as a clone of an image volume can be larger than its quota.
+`refquota` restricts the amount of data that the {spellexception}`dataset` refers to, including data that it shares with other {spellexception}`datasets` or snapshots.
+It does not count space that is used only by its snapshots.
 
 By default, LXD uses the `quota` property when you set up a size/quota for your storage volume.
 If you want to use the `refquota` property instead, set the {config:option}`storage-zfs-volume-conf:zfs.use_refquota` configuration for the volume (or the corresponding `volume.zfs.use_refquota` configuration on the storage pool for all volumes in the pool).
