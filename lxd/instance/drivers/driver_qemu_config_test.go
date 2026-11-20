@@ -17,7 +17,7 @@ func BenchmarkQemuStringifyCfg(b *testing.B) {
 	sections = append(sections, qemuMemory(&qemuMemoryOpts{memSizeMB: 2048})...)
 	sections = append(sections, qemuSerial(&qemuSerialOpts{dev: qemuDevOpts{"pcie", "pcie.0", "00.5", false}, charDevName: "qemu_serial0", ringbufSizeBytes: 4096})...)
 	sections = append(sections, qemuPCIe(&qemuPCIeOpts{portName: "qemu_pcie0", index: 0, devAddr: "00.1", multifunction: true})...)
-	sections = append(sections, qemuSCSI(&qemuDevOpts{"pcie", "pcie.0", "00.2", false})...)
+	sections = append(sections, qemuSCSI(&qemuDevOpts{"pcie", "pcie.0", "00.2", false}, 2)...)
 	sections = append(sections, qemuBalloon(&qemuDevOpts{"pcie", "pcie.0", "00.3", false})...)
 
 	b.ReportAllocs()
@@ -233,25 +233,40 @@ func TestQemuConfigTemplates(t *testing.T) {
 	t.Run("qemu_scsi", func(t *testing.T) {
 		testCases := []struct {
 			opts     qemuDevOpts
+			vcpus    int
 			expected string
 		}{{
 			qemuDevOpts{"pci", "qemu_pcie1", "00.0", false},
-			`# SCSI controller
+			2,
+			`# SCSI controller iothread
+			[object "qemu_scsi_iothread"]
+			qom-type = "iothread"
+
+			# SCSI controller
 			[device "qemu_scsi"]
 			driver = "virtio-scsi-pci"
 			bus = "qemu_pcie1"
 			addr = "00.0"
+			iothread = "qemu_scsi_iothread"
+			num_queues = "2"
 			`,
 		}, {
 			qemuDevOpts{"ccw", "devBus", "busAddr", true},
-			`# SCSI controller
+			16,
+			`# SCSI controller iothread
+			[object "qemu_scsi_iothread"]
+			qom-type = "iothread"
+
+			# SCSI controller
 			[device "qemu_scsi"]
 			driver = "virtio-scsi-ccw"
 			multifunction = "on"
+			iothread = "qemu_scsi_iothread"
+			num_queues = "4"
 			`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuSCSI(&tc.opts))
+			runTest(tc.expected, qemuSCSI(&tc.opts, tc.vcpus))
 		}
 	})
 
@@ -1733,5 +1748,71 @@ func TestQemuCPU_NumaHostNodesPreservesOrder(t *testing.T) {
 	// The caller's slice must not be mutated.
 	if !reflect.DeepEqual(opts.cpuNumaHostNodes, []uint64{10, 8, 9}) {
 		t.Fatalf("Expected input slice to be unchanged, got: %v", opts.cpuNumaHostNodes)
+	}
+}
+
+func TestDiskQueueCount(t *testing.T) {
+	testCases := []struct {
+		vcpus    int
+		expected int
+	}{
+		{0, 1},
+		{1, 1},
+		{3, 3},
+		{4, 4},
+		{64, 4},
+	}
+
+	for _, tc := range testCases {
+		actual := diskQueueCount(tc.vcpus)
+		if actual != tc.expected {
+			t.Errorf("diskQueueCount(%d): want %d, got %d", tc.vcpus, tc.expected, actual)
+		}
+	}
+}
+
+func TestQemuDiskQueueProps(t *testing.T) {
+	testCases := []struct {
+		busName  string
+		vcpus    int
+		expected map[string]any
+	}{
+		{"virtio-blk", 2, map[string]any{"iothread": "iothread_root", "num-queues": 2}},
+		{"virtio-blk", 32, map[string]any{"iothread": "iothread_root", "num-queues": 4}},
+		{"nvme", 3, map[string]any{"max_ioqpairs": 3}},
+		{"nvme", 32, map[string]any{"max_ioqpairs": 4}},
+		{"virtio-scsi", 8, map[string]any{}},
+	}
+
+	for _, tc := range testCases {
+		qemuDev := map[string]any{}
+		qemuDiskQueueProps(qemuDev, tc.busName, tc.vcpus, "iothread_root")
+
+		if !reflect.DeepEqual(qemuDev, tc.expected) {
+			t.Errorf("%s with %d vCPUs:\n- want: %v\n-  got: %v",
+				tc.busName, tc.vcpus, tc.expected, qemuDev)
+		}
+	}
+}
+
+func TestQemuIOThreadID(t *testing.T) {
+	testCases := []struct {
+		deviceName string
+		expected   string
+	}{
+		{"root", "iothread_root"},
+		{"cbt-blk", "iothread_cbt--blk"},
+		{"a/b", "iothread_a-b"},
+		{
+			"a-very-long-disk-device-name-longer-than-31-characters",
+			"iothread_a--very--long--disk--device--name--longer--than--31--characters",
+		},
+	}
+
+	for _, tc := range testCases {
+		actual := qemuIOThreadID(tc.deviceName)
+		if actual != tc.expected {
+			t.Errorf("qemuIOThreadID(%q): want %q, got %q", tc.deviceName, tc.expected, actual)
+		}
 	}
 }

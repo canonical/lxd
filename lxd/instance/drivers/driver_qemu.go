@@ -113,6 +113,15 @@ const qemuDeviceNamePrefix = "lxd_"
 // qemuDeviceNameMaxLength used to indicate the maximum length of a qemu block node name and device tags.
 const qemuDeviceNameMaxLength = 31
 
+// qemuIOThreadPrefix is the prefix of the ID of an iothread of a disk device.
+const qemuIOThreadPrefix = "iothread_"
+
+// qemuIOThreadID returns the ID of the iothread of a disk device.
+// QEMU does not limit the length of object IDs, so the encoded device name is used as is.
+func qemuIOThreadID(deviceName string) string {
+	return qemuIOThreadPrefix + filesystem.PathNameEncode(deviceName)
+}
+
 // qemuMigrationNBDExportName is the name of the disk device export by the migration NBD server.
 const qemuMigrationNBDExportName = "lxd_root"
 
@@ -3075,6 +3084,15 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string, devConf deviceConfig.D
 		}
 	}
 
+	// Only virtio-blk disks have an iothread of their own. The LUNs of the virtio-scsi controller
+	// share the iothread of the controller, which stays, and NVMe disks have no iothread.
+	if devConf["io.bus"] == "virtio-blk" {
+		err = monitor.RemoveIOThread(qemuIOThreadID(deviceName))
+		if err != nil {
+			return err
+		}
+	}
+
 	// Removing the metadata disk node last writes the bitmaps of the volume into its image.
 	// A disk without bitmaps, such as a shared volume, has no metadata disk node.
 	nodeNames, err := monitor.QueryNamedBlockNodes()
@@ -4171,7 +4189,7 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, maxCPUs int, mountIn
 		multifunction: multi,
 	}
 
-	cfg = append(cfg, qemuSCSI(&scsiOpts)...)
+	cfg = append(cfg, qemuSCSI(&scsiOpts, cpuInfo.vcpuCount())...)
 
 	// Always export the config directory as a 9p config drive, in case the host or VM guest doesn't support
 	// virtio-fs.
@@ -4946,6 +4964,7 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 	}
 
 	var busCleanup revert.Hook
+	var iothreadID string
 	if busName == "virtio-scsi" {
 		qemuDev["device_id"] = qemuDeviceSerial
 		qemuDev["channel"] = 0
@@ -4961,10 +4980,21 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 	} else if slices.Contains([]string{"nvme", "virtio-blk"}, busName) {
 		qemuDev["driver"] = busName
 
+		vcpus := 1
+		cpuInfo, err := d.cpuTopology(d.expandedConfig["limits.cpu"])
+		if err == nil {
+			vcpus = cpuInfo.vcpuCount()
+		}
+
+		if busName == "virtio-blk" {
+			iothreadID = qemuIOThreadID(driveConf.DevName)
+		}
+
+		qemuDiskQueueProps(qemuDev, busName, vcpus, iothreadID)
+
 		// Allocate a device port.
 		var devBus, devAddr string
 		var multi bool
-		var err error
 		busCleanup, devBus, devAddr, multi, err = busAllocate(driveConf.DevName, false)
 		if err != nil {
 			return nil, fmt.Errorf("Failed allocating bus for disk device %q: %w", driveConf.DevName, err)
@@ -5030,6 +5060,18 @@ func (d *qemu) addDriveConfig(busAllocate busAllocator, bootIndexes map[string]i
 			})
 
 			blockDev["filename"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
+		}
+
+		if iothreadID != "" {
+			err := m.AddIOThread(iothreadID)
+			if err != nil {
+				return fmt.Errorf("Failed adding iothread for disk device %q: %w",
+					driveConf.DevName, err)
+			}
+
+			reverter.Add(func() {
+				_ = m.RemoveIOThread(iothreadID)
+			})
 		}
 
 		err := m.AddBlockDevice(blockDev, qemuDev)
@@ -9537,6 +9579,15 @@ type cpuTopology struct {
 	threads int
 	vcpus   map[uint64]uint64
 	nodes   map[uint64][]uint64
+}
+
+// vcpuCount returns the number of vCPUs of the topology.
+func (t *cpuTopology) vcpuCount() int {
+	if len(t.vcpus) > 0 {
+		return len(t.vcpus)
+	}
+
+	return t.sockets * t.cores * t.threads
 }
 
 // maxCPUs returns the maximum number of vCPUs to expose to the VM, used as the vCPU
