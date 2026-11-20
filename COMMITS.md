@@ -31,3 +31,6 @@ Depending on complexity, large changes should be split into smaller, logical com
 
 - Commit message title should usually be line-wrapped to 120 chars.
 - Commit message body should usually be line-wrapped to 80 chars.
+- If the commit fixes an advisory, add the sentence "Fixes advisory: <advisory-link>" as the first paragraph of the commit message body.
+  - If the commit fixes a sub-issue in the advisory, use the sentence "Fixes issue #<x> of advisory: <advisory-link>"
+  - A commit that contains tests for the advisory fix should also carry the "Fixes advisory" paragraph.
