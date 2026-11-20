@@ -1234,6 +1234,62 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Fast-forward private base branch
+        env:
+          GH_PROMPT_DISABLED: "1"
+          # Fine-grained PAT or GitHub App token scoped to canonical/lxd-private:
+          # Contents: Read and write, and Pull requests: Read and write.
+          GH_TOKEN: ${{ secrets.LXD_PRIVATE_REPO_TOKEN }}
+        run: |
+          set -eux
+          set -o pipefail
+
+          # Add the private LXD repository and rebase to incorporate private security fixes.
+          timeout 30s gh auth setup-git --hostname github.com
+          git remote add lxd-private https://github.com/canonical/lxd-private.git
+          git fetch lxd-private "${GITHUB_REF_NAME}"
+          privateBaseSha="$(git rev-parse "lxd-private/${GITHUB_REF_NAME}")"
+          git checkout --quiet -B "lxd-private-${GITHUB_REF_NAME}" "lxd-private/${GITHUB_REF_NAME}"
+          git rebase --quiet --no-stat "origin/${GITHUB_REF_NAME}"
+
+          # Sync the rebased lxd-private branch back to the lxd-private repo so that it is kept in sync with the public repo.
+          # Do this before any snapcraft.yaml modifications made below.
+          if ! git push --quiet --force-with-lease="refs/heads/${GITHUB_REF_NAME}:${privateBaseSha}" lxd-private HEAD:"${GITHUB_REF_NAME}"; then
+            echo "::error::Private base branch changed concurrently; refusing to overwrite it"
+            exit 1
+          fi
+
+      - name: Update private-repo PR branches
+        env:
+          GH_PROMPT_DISABLED: "1"
+          GH_TOKEN: ${{ secrets.LXD_PRIVATE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if ! pr_list="$(timeout 2m gh api --paginate \
+            --jq '.[] | [.number, (.html_url // ""), (.head.sha // ""), (.base.ref // "")] | @tsv' \
+            "repos/canonical/lxd-private/pulls?state=open&base=${GITHUB_REF_NAME}&per_page=100")"; then
+            echo "::warning::Failed to list open PRs for base ${GITHUB_REF_NAME} in canonical/lxd-private"
+            exit 0
+          fi
+
+          while IFS=$'\t' read -r pr_number pr_url head_sha base_ref; do
+            if [[ -z "${pr_number}" || "${base_ref}" != "${GITHUB_REF_NAME}" ]]; then
+              continue
+            fi
+
+            if [[ -n "${head_sha}" ]]; then
+              if ! update_output="$(timeout 2m gh api --method PUT --silent \
+                "repos/canonical/lxd-private/pulls/${pr_number}/update-branch" \
+                --field "expected_head_sha=${head_sha}" 2>&1)"; then
+                echo "::warning::Could not update ${pr_url}: ${update_output}"
+              fi
+            elif ! update_output="$(timeout 2m gh api --method PUT --silent \
+              "repos/canonical/lxd-private/pulls/${pr_number}/update-branch" 2>&1)"; then
+              echo "::warning::Could not update ${pr_url}: ${update_output}"
+            fi
+          done <<< "${pr_list}"
+
       # XXX: from this point onwards in this **specific job**, the private SSH key is
       #      available through the SSH_AUTH_SOCK environment variable.
       - uses: $/.github/actions/lp-snap-build
@@ -1246,18 +1302,8 @@ jobs:
           set -eux
           set -o pipefail
 
-          # Record current commit hash before rebasing lxd-private so the snap version retains the correct hash.
-          localRev="$(git rev-parse HEAD)"
-
-          # Add the private LXD repository and rebase to incorporate private security fixes.
-          git remote add lxd-private git@github.com:canonical/lxd-private.git
-          git fetch lxd-private "${GITHUB_REF_NAME}"
-          git checkout --quiet -B "lxd-private-${GITHUB_REF_NAME}" "lxd-private/${GITHUB_REF_NAME}"
-          git rebase --quiet --no-stat "origin/${GITHUB_REF_NAME}"
-
-          # Sync the rebased lxd-private branch back to the lxd-private repo so that it is kept in sync with the public repo.
-          # Do this before any snapcraft.yaml modifications made below.
-          git push --quiet --force lxd-private HEAD:"${GITHUB_REF_NAME}"
+          # Record the public commit hash before snapcraft.yaml is modified for the private build.
+          localRev="$(git rev-parse "origin/${GITHUB_REF_NAME}")"
 
           # Extract a strict major.minor[.patch] version from shared/version/flex.go.
           version="$(sed -nE 's/^var Version = "([0-9]+\.[0-9]+(\.[0-9]+)?)"$/\1/p' "${GITHUB_WORKSPACE}/shared/version/flex.go")"
