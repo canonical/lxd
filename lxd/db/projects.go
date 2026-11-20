@@ -34,7 +34,7 @@ func (db *DB) GetProject(ctx context.Context, projectName string) (*cluster.Proj
 // profiles to expand the instances configs, otherwise we use the
 // profiles from the default project.
 func projectInheritsProfiles(project *api.Project) bool {
-	return shared.IsFalseOrEmpty(project.Config["features.profiles"])
+	return project.Name != api.ProjectDefaultName && shared.IsFalseOrEmpty(project.Config["features.profiles"])
 }
 
 // ProjectArgs is all the instances and profiles associated with a project.
@@ -114,7 +114,7 @@ func (c *ClusterTx) GetProjectInstancesAndProfiles(ctx context.Context, projects
 
 	// Add profiles to projects which inherit profiles from the default project
 	for _, project := range projects {
-		if project.Name != defaultProjectName || !projectInheritsProfiles(project) {
+		if !projectInheritsProfiles(project) {
 			continue
 		}
 
