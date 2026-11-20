@@ -214,3 +214,93 @@ func TestProjectRestrictedContainerPrivilegeIsolated(t *testing.T) {
 	})
 	require.NoError(t, err)
 }
+
+// checkRestrictedDisk runs the project restriction checks against a container instance carrying one extra device.
+func checkRestrictedDisk(projectConfig map[string]string, name string, device map[string]string) error {
+	proj := api.Project{Name: "proj1", Config: projectConfig}
+	inst := api.Instance{
+		Name:    "c1",
+		Type:    string(api.InstanceTypeContainer),
+		Config:  map[string]string{"security.idmap.isolated": "true"},
+		Devices: map[string]map[string]string{name: device},
+	}
+
+	return checkInstanceRestrictions(proj, []api.Instance{inst}, []api.Profile{})
+}
+
+func restrictedProject(diskPolicy string) map[string]string {
+	return map[string]string{
+		"restricted":                      "true",
+		"restricted.devices.disk":         diskPolicy,
+		"restricted.devices.disk.paths":   "/srv",
+		"restricted.containers.privilege": "isolated",
+	}
+}
+
+func TestProjectRestrictedDiskPropagation(t *testing.T) {
+	for _, policy := range []string{"managed", "allow"} {
+		for _, mode := range []string{"shared", "rshared"} {
+			device := map[string]string{"type": "disk", "path": "/mnt", "source": "/srv/data", "propagation": mode}
+			if policy == "managed" {
+				device["pool"] = "default"
+			}
+
+			err := checkRestrictedDisk(restrictedProject(policy), "data", device)
+			require.Error(t, err, "policy %s mode %s", policy, mode)
+			assert.Contains(t, err.Error(), "propagation", "policy %s mode %s", policy, mode)
+		}
+	}
+}
+
+func TestProjectRestrictedDiskBlockStillForbidsEveryDisk(t *testing.T) {
+	safe := map[string]string{"type": "disk", "path": "/mnt", "source": "/srv/data", "propagation": "slave"}
+	require.ErrorContains(t, checkRestrictedDisk(restrictedProject("block"), "data", safe), "Disk devices are forbidden")
+
+	risky := map[string]string{"type": "disk", "path": "/mnt", "source": "/srv/data", "propagation": "rshared"}
+	require.Error(t, checkRestrictedDisk(restrictedProject("block"), "data", risky))
+}
+
+func TestProjectRestrictedDiskPropagationAllowsSafeModes(t *testing.T) {
+	for _, mode := range []string{"", "private", "slave", "unbindable", "rprivate", "rslave", "runbindable"} {
+		device := map[string]string{"type": "disk", "path": "/mnt", "source": "/srv/data"}
+		if mode != "" {
+			device["propagation"] = mode
+		}
+
+		err := checkRestrictedDisk(restrictedProject("allow"), "data", device)
+		assert.NoError(t, err, "mode %q", mode)
+	}
+}
+
+func TestProjectRestrictedDiskPropagationAppliesToProfiles(t *testing.T) {
+	proj := api.Project{Name: "proj1", Config: restrictedProject("allow")}
+	profile := api.Profile{
+		Name:    "p1",
+		Devices: map[string]map[string]string{"data": {"type": "disk", "path": "/mnt", "source": "/srv/data", "propagation": "rshared"}},
+	}
+
+	err := checkInstanceRestrictions(proj, []api.Instance{}, []api.Profile{profile})
+	require.ErrorContains(t, err, "propagation")
+}
+
+func TestProjectRestrictedDiskPropagationIgnoresOtherDevices(t *testing.T) {
+	proj := api.Project{Name: "proj1", Config: restrictedProject("allow")}
+	inst := api.Instance{
+		Name:   "c1",
+		Type:   string(api.InstanceTypeContainer),
+		Config: map[string]string{"security.idmap.isolated": "true"},
+		Devices: map[string]map[string]string{
+			"root": {"type": "disk", "path": "/", "pool": "default"},
+			"eth0": {"type": "nic", "network": "lxdbr0", "propagation": "rshared"}, // not a disk: not ours to judge
+		},
+	}
+
+	require.NoError(t, checkInstanceRestrictions(proj, []api.Instance{inst}, []api.Profile{}))
+}
+
+func TestProjectRestrictedDiskPropagationNamesTheDevice(t *testing.T) {
+	device := map[string]string{"type": "disk", "path": "/mnt", "source": "/srv/data", "propagation": "rshared"}
+	err := checkRestrictedDisk(restrictedProject("allow"), "data", device)
+	require.ErrorContains(t, err, `Invalid device "data" on container "c1" of project "proj1"`)
+	require.ErrorContains(t, err, "mounts made in the instance would appear on the host")
+}

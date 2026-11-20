@@ -324,12 +324,19 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		//  shortdesc: Storage pool to which the disk device belongs
 		"pool": validate.IsAny,
 		// lxdmeta:generate(entities=device-disk; group=device-conf; key=propagation)
-		// Possible values are `private` (the default), `shared`, `slave`, `unbindable`, `rshared`, `rslave`, `runbindable`, `rprivate`.
+		// Possible values are `private`, `shared`, `slave`, `unbindable`, `rshared`, `rslave`, `runbindable`, `rprivate`.
+		// The `r` variants also apply to the submounts of the source.
 		// See the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation.
 		//
+		// By default, mounts made on the host below the source appear in the instance, but mounts made in the instance do not appear on the host.
+		// With `shared` or `rshared`, mounts made in the instance also appear on the host.
+		//
+		//   ```{note}
+		//   Projects with `restricted` set to `true` do not allow `shared` or `rshared`.
+		//   ```
 		// ---
 		//  type: string
-		//  defaultdesc: `private`
+		//  defaultdesc: `rslave`
 		//  required: no
 		//  shortdesc: How a bind-mount is shared between the instance and the host
 		"propagation": validate.Optional(validate.IsOneOf(propagationTypes...)),
