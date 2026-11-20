@@ -303,8 +303,8 @@ func StorageVolumeBackupURL(projectName string, location string, poolName string
 }
 
 // StorageVolumeSnapshotURL returns an *api.URL to a storage volume snapshot.
-func StorageVolumeSnapshotURL(projectName string, location string, poolName string, volumeTypeName string, volumeName, backupName string) *api.URL {
-	return TypeStorageVolumeSnapshot.urlMust(projectName, location, poolName, volumeTypeName, volumeName, backupName)
+func StorageVolumeSnapshotURL(projectName string, location string, poolName string, volumeTypeName string, volumeName, snapshotName string) *api.URL {
+	return TypeStorageVolumeSnapshot.urlMust(projectName, location, poolName, volumeTypeName, volumeName, snapshotName)
 }
 
 // StorageBucketURL returns an *api.URL to a storage bucket.
