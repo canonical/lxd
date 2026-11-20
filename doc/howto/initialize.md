@@ -64,7 +64,7 @@ Remote access (see {ref}`security_remote_access` and {ref}`authentication`)
   You can choose to add client certificates to the server either manually or through tokens.
 
 Automatic image update (see {ref}`about-images`)
-: You can download images from image servers.
+: You can download images using {ref}`image registries <ref-image-registries>`.
   In this case, images can be updated automatically.
 
   The default answer is `yes`, which means that LXD will update the downloaded images regularly.
