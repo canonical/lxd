@@ -212,7 +212,7 @@ func ParseURLWithNamedArgs(u url.URL) (entityType Type, projectName string, loca
 func (t Type) urlMust(projectName string, location string, pathArguments ...string) *api.URL {
 	ref, err := t.URL(projectName, location, pathArguments...)
 	if err != nil {
-		logCtx := logger.Ctx{"entity_type": t, "project_name": projectName, "location": location, "path_aguments": pathArguments}
+		logCtx := logger.Ctx{"entity_type": t, "project_name": projectName, "location": location, "path_arguments": pathArguments}
 
 		// Get the second caller (we expect the first caller to be internal to this package since this method is not exported).
 		_, file, line, ok := runtime.Caller(2)
