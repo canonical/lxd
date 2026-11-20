@@ -894,6 +894,103 @@ func IsContentBlock(contentType ContentType) bool {
 	return contentType == ContentTypeBlock || contentType == ContentTypeISO
 }
 
+// FormatAndMountMicroVMBlockFS formats a newly created MicroVM root disk (block device or pre-sized
+// regular image file) with fsType, mounts it on a temporary directory, runs taskFunc to unpack the
+// container rootfs archive into it, and then unmounts and detaches any loop device.
+// Unlike standard VM images, which are pre-formatted qcow2 disk images converted to raw blocks,
+// a MicroVM boots from a bare filesystem image populated from a container rootfs tarball at unpack time.
+// Security note: this initial image unpack is the only time LXD ever mounts or inspects a MicroVM root
+// filesystem on the host, when the filesystem has just been created by LXD and has never been accessed
+// or modified by a guest. This function should never be used after the initial creation and unpacking
+// of the MicroVM root disk.
+func FormatAndMountMicroVMBlockFS(blockPath string, fsType string, taskFunc func(mountPath string) error) (err error) {
+	var targetDev string
+	var cleanupLoop func()
+
+	if shared.IsBlockdevPath(blockPath) {
+		targetDev = blockPath
+	} else {
+		// In this case the destination block file is created by the storage drivers (dir, btrfs)
+		// during the creation of the volume.
+		info, err := os.Lstat(blockPath)
+		if err != nil {
+			return fmt.Errorf("Failed checking disk image path %q: %w", blockPath, err)
+		}
+
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("Disk image path %q is not a regular file", blockPath)
+		}
+
+		// Since the destination is a regular file we need to set up a loop device to treat it as a block device.
+		loopDev, err := loopDeviceSetup(blockPath)
+		if err != nil {
+			return fmt.Errorf("Failed setting up loop device for %q: %w", blockPath, err)
+		}
+
+		targetDev = loopDev
+		cleanupLoop = func() {
+			_ = loopDeviceAutoDetach(loopDev)
+		}
+	}
+
+	if cleanupLoop != nil {
+		defer cleanupLoop()
+	}
+
+	// The above targetDev is a freshly created block device which needs to be formatted before mounting.
+	_, err = makeFSType(targetDev, fsType, nil)
+	if err != nil {
+		return fmt.Errorf("Failed formatting disk %q with %s: %w", targetDev, fsType, err)
+	}
+
+	// Create a root-only temporary parent directory and a mount point inside it so mounting the
+	// filesystem does not expose its 0755 root inode directly in shared /tmp.
+	tmpDir, err := os.MkdirTemp("", "lxd-mount-block-")
+	if err != nil {
+		return fmt.Errorf("Failed creating temporary mount directory: %w", err)
+	}
+
+	defer func() { _ = os.Remove(tmpDir) }()
+
+	tmpMountPath := filepath.Join(tmpDir, "mnt")
+	err = os.Mkdir(tmpMountPath, 0700)
+	if err != nil {
+		return fmt.Errorf("Failed creating temporary mount point: %w", err)
+	}
+
+	// Remove the mount point after the unmount below. This must not remove recursively: if the
+	// unmount failed, the directory still holds the filesystem that was just filled.
+	defer func() { _ = os.Remove(tmpMountPath) }()
+
+	// Mount the target filesystem.
+	err = TryMount(context.TODO(), targetDev, tmpMountPath, fsType, unix.MS_NOSUID|unix.MS_NODEV|unix.MS_NOEXEC, "")
+	if err != nil {
+		return fmt.Errorf("Failed mounting %q at %q: %w", blockPath, tmpMountPath, err)
+	}
+
+	// Unmount on return and report a failure to the caller, unless an earlier error is already returned.
+	defer func() {
+		unmountErr := TryUnmount(tmpMountPath, unix.MNT_DETACH)
+		if unmountErr != nil && err == nil {
+			err = fmt.Errorf("Failed unmounting %q from %q: %w", blockPath, tmpMountPath, unmountErr)
+		}
+	}()
+
+	// Execute callback.
+	err = taskFunc(tmpMountPath)
+	if err != nil {
+		return err
+	}
+
+	// Sync to flush buffers before unmount.
+	err = filesystem.SyncFS(tmpMountPath)
+	if err != nil {
+		return fmt.Errorf("Failed syncing %q: %w", tmpMountPath, err)
+	}
+
+	return nil
+}
+
 // roundAbove returns the next multiple of `above` greater than `val`.
 func roundAbove(above, val int64) int64 {
 	if val < above {

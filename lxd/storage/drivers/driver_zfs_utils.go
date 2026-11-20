@@ -44,7 +44,7 @@ func (d *zfs) dataset(vol Volume, deleted bool) string {
 		name = name + "_" + vol.ConfigBlockFilesystem()
 	}
 
-	if (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock {
+	if (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeMicroVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock {
 		name = name + zfsBlockVolSuffix
 	} else if vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeISO {
 		name = name + zfsISOVolSuffix

@@ -29,6 +29,7 @@ SELECT
 			WHEN %d THEN '%s'
 			WHEN %d THEN '%s'
 			WHEN %d THEN '%s'
+			WHEN %d THEN '%s'
 		END,
 		storage_volumes.name
 	)
@@ -42,6 +43,7 @@ FROM storage_volumes
 		StoragePoolVolumeTypeImage, StoragePoolVolumeTypeNameImage,
 		StoragePoolVolumeTypeCustom, StoragePoolVolumeTypeNameCustom,
 		StoragePoolVolumeTypeVM, StoragePoolVolumeTypeNameVM,
+		StoragePoolVolumeTypeMicroVM, StoragePoolVolumeTypeNameMicroVM,
 	)
 }
 
@@ -68,12 +70,14 @@ WHERE projects.name = ?
 		WHEN %d THEN '%s' 
 		WHEN %d THEN '%s' 
 		WHEN %d THEN '%s' 
+		WHEN %d THEN '%s' 
 	END = ? 
 	AND storage_volumes.name = ?
 `, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeNameContainer,
 		StoragePoolVolumeTypeImage, StoragePoolVolumeTypeNameImage,
 		StoragePoolVolumeTypeCustom, StoragePoolVolumeTypeNameCustom,
-		StoragePoolVolumeTypeVM, StoragePoolVolumeTypeNameVM)
+		StoragePoolVolumeTypeVM, StoragePoolVolumeTypeNameVM,
+		StoragePoolVolumeTypeMicroVM, StoragePoolVolumeTypeNameMicroVM)
 }
 
 func (e entityTypeStorageVolume) onDeleteTriggerSQL() (name string, sql string) {

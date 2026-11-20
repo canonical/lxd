@@ -442,51 +442,80 @@ func TestGetInstancePool(t *testing.T) {
 	dbCluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
+	var poolID int64
 	err := dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		poolID, err := tx.CreateStoragePool(ctx, "default", "", "dir", nil)
-		if err != nil {
-			return err
-		}
-
-		_, err = tx.CreateStoragePoolVolume(ctx, "default", "c1", "", cluster.StoragePoolVolumeTypeContainer, poolID, nil, cluster.StoragePoolVolumeContentTypeFS, time.Now())
-		if err != nil {
-			return err
-		}
-
-		container := cluster.Instance{
-			Project: "default",
-			Name:    "c1",
-			Node:    "none",
-		}
-
-		id, err := cluster.CreateInstance(context.TODO(), tx.Tx(), container)
-		if err != nil {
-			return err
-		}
-
-		err = cluster.CreateInstanceDevices(context.TODO(), tx.Tx(), id, map[string]cluster.Device{
-			"root": {
-				Name: "root",
-				Config: map[string]string{"path": "/",
-					"pool": "default",
-					"type": "disk",
-				},
-			},
-		})
-		if err != nil {
-			return err
-		}
-
-		poolName, err := tx.GetInstancePool(ctx, "default", "c1")
-		if err != nil {
-			return err
-		}
-
-		assert.Equal(t, "default", poolName)
-
-		return nil
+		var err error
+		poolID, err = tx.CreateStoragePool(ctx, "default", "", "dir", nil)
+		return err
 	})
 	require.NoError(t, err)
+
+	tests := []struct {
+		name                  string
+		instanceName          string
+		storagePoolVolumeType cluster.StoragePoolVolumeType
+		instanceType          instancetype.Type
+	}{
+		{
+			name:                  "container",
+			instanceName:          "c1",
+			storagePoolVolumeType: cluster.StoragePoolVolumeTypeContainer,
+			instanceType:          instancetype.Container,
+		},
+		{
+			name:                  "microvm",
+			instanceName:          "m1",
+			storagePoolVolumeType: cluster.StoragePoolVolumeTypeMicroVM,
+			instanceType:          instancetype.MicroVM,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				_, err := tx.CreateStoragePoolVolume(ctx, "default", tt.instanceName, "", tt.storagePoolVolumeType, poolID, nil, cluster.StoragePoolVolumeContentTypeFS, time.Now())
+				if err != nil {
+					return err
+				}
+
+				instance := cluster.Instance{
+					Project: "default",
+					Name:    tt.instanceName,
+					Node:    "none",
+					Type:    tt.instanceType,
+				}
+
+				id, err := cluster.CreateInstance(context.TODO(), tx.Tx(), instance)
+				if err != nil {
+					return err
+				}
+
+				err = cluster.CreateInstanceDevices(context.TODO(), tx.Tx(), id, map[string]cluster.Device{
+					"root": {
+						Name: "root",
+						Config: map[string]string{
+							"path": "/",
+							"pool": "default",
+							"type": "disk",
+						},
+					},
+				})
+				if err != nil {
+					return err
+				}
+
+				poolName, err := tx.GetInstancePool(ctx, "default", tt.instanceName)
+				if err != nil {
+					return err
+				}
+
+				assert.Equal(t, "default", poolName)
+
+				return nil
+			})
+			require.NoError(t, err)
+		})
+	}
 }
 
 // All containers on a node are loaded in bulk.

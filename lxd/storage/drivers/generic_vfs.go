@@ -1183,7 +1183,7 @@ func genericVFSListVolumes(d Driver) ([]Volume, error) {
 			volName := ent.Name()
 
 			contentType := ContentTypeFS
-			if volType == VolumeTypeVM {
+			if volType == VolumeTypeVM || volType == VolumeTypeMicroVM {
 				contentType = ContentTypeBlock
 			} else if volType == VolumeTypeCustom && shared.PathExists(filepath.Join(volTypePath, volName, genericVolumeDiskFile)) {
 				if strings.HasSuffix(ent.Name(), genericISOVolumeSuffix) {
