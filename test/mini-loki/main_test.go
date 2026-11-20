@@ -2,11 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"io"
+	"net"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/canonical/lxd/test/testutils/servemock"
 )
 
 func TestMain_ServeHTTP(t *testing.T) {
@@ -51,6 +56,17 @@ func TestMain_ServeHTTP(t *testing.T) {
 		},
 	}
 
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	res, err := servemock.API(ctx, servemock.Config{
+		Address:  "127.0.0.1:0",
+		Handlers: l.handlers(),
+	})
+	require.NoError(t, err)
+
+	_, port, err := net.SplitHostPort(res.Listener.(*net.TCPListener).Addr().String())
+	require.NoError(t, err)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear the file for each test case
@@ -66,16 +82,15 @@ func TestMain_ServeHTTP(t *testing.T) {
 
 			var req *http.Request
 			if tt.body != "" {
-				req = httptest.NewRequest(tt.method, tt.url, bytes.NewBufferString(tt.body))
+				req, err = http.NewRequest(tt.method, "http://127.0.0.1:"+port+tt.url, bytes.NewBufferString(tt.body))
+				require.NoError(t, err)
 			} else {
-				req = httptest.NewRequest(tt.method, tt.url, nil)
+				req, err = http.NewRequest(tt.method, "http://127.0.0.1:"+port+tt.url, nil)
+				require.NoError(t, err)
 			}
 
-			w := httptest.NewRecorder()
-
-			l.ServeHTTP(w, req)
-
-			resp := w.Result()
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
 			if resp.StatusCode != tt.expectedStatus {
 				t.Errorf("Expected status %d, got %d", tt.expectedStatus, resp.StatusCode)
 			}

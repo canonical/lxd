@@ -1,49 +1,41 @@
 package main
 
 import (
-	"crypto/ecdsa"
+	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"math/big"
-	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"golang.org/x/sys/unix"
+	"github.com/canonical/lxd/shared"
+	"github.com/canonical/lxd/test/testutils/servemock"
 )
 
-// testECCP256 is an insecure, test-only key from RFC 9500, Section 2.3.
-// It can be used in tests to avoid slow key generation.
-var testECCP256 = func() *ecdsa.PrivateKey {
-	block, _ := pem.Decode([]byte(strings.ReplaceAll(
-		`-----BEGIN EC TESTING KEY-----
-MHcCAQEEIObLW92AqkWunJXowVR2Z5/+yVPBaFHnEedDk5WJxk/BoAoGCCqGSM49
-AwEHoUQDQgAEQiVI+I+3gv+17KN0RFLHKh5Vj71vc75eSOkyMsxFxbFsTNEMTLjV
-uKFxOelIgsiZJXKZNCX0FBmrfpCkKklCcg==
------END EC TESTING KEY-----`, "TESTING KEY", "PRIVATE KEY")))
-	key, _ := x509.ParseECPrivateKey(block.Bytes)
-	return key
-}()
+func main() {
+	err := run()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
 
 // mini-acme is a minimal ACME (RFC 8555) server for integration testing.
 // It serves HTTPS (required by RFC 8555) and supports HTTP-01 challenge
 // validation when a validation target address is provided.
-func main() {
+func run() error {
 	if len(os.Args) < 3 {
-		fmt.Fprintln(os.Stderr, "Usage: mini-acme <listen-addr> <ca-cert-path> [<validation-addr>]")
-		os.Exit(1)
+		return errors.New("Usage: mini-acme <listen-addr> <ca-cert-path> [<validation-addr>]")
 	}
 
 	addr := os.Args[1]
@@ -56,43 +48,71 @@ func main() {
 
 	srv, err := newServer(addr, validationAddr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 
-	// Write the CA certificate so that ACME clients can trust this server
-	// (e.g. via LEGO_CA_CERTIFICATES).
-	err = os.WriteFile(caCertPath, srv.caCertPEM, 0644)
+	result, err := servemock.API(context.Background(), servemock.Config{
+		Address:  addr,
+		NotFound: nil,
+		Handlers: []servemock.Handler{
+			{
+				Pattern:     "GET /directory",
+				HTTPHandler: srv.handleDirectory,
+			},
+			{
+				Pattern:     "HEAD /new-nonce",
+				HTTPHandler: srv.handleNewNonce,
+			},
+			{
+				Pattern:     "GET /new-nonce",
+				HTTPHandler: srv.handleNewNonce,
+			},
+			{
+				Pattern:     "POST /new-acct",
+				HTTPHandler: srv.handleNewAccount,
+			},
+			{
+				Pattern:     "POST /new-order",
+				HTTPHandler: srv.handleNewOrder,
+			},
+			{
+				Pattern:     "POST /authz/{id}",
+				HTTPHandler: srv.handleAuthz,
+			},
+			{
+				Pattern:     "POST /challenge/{id}",
+				HTTPHandler: srv.handleChallenge,
+			},
+			{
+				Pattern:     "POST /order/{id}/finalize",
+				HTTPHandler: srv.handleFinalize,
+			},
+			{
+				Pattern:     "POST /order/{id}",
+				HTTPHandler: srv.handleOrder,
+			},
+			{
+				Pattern:     "POST /cert/{id}",
+				HTTPHandler: srv.handleCert,
+			},
+		},
+		CACertPath: caCertPath,
+		UseTLS:     true,
+	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing CA cert: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 
-	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, unix.SIGINT, unix.SIGTERM)
-
-	go func() {
-		<-sigchan
-		_ = srv.httpServer.Close()
-	}()
-
-	fmt.Fprintf(os.Stderr, "mini-acme listening on %s (HTTPS)\n", addr)
-
-	err = srv.listenAndServeTLS()
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
+	srv.certInfo = result.CertInfo
+	srv.tlsConfig = result.TLSConfig
+	return <-result.Err
 }
 
 type acmeServer struct {
 	baseURL        string
 	validationAddr string
-	caKey          *ecdsa.PrivateKey
-	caCert         *x509.Certificate
-	caCertPEM      []byte
-	tlsCert        tls.Certificate
-	httpServer     *http.Server
+	certInfo       *shared.CertInfo
+	tlsConfig      *tls.Config
 
 	mu         sync.Mutex
 	orders     map[string]*order
@@ -114,105 +134,15 @@ type challenge struct {
 }
 
 func newServer(addr string, validationAddr string) (*acmeServer, error) {
-	caKey := testECCP256
-
-	caTemplate := &x509.Certificate{
-		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{CommonName: "mini-acme CA"},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(6 * 24 * time.Hour),
-		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-	}
-
-	caCertDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
-	if err != nil {
-		return nil, fmt.Errorf("Failed creating CA certificate: %w", err)
-	}
-
-	caCert, err := x509.ParseCertificate(caCertDER)
-	if err != nil {
-		return nil, fmt.Errorf("Failed parsing CA certificate: %w", err)
-	}
-
-	caCertPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caCertDER})
-
-	// Generate a TLS serving certificate for the listen address signed by the CA.
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		return nil, fmt.Errorf("Failed getting listen IP address: %w", err)
-	}
-
-	hostIP := net.ParseIP(host)
-	if hostIP == nil {
-		return nil, fmt.Errorf("Invalid IP %q", host)
-	}
-
-	tlsCertDER, err := x509.CreateCertificate(rand.Reader, &x509.Certificate{
-		SerialNumber: big.NewInt(2),
-		Subject:      pkix.Name{CommonName: "mini-acme"},
-		IPAddresses:  []net.IP{hostIP},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(24 * time.Hour),
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-	}, caCert, &caKey.PublicKey, caKey)
-	if err != nil {
-		return nil, fmt.Errorf("Failed creating TLS certificate: %w", err)
-	}
-
-	tlsCert := tls.Certificate{
-		Certificate: [][]byte{tlsCertDER},
-		PrivateKey:  caKey,
-	}
-
 	s := &acmeServer{
 		baseURL:        "https://" + addr,
 		validationAddr: validationAddr,
-		caKey:          caKey,
-		caCert:         caCert,
-		caCertPEM:      caCertPEM,
-		tlsCert:        tlsCert,
 		orders:         make(map[string]*order),
 		challenges:     make(map[string]*challenge),
 		certs:          make(map[string][]byte),
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /directory", s.handleDirectory)
-	mux.HandleFunc("HEAD /new-nonce", s.handleNewNonce)
-	mux.HandleFunc("GET /new-nonce", s.handleNewNonce)
-	mux.HandleFunc("POST /new-acct", s.handleNewAccount)
-	mux.HandleFunc("POST /new-order", s.handleNewOrder)
-	mux.HandleFunc("POST /authz/{id}", s.handleAuthz)
-	mux.HandleFunc("POST /challenge/{id}", s.handleChallenge)
-	mux.HandleFunc("POST /order/{id}/finalize", s.handleFinalize)
-	mux.HandleFunc("POST /order/{id}", s.handleOrder)
-	mux.HandleFunc("POST /cert/{id}", s.handleCert)
-
-	s.httpServer = &http.Server{
-		Addr:              addr,
-		Handler:           mux,
-		ReadHeaderTimeout: 30 * time.Second,
-	}
-
 	return s, nil
-}
-
-// listenAndServeTLS starts the HTTPS server using the in-memory TLS certificate.
-func (s *acmeServer) listenAndServeTLS() error {
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{s.tlsCert},
-		MinVersion:   tls.VersionTLS13,
-	}
-
-	ln, err := tls.Listen("tcp", s.httpServer.Addr, tlsConfig)
-	if err != nil {
-		return err
-	}
-
-	return s.httpServer.Serve(ln)
 }
 
 func (s *acmeServer) allocID() string {
@@ -555,15 +485,16 @@ func (s *acmeServer) issueCertificate(csr *x509.CertificateRequest, domain strin
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 	}
 
-	certDER, err := x509.CreateCertificate(rand.Reader, template, s.caCert, csr.PublicKey, s.caKey)
+	certDER, err := x509.CreateCertificate(rand.Reader, template, s.certInfo.CA(), csr.PublicKey, servemock.CAPrivateKey())
 	if err != nil {
 		return nil, err
 	}
 
 	leafPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	caCertPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: s.certInfo.CA().Raw})
 
 	// Return the full chain: leaf + CA.
-	return append(leafPEM, s.caCertPEM...), nil
+	return append(leafPEM, caCertPEM...), nil
 }
 
 // parseJWSPayload extracts the decoded payload from a JWS request body.
