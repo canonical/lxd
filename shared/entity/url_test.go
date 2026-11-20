@@ -288,6 +288,39 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			WantProject:  "foo",
 			WantLocation: "bar",
 		},
+		{
+			Name:        "Storage volume with percent sign in name",
+			URL:         "/1.0/storage-pools/p1/volumes/custom/50%25off",
+			WantType:    TypeStorageVolume,
+			WantProject: "default",
+			WantArgs: map[string]string{
+				"pool": "p1",
+				"type": "custom",
+				"name": "50%off",
+			},
+		},
+		{
+			Name:        "Storage volume with escaped percent sequence in name",
+			URL:         "/1.0/storage-pools/p1/volumes/custom/100%2525",
+			WantType:    TypeStorageVolume,
+			WantProject: "default",
+			WantArgs: map[string]string{
+				"pool": "p1",
+				"type": "custom",
+				"name": "100%25",
+			},
+		},
+		{
+			Name:        "Storage volume with non-ASCII name",
+			URL:         "/1.0/storage-pools/p1/volumes/custom/caf%C3%A9",
+			WantType:    TypeStorageVolume,
+			WantProject: "default",
+			WantArgs: map[string]string{
+				"pool": "p1",
+				"type": "custom",
+				"name": "café",
+			},
+		},
 	}
 
 	for _, test := range tests {
