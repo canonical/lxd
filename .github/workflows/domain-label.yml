@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   check-domain-label:
-    if: ${{ github.repository == 'canonical/lxd' && !github.event.pull_request.draft }}
+    if: ${{ github.repository_owner == 'canonical' && !github.event.pull_request.draft }}
     permissions:
       pull-requests: write
     name: Verify domain label

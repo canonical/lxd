@@ -16,7 +16,7 @@ permissions: {}
 
 jobs:
   assign-reviewers:
-    if: ${{ github.repository == 'canonical/lxd' && !github.event.pull_request.draft }}
+    if: ${{ github.repository_owner == 'canonical' && !github.event.pull_request.draft }}
     permissions:
       pull-requests: write
     name: Assign domain reviewers
