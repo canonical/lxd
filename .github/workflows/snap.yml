@@ -1,20 +1,10 @@
 name: Snap channel tests
 
 on:
-  schedule:
-    - cron: '38 6 * * *'
+  # Scheduled workflows only run from the default branch so the scheduled runs of this
+  # workflow are dispatched from the copy of `snap.yml` on `main`.
   workflow_dispatch:
     inputs:
-      snap-track:
-        description: Snap track to test.
-        type: choice
-        default: 'latest'
-        options:
-          - 'latest'
-          - '6'
-          - '5.21'
-          - '5.0'
-          - '4.0'
       snap-risk:
         description: Snap risk level, `edge`, `candidate` or `stable`.
         type: choice
@@ -26,9 +16,8 @@ on:
       ubuntu-releases:
         description: Ubuntu releases to run the tests against. In JSON format, i.e. '["24.04", "26.04"]'.
         type: choice
-        default: '["26.04"]'
+        default: '["24.04", "26.04"]'
         options:
-          - '["22.04"]'
           - '["24.04"]'
           - '["26.04"]'
           - '["24.04", "26.04"]'
@@ -41,9 +30,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.snap-track }}-${{ inputs.snap-risk }}-${{ inputs.ubuntu-releases }}
-  # XXX: scheduled runs should not cancel manually triggered ones
-  cancel-in-progress: ${{ !contains(github.event_name, 'schedule')}}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.snap-risk }}-${{ inputs.ubuntu-releases }}
+  # XXX: runs dispatched from the schedule on `main` should not cancel manually triggered ones
+  cancel-in-progress: false
 
 defaults:
   run:
@@ -57,12 +46,16 @@ env:
   # XXX: avoid Ceph 20.2.4 due to new authentication for CVE-2025-30156 not compatible with the ceph-common version shipped in the LXD snap
   # Revert to latest/edge once https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/2166817 is fixed and propagated in the LXD snap
   MICROCEPH_SNAP_CHANNEL: "tentacle/stable"
+  # Only seed the snaps cache with the bases needed by this branch: core26 for LXD and MicroOVN, core24 for MicroCeph
+  # (core26 also covers MicroCeph latest/edge once the `tentacle/stable` workaround above is reverted)
+  SNAP_CORES: "core26 core24"
+  MICROOVN_SNAP_CHANNEL: "latest/edge"
+  MICROOVN_SNAP_CORE: "core26"
 
 jobs:
   # Prime the images/snaps caches once so the (potentially large) snap-tests
   # matrix below doesn't stampede on cache misses.
   prime-caches:
-    if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: Prime caches
     runs-on: ubuntu-26.04
     steps:
@@ -83,12 +76,14 @@ jobs:
           prime-cache-only: true
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
           cache-key-suffix: ${{ github.run_id }}
+          cores: ${{ env.SNAP_CORES }}
+          lxd-channel: 6/${{ inputs.snap-risk || 'edge' }}
           microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
+          microovn-channel: ${{ env.MICROOVN_SNAP_CHANNEL }}
 
   snap-tests:
-    if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     needs: prime-caches
-    name: ${{ matrix.test }} (${{ matrix.track }}/${{ matrix.risk }} - ${{ matrix.os }})
+    name: ${{ matrix.test }} (6/${{ matrix.risk }} - ${{ matrix.os }})
     runs-on: ubuntu-${{ matrix.os }}
     # avoid runaway test burning 6 hours of CI
     timeout-minutes: 60
@@ -98,8 +93,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(inputs.ubuntu-releases || (github.event_name == 'schedule' && '["22.04", "24.04", "26.04"]') || '["26.04"]') }}
-        track: ${{ fromJSON(inputs.snap-track && format('["{0}"]', inputs.snap-track) || (github.event_name == 'schedule' && '["6", "5.21", "5.0"]') || '["latest"]') }}
+        os: ${{ fromJSON(inputs.ubuntu-releases || '["24.04", "26.04"]') }}
         risk:
           - ${{ inputs.snap-risk || 'edge' }}
         test:
@@ -141,105 +135,6 @@ jobs:
           - ui firefox
           - vm
           - vm-migration
-        exclude:
-          # csi is not compatible with 4.0/*, 5.0/* or 5.21/*, nor with 22.04
-          - track: "4.0"
-            test: csi
-          - track: "5.0"
-            test: csi
-          - track: "5.21"
-            test: csi
-          - os: 22.04
-            test: csi
-          # not compatible with 4.0/*
-          - track: "4.0"
-            test: bgp
-          - track: "4.0"
-            test: cloud-init
-          - track: "4.0"
-            test: container-copy
-          - track: "4.0"
-            test: conversion
-          - track: "4.0"
-            test: cpu-vm
-          - track: "4.0"
-            test: docker
-          - track: "4.0"
-            test: lxd-installer
-          - track: "4.0"
-            test: lxd-user
-          - track: "4.0"
-            test: network-ovn ovn:deb
-          - track: "4.0"
-            test: network-ovn ovn:latest/edge
-          - track: "4.0"
-            test: qemu-external-vm
-          - track: "4.0"
-            test: storage-buckets
-          - track: "4.0"
-            test: storage-disks-vm
-          - track: "4.0"
-            test: storage-metadata
-          - track: "4.0"
-            test: storage-vm btrfs
-          - track: "4.0"
-            test: storage-vm ceph
-          - track: "4.0"
-            test: storage-vm dir
-          - track: "4.0"
-            test: storage-vm lvm
-          - track: "4.0"
-            test: storage-vm lvm-thin
-          - track: "4.0"
-            test: storage-vm zfs
-          - track: "4.0"
-            test: storage-volumes-vm
-          - track: "4.0"
-            test: tpm-vm
-          - track: "4.0"
-            test: ui chromium
-          - track: "4.0"
-            test: ui firefox
-          - track: "4.0"
-            test: vm-migration
-          # not compatible with 5.0/*
-          - track: "5.0"
-            test: cloud-init
-          - track: "5.0"
-            test: docker
-          - track: "5.0"
-            test: lxd-installer
-          - track: "5.0"
-            test: network-ovn ovn:latest/edge
-          - track: "5.0"
-            test: qemu-external-vm
-          - track: "5.0"
-            test: vm-migration
-          # not compatible with 5.21/*
-          - track: "5.21"
-            test: lxd-installer
-          - track: "5.21"
-            test: qemu-external-vm
-          # some tests are not worth testing on specific OSes
-          - os: 22.04
-            test: bgp
-          - os: 22.04
-            test: lxd-installer
-          - os: 22.04
-            test: qemu-external-vm
-          # skip track/os combinations that are too far apart
-          - os: 22.04
-            track: "latest"
-          - os: 22.04
-            track: "6"
-          - os: 24.04
-            track: "4.0"
-          - os: 24.04
-            track: "5.0"
-          - os: 26.04
-            track: "4.0"
-          - os: 26.04
-            track: "5.0"
 
     steps:
       - name: Checkout
@@ -260,12 +155,15 @@ jobs:
         uses: $/.github/actions/snap-test
         with:
           test: ${{ matrix.test }}
-          channel: ${{ matrix.track }}/${{ matrix.risk }}
+          channel: 6/${{ matrix.risk }}
           os: ${{ matrix.os }}
           image-cache-dir: ${{ env.IMAGE_CACHE_DIR }}
           snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
           snap-cache-key-suffix: ${{ github.run_id }}
+          cores: ${{ env.SNAP_CORES }}
           microceph-channel: ${{ env.MICROCEPH_SNAP_CHANNEL }}
+          microovn-channel: ${{ env.MICROOVN_SNAP_CHANNEL }}
+          microovn-core: ${{ env.MICROOVN_SNAP_CORE }}
 
       - name: Tmate debugging session
         if: ${{ failure() && inputs.tmate-debug }}
