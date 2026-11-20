@@ -129,7 +129,9 @@ Setting this option to `true` is especially dangerous in combination with {confi
 (howto-security-harden-isolate)=
 ### Isolate containers
 
-If a set of containers do not need to share data with each other, enable the instance option {config:option}`instance-security:security.idmap.isolated` on each one. This configures them to use unique UID/GID maps, preventing potential {abbr}`DoS (Denial of Service)` attacks from one container to another. Only unprivileged containers can use this option.
+If a set of containers do not need to share data with each other, enable the instance option {config:option}`instance-security:security.idmap.isolated` on each one. This configures each container to use unique UID/GID maps, preventing potential {abbr}`DoS (Denial of Service)` attacks from one container to another. Only unprivileged containers can use this option.
+
+To require this configuration for containers in a project, enable {ref}`project restrictions <project-restrictions>` and set {config:option}`project-restricted:restricted.containers.privilege` to `isolated`.
 
 (howto-security-profiles)=
 ### Use profiles

@@ -104,9 +104,7 @@ It has extra rights only on resources that it owns itself.
 
 This mechanism ensures that most security issues (for example, container escape or resource abuse) that might occur in a container apply just as well to a random unprivileged user, which means they are a generic kernel security bug rather than a LXD issue.
 
-```{tip}
-If data sharing between containers isn't needed, you can enable {config:option}`instance-security:security.idmap.isolated`, which will use non-overlapping UID/GID maps for each container, preventing potential {abbr}`DoS (Denial of Service)` attacks on other containers.
-```
+Unprivileged containers can also be configured to use unique UID/GID maps, as detailed in {ref}`howto-security-harden-isolate`.
 
 ### Privileged containers
 
