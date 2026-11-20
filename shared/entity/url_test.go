@@ -311,6 +311,17 @@ func TestEntityPermissionURL_RoundTrip(t *testing.T) {
 			},
 		},
 		{
+			Name:        "Storage volume with encoded slash in name",
+			URL:         "/1.0/storage-pools/p1/volumes/custom/a%2Fb",
+			WantType:    TypeStorageVolume,
+			WantProject: "default",
+			WantArgs: map[string]string{
+				"pool": "p1",
+				"type": "custom",
+				"name": "a/b",
+			},
+		},
+		{
 			Name:        "Storage volume with non-ASCII name",
 			URL:         "/1.0/storage-pools/p1/volumes/custom/caf%C3%A9",
 			WantType:    TypeStorageVolume,
