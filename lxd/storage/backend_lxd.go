@@ -5411,6 +5411,16 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(ctx context.Context, projectName
 			targetSnapshots = append(targetSnapshots, b.GetVolume(drivers.VolumeTypeCustom, contentType, newSnapshotStorageName, snapVol.Config()))
 		}
 
+		// Set the parent volume's UUID.
+		if b.driver.Info().PopulateParentVolumeUUID {
+			parentUUID, err := b.getParentVolumeUUID(srcVol, srcProjectName)
+			if err != nil {
+				return err
+			}
+
+			srcVol.SetParentUUID(parentUUID)
+		}
+
 		volCopy := drivers.NewVolumeCopy(vol, targetSnapshots...)
 		srcVolCopy := drivers.NewVolumeCopy(srcVol, sourceSnapshots...)
 
