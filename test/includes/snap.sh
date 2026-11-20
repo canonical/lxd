@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # download_snap: downloads a snap to the cache dir.
 download_snap() {
     local name="${1}"
@@ -11,7 +13,7 @@ download_snap() {
         cd "${dir}"
         # Delete any revs older than 1 day
         find . -type f -mtime +1 \( -name "${name}_*.snap" -o -name "${name}_*.assert" \) -delete
-        exec snap download "${name}" --channel="${channel}" --cohort="+"
+        exec timeout 20m snap download "${name}" --channel="${channel}" --cohort="+"
     )
 }
 
@@ -82,6 +84,7 @@ install_snap() {
 
             if [ "${recursive_call}" = "false" ]; then
               echo "Opportunistically downloading ${name} before installation"
+              # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
               if download_snap "${name}" "${channel}"; then
                   install_snap "${name}" "${channel}"
                   return
@@ -107,18 +110,90 @@ install_snap() {
     )
 }
 
+# install_snap_in_instance: installs a snap from the cache dir into an instance
+# without the instance having to reach the snap store. The snap base (if any) is
+# installed first, from the "latest/candidate" cache. Returns non-zero without
+# changing anything if the snap (or its base) is not in the cache so that the
+# caller can fall back to the snap store.
+# Usage: install_snap_in_instance <instance> <name> [channel]
+install_snap_in_instance() {
+    local instance="${1}"
+    local name="${2}"
+    local channel="${3:-"latest/edge"}"
+    local cache_dir="${SNAP_CACHE_DIR:-${HOME}/snap-cache}"
+    local dir="${cache_dir}/${name}/${channel/\//-}"
+    local f assert="" snap="" base="" rev=""
+
+    for f in "${dir}/${name}"_*.assert; do
+        if [ -e "${f}" ]; then
+            assert="${f}"
+            snap="${f/%.assert/.snap}"
+            break
+        fi
+    done
+
+    if [ -z "${assert}" ] || ! [ -e "${snap}" ]; then
+        return 1
+    fi
+
+    if [ "${name}" != "snapd" ]; then
+        if ! command -v unsquashfs >/dev/null; then
+            return 1
+        fi
+
+        base="$(unsquashfs -n -cat "${snap}" meta/snap.yaml | awk '/^base:/ {print $2; exit}')"
+        if [ -n "${base}" ] && [ "${base}" != "bare" ]; then
+            # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
+            install_snap_in_instance "${instance}" "${base}" "latest/candidate" || return 1
+        fi
+    fi
+
+    # Cached snaps are named <name>_<revision>.snap
+    rev="${snap##*_}"
+    rev="${rev%.snap}"
+
+    echo "Installing ${name} (${channel}) in ${instance} from cache"
+    lxc file push --quiet "${snap}" "${assert}" "${instance}/root/"
+    lxc exec "${instance}" -- sh -eux -c "
+        cd /root
+        snap ack '$(basename "${assert}")'
+        # The same revision may already be installed (e.g. seeded in the image)
+        if ! snap install './$(basename "${snap}")'; then
+            [ \"\$(snap list '${name}' | awk 'NR==2 {print \$3}')\" = '${rev}' ]
+        fi
+        snap refresh --hold=24h '${name}'
+        snap switch '${name}' --channel='${channel}'
+        rm -f '$(basename "${snap}")' '$(basename "${assert}")'
+    "
+}
+
 # sideload_lxd_snap: installs the lxd snap and sideloads the lxc, lxd and lxd-agent binaries.
 sideload_lxd_snap() {
     local channel="${1:-"latest/edge"}"
-    local bin
+    local bin lxd_agent_bin
+    install_snap core24 "latest/candidate"
     install_snap lxd "${channel}"
 
-    for bin in "${_LXC:-$(command -v lxc)}" "$(command -v lxd)" "$(command -v lxd-user)"; do
+    # For LVM thin use external LVM tools to avoid errors like:
+    # Failed to run: lvcreate --yes --wipesignatures y --thinpool --extents 100%FREE: Device or resource busy
+    snap set lxd lvm.external=true
+
+    for bin in "${_LXC:-$(command -v lxc || true)}" "$(command -v lxd || true)" "$(command -v lxd-user || true)"; do
+        if [ -z "${bin}" ]; then
+            echo "Error: Required binary not found in PATH" >&2
+            return 1
+        fi
         cp "${bin}" "/var/snap/lxd/common/${bin##*/}.debug"
     done
 
     # Use a mount bind as /snap/lxd is readonly
-    mount -o ro,bind "$(command -v lxd-agent)" /snap/lxd/current/bin/lxd-agent
+    lxd_agent_bin="$(command -v lxd-agent || true)"
+    if [ -z "${lxd_agent_bin}" ]; then
+        echo "Error: lxd-agent not found in PATH" >&2
+        return 1
+    fi
+
+    mount -o ro,bind "${lxd_agent_bin}" /snap/lxd/current/bin/lxd-agent
 }
 
 # gocoverage_lxd_snap sets up the LXD snap to collect Go coverage data.
