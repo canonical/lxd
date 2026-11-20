@@ -2580,9 +2580,15 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 			return err
 		}
 
+		// Round the configured root size (for comparison only) because some storage drivers round the
+		// volumes they create (e.g. PowerFlex allocates in 8GiB steps), so the source volume can be larger
+		// than the configured size and would otherwise not be migratable with the same size setting.
+		rootVol := b.GetVolume(volType, contentType, project.Instance(inst.Project().Name, inst.Name()), map[string]string{})
+		rootDiskRoundedBytes := rootVol.RoundVolumeBlockSizeBytes(rootDiskConfBytes)
+
 		// Compare volume size with configured root size.
 		// Add a 4MiB allowed extra to account for round to nearest extent (16k on ZFS, 4MiB on LVM).
-		if (rootDiskConfBytes + (4 * 1024 * 1024)) < args.VolumeSize {
+		if (rootDiskRoundedBytes + (4 * 1024 * 1024)) < args.VolumeSize {
 			// Convert to IEC format for nicer error.
 			rootDiskSize := units.GetByteSizeStringIEC(rootDiskConfBytes, 2)
 			migrationSourceSize := units.GetByteSizeStringIEC(args.VolumeSize, 2)
