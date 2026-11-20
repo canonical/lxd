@@ -74,6 +74,18 @@ func (PowerStoreHost) selector() string {
 	return "id,name,os_type,initiators(id,port_name,port_type),mapped_hosts(id,host_id,volume_id,logical_unit_number)"
 }
 
+// VolumeMapping returns the mapping of the given volume to the host, or nil if the volume is
+// not mapped to the host.
+func (h PowerStoreHost) VolumeMapping(volumeID string) *PowerStoreHostVolumeMapping {
+	for _, mapping := range h.MappedVolumes {
+		if mapping.VolumeID == volumeID {
+			return mapping
+		}
+	}
+
+	return nil
+}
+
 // MissingQualifiedNames returns the given initiator qualified names that the host is not
 // configured with for the given connector type.
 //
@@ -1098,11 +1110,10 @@ func (c *PowerStoreClient) AttachVolumeToHost(volumeID string, hostID string) (l
 		return 0, false, err
 	}
 
-	for _, mapping := range host.MappedVolumes {
-		if mapping.VolumeID == volumeID {
-			// The volume is already attached to the host.
-			return mapping.LUN, false, nil
-		}
+	mapping := host.VolumeMapping(volumeID)
+	if mapping != nil {
+		// The volume is already attached to the host.
+		return mapping.LUN, false, nil
 	}
 
 	// Attach the volume to the host.
@@ -1127,14 +1138,14 @@ func (c *PowerStoreClient) AttachVolumeToHost(volumeID string, hostID string) (l
 		return 0, true, fmt.Errorf("Failed retrieving volume attachments after attach: %w", err)
 	}
 
-	for _, mapping := range host.MappedVolumes {
-		if mapping.VolumeID == volumeID {
-			reverter.Success()
-			return mapping.LUN, true, nil
-		}
+	mapping = host.VolumeMapping(volumeID)
+	if mapping == nil {
+		return 0, true, errors.New("Failed retrieving LUN for attached volume")
 	}
 
-	return 0, true, errors.New("Failed retrieving LUN for attached volume")
+	reverter.Success()
+
+	return mapping.LUN, true, nil
 }
 
 // DetachVolumeFromHost detaches (unmaps) volume from host.
