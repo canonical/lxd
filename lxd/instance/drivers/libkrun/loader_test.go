@@ -14,6 +14,8 @@ func TestLoaderSubprocess(t *testing.T) {
 		t.Skip("helper subprocess only")
 	}
 
+	SetLibkrunPath(os.Getenv("GO_LIBKRUN_LIB"))
+
 	switch os.Getenv("GO_LIBKRUN_CASE") {
 	case "missing-lib":
 		_, err := CreateContext()
@@ -71,7 +73,7 @@ func runLoaderScenario(t *testing.T, scenario string, libPath string) {
 	cmd.Env = append(os.Environ(),
 		"GO_LIBKRUN_HELPER=1",
 		"GO_LIBKRUN_CASE="+scenario,
-		"LIBKRUN_PATH="+libPath,
+		"GO_LIBKRUN_LIB="+libPath,
 	)
 
 	out, err := cmd.CombinedOutput()
