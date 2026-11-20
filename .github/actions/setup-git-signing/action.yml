@@ -1,0 +1,46 @@
+name: Setup Git to sign commits with an SSH key
+description: |
+  This action loads an SSH private key into an SSH agent and configures Git to
+  commit as the LXD bot, signing every commit with that key. The key is only
+  ever held by the agent: unload it with `ssh-add -D` once the commits are made.
+
+  It relies on some environment variables being set:
+  - `SSH_AUTH_SOCK`: The path to the SSH agent socket.
+
+inputs:
+  ssh-key:
+    description: The private SSH key (without passphrase) to sign commits with.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Configure Git
+      shell: bash
+      run: |
+        set -eux
+        git config --global transfer.fsckobjects true
+        git config --global user.name "Canonical LXD Bot"
+        git config --global user.email "lxd@lists.canonical.com"
+        git config --global commit.gpgsign true
+        git config --global gpg.format "ssh"
+        git config --global user.signingkey ~/.ssh/id_ed25519.pub
+
+    # XXX: from this point onwards, the action has access to the private SSH key
+    #      either as an environment variable or through the SSH agent
+    - name: Setup the SSH agent
+      shell: bash
+      env:
+        INPUTS_SSH_KEY: ${{ inputs.ssh-key }}
+      run: |
+        set -eu # let's not use -x here to avoid leaking the SSH key in the logs
+        if [[ -z "${INPUTS_SSH_KEY}" ]]; then
+          echo "::error::No SSH key to sign commits with"
+          exit 1
+        fi
+
+        mkdir -m 0700 -p ~/.ssh/
+        ssh-agent -a "${SSH_AUTH_SOCK}" > /dev/null
+        ssh-add - <<< "${INPUTS_SSH_KEY}"
+        unset INPUTS_SSH_KEY
+        ssh-add -L > ~/.ssh/id_ed25519.pub
