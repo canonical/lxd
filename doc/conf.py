@@ -134,6 +134,7 @@ sitemap_excludes = [
     '404/',
     'genindex/',
     'search/',
+    'reference/feature-previews/',
 ]
 
 # TODO: Add more pages to sitemap_excludes if needed. Wildcards are supported.

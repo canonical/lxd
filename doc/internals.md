@@ -42,6 +42,14 @@ Dqlite database for cluster state </reference/dqlite-internals>
 ZFS storage driver </reference/storage_zfs_internals>
 ```
 
+## Feature previews
+
+```{toctree}
+:titlesonly:
+
+/reference/feature-previews
+```
+
 ## Related topics
 
 How-to guides:

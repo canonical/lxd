@@ -3,7 +3,7 @@
 
 ```{warning}
 **Do not** enable changed block tracking in production environments.
-It is a {ref}`feature preview <howto-snap-configure-feature-previews>`.
+It is a {ref}`feature preview <ref-feature-previews>`.
 ```
 
 Changed block tracking records the blocks of a block volume that a guest writes to after a snapshot.
@@ -33,7 +33,7 @@ When the guest shuts down or reboots, the QEMU process pauses until LXD has merg
 
 Changed block tracking has the following requirements on the LXD server and client:
 
-- Enable the `changed_block_tracking` feature preview on both the server and the client (see {ref}`howto-snap-configure-feature-previews`).
+- Enable the `changed_block_tracking` feature preview on both the server and the client (see {ref}`ref-feature-previews-configure-snap`).
   While the preview is disabled, the server does not register the endpoints and does not advertise the `storage_volume_block_tracking` API extension (see {ref}`extension-storage-volume-block-tracking`).
   The server also rejects a snapshot with a bitmap, and the client hides the `lxc bitmap`, `lxc nbd` and `lxc storage volume nbd` commands.
 - Install an NBD client on the machine that runs the LXD client.
