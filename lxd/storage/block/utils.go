@@ -112,10 +112,36 @@ func DiskBlockSize(path string) (uint32, error) {
 	return res, nil
 }
 
+// FSToolWrapper is an optional function that's used to confine the tools that probe, format, check or modify a
+// filesystem (blkid, mkfs, e2fsck, resize2fs, ...), useful for confinement like AppArmor.
+// It returns the command and arguments to run along with a cleanup function.
+var FSToolWrapper func(tool string, args []string, devPath string, mountPath string) (string, []string, func(), error)
+
+// RunFSTool runs a filesystem tool on the given device or image file, confined to it when FSToolWrapper is set.
+func RunFSTool(retryOpts *shared.RunCommandRetryOpts, retry bool, tool string, args []string, devPath string, mountPath string) (string, error) {
+	if FSToolWrapper != nil {
+		wrappedTool, wrappedArgs, cleanup, err := FSToolWrapper(tool, args, devPath, mountPath)
+		if err != nil {
+			return "", fmt.Errorf("Failed confining %q: %w", tool, err)
+		}
+
+		defer cleanup()
+
+		tool = wrappedTool
+		args = wrappedArgs
+	}
+
+	if retry {
+		return shared.RunCommandRetry(context.TODO(), retryOpts, tool, args...)
+	}
+
+	return shared.RunCommand(context.TODO(), tool, args...)
+}
+
 // DiskFSUUID returns the UUID of a filesystem on the device.
 // An empty string is returned in case of a pristine disk.
 func DiskFSUUID(pathName string) (string, error) {
-	uuid, err := shared.RunCommand(context.TODO(), "blkid", "-s", "UUID", "-o", "value", pathName)
+	uuid, err := RunFSTool(nil, false, "blkid", []string{"-s", "UUID", "-o", "value", pathName}, pathName, "")
 	if err != nil {
 		runErr, ok := err.(shared.RunError)
 		if ok {
@@ -135,7 +161,7 @@ func DiskFSUUID(pathName string) (string, error) {
 
 // DiskFSType detects the filesystem type of the block device.
 func DiskFSType(pathName string) (string, error) {
-	fsType, err := shared.RunCommand(context.TODO(), "blkid", "-s", "TYPE", "-o", "value", pathName)
+	fsType, err := RunFSTool(nil, false, "blkid", []string{"-s", "TYPE", "-o", "value", pathName}, pathName, "")
 	if err != nil {
 		return "", fmt.Errorf("Failed retrieving filesystem type from device %q: %w", pathName, err)
 	}

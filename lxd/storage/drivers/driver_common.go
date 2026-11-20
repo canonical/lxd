@@ -304,7 +304,7 @@ func (d *common) ReplicatesProject(projectName string) bool {
 // header where possible so that the backup header is where it is expected in case of any corruption with the
 // primary header.
 func (d *common) moveGPTAltHeader(devPath string) error {
-	path, err := exec.LookPath("sgdisk")
+	_, err := exec.LookPath("sgdisk")
 	if err != nil {
 		d.logger.Warn("Skipped moving GPT alternative header to end of disk as sgdisk command not found", logger.Ctx{"dev": devPath})
 		return nil
@@ -334,7 +334,7 @@ func (d *common) moveGPTAltHeader(devPath string) error {
 		}
 	}
 
-	_, err = shared.RunCommand(context.TODO(), path, "--move-second-header", devPath)
+	_, err = runFSTool(nil, false, "sgdisk", []string{"--move-second-header", devPath}, devPath, "")
 	if err == nil {
 		d.logger.Debug("Moved GPT alternative header to end of disk", logger.Ctx{"dev": devPath})
 		return nil
