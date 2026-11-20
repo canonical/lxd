@@ -8,9 +8,9 @@ LXD has two types of releases:
 - **Feature releases** receive updates with each new release. We do not do point
   releases; instead, users are expected to wait for the next feature release.
 - **LTS releases** receive two years of full support followed by three years of
-  maintenance support. Full support includes bugfixes and security updates, and
-  maintenance support includes high-impact bugfixes and critical security
-  updates.
+  maintenance support. Full support includes bugfixes and vulnerability fixes,
+  and maintenance support includes high-impact bugfixes, including fixes for
+  critical and high vulnerabilities.
 
 <!-- Include end supported versions -->
 
