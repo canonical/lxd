@@ -3310,7 +3310,10 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, progressReporter iop
 		return err
 	}
 
-	if volExists {
+	// A standby's image is a mirror that Ceph owns, so only the record is deleted here.
+	if volExists && HoldsCephReplicas(b, inst.Project()) {
+		l.Debug("Skipping the storage deletion of a standby replica")
+	} else if volExists {
 		err = b.driver.DeleteVolume(vol, progressReporter)
 		if err != nil {
 			return fmt.Errorf("Error deleting storage volume: %w", err)
@@ -6594,9 +6597,19 @@ func (b *lxdBackend) DeleteCustomVolume(ctx context.Context, projectName string,
 	}
 
 	if volExists {
-		err = b.driver.DeleteVolume(vol, progressReporter)
+		// A standby's image is a mirror that Ceph owns, so only the record is deleted here.
+		holdsReplicas, err := HoldsCephReplicasByName(ctx, b.state, b, projectName)
 		if err != nil {
 			return err
+		}
+
+		if holdsReplicas {
+			l.Debug("Skipping the storage deletion of a standby replica")
+		} else {
+			err = b.driver.DeleteVolume(vol, progressReporter)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
