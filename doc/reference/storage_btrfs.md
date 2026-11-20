@@ -25,8 +25,12 @@ The `btrfs` driver in LXD uses a subvolume per instance, image and snapshot.
 When creating a new entity (for example, launching a new instance), it creates a Btrfs snapshot.
 
 Btrfs doesn't natively support storing block devices.
-Therefore, when using Btrfs for VMs, LXD creates a big file on disk to store the VM.
-This approach is not very efficient and might cause issues when creating snapshots.
+Therefore, when using Btrfs for VMs or custom block volumes, LXD creates a big file on disk to store the volume.
+To limit fragmentation, LXD disables COW for these files, unless the storage pool is mounted with compression or `datacow` enabled (see {config:option}`storage-btrfs-pool-conf:btrfs.mount_options`).
+Without COW, creating snapshots of these block volumes is costly in terms of time and disk space.
+
+This limitation applies only to block volumes.
+Filesystem volumes, such as those used by containers, are not affected.
 
 Btrfs can be used as a storage backend inside a container in a nested LXD environment.
 In this case, the parent container itself must use Btrfs.
