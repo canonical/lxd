@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"os"
 	"os/exec"
 
 	"golang.org/x/sys/unix"
@@ -11,8 +12,9 @@ import (
 
 // lxcCmd represents a running command for an LXC container.
 type lxcCmd struct {
-	attachedChildPid int
-	cmd              *exec.Cmd
+	attachedChildPid  int
+	attachedChildProc *os.Process
+	cmd               *exec.Cmd
 }
 
 // PID returns the attached child's process ID.
@@ -22,7 +24,7 @@ func (c *lxcCmd) PID() int {
 
 // Signal sends a signal to the command.
 func (c *lxcCmd) Signal(sig unix.Signal) error {
-	err := unix.Kill(c.attachedChildPid, sig)
+	err := c.attachedChildProc.Signal(sig)
 	if err != nil {
 		return err
 	}
@@ -34,6 +36,7 @@ func (c *lxcCmd) Signal(sig unix.Signal) error {
 // Wait for the command to end and returns its exit code and any error.
 func (c *lxcCmd) Wait() (int, error) {
 	exitStatus, err := shared.ExitStatus(c.cmd.Wait())
+	_ = c.attachedChildProc.Release()
 
 	// Convert special exit statuses into errors.
 	switch exitStatus {

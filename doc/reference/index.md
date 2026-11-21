@@ -27,15 +27,15 @@ Container environment </container-environment>
 
 ## Releases
 
-Release notes, deprecation notices, and details about the LXD release cadence and its snap.
+Details about LXD releases and the LXD snap.
 
 ```{toctree}
 :titlesonly:
 :maxdepth: 1
 
+/reference/releases-snap
 /reference/release-notes/index
 /reference/deprecation_notices
-/reference/releases-snap
 ```
 
 ## Images

@@ -84,6 +84,7 @@ test_clustering_live_migration() {
 
   # Verify the VM was not rebooted
   [ "$(LXD_DIR=${LXD_ONE_DIR} lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)" = "${INITIAL_BOOT_ID}" ]
+  LXD_DIR="${LXD_ONE_DIR}" check_proc_unprivileged "$(LXD_DIR=${LXD_ONE_DIR} lxc query /1.0/instances/v1/state | jq --exit-status .pid)" qemu
 
   # After live migration, the volume should be functional and mounted.
   # Check that the file we created is still there with the same contents.
@@ -178,6 +179,7 @@ test_live_migration() {
 
   # Verify the VM was not rebooted
   [ "$(LXD_DIR=${LXD_TWO_DIR} lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)" = "${INITIAL_BOOT_ID}" ]
+  LXD_DIR="${LXD_TWO_DIR}" check_proc_unprivileged "$(LXD_DIR=${LXD_TWO_DIR} lxc query /1.0/instances/v1/state | jq --exit-status .pid)" qemu
 
   # Cleanup
   echo "Cleaning up ..."

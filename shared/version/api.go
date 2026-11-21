@@ -518,6 +518,7 @@ var APIExtensions = []string{
 	"server_state",
 	"storage_volume_block_tracking",
 	"cluster_members_state_recursion",
+	"instance_boot_network_family",
 	"server_config_redacted",
 }
 

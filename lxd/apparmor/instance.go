@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/canonical/lxd/lxd/cgroup"
+	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/sys"
@@ -32,6 +34,7 @@ type instanceVM interface {
 	instance
 
 	FirmwarePath() string
+	ExpandedDevices() deviceConfig.Devices
 }
 
 // InstanceProfileName returns the instance's AppArmor profile name.
@@ -222,6 +225,15 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			}
 		}
 
+		swtpmProfiles := []string{}
+		for devName, dev := range vmInst.ExpandedDevices() {
+			if dev["type"] == "tpm" {
+				swtpmProfiles = append(swtpmProfiles, rulePathEscaper.Replace(swtpmProfileName(inst, devName)))
+			}
+		}
+
+		slices.Sort(swtpmProfiles)
+
 		execPath := util.GetExecPath()
 		execPathFull, err := filepath.EvalSymlinks(execPath)
 		if err == nil {
@@ -254,6 +266,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			"raw":               rawContent.String(),
 			"rootPath":          rootPath,
 			"snap":              shared.InSnap(),
+			"swtpmProfiles":     swtpmProfiles,
 			"userns":            sysOS.RunningInUserNS,
 			"firmwarePath":      firmwarePath,
 			"snapExtQemuPrefix": os.Getenv("SNAP_QEMU_PREFIX"),

@@ -62,9 +62,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
 // swtpmProfileID returns an identifier for the swtpm profile of the given device that is unique within LXD
 // and usable as a file name.
-func swtpmProfileID(inst instance, dev device) string {
+func swtpmProfileID(inst instance, devName string) string {
 	// Neither project nor instance names can contain "_", so the device name is all that follows the second one.
-	id := inst.Project().Name + "_" + inst.Name() + "_" + filesystem.PathNameEncode(dev.Name())
+	id := inst.Project().Name + "_" + inst.Name() + "_" + filesystem.PathNameEncode(devName)
 
 	// Hash IDs that deleteProfile would refuse or with characters that the kernel drops, which hasProfile can't find.
 	if strings.Contains(id, "..") || strings.ContainsFunc(id, func(r rune) bool {
@@ -79,12 +79,16 @@ func swtpmProfileID(inst instance, dev device) string {
 
 // SwtpmProfileName returns the AppArmor profile name.
 func SwtpmProfileName(inst instance, dev device) string {
-	return profileName("swtpm", swtpmProfileID(inst, dev)+"_<"+shared.VarPath("")+">")
+	return swtpmProfileName(inst, dev.Name())
+}
+
+func swtpmProfileName(inst instance, devName string) string {
+	return profileName("swtpm", swtpmProfileID(inst, devName)+"_<"+shared.VarPath("")+">")
 }
 
 // swtpmProfileFilename returns the name of the on-disk profile.
 func swtpmProfileFilename(inst instance, dev device) string {
-	return profileName("swtpm", swtpmProfileID(inst, dev))
+	return profileName("swtpm", swtpmProfileID(inst, dev.Name()))
 }
 
 // SwtpmLoad ensures that the swtpm profile of the given device is loaded into the kernel.

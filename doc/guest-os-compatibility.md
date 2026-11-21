@@ -99,7 +99,7 @@ Ubuntu 22.04 LTS 5.15.0           |  🟢 [^13]        | ✅               | ✅
 Ubuntu 22.04 LTS 6.8.0 (HWE)      |  🟢 [^13]        | ✅               | ✅               | ✅               | ✅               | ✅
 Ubuntu 24.04 LTS 6.8.0            |  🟢 [^13]        | ✅               | ✅               | ✅               | ✅               | ✅
 
-[^10]: The 5.4.0 kernel is below the minimum required version (see {ref}`requirements`)
+[^10]: The 5.4.0 kernel is below the minimum supported version (see {ref}`requirements-kernel`)
 [^11]: Ubuntu 24.10 and later require `cgroupv2` which is not supported by Ubuntu 20.04 LTS regular kernel.
 [^12]: Requires enabling `cgroupv2` support by booting with `systemd.unified_cgroup_hierarchy=1`
 [^13]: Requires enabling `cgroupv1` support by booting with `systemd.unified_cgroup_hierarchy=0`

@@ -2224,6 +2224,26 @@
 						}
 					},
 					{
+						"boot.network.family": {
+							"condition": "virtual machine",
+							"defaultdesc": "`both`",
+							"liveupdate": "no",
+							"longdesc": "Controls which firmware IP stacks are enabled for network boot in a VM.\nPossible values are `ipv4`, `ipv6`, `both` and `none`.\nThis requires `x86_64` with UEFI firmware; setting it with `boot.mode=bios` prevents the instance from starting.\nHTTP boot follows the enabled stacks; there is no separate HTTP boot setting.",
+							"shortdesc": "Enabled firmware IP stacks for network boot",
+							"type": "string"
+						}
+					},
+					{
+						"boot.pxe.family": {
+							"condition": "virtual machine",
+							"defaultdesc": "same as `boot.network.family`",
+							"liveupdate": "no",
+							"longdesc": "Controls which UEFI PXE families are offered within the enabled network stacks.\nPossible values are `ipv4`, `ipv6`, `both` and `none`.\nDefaults to the value of `boot.network.family`.\nIt must not include a family that is disabled by `boot.network.family`.\nThis requires `x86_64` with UEFI firmware; setting it with `boot.mode=bios` prevents the instance from starting.",
+							"shortdesc": "Enabled UEFI PXE families",
+							"type": "string"
+						}
+					},
+					{
 						"boot.stop.priority": {
 							"defaultdesc": "`0`",
 							"liveupdate": "no",

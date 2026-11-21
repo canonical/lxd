@@ -825,7 +825,27 @@ test_basic_usage() {
   lxc rebuild testimage c1
   [ "$(lxc config get c1 image.os)" = "BusyBox" ]
   lxc start c1
+
+  # An unprivileged container rebuilt before its first start must still get an ID map.
+  [ "$(lxc config get c1 volatile.idmap.current)" != "[]" ]
+  [ "$(lxc exec c1 -- cat /proc/self/uid_map | awk '{print $3}')" != "4294967295" ]
   lxc delete c1 -f
+
+  # An unprivileged container whose saved ID map is empty must get one on rebuild.
+  lxc init testimage c1
+  lxc config set c1 volatile.idmap.current '[]'
+  lxc rebuild testimage c1
+  lxc start c1
+  [ "$(lxc config get c1 volatile.idmap.current)" != "[]" ]
+  [ "$(lxc exec c1 -- cat /proc/self/uid_map | awk '{print $3}')" != "4294967295" ]
+  lxc delete c1 -f
+
+  # Starting an unprivileged container without an ID map must be refused.
+  lxc init testimage c1
+  lxc config set c1 volatile.idmap.next '[]'
+  lxc config set c1 volatile.idmap.current '[]'
+  ! lxc start c1 || false
+  lxc delete c1
 
   # Test rebuilding an instance with an empty file system.
   lxc init testimage c1
@@ -945,6 +965,22 @@ test_snap_basic_usage_vm() {
   # the lxd-agent needs a bit of time to dial back in even when statefully restored
   waitInstanceReady v1
   [ "$(lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)" = "${INITIAL_BOOT_ID}" ]
+  check_proc_unprivileged "$(lxc query /1.0/instances/v1/state | jq --exit-status .pid)" qemu
+
+  sub_test "Stateful snapshot restore"
+  lxc snapshot v1 s1 --stateful
+  lxc restore v1 s1 --stateful
+  waitInstanceReady v1
+  [ "$(lxc exec v1 -- cat /proc/sys/kernel/random/boot_id)" = "${INITIAL_BOOT_ID}" ]
+  check_proc_unprivileged "$(lxc query /1.0/instances/v1/state | jq --exit-status .pid)" qemu
+
+  sub_test "Hotplug a NIC and read the config share in a statefully restored VM"
+  # migration.stateful=true only allows extra disks from shared storage pools.
+  lxc config device add v1 eth1 nic nictype=p2p name=eth1
+  lxc exec v1 -- mkdir -p /mnt-config
+  lxc exec v1 -- mount -t 9p config /mnt-config
+  lxc exec v1 -- test -s /mnt-config/agent.crt
+  lxc exec v1 -- umount /mnt-config
 
   # Cleanup
   lxc delete -f v1

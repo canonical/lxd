@@ -10,6 +10,41 @@ _boot_mode() {
   lxc delete -f v1
 }
 
+test_vm_network_boot() {
+  echo "==> VM network boot family"
+
+  if [ "$(uname -m)" != "x86_64" ]; then
+    echo "==> SKIP: boot.network.family is only supported on x86_64"
+    return 0
+  fi
+
+  lxc init --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" -c boot.network.family=ipv6
+
+  lxc start v1
+  qemu_pid="$(lxc query /1.0/instances/v1/state | jq --exit-status .pid)"
+  qemu_cmdline="$(tr '\0' ' ' < "/proc/${qemu_pid}/cmdline")"
+  grep -qF 'name=opt/org.tianocore/IPv4Support,string=no' <<< "${qemu_cmdline}"
+  lxc stop -f v1
+
+  lxc config set v1 boot.pxe.family=ipv6
+  lxc start v1
+  qemu_pid="$(lxc query /1.0/instances/v1/state | jq --exit-status .pid)"
+  qemu_cmdline="$(tr '\0' ' ' < "/proc/${qemu_pid}/cmdline")"
+  grep -qF 'name=opt/org.tianocore/IPv4PXESupport,string=no' <<< "${qemu_cmdline}"
+  lxc stop -f v1
+
+  # The PXE family must be a subset of the enabled network family.
+  lxc config set v1 boot.network.family=ipv4
+  ! lxc start v1 || false
+  lxc config set v1 boot.network.family=ipv6
+
+  # The firmware network boot switches are UEFI only.
+  lxc config set v1 boot.mode=bios
+  ! lxc start v1 || false
+
+  lxc delete -f v1
+}
+
 # _nvram_rename checks that an existing VM created by an older snap (which shipped its
 # firmware under the OVMF 4MB name) has its NVRAM vars file renamed to the current
 # per-architecture name on start, preserving the existing NVRAM state instead of
@@ -99,6 +134,20 @@ test_vm_empty() {
 
   echo "==> Percentage memory limits"
   lxc launch --vm --empty v1 -c limits.memory=1% -d "${SMALL_ROOT_DISK}"
+
+  sub_test "Check QEMU runs unprivileged"
+  check_proc_unprivileged "$(lxc query /1.0/instances/v1/state | jq --exit-status .pid)" qemu
+
+  sub_test "Check raw.qemu can't change the QEMU credentials"
+  local user_opt
+  user_opt="-runas 65534:$(stat -c %g "${LXD_DIR}/unix.socket")"
+  if [[ "$(qemu-system-"$(uname -m)" -help)" == *"user=username|uid:gid"* ]]; then
+    user_opt="-run-with user=${user_opt#-runas }"
+  fi
+
+  lxc launch --vm --empty v2 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}" -c raw.qemu="${user_opt}"
+  check_proc_unprivileged "$(lxc query /1.0/instances/v2/state | jq --exit-status .pid)" qemu
+  lxc delete -f v2
 
   echo "==> Tiny VMs with snapshots"
   lxc stop -f v1
@@ -325,10 +374,52 @@ test_vm_pcie_bus() {
   fi
 }
 
+# _curl_as_proc runs curl against a unix socket with the credentials of another process, without its confinement.
+_curl_as_proc() {
+  local pid="${1}"
+  local socket="${2}"
+  local path="${3}"
+  local status="/proc/${pid}/status"
+  local uid gid groups
+
+  uid="$(awk '$1 == "Uid:" {print $2}' "${status}")"
+  gid="$(awk '$1 == "Gid:" {print $2}' "${status}")"
+  groups="$(awk '$1 == "Groups:" {$1 = ""; print}' "${status}" | xargs | tr ' ' ',')"
+
+  setpriv --reuid="${uid}" --regid="${gid}" --groups="${groups}" -- curl --silent --fail --unix-socket "${socket}" "lxd${path}"
+}
+
+# _unprivileged_helpers checks QEMU and dnsmasq with the snap's unprivileged user, whose primary group is the socket group.
+_unprivileged_helpers() {
+  sub_test "Check dnsmasq and QEMU run unprivileged"
+  local qemu_pid socket
+
+  lxc network create lxdt$$ ipv6.address=none
+  check_proc_unprivileged "$(awk '/^pid:/ {print $2}' "${LXD_DIR}/networks/lxdt$$/dnsmasq.pid")" dnsmasq
+  lxc network delete lxdt$$
+
+  lxc launch --vm --empty v1 -c limits.memory=128MiB -d "${SMALL_ROOT_DISK}"
+  qemu_pid="$(lxc query /1.0/instances/v1/state | jq --exit-status .pid)"
+  check_proc_unprivileged "${qemu_pid}" qemu
+
+  sub_test "Check the LXD and lxd-user sockets can't be reached with QEMU's credentials"
+  for socket in "${LXD_DIR}/unix.socket" /var/snap/lxd/common/lxd-user/unix.socket; do
+    [ -S "${socket}" ]
+    if _curl_as_proc "${qemu_pid}" "${socket}" /1.0; then
+      echo "ERROR: ${socket} reachable with QEMU's credentials" >&2
+      false
+    fi
+  done
+
+  lxc delete -f v1
+}
+
 test_snap_vm_empty() {
   # useful to test snap provided BIOS boot
   _boot_mode
 
   # The NVRAM vars file rename migration only happens inside the snap.
   _nvram_rename
+
+  _unprivileged_helpers
 }

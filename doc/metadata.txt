@@ -1938,6 +1938,31 @@ The `uefi-nosecureboot` mode uses UEFI firmware with secure boot disabled.
 The `bios` mode is supported only on `x86_64` (`amd64`).
 ```
 
+```{config:option} boot.network.family instance-boot
+:condition: "virtual machine"
+:defaultdesc: "`both`"
+:liveupdate: "no"
+:shortdesc: "Enabled firmware IP stacks for network boot"
+:type: "string"
+Controls which firmware IP stacks are enabled for network boot in a VM.
+Possible values are `ipv4`, `ipv6`, `both` and `none`.
+This requires `x86_64` with UEFI firmware; setting it with `boot.mode=bios` prevents the instance from starting.
+HTTP boot follows the enabled stacks; there is no separate HTTP boot setting.
+```
+
+```{config:option} boot.pxe.family instance-boot
+:condition: "virtual machine"
+:defaultdesc: "same as `boot.network.family`"
+:liveupdate: "no"
+:shortdesc: "Enabled UEFI PXE families"
+:type: "string"
+Controls which UEFI PXE families are offered within the enabled network stacks.
+Possible values are `ipv4`, `ipv6`, `both` and `none`.
+Defaults to the value of `boot.network.family`.
+It must not include a family that is disabled by `boot.network.family`.
+This requires `x86_64` with UEFI firmware; setting it with `boot.mode=bios` prevents the instance from starting.
+```
+
 ```{config:option} boot.stop.priority instance-boot
 :defaultdesc: "`0`"
 :liveupdate: "no"

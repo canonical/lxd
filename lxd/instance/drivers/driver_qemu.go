@@ -975,7 +975,7 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 		// Perform non-shared storage transfer if requested.
 		filesystemConn := d.migrationReceiveStateful[api.SecretNameFilesystem]
 		if filesystemConn != nil {
-			nbdConn, err := monitor.NBDServerStart()
+			nbdConn, err := monitor.NBDServerStart(d.LogPath())
 			if err != nil {
 				return fmt.Errorf("Failed starting NBD server: %w", err)
 			}
@@ -1197,6 +1197,17 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 	// Check if instance is start protected.
 	if shared.IsTrue(d.expandedConfig["security.protection.start"]) {
 		return errors.New("Instance is protected from being started")
+	}
+
+	// QEMU must never keep running as root.
+	if d.state.OS.UnprivUser == "" || d.state.OS.UnprivGroup == "" {
+		return errors.New("QEMU requires an unprivileged user and group")
+	}
+
+	// Validate the firmware network boot configuration.
+	_, err = d.networkBootFirmwareArgs()
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -1786,6 +1797,15 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		qemuCmd = append(qemuCmd, "-debugcon", "file:"+d.EDK2LogFilePath(), "-global", "isa-debugcon.iobase=0x402")
 	}
 
+	// Configure the firmware network boot families.
+	networkBootArgs, err := d.networkBootFirmwareArgs()
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	qemuCmd = append(qemuCmd, networkBootArgs...)
+
 	// If stateful, restore now.
 	if stateful {
 		if !d.stateful {
@@ -1818,60 +1838,47 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		qemuCmd = append(qemuCmd, "-smbios", "type=2,manufacturer=Canonical Ltd.,product=LXD")
 	}
 
-	// Attempt to drop privileges (doesn't work when restoring state).
-	if !stateful && d.state.OS.UnprivUser != "" {
-		qemuVer, _ := d.version()
-		qemuVer91, _ := version.NewDottedVersion("9.1.0")
-
-		// Since QEMU 9.1 the parameter `runas` has been marked as deprecated.
-		if qemuVer != nil && qemuVer.Compare(qemuVer91) >= 0 {
-			qemuCmd = append(qemuCmd, "-run-with", "user="+d.state.OS.UnprivUser)
-		} else {
-			qemuCmd = append(qemuCmd, "-runas", d.state.OS.UnprivUser)
-		}
-
-		if supportsUEFI {
-			nvRAMPath := d.nvramPath()
-			// Ensure UEFI nvram file is writable by the QEMU process.
-			// This is needed when doing stateful snapshots because the QEMU process will reopen the
-			// file for writing.
-			err = os.Chown(nvRAMPath, int(d.state.OS.UnprivUID), -1)
-			if err != nil && !os.IsNotExist(err) {
-				op.Done(err)
-				return err
-			}
-
-			err = os.Chmod(nvRAMPath, 0600)
-			if err != nil && !os.IsNotExist(err) {
-				op.Done(err)
-				return err
-			}
-		}
-
-		// Change ownership of config directory files so they are accessible to the
-		// unprivileged qemu process so that the 9p share can work.
-		//
-		// Security note: The 9P share will present the UID owner of these files on the host
-		// to the VM. In order to ensure that non-root users in the VM cannot access these
-		// files be sure to mount the 9P share in the VM with the "access=0" option to allow
-		// only root user in VM to access the mounted share.
-		err := filepath.Walk(configSrcPath,
-			func(path string, _ os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-
-				err = os.Chown(path, int(d.state.OS.UnprivUID), -1)
-				if err != nil {
-					return err
-				}
-
-				return nil
-			})
-		if err != nil {
+	if supportsUEFI {
+		nvRAMPath := d.nvramPath()
+		// Ensure UEFI nvram file is writable by the QEMU process.
+		// This is needed when doing stateful snapshots because the QEMU process will reopen the
+		// file for writing.
+		err = os.Chown(nvRAMPath, int(d.state.OS.UnprivUID), -1)
+		if err != nil && !os.IsNotExist(err) {
 			op.Done(err)
 			return err
 		}
+
+		err = os.Chmod(nvRAMPath, 0600)
+		if err != nil && !os.IsNotExist(err) {
+			op.Done(err)
+			return err
+		}
+	}
+
+	// Change ownership of config directory files so they are accessible to the
+	// unprivileged qemu process so that the 9p share can work.
+	//
+	// Security note: The 9P share will present the UID owner of these files on the host
+	// to the VM. In order to ensure that non-root users in the VM cannot access these
+	// files be sure to mount the 9P share in the VM with the "access=0" option to allow
+	// only root user in VM to access the mounted share.
+	err = filepath.Walk(configSrcPath,
+		func(path string, _ os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			err = os.Chown(path, int(d.state.OS.UnprivUID), -1)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+	if err != nil {
+		op.Done(err)
+		return err
 	}
 
 	// Handle hugepages on architectures where we don't set NUMA nodes.
@@ -1893,6 +1900,19 @@ func (d *qemu) start(ctx context.Context, stateful bool, op *operationlock.Insta
 		}
 
 		qemuCmd = append(qemuCmd, fields...)
+	}
+
+	// Drop privileges with uid:gid, which sets only that group, not the primary and supplementary groups of the user.
+	// QEMU applies the last user option, so this comes after raw.qemu.
+	runAs := fmt.Sprintf("%d:%d", d.state.OS.UnprivUID, d.state.OS.UnprivGID)
+	qemuVer, _ := d.version()
+	qemuVer91, _ := version.NewDottedVersion("9.1.0")
+
+	// Since QEMU 9.1 the parameter `runas` has been marked as deprecated.
+	if qemuVer != nil && qemuVer.Compare(qemuVer91) >= 0 {
+		qemuCmd = append(qemuCmd, "-run-with", "user="+runAs)
+	} else {
+		qemuCmd = append(qemuCmd, "-runas", runAs)
 	}
 
 	// Run the qemu command via forklimits so we can selectively increase ulimits.
@@ -2278,6 +2298,93 @@ func (d *qemu) effectiveBootMode() string {
 	}
 
 	return bootMode
+}
+
+// networkBootFirmwareArgs returns the QEMU fw_cfg arguments that control which firmware network stacks
+// and PXE families are enabled for the VM. It returns nil if neither boot.network.family nor
+// boot.pxe.family is set.
+func (d *qemu) networkBootFirmwareArgs() ([]string, error) {
+	networkFamily := d.expandedConfig["boot.network.family"]
+	pxeFamily := d.expandedConfig["boot.pxe.family"]
+	if networkFamily == "" && pxeFamily == "" {
+		return nil, nil
+	}
+
+	// These switches are OVMF runtime configuration options.
+	if d.effectiveBootMode() == instancetype.BootModeBIOS {
+		return nil, errors.New("boot.network.family and boot.pxe.family require UEFI firmware")
+	}
+
+	if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
+		return nil, errors.New("boot.network.family and boot.pxe.family are only supported on x86_64")
+	}
+
+	if networkFamily == "" {
+		networkFamily = instancetype.NetworkFamilyBoth
+	}
+
+	if pxeFamily == "" {
+		pxeFamily = networkFamily
+	}
+
+	if !networkFamilyIncludes(networkFamily, pxeFamily) {
+		return nil, fmt.Errorf("boot.pxe.family %q includes a family disabled by boot.network.family %q", pxeFamily, networkFamily)
+	}
+
+	// The raw QEMU command line can set the same fw_cfg entries. Reject the combination instead of
+	// relying on duplicate-entry precedence.
+	rawQEMU := d.expandedConfig["raw.qemu"]
+	if rawQEMU != "" {
+		rawOptions, err := shellquote.Split(rawQEMU)
+		if err != nil {
+			return nil, fmt.Errorf("Failed parsing raw.qemu: %w", err)
+		}
+
+		for _, option := range rawOptions {
+			for _, name := range []string{
+				"opt/org.tianocore/IPv4Support",
+				"opt/org.tianocore/IPv6Support",
+				"opt/org.tianocore/IPv4PXESupport",
+				"opt/org.tianocore/IPv6PXESupport",
+			} {
+				if strings.Contains(option, name) {
+					return nil, fmt.Errorf("boot.network.family and boot.pxe.family cannot be combined with raw.qemu %q", name)
+				}
+			}
+		}
+	}
+
+	var args []string
+	addDisable := func(name string, disabled bool) {
+		if disabled {
+			args = append(args, "-fw_cfg", "name=opt/org.tianocore/"+name+",string=no")
+		}
+	}
+
+	addDisable("IPv4Support", networkFamily == instancetype.NetworkFamilyIPv6 || networkFamily == instancetype.NetworkFamilyNone)
+	addDisable("IPv6Support", networkFamily == instancetype.NetworkFamilyIPv4 || networkFamily == instancetype.NetworkFamilyNone)
+	addDisable("IPv4PXESupport", pxeFamily == instancetype.NetworkFamilyIPv6 || pxeFamily == instancetype.NetworkFamilyNone)
+	addDisable("IPv6PXESupport", pxeFamily == instancetype.NetworkFamilyIPv4 || pxeFamily == instancetype.NetworkFamilyNone)
+
+	return args, nil
+}
+
+// networkFamilyIncludes returns whether pxeFamily is a subset of networkFamily.
+func networkFamilyIncludes(networkFamily, pxeFamily string) bool {
+	if pxeFamily == instancetype.NetworkFamilyNone {
+		return true
+	}
+
+	switch networkFamily {
+	case instancetype.NetworkFamilyBoth:
+		return true
+	case instancetype.NetworkFamilyIPv4:
+		return pxeFamily == instancetype.NetworkFamilyIPv4
+	case instancetype.NetworkFamilyIPv6:
+		return pxeFamily == instancetype.NetworkFamilyIPv6
+	}
+
+	return false
 }
 
 // renameNvram renames the existing NVRAM vars file when the firmware filename has
@@ -5329,21 +5436,19 @@ func (d *qemu) addNetDevConfig(busName string, busAllocate busAllocator, bootInd
 
 			qemuDev["host"] = pciSlotName
 
-			if d.state.OS.UnprivUser != "" {
-				if pciIOMMUGroup == "" {
-					return errors.New("No PCI IOMMU group supplied")
-				}
-
-				vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
-				err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
-				if err != nil {
-					return fmt.Errorf("Failed chowning vfio group device %q: %w", vfioGroupFile, err)
-				}
-
-				reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
+			if pciIOMMUGroup == "" {
+				return errors.New("No PCI IOMMU group supplied")
 			}
 
-			err := m.AddNIC(nil, qemuDev)
+			vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
+			err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
+			if err != nil {
+				return fmt.Errorf("Failed chowning vfio group device %q: %w", vfioGroupFile, err)
+			}
+
+			reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
+
+			err = m.AddNIC(nil, qemuDev)
 			if err != nil {
 				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
 			}
@@ -5443,19 +5548,17 @@ func (d *qemu) addPCIDevConfig(busName string, busAllocate busAllocator, pciConf
 			reverter.Add(busCleanup)
 		}
 
-		if d.state.OS.UnprivUser != "" {
-			if pciIOMMUGroup == "" {
-				return errors.New("No PCI IOMMU group supplied")
-			}
-
-			vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
-			err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
-			if err != nil {
-				return fmt.Errorf("Failed chowning vfio group device %q: %w", vfioGroupFile, err)
-			}
-
-			reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
+		if pciIOMMUGroup == "" {
+			return errors.New("No PCI IOMMU group supplied")
 		}
+
+		vfioGroupFile := "/dev/vfio/" + pciIOMMUGroup
+		err = os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
+		if err != nil {
+			return fmt.Errorf("Failed chowning vfio group device %q: %w", vfioGroupFile, err)
+		}
+
+		reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
 
 		err = m.AddDevice(qemuDev)
 		if err != nil {
@@ -7798,21 +7901,29 @@ func (d *qemu) migrateSendLive(ctx context.Context, pool storagePools.Pool, clus
 
 	// Non-shared storage snapshot transfer.
 	if !sharedStorage {
-		listener, err := net.Listen("unix", "")
+		// A socket pair, unlike a listener, can't be connected to by anything else.
+		nbdFDs, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM|unix.SOCK_CLOEXEC, 0)
 		if err != nil {
-			return fmt.Errorf("Failed creating NBD unix listener: %w", err)
+			return fmt.Errorf("Failed creating NBD socket pair: %w", err)
 		}
 
-		defer func() { _ = listener.Close() }()
+		qemuNBDFile := os.NewFile(uintptr(nbdFDs[0]), "nbd-qemu")
+		defer func() { _ = qemuNBDFile.Close() }()
+
+		lxdNBDFile := os.NewFile(uintptr(nbdFDs[1]), "nbd-lxd")
+		nbdConn, err := net.FileConn(lxdNBDFile)
+		_ = lxdNBDFile.Close()
+		if err != nil {
+			return fmt.Errorf("Failed getting NBD connection: %w", err)
+		}
+
+		err = monitor.SendFile(nbdTargetDiskName, qemuNBDFile)
+		if err != nil {
+			_ = nbdConn.Close()
+			return fmt.Errorf("Failed sending NBD socket: %w", err)
+		}
 
 		go func() {
-			d.logger.Debug("NBD listener waiting for accept")
-			nbdConn, err := listener.Accept()
-			if err != nil {
-				d.logger.Error("Failed accepting connection to NBD client unix listener", logger.Ctx{"err": err})
-				return
-			}
-
 			defer func() { _ = nbdConn.Close() }()
 
 			d.logger.Debug("NBD connection on source started")
@@ -7831,13 +7942,14 @@ func (d *qemu) migrateSendLive(ctx context.Context, pool storagePools.Pool, clus
 				"driver": "nbd",
 				"export": qemuMigrationNBDExportName,
 				"server": map[string]any{
-					"type":     "unix",
-					"abstract": true,
-					"path":     strings.TrimPrefix(listener.Addr().String(), "@"),
+					"type": "fd",
+					"str":  nbdTargetDiskName,
 				},
 			},
 		}, nil)
 		if err != nil {
+			// QEMU only takes the fd out of its table once it uses it.
+			_ = monitor.CloseFile(nbdTargetDiskName)
 			return fmt.Errorf("Failed adding NBD device: %w", err)
 		}
 
