@@ -1345,9 +1345,16 @@ jobs:
           git commit --quiet -s -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev} (version: ${versionString})"
           git show
 
-          # Pack all objects (including lxd-private ones) and generate a bitmap index
-          # right before the push so that pack generation benefits from full bitmap coverage.
-          git config --local pack.useBitmaps true
-          git gc --prune=now
+          # Fetch the current Launchpad tip (falling back to latest-edge when creating a new
+          # branch) into a remote-tracking ref so `git push` knows what objects Launchpad
+          # already has instead of re-uploading the entire repository.
+          if ! fetch_err="$(LC_ALL=C git fetch --quiet --no-tags launchpad "+refs/heads/${BRANCH}:refs/remotes/launchpad/${BRANCH}" 2>&1)"; then
+            printf '%s\n' "${fetch_err}" >&2
+            if [[ "${fetch_err}" == *"couldn't find remote ref"* ]] && [ "${BRANCH}" != "latest-edge" ]; then
+              git fetch --quiet --no-tags launchpad "+refs/heads/latest-edge:refs/remotes/launchpad/latest-edge"
+            else
+              exit 1
+            fi
+          fi
 
-          git push --quiet --force launchpad HEAD:"${BRANCH}"
+          git push --no-follow-tags --quiet --force launchpad HEAD:"${BRANCH}"
