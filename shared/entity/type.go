@@ -535,11 +535,11 @@ func (imageAlias) requiresProject() bool {
 }
 
 func (imageAlias) path() []string {
-	return []string{"images", "aliases", pathPlaceholder}
+	return []string{"images", pathPlaceholder, "aliases", pathPlaceholder}
 }
 
 func (imageAlias) pathArgNames() []string {
-	return []string{"name"}
+	return []string{"type", "name"}
 }
 
 type networkZone struct {

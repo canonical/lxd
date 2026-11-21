@@ -547,6 +547,17 @@ func (r *ProtocolLXD) getSourceImageConnectionInfo(source ImageServer, image api
 	// Minimal source fields for remote image
 	instSrc.Mode = "pull"
 
+	// Pin ambiguous aliases for legacy destinations while retaining unique aliases for refresh.
+	if instSrc.Alias != "" && image.Public && (r.server == nil || !r.HasExtension("image_alias_types")) {
+		server, ok := source.(InstanceServer)
+		if ok && server.HasExtension("image_alias_types") {
+			_, _, aliasErr := source.GetImageAlias(instSrc.Alias)
+			if api.StatusErrorCheck(aliasErr, http.StatusConflict) {
+				instSrc.Alias = ""
+			}
+		}
+	}
+
 	// If we have an alias and the image is public, use that
 	if instSrc.Alias != "" && image.Public {
 		instSrc.Fingerprint = ""

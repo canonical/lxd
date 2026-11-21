@@ -1272,3 +1272,38 @@ WHERE l.name = ?`, "auto-migrated-002").Scan(&storedCert))
 	require.Equal(t, int64(0), autoUpdateForImage("lxd-source-badcert"))
 	require.Equal(t, int64(0), autoUpdateForImage("direct-source"))
 }
+
+func TestUpdateFromV92LegacyMicroVMImageAlias(t *testing.T) {
+	db, err := Schema().ExerciseUpdate(93, func(db *sql.DB) {
+		_, err := db.Exec(`
+INSERT INTO images (fingerprint, filename, size, architecture, upload_date, project_id, type)
+VALUES ('legacy-microvm', '', 1, 1, datetime('now'), 1, 2),
+       ('legacy-vm', '', 1, 1, datetime('now'), 1, 1);
+INSERT INTO images_aliases (id, name, image_id, description, project_id)
+SELECT 10, 'legacy', id, 'legacy description', project_id FROM images WHERE fingerprint = 'legacy-microvm';
+INSERT INTO images_aliases (id, name, image_id, description, project_id)
+SELECT 11, 'vm', id, 'vm description', project_id FROM images WHERE fingerprint = 'legacy-vm';`)
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+	defer func() { require.NoError(t, db.Close()) }()
+
+	for _, want := range []struct {
+		id          int
+		name        string
+		imageType   int
+		description string
+	}{
+		{id: 10, name: "legacy", imageType: 0, description: "legacy description"},
+		{id: 11, name: "vm", imageType: 1, description: "vm description"},
+	} {
+		var id, imageType, projectID int
+		var description string
+		err = db.QueryRow(`SELECT id, image_type, description, project_id FROM images_aliases WHERE name = ?`, want.name).Scan(&id, &imageType, &description, &projectID)
+		require.NoError(t, err)
+		require.Equal(t, want.id, id)
+		require.Equal(t, want.imageType, imageType)
+		require.Equal(t, want.description, description)
+		require.Equal(t, 1, projectID)
+	}
+}

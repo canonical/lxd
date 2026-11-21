@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/lxd/db/query"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
 )
@@ -412,6 +413,58 @@ func GetEntityURLsByEntityTypeAndID(ctx context.Context, tx *sql.Tx, entities ma
 	return result, nil
 }
 
+// GetImageAliasTypes returns the image types for which an alias with the given name exists in the given project.
+func GetImageAliasTypes(ctx context.Context, tx *sql.Tx, projectName string, name string) ([]string, error) {
+	q := `
+SELECT images_aliases.image_type
+  FROM images_aliases
+  JOIN projects ON images_aliases.project_id = projects.id
+ WHERE projects.name = ? AND images_aliases.name = ?
+ ORDER BY images_aliases.image_type
+`
+	rows, err := tx.QueryContext(ctx, q, projectName, name)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	var imageTypes []string
+	for rows.Next() {
+		var imageType int
+		err := rows.Scan(&imageType)
+		if err != nil {
+			return nil, err
+		}
+
+		imageTypes = append(imageTypes, instancetype.Type(imageType).String())
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return imageTypes, nil
+}
+
+// resolveLegacyImageAliasType resolves an untyped alias URL only when the name exists for one image type.
+func resolveLegacyImageAliasType(ctx context.Context, tx *sql.Tx, projectName string, name string) (string, error) {
+	imageTypes, err := GetImageAliasTypes(ctx, tx, projectName, name)
+	if err != nil {
+		return "", err
+	}
+
+	switch len(imageTypes) {
+	case 0:
+		return "", api.StatusErrorf(http.StatusNotFound, "Image alias not found")
+	case 1:
+		return imageTypes[0], nil
+	default:
+		return "", api.StatusErrorf(http.StatusConflict, "Alias %q exists for image types %q and %q", name, imageTypes[0], imageTypes[1])
+	}
+}
+
 // PopulateEntityReferencesFromURLs populates the values in the given map with entity references corresponding to the api.URL keys.
 // It will return an error if any of the given URLs do not correspond to a LXD entity.
 func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURLMap map[*api.URL]*EntityRef) error {
@@ -432,6 +485,15 @@ func PopulateEntityReferencesFromURLs(ctx context.Context, tx *sql.Tx, entityURL
 		entityType, projectName, location, pathArgs, err := entity.ParseURL(entityURL.URL)
 		if err != nil {
 			return fmt.Errorf("Failed getting entity IDs from URLs: %w", err)
+		}
+
+		if entityType == entity.TypeImageAlias && len(pathArgs) == 2 && pathArgs[0] == "" {
+			aliasType, err := resolveLegacyImageAliasType(ctx, tx, projectName, pathArgs[1])
+			if err != nil {
+				return fmt.Errorf("Failed resolving image alias URL %q: %w", entityURL.String(), err)
+			}
+
+			pathArgs[0] = aliasType
 		}
 
 		// Populate the result map.
@@ -526,6 +588,19 @@ func GetEntityReferenceFromURL(ctx context.Context, tx *sql.Tx, entityURL *api.U
 	ref, err := entity.ReferenceFromURL(entityURL.URL)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting entity ID from URL: %w", err)
+	}
+
+	if ref.EntityType == entity.TypeImageAlias && len(ref.PathArgs) == 2 && ref.PathArgs[0] == "" {
+		aliasType, err := resolveLegacyImageAliasType(ctx, tx, ref.ProjectName, ref.PathArgs[1])
+		if err != nil {
+			return nil, fmt.Errorf("Failed resolving image alias URL %q: %w", entityURL.String(), err)
+		}
+
+		ref.PathArgs[0] = aliasType
+		ref, err = entity.NewReference(ref.ProjectName, ref.EntityType, ref.Location, ref.PathArgs...)
+		if err != nil {
+			return nil, fmt.Errorf("Failed constructing entity reference: %w", err)
+		}
 	}
 
 	entityRef := &EntityRef{

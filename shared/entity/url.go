@@ -40,12 +40,20 @@ func (t Type) URL(projectName string, location string, pathArguments ...string) 
 		projectName = api.ProjectDefaultName
 	}
 
+	// Accept legacy untyped image alias URLs; typed URLs remain canonical.
+	legacyImageAlias := t == TypeImageAlias && len(pathArguments) == 2 && pathArguments[0] == ""
+
 	nPathArgs := nRequiredPathArguments(info)
-	if len(pathArguments) != nPathArgs {
+	if !legacyImageAlias && len(pathArguments) != nPathArgs {
 		return nil, fmt.Errorf("Entity type %q requires `%d` path arguments but `%d` were given", t, nPathArgs, len(pathArguments))
 	}
 
 	pathParts := info.path()
+	if legacyImageAlias {
+		pathParts = []string{"images", "aliases", pathPlaceholder}
+		pathArguments = pathArguments[1:]
+	}
+
 	argIdx := 0
 	path := []string{version.APIVersion}
 	for _, pathPart := range pathParts {
@@ -124,36 +132,54 @@ func ParseURL(u url.URL) (entityType Type, projectName string, location string, 
 
 	pathParts := strings.Split(pathSuffix, "/")
 	var entityTypeImpl typeInfo
-entityTypeLoop:
-	for t, info := range entityTypes {
-		entityPath := info.path()
 
-		// Skip if we don't have the same number of slashes.
-		if len(pathParts) != len(entityPath) {
-			continue
+	// Accept the legacy image alias URL that omits the image type.
+	if len(pathParts) == 3 && pathParts[0] == "images" && pathParts[1] == "aliases" {
+		aliasName, err := url.PathUnescape(pathParts[2])
+		if err != nil {
+			return "", "", "", nil, fmt.Errorf("Failed unescaping path element %q from url %q: %w", pathParts[2], u.String(), err)
 		}
 
-		var pathArgs []string
-		for i, entityPathPart := range entityPath {
-			if entityPathPart == pathPlaceholder {
-				pathArgument, err := url.PathUnescape(pathParts[i])
-				if err != nil {
-					return "", "", "", nil, fmt.Errorf("Failed unescaping path element %q from url %q: %w", pathParts[i], u.String(), err)
-				}
+		entityType = TypeImageAlias
+		entityTypeImpl = entityTypes[TypeImageAlias]
+		pathArguments = []string{"", aliasName}
+	} else {
+	entityTypeLoop:
+		for t, info := range entityTypes {
+			entityPath := info.path()
 
-				pathArgs = append(pathArgs, pathArgument)
+			// Skip if we don't have the same number of slashes.
+			if len(pathParts) != len(entityPath) {
 				continue
 			}
 
-			if entityPathPart != pathParts[i] {
-				continue entityTypeLoop
-			}
-		}
+			var pathArgs []string
+			for i, entityPathPart := range entityPath {
+				if entityPathPart == pathPlaceholder {
+					pathArgument, err := url.PathUnescape(pathParts[i])
+					if err != nil {
+						return "", "", "", nil, fmt.Errorf("Failed unescaping path element %q from url %q: %w", pathParts[i], u.String(), err)
+					}
 
-		pathArguments = pathArgs
-		entityType = t
-		entityTypeImpl = info
-		break
+					pathArgs = append(pathArgs, pathArgument)
+					continue
+				}
+
+				if entityPathPart != pathParts[i] {
+					continue entityTypeLoop
+				}
+			}
+
+			// The legacy form is the only representation of an alias without an image type.
+			if t == TypeImageAlias && pathArgs[0] == "" {
+				continue
+			}
+
+			pathArguments = pathArgs
+			entityType = t
+			entityTypeImpl = info
+			break
+		}
 	}
 
 	if entityType == "" {
@@ -263,8 +289,8 @@ func ImageURL(projectName string, imageName string) *api.URL {
 }
 
 // ImageAliasURL returns an *api.URL to an image alias.
-func ImageAliasURL(projectName string, imageAliasName string) *api.URL {
-	return TypeImageAlias.urlMust(projectName, "", imageAliasName)
+func ImageAliasURL(projectName string, imageType string, imageAliasName string) *api.URL {
+	return TypeImageAlias.urlMust(projectName, "", imageType, imageAliasName)
 }
 
 // ProfileURL returns an *api.URL to a profile.

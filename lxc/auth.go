@@ -563,6 +563,11 @@ func (c *cmdGroupPermissionAdd) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	permission, err = normalizeImageAliasPermission(resource.server, group.Permissions, permission)
+	if err != nil {
+		return err
+	}
+
 	added := false
 	if !slices.Contains(group.Permissions, *permission) {
 		group.Permissions = append(group.Permissions, *permission)
@@ -621,6 +626,11 @@ func (c *cmdGroupPermissionRemove) run(cmd *cobra.Command, args []string) error 
 		return err
 	}
 
+	permission, err = normalizeImageAliasPermission(resource.server, group.Permissions, permission)
+	if err != nil {
+		return err
+	}
+
 	if len(group.Permissions) == 0 {
 		return fmt.Errorf("Group %q does not have any permissions", resource.name)
 	}
@@ -642,6 +652,74 @@ func (c *cmdGroupPermissionRemove) run(cmd *cobra.Command, args []string) error 
 
 	group.Permissions = permissions
 	return resource.server.UpdateAuthGroup(resource.name, group.Writable(), eTag)
+}
+
+// normalizeImageAliasPermission resolves a legacy alias URL for duplicate detection or removal.
+func normalizeImageAliasPermission(server lxd.InstanceServer, permissions []api.Permission, permission *api.Permission) (*api.Permission, error) {
+	if permission == nil || entity.Type(permission.EntityType) != entity.TypeImageAlias {
+		return permission, nil
+	}
+
+	// Older servers cannot parse the typed alias URL.
+	if !server.HasExtension("image_alias_types") {
+		return permission, nil
+	}
+
+	u, err := url.Parse(permission.EntityReference)
+	if err != nil {
+		return nil, err
+	}
+
+	entityType, projectName, _, args, err := entity.ParseURL(*u)
+	if err != nil {
+		return nil, err
+	}
+
+	if entityType != entity.TypeImageAlias || len(args) != 2 || args[0] != "" {
+		return permission, nil
+	}
+
+	var match *api.Permission
+	for i := range permissions {
+		existing := &permissions[i]
+		if entity.Type(existing.EntityType) != entity.TypeImageAlias {
+			continue
+		}
+
+		if existing.Entitlement != permission.Entitlement {
+			continue
+		}
+
+		existingURL, err := url.Parse(existing.EntityReference)
+		if err != nil {
+			return nil, err
+		}
+
+		existingType, existingProject, _, existingArgs, err := entity.ParseURL(*existingURL)
+		if err != nil {
+			return nil, err
+		}
+
+		if existingType != entity.TypeImageAlias || existingProject != projectName || len(existingArgs) != 2 || existingArgs[1] != args[1] {
+			continue
+		}
+
+		if existingArgs[0] == "" {
+			continue
+		}
+
+		if match != nil && match.EntityReference != existing.EntityReference {
+			return nil, fmt.Errorf("Image alias %q exists for both image types; use type=<container|virtual-machine>", args[1])
+		}
+
+		match = existing
+	}
+
+	if match != nil {
+		permission.EntityReference = match.EntityReference
+	}
+
+	return permission, nil
 }
 
 // parsePermissionArgs parses the `<entity_type> [<entity_name>] <entitlement> [<key>=<value>...]` arguments of
@@ -699,6 +777,18 @@ func parsePermissionArgs(args []string) (*api.Permission, error) {
 	requiresProject, _ := entityType.RequiresProject()
 	if requiresProject && !ok {
 		return nil, fmt.Errorf("Entities of type %q require a supplementary project argument `project=<project_name>`", entityType)
+	}
+
+	if entityType == entity.TypeImageAlias {
+		imageType, ok := kv["type"]
+		if ok {
+			if imageType != string(api.InstanceTypeContainer) && imageType != string(api.InstanceTypeVM) {
+				return nil, fmt.Errorf("Invalid image type %q for entity type %q", imageType, entityType)
+			}
+		}
+
+		// An omitted type keeps the legacy untyped URL, which the server accepts when the name is unique.
+		pathArgs = append([]string{imageType}, pathArgs...)
 	}
 
 	if entityType == entity.TypeStorageVolume {

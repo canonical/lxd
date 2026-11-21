@@ -2,13 +2,21 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/canonical/lxd/lxc/config"
@@ -21,6 +29,372 @@ type utilsTestSuite struct {
 
 func TestUtilsTestSuite(t *testing.T) {
 	suite.Run(t, new(utilsTestSuite))
+}
+
+func aliasTestConfig(t *testing.T, handler http.HandlerFunc) *config.Config {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "lxd.sock")
+	listener, err := net.Listen("unix", path)
+	require.NoError(t, err)
+
+	server := httptest.NewUnstartedServer(handler)
+	require.NoError(t, server.Listener.Close())
+	server.Listener = listener
+	server.Start()
+	t.Cleanup(server.Close)
+
+	return &config.Config{
+		DefaultRemote: "local",
+		Remotes: map[string]config.Remote{
+			"local": {Addr: "unix:" + path},
+		},
+	}
+}
+
+func TestGuessImageSharedLocalAlias(t *testing.T) {
+	for _, imageRef := range []string{"images", "images/edge"} {
+		t.Run(imageRef, func(t *testing.T) {
+			ref := url.PathEscape(imageRef)
+			conf := aliasTestConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodGet, r.Method)
+				switch r.URL.EscapedPath() {
+				case "/1.0":
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":{"api_extensions":["image_alias_types"]}}`)
+				case "/1.0/images/container/aliases/" + ref:
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":{"type":"container","target":"container-image"}}`)
+				case "/1.0/images/virtual-machine/aliases/" + ref:
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":{"type":"virtual-machine","target":"vm-image"}}`)
+				case "/1.0/images/aliases/" + ref:
+					w.WriteHeader(http.StatusConflict)
+					_, _ = io.WriteString(w, `{"type":"error","error":"Alias exists for both image types"}`)
+				default:
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = io.WriteString(w, `{"type":"error","error":"Not found"}`)
+				}
+			})
+			conf.Remotes["images"] = config.Remote{Public: true}
+
+			server, err := conf.GetInstanceServer("local")
+			require.NoError(t, err)
+			defer server.Disconnect()
+
+			remote, image := guessImage(conf, server, "local", "", imageRef)
+			require.Empty(t, remote)
+			require.Equal(t, imageRef, image)
+		})
+	}
+}
+
+func TestPublishSnapshotAliasLookup(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		extensions string
+		aliases    []string
+		requests   []string
+	}{
+		{
+			name: "no aliases", extensions: `["instances","image_alias_types"]`,
+			requests: []string{"GET /1.0", "POST /1.0/images"},
+		},
+		{
+			name: "legacy aliases", extensions: `["instances"]`, aliases: []string{"shared"},
+			requests: []string{"GET /1.0", "GET /1.0/images/aliases", "POST /1.0/images"},
+		},
+		{
+			name: "typed aliases", extensions: `["instances","image_alias_types"]`, aliases: []string{"shared"},
+			requests: []string{"GET /1.0", "POST /1.0/images"},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			requests := make(chan string, 8)
+			conf := aliasTestConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/1.0/events" {
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = io.WriteString(w, `{"type":"error","error":"Events unavailable","error_code":404}`)
+					return
+				}
+
+				request := r.Method + " " + r.URL.Path
+				select {
+				case requests <- request:
+				default:
+					t.Error("Too many requests")
+				}
+
+				switch request {
+				case "GET /1.0":
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":{"api_extensions":`+tt.extensions+`}}`)
+				case "GET /1.0/instances/source":
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":{"type":"container"}}`)
+				case "GET /1.0/images/aliases":
+					aliases := `[]`
+					if tt.name == "typed aliases" {
+						aliases = `[{"name":"shared","type":"virtual-machine","target":"vm-image"}]`
+					}
+
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":`+aliases+`}`)
+				case "POST /1.0/images":
+					var image api.ImagesPost
+					err := json.NewDecoder(r.Body).Decode(&image)
+					if assert.NoError(t, err) && assert.NotNil(t, image.Source) {
+						assert.Equal(t, api.SourceType("snapshot"), image.Source.Type)
+						assert.Equal(t, "source/snap", image.Source.Name)
+					}
+
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = io.WriteString(w, `{"type":"error","error":"Test reached publish request"}`)
+				default:
+					t.Errorf("Unexpected request: %s", request)
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = io.WriteString(w, `{"type":"error","error":"Not found"}`)
+				}
+			})
+
+			publish := cmdPublish{global: &cmdGlobal{conf: conf}, flagAliases: tt.aliases}
+			err := publish.run(nil, []string{"source/snap"})
+			require.EqualError(t, err, "Test reached publish request")
+			require.Len(t, requests, len(tt.requests))
+			for _, request := range tt.requests {
+				require.Equal(t, request, <-requests)
+			}
+		})
+	}
+}
+
+func TestPublishRemoteSnapshotAliasFailureCleansSource(t *testing.T) {
+	for _, failure := range []string{"alias conflict", "alias lookup", "parent lookup"} {
+		t.Run(failure, func(t *testing.T) {
+			const fingerprint = "published-image"
+			deleted := make(chan string, 1)
+			operation := `{"id":"publish","status":"Success","status_code":200,"metadata":{"fingerprint":"` + fingerprint + `","type":"container"}}`
+			if failure == "parent lookup" {
+				operation = `{"id":"publish","status":"Success","status_code":200,"metadata":{"fingerprint":"` + fingerprint + `"}}`
+			}
+
+			conf := aliasTestConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method + " " + r.URL.Path {
+				case "GET /1.0":
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":{"api_extensions":["instances","image_alias_types"]}}`)
+				case "GET /1.0/events":
+					upgrader := websocket.Upgrader{}
+					conn, err := upgrader.Upgrade(w, r, nil)
+					if !assert.NoError(t, err) {
+						return
+					}
+
+					defer conn.Close()
+					for {
+						_, _, err = conn.ReadMessage()
+						if err != nil {
+							return
+						}
+					}
+				case "POST /1.0/images":
+					_, _ = io.WriteString(w, `{"type":"async","operation":"/1.0/operations/publish","metadata":`+operation+`}`)
+				case "GET /1.0/operations/publish", "GET /1.0/operations/publish/wait":
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":`+operation+`}`)
+				case "GET /1.0/instances/source":
+					w.WriteHeader(http.StatusForbidden)
+					_, _ = io.WriteString(w, `{"type":"error","error":"Parent lookup denied","error_code":403}`)
+				case "DELETE /1.0/images/" + fingerprint:
+					deleted <- fingerprint
+					_, _ = io.WriteString(w, `{"type":"async","operation":"/1.0/operations/delete","metadata":{"id":"delete","status":"Success","status_code":200}}`)
+				default:
+					t.Errorf("Unexpected source request: %s %s", r.Method, r.URL.Path)
+					http.Error(w, "Unexpected source request", http.StatusBadRequest)
+				}
+			})
+			targetConf := aliasTestConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method + " " + r.URL.Path {
+				case "GET /1.0":
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":{"api_extensions":["instances","image_alias_types"]}}`)
+				case "GET /1.0/images/aliases":
+					if failure == "alias lookup" {
+						w.WriteHeader(http.StatusForbidden)
+						_, _ = io.WriteString(w, `{"type":"error","error":"Alias lookup denied","error_code":403}`)
+						return
+					}
+
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":[{"name":"shared","type":"container","target":"existing-image"}]}`)
+				default:
+					t.Errorf("Unexpected target request: %s %s", r.Method, r.URL.Path)
+					http.Error(w, "Unexpected target request", http.StatusBadRequest)
+				}
+			})
+			conf.Remotes["target"] = targetConf.Remotes["local"]
+
+			publish := cmdPublish{global: &cmdGlobal{conf: conf, flagQuiet: true}, flagAliases: []string{"shared"}}
+			err := publish.run(nil, []string{"source/snap", "target:"})
+			switch failure {
+			case "alias conflict":
+				require.EqualError(t, err, "Aliases already exists: shared")
+			case "alias lookup":
+				require.ErrorContains(t, err, "Alias lookup denied")
+			case "parent lookup":
+				require.ErrorContains(t, err, "Parent lookup denied")
+			}
+
+			select {
+			case got := <-deleted:
+				require.Equal(t, fingerprint, got)
+			default:
+				t.Fatal("Failed remote publish left the source image behind")
+			}
+		})
+	}
+}
+
+func TestPublishLocalSnapshotAliasRollback(t *testing.T) {
+	for _, outcome := range []string{"alias lookup", "alias conflict", "parent lookup", "invalid type", "success"} {
+		t.Run(outcome, func(t *testing.T) {
+			const fingerprint = "published-image"
+			deleted := make(chan string, 2)
+			deleteWaited := make(chan struct{}, 2)
+			imageType := `"type":"container",`
+			if outcome == "parent lookup" {
+				imageType = ""
+			} else if outcome == "invalid type" {
+				imageType = `"type":"invalid",`
+			}
+
+			operation := `{"id":"publish","status":"Success","status_code":200,"metadata":{` + imageType + `"fingerprint":"` + fingerprint + `"}}`
+			conf := aliasTestConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method + " " + r.URL.Path {
+				case "GET /1.0":
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":{"api_extensions":["instances","image_alias_types"]}}`)
+				case "GET /1.0/events":
+					upgrader := websocket.Upgrader{}
+					conn, err := upgrader.Upgrade(w, r, nil)
+					if !assert.NoError(t, err) {
+						return
+					}
+
+					defer conn.Close()
+					for {
+						_, _, err = conn.ReadMessage()
+						if err != nil {
+							return
+						}
+					}
+				case "POST /1.0/images":
+					var image api.ImagesPost
+					err := json.NewDecoder(r.Body).Decode(&image)
+					assert.NoError(t, err)
+					assert.True(t, image.Public)
+					_, _ = io.WriteString(w, `{"type":"async","operation":"/1.0/operations/publish","metadata":`+operation+`}`)
+				case "GET /1.0/operations/publish", "GET /1.0/operations/publish/wait":
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":`+operation+`}`)
+				case "GET /1.0/instances/source":
+					w.WriteHeader(http.StatusForbidden)
+					_, _ = io.WriteString(w, `{"type":"error","error":"Parent lookup denied","error_code":403}`)
+				case "GET /1.0/images/aliases":
+					if outcome == "alias lookup" {
+						w.WriteHeader(http.StatusForbidden)
+						_, _ = io.WriteString(w, `{"type":"error","error":"Alias lookup denied","error_code":403}`)
+						return
+					}
+
+					aliases := `[]`
+					if outcome == "alias conflict" {
+						aliases = `[{"name":"shared","type":"container","target":"existing-image"}]`
+					}
+
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":`+aliases+`}`)
+				case "POST /1.0/images/aliases", "POST /1.0/images/container/aliases":
+					assert.Equal(t, "success", outcome)
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":{}}`)
+				case "DELETE /1.0/images/" + fingerprint:
+					deleted <- fingerprint
+					_, _ = io.WriteString(w, `{"type":"async","operation":"/1.0/operations/delete","metadata":{"id":"delete","status":"Running","status_code":103}}`)
+				case "GET /1.0/operations/delete", "GET /1.0/operations/delete/wait":
+					deleteWaited <- struct{}{}
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":{"id":"delete","status":"Success","status_code":200}}`)
+				default:
+					t.Errorf("Unexpected request: %s %s", r.Method, r.URL.Path)
+					http.Error(w, "Unexpected request", http.StatusBadRequest)
+				}
+			})
+
+			publish := cmdPublish{
+				global:         &cmdGlobal{conf: conf, flagQuiet: true},
+				flagAliases:    []string{"shared"},
+				flagMakePublic: true,
+			}
+			err := publish.run(nil, []string{"source/snap"})
+			switch outcome {
+			case "alias lookup":
+				require.ErrorContains(t, err, "Alias lookup denied")
+			case "alias conflict":
+				require.EqualError(t, err, "Aliases already exists: shared")
+			case "parent lookup":
+				require.ErrorContains(t, err, "Parent lookup denied")
+			case "invalid type":
+				require.Error(t, err)
+			case "success":
+				require.NoError(t, err)
+				require.Empty(t, deleted)
+				require.Empty(t, deleteWaited)
+				return
+			}
+
+			require.Len(t, deleted, 1, "Failed local publish must delete the public image exactly once")
+			require.Equal(t, fingerprint, <-deleted)
+			require.NotEmpty(t, deleteWaited, "Rollback must wait for image deletion to complete")
+		})
+	}
+}
+
+func TestImageAliasMutationErrors(t *testing.T) {
+	const conflict = "Alias exists for both image types"
+	for _, tt := range []struct {
+		name       string
+		extensions string
+		imageType  string
+		requests   int
+		wantError  string
+	}{
+		{name: "invalid type", imageType: "invalid", wantError: `Invalid image type "invalid"`},
+		{name: "explicit type on old server", extensions: `[]`, imageType: "container", requests: 1, wantError: "image_alias_types"},
+		{name: "untyped name is ambiguous", extensions: `["image_alias_types"]`, requests: 2, wantError: conflict},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			requests := make(chan string, 8)
+			conf := aliasTestConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				requests <- r.Method + " " + r.URL.Path
+				if r.URL.Path == "/1.0" {
+					_, _ = io.WriteString(w, `{"type":"sync","metadata":{"api_extensions":`+tt.extensions+`}}`)
+					return
+				}
+
+				w.WriteHeader(http.StatusConflict)
+				_, _ = io.WriteString(w, `{"type":"error","error":"`+conflict+`"}`)
+			})
+
+			global := &cmdGlobal{conf: conf}
+			del := cmdImageAliasDelete{global: global, flagType: tt.imageType}
+			rename := cmdImageAliasRename{global: global, flagType: tt.imageType}
+			for _, operation := range []struct {
+				call    func() error
+				request string
+			}{
+				{func() error { return del.run(nil, []string{"shared"}) }, "DELETE /1.0/images/aliases/shared"},
+				{func() error { return rename.run(nil, []string{"shared", "new"}) }, "POST /1.0/images/aliases/shared"},
+			} {
+				err := operation.call()
+				require.ErrorContains(t, err, tt.wantError)
+				require.Len(t, requests, tt.requests)
+				if tt.requests > 0 {
+					require.Equal(t, "GET /1.0", <-requests)
+				}
+
+				if tt.wantError == conflict {
+					require.True(t, api.StatusErrorCheck(err, http.StatusConflict))
+					require.Equal(t, operation.request, <-requests)
+				}
+			}
+		})
+	}
 }
 
 func (s *utilsTestSuite) TestIsAliasesSubsetTrue() {
@@ -58,7 +432,7 @@ func (s *utilsTestSuite) TestGetExistingAliases() {
 		{Name: "baz"},
 	}
 
-	aliases := GetExistingAliases([]string{"bar", "foo", "other"}, images)
+	aliases := GetExistingAliases([]string{"bar", "foo", "other"}, "", images)
 	s.Exactly([]api.ImageAliasesEntry{images[0], images[1]}, aliases)
 }
 
@@ -69,8 +443,19 @@ func (s *utilsTestSuite) TestGetExistingAliasesEmpty() {
 		{Name: "baz"},
 	}
 
-	aliases := GetExistingAliases([]string{"other1", "other2"}, images)
+	aliases := GetExistingAliases([]string{"other1", "other2"}, "", images)
 	s.Exactly([]api.ImageAliasesEntry{}, aliases)
+}
+
+func (s *utilsTestSuite) TestGetExistingAliasesType() {
+	images := []api.ImageAliasesEntry{
+		{Name: "foo", Type: "container"},
+		{Name: "foo", Type: "virtual-machine"},
+		{Name: "bar", Type: "container"},
+	}
+
+	aliases := GetExistingAliases([]string{"bar", "foo"}, "container", images)
+	s.Exactly([]api.ImageAliasesEntry{images[0], images[2]}, aliases)
 }
 
 func (s *utilsTestSuite) TestStructHasFields() {
@@ -405,6 +790,47 @@ func (s *utilsTestSuite) TestPrintTimeIfSet() {
 			buf := &bytes.Buffer{}
 			printTimeIfSet(buf, tc.prefix, tc.t, tc.fallback)
 			s.Equal(tc.want, buf.String())
+		})
+	}
+}
+
+func TestNormalizeImageAliasPermissionEntitlement(t *testing.T) {
+	conf := aliasTestConfig(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/1.0", r.URL.Path)
+		_, _ = io.WriteString(w, `{"type":"sync","metadata":{"api_extensions":["image_alias_types"]}}`)
+	})
+	server, err := conf.GetInstanceServer("local")
+	require.NoError(t, err)
+	defer server.Disconnect()
+
+	const container = "/1.0/images/container/aliases/shared?project=default"
+	const vm = "/1.0/images/virtual-machine/aliases/shared?project=default"
+	permissions := []api.Permission{
+		{EntityType: "image_alias", EntityReference: container, Entitlement: "can_view"},
+		{EntityType: "image_alias", EntityReference: vm, Entitlement: "can_view"},
+		{EntityType: "image_alias", EntityReference: vm, Entitlement: "can_edit"},
+	}
+
+	for _, tt := range []struct {
+		entitlement string
+		ambiguous   bool
+	}{
+		{"can_edit", false},
+		{"can_view", true},
+	} {
+		t.Run(tt.entitlement, func(t *testing.T) {
+			permission := &api.Permission{
+				EntityType: "image_alias", EntityReference: "/1.0/images/aliases/shared?project=default", Entitlement: tt.entitlement,
+			}
+
+			normalized, err := normalizeImageAliasPermission(server, permissions, permission)
+			if tt.ambiguous {
+				require.ErrorContains(t, err, "both image types")
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, vm, normalized.EntityReference)
 		})
 	}
 }

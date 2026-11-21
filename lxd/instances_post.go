@@ -75,7 +75,12 @@ func ensureDownloadedImageFitWithinBudget(ctx context.Context, s *state.State, o
 		imgProject = api.ProjectDefaultName
 	}
 
-	imgDownloaded, err := ImageDownload(ctx, s, op, &ImageDownloadArgs{
+	// MicroVMs download container images. Leave an unspecified type for alias inference.
+	if imgType == instancetype.MicroVM.String() {
+		imgType = instancetype.MicroVM.ImageType().String()
+	}
+
+	downloadArgs := &ImageDownloadArgs{
 		ImageRegistry:     source.ImageRegistry,
 		Secret:            source.Secret,
 		Alias:             imgAlias,
@@ -87,7 +92,14 @@ func ensureDownloadedImageFitWithinBudget(ctx context.Context, s *state.State, o
 		ProjectName:       imgProject,
 		Budget:            budget,
 		SourceProjectName: source.Project,
-	})
+	}
+
+	if source.ImageRegistry == "" {
+		// The caller already resolved and authorized this local image.
+		downloadArgs.Fingerprint = imgAlias
+	}
+
+	imgDownloaded, err := ImageDownload(ctx, s, op, downloadArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -1712,7 +1724,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		if imgRef != "" {
 			// Try resolving as an alias first, as the fingerprint field may contain an alias name.
-			alias, _, err := remoteServer.GetImageAlias(imgRef)
+			alias, _, err := remoteServer.GetImageAliasType("", imgRef)
 			if err == nil {
 				remoteImageType = alias.Type
 			} else {
@@ -1844,8 +1856,18 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 		case api.SourceTypeImage:
+			// Use the registry's selected variant for the cache lookup when inferring the instance type.
+			aliasType := string(req.Type)
+			if aliasType == "" {
+				aliasType = remoteImageType
+			}
+
+			if aliasType == instancetype.MicroVM.String() {
+				aliasType = instancetype.Container.String()
+			}
+
 			// Try to resolve the source image from cache.
-			sourceImage, imageAuthorizationChecker, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, string(req.Type))
+			sourceImage, imageAuthorizationChecker, err = resolveSourceImageFromCache(r, s, tx, targetProject.Name, req.Source, &sourceImageRef, aliasType)
 			if err != nil {
 				return err
 			}
@@ -1860,11 +1882,9 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				// We explicitly skip inference for simplestreams registries to maintain the
 				// default of creating a container.
 				if imageRegistry == nil || imageRegistry.Protocol == api.ImageRegistryProtocolLXD {
-					var imgType string
-					if sourceImage != nil {
+					imgType := remoteImageType
+					if imgType == "" && sourceImage != nil {
 						imgType = sourceImage.Type
-					} else if remoteImageType != "" {
-						imgType = remoteImageType
 					}
 
 					if imgType != "" {
