@@ -40,6 +40,7 @@ import (
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
 	storageDrivers "github.com/canonical/lxd/lxd/storage/drivers"
+	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/entity"
@@ -1058,9 +1059,10 @@ func createFromBackup(s *state.State, r *http.Request, projectName string, data 
 	revert.Add(func() { _ = backupFile.Close() })
 
 	// Stream uploaded backup data into temporary file.
-	_, err = io.Copy(backupFile, data)
+	// The copy runs as the unprivileged user so that filesystem quotas apply to the upload.
+	_, err = util.UnprivilegedCopy(r.Context(), backupFile, data, s.OS.UnprivUID, s.OS.UnprivGID)
 	if err != nil {
-		return response.InternalError(err)
+		return response.SmartError(err)
 	}
 
 	// Detect squashfs compression and convert to tarball.
