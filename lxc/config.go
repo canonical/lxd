@@ -596,6 +596,14 @@ lxc config set core.https_address=[::]:8443
 	return cmd
 }
 
+// isConfigKeyArg returns whether the argument (optionally prefixed with a remote) is a configuration key rather than
+// an instance name. Configuration keys are namespaced with dots, which instance names cannot contain.
+func isConfigKeyArg(arg string) bool {
+	fields := strings.SplitN(arg, ":", 2)
+	key := fields[len(fields)-1]
+	return strings.Contains(key, ".")
+}
+
 // run executes the "set" command, updating instance or server configuration keys based on provided arguments.
 func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
@@ -624,15 +632,9 @@ func (c *cmdConfigSet) run(cmd *cobra.Command, args []string) error {
 		return true
 	}
 
-	isConfig := func(value string) bool {
-		fields := strings.SplitN(value, ":", 2)
-		key := fields[len(fields)-1]
-		return strings.Contains(key, ".")
-	}
-
 	// Parse remote
 	remote := ""
-	if onlyKeyValue(args) || isConfig(args[0]) {
+	if onlyKeyValue(args) || isConfigKeyArg(args[0]) {
 		// server set with: <key>=<value>...
 		remote = ""
 	} else if len(args) == 2 && !hasKeyValue(args) {
@@ -920,8 +922,8 @@ type cmdConfigUnset struct {
 // command generates a new "unset" command to remove specific configuration keys for an instance or server.
 func (c *cmdConfigUnset) command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("unset", "[<remote>:][<instance>] <key>")
-	cmd.Short = "Unset instance or server configuration key"
+	cmd.Use = usage("unset", "[<remote>:][<instance>] <key>...")
+	cmd.Short = "Unset instance or server configuration keys"
 	cmd.Long = cli.FormatSection("Description", cmd.Short)
 
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", cli.FormatStringFlagLabel("Cluster member name"))
@@ -970,15 +972,40 @@ func (c *cmdConfigUnset) command() *cobra.Command {
 // run executes the "unset" command, delegating to the "set" command to remove specific configuration keys.
 func (c *cmdConfigUnset) run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err
 	}
 
 	c.configSet.flagIsProperty = c.flagIsProperty
 
-	args = append(args, "")
-	return c.configSet.run(cmd, args)
+	setArgs, err := configUnsetArgs(args)
+	if err != nil {
+		return err
+	}
+
+	return c.configSet.run(cmd, setArgs)
+}
+
+// configUnsetArgs converts the arguments of the "unset" command into those of the "set" command, setting each key to
+// an empty value. Unless it is a configuration key, the first of multiple arguments is the instance or remote.
+func configUnsetArgs(args []string) ([]string, error) {
+	setArgs := make([]string, 0, len(args))
+	keys := args
+	if len(args) > 1 && !isConfigKeyArg(args[0]) {
+		setArgs = append(setArgs, args[0])
+		keys = args[1:]
+	}
+
+	for _, key := range keys {
+		if strings.Contains(key, "=") {
+			return nil, fmt.Errorf("Invalid configuration key %q", key)
+		}
+
+		setArgs = append(setArgs, key+"=")
+	}
+
+	return setArgs, nil
 }
 
 type cmdConfigUefi struct {
