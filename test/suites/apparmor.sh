@@ -1,11 +1,38 @@
 _instance_apparmor() {
+  local console_rc
+
   ensure_import_testimage
+
+  # Clear the ring buffer before starting the container so helper transition audits are included in the check.
+  dmesg --clear
 
   echo "Create and start a test container"
   lxc launch testimage c1
 
-  # Clear the ring buffer without flooding the console
-  dmesg --clear
+  sub_test "Container init is not stacked with unconfined"
+  ! grep -F "//&unconfined" "/proc/$(lxc query /1.0/instances/c1/state | jq --exit-status --raw-output .pid)/attr/current" || false
+
+  sub_test "Processes in the same container can signal each other"
+  # shellcheck disable=SC2016
+  lxc exec c1 -- sh -c 'sleep 30 & child="${!}"; kill "${child}"; wait "${child}" || [ "${?}" -eq 143 ]'
+
+  sub_test "Processes in the same container can trace each other"
+  # shellcheck disable=SC2016
+  lxc exec c1 -- sh -ec '
+    sleep 30 &
+    child="${!}"
+    exec 3<"/proc/${child}/mem"
+    kill "${child}"
+    wait "${child}" || true
+  '
+
+  sub_test "Container console helper starts through AppArmor"
+  console_rc=0
+  timeout 5 script -q -e -c "lxc console c1" /dev/null </dev/null >/dev/null 2>&1 || console_rc="${?}"
+  [ "${console_rc}" -eq 0 ] || [ "${console_rc}" -eq 124 ]
+
+  sub_test "Unprivileged container helpers do not force AppArmor stacking"
+  ! dmesg | grep -F "change_profile unprivileged unconfined converted to stacking" || false
 
   echo "==> Test /sys/kernel/* access"
 
