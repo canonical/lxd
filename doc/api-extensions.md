@@ -3842,6 +3842,13 @@ HTTP boot follows the enabled network stacks.
 
 These keys require `x86_64` with UEFI firmware and are rejected when `boot.mode=bios`.
 
+(extension-server-config-redacted)=
+## `server_config_redacted`
+
+Adds a `redacted` query parameter to `GET /1.0`. When set to `true`, the values of secret server configuration keys (`loki.auth.password`, `network.ovn.client_key` and `oidc.client.secret`) are replaced with `[redacted]` in the response. Passwords embedded in the proxy URLs set in `core.proxy_http` and `core.proxy_https` are also replaced with `[redacted]`.
+
+This makes it possible to share the output of `lxc info --redacted` without leaking credentials.
+
 (extension-instance-microvm)=
 ## `instance_microvm`
 

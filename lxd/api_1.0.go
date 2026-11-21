@@ -244,6 +244,11 @@ func init() {
 //	    description: Project name
 //	    type: string
 //	    example: default
+//	  - in: query
+//	    name: redacted
+//	    description: Replace the values of secret configuration keys and proxy passwords with "[redacted]"
+//	    type: boolean
+//	    example: true
 //	responses:
 //	  "200":
 //	    description: Server environment and configuration
@@ -483,6 +488,10 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		daemonConfig, err := daemonConfigRender(s)
 		if err != nil {
 			return response.InternalError(err)
+		}
+
+		if shared.IsTrue(request.QueryParam(r, "redacted")) {
+			clusterConfig.RedactSecrets(daemonConfig)
 		}
 
 		// Convert the internal map[string]string config to the API format of map[string]any.

@@ -267,6 +267,68 @@ func (c *Config) Dump() map[string]string {
 	return c.m.Dump()
 }
 
+// RedactedValue replaces the value of secret configuration keys in redacted output.
+const RedactedValue = "[redacted]"
+
+// SecretKeys lists the server configuration keys whose values are secrets.
+var SecretKeys = []string{
+	"loki.auth.password",
+	"network.ovn.client_key",
+	"oidc.client.secret",
+}
+
+// proxyKeys lists the server configuration keys holding proxy URLs, which may embed credentials.
+var proxyKeys = []string{
+	"core.proxy_http",
+	"core.proxy_https",
+}
+
+// RedactSecrets replaces the values of any set secret keys in config with RedactedValue, and the password of
+// any credentials embedded in proxy URLs.
+func RedactSecrets(config map[string]string) {
+	for _, key := range SecretKeys {
+		_, ok := config[key]
+		if ok {
+			config[key] = RedactedValue
+		}
+	}
+
+	for _, key := range proxyKeys {
+		value, ok := config[key]
+		if ok {
+			config[key] = redactURLPassword(value)
+		}
+	}
+}
+
+// redactURLPassword replaces the password in the userinfo of a URL with RedactedValue.
+// The scheme is optional, matching how proxy addresses are parsed.
+func redactURLPassword(value string) string {
+	authorityStart := 0
+	_, rest, found := strings.Cut(value, "://")
+	if found {
+		authorityStart = len(value) - len(rest)
+	}
+
+	authority := value[authorityStart:]
+	end := strings.IndexAny(authority, "/?#")
+	if end >= 0 {
+		authority = authority[:end]
+	}
+
+	userinfoEnd := strings.LastIndex(authority, "@")
+	if userinfoEnd < 0 {
+		return value
+	}
+
+	passwordStart := strings.Index(authority[:userinfoEnd], ":")
+	if passwordStart < 0 {
+		return value
+	}
+
+	return value[:authorityStart+passwordStart+1] + RedactedValue + value[authorityStart+userinfoEnd:]
+}
+
 // DumpPublic returns a map of publicly visible configuration keys and values ready to add to the public (or non-admin)
 // API response.
 func (c *Config) DumpPublic(trusted bool) map[string]any {
