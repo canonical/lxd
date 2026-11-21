@@ -820,13 +820,14 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 }
 
 func genericRelay(dst net.Conn, src net.Conn) {
-	// relayer is a helper function that handles one-way data copying and signals completion through the provided channel
-	relayer := func(src net.Conn, dst net.Conn, ch chan error) {
-		err := proxyCopy(src, dst)
-		// Support half-closed TCP connections after copying completes. This allows data to still be received.
-		tcpConn, ok := src.(*net.TCPConn)
+	// relayer is a helper function that copies data from one connection to another and signals completion through the provided channel
+	relayer := func(to net.Conn, from net.Conn, ch chan error) {
+		err := proxyCopy(to, from)
+		// Support half-closed connections after copying completes. This propagates the EOF to the other
+		// end while still allowing data to be received. Both TCP and unix stream connections support this.
+		halfCloser, ok := to.(interface{ CloseWrite() error })
 		if ok {
-			_ = tcpConn.CloseWrite()
+			_ = halfCloser.CloseWrite()
 		}
 
 		// Signal completion
