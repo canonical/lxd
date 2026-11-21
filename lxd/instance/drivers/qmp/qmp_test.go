@@ -314,6 +314,35 @@ func TestCommandName(t *testing.T) {
 	}
 }
 
+func TestMigrationStatusReached(t *testing.T) {
+	tests := []struct {
+		name        string
+		status      string
+		expected    string
+		wantReached bool
+		wantErr     bool
+	}{
+		{"Expected status", "completed", "completed", true, false},
+		{"Non-terminal status", "active", "completed", false, false},
+		{"Failed status", "failed", "completed", false, true},
+		{"Cancelled status", "cancelled", "completed", false, true},
+		{"Expected cancelled status", "cancelled", "cancelled", true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reached, err := migrationStatusReached(tt.status, tt.expected)
+			if reached != tt.wantReached {
+				t.Errorf("migrationStatusReached() reached = %t, want %t", reached, tt.wantReached)
+			}
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("migrationStatusReached() error = %v, wantErr %t", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestTransactionActions(t *testing.T) {
 	tests := map[string]TransactionAction{
 		`{"type":"blockdev-snapshot","data":{"node":"lxd_root","overlay":"lxd_root_overlay"}}`:                                                                          BlockDevSnapshotAction("lxd_root", "lxd_root_overlay"),
