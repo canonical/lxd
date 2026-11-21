@@ -1254,6 +1254,30 @@ jobs:
           }
           trap cleanup EXIT
 
+          retry_lp() {
+            local attempts=3
+            local delay=5
+            local attempt=1
+
+            while true; do
+              if "$@"; then
+                return 0
+              fi
+
+              if [ "${attempt}" -ge "${attempts}" ]; then
+                echo "ERROR: Launchpad command failed after ${attempts} attempts: $*" >&2
+                return 1
+              fi
+
+              # Reset any wedged multiplexed SSH session so the retry opens a fresh connection.
+              ssh -O exit git.launchpad.net 2>/dev/null || true
+              echo "Launchpad command failed (attempt ${attempt}/${attempts}); retrying in ${delay}s..." >&2
+              sleep "${delay}"
+              attempt=$((attempt + 1))
+              delay=$((delay * 3))
+            done
+          }
+
           # Record the public commit hash before snapcraft.yaml is modified for the private build.
           localRev="$(git rev-parse "origin/${GITHUB_REF_NAME}")"
 
@@ -1352,7 +1376,7 @@ jobs:
           # Fetch the current Launchpad tip (falling back to latest-edge when creating a new
           # branch) into a remote-tracking ref so `git push` knows what objects Launchpad
           # already has instead of re-uploading the entire repository.
-          lp_heads="$(git ls-remote --heads launchpad "refs/heads/${BRANCH}" "refs/heads/latest-edge")"
+          lp_heads="$(retry_lp git ls-remote --heads launchpad "refs/heads/${BRANCH}" "refs/heads/latest-edge")"
           lp_fetch_ref=""
           if awk -v ref="refs/heads/${BRANCH}" '$2 == ref { found = 1 } END { exit !found }' <<< "${lp_heads}"; then
             lp_fetch_ref="${BRANCH}"
@@ -1361,7 +1385,7 @@ jobs:
           fi
 
           if [ -n "${lp_fetch_ref}" ]; then
-            git fetch --quiet --no-tags launchpad "+refs/heads/${lp_fetch_ref}:refs/remotes/launchpad/${lp_fetch_ref}"
+            retry_lp git fetch --quiet --no-tags launchpad "+refs/heads/${lp_fetch_ref}:refs/remotes/launchpad/${lp_fetch_ref}"
           fi
 
-          git push --quiet --force launchpad HEAD:"${BRANCH}"
+          retry_lp git push --quiet --force launchpad HEAD:"${BRANCH}"
