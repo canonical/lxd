@@ -16,6 +16,12 @@ Keep your operating system up-to-date and install available security patches.
 Use only supported LTS releases or the latest feature release of LXD, and update LXD regularly to receive security updates and bugfixes.
 See {ref}`ref-releases-snap` for details.
 
+(howto-security-harden-dependencies)=
+### Keep dependencies up to date
+
+Runtime dependencies are bundled in the LXD snap and updated when the snap refreshes.
+If you install LXD through another method, install the {ref}`runtime dependencies <requirements-runtime>` at or above the minimum required versions, and apply all security updates.
+
 (howto-security-harden-delete-unused)=
 ### Delete unused resources
 
