@@ -1,0 +1,132 @@
+name: Snap channel tests
+
+on:
+  # Scheduled workflows only run from the default branch so the scheduled runs of this
+  # workflow are dispatched from the copy of `snap.yml` on `main`.
+  workflow_dispatch:
+    inputs:
+      snap-risk:
+        description: Snap risk level, `edge`, `candidate` or `stable`.
+        type: choice
+        default: 'edge'
+        options:
+          - 'edge'
+          - 'candidate'
+          - 'stable'
+      ubuntu-releases:
+        description: Ubuntu releases to run the tests against. In JSON format, i.e. '["22.04"]'.
+        type: choice
+        default: '["22.04"]'
+        options:
+          - '["22.04"]'
+      tmate-debug:
+        description: Use tmate debugging session on integration test failure.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.snap-risk }}-${{ inputs.ubuntu-releases }}
+  # XXX: runs dispatched from the schedule on `main` should not cancel manually triggered ones
+  cancel-in-progress: false
+
+defaults:
+  run:
+    # Make sure bash is always invoked with `-eo pipefail`
+    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+    shell: bash
+
+env:
+  SNAP_CACHE_DIR: "/home/runner/snap-cache"
+  # Only seed the snaps cache with the base needed by this branch (core20 for LXD 4.0).
+  # None of the tests enabled on this branch need MicroCeph or MicroOVN.
+  SNAP_CORES: "core20"
+
+jobs:
+  # Prime the snaps cache once so the (potentially large) snap-tests
+  # matrix below doesn't stampede on cache misses.
+  prime-caches:
+    name: Prime caches
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prime cache with snap dependencies
+        uses: $/.github/actions/download-snaps
+        with:
+          prime-cache-only: true
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+          cache-key-suffix: ${{ github.run_id }}
+          cores: ${{ env.SNAP_CORES }}
+          lxd-channel: 4.0/${{ inputs.snap-risk || 'edge' }}
+          microceph-channel: ""
+          microovn-channel: ""
+
+  snap-tests:
+    needs: prime-caches
+    name: ${{ matrix.test }} (4.0/${{ matrix.risk }} - ${{ matrix.os }})
+    runs-on: ubuntu-${{ matrix.os }}
+    # avoid runaway test burning 6 hours of CI
+    timeout-minutes: 60
+    permissions:
+      actions: write  # to save caches (only runs from the canonical repo, not fork PRs)
+      contents: read  # for private repos or higher API rate limits
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.ubuntu-releases || '["22.04"]') }}
+        risk:
+          - ${{ inputs.snap-risk || 'edge' }}
+        test:
+          - cgroup
+          - cluster
+          - container
+          - devlxd
+          - efi-vm
+          - lxd-consumers
+          - interception
+          - nesting
+          - network-bridge-firewall
+          - network-routed
+          - snapd
+          - vm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Tune disk performance
+        uses: $/.github/actions/tune-disk-performance
+
+      - name: Reclaim some memory
+        uses: $/.github/actions/reclaim-memory
+
+      - name: Remove docker
+        uses: $/.github/actions/disable-docker
+
+      - name: ${{ matrix.test }}
+        uses: $/.github/actions/snap-test
+        with:
+          test: ${{ matrix.test }}
+          channel: 4.0/${{ matrix.risk }}
+          os: ${{ matrix.os }}
+          snap-cache-dir: ${{ env.SNAP_CACHE_DIR }}
+          snap-cache-key-suffix: ${{ github.run_id }}
+          cores: ${{ env.SNAP_CORES }}
+          microceph-channel: ""
+          microovn-channel: ""
+
+      - name: Tmate debugging session
+        if: ${{ failure() && inputs.tmate-debug }}
+        timeout-minutes: 30
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3.24
+        with:
+          # Never allow public SSH access
+          limit-access-to-actor: true

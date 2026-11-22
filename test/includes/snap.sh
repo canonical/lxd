@@ -1,0 +1,212 @@
+#!/bin/bash
+
+# download_snap: downloads a snap to the cache dir.
+download_snap() {
+    local name="${1}"
+    local channel="${2:-"latest/edge"}"
+    local cache_dir="${SNAP_CACHE_DIR:-${HOME}/snap-cache}"
+    local dir="${cache_dir}/${name}/${channel/\//-}"
+
+    [ -d "${dir}" ] || mkdir -p "${dir}"
+    (
+        set -eux
+        cd "${dir}"
+        # Delete any revs older than 1 day
+        find . -type f -mtime +1 \( -name "${name}_*.snap" -o -name "${name}_*.assert" \) -delete
+        exec timeout 20m snap download "${name}" --channel="${channel}" --cohort="+"
+    )
+}
+
+# install_snap: installs a snap from the cache dir.
+# The cache dir content should look like this:
+# # ls -1
+# lxd_35505.assert
+# lxd_35505.snap
+#
+# 1. acknowledges the assertion
+# 2. install the snap with the name prefix
+# 3. holds (24h) the installed snap to prevent refreshes during test runs
+install_snap() {
+    local name="${1}"
+    local channel="${2:-"latest/edge"}"
+    local cache_dir="${SNAP_CACHE_DIR:-${HOME}/snap-cache}"
+    local dir="${cache_dir}/${name}/${channel/\//-}"
+
+    # Use process substitution (< <(...)) to avoid running the 'while' loop in
+    # a subshell, which ensures 'return 0' can exit the install_snap function.
+    local track
+    while read -r _ _ _ track _ _ _; do
+        # Ignore header
+        [ "${track}" = "Tracking" ] && continue
+
+        # If the snap was installed from a local file (track="-") or the one
+        # requested, nothing left to do
+        if [ "${track}" = "-" ] || [ "${track}" = "${channel}" ]; then
+            return 0
+        fi
+
+        # The snap is installed but from the wrong track so proceed with the
+        # installation
+        break
+    done < <(snap list "${name}" 2>/dev/null)
+
+    [ -d "${dir}" ] || mkdir -p "${dir}"
+    (
+        local assert snap
+        set -eux
+        cd "${dir}"
+
+        # Find the first matching .assert file, or leave empty if none found
+        assert=""
+        for f in ./"${name}"_*.assert; do
+            if [ -e "$f" ]; then
+                assert="$f"
+                break
+            fi
+        done
+
+        snap=""
+        if [ -n "${assert}" ]; then
+            snap="${assert/%.assert/.snap}"
+        fi
+
+        # If files are missing and we're not in a recursive call
+        if [ -z "${assert}" ] || ! [ -e "${snap}" ]; then
+            # Check if we're already in a recursive call by looking at the call stack
+            local recursive_call=false
+            local i
+            for ((i=1; i<${#FUNCNAME[@]}; i++)); do
+                if [[ "${FUNCNAME[${i}]}" == "install_snap" ]]; then
+                    recursive_call=true
+                    break
+                fi
+            done
+
+            if [ "${recursive_call}" = "false" ]; then
+              echo "Opportunistically downloading ${name} before installation"
+              # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
+              if download_snap "${name}" "${channel}"; then
+                  install_snap "${name}" "${channel}"
+                  return
+              else
+                  echo "Error: Failed to download ${name} from channel ${channel}" >&2
+                  exit 1
+              fi
+            fi
+        fi
+
+        # Final check - if we still don't have the files, fail
+        if [ -z "${assert}" ] || ! [ -e "${snap}" ]; then
+            echo "Error: Required snap files not found in ${dir}" >&2
+            echo "Expected: ${name}_*.assert and corresponding .snap file" >&2
+            exit 1
+        fi
+
+        echo "Installing ${name} from cache"
+        snap ack "${assert}"
+        snap install "${snap}"
+        snap refresh --hold=24h "${name}"
+        snap switch "${name}" --channel="${channel}"
+    )
+}
+
+# install_snap_in_instance: installs a snap from the cache dir into an instance
+# without the instance having to reach the snap store. The snap base (if any) is
+# installed first, from the "latest/candidate" cache. Returns non-zero without
+# changing anything if the snap (or its base) is not in the cache so that the
+# caller can fall back to the snap store.
+# Usage: install_snap_in_instance <instance> <name> [channel]
+install_snap_in_instance() {
+    local instance="${1}"
+    local name="${2}"
+    local channel="${3:-"latest/edge"}"
+    local cache_dir="${SNAP_CACHE_DIR:-${HOME}/snap-cache}"
+    local dir="${cache_dir}/${name}/${channel/\//-}"
+    local f assert="" snap="" base="" rev=""
+
+    for f in "${dir}/${name}"_*.assert; do
+        if [ -e "${f}" ]; then
+            assert="${f}"
+            snap="${f/%.assert/.snap}"
+            break
+        fi
+    done
+
+    if [ -z "${assert}" ] || ! [ -e "${snap}" ]; then
+        return 1
+    fi
+
+    if [ "${name}" != "snapd" ]; then
+        if ! command -v unsquashfs >/dev/null; then
+            return 1
+        fi
+
+        base="$(unsquashfs -n -cat "${snap}" meta/snap.yaml | awk '/^base:/ {print $2; exit}')"
+        if [ -n "${base}" ] && [ "${base}" != "bare" ]; then
+            # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
+            install_snap_in_instance "${instance}" "${base}" "latest/candidate" || return 1
+        fi
+    fi
+
+    # Cached snaps are named <name>_<revision>.snap
+    rev="${snap##*_}"
+    rev="${rev%.snap}"
+
+    echo "Installing ${name} (${channel}) in ${instance} from cache"
+    lxc file push --quiet "${snap}" "${assert}" "${instance}/root/"
+    lxc exec "${instance}" -- sh -eux -c "
+        cd /root
+        snap ack '$(basename "${assert}")'
+        # The same revision may already be installed (e.g. seeded in the image)
+        if ! snap install './$(basename "${snap}")'; then
+            [ \"\$(snap list '${name}' | awk 'NR==2 {print \$3}')\" = '${rev}' ]
+        fi
+        snap refresh --hold=24h '${name}'
+        snap switch '${name}' --channel='${channel}'
+        rm -f '$(basename "${snap}")' '$(basename "${assert}")'
+    "
+}
+
+# sideload_lxd_snap: installs the lxd snap and sideloads the lxc, lxd and lxd-agent binaries.
+sideload_lxd_snap() {
+    local channel="${1:-"latest/edge"}"
+    local bin lxd_agent_bin
+    install_snap core20 "latest/candidate"
+    install_snap lxd "${channel}"
+
+    # For LVM thin use external LVM tools to avoid errors like:
+    # Failed to run: lvcreate --yes --wipesignatures y --thinpool --extents 100%FREE: Device or resource busy
+    snap set lxd lvm.external=true
+
+    for bin in "${_LXC:-$(command -v lxc || true)}" "$(command -v lxd || true)" "$(command -v lxd-user || true)"; do
+        if [ -z "${bin}" ]; then
+            echo "Error: Required binary not found in PATH" >&2
+            return 1
+        fi
+        cp "${bin}" "/var/snap/lxd/common/${bin##*/}.debug"
+    done
+
+    # Use a mount bind as /snap/lxd is readonly
+    lxd_agent_bin="$(command -v lxd-agent || true)"
+    if [ -z "${lxd_agent_bin}" ]; then
+        echo "Error: lxd-agent not found in PATH" >&2
+        return 1
+    fi
+
+    mount -o ro,bind "${lxd_agent_bin}" /snap/lxd/current/bin/lxd-agent
+}
+
+# gocoverage_lxd_snap sets up the LXD snap to collect Go coverage data.
+# If coverage is not enabled, any existing setup is removed.
+gocoverage_lxd_snap() {
+    local systemd_override_dir="/etc/systemd/system/snap.lxd.daemon.service.d"
+    local systemd_override_file="${systemd_override_dir}/env.conf"
+    if [ -n "${GOCOVERDIR:-}" ]; then
+        mkdir -p "${systemd_override_dir}"
+        echo -e "[Service]\nEnvironment=\"GOCOVERDIR=/var/lib/snapd/hostfs/${GOCOVERDIR}\"" > "${systemd_override_file}"
+        systemctl daemon-reload
+    elif [ -e "${systemd_override_file}" ]; then
+        rm "${systemd_override_file}"
+        systemctl daemon-reload
+    fi
+}
