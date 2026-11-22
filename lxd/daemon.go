@@ -1223,6 +1223,11 @@ func (d *Daemon) init() (err error) {
 		return err
 	}
 
+	err = apparmor.ForkstartLoad(d.os)
+	if err != nil {
+		return fmt.Errorf("Failed loading forkstart AppArmor profile: %w", err)
+	}
+
 	// Setup AppArmor wrapper.
 	rsync.RunWrapper = func(cmd *exec.Cmd, source string, destination string) (func(), error) {
 		return apparmor.RsyncWrapper(d.os, cmd, source, destination)
@@ -2382,6 +2387,10 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		_ = unix.Unmount(shared.VarPath("shmounts"), unix.MNT_DETACH)
 
 		logger.Info("Done unmounting temporary filesystems")
+
+		if sig == unix.SIGPWR {
+			trackError(apparmor.ForkstartDelete(d.os), "Delete forkstart AppArmor profile")
+		}
 	} else {
 		logger.Info("Not unmounting temporary filesystems (instances are still running)")
 	}
