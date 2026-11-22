@@ -102,7 +102,15 @@ Rather than applying these options on a per-instance basis, use either {ref}`pro
 (howto-security-harden-unprivileged)=
 ### Use unprivileged containers
 
-By default, LXD containers are unprivileged. If you need to use privileged containers, make sure to put appropriate security measures in place. For more information, see {ref}`container-security`.
+By default, LXD containers are unprivileged. If you need to use privileged containers, make sure to put appropriate security measures in place. For details about unprivileged and privileged containers, see {ref}`container-security`.
+
+To prevent a project from using privileged containers, enable {ref}`project restrictions <project-restrictions>`. The default value of the {config:option}`project-restricted:restricted.containers.privilege` option is `unprivileged`, which prevents the use of privileged containers.
+
+```{warning}
+Once a container has run in privileged mode, the host may be compromised, even if you later reconfigure the container to remove the privilege.
+
+Likewise, once a privileged container has run in a project, the host may be compromised, even if you later reconfigure the container and apply project restrictions.
+```
 
 (howto-security-harden-instance-resource-limits)=
 ### Set instance resource limits
@@ -121,7 +129,9 @@ Setting this option to `true` is especially dangerous in combination with {confi
 (howto-security-harden-isolate)=
 ### Isolate containers
 
-If a set of containers do not need to share data with each other, enable the instance option {config:option}`instance-security:security.idmap.isolated` on each one. This configures them to use unique UID/GID maps, preventing potential {abbr}`DoS (Denial of Service)` attacks from one container to another. Only unprivileged containers can use this option.
+If a set of containers do not need to share data with each other, enable the instance option {config:option}`instance-security:security.idmap.isolated` on each one. This configures each container to use unique UID/GID maps, preventing potential {abbr}`DoS (Denial of Service)` attacks from one container to another. Only unprivileged containers can use this option.
+
+To require this configuration for containers in a project, enable {ref}`project restrictions <project-restrictions>` and set {config:option}`project-restricted:restricted.containers.privilege` to `isolated`.
 
 (howto-security-profiles)=
 ### Use profiles
