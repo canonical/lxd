@@ -1240,8 +1240,8 @@ jobs:
           set -eux
           set -o pipefail
 
-          # Record current commit hash before rebasing lxd-private so the snap version retains the correct hash.
-          localRev="$(git rev-parse HEAD)"
+          # Record the public commit hash before snapcraft.yaml is modified for the private build.
+          localRev="$(git rev-parse "origin/${GITHUB_REF_NAME}")"
 
           # Add the private LXD repository and rebase to incorporate private security fixes.
           git remote add lxd-private git@github.com:canonical/lxd-private.git
