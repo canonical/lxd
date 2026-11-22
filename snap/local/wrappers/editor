@@ -3,9 +3,16 @@ run_cmd() {
     CMD="$1"
     shift
 
-    unset LD_LIBRARY_PATH
+    # Host editors must not load Python code or configuration from the snap.
+    unset LD_LIBRARY_PATH PYTHONPATH PYTHONDONTWRITEBYTECODE PYTHONHOME PYTHONSTARTUP
+    export PYTHONNOUSERSITE=1
     export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    export HOME="${SNAP_REAL_HOME}"
+    # Avoid replacing HOME with an empty value, which can redirect editor
+    # configuration lookups to the current directory.
+    if [ -n "${SNAP_REAL_HOME:-}" ]; then
+        export HOME="${SNAP_REAL_HOME}"
+    fi
+
     export USER="${USERNAME}"
     if [ "${HOME}" != "/root" ] && [ "${CMD}" = "nano" ]; then
         export XDG_DATA_HOME="${HOME}/.local/share"
