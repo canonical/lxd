@@ -103,6 +103,34 @@ func lxcStatusCode(state liblxc.State) api.StatusCode {
 	}[int(state)]
 }
 
+func lxcRawAppArmorProfile(rawLXC string) bool {
+	for line := range strings.SplitSeq(rawLXC, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		key, _, ok := strings.Cut(line, "=")
+		key = strings.TrimSpace(key)
+		if ok && (strings.EqualFold(key, "lxc.apparmor.profile") || strings.EqualFold(key, "lxc.aa_profile")) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (d *lxc) forkstartWrapper(cmd *exec.Cmd) error {
+	// raw.lxc can explicitly select an AppArmor profile outside LXD's profile
+	// namespace. Preserve its legacy behavior rather than granting the
+	// trampoline profile arbitrary change_profile permissions.
+	if lxcRawAppArmorProfile(d.expandedConfig["raw.lxc"]) {
+		return nil
+	}
+
+	return apparmor.ForkstartWrapper(d.state.OS, cmd)
+}
+
 // lxcCreate creates the DB storage records and sets up instance devices.
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
 func lxcCreate(ctx context.Context, s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, revert.Hook, error) {
@@ -2278,13 +2306,24 @@ func (d *lxc) Start(ctx context.Context, stateful bool, progressReporter ioprogr
 	name := project.Instance(d.Project().Name, d.name)
 
 	// Start the LXC container
-	_, err = shared.RunCommand(
-		context.TODO(),
-		d.state.OS.ExecPath,
+	cmd := exec.CommandContext(
+		context.TODO(), d.state.OS.ExecPath,
 		"forkstart",
 		name,
 		d.state.OS.LxcPath,
 		configPath)
+	err = d.forkstartWrapper(cmd)
+	if err == nil {
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+
+		err = cmd.Run()
+		if err != nil {
+			err = shared.NewRunError(cmd.Path, cmd.Args[1:], err, &stdout, &stderr)
+		}
+	}
+
 	if err != nil && !d.IsRunning() {
 		// Attempt to extract the LXC errors
 		lxcLog := ""
@@ -6187,13 +6226,18 @@ func (d *lxc) Console(ctx context.Context, protocol string) (*os.File, chan erro
 	chDisconnect := make(chan error, 1)
 
 	args := []string{
-		d.state.OS.ExecPath,
 		"forkconsole",
 		project.Instance(d.Project().Name, d.Name()),
 		d.state.OS.LxcPath,
 		filepath.Join(d.LogPath(), "lxc.conf"),
 		"tty=0",
 		"escape=-1"}
+
+	cmd := exec.Command(d.state.OS.ExecPath, args...)
+	err := d.forkstartWrapper(cmd)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	idmapset, err := d.CurrentIdmap()
 	if err != nil {
@@ -6217,9 +6261,6 @@ func (d *lxc) Console(ctx context.Context, protocol string) (*os.File, chan erro
 		return nil, nil, err
 	}
 
-	cmd := exec.Cmd{}
-	cmd.Path = d.state.OS.ExecPath
-	cmd.Args = args
 	cmd.Stdin = pty
 	cmd.Stdout = pty
 	cmd.Stderr = pty
@@ -6344,6 +6385,11 @@ func (d *lxc) Exec(ctx context.Context, req api.InstanceExecPost, stdin *os.File
 
 	if useRexec {
 		cmd.Env = append(os.Environ(), "LXC_MEMFD_REXEC=1")
+	}
+
+	err = d.forkstartWrapper(&cmd)
+	if err != nil {
+		return nil, err
 	}
 
 	// Setup communication PIPE
