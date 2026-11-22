@@ -4,13 +4,11 @@ description: Download external test images and cache them
 inputs:
   prime-cache-only:
     description: 'Set to true to only populate cache on miss without restoring files. When false (default), cache will be restored if available.'
-    default: false
+    default: "false"
     required: false
-    type: boolean
   image-cache-dir:
     description: Where to save the image dependencies
     required: true
-    type: string
 
 runs:
   using: composite
@@ -28,16 +26,15 @@ runs:
 
     # GitHub will remove any cache entries that have not been accessed in over 7 days.
     # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#usage-limits-and-eviction-policy
-    - name: Cache images
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+    # Restoring the cache is safe even from untrusted forks
+    - name: Restore images cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       id: cache-images
       with:
         path: ${{ inputs.image-cache-dir }}
         key: ${{ steps.images-cache-key.outputs.KEY }}
-        # Some jobs only want to prime the cache if not populated already.
-        # Those jobs don't need the files otherwise so they should not restore
-        # from the cache.
-        lookup-only: ${{ inputs.prime-cache-only }}
+        # If true, it checks if the cache exists without pulling down the files
+        lookup-only: ${{ inputs.prime-cache-only == 'true' }}
 
     - name: Download images
       if: ${{ steps.cache-images.outputs.cache-hit != 'true' }}
@@ -50,3 +47,12 @@ runs:
         . test/includes/setup.sh
         download_test_images
 
+    # Only save if there wasn't an exact cache hit, AND the code is running on the main repo (not an untrusted fork)
+    - name: Save images cache
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      if: |
+        steps.cache-images.outputs.cache-hit != 'true' &&
+        (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      with:
+        path: ${{ inputs.image-cache-dir }}
+        key: ${{ steps.images-cache-key.outputs.KEY }}

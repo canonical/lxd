@@ -16,3 +16,9 @@ runs:
 
         # disable dpkg from calling sync()
         echo "force-unsafe-io" | sudo tee /etc/dpkg/dpkg.cfg.d/force-unsafe-io
+
+        # udisks2 makes various disk properties changable by non-root users via polkit.
+        # It also comes with udev rules that might interfere with some of our disk interactions.
+        # See https://openzfs.github.io/openzfs-docs/Project%20and%20Community/FAQ.html#udisks2-creating-dev-mapper-entries-for-zvol-linux
+        # It's also known to sometimes crash when running on GHA runners.
+        sudo apt-get remove -y udisks2 || true
