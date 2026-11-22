@@ -110,6 +110,9 @@ fi
 for vimrc in "${SNAP_USER_COMMON}/.vimrc" "/snap/${SNAP_BASE}/current/etc/vim/vimrc"; do
     [ -r "${vimrc}" ] || continue
     export VIMINIT="source ${vimrc}"
+    # The first readable file is the user's vimrc; do not replace it with the
+    # base snap's system-wide configuration.
+    break
 done
 
 # Ignore vimrc if none was found to be readable.
