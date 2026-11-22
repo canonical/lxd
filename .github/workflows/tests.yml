@@ -1240,8 +1240,44 @@ jobs:
           set -eux
           set -o pipefail
 
-          # Record current commit hash before rebasing lxd-private so the snap version retains the correct hash.
-          localRev="$(git rev-parse HEAD)"
+          # Always unload the SSH key from the agent on exit to prevent accidental
+          # usage in any subsequent steps within this job.
+          trap 'ssh-add -D || true' EXIT
+
+          retry_lp() {
+            local attempts=3
+            local delay=5
+            local attempt=1
+            local out=""
+
+            while true; do
+              if out="$(LC_ALL=C "$@" 2>&1)"; then
+                [ -n "${out}" ] && printf '%s\n' "${out}" >&2
+                return 0
+              fi
+
+              printf '%s\n' "${out}" >&2
+
+              # Missing remote ref is deterministic (for example when creating a new
+              # Launchpad branch), so fail immediately without retrying.
+              if [[ "${out}" == *"couldn't find remote ref"* ]]; then
+                return 2
+              fi
+
+              if [ "${attempt}" -ge "${attempts}" ]; then
+                echo "ERROR: Launchpad command failed after ${attempts} attempts: $*" >&2
+                return 1
+              fi
+
+              echo "Launchpad command failed (attempt ${attempt}/${attempts}); retrying in ${delay}s..." >&2
+              sleep "${delay}"
+              attempt=$((attempt + 1))
+              delay=$((delay * 3))
+            done
+          }
+
+          # Record the public commit hash before snapcraft.yaml is modified for the private build.
+          localRev="$(git rev-parse "origin/${GITHUB_REF_NAME}")"
 
           # Add the private LXD repository and rebase to incorporate private security fixes.
           git remote add lxd-private git@github.com:canonical/lxd-private.git
@@ -1309,13 +1345,17 @@ jobs:
           git commit --quiet -s -m "Automatic upstream build (${BRANCH})" -m "Upstream commit: ${localRev} (version: ${versionString})"
           git show
 
-          # Pack all objects (including lxd-private ones) and generate a bitmap index
-          # right before the push so that pack generation benefits from full bitmap coverage.
-          git config --local pack.useBitmaps true
-          git gc --prune=now
+          # Fetch the current Launchpad tip (falling back to latest-edge when creating a new
+          # branch) into a remote-tracking ref so `git push` knows what objects Launchpad
+          # already has instead of re-uploading the entire repository.
+          fetch_rc=0
+          retry_lp git fetch --quiet --no-tags launchpad "+refs/heads/${BRANCH}:refs/remotes/launchpad/${BRANCH}" || fetch_rc=$?
+          if [ "${fetch_rc}" -eq 2 ] && [ "${BRANCH}" != "latest-edge" ]; then
+            fetch_rc=0
+            retry_lp git fetch --quiet --no-tags launchpad "+refs/heads/latest-edge:refs/remotes/launchpad/latest-edge" || fetch_rc=$?
+          fi
+          if [ "${fetch_rc}" -ne 0 ] && [ "${fetch_rc}" -ne 2 ]; then
+            exit "${fetch_rc}"
+          fi
 
-          git push --quiet --force launchpad HEAD:"${BRANCH}"
-
-          # Unload the SSH key from the agent now that the push is done, to
-          # prevent accidental usage in any subsequent steps within this job.
-          ssh-add -D
+          retry_lp git push --no-follow-tags --quiet --force launchpad HEAD:"${BRANCH}"
