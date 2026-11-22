@@ -897,6 +897,13 @@ func (d *lxc) initLXC(config bool) (*liblxc.Container, error) {
 		return nil, err
 	}
 
+	// Prevent systemd from resolving /dev/console to a host virtual console that
+	// is not present inside the container.
+	err = lxcSetConfigItem(cc, "lxc.mount.entry", "/dev/null sys/devices/virtual/tty/console/active none bind,create=file,optional 0 0")
+	if err != nil {
+		return nil, err
+	}
+
 	// Setup the hostname
 	err = lxcSetConfigItem(cc, "lxc.uts.name", d.Name())
 	if err != nil {
