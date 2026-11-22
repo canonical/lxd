@@ -29,7 +29,10 @@ LXD_FEATURES="$(snapctl get features)"
 export LXD_FEATURES
 
 # Use editor wrapper
-export EDITOR="${SNAP}/bin/editor ${EDITOR:-}"
+# Keep the configured editor separate so its options can be forwarded as
+# arguments rather than becoming part of the wrapper command string.
+export LXD_EDITOR="${EDITOR:-}"
+export EDITOR="${SNAP}/bin/editor"
 export VISUAL="${EDITOR}"
 
 # Reset all locales as it isn't available in the snap (#29)
