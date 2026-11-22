@@ -17,17 +17,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Configure Git
-      shell: bash
-      run: |
-        set -eux
-        git config --global transfer.fsckobjects true
-        git config --global user.name "Canonical LXD Bot"
-        git config --global user.email "lxd@lists.canonical.com"
-        git config --global commit.gpgsign true
-        git config --global gpg.format "ssh"
-        git config --global user.signingkey ~/.ssh/id_ed25519.pub
-
     - name: Seed Launchpad SSH host key
       shell: bash
       run: |
@@ -39,16 +28,10 @@ runs:
 
     # XXX: from this point onwards, the action has access to the private SSH key
     #      either as an environment variable or through the SSH agent
-    - name: Setup Launchpad SSH access
-      shell: bash
-      env:
-        INPUTS_SSH_KEY: ${{ inputs.ssh-key }}
-      run: |
-        set -eu # let's not use -x here to avoid leaking the SSH key in the logs
-        ssh-agent -a "${SSH_AUTH_SOCK}" > /dev/null
-        ssh-add - <<< "${INPUTS_SSH_KEY}"
-        unset INPUTS_SSH_KEY
-        ssh-add -L > ~/.ssh/id_ed25519.pub
+    - name: Setup Git commit signing and SSH agent
+      uses: $/.github/actions/setup-git-signing
+      with:
+        ssh-key: ${{ inputs.ssh-key }}
 
     - name: Setup Launchpad repository remote
       shell: bash
