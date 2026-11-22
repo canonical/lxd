@@ -415,6 +415,38 @@ jobs:
           # usage in any subsequent steps within this job.
           trap 'ssh-add -D || true' EXIT
 
+          retry_lp() {
+            local attempts=3
+            local delay=5
+            local attempt=1
+            local out=""
+
+            while true; do
+              if out="$(LC_ALL=C "$@" 2>&1)"; then
+                [ -n "${out}" ] && printf '%s\n' "${out}" >&2
+                return 0
+              fi
+
+              printf '%s\n' "${out}" >&2
+
+              # Missing remote ref is deterministic (for example when creating a new
+              # Launchpad branch), so fail immediately without retrying.
+              if [[ "${out}" == *"couldn't find remote ref"* ]]; then
+                return 2
+              fi
+
+              if [ "${attempt}" -ge "${attempts}" ]; then
+                echo "ERROR: Launchpad command failed after ${attempts} attempts: $*" >&2
+                return 1
+              fi
+
+              echo "Launchpad command failed (attempt ${attempt}/${attempts}); retrying in ${delay}s..." >&2
+              sleep "${delay}"
+              attempt=$((attempt + 1))
+              delay=$((delay * 3))
+            done
+          }
+
           # Record the public commit hash before snapcraft.yaml is modified for the private build.
           localRev="$(git rev-parse "origin/${GITHUB_REF_NAME}")"
 
@@ -487,13 +519,14 @@ jobs:
           # Fetch the current Launchpad tip (falling back to latest-edge when creating a new
           # branch) into a remote-tracking ref so `git push` knows what objects Launchpad
           # already has instead of re-uploading the entire repository.
-          if ! fetch_err="$(LC_ALL=C git fetch --quiet --no-tags launchpad "+refs/heads/${BRANCH}:refs/remotes/launchpad/${BRANCH}" 2>&1)"; then
-            printf '%s\n' "${fetch_err}" >&2
-            if [[ "${fetch_err}" == *"couldn't find remote ref"* ]] && [ "${BRANCH}" != "latest-edge" ]; then
-              git fetch --quiet --no-tags launchpad "+refs/heads/latest-edge:refs/remotes/launchpad/latest-edge"
-            else
-              exit 1
-            fi
+          fetch_rc=0
+          retry_lp git fetch --quiet --no-tags launchpad "+refs/heads/${BRANCH}:refs/remotes/launchpad/${BRANCH}" || fetch_rc=$?
+          if [ "${fetch_rc}" -eq 2 ] && [ "${BRANCH}" != "latest-edge" ]; then
+            fetch_rc=0
+            retry_lp git fetch --quiet --no-tags launchpad "+refs/heads/latest-edge:refs/remotes/launchpad/latest-edge" || fetch_rc=$?
+          fi
+          if [ "${fetch_rc}" -ne 0 ] && [ "${fetch_rc}" -ne 2 ]; then
+            exit "${fetch_rc}"
           fi
 
-          git push --no-follow-tags --quiet --force launchpad HEAD:"${BRANCH}"
+          retry_lp git push --no-follow-tags --quiet --force launchpad HEAD:"${BRANCH}"
