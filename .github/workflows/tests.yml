@@ -1240,6 +1240,10 @@ jobs:
           set -eux
           set -o pipefail
 
+          # Always unload the SSH key from the agent on exit to prevent accidental
+          # usage in any subsequent steps within this job.
+          trap 'ssh-add -D || true' EXIT
+
           # Record the public commit hash before snapcraft.yaml is modified for the private build.
           localRev="$(git rev-parse "origin/${GITHUB_REF_NAME}")"
 
@@ -1315,7 +1319,3 @@ jobs:
           git gc --prune=now
 
           git push --quiet --force launchpad HEAD:"${BRANCH}"
-
-          # Unload the SSH key from the agent now that the push is done, to
-          # prevent accidental usage in any subsequent steps within this job.
-          ssh-add -D
