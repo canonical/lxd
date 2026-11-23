@@ -3842,6 +3842,22 @@ HTTP boot follows the enabled network stacks.
 
 These keys require `x86_64` with UEFI firmware and are rejected when `boot.mode=bios`.
 
+(extension-vm-volatile-disk)=
+## `vm_volatile_disk`
+
+Adds two volatile VM configuration keys,
+{config:option}`instance-volatile:volatile.disk_queues` and
+{config:option}`instance-volatile:volatile.disk_iothreads`.
+They record the number of queues and whether an `iothread` was used for the
+disk devices when the VM booted.
+The `virtio-scsi` controller and `virtio-blk` disks of a VM get an `iothread`.
+These devices and NVMe disks get a fixed number of queues.
+The values are reused on stateful start (stateful resume or live migration
+target) because QEMU requires identical device properties on both ends of a
+live migration.
+A VM without the keys was started before this extension and its disk devices
+have neither property until it is restarted.
+
 (extension-instance-microvm)=
 ## `instance_microvm`
 
