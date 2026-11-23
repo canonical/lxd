@@ -206,9 +206,14 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 		return nodes[i].ID < nodes[j].ID
 	})
 
+	var localNodeID int64
+	localNodeFound := false
+
 	for i, node := range nodes {
 		// Special case for the local member - just record the time now.
 		if node.Address == localAddress {
+			localNodeID = node.ID
+			localNodeFound = true
 			hbState.Lock()
 			hbNode := hbState.Members[node.ID]
 			hbNode.LastHeartbeat = time.Now()
@@ -240,6 +245,20 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 	}
 
 	heartbeatsWg.Wait()
+
+	// Refresh the local member's heartbeat timestamp after waiting for peer heartbeats
+	// so the leader's own timestamp is not already aged by the spread duration and peer RPCs
+	// when committed to the database.
+	if localNodeFound {
+		hbState.Lock()
+		hbNode, existing := hbState.Members[localNodeID]
+		if existing {
+			hbNode.LastHeartbeat = time.Now()
+			hbState.Members[localNodeID] = hbNode
+		}
+
+		hbState.Unlock()
+	}
 }
 
 // HeartbeatTask returns a task function that performs leader-initiated heartbeat

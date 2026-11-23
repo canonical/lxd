@@ -1807,7 +1807,7 @@ func migrateStorageVolume(ctx context.Context, s *state.State, sourceVolumeName 
 }
 
 func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, srcProjectName string, srcVolumeName string, newPoolName string, newProjectName string, newVolumeName string, srcMember db.NodeInfo, newMember db.NodeInfo, volumeOnly bool) (func(ctx context.Context, op *operations.Operation) error, error) {
-	srcMemberOffline := srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
+	srcMemberOffline := srcMember.Name != s.ServerName && srcMember.IsOffline(s.GlobalConfig.OfflineThreshold())
 
 	// Make sure that the source member is online if we end up being called from another member after a
 	// redirection due to the source member being offline.

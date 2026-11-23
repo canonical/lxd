@@ -175,6 +175,51 @@ func TestHeartbeatMemberAddedMidRound(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// The leader refreshes its own heartbeat timestamp after waiting for peer heartbeats,
+// so its committed timestamp is not aged by spread delays and slow peer RPCs.
+func TestHeartbeatRefreshesLocalTimestamp(t *testing.T) {
+	f := heartbeatFixture{t: t}
+	defer f.Cleanup()
+
+	f.Bootstrap()
+	f.Grow()
+
+	leader := f.Leader()
+	leaderState := f.State(leader)
+	leaderAddress := leaderState.LocalConfig.ClusterAddress()
+
+	var peerDone time.Time
+	var once sync.Once
+	f.SetRequestHook(func(r *http.Request) {
+		if r.Method != http.MethodPut || r.URL.Path != "/internal/database" {
+			return
+		}
+
+		once.Do(func() {
+			time.Sleep(500 * time.Millisecond)
+			peerDone = time.Now()
+		})
+	})
+
+	leader.HeartbeatOfflineThreshold = 6 * time.Second
+	leader.Cluster = leaderState.DB.Cluster
+	heartbeat, _ := cluster.HeartbeatTask(leader)
+	heartbeat(context.Background())
+
+	require.False(t, peerDone.IsZero(), "expected peer heartbeat request to be intercepted")
+
+	var leaderHeartbeat time.Time
+	err := leaderState.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		member, err := tx.GetNodeByAddress(ctx, leaderAddress)
+		require.NoError(t, err)
+		leaderHeartbeat = member.Heartbeat
+		return nil
+	})
+	require.NoError(t, err)
+
+	assert.False(t, leaderHeartbeat.Before(peerDone), "leader heartbeat %v should not predate peer completion %v", leaderHeartbeat, peerDone)
+}
+
 // Helper for testing heartbeat-related code.
 type heartbeatFixture struct {
 	t        *testing.T
