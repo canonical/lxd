@@ -1636,7 +1636,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		run := func(ctx context.Context, op *operations.Operation) error {
-			return migrateStorageVolume(ctx, s, details.volumeName, details.pool.Name(), targetMemberInfo.Name, targetProjectName, req, op)
+			return migrateStorageVolume(ctx, s, details.volumeName, details.pool.Name(), targetMemberInfo.Name, effectiveProjectName, targetProjectName, req, op)
 		}
 
 		args := operations.OperationArgs{
@@ -1766,7 +1766,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	return storagePoolVolumeTypePostMove(s, r, details, effectiveProjectName, targetProjectName, &dbVolume.StorageVolume, req)
 }
 
-func migrateStorageVolume(ctx context.Context, s *state.State, sourceVolumeName string, sourcePoolName string, targetNode string, projectName string, req api.StorageVolumePost, op *operations.Operation) error {
+func migrateStorageVolume(ctx context.Context, s *state.State, sourceVolumeName string, sourcePoolName string, targetNode string, sourceProjectName string, targetProjectName string, req api.StorageVolumePost, op *operations.Operation) error {
 	if targetNode == req.Source.Location {
 		return errors.New("Target must be different than storage volumes' current location")
 	}
@@ -1798,7 +1798,7 @@ func migrateStorageVolume(ctx context.Context, s *state.State, sourceVolumeName 
 		return fmt.Errorf("Failed loading storage volume storage pool: %w", err)
 	}
 
-	f, err := storageVolumePostClusteringMigrate(s, srcPool, projectName, sourceVolumeName, req.Pool, req.Project, req.Name, srcMember, newMember, req.VolumeOnly)
+	f, err := storageVolumePostClusteringMigrate(s, srcPool, sourceProjectName, sourceVolumeName, req.Pool, targetProjectName, req.Name, srcMember, newMember, req.VolumeOnly)
 	if err != nil {
 		return err
 	}
@@ -1820,6 +1820,10 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 			newVolumeName = srcVolumeName
 		}
 
+		if newProjectName == "" {
+			newProjectName = srcProjectName
+		}
+
 		networkCert := s.Endpoints.NetworkCert()
 
 		// Connect to the destination member, i.e. the member to migrate the custom volume to.
@@ -1830,7 +1834,7 @@ func storageVolumePostClusteringMigrate(s *state.State, srcPool storagePools.Poo
 			return fmt.Errorf("Failed connecting to destination server %q: %w", newMember.Address, err)
 		}
 
-		dest = dest.UseTarget(newMember.Name).UseProject(srcProjectName)
+		dest = dest.UseTarget(newMember.Name).UseProject(newProjectName)
 
 		srcMigration, err := newStorageMigrationSource(volumeOnly, nil)
 		if err != nil {
