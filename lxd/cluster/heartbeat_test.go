@@ -283,7 +283,7 @@ func (f *heartbeatFixture) Leader() *cluster.Gateway {
 
 		select {
 		case <-ctx.Done():
-			f.t.Errorf("no leader was elected within %s", timeout)
+			f.t.Fatalf("no leader was elected within %s", timeout)
 		default:
 		}
 
@@ -312,7 +312,7 @@ func (f *heartbeatFixture) Follower() *cluster.Gateway {
 
 		select {
 		case <-ctx.Done():
-			f.t.Errorf("no node running as follower")
+			f.t.Fatalf("no node running as follower")
 		default:
 		}
 
