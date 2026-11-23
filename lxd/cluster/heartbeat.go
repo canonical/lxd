@@ -162,9 +162,6 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			}
 		}
 
-		// Update timestamp to current, used for time skew detection
-		heartbeatData.Time = time.Now().UTC()
-
 		// Don't use ctx here, as we still want to finish off the request if the ctx has been cancelled.
 		err := HeartbeatNode(context.Background(), address, networkCert, serverCert, heartbeatData)
 		if err == nil {
@@ -321,7 +318,7 @@ func (g *Gateway) HeartbeatRestart() bool {
 
 	// There is a cancellable heartbeat round ongoing.
 	if heartbeatCancel != nil {
-		g.heartbeatCancel() // Request ongoing hearbeat round cancel itself.
+		heartbeatCancel() // Request ongoing heartbeat round cancel itself.
 
 		// Start a new heartbeat round async that will run as soon as ongoing heartbeat round exits.
 		go g.heartbeat(g.ctx, HeartbeatImmediate)
@@ -397,10 +394,13 @@ func (g *Gateway) heartbeat(ctx context.Context, mode HeartbeatMode) {
 	g.heartbeatCancelLock.Unlock()
 
 	defer func() {
-		heartbeatCancel := g.HearbeatCancelFunc()
+		g.heartbeatCancelLock.Lock()
+		heartbeatCancel := g.heartbeatCancel
+		g.heartbeatCancel = nil
+		g.heartbeatCancelLock.Unlock()
+
 		if heartbeatCancel != nil {
-			g.heartbeatCancel()
-			g.heartbeatCancel = nil
+			heartbeatCancel()
 		}
 	}()
 
@@ -584,6 +584,8 @@ func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.
 
 	buffer := bytes.Buffer{}
 	heartbeatData.Lock()
+	// Update timestamp to current, used for time skew detection.
+	heartbeatData.Time = time.Now().UTC()
 	err = json.NewEncoder(&buffer).Encode(heartbeatData)
 	heartbeatData.Unlock()
 	if err != nil {
