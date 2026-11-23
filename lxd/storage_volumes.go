@@ -2045,7 +2045,12 @@ func storagePoolVolumeTypePostMove(s *state.State, r *http.Request, details stor
 	newVol := *vol
 	newVol.Name = req.Name
 
-	newPool, err := storagePools.LoadByName(s, req.Pool)
+	targetPoolName := req.Pool
+	if targetPoolName == "" {
+		targetPoolName = details.pool.Name()
+	}
+
+	newPool, err := storagePools.LoadByName(s, targetPoolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
