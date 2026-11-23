@@ -461,7 +461,11 @@ static-analysis:
 	@# XXX: if zerolint becomes available as a golangci-lint linter, remove this and update golangci-lint config
 	@./scripts/check-tool-version.sh fillmore-labs.com/zerolint fillmore-labs.com/zerolint zerolint
 ifneq ($(shell command -v yamllint),)
-	yamllint .github/workflows/*.yml
+ifdef GITHUB_ACTIONS
+	yamllint --format github .github/
+else
+	yamllint .github/
+endif
 endif
 ifeq ($(shell command -v shellcheck),)
 	echo "Please install shellcheck"
