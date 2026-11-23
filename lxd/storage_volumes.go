@@ -2527,6 +2527,14 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
+		// Check that applying the merged request to the volume doesn't exceed project limits.
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			return limits.AllowVolumeUpdate(ctx, s.GlobalConfig, tx, effectiveProjectName, details.volumeName, req, dbVolume.Config)
+		})
+		if err != nil {
+			return err
+		}
+
 		return details.pool.UpdateCustomVolume(ctx, effectiveProjectName, dbVolume.Name, req.Description, req.Config, op)
 	}
 
