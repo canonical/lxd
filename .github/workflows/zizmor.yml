@@ -12,7 +12,7 @@ permissions: {}
 
 jobs:
   zizmor:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.repository == 'canonical/lxd-private' && 'lxd-private' || 'ubuntu-latest' }}
     permissions:
       security-events: write
       contents: read # only needed for private or internal repos

@@ -58,7 +58,7 @@ jobs:
   prime-caches:
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     name: Prime caches
-    runs-on: ubuntu-26.04
+    runs-on: ${{ github.repository == 'canonical/lxd-private' && 'lxd-private' || 'ubuntu-26.04' }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -86,7 +86,7 @@ jobs:
     if: ${{ github.event_name != 'schedule' || github.repository == 'canonical/lxd' }}
     needs: prime-caches
     name: ${{ matrix.test }} (latest/${{ matrix.risk }} - ${{ matrix.os }})
-    runs-on: ubuntu-${{ matrix.os }}
+    runs-on: ${{ (github.repository == 'canonical/lxd-private' && matrix.os == '26.04') && 'lxd-private' || format('ubuntu-{0}', matrix.os) }}
     # avoid runaway test burning 6 hours of CI
     timeout-minutes: 60
     permissions:
@@ -180,7 +180,7 @@ jobs:
   dispatch-stable-branches:
     if: ${{ github.event_name == 'schedule' && github.repository == 'canonical/lxd' }}
     name: Dispatch ${{ matrix.branch }}
-    runs-on: ubuntu-26.04
+    runs-on: ${{ github.repository == 'canonical/lxd-private' && 'lxd-private' || 'ubuntu-26.04' }}
     permissions:
       actions: write  # to dispatch the workflow on the stable branches
     strategy:
