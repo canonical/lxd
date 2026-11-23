@@ -171,3 +171,103 @@ func Benchmark_DeviceNextInterfaceHWAddr(b *testing.B) {
 		}
 	}
 }
+
+func TestDiskPropsFromSource(t *testing.T) {
+	both := map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"}
+	none := map[string]string{"volatile.disk_queues": "", "volatile.disk_iothreads": ""}
+
+	tests := []struct {
+		name         string
+		source       map[string]string
+		carriesState bool
+		want         map[string]string
+	}{
+		{"saved state carries both keys", both, true, both},
+		{"no saved state carries neither key", both, false, none},
+		{"queues only", map[string]string{"volatile.disk_queues": "4"}, true, map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": ""}},
+		{"iothreads only", map[string]string{"volatile.disk_iothreads": "1"}, true, map[string]string{"volatile.disk_queues": "", "volatile.disk_iothreads": "1"}},
+		{"recorded zero is kept", map[string]string{"volatile.disk_queues": "0", "volatile.disk_iothreads": "0"}, true, map[string]string{"volatile.disk_queues": "0", "volatile.disk_iothreads": "0"}},
+		{"source without the keys gives none", map[string]string{"limits.cpu": "2"}, true, none},
+		{"nil source gives none", nil, true, none},
+		{"queues out of range", map[string]string{"volatile.disk_queues": "65", "volatile.disk_iothreads": "1"}, true, map[string]string{"volatile.disk_queues": "", "volatile.disk_iothreads": "1"}},
+		{"iothreads out of range", map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "2"}, true, map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": ""}},
+		{"not a number", map[string]string{"volatile.disk_queues": "many", "volatile.disk_iothreads": "yes"}, true, none},
+		{"negative", map[string]string{"volatile.disk_queues": "-1", "volatile.disk_iothreads": "-1"}, true, none},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, DiskPropsFromSource(tt.source, tt.carriesState))
+		})
+	}
+}
+
+func TestRefreshDiskPropsChanges(t *testing.T) {
+	both := map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"}
+	other := map[string]string{"volatile.disk_queues": "2", "volatile.disk_iothreads": "0"}
+
+	tests := []struct {
+		name     string
+		source   map[string]string
+		target   map[string]string
+		copyKeys bool
+		want     map[string]string
+	}{
+		{"source with a saved state replaces the keys of the target", both, other, true, map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"}},
+		{"same keys change nothing", both, both, true, map[string]string{}},
+		{"target without keys gets the keys of the source", both, map[string]string{}, true, map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"}},
+		{"source without keys removes the keys of the target", map[string]string{}, other, true, map[string]string{"volatile.disk_queues": "", "volatile.disk_iothreads": ""}},
+		{"source with one key removes the other key of the target", map[string]string{"volatile.disk_queues": "4"}, both, true, map[string]string{"volatile.disk_iothreads": ""}},
+		{"invalid value of the source is not taken", map[string]string{"volatile.disk_queues": "999", "volatile.disk_iothreads": "1"}, both, true, map[string]string{"volatile.disk_queues": ""}},
+		{"source without a saved state keeps the keys of the target", both, other, false, map[string]string{}},
+		{"source without a saved state and target without keys", both, map[string]string{}, false, map[string]string{}},
+		{"nil source with a saved state removes the keys of the target", nil, other, true, map[string]string{"volatile.disk_queues": "", "volatile.disk_iothreads": ""}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, RefreshDiskPropsChanges(tt.source, tt.target, tt.copyKeys))
+		})
+	}
+}
+
+func TestApplyDiskProps(t *testing.T) {
+	tests := []struct {
+		name   string
+		config map[string]string
+		props  map[string]string
+		want   map[string]string
+	}{
+		{
+			"values are set",
+			map[string]string{"limits.cpu": "2"},
+			map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"},
+			map[string]string{"limits.cpu": "2", "volatile.disk_queues": "4", "volatile.disk_iothreads": "1"},
+		},
+		{
+			"values replace the ones of the request",
+			map[string]string{"volatile.disk_queues": "64", "volatile.disk_iothreads": "0"},
+			map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"},
+			map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"},
+		},
+		{
+			"empty values remove both keys",
+			map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1", "limits.cpu": "2"},
+			map[string]string{"volatile.disk_queues": "", "volatile.disk_iothreads": ""},
+			map[string]string{"limits.cpu": "2"},
+		},
+		{
+			"one value set and one removed",
+			map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"},
+			map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": ""},
+			map[string]string{"volatile.disk_queues": "4"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ApplyDiskProps(tt.config, tt.props)
+			assert.Equal(t, tt.want, tt.config)
+		})
+	}
+}
