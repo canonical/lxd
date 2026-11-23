@@ -195,6 +195,15 @@ func devLXDAPIPatchHandler(d *Daemon, r *http.Request) response.Response {
 		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusBadRequest, "Invalid state %q", req.State))
 	}
 
+	// Take the same lock as instance PUT and PATCH, so the state change can't land between their
+	// ETag check and the config write that would then overwrite it.
+	unlock, err := instanceOperationLock(r.Context(), inst.Project().Name, inst.Name())
+	if err != nil {
+		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "Failed locking instance: %w", err))
+	}
+
+	defer unlock()
+
 	err = inst.VolatileSet(map[string]string{"volatile.last_state.ready": strconv.FormatBool(state == api.Ready)})
 	if err != nil {
 		return response.DevLXDErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "Failed setting instance state: %w", err))
