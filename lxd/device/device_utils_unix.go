@@ -413,6 +413,27 @@ func unixDeviceIsOurFile(devName string, typePrefix string, deviceName string, o
 	return strings.HasPrefix(devName, filesystem.PathNameEncode(prefix))
 }
 
+// unixDeviceHasFile returns whether a host side device file exists for the supplied typePrefix and
+// deviceName. If optPrefix is supplied, only the device file for that relative path is considered.
+func unixDeviceHasFile(devicesPath string, typePrefix string, deviceName string, optPrefix string) (bool, error) {
+	dents, err := os.ReadDir(devicesPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	for _, ent := range dents {
+		if unixDeviceIsOurFile(ent.Name(), typePrefix, deviceName, optPrefix) {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // unixRemoveDevice identifies all files related to the supplied typePrefix and deviceName and then
 // populates the supplied runConf with the instructions to remove cgroup rules and unmount devices.
 // It detects if any other devices attached to the instance that share the same prefix have the same
