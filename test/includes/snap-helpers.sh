@@ -64,6 +64,62 @@ install_snap_in_instance_seeded() (
   lxc exec "${instance}" -- snap refresh --hold=8h
 )
 
+# sideload_lxd_instance: sideload custom LXD binaries into an instance that has
+# the LXD snap installed.
+# Usage: sideload_lxd_instance <instance>
+sideload_lxd_instance() (
+  local instance="${1}"
+  local lxd_bin="" lxc_bin="" lxd_user_bin="" lxd_agent_bin=""
+  local lxd_snap_binary_dir=""
+  local needs_restart=0
+
+  if [ "${LXD_SNAP_SIDELOAD:-0}" = "1" ]; then
+    lxd_snap_binary_dir="${LXD_SNAP_BINARY_DIR:-}"
+    if [ -z "${lxd_snap_binary_dir}" ]; then
+      lxd_snap_binary_dir="$(go env GOPATH)/bin"
+    fi
+
+    for binary in lxc lxd lxd-agent lxd-user; do
+      if ! [ -x "${lxd_snap_binary_dir}/${binary}" ]; then
+        echo "Missing executable ${lxd_snap_binary_dir}/${binary}." >&2
+        return 1
+      fi
+    done
+
+    lxd_bin="${lxd_snap_binary_dir}/lxd"
+    lxc_bin="${lxd_snap_binary_dir}/lxc"
+    lxd_user_bin="${lxd_snap_binary_dir}/lxd-user"
+    lxd_agent_bin="${lxd_snap_binary_dir}/lxd-agent"
+  else
+    lxd_bin="${LXD_SIDELOAD_PATH:-}"
+    lxc_bin="${LXC_SIDELOAD_PATH:-}"
+    lxd_agent_bin="${LXD_AGENT_SIDELOAD_PATH:-}"
+  fi
+
+  if [ -n "${lxd_bin}" ]; then
+    lxc file push --quiet "${lxd_bin}" "${instance}/var/snap/lxd/common/lxd.debug"
+    needs_restart=1
+  fi
+
+  if [ -n "${lxc_bin}" ]; then
+    lxc file push --quiet "${lxc_bin}" "${instance}/var/snap/lxd/common/lxc.debug"
+  fi
+
+  if [ -n "${lxd_user_bin}" ]; then
+    lxc file push --quiet "${lxd_user_bin}" "${instance}/var/snap/lxd/common/lxd-user.debug"
+  fi
+
+  if [ -n "${lxd_agent_bin}" ] && [ "$(lxc list -f csv -c t "^${instance}$")" = "VIRTUAL-MACHINE" ]; then
+    lxc file push --quiet "${lxd_agent_bin}" "${instance}/root/lxd-agent"
+    lxc exec "${instance}" -- mount -o ro,bind /root/lxd-agent /snap/lxd/current/bin/lxd-agent
+    needs_restart=1
+  fi
+
+  if [ "${needs_restart}" = "1" ]; then
+    lxc exec "${instance}" -- systemctl restart snap.lxd.daemon
+  fi
+)
+
 # installLXDSnapInstance: install the LXD snap in an instance, preferring the
 # snap cache over the snap store.
 # Usage: installLXDSnapInstance <instance> <lxd-channel> [snapd-channel]
@@ -75,6 +131,10 @@ installLXDSnapInstance() (
   waitSnapdSeedInstance "${instance}" "${3:-"latest/beta"}"
   # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
   install_snap_in_instance "${instance}" lxd "${channel}" || lxc exec "${instance}" -- snap install lxd --channel="${channel}" --cohort=+
+
+  if [ "${channel}" = "${LXD_SNAP_CHANNEL:-}" ]; then
+    sideload_lxd_instance "${instance}"
+  fi
 )
 
 # waitInstanceReady: waits for the instance to be ready (processes count > 1).

@@ -190,18 +190,6 @@ runcmd:
         installLXDSnapInstance "${instName}" "${LXD_SNAP_CHANNEL}"
         lxc exec "${instName}" -- lxd init --auto
 
-        if [ "${instType}" = "vm" ]; then
-            if [ -n "${LXD_SIDELOAD_PATH:-}" ]; then
-                lxc file push "${LXD_SIDELOAD_PATH}" "${instName}/var/snap/lxd/common/lxd.debug"
-                lxc exec "${instName}" -- systemctl restart snap.lxd.daemon
-            fi
-            if [ -n "${LXD_AGENT_SIDELOAD_PATH:-}" ]; then
-                lxc file push "${LXD_AGENT_SIDELOAD_PATH}" "${instName}/root/$(basename "${LXD_AGENT_SIDELOAD_PATH}")"
-                lxc exec "${instName}" -- mount --bind "$(basename "${LXD_AGENT_SIDELOAD_PATH}")" /snap/lxd/current/bin/lxd-agent
-                lxc exec "${instName}" -- systemctl restart snap.lxd.daemon
-            fi
-        fi
-
         local monitorPID=""
         local checkEvent=false
         if [ "${instType}" = "container" ] || hasNeededAPIExtension devlxd_images_vm; then
