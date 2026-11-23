@@ -412,12 +412,12 @@ if hasNeededAPIExtension instance_import_conversion; then
 
     # Download and cache the image to avoid re-downloading it multiple times.
     # Skip the copy if the image already exists locally so reruns stay idempotent.
-    if ! lxc image info centos-9-stream-vm; then
-        lxc image copy images:centos/9-Stream local: --vm --alias centos-9-stream-vm
+    if ! lxc image info centos-10-stream-vm; then
+        lxc image copy images:centos/10-Stream local: --vm --alias centos-10-stream-vm
     fi
 
-    lxc image export centos-9-stream-vm "${IMAGE_PATH}" --vm
-    conversion_vm centos9-qcow2 btrfs "${IMAGE_PATH}.root" "yes"
+    lxc image export centos-10-stream-vm "${IMAGE_PATH}" --vm
+    conversion_vm centos10-qcow2 btrfs "${IMAGE_PATH}.root" "yes"
 
     rm "${IMAGE_PATH}" "${IMAGE_PATH}.root"
 
@@ -445,7 +445,7 @@ if hasNeededAPIExtension instance_import_conversion; then
         echo "===> SKIP: The virt-v2v-in-place is not installed"
     else
         # Create new instance.
-        lxc launch centos-9-stream-vm v1 --vm --config limits.cpu=2 --config limits.memory=2GiB --device root,size=4GiB
+        lxc launch centos-10-stream-vm v1 --vm --config limits.cpu=2 --config limits.memory=2GiB --device root,size=4GiB
         waitInstanceBooted v1
         sleep 1
 
@@ -476,7 +476,7 @@ if hasNeededAPIExtension instance_import_conversion; then
     fi
 
     # Cleanup.
-    lxc image delete centos-9-stream-vm
+    lxc image delete centos-10-stream-vm
 else
     echo "===> SKIP: VM image conversion skipped. Server does not support API extension 'instance_import_conversion'"
 fi
