@@ -5068,8 +5068,14 @@ test_clustering_projects_force_delete() {
   echo "Check that regular delete fails on non-empty project."
   ! LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo || false
 
+  echo "Check node2's instance storage exists on node2."
+  [ -d "${LXD_TWO_DIR}/storage-pools/pool1/containers/foo_c2" ]
+
   echo "Check forced project deletion from node1."
   LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo --force
+
+  echo "Check node2's instance was deleted on node2, not only from the database."
+  [ ! -e "${LXD_TWO_DIR}/storage-pools/pool1/containers/foo_c2" ]
 
   echo "Check project is deleted from both nodes."
   ! LXD_DIR="${LXD_ONE_DIR}" lxc project show foo || false
