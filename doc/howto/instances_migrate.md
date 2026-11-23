@@ -77,6 +77,55 @@ For a virtual machine to be eligible for live migration, it must meet the follow
 
 - The virtual machine must not depend on any resources specific to its current host, such as local storage or a local (non-OVN) bridge network.
 
+### Live migration between LXD versions
+
+QEMU requires identical device properties on the source and the target of a live
+migration. The `virtio-scsi` controller and `virtio-blk` disks of a virtual
+machine get an `iothread`. These devices and NVMe disks get a fixed number of
+queues. The number of queues and the use of an `iothread` are recorded in
+{config:option}`instance-volatile:volatile.disk_queues` and
+{config:option}`instance-volatile:volatile.disk_iothreads` when the virtual
+machine boots, and the recorded values are used on the target. The same applies
+when a virtual machine is resumed from a stateful stop after an upgrade.
+
+This results in the following behavior:
+
+- **Between servers with this feature:** The target uses the recorded values, so
+  the live migration succeeds.
+- **From a server without this feature to a server with it:** The virtual
+  machine has no recorded values, so its disk devices get neither queues nor an
+  `iothread` on the target, including disks that are hot-plugged later. The live
+  migration succeeds. The virtual machine gets both properties the next time it
+  is started.
+- **From a server with this feature to a server without it:** Live migration is
+  not supported. The older server does not know the
+  {config:option}`instance-volatile:volatile.disk_queues` and
+  {config:option}`instance-volatile:volatile.disk_iothreads` keys, which it
+  rejects, and it cannot create the same device properties. Stop the virtual
+  machine, unset the keys and migrate it. Then start it on the target:
+
+  ```
+  lxc stop <instance-name>
+  lxc config unset <instance-name> volatile.disk_queues
+  lxc config unset <instance-name> volatile.disk_iothreads
+  lxc move <instance-name> <target-server>:
+  ```
+
+  A virtual machine that has not been restarted since the upgrade has no such
+  keys and its disk devices have neither property.
+
+A stateful copy of a running virtual machine is a live migration as well.
+The server takes the recorded values from the source, whichever client sends
+the request, when the copy carries a saved state or is live.
+A copy without a saved state does not keep them, and the copy records its own
+values when it first boots. A refresh follows the saved state of the source.
+When the source has a saved state, the target gets the recorded values of the
+source. Otherwise, the target keeps its own values.
+
+```{note}
+Upgrade all cluster members before you rely on live migration between them.
+```
+
 ## Temporarily migrate all instances from a cluster member
 
 For LXD servers that are members of a cluster, you can use the evacuate and restore operations to temporarily migrate all instances from one cluster member to another. These operations can also live-migrate eligible instances.
