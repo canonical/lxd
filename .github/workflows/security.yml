@@ -21,7 +21,7 @@ defaults:
 jobs:
   trivy-repo:
     name: Trivy - Repository
-    runs-on: ubuntu-26.04
+    runs-on: ${{ github.repository == 'canonical/lxd-private' && 'lxd-private' || 'ubuntu-26.04' }}
     permissions:
       contents: read
       security-events: write # for uploading SARIF results to the security tab
@@ -81,7 +81,7 @@ jobs:
 
   trivy-snap:
     name: Trivy - Snap
-    runs-on: ubuntu-26.04
+    runs-on: ${{ github.repository == 'canonical/lxd-private' && 'lxd-private' || 'ubuntu-26.04' }}
     needs: trivy-repo
     permissions:
       contents: read
@@ -156,7 +156,7 @@ jobs:
 
   govulncheck:
     name: Go Vulnerability Scan
-    runs-on: ubuntu-26.04
+    runs-on: ${{ github.repository == 'canonical/lxd-private' && 'lxd-private' || 'ubuntu-26.04' }}
     permissions:
       contents: read
       security-events: write # for uploading SARIF results to the security tab
