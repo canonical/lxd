@@ -492,6 +492,23 @@ func (d *common) StoragePool() (string, error) {
 // SECTION: internal functions
 //
 
+// isInstanceVolatileKey returns whether the volatile key is a known instance-wide key rather than a device key.
+func isInstanceVolatileKey(key string) bool {
+	_, found := instancetype.InstanceConfigKeysAny[key]
+	if found {
+		return true
+	}
+
+	_, found = instancetype.InstanceConfigKeysVM[key]
+	if found {
+		return true
+	}
+
+	_, found = instancetype.InstanceConfigKeysContainer[key]
+
+	return found
+}
+
 // deviceVolatile returns the named device's volatile config, with its device prefix removed from the keys.
 func (d *common) deviceVolatile(devName string) map[string]string {
 	prefix := "volatile." + devName + "."
@@ -514,6 +531,12 @@ func (d *common) deviceVolatile(devName string) map[string]string {
 		}
 
 		if shared.StringHasPrefix(k, otherPrefixes...) {
+			continue
+		}
+
+		// Instance-wide keys (such as volatile.cpu.maxcpus) belong to the instance, not to a device
+		// that happens to be named like the key's second component (such as "cpu").
+		if isInstanceVolatileKey(k) {
 			continue
 		}
 
