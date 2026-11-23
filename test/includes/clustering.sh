@@ -201,7 +201,7 @@ storage_pools:
     if [ "${driver}" = "lvm" ]; then
     preseed+="
   config:
-    volume.size: 25MiB
+    volume.size: ${DEFAULT_VOLUME_SIZE}
     size: 1GiB
     lvm.vg_name: lxdtest-$(basename "${TEST_DIR}")-${ns}"
     fi
@@ -210,7 +210,7 @@ storage_pools:
     preseed+="
   config:
     ceph.osd.pool_name: lxdtest-$(basename "${TEST_DIR}")
-    volume.size: 25MiB
+    volume.size: ${DEFAULT_VOLUME_SIZE}
     ceph.osd.pg_num: 16"
     fi
 

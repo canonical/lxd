@@ -141,8 +141,10 @@ export LXD_SKIP_TESTS="${LXD_SKIP_TESTS:-}"
 export LXD_REQUIRED_TESTS="${LXD_REQUIRED_TESTS:-}"
 export LXD_REPEAT_TESTS="${LXD_REPEAT_TESTS:-1}"
 
-# This must be enough to accommodate the busybox testimage
-export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=32MiB"}"
+# This must be enough to accommodate the busybox testimage.
+# Keeping it aligned with DEFAULT_VOLUME_SIZE avoids extra block-device and
+# filesystem resizes on block-backed storage drivers (e.g., LVM, Ceph).
+export SMALL_ROOT_DISK="${SMALL_ROOT_DISK:-"root,size=${DEFAULT_VOLUME_SIZE}"}"
 
 # This must be enough to accommodate the ubuntu-minimal-daily:24.04 image
 export SMALLEST_VM_ROOT_DISK="3584MiB"
