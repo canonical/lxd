@@ -893,7 +893,7 @@ func instancePostClusteringMigrate(s *state.State, srcPool storagePools.Pool, sr
 			srcInstInfo.Description = targetArgs.Description
 			srcInstInfo.Ephemeral = targetArgs.Ephemeral
 			srcInstInfo.Stateful = targetArgs.Stateful
-			if len(targetProfileNames) > 0 {
+			if targetProfileNames != nil {
 				srcInstInfo.Profiles = targetProfileNames
 			}
 		}
