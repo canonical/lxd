@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -337,6 +338,16 @@ func instanceCreateAsCopy(ctx context.Context, s *state.State, opts instanceCrea
 
 			opts.refresh = false // Instance doesn't exist, so switch to copy mode.
 		} else {
+			// The request is not trusted for the disk property keys. The target keeps its own until the
+			// data has been refreshed, as the keys then follow the saved state that the refresh leaves.
+			if inst.Type() == instancetype.VM {
+				if opts.targetInstance.Config == nil {
+					opts.targetInstance.Config = map[string]string{}
+				}
+
+				api.ConfigKeyPolicy{Immutable: instance.DiskPropsKeys}.Apply(opts.targetInstance.Config, inst.LocalConfig())
+			}
+
 			// Validate and apply refresh target config before the storage refresh.
 			err = inst.Update(ctx, opts.targetInstance, instance.UpdateActionUserRefresh)
 			if err != nil {
@@ -348,6 +359,18 @@ func instanceCreateAsCopy(ctx context.Context, s *state.State, opts instanceCrea
 	// If we are not in refresh mode, then create a new instance as we are in copy mode.
 	if !opts.refresh {
 		api.InstanceCreateConfigKeyPolicy.Apply(opts.targetInstance.Config, nil)
+
+		// QEMU needs identical device properties to load a saved state or to receive a live copy, so
+		// the target of such a copy gets the disk property keys of the source. The request is not
+		// trusted for this, as it depends on the client that sent it.
+		if opts.sourceInstance.Type() == instancetype.VM {
+			if opts.targetInstance.Config == nil {
+				opts.targetInstance.Config = map[string]string{}
+			}
+
+			carriesState := opts.sourceInstance.IsStateful() || opts.targetInstance.Stateful
+			instance.ApplyDiskProps(opts.targetInstance.Config, instance.DiskPropsFromSource(opts.sourceInstance.LocalConfig(), carriesState))
+		}
 
 		// Create the instance.
 		inst, instOp, cleanup, err = instance.CreateInternal(ctx, s, opts.targetInstance, true)
@@ -489,6 +512,38 @@ func instanceCreateAsCopy(ctx context.Context, s *state.State, opts instanceCrea
 		err = pool.RefreshInstance(ctx, inst, opts.sourceInstance, snapshots, opts.allowInconsistent, op)
 		if err != nil {
 			return nil, fmt.Errorf("Failed refreshing instance: %w", err)
+		}
+
+		// The refresh replaced the saved state of the target with that of the source, or removed it.
+		// The keys and the flag follow it. The instance is loaded again to get the new flag.
+		if inst.Type() == instancetype.VM {
+			sourceStateful := opts.sourceInstance.IsStateful()
+
+			err = instance.RefreshDiskProps(ctx, s, inst, opts.sourceInstance.LocalConfig(), sourceStateful, sourceStateful)
+			if err != nil {
+				return nil, err
+			}
+
+			inst, err = instance.LoadByProjectAndName(s, opts.targetInstance.Project, opts.targetInstance.Name)
+			if err != nil {
+				return nil, err
+			}
+
+			// A source without a saved state leaves the target a stale one. The flag is cleared first,
+			// so a failure here leaves a stray file that nothing reads.
+			if !sourceStateful {
+				_, err = pool.MountInstance(inst, nil)
+				if err != nil {
+					return nil, fmt.Errorf("Failed mounting the instance to remove its stale saved state: %w", err)
+				}
+
+				defer func() { _ = pool.UnmountInstance(inst, nil) }()
+
+				err = os.Remove(inst.StatePath())
+				if err != nil && !os.IsNotExist(err) {
+					return nil, fmt.Errorf("Failed removing the stale saved state: %w", err)
+				}
+			}
 		}
 	} else {
 		err = pool.CreateInstanceFromCopy(ctx, inst, opts.sourceInstance, !opts.instanceOnly, opts.allowInconsistent, op)

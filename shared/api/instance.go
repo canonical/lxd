@@ -441,6 +441,11 @@ var InstanceRefreshConfigKeyPolicy = ConfigKeyPolicy{
 		"volatile.idmap.next",
 		"volatile.last_state.idmap",
 		"volatile.last_state.power",
+
+		// The disk properties describe the devices of the target and its saved state, which a refresh
+		// keeps. They are always kept together.
+		"volatile.disk_queues",
+		"volatile.disk_iothreads",
 	},
 }
 
