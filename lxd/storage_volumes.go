@@ -2839,7 +2839,10 @@ func createStoragePoolVolumeFromTarball(s *state.State, r *http.Request, request
 		return response.InternalError(err)
 	}
 
-	revert.Add(func() { _ = os.Remove(tarFile.Name()) })
+	revert.Add(func() {
+		_ = tarFile.Close()
+		_ = os.Remove(tarFile.Name())
+	})
 
 	// Stream uploaded backup data into temporary file.
 	_, err = io.Copy(tarFile, data)
@@ -2848,7 +2851,10 @@ func createStoragePoolVolumeFromTarball(s *state.State, r *http.Request, request
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
-		defer func() { _ = os.Remove(tarFile.Name()) }()
+		defer func() {
+			_ = tarFile.Close()
+			_ = os.Remove(tarFile.Name())
+		}()
 
 		pool, err := storagePools.LoadByName(s, poolName)
 		if err != nil {
