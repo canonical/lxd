@@ -3098,6 +3098,104 @@ func applyVolatileInMemory(changes map[string]string, configs ...map[string]stri
 	}
 }
 
+// diskPropsToApply returns the volatile keys to change on a migration target, so that its disk properties
+// match the source when a saved state or a live migration is received. The source values come from the
+// index header, which the daemon of the source builds, so the result does not depend on the client.
+// The keys of the request are replaced. Only keys that differ from config are returned, and "" removes a key.
+func diskPropsToApply(info *migration.Info, live bool, config map[string]string) map[string]string {
+	var source map[string]string
+	carriesState := live
+
+	if info != nil && info.Config != nil && info.Config.Instance != nil {
+		source = info.Config.Instance.Config
+		carriesState = carriesState || info.Config.Instance.Stateful
+	}
+
+	changes := map[string]string{}
+	for key, value := range instance.DiskPropsFromSource(source, carriesState) {
+		if config[key] != value {
+			changes[key] = value
+		}
+	}
+
+	return changes
+}
+
+// applyMigratedDiskProps sets the disk property keys of the instance from the index header of the source.
+// A refresh and a cluster move keep their record at this point. The keys of a refresh are set by
+// refreshMigratedDiskProps after the data has been received, and a cluster move keeps its keys and saved state.
+func (d *qemu) applyMigratedDiskProps(info *migration.Info, live bool, keep bool) error {
+	if keep {
+		return nil
+	}
+
+	changes := diskPropsToApply(info, live, d.localConfig)
+	if len(changes) == 0 {
+		return nil
+	}
+
+	err := d.VolatileSet(changes)
+	if err != nil {
+		return fmt.Errorf("Failed setting the disk properties from the migration source: %w", err)
+	}
+
+	return nil
+}
+
+// refreshMigratedDiskProps records the keys and the stateful flag of a refreshed instance after the data has
+// been received. The refresh mirrors the saved state of the source, so the flag follows it. The keys of the
+// source are taken when a saved state or a live migration is received, otherwise those of the target stay.
+func (d *qemu) refreshMigratedDiskProps(ctx context.Context, info *migration.Info, live bool) error {
+	var source map[string]string
+	stateful := false
+
+	if info != nil && info.Config != nil && info.Config.Instance != nil {
+		source = info.Config.Instance.Config
+		stateful = info.Config.Instance.Stateful
+	}
+
+	err := instance.RefreshDiskProps(ctx, d.state, d, source, stateful || live, stateful)
+	if err != nil {
+		return err
+	}
+
+	d.stateful = stateful
+
+	if stateful {
+		return nil
+	}
+
+	// The source has no saved state, so the one of the target is stale. The flag is cleared first, so a
+	// failure here leaves a stray file that nothing reads, as when a stateless start discards a saved state.
+	_, err = d.mount()
+	if err != nil {
+		return fmt.Errorf("Failed mounting the instance to remove its stale saved state: %w", err)
+	}
+
+	defer func() { _ = d.unmount() }()
+
+	err = os.Remove(d.StatePath())
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Failed removing the stale saved state: %w", err)
+	}
+
+	return nil
+}
+
+// snapshotMigrationInstance returns the instance record that describes a snapshot in the index header of a
+// migration, so that the target reads the config and the stateful flag of a snapshot like those of an instance.
+func snapshotMigrationInstance(snap *api.InstanceSnapshot) *api.Instance {
+	return &api.Instance{
+		Name:         snap.Name,
+		Architecture: snap.Architecture,
+		Config:       snap.Config,
+		Devices:      snap.Devices,
+		Ephemeral:    snap.Ephemeral,
+		Profiles:     snap.Profiles,
+		Stateful:     snap.Stateful,
+	}
+}
+
 // diskProps returns the disk properties recorded for the VM.
 func (d *qemu) diskProps() qemuDiskProps {
 	return qemuDiskPropsFromConfig(d.localConfig)
@@ -7713,6 +7811,26 @@ func (d *qemu) MigrateSend(ctx context.Context, args instance.MigrateSendArgs, p
 		return err
 	}
 
+	// The instance record is only generated for an instance. The target of a snapshot copy needs the disk
+	// properties and the stateful flag of the snapshot, so send them in the same place as for an instance.
+	if d.IsSnapshot() && srcConfig.Instance == nil {
+		snapRecord, _, err := d.Render()
+		if err != nil {
+			err = fmt.Errorf("Failed rendering the snapshot for the migration config: %w", err)
+			op.Done(err)
+			return err
+		}
+
+		apiSnap, ok := snapRecord.(*api.InstanceSnapshot)
+		if !ok {
+			err = fmt.Errorf("Failed casting %q into its API representation", d.Name())
+			op.Done(err)
+			return err
+		}
+
+		srcConfig.Instance = snapshotMigrationInstance(apiSnap)
+	}
+
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
 	if args.Snapshots {
 		offerHeader.SnapshotNames = make([]string, 0, len(srcConfig.Snapshots))
@@ -8514,6 +8632,9 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 			snapshots = offerHeader.Snapshots
 		}
 
+		// The index header of the source, which tells a refresh whether it received a saved state.
+		var sourceInfo *migration.Info
+
 		volTargetArgs := migration.VolumeTargetArgs{
 			IndexHeaderVersion:    respHeader.GetIndexHeaderVersion(),
 			Name:                  d.Name(),
@@ -8528,6 +8649,11 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 			DeferredCustomVolumes: args.DeferredVolumes,
 			AttachedCustomVolumes: args.AttachedVolumes,
 			BeforeTransferStart:   beforeTransferStart,
+			IndexHeaderReceived: func(info *migration.Info) error {
+				sourceInfo = info
+
+				return d.applyMigratedDiskProps(info, args.Live, args.Refresh || args.ClusterMoveSourceName != "")
+			},
 		}
 
 		// At this point we have already figured out the parent instances's root
@@ -8583,6 +8709,14 @@ func (d *qemu) MigrateReceive(ctx context.Context, args instance.MigrateReceiveA
 		err = pool.CreateInstanceFromMigration(ctx, d, filesystemConn, volTargetArgs, progressReporter)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
+		}
+
+		// The refresh replaced the saved state of the target with that of the source, or removed it.
+		if args.Refresh && args.ClusterMoveSourceName == "" {
+			err = d.refreshMigratedDiskProps(ctx, sourceInfo, args.Live)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Derive the effective storage project name from the instance config's project.

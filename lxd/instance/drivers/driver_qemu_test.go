@@ -4,6 +4,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	backupConfig "github.com/canonical/lxd/lxd/backup/config"
+	"github.com/canonical/lxd/lxd/migration"
+	"github.com/canonical/lxd/shared/api"
 )
 
 func TestDiskPropsToRecord(t *testing.T) {
@@ -64,6 +68,164 @@ func TestDiskPropsToRecord(t *testing.T) {
 			for key, value := range tt.want {
 				assert.Equal(t, value, got[key], key)
 			}
+		})
+	}
+}
+
+func TestSnapshotMigrationInstance(t *testing.T) {
+	both := map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"}
+
+	tests := []struct {
+		name     string
+		snap     *api.InstanceSnapshot
+		live     bool
+		current  map[string]string
+		wantFlag bool
+		want     map[string]string
+	}{
+		{
+			"stateful snapshot gives its keys to the target",
+			&api.InstanceSnapshot{Name: "snap1", Stateful: true, Config: both},
+			false, map[string]string{}, true,
+			map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"},
+		},
+		{
+			"stateless snapshot gives no keys to the target",
+			&api.InstanceSnapshot{Name: "snap0", Stateful: false, Config: both},
+			false, both, false,
+			map[string]string{"volatile.disk_queues": "", "volatile.disk_iothreads": ""},
+		},
+		{
+			"stateful snapshot of a legacy VM gives no keys",
+			&api.InstanceSnapshot{Name: "snap1", Stateful: true, Config: map[string]string{"limits.cpu": "2"}},
+			false, both, true,
+			map[string]string{"volatile.disk_queues": "", "volatile.disk_iothreads": ""},
+		},
+		{
+			"stateful snapshot with an invalid value is not taken",
+			&api.InstanceSnapshot{Name: "snap1", Stateful: true, Config: map[string]string{"volatile.disk_queues": "999", "volatile.disk_iothreads": "1"}},
+			false, map[string]string{}, true,
+			map[string]string{"volatile.disk_iothreads": "1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inst := snapshotMigrationInstance(tt.snap)
+			assert.Equal(t, tt.snap.Name, inst.Name)
+			assert.Equal(t, tt.wantFlag, inst.Stateful)
+
+			info := &migration.Info{Config: &backupConfig.Config{Instance: inst}}
+			assert.Equal(t, tt.want, diskPropsToApply(info, tt.live, tt.current))
+		})
+	}
+}
+
+// TestDiskPropsIndependentOfCPU checks that the recorded disk properties do not depend on the number of vCPUs.
+// QEMU needs identical device properties on both ends of a live migration and on a resume, and limits.cpu can
+// change in between.
+func TestDiskPropsIndependentOfCPU(t *testing.T) {
+	both := map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"}
+
+	for _, cpus := range []string{"", "1", "2", "4", "16", "0-3", "64"} {
+		t.Run("limits.cpu="+cpus, func(t *testing.T) {
+			// A fresh start records the same values whatever the CPU limit is.
+			fresh := map[string]string{"limits.cpu": cpus}
+			assert.Equal(t, both, diskPropsToRecord(false, fresh))
+
+			// A start with the recorded values does not write anything after the CPU limit changed.
+			recorded := map[string]string{"limits.cpu": cpus, "volatile.disk_queues": "4", "volatile.disk_iothreads": "1"}
+			assert.Empty(t, diskPropsToRecord(false, recorded))
+
+			// A stateful start never records, so the values of the first boot are reused.
+			assert.Empty(t, diskPropsToRecord(true, recorded))
+			assert.Empty(t, diskPropsToRecord(true, fresh))
+
+			// The properties used for the devices are the recorded ones.
+			props := qemuDiskPropsFromConfig(recorded)
+			assert.Equal(t, 4, props.Queues)
+			assert.Equal(t, 1, props.IOThreads)
+		})
+	}
+}
+
+func TestDiskPropsToApply(t *testing.T) {
+	sourceInfo := func(stateful bool, config map[string]string) *migration.Info {
+		return &migration.Info{Config: &backupConfig.Config{Instance: &api.Instance{
+			Config:   config,
+			Stateful: stateful,
+		}}}
+	}
+
+	both := map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"}
+
+	tests := []struct {
+		name   string
+		info   *migration.Info
+		live   bool
+		config map[string]string
+		want   map[string]string
+	}{
+		{
+			"live migration takes both keys from the source",
+			sourceInfo(false, both), true, map[string]string{},
+			map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"},
+		},
+		{
+			"live migration replaces the keys of the request",
+			sourceInfo(false, both), true, map[string]string{"volatile.disk_queues": "64", "volatile.disk_iothreads": "0"},
+			map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"},
+		},
+		{
+			"live migration with matching keys changes nothing",
+			sourceInfo(false, both), true, both,
+			map[string]string{},
+		},
+		{
+			"stopped source with a saved state takes both keys",
+			sourceInfo(true, both), false, map[string]string{},
+			map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"},
+		},
+		{
+			"stopped source without a saved state drops the keys of the request",
+			sourceInfo(false, both), false, both,
+			map[string]string{"volatile.disk_queues": "", "volatile.disk_iothreads": ""},
+		},
+		{
+			"stopped source without a saved state and without keys changes nothing",
+			sourceInfo(false, map[string]string{}), false, map[string]string{},
+			map[string]string{},
+		},
+		{
+			"live migration of a source without keys removes the keys of the request",
+			sourceInfo(false, map[string]string{"limits.cpu": "2"}), true, both,
+			map[string]string{"volatile.disk_queues": "", "volatile.disk_iothreads": ""},
+		},
+		{
+			"live migration takes only the key the source has",
+			sourceInfo(false, map[string]string{"volatile.disk_queues": "4"}), true, both,
+			map[string]string{"volatile.disk_iothreads": ""},
+		},
+		{
+			"no index header of an older source leaves the target without keys",
+			nil, true, both,
+			map[string]string{"volatile.disk_queues": "", "volatile.disk_iothreads": ""},
+		},
+		{
+			"index header without instance record leaves the target without keys",
+			&migration.Info{}, true, map[string]string{},
+			map[string]string{},
+		},
+		{
+			"invalid value of the source is not taken",
+			sourceInfo(false, map[string]string{"volatile.disk_queues": "999", "volatile.disk_iothreads": "1"}), true, map[string]string{},
+			map[string]string{"volatile.disk_iothreads": "1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, diskPropsToApply(tt.info, tt.live, tt.config))
 		})
 	}
 }
