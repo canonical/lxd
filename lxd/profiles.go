@@ -665,9 +665,9 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	run := func(ctx context.Context, op *operations.Operation) error {
-		err = doProfileUpdate(ctx, s, details.effectiveProject, details.profileName, profile, req)
+		profileUpdateErr := doProfileUpdate(ctx, s, details.effectiveProject, details.profileName, profile, req)
 
-		if err == nil && !clusterNotification {
+		if profileUpdateErr == nil && !clusterNotification {
 			// Notify all other nodes. If a node is down, it will be ignored.
 			notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
 			if err != nil {
@@ -689,8 +689,8 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 
 		s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor.EventLifecycleRequestor(), nil))
 
-		if err != nil {
-			return err
+		if profileUpdateErr != nil {
+			return profileUpdateErr
 		}
 
 		return nil
@@ -749,6 +749,11 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 //	    $ref: "#/responses/InternalServerError"
 func profilePatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
+
+	requestor, err := request.GetRequestor(r.Context())
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	details, err := request.GetContextValue[profileDetails](r.Context(), ctxProfileDetails)
 	if err != nil {
@@ -831,10 +836,37 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	clusterNotification := requestor.IsClusterNotification()
 	run := func(ctx context.Context, op *operations.Operation) error {
-		requestor := request.CreateRequestor(ctx)
-		s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor, nil))
-		return doProfileUpdate(ctx, s, details.effectiveProject, details.profileName, profile, req)
+		profileUpdateErr := doProfileUpdate(ctx, s, details.effectiveProject, details.profileName, profile, req)
+
+		if profileUpdateErr == nil && !clusterNotification {
+			// Notify all other nodes. If a node is down, it will be ignored.
+			notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAlive)
+			if err != nil {
+				return err
+			}
+
+			err = notifier(func(_ db.NodeInfo, client lxd.InstanceServer) error {
+				notifyOp, err := client.UseProject(details.effectiveProject.Name).UpdateProfile(details.profileName, req, "")
+				if err != nil {
+					return err
+				}
+
+				return notifyOp.WaitContext(ctx)
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		s.Events.SendLifecycle(details.effectiveProject.Name, lifecycle.ProfileUpdated.Event(details.profileName, details.effectiveProject.Name, requestor.EventLifecycleRequestor(), nil))
+
+		if profileUpdateErr != nil {
+			return profileUpdateErr
+		}
+
+		return nil
 	}
 
 	requestProjectName := request.ProjectParam(r)
