@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -214,6 +215,12 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			for _, architecture := range s.OS.Architectures {
 				cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, args.ImageRegistry, alias, args.Type, architecture)
 				if err == nil && cachedFingerprint != fp {
+					// Skip a cached image that no online member has, the newer image can be downloaded instead.
+					_, err = tx.LocateImage(ctx, cachedFingerprint)
+					if errors.Is(err, db.ErrImageNotAvailable) {
+						continue
+					}
+
 					fp = cachedFingerprint
 					break
 				}
@@ -240,6 +247,10 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 	// target project below.
 	var reuseFromOtherProject bool
 
+	// redownload records whether the image record already exists in the target project but no online member
+	// has the image files, so they are downloaded again from the image registry.
+	var redownload bool
+
 	if err == nil {
 		var nodeAddress string
 
@@ -250,10 +261,15 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			return err
 		})
 		if err != nil {
-			return nil, fmt.Errorf("Failed locating image %q in the cluster: %w", imgInfo.Fingerprint, err)
-		}
+			// If only offline members have the image, download it again from the image registry it was resolved from.
+			if !errors.Is(err, db.ErrImageNotAvailable) || info == nil || info.Fingerprint != imgInfo.Fingerprint {
+				return nil, fmt.Errorf("Failed locating image %q in the cluster: %w", imgInfo.Fingerprint, err)
+			}
 
-		if nodeAddress != "" {
+			l.Info("Image not available on any online member, downloading it again", logger.Ctx{"fingerprint": imgInfo.Fingerprint})
+			redownload = true
+			imgInfo = nil
+		} else if nodeAddress != "" {
 			// The image is available from another node, let's try to import it.
 			err = instanceImageTransfer(ctx, s, args.ProjectName, args.ProjectName, imgInfo.Fingerprint, nodeAddress)
 			if err != nil {
@@ -277,6 +293,17 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		// reused. If none is found, fall through to downloading below.
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			_, imgInfo, err = cluster.GetCachedImageWithSource(ctx, tx.Tx(), fp, args.ImageRegistry, alias)
+			if err != nil {
+				return err
+			}
+
+			// A cached copy that no online member has can't be reused, so download the image instead.
+			_, err = tx.LocateImage(ctx, imgInfo.Fingerprint)
+			if errors.Is(err, db.ErrImageNotAvailable) {
+				imgInfo = nil
+				return api.StatusErrorf(http.StatusNotFound, "Cached image not available on any online member")
+			}
+
 			return err
 		})
 		if err != nil && !response.IsNotFoundError(err) {
@@ -641,6 +668,18 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 	}
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		if redownload {
+			// The image record already exists in the project, just add the local member to it.
+			err := tx.AddImageToLocalNode(ctx, args.ProjectName, info.Fingerprint)
+			if err != nil {
+				return err
+			}
+
+			_, info, err = tx.GetImage(ctx, info.Fingerprint, cluster.ImageFilter{Project: &args.ProjectName})
+
+			return err
+		}
+
 		// Create the database entry
 		return tx.CreateImage(ctx, args.ProjectName, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, nil)
 	})
@@ -651,8 +690,8 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 	// Image is in the DB now, don't wipe on-disk files on failure
 	reverter.Success()
 
-	// Record the image source
-	if alias != fp {
+	// Record the image source, unless the existing image record already has one.
+	if alias != fp && !redownload {
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			id, _, err := tx.GetImage(ctx, fp, cluster.ImageFilter{Project: &args.ProjectName})
 			if err != nil {
@@ -693,7 +732,9 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		lifecycleRequestor = request.CreateRequestor(ctx)
 	}
 
-	s.Events.SendLifecycle(args.ProjectName, lifecycle.ImageCreated.Event(info.Fingerprint, args.ProjectName, lifecycleRequestor, logger.Ctx{"type": info.Type}))
+	if !redownload {
+		s.Events.SendLifecycle(args.ProjectName, lifecycle.ImageCreated.Event(info.Fingerprint, args.ProjectName, lifecycleRequestor, logger.Ctx{"type": info.Type}))
+	}
 
 	info.Aliases = sourceAliases
 
