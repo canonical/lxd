@@ -136,15 +136,22 @@ install_snap_in_instance() {
         return 1
     fi
 
+    local classic_arg=""
     if [ "${name}" != "snapd" ]; then
         if ! command -v unsquashfs >/dev/null; then
             return 1
         fi
 
-        base="$(unsquashfs -n -cat "${snap}" meta/snap.yaml | awk '/^base:/ {print $2; exit}')"
+        local snap_yaml confinement
+        snap_yaml="$(unsquashfs -n -cat "${snap}" meta/snap.yaml)"
+        base="$(awk '/^base:/ {print $2; exit}' <<< "${snap_yaml}")"
         if [ -n "${base}" ] && [ "${base}" != "bare" ]; then
             # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
             install_snap_in_instance "${instance}" "${base}" "latest/candidate" || return 1
+        fi
+        confinement="$(awk '/^confinement:/ {print $2; exit}' <<< "${snap_yaml}")"
+        if [ "${confinement}" = "classic" ]; then
+            classic_arg="--classic"
         fi
     fi
 
@@ -158,7 +165,7 @@ install_snap_in_instance() {
         cd /root
         snap ack '$(basename "${assert}")'
         # The same revision may already be installed (e.g. seeded in the image)
-        if ! snap install './$(basename "${snap}")'; then
+        if ! snap install ${classic_arg} './$(basename "${snap}")'; then
             [ \"\$(snap list '${name}' | awk 'NR==2 {print \$3}')\" = '${rev}' ]
         fi
         snap refresh --hold=24h '${name}'
