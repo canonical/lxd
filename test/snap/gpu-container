@@ -106,27 +106,25 @@ lxc config device add c1 gpus gpu
 sleep 1
 [ "$(count_gpu_devices c1)" = "${total_gpu}" ]
 
-# Test nvidia runtime (legacy, requires the nvidia_runtime API extension)
-if hasNeededAPIExtension "nvidia_runtime"; then
-    echo "==> Testing nvidia runtime"
-    ! lxc exec c1 -- nvidia-smi || false
-    lxc stop -f c1
-    lxc config set c1 nvidia.runtime true
-    lxc start c1
-    waitInstanceReady c1
+# Test nvidia runtime
+echo "==> Testing nvidia runtime"
+! lxc exec c1 -- nvidia-smi || false
+lxc stop -f c1
+lxc config set c1 nvidia.runtime true
+lxc start c1
+waitInstanceReady c1
 
-    # Print out all mounts we have so we can compare it later if anything goes wrong
-    lxc exec c1 -- cat /proc/self/mountinfo
+# Print out all mounts we have so we can compare it later if anything goes wrong
+lxc exec c1 -- cat /proc/self/mountinfo
 
-    # Verify DRM card device(s) and a render node exist in the container
-    lxc exec c1 -- sh -c 'ls /dev/dri/card[0-9]*'
-    lxc exec c1 -- sh -c 'ls /dev/dri/renderD[0-9]*'
+# Verify DRM card device(s) and a render node exist in the container
+lxc exec c1 -- sh -c 'ls /dev/dri/card[0-9]*'
+lxc exec c1 -- sh -c 'ls /dev/dri/renderD[0-9]*'
 
-    lxc exec c1 -- nvidia-smi
+lxc exec c1 -- nvidia-smi
 
-    # Check presence of key libraries in the mounts to catch regressions
-    lxc exec c1 -- cat /proc/self/mountinfo | grep "libcuda.so"
-fi
+# Check presence of key libraries in the mounts to catch regressions
+lxc exec c1 -- cat /proc/self/mountinfo | grep "libcuda.so"
 
 # Test with PCI addresses
 echo "==> Testing PCI address selection"
@@ -134,9 +132,7 @@ lxc config device remove c1 gpus
 lxc config device add c1 gpu1 gpu pci="${first_card_pci_slot}"
 sleep 1
 [ "$(count_gpu_devices c1)" = "1" ]
-if hasNeededAPIExtension "nvidia_runtime"; then
-    lxc exec c1 -- nvidia-smi
-fi
+lxc exec c1 -- nvidia-smi
 
 # Test with vendor
 echo "==> Testing PCI vendor selection"
@@ -144,9 +140,7 @@ lxc config device remove c1 gpu1
 lxc config device add c1 gpus gpu vendorid=10de
 sleep 1
 [ "$(count_gpu_devices c1)" = "${total_nvidia_gpu}" ]
-if hasNeededAPIExtension "nvidia_runtime"; then
-    lxc exec c1 -- nvidia-smi
-fi
+lxc exec c1 -- nvidia-smi
 
 # Test with vendor and product
 echo "==> Testing PCI vendor and product selection"
@@ -154,80 +148,62 @@ lxc config device remove c1 gpus
 lxc config device add c1 gpus gpu vendorid=10de productid="${first_card_product_id}"
 sleep 1
 [ "$(count_gpu_devices c1)" = "${total_nvidia_gpu_with_product_id}" ]
-if hasNeededAPIExtension "nvidia_runtime"; then
-    lxc exec c1 -- nvidia-smi
+lxc exec c1 -- nvidia-smi
 
-    # Clean up nvidia runtime
-    lxc config unset c1 nvidia.runtime
-fi
+# Clean up nvidia runtime
+lxc config unset c1 nvidia.runtime
 
 # Test with fully-qualified CDI name
-if hasNeededAPIExtension "gpu_cdi"; then
-    echo "==> Testing adding a GPU with a fully-qualified CDI name to a stopped container"
-    lxc stop --force c1
-    lxc config device remove c1 gpus
-    lxc config device add c1 gpu0 gpu id="nvidia.com/gpu=0"
-    lxc start c1
-    waitInstanceReady c1
-    [ "$(count_gpu_devices c1)" = "1" ]
-    check_ldconfig c1
-    check_mountinfo c1
-    # Print out all mounts we have so we can compare it later if anything goes wrong
-    lxc exec c1 -- cat /proc/self/mountinfo
-    # Verify exactly one DRM card device and a render node exist in the container
-    [ "$(count_gpu_devices c1)" = "1" ]
-    lxc exec c1 -- sh -c 'ls /dev/dri/renderD[0-9]*'
-    lxc exec c1 -- nvidia-smi
+echo "==> Testing adding a GPU with a fully-qualified CDI name to a stopped container"
+lxc stop --force c1
+lxc config device remove c1 gpus
+lxc config device add c1 gpu0 gpu id="nvidia.com/gpu=0"
+lxc start c1
+waitInstanceReady c1
+[ "$(count_gpu_devices c1)" = "1" ]
+check_ldconfig c1
+check_mountinfo c1
+# Print out all mounts we have so we can compare it later if anything goes wrong
+lxc exec c1 -- cat /proc/self/mountinfo
+# Verify exactly one DRM card device and a render node exist in the container
+[ "$(count_gpu_devices c1)" = "1" ]
+lxc exec c1 -- sh -c 'ls /dev/dri/renderD[0-9]*'
+lxc exec c1 -- nvidia-smi
 
-    # Test hotplugging if supported.
-    if hasNeededAPIExtension "gpu_cdi_hotplug"; then
-        echo "==> Testing hotplugging a GPU into a running container"
-        lxc config device remove c1 gpu0
-        sleep 1
-        [ "$(count_gpu_devices c1)" = "0" ]
-        lxc config device add c1 gpu0 gpu id="nvidia.com/gpu=0"
-        sleep 1
-        [ "$(count_gpu_devices c1)" = "1" ]
-        check_ldconfig c1
-        check_mountinfo c1
-        lxc exec c1 -- nvidia-smi
-    fi
+# Check that user-supplied uid/gid/mode on a CDI GPU device are honored.
+echo "==> Testing user-supplied uid/gid/mode on a CDI GPU device"
+lxc stop --force c1
+lxc config device remove c1 gpu0
+lxc config device add c1 gpu0 gpu id="nvidia.com/gpu=0" uid=1000 gid=1000 mode=0640
+lxc start c1
+waitInstanceReady c1
+[ "$(lxc exec c1 -- stat -c '%u %g %a' /dev/nvidia0)" = "1000 1000 640" ]
+[ "$(lxc exec c1 -- stat -c '%u %g %a' /dev/nvidiactl)" = "1000 1000 640" ]
 
-    # Check that user-supplied uid/gid/mode on a CDI GPU device are honored.
-    echo "==> Testing user-supplied uid/gid/mode on a CDI GPU device"
-    lxc stop --force c1
-    lxc config device remove c1 gpu0
-    lxc config device add c1 gpu0 gpu id="nvidia.com/gpu=0" uid=1000 gid=1000 mode=0640
-    lxc start c1
-    waitInstanceReady c1
-    [ "$(lxc exec c1 -- stat -c '%u %g %a' /dev/nvidia0)" = "1000 1000 640" ]
-    [ "$(lxc exec c1 -- stat -c '%u %g %a' /dev/nvidiactl)" = "1000 1000 640" ]
+# Also verify DRM card and render nodes exposed by CDI got the same overrides.
+# shellcheck disable=SC2016
+lxc exec c1 -- sh -c 'for d in /dev/dri/card* /dev/dri/renderD*; do [ "$(stat -c "%u %g %a" "$d")" = "1000 1000 640" ]; done'
 
-    # Also verify DRM card and render nodes exposed by CDI got the same overrides.
-    # shellcheck disable=SC2016
-    lxc exec c1 -- sh -c 'for d in /dev/dri/card* /dev/dri/renderD*; do [ "$(stat -c "%u %g %a" "$d")" = "1000 1000 640" ]; done'
+# Restore plain gpu0 for the Docker test below.
+lxc stop --force c1
+lxc config device remove c1 gpu0
+lxc config device add c1 gpu0 gpu id="nvidia.com/gpu=0"
+lxc start c1
+waitInstanceReady c1
 
-    # Restore plain gpu0 for the Docker test below.
-    lxc stop --force c1
-    lxc config device remove c1 gpu0
-    lxc config device add c1 gpu0 gpu id="nvidia.com/gpu=0"
-    lxc start c1
-    waitInstanceReady c1
+echo "==> Testing running nested Docker container with nvidia runtime"
 
-    echo "==> Testing running nested Docker container with nvidia runtime"
+lxc stop --force c1
 
-    lxc stop --force c1
+lxc config set c1 security.nesting=true
+lxc start c1
+waitInstanceReady c1
 
-    lxc config set c1 security.nesting=true
-    lxc start c1
-    waitInstanceReady c1
-
-    lxc exec c1 -- nvidia-smi
-    lxc exec c1 -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
-    lxc exec c1 -- snap install docker
-    lxc exec c1 -- docker info | grep "Runtimes:.*nvidia"
-    lxc exec c1 -- docker run --rm --runtime=nvidia --gpus all ubuntu:24.04 nvidia-smi
-fi
+lxc exec c1 -- nvidia-smi
+lxc exec c1 -- sh -c "$(declare -f waitSnapdSeed); waitSnapdSeed"
+lxc exec c1 -- snap install docker
+lxc exec c1 -- docker info | grep "Runtimes:.*nvidia"
+lxc exec c1 -- docker run --rm --runtime=nvidia --gpus all ubuntu:24.04 nvidia-smi
 
 echo "==> Cleaning up"
 lxc delete -f c1
