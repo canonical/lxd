@@ -1174,31 +1174,35 @@ test_clustering_network() {
 
   # Run network create on other node1 (expect this to fail early due to existing interface).
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Errored # Check has errored status.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Pending # Check failed create is backed out to pending.
 
   # Check each node status (expect both node1 and node2 to be pending as local member running created failed first).
 [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'")" = "node1,0" ]
 [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node2'")" = "node2,0" ]
 
-  # Run network create on other node2 (still excpect to fail on node1, but expect node2 create to succeed).
+  # Run network create on other node2 (still expect to fail on node1, node2 create succeeds but is backed out).
   ! LXD_DIR="${LXD_TWO_DIR}" lxc network create "${net}" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Pending # Check failed create is backed out to pending.
 
-  # Check each node status (expect node1 to be pending and node2 to be created).
+  # Check each node status (expect both node1 and node2 to be pending again).
 [ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'")" = "node1,0" ]
-[ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node2'")" = "node2,1" ]
+[ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node2'")" = "node2,0" ]
 
-  # Check interfaces are expected types (dummy on node1 and bridge on node2).
+  # Check global config from the failed create is removed.
+[ "$(LXD_DIR="${LXD_ONE_DIR}" lxd sql global --format csv "SELECT count(*) FROM networks_config JOIN networks ON networks.id = networks_config.network_id WHERE networks.name = '${net}' AND networks_config.node_id IS NULL")" = "0" ]
+
+  # Check interfaces (dummy still on node1 and bridge removed from node2).
   nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep -wF dummy
-  nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep -wF bridge
+  ! nsenter -n -t "${LXD_PID2}" -- ip link show "${net}" || false
 
   # Check we cannot update network global config while in pending state on either node.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network set "${net}" ipv4.dhcp false || false
   ! LXD_DIR="${LXD_TWO_DIR}" lxc network set "${net}" ipv4.dhcp false || false
 
-  # Check we can update node-specific config on the node that has been created (and that it is applied).
+  # Check we can update node-specific config on node2 while pending (and that only DB is updated).
   nsenter -n -t "${LXD_PID2}" -- ip link add "ext-${net}" type dummy # Create dummy interface to add to bridge.
   LXD_DIR="${LXD_TWO_DIR}" lxc network set "${net}" bridge.external_interfaces "ext-${net}" --target node2
-  nsenter -n -t "${LXD_PID2}" -- ip link show "ext-${net}" | grep -wF "master ${net}"
+  ! nsenter -n -t "${LXD_PID2}" -- ip link show "ext-${net}" | grep -wF "master ${net}" || false # Don't expect to be attached.
 
   # Check we can update node-specific config on the node that hasn't been created (and that only DB is updated).
   nsenter -n -t "${LXD_PID1}" -- ip link add "ext-${net}" type dummy # Create dummy interface to add to bridge.
@@ -1206,20 +1210,19 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network set "${net}" bridge.external_interfaces "ext-${net}" --target node1
   ! nsenter -n -t "${LXD_PID1}" -- ip link show "ext-${net}" | grep -wF "master ${net}" || false  # Don't expect to be attached.
 
-  # Delete partially created network and check nodes that were created are cleaned up.
+  # Delete pending network and check nothing is left on the nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net}"
   ! nsenter -n -t "${LXD_PID2}" -- ip link show "${net}" || false # Check bridge is removed.
   nsenter -n -t "${LXD_PID2}" -- ip link show "ext-${net}" # Check external interface still exists.
   nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep -wF dummy # Check node1 conflict still exists.
 
-  # Create new partially created network and check we can fix it.
+  # Create new network that fails to create and check we can fix it.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64 || false  # Fails due to NIC conflict but will set ipv{4,6}.address
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Errored # Check has errored status.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64 || false  # Fails due to NIC conflict.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Pending # Check failed create is backed out to pending.
   nsenter -n -t "${LXD_PID1}" -- ip link delete "${net}" # Remove conflicting interface.
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.dhcp=false || false # Check supplying global config on re-create is blocked.
-  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" # Check re-create succeeds.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64 # Check re-create with global config succeeds.
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep -F status: | grep -wF Created # Check is created after fix.
   nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep -wF bridge # Check bridge exists.
   nsenter -n -t "${LXD_PID2}" -- ip -details link show "${net}" | grep -wF bridge # Check bridge exists.
@@ -1299,14 +1302,14 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Errored'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Pending'
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
 
   echo "Check that parent interface i1 on node2 cannot be used for another physical network net2."
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Errored'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Pending'
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
 
   echo "Create a physical network net2."
@@ -1338,14 +1341,14 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical vlan=10 || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Errored'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Pending'
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
 
   # Check that a network without a VLAN cannot share a parent already in use on a VLAN.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Errored'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Pending'
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
 
   # Check that a VLAN conflict on another member's parent interface alone is detected.
@@ -1353,7 +1356,7 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i2 --target=node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical parent=i1 --target=node2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net2}" --type=physical vlan=10 || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Errored'
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net2}" | grep -xF 'status: Pending'
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net2}"
 
   # Check that a different VLAN on a parent shared only via another member is allowed.
