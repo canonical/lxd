@@ -1269,7 +1269,7 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 	}
 
 	// Guard against leaving the destination sink operation running if we fail
-	// before starting the source; disarmed once the source op is scheduled.
+	// before starting the source; disarmed once the transfer starts.
 	destOpCancelled := false
 	defer func() {
 		if !destOpCancelled {
@@ -1294,41 +1294,28 @@ func replicateInstance(ctx context.Context, s *state.State, op *operations.Opera
 		return fmt.Errorf("Failed setting up migration source for instance %q: %w", instName, err)
 	}
 
-	migrArgs := operations.OperationArgs{
-		ProjectName: projectName,
-		EntityURL:   entity.InstanceURL(projectName, instName),
-		Type:        operationtype.InstanceMigrate,
-		Class:       operationtype.OperationClassTask,
-		RunHook: func(ctx context.Context, innerOp *operations.Operation) error {
-			done := make(chan struct{})
-			defer close(done)
-			go func() {
-				select {
-				case <-done:
-				case <-ctx.Done():
-					srcMigration.disconnect()
-				}
-			}()
+	destOpCancelled = true // source connects via websockets; cancel would interrupt an in-flight transfer
 
-			return srcMigration.Do(ctx, s, innerOp)
-		},
-	}
+	// Run the migration source as part of the "Replicating instance" operation, so that the transfer and its
+	// progress belong to the replicator run instead of a separate top-level "Migrating instance" operation.
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-done:
+		case <-ctx.Done():
+			srcMigration.disconnect()
+		}
+	}()
 
-	var srcOp *operations.Operation
-	if op.Requestor() != nil {
-		srcOp, err = operations.ScheduleUserOperationFromOperation(s, op, migrArgs)
-	} else {
-		srcOp, err = operations.ScheduleServerOperation(s, migrArgs)
-	}
-
+	err = srcMigration.Do(ctx, s, op)
 	if err != nil {
-		return err
-	}
+		// Cancelling the run disconnects the migration, so report the cancellation rather than the
+		// resulting connection error.
+		if ctx.Err() != nil {
+			return fmt.Errorf("Replication of instance %q cancelled: %w", instName, ctx.Err())
+		}
 
-	destOpCancelled = true // source is now connected via websockets; cancel would interrupt an in-flight transfer
-
-	err = srcOp.Wait(context.Background())
-	if err != nil {
 		return fmt.Errorf("Replication of instance %q failed on source: %w", instName, err)
 	}
 
