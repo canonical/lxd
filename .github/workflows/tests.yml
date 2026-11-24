@@ -856,7 +856,9 @@ jobs:
       needs.snap-tests.result == 'success' &&
       needs.client.result == 'success' &&
       (needs.ui-e2e-tests.result == 'success' || needs.ui-e2e-tests.result == 'skipped') &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'canonical/lxd')
+      ((github.event_name == 'workflow_dispatch' && inputs.coverage && github.ref_name == 'main') ||
+       (github.event_name == 'schedule' && github.ref_name == 'main') ||
+       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == 'canonical/lxd'))
     runs-on: ${{ github.repository == 'canonical/lxd-private' && 'lxd-private' || 'ubuntu-26.04' }}
     permissions:
       contents: read
@@ -908,6 +910,7 @@ jobs:
           file: ${{env.GOCOVERDIR}}/coverage-go.xml
           language: Go
           label: code-coverage
+          fail-on-error: false
 
   ui-e2e-tests:
     name: UI e2e tests
