@@ -2765,7 +2765,7 @@ func (d *lxc) Shutdown(ctx context.Context, timeout time.Duration) error {
 		return errPrefix
 	} else if op.Action() == "stop" {
 		// If instance stopped, send lifecycle event (even if there has been an error cleaning up).
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(ctx, d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(ctx, d, map[string]any{"action": "stop"}))
 	}
 
 	// Now handle errors from shutdown sequence and return to caller if wasn't completed cleanly.
@@ -2990,7 +2990,7 @@ func (d *lxc) onStop(ctx context.Context, args map[string]string) error {
 			}
 
 			d.logger.Info("Shut down instance", ctxMap)
-			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(ctx, d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(ctx, d, map[string]any{"action": target}))
 		}
 
 		// Reboot the container

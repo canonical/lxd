@@ -758,7 +758,14 @@ func (d *qemu) onStop(ctx context.Context, target string) error {
 
 	// Log and emit lifecycle if not user triggered.
 	if op.GetInstanceInitiated() {
-		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(ctx, d, nil))
+		// A shutdown requested by restartCommon powers the guest off (target "stop"), but the instance is
+		// started again afterwards, so report it as a reboot.
+		shutdownAction := target
+		if op.Action() == operationlock.ActionRestart {
+			shutdownAction = "reboot"
+		}
+
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(ctx, d, map[string]any{"action": shutdownAction}))
 	} else if op.Action() != operationlock.ActionMigrate {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(ctx, d, nil))
 	}
