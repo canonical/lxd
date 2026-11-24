@@ -619,12 +619,6 @@ func (d *common) expandConfig() error {
 
 // restartCommon handles the common part of instance restarts.
 func (d *common) restartCommon(ctx context.Context, inst instance.Instance, timeout time.Duration, progressReporter ioprogress.ProgressReporter) error {
-	// Setup a new operation for the stop/shutdown phase.
-	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestart, true, true)
-	if err != nil {
-		return fmt.Errorf("Create restart operation: %w", err)
-	}
-
 	// Handle ephemeral instances.
 	ephemeral := inst.IsEphemeral()
 
@@ -636,6 +630,9 @@ func (d *common) restartCommon(ctx context.Context, inst instance.Instance, time
 		"timeout":   timeout}
 
 	d.logger.Info("Restarting instance", ctxMap)
+
+	// Set when an interrupted restart deletes the ephemeral instance, so the flag isn't restored afterwards.
+	deleted := false
 
 	if ephemeral {
 		// Unset ephemeral flag
@@ -658,9 +655,20 @@ func (d *common) restartCommon(ctx context.Context, inst instance.Instance, time
 
 		// On function return, set the flag back on
 		defer func() {
+			if deleted {
+				return
+			}
+
 			args.Ephemeral = ephemeral
 			_ = inst.Update(ctx, args, instance.UpdateActionInternal)
 		}()
+	}
+
+	// Setup a new operation for the stop/shutdown phase. This is done after the ephemeral flag update, as
+	// Update() inherits and completes any running restart operation.
+	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestart, true, true)
+	if err != nil {
+		return fmt.Errorf("Create restart operation: %w", err)
 	}
 
 	if timeout == 0 {
@@ -680,6 +688,25 @@ func (d *common) restartCommon(ctx context.Context, inst instance.Instance, time
 		if err != nil {
 			op.Done(err)
 			return err
+		}
+
+		// A forced stop issued while waiting for the shutdown takes over the restart operation. The user
+		// asked for the instance to be stopped, so don't start it again.
+		if op.GetStopRequested() {
+			d.logger.Info("Restart interrupted by stop request", ctxMap)
+
+			// The stop ran while the ephemeral flag was unset, so the instance wasn't deleted by the
+			// stop hook. Delete it now, the same way the stop hook would have.
+			if ephemeral {
+				err = inst.Delete(ctx, true, "", nil)
+				if err != nil {
+					return fmt.Errorf("Failed deleting ephemeral instance: %w", err)
+				}
+
+				deleted = true
+			}
+
+			return errors.New("Instance restart was interrupted by a stop request")
 		}
 	}
 
