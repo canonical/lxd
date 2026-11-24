@@ -897,6 +897,39 @@ EOF
   lxc stop -f c2 c3
   [ "$(lxc list -f csv -c n || echo fail)" = "" ]
 
+  sub_test "instance-shutdown lifecycle events say whether the instance restarts"
+  lxc launch testimage c1
+  local monfile="${TEST_DIR}/instance-shutdown.jsonl"
+  lxc_monitor_start "${monfile}" --type=lifecycle --format=json
+  local mon_pid="${LXC_MONITOR_PID}"
+
+  # Guest initiated reboot.
+  lxc exec c1 -- reboot -f || true
+  for _ in $(seq 30); do
+    jq --exit-status --slurp 'any(.[]; .metadata.action == "instance-restarted")' "${monfile}" && break
+    sleep 1
+  done
+
+  # Guest initiated power off.
+  lxc exec c1 -- poweroff -f || true
+  for _ in $(seq 30); do
+    [ "$(lxc list -f csv -c s c1)" = "STOPPED" ] && break
+    sleep 1
+  done
+
+  # Clean shutdown through the API.
+  lxc start c1
+  lxc stop c1
+  for _ in $(seq 10); do
+    jq --exit-status --slurp 'map(select(.metadata.action == "instance-shutdown")) | length == 3' "${monfile}" && break
+    sleep 1
+  done
+
+  kill_go_proc "${mon_pid}"
+  jq --exit-status --slurp '[.[] | select(.metadata.action == "instance-shutdown") | .metadata.context.action] == ["reboot", "stop", "stop"]' "${monfile}"
+  rm "${monfile}"
+  lxc delete c1
+
   # Cleanup
   fingerprint="$(lxc config trust ls --format csv | cut -d, -f4)"
   lxc config trust remove "${fingerprint}"
