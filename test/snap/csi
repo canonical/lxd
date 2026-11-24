@@ -58,7 +58,7 @@ fi
 
 # Populate and wire CSI-specific caches (k8s snap + base, Helm chart, OCI images) when enabled.
 if [ -n "${CSI_CACHE_DIR:-}" ]; then
-    mkdir -p "${CSI_CACHE_DIR}/snaps" "${CSI_CACHE_DIR}/charts"
+    mkdir -p "${CSI_CACHE_DIR}/snaps" "${CSI_CACHE_DIR}/charts" "${CSI_CACHE_DIR}/bin"
 
     k8s_snap_dir="${CSI_CACHE_DIR}/snaps/k8s/${K8S_SNAP_CHANNEL/\//-}"
     k8s_snap="$(compgen -G "${k8s_snap_dir}/k8s_*.snap" | head -n1 || true)"
@@ -111,19 +111,37 @@ fi
 
 bash lxd-csi-driver/.github/actions/setup-k8s/k8s.sh deploy
 
+echo "==> Install ginkgo test runner"
+ginkgo_version="$(cd lxd-csi-driver && go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v2)"
 if [ -n "${CSI_CACHE_DIR:-}" ]; then
+    ginkgo_bin="${CSI_CACHE_DIR}/bin/ginkgo-${ginkgo_version}"
+    if [ ! -x "${ginkgo_bin}" ]; then
+        (
+            cd lxd-csi-driver
+            GOBIN="${CSI_CACHE_DIR}/bin" go install "github.com/onsi/ginkgo/v2/ginkgo@${ginkgo_version}"
+        )
+        mv -f "${CSI_CACHE_DIR}/bin/ginkgo" "${ginkgo_bin}"
+    fi
+    ln -sf "${ginkgo_bin}" "${CSI_CACHE_DIR}/bin/ginkgo"
+    PATH="${CSI_CACHE_DIR}/bin:${PATH}"
+
+    # Mark the cache complete once the OCI image archive is populated so snap-test
+    # can save it even if a subsequent e2e test fails (without freezing a partial cache).
+    if [ -f "${K8S_IMAGE_CACHE_PATH}" ]; then
+        touch "${CSI_CACHE_DIR}/.complete"
+    fi
+
     # Ensure files created as root (notably 0600 .snap files) are readable by actions/cache/save.
     chmod -R a+rX "${CSI_CACHE_DIR}"
+else
+    (
+        cd lxd-csi-driver
+        go install "github.com/onsi/ginkgo/v2/ginkgo@${ginkgo_version}"
+    )
+    PATH="$(go env GOPATH)/bin:${PATH}"
 fi
 
-echo "==> Install ginkgo test runner"
-(
-    cd lxd-csi-driver
-    go install github.com/onsi/ginkgo/v2/ginkgo@"$(go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v2)"
-)
-
 echo "==> Run e2e tests"
-PATH="$(go env GOPATH)/bin:${PATH}"
 
 export PATH
 export TEST_LXD_STORAGE_DRIVERS="${TEST_LXD_STORAGE_DRIVERS:-dir,btrfs,zfs,lvm}"
