@@ -5981,7 +5981,16 @@ test_clustering_replicator_basic() {
 
   sub_test "Run replicator and verify instances appear on LXD_TWO"
 
+  local monfile
+  monfile="$(mktemp -p "${TEST_DIR}" monitor.XXX)"
+  LXD_DIR="${LXD_ONE_DIR}" lxc_monitor_start "${monfile}" --type=operation --project replicator-project --format=json
   LXD_DIR="${LXD_ONE_DIR}" lxc replicator run my-replicator --project replicator-project
+  kill_go_proc "${LXC_MONITOR_PID}" || true
+
+  # The transfer runs as part of the "Replicating instance" operations, not as separate "Migrating instance" operations.
+  jq --exit-status --slurp 'any(.[]; .metadata.description == "Replicating instance") and all(.[]; .metadata.description != "Migrating instance")' "${monfile}"
+  rm "${monfile}"
+
   bulk_op="$(LXD_DIR="${LXD_ONE_DIR}" lxc query -X GET '/1.0/operations?project=replicator-project&recursion=2' | jq --exit-status '.. | objects | select(.description == "Running replicator")')"
   jq --exit-status '([., (.children? // [])[]] | length) == 8 and .status == "Success" and .child_count == 7 and (all(.children[]; .status == "Success"))' <<< "${bulk_op}"
   LXD_DIR="${LXD_TWO_DIR}" lxc list --project replicator-project -f csv -c ns | grep -xF 'c1,STOPPED'
