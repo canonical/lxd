@@ -483,6 +483,27 @@ func (c *ClusterTx) networkState(project string, name string, state NetworkState
 	return nil
 }
 
+// NetworkPending returns the network with the given ID to the pending state after a failed create attempt.
+// It removes the global config and marks the network and all its members as pending.
+func (c *ClusterTx) NetworkPending(ctx context.Context, networkID int64) error {
+	_, err := c.tx.ExecContext(ctx, "DELETE FROM networks_config WHERE network_id=? AND node_id IS NULL", networkID)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.tx.ExecContext(ctx, "UPDATE networks SET state=? WHERE id=?", networkPending, networkID)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.tx.ExecContext(ctx, "UPDATE networks_nodes SET state=? WHERE network_id=?", networkPending, networkID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // NetworkNodeCreated sets the state of the given network for the local member to networkCreated.
 func (c *ClusterTx) NetworkNodeCreated(networkID int64) error {
 	return c.networkNodeState(networkID, networkCreated)
