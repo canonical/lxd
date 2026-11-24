@@ -353,8 +353,12 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 				_ = file.Close()
 			}
 
-			// Poll log file a few times until we see "Started" to indicate successful start.
-			for range 10 {
+			// Poll the log file until we see "Started" to indicate successful start.
+			// forkproxy usually logs it within a couple of hundred milliseconds, so
+			// check every 100ms instead of every second: the one second interval
+			// added close to a full second to the start of every instance with a
+			// proxy device. The total budget before giving up is unchanged (10s).
+			for range 100 {
 				started, err := d.checkProcStarted(logPath)
 				if err != nil {
 					_ = p.Stop()
@@ -376,7 +380,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 					return nil
 				}
 
-				time.Sleep(time.Second)
+				time.Sleep(100 * time.Millisecond)
 			}
 
 			_ = p.Stop()
