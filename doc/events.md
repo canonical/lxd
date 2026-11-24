@@ -128,7 +128,7 @@ type: lifecycle
 | `instance-restarted`                   | The instance has restarted.                                           |                                                                                                      |
 | `instance-restored`                    | The instance has been restored from a snapshot.                       | `snapshot`: name of the snapshot being restored.                                                     |
 | `instance-resumed`                     | The instance has resumed after being paused.                          |                                                                                                      |
-| `instance-shutdown`                    | The instance has shut down.                                           |                                                                                                      |
+| `instance-shutdown`                    | The instance has shut down.                                           | `action`: `reboot` or `stop`.                                                                        |
 | `instance-snapshot-created`            | A snapshot of the instance has been created.                          |                                                                                                      |
 | `instance-snapshot-deleted`            | The instance snapshot has been deleted.                               |                                                                                                      |
 | `instance-snapshot-renamed`            | The instance snapshot has been renamed.                               | `old_name`: the previous name.                                                                       |
