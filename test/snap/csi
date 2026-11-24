@@ -41,6 +41,7 @@ export K8S_KUBECONFIG_PATH
 export K8S_CLUSTER_NAME="${CLUSTER_NAME}"
 export K8S_SNAP_CHANNEL="${K8S_SNAP_CHANNEL:-latest/edge}"
 export K8S_CSI_IMAGE_TAG="${K8S_CSI_IMAGE_TAG:-latest-edge}"
+export K8S_CSI_CHART_TAG="${K8S_CSI_CHART_TAG:-v0-latest-edge}"
 export K8S_NODE_COUNT="${K8S_NODE_COUNT:-2}"
 
 # Reuse the cached Ubuntu 24.04 minimal VM image when available instead of pulling it fresh.
@@ -55,9 +56,9 @@ if [ -n "${IMAGE_CACHE_DIR:-}" ] && [ -f "${IMAGE_CACHE_DIR}/ubuntu.metadata" ] 
     fi
 fi
 
-# Populate and wire CSI-specific caches (k8s snap + base) when enabled.
+# Populate and wire CSI-specific caches (k8s snap + base, Helm chart, OCI images) when enabled.
 if [ -n "${CSI_CACHE_DIR:-}" ]; then
-    mkdir -p "${CSI_CACHE_DIR}/snaps"
+    mkdir -p "${CSI_CACHE_DIR}/snaps" "${CSI_CACHE_DIR}/charts"
 
     k8s_snap_dir="${CSI_CACHE_DIR}/snaps/k8s/${K8S_SNAP_CHANNEL/\//-}"
     k8s_snap="$(compgen -G "${k8s_snap_dir}/k8s_*.snap" | head -n1 || true)"
@@ -88,6 +89,24 @@ if [ -n "${CSI_CACHE_DIR:-}" ]; then
     fi
 
     export K8S_SNAP_CACHE_DIR="${CSI_CACHE_DIR}/snaps"
+
+    chart_archive="${CSI_CACHE_DIR}/charts/lxd-csi-driver-${K8S_CSI_CHART_TAG}.tgz"
+    if [ ! -f "${chart_archive}" ]; then
+        chart_tmp="$(mktemp -d)"
+        if helm pull oci://ghcr.io/canonical/charts/lxd-csi-driver --version "${K8S_CSI_CHART_TAG}" --destination "${chart_tmp}"; then
+            pulled_chart="$(compgen -G "${chart_tmp}/lxd-csi-driver-*.tgz" | head -n1 || true)"
+            if [ -n "${pulled_chart}" ]; then
+                mv -f "${pulled_chart}" "${chart_archive}"
+            fi
+        fi
+        rm -rf "${chart_tmp}"
+    fi
+    if [ -f "${chart_archive}" ]; then
+        export K8S_CSI_CHART_PATH="${chart_archive}"
+    fi
+
+    export K8S_IMAGE_CACHE_PATH="${CSI_CACHE_DIR}/k8s-images.tar"
+    export K8S_IMAGE_CACHE_EXTRA_IMAGES="docker.io/library/busybox:latest"
 fi
 
 bash lxd-csi-driver/.github/actions/setup-k8s/k8s.sh deploy
