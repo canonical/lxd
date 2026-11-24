@@ -3479,8 +3479,10 @@ test_clustering_image_offline_member() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --token "${token}"
   LXD_DIR="${LXD_ONE_DIR}" lxc image registry create cluster cluster=lxd_two source_project=default
 
-  sub_test "Launch from a registry on node1 caches the image on node1 only"
-  LXD_DIR="${LXD_ONE_DIR}" lxc init cluster:testimage c1 --target node1
+  sub_test "Copy from a registry on node1 stores the image on node1 only"
+  LXD_DIR="${LXD_ONE_DIR}" lxc image copy cluster:testimage local:
+  LXD_DIR="${LXD_ONE_DIR}" lxc image info "${fingerprint}" | grep -xF "Cached: no"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init "${fingerprint}" c1 --target node1
   stat --terse "${LXD_ONE_DIR}/images/${fingerprint}"
   [ ! -e "${LXD_TWO_DIR}/images/${fingerprint}" ]
 
@@ -3503,10 +3505,18 @@ test_clustering_image_offline_member() {
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${fingerprint}'")" = 1 ]
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images_nodes JOIN images ON images.id = images_nodes.image_id WHERE images.fingerprint = '${fingerprint}'")" = 2 ]
 
+  # Launching an instance doesn't mark the copied image as cached.
+  LXD_DIR="${LXD_TWO_DIR}" lxc image info "${fingerprint}" | grep -xF "Cached: no"
+
   sub_test "Launch an image cached in another project only on the offline node1"
   LXD_DIR="${LXD_TWO_DIR}" lxc init cluster:otherimage c4 --target node2
   stat --terse "${LXD_TWO_DIR}/images/${other_fingerprint}"
   [ "$(LXD_DIR="${LXD_TWO_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${other_fingerprint}'")" = 2 ]
+
+  sub_test "Copy an image cached only on the offline node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc image info "${other_fingerprint}" --project foo | grep -xF "Cached: yes"
+  LXD_DIR="${LXD_TWO_DIR}" lxc image copy cluster:otherimage local: --target-project foo
+  LXD_DIR="${LXD_TWO_DIR}" lxc image info "${other_fingerprint}" --project foo | grep -xF "Cached: no"
 
   # Bring node1 back and clean up.
   LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" true
