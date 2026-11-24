@@ -57,7 +57,7 @@ runs:
   steps:
     - name: Reclaim disk space
       # This can take multiple minutes if the runner is busy/slow so only run it when/where absolutely needed.
-      if: ${{ inputs.test == 'conversion' || inputs.test == 'nesting' || startsWith(inputs.test, 'storage-') }}
+      if: ${{ inputs.test == 'conversion' || inputs.test == 'nesting' || inputs.test == 'csi' || startsWith(inputs.test, 'storage-') }}
       uses: $/.github/actions/reclaim-disk-space
 
     - name: "Disable br_netfilter"
@@ -141,7 +141,7 @@ runs:
         microceph-channel: ${{ inputs.microceph-channel }}
 
     - name: Setup MicroOVN
-      if: ${{ inputs.microovn-channel != '' }}
+      if: ${{ inputs.microovn-channel != '' && inputs.test != 'csi' }}
       uses: $/.github/actions/setup-microovn
       with:
         snap-cache-dir: ${{ inputs.snap-cache-dir }}
