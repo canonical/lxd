@@ -43,6 +43,18 @@ export K8S_SNAP_CHANNEL="${K8S_SNAP_CHANNEL:-latest/edge}"
 export K8S_CSI_IMAGE_TAG="${K8S_CSI_IMAGE_TAG:-latest-edge}"
 export K8S_NODE_COUNT="${K8S_NODE_COUNT:-2}"
 
+# Reuse the cached Ubuntu 24.04 minimal VM image when available instead of pulling it fresh.
+if [ -n "${IMAGE_CACHE_DIR:-}" ] && [ -f "${IMAGE_CACHE_DIR}/ubuntu.metadata" ] && [ -f "${IMAGE_CACHE_DIR}/ubuntu.img" ]; then
+    echo "==> Import cached Ubuntu VM image"
+    if ! lxc image alias list -f csv ubuntu-vm | grep '^ubuntu-vm,' >/dev/null; then
+        if lxc image import --quiet "${IMAGE_CACHE_DIR}/ubuntu.metadata" "${IMAGE_CACHE_DIR}/ubuntu.img" --alias ubuntu-vm; then
+            export LXD_INSTANCE_IMAGE="ubuntu-vm"
+        fi
+    else
+        export LXD_INSTANCE_IMAGE="ubuntu-vm"
+    fi
+fi
+
 bash lxd-csi-driver/.github/actions/setup-k8s/k8s.sh deploy
 
 echo "==> Install ginkgo test runner"
