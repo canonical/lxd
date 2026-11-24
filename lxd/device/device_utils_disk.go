@@ -24,68 +24,80 @@ import (
 	"github.com/canonical/lxd/shared/revert"
 )
 
-// DiskMount mounts a disk device.
-func DiskMount(srcPath string, dstPath string, recursive bool, propagation string, mountOptions []string, fsName string) error {
-	var err error
-
-	flags, mountOptionsStr := filesystem.ResolveMountOptions(mountOptions)
-
-	var readonly bool
-	if slices.Contains(mountOptions, "ro") {
-		readonly = true
+// diskPropagationFlags returns the mount(2) flags for a disk device propagation setting.
+// An empty setting keeps the mount from propagating back to the host (a recursive slave). For a recursive
+// mount the propagation applies to the submounts too, whatever the mode.
+func diskPropagationFlags(propagation string, recursive bool) (uintptr, error) {
+	modes := map[string]uintptr{
+		"":            unix.MS_REC | unix.MS_SLAVE,
+		"private":     unix.MS_PRIVATE,
+		"shared":      unix.MS_SHARED,
+		"slave":       unix.MS_SLAVE,
+		"unbindable":  unix.MS_UNBINDABLE,
+		"rprivate":    unix.MS_PRIVATE | unix.MS_REC,
+		"rshared":     unix.MS_SHARED | unix.MS_REC,
+		"rslave":      unix.MS_SLAVE | unix.MS_REC,
+		"runbindable": unix.MS_UNBINDABLE | unix.MS_REC,
 	}
 
-	// Detect the filesystem
-	if fsName == "none" {
-		flags |= unix.MS_BIND
-	}
-
-	if propagation != "" {
-		switch propagation {
-		case "private":
-			flags |= unix.MS_PRIVATE
-		case "shared":
-			flags |= unix.MS_SHARED
-		case "slave":
-			flags |= unix.MS_SLAVE
-		case "unbindable":
-			flags |= unix.MS_UNBINDABLE
-		case "rprivate":
-			flags |= unix.MS_PRIVATE | unix.MS_REC
-		case "rshared":
-			flags |= unix.MS_SHARED | unix.MS_REC
-		case "rslave":
-			flags |= unix.MS_SLAVE | unix.MS_REC
-		case "runbindable":
-			flags |= unix.MS_UNBINDABLE | unix.MS_REC
-		default:
-			return fmt.Errorf("Invalid propagation mode %q", propagation)
-		}
+	flags, ok := modes[propagation]
+	if !ok {
+		return 0, fmt.Errorf("Invalid propagation mode %q", propagation)
 	}
 
 	if recursive {
 		flags |= unix.MS_REC
 	}
 
+	return flags, nil
+}
+
+// diskMountFlags returns the mount(2) flags and filesystem data string for a disk device mount.
+func diskMountFlags(recursive bool, mountOptions []string, fsName string) (uintptr, string) {
+	flags, mountOptionsStr := filesystem.ResolveMountOptions(mountOptions)
+
+	// Detect the filesystem
+	if fsName == "none" {
+		flags |= unix.MS_BIND
+	}
+
+	if recursive {
+		flags |= unix.MS_REC
+	}
+
+	return flags, mountOptionsStr
+}
+
+// DiskMount mounts a disk device.
+//
+// The propagation setting is applied with a separate mount(2) call after the mount: the kernel ignores
+// propagation flags that are combined with MS_BIND in a single call.
+func DiskMount(srcPath string, dstPath string, recursive bool, propagation string, mountOptions []string, fsName string) error {
+	propagationFlags, err := diskPropagationFlags(propagation, recursive)
+	if err != nil {
+		return err
+	}
+
+	flags, mountOptionsStr := diskMountFlags(recursive, mountOptions, fsName)
+
 	// Mount the filesystem
-	err = unix.Mount(srcPath, dstPath, fsName, uintptr(flags), mountOptionsStr)
+	err = unix.Mount(srcPath, dstPath, fsName, flags, mountOptionsStr)
 	if err != nil {
 		return fmt.Errorf("Cannot mount %q at %q with filesystem %q: %w", srcPath, dstPath, fsName, err)
 	}
 
 	// Remount bind mounts in readonly mode if requested
-	if readonly && flags&unix.MS_BIND == unix.MS_BIND {
+	if slices.Contains(mountOptions, "ro") && flags&unix.MS_BIND == unix.MS_BIND {
 		flags = unix.MS_RDONLY | unix.MS_BIND | unix.MS_REMOUNT
-		err = unix.Mount("", dstPath, fsName, uintptr(flags), "")
+		err = unix.Mount("", dstPath, fsName, flags, "")
 		if err != nil {
 			return fmt.Errorf("Cannot mount %q in readonly mode: %w", dstPath, err)
 		}
 	}
 
-	flags = unix.MS_REC | unix.MS_SLAVE
-	err = unix.Mount("", dstPath, "", uintptr(flags), "")
+	err = unix.Mount("", dstPath, "", propagationFlags, "")
 	if err != nil {
-		return fmt.Errorf("Cannot make mount %q private: %w", dstPath, err)
+		return fmt.Errorf("Cannot set propagation %q on mount %q: %w", propagation, dstPath, err)
 	}
 
 	return nil
