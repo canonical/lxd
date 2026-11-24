@@ -3438,6 +3438,111 @@ test_clustering_image_refresh() {
   LXD_NETNS=
 }
 
+test_clustering_image_offline_member() {
+  # The random storage backend is not supported in clustering tests,
+  # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
+  local poolDriver
+  poolDriver="$(storage_backend "$LXD_INITIAL_DIR")"
+
+  spawn_lxd_and_bootstrap_cluster "${poolDriver}"
+
+  # Keep each downloaded image on a single member.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.images_minimal_replica=1
+
+  local cert
+  cert="$(cert_to_yaml "${LXD_ONE_DIR}/cluster.crt")"
+
+  spawn_lxd_and_join_cluster "${cert}" 2 1 "${LXD_ONE_DIR}" "${poolDriver}"
+  spawn_lxd_and_join_cluster "${cert}" 3 1 "${LXD_ONE_DIR}" "${poolDriver}"
+
+  # Spawn a standalone server holding a public testimage, used as an image registry.
+  setup_clustering_netns 4
+  LXD_REMOTE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  ns4="${prefix}4"
+  LXD_NETNS="${ns4}" spawn_lxd "${LXD_REMOTE_DIR}" false
+  dir_configure "${LXD_REMOTE_DIR}"
+  LXD_DIR="${LXD_REMOTE_DIR}" deps/import-busybox --alias testimage --public
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc config set core.https_address "100.64.1.104:8443"
+  fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image info testimage | awk '/^Fingerprint:/ {print $2}')"
+
+  # Publish a second image with a different fingerprint.
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc init testimage c1
+  echo "${RANDOM}" | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias otherimage --public
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc delete c1
+  other_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image info otherimage | awk '/^Fingerprint:/ {print $2}')"
+
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc auth group create img-group
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc auth group permission add img-group project default can_view
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc auth group permission add img-group project default can_view_images
+  token="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc cluster link create lxd_one --quiet --auth-group img-group)"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster link create lxd_two --token "${token}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc image registry create cluster cluster=lxd_two source_project=default
+
+  sub_test "Launch from a registry on node1 caches the image on node1 only"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init cluster:testimage c1 --target node1
+  stat --terse "${LXD_ONE_DIR}/images/${fingerprint}"
+  [ ! -e "${LXD_TWO_DIR}/images/${fingerprint}" ]
+
+  # Cache the second image on node1 in another project.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile show default | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default --project foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc init cluster:otherimage c3 --target node1 --project foo
+  stat --terse "${LXD_ONE_DIR}/images/${other_fingerprint}"
+  [ ! -e "${LXD_TWO_DIR}/images/${other_fingerprint}" ]
+
+  sub_test "Launch the same image on node2 while node1 is offline"
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 11
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 12
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -wF node1 | grep -wF OFFLINE
+
+  # The image is downloaded again from the registry instead of failing with "Image not available on any online member".
+  LXD_DIR="${LXD_TWO_DIR}" lxc init cluster:testimage c2 --target node2
+  stat --terse "${LXD_TWO_DIR}/images/${fingerprint}"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${fingerprint}'")" = 1 ]
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images_nodes JOIN images ON images.id = images_nodes.image_id WHERE images.fingerprint = '${fingerprint}'")" = 2 ]
+
+  sub_test "Launch an image cached in another project only on the offline node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc init cluster:otherimage c4 --target node2
+  stat --terse "${LXD_TWO_DIR}/images/${other_fingerprint}"
+  [ "$(LXD_DIR="${LXD_TWO_DIR}" lxd sql global --format csv "SELECT COUNT(*) FROM images WHERE fingerprint = '${other_fingerprint}'")" = 2 ]
+
+  # Bring node1 back and clean up.
+  LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" true
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c1 c2 c4
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete c3 --project foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete "${fingerprint}" "${other_fingerprint}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete "${other_fingerprint}" --project foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc image delete testimage otherimage
+
+  printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
+  LXD_DIR="${LXD_ONE_DIR}" lxc image registry delete cluster
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_REMOTE_DIR}" lxd shutdown
+
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_REMOTE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_REMOTE_DIR}"
+
+  # shellcheck disable=SC2034
+  LXD_NETNS=
+}
+
 test_clustering_evacuation() {
   wait_for_evacuation_op() {
     local lxd_dir="$1"
