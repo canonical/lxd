@@ -676,8 +676,21 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 			}
 
 			_, info, err = tx.GetImage(ctx, info.Fingerprint, cluster.ImageFilter{Project: &args.ProjectName})
+			if err != nil {
+				return err
+			}
 
-			return err
+			// Same as for an image that already exists: an explicit `image copy` disables its `cache` parameter.
+			if info.Cached && args.UserRequested {
+				err = tx.UnsetImageCached(ctx, args.ProjectName, info.Fingerprint)
+				if err != nil {
+					return err
+				}
+
+				info.Cached = false
+			}
+
+			return nil
 		}
 
 		// Create the database entry
@@ -713,8 +726,8 @@ func ImageDownload(ctx context.Context, s *state.State, op *operations.Operation
 		}
 	}
 
-	// Mark the image as "cached" if downloading for an instance
-	if args.SetCached {
+	// Mark the image as "cached" if downloading for an instance, unless the image record already existed.
+	if args.SetCached && !redownload {
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.SetImageCachedAndLastUseDate(ctx, args.ProjectName, fp, time.Now().UTC())
 		})
