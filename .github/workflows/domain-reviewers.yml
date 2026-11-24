@@ -18,6 +18,7 @@ jobs:
   assign-reviewers:
     if: ${{ github.repository_owner == 'canonical' && !github.event.pull_request.draft }}
     permissions:
+      contents: read # for private repos
       pull-requests: write
     name: Assign domain reviewers
     runs-on: ubuntu-slim
