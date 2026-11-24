@@ -775,6 +775,8 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 
 	// Check that the network is properly defined, get the node-specific configs and merge with global config.
 	var nodeConfigs map[string]map[string]string
+	var networkID int64
+	var globalConfigCreated bool
 	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check if any global config exists already, if so we should not create global config again.
 		if netInfo != nil && networkPartiallyCreated(netInfo) {
@@ -786,8 +788,10 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 			return nil
 		}
 
+		var err error
+
 		// Fetch the network ID.
-		networkID, err := tx.GetNetworkID(ctx, projectName, req.Name)
+		networkID, err = tx.GetNetworkID(ctx, projectName, req.Name)
 		if err != nil {
 			return err
 		}
@@ -817,7 +821,14 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 		}
 
 		// Assume failure unless we succeed later on.
-		return tx.NetworkErrored(projectName, req.Name)
+		err = tx.NetworkErrored(projectName, req.Name)
+		if err != nil {
+			return err
+		}
+
+		globalConfigCreated = true
+
+		return nil
 	})
 	if err != nil {
 		if response.IsNotFoundError(err) {
@@ -825,6 +836,21 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 		}
 
 		return err
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// If the create fails, back it out so the network returns to pending and can be created again.
+	if globalConfigCreated {
+		var description string
+		if netInfo != nil {
+			description = netInfo.Description
+		}
+
+		revert.Add(func() {
+			networksPostClusterRevert(s, projectName, req.Name, networkID, description, clientType)
+		})
 	}
 
 	// Load the network from the database for the local member.
@@ -898,7 +924,56 @@ func networksPostCluster(ctx context.Context, s *state.State, projectName string
 
 	logger.Debug("Marked network global status as created", logger.Ctx{"project": projectName, "network": req.Name})
 
+	revert.Success()
+
 	return nil
+}
+
+// networksPostClusterRevert backs out a failed cluster network create. It deletes the network on each member
+// that created it, then removes the global config and returns the network to the pending state.
+// If the network can't be deleted on every member, it is left in the errored state.
+func networksPostClusterRevert(s *state.State, projectName string, networkName string, networkID int64, description string, clientType request.ClientType) {
+	l := logger.AddContext(logger.Ctx{"project": projectName, "network": networkName})
+	ctx := context.Background()
+
+	notifier, err := cluster.NewOperationNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
+	if err == nil {
+		err = notifier(func(member db.NodeInfo, client lxd.InstanceServer) error {
+			op, err := client.UseProject(projectName).DeleteNetwork(networkName)
+			if err == nil {
+				err = op.WaitContext(ctx)
+			}
+
+			return err
+		})
+	}
+
+	if err != nil {
+		l.Warn("Failed deleting network on other members after failed create", logger.Ctx{"err": err})
+		return
+	}
+
+	n, err := network.LoadByName(s, projectName, networkName)
+	if err == nil && n.LocalStatus() == api.NetworkStatusCreated {
+		err = n.Delete(clientType)
+	}
+
+	if err != nil {
+		l.Warn("Failed deleting network after failed create", logger.Ctx{"err": err})
+		return
+	}
+
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		err := tx.UpdateNetworkDescription(networkID, description)
+		if err != nil {
+			return err
+		}
+
+		return tx.NetworkPending(ctx, networkID)
+	})
+	if err != nil {
+		l.Warn("Failed returning network to pending after failed create", logger.Ctx{"err": err})
+	}
 }
 
 // Create the network on the system. The clusterNotification flag is used to indicate whether creation request
