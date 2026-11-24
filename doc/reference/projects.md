@@ -18,13 +18,17 @@ The following options are available:
 
 The project features define which entities are isolated in the project and which are inherited from the `default` project.
 
-If a `feature.*` option is set to `true`, the corresponding entity is isolated in the project.
+If a `features.*` option is set to `true`, the corresponding entities are isolated in the project.
+If a `features.*` option is set to `false`, the project inherits the corresponding entities from the `default` project.
 
-```{note}
-When you create a project without explicitly configuring a specific option, this option is set to the initial value given in the following table.
+```{warning}
+New projects are not isolated from one another by default.
 
-However, if you unset one of the `feature.*` options, it does not go back to the initial value, but to the default value.
-The default value for all `feature.*` options is `false`.
+When you create a new project, the `features.*` options have initial values as specified in the table below, unless explicitly configured otherwise.
+The {config:option}`project-features:features.networks` and {config:option}`project-features:features.networks.zones` options both have initial values of `false`, which means that projects inherit those entities from the `default` project.
+
+If you unset a `features.*` option, that option then takes on a default value as specified in the table below, rather than returning to its initial value.
+The default value for all `features.*` options is `false`.
 ```
 
 % Include content from [../metadata.txt](../metadata.txt)
