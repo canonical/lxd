@@ -120,13 +120,6 @@ ignore_known_issues() {
 # Silence GH warnings in isSystemdClean
 export WARNING_PREFIX="false"
 for release in $RELEASES; do
-    if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
-        if dpkg --compare-versions "${release}" ge "24.04"; then
-            echo "Skip ${release} container tests on ${LXD_SNAP_CHANNEL}"
-            continue
-        fi
-    fi
-
     if [ "${release}" = "20.04" ] && dpkg --compare-versions "${VERSION_ID}" gt "24.04"; then
         echo "Skip ${release} container tests on ${VERSION_ID} host"
         continue
@@ -154,16 +147,7 @@ for release in $RELEASES; do
     isSystemdClean i1 || ignore_known_issues i1 isolated
     lxc delete -f i1
 
-    testNested="true"
-    if [ "${release}" = "20.04" ]; then
-        testNested="false"
-    elif [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
-        if dpkg --compare-versions "${release}" ge "26.04"; then
-            testNested="false"
-        fi
-    fi
-
-    if [ "${testNested}" = "true" ]; then
+    if [ "${release}" != "20.04" ]; then
         echo "==> nested container (${release})"
         lxc launch "${IMAGE}" n1 -c security.nesting=true -c security.devlxd.images=true
         isSystemdClean n1 || ignore_known_issues n1 nesting
@@ -174,7 +158,7 @@ for release in $RELEASES; do
         [ "$(lxc exec n1 -- lxc exec n11 -- systemctl --quiet --failed || echo fail)" = "" ] || ignore_known_issues n11 nested
         lxc delete -f n1
     else
-        echo "Skip ${release} nested container tests on ${LXD_SNAP_CHANNEL}"
+        echo "Skip ${release} nested container tests"
         continue
     fi
 
@@ -232,17 +216,15 @@ lxc image alias create containeralias "$(lxc config get c1 volatile.base_image)"
 lxc image alias delete containeralias
 
 echo "==> Test unprivileged BPF delegation"
-if ! { runsMinimumKernel 6.9 && hasNeededAPIExtension container_bpf_delegation; }; then
+if ! runsMinimumKernel 6.9; then
     # check that we fail container to start if kernel has no support for bpf token
-    if hasNeededAPIExtension container_bpf_delegation; then
-        lxc delete -f c1
-        lxc init "${IMAGE}" c1
-        lxc config set c1 security.delegate_bpf=true
-        ! lxc start c1 || false
-        lxc config unset c1 security.delegate_bpf
-    fi
+    lxc delete -f c1
+    lxc init "${IMAGE}" c1
+    lxc config set c1 security.delegate_bpf=true
+    ! lxc start c1 || false
+    lxc config unset c1 security.delegate_bpf
 
-    echo "Skipping unprivileged container bpf delegation test as the kernel is too old or LXD support missing"
+    echo "Skipping unprivileged container bpf delegation test as the kernel is too old"
 else
     lxc delete -f c1
     lxc init "${IMAGE}" c1
