@@ -57,6 +57,10 @@ lxc profile device add default eth0 nic network=lxdbr0
 lxc config set core.https_address :8443
 
 poolDriver="zfs"
+if ! hasSupportedStorageDriver "${poolDriver}"; then
+    echo "${LXD_SNAP_CHANNEL} does not support ${poolDriver} on this kernel, falling back to btrfs"
+    poolDriver="btrfs"
+fi
 poolName="vmpool-${poolDriver}"
 
 echo "==> Create storage pool using driver ${poolDriver}"
