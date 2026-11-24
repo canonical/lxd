@@ -194,8 +194,7 @@ else
     [ "$(lxc exec c1 -- cat /sys/fs/cgroup/pids.max)" = "2000" ]
 fi
 
-# limits.network.priority was dropped after 5.0
-if [[ -e "/sys/fs/cgroup/net_prio" ]] && [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
+if [[ -e "/sys/fs/cgroup/net_prio" ]]; then
     echo "==> Testing limits.network.priority"
     # NOTE: No such thing as net_prio under cgroup2
     lxc config set c1 limits.network.priority=10
