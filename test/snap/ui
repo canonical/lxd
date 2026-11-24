@@ -17,31 +17,8 @@ node --version
 echo "==> Get ui test code"
 install_deps git yq
 
-TARGET="${LXD_SNAP_CHANNEL%%/*}"
-# The UI test suite for all the 6 channels match the suite for latest.
-if [ "$TARGET" = "6" ]; then
-  TARGET="latest"
-fi
-PLAYWRIGHT_PROJECT="${BROWSER}:lxd-${TARGET:-latest}-edge:unclustered"
-BRANCH="main"
-if [[ $LXD_SNAP_CHANNEL =~ ^5\.0 ]]; then
-  # LXD 5.0 suite has only chromium and firefox test projects
-  PLAYWRIGHT_PROJECT="${BROWSER}"
-
-  # The UI in LXD 5.0 is not compatible with the test suite in the main branch of lxd-ui,
-  # fall back to the old test suite from when LXD 5.0 was released.
-  BRANCH="stable-5.0"
-
-  # enable ui manually for 5.0, which disables ui by default
-  snap set lxd ui.enable=true
-  systemctl reload snap.lxd.daemon
-fi
-if [[ $LXD_SNAP_CHANNEL =~ ^5\.21 ]]; then
-  # For LXD 5.21, use the UI test suite from the corresponding branch
-  BRANCH="stable-5.21"
-  # Use project names from the 5.21 test suite
-  PLAYWRIGHT_PROJECT="${BROWSER}:lxd-${TARGET:-latest}-edge"
-fi
+BRANCH="stable-5.21"
+PLAYWRIGHT_PROJECT="${BROWSER}:lxd-5.21-edge"
 
 # Determine which lxd-ui revision matches the UI bundled in the snap under test.
 # When the snap is packed, its manifest records how the `lxd-ui` part was sourced:
@@ -101,10 +78,8 @@ cat keys/lxd-ui.key keys/lxd-ui.crt > keys/lxd-ui.pem
 cp keys/lxd-ui.key keys/lxd-ui.crt.key
 # Set base url
 sed -i 's|https://localhost:8407/|https://localhost:8443/|g' playwright.config.ts
-# Skip login tests on main suite. Ignore this on 5.0 which doesn't have login tests
-if [[ ! $LXD_SNAP_CHANNEL =~ ^5\.0 ]]; then
-  sed -i 's/test\.skip(!testInfo\.project\.name\.includes("login"));/test.skip(true);/' tests/login.spec.ts
-fi
+# Skip login tests
+sed -i 's/test\.skip(!testInfo\.project\.name\.includes("login"));/test.skip(true);/' tests/login.spec.ts
 # Use client certificate
 sed -i '/trace:/a\
     clientCertificates: [\
@@ -122,17 +97,12 @@ lxc network create local-network
 lxc profile device add default eth0 nic network=local-network
 lxc config set core.https_address "[::]:8443"
 lxc config set cluster.https_address "127.0.0.1"
-if [[ $LXD_SNAP_CHANNEL =~ ^5\.0 ]] || [[ $LXD_SNAP_CHANNEL =~ ^5\.21 ]]; then
-  # LXD 5.0 and 5.21 suites need a clustered backend
-  # newer suites expect unclustered setup
-  lxc cluster enable local
-fi
+# LXD 5.21 suite needs a clustered backend
+lxc cluster enable local
 
 lxc config trust add keys/lxd-ui.crt
 # setup oidc users that are expected in tests
-if hasNeededAPIExtension "oidc"; then
-  ./tests/scripts/setup_test
-fi
+./tests/scripts/setup_test
 
 echo "==> Run e2e test suite"
 CI=1 npx playwright test --project "${PLAYWRIGHT_PROJECT}"
