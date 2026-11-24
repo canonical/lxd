@@ -18,7 +18,9 @@ configure_ovn
 
 # Configure LXD.
 lxc project switch default
-lxc storage create default zfs
+# Use btrfs as a fast CoW driver without depending on snap-provided ZFS tools
+# matching the host kernel module version.
+lxc storage create default btrfs
 
 # XXX: known DNS resolution on for .lxd domain with 24.04 instances
 IMAGE="${TEST_IMG:-ubuntu-daily:22.04}"
