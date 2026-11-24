@@ -5,7 +5,7 @@ myst:
 ---
 
 (exp-projects)=
-# Instances grouping with projects
+# Projects
 
 ```{youtube} https://www.youtube.com/watch?v=cUHkgg6TovM
 :title: Overview of LXD projects
@@ -53,7 +53,7 @@ To edit them, you must remove all instances first.
 New features that are added in an upgrade are disabled for existing projects.
 ```
 
-```{important}
+```{warning}
 In a multi-tenant environment, unless using {ref}`fine-grained-authorization`, all projects should have all features enabled.
 Otherwise, clients with {ref}`restricted-tls-certs` are able to create, edit, and delete resources in the default project. This might affect other tenants.
 
