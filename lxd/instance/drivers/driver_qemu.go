@@ -2263,8 +2263,16 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 		return err
 	}
 
+	// Sort template keys to ensure deterministic iteration order.
+	tplPaths := make([]string, 0, len(metadata.Templates))
+	for tplPath := range metadata.Templates {
+		tplPaths = append(tplPaths, tplPath)
+	}
+	sort.Strings(tplPaths)
+
 	// Go through the templates.
-	for tplPath, tpl := range metadata.Templates {
+	for _, tplPath := range tplPaths {
+		tpl := metadata.Templates[tplPath]
 		err = func(tplPath string, tpl *api.ImageMetadataTemplate) error {
 			var w *os.File
 
