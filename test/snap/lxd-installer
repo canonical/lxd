@@ -3,13 +3,6 @@
 . "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../local-snap.sh" || return 1
 set -eu
 
-if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
-  echo "Skipping test on 4.0 branch"
-  # shellcheck disable=SC2034
-  FAIL=0
-  exit 0
-fi
-
 # Install LXD
 install_lxd
 
