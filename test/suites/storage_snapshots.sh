@@ -217,6 +217,58 @@ EOF
   lxc storage volume delete "${storage_pool}" "vol1"
   lxc storage volume delete "${storage_pool}" "vol2"
 
+  sub_test "Custom volume copy and refresh preserve snapshot contents"
+  lxc launch testimage "c1"
+  lxc storage volume create "${storage_pool}" "vol1" size=1MiB
+  lxc storage volume attach "${storage_pool}" "vol1" "c1" /mnt
+  lxc exec "c1" -- touch /mnt/snap0
+  lxc storage volume snapshot "${storage_pool}" "vol1" "snap0"
+  lxc exec "c1" -- rm /mnt/snap0
+  lxc exec "c1" -- touch /mnt/snap1
+  lxc storage volume snapshot "${storage_pool}" "vol1" "snap1"
+  lxc exec "c1" -- rm /mnt/snap1
+  lxc exec "c1" -- touch /mnt/main
+  lxc storage volume detach "${storage_pool}" "vol1" "c1"
+
+  # Copy parent volume with its snapshots and verify live + restored snapshot contents.
+  lxc storage volume copy "${storage_pool}/vol1" "${storage_pool}/vol2"
+  lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
+  lxc exec "c1" -- test -f /mnt/main
+  ! lxc exec "c1" -- test -f /mnt/snap0 || false
+  ! lxc exec "c1" -- test -f /mnt/snap1 || false
+  lxc storage volume detach "${storage_pool}" "vol2" "c1"
+
+  lxc storage volume restore "${storage_pool}" "vol2" "snap0"
+  lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
+  lxc exec "c1" -- test -f /mnt/snap0
+  ! lxc exec "c1" -- test -f /mnt/snap1 || false
+  ! lxc exec "c1" -- test -f /mnt/main || false
+  lxc storage volume detach "${storage_pool}" "vol2" "c1"
+
+  lxc storage volume restore "${storage_pool}" "vol2" "snap1"
+  lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
+  ! lxc exec "c1" -- test -f /mnt/snap0 || false
+  lxc exec "c1" -- test -f /mnt/snap1
+  ! lxc exec "c1" -- test -f /mnt/main || false
+  lxc storage volume detach "${storage_pool}" "vol2" "c1"
+
+  # Add a new snapshot on vol1, remove its marker from live vol1, refresh vol2, and verify snap2 contents.
+  lxc storage volume attach "${storage_pool}" "vol1" "c1" /mnt
+  lxc exec "c1" -- touch /mnt/snap2
+  lxc storage volume snapshot "${storage_pool}" "vol1" "snap2"
+  lxc exec "c1" -- rm /mnt/snap2
+  lxc storage volume detach "${storage_pool}" "vol1" "c1"
+
+  lxc storage volume copy "${storage_pool}/vol1" "${storage_pool}/vol2" --refresh
+  lxc storage volume restore "${storage_pool}" "vol2" "snap2"
+  lxc storage volume attach "${storage_pool}" "vol2" "c1" /mnt
+  lxc exec "c1" -- test -f /mnt/snap2
+  lxc storage volume detach "${storage_pool}" "vol2" "c1"
+
+  lxc delete -f "c1"
+  lxc storage volume delete "${storage_pool}" "vol1"
+  lxc storage volume delete "${storage_pool}" "vol2"
+
   # Check snapshot copy (mode pull).
   lxc launch testimage "c1"
   lxc storage volume create "${storage_pool}" "vol1" size=1MiB
