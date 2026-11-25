@@ -6376,10 +6376,30 @@ func (d *qemu) Restore(ctx context.Context, source instance.Instance, stateful b
 
 	d.logger.Info("Restoring instance", ctxMap)
 
+	wasStateful := d.stateful
+
 	wasRunning, op, err := d.restoreCommon(ctx, d, source, diskVolumesMode, progressReporter)
 	if err != nil {
 		op.Done(err)
 		return err
+	}
+
+	// A restore without state replaces the volume, so a saved state of the instance no longer matches its disks.
+	// Clear the flag in the database, otherwise the next start looks for a state file that is gone.
+	if wasStateful && !stateful {
+		err = d.state.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			return tx.UpdateInstanceStatefulFlag(ctx, d.id, false)
+		})
+		if err != nil {
+			op.Done(err)
+			return fmt.Errorf("Error updating instance stateful flag: %w", err)
+		}
+
+		err = os.Remove(d.StatePath())
+		if err != nil && !os.IsNotExist(err) {
+			op.Done(err)
+			return err
+		}
 	}
 
 	d.stateful = stateful
