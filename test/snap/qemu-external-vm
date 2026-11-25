@@ -11,13 +11,6 @@ if [ "${architecture}" != "x86_64" ]; then
   exit 0
 fi
 
-if [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
-  echo "Skipping test on 4.0, 5.0 and 5.21 branches"
-  # shellcheck disable=SC2034
-  FAIL=0
-  exit 0
-fi
-
 # Install LXD
 install_lxd
 
