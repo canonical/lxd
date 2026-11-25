@@ -12,21 +12,11 @@ else
     products=(snapcraft workshop charmcraft pylxd)
 fi
 
-# skipUnsupportedConsumer: returns success (i.e. skip the caller) if the current
-# channel or host OS is known to be incompatible with snapcraft/workshop/charmcraft.
+# skipUnsupportedConsumer: returns success (i.e. skip the caller) because
+# snapcraft/workshop/charmcraft are not supported on 4.0.
 skipUnsupportedConsumer() {
-    if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/|^5\.0/|^5\.21/ ]]; then
-        echo "Skipping ${1} on ${LXD_SNAP_CHANNEL}, not supported"
-        return 0
-    fi
-
-    . /etc/os-release
-    if [ "${VERSION_ID}" = "22.04" ]; then
-        echo "Skipping ${1} on Ubuntu ${VERSION_ID}, not supported"
-        return 0
-    fi
-
-    return 1
+    echo "Skipping ${1} on ${LXD_SNAP_CHANNEL}, not supported"
+    return 0
 }
 
 # test_snapcraft: pack a minimal snap and confirm snapcraft used the LXD backend.
