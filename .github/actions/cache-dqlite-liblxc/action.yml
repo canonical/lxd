@@ -90,6 +90,14 @@ runs:
           /home/runner/go/deps/liblxc
         key: ${{ steps.deps-cache-key.outputs.KEY }}
 
+    # Allow unprivileged helper processes (e.g. `lxd forksyscallgo`) to traverse
+    # the deps directories when loading shared libraries via DT_RUNPATH.
+    - name: Ensure deps path is traversable
+      shell: bash
+      run: |
+        set -eux
+        chmod o+x /home/runner /home/runner/go /home/runner/go/deps
+
     # Export the build environment after dependencies are available, on cache hits
     # and misses, and only when the caller opts in via export-env.
     - name: Update env variables for deps
