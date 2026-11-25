@@ -1351,7 +1351,7 @@ parts:
   lxc:
     source: https://github.com/lxc/lxc
     source-commit: e4415af07e3ec291205bc828e2b4e8141f91a499 # v7.0.0
-    source-depth: 1
+    source-depth: 0
     source-type: git
     build-packages:
       - libapparmor-dev
@@ -1397,6 +1397,7 @@ parts:
       cd ../src
       git config user.email "noreply@lists.canonical.com"
       git config user.name "LXD snap builder"
+      git cherry-pick e4e1fa469228db6d54c4945bbcdbd5abe52bb1ca # lxc/caps: fix cap_to_text() memory cleanup
 
       # lxc-checkconfig.in does not need any preprocessing
       mkdir -p "${CRAFT_PART_INSTALL}/bin/"
