@@ -159,18 +159,57 @@ for poolDriver in $poolDriverList; do
         echo "==> Checking VM filesystem volume was restored too"
         nsenter --mount=/run/snapd/ns/lxd.mnt [ -f "/var/snap/lxd/common/lxd/storage-pools/${poolName}/virtual-machines/v1/foo" ]
 
+        # Diverge live v1 from snap0 on both the root block disk and the VM filesystem volume.
+        lxc exec v1 -- rm /root/foo.txt
+        lxc exec v1 -- sync
+        nsenter --mount=/run/snapd/ns/lxd.mnt rm "/var/snap/lxd/common/lxd/storage-pools/${poolName}/virtual-machines/v1/foo"
+
         echo "==> Checking VM can be copied with snapshots"
         lxc copy v1 v2
         lxc query /1.0/instances/v2?recursion=1 | jq --exit-status '.snapshots | length == 1'
         lxc start v2
         waitInstanceReady v2
+        if lxc exec v2 -- test -f /root/foo.txt; then
+                echo "ERROR: Live copied VM unexpectedly has snap0 root disk file"
+                exit 1
+        fi
+        if nsenter --mount=/run/snapd/ns/lxd.mnt [ -f "/var/snap/lxd/common/lxd/storage-pools/${poolName}/virtual-machines/v2/foo" ]; then
+                echo "ERROR: Live copied VM unexpectedly has snap0 filesystem file"
+                exit 1
+        fi
+        prepare_vm_for_hard_stop v2
+        lxc stop -f v2
+
+        echo "==> Checking copied VM snapshot preserves root disk and filesystem contents"
+        lxc restore v2 snap0
+        lxc config unset v2 volatile.eth0.hwaddr
+        lxc start v2
+        waitInstanceReady v2
+        [ "$(lxc exec v2 -- cat /root/foo.txt)" = "foo" ]
+        nsenter --mount=/run/snapd/ns/lxd.mnt [ -f "/var/snap/lxd/common/lxd/storage-pools/${poolName}/virtual-machines/v2/foo" ]
         prepare_vm_for_hard_stop v2
         lxc stop -f v2
 
         echo "==> Checking VM can be refreshed"
+        echo "bar" | lxc exec v1 -- tee /root/bar.txt
+        lxc exec v1 -- sync
+        nsenter --mount=/run/snapd/ns/lxd.mnt touch "/var/snap/lxd/common/lxd/storage-pools/${poolName}/virtual-machines/v1/bar"
         lxc snapshot v1
+        # Diverge live v1 from snap1 on both the root block disk and the VM filesystem volume.
+        lxc exec v1 -- rm /root/bar.txt
+        lxc exec v1 -- sync
+        nsenter --mount=/run/snapd/ns/lxd.mnt rm "/var/snap/lxd/common/lxd/storage-pools/${poolName}/virtual-machines/v1/bar"
+
         lxc copy v1 v2 --refresh
         lxc query /1.0/instances/v2?recursion=1 | jq --exit-status '.snapshots | length == 2'
+
+        echo "==> Checking refreshed VM snapshot preserves root disk and filesystem contents"
+        lxc restore v2 snap1
+        lxc config unset v2 volatile.eth0.hwaddr
+        lxc start v2
+        waitInstanceReady v2
+        [ "$(lxc exec v2 -- cat /root/bar.txt)" = "bar" ]
+        nsenter --mount=/run/snapd/ns/lxd.mnt [ -f "/var/snap/lxd/common/lxd/storage-pools/${poolName}/virtual-machines/v2/bar" ]
         lxc delete v1/snap1
         prepare_vm_for_hard_stop v2
         lxc delete -f v2
