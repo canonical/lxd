@@ -137,6 +137,10 @@ jobs:
           - ui firefox
           - vm
           - vm-migration
+        exclude:
+          # conversion is not worth testing on 24.04
+          - os: 24.04
+            test: conversion
 
     steps:
       - name: Checkout
