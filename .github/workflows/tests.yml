@@ -847,13 +847,16 @@ jobs:
     # Using `!cancelled()` means that failures on any of the `needs` won't prevent this from running
     # which is why the `.result == 'success'` of each needs to be checked.
     if: |
+      github.repository == 'canonical/lxd' &&
       !cancelled() &&
       needs.code-tests.result == 'success' &&
       needs.system-tests.result == 'success' &&
       needs.snap-tests.result == 'success' &&
       needs.client.result == 'success' &&
       (needs.ui-e2e-tests.result == 'success' || needs.ui-e2e-tests.result == 'skipped') &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'canonical/lxd')
+      ((github.event_name == 'workflow_dispatch' && inputs.coverage && github.ref_name == 'main') ||
+       (github.event_name == 'schedule' && github.ref_name == 'main') ||
+       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == 'canonical/lxd'))
     runs-on: ubuntu-26.04
     permissions:
       contents: read
@@ -905,6 +908,7 @@ jobs:
           file: ${{env.GOCOVERDIR}}/coverage-go.xml
           language: Go
           label: code-coverage
+          fail-on-error: false
 
   ui-e2e-tests:
     name: UI e2e tests
