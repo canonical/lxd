@@ -25,3 +25,15 @@ func TestRsyncProfileEscapesPaths(t *testing.T) {
 		}
 	}
 }
+
+func TestRsyncProfileEscapesExecPath(t *testing.T) {
+	profile, err := rsyncProfile(&sys.OS{ExecPath: `/opt/my lxd[1]/lxd`}, "lxd_test", "/src", "/dst")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rule := `"/opt/my lxd\[1\]/lxd" mixr,`
+	if !strings.Contains(profile, "\n  "+rule+"\n") {
+		t.Errorf("Profile has no rule %q:\n%s", rule, profile)
+	}
+}
