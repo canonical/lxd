@@ -71,9 +71,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .execPath }} mixr,
 
 {{if .libraryPath -}}
-  # Entries from LD_LIBRARY_PATH
+  # Shared libraries
 {{range $index, $element := .libraryPath}}
-  {{$element}}/** mr,
+  "{{$element}}/**" mr,
 {{- end }}
 {{- end }}
 

@@ -143,13 +143,15 @@ _instance_apparmor() {
   lxc delete c1 --force
 }
 
-# _apparmor_library_paths checks that the profiles of a daemon only allow the non-empty LD_LIBRARY_PATH entries.
+# _apparmor_library_paths checks how the profiles of a daemon render its LD_LIBRARY_PATH entries.
 _apparmor_library_paths() {
-  local LXD2_DIR profile entry library_path
+  local LXD2_DIR profile entry library_path special
   LXD2_DIR="$(mktemp -d -p "${TEST_DIR}" XXX)"
 
   # Empty entries at the start, in the middle and at the end, plus a relative one and the root directory.
-  library_path=":.:/:${LD_LIBRARY_PATH:-}::/lxd-test-apparmor/lib:"
+  # The special path exercises quoting and escaping of the rendered rules.
+  special='/lxd-test-apparmor/lib [1]{a,b}*?'
+  library_path=":.:/:${special}:${LD_LIBRARY_PATH:-}::/lxd-test-apparmor/lib:"
   LD_LIBRARY_PATH="${library_path}" spawn_lxd "${LXD2_DIR}" true
 
   LXD_DIR="${LXD2_DIR}" ensure_import_testimage
@@ -161,14 +163,23 @@ _apparmor_library_paths() {
   [ -f "${profile}" ]
 
   sub_test "Empty, relative and root LD_LIBRARY_PATH entries do not render a rule"
-  ! grep -E '^[[:space:]]*(/+|\./)\*\*[[:space:]]' "${profile}" || false
+  ! grep -E '^[[:space:]]*"?(/+|\./)\*\*' "${profile}" || false
 
   sub_test "Absolute LD_LIBRARY_PATH entries are allowed"
   while IFS= read -r entry; do
     # Only the absolute entries other than the root directory are expected in the profile.
     [[ "${entry}" == /?* ]] || continue
-    grep -xF "  ${entry}/** mr," "${profile}"
+    # Entries the profile escapes are checked below.
+    if [ "${entry}" = "${special}" ]; then
+      continue
+    fi
+    # The profile renders the entry normalized, so it carries no trailing slash.
+    entry="${entry%"${entry##*[!/]}"}"
+    grep -xF "  \"${entry}/**\" mr," "${profile}"
   done < <(printf '%s\n' "${library_path}" | tr ':' '\n')
+
+  sub_test "LD_LIBRARY_PATH entries with AppArmor special characters are quoted and escaped"
+  grep -xF '  "/lxd-test-apparmor/lib \[1\]\{a,b\}\*\?/**" mr,' "${profile}"
 
   LXD_DIR="${LXD2_DIR}" lxc delete --force c1
   kill_lxd "${LXD2_DIR}"
