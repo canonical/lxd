@@ -30,10 +30,7 @@ lxc exec v1 -- stat /dev/tpm0
 lxc exec v1 -- stat /dev/tpmrm0
 
 echo "==> Check that swtpm runs under an AppArmor profile of its own"
-# XXX: LXD releases 5.21 and earlier run swtpm unconfined
-if [[ ! "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
-    [[ "$(< "/proc/$(pgrep -x swtpm)/attr/current")" == "lxd_swtpm-"*" (enforce)" ]]
-fi
+[[ "$(< "/proc/$(pgrep -x swtpm)/attr/current")" == "lxd_swtpm-"*" (enforce)" ]]
 
 echo "==> Try removing TPM from a running VM"
 ! lxc config device remove v1 tpm1 || false
@@ -56,11 +53,6 @@ lxc stop v1 --force
 # TPM names are included on the swtpm socket path and long socket paths can cause problems if not handled correctly.
 echo "==> Test handling TPMs with long names"
 longName="device-with-very-long-name-and-/-4-qemu-property-handling-test_"
-# XXX: LXD releases 5.21 and earlier don't support long names
-if [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
-    echo "${LXD_SNAP_CHANNEL} detected, using a shorter name"
-    longName="notSoLongName"
-fi
 lxc config device add v1 "${longName}" tpm
 lxc start v1
 waitInstanceReady v1
