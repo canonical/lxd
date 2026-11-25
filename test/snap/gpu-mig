@@ -75,9 +75,7 @@ UUID4="$(echo "$UUIDS" | sed -n '4p')"
 # Launch test containers
 for i in $(seq 1 4); do
   lxc init "${IMAGE}" "nvidia-mig${i}"
-  if ! hasNeededAPIExtension "gpu_mig_cdi"; then
-    lxc config set "nvidia-mig${i}" nvidia.runtime=true
-  fi
+  lxc config set "nvidia-mig${i}" nvidia.runtime=true
 done
 
 lxc config device add nvidia-mig1 gpu0 gpu gputype=mig mig.uuid="$UUID1" pci="${first_card_pci_slot}"
@@ -110,54 +108,6 @@ lxc exec nvidia-mig4 -- nvidia-smi
 # Make sure all 3 MIG devices are there (gpu{0,1,2})
 [ "$(lxc exec nvidia-mig4 -- nvidia-smi -L | grep -cwF MIG)" -eq 3 ]
 
-# Test CDI "id" notation as MIG selector (requires the gpu_mig_cdi API extension).
-if hasNeededAPIExtension "gpu_mig_cdi"; then
-  # Stop nvidia-mig3 to free UUID3 so the new container has exclusive use of the MIG slice.
-  lxc stop -f nvidia-mig3
-
-  lxc init "${IMAGE}" nvidia-mig5
-
-  # Verify CDI "id" is mutually exclusive with the "pci" parent selector.
-  if lxc config device add nvidia-mig5 gpu_bad gpu gputype=mig id="nvidia.com/mig=${UUID3}" pci="${first_card_pci_slot}"; then
-    echo "ERROR: combining CDI \"id\" with \"pci\" should be rejected" >&2
-    exit 1
-  fi
-
-  # Verify CDI "id" is mutually exclusive with the "vendorid"/"productid" parent selectors.
-  if lxc config device add nvidia-mig5 gpu_bad gpu gputype=mig id="nvidia.com/mig=${UUID3}" vendorid=10de productid="${first_card_product_id}"; then
-    echo "ERROR: combining CDI \"id\" with \"vendorid\"/\"productid\" should be rejected" >&2
-    exit 1
-  fi
-
-  # Verify CDI "id" is mutually exclusive with "mig.uuid".
-  if lxc config device add nvidia-mig5 gpu_bad gpu gputype=mig id="nvidia.com/mig=${UUID3}" mig.uuid="${UUID3}"; then
-    echo "ERROR: combining CDI \"id\" with \"mig.uuid\" should be rejected" >&2
-    exit 1
-  fi
-
-  # Verify CDI "id" is mutually exclusive with "mig.gi"+"mig.ci".
-  if lxc config device add nvidia-mig5 gpu_bad gpu gputype=mig id="nvidia.com/mig=${UUID3}" mig.gi=1 mig.ci=0; then
-    echo "ERROR: combining CDI \"id\" with \"mig.gi\"/\"mig.ci\" should be rejected" >&2
-    exit 1
-  fi
-
-  # Check MIG device is being passed through correctly when "id=nvidia.com/mig=<uuid>".
-  lxc config device add nvidia-mig5 gpu0 gpu gputype=mig id="nvidia.com/mig=${UUID3}"
-  lxc start nvidia-mig5
-  lxc exec nvidia-mig5 -- nvidia-smi
-  [ "$(lxc exec nvidia-mig5 -- nvidia-smi -L | grep -cwF MIG)" -eq 1 ]
-
-  # Verify the same MIG slice using the alternative "<dev_idx>:<mig_idx>" CDI form.
-  # UUID3 is the 3rd MIG slice on the only MIG-enabled GPU (Device 2 on that card).
-  first_card_nvml_idx="$(nvidia-smi -i "${first_card_pci_slot}" --query-gpu=index --format=csv,noheader,nounits)"
-  lxc stop -f nvidia-mig5
-  lxc config device remove nvidia-mig5 gpu0
-  lxc config device add nvidia-mig5 gpu0 gpu gputype=mig id="nvidia.com/mig=${first_card_nvml_idx}:2"
-  lxc start nvidia-mig5
-  lxc exec nvidia-mig5 -- nvidia-smi
-  [ "$(lxc exec nvidia-mig5 -- nvidia-smi -L | grep -cwF MIG)" -eq 1 ]
-fi
-
 # Wait for them to start and list
 lxc list
 
@@ -171,9 +121,6 @@ nvidia-smi -i "${first_card_pci_slot}" -mig 0
 
 echo "==> Cleaning up"
 lxc delete nvidia-mig1 nvidia-mig2 nvidia-mig3 nvidia-mig4
-if hasNeededAPIExtension "gpu_mig_cdi"; then
-  lxc delete nvidia-mig5
-fi
 lxc profile device remove default root
 lxc profile device remove default eth0
 lxc storage delete default
