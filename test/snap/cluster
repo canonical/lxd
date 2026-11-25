@@ -219,12 +219,7 @@ for i in $(seq "${SIZE}"); do
         CLUSTER_CRT=$(lxc file pull "m${i}"/var/snap/lxd/common/lxd/cluster.crt - | sed 's/^/    /')
     else
         # Get a join token
-        if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
-            # 4.0 doesn't support --quiet
-            TOKEN="$(lxc exec m1 -- lxc cluster add "m${i}" | tail -n1)"
-        else
-            TOKEN="$(lxc exec m1 -- lxc cluster add --quiet "m${i}")"
-        fi
+        TOKEN="$(lxc exec m1 -- lxc cluster add --quiet "m${i}")"
 
         lxc exec "m${i}" -- lxd init --preseed << EOF
 cluster:
@@ -264,51 +259,38 @@ instance_connectivity_checks
 
 tmp_cert_dir="$(mktemp -d)"
 
-if hasNeededAPIExtension certificate_project; then
-    TEST_RESTRICTED=1
-else
-    echo "Skipping restricted certificate test, not supported"
-    TEST_RESTRICTED=0
-fi
-
 echo "==> Add unrestricted certificate"
 createCertificateAndKey "${tmp_cert_dir}/cert.key" "${tmp_cert_dir}/cert.crt" "cert.local"
 lxc config trust add "${tmp_cert_dir}/cert.crt"
 unrestricted_fingerprint="$(certificateFingerprintShort "${tmp_cert_dir}/cert.crt")"
 
-if [ "${TEST_RESTRICTED}" = "1" ]; then
-  echo "==> Add restricted certificate"
-  createCertificateAndKey "${tmp_cert_dir}/cert-restricted.key" "${tmp_cert_dir}/cert-restricted.crt" "cert-restricted.local"
-  lxc config trust add "${tmp_cert_dir}/cert-restricted.crt" --restricted --projects default
-  restricted_fingerprint="$(certificateFingerprintShort "${tmp_cert_dir}/cert-restricted.crt")"
-fi
+echo "==> Add restricted certificate"
+createCertificateAndKey "${tmp_cert_dir}/cert-restricted.key" "${tmp_cert_dir}/cert-restricted.crt" "cert-restricted.local"
+lxc config trust add "${tmp_cert_dir}/cert-restricted.crt" --restricted --projects default
+restricted_fingerprint="$(certificateFingerprintShort "${tmp_cert_dir}/cert-restricted.crt")"
 
 echo "==> Check the certificates for their permissions"
 lxc query "/1.0/certificates/${unrestricted_fingerprint}" | jq -er '.restricted == false'
 lxc query "/1.0/certificates/${unrestricted_fingerprint}" | jq -er '.type == "client"'
 
-if [ "${TEST_RESTRICTED}" = "1" ]; then
-  lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.restricted == true'
-  lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.type == "client"'
-  lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.projects[0] == "default"'
-fi
+lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.restricted == true'
+lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.type == "client"'
+lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.projects[0] == "default"'
 
-if [ "${TEST_RESTRICTED}" = "1" ]; then
-  echo "==> Add restricted and unrestricted metrics certificates"
-  createCertificateAndKey "${tmp_cert_dir}/metrics.key" "${tmp_cert_dir}/metrics.crt" "metrics.local"
-  createCertificateAndKey "${tmp_cert_dir}/metrics-restricted.key" "${tmp_cert_dir}/metrics-restricted.crt" "metrics-restricted.local"
-  lxc config trust add "${tmp_cert_dir}/metrics.crt" --type metrics
-  lxc config trust add "${tmp_cert_dir}/metrics-restricted.crt" --type metrics --restricted --projects default
-  unrestricted_metrics_fingerprint="$(certificateFingerprintShort "${tmp_cert_dir}/metrics.crt")"
-  restricted_metrics_fingerprint="$(certificateFingerprintShort "${tmp_cert_dir}/metrics-restricted.crt")"
+echo "==> Add restricted and unrestricted metrics certificates"
+createCertificateAndKey "${tmp_cert_dir}/metrics.key" "${tmp_cert_dir}/metrics.crt" "metrics.local"
+createCertificateAndKey "${tmp_cert_dir}/metrics-restricted.key" "${tmp_cert_dir}/metrics-restricted.crt" "metrics-restricted.local"
+lxc config trust add "${tmp_cert_dir}/metrics.crt" --type metrics
+lxc config trust add "${tmp_cert_dir}/metrics-restricted.crt" --type metrics --restricted --projects default
+unrestricted_metrics_fingerprint="$(certificateFingerprintShort "${tmp_cert_dir}/metrics.crt")"
+restricted_metrics_fingerprint="$(certificateFingerprintShort "${tmp_cert_dir}/metrics-restricted.crt")"
 
-  echo "==> Check the metrics certificates for their permissions"
-  lxc query "/1.0/certificates/${unrestricted_metrics_fingerprint}" | jq -er '.restricted == false'
-  lxc query "/1.0/certificates/${unrestricted_metrics_fingerprint}" | jq -er '.type == "metrics"'
-  lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.restricted == true'
-  lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.type == "metrics"'
-  lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.projects[0] == "default"'
-fi
+echo "==> Check the metrics certificates for their permissions"
+lxc query "/1.0/certificates/${unrestricted_metrics_fingerprint}" | jq -er '.restricted == false'
+lxc query "/1.0/certificates/${unrestricted_metrics_fingerprint}" | jq -er '.type == "metrics"'
+lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.restricted == true'
+lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.type == "metrics"'
+lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.projects[0] == "default"'
 
 for step_idx in $(seq 1 $(( ${#UPGRADE_CHAIN[@]} - 1 ))); do
     upgrade_cluster "${UPGRADE_CHAIN[${step_idx}]}"
@@ -317,20 +299,16 @@ done
 echo "==> Check the certificates for their permissions after cluster upgrade"
 lxc query "/1.0/certificates/${unrestricted_fingerprint}" | jq -er '.restricted == false'
 lxc query "/1.0/certificates/${unrestricted_fingerprint}" | jq -er '.type == "client"'
-if [ "${TEST_RESTRICTED}" = "1" ]; then
-    lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.restricted == true'
-    lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.type == "client"'
-    lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.projects[0] == "default"'
-fi
+lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.restricted == true'
+lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.type == "client"'
+lxc query "/1.0/certificates/${restricted_fingerprint}" | jq -er '.projects[0] == "default"'
 
-if [ "${TEST_RESTRICTED}" = "1" ]; then
-    echo "==> Check the metrics certificates for their permissions after cluster upgrade"
-    lxc query "/1.0/certificates/${unrestricted_metrics_fingerprint}" | jq -er '.restricted == false'
-    lxc query "/1.0/certificates/${unrestricted_metrics_fingerprint}" | jq -er '.type == "metrics"'
-    lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.restricted == true'
-    lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.type == "metrics"'
-    lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.projects[0] == "default"'
-fi
+echo "==> Check the metrics certificates for their permissions after cluster upgrade"
+lxc query "/1.0/certificates/${unrestricted_metrics_fingerprint}" | jq -er '.restricted == false'
+lxc query "/1.0/certificates/${unrestricted_metrics_fingerprint}" | jq -er '.type == "metrics"'
+lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.restricted == true'
+lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.type == "metrics"'
+lxc query "/1.0/certificates/${restricted_metrics_fingerprint}" | jq -er '.projects[0] == "default"'
 
 echo "==> Check container can be stopped after upgrade (checks for stop hook notification functionality)"
 lxc exec m1 -- lxc stop --force u1 u2
