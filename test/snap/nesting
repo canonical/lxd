@@ -31,24 +31,22 @@ checkNestedInstanceDNS() {
 }
 
 test_nesting_container() {
-    if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
-        echo "Skipping container nesting tests on ${LXD_SNAP_CHANNEL}, not supported"
-        return 0
-    fi
-
     echo "==> Running nesting test for container"
 
-    local poolDriverList="btrfs dir lvm zfs"
+    local poolDriverList="btrfs dir lvm"
     local poolDriver poolName instName
     local nestedPoolDriverList nestedPoolDriver nestedPoolName nestedInstName nestedSource
     local zfsVersion zfsPerm
 
+    if hasSupportedStorageDriver zfs; then
+        poolDriverList+=" zfs"
+    else
+        echo "Skipping ZFS container nesting test, ZFS storage driver is not supported"
+    fi
+
     lxc profile create container-nesting
     lxc profile set container-nesting security.nesting=true
-
-    if hasNeededAPIExtension devlxd_images_vm; then
-        lxc profile set container-nesting security.devlxd.images=true
-    fi
+    lxc profile set container-nesting security.devlxd.images=true
 
     for poolDriver in ${poolDriverList}; do
         poolName="pool-${poolDriver}"
@@ -147,27 +145,14 @@ test_nesting_container() {
 test_nesting_vm() {
     echo "==> Running nesting test for vm"
 
-    local VM_IN_CTN=1
     local VMs=10
     local nestedVMs=3
     local storageDriver="zfs"
-    local zfsVersion instCount
+    local instCount
 
-    if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
-        # VMs on 4.0 are more resource intensive and slower to boot
-        export MAX_WAIT_SECONDS=240
-
-        # VMs inside containers do not work
-        VM_IN_CTN=0
-
-        VMs=3
-        nestedVMs=2
-
-        zfsVersion="$(modinfo -F version zfs)"
-        if dpkg --compare-versions "${zfsVersion}" gt "2.2"; then
-            storageDriver="lvm"
-            echo "${LXD_SNAP_CHANNEL} does not support ZFS ${zfsVersion}, falling back to ${storageDriver}"
-        fi
+    if ! hasSupportedStorageDriver zfs; then
+        storageDriver="lvm"
+        echo "ZFS storage driver is not supported, falling back to ${storageDriver}"
     fi
 
     lxc project switch default
@@ -241,9 +226,7 @@ test_nesting_vm() {
 
     echo "==> Test ${nestedVMs} VMs each with one nested VM"
     init "${nestedVMs}" --vm
-    if hasNeededAPIExtension devlxd_images_vm; then
-        conf "${nestedVMs}" security.devlxd.images=true
-    fi
+    conf "${nestedVMs}" security.devlxd.images=true
     start "${nestedVMs}"
     wait "${nestedVMs}"
 
@@ -254,25 +237,19 @@ test_nesting_vm() {
     cmd "${nestedVMs}" "lxc launch ${IMAGE} nested --vm -c limits.memory=512MiB --quiet"
     delete "${nestedVMs}"
 
-    if [ "${VM_IN_CTN}" = "1" ]; then
-        echo "==> Test ${nestedVMs} containers each with one nested VM"
-        init "${nestedVMs}"
-        if hasNeededAPIExtension devlxd_images_vm; then
-            conf "${nestedVMs}" security.devlxd.images=true
-        fi
-        device_add "${nestedVMs}" kvm unix-char source=/dev/kvm
-        device_add "${nestedVMs}" vhost-net unix-char source=/dev/vhost-net
-        device_add "${nestedVMs}" vhost-vsock unix-char source=/dev/vhost-vsock
-        device_add "${nestedVMs}" vsock unix-char source=/dev/vsock
-        start "${nestedVMs}"
-        cmd "${nestedVMs}" "$(declare -f waitSnapdSeed); waitSnapdSeed"
-        cmd "${nestedVMs}" "snap install lxd --channel ${LXD_SNAP_CHANNEL}"
-        cmd "${nestedVMs}" "lxd init --auto"
-        cmd "${nestedVMs}" "lxc profile device set default root size=3584MiB"
-        cmd "${nestedVMs}" "lxc launch ${IMAGE} nested --vm -c limits.memory=512MiB --quiet"
-    else
-        echo "Skipping VM in container tests on ${LXD_SNAP_CHANNEL}"
-    fi
+    echo "==> Test ${nestedVMs} containers each with one nested VM"
+    init "${nestedVMs}"
+    conf "${nestedVMs}" security.devlxd.images=true
+    device_add "${nestedVMs}" kvm unix-char source=/dev/kvm
+    device_add "${nestedVMs}" vhost-net unix-char source=/dev/vhost-net
+    device_add "${nestedVMs}" vhost-vsock unix-char source=/dev/vhost-vsock
+    device_add "${nestedVMs}" vsock unix-char source=/dev/vsock
+    start "${nestedVMs}"
+    cmd "${nestedVMs}" "$(declare -f waitSnapdSeed); waitSnapdSeed"
+    cmd "${nestedVMs}" "snap install lxd --channel ${LXD_SNAP_CHANNEL}"
+    cmd "${nestedVMs}" "lxd init --auto"
+    cmd "${nestedVMs}" "lxc profile device set default root size=3584MiB"
+    cmd "${nestedVMs}" "lxc launch ${IMAGE} nested --vm -c limits.memory=512MiB --quiet"
 
     echo "==> Cleaning up"
     instCount="$(lxc list -f csv -c n t | wc -l)"
