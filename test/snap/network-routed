@@ -29,11 +29,6 @@ ip link set dummy0 up
 ip addr add 192.0.2.1/32 dev dummy0
 ip addr add 2001:db8::1/128 dev dummy0
 
-NET_CONFIG_KEY="cloud-init.network-config"
-if ! hasNeededAPIExtension cloud_init; then
-    NET_CONFIG_KEY="user.network-config"
-fi
-
 for type in container vm; do
     instName="c1"
     iface="eth0"
@@ -54,7 +49,7 @@ for type in container vm; do
         ipv6.address=2001:db8::2,2001:db8::3
 
     # Set up the network configuration for the instance.
-    lxc config set "${instName}" "${NET_CONFIG_KEY}" - << EOF
+    lxc config set "${instName}" cloud-init.network-config - << EOF
 network:
   version: 2
   ethernets:
