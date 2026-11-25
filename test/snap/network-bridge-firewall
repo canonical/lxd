@@ -262,7 +262,7 @@ echo "=> Performing nftables unmanaged bridge tests"
 ip a flush dev lxdbr0 # Clear duplicate address from lxdbr0.
 ip link set lxdbr0 down
 ip a add 192.0.2.1/24 dev lxdbr0unmanaged
-ip a add 2001:db8::1/64 dev lxdbr0unmanaged
+ip a add 2001:db8::1/64 dev lxdbr0unmanaged nodad
 ip link set lxdbr0unmanaged up
 lxc profile device remove default eth0
 lxc profile device add default eth0 nic \
@@ -287,7 +287,7 @@ echo "=> Performing xtables unmanaged bridge tests"
 ip a flush dev lxdbr0 # Clear duplicate address from lxdbr0.
 ip link set lxdbr0 down
 ip a add 192.0.2.1/24 dev lxdbr0unmanaged
-ip a add 2001:db8::1/64 dev lxdbr0unmanaged
+ip a add 2001:db8::1/64 dev lxdbr0unmanaged nodad
 ip link set lxdbr0unmanaged up
 lxc profile device remove default eth0
 lxc profile device add default eth0 nic \
