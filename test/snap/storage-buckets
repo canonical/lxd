@@ -6,29 +6,7 @@ set -eux
 # Install LXD
 install_lxd
 
-if ! hasNeededAPIExtension storage_buckets; then
-  echo "Skipping test as not supported"
-  # shellcheck disable=SC2034
-  FAIL=0
-  exit 0
-fi
-
 poolDriverList="${1:-dir btrfs lvm lvm-thin zfs ceph}"
-
-# Without storage_buckets_local, only ceph/cephobject is supported.
-if ! hasNeededAPIExtension storage_buckets_local; then
-  filteredList=""
-  for driver in $poolDriverList; do
-    [ "${driver}" = "ceph" ] && filteredList="${filteredList} ${driver}"
-  done
-  poolDriverList="${filteredList# }"
-  if [ -z "${poolDriverList}" ]; then
-    echo "Skipping test as no supported pool drivers found"
-    # shellcheck disable=SC2034
-    FAIL=0
-    exit 0
-  fi
-fi
 
 # Check if any local (non-ceph) pool drivers will be tested, which require MinIO.
 needsMinio=false

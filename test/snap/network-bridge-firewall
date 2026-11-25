@@ -21,17 +21,15 @@ lxc network create lxdbr0 \
     ipv6.address=2001:db8::1/64 \
     ipv4.dhcp.ranges=192.0.2.2-192.0.2.199
 
-if hasNeededAPIExtension warnings; then
-    echo "=> Ensure that IPv6 CIDR size checks in LXD are correct"
-    # Check that we produce a warning if user sets a prefix larger than /64
-    lxc network set lxdbr0 ipv6.address=2001:db8::1/48
-    lxc warning list | grep "IPv6 networks with a prefix larger than 64"
-    # Check that there is no warning if user sets prefix smaller than /64
-    lxc network set lxdbr0 ipv6.address=2001:db8::1/65
-    ! lxc warning list | grep "IPv6 networks with a prefix larger than 64" || false
-    # set a right subnet for the test
-    lxc network set lxdbr0 ipv6.address=2001:db8::1/64
-fi
+echo "=> Ensure that IPv6 CIDR size checks in LXD are correct"
+# Check that we produce a warning if user sets a prefix larger than /64
+lxc network set lxdbr0 ipv6.address=2001:db8::1/48
+lxc warning list | grep "IPv6 networks with a prefix larger than 64"
+# Check that there is no warning if user sets prefix smaller than /64
+lxc network set lxdbr0 ipv6.address=2001:db8::1/65
+! lxc warning list | grep "IPv6 networks with a prefix larger than 64" || false
+# set a right subnet for the test
+lxc network set lxdbr0 ipv6.address=2001:db8::1/64
 
 lxc profile device add default root disk path=/ pool=default
 
@@ -172,24 +170,21 @@ firewallTests() {
         timeout 2s tcpdump -i lxdbr1 -nn icmp6 and src 2001:db9::1 -q -c 1 > /dev/null
         wait
 
-        # LXD 5.21 and onwards don't masquerade multicast traffic if the host has br_netfilter loaded.
-        if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^([45]\.0)/ ]]; then
-            # Check if multicast traffic is returned too and not mangled.
-            # Launch a server in the same network that responds on datagrams under a specific multicast group with its hostname.
-            lxc launch "${IMAGE}" c3 -n lxdbr1
-            lxc exec c2 -- apt-get update
-            lxc exec c2 -- apt-get install --no-install-recommends --yes socat
-            lxc exec c2 -- socat udp4-recvfrom:1234,ip-add-membership=239.0.0.1:192.0.3.254,fork exec:hostname &
-            server_process="$!"
-            sleep 2 # wait for the multicast server to settle.
+        # Check if multicast traffic is returned too and not mangled.
+        # Launch a server in the same network that responds on datagrams under a specific multicast group with its hostname.
+        lxc launch "${IMAGE}" c3 -n lxdbr1
+        lxc exec c2 -- apt-get update
+        lxc exec c2 -- apt-get install --no-install-recommends --yes socat
+        lxc exec c2 -- socat udp4-recvfrom:1234,ip-add-membership=239.0.0.1:192.0.3.254,fork exec:hostname &
+        server_process="$!"
+        sleep 2 # wait for the multicast server to settle.
 
-            # Check if multicast traffic passes within the same network.
-            waitInstanceReady c3
-            lxc exec c3 -- apt-get update
-            lxc exec c3 -- apt-get install --no-install-recommends --yes socat
-            [ "$(lxc exec c3 -- socat stdio udp4-datagram:239.0.0.1:1234 <<< "")" = "c2" ]
-            kill "${server_process}"
-        fi
+        # Check if multicast traffic passes within the same network.
+        waitInstanceReady c3
+        lxc exec c3 -- apt-get update
+        lxc exec c3 -- apt-get install --no-install-recommends --yes socat
+        [ "$(lxc exec c3 -- socat stdio udp4-datagram:239.0.0.1:1234 <<< "")" = "c2" ]
+        kill "${server_process}"
 
         echo "=> Performing NAT tests with explicit SNAT address"
         lxc network set lxdbr0 ipv4.nat.address=192.0.2.10 ipv6.nat.address=2001:db8::10
@@ -203,17 +198,14 @@ firewallTests() {
         timeout 2s tcpdump -i lxdbr1 -nn icmp6 and src 2001:db8::10 -q -c 1 > /dev/null
         wait
 
-        # LXD 5.21 and onwards don't masquerade multicast traffic if the host has br_netfilter loaded.
-        if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^([45]\.0)/ ]]; then
-            # Check if multicast traffic passes within the same network.
-            lxc exec c2 -- socat udp4-recvfrom:1234,ip-add-membership=239.0.0.1:192.0.3.254,fork exec:hostname &
-            server_process="$!"
-            sleep 2 # wait for the multicast server to settle.
-            [ "$(lxc exec c3 -- socat stdio udp4-datagram:239.0.0.1:1234 <<< "")" = "c2" ]
-            kill "${server_process}"
+        # Check if multicast traffic passes within the same network.
+        lxc exec c2 -- socat udp4-recvfrom:1234,ip-add-membership=239.0.0.1:192.0.3.254,fork exec:hostname &
+        server_process="$!"
+        sleep 2 # wait for the multicast server to settle.
+        [ "$(lxc exec c3 -- socat stdio udp4-datagram:239.0.0.1:1234 <<< "")" = "c2" ]
+        kill "${server_process}"
 
-            lxc delete -f c3
-        fi
+        lxc delete -f c3
 
         lxc delete -f c1 c2
         lxc network delete lxdbr1
@@ -259,7 +251,7 @@ lxc info | grep 'firewall: nftables'
 lxc profile device add default eth0 nic network=lxdbr0
 firewallTests
 
-if hasNeededAPIExtension instances_nic_limits_priority && runsMinimumKernel 5.17; then
+if runsMinimumKernel 5.17; then
     echo "=> Performing nftables network device limits.priority option test"
     networkLimitsPriorityNftablesTest
 else
@@ -270,7 +262,7 @@ echo "=> Performing nftables unmanaged bridge tests"
 ip a flush dev lxdbr0 # Clear duplicate address from lxdbr0.
 ip link set lxdbr0 down
 ip a add 192.0.2.1/24 dev lxdbr0unmanaged
-ip a add 2001:db8::1/64 dev lxdbr0unmanaged
+ip a add 2001:db8::1/64 dev lxdbr0unmanaged nodad
 ip link set lxdbr0unmanaged up
 lxc profile device remove default eth0
 lxc profile device add default eth0 nic \
@@ -295,7 +287,7 @@ echo "=> Performing xtables unmanaged bridge tests"
 ip a flush dev lxdbr0 # Clear duplicate address from lxdbr0.
 ip link set lxdbr0 down
 ip a add 192.0.2.1/24 dev lxdbr0unmanaged
-ip a add 2001:db8::1/64 dev lxdbr0unmanaged
+ip a add 2001:db8::1/64 dev lxdbr0unmanaged nodad
 ip link set lxdbr0unmanaged up
 lxc profile device remove default eth0
 lxc profile device add default eth0 nic \
