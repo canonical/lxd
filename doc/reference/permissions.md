@@ -1,16 +1,18 @@
 (permissions-reference)=
 # Permissions
 
-When managing user access via {ref}`fine-grained-authorization`, you add identities to groups and then grant entitlements against specific LXD API resources to these groups.
+A permission is an entitlement granted against a specific LXD API resource.
+When managing user access via fine-grained authorization, you add identities to groups and then assign permissions to the groups.
 
-Each LXD API resource has a particular entity type, and each entity type has a set of entitlements that can be granted against API resources of that type.
-
-Below is a description of each entity type, and a list of entitlements that can be granted against entities of that type.
+Each LXD resource has an entity type, and the following sections list entitlements that can be granted against each type.
+For a detailed explanation of LXD permissions, see {ref}`fine-grained-authorization`.
 
 ```{caution}
 At some levels, certain entitlements cascade down to other resources.
+See {ref}`authorization-entitlement-cascade`.
 ```
 
+(permissions-server)=
 ## Server
 > Entity type name: `server`
 
@@ -22,57 +24,12 @@ Entitlements that are granted at this level might cascade to projects and other 
     :end-before: <!-- entity group server end -->
 ```
 
-## Project
-> Entity type name: `project`
+(permissions-server-level)=
+## Server-scoped resources
 
-Entitlements that are granted at the `project` level might cascade to project specific resources (such as instances):
+Server-scoped resources are owned directly by the LXD server.
 
-```{include} ../metadata.txt
-    :start-after: <!-- entity group project start -->
-    :end-before: <!-- entity group project end -->
-```
-
-## Cluster link
-> Entity type name: `cluster_link`
-
-```{include} ../metadata.txt
-    :start-after: <!-- entity group cluster_link start -->
-    :end-before: <!-- entity group cluster_link end -->
-```
-
-## Storage pool
-> Entity type name: `storage_pool`
-
-```{include} ../metadata.txt
-    :start-after: <!-- entity group storage_pool start -->
-    :end-before: <!-- entity group storage_pool end -->
-```
-
-## Identity
-> Entity type name: `identity`
-
-```{include} ../metadata.txt
-    :start-after: <!-- entity group identity start -->
-    :end-before: <!-- entity group identity end -->
-```
-
-## Group
-> Entity type name: `group`
-
-```{include} ../metadata.txt
-    :start-after: <!-- entity group group start -->
-    :end-before: <!-- entity group group end -->
-```
-
-## Identity provider group
-> Entity type name: `identity_provider_group`
-
-```{include} ../metadata.txt
-    :start-after: <!-- entity group identity_provider_group start -->
-    :end-before: <!-- entity group identity_provider_group end -->
-```
-
-## Certificate
+### Certificate
 > Entity type name: `certificate`
 
 ```{include} ../metadata.txt
@@ -80,39 +37,39 @@ Entitlements that are granted at the `project` level might cascade to project sp
     :end-before: <!-- entity group certificate end -->
 ```
 
-## Instance
-> Entity type name: `instance`
+### Cluster link
+> Entity type name: `cluster_link`
 
 ```{include} ../metadata.txt
-    :start-after: <!-- entity group instance start -->
-    :end-before: <!-- entity group instance end -->
+    :start-after: <!-- entity group cluster_link start -->
+    :end-before: <!-- entity group cluster_link end -->
 ```
 
-## Placement group
-> Entity type name: `placement_group`
+### Group
+> Entity type name: `group`
 
 ```{include} ../metadata.txt
-    :start-after: <!-- entity group placement_group start -->
-    :end-before: <!-- entity group placement_group end -->
+    :start-after: <!-- entity group group start -->
+    :end-before: <!-- entity group group end -->
 ```
 
-## Image
-> Entity type name: `image`
+### Identity
+> Entity type name: `identity`
 
 ```{include} ../metadata.txt
-    :start-after: <!-- entity group image start -->
-    :end-before: <!-- entity group image end -->
+    :start-after: <!-- entity group identity start -->
+    :end-before: <!-- entity group identity end -->
 ```
 
-## Image alias
-> Entity type name: `image_alias`
+### Identity provider group
+> Entity type name: `identity_provider_group`
 
 ```{include} ../metadata.txt
-    :start-after: <!-- entity group image_alias start -->
-    :end-before: <!-- entity group image_alias end -->
+    :start-after: <!-- entity group identity_provider_group start -->
+    :end-before: <!-- entity group identity_provider_group end -->
 ```
 
-## Image registry
+### Image registry
 > Entity type name: `image_registry`
 
 ```{include} ../metadata.txt
@@ -120,7 +77,54 @@ Entitlements that are granted at the `project` level might cascade to project sp
     :end-before: <!-- entity group image_registry end -->
 ```
 
-## Network
+### Project
+> Entity type name: `project`
+
+Entitlements that are granted at the `project` level might cascade to project-scoped resources (such as instances):
+
+```{include} ../metadata.txt
+    :start-after: <!-- entity group project start -->
+    :end-before: <!-- entity group project end -->
+```
+
+### Storage pool
+> Entity type name: `storage_pool`
+
+```{include} ../metadata.txt
+    :start-after: <!-- entity group storage_pool start -->
+    :end-before: <!-- entity group storage_pool end -->
+```
+
+(permissions-project-level)=
+## Project-scoped resources
+
+Project-scoped resources are owned by projects, which, in turn, are owned by the LXD server.
+
+### Image
+> Entity type name: `image`
+
+```{include} ../metadata.txt
+    :start-after: <!-- entity group image start -->
+    :end-before: <!-- entity group image end -->
+```
+
+### Image alias
+> Entity type name: `image_alias`
+
+```{include} ../metadata.txt
+    :start-after: <!-- entity group image_alias start -->
+    :end-before: <!-- entity group image_alias end -->
+```
+
+### Instance
+> Entity type name: `instance`
+
+```{include} ../metadata.txt
+    :start-after: <!-- entity group instance start -->
+    :end-before: <!-- entity group instance end -->
+```
+
+### Network
 > Entity type name: `network`
 
 ```{include} ../metadata.txt
@@ -128,7 +132,7 @@ Entitlements that are granted at the `project` level might cascade to project sp
     :end-before: <!-- entity group network end -->
 ```
 
-## Network ACL
+### Network ACL
 > Entity type name: `network_acl`
 
 ```{include} ../metadata.txt
@@ -136,7 +140,7 @@ Entitlements that are granted at the `project` level might cascade to project sp
     :end-before: <!-- entity group network_acl end -->
 ```
 
-## Network zone
+### Network zone
 > Entity type name: `network_zone`
 
 ```{include} ../metadata.txt
@@ -144,7 +148,15 @@ Entitlements that are granted at the `project` level might cascade to project sp
     :end-before: <!-- entity group network_zone end -->
 ```
 
-## Profile
+### Placement group
+> Entity type name: `placement_group`
+
+```{include} ../metadata.txt
+    :start-after: <!-- entity group placement_group start -->
+    :end-before: <!-- entity group placement_group end -->
+```
+
+### Profile
 > Entity type name: `profile`
 
 ```{include} ../metadata.txt
@@ -152,7 +164,7 @@ Entitlements that are granted at the `project` level might cascade to project sp
     :end-before: <!-- entity group profile end -->
 ```
 
-## Replicator
+### Replicator
 > Entity type name: `replicator`
 
 ```{include} ../metadata.txt
@@ -160,18 +172,18 @@ Entitlements that are granted at the `project` level might cascade to project sp
     :end-before: <!-- entity group replicator end -->
 ```
 
-## Storage volume
-> Entity type name: `storage_volume`
-
-```{include} ../metadata.txt
-    :start-after: <!-- entity group storage_volume start -->
-    :end-before: <!-- entity group storage_volume end -->
-```
-
-## Storage bucket
+### Storage bucket
 > Entity type name: `storage_bucket`
 
 ```{include} ../metadata.txt
     :start-after: <!-- entity group storage_bucket start -->
     :end-before: <!-- entity group storage_bucket end -->
+```
+
+### Storage volume
+> Entity type name: `storage_volume`
+
+```{include} ../metadata.txt
+    :start-after: <!-- entity group storage_volume start -->
+    :end-before: <!-- entity group storage_volume end -->
 ```
