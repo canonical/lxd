@@ -120,9 +120,11 @@ jobs:
           - ui firefox
           - vm
         exclude:
-          # bgp is not worth testing on 22.04
+          # bgp and conversion are not worth testing on 22.04
           - os: 22.04
             test: bgp
+          - os: 22.04
+            test: conversion
 
     steps:
       - name: Checkout

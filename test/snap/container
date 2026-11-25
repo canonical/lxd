@@ -120,13 +120,6 @@ ignore_known_issues() {
 # Silence GH warnings in isSystemdClean
 export WARNING_PREFIX="false"
 for release in $RELEASES; do
-    if [[ "${LXD_SNAP_CHANNEL}" =~ ^4\.0/ ]]; then
-        if dpkg --compare-versions "${release}" ge "24.04"; then
-            echo "Skip ${release} container tests on ${LXD_SNAP_CHANNEL}"
-            continue
-        fi
-    fi
-
     if [ "${release}" = "20.04" ] && dpkg --compare-versions "${VERSION_ID}" gt "24.04"; then
         echo "Skip ${release} container tests on ${VERSION_ID} host"
         continue
@@ -155,12 +148,8 @@ for release in $RELEASES; do
     lxc delete -f i1
 
     testNested="true"
-    if [ "${release}" = "20.04" ]; then
+    if [ "${release}" = "20.04" ] || dpkg --compare-versions "${release}" ge "26.04"; then
         testNested="false"
-    elif [[ "${LXD_SNAP_CHANNEL}" =~ ^5\.0/ ]]; then
-        if dpkg --compare-versions "${release}" ge "26.04"; then
-            testNested="false"
-        fi
     fi
 
     if [ "${testNested}" = "true" ]; then
@@ -230,36 +219,6 @@ echo "==> Ensure aliased image won't launch with VM flag set"
 lxc image alias create containeralias "$(lxc config get c1 volatile.base_image)"
 ! lxc launch containeralias c2 --vm || false
 lxc image alias delete containeralias
-
-echo "==> Test unprivileged BPF delegation"
-if ! { runsMinimumKernel 6.9 && hasNeededAPIExtension container_bpf_delegation; }; then
-    # check that we fail container to start if kernel has no support for bpf token
-    if hasNeededAPIExtension container_bpf_delegation; then
-        lxc delete -f c1
-        lxc init "${IMAGE}" c1
-        lxc config set c1 security.delegate_bpf=true
-        ! lxc start c1 || false
-        lxc config unset c1 security.delegate_bpf
-    fi
-
-    echo "Skipping unprivileged container bpf delegation test as the kernel is too old or LXD support missing"
-else
-    lxc delete -f c1
-    lxc init "${IMAGE}" c1
-
-    lxc config set c1 security.delegate_bpf=true
-    lxc config set c1 security.delegate_bpf.prog_types=socket_filter
-    lxc config set c1 security.delegate_bpf.attach_types=cgroup_inet_ingress
-    lxc config set c1 security.delegate_bpf.cmd_types=prog_load:map_create
-    lxc config set c1 security.delegate_bpf.map_types=ringbuf
-
-    lxc start c1
-    waitInstanceBooted c1
-
-    lxc exec c1 -- grep -F "delegate_cmds=map_create:prog_load,delegate_maps=ringbuf,delegate_progs=socket_filter,delegate_attachs=cgroup_inet_ingress" /proc/self/mountinfo
-
-	lxc stop -f c1
-fi
 
 echo "==> Test running miscellaneous binary formats with binfmt_misc in unprivileged container"
 if lxc info | grep -F 'unpriv_binfmt: "true"'; then

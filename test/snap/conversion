@@ -37,19 +37,10 @@ fi
 
 export PATH="${HOME}/go/bin:${PATH}"
 
-# Install lxd conversion tool based on LXD version
-# Default to lxd-convert (LXD 6+)
-LXD_CONVERT_TOOL="lxd-convert"
-LXD_CONVERT_TOOL_FLAG="--options"
-GIT_BRANCH="main"
-
-# Legacy versions have `lxd-migrate`
-if [[ ${LXD_SNAP_CHANNEL:-latest/stable} =~ ^[45]\. ]]; then
-    LXD_CONVERT_TOOL="lxd-migrate"
-    LXD_CONVERT_TOOL_FLAG="--conversion"
-    # Using the tool from 5.21 even on older releases
-    GIT_BRANCH="stable-5.21"
-fi
+# Install lxd-migrate (using the tool from 5.21 on 5.0)
+LXD_CONVERT_TOOL="lxd-migrate"
+LXD_CONVERT_TOOL_FLAG="--conversion"
+GIT_BRANCH="stable-5.21"
 
 # Look for a pre-built conversion tool in the PATH, and if not found, build it from the source.
 # The pre-built tool might have Go coverage instrumentation that is best kept for testing.
@@ -61,12 +52,7 @@ fi
 # Configure LXD
 lxd init --auto --network-address "[::]" --network-port "8443"
 
-# Select VM secure boot config syntax based on server API support.
 vm_secureboot_config="security.secureboot=false"
-# shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
-if hasNeededAPIExtension instance_boot_mode; then
-    vm_secureboot_config="boot.mode=uefi-nosecureboot"
-fi
 
 checkIPAddresses() {
     instName=$1
@@ -398,88 +384,6 @@ testImportedInstance vm-ni-custom-config
 ! ${LXD_CONVERT_TOOL} --non-interactive --type vm --name vm-ni-invalid-flags --source "${IMAGE_PATH}" --network invalid || false
 
 rm -rf "${tmpdir}/backup"
-
-# Test VM conversion using non-raw disk formats only if server supports
-# conversion API extension.
-# shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
-if hasNeededAPIExtension instance_import_conversion; then
-    # Test QCOW2 images.
-    IMAGE_PATH="${tmpdir}/image"
-
-    lxc image export alpine-edge-vm "${IMAGE_PATH}" --vm
-    conversion_vm alpine-qcow2 zfs "${IMAGE_PATH}.root" "no"
-    rm -f "${IMAGE_PATH}" "${IMAGE_PATH}.root"
-
-    # Download and cache the image to avoid re-downloading it multiple times.
-    # Skip the copy if the image already exists locally so reruns stay idempotent.
-    if ! lxc image info centos-9-stream-vm; then
-        lxc image copy images:centos/9-Stream local: --vm --alias centos-9-stream-vm
-    fi
-
-    lxc image export centos-9-stream-vm "${IMAGE_PATH}" --vm
-    conversion_vm centos9-qcow2 btrfs "${IMAGE_PATH}.root" "yes"
-
-    rm "${IMAGE_PATH}" "${IMAGE_PATH}.root"
-
-    # Test VMDK image.
-    wget -q -O "${IMAGE_PATH}" https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.vmdk
-
-    conversion_vm u24-vmdk lvm "${IMAGE_PATH}" "yes"
-    conversion_vm u24-vmdk dir "${IMAGE_PATH}" "yes"
-
-    # Use custom volume for backups. Images for conversion will be uploaded here.
-    lxc storage create backups-pool zfs
-    lxc storage volume create backups-pool backups-vol
-    lxc config set storage.backups_volume=backups-pool/backups-vol
-
-    conversion_vm u24-vmdk-bupvol dir "${IMAGE_PATH}" "yes"
-    conversion_vm u24-vmdk-bupvol zfs "${IMAGE_PATH}" "yes"
-
-    rm -f "${IMAGE_PATH}"
-    lxc config unset storage.backups_volume
-    lxc storage volume delete backups-pool backups-vol
-    lxc storage delete backups-pool
-
-    # Test virtio conversion if virt-v2v-in-place is installed.
-    if ! command -v virt-v2v-in-place > /dev/null; then
-        echo "===> SKIP: The virt-v2v-in-place is not installed"
-    else
-        # Create new instance.
-        lxc launch centos-9-stream-vm v1 --vm --config limits.cpu=2 --config limits.memory=2GiB --device root,size=4GiB
-        waitInstanceBooted v1
-        sleep 1
-
-        # Remove LXD dracut configuration to allow removing the virtio_scsi module.
-        # Afterwards, rebuild the initramfs image and stop the instance.
-        lxc exec v1 -- rm /etc/dracut.conf.d/lxd.conf
-        lxc exec v1 -- dracut --force --omit-drivers virtio_scsi
-
-        # XXX: Disable SELinux before exporting the instance, as it will block lxd-agent
-        # when re-imported.
-        if lxc exec v1 -- test -e /etc/selinux/config; then
-            lxc exec v1 -- sed -i "s/SELINUX=enforcing/SELINUX=disabled/" /etc/selinux/config
-        fi
-
-        # Export instance and extract raw image.
-        lxc stop v1
-        lxc export v1 --compression=none --quiet - | tar --occurrence=1 --sparse -xf - -C "${tmpdir}" "backup/virtual-machine.img"
-
-        # Ensure instance does not boot without virtio_scsi drivers.
-        lxc start v1
-        # shellcheck disable=SC2310 # Function intentionally used in a condition to branch on the result.
-        ! MAX_WAIT_SECONDS=90 waitInstanceReady v1 || { echo "Instance booted without SCSI drivers!"; false; }
-        lxc delete -f v1
-
-        # Ensure that virtio conversion adds the needed virtio_scsi module back into the initramfs.
-        conversion_vm centos-missing-driver zfs "${tmpdir}/backup/virtual-machine.img" "no" "virtio"
-        rm -rf "${tmpdir}/backup"
-    fi
-
-    # Cleanup.
-    lxc image delete centos-9-stream-vm
-else
-    echo "===> SKIP: VM image conversion skipped. Server does not support API extension 'instance_import_conversion'"
-fi
 
 # Cleanup temporary directory.
 rm -rf "${tmpdir}"

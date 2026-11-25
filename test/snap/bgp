@@ -7,13 +7,6 @@ shopt -s inherit_errexit
 # Install LXD
 install_lxd
 
-if ! hasNeededAPIExtension network_bgp; then
-  echo "Skipping test as not supported"
-  # shellcheck disable=SC2034
-  FAIL=0
-  exit 0
-fi
-
 # Install dependencies
 install_deps frr jq
 
@@ -143,41 +136,11 @@ lxdBGPDump() (
     lxc query /internal/testing/bgp || echo "Failed querying /internal/testing/bgp"
 )
 
-# waitLXDPrefix: wait until LXD's internal state reports a prefix advertised to
-# the FRR peer, optionally via a given next-hop. This asserts LXD programmed the
-# route into GoBGP before we wait on FRR to receive it, so a failure points at
-# the right side of the session.
-# Usage: waitLXDPrefix <prefix> <present|absent> [next-hop]
-waitLXDPrefix() (
-    { set +x; } 2>/dev/null
-    if [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
-        return 0
-    fi
-
-    local prefix="${1}"
-    local wanted="${2}"
-    local nexthop="${3:-}"
-    local maxWait="${MAX_WAIT_SECONDS:-60}"
-    local count=""
-
-    for _ in $(seq "${maxWait}"); do
-        count="$(lxc query /internal/testing/bgp 2>/dev/null | jq --exit-status --raw-output \
-            --arg peer "${FRR_ADDR}" --arg prefix "${prefix}" --arg nexthop "${nexthop}" \
-            '[.peers[] | select(.address == $peer) | .routes[] | select(.prefix == $prefix) | select($nexthop == "" or .nexthop == $nexthop)] | length' 2>/dev/null || echo 0)"
-        if [ "${wanted}" = "present" ] && [ "${count}" -gt 0 ]; then
-            return 0 # Success.
-        fi
-
-        if [ "${wanted}" = "absent" ] && [ "${count}" -eq 0 ]; then
-            return 0 # Success.
-        fi
-        sleep 1
-    done
-
-    echo "LXD internal state: prefix ${prefix} expected ${wanted}${nexthop:+ via ${nexthop}} for peer ${FRR_ADDR} after ${maxWait}s, got ${count} matching route(s)"
-    lxdBGPDump
-    return 1 # Failed.
-)
+# waitLXDPrefix: no-op on LXD 5.0 (the internal testing endpoint does not expose
+# advertised prefixes).
+waitLXDPrefix() {
+    return 0
+}
 
 # Test
 set -x
@@ -243,17 +206,9 @@ lxc config set core.bgp_address="${LXD_ADDR}:179" core.bgp_asn="${LXD_ASN}" core
 echo "==> Creating a network peering with FRR and check the session comes up"
 # The next-hops must be set explicitly: for bridges LXD otherwise advertises the
 # wildcard address, which peers reject as a martian next-hop.
-peer_holdtime=""
-peer_holdtime_clear=""
-if hasNeededAPIExtension network_bgp_holdtime; then
-    peer_holdtime="bgp.peers.frr.holdtime=30"
-    peer_holdtime_clear="bgp.peers.frr.holdtime="
-fi
-
 # The peer is only registered once both address and ASN are set, so to avoid
 # bouncing the BGP session with multiple 'lxc network set', it's advisable to
 # set the address last or provide all the configuration in a single command.
-# shellcheck disable=SC2248 # Deliberate word splitting omits an empty optional configuration argument.
 lxc network create "${BGP_NET}" \
     ipv4.address="${NET_ADDR4}" ipv4.nat=false \
     ipv6.address="${NET_ADDR6}" ipv6.nat=false \
@@ -263,8 +218,7 @@ lxc network create "${BGP_NET}" \
     bgp.ipv6.nexthop="${NEXTHOP6}" \
     bgp.peers.frr.address="${FRR_ADDR}" \
     bgp.peers.frr.asn="${FRR_ASN}" \
-    bgp.peers.frr.password="${BGP_PASSWORD}" \
-    ${peer_holdtime} # Don't quote to omit the empty arg.
+    bgp.peers.frr.password="${BGP_PASSWORD}"
 
 waitFRRSession up
 
@@ -316,14 +270,12 @@ waitLXDPrefix "${NIC_ROUTE6}" absent
 waitFRRPrefix 4 "${NIC_ROUTE4}" absent
 waitFRRPrefix 6 "${NIC_ROUTE6}" absent
 
-if hasNeededAPIExtension network_forward; then
-    echo "==> Checking network forward addresses are advertised"
-    lxc network forward create "${BGP_NET}" "${FORWARD_ADDR}" target_address=198.51.100.10
-    waitFRRPrefix 4 "${FORWARD_ADDR}/32" present "${NEXTHOP4}"
+echo "==> Checking network forward addresses are advertised"
+lxc network forward create "${BGP_NET}" "${FORWARD_ADDR}" target_address=198.51.100.10
+waitFRRPrefix 4 "${FORWARD_ADDR}/32" present "${NEXTHOP4}"
 
-    lxc network forward delete "${BGP_NET}" "${FORWARD_ADDR}"
-    waitFRRPrefix 4 "${FORWARD_ADDR}/32" absent
-fi
+lxc network forward delete "${BGP_NET}" "${FORWARD_ADDR}"
+waitFRRPrefix 4 "${FORWARD_ADDR}/32" absent
 
 echo "==> Checking NATed subnets are no longer advertised"
 lxc network set "${BGP_NET}" ipv4.nat=true ipv6.nat=true
@@ -339,20 +291,16 @@ waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
 waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
 
 echo "==> Checking the session follows the peer being removed and re-added"
-# shellcheck disable=SC2248 # Deliberate word splitting omits an empty optional configuration argument.
 lxc network set "${BGP_NET}" \
     bgp.peers.frr.address="" \
     bgp.peers.frr.asn="" \
-    bgp.peers.frr.password="" \
-    ${peer_holdtime_clear} # Don't quote to omit the empty arg.
+    bgp.peers.frr.password=""
 waitFRRSession down
 
-# shellcheck disable=SC2248 # Deliberate word splitting omits an empty optional configuration argument.
 lxc network set "${BGP_NET}" \
     bgp.peers.frr.address="${FRR_ADDR}" \
     bgp.peers.frr.asn="${FRR_ASN}" \
-    bgp.peers.frr.password="${BGP_PASSWORD}" \
-    ${peer_holdtime} # Don't quote to omit the empty arg.
+    bgp.peers.frr.password="${BGP_PASSWORD}"
 waitFRRSession up
 waitLXDPrefix "${NET_SUBNET4}" present "${NEXTHOP4}"
 waitLXDPrefix "${NET_SUBNET6}" present "${NEXTHOP6}"
@@ -362,7 +310,6 @@ waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
 echo "==> Checking a second network shares the same BGP peer session"
 # The peer is only registered once both address and ASN are set, so provide all
 # the configuration in a single command.
-# shellcheck disable=SC2248 # Deliberate word splitting omits an empty optional configuration argument.
 lxc network create "${BGP_NET2}" \
     ipv4.address="${NET2_ADDR4}" ipv4.nat=false \
     ipv6.address="${NET2_ADDR6}" ipv6.nat=false \
@@ -372,17 +319,11 @@ lxc network create "${BGP_NET2}" \
     bgp.ipv6.nexthop="${ALT_NEXTHOP6}" \
     bgp.peers.frr.address="${FRR_ADDR}" \
     bgp.peers.frr.asn="${FRR_ASN}" \
-    bgp.peers.frr.password="${BGP_PASSWORD}" \
-    ${peer_holdtime} # Don't quote to omit the empty arg.
+    bgp.peers.frr.password="${BGP_PASSWORD}"
 
 # The shared address is one peer, owned by both networks.
-if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
-    lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
-        '[.peers[] | select(.address == $peer) | .owners | length] == [2]'
-else
-    lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
-        '[.peers[] | select(.address == $peer) | .count] == [2]'
-fi
+lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
+    '[.peers[] | select(.address == $peer) | .count] == [2]'
 
 waitFRRSession up
 
@@ -394,41 +335,33 @@ waitFRRPrefix 4 "${NET2_SUBNET4}" present "${ALT_NEXTHOP4}"
 waitFRRPrefix 6 "${NET_SUBNET6}" present "${NEXTHOP6}"
 waitFRRPrefix 6 "${NET2_SUBNET6}" present "${ALT_NEXTHOP6}"
 
-if hasNeededAPIExtension network_forward; then
-    echo "==> Checking a forward of the second network is advertised over the shared session"
-    lxc network forward create "${BGP_NET2}" "${NET2_FORWARD_ADDR}" target_address=198.51.101.10
-    waitFRRPrefix 4 "${NET2_FORWARD_ADDR}/32" present "${ALT_NEXTHOP4}"
+echo "==> Checking a forward of the second network is advertised over the shared session"
+lxc network forward create "${BGP_NET2}" "${NET2_FORWARD_ADDR}" target_address=198.51.101.10
+waitFRRPrefix 4 "${NET2_FORWARD_ADDR}/32" present "${ALT_NEXTHOP4}"
 
-    lxc network forward delete "${BGP_NET2}" "${NET2_FORWARD_ADDR}"
-    waitFRRPrefix 4 "${NET2_FORWARD_ADDR}/32" absent
-fi
+lxc network forward delete "${BGP_NET2}" "${NET2_FORWARD_ADDR}"
+waitFRRPrefix 4 "${NET2_FORWARD_ADDR}/32" absent
 
 echo "==> Checking one network releasing the shared peer keeps the session for the other"
-# shellcheck disable=SC2248 # Deliberate word splitting omits an empty optional configuration argument.
 lxc network set "${BGP_NET2}" \
     bgp.peers.frr.address="" \
     bgp.peers.frr.asn="" \
-    bgp.peers.frr.password="" \
-    ${peer_holdtime_clear} # Don't quote to omit the empty arg.
+    bgp.peers.frr.password=""
 
-# The session stays up for the first network, which keeps its routes, while the
-# second network's routes are withdrawn.
-if ! [[ "${LXD_SNAP_CHANNEL}" =~ ^[45]\. ]]; then
-    lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
-        '[.peers[] | select(.address == $peer) | .owners | length] == [1]'
-else
-    lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
-        '[.peers[] | select(.address == $peer) | .count] == [1]'
-fi
+# The session stays up for the first network, which keeps its routes.
+# Without per-peer prefix filtering, the second network's routes stay advertised
+# until the network itself is deleted.
+lxc query /internal/testing/bgp | jq --exit-status --arg peer "${FRR_ADDR}" \
+    '[.peers[] | select(.address == $peer) | .count] == [1]'
 waitFRRSession up
 waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
-waitFRRPrefix 4 "${NET2_SUBNET4}" absent "${ALT_NEXTHOP4}"
 
-# Deleting the second network leaves the shared session up for the first, whose
-# routes are unaffected.
+# Deleting the second network withdraws its routes while leaving the shared
+# session up for the first, whose routes are unaffected.
 lxc network delete "${BGP_NET2}"
 waitFRRSession up
 waitFRRPrefix 4 "${NET_SUBNET4}" present "${NEXTHOP4}"
+waitFRRPrefix 4 "${NET2_SUBNET4}" absent "${ALT_NEXTHOP4}"
 
 echo "==> Checking the session goes down when the listener is unconfigured"
 lxc config unset core.bgp_address
