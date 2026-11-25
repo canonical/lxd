@@ -29,10 +29,7 @@ ip link set dummy0 up
 ip addr add 192.0.2.1/32 dev dummy0
 ip addr add 2001:db8::1/128 dev dummy0
 
-NET_CONFIG_KEY="cloud-init.network-config"
-if ! hasNeededAPIExtension cloud_init; then
-    NET_CONFIG_KEY="user.network-config"
-fi
+NET_CONFIG_KEY="user.network-config"
 
 for type in container vm; do
     instName="c1"
