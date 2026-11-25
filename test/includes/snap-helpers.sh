@@ -393,9 +393,6 @@ configure_ovn() {
         echo "" > /var/log/ovn/ovn-controller.log
     else
         microovn status || microovn cluster bootstrap
-        if ! hasNeededAPIExtension ovn_dynamic_northbound_connection; then
-          lxc config set network.ovn.northbound_connection "ssl:127.0.0.1:6641"
-        fi
     fi
 }
 
@@ -502,6 +499,14 @@ hasNeededAPIExtension() (
     local lxc_info_out
     lxc_info_out="$(lxc info)" || exit 1
     echo "${lxc_info_out}" | grep -qxFm1 -- "- ${1}"
+)
+
+# hasSupportedStorageDriver: check if LXD supports the given storage driver.
+hasSupportedStorageDriver() (
+    { set +x; } 2>/dev/null
+    local lxc_info_out
+    lxc_info_out="$(lxc info)" || exit 1
+    echo "${lxc_info_out}" | grep -qE -- "^[[:space:]]+- name: ${1}\$"
 )
 
 # runsMinimumKernel: check if the running kernel is at least the minimum version.
@@ -627,13 +632,8 @@ teardown_swap() {
     rm "${LXD_CI_SWAPFILE}"
 }
 
-# Returns true if Go coverage collection is enabled (GOCOVERDIR is set) and testing against a modern LXD version.
+# Returns true if Go coverage collection is enabled (GOCOVERDIR is set).
 coverage_enabled() {
-  # Never collect coverage data on older LXD versions
-  if [[ "${LXD_SNAP_CHANNEL:-}" =~ ^[45]\. ]]; then
-    return 1
-  fi
-
   [ -n "${GOCOVERDIR:-}" ]
 }
 
@@ -803,17 +803,10 @@ cleanup() {
             # Report some more information for diagnostic purposes
             snap list --all
             uname -a
-            if [[ "${LXD_SNAP_CHANNEL:-}" =~ ^4\.0/ ]]; then
-                lxc list
-                lxc image list
-                lxc storage list
-                lxc storage info default
-            else
-                lxc list --all-projects
-                lxc image list --all-projects
-                lxc storage list
-                for storage in $(lxc storage list -f csv | cut -d, -f1); do lxc storage info "${storage}"; done
-            fi
+            lxc list --all-projects
+            lxc image list --all-projects
+            lxc storage list
+            for storage in $(lxc storage list -f csv | cut -d, -f1); do lxc storage info "${storage}"; done
             echo "::endgroup::"
 
             echo "::group::lsmod"
