@@ -1226,3 +1226,117 @@ func SnapshotProtobufToInstanceArgs(s *state.State, inst Instance, snap *migrati
 
 	return &args, nil
 }
+
+// DiskPropsKeys are the volatile keys that record the qdev properties of the disk devices of a VM.
+// They are always set, kept and removed together.
+var DiskPropsKeys = []string{"volatile.disk_queues", "volatile.disk_iothreads"}
+
+// DiskPropsFromSource returns the values of the DiskPropsKeys for the target of a copy or a migration.
+// The result has every key. An empty value means that the target gets no value for that key.
+//
+// QEMU requires identical device properties on both ends of a live migration and when a saved state is
+// loaded. So when the transfer carries a saved state (it is live, or the source instance has one), the target
+// gets the values of the source. Otherwise there is no saved state to match, and the target records its own
+// values when it starts.
+//
+// A key that the source does not have or that is not valid gives no value, so that a target of a source
+// without the keys keeps the device properties of the source, which has none.
+func DiskPropsFromSource(source map[string]string, carriesState bool) map[string]string {
+	props := make(map[string]string, len(DiskPropsKeys))
+
+	for _, key := range DiskPropsKeys {
+		props[key] = ""
+
+		if !carriesState {
+			continue
+		}
+
+		value := source[key]
+		if value == "" {
+			continue
+		}
+
+		validator, found := instancetype.InstanceConfigKeysVM[key]
+		if !found || validator(value) != nil {
+			continue
+		}
+
+		props[key] = value
+	}
+
+	return props
+}
+
+// ApplyDiskProps sets the values of DiskPropsFromSource in config and removes the keys that have none.
+func ApplyDiskProps(config map[string]string, props map[string]string) {
+	for key, value := range props {
+		if value == "" {
+			delete(config, key)
+			continue
+		}
+
+		config[key] = value
+	}
+}
+
+// RefreshDiskPropsChanges returns the volatile keys to change on the target of a refresh. When copyKeys is set
+// the target receives a saved state, so it gets the keys of the source (a value of "" removes a key). Otherwise
+// nothing changes and the target keeps its keys. Only keys that differ from target are returned.
+func RefreshDiskPropsChanges(source map[string]string, target map[string]string, copyKeys bool) map[string]string {
+	changes := map[string]string{}
+
+	if !copyKeys {
+		return changes
+	}
+
+	for key, value := range DiskPropsFromSource(source, true) {
+		if target[key] != value {
+			changes[key] = value
+		}
+	}
+
+	return changes
+}
+
+// RefreshDiskProps records the disk property keys and the stateful flag of a VM after a refresh has replaced
+// its data. A refresh mirrors the saved state of the source, so the target holds a saved state if and only if
+// the source does. The flag follows the saved state and is written together with the keys in one transaction.
+//
+// The keys of source are taken when copyKeys is set, which is the case when the target receives a saved state
+// or a live migration. Otherwise the keys of the target stay, as the next start records the current values.
+//
+// The keys are also updated in the config maps of inst. The caller updates its own stateful flag.
+func RefreshDiskProps(ctx context.Context, s *state.State, inst Instance, source map[string]string, copyKeys bool, stateful bool) error {
+	if inst.Type() != instancetype.VM {
+		return nil
+	}
+
+	changes := RefreshDiskPropsChanges(source, inst.LocalConfig(), copyKeys)
+
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		if len(changes) > 0 {
+			err := tx.UpdateInstanceConfig(inst.ID(), changes)
+			if err != nil {
+				return err
+			}
+		}
+
+		return tx.UpdateInstanceStatefulFlag(ctx, inst.ID(), stateful)
+	})
+	if err != nil {
+		return fmt.Errorf("Failed recording the disk properties of the refreshed instance: %w", err)
+	}
+
+	for key, value := range changes {
+		for _, config := range []map[string]string{inst.LocalConfig(), inst.ExpandedConfig()} {
+			if value == "" {
+				delete(config, key)
+				continue
+			}
+
+			config[key] = value
+		}
+	}
+
+	return nil
+}

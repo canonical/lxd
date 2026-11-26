@@ -2931,6 +2931,26 @@ QEMU SMP topology matches on both ends of a live migration regardless of the
 CPU count on each host.
 ```
 
+```{config:option} volatile.disk_iothreads instance-volatile
+:shortdesc: "Whether disks used an iothread as of last boot"
+:type: "integer"
+Set to `1` when the disk devices were served by an `iothread` object when the VM booted.
+It is reused on stateful start (stateful resume or live migration) because QEMU
+requires identical device properties on both ends of a live migration.
+A VM without this key was started before `iothread` objects were introduced.
+Its disk devices have no `iothread` property until it is restarted.
+```
+
+```{config:option} volatile.disk_queues instance-volatile
+:shortdesc: "Number of disk queues used as of last boot"
+:type: "integer"
+The number of queues of the disk devices recorded when the VM booted.
+It is reused on stateful start (stateful resume or live migration) because QEMU
+requires identical device properties on both ends of a live migration.
+A VM without this key was started before disk queues were introduced.
+Its disk devices have no queue property until it is restarted.
+```
+
 ```{config:option} volatile.evacuate.origin instance-volatile
 :shortdesc: "The origin of the evacuated instance"
 :type: "string"

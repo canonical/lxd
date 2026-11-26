@@ -219,6 +219,8 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 			"volatile.last_state.power",
 			"volatile.cloud-init.instance-id",
 			"volatile.uuid.generation",
+			"volatile.disk_queues",
+			"volatile.disk_iothreads",
 		}, key) {
 			return true
 		}

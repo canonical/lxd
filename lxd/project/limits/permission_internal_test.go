@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/canonical/lxd/lxd/idmap"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -213,4 +214,63 @@ func TestProjectRestrictedContainerPrivilegeIsolated(t *testing.T) {
 		"security.idmap.isolated": "true",
 	})
 	require.NoError(t, err)
+}
+
+// TestCheckRestrictionsOnVolatileConfig checks which volatile keys a restricted project keeps when an
+// instance is created by a copy or a migration. QEMU requires identical device properties on both
+// ends of a live migration, so the volatile keys that record the disk properties must be kept.
+func TestCheckRestrictionsOnVolatileConfig(t *testing.T) {
+	project := api.Project{
+		Name:   "restricted",
+		Config: map[string]string{"restricted": "true"},
+	}
+
+	testCases := []struct {
+		name     string
+		config   map[string]string
+		strip    bool
+		expected map[string]string
+		err      bool
+	}{
+		{
+			name:     "Strip keeps the disk property keys",
+			config:   map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1", "volatile.uuid.generation": "abc"},
+			strip:    true,
+			expected: map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1", "volatile.uuid.generation": "abc"},
+		},
+		{
+			name:     "Strip removes other volatile keys",
+			config:   map[string]string{"volatile.disk_queues": "4", "volatile.last_state.idmap": "[]", "limits.cpu": "2"},
+			strip:    true,
+			expected: map[string]string{"volatile.disk_queues": "4", "limits.cpu": "2"},
+		},
+		{
+			name:     "Setting the disk property keys is allowed",
+			config:   map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"},
+			expected: map[string]string{"volatile.disk_queues": "4", "volatile.disk_iothreads": "1"},
+		},
+		{
+			name:   "Setting other volatile keys is forbidden",
+			config: map[string]string{"volatile.last_state.idmap": "[]"},
+			err:    true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := map[string]string{}
+			for k, v := range tc.config {
+				config[k] = v
+			}
+
+			err := checkRestrictionsOnVolatileConfig(project, instancetype.VM, "v1", config, map[string]string{}, tc.strip)
+			if tc.err {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, config)
+		})
+	}
 }

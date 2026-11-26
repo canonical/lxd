@@ -2568,6 +2568,13 @@ func (b *lxdBackend) CreateInstanceFromMigration(ctx context.Context, inst insta
 		return err
 	}
 
+	if args.IndexHeaderReceived != nil {
+		err = args.IndexHeaderReceived(srcInfo)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Now that we got the source details, validate against the instance limits.
 	_, rootDiskConf, err := api.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {

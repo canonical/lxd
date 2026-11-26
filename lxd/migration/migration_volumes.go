@@ -96,6 +96,11 @@ type VolumeTargetArgs struct {
 	// before any data moves. Only used for instance migration.
 	AttachedCustomVolumes map[string]struct{}
 
+	// IndexHeaderReceived is called with the decoded index header of the source, before any data is received.
+	// The header is empty when the source sends none. Returning an error aborts the receive. Only used for
+	// instance migration.
+	IndexHeaderReceived func(info *Info) error
+
 	// BeforeTransferStart is called once, right before the storage driver receives the first volume, when
 	// nothing has been written to disk yet. Returning an error aborts the receive. Only used for instance
 	// migration.

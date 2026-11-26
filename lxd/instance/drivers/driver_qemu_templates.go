@@ -355,18 +355,78 @@ func qemuPCIe(opts *qemuPCIeOpts) []cfgSection {
 	}}
 }
 
-func qemuSCSI(opts *qemuDevOpts) []cfgSection {
+// qemuSCSIIOThreadID is the ID of the iothread serving the SCSI controller.
+const qemuSCSIIOThreadID = "qemu_scsi_iothread"
+
+// qemuDiskQueues is the number of queues used for the disks of a VM that is started.
+// The value is constant and does not depend on the number of vCPUs of the VM. Otherwise the device
+// properties would change with the vCPU count and break the migration of the VM.
+// The number is recorded in volatile.disk_queues when the VM boots and reused on a stateful start,
+// so that the device properties are identical on both ends of a live migration.
+const qemuDiskQueues = 4
+
+// qemuDiskIOThreads is 1 when the disks of a VM that is started are served by an iothread.
+// It is recorded in volatile.disk_iothreads when the VM boots and reused on a stateful start.
+const qemuDiskIOThreads = 1
+
+// qemuDiskDevProps adds the iothread and queue properties of a disk device to qemuDev.
+// The virtio-blk bus gets an iothread (when iothreadID is not empty) and queues, NVMe gets I/O queue
+// pairs and the other buses are not changed.
+// A value of 0 in props means that the property is not recorded, which is the case for a VM that was
+// started before iothreads and queues were introduced. The property is not set, so that the device
+// properties of the source VM are reproduced on a live migration target.
+func qemuDiskDevProps(qemuDev map[string]any, busName string, props qemuDiskProps, iothreadID string) {
+	switch busName {
+	case "virtio-blk":
+		if iothreadID != "" {
+			qemuDev["iothread"] = iothreadID
+		}
+
+		if props.Queues > 0 {
+			qemuDev["num-queues"] = props.Queues
+		}
+
+	case "nvme":
+		if props.Queues > 0 {
+			qemuDev["max_ioqpairs"] = props.Queues
+		}
+	}
+}
+
+// qemuSCSI returns the config sections of the SCSI controller.
+// LUNs cannot have an iothread of their own, so the controller gets the iothread and the queues.
+// Each property is only set when its value in props is above 0. A VM that was started before iothreads
+// and queues were introduced has neither recorded, because the device properties of the source VM have
+// to be reproduced on a live migration target or when resuming from a saved state.
+func qemuSCSI(opts *qemuDevOpts, props qemuDiskProps) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     *opts,
 		pciName: "virtio-scsi-pci",
 		ccwName: "virtio-scsi-ccw",
 	}
 
-	return []cfgSection{{
+	entries := qemuDeviceEntries(&entriesOpts)
+	sections := []cfgSection{}
+
+	if props.IOThreads > 0 {
+		entries = append(entries, cfgEntry{key: "iothread", value: qemuSCSIIOThreadID})
+
+		sections = append(sections, cfgSection{
+			name:    `object "` + qemuSCSIIOThreadID + `"`,
+			comment: "SCSI controller iothread",
+			entries: []cfgEntry{{key: "qom-type", value: "iothread"}},
+		})
+	}
+
+	if props.Queues > 0 {
+		entries = append(entries, cfgEntry{key: "num_queues", value: strconv.Itoa(props.Queues)})
+	}
+
+	return append(sections, cfgSection{
 		name:    `device "qemu_scsi"`,
 		comment: "SCSI controller",
-		entries: qemuDeviceEntries(&entriesOpts),
-	}}
+		entries: entries,
+	})
 }
 
 func qemuBalloon(opts *qemuDevOpts) []cfgSection {
