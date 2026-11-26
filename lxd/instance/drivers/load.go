@@ -77,8 +77,9 @@ func load(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instanc
 }
 
 // validDevices validate instance device configs.
-func validDevices(state *state.State, p api.Project, instanceType instancetype.Type, localDevices deviceConfig.Devices, expandedDevices deviceConfig.Devices) error {
+func validDevices(state *state.State, p api.Project, instanceType instancetype.Type, instanceName string, localDevices deviceConfig.Devices, expandedDevices deviceConfig.Devices) error {
 	instConf := &common{
+		name:            instanceName,
 		dbType:          instanceType,
 		localDevices:    localDevices.Clone(),
 		expandedDevices: expandedDevices.Clone(),
