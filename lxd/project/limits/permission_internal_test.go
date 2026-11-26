@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/canonical/lxd/lxd/idmap"
+	"github.com/canonical/lxd/lxd/instance/instancetype"
 	"github.com/canonical/lxd/shared/api"
 )
 
@@ -213,4 +214,119 @@ func TestProjectRestrictedContainerPrivilegeIsolated(t *testing.T) {
 		"security.idmap.isolated": "true",
 	})
 	require.NoError(t, err)
+}
+
+// checkContainerInstanceDeviceRestrictions runs the project restriction checks against a
+// single container instance carrying the given device.
+func checkContainerInstanceDeviceRestrictions(projectConfig map[string]string, device map[string]string) error {
+	proj := api.Project{
+		Name:   "proj1",
+		Config: projectConfig,
+	}
+
+	inst := api.Instance{
+		Name:    "c1",
+		Type:    string(api.InstanceTypeContainer),
+		Devices: map[string]map[string]string{"eth1": device},
+	}
+
+	return checkInstanceRestrictions(proj, []api.Instance{inst}, []api.Profile{})
+}
+
+func TestProjectRestrictedManagedNIC(t *testing.T) {
+	projectConfig := map[string]string{
+		"restricted":             "true",
+		"restricted.devices.nic": "managed",
+	}
+
+	tests := []struct {
+		name          string
+		device        map[string]string
+		expectedError string
+	}{
+		{
+			name:   "Managed network allowed",
+			device: map[string]string{"type": "nic", "network": "lxdbr0"},
+		},
+		{
+			name:   "Unmanaged p2p allowed when peered",
+			device: map[string]string{"type": "nic", "nictype": "p2p", "peer": "c2:eth1"},
+		},
+		{
+			name:          "Unmanaged p2p refused when not peered",
+			device:        map[string]string{"type": "nic", "nictype": "p2p"},
+			expectedError: "Only managed network devices are allowed",
+		},
+		{
+			name:          "Peer option on another NIC type does not bypass the check",
+			device:        map[string]string{"type": "nic", "nictype": "bridged", "peer": "c2:eth1"},
+			expectedError: "Only managed network devices are allowed",
+		},
+		{
+			name:          "Peered p2p without an explicit NIC type refused",
+			device:        map[string]string{"type": "nic", "peer": "c2:eth1"},
+			expectedError: "Only managed network devices are allowed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkContainerInstanceDeviceRestrictions(projectConfig, tt.device)
+			if tt.expectedError != "" {
+				require.ErrorContains(t, err, tt.expectedError)
+				return
+			}
+
+			require.NoError(t, err)
+		})
+	}
+
+	// Even a peered p2p NIC must be refused when the restriction blocks network devices.
+	blockedProject := map[string]string{
+		"restricted":             "true",
+		"restricted.devices.nic": "block",
+	}
+
+	err := checkContainerInstanceDeviceRestrictions(blockedProject, map[string]string{"type": "nic", "nictype": "p2p", "peer": "c2:eth1"})
+	require.ErrorContains(t, err, "Network devices are forbidden")
+}
+
+func TestCheckRestrictionsOnVolatileConfigRemoval(t *testing.T) {
+	proj := api.Project{
+		Name:   "proj1",
+		Config: map[string]string{"restricted": "true"},
+	}
+
+	currentConfig := map[string]string{
+		"volatile.eth1.peer.link_id": "link-id",
+		"volatile.eth1.host_name":    "veth1234",
+		"volatile.apply_template":    "create",
+	}
+
+	// A user update cannot remove a protected volatile key.
+	err := checkRestrictionsOnVolatileConfig(proj, instancetype.Container, "c1", map[string]string{}, currentConfig, false, false)
+	require.ErrorContains(t, err, "Removing")
+
+	// Keeping the keys is allowed.
+	err = checkRestrictionsOnVolatileConfig(proj, instancetype.Container, "c1", currentConfig, currentConfig, false, false)
+	require.NoError(t, err)
+
+	// Safe keys can still be removed.
+	safeRemoved := map[string]string{
+		"volatile.eth1.peer.link_id": "link-id",
+		"volatile.eth1.host_name":    "veth1234",
+	}
+
+	err = checkRestrictionsOnVolatileConfig(proj, instancetype.Container, "c1", safeRemoved, currentConfig, false, false)
+	require.NoError(t, err)
+
+	// An update driven by LXD, such as a snapshot restore, can remove them.
+	err = checkRestrictionsOnVolatileConfig(proj, instancetype.Container, "c1", map[string]string{}, currentConfig, false, true)
+	require.NoError(t, err)
+
+	// Creation strips protected keys instead of rejecting them.
+	stripConfig := map[string]string{"volatile.eth1.peer.link_id": "link-id"}
+	err = checkRestrictionsOnVolatileConfig(proj, instancetype.Container, "c1", stripConfig, map[string]string{}, true, false)
+	require.NoError(t, err)
+	require.NotContains(t, stripConfig, "volatile.eth1.peer.link_id")
 }
